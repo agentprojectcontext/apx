@@ -153,6 +153,7 @@
   flex: 1;
   min-width: 0;
 }
+/* A plain card: only its title says to take care. */
 .chan__mine {
   display: flex;
   flex-direction: column;
@@ -160,9 +161,9 @@
   gap: 8px;
   margin-top: 20px;
   padding: 12px;
-  border: 1px solid color-mix(in srgb, var(--apx-warning) 45%, transparent);
+  border: 1px solid var(--apx-border);
   border-radius: 10px;
-  background: var(--apx-warning-soft);
+  background: var(--apx-fill);
   font-size: var(--apx-text-xs);
 }
 .chan__minehead {
@@ -437,6 +438,18 @@
   border: 1px dashed var(--apx-border-strong);
   background: transparent;
   color: var(--apx-fg-muted);
+}
+/* Their emoji (and the agent's) sit on the bubble's lower edge, as the chat apps show them. */
+.chan__reactions {
+  display: inline-flex;
+  gap: 2px;
+  margin-top: -14px;
+  padding: 1px 6px;
+  border: 1px solid var(--apx-border);
+  border-radius: 999px;
+  background: var(--apx-bg);
+  font-size: var(--apx-text-sm);
+  line-height: 1.4;
 }
 .chan__when {
   color: var(--apx-fg-subtle);
