@@ -116,3 +116,74 @@ test("the description tells the model NOT to loop over projects", () => {
   assert.match(d, /Never loop over projects/i);
   assert.ok(!listTasksTool.schema.function.parameters.required?.includes("project"));
 });
+
+// ── #60: an empty filtered list is not an empty project ──────────────────────
+
+test("a filtered query with no matches says so and carries the real counts (#60)", async () => {
+  const run = createTask(A, { title: "running one" });
+  const blk = createTask(A, { title: "blocked one" });
+  setTaskStatus(A, run.id, "running");
+  setTaskStatus(A, blk.id, "blocked");
+
+  const r = await handler({ project: "alpha", state: "all", status: "pending" });
+  assert.equal(r.matched, 0);
+  assert.deepEqual(r.tasks, []);
+  assert.deepEqual(r.filters, { state: "all", status: "pending" });
+  assert.equal(r.project_counts.total, 2);
+  assert.equal(r.project_counts.status.running, 1);
+  assert.equal(r.project_counts.status.blocked, 1);
+  assert.match(r.note, /has 2 task\(s\)/);
+
+  // Without the status filter the same project answers with both rows.
+  const both = await handler({ project: "alpha", state: "all" });
+  assert.equal(both.length, 2);
+});
+
+test("a genuinely empty project says it has no tasks at all", async () => {
+  const r = await handler({ project: "alpha", status: "pending" });
+  assert.equal(r.matched, 0);
+  assert.match(r.note, /no tasks at all/);
+});
+
+test("cross-project empty results carry filters and totals too", async () => {
+  const t = createTask(B, { title: "beta running" });
+  setTaskStatus(B, t.id, "running");
+  const r = await handler({ status: "pending" });
+  assert.equal(r.tasks.length, 0);
+  assert.deepEqual(r.filters, { state: "open", status: "pending" });
+  assert.equal(r.totals.open, 1);
+});
+
+test("summary:true returns the same counts as countTasks, custom columns included", async () => {
+  const { countTasks } = await import("#core/stores/tasks.js");
+  const a = createTask(A, { title: "r" });
+  const b = createTask(A, { title: "b" });
+  const q = createTask(A, { title: "q", status: "qa" }, { statuses: ["pending", "qa"] });
+  setTaskStatus(A, a.id, "running");
+  setTaskStatus(A, b.id, "blocked");
+  createTask(B, { title: "elsewhere" });
+
+  const one = await handler({ project: "alpha", summary: true });
+  assert.equal(one.scope, "project");
+  assert.equal(one.project, "alpha");
+  assert.equal(one.open, 3);
+  assert.equal(one.status.qa, 1);
+  assert.equal(one.status.running, 1);
+  // Never another project's tasks by accident.
+  const { attention: _a, ...mine } = one;
+  const { attention: _b, ...core } = countTasks(A);
+  assert.deepEqual({ ...mine, scope: undefined, project: undefined }, { ...core, scope: undefined, project: undefined });
+  assert.equal(q.status, "qa");
+
+  const all = await handler({ summary: true });
+  assert.equal(all.scope, "all_projects");
+  assert.deepEqual(all.projects.map((p) => [p.project, p.open]), [["alpha", 3], ["beta", 1]]);
+});
+
+test("the status filter accepts a custom column (no built-in enum)", async () => {
+  const schema = listTasksTool.schema.function.parameters.properties.status;
+  assert.equal(schema.enum, undefined);
+  createTask(A, { title: "in qa", status: "qa" }, { statuses: ["pending", "qa"] });
+  const r = await handler({ project: "alpha", status: "qa" });
+  assert.equal(r.length, 1);
+});

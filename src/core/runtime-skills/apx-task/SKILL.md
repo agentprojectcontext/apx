@@ -28,6 +28,7 @@ apx task list --project acme --state done
 apx task list --project acme --tag urgent
 apx task list --project acme --due-before 2026-06-01
 apx task list --project acme --limit 5
+apx task summary --project acme              # counts per state/column — same numbers as the panel
 
 # Inspect / mutate
 apx task show t_abc123 --project acme
@@ -119,10 +120,17 @@ The whole lifecycle is tools. Nothing about a task needs a shell.
 |---|---|
 | note something down | `create_task` |
 | see what is pending | `list_tasks` (omit `project` for every project, in ONE call) |
+| "how is the project going", a status overview | `list_tasks({ summary: true })` — counts per state and column |
 | read what a task actually says | **`get_task`** |
 | change what it says | **`update_task`** |
 | move it, close it, drop it, reopen it | `complete_task` |
 | report what you found or did | `comment_task` |
+
+**An empty filtered list is not an empty project.** When filters match nothing,
+`list_tasks` answers `{ tasks: [], matched: 0, filters, project_counts | totals, note }`.
+Report "nothing matches <filters>", never "there are no tasks"; for an overview
+ask for `summary: true` instead of guessing a filter. `status` takes custom
+column ids too.
 
 `list_tasks` rows are deliberately compact — no `description`, no `body`, no
 comments — so anything past the title is `get_task`. It returns the thread and
@@ -190,7 +198,7 @@ POST   /api/projects/:pid/tasks/:id/done         { by? }
 POST   /api/projects/:pid/tasks/:id/drop         { by? }
 POST   /api/projects/:pid/tasks/:id/reopen
 POST   /api/projects/:pid/tasks/:id/status       { status: pending|running|in_review|blocked }
-GET    /api/projects/:pid/tasks-summary          → { open, done, dropped, overdue, total, status:{…} }
+GET    /api/projects/:pid/tasks-summary          → { open, done, dropped, overdue, total, status:{…}, attention:{awaits_owner, blocked_by_owner} }
 ```
 
 ## Don't

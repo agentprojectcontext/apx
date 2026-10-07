@@ -88,6 +88,20 @@ preguntas distintas: "qué está trabado ahora" no es "qué está abierto".
 Si el log de tareas de un proyecto no se puede leer, ese proyecto se saltea y un aviso lo
 nombra — un archivo ilegible nunca deja la vista entera en blanco.
 
+Una lista filtrada que no encuentra nada dice qué filtros aplicó (`(no tasks match
+status=pending …)`): nunca se lee como "el proyecto no tiene tareas".
+
+### `apx task summary`
+
+```bash
+apx task summary --project myapp     # abiertas / hechas / descartadas, una línea por columna, qué espera por vos
+apx task summary --project myapp --json
+```
+
+Los mismos conteos que ven el panel y el agente (`GET /api/projects/:pid/tasks-summary`, y
+`list_tasks` con `summary: true`): todas las columnas de fábrica más cualquier columna
+personalizada en uso.
+
 <Terminal command="apx task list --project myapp" caption="apx task list — tasks abiertas con id, título, tags, fecha de vencimiento y agente">
 {`ID    STATE    DUE         TAGS                TITLE
 t-1a  open     2026-06-16  checkout,urgent     Wire Stripe webhooks before merge

@@ -1811,6 +1811,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     commands: [
       ["add | new | create \"<title>\"", "Create a task. Tags repeatable."],
       ["list | ls", "List tasks (default state=open)."],
+      ["summary", "Counts per state and column for one project — same numbers as the panel."],
       ["show | get <id>", "Print one task as JSON."],
       ["done | complete <id>", "Mark task done."],
       ["drop | archive <id>", "Drop / archive a task."],
@@ -1820,7 +1821,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     options: [
       ["--project <name|id|path>", "Pin command to a specific project."],
       ["--all", "list: fold every registered project into one list, each row labelled."],
-      ["--status <s>", "list: workflow sub-status — pending | running | in_review | blocked."],
+      ["--status <s>", "list: workflow column — pending | running | in_review | blocked, or a custom column id."],
       ["--updated-since <ISO>", "list: only what moved since that moment."],
       ["--category <c>", "add/patch: what kind of task — general | trip. A trip carries a place."],
       ["--place \"<name>\"", "add/patch: the place this errand is at. Empty clears the location."],
@@ -1833,6 +1834,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       "apx task add \"Buy ibuprofen\" --category trip --place \"Pharmacy on Main\" --at \"-41.13,-71.31\"",
       "apx task list --state open --tag release",
       "apx task list --all --status blocked",
+      "apx task summary --project acme",
       "apx task done t_abc123",
     ],
   }),

@@ -591,11 +591,16 @@ export function reopenTask(storagePath, idOrPrefix) {
   return getTask(storagePath, existing.id);
 }
 
-/** Counts for status displays. */
-export function countTasks(storagePath) {
+/**
+ * Counts for status displays — the ONE aggregator behind the panel's summary
+ * route, `apx task summary` and the agent's `list_tasks {summary:true}`, so the
+ * three can never disagree about how many tasks a project has.
+ */
+export function countTasks(storagePath, { owner_name = null } = {}) {
   const tasks = [...projectState(readAllEvents(storagePath)).values()];
   const today = new Date().toISOString().slice(0, 10);
   const open = tasks.filter((t) => t.state === "open");
+  const aliases = ownerAliasesFrom(owner_name);
   // Every built-in, plus any configured column actually in use — a board with a
   // "qa" column whose summary never mentions qa is a summary of a different board.
   const byStatus = {};
@@ -608,5 +613,9 @@ export function countTasks(storagePath) {
     overdue: open.filter((t) => t.due && t.due < today).length,
     total: tasks.length,
     status: byStatus,
+    attention: {
+      awaits_owner: open.filter((t) => awaitsOwner(t, aliases)).length,
+      blocked_by_owner: open.filter((t) => blockedByOwner(t)).length,
+    },
   };
 }

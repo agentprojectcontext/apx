@@ -88,6 +88,19 @@ different questions: "what is blocked right now" is not "what is open".
 If a project's task log cannot be read, that project is skipped and a warning names it —
 one unreadable file never blanks out the whole view.
 
+A filtered list that matches nothing says which filters it applied (`(no tasks match
+status=pending …)`) — it never reads as "the project has no tasks".
+
+### `apx task summary`
+
+```bash
+apx task summary --project myapp     # open / done / dropped, one line per column, what waits on you
+apx task summary --project myapp --json
+```
+
+The same counts the panel and the agent see (`GET /api/projects/:pid/tasks-summary`, and
+`list_tasks` with `summary: true`): every built-in column plus any custom column in use.
+
 <Terminal command="apx task list --project myapp" caption="apx task list — open tasks with id, title, tags, due date, and agent">
 {`ID    STATE    DUE         TAGS                TITLE
 t-1a  open     2026-06-16  checkout,urgent     Wire Stripe webhooks before merge

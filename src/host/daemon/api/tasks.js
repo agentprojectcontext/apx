@@ -354,6 +354,6 @@ export function register(api, { project, projects, config, plugins, registries }
   api.get("/projects/:pid/tasks-summary", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    res.json(countTasks(p.storagePath));
+    res.json(countTasks(p.storagePath, { owner_name: resolveOwnerName() }));
   });
 }

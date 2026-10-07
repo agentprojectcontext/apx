@@ -5,6 +5,7 @@
 //                          [--category trip] [--place "Farmacia X"] [--at "-41.13,-71.31"] [--radius 1500]
 //   apx task list          [--all | --project X] [--state ...] [--status ...] [--tag X] [--agent Y]
 //                          [--due-before ISO] [--due-after ISO] [--updated-since ISO] [--limit N]
+//   apx task summary       [--project X]
 //   apx task show <id>     [--project X]
 //   apx task done <id>     [--project X] [--by name]
 //   apx task drop <id>     [--project X] [--by name]
@@ -26,7 +27,8 @@ import { resolveProjectId } from "./project.js";
 // ── Usage strings (also used by index.js help topics) ────────────────────────
 export const TASK_USAGE = {
   add:    'apx task add "<title>" [--project X] [--description D] [--body Y] [--tag t]... [--due 2026-05-30] [--agent A] [--category trip] [--place "Farmacia X"] [--at "lat,lon"] [--radius 1500]',
-  list:   "apx task list [--all | --project X] [--state open|done|dropped|all] [--status pending|running|in_review|blocked] [--tag X] [--agent Y] [--due-before ISO] [--due-after ISO] [--updated-since ISO] [--limit N]",
+  list:   "apx task list [--all | --project X] [--state open|done|dropped|all] [--status pending|running|in_review|blocked|<column>] [--tag X] [--agent Y] [--due-before ISO] [--due-after ISO] [--updated-since ISO] [--limit N]",
+  summary: "apx task summary [--project X]",
   show:   "apx task show <id> [--project X]",
   done:   "apx task done <id> [--project X] [--by name]",
   drop:   "apx task drop <id> [--project X] [--by name]",
@@ -52,9 +54,13 @@ function shortTs(iso) {
   return String(iso).replace(/T/, " ").replace(/Z$/, "").slice(0, 16);
 }
 
-function renderTable(rows, { showProject = false } = {}) {
+function renderTable(rows, { showProject = false, filters = null } = {}) {
   if (!rows.length) {
-    console.log("(no tasks)");
+    // A filtered empty list is "nothing matches", never "there are no tasks".
+    const f = filters && Object.keys(filters).length
+      ? Object.entries(filters).map(([k, v]) => `${k}=${v}`).join(" ")
+      : "";
+    console.log(f ? `(no tasks match ${f} — try \`apx task summary\` for the full picture)` : "(no tasks)");
     return;
   }
   const idW = Math.max(...rows.map((r) => String(r.id).length), 4);
@@ -186,12 +192,25 @@ export async function cmdTaskList(args) {
     : `/api/projects/${await resolveProjectId(args?.flags?.project)}/tasks${qs ? "?" + qs : ""}`;
 
   const { rows, meta } = unwrap(await http.get(path));
-  renderTable(rows, { showProject: all });
+  renderTable(rows, { showProject: all, filters: Object.fromEntries(params) });
 
   // A project whose task log could not be read is reported, never swallowed.
   for (const s of meta?.skipped || []) {
     console.error(`warning: project #${s.id} skipped — ${s.error}`);
   }
+}
+
+// ── summary ───────────────────────────────────────────────────────────────────
+// The same aggregator as the panel and the agent's list_tasks {summary:true}.
+export async function cmdTaskSummary(args) {
+  const pid = await resolveProjectId(args?.flags?.project);
+  const s = await http.get(`/api/projects/${pid}/tasks-summary`);
+  if (args.flags?.json) return console.log(JSON.stringify(s, null, 2));
+  console.log(`open ${s.open} · done ${s.done} · dropped ${s.dropped} · total ${s.total}` +
+    (s.overdue ? ` · overdue ${s.overdue}` : ""));
+  for (const [col, n] of Object.entries(s.status || {})) console.log(`  ${col.padEnd(12)} ${n}`);
+  if (s.attention?.awaits_owner) console.log(`waiting on you: ${s.attention.awaits_owner}`);
+  if (s.attention?.blocked_by_owner) console.log(`blocked on you: ${s.attention.blocked_by_owner}`);
 }
 
 // ── show ──────────────────────────────────────────────────────────────────────

@@ -102,6 +102,19 @@ test("list rows carry a comment count, not the thread", async () => {
   assert.equal(row.comments, undefined);
 });
 
+// ── summary (#60) ────────────────────────────────────────────────────────────
+
+test("tasks-summary counts every column and what waits on the owner", async () => {
+  const before = await (await api("/projects/0/tasks-summary")).json();
+  const t = await newTask({ title: "pregunta", status: "running" });
+  await post(`/projects/0/tasks/${t.id}/comments`, { text: "@owner ¿avanzo?", by: "rocky" });
+  const s = await (await api("/projects/0/tasks-summary")).json();
+  assert.equal(s.open, before.open + 1);
+  assert.equal(s.status.running, (before.status.running || 0) + 1);
+  assert.equal(s.attention.awaits_owner, before.attention.awaits_owner + 1);
+  assert.equal(typeof s.attention.blocked_by_owner, "number");
+});
+
 // ── subtasks ────────────────────────────────────────────────────────────────
 
 test("?parent selects children, and ?parent= selects the roots", async () => {
