@@ -3,6 +3,7 @@
 
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type { Organization } from "@apx/protocol";
 import { readOrganization, writeOrganization } from "../apc/org.ts";
@@ -134,6 +135,23 @@ export function appHandlers(deps: {
       if (!project) throw notFound(`project ${r.project}`);
       return { project: publicProject(project), agents: r.agents };
     },
+    "projects.create": ({ name, kind, description, path: dir }) => {
+      const typed = dir?.replace(/^~(?=$|[/\\])/, os.homedir());
+      if (typed && !path.isAbsolute(typed)) throw badRequest(`${dir} is not a full path`);
+      const root = typed ? path.resolve(typed) : freeFolder(path.join(deps.home, "projects"), slugOf(name ?? ""));
+      let r: ReturnType<typeof deps.apc.register>;
+      try {
+        fs.mkdirSync(root, { recursive: true });
+        initProject(root, name);
+        writeProjectMeta(root, { name, kind, description });
+        r = deps.apc.register(root);
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+      const project = store.projects.get(r.project);
+      if (!project) throw notFound(`project ${r.project}`);
+      return { project: publicProject(project), agents: r.agents };
+    },
     "projects.update": ({ project: id, name, description, kind }) => {
       const project = store.projects.get(id);
       if (!project) throw notFound(`project ${id}`);
@@ -214,12 +232,30 @@ export function appHandlers(deps: {
 const desktopPrefs = (store: Store) => store.settings.read("desktop");
 
 /** Makes a plain folder an APC project, writing only what is missing: AGENTS.md (named after it) and .apc/. */
-function initProject(dir: string): void {
+function initProject(dir: string, name?: string): void {
   const abs = path.resolve(dir);
   if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) return;
   const agents = path.join(abs, "AGENTS.md");
-  if (!fs.existsSync(agents)) fs.writeFileSync(agents, `# ${path.basename(abs)}\n`);
+  if (!fs.existsSync(agents)) fs.writeFileSync(agents, `# ${name ?? path.basename(abs)}\n`);
   fs.mkdirSync(path.join(abs, ".apc"), { recursive: true });
+}
+
+/** A folder name from a project's name: "Ventas Q4 · Acme" → "ventas-q4-acme". */
+const slugOf = (name: string) =>
+  name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "project";
+
+/** `<parent>/<slug>`, or `<slug>-2`, `-3`… when taken: a new project never lands in another's folder. */
+function freeFolder(parent: string, slug: string): string {
+  for (let n = 1; ; n++) {
+    const dir = path.join(parent, n === 1 ? slug : `${slug}-${n}`);
+    if (!fs.existsSync(dir)) return dir;
+  }
 }
 
 /** Slugs are unique, and a role's area is one of the areas (a removed area leaves its roles general, as in v1). */

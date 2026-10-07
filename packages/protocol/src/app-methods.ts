@@ -370,6 +370,25 @@ export const appMethods = {
     access: "human",
   },
   /**
+   * A new project: in a folder (made if missing; a plain one gets an AGENTS.md and .apc/), or, without one, in a folder
+   * of its own inside APX's home (`projects/<name>`). Name, kind and description go to its .apc/project.json; a project
+   * in a folder with no name given keeps the folder's.
+   */
+  "projects.create": {
+    params: z
+      .object({
+        name: z.string().trim().min(1).max(80).optional(),
+        kind: ProjectKind.optional(),
+        description: z.string().trim().max(500).optional(),
+        path: z.string().trim().min(1).max(1024).optional(),
+      })
+      .strict()
+      .refine((p) => p.name || p.path, "a name or a folder"),
+    result: z.object({ project: Project, agents: z.number().int() }),
+    effect: true,
+    access: "human",
+  },
+  /**
    * Renames a project, or changes its description or kind, in its .apc/project.json (every other key there stays).
    * An empty string or null removes the field. The base project has no folder and cannot be changed.
    */

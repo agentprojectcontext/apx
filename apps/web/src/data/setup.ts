@@ -55,6 +55,16 @@ export async function importV1(groups: Params<"setup.import_v1">["groups"]) {
   }
 }
 
+/** A new project, in a folder or in one of its own inside APX's; the project, or nothing when it failed. */
+export async function createProject(p: Params<"projects.create">): Promise<{ id: string; name: string } | undefined> {
+  try {
+    return (await client.call("projects.create", p)).project;
+  } catch (e) {
+    notify(t("error.change", { error: errText(e) }));
+    return undefined;
+  }
+}
+
 /** A folder becomes a project (a plain one gets an AGENTS.md); the project, or nothing when it failed. */
 export async function addProject(path: string): Promise<{ id: string; name: string } | undefined> {
   try {

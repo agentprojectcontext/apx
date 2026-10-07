@@ -545,7 +545,23 @@
   right: 0;
 }
 
-/* New project dialog: the folder path with the desktop app's picker beside it. */
+/* New project dialog: where it lives, then its name, kind and description; a folder path has the picker beside it. */
+.newproject {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.newproject > .apx-segmented {
+  align-self: flex-start;
+}
+.newproject__hint {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.newproject__hint code {
+  overflow-wrap: anywhere;
+}
 .newproject__row {
   display: flex;
   gap: 8px;

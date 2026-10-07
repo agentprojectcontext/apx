@@ -42,3 +42,39 @@ test("unregister keeps files and history, stops queued watchers, and registering
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("a project is created with a name and kind: without a folder in APX's home, or in a folder, named or not", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-project-create-")));
+  try {
+    const a = await env.client.call("projects.create", { name: "Ventas Q4 · Acme", kind: "company" });
+    assert.equal(a.project.name, "Ventas Q4 · Acme");
+    assert.equal(a.project.kind, "company");
+    assert.equal(
+      fs.realpathSync(a.project.path ?? ""),
+      path.join(fs.realpathSync(env.home), "projects", "ventas-q4-acme"),
+    );
+    assert.match(fs.readFileSync(path.join(a.project.path ?? "", "AGENTS.md"), "utf8"), /^# Ventas Q4 · Acme/);
+    // The same name again gets a folder of its own.
+    const b = await env.client.call("projects.create", { name: "Ventas Q4 · Acme" });
+    assert.equal(path.basename(b.project.path ?? ""), "ventas-q4-acme-2");
+
+    // A folder that does not exist yet is made; with no name, the project takes the folder's.
+    const c = await env.client.call("projects.create", { path: path.join(outside, "northwind") });
+    assert.equal(c.project.name, "northwind");
+    const d = await env.client.call("projects.create", {
+      path: path.join(outside, "globex"),
+      name: "Globex shop",
+      kind: "app",
+      description: "The online store.",
+    });
+    assert.equal(d.project.name, "Globex shop");
+    assert.equal(d.project.description, "The online store.");
+    await assert.rejects(env.client.call("projects.create", {}), /invalid params/);
+    await assert.rejects(env.client.call("projects.create", { path: "work/relative" }), /not a full path/);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});

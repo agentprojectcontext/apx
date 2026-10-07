@@ -49,3 +49,22 @@ test("a plain folder becomes a project from the sidebar and opens", async ({ pag
   await page.getByRole("tab", { name: "Archivos" }).click();
   await expect(page.getByRole("button", { name: "AGENTS.md" })).toBeVisible();
 });
+
+test("a project without a folder is made inside APX's, with its name and kind", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Nuevo proyecto" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("radio", { name: "Sin carpeta" }).click();
+  await dialog.getByRole("textbox", { name: "Nombre" }).fill("Ventas Q4");
+  await expect(dialog.getByText("~/.apx/v2/projects/ventas-q4")).toBeVisible();
+  await dialog.getByRole("combobox", { name: "Tipo" }).click();
+  await page.getByRole("option", { name: /^Empresa/ }).click();
+  await dialog.getByRole("button", { name: "Sumar" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Ventas Q4" })).toBeVisible();
+  const made = (
+    await rpc<{ projects: Array<{ name: string; kind?: string; path?: string }> }>("projects.list")
+  ).projects.find((p) => p.name === "Ventas Q4");
+  expect(made?.kind).toBe("company");
+  expect(made?.path).toMatch(/projects[/\\]ventas-q4$/);
+});
