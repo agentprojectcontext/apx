@@ -57,6 +57,9 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     const comment = drawer.getByRole("textbox", { name: "Comentario", exact: true });
     const description = drawer.getByRole("textbox", { name: "Descripción", exact: true });
     expect((await description.boundingBox())?.height).toBeGreaterThanOrEqual(180);
+    // The description reads like editable text, not a disabled field.
+    const colorOf = (el: Element) => getComputedStyle(el).color;
+    expect(await description.evaluate(colorOf)).toBe(await drawer.locator(".drawer__title").evaluate(colorOf));
     await drawer.getByRole("combobox", { name: "Agente", exact: true }).click();
     await expect(page.getByRole("option")).toHaveText(["Nadie", /^Roby/, "Builder"]);
     await page

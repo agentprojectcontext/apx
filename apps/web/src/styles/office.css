@@ -29,8 +29,6 @@
 .taskdetail__desc {
   margin: 0;
   font-size: var(--apx-text-sm);
-  color: var(--apx-fg-muted);
-  white-space: pre-wrap;
 }
 .taskdetail__chat {
   max-height: 340px;
