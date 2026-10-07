@@ -145,6 +145,7 @@ export interface MessagesTable {
   model: string | null;
   created_at: string;
   delivery: string | null;
+  reactions: string | null;
 }
 
 export interface MessagesNTable {

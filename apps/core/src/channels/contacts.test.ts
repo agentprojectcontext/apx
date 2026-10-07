@@ -145,6 +145,53 @@ test("an agent that answers SKIP sends nothing", async () => {
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /answer only SKIP/);
 });
 
+test("a reaction to the agent's message shows on it, and never wakes the agent", async () => {
+  const before = tg.messagesTo(MAG.id).length;
+  tg.message(MAG, "what time is it there?");
+  await until(() => tg.messagesTo(MAG.id).length > before, "answer");
+  const target = tg.messagesTo(MAG.id).at(-1)?.message_id ?? 0;
+  const reactionsOn = async () =>
+    (await env.client.call("threads.get", { thread })).messages.find((m) => m.author.kind === "agent" && m.reactions)
+      ?.reactions;
+  await until(async () => {
+    const { messages } = await env.client.call("threads.get", { thread });
+    return messages.at(-1)?.author.kind === "agent";
+  }, "answer stored");
+  await env.settle(thread);
+  const calls = llm.calls.length;
+  tg.react(MAG, target, "👍");
+  await until(async () => (await reactionsOn())?.[0]?.emoji === "👍", "reaction shown");
+  assert.deepEqual(await reactionsOn(), [{ emoji: "👍", by: "them" }]);
+  tg.react(MAG, target);
+  await until(async () => !(await reactionsOn()), "reaction taken off");
+  assert.equal(llm.calls.length, calls, "no model call");
+});
+
+test("with closers set to react, a thanks gets an emoji instead of words", async () => {
+  await env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "roby", closers: "react" },
+  });
+  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+  const sent = tg.messagesTo(MAG.id).length;
+  const calls = llm.calls.length;
+  const id = tg.message(MAG, "muchas gracias!");
+  await until(() => tg.reactionsTo(MAG.id).length > 0, "reaction sent");
+  assert.deepEqual(tg.reactionsTo(MAG.id).at(-1)?.body, {
+    chat_id: MAG.id,
+    message_id: id,
+    reaction: [{ type: "emoji", emoji: "❤" }],
+  });
+  await until(async () => {
+    const { messages } = await env.client.call("threads.get", { thread });
+    return messages.at(-1)?.reactions?.[0]?.emoji === "❤️";
+  }, "the agent's reaction shown on their message");
+  assert.equal(tg.messagesTo(MAG.id).length, sent, "no words went back");
+  assert.equal(llm.calls.length, calls, "no model call");
+  await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" } });
+  await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+});
+
 test("the owner tells the agent what to answer in the app; the answer goes to the contact", async () => {
   const sent = tg.messagesTo(MAG.id).length;
   await env.client.call("threads.send", { thread, text: "tell them it ships on Friday" });

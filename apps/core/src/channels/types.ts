@@ -1,7 +1,16 @@
-// The contract every channel (Telegram, later WhatsApp…) implements. An adapter only translates: platform messages in,
-// presentations out. Who someone is, what they may do and where a reply goes are decided by the manager and the core.
+// The contract every channel (Telegram, WhatsApp, Discord, Slack…) implements. An adapter only translates: platform
+// messages in, presentations out. Who someone is, what they may do and where a reply goes are decided by the manager
+// and the core.
+//
+// A new channel, beyond receive/send, covers what its platform offers (each is optional; the app hides what is not):
+// - delivery ticks: return the platform's id from `send`, and call `io.receipt` when it reaches their device or is
+//   read (WhatsApp does; the Telegram Bot API tells neither, so its messages stop at "sent");
+// - reactions in: call `io.reaction` when someone puts or takes off an emoji on a message (it never wakes the agent);
+// - reactions out: set `caps.reactions` and `react`, so a closing "ok"/"gracias" can get an emoji (channel setting
+//   `closers`); set `Inbound.ref` when the id to react to is not `external_id`;
+// - presence (online / last seen) and avatars, where the platform shares them.
 import type { ChannelInfo } from "@apx/protocol";
-import type { Inbound, InboundAction, Presentation } from "../domain/channels.ts";
+import type { Inbound, InboundAction, InboundReaction, Presentation } from "../domain/channels.ts";
 
 export type ChannelConfig = Omit<ChannelInfo, "token_set" | "token_hint" | "status" | "error" | "account">;
 
@@ -12,6 +21,8 @@ export type AdapterCaps = {
   buttons: boolean;
   /** Shows the answer as it is written (a draft the final message replaces). */
   drafts?: boolean;
+  /** Puts an emoji on a message (`react`). */
+  reactions?: boolean;
   /**
    * The channel is the owner's own account (WhatsApp on their own phone): a stranger never gets a pairing code from
    * it; their request is only listed for the owner to approve.
@@ -51,6 +62,8 @@ export type AdapterIO = {
   status(s: "running" | "error", error?: string): void;
   /** A QR to link the account (none once linked or expired), shown to the owner in the app. */
   qr?(code: string | undefined): void;
+  /** Someone put an emoji on a message (by the platform's id), or took theirs off (`emoji` empty). */
+  reaction?(r: InboundReaction): void;
   /** A message we sent (by the platform's id) reached their device, or was seen. */
   receipt?(externalId: string, state: "delivered" | "read"): void;
   /** Connected as this account; `owner` is the owner's own address on it (a linked device is the owner). */
@@ -73,6 +86,8 @@ export interface ChannelAdapter {
   typing?(conversation: string): Promise<void>;
   /** The answer so far, shown as a draft under one id per answer; the final message is sent with `send`. */
   draft?(conversation: string, draftId: number, text: string): Promise<void>;
+  /** Puts the agent's emoji on a message (`ref`: the platform's id of it); "" takes it off. */
+  react?(conversation: string, ref: string, emoji: string): Promise<void>;
   /** The profile picture someone shows on the platform (none when hidden or not set). */
   avatar?(externalId: string): Promise<{ mime: string; data: Buffer } | undefined>;
   /**

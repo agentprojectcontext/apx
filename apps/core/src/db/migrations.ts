@@ -610,4 +610,8 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE outbox ADD COLUMN message_id TEXT;
   CREATE INDEX outbox_external ON outbox(channel, external_id) WHERE external_id IS NOT NULL;
   `,
+  `
+  -- Emoji put on a channel message, by the agent or the other side (JSON, at most one per side).
+  ALTER TABLE messages ADD COLUMN reactions TEXT;
+  `,
 ];

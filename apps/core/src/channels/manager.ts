@@ -155,6 +155,12 @@ export function createChannels(deps: {
     attention: deps.attention,
     ownAccount: (id) => Boolean(live.get(id)?.adapter.caps.ownAccount),
     rooms,
+    react: async (id, conversation, ref, emoji) => {
+      const l = live.get(id);
+      if (l?.status !== "running" || !l.adapter.caps.reactions || !l.adapter.react) return false;
+      await l.adapter.react(conversation, ref, emoji);
+      return true;
+    },
   });
 
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
@@ -391,6 +397,7 @@ export function createChannels(deps: {
       const r = await adapter.start({
         receive: (m) => inbound.receive(config.id, m),
         action: (a) => void inbound.action(config.id, a),
+        reaction: (r) => inbound.reaction(config.id, r),
         status: (s, error) => {
           l.status = s;
           l.error = error;

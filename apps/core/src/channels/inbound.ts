@@ -2,7 +2,7 @@
 // contact's sealed thread, or a pairing code for a stranger. Button presses decide only when the owner presses them.
 
 import type { Thread } from "@apx/protocol";
-import type { Inbound, InboundAction, OutboxRow, Presentation } from "../domain/channels.ts";
+import type { Inbound, InboundAction, InboundReaction, OutboxRow, Presentation } from "../domain/channels.ts";
 import type { MediaRecord } from "../domain/media.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
@@ -15,7 +15,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { untrusted } from "../tools/result.ts";
-import { asksSomething, needsNoAnswer } from "./closers.ts";
+import { asksSomething, needsNoAnswer, reactionFor } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { buttonId, parseButton } from "./notices.ts";
 import type { createRooms } from "./rooms.ts";
@@ -42,6 +42,8 @@ export function createInbound(deps: {
   ownAccount(channel: string): boolean;
   /** Messages in the public rooms the owner listed. */
   rooms: ReturnType<typeof createRooms>;
+  /** Puts the agent's emoji on a platform message; false when the channel has no reactions or is not running. */
+  react(channel: string, conversation: string, ref: string, emoji: string): Promise<boolean>;
 }) {
   const { store, log, call, delivery } = deps;
   const recent = new Map<string, number[]>();
@@ -114,7 +116,10 @@ export function createInbound(deps: {
       return "done";
     }
     if (!attachments.length && closesChat(thread.id, text)) {
-      keepQuiet(thread.id, cfg.id, owner ? undefined : person, text.trim());
+      const kept = keepQuiet(thread.id, cfg.id, owner ? undefined : person, text.trim());
+      const emoji = cfg.closers === "react" ? reactionFor(text) : undefined;
+      if (emoji && (await deps.react(cfg.id, m.conversation, m.ref ?? m.external_id, emoji).catch(() => false)))
+        store.messages.setReaction(kept, "agent", emoji);
       return "done";
     }
     text = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
@@ -289,9 +294,9 @@ export function createInbound(deps: {
     person: { id: string; name: string; muted?: boolean } | undefined,
     text: string,
     attachments: string[] = [],
-  ): void {
-    store.tx(() => {
-      store.messages.add({
+  ): string {
+    return store.tx(() => {
+      const kept = store.messages.add({
         thread_id: threadId,
         author: person ? { kind: "person", id: person.id, name: person.name, channel } : { kind: "user" },
         parts: [
@@ -322,7 +327,21 @@ export function createInbound(deps: {
       ]);
       const t = store.threads.get(threadId);
       store.threads.patch(threadId, { preview: previewOf(text), ...(person ? { unread: (t?.unread ?? 0) + 1 } : {}) });
+      return kept.id;
     });
+  }
+
+  /**
+   * Someone put an emoji on one of the messages sent on this channel (or took theirs off): shown on it in the app.
+   * Never a turn: a reaction needs no answer and costs nothing. Only from someone known, in a one-to-one chat.
+   */
+  function reaction(channel: string, r: InboundReaction): void {
+    if (!r.private) return;
+    const person = store.persons.byAddress(channel, r.sender.id);
+    if (!person || person.role === "blocked") return;
+    const sent = store.channels.outbox.byExternal(channel, r.target);
+    if (sent?.message_id && sent.conversation === r.conversation)
+      store.messages.setReaction(sent.message_id, "them", r.emoji);
   }
 
   /** The owner's text answers an open question of that thread, when one is waiting for words. */
@@ -382,6 +401,7 @@ export function createInbound(deps: {
   return {
     receive,
     action,
+    reaction,
     /**
      * A request the owner approved after being asked: its first message is handled now, as if it had just arrived from
      * the person it turned out to be.

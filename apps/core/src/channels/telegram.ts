@@ -45,7 +45,16 @@ type TgUpdate = {
   update_id: number;
   message?: TgMessage;
   callback_query?: { id: string; from: TgUser; data?: string; message?: TgMessage };
+  message_reaction?: {
+    chat: TgChat;
+    message_id: number;
+    user?: TgUser;
+    new_reaction: Array<{ type: string; emoji?: string }>;
+  };
 };
+
+/** Bots may only use Telegram's fixed set of reactions: the closest one of those for an emoji it lacks. */
+const TG_REACTION: Record<string, string> = { "❤️": "❤", "😂": "🤣", "👋": "👍" };
 type TgReply<T> = {
   ok: boolean;
   result?: T;
@@ -214,12 +223,24 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
       if (text === undefined) return;
       io.receive({
         external_id: String(u.update_id),
+        ref: String(m.message_id),
         conversation: String(m.chat.id),
         sender: { id: String(m.from.id), name: nameOf(m.from) },
         text,
         private: private_,
         ...(voice ? { voice } : {}),
         ...(files.length ? { files } : {}),
+      });
+      return;
+    }
+    const r = u.message_reaction;
+    if (r?.user) {
+      io.reaction?.({
+        conversation: String(r.chat.id),
+        sender: { id: String(r.user.id), name: nameOf(r.user) },
+        target: String(r.message_id),
+        emoji: r.new_reaction.find((x) => x.type === "emoji")?.emoji ?? "",
+        private: r.chat.type === "private",
       });
       return;
     }
@@ -250,7 +271,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
           {
             ...(offset === undefined ? {} : { offset }),
             timeout: POLL_S,
-            allowed_updates: ["message", "callback_query"],
+            allowed_updates: ["message", "callback_query", "message_reaction"],
           },
           (POLL_S + 10) * 1000,
         );
@@ -345,7 +366,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   }
 
   return {
-    caps: { typing: true, buttons: true, drafts: true },
+    caps: { typing: true, buttons: true, drafts: true, reactions: true },
     async start(io) {
       const me = await api<{ username?: string }>("getMe", {}).catch((err: unknown) => {
         throw err instanceof TgError && (err.code === 401 || err.code === 404)
@@ -409,6 +430,18 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
         if (err instanceof TgError && (err.code === 404 || /method not found|not supported/i.test(err.message)))
           drafts = false;
       }
+    },
+    async react(conversation, ref, emoji) {
+      const shown = TG_REACTION[emoji] ?? emoji;
+      await api(
+        "setMessageReaction",
+        {
+          chat_id: Number(conversation),
+          message_id: Number(ref),
+          reaction: shown ? [{ type: "emoji", emoji: shown }] : [],
+        },
+        8000,
+      );
     },
     async typing(conversation) {
       await api("sendChatAction", { chat_id: conversation, action: "typing" }, 8000);

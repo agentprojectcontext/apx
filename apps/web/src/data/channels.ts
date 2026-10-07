@@ -69,6 +69,8 @@ export type ChannelDraft = {
   self_owner?: boolean | undefined;
   /** Discord: the server rooms it reads and may speak in (kept on every save, or they would be dropped). */
   rooms?: ChannelInfo["rooms"];
+  /** Silence or an emoji for a message that needs no answer (kept on every save). */
+  closers?: ChannelInfo["closers"];
 };
 
 /** Lets agents read and send iMessages on this Mac (or stops them). */

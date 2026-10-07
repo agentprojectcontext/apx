@@ -1,6 +1,6 @@
 // Threads, what was said in them (messages, for people) and what the model saw (model_log, for the model).
 // Two projections of one conversation: the UI never reads the model log and the model never reads display parts.
-import type { Author, Message, MessageDelivery, ModelChoice, Part, Thread } from "@apx/protocol";
+import type { Author, Message, MessageDelivery, MessageReaction, ModelChoice, Part, Thread } from "@apx/protocol";
 import type { Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 import type { Bus } from "../bus.ts";
@@ -58,6 +58,7 @@ const toMessage = (r: Selectable<MessagesTable>): Message => ({
   ...opt("run_id", r.run_id),
   ...opt("model", r.model),
   ...(r.delivery ? { delivery: r.delivery as MessageDelivery } : {}),
+  ...(r.reactions ? { reactions: JSON.parse(r.reactions) as MessageReaction[] } : {}),
   created_at: r.created_at,
 });
 
@@ -483,9 +484,13 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
           .set({ parts: JSON.stringify(message.parts), model: message.model ?? null })
           .where("id", "=", message.id),
       );
-      // How far it got is the outbox's to say: a rewrite of its words keeps it.
-      const stored = repo.get(message.id)?.delivery;
-      const out = stored ? { ...message, delivery: stored } : message;
+      // How far it got and its reactions are the channel's to say: a rewrite of its words keeps them.
+      const stored = repo.get(message.id);
+      const out = {
+        ...message,
+        ...(stored?.delivery ? { delivery: stored.delivery } : {}),
+        ...(stored?.reactions ? { reactions: stored.reactions } : {}),
+      };
       bus.emit({ type: "message.updated", message: out });
       return out;
     },
@@ -521,6 +526,20 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
       if (DELIVERY_RANK[state] <= before) return;
       run(qb.updateTable("messages").set({ delivery: state }).where("id", "=", id));
       bus.emit({ type: "message.updated", message: { ...was, delivery: state } });
+    },
+    /** One side's emoji on a channel message (it replaces that side's earlier one; "" takes it off). */
+    setReaction(id: string, by: MessageReaction["by"], emoji: string): void {
+      const was = repo.get(id);
+      if (!was) return;
+      const reactions = [...(was.reactions ?? []).filter((r) => r.by !== by), ...(emoji ? [{ emoji, by }] : [])];
+      run(
+        qb
+          .updateTable("messages")
+          .set({ reactions: reactions.length ? JSON.stringify(reactions) : null })
+          .where("id", "=", id),
+      );
+      const { reactions: _old, ...rest } = was;
+      bus.emit({ type: "message.updated", message: reactions.length ? { ...rest, reactions } : rest });
     },
     /** Stores the parts and announces only the one that changed. */
     setPart(message: Message, index: number): void {

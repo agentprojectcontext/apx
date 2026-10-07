@@ -1,5 +1,5 @@
 // A channel's contacts (WhatsApp, linked by 10-whatsapp): a saved contact with no chat yet is listed and opens an empty
-// chat to ask the agent to write to them; what was sent shows how far it got; who is online and what is set for each
+// chat to ask the agent to write to them; what was sent shows how far it got and their reactions; who is online and what is set for each
 // contact show on their row.
 import { expect, open, rpc, test, until, world } from "./kit.ts";
 
@@ -43,6 +43,11 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   await expect(ticks.getByRole("img", { name: "Entregado" })).toBeVisible();
   await world.whatsapp.receipt(NORA, 4);
   await expect(ticks.getByRole("img", { name: "Leído" })).toBeVisible();
+  // Their emoji on it shows on the bubble, and goes when they take it off.
+  await world.whatsapp.react({ phone: NORA, name: "Nora" }, "❤️");
+  await expect(ticks.getByRole("img", { name: "Su reacción: ❤️" })).toBeVisible();
+  await world.whatsapp.react({ phone: NORA, name: "Nora" }, "");
+  await expect(ticks.getByRole("img", { name: /Su reacción/ })).toHaveCount(0);
 });
 
 test("who is online and what is set for a contact show on their row", async ({ page }) => {

@@ -1,6 +1,6 @@
 // What every channel's settings share: who answers and how, who waits to be let in, the people on it, what was sent,
 // and how notices reach the owner.
-import type { ChannelInfo, Person } from "@apx/protocol";
+import type { ChannelClosers, ChannelInfo, Person } from "@apx/protocol";
 import { Badge, Button, IconButton, Icons, Input, Menu, SegmentedControl, SettingRow } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { ownerOn, PairingRow } from "../channels/StartRows.tsx";
@@ -24,6 +24,9 @@ export const STATUS: Record<ChannelInfo["status"], "brand" | "neutral" | "warnin
   off: "neutral",
   error: "danger",
 };
+
+/** Channels whose adapter puts emoji on messages (a new one with reactions joins here). */
+const REACTS = new Set<ChannelInfo["type"]>(["telegram", "whatsapp"]);
 
 /** On the owner's own WhatsApp number a stranger never gets a code from it: "pair" only lists them. */
 const listsOnly = (c: ChannelInfo) => c.type === "whatsapp" && c.self_owner === true;
@@ -81,6 +84,20 @@ export function Behavior({
           ]}
         />
       </SettingRow>
+      {REACTS.has(channel.type) && (
+        <SettingRow title={t("ch.closers")} description={t(`ch.closersHint.${channel.closers ?? "silent"}`)}>
+          <SegmentedControl
+            size="sm"
+            label={t("ch.closers")}
+            value={channel.closers ?? "silent"}
+            onValueChange={(v) => void save({ closers: v as ChannelClosers })}
+            options={[
+              { value: "silent", label: t("ch.closers.silent") },
+              { value: "react", label: t("ch.closers.react") },
+            ]}
+          />
+        </SettingRow>
+      )}
       <SettingRow title={t("tg.strangers")} description={t(STRANGER_HINT[strangerMode(channel)])}>
         <SegmentedControl
           size="sm"

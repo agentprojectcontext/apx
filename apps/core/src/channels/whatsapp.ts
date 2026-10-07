@@ -47,6 +47,8 @@ export type WaContent = {
   documentMessage?: { caption?: string | null; fileName?: string | null } | null;
   audioMessage?: { ptt?: boolean | null; mimetype?: string | null } | null;
   stickerMessage?: unknown;
+  /** An emoji on a message (`key.id`); empty text when it was taken off. */
+  reactionMessage?: { key?: WaKey | null; text?: string | null } | null;
   ephemeralMessage?: { message?: WaContent | null } | null;
   viewOnceMessage?: { message?: WaContent | null } | null;
   viewOnceMessageV2?: { message?: WaContent | null } | null;
@@ -65,6 +67,8 @@ const loadBaileys = async () => (await import("@whiskeysockets/baileys")) as unk
 
 /** Voice notes up to this size are downloaded for transcription. */
 const MAX_VOICE_BYTES = 10 * 1024 * 1024;
+/** Recent incoming messages whose chat is remembered for a reaction. */
+const CHATS_KEPT = 500;
 const BACKOFF_MS = [2_000, 5_000, 15_000, 30_000, 60_000];
 /** Rounds of QR codes (about a minute each) before linking waits for the owner to press Link again. */
 const QR_ROUNDS = 4;
@@ -177,6 +181,8 @@ export function whatsappAdapter(opts: {
   /** Who is online, by phone address; and the addresses asked about on this connection. */
   const seen = new Map<string, { online: boolean; last_seen?: string }>();
   const watching = new Set<string>();
+  /** The chat each recent message came in on (WhatsApp's own id for it), to react to it exactly there. */
+  const chats = new Map<string, string>();
 
   const hasCreds = () => fs.existsSync(path.join(dir, "creds.json"));
   const remember = (id: string | null | undefined) => {
@@ -303,6 +309,21 @@ export function whatsappAdapter(opts: {
     // One person, one address: their phone number when WhatsApp tells it, their private id otherwise.
     const who = m.key.fromMe ? me.pn : isPhone(jid) ? jid : alt && isPhone(alt) ? alt : jid;
     const name = m.key.fromMe ? "Owner" : m.pushName?.trim() || `+${digitsOf(who)}`;
+    const reacted = content.reactionMessage;
+    if (reacted) {
+      // Our own reactions come back as ours; only the other side's are news.
+      if (!m.key.fromMe && reacted.key?.id)
+        io.reaction?.({
+          conversation: who,
+          sender: { id: who, name: name.slice(0, 80) },
+          target: reacted.key.id,
+          emoji: reacted.text ?? "",
+          private: !group,
+        });
+      return;
+    }
+    chats.set(m.key.id, jid);
+    if (chats.size > CHATS_KEPT) chats.delete(chats.keys().next().value ?? "");
     const audio = content.audioMessage;
     let text = textOf(content) ?? "";
     let voice: { mime: string; data: string } | undefined;
@@ -330,6 +351,7 @@ export function whatsappAdapter(opts: {
     }
     io.receive({
       external_id: m.key.id,
+      ref: m.key.id,
       conversation: who,
       sender: { id: who, name: name.slice(0, 80) },
       text,
@@ -360,7 +382,7 @@ export function whatsappAdapter(opts: {
           : { audio: f.data, mimetype: f.mime };
 
   return {
-    caps: { typing: true, buttons: false, ownAccount: Boolean(opts.selfOwner) },
+    caps: { typing: true, buttons: false, reactions: true, ownAccount: Boolean(opts.selfOwner) },
     async start(adapterIO) {
       io = adapterIO;
       stopped = false;
@@ -427,6 +449,14 @@ export function whatsappAdapter(opts: {
     },
     async typing(conversation) {
       await sock?.sendPresenceUpdate("composing", conversation);
+    },
+    async react(conversation, ref, emoji) {
+      if (!sock || !me) throw new SendError("retry", "WhatsApp is not connected");
+      const remoteJid = chats.get(ref) ?? conversation;
+      const r = await sock.sendMessage(conversation, {
+        react: { text: emoji, key: { remoteJid, id: ref, fromMe: false } },
+      });
+      if (r?.key?.id) ownSends.add(r.key.id);
     },
     presence(ids) {
       const s = sock;

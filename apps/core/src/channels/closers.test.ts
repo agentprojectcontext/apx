@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { asksSomething, needsNoAnswer } from "./closers.ts";
+import { asksSomething, needsNoAnswer, reactionFor } from "./closers.ts";
 
 test("a closing message needs no answer", () => {
   for (const t of [
@@ -36,4 +36,11 @@ test("after a question a bare ok may be its answer; asking not to answer still c
 test("a question anywhere in the agent's words is open", () => {
   assert.equal(asksSomething("¿Lo mando? Avisame."), true);
   assert.equal(asksSomething("Listo, queda enviado 😄"), false);
+});
+
+test("a reaction fits the closing message", () => {
+  assert.equal(reactionFor("Muchas gracias!"), "❤️");
+  assert.equal(reactionFor("jajaja"), "😂");
+  assert.equal(reactionFor("oka, dale"), "👍");
+  assert.equal(reactionFor("👍"), undefined);
 });

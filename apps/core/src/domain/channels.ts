@@ -24,6 +24,17 @@ export type Inbound = {
   files?: Array<{ name: string; mime: string; data: string }> | undefined;
   /** A voice note or audio, to be transcribed before an agent reads it. */
   voice?: { mime: string; data: string } | undefined;
+  /** The platform's id of the message itself, to react to it, when `external_id` is something else (an update id). */
+  ref?: string | undefined;
+};
+
+/** An emoji someone put on a message (`target`: the platform's id of it); `emoji` empty when they took it off. */
+export type InboundReaction = {
+  conversation: string;
+  sender: { id: string; name: string };
+  target: string;
+  emoji: string;
+  private: boolean;
 };
 
 /** A button press: the platform's id for it, the conversation, who pressed and the button's data. */

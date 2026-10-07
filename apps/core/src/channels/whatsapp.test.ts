@@ -155,6 +155,15 @@ test("what is sent to a contact shows how far it got: sent, then on their phone,
   wa.receipt(out?.id ?? "", 3);
   await new Promise((r) => setTimeout(r, 50));
   assert.equal((await last())?.delivery, "read", "a late receipt never moves it back");
+
+  // Their emoji on it shows on it, and wakes nobody.
+  const calls = llm.calls.length;
+  wa.react(ANA, out?.id ?? "", "❤️");
+  await until(async () => (await last())?.reactions?.[0]?.emoji === "❤️", "their reaction");
+  assert.deepEqual((await last())?.reactions, [{ emoji: "❤️", by: "them" }]);
+  wa.react(ANA, out?.id ?? "", "");
+  await until(async () => !(await last())?.reactions, "taken off");
+  assert.equal(llm.calls.length, calls, "no model call");
 });
 
 test("who of the contacts is online: asking starts listening, WhatsApp's word fills it in", async () => {

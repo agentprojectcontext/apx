@@ -403,6 +403,9 @@ export type Part = z.infer<typeof KnownPart>;
 
 export const MessageDelivery = z.enum(["pending", "sent", "delivered", "read", "failed"]);
 export type MessageDelivery = z.infer<typeof MessageDelivery>;
+/** An emoji on a channel message: the agent's own, or the other side's (the contact, or the owner on their chat). */
+export const MessageReaction = z.object({ emoji: z.string().min(1).max(32), by: z.enum(["agent", "them"]) });
+export type MessageReaction = z.infer<typeof MessageReaction>;
 export const Message = z.object({
   id: Id,
   thread_id: Id,
@@ -413,6 +416,8 @@ export const Message = z.object({
   model: z.string().optional(),
   /** Sent on a channel: queued, taken by the platform, on their device, seen by them, or not sent. */
   delivery: MessageDelivery.optional(),
+  /** Emoji put on it on a channel, at most one per side. */
+  reactions: z.array(MessageReaction).optional(),
   created_at: z.string(),
 });
 export type Message = z.infer<typeof Message>;
@@ -635,6 +640,9 @@ export const ChannelRooms = z.object({
 });
 export type ChannelRooms = z.infer<typeof ChannelRooms>;
 
+export const ChannelClosers = z.enum(["silent", "react"]);
+export type ChannelClosers = z.infer<typeof ChannelClosers>;
+
 export const ChannelInfo = z.object({
   id: z.string(),
   type: ChannelType,
@@ -658,6 +666,11 @@ export const ChannelInfo = z.object({
   self_owner: z.boolean().optional(),
   /** Discord: the server rooms it reads and may speak in. None: only direct messages. */
   rooms: ChannelRooms.optional(),
+  /**
+   * A message that needs no answer ("ok", "gracias"): left in silence (none: the same), or answered with an emoji
+   * reaction where the channel has them. Neither calls the model.
+   */
+  closers: ChannelClosers.optional(),
   token_set: z.boolean(),
   /** The stored token, masked for the owner to recognize it: the bot's number and the secret's last four. */
   token_hint: z.string().optional(),

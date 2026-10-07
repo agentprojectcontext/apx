@@ -87,6 +87,15 @@ export const enChannels = {
   "ch.empty.title": "No messages with {name} yet",
   "ch.empty.body": "Ask {agent} to write to them, or write yourself",
   "ch.flag.rules": "Has rules of their own",
+  "ch.reaction.agent": "{agent}'s reaction",
+  "ch.reaction.them": "Their reaction",
+  "ch.closers": "Messages that need no answer",
+  "ch.closers.silent": "Silence",
+  "ch.closers.react": "React",
+  "ch.closersHint.silent":
+    'An "ok", a thanks or a goodbye is kept in the chat and left unanswered, with no model call.',
+  "ch.closersHint.react":
+    'An "ok", a thanks or a goodbye gets an emoji instead of words (👍, ❤️, 😂), with no model call.',
   "ch.delivery.pending": "Sending",
   "ch.delivery.sent": "Sent",
   "ch.delivery.delivered": "Delivered",

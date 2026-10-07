@@ -168,6 +168,14 @@ export function fakeWhatsApp() {
     ownerTo(to: Person, text: string) {
       deliver({ key: { id: `ME-${++seq}`, remoteJid: to.phone, fromMe: true }, message: { conversation: text } });
     },
+    /** Someone puts an emoji on a message (empty: takes theirs off). */
+    react(from: Person, id: string, emoji: string) {
+      deliver({
+        key: { id: `IN-${++seq}`, remoteJid: from.phone, fromMe: false },
+        pushName: from.name,
+        message: { reactionMessage: { key: { id, remoteJid: from.phone, fromMe: true }, text: emoji } },
+      });
+    },
     /** Their phone tells how far one of our sends got: 3 on their device, 4 read. */
     receipt(id: string, status: number) {
       const to = sent.find((x) => x.id === id)?.jid;

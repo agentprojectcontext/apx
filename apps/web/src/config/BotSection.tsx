@@ -218,6 +218,7 @@ function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
     ...(channel.rooms ? { rooms: channel.rooms } : {}),
+    closers: channel.closers,
   };
   const save = (patch: Partial<ChannelDraft>, newToken?: string) =>
     saveChannel(channel.id, { ...draft, ...patch }, newToken);

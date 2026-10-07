@@ -8,6 +8,7 @@ import {
   Autonomy,
   BaseProject,
   CatalogEngine,
+  ChannelClosers,
   ChannelInfo,
   ChannelRooms,
   ChannelStrangers,
@@ -684,6 +685,7 @@ export const appMethods = {
             owner_thread: z.enum(["home", "own"]).default("home"),
             self_owner: z.boolean().optional(),
             rooms: ChannelRooms.optional(),
+            closers: ChannelClosers.default("silent"),
           })
           .nullable(),
         token: z.string().min(8).max(400).optional(),

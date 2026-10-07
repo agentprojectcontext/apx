@@ -2,7 +2,7 @@
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 
-type Sent = { method: string; body: Record<string, unknown> };
+type Sent = { method: string; body: Record<string, unknown>; message_id?: number };
 
 export async function fakeTelegram(token: string) {
   const updates: Array<{ update_id: number } & Record<string, unknown>> = [];
@@ -68,8 +68,9 @@ export async function fakeTelegram(token: string) {
         const take = () => reply(200, { ok: true, result: updates.filter((u) => u.update_id >= offset) });
         return updates.some((u) => u.update_id >= offset) ? take() : void setTimeout(take, 50);
       }
-      sent.push({ method, body });
-      if (method === "sendMessage") return reply(200, { ok: true, result: { message_id: nextMessage++ } });
+      const message_id = method === "sendMessage" ? nextMessage++ : undefined;
+      sent.push({ method, body, ...(message_id ? { message_id } : {}) });
+      if (message_id) return reply(200, { ok: true, result: { message_id } });
       return reply(200, { ok: true, result: true });
     });
   });
@@ -158,6 +159,22 @@ export async function fakeTelegram(token: string) {
           message: { message_id: messageId, chat: { id: from.id, type: "private" } },
         },
       });
+    },
+    /** Someone puts an emoji on a message (none: takes theirs off). */
+    react(from: { id: number; name: string }, messageId: number, emoji?: string) {
+      updates.push({
+        update_id: nextUpdate++,
+        message_reaction: {
+          chat: { id: from.id, type: "private" },
+          message_id: messageId,
+          user: user(from.id, from.name),
+          new_reaction: emoji ? [{ type: "emoji", emoji }] : [],
+        },
+      });
+    },
+    /** The bot's reactions in a chat. */
+    reactionsTo(chat: number) {
+      return sent.filter((s) => s.method === "setMessageReaction" && String(s.body.chat_id) === String(chat));
     },
     /** How many polls have been made (two pollers make twice as many). */
     polls: () => getUpdatesCalls,

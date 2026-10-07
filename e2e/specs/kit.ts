@@ -66,6 +66,8 @@ export const world = {
     /** The last message sent to `jid` reaches their phone (3) or is read (4). */
     receipt: (jid: string, status: 3 | 4) => post(`${phone}/receipt`, { jid, status }),
     presence: (jid: string, online: boolean) => post(`${phone}/presence`, { jid, online }),
+    /** Someone puts an emoji on the last message sent to them ("": takes it off). */
+    react: (from: { phone: string; name: string }, emoji: string) => post(`${phone}/react`, { from, emoji }),
     sentTo: async (jid: string) =>
       (
         (await (await fetch(`${phone}/sent?jid=${encodeURIComponent(jid)}`)).json()) as {

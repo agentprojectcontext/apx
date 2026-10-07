@@ -1,4 +1,4 @@
-import type { ChannelInfo, Message, MessageDelivery, Person, Thread } from "@apx/protocol";
+import type { ChannelInfo, Message, MessageDelivery, MessageReaction, Person, Thread } from "@apx/protocol";
 import { Button, EmptyState, IconButton, Icons, SegmentedControl, Skeleton, Textarea, Tooltip } from "@apx/ui";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { shortWhen } from "../common/format.ts";
@@ -202,6 +202,7 @@ function Bubble({ m, agentName }: { m: Message; agentName: string }) {
       {words && (
         <div className={`chan__bubble${out ? " is-out" : ""}${instruction ? " is-instruction" : ""}`}>
           <p className="chan__text">{words}</p>
+          {m.reactions?.length ? <Reactions list={m.reactions} agentName={agentName} /> : null}
           <span className="chan__when">
             {[who, shortWhen(m.created_at)].filter(Boolean).join(" · ")}
             {out && !instruction && m.delivery && <Ticks state={m.delivery} />}
@@ -209,6 +210,25 @@ function Bubble({ m, agentName }: { m: Message; agentName: string }) {
         </div>
       )}
     </>
+  );
+}
+
+/** The emoji on a message, the agent's and theirs, under its corner as the apps show them. */
+function Reactions({ list, agentName }: { list: MessageReaction[]; agentName: string }) {
+  const t = useT();
+  return (
+    <span className="chan__reactions">
+      {list.map((r) => {
+        const label = r.by === "agent" ? t("ch.reaction.agent", { agent: agentName }) : t("ch.reaction.them");
+        return (
+          <Tooltip key={r.by} content={label}>
+            <span role="img" aria-label={`${label}: ${r.emoji}`}>
+              {r.emoji}
+            </span>
+          </Tooltip>
+        );
+      })}
+    </span>
   );
 }
 

@@ -120,3 +120,28 @@ export function needsNoAnswer(text: string, openQuestion: boolean): boolean {
 
 /** The agent's words asked something anywhere: a short reply may be its answer. */
 export const asksSomething = (text: string): boolean => text.includes("?");
+
+const WARM = new Set(
+  ["gracias", "muchas", "muchisimas", "thanks", "thank", "thx", "ty", "besos", "beso", "abrazo", "abrazos"].map(
+    squeeze,
+  ),
+);
+
+/**
+ * The emoji to answer a closing message with, when the channel reacts instead of keeping silent: warm for thanks,
+ * a laugh for a laugh, a thumbs-up otherwise. None for a message that is only emoji (it already is a reaction).
+ */
+export function reactionFor(text: string): string | undefined {
+  const words = text
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(squeeze);
+  if (!words.length) return undefined;
+  if (words.some((w) => WARM.has(w))) return "❤️";
+  if (words.every((w) => LAUGH.test(w))) return "😂";
+  return "👍";
+}
