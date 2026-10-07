@@ -2,7 +2,8 @@
 // React Native from the app delegate. This adopts Expo's own ExpoAppSceneDelegate at prebuild.
 const { withAppDelegate, withInfoPlist } = require("expo/config-plugins");
 
-const WINDOW_START = /\n#if os\(iOS\) \|\| os\(tvOS\)\n\s*window = UIWindow\(frame: UIScreen\.main\.bounds\)\n\s*factory\.startReactNative\([\s\S]*?\)\n#endif\n/;
+const WINDOW_START =
+  /\n#if os\(iOS\) \|\| os\(tvOS\)\n\s*window = UIWindow\(frame: UIScreen\.main\.bounds\)\n\s*factory\.startReactNative\([\s\S]*?\)\n#endif\n/;
 
 module.exports = function withIosScenes(config) {
   config = withInfoPlist(config, (cfg) => {
