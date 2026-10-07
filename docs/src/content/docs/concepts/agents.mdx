@@ -157,6 +157,25 @@ Any `provider:model-id` string that your configured engines support works here �
   with `model: openai:gpt-4o` will fail on first call if `engines.openai.api_key` is empty.
 </Aside>
 
+## External runtimes and the model
+
+`model: inherit` governs APX's own turns. An **external runtime** (Codex, Claude Code…) runs its
+own CLI's configured model by default — APX's chat model is not passed to it. When you want a
+runtime pinned, say so explicitly:
+
+| Where | What it does |
+|---|---|
+| `call_runtime` `model` / `effort` | One run. `model` is the runtime's own id (e.g. a Codex model); `effort` is codex's reasoning effort. |
+| `runtimes.<id>.model` / `.effort` in config | Every run of that runtime. |
+| `runtimes.<id>.inherit_apx_model: true` | Follow APX's selection — only when its provider is native to the runtime (codex ← `chatgpt-codex`/`openai`, claude-code ← `anthropic`/`claude-subscription`). Otherwise the CLI default is used and the result says why. |
+
+`chatgpt-codex:gpt-6-luna@high` is split into model `gpt-6-luna` and effort `high`; it is never
+passed raw. A model from a provider the runtime cannot run, or an effort for a runtime that takes
+none, is a specific error before anything is spawned. Each result and session records the model
+requested, the one passed, and the effective one — "runtime default (not reported by the CLI)"
+when nothing was pinned, because no CLI reports which model it actually used. The sandbox is
+never changed by any of this.
+
 ## How the system prompt is built
 
 When you call `apx exec <slug>` or an agent runs inside a routine, APX composes the system prompt

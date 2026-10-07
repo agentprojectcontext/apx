@@ -1348,7 +1348,7 @@ export const en = {
       parent_label:    "Reports to (parent)",
       none_parent:     "— none —",
       model_label:     "Base model",
-      model_hint:      "`inherit` = router default (chat can still pick a model for that turn). A `provider:model` overwrites the field.",
+      model_hint:      "`inherit` = router default for APX's own turns (chat can still pick a model for that turn). A `provider:model` overwrites the field. An external runtime (Codex, Claude Code…) uses its own CLI model unless runtimes.<id> in config says otherwise.",
       model_fallback_label: "If it fails, continue down the router chain",
       model_ph:        "(empty = router default)",
       model_router_default:   "Router default",

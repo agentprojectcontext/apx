@@ -21,6 +21,8 @@ import {
   readEngineSessionContext,
 } from "#core/stores/engine-sessions.js";
 import { getRuntime, RUNTIME_IDS } from "#core/runtimes/index.js";
+import { resolveRuntimeModel } from "#core/runtimes/model.js";
+import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { runtimeLooksLikeFailure, runtimeAvailability } from "#core/runtimes/outcome.js";
 import { buildAgentSystem, resolveProject } from "../helpers.js";
 import { readJson } from "#core/util/json-file.js";
@@ -165,6 +167,11 @@ export default {
             type: "string",
             description: "Optional prior session id (claude/codex/apx) — APX prepends that session's title + last prompt to the prompt so the runtime has context.",
           },
+          model: {
+            type: "string",
+            description: "Optional: the RUNTIME's own model id (e.g. a Codex model for codex). Omit to use the CLI's configured default — APX's chat model is NOT passed unless config says so. Never invent one.",
+          },
+          effort: { type: "string", description: "Optional reasoning effort for runtimes that take one (codex): minimal|low|medium|high|xhigh." },
           timeout_s: { type: "integer", description: "seconds before SIGTERM. Foreground default 300; background runs default to 3600 (1h)." },
           background: {
             type: "boolean",
@@ -175,7 +182,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission, plugins, registries = null, channel, channelMeta, globalConfig = {}, promptAuthor = null, backgroundResultSink = null }) => async ({ project, agent: slug, runtime, prompt, cwd = null, resume_session_id = null, timeout_s = null, background = null, confirmed = false }) => {
+  makeHandler: ({ projects, requirePermission, plugins, registries = null, channel, channelMeta, globalConfig = {}, promptAuthor = null, backgroundResultSink = null }) => async ({ project, agent: slug, runtime, prompt, cwd = null, resume_session_id = null, timeout_s = null, background = null, confirmed = false, model = null, effort = null }) => {
     await requirePermission("call_runtime", { dangerous: true, confirmed, args: { runtime } });
 
     // Async delivery sink: on Telegram we can push the runtime's result back to
@@ -286,6 +293,25 @@ export default {
       };
     }
 
+    // Which model the CLI is asked for (core/runtimes/model.js). Resolved BEFORE
+    // anything is spawned: an incompatible request is an error the caller can
+    // act on, not a run on a model nobody chose.
+    let apxModelId = null;
+    if (globalConfig?.runtimes?.[runtime]?.inherit_apx_model === true && !model && !effort) {
+      try {
+        apxModelId = agent
+          ? await resolveAgentModel({ agent, config: globalConfig })
+          : globalConfig?.super_agent?.model || null;
+      } catch { apxModelId = null; }
+    }
+    const runModel = resolveRuntimeModel({ runtimeId: runtime, adapter: rt, model, effort, config: globalConfig, apxModelId });
+    if (runModel.error) {
+      return { error: runModel.error, runtime, model: { requested: runModel.requested, source: runModel.source } };
+    }
+    const modelRecord = runModel.model || runModel.effort
+      ? `${runModel.model || "(cli default)"}${runModel.effort ? `@${runModel.effort}` : ""} (${runModel.source})`
+      : "";
+
     const actor = agent?.slug || "apx";
     const session = createRuntimeSession({
       projectRoot: p.path,
@@ -297,7 +323,19 @@ export default {
       // The task this run belongs to, so the task's execution view can find it
       // from the session side too (core/tasks/execution.js).
       ...(taskOrigin ? { taskRef: taskOrigin.task_id } : {}),
+      model: modelRecord,
     });
+    // Requested vs passed vs effective, on every result. No runtime reports the
+    // model it actually used, so "effective" is the pin when there is one and
+    // the CLI's own default otherwise — said as such, never guessed.
+    const modelInfo = {
+      requested: runModel.requested,
+      passed: runModel.model,
+      effort: runModel.effort,
+      source: runModel.source,
+      effective: runModel.model ? runModel.model : "runtime default (not reported by the CLI)",
+      ...(runModel.note ? { note: runModel.note } : {}),
+    };
 
     const resume = buildResumePreamble(resume_session_id);
     const effectivePrompt = resume.text ? resume.text + prompt : prompt;
@@ -360,6 +398,7 @@ export default {
       resume_resolved: resume.meta ? `${resume.meta.engine}:${resume.meta.id}` : null,
       timeout_s: effectiveTimeoutS,
       background: runInBackground,
+      model: modelRecord || "runtime default",
     });
 
     // Run the runtime to completion and finalize (close the session record, log
@@ -375,6 +414,8 @@ export default {
           cwd: runCwd,
           timeoutMs: effectiveTimeoutS * 1000,
           permissionMode: globalConfig?.super_agent?.permission_mode || null,
+          model: runModel.model,
+          effort: runModel.effort,
         });
 
         // A killed process can outlive its own SIGTERM: an orphaned grandchild
@@ -415,6 +456,7 @@ export default {
           return {
             error: `runtime "${runtime}" did not complete successfully: ${failure.reason}`,
             runtime,
+            model: modelInfo,
             agent: agent?.slug || null,
             apc_session: session.id,
             exit_code: r.exitCode,
@@ -439,6 +481,7 @@ export default {
           agent: agent?.slug || null,
           apc_session: session.id,
           exit_code: r.exitCode,
+          model: modelInfo,
           result,
           output: (r.output || "").slice(0, 4000),
           stderr: (r.stderr || "").slice(0, 2000),
@@ -611,6 +654,7 @@ export default {
         cwd: runCwd,
         status: "launched",
         background: true,
+        model: modelInfo,
         ...(taskOrigin ? { returns_to_task: taskOrigin.task_id } : {}),
         note: taskOrigin
           ? `La sesión de ${runtime} arrancó en segundo plano (en ${runCwd}). NO esperes ni vuelvas a llamar a call_runtime para esto: ` +

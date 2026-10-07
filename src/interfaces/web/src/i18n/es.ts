@@ -1362,7 +1362,7 @@ export const es = {
       parent_label:    "Reporta a (parent)",
       none_parent:     "— ninguno —",
       model_label:     "Modelo base",
-      model_hint:      "`inherit` = default del router (el chat puede forzar otro modelo en ese turno). Un `proveedor:modelo` pisa el campo.",
+      model_hint:      "`inherit` = default del router para los turnos propios de APX (el chat puede forzar otro modelo en ese turno). Un `proveedor:modelo` pisa el campo. Un runtime externo (Codex, Claude Code…) usa el modelo de su propio CLI salvo que runtimes.<id> en la config diga otra cosa.",
       model_fallback_label: "Si falla, seguir con la cadena del router",
       model_ph:        "(vacío = router default)",
       model_router_default:   "Router default",

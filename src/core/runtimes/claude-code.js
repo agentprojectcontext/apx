@@ -36,9 +36,14 @@ export default {
   versionFlag: "--version",
 
   sessions: "capture",
+  // What this adapter honors from APX (core/runtimes/model.js): `--model`, no
+  // reasoning-effort flag. Absent options are the CLI's own config.
+  modelOptions: { model: true, effort: false },
+  nativeProviders: ["anthropic", "claude-subscription"],
 
-  async run({ system, prompt, cwd, env, timeoutMs, resumeSessionId = null, mode = "code", permissionMode = null }) {
+  async run({ system, prompt, cwd, env, timeoutMs, resumeSessionId = null, mode = "code", permissionMode = null, model = null }) {
     const args = ["-p", prompt, "--output-format", "json"];
+    if (model) args.push("--model", model);
     // `plan` is Claude Code's own read-only mode: it answers normally but will
     // not edit. That is what a plain a2a message should get — a peer you talked
     // to should not be able to rewrite your checkout because it was asked to.

@@ -200,7 +200,7 @@ APC_RESULT: <one-line value>
 
 - DON'T expect `apx run` to be interactive — it's headless. For interactive, invoke the CLI directly (e.g. `claude`).
 - DON'T pass huge prompts via command line (shell arg limits). For >~10KB, use stdin (`-`) or a temp file.
-- DON'T expect APX to impose a model on the external CLI. APX passes system + user prompt only; the external CLI's own config wins.
+- DON'T assume the external CLI runs APX's chat model. By default it runs its OWN configured model (`model: inherit` means each runtime's default). To pin one, pass `model` (the runtime's native id, e.g. a Codex model) and, for codex, `effort` to `call_runtime`; or set `runtimes.<id>.model` / `.effort` in config; or `runtimes.<id>.inherit_apx_model: true` to follow APX's selection when its provider is native to that runtime (codex ← chatgpt-codex/openai, claude-code ← anthropic/claude-subscription). Never pass `provider:model@effort` raw; an incompatible request is an error, not a silent fallback. Every result carries `model: { requested, passed, effort, source, effective }` — report `effective` as-is ("runtime default (not reported by the CLI)" when unpinned). Runtimes other than codex/claude-code take no model from APX.
 
 ## When to use which
 

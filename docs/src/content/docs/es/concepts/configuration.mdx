@@ -118,6 +118,20 @@ se puso para evitarlo.
 | `automatico` | APX decide automáticamente según heurísticas de seguridad |
 | `permiso` | Sólo las herramientas listadas en `allowed_tools`; el resto pregunta |
 
+### Runtimes externos
+
+Opcional. Sin esto, cada CLI de runtime externo usa el modelo configurado en sí mismo.
+
+```json
+"runtimes": {
+  "codex": { "model": "gpt-6-luna", "effort": "high" },
+  "claude-code": { "inherit_apx_model": true }
+}
+```
+
+`model` / `effort` fijan un runtime; `inherit_apx_model` sigue la selección de APX sólo si su
+proveedor es nativo de ese runtime. Detalle en [Agentes → Runtimes externos y el modelo](/apx/docs/es/concepts/agents/#runtimes-externos-y-el-modelo).
+
 ## El archivo de identidad — `~/.apx/identity.json`
 
 Este archivo define el nombre de cara al usuario y la personalidad del asistente:

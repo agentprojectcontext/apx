@@ -26,6 +26,9 @@ export function createRuntimeSession({
   // is a record of nothing in particular — the 2026-09-20 sessions all said
   // "claude-code" and none of them said they had opened the wrong directory.
   cwd = "",
+  // The model APX asked the CLI for, as `model[@effort] (source)`. Empty when
+  // the CLI ran on its own default — which is then what the record says.
+  model = "",
 }) {
   const dir = path.join(storageRoot, "agents", agentSlug, "sessions");
   fs.mkdirSync(dir, { recursive: true });
@@ -45,6 +48,7 @@ export function createRuntimeSession({
     `result: \n` +
     `runtime: ${runtime}\n` +
     `cwd: ${cwd || projectRoot || ""}\n` +
+    `model: ${model}\n` +
     `external_session_path: \n` +
     `---\n\n` +
     `# ${sessionTitle}\n\n`;
