@@ -193,8 +193,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "theme.light": "Modo claro",
   "theme.dark": "Modo oscuro",
   "phone.open": "Abrir en el teléfono",
-  "phone.description": "Escaneá un QR con la cámara para abrir este chat en el teléfono.",
-  "phone.hint": "La vinculación de dispositivos llega con la app móvil: un escaneo abre el chat y vincula el teléfono.",
+  "phone.description": "Escaneá el código con la cámara para abrir este chat en el teléfono.",
+  "phone.hint":
+    "Necesitás la app de APX instalada. Si el teléfono no está vinculado, el escaneo lo vincula; el código sirve una vez, por 10 minutos.",
+  "phone.failed": "No se pudo crear el código",
   "nav.collapse": "Plegar la barra",
   "nav.expand": "Desplegar la barra",
   "nav.back": "Atrás",

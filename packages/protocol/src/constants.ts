@@ -43,8 +43,9 @@ export const PERSON_RELATIONS = [
   "other",
 ] as const;
 
-/** What a pairing QR carries: the core's addresses a device may reach, and the one-time code. */
-export function pairingLink(p: { code: string; urls: readonly string[] }): string {
+/** What a pairing QR carries: the core's addresses a device may reach, the one-time code and, maybe, the chat to open. */
+export function pairingLink(p: { code: string; urls: readonly string[]; thread?: string }): string {
   const q = new URLSearchParams([["c", p.code], ...p.urls.map((u) => ["u", u] as [string, string])]);
+  if (p.thread) q.set("t", p.thread);
   return `apx://pair?${q.toString()}`;
 }

@@ -189,8 +189,10 @@ export const en = {
   "theme.light": "Light mode",
   "theme.dark": "Dark mode",
   "phone.open": "Open on your phone",
-  "phone.description": "Scan a QR code with your camera to open this chat on your phone.",
-  "phone.hint": "Device pairing arrives with the mobile app: one scan opens the chat and pairs the phone.",
+  "phone.description": "Scan the code with your camera to open this chat on your phone.",
+  "phone.hint":
+    "You need the APX app installed. If the phone is not paired yet, the scan pairs it; the code works once, for 10 minutes.",
+  "phone.failed": "Could not create the code",
   "nav.collapse": "Fold the sidebar",
   "nav.expand": "Unfold the sidebar",
   "nav.back": "Back",

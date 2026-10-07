@@ -1,7 +1,8 @@
 // What the panel's QR carries (apx://pair?c=<code>&u=<url>…), and finding which of the core's addresses this phone
 // can reach. Pure: no React Native here, so it runs under node:test.
 
-export type PairingLink = { code: string; urls: string[] };
+/** `thread`: the chat to open once paired (the panel's "Open on your phone"). */
+export type PairingLink = { code: string; urls: string[]; thread?: string };
 
 export function parsePairingLink(text: string): PairingLink | undefined {
   let url: URL;
@@ -13,7 +14,21 @@ export function parsePairingLink(text: string): PairingLink | undefined {
   if (url.protocol !== "apx:" || url.hostname !== "pair") return undefined;
   const code = url.searchParams.get("c")?.trim() ?? "";
   const urls = url.searchParams.getAll("u").filter((u) => /^https?:\/\/[^\s]+$/.test(u));
-  return code ? { code, urls } : undefined;
+  const thread = url.searchParams.get("t")?.trim();
+  if (!code) return undefined;
+  return thread ? { code, urls, thread } : { code, urls };
+}
+
+/** Whether a link comes from the core this phone is already paired with: then it only opens its chat. */
+export function fromPairedCore(link: PairingLink, pairedUrl: string): boolean {
+  const origin = (u: string) => {
+    try {
+      return new URL(u).origin;
+    } catch {
+      return u;
+    }
+  };
+  return link.urls.some((u) => origin(u) === origin(pairedUrl));
 }
 
 /** The first address that answers /health, tried in the order the core gave them; none when none answers. */

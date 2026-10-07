@@ -35,7 +35,18 @@ const TABS: Array<NavItem<Tab>> = [
   { id: "more", label: t("navMore"), icon: "LayoutGrid" },
 ];
 
-export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: () => void }) {
+export function WorkspaceScreen({
+  creds,
+  onUnpair,
+  focus,
+  onFocused,
+}: {
+  creds: Creds;
+  onUnpair: () => void;
+  /** A chat to bring up (from a scanned link); `onFocused` once it is taken. */
+  focus?: string;
+  onFocused?: () => void;
+}) {
   const workspace = useWorkspace(creds);
   const insets = useSafeAreaInsets();
   const host = useMemo(() => {
@@ -89,6 +100,16 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
     setSubpage(undefined);
     setSurfaces(false);
   }, [noticeThread, workspace.data.threads]);
+  const { openThread: openOnCore } = workspace;
+  useEffect(() => {
+    if (!focus) return;
+    onFocused?.();
+    setSubpage(undefined);
+    setSurfaces(false);
+    void openOnCore(focus)
+      .then((result) => setThread(result.thread as Thread))
+      .catch(() => undefined);
+  }, [focus, onFocused, openOnCore]);
   // Android's back button climbs out of the open page before it leaves the app.
   useEffect(() => {
     const sub = BackHandler.addEventListener("hardwareBackPress", () => {

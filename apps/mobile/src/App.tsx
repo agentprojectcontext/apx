@@ -6,7 +6,7 @@ import { APP_CLIENT } from "./appInfo";
 import { type Creds, clearCreds, loadCreds } from "./creds";
 import { PairScreen } from "./PairScreen";
 import { type PhotoAsk, PhotoModal } from "./PhotoModal";
-import { parsePairingLink } from "./pairing";
+import { fromPairedCore, parsePairingLink } from "./pairing";
 import { startPhoneNode } from "./phone";
 import { ApxClient, ApxError } from "./protocol";
 import { theme } from "./ui/theme";
@@ -16,6 +16,8 @@ import { WorkspaceScreen } from "./WorkspaceScreen";
 export function App() {
   const [creds, setCreds] = useState<Creds | null>();
   const [link, setLink] = useState<string>();
+  /** The chat a scanned link asks to open. */
+  const [focus, setFocus] = useState<string>();
   const [photo, setPhoto] = useState<PhotoAsk>();
   // Paired: the phone lends its location and camera to the core, and registers for push.
   useEffect(() => {
@@ -60,10 +62,23 @@ export function App() {
       setCreds(creds);
     });
     // Opened from an apx://pair link (the QR scanned with the phone's own camera).
-    void Linking.getInitialURL().then((u) => u && parsePairingLink(u) && setLink(u));
-    const sub = Linking.addEventListener("url", ({ url }) => parsePairingLink(url) && setLink(url));
+    const take = (url: string | null) => {
+      const parsed = url ? parsePairingLink(url) : undefined;
+      if (!url || !parsed) return;
+      setLink(url);
+      if (parsed.thread) setFocus(parsed.thread);
+    };
+    void Linking.getInitialURL().then(take);
+    const sub = Linking.addEventListener("url", ({ url }) => take(url));
     return () => sub.remove();
   }, []);
+  // A link from the core this phone already talks to only opens its chat; pairing again would add a second device.
+  const parsedLink = link ? parsePairingLink(link) : undefined;
+  const known = Boolean(creds && parsedLink && fromPairedCore(parsedLink, creds.url));
+  useEffect(() => {
+    if (known) setLink(undefined);
+  }, [known]);
+  const focused = useCallback(() => setFocus(undefined), []);
   return (
     <SafeAreaProvider>
       <SafeAreaView edges={["top", "left", "right"]} style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -73,8 +88,8 @@ export function App() {
           <View style={{ flex: 1, justifyContent: "center" }}>
             <ActivityIndicator />
           </View>
-        ) : creds && !link ? (
-          <WorkspaceScreen creds={creds} onUnpair={unpair} />
+        ) : creds && (!link || known) ? (
+          <WorkspaceScreen creds={creds} onUnpair={unpair} focus={focus} onFocused={focused} />
         ) : (
           <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
             <PairScreen

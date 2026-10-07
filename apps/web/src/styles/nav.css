@@ -335,19 +335,6 @@
   gap: 14px;
   padding: 6px 0;
 }
-.phone__qr {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 210px;
-  height: 210px;
-  border: 1px dashed var(--apx-border-strong);
-  border-radius: 16px;
-  color: var(--apx-fg-subtle);
-  font-size: var(--apx-text-sm);
-}
 .phone__hint {
   margin: 0;
   max-width: 360px;
