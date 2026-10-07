@@ -222,3 +222,16 @@ test("the reconciler drops a task return whose project is gone, without inventin
   assert.equal(listPendingCallbacks().length, 0);
   assert.ok(logs.some((l) => /project 999 is gone/.test(l)));
 });
+
+test("a summoned agent is told how to ask the owner for a decision (#58)", async () => {
+  // [mock:system] makes the mock engine answer with the system prompt the turn
+  // really received, so this checks the prompt end to end, not a builder alone.
+  const { projects, p } = setup();
+  const t = createTask(p.storagePath, { title: "auditar" });
+  addComment(p.storagePath, t.id, { by: "owner", text: "@roby [mock:system]", mentions: ["roby"] });
+  await runCommentMentions({ p, taskId: t.id, seed: ["roby"], author: "owner", projects, plugins: null, registries: null, config });
+  const reply = getTask(p.storagePath, t.id).comments.find((c) => c.by === "roby");
+  assert.ok(reply, "roby answered");
+  assert.match(reply.text, /Need a decision\?/);
+  assert.match(reply.text, /comment_task with `decision`/);
+});

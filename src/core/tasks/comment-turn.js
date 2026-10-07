@@ -140,6 +140,10 @@ function systemBlock({ me, others, taskTitle }) {
     "**Your final answer IS the comment** — it is posted on the task for you. Do not also post it with comment_task on this task, or it shows up twice.",
     `**Be short.** A comment lives in a side panel next to the task. Aim for a few lines and stay under ~${REPLY_CHAR_HINT} characters. If the detail is long, put the conclusion in the comment and the detail where it belongs (a file, a PR, the task's description).`,
     `**Handing work over:** the only way another agent gets a turn is writing their exact handle with an @ — ${roster}. Writing just their name does NOT reach them. Mention someone ONLY if they genuinely need to act; if you can close it yourself, cite nobody and the thread ends.`,
+    // Without this line the owner was unreachable from a task: the attention
+    // mechanism existed, no agent was told how to use it, and "NEEDS USER
+    // INPUT" in prose reached nobody (#58).
+    "**Need a decision?** Call comment_task with `decision` (question, options, recommendation; `responsible` = owner or the agent who owes it). Never write \"NEEDS USER INPUT\" in prose — nobody is notified by text.",
   ].join("\n");
 }
 
