@@ -15,6 +15,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { untrusted } from "../tools/result.ts";
+import { asksSomething, needsNoAnswer } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { buttonId, parseButton } from "./notices.ts";
 import type { createRooms } from "./rooms.ts";
@@ -24,6 +25,7 @@ import type { ChannelConfig } from "./types.ts";
 /** A contact gets at most this many automatic answers per hour; then the owner is told once. */
 const CONTACT_PER_HOUR = 20;
 const HOUR_MS = 3600_000;
+const LIVE = new Set(["submitted", "working", "input-required"]);
 
 export function createInbound(deps: {
   store: Store;
@@ -111,6 +113,10 @@ export function createInbound(deps: {
       keepQuiet(thread.id, cfg.id, person, m.voice ? `${text ? `${text}\n` : ""}[voice note]` : text, attachments);
       return "done";
     }
+    if (!attachments.length && closesChat(thread.id, text)) {
+      keepQuiet(thread.id, cfg.id, owner ? undefined : person, text.trim());
+      return "done";
+    }
     text = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
     if (
       owner &&
@@ -157,6 +163,21 @@ export function createInbound(deps: {
       log.warn({ err: errorMessage(err, 200) }, "voice note not transcribed");
       return `${caption}[voice note: it could not be transcribed]`;
     }
+  }
+
+  /**
+   * "Ok", "gracias", "no gastes más tokens": nothing to answer, so no model call. Not while a turn is running or
+   * waiting for an answer (the words may belong to it), nor when the agent's last words asked something.
+   */
+  function closesChat(threadId: string, text: string): boolean {
+    if (store.inputs.pending(threadId).length) return false;
+    if (store.runs.list(threadId, 5).some((r) => LIVE.has(r.state))) return false;
+    const last = store.messages
+      .list(threadId)
+      .findLast((x) => x.author.kind === "agent" || x.author.kind === "person" || x.author.kind === "user");
+    const said =
+      last?.author.kind === "agent" ? last.parts.map((p) => (p.type === "text" ? p.text : "")).join("\n") : "";
+    return needsNoAnswer(text, asksSomething(said));
   }
 
   /** Each automatic answer to a contact costs a model call: past the hourly limit they wait and the owner hears it. */
@@ -259,20 +280,20 @@ export function createInbound(deps: {
   }
 
   /**
-   * A silenced contact's message: kept in their chat (and in what the agent will read if the owner unsilences them),
-   * marked unread, never answered.
+   * A message that gets no answer (a silenced contact, or a closing "ok"): kept in its chat and in what the agent will
+   * read next time. A contact's is marked unread for the owner; `person` is undefined for the owner's own words.
    */
   function keepQuiet(
     threadId: string,
     channel: string,
-    person: { id: string; name: string },
+    person: { id: string; name: string; muted?: boolean } | undefined,
     text: string,
     attachments: string[] = [],
   ): void {
     store.tx(() => {
       store.messages.add({
         thread_id: threadId,
-        author: { kind: "person", id: person.id, name: person.name, channel },
+        author: person ? { kind: "person", id: person.id, name: person.name, channel } : { kind: "user" },
         parts: [
           { type: "text", text },
           ...attachments.flatMap((id) => {
@@ -288,10 +309,11 @@ export function createInbound(deps: {
           }),
         ],
       });
+      const why: Record<string, string> = person?.muted ? { silenced: "yes" } : { answered: "no, it needed no answer" };
       store.modelLog.append(threadId, undefined, [
         {
           role: "user",
-          content: untrusted("channel_message", { from: person.name, channel, silenced: "yes" }, text),
+          content: person ? untrusted("channel_message", { from: person.name, channel, ...why }, text) : text,
           images: attachments.flatMap((id) => {
             const m = store.media.get(id);
             return m?.kind === "image" ? [{ media_id: id, mime: m.mime }] : [];
@@ -299,7 +321,7 @@ export function createInbound(deps: {
         },
       ]);
       const t = store.threads.get(threadId);
-      store.threads.patch(threadId, { preview: previewOf(text), unread: (t?.unread ?? 0) + 1 });
+      store.threads.patch(threadId, { preview: previewOf(text), ...(person ? { unread: (t?.unread ?? 0) + 1 } : {}) });
     });
   }
 

@@ -24,6 +24,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
     return callTool("m4", "message_contact", { to: "Northwind Buyer", text: "x", files: ["../secrets.index.json"] });
   if (said.includes("who are my contacts")) return callTool("c1", "contact_list", { query: "north" });
   if (said.includes("what routines")) return callTool("c2", "routine_list", {});
+  if (said.includes("nothing to add")) return say("SKIP");
+  if (said.includes("can I ask")) return say("Sure, want me to tell them?");
   if (said.includes("tell nobody")) return callTool("m2", "message_contact", { to: "Zed", text: "Hi" });
   return say(`Reply: ${said.split("\n").at(-1)?.slice(0, 80)}`);
 });
@@ -109,6 +111,38 @@ test("a silenced contact's message is kept and unread, never answered", async ()
   const t = (await env.client.call("threads.get", { thread })).thread;
   assert.ok(t.unread > 0);
   await env.client.call("contacts.set", { id: person, name: MAG.name, muted: false });
+});
+
+test("a closing message is kept, never answered, and costs no model call", async () => {
+  const sent = tg.messagesTo(MAG.id).length;
+  const calls = llm.calls.length;
+  tg.message(MAG, "No gastes más tokens 😂");
+  await until(async () => {
+    const { messages } = await env.client.call("threads.get", { thread });
+    return messages.some((m) => m.parts[0]?.type === "text" && m.parts[0].text === "No gastes más tokens 😂");
+  }, "message kept");
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(tg.messagesTo(MAG.id).length, sent, "nothing went back");
+  assert.equal(llm.calls.length, calls, "no model call");
+});
+
+test("after the agent asks something, a bare ok is answered", async () => {
+  tg.message(MAG, "can I ask something?");
+  await until(() => /tell them\?/.test(String(tg.messagesTo(MAG.id).at(-1)?.body.text)), "the question");
+  const sent = tg.messagesTo(MAG.id).length;
+  tg.message(MAG, "ok");
+  await until(() => tg.messagesTo(MAG.id).length > sent, "answer to the ok");
+});
+
+test("an agent that answers SKIP sends nothing", async () => {
+  const sent = tg.messagesTo(MAG.id).length;
+  const calls = llm.calls.length;
+  tg.message(MAG, "nothing to add from my side, see you around");
+  await until(() => llm.calls.length > calls, "model call");
+  await until(async () => (await env.client.call("threads.get", { thread })).thread.state !== "working", "turn ended");
+  await new Promise((r) => setTimeout(r, 300));
+  assert.equal(tg.messagesTo(MAG.id).length, sent, "nothing went back");
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /answer only SKIP/);
 });
 
 test("the owner tells the agent what to answer in the app; the answer goes to the contact", async () => {
@@ -223,7 +257,7 @@ test("the owner's agent writes to a contact on their channel, kept in the contac
   );
 
   // The contact's own turn has no way to write to anyone else.
-  tg.message(MAG, "thanks!");
+  tg.message(MAG, "thanks! and the invoice?");
   await until(() => tg.messagesTo(MAG.id).length === before + 2, "the contact's answer");
   assert.ok(!toolsOf(-1).includes("message_contact"));
 });

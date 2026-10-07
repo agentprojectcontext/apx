@@ -14,6 +14,7 @@ import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { audienceOf } from "../engine/audience.ts";
+import { isSkip } from "../engine/routines.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
@@ -216,6 +217,7 @@ export function createChannels(deps: {
     const images = (msg?.parts ?? []).flatMap((p) =>
       p.type === "image" && p.media_id ? [{ id: p.media_id, kind: "image" as const, mime: p.mime ?? "image/png" }] : [],
     );
+    if (run.state === "completed" && isSkip(out)) out = "";
     if (!out && !images.length) return;
     if (audience?.kind === "contact") out = guardReply(out);
     if (room) out = quietMentions(out);

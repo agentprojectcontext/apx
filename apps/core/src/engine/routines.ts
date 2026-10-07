@@ -16,6 +16,9 @@ const LEASE_MS = 60 * 60_000;
 /** The answer that means "nothing to tell the owner this time". */
 export const SKIP_ANSWER = "SKIP";
 
+/** "SKIP", "**SKIP**", "`skip`." all mean the agent had nothing to say. */
+export const isSkip = (text: string): boolean => text.replace(/[.\s*_`~"'!]/g, "").toUpperCase() === SKIP_ANSWER;
+
 export type RoutineDelivery = (r: { routine: Routine; run: RecordedRun; text: string; failed: boolean }) => void;
 type RecordedRun = Pick<RunRecord, "id" | "thread_id" | "state">;
 
@@ -125,9 +128,7 @@ export function createScheduler(deps: {
         .join("\n")
         .trim();
       const failed = run.state === "failed";
-      // "SKIP", "**SKIP**", "`skip`." all mean nothing to say.
-      const bare = text.replace(/[.\s*_`~"'!]/g, "").toUpperCase();
-      const quiet = run.state === "canceled" || (!failed && (!bare || bare === SKIP_ANSWER));
+      const quiet = run.state === "canceled" || (!failed && (!text || isSkip(text)));
       store.routines.delivered(run.id, !quiet);
       if (quiet) return;
       deps.deliver({ routine, run, text: failed ? (run.error ?? "") : text, failed });

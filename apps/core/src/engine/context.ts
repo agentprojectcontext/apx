@@ -187,8 +187,7 @@ export function frameInput(origin: Origin, text: string): string {
 
 /** Chat apps show plain text on a phone. */
 const CHAT_CHANNELS = new Set(["telegram", "whatsapp", "slack", "discord", "imessage"]);
-const CHAT_STYLE =
-  "Plain text on a phone: no Markdown tables, headers or bold; short, under about six sentences unless asked for more. Your answer must carry the whole result.";
+const CHAT_STYLE = `Plain text on a phone: no Markdown tables, headers or bold; short, under about six sentences unless asked for more. Your answer must carry the whole result. When the message needs no answer (a thanks, an ok, a laugh, a goodbye, a request to stop answering), answer only ${SKIP_ANSWER}: nothing is sent, and the chat ends there.`;
 
 const HANDOFF_NOTE =
   "Here you only keep notes and hand work off. Anything that needs other tools (the web, files, commands, tasks, the browser) goes to an agent with delegate: say in one line that it is on its way; its answer reaches the owner here.";
