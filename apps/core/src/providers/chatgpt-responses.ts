@@ -33,7 +33,7 @@ type Event = {
   };
   response?: {
     status?: string;
-    usage?: { input_tokens?: number; output_tokens?: number };
+    usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } };
     error?: { message?: string };
   };
   error?: { message?: string };
@@ -95,6 +95,8 @@ export const chatgptResponses: Transport = async (req) => {
       input,
       store: false,
       stream: true,
+      // Codex sends its conversation id here: calls with the same key reach the same prompt cache.
+      ...(req.cacheKey ? { prompt_cache_key: req.cacheKey } : {}),
       include: ["reasoning.encrypted_content"],
       ...(req.effort ? { reasoning: { effort: req.effort, summary: "auto" } } : {}),
       ...(req.tools.length
@@ -159,7 +161,8 @@ export const chatgptResponses: Transport = async (req) => {
         case "response.completed":
         case "response.incomplete": {
           const u = ev.response?.usage;
-          if (u) usage = { input: u.input_tokens ?? 0, output: u.output_tokens ?? 0 };
+          const cached = u?.input_tokens_details?.cached_tokens;
+          if (u) usage = { input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, ...(cached ? { cached } : {}) };
           if (ev.type === "response.incomplete" || ev.response?.status === "incomplete") finish = "length";
           break;
         }

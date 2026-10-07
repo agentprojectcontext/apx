@@ -25,15 +25,18 @@ type Delta = {
 };
 type Chunk = {
   choices?: Array<{ delta?: Delta; message?: AssistantItem; finish_reason?: string | null }>;
-  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
   error?: { message?: string };
 };
 
 const finishOf = (reason: string | null | undefined): Finish =>
   reason === "stop" ? "stop" : reason === "tool_calls" ? "tool_calls" : reason === "length" ? "length" : "other";
 
-const usageOf = (u: Chunk["usage"]): Usage | undefined =>
-  u ? { input: u.prompt_tokens ?? 0, output: u.completion_tokens ?? 0 } : undefined;
+const usageOf = (u: Chunk["usage"]): Usage | undefined => {
+  if (!u) return undefined;
+  const cached = u.prompt_tokens_details?.cached_tokens;
+  return { input: u.prompt_tokens ?? 0, output: u.completion_tokens ?? 0, ...(cached ? { cached } : {}) };
+};
 
 /** User items with images become content parts (text, then each image as a data URL); the rest go as they are. */
 function wire(items: TransportRequest["messages"]): unknown[] {

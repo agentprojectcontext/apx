@@ -26,7 +26,8 @@ export type ToolSpec = { type: "function"; function: { name: string; description
 export type Finish = "stop" | "tool_calls" | "length" | "other";
 
 /** `context`: the input of the last call alone, how much of the window the chat fills now. */
-export type Usage = { input: number; output: number; context?: number };
+/** `input` counts every prompt token, `cached` the part a provider read from its prompt cache. */
+export type Usage = { input: number; output: number; context?: number; cached?: number };
 
 /**
  * `effort`: the reasoning effort the call asked for, when it asked for one. `failed`: models tried before the one
@@ -94,6 +95,8 @@ export type TransportRequest = {
   messages: ChatItem[];
   tools: ToolSpec[];
   signal: AbortSignal;
+  /** Stable per conversation: lets a provider's prompt cache find this chat's earlier calls. */
+  cacheKey?: string | undefined;
   /** Streaming: receives the text accumulated so far. */
   onText?: ((soFar: string) => void) | undefined;
   /** Silence allowed before the first byte. */

@@ -64,7 +64,14 @@ const server = http.createServer((req, res) => {
       }
       send({
         type: "response.completed",
-        response: { status: "completed", usage: { input_tokens: 50, output_tokens: 5 } },
+        response: {
+          status: "completed",
+          usage: {
+            input_tokens: 50,
+            output_tokens: 5,
+            ...(afterTool ? { input_tokens_details: { cached_tokens: 40 } } : {}),
+          },
+        },
       });
       return res.end();
     }
@@ -178,13 +185,19 @@ test("the plan's model runs in APX's loop: tools as functions, reasoning replaye
   assert.equal(sentTool?.strict, false, "Responses must not turn optional arguments into mandatory placeholders");
   assert.deepEqual(sentTool?.parameters, tools[0]?.function.parameters);
 
+  assert.equal(call?.body.prompt_cache_key, undefined, "no key, no cache routing");
+
   const second = await llm.complete({
     models: ["chatgpt/gpt-6-luna"],
     messages: [...messages, first.message, { role: "tool", tool_call_id: "call-1", content: "3 tasks" }],
     tools,
     signal: AbortSignal.timeout(5000),
+    cacheKey: "th_1",
   });
   assert.equal(second.message.content, "Three tasks.");
+  // The chat's id routes its calls to one prompt cache, and the cached part of the input is reported.
+  assert.equal(seen.filter((s) => s.url === "/codex/responses").at(-1)?.body.prompt_cache_key, "th_1");
+  assert.deepEqual(second.usage, { input: 50, output: 5, cached: 40 });
   const input = seen.filter((s) => s.url === "/codex/responses").at(-1)?.body.input as Array<Record<string, unknown>>;
   assert.deepEqual(
     input.map((i) => i.type),

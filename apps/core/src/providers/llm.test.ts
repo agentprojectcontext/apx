@@ -147,6 +147,45 @@ test("anthropic conversion: leading system, later notes as user text, tool calls
   ]);
 });
 
+test("anthropic: the system prompt and the conversation's last block are marked for its cache; cached tokens count in input", async () => {
+  secrets.set("c", "key-c");
+  let body: { system?: unknown; messages: Array<{ content: Array<Record<string, unknown>> }> } | undefined;
+  const llm = createLlm({
+    providers: () => [
+      { id: "an", transport: "anthropic-messages", base_url: "http://an.test", key: "secret://c", models: ["m"] },
+    ],
+    secrets,
+    firstByteMs: 1000,
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      body = JSON.parse(String(init.body));
+      return sse([
+        {
+          type: "message_start",
+          message: { usage: { input_tokens: 10, cache_read_input_tokens: 3000, cache_creation_input_tokens: 200 } },
+        },
+        { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "ok" } },
+        { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { output_tokens: 2 } },
+      ]);
+    }) as typeof fetch,
+  });
+  const out = await llm.complete({
+    models: ["an/m"],
+    messages: [
+      { role: "system", content: "You are Roby." },
+      { role: "user", content: "hi" },
+      { role: "assistant", content: "hello" },
+      { role: "user", content: "and now?" },
+    ],
+    tools: [],
+    signal: new AbortController().signal,
+  });
+  assert.deepEqual(body?.system, [{ type: "text", text: "You are Roby.", cache_control: { type: "ephemeral" } }]);
+  const blocks = body?.messages.flatMap((m) => m.content) ?? [];
+  assert.deepEqual(blocks.at(-1), { type: "text", text: "and now?", cache_control: { type: "ephemeral" } });
+  assert.equal(blocks.filter((b) => b.cache_control).length, 1, "only the last block of the conversation");
+  assert.deepEqual(out.usage, { input: 3210, output: 2, cached: 3000 });
+});
+
 test("a per-model quota (Gemini's 429) moves on to the same provider's next model", async () => {
   const seen: string[] = [];
   const llm = createLlm({

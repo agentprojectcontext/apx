@@ -18,6 +18,24 @@ type Block =
   | { type: "tool_result"; tool_use_id: string; content: string }
   | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
 type Msg = { role: "user" | "assistant"; content: Block[] };
+const EPHEMERAL = { type: "ephemeral" } as const;
+
+/**
+ * Anthropic caches only what a request marks: the system prompt (with the tools before it) and the conversation up to
+ * its last block, so each step of a turn reads the earlier ones from the cache.
+ */
+function withCache(system: string, messages: Msg[]) {
+  const last = messages.at(-1);
+  const tail = last?.content.at(-1);
+  const marked =
+    last && tail
+      ? [
+          ...messages.slice(0, -1),
+          { role: last.role, content: [...last.content.slice(0, -1), { ...tail, cache_control: EPHEMERAL }] },
+        ]
+      : messages;
+  return { system: system ? [{ type: "text", text: system, cache_control: EPHEMERAL }] : undefined, messages: marked };
+}
 
 const MAX_TOKENS = 16_000;
 
@@ -56,7 +74,9 @@ export function toAnthropic(items: ChatItem[]): { system: string; messages: Msg[
 type Event = {
   type: string;
   index?: number;
-  message?: { usage?: { input_tokens?: number } };
+  message?: {
+    usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number };
+  };
   content_block?: { type: string; id?: string; name?: string; text?: string };
   delta?: { type?: string; text?: string; partial_json?: string; stop_reason?: string };
   usage?: { output_tokens?: number };
@@ -73,7 +93,8 @@ const finishOf = (r: string | undefined): Finish =>
         : "other";
 
 export const anthropicMessages: Transport = async (req) => {
-  const { system, messages } = toAnthropic(req.messages);
+  const plain = toAnthropic(req.messages);
+  const { system, messages } = withCache(plain.system, plain.messages);
   const { res, touch, done } = await post(
     req,
     `${req.baseUrl.replace(/\/$/, "")}/v1/messages`,
@@ -112,8 +133,13 @@ export const anthropicMessages: Transport = async (req) => {
         const kind = ev.error?.type === "overloaded_error" ? "overloaded" : "bad_request";
         throw new ProviderError(kind, `stream error: ${ev.error?.message ?? "unknown"}`);
       }
-      if (ev.type === "message_start") usage.input = ev.message?.usage?.input_tokens ?? 0;
-      else if (ev.type === "content_block_start" && ev.content_block?.type === "tool_use") {
+      if (ev.type === "message_start") {
+        // Anthropic counts cached tokens apart; `input` is every prompt token, as other providers report it.
+        const u = ev.message?.usage;
+        const cached = u?.cache_read_input_tokens ?? 0;
+        usage.input = (u?.input_tokens ?? 0) + cached + (u?.cache_creation_input_tokens ?? 0);
+        if (cached) usage.cached = cached;
+      } else if (ev.type === "content_block_start" && ev.content_block?.type === "tool_use") {
         const call: ToolCall = {
           id: ev.content_block.id ?? `call_${calls.length}`,
           type: "function",

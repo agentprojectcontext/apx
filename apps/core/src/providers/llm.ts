@@ -27,6 +27,8 @@ export type LlmRequest = {
   tools: ToolSpec[];
   signal: AbortSignal;
   onText?: ((soFar: string) => void) | undefined;
+  /** Stable per conversation (a thread id), for providers' prompt caches. */
+  cacheKey?: string | undefined;
 };
 
 export type Llm = {
@@ -142,6 +144,7 @@ export function createLlm(opts: {
               messages,
               tools: req.tools,
               signal: req.signal,
+              cacheKey: req.cacheKey,
               onText,
               firstByteMs: opts.firstByteMs,
               fetchImpl: opts.fetchImpl ?? fetch,

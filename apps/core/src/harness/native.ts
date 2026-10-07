@@ -43,6 +43,7 @@ export function nativeHarness(llm: Llm): Harness {
           messages,
           tools: tools && !toolsOff ? io.tools : [],
           signal: io.signal,
+          cacheKey: io.thread.id,
           onText: (s) => io.onText(prefix + s),
         });
         io.signal.throwIfAborted();
@@ -51,6 +52,7 @@ export function nativeHarness(llm: Llm): Harness {
         for (const f of c.failed ?? []) if (!failed.has(f.model)) failed.set(f.model, f);
         usage.input += c.usage?.input ?? 0;
         usage.output += c.usage?.output ?? 0;
+        if (c.usage?.cached) usage.cached = (usage.cached ?? 0) + c.usage.cached;
         if (c.usage?.input) usage.context = c.usage.input;
         push(c.message);
         if (c.message.content) text = prefix + c.message.content;

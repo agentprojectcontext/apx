@@ -430,6 +430,8 @@ export const RunUsage = z.object({
   output: z.number().int(),
   context: z.number().int().optional(),
   window: z.number().int().optional(),
+  /** Prompt tokens a provider read from its cache (cheaper, and counted inside `input`). */
+  cached: z.number().int().optional(),
 });
 export type RunUsage = z.infer<typeof RunUsage>;
 

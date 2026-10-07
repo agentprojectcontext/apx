@@ -74,6 +74,8 @@ test("a message runs a turn whose answer lands in the thread, with the run retur
   assert.deepEqual(answer?.author, { kind: "agent", id: "roby" });
   assert.deepEqual(answer?.parts, [{ type: "text", text: "Hi, I'm Roby." }]);
   assert.ok(events.some((e) => e.type === "message.part"));
+  // The chat's id goes with every model call, so a provider's prompt cache finds its earlier ones.
+  assert.equal(llm.calls.at(-1)?.cacheKey, "home");
 });
 
 test("the answer names the reasoning effort it ran with; the run keeps the bare model", async () => {
