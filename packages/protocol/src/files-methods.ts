@@ -16,6 +16,9 @@ export const FILE_READ_LIMIT = 256 * 1024;
 /** The largest image, video, audio or PDF the viewer previews; bigger ones are opened from Finder. */
 export const FILE_MEDIA_LIMIT = 15 * 1024 * 1024;
 
+/** The largest file the owner downloads through the panel (from a core on another computer too). */
+export const FILE_DOWNLOAD_LIMIT = 50 * 1024 * 1024;
+
 /** An uncommitted file in a chat's folder, per git: its status letters and the lines added and removed. */
 export const ChangedFile = z.object({
   path: z.string(),
@@ -91,7 +94,14 @@ export const filesMethods = {
     effect: false,
     access: "human",
   },
-  /** Shows the file or folder in Finder (Explorer, the file manager). */
+  /** A file's bytes, for the owner to save on the computer the panel runs on (up to 50 MB). */
+  "files.download": {
+    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
+    result: z.object({ name: z.string(), mime: z.string(), data: z.string(), bytes: z.number().int() }),
+    effect: false,
+    access: "human",
+  },
+  /** Shows the file or folder in Finder (Explorer, the file manager) on the core's computer. */
   "files.reveal": {
     params: z.object({ ...Where, path: z.string().max(1000) }).strict(),
     result: z.object({ ok: z.literal(true) }),

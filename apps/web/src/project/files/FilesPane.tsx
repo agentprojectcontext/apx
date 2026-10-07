@@ -3,7 +3,7 @@ import { Button, ContextMenu, EmptyState, IconButton, Icons, MarkdownView, Segme
 import { type ReactNode, useEffect, useState } from "react";
 import { formatBytes } from "../../common/format.ts";
 import { client } from "../../data/client.ts";
-import { type FileWhere, mediaKind, mediaOf, revealFile } from "../../data/files.ts";
+import { coreOnThisComputer, downloadFile, type FileWhere, mediaKind, mediaOf, revealFile } from "../../data/files.ts";
 import { useT } from "../../i18n/index.ts";
 import { type FileChange, fileMenu, RenameDialog, TrashDialog } from "./FileActions.tsx";
 
@@ -89,12 +89,14 @@ export function FilesPane({
           <div className="files__root" title={root || undefined}>
             <Icons.FolderOpen size={14} />
             <span>{label ?? ("project" in where ? t("files.repo") : root.split("/").filter(Boolean).at(-1))}</span>
-            <IconButton
-              size="sm"
-              label={t("files.reveal")}
-              icon={<Icons.ExternalLink size={12} />}
-              onClick={() => void revealFile(where, "")}
-            />
+            {coreOnThisComputer() && (
+              <IconButton
+                size="sm"
+                label={t("files.reveal")}
+                icon={<Icons.ExternalLink size={12} />}
+                onClick={() => void revealFile(where, "")}
+              />
+            )}
           </div>
           <Folder ctx={ctx} dir="" depth={0} />
         </nav>
@@ -254,16 +256,26 @@ function FileHead({
       <Button
         size="sm"
         variant="ghost"
-        leadingIcon={<Icons.FolderOpen size={14} />}
-        onClick={() => void revealFile(where, path)}
+        leadingIcon={<Icons.Download size={14} />}
+        onClick={() => void downloadFile(where, path)}
       >
-        {t("files.reveal")}
+        {t("files.download")}
       </Button>
+      {coreOnThisComputer() && (
+        <Button
+          size="sm"
+          variant="ghost"
+          leadingIcon={<Icons.FolderOpen size={14} />}
+          onClick={() => void revealFile(where, path)}
+        >
+          {t("files.reveal")}
+        </Button>
+      )}
     </header>
   );
 }
 
-/** An image, video, audio or PDF, shown from its bytes; too big or unreadable says so (Finder is one click away). */
+/** An image, video, audio or PDF, shown from its bytes; too big or unreadable says so (download is one click away). */
 function MediaView({ where, path }: { where: FileWhere; path: string }) {
   const t = useT();
   const kind = mediaKind(path);
@@ -354,8 +366,8 @@ function TextView({ where, path }: { where: FileWhere; path: string }) {
       ) : file.binary ? (
         <EmptyState icon={<Icons.File />} title={t("files.binary")}>
           {t("files.binaryBody")}
-          <Button size="sm" variant="secondary" onClick={() => void revealFile(where, path)}>
-            {t("files.reveal")}
+          <Button size="sm" variant="secondary" onClick={() => void downloadFile(where, path)}>
+            {t("files.download")}
           </Button>
         </EmptyState>
       ) : (

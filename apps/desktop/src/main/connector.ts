@@ -43,6 +43,10 @@ export function createConnector(opts: {
     e.returnValue = conn?.mode === "local" && opts.isOwnWindow(e.sender) ? localCoreToken() : undefined;
   });
 
+  ipcMain.on("desktop:core-local", (e) => {
+    e.returnValue = conn?.mode === "local" && opts.isOwnWindow(e.sender);
+  });
+
   ipcMain.handle("connect:local", async (e, access: unknown): Promise<Answer> => {
     if (!onChooser(e.sender)) return { ok: false, error: "not allowed" };
     if (access !== "none" && access !== "lan" && access !== "tailscale") return { ok: false, error: "bad access" };

@@ -35,6 +35,8 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   installUpdate: (): Promise<unknown> => ipcRenderer.invoke("desktop:update-install"),
   // The local core's token when it asks for one (it listens beyond this computer); asked once, at load.
   coreToken: (ipcRenderer.sendSync("desktop:core-token") as string | undefined) || undefined,
+  // Whether the core runs on this computer (not one at an address or over SSH): Finder can show its files.
+  coreLocal: ipcRenderer.sendSync("desktop:core-local") === true,
 });
 
 type Answer = { ok: true } | { ok: false; reason?: string; error?: string };

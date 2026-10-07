@@ -149,3 +149,17 @@ test("a chat's temp folder is browsed apart, and what the owner keeps is copied 
   fs.rmSync(path.join(repo, "out"), { recursive: true });
   fs.rmSync(path.join(repo, "AGENTS 2.md"));
 });
+
+test("a file downloads whole, any kind; a folder, a pipe or a path outside does not", async () => {
+  const plan = await env.client.call("files.download", { project, path: "docs/plan.md" });
+  assert.deepEqual(
+    { name: plan.name, mime: plan.mime, bytes: plan.bytes, text: Buffer.from(plan.data, "base64").toString() },
+    { name: "plan.md", mime: "application/octet-stream", bytes: 16, text: "Ship on Friday.\n" },
+  );
+  const logo = await env.client.call("files.download", { project, path: "logo.png" });
+  assert.equal(logo.mime, "image/png");
+  assert.deepEqual(Buffer.from(logo.data, "base64"), fs.readFileSync(path.join(repo, "logo.png")));
+  await assert.rejects(env.client.call("files.download", { project, path: "docs" }), /not a file/);
+  await assert.rejects(env.client.call("files.download", { project, path: "pipe" }), /not a file/);
+  await assert.rejects(env.client.call("files.download", { project, path: "escape/secret.txt" }), /outside the folder/);
+});

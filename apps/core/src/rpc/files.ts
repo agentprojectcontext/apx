@@ -2,7 +2,7 @@
 // (links that point out are left out) and never .git's insides (by any name or case).
 import fs from "node:fs";
 import path from "node:path";
-import { FILE_MEDIA_LIMIT, FILE_READ_LIMIT, type FileEntry } from "@apx/protocol";
+import { FILE_DOWNLOAD_LIMIT, FILE_MEDIA_LIMIT, FILE_READ_LIMIT, type FileEntry } from "@apx/protocol";
 import type { DesktopOps } from "../desktop.ts";
 import type { Store } from "../domain/store.ts";
 import { gitDiff, gitStatus } from "../engine/changes.ts";
@@ -49,6 +49,30 @@ export function threadFolder(store: Store, home: string, threadId: string): stri
 }
 
 type Where = { project?: string | undefined; thread?: string | undefined; scratch?: boolean | undefined };
+
+/** A regular file's whole bytes, not following a link swapped in since the check and never waiting on a pipe. */
+function readWhole(abs: string, rel: string, limit: number, tooBig: string): Buffer {
+  let fd: number;
+  try {
+    fd = fs.openSync(abs, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+  } catch {
+    throw notFound(`file ${rel}`);
+  }
+  try {
+    const st = fs.fstatSync(fd);
+    if (!st.isFile()) throw badRequest(`${rel} is not a file`);
+    if (st.size > limit) throw badRequest(`${rel} is ${tooBig}`);
+    const buf = Buffer.alloc(st.size);
+    for (let at = 0; at < st.size; ) {
+      const n = fs.readSync(fd, buf, at, st.size - at, at);
+      if (!n) throw badRequest(`${rel} changed while reading; try again`);
+      at += n;
+    }
+    return buf;
+  } finally {
+    fs.closeSync(fd);
+  }
+}
 
 export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
   /** The folder browsed: a project's, or a chat's (APX's work folder is made when first opened, as an agent would). */
@@ -141,22 +165,19 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
       const { abs, rel: clean } = locate(where, rel);
       const mime = mediaType(clean);
       if (!mime) throw badRequest(`${rel} is not an image, video, audio or PDF`);
-      let fd: number;
-      try {
-        fd = fs.openSync(abs, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
-      } catch {
-        throw notFound(`file ${rel}`);
-      }
-      try {
-        const st = fs.fstatSync(fd);
-        if (!st.isFile()) throw badRequest(`${rel} is not a file`);
-        if (st.size > FILE_MEDIA_LIMIT) throw badRequest(`${rel} is too big to preview; open it from Finder`);
-        const buf = Buffer.alloc(st.size);
-        fs.readSync(fd, buf, 0, st.size, 0);
-        return { mime, data: buf.toString("base64"), bytes: st.size };
-      } finally {
-        fs.closeSync(fd);
-      }
+      const buf = readWhole(abs, rel, FILE_MEDIA_LIMIT, "too big to preview; open it from Finder");
+      return { mime, data: buf.toString("base64"), bytes: buf.length };
+    },
+    "files.download": ({ path: rel, ...where }) => {
+      const { abs, rel: clean } = locate(where, rel);
+      const buf = readWhole(abs, rel, FILE_DOWNLOAD_LIMIT, "too big to download from the panel");
+      const name = path.posix.basename(clean);
+      return {
+        name,
+        mime: mediaType(name) ?? "application/octet-stream",
+        data: buf.toString("base64"),
+        bytes: buf.length,
+      };
     },
     "files.reveal": async ({ path: rel, ...where }) => {
       const { abs } = locate(where, rel);

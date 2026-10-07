@@ -1,7 +1,15 @@
 import type { FileEntry } from "@apx/protocol";
 import { Button, Dialog, Field, Icons, Input, type MenuEntry } from "@apx/ui";
 import { useState } from "react";
-import { type FileWhere, keepFile, renameFile, revealFile, trashFile } from "../../data/files.ts";
+import {
+  coreOnThisComputer,
+  downloadFile,
+  type FileWhere,
+  keepFile,
+  renameFile,
+  revealFile,
+  trashFile,
+} from "../../data/files.ts";
 import { notify } from "../../data/notices.ts";
 import { type T, useT } from "../../i18n/index.ts";
 
@@ -18,18 +26,35 @@ const copy = async (text: string, t: T) => {
   }
 };
 
-/** The right-click menu of a file or folder: Finder, keeping a temp file, its paths, rename, trash. */
+/**
+ * The right-click menu of a file or folder: download, Finder (only with the core on this computer), keeping a temp
+ * file, its paths, rename, trash.
+ */
 export function fileMenu(
   target: FileTarget,
   o: { where: FileWhere; t: T; onRename(): void; onTrash(): void },
 ): MenuEntry[] {
   const { t } = o;
+  const file = target.entry.kind === "file";
   return [
-    {
-      label: t("files.reveal"),
-      icon: <Icons.FolderOpen />,
-      onSelect: () => void revealFile(o.where, target.entry.path),
-    },
+    ...(file
+      ? [
+          {
+            label: t("files.download"),
+            icon: <Icons.Download />,
+            onSelect: () => void downloadFile(o.where, target.entry.path),
+          },
+        ]
+      : []),
+    ...(coreOnThisComputer()
+      ? [
+          {
+            label: t("files.reveal"),
+            icon: <Icons.FolderOpen />,
+            onSelect: () => void revealFile(o.where, target.entry.path),
+          },
+        ]
+      : []),
     ...("thread" in o.where && o.where.scratch
       ? [
           {

@@ -53,6 +53,14 @@ test("a project chat shows its folder's changes, files and a terminal, and can w
   expect(fs.readFileSync(path.join(repo, "draft.md"), "utf8")).toBe("# Draft\n");
   await panel.getByRole("radio", { name: "Carpeta del chat" }).click();
   await expect(panel.getByRole("button", { name: "draft.md" })).toBeVisible();
+  // A file downloads to the computer showing the panel; Finder shows it only when the core runs here (it does).
+  await panel.getByRole("button", { name: "draft.md" }).click({ button: "right" });
+  await expect(page.getByRole("menuitem", { name: "Mostrar en Finder" })).toBeVisible();
+  const saving = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "Descargar" }).click();
+  const saved = await saving;
+  expect(saved.suggestedFilename()).toBe("draft.md");
+  expect(fs.readFileSync((await saved.path()) ?? "", "utf8")).toBe("# Draft\n");
 
   // Terminal: the agent ran nothing yet; the owner's own shell runs in the folder.
   await page.goto(`/#thread=${chat.id}&panel=terminal`);

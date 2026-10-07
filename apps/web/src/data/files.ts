@@ -37,6 +37,30 @@ export async function mediaOf(where: FileWhere, path: string): Promise<{ url: st
   return { url: URL.createObjectURL(new Blob([bytes], { type: m.mime })), bytes: m.bytes };
 }
 
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
+/**
+ * Whether the core runs on the computer showing the panel: only then can Finder show its files. The desktop app knows;
+ * a browser (or an older app) guesses from the address.
+ */
+export const coreOnThisComputer = (): boolean =>
+  window.apxDesktop?.coreLocal ?? (LOOPBACK.has(location.hostname) || location.hostname.endsWith(".localhost"));
+
+/** Saves a file of the core's on this computer, wherever the core runs. */
+export async function downloadFile(where: FileWhere, path: string): Promise<void> {
+  try {
+    const f = await client.call("files.download", { ...where, path });
+    const bytes = Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: f.mime }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = f.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  } catch (e) {
+    notify(t("files.error", { error: errText(e) }));
+  }
+}
+
 export async function revealFile(where: FileWhere, path: string): Promise<void> {
   try {
     await client.call("files.reveal", { ...where, path });
