@@ -16,6 +16,8 @@ The chat input. Enter sends, Shift+Enter adds a line, Ctrl/⌘+Enter sends with 
   the popup's list (`aria-controls` while expanded, `aria-activedescendant`).
 - `inputRef` reaches the field (focus, caret); `inputLabel` names it when the placeholder is only a hint;
   `onInputSelect` follows the caret (an @mention picker), `onInputBlur` closes such a picker.
+- `highlight(text)` marks parts of the text as it is typed (`withMentions` draws @mentions as badges) on a mirror
+  behind the field; marks never take room, so the letters stay where they are.
 - `labels` overrides the icon buttons' accessible names (`attach`, `stop`, `send`, `voice`; English by default).
 
 ```tsx

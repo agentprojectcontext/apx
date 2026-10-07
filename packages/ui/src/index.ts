@@ -76,3 +76,4 @@ export { Textarea, type TextareaProps } from "./components/Textarea";
 export { Tooltip, type TooltipProps } from "./components/Tooltip";
 export { VoiceNote, type VoiceNoteProps } from "./components/VoiceNote";
 export { Icons } from "./icons";
+export { MENTION, withMentions } from "./mention";

@@ -1,5 +1,5 @@
 import { ArrowUp, Mic, Plus, Square } from "lucide-react";
-import { type KeyboardEvent, type ReactNode, type Ref, type SyntheticEvent, useState } from "react";
+import { type KeyboardEvent, type ReactNode, type Ref, type SyntheticEvent, useRef, useState } from "react";
 import { cx } from "../cx";
 
 /** Accessible names of the icon buttons; English by default. */
@@ -51,6 +51,8 @@ export interface ComposerProps {
   /** The caret or selection moved (typing, a click, the arrows): an @mention picker follows it. */
   onInputSelect?: (e: SyntheticEvent<HTMLTextAreaElement>) => void;
   onInputBlur?: () => void;
+  /** Marks parts of the text as they are typed (@mentions as badges), drawn behind the field without moving it. */
+  highlight?: (text: string) => ReactNode;
 }
 
 /**
@@ -81,8 +83,10 @@ export function Composer({
   inputLabel,
   onInputSelect,
   onInputBlur,
+  highlight,
 }: ComposerProps) {
   const l = { ...DEFAULT_LABELS, ...labels };
+  const mirror = useRef<HTMLDivElement>(null);
   const [inner, setInner] = useState(defaultValue);
   const text = value ?? inner;
   const set = (v: string) => {
@@ -134,6 +138,25 @@ export function Composer({
       <Mic size={16} />
     </button>
   );
+  const field = (
+    <textarea
+      ref={inputRef}
+      className="apx-composer__input"
+      rows={boxed ? 2 : 1}
+      aria-label={inputLabel ?? placeholder}
+      placeholder={placeholder}
+      value={text}
+      onChange={(e) => set(e.target.value)}
+      onKeyDown={onKey}
+      onSelect={onInputSelect}
+      onScroll={highlight ? (e) => mirror.current?.scrollTo({ top: e.currentTarget.scrollTop }) : undefined}
+      onBlur={onInputBlur}
+      disabled={disabled}
+      aria-autocomplete={inputAria ? "list" : undefined}
+      aria-controls={inputAria?.expanded ? inputAria.controls : undefined}
+      aria-activedescendant={inputAria?.activedescendant}
+    />
+  );
   return (
     <div
       className={cx(
@@ -147,22 +170,17 @@ export function Composer({
       {header && <div className="apx-composer__header">{header}</div>}
       <div className="apx-composer__row">
         {!boxed && attach}
-        <textarea
-          ref={inputRef}
-          className="apx-composer__input"
-          rows={boxed ? 2 : 1}
-          aria-label={inputLabel ?? placeholder}
-          placeholder={placeholder}
-          value={text}
-          onChange={(e) => set(e.target.value)}
-          onKeyDown={onKey}
-          onSelect={onInputSelect}
-          onBlur={onInputBlur}
-          disabled={disabled}
-          aria-autocomplete={inputAria ? "list" : undefined}
-          aria-controls={inputAria?.expanded ? inputAria.controls : undefined}
-          aria-activedescendant={inputAria?.activedescendant}
-        />
+        {highlight ? (
+          <div className="apx-composer__field">
+            <div className="apx-composer__mirror" ref={mirror} aria-hidden="true">
+              {highlight(text)}
+              {"\n"}
+            </div>
+            {field}
+          </div>
+        ) : (
+          field
+        )}
         {!boxed && primary}
       </div>
       {boxed && (

@@ -1,5 +1,6 @@
 import { Fragment, type ReactElement, type ReactNode } from "react";
 import { cx } from "../cx";
+import { MENTION } from "../mention";
 
 export interface MarkdownViewProps {
   /** Markdown source: paragraphs, headings, lists, code, emphasis, safe links and pipe tables. Raw HTML stays text. */
@@ -34,8 +35,10 @@ function tableCells(line: string): string[] {
 const SAFE_HREF = /^(https?:|mailto:)/i;
 const MAX_TABLE_COLUMNS = 64;
 const MAX_TABLE_CELLS = 10_000;
-const INLINE =
-  /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\[[^\]\n]+\]\([^)\s]+\))|(\*[^*\s][^*\n]*\*)|(\b_[^_\s][^_\n]*_\b)|(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"])/g;
+const INLINE = new RegExp(
+  `${/(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\[[^\]\n]+\]\([^)\s]+\))|(\*[^*\s][^*\n]*\*)|(\b_[^_\s][^_\n]*_\b)|(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"])/.source}|(${MENTION.source})`,
+  "gu",
+);
 
 function parseBlocks(src: string): Block[] {
   const lines = src.replace(/\r\n?/g, "\n").split("\n");
@@ -139,6 +142,12 @@ function inline(text: string, keyBase: string, wrap?: LinkRenderer): ReactNode[]
         ),
       );
     } else if (m[4] || m[5]) out.push(<em key={key}>{inline(tok.slice(1, -1), key, wrap)}</em>);
+    else if (m[7])
+      out.push(
+        <span key={key} className="apx-mention">
+          {tok}
+        </span>,
+      );
     else out.push(link(tok, key, tok));
     last = at + tok.length;
   }

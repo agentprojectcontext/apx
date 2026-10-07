@@ -642,3 +642,53 @@
   align-self: center;
   color: var(--apx-fg-subtle);
 }
+
+/* An @mention, in a message or as it is typed. */
+.apx-mention {
+  padding: 0 3px;
+  border-radius: 5px;
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+  font-weight: var(--apx-weight-medium);
+}
+/* On the owner's own (inked) bubble the badge takes the bubble's colour. */
+.apx-msg--user .apx-mention {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  color: inherit;
+}
+
+/* With `highlight`: the field sits on a mirror of its own text that draws the marks (badges) behind the letters. */
+.apx-composer__field {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.apx-composer__field > .apx-composer__input {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+.apx-composer__mirror {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--apx-text-md);
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  color: transparent;
+}
+.apx-composer--pill .apx-composer__mirror {
+  padding: 7px 4px;
+}
+/* In the mirror a mark may not take room: the letters on top must stay where they are. */
+.apx-composer__mirror .apx-mention {
+  padding: 0;
+  color: transparent;
+  font-weight: inherit;
+  box-shadow: 0 0 0 2px var(--apx-brand-soft);
+}
