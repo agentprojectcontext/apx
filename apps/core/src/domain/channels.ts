@@ -122,6 +122,19 @@ export function channelsRepo({ one, all, run }: Sql) {
           state: r.state,
         }));
       },
+      /** The last message that came in on a conversation. */
+      latest(channel: string, conversation: string): Inbound | undefined {
+        const r = one(
+          qb
+            .selectFrom("channel_inbox")
+            .select("payload")
+            .where("channel", "=", channel)
+            .where("conversation", "=", conversation)
+            .orderBy("created_at", "desc")
+            .limit(1),
+        );
+        return r ? (JSON.parse(r.payload) as Inbound) : undefined;
+      },
       done(id: string, state: "done" | "ignored" | "failed", error?: string): void {
         run(
           qb

@@ -217,6 +217,21 @@ test("asked to react, the agent puts its emoji on their last message instead of 
   assert.ok(!messages.at(-1)?.parts.some((p) => p.type === "text"), "the REACT words leave the chat");
 });
 
+test("a reaction that cannot be put sends nothing to them, and the owner hears why", async () => {
+  await env.settle(thread);
+  const sent = tg.messagesTo(MAG.id).length;
+  tg.failures.set("setMessageReaction", [{ status: 400, body: { ok: false, description: "REACTION_INVALID" } }]);
+  await env.client.call("threads.send", { thread, text: "react with a heart to their last message" });
+  await env.settle(thread);
+  await until(async () => {
+    const { notifications } = await env.client.call("notifications.list", {});
+    return notifications.some((n) => /No pude reaccionar|couldn't react/.test(n.body ?? ""));
+  }, "the owner is told");
+  assert.equal(tg.messagesTo(MAG.id).length, sent, "no stray emoji went to them");
+  const { messages } = await env.client.call("threads.get", { thread });
+  assert.ok(!messages.at(-1)?.parts.some((p) => p.type === "text"), "the REACT words leave the chat");
+});
+
 test("the owner tells the agent what to answer in the app; the answer goes to the contact", async () => {
   const sent = tg.messagesTo(MAG.id).length;
   await env.client.call("threads.send", { thread, text: "tell them it ships on Friday" });

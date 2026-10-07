@@ -172,16 +172,37 @@ export function createChannels(deps: {
    * message, and the words taken out of the chat (the model log keeps them). False when it could not be done.
    */
   async function reactInstead(run: RunRecord, to: { channel: string; conversation: string }, emoji: string) {
-    const last = store.threads.context(run.thread_id).their_last;
-    if (last?.channel !== to.channel || last.conversation !== to.conversation) return false;
-    const ok = await reactOn(to.channel, to.conversation, last.ref, emoji).catch((err: unknown) => {
-      log.warn({ run: run.id, err: errorMessage(err, 200) }, "channel reaction not sent");
-      return false;
-    });
-    if (!ok) return false;
-    store.messages.setReaction(last.message_id, "agent", emoji);
+    const last = theirLast(run.thread_id, to);
+    const ok =
+      last &&
+      (await reactOn(to.channel, to.conversation, last.ref, emoji).catch((err: unknown) => {
+        log.warn({ run: run.id, err: errorMessage(err, 200) }, "channel reaction not sent");
+        return false;
+      }));
     hideWords(run.message_id);
-    return true;
+    if (ok) {
+      if (last.message_id) store.messages.setReaction(last.message_id, "agent", emoji);
+      return;
+    }
+    // Words instead would be a stray emoji in their chat: nothing goes, and the owner hears why.
+    const where = store.threads.get(run.thread_id)?.title ?? to.channel;
+    const text = channelTexts(store).reactFailed(emoji, where);
+    deps.attention({ kind: "channel", level: "warn", title: where, body: text, thread_id: run.thread_id });
+  }
+
+  /**
+   * The other side's last message in a chat: as kept when it arrived, else the last one stored for that
+   * conversation (messages from before that was kept; shown on the contact's last message here).
+   */
+  function theirLast(threadId: string, to: { channel: string; conversation: string }) {
+    const kept = store.threads.context(threadId).their_last;
+    if (kept?.channel === to.channel && kept.conversation === to.conversation) return kept;
+    const m = store.channels.inbox.latest(to.channel, to.conversation);
+    // A WhatsApp message's own id is its external_id; other channels' older rows did not keep one.
+    const ref = m?.ref ?? (live.get(to.channel)?.config.type === "whatsapp" ? m?.external_id : undefined);
+    if (!ref) return undefined;
+    const theirs = store.messages.list(threadId).findLast((x) => x.author.kind === "person");
+    return { ref, message_id: theirs?.id };
   }
 
   /** An answer that was only a signal (SKIP, REACT): its words leave the chat; the model log keeps them. */
@@ -261,9 +282,10 @@ export function createChannels(deps: {
       return;
     }
     const emoji = run.state === "completed" ? reactAnswer(out) : undefined;
-    // A channel without reactions gets the emoji as the answer.
-    if (emoji && (await reactInstead(run, to, emoji))) return;
-    if (emoji) out = emoji;
+    if (emoji) {
+      await reactInstead(run, to, emoji);
+      return;
+    }
     if (!out && !images.length) return;
     if (audience?.kind === "contact") out = guardReply(out);
     if (room) out = quietMentions(out);
