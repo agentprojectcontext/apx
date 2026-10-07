@@ -1,6 +1,7 @@
 import type { Message as Msg, Thread } from "@apx/protocol";
 import { ActivityPill, AgentAvatar, DayDivider, EmptyState, Icons, Message, SystemNote, withMentions } from "@apx/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { ReactionList } from "../channels/MessageMarks.tsx";
 import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { blobOf, isWorking, threadAgent } from "../data/identity.ts";
@@ -119,7 +120,17 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
           <div key={key} className="transcript__row" data-msg={key}>
             {day && <DayDivider label={day} />}
             {msg.author.kind === "user" ? (
-              <UserMessage thread={thread} message={msg} messages={messages} text={textOf(msg)}>
+              <UserMessage
+                thread={thread}
+                message={msg}
+                messages={messages}
+                text={textOf(msg)}
+                reactions={
+                  msg.reactions?.length ? (
+                    <ReactionList list={msg.reactions} agentName={agent?.name ?? ""} />
+                  ) : undefined
+                }
+              >
                 <UserFiles message={msg} />
                 <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
               </UserMessage>
@@ -131,6 +142,11 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
                 variant="bubble"
                 avatar={<AgentAvatar name={msg.author.name} size={24} />}
                 meta={<span className="transcript__person">{msg.author.name}</span>}
+                reactions={
+                  msg.reactions?.length ? (
+                    <ReactionList list={msg.reactions} agentName={agent?.name ?? ""} />
+                  ) : undefined
+                }
                 actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
               >
                 <UserFiles message={msg} />

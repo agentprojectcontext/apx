@@ -72,12 +72,15 @@ export function UserMessage({
   message,
   messages,
   text,
+  reactions,
   children,
 }: {
   thread: Thread;
   message: Msg;
   messages: Msg[];
   text: string;
+  /** Emoji put on it on a channel (the agent's reaction to the owner's words). */
+  reactions?: ReactNode;
   children: ReactNode;
 }) {
   const t = useT();
@@ -99,6 +102,7 @@ export function UserMessage({
       // Editing, the field takes the bubble's place: an input on the ink bubble would read as part of it.
       variant={draft === undefined ? "bubble" : "bare"}
       className={cx(pending && "is-pending", draft !== undefined && "is-editing")}
+      reactions={draft === undefined ? reactions : undefined}
       actions={
         draft === undefined ? (
           <MessageActions thread={thread} message={message} text={text} speechKey={message.id} speak={false}>

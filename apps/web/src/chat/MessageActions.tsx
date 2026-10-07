@@ -2,6 +2,7 @@
 import type { Message as Msg, Thread } from "@apx/protocol";
 import { IconButton, Icons, Spinner } from "@apx/ui";
 import { type ReactNode, useContext, useEffect, useState } from "react";
+import { DeliveryTicks } from "../channels/MessageMarks.tsx";
 import { shortWhen } from "../common/format.ts";
 import { notify } from "../data/notices.ts";
 import { speak, stopSpeaking, useSpeaking, useSpeechReady } from "../data/speech.ts";
@@ -78,6 +79,7 @@ export function MessageActions({
       >
         {shortWhen(message.created_at)}
       </time>
+      {message.author.kind === "user" && message.delivery && <DeliveryTicks state={message.delivery} />}
     </>
   );
 }

@@ -1,14 +1,15 @@
-import type { ChannelInfo, Message, MessageDelivery, MessageReaction, Person, Thread } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, SegmentedControl, Skeleton, Textarea, Tooltip } from "@apx/ui";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import type { ChannelInfo, Message, Person, Thread } from "@apx/protocol";
+import { Button, EmptyState, IconButton, Icons, SegmentedControl, Skeleton, Textarea } from "@apx/ui";
+import { useEffect, useRef, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { loadThread, markRead, send } from "../data/actions.ts";
 import { openContactChat, type PresenceState, sendDirect } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
+import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { RELATION_KEY } from "./ChannelScreen.tsx";
 import { addressText, ContactFace } from "./ContactRow.tsx";
+import { DeliveryTicks, ReactionList } from "./MessageMarks.tsx";
 
 /**
  * The chat with one contact. Their words on the left; what was sent to them (by the agent or by the owner) on the
@@ -202,53 +203,17 @@ function Bubble({ m, agentName }: { m: Message; agentName: string }) {
       {words && (
         <div className={`chan__bubble${out ? " is-out" : ""}${instruction ? " is-instruction" : ""}`}>
           <p className="chan__text">{words}</p>
-          {m.reactions?.length ? <Reactions list={m.reactions} agentName={agentName} /> : null}
+          {m.reactions?.length ? (
+            <span className="chan__reactions">
+              <ReactionList list={m.reactions} agentName={agentName} />
+            </span>
+          ) : null}
           <span className="chan__when">
             {[who, shortWhen(m.created_at)].filter(Boolean).join(" · ")}
-            {out && !instruction && m.delivery && <Ticks state={m.delivery} />}
+            {out && !instruction && m.delivery && <DeliveryTicks state={m.delivery} />}
           </span>
         </div>
       )}
     </>
-  );
-}
-
-/** The emoji on a message, the agent's and theirs, under its corner as the apps show them. */
-function Reactions({ list, agentName }: { list: MessageReaction[]; agentName: string }) {
-  const t = useT();
-  return (
-    <span className="chan__reactions">
-      {list.map((r) => {
-        const label = r.by === "agent" ? t("ch.reaction.agent", { agent: agentName }) : t("ch.reaction.them");
-        return (
-          <Tooltip key={r.by} content={label}>
-            <span role="img" aria-label={`${label}: ${r.emoji}`}>
-              {r.emoji}
-            </span>
-          </Tooltip>
-        );
-      })}
-    </span>
-  );
-}
-
-const TICKS: Record<MessageDelivery, { icon: ReactNode; label: MessageKey }> = {
-  pending: { icon: <Icons.Clock size={12} />, label: "ch.delivery.pending" },
-  sent: { icon: <Icons.Check size={12} />, label: "ch.delivery.sent" },
-  delivered: { icon: <Icons.CheckCheck size={12} />, label: "ch.delivery.delivered" },
-  read: { icon: <Icons.CheckCheck size={12} />, label: "ch.delivery.read" },
-  failed: { icon: <Icons.TriangleAlert size={12} />, label: "ch.delivery.failed" },
-};
-
-/** How far a message sent to them got: queued, sent, on their phone, read (where the channel tells), or not sent. */
-function Ticks({ state }: { state: MessageDelivery }) {
-  const t = useT();
-  const tick = TICKS[state];
-  return (
-    <Tooltip content={t(tick.label)}>
-      <span className={`chan__ticks is-${state}`} role="img" aria-label={t(tick.label)}>
-        {tick.icon}
-      </span>
-    </Tooltip>
   );
 }

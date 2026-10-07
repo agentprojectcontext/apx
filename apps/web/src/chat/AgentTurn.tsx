@@ -1,6 +1,7 @@
 import type { Agent, Message as Msg, Part, Thread } from "@apx/protocol";
 import { AgentAvatar, EngineIcon, MarkdownView, Message, MessageMeta } from "@apx/ui";
 import { lazy, type ReactNode, Suspense } from "react";
+import { DeliveryTicks, ReactionList } from "../channels/MessageMarks.tsx";
 import { blobOf } from "../data/identity.ts";
 import { baseRef, effortLabel, splitRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
@@ -81,7 +82,9 @@ export function AgentTurn({
       agent={engine?.label ?? agent?.name}
       model={message.model && baseRef(message.model)}
       effort={effort && effortLabel(effort)}
-    />
+    >
+      {message.delivery && <DeliveryTicks state={message.delivery} />}
+    </MessageMeta>
   );
 
   return (
@@ -98,6 +101,11 @@ export function AgentTurn({
             avatar={i === 0 ? avatar : undefined}
             grouped={i > 0}
             meta={last ? meta : undefined}
+            reactions={
+              last && message.reactions?.length ? (
+                <ReactionList list={message.reactions} agentName={engine?.label ?? agent?.name ?? ""} />
+              ) : undefined
+            }
             actions={
               part.type === "text" ? (
                 <MessageActions thread={thread} message={message} text={part.text} speechKey={`${message.id}:${key}`}>

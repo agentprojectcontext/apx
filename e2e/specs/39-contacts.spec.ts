@@ -46,8 +46,15 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   // Their emoji on it shows on the bubble, and goes when they take it off.
   await world.whatsapp.react({ phone: NORA, name: "Nora" }, "❤️");
   await expect(ticks.getByRole("img", { name: "Su reacción: ❤️" })).toBeVisible();
+  // The main chat shows the same: their emoji on the answer and how far it got.
+  const { threads } = await rpc<{ threads: Array<{ id: string; title: string }> }>("threads.list");
+  const chat = threads.find((t) => t.title === "Nora");
+  await open(page, `#thread=${chat?.id}`);
+  const turn = page.locator(".turn").last();
+  await expect(turn.getByRole("img", { name: "Su reacción: ❤️" })).toBeVisible();
+  await expect(turn.getByRole("img", { name: "Leído" })).toBeVisible();
   await world.whatsapp.react({ phone: NORA, name: "Nora" }, "");
-  await expect(ticks.getByRole("img", { name: /Su reacción/ })).toHaveCount(0);
+  await expect(turn.getByRole("img", { name: /Su reacción/ })).toHaveCount(0);
 });
 
 test("who is online and what is set for a contact show on their row", async ({ page }) => {
