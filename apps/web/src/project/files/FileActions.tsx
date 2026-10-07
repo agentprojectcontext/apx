@@ -1,7 +1,7 @@
 import type { FileEntry } from "@apx/protocol";
 import { Button, Dialog, Field, Icons, Input, type MenuEntry } from "@apx/ui";
 import { useState } from "react";
-import { renameFile, revealFile, trashFile } from "../../data/files.ts";
+import { type FileWhere, renameFile, revealFile, trashFile } from "../../data/files.ts";
 import { notify } from "../../data/notices.ts";
 import { type T, useT } from "../../i18n/index.ts";
 
@@ -21,14 +21,14 @@ const copy = async (text: string, t: T) => {
 /** The right-click menu of a file or folder: Finder, its paths, rename, trash. */
 export function fileMenu(
   target: FileTarget,
-  o: { project: string; t: T; onRename(): void; onTrash(): void },
+  o: { where: FileWhere; t: T; onRename(): void; onTrash(): void },
 ): MenuEntry[] {
   const { t } = o;
   return [
     {
       label: t("files.reveal"),
       icon: <Icons.FolderOpen />,
-      onSelect: () => void revealFile(o.project, target.entry.path),
+      onSelect: () => void revealFile(o.where, target.entry.path),
     },
     { type: "separator" },
     { label: t("files.copyPath"), icon: <Icons.Copy />, onSelect: () => void copy(target.absolute, t) },
@@ -41,12 +41,12 @@ export function fileMenu(
 
 /** Renames a file or folder in place (a name, never a path). */
 export function RenameDialog({
-  project,
+  where,
   entry,
   onDone,
   onClose,
 }: {
-  project: string;
+  where: FileWhere;
   entry: FileEntry;
   onDone(change: FileChange): void;
   onClose(): void;
@@ -58,7 +58,7 @@ export function RenameDialog({
   const save = async () => {
     if (!ok) return;
     setBusy(true);
-    const to = await renameFile(project, entry.path, name.trim());
+    const to = await renameFile(where, entry.path, name.trim());
     setBusy(false);
     if (to) onDone({ kind: "renamed", from: entry.path, to });
   };
@@ -100,12 +100,12 @@ export function RenameDialog({
 
 /** Asks before moving a file or folder to the system trash (it can be recovered from there). */
 export function TrashDialog({
-  project,
+  where,
   entry,
   onDone,
   onClose,
 }: {
-  project: string;
+  where: FileWhere;
   entry: FileEntry;
   onDone(change: FileChange): void;
   onClose(): void;
@@ -114,7 +114,7 @@ export function TrashDialog({
   const [busy, setBusy] = useState(false);
   const go = async () => {
     setBusy(true);
-    const ok = await trashFile(project, entry.path);
+    const ok = await trashFile(where, entry.path);
     setBusy(false);
     if (ok) onDone({ kind: "trashed", path: entry.path });
   };

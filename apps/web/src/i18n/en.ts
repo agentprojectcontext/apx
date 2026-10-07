@@ -414,7 +414,7 @@ export const en = {
   "panel.usage": "Usage",
   "panel.browser.hint": "Browser: the page your agent drives; you can take over",
   "panel.terminal.hint": "Terminal: the commands the agent ran, and your own shell in the folder",
-  "panel.files.hint": "Files: the project folder",
+  "panel.files.hint": "Files: the folder this chat works in",
   "panel.widget.hint": "Widgets: what the agent built for you in this chat",
   "panel.usage.hint": "Usage: tokens and cost of this chat",
   "panel.side": "Side panel",
@@ -424,9 +424,6 @@ export const en = {
   "panel.widen": "Widen the panel",
   "panel.resize": "Resize the panel",
   "panel.narrow": "Narrow the panel",
-  "panel.noFolder": "This chat has no folder",
-  "panel.noFolderBody":
-    "Terminal, Files and Changes work in a project's folder. Open a chat of a project that has a folder on this computer.",
   "changes.where": "{n} changed files",
   "changes.refresh": "Read again",
   "changes.noGit": "The folder is not a git repository",

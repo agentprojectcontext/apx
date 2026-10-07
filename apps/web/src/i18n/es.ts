@@ -420,7 +420,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "panel.usage": "Consumo",
   "panel.browser.hint": "Navegador: la página que maneja tu agente; podés tomar el control",
   "panel.terminal.hint": "Terminal: los comandos que corrió el agente y tu propia terminal en la carpeta",
-  "panel.files.hint": "Archivos: la carpeta del proyecto",
+  "panel.files.hint": "Archivos: la carpeta donde trabaja este chat",
   "panel.widget.hint": "Widgets: lo que el agente armó para vos en este chat",
   "panel.usage.hint": "Consumo: tokens y costo de este chat",
   "panel.side": "Panel lateral",
@@ -430,9 +430,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "panel.widen": "Agrandar el panel",
   "panel.resize": "Cambiar el ancho del panel",
   "panel.narrow": "Achicar el panel",
-  "panel.noFolder": "Este chat no tiene carpeta",
-  "panel.noFolderBody":
-    "Terminal, Archivos y Cambios trabajan en la carpeta de un proyecto. Abrí un chat de un proyecto que tenga carpeta en esta computadora.",
   "changes.where": "{n} archivos con cambios",
   "changes.refresh": "Volver a leer",
   "changes.noGit": "La carpeta no es un repositorio git",

@@ -1,10 +1,9 @@
 import type { FileEntry, Result } from "@apx/protocol";
-import { Button, ContextMenu, EmptyState, Icons, MarkdownView, SegmentedControl, Skeleton } from "@apx/ui";
+import { Button, ContextMenu, EmptyState, IconButton, Icons, MarkdownView, SegmentedControl, Skeleton } from "@apx/ui";
 import { type ReactNode, useEffect, useState } from "react";
 import { formatBytes } from "../../common/format.ts";
 import { client } from "../../data/client.ts";
-import { mediaKind, mediaOf, revealFile } from "../../data/files.ts";
-import type { ProjectEntry } from "../../data/identity.ts";
+import { type FileWhere, mediaKind, mediaOf, revealFile } from "../../data/files.ts";
 import { useT } from "../../i18n/index.ts";
 import { type FileChange, fileMenu, RenameDialog, TrashDialog } from "./FileActions.tsx";
 
@@ -12,12 +11,16 @@ type Read = Result<"files.read">;
 type Mode = "view" | "source" | "split";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+/** A stable key for effects: the scope object is new on every render. */
+const whereKey = (w: FileWhere) => ("thread" in w ? `t:${w.thread}` : `p:${w.project}`);
 const isMarkdown = (p: string) => /\.(md|markdown|mdx)$/i.test(p);
 
 /** What the tree needs to reach and act on the folder, passed to every level. */
 type TreeCtx = {
-  project: string;
+  where: FileWhere;
+  /** The folder's own path, once the core has said it. */
   root: string;
+  onRoot(root: string): void;
   /** Bumped after a change, so every open level reads its folder again. */
   version: number;
   picked: string | undefined;
@@ -25,25 +28,40 @@ type TreeCtx = {
   onAct(kind: "rename" | "trash", entry: FileEntry): void;
 };
 
+/** A project with no folder on this machine. */
+export function NoFolder() {
+  const t = useT();
+  return (
+    <div className="files files--empty">
+      <EmptyState variant="dashed" size="lg" icon={<Icons.Folder />} title={t("files.noFolder")}>
+        {t("files.noFolderBody")}
+      </EmptyState>
+    </div>
+  );
+}
+
 /**
- * The project's folder: a tree on the left (one level loaded at a time), the file on the right — text, Markdown,
- * images, video, audio and PDFs. Right-click a file or folder to show it in Finder, copy its path, rename it or move
- * it to the trash.
+ * A folder, a project's or the one a chat works in: a tree on the left (one level loaded at a time), the file on the
+ * right — text, Markdown, images, video, audio and PDFs. Right-click a file or folder to show it in Finder, copy its
+ * path, rename it or move it to the trash.
  */
-export function FilesPane({ project, stacked = false }: { project: ProjectEntry; stacked?: boolean }) {
+export function FilesPane({
+  where,
+  root: known = "",
+  label,
+  stacked = false,
+}: {
+  where: FileWhere;
+  root?: string | undefined;
+  /** The folder's name at the top: a project's says "Repository", a chat's shows the folder's own name. */
+  label?: string | undefined;
+  stacked?: boolean;
+}) {
   const t = useT();
   const [picked, setPicked] = useState<string>();
   const [version, setVersion] = useState(0);
   const [acting, setActing] = useState<{ kind: "rename" | "trash"; entry: FileEntry }>();
-  if (!project.path)
-    return (
-      <div className="files files--empty">
-        <EmptyState variant="dashed" size="lg" icon={<Icons.Folder />} title={t("files.noFolder")}>
-          {t("files.noFolderBody")}
-        </EmptyState>
-      </div>
-    );
-  const root = project.path;
+  const [root, setRoot] = useState(known);
   const done = (c: FileChange) => {
     setActing(undefined);
     setVersion((v) => v + 1);
@@ -53,8 +71,9 @@ export function FilesPane({ project, stacked = false }: { project: ProjectEntry;
     if (picked && c.kind === "trashed" && (picked === c.path || picked.startsWith(`${c.path}/`))) setPicked(undefined);
   };
   const ctx: TreeCtx = {
-    project: project.id,
+    where,
     root,
+    onRoot: setRoot,
     version,
     picked,
     onPick: setPicked,
@@ -67,9 +86,15 @@ export function FilesPane({ project, stacked = false }: { project: ProjectEntry;
     <div className={stacked ? "files files--stacked" : "files"}>
       {showTree && (
         <nav className="files__tree" aria-label={t("files.tree")}>
-          <div className="files__root">
+          <div className="files__root" title={root || undefined}>
             <Icons.FolderOpen size={14} />
-            <span>{t("files.repo")}</span>
+            <span>{label ?? ("project" in where ? t("files.repo") : root.split("/").filter(Boolean).at(-1))}</span>
+            <IconButton
+              size="sm"
+              label={t("files.reveal")}
+              icon={<Icons.ExternalLink size={12} />}
+              onClick={() => void revealFile(where, "")}
+            />
           </div>
           <Folder ctx={ctx} dir="" depth={0} />
         </nav>
@@ -83,7 +108,7 @@ export function FilesPane({ project, stacked = false }: { project: ProjectEntry;
             </button>
           )}
           {picked ? (
-            <FileView key={`${picked}:${version}`} project={project.id} path={picked} />
+            <FileView key={`${picked}:${version}`} where={where} path={picked} />
           ) : (
             <EmptyState icon={<Icons.FileText />} title={t("files.none")}>
               {t("files.noneBody")}
@@ -92,10 +117,10 @@ export function FilesPane({ project, stacked = false }: { project: ProjectEntry;
         </section>
       )}
       {acting?.kind === "rename" && (
-        <RenameDialog project={project.id} entry={acting.entry} onDone={done} onClose={() => setActing(undefined)} />
+        <RenameDialog where={where} entry={acting.entry} onDone={done} onClose={() => setActing(undefined)} />
       )}
       {acting?.kind === "trash" && (
-        <TrashDialog project={project.id} entry={acting.entry} onDone={done} onClose={() => setActing(undefined)} />
+        <TrashDialog where={where} entry={acting.entry} onDone={done} onClose={() => setActing(undefined)} />
       )}
     </div>
   );
@@ -109,7 +134,7 @@ function Row({ ctx, entry, children }: { ctx: TreeCtx; entry: FileEntry; childre
       items={fileMenu(
         { entry, absolute: `${ctx.root.replace(/\/+$/, "")}/${entry.path}` },
         {
-          project: ctx.project,
+          where: ctx.where,
           t,
           onRename: () => ctx.onAct("rename", entry),
           onTrash: () => ctx.onAct("trash", entry),
@@ -135,11 +160,12 @@ function Folder({ ctx, dir, depth }: { ctx: TreeCtx; dir: string; depth: number 
   const [error, setError] = useState<string>();
   // biome-ignore lint/correctness/useExhaustiveDependencies: a new version (after a rename or trash) reads it again.
   useEffect(() => {
-    // A late answer for another folder or project is dropped.
+    // A late answer for another folder is dropped.
     let live = true;
-    client.call("files.tree", { project: ctx.project, dir }).then(
+    client.call("files.tree", { ...ctx.where, dir }).then(
       (r) => {
         if (!live) return;
+        if (!dir) ctx.onRoot(r.root);
         setEntries(r.entries);
         setMore(r.truncated);
       },
@@ -148,7 +174,7 @@ function Folder({ ctx, dir, depth }: { ctx: TreeCtx; dir: string; depth: number 
     return () => {
       live = false;
     };
-  }, [ctx.project, dir, ctx.version]);
+  }, [whereKey(ctx.where), dir, ctx.version]);
   if (error) return <p className="files__error">{error}</p>;
   if (!entries) return <Skeleton height={18} className="files__loading" />;
   return (
@@ -201,19 +227,19 @@ function DirRow({ entry: e, ctx, depth }: { entry: FileEntry; ctx: TreeCtx; dept
   );
 }
 
-function FileView({ project, path }: { project: string; path: string }) {
-  if (mediaKind(path)) return <MediaView project={project} path={path} />;
-  return <TextView project={project} path={path} />;
+function FileView({ where, path }: { where: FileWhere; path: string }) {
+  if (mediaKind(path)) return <MediaView where={where} path={path} />;
+  return <TextView where={where} path={path} />;
 }
 
 /** The file's path and size, with "Show in Finder" and whatever the view adds. */
 function FileHead({
-  project,
+  where,
   path,
   size,
   children,
 }: {
-  project: string;
+  where: FileWhere;
   path: string;
   size?: number;
   children?: ReactNode;
@@ -229,7 +255,7 @@ function FileHead({
         size="sm"
         variant="ghost"
         leadingIcon={<Icons.FolderOpen size={14} />}
-        onClick={() => void revealFile(project, path)}
+        onClick={() => void revealFile(where, path)}
       >
         {t("files.reveal")}
       </Button>
@@ -238,15 +264,16 @@ function FileHead({
 }
 
 /** An image, video, audio or PDF, shown from its bytes; too big or unreadable says so (Finder is one click away). */
-function MediaView({ project, path }: { project: string; path: string }) {
+function MediaView({ where, path }: { where: FileWhere; path: string }) {
   const t = useT();
   const kind = mediaKind(path);
   const [media, setMedia] = useState<{ url: string; bytes: number }>();
   const [error, setError] = useState<string>();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the scope object is new each render; its key is what changes.
   useEffect(() => {
     let live = true;
     let made: string | undefined;
-    mediaOf(project, path).then(
+    mediaOf(where, path).then(
       (m) => {
         made = m.url;
         if (live) setMedia(m);
@@ -258,10 +285,10 @@ function MediaView({ project, path }: { project: string; path: string }) {
       live = false;
       if (made) URL.revokeObjectURL(made);
     };
-  }, [project, path]);
+  }, [whereKey(where), path]);
   return (
     <>
-      <FileHead project={project} path={path} {...(media ? { size: media.bytes } : {})} />
+      <FileHead where={where} path={path} {...(media ? { size: media.bytes } : {})} />
       {error ? (
         <EmptyState icon={<Icons.File />} title={t("files.noPreview")}>
           {error}
@@ -286,25 +313,26 @@ function MediaView({ project, path }: { project: string; path: string }) {
   );
 }
 
-function TextView({ project, path }: { project: string; path: string }) {
+function TextView({ where, path }: { where: FileWhere; path: string }) {
   const t = useT();
   const [file, setFile] = useState<Read>();
   const [error, setError] = useState<string>();
   const md = isMarkdown(path);
   const [mode, setMode] = useState<Mode>(md ? "view" : "source");
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the scope object is new each render; its key is what changes.
   useEffect(() => {
     let live = true;
-    client.call("files.read", { project, path }).then(
+    client.call("files.read", { ...where, path }).then(
       (f) => live && setFile(f),
       (e: unknown) => live && setError(errText(e)),
     );
     return () => {
       live = false;
     };
-  }, [project, path]);
+  }, [whereKey(where), path]);
   return (
     <>
-      <FileHead project={project} path={path} {...(file ? { size: file.bytes } : {})}>
+      <FileHead where={where} path={path} {...(file ? { size: file.bytes } : {})}>
         {md && file?.text != null && (
           <SegmentedControl
             size="sm"
@@ -326,7 +354,7 @@ function TextView({ project, path }: { project: string; path: string }) {
       ) : file.binary ? (
         <EmptyState icon={<Icons.File />} title={t("files.binary")}>
           {t("files.binaryBody")}
-          <Button size="sm" variant="secondary" onClick={() => void revealFile(project, path)}>
+          <Button size="sm" variant="secondary" onClick={() => void revealFile(where, path)}>
             {t("files.reveal")}
           </Button>
         </EmptyState>

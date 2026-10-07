@@ -17,6 +17,7 @@ export const enFiles = {
   "files.repo": "Repository",
   "files.none": "Pick a file",
   "files.noneBody": "Its text shows here. Markdown reads as a page, as its source, or both.",
+  "files.workFolder": "APX work folder",
   "files.noFolder": "No folder on this machine",
   "files.noFolderBody": "This project has no folder on this machine, so there is nothing to browse.",
   "files.more": "More files than shown here.",

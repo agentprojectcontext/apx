@@ -35,8 +35,8 @@ test("chat processes open A2A beside its parent, maximize and stay scoped to eac
   await side.getByRole("button", { name: "Cerrar panel" }).click();
   await mainChat.getByRole("button", { name: "Terminal", exact: true }).click();
   await expect(side.getByText("El agente no corrió comandos en este chat")).toBeVisible();
-  await expect(side.getByRole("button", { name: "Nueva terminal" })).toHaveCount(0);
+  await expect(side.getByRole("button", { name: "Nueva terminal" })).toHaveCount(1);
   await mainChat.getByRole("button", { name: "Cambios", exact: true }).click();
   await expect(side.getByText("No hay cambios registrados en este chat")).toBeVisible();
-  await expect(mainChat.getByRole("button", { name: "Archivos", exact: true })).toHaveCount(0);
+  await expect(mainChat.getByRole("button", { name: "Archivos", exact: true })).toHaveCount(1);
 });

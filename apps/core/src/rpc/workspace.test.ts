@@ -49,7 +49,8 @@ test("a project chat's Changes list what is uncommitted, each file with its diff
   assert.match(d.diff, /^\+2$/m);
   assert.match((await env.client.call("files.diff", { thread, path: "notes.md" })).diff, /^\+new$/m);
   await assert.rejects(env.client.call("files.diff", { thread, path: "../outside" }), /outside the folder/);
-  await assert.rejects(env.client.call("files.changes", { thread: bare }), /no folder/);
+  // A chat with no project works in APX's work folder, not a repository.
+  assert.equal((await env.client.call("files.changes", { thread: bare })).git, false);
 });
 
 test("a terminal runs the owner's commands in the chat's folder and keeps what it printed", async () => {

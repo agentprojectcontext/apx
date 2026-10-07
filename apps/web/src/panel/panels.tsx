@@ -8,8 +8,6 @@ export type PanelDef = {
   label: MessageKey;
   hint: MessageKey;
   icon: (size: number) => ReactNode;
-  /** Only for a chat that works in a folder (its project's or its own). */
-  folder?: boolean;
 };
 
 /** Side panel types, in the chat header order (SPEC §2.4 panel switcher). */
@@ -27,7 +25,6 @@ export const PANELS: PanelDef[] = [
     label: "panel.files",
     hint: "panel.files.hint",
     icon: (s) => <Icons.FolderTree size={s} />,
-    folder: true,
   },
   {
     id: "changes",

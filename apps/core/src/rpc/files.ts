@@ -1,5 +1,5 @@
-// The owner browsing a project's folder: one level at a time and a file's text, never outside the folder (links
-// that point out are left out) and never .git's insides (by any name or case).
+// The owner browsing a project's folder or a chat's: one level at a time and a file's text, never outside the folder
+// (links that point out are left out) and never .git's insides (by any name or case).
 import fs from "node:fs";
 import path from "node:path";
 import { FILE_MEDIA_LIMIT, FILE_READ_LIMIT, type FileEntry } from "@apx/protocol";
@@ -8,6 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { gitDiff, gitStatus } from "../engine/changes.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { insideReal, real } from "../paths.ts";
+import { workDir } from "../tools/shell.ts";
 import { reportedDiff } from "./reported-diff.ts";
 import type { Handlers } from "./router.ts";
 
@@ -40,32 +41,42 @@ const MEDIA: Record<string, string> = {
 };
 export const mediaType = (name: string) => MEDIA[name.split(".").pop()?.toLowerCase() ?? ""];
 
-/** The folder a chat works in: a code session's own, else its project's. */
-export function threadFolder(store: Store, threadId: string): string {
+/** The folder a chat works in: a code session's own, its project's, or else APX's work folder. */
+export function threadFolder(store: Store, home: string, threadId: string): string {
   const t = store.threads.get(threadId);
   if (!t) throw notFound(`thread ${threadId}`);
-  if (t.cwd) return t.cwd;
-  const p = t.project_id ? store.projects.get(t.project_id) : undefined;
-  if (!p?.path || !p.present) throw badRequest("this chat has no folder on this machine");
-  return p.path;
+  return workDir(store, home, t);
 }
 
+type Where = { project?: string | undefined; thread?: string | undefined };
+
 export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
-  /** The project's folder, and `rel` inside it resolved (refused when it, or what a link points to, leaves it). */
-  const locate = (project: string, rel: string) => {
+  /** The folder browsed: a project's, or a chat's (APX's work folder is made when first opened, as an agent would). */
+  const baseOf = ({ project, thread }: Where) => {
+    if (thread) {
+      const dir = threadFolder(store, home, thread);
+      if (dir === path.join(home, "work")) fs.mkdirSync(dir, { recursive: true });
+      return dir;
+    }
+    if (!project) throw badRequest("a project or a chat");
     const p = store.projects.get(project);
     if (!p) throw notFound(`project ${project}`);
     if (!p.path || !p.present) throw badRequest(`${p.name} has no folder on this machine`);
+    return p.path;
+  };
+
+  /** The folder, and `rel` inside it resolved (refused when it, or what a link points to, leaves it). */
+  const locate = (where: Where, rel: string) => {
+    const base = baseOf(where);
     const clean = (path.sep === "\\" ? rel.replace(/\\/g, "/") : rel).replace(/^\/+/, "");
-    const root = real(p.path);
-    const abs = real(path.resolve(p.path, clean));
+    const root = real(base);
+    const abs = real(path.resolve(base, clean));
     const inside = path.relative(root, abs).split(path.sep).join("/");
-    if (!insideReal(p.path, clean) || hidden(clean) || hidden(inside))
-      throw badRequest(`${rel} is outside the project's folder`);
+    if (!insideReal(base, clean) || hidden(clean) || hidden(inside)) throw badRequest(`${rel} is outside the folder`);
     return { root, abs, rel: clean };
   };
 
-  const folderOf = (threadId: string) => threadFolder(store, threadId);
+  const folderOf = (threadId: string) => threadFolder(store, home, threadId);
 
   return {
     "files.changes": async ({ thread }) => {
@@ -81,8 +92,8 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
         throw badRequest(`${rel} is outside the folder`);
       return { path: rel, ...(await gitDiff(cwd, rel)) };
     },
-    "files.tree": ({ project, dir }) => {
-      const { root, abs } = locate(project, dir);
+    "files.tree": ({ dir, ...where }) => {
+      const { root, abs } = locate(where, dir);
       let folder: fs.Dir;
       try {
         folder = fs.opendirSync(abs);
@@ -116,10 +127,10 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
         folder.closeSync();
       }
       entries.sort((a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === "dir" ? -1 : 1));
-      return { entries, truncated: more };
+      return { root, entries, truncated: more };
     },
-    "files.media": ({ project, path: rel }) => {
-      const { abs, rel: clean } = locate(project, rel);
+    "files.media": ({ path: rel, ...where }) => {
+      const { abs, rel: clean } = locate(where, rel);
       const mime = mediaType(clean);
       if (!mime) throw badRequest(`${rel} is not an image, video, audio or PDF`);
       let fd: number;
@@ -139,30 +150,30 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
         fs.closeSync(fd);
       }
     },
-    "files.reveal": async ({ project, path: rel }) => {
-      const { abs } = locate(project, rel);
+    "files.reveal": async ({ path: rel, ...where }) => {
+      const { abs } = locate(where, rel);
       if (!fs.existsSync(abs)) throw notFound(`file ${rel}`);
       await desktop.reveal(abs);
       return { ok: true as const };
     },
-    "files.rename": ({ project, path: rel, name }) => {
-      const { abs, root, rel: clean } = locate(project, rel);
-      if (!clean) throw badRequest("the project's folder is renamed from Finder");
-      const next = locate(project, path.posix.join(path.posix.dirname(clean), name));
+    "files.rename": ({ path: rel, name, ...where }) => {
+      const { abs, root, rel: clean } = locate(where, rel);
+      if (!clean) throw badRequest("the folder itself is renamed from Finder");
+      const next = locate(where, path.posix.join(path.posix.dirname(clean), name));
       if (!fs.existsSync(abs)) throw notFound(`file ${rel}`);
       if (fs.existsSync(next.abs)) throw badRequest(`${name} already exists there`);
       fs.renameSync(abs, next.abs);
       return { path: path.relative(root, next.abs).split(path.sep).join("/") };
     },
-    "files.trash": async ({ project, path: rel }) => {
-      const { abs, rel: clean } = locate(project, rel);
-      if (!clean) throw badRequest("the project's folder itself is never moved to the trash");
+    "files.trash": async ({ path: rel, ...where }) => {
+      const { abs, rel: clean } = locate(where, rel);
+      if (!clean) throw badRequest("the folder itself is never moved to the trash");
       if (!fs.existsSync(abs)) throw notFound(`file ${rel}`);
       await desktop.trash(abs);
       return { ok: true as const };
     },
-    "files.read": ({ project, path: rel }) => {
-      const { abs, rel: clean } = locate(project, rel);
+    "files.read": ({ path: rel, ...where }) => {
+      const { abs, rel: clean } = locate(where, rel);
       let fd: number;
       try {
         // The resolved path, not following a link swapped in since the check; never waiting on a pipe.

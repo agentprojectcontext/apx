@@ -64,10 +64,10 @@ test("a file's text; a binary file says so", async () => {
 
 test("nothing outside the folder: .., absolute paths, links out, .git; and only the owner", async () => {
   for (const p of ["../x", "escape/secret.txt", ".git/config", `docs/../../${path.basename(outside)}/secret.txt`])
-    await assert.rejects(env.client.call("files.read", { project, path: p }), /outside the project's folder/, p);
+    await assert.rejects(env.client.call("files.read", { project, path: p }), /outside the folder/, p);
   // An absolute path is read inside the folder, never from the root of the disk.
   await assert.rejects(env.client.call("files.read", { project, path: "/etc/hosts" }), /file \/etc\/hosts not found/);
-  await assert.rejects(env.client.call("files.tree", { project, dir: "escape" }), /outside the project's folder/);
+  await assert.rejects(env.client.call("files.tree", { project, dir: "escape" }), /outside the folder/);
   const agent = new ApxClient({ url: env.core.url, actor: "agent" });
   await assert.rejects(
     agent.call("files.read", { project, path: "AGENTS.md" }),
@@ -79,7 +79,7 @@ test(".git stays hidden by any name or case; a pipe is not read (and does not ha
   const { entries } = await env.client.call("files.tree", { project });
   assert.ok(!entries.some((e) => e.name === "gitmeta" || e.name === "pipe"));
   for (const p of ["gitmeta/config", ".GIT/config", "docs/../.Git/config"])
-    await assert.rejects(env.client.call("files.read", { project, path: p }), /outside the project's folder/, p);
+    await assert.rejects(env.client.call("files.read", { project, path: p }), /outside the folder/, p);
   await assert.rejects(env.client.call("files.read", { project, path: "pipe" }), /not a file/);
 });
 
@@ -110,4 +110,16 @@ test("Finder, rename and trash stay inside the folder; the trash never takes the
   await assert.rejects(env.client.call("files.trash", { project, path: ".git" }), /outside/);
   await assert.rejects(env.client.call("files.trash", { project, path: "escape/secret.txt" }), /outside/);
   assert.equal(desktopCalls.length, before, "nothing else reached the trash");
+});
+
+test("a chat browses the folder its agent works in: its project's, or else APX's work folder", async () => {
+  const inProject = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  assert.equal((await env.client.call("files.tree", { thread: inProject.id })).root, repo);
+  const bare = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const work = await env.client.call("files.tree", { thread: bare.id });
+  assert.equal(work.root, fs.realpathSync(path.join(env.home, "work")));
+  fs.writeFileSync(path.join(work.root, "notes.md"), "Draft.\n");
+  assert.equal((await env.client.call("files.read", { thread: bare.id, path: "notes.md" })).text, "Draft.\n");
+  await assert.rejects(env.client.call("files.read", { thread: bare.id, path: "../x" }), /outside the folder/);
+  await assert.rejects(env.client.call("files.tree", {}), /a project or a chat/);
 });

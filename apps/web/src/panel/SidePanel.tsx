@@ -8,7 +8,6 @@ import { go, nav, useNav } from "../shell/nav.ts";
 import { useShellLayout } from "../shell/useShellLayout.ts";
 import { BrowserPanel } from "./BrowserPanel.tsx";
 import { coverNativeViews } from "./BrowserViewport.tsx";
-import { PlaceholderPanel } from "./PlaceholderPanel.tsx";
 import { panelDef } from "./panels.tsx";
 import { useWorkspace } from "./workspace.ts";
 
@@ -32,7 +31,6 @@ export function SidePanel() {
   const thread = useData((s) => (threadId ? s.threads[threadId] : undefined));
   const layout = useShellLayout();
   if (!panel) return null;
-  const folder = panelDef(panel).folder;
   return (
     <aside className="sidepanel" aria-label={t("panel.side")}>
       {layout && !layout.compact && (
@@ -70,7 +68,7 @@ export function SidePanel() {
         <>
           <PanelHeader
             actions={
-              (folder || panel === "terminal" || panel === "changes" || panel === "document") && (
+              (panel === "files" || panel === "terminal" || panel === "changes" || panel === "document") && (
                 <IconButton
                   label={wide ? t("panel.narrow") : t("panel.widen")}
                   icon={wide ? <Icons.Minimize2 size={14} /> : <Icons.Maximize2 size={14} />}
@@ -99,19 +97,21 @@ export function SidePanel() {
               <UsagePanel />
             </Suspense>
           )}
-          {folder && !ws && (
-            <PlaceholderPanel icon={panelDef(panel).icon(20)} title={t("panel.noFolder")}>
-              {t("panel.noFolderBody")}
-            </PlaceholderPanel>
-          )}
           {thread && panel === "terminal" && (
             <Suspense fallback={null}>
               <TerminalPanel key={thread.id} thread={thread} />
             </Suspense>
           )}
-          {ws && folder && (
+          {thread && panel === "files" && (
             <Suspense fallback={null}>
-              {panel === "files" && <FilesPane key={ws.project.id} project={ws.project} stacked={!wide} />}
+              {/* The folder the chat's agent works in; with no project, APX's work folder. */}
+              <FilesPane
+                key={thread.id}
+                where={{ thread: thread.id }}
+                root={ws?.folder}
+                label={ws ? undefined : t("files.workFolder")}
+                stacked={!wide}
+              />
             </Suspense>
           )}
         </>

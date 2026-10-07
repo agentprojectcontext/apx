@@ -2,14 +2,12 @@ import { IconButton, Icons, Menu } from "@apx/ui";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { PANELS, panelDef } from "./panels.tsx";
-import { useWorkspace } from "./workspace.ts";
 
 /** Chat header control that picks the side panel: inline icons when wide, one dropdown when narrow. */
 export function PanelSwitcher({ wide, skipUsage = false }: { wide: boolean; skipUsage?: boolean }) {
   const t = useT();
   const panel = useNav((s) => s.panel);
-  const folder = Boolean(useWorkspace());
-  const shown = PANELS.filter((p) => !(skipUsage && p.id === "usage") && (folder || !p.folder));
+  const shown = PANELS.filter((p) => !(skipUsage && p.id === "usage"));
   if (wide) {
     return (
       <div className="panelswitch">
