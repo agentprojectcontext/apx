@@ -41,6 +41,8 @@ export const enChannels = {
     'Code {code} was already approved as a contact. If that account is yours, open the contact and choose "This account is mine".',
   "ch.code.denied": "Code {code} was ignored. Write on the channel again for a new one.",
   "ch.code.expired": "Code {code} expired. Write on the channel again for a new one.",
+  "ch.claim.title": "Careful",
+  "ch.claim.hint": "Only if this number or account is really yours: this contact is removed.",
   "ch.claim": "This account is mine",
   "ch.claim.confirm":
     "This account becomes yours: what you write from it goes to your chat, and the contact {name} is removed.",

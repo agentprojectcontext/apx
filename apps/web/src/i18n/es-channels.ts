@@ -43,6 +43,8 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
     'El código {code} ya se aprobó como contacto. Si esa cuenta es tuya, abrí el contacto y elegí "Esta cuenta es mía".',
   "ch.code.denied": "El código {code} se ignoró. Escribí de nuevo por el canal para recibir otro.",
   "ch.code.expired": "El código {code} venció. Escribí de nuevo por el canal para recibir otro.",
+  "ch.claim.title": "Cuidado",
+  "ch.claim.hint": "Solo si este número o cuenta es realmente tuyo: el contacto se borra.",
   "ch.claim": "Esta cuenta es mía",
   "ch.claim.confirm":
     "Esta cuenta pasa a ser tuya: lo que escribas desde ahí va a tu chat, y el contacto {name} se borra.",

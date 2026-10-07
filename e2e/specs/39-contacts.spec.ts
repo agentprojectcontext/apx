@@ -25,6 +25,13 @@ test("a saved contact with no chat: listed, an empty chat to ask the agent to wr
   await expect(card).toBeVisible({ visible: !wasOpen });
   if (wasOpen) await page.getByRole("button", { name: "Abrir el contacto de Nora" }).click();
   await expect(card.getByRole("textbox", { name: "Nombre" })).toHaveValue("Nora");
+  await card.getByRole("combobox", { name: "Relación" }).click();
+  await page.getByRole("option", { name: "Amigo/a" }).click();
+  await expect(card.getByRole("combobox", { name: "Relación" })).toContainText("Amigo/a");
+  // "This account is mine" removes the contact: it waits at the end of the card, as a warning.
+  await card.getByRole("button", { name: "Esta cuenta es mía" }).click();
+  await expect(card.getByText("Cuidado")).toBeVisible();
+  await card.getByRole("button", { name: "Cancelar" }).click();
 
   const box = page.getByRole("textbox", { name: /que le escriba a Nora/ });
   await box.fill("decile hola a Nora");

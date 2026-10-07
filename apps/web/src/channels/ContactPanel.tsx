@@ -1,6 +1,6 @@
 import type { Person } from "@apx/protocol";
 import { PERSON_RELATIONS } from "@apx/protocol/client";
-import { Button, IconButton, Icons, Input, Menu, Switch, Textarea } from "@apx/ui";
+import { Button, IconButton, Icons, Input, Select, Switch, Textarea } from "@apx/ui";
 import { useState } from "react";
 import { claimAddress, saveContact } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
@@ -11,6 +11,8 @@ import { RELATION_KEY } from "./ChannelScreen.tsx";
  * A contact's card beside their chat: name and nickname, how they relate to the owner, who they are and the rules for
  * answering them (in the owner's words), what their chat may do (all off by default), and silencing.
  */
+const NO_RELATION = "none";
+
 export function ContactPanel({ person, onClose }: { person: Person; onClose(): void }) {
   const t = useT();
   const [d, setD] = useState({
@@ -54,7 +56,6 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
         <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={onClose} />
       </header>
       <div className="chan__cardbody">
-        <ItsMine person={person} onDone={onClose} />
         <div className="chan__pair">
           <div className="pform__field">
             <span className="pform__label">{t("ch.name")}</span>
@@ -75,21 +76,17 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
         </div>
         <div className="pform__field">
           <span className="pform__label">{t("ch.relation")}</span>
-          <Menu
-            align="start"
-            items={PERSON_RELATIONS.map((r) => ({
-              label: t(RELATION_KEY[r]),
-              icon: r === d.relation ? <Icons.Check /> : <span />,
-              onSelect: () => setD({ ...d, relation: r }),
-            }))}
-            trigger={
-              <button type="button" className="selectbtn chan__select" aria-label={t("ch.relation")}>
-                <span className="selectbtn__text">
-                  {d.relation ? t(RELATION_KEY[d.relation]) : t("ch.relation.none")}
-                </span>
-                <Icons.ChevronDown size={12} />
-              </button>
-            }
+          <Select
+            label={t("ch.relation")}
+            value={d.relation ?? NO_RELATION}
+            onValueChange={(v) => {
+              const relation = PERSON_RELATIONS.find((r) => r === v);
+              setD({ ...d, relation });
+            }}
+            options={[
+              { value: NO_RELATION, label: t("ch.relation.none") },
+              ...PERSON_RELATIONS.map((r) => ({ value: r, label: t(RELATION_KEY[r]) })),
+            ]}
           />
         </div>
         <div className="pform__field">
@@ -118,6 +115,7 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
           {perm("requests", t("ch.perm.requests"), t("ch.perm.requestsHint"))}
           {perm("notes", t("ch.perm.notes"), t("ch.perm.notesHint"))}
         </ul>
+        <ItsMine person={person} onDone={onClose} />
       </div>
       <footer className="chan__cardfoot">
         <Button
@@ -155,6 +153,10 @@ function ItsMine({ person, onDone }: { person: Person; onDone(): void }) {
   };
   return (
     <div className="chan__mine">
+      <div className="chan__minehead">
+        <Icons.TriangleAlert size={14} />
+        <span>{t("ch.claim.title")}</span>
+      </div>
       {asking ? (
         <>
           <p>{t("ch.claim.confirm", { name: person.name })}</p>
@@ -168,14 +170,17 @@ function ItsMine({ person, onDone }: { person: Person; onDone(): void }) {
           </div>
         </>
       ) : (
-        <Button
-          size="sm"
-          variant="secondary"
-          leadingIcon={<Icons.UserRound size={14} />}
-          onClick={() => setAsking(true)}
-        >
-          {t("ch.claim")}
-        </Button>
+        <>
+          <p className="chan__minehint">{t("ch.claim.hint")}</p>
+          <Button
+            size="sm"
+            variant="secondary"
+            leadingIcon={<Icons.UserRound size={14} />}
+            onClick={() => setAsking(true)}
+          >
+            {t("ch.claim")}
+          </Button>
+        </>
       )}
     </div>
   );
