@@ -14,6 +14,9 @@ export const enTeam = {
   "org.notCompanyHint":
     "Turn this project into a company to group its agents in areas and give each one a role. You can change it back in its settings.",
   "org.makeCompany": "Turn into a company",
+  "org.makeCompanyTitle": "Turn {name} into a company?",
+  "org.makeCompanyBody":
+    "Its type becomes Company: you can add areas and roles, and its agents read them. You can change the type again in its settings.",
   "org.agents.one": "1 agent",
   "org.agents": "{n} agents",
   "org.general": "General roles",

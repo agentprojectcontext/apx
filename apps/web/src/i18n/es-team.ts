@@ -16,6 +16,9 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "org.notCompanyHint":
     "Convertí este proyecto en empresa para agrupar a sus agentes en áreas y darle un rol a cada uno. Podés volver a cambiarlo en sus ajustes.",
   "org.makeCompany": "Convertir en empresa",
+  "org.makeCompanyTitle": "¿Convertir {name} en empresa?",
+  "org.makeCompanyBody":
+    "Su tipo pasa a ser Empresa: vas a poder sumar áreas y roles, y sus agentes los van a leer. Podés volver a cambiar el tipo en sus ajustes.",
   "org.agents.one": "1 agente",
   "org.agents": "{n} agentes",
   "org.general": "Roles generales",

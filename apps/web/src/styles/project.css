@@ -64,16 +64,14 @@
   flex: none;
 }
 .project__kind {
-  display: block;
+  display: inline-flex;
+  flex: none;
   padding: 0;
   border: 0;
   background: none;
-  font-size: var(--apx-text-xs);
-  font-weight: var(--apx-weight-medium);
-  color: var(--apx-fg-muted);
   cursor: pointer;
 }
-.project__kind:hover {
+.project__kind:hover .apx-badge {
   color: var(--apx-fg);
 }
 .project__path {

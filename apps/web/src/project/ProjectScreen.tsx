@@ -13,7 +13,7 @@ import { ProjectTasks } from "../tasks/TasksList.tsx";
 import { FilesPane, NoFolder } from "./files/FilesPane.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
-import { kindLabel, ProjectSettings } from "./ProjectSettings.tsx";
+import { kindIcon, kindLabel, ProjectSettings } from "./ProjectSettings.tsx";
 import { ProjectAgents } from "./ProjectTeam.tsx";
 import { useProjectCounts } from "./useProjectCounts.ts";
 
@@ -61,21 +61,25 @@ function ProjectHeader({ project, tab }: { project: ProjectEntry; tab: ProjectTa
   const t = useT();
   const counts = useProjectCounts(project.id);
   const [settings, setSettings] = useState(false);
+  const KindIcon = kindIcon(project.kind);
   return (
     <header className="project__head">
       <div className="project__titlerow">
         <ProjectTile tone={projectTone(project.id)} initial={projectInitial(project.name)} size={36} />
         <div className="project__titles">
-          <button
-            type="button"
-            className="project__kind"
-            title={t("project.kind.change")}
-            onClick={() => setSettings(true)}
-          >
-            {kindLabel(t, project.kind)}
-          </button>
           <div className="project__name">
             <h1>{project.name}</h1>
+            <button
+              type="button"
+              className="project__kind"
+              title={t("project.kind.change")}
+              onClick={() => setSettings(true)}
+            >
+              <Badge>
+                <KindIcon size={12} />
+                {kindLabel(t, project.kind)}
+              </Badge>
+            </button>
             {project.isDefault && (
               <Badge>
                 <Icons.Lock size={12} />

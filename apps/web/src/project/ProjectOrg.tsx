@@ -313,12 +313,15 @@ function RoleDialog({
 /** Areas and roles belong to a company: any other kind gets the tab, empty, with the way to convert. */
 function NotCompany({ project, switcher }: { project: ProjectEntry; switcher?: ReactNode }) {
   const t = useT();
+  const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const convert = async () => {
     setBusy(true);
-    if (project.isDefault) await updateBase({ kind: "company" });
-    else await updateProject({ project: project.id, kind: "company" });
+    const ok = project.isDefault
+      ? await updateBase({ kind: "company" })
+      : Boolean(await updateProject({ project: project.id, kind: "company" }));
     setBusy(false);
+    if (ok) setAsking(false);
   };
   return (
     <div className="team org">
@@ -334,13 +337,29 @@ function NotCompany({ project, switcher }: { project: ProjectEntry; switcher?: R
         icon={<Icons.Building2 />}
         title={t("org.notCompany")}
         action={
-          <Button size="sm" leadingIcon={<Icons.Building2 size={14} />} disabled={busy} onClick={() => void convert()}>
+          <Button size="sm" leadingIcon={<Icons.Building2 size={14} />} onClick={() => setAsking(true)}>
             {t("org.makeCompany")}
           </Button>
         }
       >
         {t("org.notCompanyHint")}
       </EmptyState>
+      <Dialog
+        open={asking}
+        title={t("org.makeCompanyTitle", { name: project.name })}
+        description={t("org.makeCompanyBody")}
+        onOpenChange={(open) => !open && !busy && setAsking(false)}
+        footer={
+          <>
+            <Button variant="secondary" disabled={busy} onClick={() => setAsking(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button loading={busy} onClick={() => void convert()}>
+              {t("org.makeCompany")}
+            </Button>
+          </>
+        }
+      />
     </div>
   );
 }
