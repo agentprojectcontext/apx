@@ -173,3 +173,30 @@ test("a file downloads whole, any kind; a folder, a pipe or a path outside does 
   await assert.rejects(env.client.call("files.download", { project, path: "pipe" }), /not a file/);
   await assert.rejects(env.client.call("files.download", { project, path: "escape/secret.txt" }), /outside the folder/);
 });
+
+test("a text file is edited in place; a change made since it was opened is never overwritten", async () => {
+  const read = await env.client.call("files.read", { project, path: "docs/plan.md" });
+  assert.ok(read.version);
+  const saved = await env.client.call("files.write", {
+    project,
+    path: "docs/plan.md",
+    text: "Ship on Monday.\n",
+    version: read.version,
+  });
+  assert.equal(fs.readFileSync(path.join(repo, "docs", "plan.md"), "utf8"), "Ship on Monday.\n");
+  // The old version is stale now: saving with it is refused, and the file keeps the newer text.
+  await assert.rejects(
+    env.client.call("files.write", { project, path: "docs/plan.md", text: "Stale.\n", version: read.version }),
+    /changed since/,
+  );
+  await env.client.call("files.write", {
+    project,
+    path: "docs/plan.md",
+    text: "Ship on Friday.\n",
+    version: saved.version,
+  });
+  assert.equal(fs.readFileSync(path.join(repo, "docs", "plan.md"), "utf8"), "Ship on Friday.\n");
+  await assert.rejects(env.client.call("files.write", { project, path: "../x.txt", text: "no" }), /outside the folder/);
+  await assert.rejects(env.client.call("files.write", { project, path: "nope.md", text: "no" }), /not found|nope/);
+  await assert.rejects(env.client.call("files.write", { project, path: "docs", text: "no" }), /not a file/);
+});

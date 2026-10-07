@@ -6,8 +6,8 @@ import { FILE_DOWNLOAD_LIMIT, FILE_MEDIA_LIMIT, FILE_READ_LIMIT, type FileEntry 
 import type { DesktopOps } from "../desktop.ts";
 import type { Store } from "../domain/store.ts";
 import { gitDiff, gitStatus } from "../engine/changes.ts";
-import { badRequest, notFound } from "../errors.ts";
-import { insideReal, real } from "../paths.ts";
+import { badRequest, conflict, notFound } from "../errors.ts";
+import { insideReal, real, writeAtomic } from "../paths.ts";
 import { scratchDir, workDir } from "../tools/shell.ts";
 import { reportedDiff } from "./reported-diff.ts";
 import type { Handlers } from "./router.ts";
@@ -16,6 +16,9 @@ import type { Handlers } from "./router.ts";
 const MAX_ENTRIES = 500;
 /** Never shown, whatever the case or a link's name: .git holds remotes (with tokens, sometimes) and hooks. */
 const hidden = (rel: string) => rel.split("/").some((seg) => seg.toLowerCase() === ".git");
+
+/** A file's version as `files.write` checks it: when it last changed and how big it is. */
+const versionOf = (st: fs.Stats) => `${st.mtimeMs}:${st.size}`;
 
 function looksBinary(b: Buffer): boolean {
   return b.subarray(0, 8000).includes(0);
@@ -246,10 +249,25 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
         const n = fs.readSync(fd, buf, 0, buf.length, 0);
         const head = buf.subarray(0, n);
         if (looksBinary(head)) return { path: clean, bytes: st.size, binary: true, truncated: false };
-        return { path: clean, bytes: st.size, binary: false, truncated: st.size > n, text: head.toString("utf8") };
+        const text = head.toString("utf8");
+        return { path: clean, bytes: st.size, binary: false, truncated: st.size > n, text, version: versionOf(st) };
       } finally {
         fs.closeSync(fd);
       }
+    },
+    "files.write": ({ path: rel, text, version, ...where }) => {
+      const { abs, rel: clean } = locate(where, rel);
+      let st: fs.Stats;
+      try {
+        st = fs.lstatSync(abs);
+      } catch {
+        throw notFound(`file ${rel}`);
+      }
+      if (!st.isFile()) throw badRequest(`${rel} is not a file`);
+      if (version && versionOf(st) !== version) throw conflict(`${rel} changed since it was opened; open it again`);
+      writeAtomic(abs, text, st.mode & 0o777);
+      const now = fs.statSync(abs);
+      return { path: clean, bytes: now.size, version: versionOf(now) };
     },
   } satisfies Partial<Handlers>;
 }

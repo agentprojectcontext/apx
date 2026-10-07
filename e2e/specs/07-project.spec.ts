@@ -1,5 +1,7 @@
 // A project's views: the team chart of the imported project, the files of the one added in the setup, and the owner's
 // own Claude Code and Codex sessions on "this Mac".
+import fs from "node:fs";
+import path from "node:path";
 import { expect, open, rpc, test, world } from "./kit.ts";
 
 test("the imported project shows its team", async ({ page }) => {
@@ -27,6 +29,26 @@ test("a project's files open as text", async ({ page }) => {
   await page.getByRole("tab", { name: "Archivos" }).click();
   await page.getByRole("button", { name: "README.md" }).click();
   await expect(page.getByText("A small shop.")).toBeVisible();
+});
+
+test("a project's text file opens as code with line numbers, is edited and saved in place", async ({ page }) => {
+  const { repo } = await world.info();
+  fs.writeFileSync(path.join(repo, "price.ts"), "export const TAX = 0.21;\n");
+  await open(page);
+  await page.getByRole("button", { name: /^acme/i }).click();
+  await page.getByRole("tab", { name: "Archivos" }).click();
+  await page.getByRole("button", { name: "price.ts" }).click();
+  const code = page.locator(".cm-content");
+  await expect(code).toContainText("export const TAX = 0.21;");
+  await expect(page.locator(".cm-lineNumbers")).toContainText("1");
+  await page.getByRole("button", { name: "Editar" }).click();
+  await code.click();
+  await page.keyboard.press("ControlOrMeta+End");
+  await page.keyboard.type("export const SHIP = 5;");
+  await page.getByRole("button", { name: "Guardar" }).click();
+  await expect(page.getByRole("button", { name: "Editar" })).toBeVisible();
+  expect(fs.readFileSync(path.join(repo, "price.ts"), "utf8")).toBe("export const TAX = 0.21;\nexport const SHIP = 5;");
+  fs.rmSync(path.join(repo, "price.ts"));
 });
 
 test("the owner's Claude Code and Codex sessions are listed", async ({ page }) => {

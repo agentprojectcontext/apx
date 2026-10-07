@@ -1,20 +1,17 @@
-import type { FileEntry, Result } from "@apx/protocol";
-import { Button, ContextMenu, EmptyState, IconButton, Icons, MarkdownView, SegmentedControl, Skeleton } from "@apx/ui";
+import type { FileEntry } from "@apx/protocol";
+import { ContextMenu, EmptyState, IconButton, Icons, Skeleton } from "@apx/ui";
 import { type ReactNode, useEffect, useState } from "react";
-import { formatBytes } from "../../common/format.ts";
 import { client } from "../../data/client.ts";
-import { coreOnThisComputer, downloadFile, type FileWhere, mediaKind, mediaOf, revealFile } from "../../data/files.ts";
+import { coreOnThisComputer, type FileWhere, mediaKind, mediaOf, revealFile } from "../../data/files.ts";
 import { useT } from "../../i18n/index.ts";
 import { type FileChange, fileMenu, RenameDialog, TrashDialog } from "./FileActions.tsx";
+import { FileHead } from "./FileHead.tsx";
+import { TextView } from "./TextFile.tsx";
 
-type Read = Result<"files.read">;
-type Mode = "view" | "source" | "split";
-
-const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+export const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** A stable key for effects: the scope object is new on every render. */
-const whereKey = (w: FileWhere) =>
+export const whereKey = (w: FileWhere) =>
   "thread" in w ? `${w.scratch ? "s" : "t"}:${w.thread}` : "project" in w ? `p:${w.project}` : "base";
-const isMarkdown = (p: string) => /\.(md|markdown|mdx)$/i.test(p);
 
 /** What the tree needs to reach and act on the folder, passed to every level. */
 type TreeCtx = {
@@ -235,47 +232,6 @@ function FileView({ where, path }: { where: FileWhere; path: string }) {
   return <TextView where={where} path={path} />;
 }
 
-/** The file's path and size, with "Show in Finder" and whatever the view adds. */
-function FileHead({
-  where,
-  path,
-  size,
-  children,
-}: {
-  where: FileWhere;
-  path: string;
-  size?: number;
-  children?: ReactNode;
-}) {
-  const t = useT();
-  return (
-    <header className="files__head">
-      <span className="files__path">{path}</span>
-      {size != null && <span className="files__size">{formatBytes(size)}</span>}
-      <span className="files__spacer" />
-      {children}
-      <Button
-        size="sm"
-        variant="ghost"
-        leadingIcon={<Icons.Download size={14} />}
-        onClick={() => void downloadFile(where, path)}
-      >
-        {t("files.download")}
-      </Button>
-      {coreOnThisComputer() && (
-        <Button
-          size="sm"
-          variant="ghost"
-          leadingIcon={<Icons.FolderOpen size={14} />}
-          onClick={() => void revealFile(where, path)}
-        >
-          {t("files.reveal")}
-        </Button>
-      )}
-    </header>
-  );
-}
-
 /** An image, video, audio or PDF, shown from its bytes; too big or unreadable says so (download is one click away). */
 function MediaView({ where, path }: { where: FileWhere; path: string }) {
   const t = useT();
@@ -320,66 +276,6 @@ function MediaView({ where, path }: { where: FileWhere; path: string }) {
             <audio src={media.url} controls />
           )}
           {kind === "pdf" && <iframe src={media.url} title={path} />}
-        </div>
-      )}
-    </>
-  );
-}
-
-function TextView({ where, path }: { where: FileWhere; path: string }) {
-  const t = useT();
-  const [file, setFile] = useState<Read>();
-  const [error, setError] = useState<string>();
-  const md = isMarkdown(path);
-  const [mode, setMode] = useState<Mode>(md ? "view" : "source");
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the scope object is new each render; its key is what changes.
-  useEffect(() => {
-    let live = true;
-    client.call("files.read", { ...where, path }).then(
-      (f) => live && setFile(f),
-      (e: unknown) => live && setError(errText(e)),
-    );
-    return () => {
-      live = false;
-    };
-  }, [whereKey(where), path]);
-  return (
-    <>
-      <FileHead where={where} path={path} {...(file ? { size: file.bytes } : {})}>
-        {md && file?.text != null && (
-          <SegmentedControl
-            size="sm"
-            label={t("files.mode")}
-            value={mode}
-            onValueChange={(v) => setMode(v as Mode)}
-            options={[
-              { value: "view", label: t("files.mode.view") },
-              { value: "source", label: t("files.mode.source") },
-              { value: "split", label: t("files.mode.split") },
-            ]}
-          />
-        )}
-      </FileHead>
-      {error ? (
-        <p className="files__error">{error}</p>
-      ) : !file ? (
-        <Skeleton height={200} />
-      ) : file.binary ? (
-        <EmptyState icon={<Icons.File />} title={t("files.binary")}>
-          {t("files.binaryBody")}
-          <Button size="sm" variant="secondary" onClick={() => void downloadFile(where, path)}>
-            {t("files.download")}
-          </Button>
-        </EmptyState>
-      ) : (
-        <div className={`files__body is-${mode}`}>
-          {mode !== "view" && <pre className="files__source">{file.text}</pre>}
-          {mode !== "source" && (
-            <div className="files__md">
-              <MarkdownView source={file.text ?? ""} />
-            </div>
-          )}
-          {file.truncated && <p className="files__more">{t("files.truncated")}</p>}
         </div>
       )}
     </>

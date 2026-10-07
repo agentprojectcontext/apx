@@ -206,6 +206,16 @@ export async function setSurfaceFlags(id: string, flags: { pinned?: boolean; app
   }
 }
 
+/** Copies a widget into a project (none: the base project), pinned to its board when asked. */
+export async function copySurface(id: string, projectId: string | undefined, pinned: boolean): Promise<void> {
+  try {
+    const copy = await client.call("surfaces.copy", { surface: id, project_id: projectId ?? null, pinned });
+    data.set((s) => ({ surfaces: { ...s.surfaces, [copy.id]: copy } }));
+  } catch (e) {
+    notify(t("error.updateWidget", { error: errText(e) }));
+  }
+}
+
 /** The owner's answer to something an agent is waiting on (a confirmation or a question). */
 export async function respond(
   input: string,

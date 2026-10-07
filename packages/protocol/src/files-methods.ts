@@ -88,8 +88,27 @@ export const filesMethods = {
       binary: z.boolean(),
       truncated: z.boolean(),
       text: z.string().optional(),
+      /** What `files.write` checks it still has, so an edit never overwrites a change made since (by an agent, say). */
+      version: z.string().optional(),
     }),
     effect: false,
+    access: "human",
+  },
+  /**
+   * Saves an edited text file in place (one that exists, read whole, up to 256 KB). With `version`, refused when the
+   * file changed since it was read; the new version comes back.
+   */
+  "files.write": {
+    params: z
+      .object({
+        ...Where,
+        path: z.string().min(1).max(1000),
+        text: z.string().max(FILE_READ_LIMIT),
+        version: z.string().max(100).optional(),
+      })
+      .strict(),
+    result: z.object({ path: z.string(), bytes: z.number().int(), version: z.string() }),
+    effect: true,
     access: "human",
   },
   /** An image, video, audio or PDF of the project, for the viewer to show (up to 15 MB). */

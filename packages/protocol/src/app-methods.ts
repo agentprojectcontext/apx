@@ -1197,6 +1197,16 @@ export const appMethods = {
     result: SurfaceSummary,
     effect: true,
   },
+  /**
+   * Copies a widget into another project (`project_id` null: the base project), as the owner's: same title, page and
+   * origins, its name kept unless that project has one by it ("-2" then). Not linked to the original afterwards.
+   */
+  "surfaces.copy": {
+    params: z.object({ surface: Id, project_id: Id.nullable(), pinned: z.boolean().default(false) }).strict(),
+    result: SurfaceSummary,
+    effect: true,
+    access: "human",
+  },
   "surfaces.update": {
     params: z.object({ surface: Id, pinned: z.boolean().optional(), app: z.boolean().optional() }).strict(),
     result: SurfaceSummary,

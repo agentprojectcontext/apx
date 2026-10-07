@@ -83,35 +83,65 @@ async function restartChat(surface: SurfaceSummary): Promise<void> {
 const close = () => open.set({ surfaceId: undefined, threadId: undefined });
 
 /**
+ * Asks an agent for a new widget for a project's board: a new chat with it in that project (so it works with the
+ * project's context), its first words ready, floating over the page; the widget shows on top as soon as it is made.
+ */
+export async function askForWidget(agentId: string, projectId: string | undefined): Promise<void> {
+  try {
+    const thread = await createThread({ agentId, ...(projectId ? { projectId } : {}), title: tr("widget.askTitle") });
+    putDraft(thread.id, tr("widget.askDraft"));
+    open.set({ surfaceId: undefined, threadId: thread.id });
+  } catch (e) {
+    notify(tr("error.change", { error: errText(e) }));
+  }
+}
+
+/**
  * The open widget's chat, floating over the page like a task: the widget live on top, the conversation and the
- * composer below, so the owner asks for a change and watches it land.
+ * composer below, so the owner asks for a change and watches it land. Asking for a new one, the widget the chat makes
+ * shows there once it exists (and becomes the widget's chat).
  */
 export function WidgetChatHost() {
   const t = useT();
   const { surfaceId, threadId } = useSlice(open, (s) => s);
-  const surface = useData((s) => (surfaceId ? s.surfaces[surfaceId] : undefined));
+  const surface = useData((s) => {
+    if (surfaceId) return s.surfaces[surfaceId];
+    if (!threadId) return undefined;
+    // Asking for one: the newest widget this chat has made.
+    let made: SurfaceSummary | undefined;
+    for (const x of Object.values(s.surfaces))
+      if (x.thread_id === threadId && (!made || x.updated_at > made.updated_at)) made = x;
+    return made;
+  });
   const thread = useData((s) => (threadId ? s.threads[threadId] : undefined));
   const load = useData((s) => (threadId ? s.threadLoad[threadId] : undefined));
   const agent = useData((s) => (thread ? s.agents[thread.agent_ids[0] ?? ""] : undefined));
   useEffect(() => {
     if (threadId && load == null) void loadThread(threadId);
   }, [threadId, load]);
-  if (!surface || !thread) return null;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once the asked-for widget exists, the chat is its chat.
+  useEffect(() => {
+    if (!surfaceId && surface && threadId) rememberChat(surface.id, threadId);
+  }, [surface?.id]);
+  if (!thread) return null;
+  const title = surface?.title ?? t("widget.askTitle");
   return (
     <Drawer
       key={thread.id}
       className="widgetchat"
-      label={t("widget.chatOf", { title: surface.title })}
-      title={surface.title}
+      label={t("widget.chatOf", { title })}
+      title={title}
       onClose={close}
       actions={
         <>
-          <IconButton
-            size="sm"
-            label={t("widget.chatNew")}
-            icon={<Icons.Plus size={14} />}
-            onClick={() => void restartChat(surface)}
-          />
+          {surface && (
+            <IconButton
+              size="sm"
+              label={t("widget.chatNew")}
+              icon={<Icons.Plus size={14} />}
+              onClick={() => void restartChat(surface)}
+            />
+          )}
           <IconButton
             size="sm"
             label={t("widget.chatOpen")}
@@ -124,9 +154,16 @@ export function WidgetChatHost() {
         </>
       }
     >
-      <div className="widgetchat__preview">
-        <SurfaceFrame surfaceId={surface.id} maxHeight={420} />
-      </div>
+      {surface ? (
+        <div className="widgetchat__preview">
+          <SurfaceFrame surfaceId={surface.id} maxHeight={420} />
+        </div>
+      ) : (
+        <p className="widgetchat__waiting">
+          <Icons.LayoutGrid size={14} />
+          {t("widget.askWaiting")}
+        </p>
+      )}
       <div className="widgetchat__chat">
         {load === "ready" ? <Transcript thread={thread} /> : load !== "error" && <Skeleton height={120} />}
       </div>

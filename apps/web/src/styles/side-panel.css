@@ -720,6 +720,18 @@
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-lg);
 }
+.widgetchat__waiting {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 14px;
+  border: 1px dashed var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
 .widgetchat__chat {
   flex: 1 1 0;
   min-height: 120px;

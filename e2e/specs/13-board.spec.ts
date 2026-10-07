@@ -150,3 +150,32 @@ test("the board is ordered from the grip, takes the full width, and both stay af
     for (const surface of ids) await rpc("surfaces.update", { surface, pinned: false });
   }
 });
+
+test("a widget of another project is copied onto this board, and a new one is asked of an agent", async ({ page }) => {
+  const original = await rpc<{ id: string }>("surfaces.show", {
+    name: "uptime",
+    title: "Uptime",
+    html: "<h1>99.9%</h1>",
+  });
+  await open(page);
+  await page.getByRole("button", { name: /^Northwind/ }).click();
+  const board = page.getByRole("region", { name: "Tablero" });
+  await board.getByRole("button", { name: "Sumar un widget" }).click();
+  await page.getByRole("menuitem", { name: "Copiar de otro proyecto" }).hover();
+  await page.getByRole("menuitem", { name: /^Default/ }).hover();
+  await page.getByRole("menuitem", { name: "Uptime" }).click();
+  const tile = board.getByRole("article", { name: "Uptime" });
+  await expect(tile.frameLocator("iframe").getByText("99.9%")).toBeVisible();
+
+  await board.getByRole("button", { name: "Sumar un widget" }).click();
+  await page.getByRole("menuitem", { name: "Pedir un widget nuevo a…" }).hover();
+  await page.getByRole("menuitem", { name: /super-agente/ }).click();
+  const drawer = page.getByRole("complementary", { name: "Chat del widget Widget nuevo" });
+  await expect(drawer.getByText("El widget aparece acá apenas el agente lo haga.")).toBeVisible();
+  await expect(drawer.getByRole("textbox")).toHaveValue(/Haceme un widget para el tablero de este proyecto/);
+  await page.keyboard.press("Escape");
+
+  const copies = (await rpc<{ surfaces: Array<{ id: string; title: string }> }>("surfaces.list", {})).surfaces;
+  for (const s of copies.filter((x) => x.title === "Uptime" && x.id !== original.id))
+    await rpc("surfaces.update", { surface: s.id, pinned: false });
+});

@@ -201,6 +201,26 @@ export function appHandlers(deps: {
         }),
       );
     },
+    "surfaces.copy": ({ surface, project_id, pinned }) => {
+      const from = store.surfaces.get(surface);
+      if (!from) throw notFound(`surface ${surface}`);
+      const target = project_id ?? undefined;
+      if (target && !store.projects.get(target)) throw notFound(`project ${target}`);
+      // A name the target already has gets a number, so the copy never overwrites a widget there.
+      let name = from.name;
+      for (let n = 2; store.surfaces.byName(target, name); n++) name = `${from.name.slice(0, 55)}-${n}`;
+      return summary(
+        store.surfaces.upsert({
+          name,
+          title: from.title,
+          html: from.html,
+          project_id: target,
+          created_by: "owner",
+          pinned,
+          ...(from.connect ? { connect: from.connect } : {}),
+        }),
+      );
+    },
     "surfaces.update": ({ surface, pinned, app }) => {
       const s = store.surfaces.patch(surface, { pinned, app });
       if (!s) throw notFound(`surface ${surface}`);

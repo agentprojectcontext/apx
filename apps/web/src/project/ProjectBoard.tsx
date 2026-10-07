@@ -1,13 +1,13 @@
 import type { SurfaceSummary } from "@apx/protocol";
-import { EmptyState, IconButton, Icons, Menu, type MenuEntry } from "@apx/ui";
+import { EmptyState, IconButton, Icons, Menu } from "@apx/ui";
 import { type DragEvent, useMemo, useState } from "react";
-import { setSurfaceFlags } from "../data/actions.ts";
 import { inProject } from "../data/identity.ts";
 import { setBoard, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { SurfaceActions } from "../surfaces/SurfaceActions.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
+import { useBoardMenu } from "./boardMenu.tsx";
 
 /** A tile's height (px) until the owner drags its bottom edge; its widget scrolls inside it. */
 const TILE_H = 360;
@@ -106,16 +106,7 @@ export function ProjectBoard({ projectId }: { projectId: string }) {
     [mine, board.order],
   );
 
-  // One already on the board shows checked and cannot be added again; taking it off is the tile's own pin.
-  const choices: MenuEntry[] = mine.length
-    ? mine.map((s) => ({
-        label: s.title,
-        icon: <Icons.LayoutGrid />,
-        checked: s.pinned,
-        disabled: s.pinned,
-        onSelect: () => void setSurfaceFlags(s.id, { pinned: true }),
-      }))
-    : [{ label: t("board.none"), disabled: true }];
+  const choices = useBoardMenu(projectId, mine);
 
   /** Puts the dragged tile where the target is, and remembers the whole order. */
   const drop = (target: string) => {
