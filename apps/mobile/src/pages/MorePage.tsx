@@ -57,8 +57,7 @@ export function MorePage({
   onSelect: (id: MoreId) => void;
 }) {
   return (
-    <Screen gap={16}>
-      <PageTitle title={t("navMore")} />
+    <Screen gap={16} header={<PageTitle title={t("navMore")} />}>
       <Pressable
         accessibilityRole="button"
         onPress={() => onSelect("settings")}

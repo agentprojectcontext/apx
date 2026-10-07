@@ -51,6 +51,47 @@ export function ChatsPage({
   const projects = data.projects.filter((item) => item.registered !== false);
   return (
     <View style={s.root}>
+      {/* Title, search and filters stay put; only the list under them scrolls. */}
+      <View style={s.header}>
+        <Text accessibilityRole="header" style={[type.largeTitle, { flex: 1 }]}>
+          {t("navChats")}
+        </Text>
+        <IconButton
+          icon="Search"
+          label={t("searchChats")}
+          onPress={() => setQuery((q) => (q === undefined ? "" : undefined))}
+        />
+        <Pressable accessibilityRole="button" accessibilityLabel={t("navMore")} onPress={account} style={s.account}>
+          <OwnerAvatar name={data.owner} online={online} />
+        </Pressable>
+      </View>
+      {query !== undefined ? (
+        <View style={s.search}>
+          <Icon name="Search" size={16} color={theme.fgSubtle} />
+          <TextInput
+            autoFocus
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t("searchChats")}
+            placeholderTextColor={theme.fgSubtle}
+            returnKeyType="search"
+            style={s.searchInput}
+          />
+          <IconButton icon="X" label={t("back")} size={16} color={theme.fgMuted} onPress={() => setQuery(undefined)} />
+        </View>
+      ) : null}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0 }}
+        contentContainerStyle={s.chips}
+      >
+        <Chip label={t("all")} selected={project === "all"} onPress={() => setProject("all")} />
+        <Chip label={t("defaultProject")} selected={project === "default"} onPress={() => setProject("default")} />
+        {projects.map((item) => (
+          <Chip key={item.id} label={item.name} selected={project === item.id} onPress={() => setProject(item.id)} />
+        ))}
+      </ScrollView>
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -68,40 +109,6 @@ export function ChatsPage({
           />
         }
       >
-        <View style={s.header}>
-          <Text accessibilityRole="header" style={[type.largeTitle, { flex: 1 }]}>
-            {t("navChats")}
-          </Text>
-          <IconButton
-            icon="Search"
-            label={t("searchChats")}
-            onPress={() => setQuery((q) => (q === undefined ? "" : undefined))}
-          />
-          <Pressable accessibilityRole="button" accessibilityLabel={t("navMore")} onPress={account} style={s.account}>
-            <OwnerAvatar name={data.owner} online={online} />
-          </Pressable>
-        </View>
-        {query !== undefined ? (
-          <View style={s.search}>
-            <Icon name="Search" size={16} color={theme.fgSubtle} />
-            <TextInput
-              autoFocus
-              value={query}
-              onChangeText={setQuery}
-              placeholder={t("searchChats")}
-              placeholderTextColor={theme.fgSubtle}
-              returnKeyType="search"
-              style={s.searchInput}
-            />
-            <IconButton
-              icon="X"
-              label={t("back")}
-              size={16}
-              color={theme.fgMuted}
-              onPress={() => setQuery(undefined)}
-            />
-          </View>
-        ) : null}
         {working.length > 0 ? (
           <>
             <Text style={[type.meta, s.workingLabel]}>{t("workingNow", { n: working.length })}</Text>
@@ -112,13 +119,6 @@ export function ChatsPage({
             </ScrollView>
           </>
         ) : null}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
-          <Chip label={t("all")} selected={project === "all"} onPress={() => setProject("all")} />
-          <Chip label={t("defaultProject")} selected={project === "default"} onPress={() => setProject("default")} />
-          {projects.map((item) => (
-            <Chip key={item.id} label={item.name} selected={project === item.id} onPress={() => setProject(item.id)} />
-          ))}
-        </ScrollView>
         {rows.length ? (
           rows.map((thread) => <ChatRow key={thread.id} thread={thread} data={data} onPress={() => open(thread)} />)
         ) : (

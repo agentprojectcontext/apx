@@ -18,30 +18,47 @@ import { Icon, type IconName } from "../Icon";
 import { theme as t } from "../theme";
 import { IconButton, type } from "./primitives";
 
-/** A tab's scrolling body. `inset` pads the sides (cards); lists that run edge to edge leave it off. */
+/**
+ * A tab's body: a fixed `header` (title, filters) and the content that scrolls under it — only the list moves.
+ * `inset` pads the sides (cards); lists that run edge to edge leave it off.
+ */
 export function Screen({
   children,
+  header,
   inset = true,
   gap = 12,
   bottom = 24,
   refreshControl,
 }: {
   children: React.ReactNode;
+  header?: React.ReactNode;
   inset?: boolean;
   gap?: number;
   bottom?: number;
   refreshControl?: React.ReactElement<RefreshControlProps>;
 }) {
-  return (
+  const body = (
     <ScrollView
       style={s.screen}
       refreshControl={refreshControl}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingHorizontal: inset ? 16 : 0, paddingBottom: bottom, gap }}
+      contentContainerStyle={{
+        paddingHorizontal: inset ? 16 : 0,
+        paddingTop: header ? 4 : 0,
+        paddingBottom: bottom,
+        gap,
+      }}
     >
       {children}
     </ScrollView>
+  );
+  if (!header) return body;
+  return (
+    <View style={s.screen}>
+      <View style={{ paddingHorizontal: inset ? 16 : 0, paddingBottom: 8, gap: 8 }}>{header}</View>
+      {body}
+    </View>
   );
 }
 

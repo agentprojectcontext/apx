@@ -36,8 +36,7 @@ export function InboxPage({
         ? t("inboxOneWaiting")
         : t("inboxWaiting", { n: items.length });
   return (
-    <Screen>
-      <PageTitle title={t("navInbox")} subtitle={subtitle} />
+    <Screen header={<PageTitle title={t("navInbox")} subtitle={subtitle} />}>
       {items.length ? (
         items.map((item) => <InboxCard key={item.id} item={item} data={data} act={act} />)
       ) : (

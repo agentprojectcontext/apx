@@ -33,8 +33,7 @@ export function SessionsPage({
   const fail = (error: unknown) =>
     Alert.alert(t("couldNotStart"), error instanceof Error ? error.message : String(error));
   return (
-    <Screen gap={14}>
-      <PageTitle title={t("navSessions")} subtitle={t("sessionsLead")} />
+    <Screen gap={14} header={<PageTitle title={t("navSessions")} subtitle={t("sessionsLead")} />}>
       {engines.map((engine) => (
         <EngineCard
           key={engine.id}

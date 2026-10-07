@@ -18,18 +18,25 @@ export function TasksPage({ data, open }: { data: Workspace; open: (threadId: st
   const [filter, setFilter] = useState<TaskFilter>("all");
   const groups = useMemo(() => taskGroups(data.tasks, filter), [data.tasks, filter]);
   return (
-    <Screen inset={false} gap={8}>
-      <PageTitle title={t("navTasks")} inset />
-      <Segmented
-        value={filter}
-        onChange={setFilter}
-        style={{ marginHorizontal: 16, marginBottom: 4 }}
-        options={[
-          { value: "all", label: t("tasksAll") },
-          { value: "task", label: t("tasksTasks") },
-          { value: "commitment", label: t("tasksCommitments") },
-        ]}
-      />
+    <Screen
+      inset={false}
+      gap={8}
+      header={
+        <>
+          <PageTitle title={t("navTasks")} inset />
+          <Segmented
+            value={filter}
+            onChange={setFilter}
+            style={{ marginHorizontal: 16, marginBottom: 4 }}
+            options={[
+              { value: "all", label: t("tasksAll") },
+              { value: "task", label: t("tasksTasks") },
+              { value: "commitment", label: t("tasksCommitments") },
+            ]}
+          />
+        </>
+      }
+    >
       {groups.length ? (
         groups.map((group) => (
           <View key={group.id}>
