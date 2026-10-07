@@ -259,6 +259,19 @@ A thread can run with nobody watching, so it has walls: one comment starts at mo
 run, and agents handing a task back and forth get at most eight turns on it per hour. Your own
 comments are not capped.
 
+### Delegations report back to the task
+
+An agent summoned on a task can hand the work to an external runtime (Claude Code, Codex…)
+in the background. The session is tied to that task: its launch is a comment on the thread,
+its result — or its failure, with the cause — is one more comment addressed to the agent that
+launched it, and that agent is summoned again to decide the next step. Nothing lands in a chat
+instead, and you do not have to ask "did it finish?".
+
+If the daemon restarts while the session runs, the result is still delivered when it ends,
+without posting it twice. A task deleted in the meantime is logged, not replaced by some
+other destination. The follow-up turn runs with the agent's own permissions and the thread's
+hourly cap — a result authorizes nothing new.
+
 ## Next
 
 - [Routines](/apx/docs/capabilities/routines/) — schedule the super-agent to create or report on tasks.

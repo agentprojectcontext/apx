@@ -208,7 +208,9 @@ async function runRealTurn({
     // is looking: a cascade an agent started is unwatched, and the spend
     // breaker and the quota stop have to see it as such (quota.js
     // isUnwatchedTurn). One the owner started they are driving.
-    channelMeta: { unwatched, projectId: p.id ?? null },
+    // `task` is the return address a background runtime launched from this
+    // turn reports to (core/tasks/runtime-return.js). Context, not arguments.
+    channelMeta: { unwatched, projectId: p.id ?? null, task: { project_id: p.id ?? null, task_id: task.id, coordinator: slug } },
     // Same reasoning as the group: the channel picks the PROMPT, but one comment
     // can fan out into several of these runs, so the budget is the fan-out-aware
     // one.
@@ -247,7 +249,7 @@ async function runSuperAgentCommentTurn({
     // The web channel's prompt, for the same reason the project agents use it:
     // the reply is read in a panel, not spoken and not sent to Telegram.
     channel: CHANNELS.WEB,
-    channelMeta: { unwatched, projectId },
+    channelMeta: { unwatched, projectId, task: { project_id: projectId, task_id: task.id, coordinator: SUPERAGENT_ACTOR_ID } },
     contextNote: systemBlock({ me, others, taskTitle: task.title }),
     maxIters: groupToolIters(cfg),
     signal,

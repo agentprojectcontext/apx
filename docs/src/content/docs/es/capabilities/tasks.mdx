@@ -261,6 +261,19 @@ cuatro respuestas (cascada incluida), una tarea que ya tiene agentes trabajando 
 una segunda, y los agentes que se pasan una tarea de un lado a otro tienen como mucho ocho turnos
 por hora en ella. Tus propios comentarios no tienen tope.
 
+### Las delegaciones vuelven a la tarea
+
+Un agente convocado en una tarea puede pasarle el trabajo a un runtime externo (Claude Code,
+Codex…) en segundo plano. La sesión queda atada a esa tarea: su arranque es un comentario en el
+hilo, su resultado —o su fallo, con la causa— es otro comentario dirigido al agente que la lanzó,
+y ese agente vuelve a ser convocado para decidir el próximo paso. Nada cae en un chat en su lugar,
+y no hace falta preguntar "¿terminó?".
+
+Si el daemon se reinicia mientras la sesión corre, el resultado igual se entrega cuando termina,
+sin publicarse dos veces. Una tarea borrada mientras tanto queda en el log, no se reemplaza por
+otro destino. El turno de seguimiento corre con los permisos propios del agente y el tope por hora
+del hilo: un resultado no autoriza nada nuevo.
+
 ## Siguiente
 
 - [Routines](/apx/docs/es/capabilities/routines/) — programá el super-agent para crear o reportar tasks.

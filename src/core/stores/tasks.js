@@ -242,6 +242,9 @@ function projectState(events) {
           // caller, because the roster it resolves against can change later and
           // a thread should keep saying who was actually pulled in that day.
           mentions: Array.isArray(ev.mentions) ? [...ev.mentions] : [],
+          // Machine-readable facts about the comment (a runtime session it
+          // reports on, its phase). Only present when the writer set some.
+          ...(ev.meta && typeof ev.meta === "object" ? { meta: { ...ev.meta } } : {}),
         });
         // A comment IS activity on the task — it moves updated_at, which is what
         // `--updated-since` and every "what moved?" view read.
@@ -562,7 +565,7 @@ export function dropTask(storagePath, idOrPrefix, by = null) {
  * roster lookup of its own, so a thread keeps saying who was actually pulled in
  * on the day it was written even after the project's agents change.
  */
-export function addComment(storagePath, idOrPrefix, { by = null, text = "", mentions = [] } = {}) {
+export function addComment(storagePath, idOrPrefix, { by = null, text = "", mentions = [], meta = null } = {}) {
   const existing = getTask(storagePath, idOrPrefix);
   if (!existing) return null;
   const body = typeof text === "string" ? text.trim() : "";
@@ -575,6 +578,7 @@ export function addComment(storagePath, idOrPrefix, { by = null, text = "", ment
     by,
     text: body,
     mentions: Array.isArray(mentions) ? mentions.filter((m) => typeof m === "string") : [],
+    ...(meta && typeof meta === "object" ? { meta } : {}),
   });
   return getTask(storagePath, existing.id);
 }

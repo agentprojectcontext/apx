@@ -8,7 +8,13 @@ import {
   readRuntimeSession,
   extractRuntimeResult as extractApfResult,
 } from "#core/stores/runtime-sessions.js";
-import { writePendingCallback, deletePendingCallback } from "#core/stores/runtime-callbacks.js";
+import { writePendingCallback, deletePendingCallback, updatePendingCallback } from "#core/stores/runtime-callbacks.js";
+import {
+  deliverRuntimeResultToTask,
+  postTaskRuntimeLaunch,
+  postTaskRuntimeResult,
+  taskOriginFrom,
+} from "#core/tasks/runtime-return.js";
 import { buildRuntimeBridgeHint as buildApfHint } from "#core/agent/runtime-bridge.js";
 import {
   findEngineSessionById,
@@ -169,7 +175,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission, plugins, channel, channelMeta, globalConfig = {}, promptAuthor = null, backgroundResultSink = null }) => async ({ project, agent: slug, runtime, prompt, cwd = null, resume_session_id = null, timeout_s = null, background = null, confirmed = false }) => {
+  makeHandler: ({ projects, requirePermission, plugins, registries = null, channel, channelMeta, globalConfig = {}, promptAuthor = null, backgroundResultSink = null }) => async ({ project, agent: slug, runtime, prompt, cwd = null, resume_session_id = null, timeout_s = null, background = null, confirmed = false }) => {
     await requirePermission("call_runtime", { dangerous: true, confirmed, args: { runtime } });
 
     // Async delivery sink: on Telegram we can push the runtime's result back to
@@ -203,7 +209,13 @@ export default {
     // 300s deadline, while the route that asked for it said in a comment that
     // waiting "would be the 300s deadline again".
     const canPostToRoom = channel === CHANNELS.RUNTIME;
-    const canCallback = !!backgroundResultSink || !!telegramPlugin || canPostToThread || canPostToRoom;
+    // A FIFTH: the task a comment turn was summoned on. When the turn came
+    // from a task, THAT thread is where the result belongs — not the web day
+    // thread it used to land in with no task id (core/tasks/runtime-return.js).
+    const taskOrigin = taskOriginFrom(channelMeta);
+    const canCallback = !!backgroundResultSink || !!telegramPlugin || canPostToThread || canPostToRoom || !!taskOrigin;
+    // The task thread replaces the channel's day-thread rows, it does not echo them.
+    const threadChannel = taskOrigin ? null : channel;
     // Background by default when we can call back; the model opts out with
     // background:false when it needs the output inside this same turn.
     const runInBackground = canCallback && background !== false;
@@ -455,8 +467,13 @@ export default {
       // Take ownership of delivery: drop the durable IOU so the reconciler in
       // another/next daemon can't also deliver this one. Fallbacks below still
       // run in-process, so a delete here doesn't risk losing the callback.
-      deletePendingCallback(session.id);
+      if (!taskOrigin) deletePendingCallback(session.id);
       const body = res.error ? "" : String(res.result || res.output || "").trim();
+
+      if (taskOrigin) {
+        await deliverToTask(res, body);
+        return;
+      }
 
       // The session's OWN row in the thread, written before we try to get an
       // agent to narrate it. Two reasons it goes first: it is the only delivery
@@ -465,7 +482,7 @@ export default {
       // for — the engine's answer, in its own bubble, whether or not Roby ever
       // gets around to summarising it.
       postRuntimeResult({
-        channel, project: p, runtime, sessionId: session.id,
+        channel: threadChannel, project: p, runtime, sessionId: session.id,
         ok: !res.error, text: body, error: res.error,
       });
 
@@ -500,7 +517,57 @@ export default {
       }
     };
 
+    // Task-origin delivery. The IOU is kept until both steps happened, so the
+    // reconciler can finish a delivery this daemon did not live to complete.
+    const deliverToTask = async (res, body) => {
+      const target = projects.get?.(taskOrigin.project_id) || p;
+      let summon = null;
+      try {
+        const { summonFromAgentComment } = await import("#core/tasks/comment-turn.js");
+        summon = (mentions) => summonFromAgentComment({
+          p: target, taskId: taskOrigin.task_id, mentions, author: runtime,
+          projects, plugins, registries, config: globalConfig,
+        });
+      } catch (e) {
+        log.error(`task return: summoner unavailable: ${e.message}`, { apc_session: session.id });
+      }
+      try {
+        const out = deliverRuntimeResultToTask({
+          storagePath: target.storagePath, origin: taskOrigin, runtime, sessionId: session.id,
+          ok: !res.error, text: body, error: res.error, summon,
+        });
+        if (out.missing) log.error("task return: task no longer exists", { apc_session: session.id, task: taskOrigin.task_id });
+        if (out.done) deletePendingCallback(session.id);
+        else updatePendingCallback(session.id, out.state);
+        log.info(`${runtime} result returned to task`, { apc_session: session.id, task: taskOrigin.task_id, ...out.state });
+      } catch (e) {
+        // The IOU survives; the reconciler retries.
+        log.error(`task return failed: ${e.message}`, { apc_session: session.id, task: taskOrigin.task_id });
+      }
+    };
+
     if (runInBackground) {
+      if (taskOrigin) {
+        writePendingCallback({
+          session_id: session.id,
+          session_path: session.path,
+          channel: "task",
+          project_id: taskOrigin.project_id,
+          task_id: taskOrigin.task_id,
+          coordinator: taskOrigin.coordinator,
+          runtime,
+          agent: agent?.slug || null,
+          who,
+        });
+        try {
+          postTaskRuntimeLaunch({
+            storagePath: (projects.get?.(taskOrigin.project_id) || p).storagePath,
+            origin: taskOrigin, runtime, sessionId: session.id, cwd: runCwd,
+          });
+        } catch (e) {
+          log.error(`task launch comment failed: ${e.message}`, { apc_session: session.id });
+        }
+      }
       // Durable IOU: if this daemon dies before the run finishes (crash, pull,
       // or a task that restarts the daemon), the reconciler on the next daemon
       // delivers the result from the session record. The in-process path below
@@ -522,7 +589,7 @@ export default {
       // launched is the agent's own claim that it was — which is exactly the
       // claim that turned out to be false on 2026-09-20.
       postRuntimeLaunch({
-        channel, project: p, runtime, sessionId: session.id,
+        channel: threadChannel, project: p, runtime, sessionId: session.id,
         cwd: runCwd, prompt: effectivePrompt, background: true,
       });
       // Fire-and-forget: don't await into the turn. runToCompletion never
@@ -536,10 +603,14 @@ export default {
         cwd: runCwd,
         status: "launched",
         background: true,
-        note:
-          `La sesión de ${runtime} arrancó en segundo plano (en ${runCwd}) y puede tardar varios minutos u horas. ` +
-          `NO esperes ni vuelvas a llamar a call_runtime para esto: el resultado llegará AUTOMÁTICAMENTE a este chat cuando termine. ` +
-          `Respondé al usuario ahora, en una línea, avisándole que la lanzaste y que le vas a avisar acá cuando esté lista.`,
+        ...(taskOrigin ? { returns_to_task: taskOrigin.task_id } : {}),
+        note: taskOrigin
+          ? `La sesión de ${runtime} arrancó en segundo plano (en ${runCwd}). NO esperes ni vuelvas a llamar a call_runtime para esto: ` +
+            `cuando termine, el resultado (o el fallo) se comenta AUTOMÁTICAMENTE en esta tarea y se te vuelve a convocar para el próximo paso. ` +
+            `Respondé ahora, en una línea, que la lanzaste.`
+          : `La sesión de ${runtime} arrancó en segundo plano (en ${runCwd}) y puede tardar varios minutos u horas. ` +
+            `NO esperes ni vuelvas a llamar a call_runtime para esto: el resultado llegará AUTOMÁTICAMENTE a este chat cuando termine. ` +
+            `Respondé al usuario ahora, en una línea, avisándole que la lanzaste y que le vas a avisar acá cuando esté lista.`,
       };
     }
 
@@ -547,16 +618,28 @@ export default {
     // still gets both rows — the launch one so a session that outlives the turn
     // is not invisible while it runs, and the result one through deliverCallback.
     postRuntimeLaunch({
-      channel, project: p, runtime, sessionId: session.id,
+      channel: threadChannel, project: p, runtime, sessionId: session.id,
       cwd: runCwd, prompt: effectivePrompt, background: false,
     });
     const outcome = await runToCompletion();
+    const fgText = outcome.error ? "" : String(outcome.result || outcome.output || "").trim();
     postRuntimeResult({
-      channel, project: p, runtime, sessionId: session.id,
-      ok: !outcome.error,
-      text: outcome.error ? "" : String(outcome.result || outcome.output || "").trim(),
-      error: outcome.error,
+      channel: threadChannel, project: p, runtime, sessionId: session.id,
+      ok: !outcome.error, text: fgText, error: outcome.error,
     });
+    if (taskOrigin) {
+      // The coordinator is still in its turn and reads the output itself, so
+      // the record goes on the task without summoning anybody.
+      try {
+        postTaskRuntimeResult({
+          storagePath: (projects.get?.(taskOrigin.project_id) || p).storagePath,
+          origin: taskOrigin, runtime, sessionId: session.id,
+          ok: !outcome.error, text: fgText, error: outcome.error, address: false,
+        });
+      } catch (e) {
+        log.error(`task result comment failed: ${e.message}`, { apc_session: session.id });
+      }
+    }
     return { ...outcome, cwd: runCwd };
   },
 };

@@ -43,6 +43,23 @@ export function writePendingCallback(entry) {
   }
 }
 
+/**
+ * Merge fields into an outstanding IOU — how a multi-step delivery (task
+ * comment, then coordinator) records which steps already happened, so a retry
+ * after a crash resumes instead of repeating. No-op when the IOU is gone.
+ */
+export function updatePendingCallback(sessionId, patch) {
+  try {
+    if (!sessionId || !SAFE_ID.test(String(sessionId))) return;
+    const file = fileFor(sessionId);
+    const cur = readJson(file, null);
+    if (!cur) return;
+    fs.writeFileSync(file, JSON.stringify({ ...cur, ...patch }, null, 2));
+  } catch {
+    /* best-effort */
+  }
+}
+
 /** Drop the IOU — called the instant an in-process delivery takes ownership. */
 export function deletePendingCallback(sessionId) {
   try {
