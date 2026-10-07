@@ -182,6 +182,13 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
       .poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.awaits_owner)
       .toBe(false);
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.status).toBe("doing");
+
+    // Its Work row lists the agents' chats for it; one opens in the inbox and links back to the task.
+    await drawer.locator(".taskwork__chat", { hasText: "Builder" }).click();
+    await expect(page.locator(".chat__header")).toContainText("Builder");
+    await expect(page.getByRole("main").getByText("On it.", { exact: true })).toBeVisible();
+    await page.locator(".chat__task").click();
+    await expect(page.getByRole("complementary", { name: task.title })).toBeVisible();
   } finally {
     await page.goto("about:blank");
     await env.core.close();

@@ -285,6 +285,51 @@
   margin-left: 4px;
 }
 
+/* The chats a task was worked in: one compact row each, opening it in the inbox. */
+.taskwork {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.taskwork__chat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-sm);
+  background: transparent;
+  color: var(--apx-fg);
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.taskwork__chat:hover {
+  background: var(--apx-fill);
+}
+.taskwork__name {
+  font-weight: var(--apx-weight-medium);
+}
+.taskwork__state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.taskwork__go {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.taskwork__none {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-sm);
+}
+
 /* Task panel: properties as label · value rows, then what it is about and its conversation or history */
 .drawer.taskpanel {
   overflow: hidden;

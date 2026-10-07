@@ -1,4 +1,4 @@
-import type { Message, Task, TaskEvent } from "@apx/protocol";
+import type { Message, Task, TaskEvent, Thread } from "@apx/protocol";
 import { AgentAvatar, Badge, Button, Icons, Select, Skeleton, Tabs, TagInput, Textarea } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { QuoteContext, quoteBlock } from "../chat/quote.ts";
@@ -11,7 +11,7 @@ import { loadThread } from "../data/actions.ts";
 import { baseName, blobOf } from "../data/identity.ts";
 import { useOwnerName } from "../data/owner.ts";
 import { useData } from "../data/state.ts";
-import { closeTask, settleTask, taskEvents, updateTask, useTasks } from "../data/tasks.ts";
+import { closeTask, settleTask, taskDetail, updateTask, useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { historyLines } from "./history.ts";
 import { mentionToken } from "./mentions.ts";
@@ -26,6 +26,7 @@ import {
   ReminderField,
 } from "./TaskFields.tsx";
 import { ColumnDot, ColumnHelp, columnLabel, KindHelp } from "./TaskForms.tsx";
+import { TaskWork } from "./TaskWork.tsx";
 import { pickerValue, type Reminder, remindAt, reminderOf } from "./when.ts";
 
 /**
@@ -37,8 +38,9 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
   const thread = useData((s) => s.threads[task.thread_id]);
   const load = useData((s) => s.threadLoad[task.thread_id]);
   // Another task's history never shows while this one's is read.
-  const [read, setRead] = useState<{ task: string; events: TaskEvent[] }>();
+  const [read, setRead] = useState<{ task: string; events: TaskEvent[]; sessions: Thread[] }>();
   const events = read?.task === task.id ? read.events : undefined;
+  const sessions = read?.task === task.id ? read.sessions : undefined;
   const [tab, setTab] = useState("chat");
   const [text, setText] = useState("");
   const [focus, setFocus] = useState(0);
@@ -81,7 +83,7 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
   const movedAt = task.activity_at;
   useEffect(() => {
     let current = true;
-    void taskEvents(task.id).then((list) => current && movedAt && setRead({ task: task.id, events: list }));
+    void taskDetail(task.id).then((detail) => current && movedAt && setRead({ task: task.id, ...detail }));
     return () => {
       current = false;
     };
@@ -90,7 +92,7 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
     <Drawer className="taskpanel" label={task.title} title={task.title} onClose={onClose}>
       <div className="taskpanel__body" ref={body}>
         <StateBar task={task} />
-        <Properties task={task} />
+        <Properties task={task} sessions={sessions} />
         <Description task={task} />
         <Tabs
           variant="pill"
@@ -214,7 +216,7 @@ function CommitmentActions({ task }: { task: Task }) {
 }
 
 /** Every property, editable where it is shown; changes save at once. */
-function Properties({ task }: { task: Task }) {
+function Properties({ task, sessions }: { task: Task; sessions: Thread[] | undefined }) {
   const t = useT();
   const due = pickerValue(task.due_at);
   const remind = pickerValue(task.remind_at);
@@ -261,6 +263,9 @@ function Properties({ task }: { task: Task }) {
           none={t("tasks.nobody")}
           onChange={(id) => id !== task.assignee && void updateTask(task.id, { assignee: id ?? null })}
         />
+      </Prop>
+      <Prop label={t("tasks.work")}>
+        <TaskWork task={task} sessions={sessions} />
       </Prop>
       <Prop label={t("commitments.due")}>
         <DueField

@@ -126,6 +126,17 @@ export function ChatHeader({
             </>
           )}
           {sub && <Tag>{t("thread.a2a")}</Tag>}
+          {thread.task_id && (
+            <button
+              type="button"
+              className="chat__task"
+              title={t("tasks.fromTaskHint")}
+              onClick={() => thread.task_id && go.task(thread.task_id)}
+            >
+              <Icons.ListChecks size={11} />
+              {t("tasks.fromTask")}
+            </button>
+          )}
           {thread.channel && (
             <Tag>
               {isChannelKind(via) ? <KindIcon kind={via} size={11} /> : <Icons.Send size={11} />}{" "}

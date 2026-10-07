@@ -96,6 +96,8 @@ export type NavState = {
   engineId: string | undefined;
   /** What a notice or link pointed at, lit once where it shows (see useFlash). */
   focus: string | undefined;
+  /** The task open beside a tasks list (the Tasks screen or a project's Tasks tab). */
+  taskId: string | undefined;
 };
 
 const THEME_KEY = "apx.mode";
@@ -123,7 +125,7 @@ const PANELS: readonly PanelKind[] = [
 const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
 const VIEWS: readonly string[] = ["tasks", "resources"];
 
-/** Deep links: #thread=<id>&panel=<kind>, #app=<id>, #project=<id>&tab=<tab>, #view=tasks. */
+/** Deep links: #thread=<id>&panel=<kind>, #app=<id>, #project=<id>&tab=<tab>, #view=tasks&task=<id>. */
 function fromHash(): Partial<NavState> {
   const h = new URLSearchParams(window.location.hash.slice(1));
   const panel = h.get("panel");
@@ -134,6 +136,7 @@ function fromHash(): Partial<NavState> {
   const channel = h.get("channel");
   return {
     ...(h.get("thread") ? { threadId: h.get("thread") ?? undefined } : {}),
+    ...(h.get("task") ? { taskId: h.get("task") ?? undefined } : {}),
     ...(panel && (PANELS as readonly string[]).includes(panel) ? { panel: panel as PanelKind } : {}),
     panelDocument: panel === "document" ? (h.get("document") ?? undefined) : undefined,
     ...(project
@@ -179,6 +182,7 @@ export const nav = createStore<NavState>({
   channelThread: undefined,
   engineId: undefined,
   focus: undefined,
+  taskId: undefined,
   ...fromHash(),
 });
 
@@ -193,6 +197,7 @@ type Place = Pick<
   | "channelId"
   | "channelThread"
   | "engineId"
+  | "taskId"
   | "resourcesTab"
   | "listInFront"
   | "panel"
@@ -216,6 +221,7 @@ function placeOf(s: NavState): Place {
     channelId: s.channelId,
     channelThread: s.channelThread,
     engineId: s.engineId,
+    taskId: s.taskId,
     resourcesTab: s.resourcesTab,
     listInFront: s.listInFront,
     panel: s.panel,
@@ -284,8 +290,11 @@ nav.subscribe(() => {
     h.set("project", s.projectId);
     h.set("tab", s.projectTab);
     if (s.projectTab === "chats" && s.threadId) h.set("thread", s.threadId);
-  } else if (s.view === "tasks" || s.view === "resources") h.set("view", s.view);
-  else if (s.view === "channel" && s.channelId) {
+    if (s.projectTab === "tasks" && s.taskId) h.set("task", s.taskId);
+  } else if (s.view === "tasks" || s.view === "resources") {
+    h.set("view", s.view);
+    if (s.view === "tasks" && s.taskId) h.set("task", s.taskId);
+  } else if (s.view === "channel" && s.channelId) {
     h.set("channel", s.channelId);
     if (s.channelThread) h.set("chat", s.channelThread);
   } else if (s.view === "engine" && s.engineId) {
@@ -383,6 +392,10 @@ export const go = {
   },
   view(view: "tasks" | "resources") {
     nav.set({ view });
+  },
+  /** A task, open beside the Tasks list (from the chat its agent works it in, a notice…). */
+  task(taskId: string) {
+    nav.set({ view: "tasks", taskId });
   },
   /** A Resources tab: in the open project's Resources tab when a project is open, else the global screen. */
   resources(tab: ResourceTab, global = false) {

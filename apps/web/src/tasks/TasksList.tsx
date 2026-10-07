@@ -17,6 +17,7 @@ import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.
 import { useData } from "../data/state.ts";
 import { loadTasks, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
+import { nav, useNav } from "../shell/nav.ts";
 import { CommitmentMeta } from "./Commitments.tsx";
 import { kindLabel, PriorityDot } from "./TaskFields.tsx";
 import { NewTask } from "./TaskForms.tsx";
@@ -83,7 +84,8 @@ export function TasksList({
   const ready = useTasks((s) => s.ready);
   const runs = useData((s) => s.runs);
   const [kind, setKind] = useState<Kind>("all");
-  const [open, setOpen] = useState<string>();
+  const open = useNav((s) => s.taskId);
+  const setOpen = (taskId: string | undefined) => nav.set({ taskId });
   const [more, setMore] = useState<Set<GroupId>>(new Set());
   const [closedOpen, setClosedOpen] = useState(false);
   useEffect(() => {
@@ -114,7 +116,8 @@ export function TasksList({
   const filled = groupTasks(shown, running);
   // While dragging every group is a place to drop, empty ones too.
   const groups = drag ? GROUP_ORDER.map((id) => filled.find((g) => g.id === id) ?? { id, items: [] }) : filled;
-  const current = open ? all[open] : undefined;
+  // Only a task of this list opens beside it (a project's tab never shows another project's task).
+  const current = open ? scoped.find((x) => x.id === open) : undefined;
 
   return (
     <div className={current ? "tasks has-panel" : "tasks"}>

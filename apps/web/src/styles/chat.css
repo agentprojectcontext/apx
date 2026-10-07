@@ -428,3 +428,22 @@
   top: 6px;
   right: 6px;
 }
+
+/* A chat that works on a task links back to it, in its header. */
+.chat__task {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-pill);
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font: inherit;
+  font-size: var(--apx-text-2xs);
+  cursor: pointer;
+}
+.chat__task:hover {
+  color: var(--apx-fg);
+  background: var(--apx-fill);
+}
