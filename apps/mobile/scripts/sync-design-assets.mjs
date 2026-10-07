@@ -50,6 +50,15 @@ const names = [
   "MessageSquare",
   "Globe",
   "Info",
+  "Pencil",
+  "Pin",
+  "PinOff",
+  "Archive",
+  "ArchiveRestore",
+  "Paperclip",
+  "Image",
+  "Camera",
+  "Mic",
 ];
 const icons = {};
 for (const name of names) {

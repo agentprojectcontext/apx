@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, KeyboardAvoidingView, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { type CatalogEngine, choiceText, type ModelChoice } from "./chat/models";
 import { type TranscriptRow, usageText, withDays } from "./chat/transcript";
+import { useAttachments } from "./chat/useAttachments";
+import { useVoiceNote } from "./chat/useVoiceNote";
 import type { Creds } from "./creds";
 import { dayLabel } from "./format";
 import { engineName, isWorking, threadContext } from "./hooks/chatSelectors";
@@ -10,6 +12,7 @@ import { useThread } from "./hooks/useThread";
 import type { Thread, Workspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
 import { ChatComposer } from "./ui/ChatComposer";
+import { ChatMenu } from "./ui/ChatMenu";
 import { ChatMessage } from "./ui/ChatMessage";
 import { EngineIcon } from "./ui/EngineIcon";
 import { Icon } from "./ui/Icon";
@@ -43,7 +46,14 @@ export function ChatScreen({
   const agent = data.agents.find((item) => item.id === thread.agent_ids[0]);
   const name = thread.engine ? thread.title : (agent?.name ?? thread.title);
   const [text, setText] = useState("");
-  const [sheet, setSheet] = useState<"model" | "menu">();
+  const [sheet, setSheet] = useState<"model" | "menu" | "attach">();
+  const files = useAttachments(live.client, base.id);
+  const voice = useVoiceNote({
+    client: live.client,
+    threadId: base.id,
+    upload: files.upload,
+    onWords: (words) => setText((current) => (current.trim() ? `${current.trim()} ${words}` : words)),
+  });
   const list = useRef<FlatList<TranscriptRow>>(null);
   const rows = useMemo(() => withDays(live.messages).reverse(), [live.messages]);
   const working = isWorking(live.state);
@@ -51,10 +61,12 @@ export function ChatScreen({
   const choice = (thread as { model_choice?: ModelChoice }).model_choice;
   const effective = choice ?? agent?.model_choice;
   const send = () => {
-    const words = text.trim();
+    const attachments = files.take();
+    // The core wants words with every message; files alone say so, as the panel does.
+    const words = text.trim() || (attachments.length ? t("attachedOnly") : "");
     if (!words) return;
     setText("");
-    void live.send(words).catch(() => setText(words));
+    void live.send(words, attachments).catch(() => setText(words));
   };
   const loadCatalog = useCallback(
     async () => (await live.client.call("models.list", {})).engines as CatalogEngine[],
@@ -70,7 +82,8 @@ export function ChatScreen({
   return (
     <KeyboardAvoidingView
       style={s.root}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      // Android draws edge to edge, so the system no longer shrinks the window for the keyboard: pad on both.
+      behavior="padding"
       // The screen starts below the status bar; the keyboard is measured from the top of the device.
       keyboardVerticalOffset={insets.top}
     >
@@ -87,7 +100,7 @@ export function ChatScreen({
           </View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text numberOfLines={1} style={s.title}>
-              {engine ? thread.title : name}
+              {thread.title || name}
             </Text>
             <View style={s.status}>
               {working ? <Spinner size={12} /> : null}
@@ -133,7 +146,10 @@ export function ChatScreen({
         onChangeText={setText}
         onSend={send}
         onStop={() => void live.stop()}
-        onApps={onApps}
+        onAttach={() => setSheet("attach")}
+        attachments={files.items}
+        onRemoveAttachment={files.remove}
+        voice={{ ...voice, start: () => void voice.start(), stop: () => void voice.stop() }}
         onModel={() => setSheet("model")}
         online={live.online}
         busy={working}
@@ -142,6 +158,28 @@ export function ChatScreen({
         model={engine ? engineName(engine) : choiceText(effective, [], t("router"))}
         usage={usageText(live.usage)}
       />
+      {sheet === "attach" ? (
+        <BottomSheet title={t("attach")} onClose={() => setSheet(undefined)}>
+          {(
+            [
+              ["attachPhotos", "Image", files.pickPhotos],
+              ["attachCamera", "Camera", files.takePhoto],
+              ["attachFile", "Paperclip", files.pickFiles],
+            ] as const
+          ).map(([label, icon, run]) => (
+            <ListRow
+              key={label}
+              label={t(label)}
+              leading={<Icon name={icon} size={18} color={theme.fgMuted} />}
+              chevron={false}
+              onPress={() => {
+                setSheet(undefined);
+                void run();
+              }}
+            />
+          ))}
+        </BottomSheet>
+      ) : null}
       {sheet === "model" ? (
         <ModelSheet
           current={choice}
@@ -160,24 +198,19 @@ export function ChatScreen({
         />
       ) : null}
       {sheet === "menu" ? (
-        <BottomSheet onClose={() => setSheet(undefined)}>
-          <ListRow
-            label={t("apps")}
-            leading={<Icon name="LayoutGrid" size={18} color={theme.fgMuted} />}
-            onPress={() => {
-              setSheet(undefined);
-              onApps();
-            }}
-          />
-          <ListRow
-            label={t("switchChat")}
-            leading={<Icon name="MessageCircle" size={18} color={theme.fgMuted} />}
-            onPress={() => {
-              setSheet(undefined);
-              onSwitch();
-            }}
-          />
-        </BottomSheet>
+        <ChatMenu
+          thread={thread}
+          onClose={() => setSheet(undefined)}
+          onApps={onApps}
+          onSwitch={onSwitch}
+          update={async (patch) => {
+            await live.client.call("threads.update", { thread: thread.id, ...patch });
+          }}
+          remove={async () => {
+            await live.client.call("threads.delete", { thread: thread.id });
+            onBack();
+          }}
+        />
       ) : null}
     </KeyboardAvoidingView>
   );

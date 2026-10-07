@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import type { Attachment } from "../chat/useAttachments";
 import { t } from "../i18n";
 import { Icon } from "./Icon";
 import { Spinner } from "./kit";
@@ -9,8 +10,11 @@ export function ChatComposer({
   onChangeText,
   onSend,
   onStop,
-  onApps,
+  onAttach,
   onModel,
+  attachments,
+  onRemoveAttachment,
+  voice,
   online,
   busy,
   stopping,
@@ -22,8 +26,11 @@ export function ChatComposer({
   onChangeText: (text: string) => void;
   onSend: () => void;
   onStop: () => void;
-  onApps: () => void;
+  onAttach: () => void;
   onModel: () => void;
+  attachments: Attachment[];
+  onRemoveAttachment: (key: string) => void;
+  voice: { state: "idle" | "recording" | "transcribing"; seconds: number; start: () => void; stop: () => void };
   online: boolean;
   busy: boolean;
   stopping: boolean;
@@ -31,26 +38,65 @@ export function ChatComposer({
   model: string;
   usage?: string;
 }) {
-  const typed = Boolean(text.trim());
+  const uploading = attachments.some((item) => !item.id);
+  const typed = Boolean(text.trim()) || (attachments.length > 0 && !uploading);
+  const recording = voice.state === "recording";
   // With nothing typed while the agent works, the main button stops it; with words, they go in (and steer it).
   const mainStops = busy && !typed;
-  const disabled = !online || stopping || (!mainStops && !typed);
+  const disabled = !online || stopping || uploading || (!mainStops && !typed);
+  const clock = `${Math.floor(voice.seconds / 60)}:${String(voice.seconds % 60).padStart(2, "0")}`;
   return (
     <View style={s.composer}>
-      <TextInput
-        accessibilityLabel={t("message")}
-        multiline
-        value={text}
-        onChangeText={onChangeText}
-        placeholder={t("writeToAgent", { name: agentName })}
-        placeholderTextColor={theme.fgSubtle}
-        style={s.input}
-      />
+      {attachments.length ? (
+        <View style={s.chips}>
+          {attachments.map((item) => (
+            <View key={item.key} style={s.chip}>
+              {item.id ? (
+                <Icon
+                  name={item.kind === "image" ? "Image" : item.kind === "audio" ? "Mic" : "Paperclip"}
+                  size={13}
+                  color={theme.fgMuted}
+                />
+              ) : (
+                <Spinner size={12} />
+              )}
+              <Text numberOfLines={1} style={s.chipText}>
+                {item.name}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("removeAttachment")}
+                hitSlop={8}
+                onPress={() => onRemoveAttachment(item.key)}
+              >
+                <Icon name="X" size={13} color={theme.fgSubtle} />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {recording || voice.state === "transcribing" ? (
+        <View style={s.recording}>
+          {recording ? <View style={s.redDot} /> : <Spinner size={14} />}
+          <Text style={s.recordingText}>{recording ? `${t("recording")} ${clock}` : t("transcribing")}</Text>
+        </View>
+      ) : (
+        <TextInput
+          accessibilityLabel={t("message")}
+          multiline
+          value={text}
+          onChangeText={onChangeText}
+          placeholder={t("writeToAgent", { name: agentName })}
+          placeholderTextColor={theme.fgSubtle}
+          style={s.input}
+        />
+      )}
       <View style={s.toolbar}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("apps")}
-          onPress={onApps}
+          accessibilityLabel={t("attach")}
+          onPress={onAttach}
+          disabled={recording}
           hitSlop={4}
           style={s.round}
         >
@@ -74,6 +120,22 @@ export function ChatComposer({
             <Icon name="Zap" size={12} color={theme.fgSubtle} />
             <Text style={s.usageText}>{usage}</Text>
           </View>
+        ) : null}
+        {!typed && !mainStops ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t(recording ? "stopRecording" : "voiceNote")}
+            disabled={!online || voice.state === "transcribing"}
+            onPress={recording ? voice.stop : voice.start}
+            hitSlop={6}
+            style={[s.round, recording && { backgroundColor: theme.danger }]}
+          >
+            <Icon
+              name={recording ? "Square" : "Mic"}
+              size={recording ? 14 : 18}
+              color={recording ? "#fff" : theme.fgMuted}
+            />
+          </Pressable>
         ) : null}
         {busy && typed ? (
           <Pressable
@@ -112,6 +174,21 @@ export function ChatComposer({
 }
 
 const s = StyleSheet.create({
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginLeft: -4 },
+  chip: {
+    maxWidth: 200,
+    height: 28,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: theme.fill,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  chipText: { color: theme.fg, fontSize: 12, flexShrink: 1 },
+  recording: { minHeight: 28, flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 },
+  redDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.danger },
+  recordingText: { color: theme.fg, fontSize: 15, fontVariant: ["tabular-nums"] },
   composer: {
     marginHorizontal: 10,
     marginVertical: 6,

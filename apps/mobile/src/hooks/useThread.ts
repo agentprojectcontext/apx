@@ -170,7 +170,7 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
   const { messages, setMessages, online, state, setState, error, setError, reload, thread, setThread, usage } =
     useThreadFeed(client, threadId, onUnpair);
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, attachments: string[] = []) => {
       const local: Message = {
         id: `local_${randomUUID()}`,
         thread_id: threadId,
@@ -185,6 +185,7 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
           thread: threadId,
           text,
           mode: isWorking(state) ? "interrupt" : "queue",
+          ...(attachments.length ? { attachments } : {}),
         });
         setMessages((current) =>
           upsert(

@@ -20,7 +20,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "APX uses the camera to scan the QR that pairs it with your computer, and to take a picture when an agent asks you for one."
+          "cameraPermission": "APX uses the camera to scan the QR that pairs it with your computer, and to take a picture you attach to a chat."
         }
       ],
       "expo-secure-store",
@@ -32,7 +32,20 @@
       ],
       "expo-notifications",
       "./plugins/with-ios-scenes.js",
-      "./plugins/with-android-cleartext.js"
+      "./plugins/with-android-cleartext.js",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "APX records a voice note when you tap the mic in a chat, and turns it into text."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "APX attaches the photos you pick to a chat.",
+          "cameraPermission": "APX uses the camera to scan the QR that pairs it with your computer, and to take a picture you attach to a chat."
+        }
+      ]
     ]
   }
 }
