@@ -27,8 +27,11 @@ const KINDS: Record<string, MediaKind> = {
 /** What the viewer can show of a file, by its extension (as the core decides). */
 export const mediaKind = (path: string): MediaKind | undefined => KINDS[path.split(".").pop()?.toLowerCase() ?? ""];
 
-/** Whose folder a file is in: a project's, the one a chat works in, or (`scratch`) that chat's temp folder. */
-export type FileWhere = { project: string } | { thread: string; scratch?: boolean };
+/**
+ * Whose folder a file is in: a project's, the base project's (APX's work folder), the one a chat works in, or
+ * (`scratch`) that chat's temp folder.
+ */
+export type FileWhere = { project: string } | { base: true } | { thread: string; scratch?: boolean };
 
 /** An object URL for a previewable file (the caller revokes it) and its size. */
 export async function mediaOf(where: FileWhere, path: string): Promise<{ url: string; bytes: number }> {

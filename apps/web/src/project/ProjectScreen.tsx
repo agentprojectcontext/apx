@@ -10,7 +10,7 @@ import { ChatWorkspace } from "../shell/ChatWorkspace.tsx";
 import type { Layout } from "../shell/layout.ts";
 import { go, nav, PROJECT_TABS, type ProjectTab, useNav } from "../shell/nav.ts";
 import { ProjectTasks } from "../tasks/TasksList.tsx";
-import { FilesPane, NoFolder } from "./files/FilesPane.tsx";
+import { ProjectFiles } from "./files/ProjectFiles.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
 import { kindIcon, kindLabel, ProjectSettings } from "./ProjectSettings.tsx";
@@ -129,11 +129,7 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
     case "routines":
       return <RoutinesPane projectId={project.id} />;
     case "files":
-      return project.path ? (
-        <FilesPane key={project.id} where={{ project: project.id }} root={project.path} />
-      ) : (
-        <NoFolder />
-      );
+      return <ProjectFiles key={project.id} project={project} />;
     case "memory":
       return <ProjectMemory project={project} />;
     case "resources":

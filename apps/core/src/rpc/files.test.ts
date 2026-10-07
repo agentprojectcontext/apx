@@ -125,6 +125,16 @@ test("a chat browses the folder its agent works in: its project's, or else APX's
   await assert.rejects(env.client.call("files.tree", {}), /a project or a chat/);
 });
 
+test("the base project browses APX's work folder, the one its chats work in", async () => {
+  const bare = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  const fromChat = await env.client.call("files.tree", { thread: bare.id });
+  const fromBase = await env.client.call("files.tree", { base: true });
+  assert.equal(fromBase.root, fromChat.root);
+  fs.writeFileSync(path.join(fromBase.root, "base.md"), "Shared.\n");
+  assert.equal((await env.client.call("files.read", { base: true, path: "base.md" })).text, "Shared.\n");
+  await assert.rejects(env.client.call("files.read", { base: true, path: "../x" }), /outside the folder/);
+});
+
 test("a chat's temp folder is browsed apart, and what the owner keeps is copied into the chat's folder", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
   const temp = await env.client.call("files.tree", { thread: t.id, scratch: true });

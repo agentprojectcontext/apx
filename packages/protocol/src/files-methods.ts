@@ -29,10 +29,15 @@ export const ChangedFile = z.object({
 export type ChangedFile = z.infer<typeof ChangedFile>;
 
 /**
- * Whose folder: a project's, or the one a chat works in (a code session's own, its project's, or APX's work folder);
- * with `scratch`, the chat's temp folder instead.
+ * Whose folder: a project's, the base project's (`base`: APX's work folder, where its chats work), or the one a chat
+ * works in (a code session's own, its project's, or APX's work folder); with `scratch`, the chat's temp folder instead.
  */
-const Where = { project: Id.optional(), thread: Id.optional(), scratch: z.boolean().optional() };
+const Where = {
+  project: Id.optional(),
+  base: z.literal(true).optional(),
+  thread: Id.optional(),
+  scratch: z.boolean().optional(),
+};
 
 export const filesMethods = {
   /**

@@ -12,7 +12,8 @@ type Mode = "view" | "source" | "split";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** A stable key for effects: the scope object is new on every render. */
-const whereKey = (w: FileWhere) => ("thread" in w ? `${w.scratch ? "s" : "t"}:${w.thread}` : `p:${w.project}`);
+const whereKey = (w: FileWhere) =>
+  "thread" in w ? `${w.scratch ? "s" : "t"}:${w.thread}` : "project" in w ? `p:${w.project}` : "base";
 const isMarkdown = (p: string) => /\.(md|markdown|mdx)$/i.test(p);
 
 /** What the tree needs to reach and act on the folder, passed to every level. */

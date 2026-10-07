@@ -588,6 +588,12 @@
 .board {
   grid-column: 1 / -1;
 }
+.board__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 .board__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

@@ -48,7 +48,12 @@ export function threadFolder(store: Store, home: string, threadId: string): stri
   return workDir(store, home, t);
 }
 
-type Where = { project?: string | undefined; thread?: string | undefined; scratch?: boolean | undefined };
+type Where = {
+  project?: string | undefined;
+  base?: true | undefined;
+  thread?: string | undefined;
+  scratch?: boolean | undefined;
+};
 
 /** A regular file's whole bytes, not following a link swapped in since the check and never waiting on a pipe. */
 function readWhole(abs: string, rel: string, limit: number, tooBig: string): Buffer {
@@ -76,7 +81,7 @@ function readWhole(abs: string, rel: string, limit: number, tooBig: string): Buf
 
 export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
   /** The folder browsed: a project's, or a chat's (APX's work folder is made when first opened, as an agent would). */
-  const baseOf = ({ project, thread, scratch }: Where) => {
+  const baseOf = ({ project, base, thread, scratch }: Where) => {
     if (thread && scratch) {
       const t = store.threads.get(thread);
       if (!t) throw notFound(`thread ${thread}`);
@@ -88,6 +93,11 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
     if (thread) {
       const dir = threadFolder(store, home, thread);
       if (dir === path.join(home, "work")) fs.mkdirSync(dir, { recursive: true });
+      return dir;
+    }
+    if (base) {
+      const dir = path.join(home, "work");
+      fs.mkdirSync(dir, { recursive: true });
       return dir;
     }
     if (!project) throw badRequest("a project or a chat");

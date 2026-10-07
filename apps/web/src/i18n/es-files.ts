@@ -25,6 +25,11 @@ export const esFiles: Partial<Record<MessageKey, string>> = {
   "files.scope": "Qué carpeta",
   "files.scope.chat": "Carpeta del chat",
   "files.scope.temp": "Temporales",
+  "files.scope.folder": "Carpeta",
+  "files.scope.widgets": "Widgets",
+  "files.onBoard": "En el tablero",
+  "files.noWidgets": "Sin widgets en este proyecto",
+  "files.noWidgetsBody": "Los widgets que hagan los agentes en sus chats aparecen acá, aunque no estén en el tablero.",
   "files.tempNote":
     "Los archivos temporales del agente. El sistema los borra después de unos días: guardá lo que necesites.",
   "files.workFolder": "Carpeta de trabajo de APX",

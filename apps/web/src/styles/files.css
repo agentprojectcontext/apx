@@ -11,6 +11,7 @@
 /* A chat's files: which folder on top, the tree below. */
 .chatfiles {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -21,6 +22,49 @@
   gap: 6px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--apx-border);
+}
+/* In a project the bar lines up with its tabs, and the switch keeps its own width. */
+.chatfiles__bar--project {
+  align-items: flex-start;
+  padding: 10px 24px;
+}
+/* A project's widgets: their names in a list, the open one live in a panel on the right. */
+.projwidgets {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+.projwidgets__list {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 12px 24px 24px;
+  overflow: auto;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.projwidgets__panel {
+  position: relative;
+  flex: none;
+  /* The list keeps room for its names however far the edge is dragged. */
+  max-width: calc(100% - 220px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--apx-border);
+  background: var(--apx-surface);
+}
+.projwidgets__head {
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1px solid var(--apx-border);
+}
+.projwidgets__frame {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 .chatfiles__note {
   margin: 0;
