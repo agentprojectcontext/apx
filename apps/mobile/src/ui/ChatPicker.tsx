@@ -1,21 +1,13 @@
 import { useMemo, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { chatAgents, isWorking, listedThreads } from "../hooks/chatSelectors";
 import type { Agent, Thread, Workspace } from "../hooks/useWorkspace";
-import { AgentAvatar, IconButton, Muted } from "./components";
+import { t } from "../i18n";
 import { Icon } from "./Icon";
-import { theme as t } from "./theme";
+import { AgentAvatar, BottomSheet, Chip, Spinner, type } from "./kit";
+import { theme } from "./theme";
 
+/** Starts a chat with an agent of a project, or jumps to another chat. */
 export function ChatPicker({
   data,
   mode,
@@ -33,21 +25,24 @@ export function ChatPicker({
   const [project, setProject] = useState<string>();
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState("");
+  const words = query.trim().toLowerCase();
   const agents = useMemo(
     () =>
       chatAgents(data.agents, project).filter((agent) =>
-        `${agent.name} ${agent.description ?? ""}`.toLowerCase().includes(query.toLowerCase()),
+        `${agent.name} ${agent.description ?? ""}`.toLowerCase().includes(words),
       ),
-    [data.agents, project, query],
+    [data.agents, project, words],
   );
   const threads = useMemo(
     () =>
-      listedThreads(data.threads).filter(
-        (thread) =>
-          (!project || thread.project_id === project) &&
-          `${thread.title} ${thread.preview}`.toLowerCase().includes(query.toLowerCase()),
-      ),
-    [data.threads, project, query],
+      listedThreads(data.threads)
+        .filter(
+          (thread) =>
+            (!project || thread.project_id === project) &&
+            `${thread.title} ${thread.preview}`.toLowerCase().includes(words),
+        )
+        .slice(0, 60),
+    [data.threads, project, words],
   );
   const create = async (agent: Agent) => {
     setBusy(agent.id);
@@ -62,165 +57,129 @@ export function ChatPicker({
     }
   };
   return (
-    <Modal transparent animationType="slide" onRequestClose={onClose}>
-      <View style={s.overlay}>
-        <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel="Cerrar selector" />
-        <View style={s.sheet}>
-          <View style={s.handle} />
-          <View style={s.heading}>
-            <Text style={s.title}>{mode === "new" ? "Nuevo chat" : "Cambiar chat"}</Text>
-            <IconButton icon="ChevronDown" label="Cerrar" onPress={onClose} />
-          </View>
-          <View style={s.search}>
-            <Icon name="Search" size={18} />
-            <TextInput
-              autoFocus
-              value={query}
-              onChangeText={setQuery}
-              style={s.input}
-              placeholder={mode === "new" ? "Buscar agente" : "Buscar conversación"}
-              placeholderTextColor={t.subtle}
+    <BottomSheet title={t(mode === "new" ? "newChat" : "switchChat")} onClose={onClose}>
+      <View style={s.search}>
+        <Icon name="Search" size={16} color={theme.fgSubtle} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t(mode === "new" ? "searchAgents" : "searchChats")}
+          placeholderTextColor={theme.fgSubtle}
+          style={s.input}
+        />
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
+        <Chip
+          label={t(mode === "new" ? "defaultProject" : "all")}
+          selected={!project}
+          onPress={() => setProject(undefined)}
+        />
+        {data.projects
+          .filter((item) => item.registered !== false)
+          .map((item) => (
+            <Chip key={item.id} label={item.name} selected={project === item.id} onPress={() => setProject(item.id)} />
+          ))}
+      </ScrollView>
+      {error ? <Text style={s.error}>{error}</Text> : null}
+      {mode === "new" ? (
+        agents.length ? (
+          agents.map((agent) => (
+            <Row
+              key={agent.id}
+              title={agent.name}
+              sub={agent.kind === "secretary" ? t("superAgent") : agent.role || agent.description || t("agent")}
+              avatar={<AgentAvatar name={agent.name} blob={agent.blob} id={agent.id} size={36} />}
+              trailing={
+                busy === agent.id ? <Spinner size={16} /> : <Icon name="Plus" size={18} color={theme.fgMuted} />
+              }
+              disabled={Boolean(busy)}
+              onPress={() => void create(agent)}
             />
-          </View>
-          <ScrollView
-            horizontal
-            style={{ flexGrow: 0, flexShrink: 0, height: 58 }}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={s.projects}
-          >
-            <Pressable onPress={() => setProject(undefined)} style={[s.pill, !project && s.selected]}>
-              <Text style={[s.pillText, !project && s.selectedText]}>{mode === "new" ? "Default" : "Todos"}</Text>
-            </Pressable>
-            {data.projects
-              .filter((item) => item.registered !== false)
-              .map((item) => (
-                <Pressable
-                  key={item.id}
-                  onPress={() => setProject(item.id)}
-                  style={[s.pill, project === item.id && s.selected]}
-                >
-                  <Text style={[s.pillText, project === item.id && s.selectedText]}>{item.name}</Text>
-                </Pressable>
-              ))}
-          </ScrollView>
-          {error ? <Text style={s.error}>{error}</Text> : null}
-          {mode === "new" ? (
-            <FlatList
-              data={agents}
-              keyExtractor={(agent) => agent.id}
-              keyboardShouldPersistTaps="handled"
-              ListEmptyComponent={<Muted style={s.empty}>No hay agentes para este proyecto.</Muted>}
-              renderItem={({ item }) => (
-                <Pressable disabled={Boolean(busy)} style={s.row} onPress={() => void create(item)}>
-                  <AgentAvatar name={item.name} blob={item.blob} id={item.id} size={36} />
-                  <View style={s.copy}>
-                    <Text style={s.rowTitle}>{item.name}</Text>
-                    <Muted numberOfLines={1}>
-                      {item.kind === "secretary" ? "Superagente" : item.role || item.description || "Agente"}
-                    </Muted>
-                  </View>
-                  {busy === item.id ? <ActivityIndicator color={t.brand} /> : <Icon name="Plus" size={18} />}
-                </Pressable>
-              )}
-            />
-          ) : (
-            <FlatList
-              data={threads}
-              keyExtractor={(thread) => thread.id}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item }) => {
-                const agent = data.agents.find((entry) => entry.id === item.agent_ids[0]);
-                return (
-                  <Pressable
-                    style={s.row}
-                    onPress={() => {
-                      onOpen(item);
-                      onClose();
-                    }}
-                  >
-                    <AgentAvatar
-                      name={agent?.name ?? item.title}
-                      blob={agent?.blob}
-                      id={agent?.id ?? item.agent_ids[0]}
-                      size={36}
-                    />
-                    <View style={s.copy}>
-                      <Text style={s.rowTitle} numberOfLines={1}>
-                        {item.title}
-                      </Text>
-                      <Muted numberOfLines={1}>{item.preview}</Muted>
-                    </View>
-                    {isWorking(item.state) ? (
-                      <ActivityIndicator size="small" color={t.brand} />
-                    ) : (
-                      <Icon name="ChevronRight" size={18} />
-                    )}
-                  </Pressable>
-                );
+          ))
+        ) : (
+          <Text style={[type.muted, s.empty]}>{t("noAgentsHere")}</Text>
+        )
+      ) : (
+        threads.map((thread) => {
+          const agent = data.agents.find((entry) => entry.id === thread.agent_ids[0]);
+          return (
+            <Row
+              key={thread.id}
+              title={thread.title}
+              sub={thread.preview}
+              avatar={<AgentAvatar name={agent?.name ?? thread.title} blob={agent?.blob} id={agent?.id} size={36} />}
+              trailing={
+                isWorking(thread.state) ? (
+                  <Spinner size={14} />
+                ) : (
+                  <Icon name="ChevronRight" size={16} color={theme.fgSubtle} />
+                )
+              }
+              onPress={() => {
+                onOpen(thread);
+                onClose();
               }}
             />
-          )}
-        </View>
-      </View>
-    </Modal>
+          );
+        })
+      )}
+    </BottomSheet>
   );
 }
+
+function Row({
+  title,
+  sub,
+  avatar,
+  trailing,
+  disabled,
+  onPress,
+}: {
+  title: string;
+  sub?: string;
+  avatar: React.ReactNode;
+  trailing: React.ReactNode;
+  disabled?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.fill }]}
+    >
+      {avatar}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={s.rowTitle}>
+          {title}
+        </Text>
+        {sub ? (
+          <Text numberOfLines={1} style={type.meta}>
+            {sub}
+          </Text>
+        ) : null}
+      </View>
+      {trailing}
+    </Pressable>
+  );
+}
+
 const s = StyleSheet.create({
-  overlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "#0008" },
-  backdrop: { flex: 1 },
-  sheet: {
-    height: "76%",
-    backgroundColor: t.bg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderWidth: 1,
-    borderColor: t.border,
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 4,
-    backgroundColor: t.borderStrong,
-    alignSelf: "center",
-    marginTop: 10,
-  },
-  heading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
-  title: { color: t.fg, fontSize: 21, fontWeight: "600" },
   search: {
+    height: 40,
+    marginHorizontal: 4,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: theme.fill,
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
-    height: 42,
-    paddingHorizontal: 12,
-    backgroundColor: t.fill,
-    borderRadius: 14,
-    marginTop: 8,
+    gap: 8,
   },
-  input: { color: t.fg, fontSize: 14, flex: 1 },
-  projects: { gap: 7, paddingVertical: 12, alignItems: "center" },
-  pill: {
-    borderWidth: 1,
-    borderColor: t.borderStrong,
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    height: 34,
-    justifyContent: "center",
-  },
-  pillText: { color: t.muted, fontSize: 12 },
-  selected: { backgroundColor: t.accent, borderColor: t.accent },
-  selectedText: { color: t.accentFg },
-  row: {
-    minHeight: 66,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: t.border,
-  },
-  copy: { flex: 1, gap: 3 },
-  rowTitle: { color: t.fg, fontSize: 14, fontWeight: "500" },
-  empty: { paddingVertical: 32, textAlign: "center" },
-  error: { color: t.danger, paddingVertical: 10 },
+  input: { flex: 1, color: theme.fg, fontSize: 15, paddingVertical: 0 },
+  chips: { gap: 8, paddingHorizontal: 4, paddingVertical: 12 },
+  row: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 12, borderRadius: 14 },
+  rowTitle: { color: theme.fg, fontSize: 15, fontWeight: "500" },
+  empty: { padding: 24, textAlign: "center" },
+  error: { color: theme.danger, fontSize: 13, paddingHorizontal: 12, paddingBottom: 8 },
 });

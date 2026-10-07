@@ -246,4 +246,8 @@ export const es: Record<Key, string> = {
   filesMore: "La carpeta tiene más; se muestran los primeros.",
   filesNoProjects: "Todavía no hay proyectos con carpeta en tu computadora.",
   couldNotOpen: "No se pudo abrir",
+  searchAgents: "Buscar agentes",
+  superAgent: "Superagente",
+  noAgentsHere: "No hay agentes en este proyecto.",
+  noAgentForSession: "No hay agente que pueda iniciar la sesión.",
 };

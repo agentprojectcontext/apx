@@ -243,6 +243,10 @@ export const en = {
   filesMore: "The folder has more; showing the first ones.",
   filesNoProjects: "No project with a folder on your computer yet.",
   couldNotOpen: "Could not open it",
+  searchAgents: "Search agents",
+  superAgent: "Super-agent",
+  noAgentsHere: "No agents in this project.",
+  noAgentForSession: "No agent can start a session.",
 } as const;
 
 export type Key = keyof typeof en;

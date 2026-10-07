@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Creds } from "../creds";
+import { t } from "../i18n";
 import { showLiveNotice } from "../notifications";
 import {
   ApxClient,
@@ -452,9 +453,9 @@ export function useWorkspace(creds: Creds) {
   const createSession = useCallback(
     async (engineId: string, projectId: string) => {
       const agent = data.agents.find((item) => item.kind === "secretary") ?? data.agents[0];
-      if (!agent) throw new Error("No hay agente disponible para iniciar sesión.");
+      if (!agent) throw new Error(t("noAgentForSession"));
       const project = data.projects.find((item) => item.id === projectId);
-      if (!project?.path || project.registered === false) throw new Error("Elegí proyecto local registrado.");
+      if (!project?.path || project.registered === false) throw new Error(t("noLocalProjects"));
       const thread = await rpc<Thread>(client, "threads.create", {
         kind: "code",
         agent_id: agent.id,

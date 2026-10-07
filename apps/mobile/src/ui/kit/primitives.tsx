@@ -113,7 +113,7 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
   );
 }
 
-/** A small tinted label ("Aprobación", "Compromiso"). */
+/** A small tinted label ("Approval", "Commitment"). */
 export function Tag({ children, tone = "neutral", style }: { children: string; tone?: Tone; style?: object }) {
   const c = toneColors[tone];
   return (
