@@ -53,7 +53,10 @@ const names = [
 ];
 const icons = {};
 for (const name of names) {
-  const slug = name.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/([a-z])([0-9])/g, "$1-$2").toLowerCase();
+  const slug = name
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/([a-z])([0-9])/g, "$1-$2")
+    .toLowerCase();
   const folder = resolve(shared, "node_modules/lucide-react/dist/esm/icons");
   let source = readFileSync(resolve(folder, `${slug}.js`), "utf8");
   const alias = source.match(/export \{ default \} from '([^']+)'/);
