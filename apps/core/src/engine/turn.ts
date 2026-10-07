@@ -23,6 +23,7 @@ import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
 import { inherit } from "../tools/policy.ts";
 import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
+import { scratchDir } from "../tools/shell.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
 import { attachmentsBlock } from "./attachments.ts";
@@ -192,7 +193,9 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     agent,
     thread,
     run,
-    system: thread.engine ? DIRECT_NOTE : systemFor(store, turn, skills, deps.profileRoots ?? [], deps.build),
+    system: thread.engine
+      ? DIRECT_NOTE
+      : systemFor(store, turn, skills, deps.profileRoots ?? [], deps.build, scratchDir(store, deps.home, thread)),
     history,
     input,
     tools: tools.map(toSpec),
@@ -410,6 +413,7 @@ function systemFor(
   skills: string,
   roots: readonly ProfileRoot[],
   build?: { version: string; code_sha: string },
+  scratch = "",
 ): string {
   const lang = store.settings.get("owner_language") || "es";
   if (turn.audience.kind === "contact")
@@ -419,7 +423,14 @@ function systemFor(
   // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
   const projectId = turn.thread.project_id ?? turn.agent.project_id;
   if (turn.worker)
-    return workerPrompt(turn.worker, turn.agent, lang, projectId ? store.projects.get(projectId) : undefined, skills);
+    return workerPrompt(
+      turn.worker,
+      turn.agent,
+      lang,
+      projectId ? store.projects.get(projectId) : undefined,
+      skills,
+      scratch,
+    );
   const role = turn.agent.kind === "secretary" ? profileBlock(store, roots) : "";
   return systemPrompt(
     turn.agent,
@@ -430,6 +441,7 @@ function systemFor(
     role,
     ownerIdentity(store),
     build ? apxBuild(build) : "",
+    scratch,
   );
 }
 

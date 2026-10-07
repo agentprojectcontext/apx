@@ -10,7 +10,7 @@ export function mediaTools(): Tool[] {
     defineTool({
       name: "send_file",
       description:
-        "Attach an existing file from your work folder directly to your reply in this chat. Use when the owner asks to see or download a project file, image, video, audio or document here. Images appear inline; videos play in the chat; files can be downloaded. Path may be relative or absolute inside your work folder; maximum 20 MB per file. Call once per file. Never claim a file was attached unless this tool succeeds. Do not substitute a website link for an attachment.",
+        "Attach an existing file from your work folder directly to your reply in this chat. Use when the owner asks to see or download a project file, image, video, audio or document here. Images appear inline; videos play in the chat; files can be downloaded. Path may be relative or absolute inside your work folder, or absolute in your temp folder; maximum 20 MB per file. Call once per file. Never claim a file was attached unless this tool succeeds. Do not substitute a website link for an attachment.",
       args: z.object({ path: z.string().trim().min(1).max(1000) }),
       // Only to this chat, the owner's: contacts and rooms never get it (CONTACT_TOOLS).
       effect: "local",

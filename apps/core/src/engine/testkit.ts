@@ -13,6 +13,7 @@ import type { IMessageOps } from "../imessage.ts";
 import type { Llm, LlmRequest } from "../providers/llm.ts";
 import type { AssistantItem, Completion } from "../providers/types.ts";
 import { createCore } from "../server.ts";
+import { scratchRoot } from "../tools/shell.ts";
 import type { Tool } from "../tools/types.ts";
 import type { InputWaits } from "./inputs.ts";
 
@@ -108,7 +109,11 @@ export async function startCore(opts: {
     }
     throw new Error(`thread ${thread} never settled`);
   };
-  return { core, client, home, settle, cleanup: () => fs.rmSync(home, { recursive: true, force: true }) };
+  const cleanup = () => {
+    fs.rmSync(home, { recursive: true, force: true });
+    fs.rmSync(scratchRoot(home), { recursive: true, force: true });
+  };
+  return { core, client, home, settle, cleanup };
 }
 
 export const texts = (messages: Message[]) =>

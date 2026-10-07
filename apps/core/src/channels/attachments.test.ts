@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import path from "node:path";
 import { type TestContext, test } from "node:test";
 import { UPLOAD_LIMITS } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { scratchRoot } from "../tools/shell.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { telegramAdapter } from "./telegram.ts";
 
@@ -54,16 +54,17 @@ test("Telegram photo pixels and caption reach a turn, its UI parts and stored me
   await wait(() => env.tg.messagesTo(OWNER.id).length > 0);
 });
 
-test("Telegram PDF without caption reaches the workdir and appears as a downloadable file", async (t) => {
+test("Telegram PDF without caption reaches the chat's temp folder and appears as a downloadable file", async (t) => {
   const env = await setup(t);
   env.tg.attachment(OWNER, { bytes: PDF, mime: "application/pdf", name: "receipt.pdf" });
   await wait(() => env.llm.calls.length > 0);
   await env.settle("home");
   const input = String(env.llm.calls[0]?.messages.at(-1)?.content);
   assert.doesNotMatch(input, /cannot read this kind/);
-  const relative = /File in your work folder: ([^ ]+)\. Use/.exec(input)?.[1];
-  assert.ok(relative);
-  assert.deepEqual(fs.readFileSync(path.join(env.home, "work", relative)), PDF);
+  const at = /File in your temp folder: ([^ ]+)\. Use/.exec(input)?.[1];
+  assert.ok(at);
+  assert.ok(at.startsWith(scratchRoot(env.home)));
+  assert.deepEqual(fs.readFileSync(at), PDF);
   const chat = await env.client.call("threads.get", { thread: "home" });
   assert.ok(chat.messages.some((m) => m.parts.some((p) => p.type === "file" && p.name === "receipt.pdf")));
 });
@@ -113,8 +114,8 @@ test("a contact photo stays in its sealed chat with an untrusted origin", async 
   await wait(() => env.llm.calls.length > 0);
   const item = env.llm.calls[0]?.messages.at(-1);
   assert.match(String(item?.content), /<channel_message[\s\S]*Contact ticket/);
-  assert.doesNotMatch(String(item?.content), /File in your work folder/);
-  assert.equal(fs.existsSync(path.join(env.home, "work", ".apx-attachments")), false);
+  assert.doesNotMatch(String(item?.content), /File in your temp folder/);
+  assert.equal(fs.existsSync(scratchRoot(env.home)), false);
   const thread = env.core.store.threads.byConversation("tg", "2002");
   assert.ok(thread);
   await env.settle(thread.id);

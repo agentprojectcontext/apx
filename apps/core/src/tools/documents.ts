@@ -8,7 +8,7 @@ export function documentTool() {
   return defineTool({
     name: "open_document",
     description:
-      "Open an existing .md, .markdown or .txt file as a document in the owner's chat side panel. Use after writing a long report, plan or reusable reference, or when the owner asks to open a document; do not call after every edit or for code/configuration. Markdown is the default even for .txt (no renaming); text shows it verbatim. The panel offers rendered view, source and download. This takes a snapshot of a UTF-8 text file inside your work folder, at most 400000 bytes. The snapshot survives source edits/deletion and chat reload. Opening again shows a new snapshot. Never claim it opened unless this tool succeeds.",
+      "Open an existing .md, .markdown or .txt file as a document in the owner's chat side panel. Use after writing a long report, plan or reusable reference, or when the owner asks to open a document; do not call after every edit or for code/configuration. Markdown is the default even for .txt (no renaming); text shows it verbatim. The panel offers rendered view, source and download. This takes a snapshot of a UTF-8 text file inside your work folder or your temp folder, at most 400000 bytes. The snapshot survives source edits/deletion and chat reload. Opening again shows a new snapshot. Never claim it opened unless this tool succeeds.",
     args: z.object({
       path: z.string().trim().min(1).max(1000),
       title: z.string().trim().min(1).max(120).optional(),

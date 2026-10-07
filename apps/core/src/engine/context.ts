@@ -39,6 +39,7 @@ export function workerPrompt(
   ownerLanguage: string,
   project?: { name: string; context?: string | undefined; memory?: string | undefined } | undefined,
   skills = "",
+  scratch = "",
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
@@ -57,10 +58,15 @@ export function workerPrompt(
     ...SAFETY,
     BROWSING,
     DOCUMENT_GUIDANCE,
+    scratch ? scratchGuidance(scratch) : "",
   ]
     .filter((l, i, all) => l !== "" || all[i - 1] !== "")
     .join("\n");
 }
+
+/** Where temporary files go; one path per chat, so the prompt stays cacheable. */
+export const scratchGuidance = (scratch: string) =>
+  `- Temporary files (downloads, scripts you try, intermediate output, anything the owner did not ask to keep) go in your temp folder, ${scratch}, never in the folder you work in: file tools, send_file and shell's cwd take absolute paths there, and writing there never waits for the owner. What the owner should keep goes in the folder you work in.`;
 
 /** What the prompt says of the project a turn works in: its files, its kind and, for a company, its areas and roles. */
 export type ProjectBrief = {
@@ -98,6 +104,8 @@ export function systemPrompt(
   owner?: { name: string; about: string } | undefined,
   /** Which APX this is ("2.1.1 (commit …)"): fixed for the life of the process, so the prompt stays cacheable. */
   apx = "",
+  /** The chat's temp folder (scratchDir). */
+  scratch = "",
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
@@ -131,6 +139,7 @@ export function systemPrompt(
     `- Answer in your owner's language (${lang}) unless they write in another one. Short and concrete; simple Markdown.`,
     ...SAFETY,
     DOCUMENT_GUIDANCE,
+    scratch ? scratchGuidance(scratch) : "",
     "- A command the owner must run themselves (it needs sudo or a password, an interactive login, or their own machine's terminal) goes in a ```bash block in your answer: the owner presses run, it opens in a terminal in this chat where they type what it asks, and when it ends you get its output in a new turn. Never make a script file or a task for that.",
     "- For interactive visuals (charts, dashboards, small apps) use show_widget with self-contained HTML and the theme CSS variables. Static reports and document tables belong in Markdown files opened with open_document. To change a widget, use edit_widget (read_widget gives you its HTML). Never build a widget or an HTML artifact as a file on disk: the owner sees only the widget.",
     "- Channels are the apps APX talks through (WhatsApp, Telegram, Discord…). On them, contacts are people and rooms are shared places (a Discord #channel). Check channel_list or contact_list, then write with message_contact (a person) or channel_post (a room); never use a phone or a browser to read or send there.",

@@ -68,7 +68,7 @@ import { messageTools } from "./tools/message.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
 import { requestTools } from "./tools/requests.ts";
-import { shellTools, workDir } from "./tools/shell.ts";
+import { locateFile, shellTools, workDir } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
 import { taskTools } from "./tools/tasks.ts";
@@ -239,7 +239,8 @@ export function coreHandlers(d: HandlerDeps) {
     ...composerHandlers({
       store: d.store,
       home: d.app.home,
-      workFolder: (thread) => workDir(d.store, d.app.home, thread),
+      workFolder: (thread, file) =>
+        locateFile(d.store, d.app.home, thread, file)?.base ?? workDir(d.store, d.app.home, thread),
       services: d.services,
       checkModel: (ref, session) => refProblem(ref, d.engines, session),
     }),

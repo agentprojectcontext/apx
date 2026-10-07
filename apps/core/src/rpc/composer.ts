@@ -11,7 +11,8 @@ export function composerHandlers(deps: {
   store: Store;
   home: string;
   services: Services;
-  workFolder(thread: NonNullable<ReturnType<Store["threads"]["get"]>>): string;
+  /** The folder `file` is attached from: where the chat's agent works, or its temp folder. */
+  workFolder(thread: NonNullable<ReturnType<Store["threads"]["get"]>>, file: string): string;
   /** `session`: the CLI whose own session the chat is (only that CLI runs there). */
   checkModel(ref: string, session: string | undefined): string | undefined;
 }) {
@@ -26,7 +27,7 @@ export function composerHandlers(deps: {
       if (audienceOf(store, thread).kind !== "owner")
         throw unauthorized("local files can only be attached in the owner's chats");
       try {
-        const m = saveLocalAttachment(deps.home, store, deps.workFolder(thread), thread.id, path, document);
+        const m = saveLocalAttachment(deps.home, store, deps.workFolder(thread, path), thread.id, path, document);
         return { media: { id: m.id, kind: m.kind, mime: m.mime, bytes: m.bytes, name: m.name } };
       } catch (err) {
         throw badRequest(errorMessage(err));

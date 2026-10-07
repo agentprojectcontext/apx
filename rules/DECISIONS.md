@@ -543,3 +543,16 @@ line of the system prompt names the words, and it looks when it needs to. `chann
 open to agents, no tokens, accounts or QR) shows each channel's state and rooms; `contact_list` shows people;
 `message_contact` writes to a person and `channel_post` (over `channels.post`) posts in a room by its exact name: a
 near name only gets a suggestion, since a public post cannot be taken back. Reading a room is `read_chat("#name")`.
+
+<a id="d-050"></a>
+## D-050 — 2026-10-07 — Each chat keeps its temporary files in a temp folder of its own
+An agent in a project chat had only the project's folder: downloads, scripts it tried and the owner's uploaded
+attachments (`.apx-attachments/`) landed in the repository. Each chat now has a temp folder (`scratchDir`), shared with
+the sub-chats it delegates to, in the system's temp folder under `apx-scratch-<hash of APX's home>`: outside the project
+and outside APX's home, so shell's refusal of commands that name APX's home still holds. The file tools, `send_file`,
+`open_document` and shell's `cwd` take absolute paths there; another chat's folder is refused. Writing there never
+waits for the owner, outside content or not: it changes nothing of theirs, and running what was written stays under
+shell's own rule. Those files are not the owner's changes, so they get no changes card. The owner's attachments are
+copied there too. The system prompt names the folder (one path per chat, so the prefix stays byte-stable) and tells the
+agent that only what the owner keeps goes in the project. The system cleans its temp folder on its own schedule.
+Outside engines' sessions (D-023) are unchanged: their own prompt does not name the folder.

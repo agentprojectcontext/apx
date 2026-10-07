@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { scratchRoot } from "../tools/shell.ts";
 
 const llm = scriptedLlm((_req, { said }) =>
   said.includes("how full")
@@ -133,7 +134,7 @@ test("only this chat's uploads attach: not another chat's, not media APX made, n
   );
 });
 
-test("a PDF is available byte-for-byte in the agent work folder, with a safe name", async () => {
+test("a PDF is available byte-for-byte in the chat's temp folder, with a safe name, never in the project", async () => {
   const pdf = Buffer.from("%PDF-1.4\nreceipt\n%%EOF");
   const { media } = await env.client.call("media.upload", {
     name: "../../receipt.pdf",
@@ -144,13 +145,15 @@ test("a PDF is available byte-for-byte in the agent work folder, with a safe nam
   await env.client.call("threads.send", { thread: "home", text: "read receipt", attachments: [media.id] });
   await env.settle("home");
   const input = String(llm.calls.at(-1)?.messages.at(-1)?.content);
-  const relative = /File in your work folder: ([^ ]+)\. Use/.exec(input)?.[1];
-  assert.ok(relative);
-  assert.match(relative, /^\.apx-attachments\/upload-[^/]+\/receipt\.pdf$/);
-  assert.deepEqual(fs.readFileSync(path.join(env.home, "work", relative)), pdf);
+  const at = /File in your temp folder: ([^ ]+)\. Use/.exec(input)?.[1];
+  assert.ok(at);
+  assert.equal(path.relative(path.join(scratchRoot(env.home), "home"), path.dirname(path.dirname(at))), "attachments");
+  assert.match(at, /\/upload-[^/]+\/receipt\.pdf$/);
+  assert.deepEqual(fs.readFileSync(at), pdf);
+  assert.equal(fs.existsSync(path.join(env.home, "work", ".apx-attachments")), false);
 });
 
-test("an attachment destination symlink cannot write outside the work folder", async (t) => {
+test("an attachment destination symlink cannot write outside the temp folder", async (t) => {
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), "apx-attachment-outside-"));
   const local = await startCore({ llm: scriptedLlm(() => say("ok")) });
   t.after(async () => {
@@ -158,8 +161,8 @@ test("an attachment destination symlink cannot write outside the work folder", a
     local.cleanup();
     fs.rmSync(outside, { recursive: true, force: true });
   });
-  fs.mkdirSync(path.join(local.home, "work"), { recursive: true });
-  fs.symlinkSync(outside, path.join(local.home, "work", ".apx-attachments"), "dir");
+  fs.mkdirSync(path.join(scratchRoot(local.home), "home"), { recursive: true });
+  fs.symlinkSync(outside, path.join(scratchRoot(local.home), "home", "attachments"), "dir");
   const { media } = await local.client.call("media.upload", {
     name: "receipt.pdf",
     mime: "application/pdf",

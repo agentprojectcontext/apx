@@ -1,7 +1,9 @@
 // shell: an agent runs a command on the owner's machine, in its project's folder. Commands that only read run like
 // any tool; anything else waits for the owner (unless the agent's autonomy is total); destructive ones always do.
 // Commands get an environment without secret-looking variables (harness/env.ts) and cannot name APX's home.
+import { createHash } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
@@ -80,7 +82,7 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
 
 /**
  * Where an agent works in a thread: a code thread's own folder, else its project's folder when it is on disk, else
- * APX's work folder. Commands run and files are written only inside it.
+ * APX's work folder. Commands run and files are written only inside it, or in the chat's temp folder (scratchDir).
  */
 export function workDir(
   store: Store,
@@ -90,6 +92,38 @@ export function workDir(
   if (thread.cwd) return thread.cwd;
   const p = thread.project_id ? store.projects.get(thread.project_id) : undefined;
   return p?.path && p.present ? p.path : path.join(home, "work");
+}
+
+/**
+ * Where a chat keeps temporary files: a folder of its own (shared with the sub-chats it delegated to) in the system's
+ * temp folder, outside the folder it works in and outside APX's home, so neither fills with downloads and test scripts.
+ */
+export function scratchDir(store: Store, home: string, thread: { id: string; parent_id?: string | undefined }) {
+  let root = thread;
+  for (let i = 0; root.parent_id && i < 10; i++) root = store.threads.get(root.parent_id) ?? { id: root.id };
+  return path.join(scratchRoot(home), root.id.replace(/[^\w-]/g, "_"));
+}
+
+/** Every chat's temp folder sits here; one per APX home, so a test core never shares the owner's. */
+export const scratchRoot = (home: string) =>
+  path.join(os.tmpdir(), `apx-scratch-${createHash("sha256").update(home).digest("hex").slice(0, 8)}`);
+
+/**
+ * A file an agent names: relative or absolute inside the folder it works in, or absolute inside its temp folder.
+ * `base` is the folder it is in; undefined when it is in neither (links resolved).
+ */
+export function locateFile(
+  store: Store,
+  home: string,
+  thread: Parameters<typeof workDir>[2] & Parameters<typeof scratchDir>[2],
+  file: string,
+): { base: string; at: string; scratch: boolean } | undefined {
+  const work = workDir(store, home, thread);
+  if (!path.isAbsolute(file))
+    return insideReal(work, file) ? { base: work, at: path.resolve(work, file), scratch: false } : undefined;
+  if (insideReal(work, file)) return { base: work, at: path.resolve(file), scratch: false };
+  const scratch = scratchDir(store, home, thread);
+  return insideReal(scratch, file) ? { base: scratch, at: path.resolve(file), scratch: true } : undefined;
 }
 
 export function shellTools(store: Store, home: string, apxPort: () => number): Tool[] {
@@ -102,7 +136,11 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
         command: z.string().min(1).max(4000),
         background: z.boolean().optional(),
         timeout_s: z.number().int().min(1).max(600).optional().describe("foreground only; default 120"),
-        cwd: z.string().max(500).optional().describe("folder inside the project, relative"),
+        cwd: z
+          .string()
+          .max(500)
+          .optional()
+          .describe("folder inside the project, relative; or your temp folder (absolute)"),
       }),
       effect: "external",
       confirm: (a) => commandRisk(a.command, apxPort()),
@@ -111,10 +149,10 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
       deadlineMs: 615_000,
       title: (a) => `Ran ${String(a.command ?? "").slice(0, 60)}`,
       async run(a, ctx) {
-        const base = workDir(store, home, ctx.thread);
-        const cwd = path.resolve(base, a.cwd ?? ".");
         // Links resolved: a symlink inside the project must not run the command somewhere else.
-        if (!insideReal(base, a.cwd ?? ".")) return `refused: ${a.cwd} is outside the project folder`;
+        const where = locateFile(store, home, ctx.thread, a.cwd ?? ".");
+        if (!where) return `refused: ${a.cwd} is outside the project folder and your temp folder`;
+        const { base, at: cwd } = where;
         // APX's own home (database, secrets index, job logs) is never an agent's to read or change.
         if (a.command.includes(home) || /\.apx(2\b|\/v2\b)/.test(a.command))
           return "refused: APX's own folder is off limits";
