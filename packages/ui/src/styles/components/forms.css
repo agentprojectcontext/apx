@@ -65,6 +65,13 @@
   overflow-y: auto;
   min-width: var(--anchor-width, 200px);
 }
+.apx-select__trailing {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
 .apx-select__item[data-selected] {
   font-weight: var(--apx-weight-medium);
 }

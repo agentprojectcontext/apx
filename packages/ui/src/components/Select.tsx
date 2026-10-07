@@ -15,6 +15,10 @@ export interface SelectOption {
   description?: string;
   /** Options with the same group are listed under it, in the order they first appear. */
   group?: string;
+  /** Marks at the end of the row in the list (a contact's channels); the field shows the label only. */
+  trailing?: ReactNode;
+  /** More words a searchable list finds it by (its channels' names), not shown. */
+  keywords?: string;
   disabled?: boolean;
 }
 
@@ -57,6 +61,7 @@ export function Select({
         <BaseSelect.ItemText className="apx-menu__text">{o.label}</BaseSelect.ItemText>
       )}
       {o.hint && <span className="apx-select__hint">{o.hint}</span>}
+      {o.trailing && <span className="apx-select__trailing">{o.trailing}</span>}
       <BaseSelect.ItemIndicator className="apx-select__check">
         <Check size={14} />
       </BaseSelect.ItemIndicator>
