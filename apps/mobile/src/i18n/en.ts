@@ -279,6 +279,7 @@ export const en = {
   devBuild: "Development",
   apxVersion: "APX version {version}",
   joinDiscord: "Join us on Discord",
+  joinUs: "Join us",
 } as const;
 
 export type Key = keyof typeof en;

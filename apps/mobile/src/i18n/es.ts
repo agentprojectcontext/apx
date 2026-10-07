@@ -282,4 +282,5 @@ export const es: Record<Key, string> = {
   devBuild: "Desarrollo",
   apxVersion: "APX versión {version}",
   joinDiscord: "Unirse a Discord",
+  joinUs: "Sumate",
 };

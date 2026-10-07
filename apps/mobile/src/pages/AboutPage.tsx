@@ -1,7 +1,6 @@
 import Constants from "expo-constants";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import { Animated, Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { faces } from "../about/faces";
 import { glyphHtml } from "../about/glyphHtml";
@@ -10,7 +9,6 @@ import { elapsed } from "../format";
 import type { Health, Workspace } from "../hooks/useWorkspace";
 import { type Key, lang, t } from "../i18n";
 import { blobEyes } from "../ui/blobEyes";
-import { CHANNEL_MARKS } from "../ui/channelMarks";
 import { Dot, ListGroup, ListRow, Spinner, SubHeader, type } from "../ui/kit";
 import { theme } from "../ui/theme";
 
@@ -21,11 +19,11 @@ const STATUS: Record<Health["subsystems"][string]["status"], { label: Key; color
   off: { label: "statusOff", color: theme.fgSubtle },
 };
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const DISCORD = "https://discord.gg/vxdZuT5WuE";
-/** The portrait's full height, the height it shrinks to while scrolling, and its size then. */
-const TALL = 280;
-const SHORT = 150;
-const SHRINK = SHORT / TALL;
+/** The portrait's height, the version badge under it, the title bar's height, and the portrait's size up there. */
+const PORTRAIT = 250;
+const BADGE = 30;
+const BAR = 56;
+const SMALL = 44;
 
 /** What APX is, drawn as on the landing, with this build and the core it talks to (as `apx status` says it). */
 export function AboutPage({
@@ -51,17 +49,23 @@ export function AboutPage({
         scenes: scenesFor(lang),
         faces,
         eyes: blobEyes,
-        caption: t("apxVersion", { version: Constants.expoConfig?.version ?? "" }),
-        background: theme.bg,
+        background: "transparent",
       }),
     [],
   );
   const scroll = useRef(new Animated.Value(0)).current;
-  const fold = TALL - SHORT;
-  // The header slides up by `fold` while the portrait shrinks and moves down to stay centred in what is left.
-  const headerY = scroll.interpolate({ inputRange: [0, fold], outputRange: [0, -fold], extrapolate: "clamp" });
-  const portraitY = scroll.interpolate({ inputRange: [0, fold], outputRange: [0, fold / 2], extrapolate: "clamp" });
-  const portraitScale = scroll.interpolate({ inputRange: [0, fold], outputRange: [1, SHRINK], extrapolate: "clamp" });
+  const { width } = useWindowDimensions();
+  // While the page scrolls, the portrait shrinks and flies into the title bar, on the side opposite the back arrow.
+  const fromX = width / 2;
+  const fromY = BAR + PORTRAIT / 2;
+  const toX = width - 16 - SMALL / 2;
+  const toY = BAR / 2;
+  const fly = { inputRange: [0, PORTRAIT], extrapolate: "clamp" as const };
+  const portraitX = scroll.interpolate({ ...fly, outputRange: [0, toX - fromX] });
+  const portraitY = scroll.interpolate({ ...fly, outputRange: [0, toY - fromY] });
+  const portraitScale = scroll.interpolate({ ...fly, outputRange: [1, SMALL / PORTRAIT] });
+  // The version badge is not shrunk with the portrait: it fades out, and the version shows again in the list.
+  const badge = scroll.interpolate({ inputRange: [0, 40], outputRange: [1, 0], extrapolate: "clamp" });
   const config = Constants.expoConfig;
   const build = Platform.OS === "android" ? config?.android?.versionCode : config?.ios?.buildNumber;
   const health = server?.health;
@@ -75,20 +79,13 @@ export function AboutPage({
           onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scroll } } }], { useNativeDriver: true })}
           contentContainerStyle={s.content}
         >
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => void Linking.openURL(DISCORD)}
-            style={({ pressed }) => [s.discord, pressed && { opacity: 0.85 }]}
-          >
-            <Svg width={20} height={20} viewBox="0 0 24 24">
-              {CHANNEL_MARKS.discord.paths.map((path) => (
-                <Path key={path.d.slice(0, 12)} d={path.d} fill="#fff" />
-              ))}
-            </Svg>
-            <Text style={s.discordText}>{t("joinDiscord")}</Text>
-          </Pressable>
+          {/* Room for the portrait, which floats over the page; the badge scrolls away under the title bar. */}
+          <Animated.View pointerEvents="none" style={[s.badgeRow, { opacity: badge }]}>
+            <Text style={s.badge}>{t("apxVersion", { version: config?.version ?? "" })}</Text>
+          </Animated.View>
           <Text style={s.label}>{t("thisApp")}</Text>
           <ListGroup>
+            <ListRow label={t("appVersion")} detail={config?.version ?? "—"} chevron={false} />
             <ListRow label={t("appBuild")} detail={build === undefined ? "—" : String(build)} chevron={false} />
             <ListRow
               label={t("platform")}
@@ -160,22 +157,27 @@ export function AboutPage({
           )}
           <Text style={[type.small, { textAlign: "center", paddingTop: 8 }]}>{t("aboutApc")}</Text>
         </Animated.ScrollView>
-        {/* Over the list: tall at first, then a small portrait pinned to the top while the rest scrolls. */}
-        <Animated.View style={[s.header, { transform: [{ translateY: headerY }] }]}>
-          <Animated.View style={[s.portrait, { transform: [{ translateY: portraitY }, { scale: portraitScale }] }]}>
-            <WebView
-              source={{ html }}
-              originWhitelist={["about:blank"]}
-              onShouldStartLoadWithRequest={(request) => request.url === "about:blank"}
-              scrollEnabled={false}
-              bounces={false}
-              overScrollMode="never"
-              setSupportMultipleWindows={false}
-              style={{ backgroundColor: theme.bg }}
-            />
-          </Animated.View>
-        </Animated.View>
       </View>
+      <Animated.View
+        style={[
+          s.portrait,
+          {
+            width: width - 16,
+            transform: [{ translateX: portraitX }, { translateY: portraitY }, { scale: portraitScale }],
+          },
+        ]}
+      >
+        <WebView
+          source={{ html }}
+          originWhitelist={["about:blank"]}
+          onShouldStartLoadWithRequest={(request) => request.url === "about:blank"}
+          scrollEnabled={false}
+          bounces={false}
+          overScrollMode="never"
+          setSupportMultipleWindows={false}
+          style={{ backgroundColor: "transparent" }}
+        />
+      </Animated.View>
     </View>
   );
 }
@@ -183,19 +185,20 @@ export function AboutPage({
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg },
   body: { flex: 1, overflow: "hidden" },
-  content: { paddingTop: TALL + 8, paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
-  header: { position: "absolute", top: 0, left: 0, right: 0, height: TALL, backgroundColor: theme.bg },
-  portrait: { flex: 1, marginHorizontal: 8 },
-  discord: {
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#5865F2",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
+  content: { paddingTop: PORTRAIT, paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
+  portrait: { position: "absolute", top: BAR, left: 8, height: PORTRAIT },
+  badgeRow: { height: BADGE, alignItems: "center", justifyContent: "center", marginBottom: 4 },
+  badge: {
+    color: theme.fgMuted,
+    fontFamily: theme.mono,
+    fontSize: 11,
+    borderWidth: 1,
+    borderColor: theme.borderStrong,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    overflow: "hidden",
   },
-  discordText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   label: { color: theme.fgSubtle, fontSize: 12, paddingHorizontal: 4, paddingTop: 8 },
   loading: { padding: 20, alignItems: "center" },
   code: { color: theme.fgMuted, fontFamily: theme.mono, fontSize: 12, maxWidth: 200 },

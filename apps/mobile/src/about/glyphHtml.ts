@@ -11,34 +11,28 @@ export function glyphHtml({
   scenes,
   faces,
   eyes,
-  caption,
   background,
 }: {
   scenes: Scene[];
   faces: Record<string, string>;
   eyes: Record<string, Eyes | undefined>;
-  /** The line under the portrait (the app and its version). */
-  caption: string;
   background: string;
 }): string {
   const data = JSON.stringify({
     scenes,
     faces: Object.fromEntries(scenes.map((s) => [s.key, faces[s.key]])),
     eyes: Object.fromEntries(scenes.map((s) => [s.key, eyes[s.key]])),
-    caption,
   }).replace(/</g, "\\u003c");
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <style>
 html,body{margin:0;height:100%;background:${background};overflow:hidden;-webkit-user-select:none;user-select:none}
-canvas{display:block;width:100%;height:calc(100% - 30px);touch-action:none}
-#tag{height:30px;display:flex;align-items:center;justify-content:center}
-#tag span{font:11px ui-monospace,Menlo,monospace;color:#a6a59f;border:1px solid #3b3b38;border-radius:999px;padding:3px 10px;background:${background}}
-</style></head><body><canvas id="c"></canvas><div id="tag"><span id="t"></span></div>
+canvas{display:block;width:100%;height:100%;touch-action:none}
+</style></head><body><canvas id="c"></canvas>
 <script>
 var D=${data};
 var RAND='01#%&*+=<>{}[]/\\\\|~:;abcdefghijklmnopqrstuvwxyz';
-var cv=document.getElementById('c'),ctx=cv.getContext('2d'),tag=document.getElementById('t');
+var cv=document.getElementById('c'),ctx=cv.getContext('2d');
 var G={cols:0,rows:0,cell:8,lh:10.4,cells:[],w:0,h:0,dpr:1,mx:-1e4,my:-1e4},faces={},i=0,timer=0;
 function face(key){
   if(!faces[key])faces[key]=new Promise(function(res){var im=new Image();im.onload=function(){
@@ -92,7 +86,7 @@ function point(e){var r=cv.getBoundingClientRect();G.mx=e.clientX-r.left;G.my=e.
 function away(){G.mx=G.my=-1e4;}
 cv.addEventListener('pointerdown',point);cv.addEventListener('pointermove',point);
 cv.addEventListener('pointerup',away);cv.addEventListener('pointercancel',away);cv.addEventListener('pointerleave',away);
-tag.textContent=D.caption;size();show();requestAnimationFrame(draw);
+size();show();requestAnimationFrame(draw);
 addEventListener('resize',function(){size();target(D.scenes[(i+D.scenes.length-1)%D.scenes.length]);});
 </script></body></html>`;
 }

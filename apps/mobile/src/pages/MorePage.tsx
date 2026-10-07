@@ -1,12 +1,16 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { channelName } from "../hooks/chatSelectors";
 import type { Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
+import { CHANNEL_MARKS } from "../ui/channelMarks";
 import type { IconName } from "../ui/Icon";
 import { Icon } from "../ui/Icon";
 import { Dot, IconTile, ListGroup, ListRow, OwnerAvatar, PageTitle, Screen, type } from "../ui/kit";
 import { theme } from "../ui/theme";
 import type { Tone } from "../ui/tone";
+
+const DISCORD = "https://discord.gg/vxdZuT5WuE";
 
 export type MoreId =
   | "routines"
@@ -69,7 +73,25 @@ export function MorePage({
   onSelect: (id: MoreId) => void;
 }) {
   return (
-    <Screen gap={16} header={<PageTitle title={t("navMore")} />}>
+    <Screen
+      gap={16}
+      header={
+        <PageTitle
+          title={t("navMore")}
+          right={
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={t("joinDiscord")}
+              onPress={() => void Linking.openURL(DISCORD)}
+              style={({ pressed }) => [s.discord, pressed && { opacity: 0.85 }]}
+            >
+              <DiscordMark />
+              <Text style={s.discordText}>{t("joinUs")}</Text>
+            </Pressable>
+          }
+        />
+      }
+    >
       <Pressable
         accessibilityRole="button"
         onPress={() => onSelect("settings")}
@@ -108,7 +130,28 @@ export function MorePage({
   );
 }
 
+/** Discord's own mark, in white on its color. */
+function DiscordMark() {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24">
+      {CHANNEL_MARKS.discord.paths.map((path) => (
+        <Path key={path.d.slice(0, 12)} d={path.d} fill="#fff" />
+      ))}
+    </Svg>
+  );
+}
+
 const s = StyleSheet.create({
+  discord: {
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: "#5865F2",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  discordText: { color: "#fff", fontSize: 13, fontWeight: "600" },
   profile: {
     flexDirection: "row",
     alignItems: "center",
