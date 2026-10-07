@@ -9,6 +9,7 @@ export * from "./events.ts";
 export * from "./exposure.ts";
 export * from "./files-methods.ts";
 export * from "./frames.ts";
+export * from "./git-methods.ts";
 export * from "./methods.ts";
 export * from "./office.ts";
 export * from "./releases.ts";

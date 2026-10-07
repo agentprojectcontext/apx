@@ -7,8 +7,9 @@ import { useT } from "../../i18n/index.ts";
 import { SurfaceActions } from "../../surfaces/SurfaceActions.tsx";
 import { SurfaceFrame } from "../../surfaces/SurfaceFrame.tsx";
 import { FilesPane, NoFolder } from "./FilesPane.tsx";
+import { GitPane } from "./GitPane.tsx";
 
-type Scope = "folder" | "widgets";
+type Scope = "folder" | "widgets" | "git";
 
 /**
  * A project's files: its folder (the base project's is APX's work folder, where its chats work) or every widget its
@@ -28,10 +29,14 @@ export function ProjectFiles({ project }: { project: ProjectEntry }) {
           options={[
             { value: "folder", label: t("files.scope.folder") },
             { value: "widgets", label: t("files.scope.widgets") },
+            // The base project's folder is APX's own, never a repository.
+            ...(project.path ? [{ value: "git", label: t("files.scope.git") }] : []),
           ]}
         />
       </div>
-      {scope === "widgets" ? (
+      {scope === "git" ? (
+        <GitPane key={project.id} projectId={project.id} />
+      ) : scope === "widgets" ? (
         <ProjectWidgets projectId={project.id} />
       ) : project.isDefault ? (
         <FilesPane key="base" where={{ base: true }} label={t("files.workFolder")} />

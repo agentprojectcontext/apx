@@ -33,6 +33,7 @@ import { composerHandlers } from "./rpc/composer.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
+import { gitHandlers } from "./rpc/git.ts";
 import { integrationHandlers } from "./rpc/integrations.ts";
 import { jobHandlers } from "./rpc/jobs.ts";
 import { mcpHandlers } from "./rpc/mcp.ts";
@@ -214,6 +215,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...agentHandlers(d.store, d.apc, d.engines),
     ...teamHandlers(d.store, d.apc, d.templateRoots, (s) => d.scheduler.nextFor(s)),
     ...fileHandlers(d.store, d.desktop, d.app.home),
+    ...gitHandlers(d.store),
     ...terminalHandlers(d.store, d.terminals, d.app.home),
     ...sessionHandlers(d.store, d.native),
     ...setupHandlers({

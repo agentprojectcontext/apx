@@ -12,7 +12,7 @@ const MAX_FILES = 50;
 const MAX_DIFF = 200 * 1024;
 
 /** git, with the repo's own config unable to make it run anything: no fsmonitor, hooks, external diff or textconv. */
-const git = (cwd: string, args: string[], timeout = 10_000) =>
+export const git = (cwd: string, args: string[], timeout = 10_000) =>
   run(
     "git",
     ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "--no-optional-locks", "-C", cwd, ...args],
