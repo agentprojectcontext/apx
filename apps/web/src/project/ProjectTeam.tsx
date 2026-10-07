@@ -27,6 +27,7 @@ export function ProjectAgents({ project }: { project: ProjectEntry }) {
   const agents = useData((s) => s.agents);
   const [view, setView] = useState<"agents" | "org">("agents");
   const count = useMemo(() => teamOf(agents, project.id).length, [agents, project.id]);
+  const areas = useOrg(project.id)?.areas.length ?? 0;
   if (project.kind !== "company") return <ProjectTeam project={project} />;
   const switcher = (
     <Tabs
@@ -36,7 +37,7 @@ export function ProjectAgents({ project }: { project: ProjectEntry }) {
       onValueChange={(v) => setView(v === "org" ? "org" : "agents")}
       items={[
         { value: "agents", label: t("overview.agents"), count },
-        { value: "org", label: t("project.tab.org") },
+        { value: "org", label: t("project.tab.org"), count: areas },
       ]}
     />
   );

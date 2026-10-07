@@ -643,15 +643,25 @@
   color: var(--apx-fg);
   border-bottom-color: var(--apx-selection);
 }
+/* Pill tabs share SegmentedControl's track so the active tab reads the same way. */
+.apx-tabs--pill .apx-tabs__list {
+  width: fit-content;
+  max-width: 100%;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--apx-control-radius);
+  background: var(--apx-fill);
+}
 .apx-tabs--pill .apx-tabs__tab {
-  height: var(--apx-control-h-sm);
+  height: calc(var(--apx-control-h-sm) - 6px);
   padding: 0 12px;
   border-radius: var(--apx-control-radius);
   font-size: var(--apx-text-sm);
 }
 .apx-tabs--pill .apx-tabs__tab[data-active] {
-  background: var(--apx-fill-strong);
+  background: var(--apx-surface);
   color: var(--apx-fg);
+  box-shadow: var(--apx-shadow-sm);
 }
 .apx-tabs__panel {
   padding-top: var(--apx-space-4);
