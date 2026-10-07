@@ -1,10 +1,12 @@
 // Channels the owner runs (channels.*), the people on them (contacts.*) and who waits for approval (pairing.*).
-import type { ChannelInfo, NoticePrefs, OutboxItem, PairingRequest, Person } from "@apx/protocol";
+import type { ChannelInfo, NoticePrefs, OutboxItem, PairingRequest, Person, Thread } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { type MessageKey, t } from "../i18n/index.ts";
+import { loadThread } from "./actions.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
 import { notify } from "./notices.ts";
+import { data } from "./state.ts";
 
 type State = {
   channels: ChannelInfo[];
@@ -211,5 +213,34 @@ export async function sendDirect(thread: string, text: string): Promise<boolean>
   } catch (e) {
     notify(t("error.channels", { error: errText(e) }));
     return false;
+  }
+}
+
+/**
+ * A contact's chat on a channel, made empty when they have none yet, ready in the app to write in. Undefined (and a
+ * notice) when it could not be opened.
+ */
+export async function openContactChat(person: string, channel: string): Promise<Thread | undefined> {
+  try {
+    const thread = await client.call("channels.open", { person, channel });
+    data.set((s) => ({ threads: { ...s.threads, [thread.id]: thread } }));
+    // Loaded before anything is sent in it: a load landing after the answer would put back an older list.
+    await loadThread(thread.id);
+    return thread;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return undefined;
+  }
+}
+
+export type PresenceState = { online: boolean; last_seen?: string | undefined };
+
+/** Who of a channel's contacts is online, by person id; empty when the channel does not tell (or is down). */
+export async function loadPresence(channel: string): Promise<Record<string, PresenceState>> {
+  try {
+    const r = await client.call("channels.presence", { channel });
+    return Object.fromEntries(r.people.map(({ person_id, ...p }) => [person_id, p]));
+  } catch {
+    return {};
   }
 }

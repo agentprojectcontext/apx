@@ -51,6 +51,8 @@ export type AdapterIO = {
   status(s: "running" | "error", error?: string): void;
   /** A QR to link the account (none once linked or expired), shown to the owner in the app. */
   qr?(code: string | undefined): void;
+  /** A message we sent (by the platform's id) reached their device, or was seen. */
+  receipt?(externalId: string, state: "delivered" | "read"): void;
   /** Connected as this account; `owner` is the owner's own address on it (a linked device is the owner). */
   identified?(who: { account: string; owner?: string }): void;
   signal: AbortSignal;
@@ -73,7 +75,14 @@ export interface ChannelAdapter {
   draft?(conversation: string, draftId: number, text: string): Promise<void>;
   /** The profile picture someone shows on the platform (none when hidden or not set). */
   avatar?(externalId: string): Promise<{ mime: string; data: Buffer } | undefined>;
+  /**
+   * Who of these is online, as far as the platform told (those who hide it never show). Asking starts listening for
+   * them, so the first answer may be empty.
+   */
+  presence?(externalIds: string[]): Record<string, Presence>;
 }
+
+export type Presence = { online: boolean; last_seen?: string };
 
 /** A media file to send: an image goes as a photo, OGG audio as a voice note, other audio as an audio file. */
 export type OutFile = { kind: "image" | "audio" | "file"; mime: string; data: Buffer; name?: string | undefined };

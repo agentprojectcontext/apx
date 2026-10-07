@@ -19,7 +19,9 @@ export function fakeWhatsApp() {
   let seq = 0;
   let qrs = 0;
   let sockets = 0;
-  const sent: Array<{ jid: string; content: Record<string, unknown> }> = [];
+  const sent: Array<{ id: string; jid: string; content: Record<string, unknown> }> = [];
+  /** Who this device asked to hear coming online. */
+  const watched = new Set<string>();
   const loggedOut = { value: false };
   const creds = () => path.join(dir, "creds.json");
 
@@ -37,12 +39,15 @@ export function fakeWhatsApp() {
       },
       async sendMessage(jid: string, content: Record<string, unknown>) {
         const id = `OUT-${++seq}`;
-        sent.push({ jid, content });
+        sent.push({ id, jid, content });
         // Every send comes back as an echo, as on a linked device.
         setTimeout(() => s.emit("messages.upsert", { type: "notify", messages: [echo(id, jid, content)] }), 5);
         return { key: { id } };
       },
       async sendPresenceUpdate() {},
+      async presenceSubscribe(jid: string) {
+        watched.add(jid);
+      },
       // Only the line itself shows a picture here: a 1×1 PNG.
       async profilePictureUrl(jid: string) {
         return jid === OWNER_PN ? `data:image/png;base64,${PIXEL}` : undefined;
@@ -163,6 +168,19 @@ export function fakeWhatsApp() {
     ownerTo(to: Person, text: string) {
       deliver({ key: { id: `ME-${++seq}`, remoteJid: to.phone, fromMe: true }, message: { conversation: text } });
     },
+    /** Their phone tells how far one of our sends got: 3 on their device, 4 read. */
+    receipt(id: string, status: number) {
+      const to = sent.find((x) => x.id === id)?.jid;
+      sock?.emit("messages.update", [{ key: { id, remoteJid: to, fromMe: true }, update: { status } }]);
+    },
+    /** Someone comes online or leaves (`last` in seconds), as WhatsApp tells a device that asked. */
+    presence(jid: string, type: "available" | "unavailable", last?: number) {
+      sock?.emit("presence.update", {
+        id: jid,
+        presences: { [jid]: { lastKnownPresence: type, ...(last ? { lastSeen: last } : {}) } },
+      });
+    },
+    watched,
     sent,
     textsTo: (jid: string) => sent.filter((s) => s.jid === jid).map((s) => String(s.content.text ?? "")),
     loggedOut,

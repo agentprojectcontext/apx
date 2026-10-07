@@ -1,5 +1,6 @@
 // The library's surface backed by the in-memory WhatsApp of the core's tests, plus a small HTTP API (E2E_WA_PORT) for
-// specs to act as the phone: scan the QR, write as the owner or as someone else, read what was sent.
+// specs to act as the phone: scan the QR, write as the owner or as someone else, read what was sent, read it on the
+// other side (receipts) and come online.
 import http from "node:http";
 import { fakeWhatsApp } from "../apps/core/src/channels/fake-whatsapp.test-support.ts";
 
@@ -22,12 +23,23 @@ if (port)
         raw += c;
       });
       req.on("end", () => {
-        const body = (raw ? JSON.parse(raw) : {}) as { from?: { phone: string; name: string }; text?: string };
+        const body = (raw ? JSON.parse(raw) : {}) as {
+          from?: { phone: string; name: string };
+          text?: string;
+          jid?: string;
+          status?: number;
+          online?: boolean;
+        };
         const url = new URL(req.url ?? "/", "http://x");
         let out: unknown = { ok: true };
         if (url.pathname === "/scan") wa.scan();
         else if (url.pathname === "/owner") wa.fromOwner(String(body.text ?? ""));
         else if (url.pathname === "/message" && body.from) wa.message(body.from, String(body.text ?? ""));
+        else if (url.pathname === "/receipt") {
+          const last = wa.sent.filter((x) => x.jid === body.jid).at(-1);
+          if (last) wa.receipt(last.id, Number(body.status ?? 3));
+        } else if (url.pathname === "/presence")
+          wa.presence(String(body.jid ?? ""), body.online ? "available" : "unavailable");
         else if (url.pathname === "/sent")
           out = { owner: wa.owner, sent: wa.textsTo(url.searchParams.get("jid") ?? "") };
         res.writeHead(200, { "content-type": "application/json" });

@@ -3,16 +3,16 @@ import { EmptyState, IconButton, Icons, ProjectTile, SearchField } from "@apx/ui
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatView } from "../chat/ChatView.tsx";
 import { shortWhen } from "../common/format.ts";
-import { loadChannels, useChannels } from "../data/channels.ts";
+import { loadChannels, loadPresence, type PresenceState, useChannels } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { SidePanel } from "../panel/SidePanel.tsx";
 import { go, nav, useNav } from "../shell/nav.ts";
 import { ChannelConversation } from "./ChannelConversation.tsx";
 import { ContactPanel } from "./ContactPanel.tsx";
+import { ContactRow, type Row } from "./ContactRow.tsx";
 import { KindTile } from "./KindIcon.tsx";
 import { isChannelKind } from "./kinds.ts";
-import { PersonAvatar } from "./PersonAvatar.tsx";
 import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
 
 export const RELATION_KEY: Record<NonNullable<Person["relation"]>, MessageKey> = {
@@ -34,7 +34,8 @@ export const initials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-type Row = { thread: Thread; person: Person | undefined };
+/** A saved contact picked before they have a chat: the list's selection names them instead of a chat. */
+export const PERSON_PICK = "person:";
 
 const ROOM_MODE_KEY: Record<RoomMode, MessageKey> = {
   always: "rooms.mode.always",
@@ -67,25 +68,47 @@ export function ChannelScreen() {
     return () => clearInterval(id);
   }, []);
   const channel = channels.find((c) => c.id === channelId);
+  // WhatsApp says who is online to a device that asks; it is asked again with the list.
+  const [presence, setPresence] = useState<Record<string, PresenceState>>({});
+  const watchPresence = channel?.type === "whatsapp" && channel.status === "running";
+  useEffect(() => {
+    setPresence({});
+    if (!watchPresence || !channelId) return;
+    let live = true;
+    const ask = () => void loadPresence(channelId).then((p) => live && setPresence(p));
+    ask();
+    const id = setInterval(ask, 5000);
+    return () => {
+      live = false;
+      clearInterval(id);
+    };
+  }, [watchPresence, channelId]);
 
   const rows: Row[] = useMemo(() => {
     const byId = new Map(persons.map((p) => [p.id, p]));
-    return Object.values(threads)
+    const chats = Object.values(threads)
       .filter((th) => {
         const pid = th.channel?.id === channelId ? th.channel?.person_id : undefined;
         return Boolean(pid) && byId.get(pid ?? "")?.role !== "owner";
       })
-      .map((th) => ({ thread: th, person: byId.get(th.channel?.person_id ?? "") }))
+      .map((th) => ({ key: th.id, thread: th, person: byId.get(th.channel?.person_id ?? "") }))
       .sort(
         (a, b) =>
           Number(a.person?.muted ?? false) - Number(b.person?.muted ?? false) ||
           b.thread.updated_at.localeCompare(a.thread.updated_at),
       );
+    // Saved contacts reachable here who have no chat yet go after the chats, by name.
+    const talked = new Set(chats.map((r) => r.person?.id));
+    const others = persons
+      .filter((p) => p.role === "contact" && !talked.has(p.id) && p.addresses.some((a) => a.channel === channelId))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((p) => ({ key: `${PERSON_PICK}${p.id}`, person: p }));
+    return [...chats, ...others];
   }, [threads, persons, channelId]);
   // A chat with someone not in the list yet (a contact just approved): fetch the contacts again, once per person.
   const asked = useRef(new Set<string>());
   useEffect(() => {
-    const unknown = rows.flatMap((r) => (r.person ? [] : [r.thread.channel?.person_id ?? ""]));
+    const unknown = rows.flatMap((r) => (r.person ? [] : [r.thread?.channel?.person_id ?? ""]));
     if (!unknown.some((id) => id && !asked.current.has(id))) return;
     for (const id of unknown) asked.current.add(id);
     void loadChannels();
@@ -93,7 +116,9 @@ export function ChannelScreen() {
   const shown = rows.filter(
     (r) =>
       !query ||
-      `${r.person?.name ?? r.thread.title} ${r.person?.nickname ?? ""}`.toLowerCase().includes(query.toLowerCase()),
+      `${r.person?.name ?? r.thread?.title ?? ""} ${r.person?.nickname ?? ""}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
   );
   // A room's chat is the one chat with no person behind it: everyone there writes into it.
   const rooms = useMemo(
@@ -105,7 +130,7 @@ export function ChannelScreen() {
   );
   const shownRooms = rooms.filter((th) => !query || th.title.toLowerCase().includes(query.toLowerCase()));
   const roomOpen = Boolean(picked) && rooms.some((th) => th.id === picked);
-  const current = rows.find((r) => r.thread.id === picked);
+  const current = rows.find((r) => r.key === picked);
   const waiting = pairing.filter((r) => r.channel === channelId);
   const linked = ownerOn(persons, channelId ?? "");
   const ownThread = useMemo(() => {
@@ -154,10 +179,13 @@ export function ChannelScreen() {
           ))}
           {shown.map((r) => (
             <ContactRow
-              key={r.thread.id}
+              key={r.key}
               row={r}
-              selected={r.thread.id === picked}
-              onPick={() => go.channel(channel.id, r.thread.id)}
+              type={channel.type}
+              channelId={channel.id}
+              presence={r.person ? presence[r.person.id] : undefined}
+              selected={r.key === picked}
+              onPick={() => go.channel(channel.id, r.key)}
             />
           ))}
           {query && !shown.length && !shownRooms.length && <li className="chan__nobody">{t("res.noMatch")}</li>}
@@ -171,8 +199,10 @@ export function ChannelScreen() {
       ) : current ? (
         <>
           <ChannelConversation
+            key={`chat:${current.person?.id ?? current.key}`}
             thread={current.thread}
             person={current.person}
+            presence={current.person ? presence[current.person.id] : undefined}
             channel={channel}
             card={card}
             onToggleCard={() => setCard((c) => !c)}
@@ -270,38 +300,6 @@ function RoomRow({
             {thread.unread > 0 && <span className="chan__unread">{thread.unread}</span>}
           </span>
           {mode && <span className="chan__rel">{t(ROOM_MODE_KEY[mode])}</span>}
-        </span>
-      </button>
-    </li>
-  );
-}
-
-function ContactRow({ row, selected, onPick }: { row: Row; selected: boolean; onPick(): void }) {
-  const t = useT();
-  const { thread, person } = row;
-  const name = person?.name ?? thread.title;
-  const relation = person?.relation ? t(RELATION_KEY[person.relation]) : undefined;
-  return (
-    <li>
-      <button
-        type="button"
-        className={`chan__row${selected ? " is-selected" : ""}${person?.muted ? " is-muted" : ""}${thread.unread ? " is-unread" : ""}`}
-        aria-current={selected || undefined}
-        onClick={onPick}
-      >
-        <PersonAvatar personId={person?.id} fallback={initials(name)} />
-        <span className="chan__rowmain">
-          <span className="chan__rowtop">
-            <span className="chan__rowname">{name}</span>
-            <span className="chan__rowtime">{shortWhen(thread.updated_at)}</span>
-          </span>
-          <span className="chan__rowtop">
-            <span className="chan__preview">{thread.preview}</span>
-            {thread.unread > 0 && <span className="chan__unread">{thread.unread}</span>}
-          </span>
-          <span className="chan__rel">
-            {[relation, person?.muted ? t("ch.muted") : undefined].filter(Boolean).join(" · ")}
-          </span>
         </span>
       </button>
     </li>

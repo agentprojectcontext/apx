@@ -735,6 +735,28 @@ export const appMethods = {
     effect: false,
     access: "human",
   },
+  /**
+   * A contact's chat on a channel, to write to them from the app: the one they have, or a new empty one (nothing is
+   * sent until someone writes in it).
+   */
+  "channels.open": {
+    params: z.object({ person: Id, channel: z.string().min(1).max(60) }).strict(),
+    result: Thread,
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Who of a channel's contacts is online, as far as the platform says (WhatsApp; those who hide it never show).
+   * Asking starts listening for them, so the first answer may be empty.
+   */
+  "channels.presence": {
+    params: z.object({ channel: z.string().min(1).max(60) }).strict(),
+    result: z.object({
+      people: z.array(z.object({ person_id: Id, online: z.boolean(), last_seen: z.string().optional() })),
+    }),
+    effect: false,
+    access: "human",
+  },
   /** iMessage on this Mac as agent tools (read recent messages, send one with the owner's OK); off until turned on. */
   "imessage.get": {
     params: z.object({}).strict(),

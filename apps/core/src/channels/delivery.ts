@@ -56,8 +56,10 @@ export function createDelivery(deps: {
   async function sendOne(o: OutboxRow): Promise<void> {
     const target = deps.target(o.channel);
     if (!target?.running) {
-      if (!deps.configured(o.channel)) store.channels.outbox.fail(o.id, "failed", "channel removed");
-      else store.channels.outbox.retry(o.id, new Date(Date.now() + NOT_RUNNING_RETRY_MS), "channel is not running");
+      if (!deps.configured(o.channel)) {
+        store.channels.outbox.fail(o.id, "failed", "channel removed");
+        if (o.message_id) store.messages.setDelivery(o.message_id, "failed");
+      } else store.channels.outbox.retry(o.id, new Date(Date.now() + NOT_RUNNING_RETRY_MS), "channel is not running");
       return;
     }
     if (!store.channels.outbox.claim(o.id)) return;
@@ -68,6 +70,7 @@ export function createDelivery(deps: {
       });
       const r = await target.adapter.send(o.conversation, o.body, files);
       store.channels.outbox.sent(o.id, r.external_id);
+      if (o.message_id) store.messages.setDelivery(o.message_id, "sent");
     } catch (err) {
       settleFailure(o, err);
     }
@@ -87,13 +90,20 @@ export function createDelivery(deps: {
     // An error we cannot classify may have happened after the platform took the message.
     const state = err instanceof SendError && err.kind === "fatal" ? "failed" : "uncertain";
     store.channels.outbox.fail(o.id, state, msg);
+    if (o.message_id) store.messages.setDelivery(o.message_id, "failed");
     log.warn({ channel: o.channel, outbox: o.id, err: msg, state }, "channel send did not go through");
   }
 
   return {
     enqueue(o: Parameters<Store["channels"]["outbox"]["add"]>[0]): void {
       store.channels.outbox.add(o);
+      if (o.message_id) store.messages.setDelivery(o.message_id, "pending");
       kick();
+    },
+    /** The platform says a sent message reached their device or was seen. */
+    receipt(channel: string, externalId: string, state: "delivered" | "read"): void {
+      const o = store.channels.outbox.byExternal(channel, externalId);
+      if (o?.message_id) store.messages.setDelivery(o.message_id, state);
     },
     kick,
     stop(): void {

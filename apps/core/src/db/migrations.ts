@@ -604,4 +604,10 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX threads_task ON threads(task_id) WHERE task_id IS NOT NULL;
   INSERT OR IGNORE INTO meta(key, value) VALUES ('setting:task_work_since', strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
   `,
+  `
+  -- How far a message sent on a channel got (sent, delivered, read), from its outbox items and the platform's receipts.
+  ALTER TABLE messages ADD COLUMN delivery TEXT;
+  ALTER TABLE outbox ADD COLUMN message_id TEXT;
+  CREATE INDEX outbox_external ON outbox(channel, external_id) WHERE external_id IS NOT NULL;
+  `,
 ];

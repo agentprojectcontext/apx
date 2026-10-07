@@ -28,6 +28,10 @@ export type WaSocket = {
   end(err?: Error): void;
   /** Where someone's profile picture is (none when they hide it). */
   profilePictureUrl?(jid: string, type: "image" | "preview"): Promise<string | undefined>;
+  /** Asks to hear when someone comes online or leaves (until the connection closes). */
+  presenceSubscribe?(jid: string): Promise<void>;
+  /** A private id's phone number, when WhatsApp told it. */
+  signalRepository?: { lidMapping?: { getPNForLID?(lid: string): Promise<string | null | undefined> } };
 };
 export type WaKey = {
   id?: string | null;
@@ -48,6 +52,9 @@ export type WaContent = {
   viewOnceMessageV2?: { message?: WaContent | null } | null;
 };
 export type WaMessage = { key: WaKey; pushName?: string | null; message?: WaContent | null };
+/** A send of ours moving on: 3 on their device, 4 read, 5 a voice note played. */
+type WaUpdate = { key: WaKey; update: { status?: number | null } };
+type WaPresence = { id: string; presences: Record<string, { lastKnownPresence?: string; lastSeen?: number }> };
 type ConnectionUpdate = {
   connection?: "open" | "close" | "connecting";
   qr?: string;
@@ -167,6 +174,9 @@ export function whatsappAdapter(opts: {
   const ownSends = new Set<string>();
   /** The numbered options last offered in each conversation (WhatsApp has no buttons). */
   const offered = new Map<string, Array<{ id: string; label: string }>>();
+  /** Who is online, by phone address; and the addresses asked about on this connection. */
+  const seen = new Map<string, { online: boolean; last_seen?: string }>();
+  const watching = new Set<string>();
 
   const hasCreds = () => fs.existsSync(path.join(dir, "creds.json"));
   const remember = (id: string | null | undefined) => {
@@ -205,6 +215,29 @@ export function whatsappAdapter(opts: {
       if (up.type !== "notify" || s !== sock) return;
       for (const m of up.messages) void onMessage(m).catch(() => {});
     }) as (arg: never) => void);
+    s.ev.on("messages.update", ((ups: WaUpdate[]) => {
+      if (s !== sock) return;
+      for (const u of ups) {
+        const state = u.update.status === 3 ? "delivered" : (u.update.status ?? 0) >= 4 ? "read" : undefined;
+        if (u.key.fromMe && u.key.id && state) io?.receipt?.(u.key.id, state);
+      }
+    }) as (arg: never) => void);
+    s.ev.on("presence.update", ((p: WaPresence) => {
+      if (s === sock) void onPresence(s, p).catch(() => {});
+    }) as (arg: never) => void);
+  }
+
+  async function onPresence(s: WaSocket, p: WaPresence): Promise<void> {
+    for (const [jid, v] of Object.entries(p.presences)) {
+      let who = normalJid(jid);
+      if (who.endsWith("@lid")) who = normalJid(await s.signalRepository?.lidMapping?.getPNForLID?.(who)) || who;
+      if (!v.lastKnownPresence) continue;
+      // Typing or recording is being there too.
+      const online = v.lastKnownPresence !== "unavailable";
+      const was = seen.get(who);
+      const last = v.lastSeen ? new Date(v.lastSeen * 1000).toISOString() : online ? undefined : was?.last_seen;
+      seen.set(who, { online, ...(last ? { last_seen: last } : {}) });
+    }
   }
 
   function onConnection(s: WaSocket, u: ConnectionUpdate): void {
@@ -212,6 +245,8 @@ export function whatsappAdapter(opts: {
     if (u.qr) io.qr?.(u.qr);
     if (u.connection === "open") {
       io.qr?.(undefined);
+      // A new connection hears nobody until asked again.
+      watching.clear();
       attempts = 0;
       qrRounds = 0;
       me = { pn: normalJid(s.user?.id), lid: normalJid(s.user?.lid) };
@@ -392,6 +427,21 @@ export function whatsappAdapter(opts: {
     },
     async typing(conversation) {
       await sock?.sendPresenceUpdate("composing", conversation);
+    },
+    presence(ids) {
+      const s = sock;
+      if (s?.presenceSubscribe && me)
+        for (const id of ids)
+          if (!watching.has(id)) {
+            watching.add(id);
+            void s.presenceSubscribe(id).catch(() => watching.delete(id));
+          }
+      return Object.fromEntries(
+        ids.flatMap((id) => {
+          const p = seen.get(id);
+          return p ? [[id, p]] : [];
+        }),
+      );
     },
   };
 }

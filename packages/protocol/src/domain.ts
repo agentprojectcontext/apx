@@ -401,6 +401,8 @@ export const Part = z.preprocess((v) => {
 }, KnownPart);
 export type Part = z.infer<typeof KnownPart>;
 
+export const MessageDelivery = z.enum(["pending", "sent", "delivered", "read", "failed"]);
+export type MessageDelivery = z.infer<typeof MessageDelivery>;
 export const Message = z.object({
   id: Id,
   thread_id: Id,
@@ -409,6 +411,8 @@ export const Message = z.object({
   parts: z.array(Part),
   run_id: Id.optional(),
   model: z.string().optional(),
+  /** Sent on a channel: queued, taken by the platform, on their device, seen by them, or not sent. */
+  delivery: MessageDelivery.optional(),
   created_at: z.string(),
 });
 export type Message = z.infer<typeof Message>;

@@ -141,6 +141,55 @@ test("a stranger gets nothing from the owner's number; approved, they get answer
   );
 });
 
+test("what is sent to a contact shows how far it got: sent, then on their phone, then read", async () => {
+  const { threads } = await env.client.call("threads.list", {});
+  const ana = threads.find((t) => t.channel?.id === "whatsapp" && t.title === "Ana");
+  assert.ok(ana, "Ana's chat");
+  const last = async () => (await env.client.call("threads.get", { thread: ana.id })).messages.at(-1);
+  await until(async () => (await last())?.delivery === "sent", "taken by WhatsApp");
+  const out = wa.sent.filter((x) => x.jid === ANA.phone).at(-1);
+  wa.receipt(out?.id ?? "", 3);
+  await until(async () => (await last())?.delivery === "delivered", "on their phone");
+  wa.receipt(out?.id ?? "", 4);
+  await until(async () => (await last())?.delivery === "read", "read");
+  wa.receipt(out?.id ?? "", 3);
+  await new Promise((r) => setTimeout(r, 50));
+  assert.equal((await last())?.delivery, "read", "a late receipt never moves it back");
+});
+
+test("who of the contacts is online: asking starts listening, WhatsApp's word fills it in", async () => {
+  assert.deepEqual((await env.client.call("channels.presence", { channel: "whatsapp" })).people, []);
+  assert.ok(wa.watched.has(ANA.phone), "subscribed to Ana");
+  wa.presence(ANA.phone, "available");
+  const ana = (await env.client.call("contacts.list", {})).persons.find((p) => p.name === "Ana");
+  await until(
+    async () =>
+      (await env.client.call("channels.presence", { channel: "whatsapp" })).people.some(
+        (p) => p.person_id === ana?.id && p.online,
+      ),
+    "online",
+  );
+  wa.presence(ANA.phone, "unavailable", 1_790_000_000);
+  await until(async () => {
+    const p = (await env.client.call("channels.presence", { channel: "whatsapp" })).people[0];
+    return p?.online === false && p.last_seen === new Date(1_790_000_000_000).toISOString();
+  }, "gone, last seen");
+});
+
+test("a saved contact with no chat yet gets an empty one, and the agent writes to them from it", async () => {
+  const carla = await env.client.call("contacts.set", { name: "Carla" });
+  await env.client.call("contacts.address", { channel: "whatsapp", address: "+54 9 11 0000-0004", person: carla.id });
+  const thread = await env.client.call("channels.open", { person: carla.id, channel: "whatsapp" });
+  assert.equal(thread.channel?.person_id, carla.id);
+  assert.equal((await env.client.call("threads.get", { thread: thread.id })).messages.length, 0, "nothing sent yet");
+  assert.equal((await env.client.call("channels.open", { person: carla.id, channel: "whatsapp" })).id, thread.id);
+  await env.client.call("threads.send", { thread: thread.id, text: "say hi to Carla" });
+  await until(
+    () => wa.textsTo("5491100000004@s.whatsapp.net").some((t) => t.includes("say hi to Carla")),
+    "the agent's words reach Carla",
+  );
+});
+
 test("someone under their private id is the same person as their number", async () => {
   wa.message(BOB, "hello");
   await until(async () => (await env.client.call("pairing.list", {})).requests.some((r) => r.name === "Bob"), "listed");

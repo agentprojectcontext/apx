@@ -1,6 +1,6 @@
 // Threads, what was said in them (messages, for people) and what the model saw (model_log, for the model).
 // Two projections of one conversation: the UI never reads the model log and the model never reads display parts.
-import type { Author, Message, ModelChoice, Part, Thread } from "@apx/protocol";
+import type { Author, Message, MessageDelivery, ModelChoice, Part, Thread } from "@apx/protocol";
 import type { Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 import type { Bus } from "../bus.ts";
@@ -57,8 +57,12 @@ const toMessage = (r: Selectable<MessagesTable>): Message => ({
   parts: JSON.parse(r.parts) as Part[],
   ...opt("run_id", r.run_id),
   ...opt("model", r.model),
+  ...(r.delivery ? { delivery: r.delivery as MessageDelivery } : {}),
   created_at: r.created_at,
 });
+
+/** A receipt never moves a message back (a late "delivered" after "read"); a failure only replaces what never left. */
+const DELIVERY_RANK: Record<MessageDelivery, number> = { pending: 0, failed: 1, sent: 2, delivered: 3, read: 4 };
 
 /** A summary that stands for the model log up to `upto`: a new epoch of the thread's context (engine/upkeep.ts). */
 export type Epoch = { upto: number; summary: string; untrusted: boolean; runs: number; at: string };
@@ -479,8 +483,11 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
           .set({ parts: JSON.stringify(message.parts), model: message.model ?? null })
           .where("id", "=", message.id),
       );
-      bus.emit({ type: "message.updated", message });
-      return message;
+      // How far it got is the outbox's to say: a rewrite of its words keeps it.
+      const stored = repo.get(message.id)?.delivery;
+      const out = stored ? { ...message, delivery: stored } : message;
+      bus.emit({ type: "message.updated", message: out });
+      return out;
     },
     /** Takes out the thread's messages from `seq` on; returns the runs that wrote them. */
     cutFrom(threadId: string, seq: number): string[] {
@@ -505,6 +512,15 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
           at: m.created_at,
           quiet: true,
         });
+    },
+    /** How far a message sent on a channel got; announced when it moves forward. */
+    setDelivery(id: string, state: MessageDelivery): void {
+      const was = repo.get(id);
+      if (!was) return;
+      const before = was.delivery ? DELIVERY_RANK[was.delivery] : -1;
+      if (DELIVERY_RANK[state] <= before) return;
+      run(qb.updateTable("messages").set({ delivery: state }).where("id", "=", id));
+      bus.emit({ type: "message.updated", message: { ...was, delivery: state } });
     },
     /** Stores the parts and announces only the one that changed. */
     setPart(message: Message, index: number): void {

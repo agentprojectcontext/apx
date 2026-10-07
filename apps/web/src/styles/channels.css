@@ -292,6 +292,72 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-2xs);
 }
+.chan__rel:empty {
+  flex: 1;
+}
+/* What is set for a contact: small marks at the end of their row. */
+.chan__flags {
+  display: inline-flex;
+  flex: none;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--apx-fg-subtle);
+}
+.chan__flag {
+  display: inline-grid;
+  place-items: center;
+}
+/* A face with a dot while they are online. */
+.chan__face {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+}
+.chan__presence {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--apx-bg);
+  border-radius: 50%;
+  background: var(--apx-brand);
+}
+/* The name in a chat's header opens their card. */
+.chan__who {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 4px 6px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.chan__who:hover {
+  background: var(--apx-fill-hover);
+}
+.chan__who .chan__name,
+.chan__who .chan__meta {
+  display: block;
+}
+.chan__ticks {
+  display: inline-flex;
+  margin-left: 4px;
+  vertical-align: -2px;
+}
+.chan__ticks.is-read {
+  color: var(--apx-info);
+}
+.chan__ticks.is-failed {
+  color: var(--apx-danger);
+}
 .chan__nobody {
   padding: 12px;
   color: var(--apx-fg-subtle);

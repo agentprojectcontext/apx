@@ -48,7 +48,7 @@ export type Presentation = {
 };
 
 export type InboxRow = { id: string; channel: string; payload: Inbound; state: string };
-export type OutboxRow = OutboxItem & { body: Presentation; next_at: string; external_id?: string };
+export type OutboxRow = OutboxItem & { body: Presentation; next_at: string; external_id?: string; message_id?: string };
 
 const toOut = (r: Selectable<OutboxTable>): OutboxRow => {
   const body = JSON.parse(r.body) as Presentation;
@@ -64,13 +64,15 @@ const toOut = (r: Selectable<OutboxTable>): OutboxRow => {
     attempts: r.attempts,
     ...opt("error", r.error),
     ...opt("external_id", r.external_id),
+    ...opt("message_id", r.message_id),
     next_at: r.next_at,
     created_at: r.created_at,
     updated_at: r.updated_at,
   };
 };
 
-export const publicOutbox = ({ body: _b, next_at: _n, external_id: _e, ...o }: OutboxRow): OutboxItem => o;
+export const publicOutbox = ({ body: _b, next_at: _n, external_id: _e, message_id: _m, ...o }: OutboxRow): OutboxItem =>
+  o;
 
 const PAIRING_TTL_MS = 24 * 3600_000;
 
@@ -123,6 +125,8 @@ export function channelsRepo({ one, all, run }: Sql) {
         channel: string;
         conversation: string;
         thread_id?: string | undefined;
+        /** The chat message this sends: it follows how far the send got. */
+        message_id?: string | undefined;
         kind: OutboxItem["kind"];
         body: Presentation;
         at?: Date | undefined;
@@ -135,6 +139,7 @@ export function channelsRepo({ one, all, run }: Sql) {
             channel: o.channel,
             conversation: o.conversation,
             thread_id: o.thread_id ?? null,
+            message_id: o.message_id ?? null,
             kind: o.kind,
             body: JSON.stringify(o.body),
             state: "queued",
@@ -211,12 +216,26 @@ export function channelsRepo({ one, all, run }: Sql) {
       },
       /** Boot: a send cut by a restart may or may not have reached the platform. */
       reconcile(): number {
+        run(
+          qb
+            .updateTable("messages")
+            .set({ delivery: "failed" })
+            .where("delivery", "=", "pending")
+            .where("id", "in", qb.selectFrom("outbox").select("message_id").where("state", "=", "sending")),
+        );
         return run(
           qb
             .updateTable("outbox")
             .set({ state: "uncertain", error: "cut by a restart while sending", updated_at: now() })
             .where("state", "=", "sending"),
         );
+      },
+      /** What was sent as this platform message (a receipt names it). */
+      byExternal(channel: string, externalId: string): OutboxRow | undefined {
+        const r = one(
+          qb.selectFrom("outbox").selectAll().where("channel", "=", channel).where("external_id", "=", externalId),
+        );
+        return r ? toOut(r) : undefined;
       },
       recent(limit: number): OutboxRow[] {
         return all(qb.selectFrom("outbox").selectAll().orderBy("created_at", "desc").limit(limit)).map(toOut);

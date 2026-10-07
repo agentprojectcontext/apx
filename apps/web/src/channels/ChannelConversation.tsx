@@ -1,22 +1,25 @@
-import type { ChannelInfo, Message, Person, Thread } from "@apx/protocol";
-import { Button, IconButton, Icons, SegmentedControl, Skeleton, Textarea } from "@apx/ui";
-import { useEffect, useRef, useState } from "react";
+import type { ChannelInfo, Message, MessageDelivery, Person, Thread } from "@apx/protocol";
+import { Button, EmptyState, IconButton, Icons, SegmentedControl, Skeleton, Textarea, Tooltip } from "@apx/ui";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { loadThread, markRead, send } from "../data/actions.ts";
-import { sendDirect } from "../data/channels.ts";
+import { openContactChat, type PresenceState, sendDirect } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
-import { useT } from "../i18n/index.ts";
-import { initials, RELATION_KEY } from "./ChannelScreen.tsx";
-import { PersonAvatar } from "./PersonAvatar.tsx";
+import { type MessageKey, useT } from "../i18n/index.ts";
+import { go } from "../shell/nav.ts";
+import { RELATION_KEY } from "./ChannelScreen.tsx";
+import { addressText, ContactFace } from "./ContactRow.tsx";
 
 /**
  * The chat with one contact. Their words on the left; what was sent to them (by the agent or by the owner) on the
- * right; what the agent did (a request it passed on) as a quiet note in the middle. Below, the owner picks: tell the
- * agent what to answer, or write to them directly.
+ * right, with how far it got; what the agent did (a request it passed on) as a quiet note in the middle. Below, the
+ * owner picks: tell the agent what to answer, or write to them directly. A saved contact with no chat yet shows an
+ * empty one: the first words make it.
  */
 export function ChannelConversation(props: {
-  thread: Thread;
+  thread: Thread | undefined;
   person: Person | undefined;
+  presence: PresenceState | undefined;
   channel: ChannelInfo;
   card: boolean;
   onToggleCard(): void;
@@ -24,22 +27,23 @@ export function ChannelConversation(props: {
 }) {
   const t = useT();
   const { thread, person, channel } = props;
-  const messages = useData((s) => s.messages[thread.id]);
-  const load = useData((s) => s.threadLoad[thread.id]);
+  const threadId = thread?.id ?? "";
+  const messages = useData((s) => s.messages[threadId]);
+  const load = useData((s) => s.threadLoad[threadId]);
   const agent = useData((s) => s.agents[channel.agent_id]);
   const [mode, setMode] = useState("agent");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const end = useRef<HTMLDivElement>(null);
-  const name = person?.name ?? thread.title;
+  const name = person?.name ?? thread?.title ?? "";
   const agentName = agent?.name ?? channel.agent_id;
 
   useEffect(() => {
-    if (load == null) void loadThread(thread.id);
-  }, [load, thread.id]);
+    if (threadId && load == null) void loadThread(threadId);
+  }, [load, threadId]);
   useEffect(() => {
-    if (thread.unread > 0 && load === "ready") void markRead(thread.id);
-  }, [thread.id, thread.unread, load]);
+    if (thread && thread.unread > 0 && load === "ready") void markRead(thread.id);
+  }, [thread, load]);
   const count = messages?.length ?? 0;
   useEffect(() => {
     if (count) end.current?.scrollIntoView({ block: "end" });
@@ -49,13 +53,39 @@ export function ChannelConversation(props: {
     const words = text.trim();
     if (!words) return;
     setBusy(true);
-    let ok = true;
-    if (mode === "me") ok = await sendDirect(thread.id, words);
-    else await send(thread.id, words);
+    let id = thread?.id;
+    // A contact with no chat yet: it is made now, and the list picks it.
+    if (!id && person) {
+      id = (await openContactChat(person.id, channel.id))?.id;
+      if (id) go.channel(channel.id, id);
+    }
+    let ok = Boolean(id);
+    if (id && mode === "me") ok = await sendDirect(id, words);
+    else if (id) await send(id, words);
     setBusy(false);
     if (ok) setText("");
-    if (mode === "me") void loadThread(thread.id);
+    if (id && mode === "me") void loadThread(id);
   };
+  const empty = !thread || (load === "ready" && !count);
+  const first = empty && mode === "agent";
+  const writeLabel =
+    mode === "me"
+      ? t("ch.writeMe", { name })
+      : t(first ? "ch.writeAgentFirst" : "ch.writeAgent", { agent: agentName, name });
+  const hint =
+    mode === "me"
+      ? t("ch.hint.me", { name })
+      : t(first ? "ch.hint.agentFirst" : "ch.hint.agent", { agent: agentName, name });
+  const meta = [
+    props.presence?.online
+      ? t("ch.online")
+      : props.presence?.last_seen
+        ? t("ch.lastSeen", { when: shortWhen(props.presence.last_seen) })
+        : undefined,
+    person?.nickname,
+    person?.relation ? t(RELATION_KEY[person.relation]) : undefined,
+  ].filter(Boolean);
+  const address = addressText(channel.type, person, channel.id);
 
   return (
     <section className="chan__chat" aria-label={name}>
@@ -67,15 +97,19 @@ export function ChannelConversation(props: {
           icon={<Icons.ArrowLeft size={14} />}
           onClick={props.onBack}
         />
-        <PersonAvatar personId={person?.id} fallback={initials(name)} />
-        <div className="chan__titles">
-          <div className="chan__name">{name}</div>
-          <div className="chan__meta">
-            {[person?.nickname, person?.relation ? t(RELATION_KEY[person.relation]) : undefined]
-              .filter(Boolean)
-              .join(" · ")}
-          </div>
-        </div>
+        <button
+          type="button"
+          className="chan__who"
+          aria-label={t("ch.openContact", { name })}
+          aria-expanded={props.card}
+          onClick={props.onToggleCard}
+        >
+          <ContactFace person={person} name={name} presence={props.presence} />
+          <span className="chan__titles">
+            <span className="chan__name">{name}</span>
+            <span className="chan__meta">{meta.join(" · ")}</span>
+          </span>
+        </button>
         <Button
           size="sm"
           variant={props.card ? "secondary" : "ghost"}
@@ -86,7 +120,13 @@ export function ChannelConversation(props: {
         </Button>
       </header>
       <div className="chan__msgs">
-        {load !== "ready" && !messages ? (
+        {empty ? (
+          <div className="chan__pick">
+            <EmptyState variant="dashed" icon={<Icons.MessageCircle />} title={t("ch.empty.title", { name })}>
+              {[address, t("ch.empty.body", { agent: agentName, name })].filter(Boolean).join(" · ")}
+            </EmptyState>
+          </div>
+        ) : load !== "ready" && !messages ? (
           <Skeleton height={120} />
         ) : (
           (messages ?? []).map((m) => <Bubble key={m.id} m={m} agentName={agentName} />)
@@ -95,8 +135,8 @@ export function ChannelConversation(props: {
       </div>
       <div className="chan__composer">
         <Textarea
-          aria-label={mode === "me" ? t("ch.writeMe", { name }) : t("ch.writeAgent", { agent: agentName, name })}
-          placeholder={mode === "me" ? t("ch.writeMe", { name }) : t("ch.writeAgent", { agent: agentName, name })}
+          aria-label={writeLabel}
+          placeholder={writeLabel}
           rows={2}
           value={text}
           onChange={(e) => setText(e.currentTarget.value)}
@@ -128,9 +168,7 @@ export function ChannelConversation(props: {
             onClick={() => void submit()}
           />
         </div>
-        <p className="chan__hint">
-          {mode === "me" ? t("ch.hint.me", { name }) : t("ch.hint.agent", { agent: agentName, name })}
-        </p>
+        <p className="chan__hint">{hint}</p>
       </div>
     </section>
   );
@@ -164,9 +202,33 @@ function Bubble({ m, agentName }: { m: Message; agentName: string }) {
       {words && (
         <div className={`chan__bubble${out ? " is-out" : ""}${instruction ? " is-instruction" : ""}`}>
           <p className="chan__text">{words}</p>
-          <span className="chan__when">{[who, shortWhen(m.created_at)].filter(Boolean).join(" · ")}</span>
+          <span className="chan__when">
+            {[who, shortWhen(m.created_at)].filter(Boolean).join(" · ")}
+            {out && !instruction && m.delivery && <Ticks state={m.delivery} />}
+          </span>
         </div>
       )}
     </>
+  );
+}
+
+const TICKS: Record<MessageDelivery, { icon: ReactNode; label: MessageKey }> = {
+  pending: { icon: <Icons.Clock size={12} />, label: "ch.delivery.pending" },
+  sent: { icon: <Icons.Check size={12} />, label: "ch.delivery.sent" },
+  delivered: { icon: <Icons.CheckCheck size={12} />, label: "ch.delivery.delivered" },
+  read: { icon: <Icons.CheckCheck size={12} />, label: "ch.delivery.read" },
+  failed: { icon: <Icons.TriangleAlert size={12} />, label: "ch.delivery.failed" },
+};
+
+/** How far a message sent to them got: queued, sent, on their phone, read (where the channel tells), or not sent. */
+function Ticks({ state }: { state: MessageDelivery }) {
+  const t = useT();
+  const tick = TICKS[state];
+  return (
+    <Tooltip content={t(tick.label)}>
+      <span className={`chan__ticks is-${state}`} role="img" aria-label={t(tick.label)}>
+        {tick.icon}
+      </span>
+    </Tooltip>
   );
 }

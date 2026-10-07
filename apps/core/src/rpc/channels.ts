@@ -38,6 +38,15 @@ export function channelHandlers(store: Store, channels: Channels) {
         throw badRequest(errorMessage(err));
       }
     },
+    "channels.open": ({ person, channel }) => {
+      if (!store.persons.get(person)) throw notFound(`person ${person}`);
+      try {
+        return channels.openChat(person, channel);
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+    },
+    "channels.presence": ({ channel }) => ({ people: channels.presence(channel) }),
     "channels.outbox": ({ limit }) => ({
       items: store.channels.outbox.recent(limit).map(publicOutbox),
     }),

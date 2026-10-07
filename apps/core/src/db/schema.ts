@@ -144,6 +144,7 @@ export interface MessagesTable {
   run_id: string | null;
   model: string | null;
   created_at: string;
+  delivery: string | null;
 }
 
 export interface MessagesNTable {
@@ -205,6 +206,7 @@ export interface OutboxTable {
   next_at: string;
   created_at: string;
   updated_at: string;
+  message_id: string | null;
 }
 
 export interface PairingTable {
