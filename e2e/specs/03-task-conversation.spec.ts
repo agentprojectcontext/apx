@@ -69,6 +69,14 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     // The description reads like editable text, not a disabled field.
     const colorOf = (el: Element) => getComputedStyle(el).color;
     expect(await description.evaluate(colorOf)).toBe(await drawer.locator(".drawer__title").evaluate(colorOf));
+    // The "?" after the column says what each column is for, and Escape closes only that.
+    await drawer.getByRole("button", { name: "Sobre las columnas" }).click();
+    await expect(page.getByRole("dialog", { name: "Sobre las columnas" })).toContainText(
+      "Decidida: es lo próximo a hacer.",
+    );
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog", { name: "Sobre las columnas" })).toHaveCount(0);
+    await expect(drawer).toBeVisible();
     await drawer.getByRole("combobox", { name: "Agente", exact: true }).click();
     await expect(page.getByRole("option")).toHaveText(["Nadie", /^Roby/, "Builder"]);
     await page

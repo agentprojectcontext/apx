@@ -250,6 +250,20 @@
   background: var(--apx-violet);
 }
 
+/* A "?" after a title or a label, and the column dots inside its panel. */
+.taskhelp__title {
+  margin-left: 6px;
+}
+.taskhelp__term {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.taskprops__label .apx-help,
+.taskdetail__bar .apx-help {
+  margin-left: 4px;
+}
+
 /* Task panel: properties as label · value rows, then what it is about and its conversation or history */
 .drawer.taskpanel {
   overflow: hidden;

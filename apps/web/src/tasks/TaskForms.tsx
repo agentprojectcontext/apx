@@ -1,11 +1,11 @@
 import type { TaskColumn, TaskKind, TaskPriority } from "@apx/protocol";
-import { Button, Dialog, Field, Input, TagInput, Textarea } from "@apx/ui";
+import { Button, Dialog, Field, Help, Input, TagInput, Textarea } from "@apx/ui";
 import { useState } from "react";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
 import { realProjectId } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
-import { createTask } from "../data/tasks.ts";
+import { createTask, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
 import { DueField, KindControl, OwedByControl, PersonSelect, PrioritySelect, ReminderField } from "./TaskFields.tsx";
 import { type Reminder, remindAt } from "./when.ts";
@@ -34,6 +34,49 @@ const KIND_HINT: Record<TaskKind, MessageKey> = {
   commitment: "tasks.type.commitmentHint",
   errand: "tasks.type.errandHint",
 };
+
+const COLUMN_HELP: Record<string, MessageKey> = {
+  backlog: "tasks.help.col.backlog",
+  todo: "tasks.help.col.todo",
+  doing: "tasks.help.col.doing",
+  review: "tasks.help.col.review",
+};
+
+/** What each column of the board means, the owner's own ones included. */
+export function ColumnHelp() {
+  const t = useT();
+  const columns = useTasks((s) => s.columns);
+  return (
+    <Help
+      label={t("tasks.help.columns")}
+      title={t("tasks.help.columnsTitle")}
+      items={columns.map((c) => ({
+        term: (
+          <span className="taskhelp__term">
+            <ColumnDot id={c.id} />
+            {columnLabel(c, t)}
+          </span>
+        ),
+        text: t(COLUMN_HELP[c.id] ?? "tasks.help.col.custom"),
+      }))}
+    >
+      {t("tasks.help.columnsMore")}
+    </Help>
+  );
+}
+
+/** When to make a task, a commitment or an errand. */
+export function KindHelp() {
+  const t = useT();
+  const kinds: TaskKind[] = ["task", "commitment", "errand"];
+  return (
+    <Help
+      label={t("tasks.help.types")}
+      title={t("tasks.help.typesTitle")}
+      items={kinds.map((k) => ({ term: t(`tasks.type.${k}`), text: t(KIND_HINT[k]) }))}
+    />
+  );
+}
 
 export function NewTask({ projectId, onClose }: { projectId?: string | undefined; onClose: () => void }) {
   const t = useT();

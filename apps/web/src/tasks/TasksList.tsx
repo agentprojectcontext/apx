@@ -1,5 +1,15 @@
 import type { Run, Task } from "@apx/protocol";
-import { AgentAvatar, Button, ContextMenu, EmptyState, Icons, ProjectTile, SegmentedControl, Spinner } from "@apx/ui";
+import {
+  AgentAvatar,
+  Button,
+  ContextMenu,
+  EmptyState,
+  Help,
+  Icons,
+  ProjectTile,
+  SegmentedControl,
+  Spinner,
+} from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { dueLabel, shortWhen } from "../common/format.ts";
 import { useLongPressDrag } from "../common/useLongPressDrag.ts";
@@ -25,6 +35,19 @@ const GROUP_LABEL: Record<GroupId, MessageKey> = {
   blocked: "tasks.group.blocked",
   closed: "tasks.group.closed",
 };
+
+/** What puts a task in each group of the list. */
+export function GroupsHelp() {
+  const t = useT();
+  return (
+    <Help
+      label={t("tasks.help.groups")}
+      title={t("tasks.help.groupsTitle")}
+      className="taskhelp__title"
+      items={GROUP_ORDER.map((g) => ({ term: t(GROUP_LABEL[g]), text: t(`tasks.help.group.${g}`) }))}
+    />
+  );
+}
 
 type Kind = "all" | "task" | "commitment" | "errand";
 const FILTERS: readonly Kind[] = ["all", "task", "commitment", "errand"];

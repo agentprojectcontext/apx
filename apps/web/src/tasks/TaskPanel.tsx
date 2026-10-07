@@ -25,7 +25,7 @@ import {
   PrioritySelect,
   ReminderField,
 } from "./TaskFields.tsx";
-import { ColumnDot, columnLabel } from "./TaskForms.tsx";
+import { ColumnDot, ColumnHelp, columnLabel, KindHelp } from "./TaskForms.tsx";
 import { pickerValue, type Reminder, remindAt, reminderOf } from "./when.ts";
 
 /**
@@ -139,6 +139,7 @@ function StateBar({ task }: { task: Task }) {
         onValueChange={(v) => v && v !== task.status && void updateTask(task.id, { status: v, awaits_owner: false })}
         options={columns.map((c) => ({ value: c.id, label: columnLabel(c, t), icon: <ColumnDot id={c.id} /> }))}
       />
+      <ColumnHelp />
       <span className="board__spacer" />
       {task.kind === "commitment" ? (
         <CommitmentActions task={task} />
@@ -218,7 +219,7 @@ function Properties({ task }: { task: Task }) {
   };
   return (
     <dl className="taskprops">
-      <Prop label={t("tasks.type")}>
+      <Prop label={t("tasks.type")} help={<KindHelp />}>
         <KindControl value={task.kind} onChange={(kind) => void updateTask(task.id, { kind })} />
       </Prop>
       {task.kind === "commitment" && (
@@ -285,10 +286,13 @@ function Properties({ task }: { task: Task }) {
   );
 }
 
-function Prop({ label, children }: { label: string; children: ReactNode }) {
+function Prop({ label, help, children }: { label: string; help?: ReactNode; children: ReactNode }) {
   return (
     <>
-      <dt className="taskprops__label">{label}</dt>
+      <dt className="taskprops__label">
+        {label}
+        {help}
+      </dt>
       <dd className="taskprops__value">{children}</dd>
     </>
   );
