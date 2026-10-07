@@ -29,7 +29,6 @@ import { attachmentsBlock } from "./attachments.ts";
 import { type Audience, audienceOf, contactPrompt, ownerInstruction, roomInput, roomPrompt } from "./audience.ts";
 import { gitChanges } from "./changes.ts";
 import {
-  channelsLine,
   HISTORY_BUDGET_CHARS,
   type ProjectBrief,
   project,
@@ -271,7 +270,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
     ? { items: [] as ChatItem[], from: 0 }
     : project(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction);
   const { items: history, from } = projected;
-  const roster = rosterBlock(agent, store.agents.list(), thread, channelsLine(store.settings.read("channels")));
+  const roster = rosterBlock(agent, store.agents.list(), thread);
   // A worker delegates to no one: it needs no roster.
   const rosterChanged =
     !sealed && !turn.worker && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);

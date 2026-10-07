@@ -38,6 +38,7 @@ import {
   ProjectKind,
   ProviderInfo,
   ProviderTransport,
+  RoomMode,
   RouterConfig,
   Run,
   ServiceInfo,
@@ -665,6 +666,25 @@ export const appMethods = {
     result: z.object({ channels: z.array(ChannelInfo) }),
     effect: false,
     access: "human",
+  },
+  /**
+   * The channels as an agent sees them: each app APX talks through, whether it is up, and the rooms (shared places such
+   * as a Discord #channel) it reads. No tokens, accounts or QR. Open to agents; people are in `contacts.list`.
+   */
+  "channels.overview": {
+    params: z.object({}).strict(),
+    result: z.object({
+      channels: z.array(
+        z.object({
+          id: z.string(),
+          type: ChannelType,
+          label: z.string(),
+          status: ChannelInfo.shape.status,
+          rooms: z.array(z.object({ name: z.string(), mode: RoomMode })),
+        }),
+      ),
+    }),
+    effect: false,
   },
   /**
    * Adds, changes or (null) removes a channel. `token` goes to the secret store and never comes back; the channel is

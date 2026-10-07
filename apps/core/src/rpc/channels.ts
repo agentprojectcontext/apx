@@ -14,6 +14,19 @@ import type { Handlers } from "./router.ts";
 export function channelHandlers(store: Store, channels: Channels) {
   return {
     "channels.list": () => ({ channels: channels.info() }),
+    // Open to agents: what channel_list shows. Disabled channels are not there for them.
+    "channels.overview": () => ({
+      channels: channels
+        .info()
+        .filter((c) => c.enabled)
+        .map((c) => ({
+          id: c.id,
+          type: c.type,
+          label: c.label,
+          status: c.status,
+          rooms: (c.rooms?.rooms ?? []).map((r) => ({ name: r.name || r.id, mode: r.mode })),
+        })),
+    }),
     "channels.set": async ({ id, channel, token }) => {
       if (channel && !store.agents.get(channel.agent_id)) throw notFound(`agent ${channel.agent_id}`);
       if (channel?.type === "telegram" && !token && !channels.info().find((c) => c.id === id)?.token_set)

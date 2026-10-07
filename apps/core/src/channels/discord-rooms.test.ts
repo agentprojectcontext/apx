@@ -16,6 +16,7 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 160)}`);
   if (said.includes("post the release note"))
     return callTool("p1", "message_contact", { to: "#logs", text: "v2.1 is out @everyone" });
+  if (said.includes("which channels")) return callTool("l1", "channel_list", {});
   if (said.includes("post in a room that is not there"))
     return callTool("p2", "message_contact", { to: "#nowhere", text: "hi" });
   // The useful rooms' judge: only a real question is worth an answer.
@@ -203,11 +204,22 @@ test("owner only: in rooms only the owner gets answers", async () => {
   await set(false);
 });
 
-test("the owner's agent knows the rooms and posts in one when asked, even a read room, with no pings", async () => {
+test("the owner's agent lists the channels with their rooms, and nothing secret", async () => {
+  await env.client.call("threads.send", { thread: "home", text: "which channels can you reach?" });
+  await env.settle("home");
+  const listed = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  assert.match(
+    listed,
+    /- Discord \(discord\): running; rooms: #general \(answers when called\), #help \(answers everyone\), #logs \(reads only\), #ideas \(answers when useful\)/,
+  );
+  assert.ok(!listed.includes(TOKEN.slice(-4)), "no token hint");
+  const turn = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("which channels"));
+  assert.ok(!String(turn?.messages.at(-1)?.content).includes("#general"), "the rooms are not pushed into the turn");
+});
+
+test("the owner's agent posts in a room when asked, even a read room, with no pings", async () => {
   await env.client.call("threads.send", { thread: "home", text: "post in a room that is not there" });
   await env.settle("home");
-  const turn = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("not there"));
-  assert.match(String(turn?.messages.at(-1)?.content), /Public rooms: #general \(Discord\), #help \(Discord\), #logs/);
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /no room "#nowhere"\. Rooms: #general/);
 
   // Before anything from outside is in the chat: a room's talk in context makes the next send ask first.
