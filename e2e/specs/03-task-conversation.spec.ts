@@ -133,6 +133,13 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.state).toBe("done");
     await drawer.getByRole("button", { name: "Reabrir", exact: true }).click();
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.state).toBe("open");
+    await env.client.call("tasks.update", { task: task.id, awaits_owner: true });
+    await drawer.getByRole("combobox", { name: "Columna", exact: true }).click();
+    await page.getByRole("option", { name: "En curso", exact: true }).click();
+    await expect
+      .poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.awaits_owner)
+      .toBe(false);
+    await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.status).toBe("doing");
   } finally {
     await page.goto("about:blank");
     await env.core.close();

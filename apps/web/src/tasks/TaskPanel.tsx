@@ -118,7 +118,7 @@ function StateBar({ task }: { task: Task }) {
         className="taskdetail__status"
         value={task.status}
         disabled={task.state !== "open"}
-        onValueChange={(v) => v && v !== task.status && void updateTask(task.id, { status: v })}
+        onValueChange={(v) => v && v !== task.status && void updateTask(task.id, { status: v, awaits_owner: false })}
         options={columns.map((c) => ({ value: c.id, label: columnLabel(c, t) }))}
       />
       <span className="board__spacer" />

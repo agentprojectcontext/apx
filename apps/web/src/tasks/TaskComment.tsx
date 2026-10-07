@@ -1,6 +1,6 @@
 import type { Agent, Task } from "@apx/protocol";
 import { AgentAvatar, Button, Textarea } from "@apx/ui";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { availableAgents } from "../common/pickers/agents.ts";
 import { blobOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -12,6 +12,7 @@ export function TaskComment({ task, text, onChange }: { task: Task; text: string
   const t = useT();
   const agents = useData((s) => s.agents);
   const input = useRef<HTMLTextAreaElement>(null);
+  const list = useRef<HTMLDivElement>(null);
   const [mention, setMention] = useState<Mention>();
   const [active, setActive] = useState(0);
   const [sending, setSending] = useState(false);
@@ -22,6 +23,9 @@ export function TaskComment({ task, text, onChange }: { task: Task; text: string
     [a.name, a.slug ?? "", a.id].some((name) => name.toLowerCase().includes(query)),
   );
   const selected = Math.min(active, Math.max(0, choices.length - 1));
+  useEffect(() => {
+    if (mention) list.current?.children.item(selected)?.scrollIntoView({ block: "nearest" });
+  }, [selected, mention]);
   const updateMention = (value: string, caret: number) => {
     setMention(mentionAt(value, caret));
     setActive(0);
@@ -52,7 +56,7 @@ export function TaskComment({ task, text, onChange }: { task: Task; text: string
       </label>
       <div className="taskpanel__input">
         {mention && (
-          <div className="taskmentions" id={listId} role="listbox" aria-label={t("tasks.mentionAgents")}>
+          <div className="taskmentions" ref={list} id={listId} role="listbox" aria-label={t("tasks.mentionAgents")}>
             {choices.map((agent, i) => (
               <button
                 type="button"

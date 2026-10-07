@@ -43,4 +43,7 @@ test("the mention at the caret opens the picker, preserving text after it", () =
 test("same slugs in other projects stay readable; ambiguity with a global agent uses the exact id", () => {
   assert.equal(mentionToken(team, roster, "northwind"), "builder");
   assert.equal(mentionToken(team, [...roster, agent("builder")], "northwind"), team.id);
+  assert.equal(mentionToken(team, [...roster, agent("builder", { project_id: "globex" })], "northwind"), team.id);
+  const ownerSlug = agent("northwind-owner", { project_id: "northwind", slug: "owner" });
+  assert.equal(mentionToken(ownerSlug, [ownerSlug], "northwind"), ownerSlug.id);
 });

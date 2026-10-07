@@ -41,7 +41,7 @@ export function taskMenu(
       items: o.columns.map((c) => ({
         label: columnLabel(c, t),
         checked: c.id === task.status,
-        onSelect: () => void updateTask(task.id, { status: c.id }),
+        onSelect: () => void updateTask(task.id, { status: c.id, awaits_owner: false }),
       })),
     },
     {

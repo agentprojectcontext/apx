@@ -13,6 +13,9 @@ export function mentionAt(text: string, caret: number): Mention | undefined {
 /** Use the readable slug when it is unambiguous in the core's lookup scope. */
 export function mentionToken(agent: Agent, agents: readonly Agent[], projectId?: string): string {
   const ref = agent.slug ?? agent.id;
+  const exact = agents.find((a) => a.id === ref);
+  if (exact && exact.id !== agent.id) return agent.id;
+  if (["owner", "human"].includes(ref.toLowerCase())) return agent.id;
   const matches = agents.filter(
     (a) =>
       (!a.project_id || a.project_id === projectId) &&
