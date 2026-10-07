@@ -82,3 +82,68 @@ test("the copies an import made again go, unless someone touched them; their cha
     cleanup();
   }
 });
+
+test("answers sent before outbox items named their message get linked and show sent or not sent", () => {
+  const { db, cleanup } = upgradeFrom("Answers sent on a channel before their message", (db) => {
+    db.prepare(
+      "INSERT INTO threads (id, kind, title, agent_ids, created_at, updated_at) VALUES ('th_c', 'channel', 'Ana', '[]', ?, ?)",
+    ).run("2026-09-01T10:00:00Z", "2026-09-01T10:00:00Z");
+    const msg = db.prepare(
+      "INSERT INTO messages (id, thread_id, seq, author, parts, created_at) VALUES (?, 'th_c', ?, ?, ?, ?)",
+    );
+    const agent = JSON.stringify({ kind: "agent", id: "roby" });
+    msg.run(
+      "m_hi",
+      1,
+      agent,
+      JSON.stringify([{ type: "text", text: "Hi Ana, the order ships on Friday." }]),
+      "2026-09-01T10:00:00Z",
+    );
+    msg.run(
+      "m_them",
+      2,
+      JSON.stringify({ kind: "person", id: "p", name: "Ana" }),
+      JSON.stringify([{ type: "text", text: "Thanks" }]),
+      "2026-09-01T10:01:00Z",
+    );
+    // The answer's words come after a tool call.
+    msg.run(
+      "m_tool",
+      3,
+      agent,
+      JSON.stringify([
+        { type: "tool", call_id: "c" },
+        { type: "text", text: "Looked it up: Friday at noon." },
+      ]),
+      "2026-09-01T10:02:00Z",
+    );
+    msg.run(
+      "m_lost",
+      4,
+      agent,
+      JSON.stringify([{ type: "text", text: "This one never went out." }]),
+      "2026-09-01T10:03:00Z",
+    );
+    const out = db.prepare(
+      "INSERT INTO outbox (id, channel, conversation, thread_id, kind, body, state, next_at, created_at, updated_at) VALUES (?, 'whatsapp', 'ana', 'th_c', 'reply', ?, ?, ?, ?, ?)",
+    );
+    const at = (m: number) => `2026-09-01T10:0${m}:30Z`;
+    out.run("o1", JSON.stringify({ text: "Hi Ana, the order ships on Friday." }), "sent", at(0), at(0), at(0));
+    out.run("o2", JSON.stringify({ text: "Looked it up: Friday at noon." }), "sent", at(2), at(2), at(2));
+    out.run("o3", JSON.stringify({ text: "This one never went out." }), "failed", at(3), at(3), at(3));
+  });
+  try {
+    const rows = db.prepare("SELECT id, delivery FROM messages ORDER BY seq").all();
+    assert.deepEqual(
+      rows.map((r) => [r.id, r.delivery]),
+      [
+        ["m_hi", "sent"],
+        ["m_them", null],
+        ["m_tool", "sent"],
+        ["m_lost", "failed"],
+      ],
+    );
+  } finally {
+    cleanup();
+  }
+});

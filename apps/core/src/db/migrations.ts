@@ -614,4 +614,24 @@ export const MIGRATIONS: readonly string[] = [
   -- Emoji put on a channel message, by the agent or the other side (JSON, at most one per side).
   ALTER TABLE messages ADD COLUMN reactions TEXT;
   `,
+  `
+  -- Answers sent on a channel before their message was recorded on the outbox item: linked by how their words begin
+  -- (the latest such message of that chat written before the send), so old chats show sent or not sent too.
+  UPDATE outbox SET message_id = (
+    SELECT m.id FROM messages m, json_each(m.parts) p
+    WHERE m.thread_id = outbox.thread_id AND m.created_at <= outbox.created_at
+      AND json_extract(m.author, '$.kind') IN ('agent', 'user')
+      AND json_extract(p.value, '$.type') = 'text'
+      AND substr(json_extract(p.value, '$.text'), 1, 40) = substr(json_extract(outbox.body, '$.text'), 1, 40)
+    ORDER BY m.seq DESC LIMIT 1
+  )
+  WHERE message_id IS NULL AND thread_id IS NOT NULL AND kind = 'reply'
+    AND length(coalesce(json_extract(body, '$.text'), '')) > 0;
+  UPDATE messages SET delivery = (
+    SELECT CASE max(CASE o.state WHEN 'sent' THEN 2 WHEN 'failed' THEN 1 ELSE 0 END)
+      WHEN 2 THEN 'sent' WHEN 1 THEN 'failed' END
+    FROM outbox o WHERE o.message_id = messages.id
+  )
+  WHERE delivery IS NULL AND id IN (SELECT message_id FROM outbox WHERE message_id IS NOT NULL);
+  `,
 ];
