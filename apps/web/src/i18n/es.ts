@@ -138,6 +138,7 @@ export const es: Partial<Record<MessageKey, string>> = {
 
   // Avisos del sistema en un chat
   "notice.run.interrupted": "Se interrumpió por un reinicio de APX.",
+  "notice.run.resumed": "Se interrumpió por un reinicio de APX; lo retomo.",
   "notice.run.canceled": "Cancelado.",
   "notice.run.failed": "No pude terminar.",
   "notice.run.empty": "Terminó sin mensaje.",

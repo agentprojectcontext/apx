@@ -565,3 +565,14 @@ the answer. Every match is now named with its description and the agent judges i
 raw similarity 0.6 or more are listed first as "most likely" and show blue in the chat; the rest (relevance 2.2 over
 the floor and raw 0.30, as before) are suggestions; up to three in all. The chat shows near misses from raw 0.15.
 Only a skill the owner names with `/name` goes in whole.
+
+<a id="d-052"></a>
+## D-052 — 2026-10-07 — A restart of APX picks the turns it cut off back up, once
+A restart (an update, `node --watch` saving a file, a crash) ended every running turn as `failed`, and nothing ran it
+again: a delegated task cut halfway stayed dead unless the caller's model happened to ask again, and a finished report
+cut while closing showed "Failed". Now shutting down leaves a running turn open; the next boot closes its model log as
+before (effect UNKNOWN for tools that had started) and admits it again with the same input, origin, reply target and
+caller, marked `resume_of`. The resumed turn reads a short note saying why it stopped instead of the original message
+again, and a caller whose delegations are still going is told not to delegate them again. A delegation reports to its
+caller only when its resumed turn ends. A turn that was already a resume is not resumed again, so a crash loop stops;
+a turn waiting on the owner still gets their answer as a new input instead.

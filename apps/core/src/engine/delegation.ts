@@ -3,7 +3,7 @@
 // a new input. See DECISIONS.md#d-009
 import type { Part } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
-import type { RunRecord } from "../domain/runs.ts";
+import { type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Worker } from "../domain/threads.ts";
 import { agentReply } from "../tools/agents.ts";
@@ -60,7 +60,7 @@ export function createDelegations(deps: {
 }) {
   const { store } = deps;
   /** Child run → the caller still waiting for it inside its turn. */
-  const inline = new Map<string, { caller: string; resolve(run: RunRecord): void }>();
+  const inline = new Map<string, { caller: string; resolve(run: RunRecord | undefined): void }>();
 
   function answerOf(run: RunRecord): string {
     const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
@@ -197,7 +197,7 @@ export function createDelegations(deps: {
       clearTimeout(timer);
       inline.delete(child.id);
       const resume = `(session "${name}": delegate with session="${name}" to continue it with ${who}, who keeps the context)`;
-      if (quick) return `${agentReply(who, answerOf(quick), quick.state)}\n${resume}`;
+      if (quick && TERMINAL.has(quick.state)) return `${agentReply(who, answerOf(quick), quick.state)}\n${resume}`;
       return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.`;
     },
 
@@ -206,9 +206,15 @@ export function createDelegations(deps: {
       if (!child.parent_run_id) return;
       const parent = store.runs.get(child.parent_run_id);
       if (!parent) return;
+      const waiting = inline.get(child.id);
+      // Cut off by APX shutting down: it resumes on the next boot and reports then. A caller still waiting is let go.
+      if (!TERMINAL.has(child.state)) {
+        inline.delete(child.id);
+        waiting?.resolve(child);
+        return;
+      }
       const answer = answerOf(child);
       settleCard(parent, child, answer);
-      const waiting = inline.get(child.id);
       if (waiting) {
         inline.delete(child.id);
         waiting.resolve(child);
@@ -220,7 +226,12 @@ export function createDelegations(deps: {
 
     /** The caller's turn ended while it was still waiting: its children report back later as new inputs. */
     callerEnded(callerRunId: string): void {
-      for (const [child, w] of inline) if (w.caller === callerRunId) inline.delete(child);
+      // Let go of each wait, so its timer is cleared too.
+      for (const [child, w] of inline)
+        if (w.caller === callerRunId) {
+          inline.delete(child);
+          w.resolve(undefined);
+        }
     },
   };
 }

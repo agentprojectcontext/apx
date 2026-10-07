@@ -11,6 +11,7 @@ import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
 import { Canceled, DeadlineExceeded, errorMessage, Shutdown } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
+import { systemNote } from "../harness/native.ts";
 import type { Log } from "../log.ts";
 import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem } from "../providers/types.ts";
@@ -51,7 +52,7 @@ import { taskBlock } from "./office.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands } from "./pipeline.ts";
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
 import { recallFor } from "./recall.ts";
-import { closeTurnLog } from "./recovery.ts";
+import { closeTurnLog, RESUME_NOTE } from "./recovery.ts";
 import { askedPick, type SkillPicker } from "./skill-pick.ts";
 
 export type TurnDeps = {
@@ -308,38 +309,41 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
       : turn.input.text;
   const files = attachmentsBlock(store, turn.input.attachments ?? [], sealed ? undefined : { home: deps.home, thread });
   const images = (turn.input.attachments ?? []).filter((a) => a.kind === "image");
-  const input: ChatItem & { role: "user" } = {
-    role: "user",
-    ...(images.length ? { images: images.map((a) => ({ media_id: a.media_id, mime: a.mime })) } : {}),
-    content: room
-      ? roomInput(store, {
-          threadId: thread.id,
-          runId: run.id,
-          agentName: agent.name,
-          from: o.kind === "channel" ? o.name : "your owner",
-          owner: o.kind !== "channel" || o.role === "owner",
-          text: said,
-        })
-      : direct
-        ? files
-          ? `${said}\n\n${files}`
-          : said
-        : turnInput({
-            origin: turn.input.origin,
-            text: files ? `${said}\n\n${files}` : said,
-            now: new Date(),
-            roster: rosterChanged ? roster.text : undefined,
-            memory: recalled.text,
-            skills: picked?.block || undefined,
-            task: taskBlock(store, thread),
-            extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
-            waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
-            timeZone: ownerTimeZone(store),
-            channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
-            voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
-            feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
-          }),
-  };
+  // A resumed turn already has its message in the history: it only learns why it stopped.
+  const input: ChatItem & { role: "user" } = turn.input.resume_of
+    ? (systemNote(RESUME_NOTE) as ChatItem & { role: "user" })
+    : {
+        role: "user",
+        ...(images.length ? { images: images.map((a) => ({ media_id: a.media_id, mime: a.mime })) } : {}),
+        content: room
+          ? roomInput(store, {
+              threadId: thread.id,
+              runId: run.id,
+              agentName: agent.name,
+              from: o.kind === "channel" ? o.name : "your owner",
+              owner: o.kind !== "channel" || o.role === "owner",
+              text: said,
+            })
+          : direct
+            ? files
+              ? `${said}\n\n${files}`
+              : said
+            : turnInput({
+                origin: turn.input.origin,
+                text: files ? `${said}\n\n${files}` : said,
+                now: new Date(),
+                roster: rosterChanged ? roster.text : undefined,
+                memory: recalled.text,
+                skills: picked?.block || undefined,
+                task: taskBlock(store, thread),
+                extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
+                waiting: !sealed && ownerTurn && o.kind !== "routine" ? waitingBlock(store, agent.id) : undefined,
+                timeZone: ownerTimeZone(store),
+                channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
+                voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
+                feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
+              }),
+      };
   const at = store.modelLog.append(thread.id, run.id, [input]);
   if (rosterChanged || recalled.shown)
     store.threads.mergeContext(thread.id, {
@@ -556,13 +560,18 @@ async function finishRun(
   return run;
 }
 
-/** Canceled or failed: a notice saying why, the model log closed honestly, the run and thread marked. */
+/**
+ * Canceled or failed: a notice saying why, the model log closed honestly, the run and thread marked. Cut off by
+ * APX shutting down: left as it is for the next boot (see recovery.ts).
+ */
 function failRun(
   deps: TurnDeps,
   t: { run: RunRecord; turn: Turn; display: Display; signal: AbortSignal; err: unknown },
 ): RunRecord {
   const { store } = deps;
   t.display.close();
+  // APX is stopping, not the turn failing: it stays open, and the next boot closes its log and picks it back up.
+  if (t.signal.reason instanceof Shutdown) return store.runs.get(t.run.id) ?? t.run;
   const canceled = t.signal.reason instanceof Canceled;
   const reason = t.err instanceof Error ? t.err.message : String(t.err);
   const short = reason.split("\n")[0]?.slice(0, 200) ?? reason;

@@ -134,6 +134,7 @@ export const en = {
 
   // System notices inside a chat (codes come from the core)
   "notice.run.interrupted": "Interrupted by a restart of APX.",
+  "notice.run.resumed": "Interrupted by a restart of APX; picking it back up.",
   "notice.run.canceled": "Canceled.",
   "notice.run.failed": "Could not finish.",
   "notice.run.empty": "Finished without a message.",

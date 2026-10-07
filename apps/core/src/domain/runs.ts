@@ -46,6 +46,8 @@ export type RunInput = {
   attachments?: Attachment[];
   /** The turn's destination; null means the app. Kept across waits and restarts. */
   reply_to?: ThreadContext["reply_to"] | null;
+  /** This run picks up the turn a restart of APX cut off (that run's id); such a run is never resumed again. */
+  resume_of?: string;
 };
 export type RunRecord = Run & { input?: RunInput; message_id?: string };
 

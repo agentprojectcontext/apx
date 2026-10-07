@@ -1,10 +1,11 @@
-// A restart in the middle of work: what was admitted runs, what was cut is closed honestly, and a delegation's
-// result still reaches the agent that asked for it.
+// A restart in the middle of work: what was admitted runs, what was cut is closed honestly and picked back up once,
+// and a delegation's result still reaches the agent that asked for it.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { z } from "zod";
 import type { ChatItem } from "../providers/types.ts";
 import { defineTool } from "../tools/types.ts";
+import { RESUME_NOTE } from "./recovery.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 const llm = scriptedLlm((_req, { system, said }) => {
@@ -13,7 +14,7 @@ const llm = scriptedLlm((_req, { system, said }) => {
   return say("Answered after the restart.");
 });
 
-test("a restart closes a cut turn (effect unknown for a started tool), runs queued work and wakes the caller", async () => {
+test("a restart closes a cut turn (effect unknown for a started tool), resumes it, runs queued work and wakes the caller", async () => {
   // ── before the "crash": state written directly, as a killed process would leave it ──
   const first = await startCore({ llm });
   const { store } = first.core;
@@ -101,15 +102,24 @@ test("a restart closes a cut turn (effect unknown for a started tool), runs queu
   // ── after the restart ──
   const second = await startCore({ llm, home: first.home });
   try {
-    const cutNow = await second.client.call("threads.get", { thread: cut.id });
-    assert.equal(cutNow.runs[0]?.state, "failed");
-    assert.equal(cutNow.runs[0]?.error, "interrupted by a restart");
-    const parts = cutNow.messages.at(-1)?.parts ?? [];
+    const cutNow = await second.settle(cut.id);
+    const old = cutNow.runs.find((r) => r.id === run.id);
+    assert.equal(old?.state, "failed");
+    assert.equal(old?.error, "interrupted by a restart");
+    const parts = cutNow.messages.find((m) => m.id === msg.id)?.parts ?? [];
     assert.ok(
       parts.some((p) => p.type === "tool" && p.status === "error" && p.detail === "interrupted by a restart"),
       "no spinner left",
     );
-    assert.ok(parts.some((p) => p.type === "notice" && p.code === "run.interrupted"));
+    assert.ok(parts.some((p) => p.type === "notice" && p.code === "run.resumed"));
+    // Picked back up once: the same input, told why it stopped instead of reading the owner's message twice.
+    const again = cutNow.runs.find((r) => r.id !== run.id);
+    assert.equal(again?.state, "completed");
+    assert.equal(second.core.store.runs.get(again?.id ?? "")?.input?.resume_of, run.id);
+    assert.deepEqual(texts(cutNow.messages).at(-1), "Answered after the restart.");
+    const resumedLog = JSON.stringify(second.core.store.modelLog.forRun(again?.id ?? ""));
+    assert.ok(resumedLog.includes(RESUME_NOTE));
+    assert.ok(!resumedLog.includes("click it"));
     // The model will see the click as "effect unknown" and the snapshot that never started as "not run".
     const log = second.core.store.modelLog.forRun(run.id) as ChatItem[];
     const result = (id: string) => log.find((m) => m.role === "tool" && m.tool_call_id === id)?.content;
@@ -210,3 +220,102 @@ for (const kind of ["question", "confirm"] as const) {
     }
   });
 }
+
+test("a turn that was already resumed is not resumed again after another restart", async () => {
+  const first = await startCore({ llm });
+  const { store } = first.core;
+  const t = store.threads.create({ kind: "loose", title: "twice", agent_ids: ["roby"] });
+  let run = store.runs.create({
+    thread_id: t.id,
+    agent_id: "roby",
+    trigger: "user",
+    input: { origin: { kind: "user" }, text: "do it", resume_of: "run_earlier" },
+    deadline_at: new Date(Date.now() + 60_000).toISOString(),
+  });
+  run = store.runs.setState(run, "working");
+  await first.core.close();
+  const second = await startCore({ llm, home: first.home });
+  try {
+    const now = await second.client.call("threads.get", { thread: t.id });
+    assert.equal(now.runs.length, 1);
+    assert.equal(now.runs[0]?.state, "failed");
+    assert.equal(now.runs[0]?.error, "interrupted by a restart");
+  } finally {
+    await second.core.close();
+    second.cleanup();
+  }
+});
+
+test("shutting APX down mid-delegation resumes both turns on boot, and the caller does not ask again", async () => {
+  let restarted = false;
+  let scoutStarted: () => void = () => {};
+  const scoutWorking = new Promise<void>((resolve) => {
+    scoutStarted = resolve;
+  });
+  const model = scriptedLlm(async (req, { system, said, afterTool }) => {
+    if (system.startsWith("You are Scout")) {
+      if (restarted) return say("Scout's report.");
+      scoutStarted();
+      // Works until APX stops it.
+      return new Promise((_resolve, reject) => {
+        req.signal.addEventListener("abort", () => reject(req.signal.reason));
+      });
+    }
+    if (said.includes("<delegation_result")) return say("Scout reported back.");
+    if (said.includes("APX restarted")) return say("Still waiting on Scout.");
+    if (!afterTool) return callTool("d1", "delegate", { agent: "scout", task: "Look this up", wait_s: 60 });
+    return say("Sent.");
+  });
+  const first = await startCore({ llm: model });
+  let second: Awaited<ReturnType<typeof startCore>> | undefined;
+  try {
+    const parent = await first.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    await first.client.call("threads.send", { thread: parent.id, text: "Ask Scout" });
+    await scoutWorking;
+    const sub = first.core.store.threads.list({ include_subthreads: true }).find((t) => t.parent_id === parent.id);
+    assert.ok(sub);
+    await first.core.close();
+    restarted = true;
+    second = await startCore({ llm: model, home: first.home });
+    const s = second;
+
+    // Neither turn failed on the way down: the boot closed both and ran them again.
+    const oldestFirst = <T extends { started_at: string }>(rs: T[]) =>
+      [...rs].sort((a, b) => a.started_at.localeCompare(b.started_at));
+    const subNow = await s.settle(sub.id);
+    assert.deepEqual(
+      oldestFirst(subNow.runs).map((r) => [r.state, r.error ?? null]),
+      [
+        ["failed", "interrupted by a restart"],
+        ["completed", null],
+      ],
+    );
+    let parentNow = await s.settle(parent.id);
+    for (let i = 0; i < 200 && !parentNow.runs.some((r) => r.trigger === "a2a_result" && r.ended_at); i++) {
+      await new Promise((r) => setTimeout(r, 25));
+      parentNow = await s.settle(parent.id);
+    }
+    const parentRuns = oldestFirst(parentNow.runs);
+    assert.deepEqual(
+      parentRuns.map((r) => [r.trigger, r.state]),
+      [
+        ["user", "failed"],
+        ["user", "completed"],
+        ["a2a_result", "completed"],
+      ],
+    );
+    assert.ok(texts(parentNow.messages).includes("Scout reported back."));
+    // The caller was told its delegation is still going, and Scout was asked once.
+    const resumed = parentRuns[1];
+    assert.match(JSON.stringify(s.core.store.modelLog.list(parent.id)), /still going/);
+    assert.equal(s.core.store.runs.get(resumed?.id ?? "")?.tool_calls ?? 0, 0);
+    assert.equal(subNow.runs.length, 2);
+    const cards = parentNow.messages.flatMap((m) => m.parts).filter((p) => p.type === "subthread");
+    assert.equal(cards.at(-1)?.state, "completed");
+    assert.equal(cards.at(-1)?.summary, "Scout's report.");
+  } finally {
+    if (second) await second.core.close();
+    else await first.core.close();
+    first.cleanup();
+  }
+});

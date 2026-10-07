@@ -66,6 +66,8 @@ export type Admit = {
   depth?: number;
   /** A resumed delegated turn still reports to the original caller. */
   parent_run_id?: string | undefined;
+  /** The turn a restart cut off, which this one picks back up. */
+  resume_of?: string | undefined;
 };
 
 export type AdmitFn = (a: Admit) => RunRecord;
@@ -180,6 +182,7 @@ export function createEngine(deps: {
         text: a.text,
         ...(a.attachments?.length ? { attachments: a.attachments } : {}),
         reply_to: a.reply_to !== undefined ? a.reply_to : (store.threads.context(a.thread_id).reply_to ?? null),
+        ...(a.resume_of ? { resume_of: a.resume_of } : {}),
       },
       depth: a.depth ?? 0,
       parent_run_id: a.parent_run_id,
@@ -226,7 +229,8 @@ export function createEngine(deps: {
         ac.signal,
       );
       ended(done);
-      deps.afterRun?.(done);
+      // A turn APX's shutdown cut off is not over: the next boot closes and resumes it.
+      if (TERMINAL.has(done.state)) deps.afterRun?.(done);
     } finally {
       clock.stop();
       active.delete(run.id);
@@ -317,10 +321,28 @@ export function createEngine(deps: {
       jobs.reconcile();
       const interrupted = recoverInterrupted(store);
       if (interrupted.length) log.warn({ runs: interrupted.length }, "closed runs interrupted by the last restart");
-      for (const r of interrupted) ended(r);
+      for (const { run, resume } of interrupted) {
+        // The resumed turn settles the caller's card and reports to it; the cut one wakes nobody.
+        if (!resume || !run.input) {
+          ended(run);
+          continue;
+        }
+        admit({
+          thread_id: run.thread_id,
+          agent_id: run.agent_id,
+          trigger: run.trigger,
+          origin: run.input.origin,
+          text: run.input.text,
+          ...(run.input.attachments ? { attachments: run.input.attachments } : {}),
+          reply_to: run.input.reply_to ?? null,
+          depth: run.depth,
+          parent_run_id: run.parent_run_id,
+          resume_of: run.id,
+        });
+      }
       for (const threadId of store.runs.queuedThreads()) kick(threadId);
     },
-    /** Shutdown: stops every running turn (each ends as failed, saying why) and waits for them to finish writing. */
+    /** Shutdown: stops every running turn (left open, so the next boot resumes it) and waits for them to finish writing. */
     async stop(): Promise<void> {
       stopping = true;
       for (const a of active.values()) a.ac.abort(new Shutdown());
