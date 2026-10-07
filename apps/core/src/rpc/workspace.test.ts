@@ -67,7 +67,10 @@ test("a terminal runs the owner's commands in the chat's folder and keeps what i
   assert.equal((await env.client.call("terminal.list", { thread })).terminals.length, 1);
   await env.client.call("terminal.close", { terminal: t.id });
   assert.equal((await env.client.call("terminal.list", { thread })).terminals.length, 0);
-  await assert.rejects(env.client.call("terminal.open", { thread: bare, cols: 80, rows: 24 }), /no folder/);
+  // A chat with no folder opens it where its agent runs commands: APX's work folder.
+  const loose = await env.client.call("terminal.open", { thread: bare, cols: 80, rows: 24 });
+  assert.equal(loose.cwd, path.join(env.home, "work"));
+  await env.client.call("terminal.close", { terminal: loose.id });
 });
 
 test("a command an agent suggested runs in its own terminal, and its end wakes that agent with the output", async () => {

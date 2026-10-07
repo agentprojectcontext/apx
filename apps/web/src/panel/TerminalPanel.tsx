@@ -6,7 +6,6 @@ import { watchEvents } from "../data/live.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { useNav } from "../shell/nav.ts";
-import type { Workspace } from "./workspace.ts";
 
 // xterm.js loads with the first terminal opened, not with the panel.
 const TerminalView = lazy(() => import("./TerminalView.tsx"));
@@ -19,19 +18,17 @@ const plain = (s: string) => s.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*
  * The chat's terminals: "Agent" lists the commands the agent ran here (and the ones still running in the background)
  * with what they printed; each other tab is the owner's own shell in the chat's folder.
  */
-export function TerminalPanel({ thread, ws }: { thread: Thread; ws?: Workspace }) {
+export function TerminalPanel({ thread }: { thread: Thread }) {
   const t = useT();
   const threadId = thread.id;
-  const canOpen = Boolean(ws);
   const [terms, setTerms] = useState<TerminalInfo[]>([]);
   const [tab, setTab] = useState<string>("agent");
   const wanted = useNav((s) => s.panelTerminal);
   const load = useCallback(async () => {
-    if (!canOpen) return [];
     const r = await client.call("terminal.list", { thread: threadId }).catch(() => ({ terminals: [] }));
     setTerms(r.terminals);
     return r.terminals;
-  }, [threadId, canOpen]);
+  }, [threadId]);
   useEffect(() => {
     void load();
     return watchEvents((ev) => {
@@ -43,7 +40,6 @@ export function TerminalPanel({ thread, ws }: { thread: Thread; ws?: Workspace }
     if (wanted) void load().then((list) => list.some((x) => x.id === wanted) && setTab(wanted));
   }, [wanted, load]);
   const open = async () => {
-    if (!canOpen) return;
     try {
       const term = await client.call("terminal.open", { thread: threadId, cols: 80, rows: 24 });
       await load();
@@ -86,16 +82,14 @@ export function TerminalPanel({ thread, ws }: { thread: Thread; ws?: Workspace }
             />
           </span>
         ))}
-        {canOpen && (
-          <IconButton size="sm" label={t("terminal.new")} icon={<Icons.Plus size={14} />} onClick={() => void open()} />
-        )}
+        <IconButton size="sm" label={t("terminal.new")} icon={<Icons.Plus size={14} />} onClick={() => void open()} />
       </div>
       {current ? (
         <Suspense fallback={<Skeleton className="term__loading" />}>
           <TerminalView key={current.id} terminal={current} />
         </Suspense>
       ) : (
-        <AgentCommands threadId={threadId} onNew={canOpen ? () => void open() : undefined} />
+        <AgentCommands threadId={threadId} onNew={() => void open()} />
       )}
     </div>
   );

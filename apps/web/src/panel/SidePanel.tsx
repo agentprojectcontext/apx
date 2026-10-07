@@ -106,7 +106,7 @@ export function SidePanel() {
           )}
           {thread && panel === "terminal" && (
             <Suspense fallback={null}>
-              <TerminalPanel key={thread.id} thread={thread} ws={ws} />
+              <TerminalPanel key={thread.id} thread={thread} />
             </Suspense>
           )}
           {ws && folder && (

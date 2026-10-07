@@ -1,4 +1,4 @@
-// A shell block an agent wrote runs from the chat: its own terminal opens in the side panel (where a password could be
+// A shell block an agent wrote runs from any chat: its own terminal opens in the side panel (where a password could be
 // typed) and, when the command ends, the agent is told how it went and answers again.
 import fs from "node:fs";
 import os from "node:os";
@@ -30,4 +30,16 @@ test("a suggested command runs in a terminal from the chat and its end wakes the
   // The command ended: the agent got its output in a new turn and answered.
   await expect(page.getByText(/Got it: The owner ran the command you suggested/)).toBeVisible({ timeout: 15_000 });
   fs.rmSync(repo, { recursive: true, force: true });
+});
+
+test("in a chat with no project the block runs too, in APX's work folder", async ({ page }) => {
+  await open(page, "#thread=home");
+  await page.getByRole("textbox", { name: /^Escribile a/ }).fill("suggest a command");
+  await page.getByRole("button", { name: "Enviar" }).click();
+  await page.getByRole("button", { name: "Ejecutar en una terminal" }).last().click();
+  const panel = page.getByRole("complementary", { name: "Panel lateral" });
+  await expect(panel.locator(".term__xterm")).toContainText("e2e-suggested-42", { timeout: 15_000 });
+  await expect(page.getByText(/Got it: The owner ran the command you suggested/).last()).toBeVisible({
+    timeout: 15_000,
+  });
 });

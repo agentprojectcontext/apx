@@ -1,11 +1,20 @@
-// The owner's terminals in a chat's folder (see terminal/terminals.ts).
+// The owner's terminals in the folder a chat works in (see terminal/terminals.ts).
+import fs from "node:fs";
 import type { Store } from "../domain/store.ts";
-import { badRequest } from "../errors.ts";
+import { badRequest, notFound } from "../errors.ts";
 import type { Terminals } from "../terminal/terminals.ts";
-import { threadFolder } from "./files.ts";
+import { workDir } from "../tools/shell.ts";
 import type { Handlers } from "./router.ts";
 
-export function terminalHandlers(store: Store, terminals: Terminals) {
+export function terminalHandlers(store: Store, terminals: Terminals, home: string) {
+  /** Where the chat's agent runs its own commands: its folder, its project's, or else APX's work folder. */
+  const folderOf = (threadId: string) => {
+    const t = store.threads.get(threadId);
+    if (!t) throw notFound(`thread ${threadId}`);
+    const dir = workDir(store, home, t);
+    fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  };
   const known = <T>(work: () => T): T => {
     try {
       return work();
@@ -15,11 +24,11 @@ export function terminalHandlers(store: Store, terminals: Terminals) {
   };
   return {
     "terminal.list": ({ thread }) => {
-      threadFolder(store, thread);
+      if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       return { terminals: terminals.list(thread) };
     },
     "terminal.open": ({ thread, cols, rows, command, message }) => {
-      const cwd = threadFolder(store, thread);
+      const cwd = folderOf(thread);
       if (message && store.messages.get(message)?.thread_id !== thread)
         throw badRequest(`message ${message} is not in this chat`);
       return known(() => terminals.open(thread, cwd, { cols, rows }, command ? { command, message } : undefined));

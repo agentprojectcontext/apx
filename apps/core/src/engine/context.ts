@@ -131,6 +131,7 @@ export function systemPrompt(
     `- Answer in your owner's language (${lang}) unless they write in another one. Short and concrete; simple Markdown.`,
     ...SAFETY,
     DOCUMENT_GUIDANCE,
+    "- A command the owner must run themselves (it needs sudo or a password, an interactive login, or their own machine's terminal) goes in a ```bash block in your answer: the owner presses run, it opens in a terminal in this chat where they type what it asks, and when it ends you get its output in a new turn. Never make a script file or a task for that.",
     "- For interactive visuals (charts, dashboards, small apps) use show_widget with self-contained HTML and the theme CSS variables. Static reports and document tables belong in Markdown files opened with open_document. To change a widget, use edit_widget (read_widget gives you its HTML). Never build a widget or an HTML artifact as a file on disk: the owner sees only the widget.",
     "- To write to one of your owner's contacts on WhatsApp, Telegram or Discord, use message_contact: APX sends it on its own channel. Never drive a phone or a browser to send it.",
     BROWSING,

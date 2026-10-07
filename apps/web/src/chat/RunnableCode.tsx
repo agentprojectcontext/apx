@@ -4,13 +4,12 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
-import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 
 const SHELL_LANGS: ReadonlySet<string> = new Set(["bash", "sh", "zsh", "shell", "console", "fish"]);
 
-/** A fenced shell block an agent wrote gets a run button when the chat has a folder to run it in. */
+/** A fenced shell block an agent wrote gets a run button (in the chat's folder, or else APX's work folder). */
 export function runnableCode(thread: Thread, messageId: string): CodeRenderer {
   return (code, lang, pre) =>
     lang && SHELL_LANGS.has(lang) && code.trim() ? (
@@ -37,12 +36,6 @@ function RunnableCode({
 }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
-  // The same rule as the side panel's terminals (useWorkspace): a project with its folder on this machine.
-  const hasFolder = useData((s) => {
-    const p = thread.project_id ? s.projects.find((x) => x.id === thread.project_id) : undefined;
-    return Boolean(p?.path && p.present);
-  });
-  if (!hasFolder) return pre;
   const run = async () => {
     setBusy(true);
     try {

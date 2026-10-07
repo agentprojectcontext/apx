@@ -499,8 +499,9 @@ not ours to run later.
 
 <a id="d-046"></a>
 ## D-046 — 2026-10-07 — A shell block an agent wrote runs from the chat, and its end wakes that agent
-A fenced `bash`/`sh`/`zsh` block in an agent's message gets a run button when the chat has a project folder. It opens
-a terminal of its own in the side panel (`terminal.open` with `command` and the `message` it came from) that runs only
+A fenced `bash`/`sh`/`zsh` block in an agent's message gets a run button in any chat; agents are told in their prompt
+to write a command the owner must run (sudo, a password) that way. It opens a terminal of its own in the side panel,
+in the chat's folder or else APX's work folder (where the agent's own commands run there), (`terminal.open` with `command` and the `message` it came from) that runs only
 that command on a real tty, so the owner can type what it asks (a `sudo` password, which is not echoed). When it ends,
 the agent that wrote the block gets a turn with the exit code and the end of what it printed, framed as untrusted
 output like a background job's; pressing run is the owner's own action, so it does not count as an agent acting
