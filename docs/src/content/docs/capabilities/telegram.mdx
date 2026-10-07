@@ -159,6 +159,14 @@ curl -X POST http://127.0.0.1:7430/telegram/send_voice \
   -d '{"audio":"/abs/path/note.ogg","duration":5,"channel":"default"}'
 ```
 
+### Formatting
+
+Messages are rendered, not shown as raw markdown: `**bold**`, `` `code` ``, links and headings
+become Telegram formatting, and `- ` list items become bullets. Text with no markdown is sent
+exactly as written. If Telegram refuses the formatting, the same message is resent as clean plain
+text, so a formatting problem never costs a delivery. This applies to every message the bot
+sends — replies, runtime-completion notices and late results delivered after a restart.
+
 ## Project pinning
 
 When a channel has `project` set, every inbound message is automatically scoped to that
