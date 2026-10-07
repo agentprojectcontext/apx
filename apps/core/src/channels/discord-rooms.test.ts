@@ -15,10 +15,13 @@ const ROOMS = { general: "8001", help: "8002", logs: "8003", ideas: "8004" };
 const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 160)}`);
   if (said.includes("post the release note"))
-    return callTool("p1", "message_contact", { to: "#logs", text: "v2.1 is out @everyone" });
+    return callTool("p1", "channel_post", { room: "#logs", text: "v2.1 is out @everyone" });
   if (said.includes("which channels")) return callTool("l1", "channel_list", {});
   if (said.includes("post in a room that is not there"))
-    return callTool("p2", "message_contact", { to: "#nowhere", text: "hi" });
+    return callTool("p2", "channel_post", { room: "nowhere", text: "hi" });
+  if (said.includes("post in a near name")) return callTool("p3", "channel_post", { room: "log", text: "hi" });
+  if (said.includes("message a room as a person"))
+    return callTool("p4", "message_contact", { to: "#logs", text: "hi" });
   // The useful rooms' judge: only a real question is worth an answer.
   if (system.startsWith("You decide whether an assistant bot"))
     return say(said.includes("how do I install") ? '{"reply": true, "reason": "a question"}' : '{"reply": false}');
@@ -220,7 +223,15 @@ test("the owner's agent lists the channels with their rooms, and nothing secret"
 test("the owner's agent posts in a room when asked, even a read room, with no pings", async () => {
   await env.client.call("threads.send", { thread: "home", text: "post in a room that is not there" });
   await env.settle("home");
-  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /no room "#nowhere"\. Rooms: #general/);
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /no room "nowhere"\. Rooms: #general \(Discord\)/);
+  // A public post goes only to the exact room: a near name gets a suggestion, and a person's tool refuses a room.
+  await env.client.call("threads.send", { thread: "home", text: "post in a near name" });
+  await env.settle("home");
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /no room "log"; did you mean #logs \(Discord\)\?/);
+  await env.client.call("threads.send", { thread: "home", text: "message a room as a person" });
+  await env.settle("home");
+  assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /#logs is a room, not a person; use channel_post/);
+  assert.equal(posts(ROOMS.logs).length, 0);
 
   // Before anything from outside is in the chat: a room's talk in context makes the next send ask first.
   await env.client.call("threads.send", { thread: "home", text: "post the release note in logs" });

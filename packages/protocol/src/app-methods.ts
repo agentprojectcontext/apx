@@ -752,7 +752,7 @@ export const appMethods = {
   },
   /**
    * An agent posts in a public room for the owner (a Discord server's channel the owner listed: "post the summary in
-   * #help"): kept in the room's chat and sent with no pings to everyone. `room` is its name, with or without "#".
+   * #help"): kept in the room's chat and sent with no pings to everyone. `room` is its exact name, with or without "#".
    * Never offered to a contact's own turn.
    */
   "channels.post": {
@@ -760,6 +760,8 @@ export const appMethods = {
       .object({
         room: z.string().trim().min(1).max(80),
         text: z.string().trim().min(1).max(4000),
+        /** A channel id or type ("discord"), for two rooms of the same name on different channels. */
+        channel: z.string().max(60).optional(),
         /** Files to send with it (media ids): images as images, anything else as a document. */
         files: z.array(Id).max(5).optional(),
       })

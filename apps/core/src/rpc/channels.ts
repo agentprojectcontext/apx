@@ -52,9 +52,9 @@ export function channelHandlers(store: Store, channels: Channels) {
       }
     },
     // Open to agents like channels.message: their way to post in a public room for the owner.
-    "channels.post": ({ room, text, files }, ctx) => {
+    "channels.post": ({ room, text, channel, files }, ctx) => {
       try {
-        return channels.postInRoom(room, text, { by: ctx.agent?.id, files });
+        return channels.postInRoom(room, text, { channel, by: ctx.agent?.id, files });
       } catch (err) {
         throw badRequest(errorMessage(err));
       }

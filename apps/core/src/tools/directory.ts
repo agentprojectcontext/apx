@@ -39,7 +39,7 @@ export function directoryTools(store: Store): Tool[] {
         });
         return [
           ...rows,
-          'Write to people with message_contact (contact_list finds them). Read a room with read_chat("#name"); post in it with message_contact to "#name".',
+          'Write to people with message_contact (contact_list finds them). Read a room with read_chat("#name"); post in it with channel_post.',
         ].join("\n");
       },
     }),

@@ -634,26 +634,34 @@ export function createChannels(deps: {
 
   /**
    * An agent posts in a public room (a Discord server's channel the owner listed) for the owner: kept in the room's
-   * chat, sent with no pings to everyone. `room` is its name, with or without "#".
+   * chat, sent with no pings to everyone. `room` is its exact name, with or without "#"; `channel` (an id or type)
+   * tells two rooms of the same name apart. A near name only gets suggestions: a public post cannot be taken back.
    */
   function postInRoom(
     room: string,
     text: string,
-    o: { by?: string | undefined; files?: string[] | undefined },
+    o: { channel?: string | undefined; by?: string | undefined; files?: string[] | undefined },
   ): Posted {
     const wanted = room.trim().replace(/^#/, "").toLowerCase();
+    const on = o.channel?.toLowerCase();
     const all = configs().flatMap((cfg) =>
-      cfg.enabled ? (cfg.rooms?.rooms ?? []).map((r) => ({ cfg, room: r, name: r.name || r.id })) : [],
+      cfg.enabled && (!on || cfg.id === on || cfg.type === on)
+        ? (cfg.rooms?.rooms ?? []).map((r) => ({ cfg, room: r, name: r.name || r.id }))
+        : [],
     );
-    const found = all.filter((r) => r.name.toLowerCase() === wanted || r.room.id === wanted);
-    const named = found.length ? found : all.filter((r) => r.name.toLowerCase().includes(wanted));
-    if (named.length !== 1)
+    const exact = all.filter((r) => r.name.toLowerCase() === wanted || r.room.id === wanted);
+    if (exact.length !== 1) {
+      const near = all.filter((r) => r.name.toLowerCase().includes(wanted) || wanted.includes(r.name.toLowerCase()));
+      const list = (rs: typeof all) => rs.map((r) => `#${r.name} (${r.cfg.label})`).join(", ") || "none";
       throw new Error(
-        `${named.length ? `"${room}" matches several rooms` : `no room "${room}"`}. Rooms: ${
-          (named.length ? named : all).map((r) => `#${r.name} (${r.cfg.label})`).join(", ") || "none"
-        }`,
+        exact.length
+          ? `"${room}" is a room on several channels: ${list(exact)}; say which channel`
+          : near.length
+            ? `no room "${room}"; did you mean ${list(near)}?`
+            : `no room "${room}". Rooms: ${list(all)}`,
       );
-    const { cfg, room: r } = named[0] as (typeof named)[number];
+    }
+    const { cfg, room: r } = exact[0] as (typeof exact)[number];
     const thread = rooms.thread(cfg, r);
     const recent = recentOf(thread.id);
     post(thread, cfg.id, r.id, quietMentions(text), { ...o, logged: false });
