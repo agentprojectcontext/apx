@@ -100,6 +100,17 @@ export const en = {
   inboxNothing: "Nothing pending",
   inboxEmpty: "You're all caught up",
   inboxEmptyBody: "We'll let you know when an agent needs you.",
+  tasksDoing: "In progress",
+  tasksPending: "Pending",
+  tasksReview: "In review",
+  tasksBlocked: "Blocked",
+  tasksAll: "All",
+  tasksTasks: "Tasks",
+  tasksCommitments: "Commitments",
+  commitment: "Commitment",
+  waitsForYourAnswer: "Waits for your answer",
+  noTasks: "No open tasks",
+  noTasksBody: "Tasks and commitments your agents take on show up here.",
 } as const;
 
 export type Key = keyof typeof en;

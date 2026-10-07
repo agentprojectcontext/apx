@@ -49,7 +49,7 @@ export function BottomNav<T extends string>({
 const s = StyleSheet.create({
   bar: { flexDirection: "row", backgroundColor: t.sidebar, borderTopWidth: 1, borderColor: t.border },
   tab: { flex: 1, height: 76, alignItems: "center", justifyContent: "center", gap: 4 },
-  pill: { width: 60, height: 32, borderRadius: 999, alignItems: "center", justifyContent: "center" },
+  pill: { width: 60, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   badge: { position: "absolute", top: 1, right: 10 },
   label: { color: t.fgMuted, fontSize: 12 },
   labelOn: { color: t.fg, fontWeight: "600" },

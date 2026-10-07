@@ -128,15 +128,7 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
           />
         );
       case "tasks":
-        return (
-          <TasksPage
-            data={workspace.data}
-            open={(id) => {
-              const item = workspace.data.threads.find((row) => row.id === id);
-              if (item) void openThread(item);
-            }}
-          />
-        );
+        return <TasksPage data={workspace.data} open={openById} />;
       case "sessions":
         return <SessionsPage data={workspace.data} open={openThread} create={workspace.createSession} />;
       case "more":
