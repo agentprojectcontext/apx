@@ -478,10 +478,10 @@
   font-size: var(--apx-text-xs);
 }
 .git__commitrow {
+  position: relative;
   width: 100%;
   display: flex;
-  gap: 10px;
-  padding: 6px;
+  padding: 0 6px 0 2px;
   border: 0;
   border-radius: var(--apx-radius-sm);
   background: none;
@@ -494,31 +494,37 @@
 .git__commitrow.is-on {
   background: var(--apx-fill);
 }
-/* The history reads as a line of commits: a dot each, joined by the line behind them. */
-.git__dot {
-  position: relative;
-  flex: none;
-  width: 8px;
-  height: 8px;
-  margin-top: 5px;
-  border: 2px solid var(--apx-accent, var(--apx-fg-muted));
-  border-radius: 50%;
-  background: var(--apx-bg);
-}
-.git__log li:not(:last-child) .git__dot::after {
-  content: "";
+/* The history's graph sits in each row's own height, so its lines join from one row to the next. */
+.git__graph {
   position: absolute;
-  top: 8px;
-  left: 1px;
-  width: 2px;
-  height: 44px;
-  background: var(--apx-border);
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  height: 100%;
+  overflow: visible;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 .git__commitmain {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: 5px 0 7px;
+}
+.git__ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 6px;
+  border: 1px solid;
+  border-radius: 999px;
+  font-size: 10.5px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.git__repo {
+  margin-bottom: 4px;
 }
 .git__subject {
   overflow: hidden;

@@ -122,3 +122,69 @@ test("branches are listed, made and switched; stash and undo keep the work; push
   b = await env.client.call("git.branches", { project });
   assert.deepEqual(b.remote, []);
 });
+
+test("commit all and amend, merge, rename and delete branches, and the history carries each commit's parents", async () => {
+  fs.writeFileSync(path.join(repo, "all.txt"), "new\n");
+  await env.client.call("git.commit", { project, message: "feat: all at once", all: true });
+  assert.equal((await env.client.call("git.status", { project })).unstaged.length, 0);
+  await env.client.call("git.commit", { project, message: "feat: all at once, amended", amend: true });
+  let log = await env.client.call("git.log", { project, limit: 2 });
+  assert.equal(log.commits[0]?.subject, "feat: all at once, amended");
+  assert.equal(log.commits[0]?.parents[0], log.commits[1]?.sha);
+
+  await env.client.call("git.checkout", { project, branch: "feat/side", create: true });
+  fs.writeFileSync(path.join(repo, "side.txt"), "side\n");
+  await env.client.call("git.commit", { project, message: "feat: side", all: true });
+  await env.client.call("git.checkout", { project, branch: "main" });
+  fs.writeFileSync(path.join(repo, "main.txt"), "main\n");
+  await env.client.call("git.commit", { project, message: "feat: main", all: true });
+  await env.client.call("git.branch", { project, op: "merge", branch: "feat/side" });
+  log = await env.client.call("git.log", { project, limit: 10 });
+  assert.ok(log.commits.some((c) => c.parents.length === 2 && c.refs.includes("main")));
+  await env.client.call("git.branch", { project, op: "delete", branch: "feat/side" });
+  await env.client.call("git.checkout", { project, branch: "fix/one", create: true, from: "main" });
+  await env.client.call("git.branch", { project, op: "rename", branch: "fix/two" });
+  assert.equal((await env.client.call("git.branches", { project })).current, "fix/two");
+  await env.client.call("git.checkout", { project, branch: "main" });
+  await assert.rejects(env.client.call("git.branch", { project, op: "delete_remote", branch: "nope" }), /remote/);
+});
+
+test("a folder holding several repositories lists them, and each one is worked by its path", async () => {
+  const mono = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-git-mono-")));
+  try {
+    for (const name of ["apps/site", "tools/cli"]) {
+      const dir = path.join(mono, name);
+      fs.mkdirSync(dir, { recursive: true });
+      execFileSync("git", ["init", "-q", "-b", "main", dir]);
+      fs.writeFileSync(path.join(dir, "README.md"), `# ${name}\n`);
+    }
+    fs.mkdirSync(path.join(mono, "node_modules", "dep"), { recursive: true });
+    execFileSync("git", ["init", "-q", path.join(mono, "node_modules", "dep")]);
+    const id = (await env.client.call("projects.register", { path: mono, init: true })).project.id;
+    const { repos } = await env.client.call("git.repos", { project: id });
+    assert.deepEqual(
+      repos.map((r) => r.path),
+      ["apps/site", "tools/cli"],
+    );
+    assert.equal((await env.client.call("git.status", { project: id })).repo, false);
+    const site = await env.client.call("git.status", { project: id, repo: "apps/site" });
+    assert.deepEqual(
+      site.unstaged.map((f) => f.path),
+      ["README.md"],
+    );
+    await assert.rejects(env.client.call("git.status", { project: id, repo: "../" }), /outside the project/);
+  } finally {
+    fs.rmSync(mono, { recursive: true, force: true });
+  }
+});
+
+test("a repository with no commits yet has an empty history", async () => {
+  const fresh = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-git-fresh-")));
+  try {
+    execFileSync("git", ["init", "-q", "-b", "main", fresh]);
+    const id = (await env.client.call("projects.register", { path: fresh, init: true })).project.id;
+    assert.deepEqual(await env.client.call("git.log", { project: id }), { commits: [], more: false });
+  } finally {
+    fs.rmSync(fresh, { recursive: true, force: true });
+  }
+});

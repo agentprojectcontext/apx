@@ -1,35 +1,100 @@
-import type { GitFile, Result } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, SectionLabel, Skeleton, Spinner, Tag, Textarea } from "@apx/ui";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import type { Result } from "@apx/protocol";
+import { Button, EmptyState, IconButton, Icons, Select, Skeleton, Spinner, Tag, Textarea } from "@apx/ui";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../../data/client.ts";
 import { notify } from "../../data/notices.ts";
 import { useT } from "../../i18n/index.ts";
 import { DiffView } from "../../panel/DiffView.tsx";
 import { GitBar } from "./GitBar.tsx";
+import { type At, FileGroup, FileRow, type FilesView, type Pick } from "./GitFiles.tsx";
 import { GitHistory } from "./GitHistory.tsx";
 
 type Status = Result<"git.status">;
 type Log = Result<"git.log">;
-/** What the right side shows: a file's change (staged or not), or a commit and maybe one of its files. */
-type Pick = { kind: "file"; path: string; staged: boolean } | { kind: "commit"; sha: string; path?: string };
 
 const PAGE = 50;
-/** Whether the history column is open, remembered on this browser. */
+/** The history column's state and the files' view, remembered on this browser. */
 const HISTORY_KEY = "apx.git.history";
-const readHistoryOpen = () => {
+const VIEW_KEY = "apx.git.view";
+const stored = (key: string) => {
   try {
-    return localStorage.getItem(HISTORY_KEY) !== "0";
+    return localStorage.getItem(key);
   } catch {
-    return true;
+    return null;
   }
+};
+const store = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {}
 };
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
- * A project's repository as a source-control view: the branch bar, what is staged and not (stage, unstage, commit, with
- * a message the auxiliary model can write), the history in a column that opens and closes, and the picked diff.
+ * A project's repositories: its folder's own, or (a folder holding several) a picker of the ones inside it, each shown
+ * as a source-control view.
  */
 export function GitPane({ projectId }: { projectId: string }) {
+  const t = useT();
+  const [repos, setRepos] = useState<Result<"git.repos">["repos"]>();
+  const [error, setError] = useState<string>();
+  const [sub, setSub] = useState<string>();
+  // One object per repository, so the views below read it again only when the repository changes.
+  const at = useMemo<At>(() => ({ project: projectId, ...(sub ? { repo: sub } : {}) }), [projectId, sub]);
+  useEffect(() => {
+    let live = true;
+    client.call("git.repos", { project: projectId }).then(
+      (r) => {
+        if (!live) return;
+        setRepos(r.repos);
+        setSub((current) => (r.repos.some((x) => x.path === current) ? current : r.repos[0]?.path));
+      },
+      (e: unknown) => live && setError(errText(e)),
+    );
+    return () => {
+      live = false;
+    };
+  }, [projectId]);
+  if (error)
+    return (
+      <div className="files files--empty">
+        <EmptyState variant="dashed" size="lg" icon={<Icons.GitBranch />} title={t("git.failed")}>
+          {error}
+        </EmptyState>
+      </div>
+    );
+  if (!repos) return <Skeleton height={200} className="git__loading" />;
+  if (!repos.length || sub === undefined)
+    return (
+      <div className="files files--empty">
+        <EmptyState variant="dashed" size="lg" icon={<Icons.GitBranch />} title={t("git.noRepo")}>
+          {t("git.noRepoBody")}
+        </EmptyState>
+      </div>
+    );
+  const picker =
+    repos.length > 1 || sub ? (
+      <Select
+        size="sm"
+        label={t("git.repo")}
+        className="git__repo"
+        value={sub}
+        onValueChange={(v) => v != null && setSub(v)}
+        options={repos.map((r) => ({
+          value: r.path,
+          label: r.path || t("git.repoOwn"),
+          ...(r.branch ? { description: r.branch } : {}),
+        }))}
+      />
+    ) : undefined;
+  return <GitRepo key={sub} at={at} picker={picker} />;
+}
+
+/**
+ * One repository as a source-control view: the branch bar, what is staged and not (stage, unstage, commit, with a
+ * message the auxiliary model can write), the history graph in a column that opens and closes, and the picked diff.
+ */
+function GitRepo({ at, picker }: { at: At; picker: ReactNode }) {
   const t = useT();
   const [status, setStatus] = useState<Status>();
   const [log, setLog] = useState<Log>();
@@ -38,17 +103,20 @@ export function GitPane({ projectId }: { projectId: string }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
-  const [history, setHistory] = useState(readHistoryOpen);
+  const [history, setHistory] = useState(() => stored(HISTORY_KEY) !== "0");
+  const [view, setView] = useState<FilesView>(() => (stored(VIEW_KEY) === "tree" ? "tree" : "list"));
   const showHistory = (open: boolean) => {
     setHistory(open);
-    try {
-      localStorage.setItem(HISTORY_KEY, open ? "1" : "0");
-    } catch {}
+    store(HISTORY_KEY, open ? "1" : "0");
+  };
+  const showView = (v: FilesView) => {
+    setView(v);
+    store(VIEW_KEY, v);
   };
 
   const refresh = useCallback(async () => {
     try {
-      const s = await client.call("git.status", { project: projectId });
+      const s = await client.call("git.status", at);
       setStatus(s);
       setError(undefined);
       // The open file follows where it went (staged or not), and closes once committed or reverted.
@@ -58,11 +126,11 @@ export function GitPane({ projectId }: { projectId: string }) {
         if (inGroup(p.staged)) return p;
         return inGroup(!p.staged) ? { ...p, staged: !p.staged } : undefined;
       });
-      if (s.repo) setLog(await client.call("git.log", { project: projectId, limit: PAGE }));
+      if (s.repo) setLog(await client.call("git.log", { ...at, limit: PAGE }));
     } catch (e) {
       setError(errText(e));
     }
-  }, [projectId]);
+  }, [at]);
   useEffect(() => {
     void refresh();
     // Agents change files while the owner looks: coming back to the window reads them again.
@@ -82,20 +150,23 @@ export function GitPane({ projectId }: { projectId: string }) {
     setBusy(false);
     await refresh();
   };
-  const stage = (paths: string[]) => act(() => client.call("git.stage", { project: projectId, paths }));
-  const unstage = (paths: string[]) => act(() => client.call("git.unstage", { project: projectId, paths }));
-  const commit = () =>
-    act(async () => {
-      const { sha } = await client.call("git.commit", { project: projectId, message: message.trim() });
+  const stage = (paths: string[]) => act(() => client.call("git.stage", { ...at, paths }));
+  const unstage = (paths: string[]) => act(() => client.call("git.unstage", { ...at, paths }));
+  /** Commits with the message box's words: what is staged, or (`all`) every change; `amend` rewrites the last one. */
+  const commit = (opts: { all?: boolean; amend?: boolean } = {}) => {
+    if (!message.trim()) return notify(t("git.needMessage"));
+    return act(async () => {
+      const { sha } = await client.call("git.commit", { ...at, message: message.trim(), ...opts });
       setMessage("");
       notify(t("git.committed", { sha: sha.slice(0, 7) }), "info");
       setPick({ kind: "commit", sha });
     });
+  };
   /** A message for what is staged, from the auxiliary model; the owner reads and edits it before committing. */
   const suggest = async () => {
     setSuggesting(true);
     try {
-      const { message: m } = await client.call("git.suggest_message", { project: projectId });
+      const { message: m } = await client.call("git.suggest_message", at);
       if (m) setMessage(m);
       else notify(t("git.suggestNone"));
     } catch (e) {
@@ -105,7 +176,7 @@ export function GitPane({ projectId }: { projectId: string }) {
   };
   const more = async () => {
     if (!log) return;
-    const next = await client.call("git.log", { project: projectId, limit: PAGE, skip: log.commits.length });
+    const next = await client.call("git.log", { ...at, limit: PAGE, skip: log.commits.length });
     setLog({ commits: [...log.commits, ...next.commits], more: next.more });
   };
 
@@ -130,9 +201,13 @@ export function GitPane({ projectId }: { projectId: string }) {
   return (
     <div className={history ? "git has-history" : "git"}>
       <nav className="git__side" aria-label={t("git.title")}>
+        {picker}
         <GitBar
-          projectId={projectId}
+          at={at}
           status={status}
+          view={view}
+          onView={showView}
+          onCommit={(opts) => void commit(opts)}
           history={history}
           onHistory={() => showHistory(!history)}
           onRefresh={() => void refresh()}
@@ -169,11 +244,20 @@ export function GitPane({ projectId }: { projectId: string }) {
             {t("git.commit")}
           </Button>
         </div>
-        <FileGroup title={t("git.staged")} files={status.staged} staged pick={pick} onPick={setPick} onMove={unstage} />
+        <FileGroup
+          title={t("git.staged")}
+          files={status.staged}
+          staged
+          view={view}
+          pick={pick}
+          onPick={setPick}
+          onMove={unstage}
+        />
         <FileGroup
           title={t("git.changes")}
           files={status.unstaged}
           staged={false}
+          view={view}
           pick={pick}
           onPick={setPick}
           onMove={stage}
@@ -195,11 +279,11 @@ export function GitPane({ projectId }: { projectId: string }) {
             {t("git.pickBody")}
           </EmptyState>
         ) : pick.kind === "file" ? (
-          <FileDiff key={`${pick.staged}:${pick.path}`} projectId={projectId} path={pick.path} staged={pick.staged} />
+          <FileDiff key={`${pick.staged}:${pick.path}`} at={at} path={pick.path} staged={pick.staged} />
         ) : (
           <CommitView
             key={pick.sha}
-            projectId={projectId}
+            at={at}
             sha={pick.sha}
             path={pick.path}
             onPath={(path) => setPick({ kind: "commit", sha: pick.sha, ...(path ? { path } : {}) })}
@@ -207,104 +291,6 @@ export function GitPane({ projectId }: { projectId: string }) {
         )}
       </section>
     </div>
-  );
-}
-
-const STATUS_KEY = {
-  M: "git.status.M",
-  A: "git.status.A",
-  D: "git.status.D",
-  R: "git.status.R",
-  C: "git.status.C",
-  U: "git.status.U",
-  "?": "git.status.untracked",
-} as const;
-
-/** A file row: its status letter, name and folder, lines added and removed, and the stage or unstage button. */
-function FileRow({ file, on, onPick, action }: { file: GitFile; on: boolean; onPick(): void; action?: ReactNode }) {
-  const t = useT();
-  const slash = file.path.lastIndexOf("/");
-  const name = file.path.slice(slash + 1);
-  const dir = slash > 0 ? file.path.slice(0, slash) : "";
-  const key = STATUS_KEY[file.status as keyof typeof STATUS_KEY];
-  return (
-    <li className={`git__file${on ? " is-on" : ""}`}>
-      <button type="button" className="git__filebtn" onClick={onPick} title={file.from ?? file.path}>
-        <span className={`git__letter is-${file.status === "?" ? "U" : file.status}`} title={key ? t(key) : undefined}>
-          {file.status === "?" ? "U" : file.status}
-        </span>
-        <span className="git__name">{name}</span>
-        {dir && <span className="git__dir">{dir}</span>}
-        {(file.added != null || file.removed != null) && (
-          <span className="git__counts">
-            {file.added ? <span className="is-add">+{file.added}</span> : null}
-            {file.removed ? <span className="is-del">−{file.removed}</span> : null}
-          </span>
-        )}
-      </button>
-      {action}
-    </li>
-  );
-}
-
-function FileGroup({
-  title,
-  files,
-  staged,
-  pick,
-  onPick,
-  onMove,
-}: {
-  title: string;
-  files: GitFile[];
-  staged: boolean;
-  pick: Pick | undefined;
-  onPick(p: Pick): void;
-  onMove(paths: string[]): void;
-}) {
-  const t = useT();
-  if (!files.length) return null;
-  const moveLabel = staged ? t("git.unstage") : t("git.stage");
-  const moveIcon = staged ? <Icons.Minus size={12} /> : <Icons.Plus size={12} />;
-  return (
-    <>
-      <SectionLabel
-        className="git__label"
-        action={
-          <span className="git__labelend">
-            <span className="git__count">{files.length}</span>
-            <IconButton
-              size="sm"
-              label={staged ? t("git.unstageAll") : t("git.stageAll")}
-              icon={moveIcon}
-              onClick={() => onMove(files.map((f) => f.path))}
-            />
-          </span>
-        }
-      >
-        {title}
-      </SectionLabel>
-      <ul className="git__files">
-        {files.map((f) => (
-          <FileRow
-            key={f.path}
-            file={f}
-            on={pick?.kind === "file" && pick.staged === staged && pick.path === f.path}
-            onPick={() => onPick({ kind: "file", path: f.path, staged })}
-            action={
-              <IconButton
-                size="sm"
-                className="git__move"
-                label={`${moveLabel}: ${f.path}`}
-                tooltip={moveLabel}
-                icon={moveIcon}
-                onClick={() => onMove([f.path])}
-              />
-            }
-          />
-        ))}
-      </ul>
-    </>
   );
 }
 
@@ -334,9 +320,9 @@ function DiffBody({ diff }: { diff: ReturnType<typeof useDiff> }) {
   return <DiffView text={diff.diff} truncated={diff.truncated} />;
 }
 
-function FileDiff({ projectId, path, staged }: { projectId: string; path: string; staged: boolean }) {
+function FileDiff({ at, path, staged }: { at: At; path: string; staged: boolean }) {
   const t = useT();
-  const diff = useDiff(() => client.call("git.diff", { project: projectId, path, staged }), `${staged}:${path}`);
+  const diff = useDiff(() => client.call("git.diff", { ...at, path, staged }), `${staged}:${path}`);
   return (
     <>
       <header className="files__head">
@@ -351,12 +337,12 @@ function FileDiff({ projectId, path, staged }: { projectId: string; path: string
 }
 
 function CommitView({
-  projectId,
+  at,
   sha,
   path,
   onPath,
 }: {
-  projectId: string;
+  at: At;
   sha: string;
   path: string | undefined;
   onPath(path: string | undefined): void;
@@ -365,14 +351,14 @@ function CommitView({
   const [shown, setShown] = useState<Result<"git.show"> | { error: string }>();
   useEffect(() => {
     let live = true;
-    client.call("git.show", { project: projectId, sha }).then(
+    client.call("git.show", { ...at, sha }).then(
       (s) => live && setShown(s),
       (e: unknown) => live && setShown({ error: errText(e) }),
     );
     return () => {
       live = false;
     };
-  }, [projectId, sha]);
+  }, [at, sha]);
   if (!shown) return <Skeleton height={200} />;
   if ("error" in shown) return <p className="files__error">{shown.error}</p>;
   const { commit, body, files } = shown;
@@ -396,13 +382,13 @@ function CommitView({
         ))}
       </ul>
       {!files.length && <p className="git__clean">{t("git.noDiff")}</p>}
-      {path && <CommitFileDiff projectId={projectId} sha={sha} path={path} />}
+      {path && <CommitFileDiff at={at} sha={sha} path={path} />}
     </div>
   );
 }
 
-function CommitFileDiff({ projectId, sha, path }: { projectId: string; sha: string; path: string }) {
-  const diff = useDiff(() => client.call("git.commit_diff", { project: projectId, sha, path }), `${sha}:${path}`);
+function CommitFileDiff({ at, sha, path }: { at: At; sha: string; path: string }) {
+  const diff = useDiff(() => client.call("git.commit_diff", { ...at, sha, path }), `${sha}:${path}`);
   return (
     <div className="git__diff">
       <DiffBody diff={diff} />

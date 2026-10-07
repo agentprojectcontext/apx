@@ -1,5 +1,6 @@
 // The owner working a project's repository from the panel: status, staging, committing and history. Every path stays
 // inside the repository and away from .git; git runs with the repository unable to make it run anything (no hooks).
+import fs from "node:fs";
 import path from "node:path";
 import type { GitCommit, GitFile } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
@@ -13,7 +14,7 @@ const MAX_DIFF = 200 * 1024;
 /** Unit and record separators: a subject or a ref never holds them. */
 const US = "\x1f";
 const RS = "\x1e";
-const FORMAT = ["%H", "%s", "%an", "%aI", "%D"].join("%x1f");
+const FORMAT = ["%H", "%s", "%an", "%aI", "%D", "%P"].join("%x1f");
 
 /** git's own message (its first line), as a refusal the owner can read. */
 const refused = (e: unknown) => {
@@ -60,7 +61,7 @@ function nameStatus(out: string, counts: Map<string, { added: number; removed: n
 }
 
 const commitOf = (record: string): GitCommit | undefined => {
-  const [sha, subject, author, at, refs] = record.replace(/^\n+/, "").split(US);
+  const [sha, subject, author, at, refs, parents] = record.replace(/^\n+/, "").split(US);
   if (!sha || !at) return undefined;
   return {
     sha,
@@ -71,6 +72,7 @@ const commitOf = (record: string): GitCommit | undefined => {
       .split(", ")
       .map((r) => r.replace(/^HEAD -> /, "").trim())
       .filter((r) => r && r !== "HEAD"),
+    parents: (parents ?? "").trim().split(" ").filter(Boolean),
   };
 };
 
@@ -100,22 +102,61 @@ const ACTIONS = {
   stash: ["stash", "push", "--include-untracked"],
   stash_pop: ["stash", "pop"],
   undo_commit: ["reset", "--soft", "HEAD~1"],
+  merge_abort: ["merge", "--abort"],
+  rebase_abort: ["rebase", "--abort"],
 } as const;
 
+/** Folders never looked into for repositories: dependencies and build output. */
+const SKIP = new Set(["node_modules", "vendor", "dist", "build", "out", "target", "Pods", "DerivedData"]);
+/** How deep inside a project's folder repositories are looked for, and how many are listed at most. */
+const REPO_DEPTH = 3;
+const MAX_REPOS = 40;
+
+/** Folders inside `root` holding a repository of their own (a `.git` folder or file), not looking inside those. */
+function nestedRepos(root: string): string[] {
+  const found: string[] = [];
+  const walk = (dir: string, depth: number) => {
+    if (found.length >= MAX_REPOS || depth > REPO_DEPTH) return;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (!e.isDirectory() || e.name.startsWith(".") || SKIP.has(e.name)) continue;
+      const abs = path.join(dir, e.name);
+      if (fs.existsSync(path.join(abs, ".git"))) found.push(path.relative(root, abs).split(path.sep).join("/"));
+      else walk(abs, depth + 1);
+      if (found.length >= MAX_REPOS) return;
+    }
+  };
+  walk(root, 1);
+  return found.sort();
+}
+
 export function gitHandlers(store: Store, aux: { judge(system: string, user: string): Promise<string | undefined> }) {
-  /** The repository's root for a project's folder; undefined when the folder is not in one. */
-  const rootOf = async (project: string): Promise<string | undefined> => {
+  const folderOf = (project: string) => {
     const p = store.projects.get(project);
     if (!p) throw notFound(`project ${project}`);
     if (!p.path || !p.present) throw badRequest(`${p.name} has no folder on this machine`);
-    return git(p.path, ["rev-parse", "--show-toplevel"]).then(
+    return p.path;
+  };
+  /**
+   * The repository's root for a project's folder, or for a folder inside it (`sub`, as `git.repos` lists them);
+   * undefined when it is not in one.
+   */
+  const rootOf = async (project: string, sub?: string): Promise<string | undefined> => {
+    const folder = folderOf(project);
+    if (sub && (path.isAbsolute(sub) || !insideReal(folder, sub))) throw badRequest(`${sub} is outside the project`);
+    return git(sub ? path.resolve(folder, sub) : folder, ["rev-parse", "--show-toplevel"]).then(
       (r) => r.trim() || undefined,
       () => undefined,
     );
   };
-  const repo = async (project: string) => {
-    const root = await rootOf(project);
-    if (!root) throw badRequest("this project's folder is not a git repository");
+  const repoAt = async (project: string, sub?: string) => {
+    const root = await rootOf(project, sub);
+    if (!root) throw badRequest("this folder is not a git repository");
     return root;
   };
   /** A path git is handed: inside the repository, never .git, and taken literally (no globs). */
@@ -134,8 +175,8 @@ export function gitHandlers(store: Store, aux: { judge(system: string, user: str
   };
 
   return {
-    "git.status": async ({ project }) => {
-      const root = await rootOf(project);
+    "git.status": async ({ project, repo: sub }) => {
+      const root = await rootOf(project, sub);
       if (!root) return { repo: false, staged: [], unstaged: [] };
       const [status, cached, work] = await Promise.all([
         git(root, ["status", "--porcelain=v1", "-z", "--branch", "--untracked-files=all"]),
@@ -188,8 +229,8 @@ export function gitHandlers(store: Store, aux: { judge(system: string, user: str
         unstaged,
       };
     },
-    "git.diff": async ({ project, path: p, staged }) => {
-      const root = await repo(project);
+    "git.diff": async ({ project, repo: sub, path: p, staged }) => {
+      const root = await repoAt(project, sub);
       const s = spec(root, p);
       const base = ["diff", "--no-ext-diff", "--no-textconv"];
       let diff = await git(root, [...base, ...(staged ? ["--cached"] : []), "--", s]).catch(() => "");
@@ -203,14 +244,14 @@ export function gitHandlers(store: Store, aux: { judge(system: string, user: str
       }
       return { path: p, ...cut(diff) };
     },
-    "git.stage": async ({ project, paths }) => {
-      const root = await repo(project);
+    "git.stage": async ({ project, repo: sub, paths }) => {
+      const root = await repoAt(project, sub);
       const specs = paths.map((p) => spec(root, p));
       await git(root, ["add", "--all", "--", ...specs]).catch((e) => Promise.reject(refused(e)));
       return { ok: true as const };
     },
-    "git.unstage": async ({ project, paths }) => {
-      const root = await repo(project);
+    "git.unstage": async ({ project, repo: sub, paths }) => {
+      const root = await repoAt(project, sub);
       const specs = paths.map((p) => spec(root, p));
       // Before the first commit there is no HEAD to reset to: the files leave the index instead.
       const born = await git(root, ["rev-parse", "--verify", "-q", "HEAD"]).then(
@@ -221,19 +262,35 @@ export function gitHandlers(store: Store, aux: { judge(system: string, user: str
       await git(root, args).catch((e) => Promise.reject(refused(e)));
       return { ok: true as const };
     },
-    "git.commit": async ({ project, message }) => {
-      const root = await repo(project);
-      await git(root, ["commit", "--no-verify", "-q", "-m", message], 30_000).catch((e) => Promise.reject(refused(e)));
+    "git.commit": async ({ project, repo: sub, message, all, amend }) => {
+      const root = await repoAt(project, sub);
+      // "All" takes new files too, as staging everything would; `commit -a` alone leaves them out.
+      if (all) await git(root, ["add", "--all"]).catch((e) => Promise.reject(refused(e)));
+      const args = ["commit", "--no-verify", "-q", ...(amend ? ["--amend"] : []), "-m", message];
+      await git(root, args, 30_000).catch((e) => Promise.reject(refused(e)));
       return { sha: (await git(root, ["rev-parse", "HEAD"])).trim() };
     },
-    "git.log": async ({ project, limit, skip }) => {
-      const root = await repo(project);
+    "git.log": async ({ project, repo: sub, limit, skip }) => {
+      const root = await repoAt(project, sub);
+      // A repository with no commits yet has no history, not an error.
+      const born = await git(root, ["rev-parse", "--verify", "-q", "HEAD"]).then(
+        () => true,
+        () => false,
+      );
+      if (!born) return { commits: [], more: false };
       const out = await git(root, [
         "log",
         `--max-count=${limit + 1}`,
         `--skip=${skip}`,
         `--format=${FORMAT}%x1e`,
         "--decorate=short",
+        // Children before their parents, so the history's graph draws its lines downward only.
+        "--topo-order",
+        // Every branch, so the history draws them side by side; stashes stay out.
+        "--branches",
+        "--remotes",
+        "--tags",
+        "HEAD",
       ]).catch((e: { stderr?: string }) =>
         // A repository with no commits yet has no history, not an error.
         /does not have any commits/.test(e.stderr ?? "") ? "" : Promise.reject(refused(e)),
@@ -244,14 +301,14 @@ export function gitHandlers(store: Store, aux: { judge(system: string, user: str
         .filter((c): c is GitCommit => Boolean(c));
       return { commits: commits.slice(0, limit), more: commits.length > limit };
     },
-    "git.show": async ({ project, sha }) => {
-      const root = await repo(project);
+    "git.show": async ({ project, repo: sub, sha }) => {
+      const root = await repoAt(project, sub);
       const head = await git(root, ["show", "-s", `--format=${FORMAT}%x1f%b`, "--decorate=short", sha]).catch((e) =>
         Promise.reject(refused(e)),
       );
       const commit = commitOf(head);
       if (!commit) throw notFound(`commit ${sha}`);
-      const body = head.split(US).slice(5).join(US).trim();
+      const body = head.split(US).slice(6).join(US).trim();
       const parent = await parentOf(root, commit.sha);
       const range = [parent, commit.sha];
       const [names, counts] = await Promise.all([
@@ -260,8 +317,8 @@ export function gitHandlers(store: Store, aux: { judge(system: string, user: str
       ]);
       return { commit, body, files: nameStatus(names, numstat(counts)) };
     },
-    "git.suggest_message": async ({ project }) => {
-      const root = await repo(project);
+    "git.suggest_message": async ({ project, repo: sub }) => {
+      const root = await repoAt(project, sub);
       const base = ["diff", "--no-ext-diff", "--no-textconv", "--stat", "--patch"];
       let diff = await git(root, [...base, "--cached"]).catch(() => "");
       // Nothing staged: every change, as the commit would take once all is staged.
@@ -274,8 +331,8 @@ export function gitHandlers(store: Store, aux: { judge(system: string, user: str
       );
       return { message: answer ? cleanMessage(answer) : "" };
     },
-    "git.branches": async ({ project }) => {
-      const root = await repo(project);
+    "git.branches": async ({ project, repo: sub }) => {
+      const root = await repoAt(project, sub);
       const [current, locals, remotes] = await Promise.all([
         git(root, ["branch", "--show-current"]).then((r) => r.trim()),
         git(root, ["for-each-ref", "--format=%(refname:short)", "refs/heads"]),
@@ -289,8 +346,8 @@ export function gitHandlers(store: Store, aux: { judge(system: string, user: str
         remote: lines(remotes).filter((r) => !r.endsWith("/HEAD") && r.includes("/")),
       };
     },
-    "git.checkout": async ({ project, branch, create }) => {
-      const root = await repo(project);
+    "git.checkout": async ({ project, repo: sub, branch, create, from }) => {
+      const root = await repoAt(project, sub);
       const has = (ref: string) =>
         git(root, ["show-ref", "--verify", "--quiet", ref]).then(
           () => true,
@@ -298,12 +355,16 @@ export function gitHandlers(store: Store, aux: { judge(system: string, user: str
         );
       // A remote branch ("origin/feature") is checked out as its local twin, tracking it.
       const remote = !create && !(await has(`refs/heads/${branch}`)) && (await has(`refs/remotes/${branch}`));
-      const args = create ? ["switch", "-c", branch] : remote ? ["switch", "--track", branch] : ["switch", branch];
+      const args = create
+        ? ["switch", "-c", branch, ...(from ? [from] : [])]
+        : remote
+          ? ["switch", "--track", branch]
+          : ["switch", branch];
       await git(root, args).catch((e) => Promise.reject(refused(e)));
       return { branch: (await git(root, ["branch", "--show-current"])).trim() || branch };
     },
-    "git.run": async ({ project, action }) => {
-      const root = await repo(project);
+    "git.run": async ({ project, repo: sub, action }) => {
+      const root = await repoAt(project, sub);
       let args: readonly string[];
       if (action === "push") {
         const upstream = await git(root, ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"]).catch(
@@ -314,8 +375,44 @@ export function gitHandlers(store: Store, aux: { judge(system: string, user: str
       const r = await gitBoth(root, [...args], NETWORK_MS).catch((e) => Promise.reject(refused(e)));
       return { output: `${r.stdout}${r.stderr}`.trim() };
     },
-    "git.commit_diff": async ({ project, sha, path: p }) => {
-      const root = await repo(project);
+    "git.branch": async ({ project, repo: sub, op, branch, force }) => {
+      const root = await repoAt(project, sub);
+      let args: string[];
+      if (op === "merge") args = ["merge", "--no-edit", branch];
+      else if (op === "rebase") args = ["rebase", branch];
+      else if (op === "rename") args = ["branch", "-m", branch];
+      else if (op === "delete") args = ["branch", force ? "-D" : "-d", branch];
+      else {
+        // "origin/feature" → the remote and the branch on it.
+        const slash = branch.indexOf("/");
+        if (slash < 1) throw badRequest(`${branch} is not a remote branch (remote/name)`);
+        args = ["push", branch.slice(0, slash), "--delete", branch.slice(slash + 1)];
+      }
+      const network = op === "delete_remote";
+      const r = await gitBoth(root, args, network ? NETWORK_MS : 30_000).catch((e) => Promise.reject(refused(e)));
+      return { output: `${r.stdout}${r.stderr}`.trim() };
+    },
+    "git.repos": async ({ project }) => {
+      const folder = folderOf(project);
+      const own = await rootOf(project);
+      const subs = nestedRepos(folder);
+      const repos = [...(own ? [""] : []), ...subs];
+      const branchOf = (rel: string) =>
+        git(path.resolve(folder, rel), ["branch", "--show-current"]).then(
+          (b) => b.trim() || undefined,
+          () => undefined,
+        );
+      return {
+        repos: await Promise.all(
+          repos.map(async (p) => {
+            const branch = await branchOf(p);
+            return { path: p, ...(branch ? { branch } : {}) };
+          }),
+        ),
+      };
+    },
+    "git.commit_diff": async ({ project, repo: sub, sha, path: p }) => {
+      const root = await repoAt(project, sub);
       const s = spec(root, p);
       const parent = await parentOf(root, sha);
       const diff = await git(root, ["diff", "--no-ext-diff", "--no-textconv", parent, sha, "--", s]).catch((e) =>
