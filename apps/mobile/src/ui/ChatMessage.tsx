@@ -8,6 +8,7 @@ import type { Message } from "../protocol";
 import { ActionGroup } from "./ActionGroup";
 import { Icon } from "./Icon";
 import { Button, Spinner, Tag } from "./kit";
+import { Markdown } from "./Markdown";
 import { theme } from "./theme";
 
 type Part = Message["parts"][number];
@@ -51,11 +52,16 @@ export function ChatMessage({
         const key = keyOf(part);
         switch (part.type) {
           case "text":
-            return part.text.trim() ? (
-              <Text key={key} selectable style={[s.bubble, mine ? s.mine : s.theirs]}>
+            if (!part.text.trim()) return null;
+            return mine ? (
+              <Text key={key} selectable style={[s.bubble, s.mine]}>
                 {part.text}
               </Text>
-            ) : null;
+            ) : (
+              <View key={key} style={[s.bubble, s.theirs]}>
+                <Markdown text={part.text} />
+              </View>
+            );
           case "input":
             return <InputCard key={key} part={part} respond={respond} />;
           case "notice":
