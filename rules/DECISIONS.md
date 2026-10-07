@@ -531,3 +531,15 @@ its chat for the task, and each finished turn there is posted back to the task a
 stays listed on the task, and the new agent's [task] block says who worked it before. Once an hour the office clock
 picks up a few assigned tasks that never started, most pressing first, counting only assignments made since this
 began (`task_work_since`), so the board already assigned before it does not start on its own.
+
+<a id="d-049"></a>
+## D-049 — 2026-10-07 — Channels, contacts and rooms: three words, a tool for each
+Asked to read a Discord room, an agent went to the browser: nothing said the room existed, and the only send tool
+reached people. The words are now fixed. A **channel** is an app APX talks through (WhatsApp, Telegram, Discord,
+Slack, iMessage). On a channel, a **contact** is a person (their direct chat) and a **room** is a shared place many
+people read (a Discord or Slack channel; a WhatsApp or Telegram group would be one too). "Thread" stays APX's own word
+for any conversation: every contact chat and every room is kept in one. The agent is not told this in each turn: one
+line of the system prompt names the words, and it looks when it needs to. `channel_list` (over `channels.overview`,
+open to agents, no tokens, accounts or QR) shows each channel's state and rooms; `contact_list` shows people;
+`message_contact` writes to a person and `channel_post` (over `channels.post`) posts in a room by its exact name: a
+near name only gets a suggestion, since a public post cannot be taken back. Reading a room is `read_chat("#name")`.

@@ -19,6 +19,7 @@ New here or reviewing? Read [`rules/HUMAN_MODEL.md`](rules/HUMAN_MODEL.md) first
 | **surface** | A widget/app/artifact: HTML bundle + manifest, shown inline, in the sidebar or fullscreen, or published. | A UI "surface" in the generic sense. |
 | **provider** | A model API (Gemini, Anthropic, OpenAI-compatible…) called by the built-in harness. `apps/core/src/providers`. | A harness. |
 | **harness** | What runs an agent turn's loop: `native` (ours), `claude` (Agent SDK), `codex` (Codex SDK), later `acp`. | A provider. "Engine" and "runtime" are not used for either. |
+| **channel / contact / room** | An app APX talks through (WhatsApp, Telegram, Discord…); a person on it; a shared place on it (a Discord #channel, a group). [D-049](rules/DECISIONS.md#d-049) | A **thread**: each contact chat and each room is kept in one. |
 | **thread / run / step** | A conversation; one agent turn in it (durable, with its input and origin); one tool call in a run. | v1's ledgers, sessions and conversations (all replaced by these). |
 | **APC** | The open standard: `AGENTS.md` + `.apc/` in a project. APX implements it. | APX itself. |
 
