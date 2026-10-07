@@ -69,6 +69,7 @@ export function FilesPage({ data, back, actions }: { data: Workspace; back: () =
         <FileView project={project.id} file={file} actions={actions} />
       ) : (
         <Folder
+          key={`${project.id}:${dir}`}
           project={project.id}
           dir={dir}
           actions={actions}
@@ -93,16 +94,23 @@ function Folder({
   const [listing, setListing] = useState<{ entries: FileEntry[]; truncated: boolean }>();
   const [error, setError] = useState("");
   useEffect(() => {
+    // A listing that arrives after the owner moved on is dropped.
+    let live = true;
     setListing(undefined);
+    setError("");
     void actions
       .tree(project, dir)
       .then((result) => {
+        if (!live) return;
         const sorted = [...result.entries].sort(
           (a, b) => Number(b.kind === "dir") - Number(a.kind === "dir") || a.name.localeCompare(b.name),
         );
         setListing({ entries: sorted, truncated: result.truncated });
       })
-      .catch((err) => setError(err instanceof Error ? err.message : String(err)));
+      .catch((err) => live && setError(err instanceof Error ? err.message : String(err)));
+    return () => {
+      live = false;
+    };
   }, [actions, project, dir]);
   if (error) return <EmptyState title={t("couldNotOpen")} body={error} icon="TriangleAlert" />;
   if (!listing)
@@ -144,13 +152,21 @@ function FileView({ project, file, actions }: { project: string; file: FileEntry
   const [image, setImage] = useState<string>();
   const [error, setError] = useState("");
   useEffect(() => {
-    const fail = (err: unknown) => setError(err instanceof Error ? err.message : String(err));
+    let live = true;
+    const fail = (err: unknown) => live && setError(err instanceof Error ? err.message : String(err));
     if (IMAGE.test(file.name))
       void actions
         .media(project, file.path)
-        .then((media) => setImage(`data:${media.mime};base64,${media.data}`))
+        .then((media) => live && setImage(`data:${media.mime};base64,${media.data}`))
         .catch(fail);
-    else void actions.read(project, file.path).then(setText).catch(fail);
+    else
+      void actions
+        .read(project, file.path)
+        .then((result) => live && setText(result))
+        .catch(fail);
+    return () => {
+      live = false;
+    };
   }, [actions, project, file]);
   if (error) return <EmptyState title={t("couldNotOpen")} body={error} icon="TriangleAlert" />;
   if (image)
