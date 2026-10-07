@@ -6,7 +6,7 @@ import { blobOf } from "../data/identity.ts";
 import { closeTask, updateTask } from "../data/tasks.ts";
 import type { T } from "../i18n/index.ts";
 import { PRIORITIES, PRIORITY_KEY, PriorityDot } from "./TaskFields.tsx";
-import { columnLabel } from "./TaskForms.tsx";
+import { ColumnDot, columnLabel } from "./TaskForms.tsx";
 import { type GroupId, moveTo } from "./taskGroups.ts";
 
 /** Applies a drop on a group: its column (no longer waiting), waiting for the owner, or done. */
@@ -40,6 +40,7 @@ export function taskMenu(
       disabled: !open,
       items: o.columns.map((c) => ({
         label: columnLabel(c, t),
+        icon: <ColumnDot id={c.id} />,
         checked: c.id === task.status,
         onSelect: () => void updateTask(task.id, { status: c.id, awaits_owner: false }),
       })),

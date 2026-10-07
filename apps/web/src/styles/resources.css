@@ -501,7 +501,7 @@
 }
 .varpick__item:hover,
 .varpick__new:hover {
-  background: var(--apx-fill);
+  background: var(--apx-popup-hover, var(--apx-fill));
 }
 .varpick__new {
   border-top: 1px solid var(--apx-border);

@@ -16,7 +16,7 @@ const { ApxProvider, Composer } = window.ApxUI;
 
 ## 2. Styling idiom: tokens, not classes
 Components are styled; you only write layout glue (flex/grid, gaps, widths) with inline styles or your own CSS, using tokens:
-- Surfaces: `--apx-bg` (page), `--apx-sidebar`, `--apx-surface` (panels), `--apx-surface-raised`, `--apx-fill` / `--apx-fill-hover` / `--apx-fill-strong` (soft fills), `--apx-border`, `--apx-border-strong`.
+- Surfaces: `--apx-bg` (page), `--apx-sidebar`, `--apx-surface` (panels), `--apx-surface-raised`, `--apx-fill` / `--apx-fill-hover` / `--apx-fill-strong` (soft fills), `--apx-popup-hover` (a hovered row in a menu or popup; set only in dark, falls back to `--apx-fill`), `--apx-border`, `--apx-border-strong`.
 - Text: `--apx-fg`, `--apx-fg-muted`, `--apx-fg-subtle`.
 - Accent: `--apx-accent` / `--apx-accent-fg` (primary action), `--apx-brand` (APX green, both looks), `--apx-selection`.
 - Tones: `--apx-{brand|violet|info|warning|danger}` plus `-soft` and `-soft-fg` variants.

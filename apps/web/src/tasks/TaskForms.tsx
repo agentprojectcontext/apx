@@ -17,6 +17,12 @@ const COLUMN_KEYS: Record<string, MessageKey> = {
   review: "tasks.col.review",
 };
 
+/** A column's dot, in the tone of its group in the list; the backlog stays grey (nothing planned yet). */
+export function ColumnDot({ id }: { id: string }) {
+  const tone = id === "backlog" || id === "doing" || id === "review" ? id : "pending";
+  return <span className={`col-dot is-${tone}`} aria-hidden="true" />;
+}
+
 /** The default columns in the owner's language; a column the owner made shows its own name. */
 export const columnLabel = (c: TaskColumn, t: T) => {
   const key = COLUMN_KEYS[c.id];

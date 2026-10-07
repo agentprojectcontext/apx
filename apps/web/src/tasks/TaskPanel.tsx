@@ -23,7 +23,7 @@ import {
   PrioritySelect,
   ReminderField,
 } from "./TaskFields.tsx";
-import { columnLabel } from "./TaskForms.tsx";
+import { ColumnDot, columnLabel } from "./TaskForms.tsx";
 import { pickerValue, type Reminder, remindAt, reminderOf } from "./when.ts";
 
 /**
@@ -100,17 +100,27 @@ function StateBar({ task }: { task: Task }) {
         value={task.status}
         disabled={task.state !== "open"}
         onValueChange={(v) => v && v !== task.status && void updateTask(task.id, { status: v, awaits_owner: false })}
-        options={columns.map((c) => ({ value: c.id, label: columnLabel(c, t) }))}
+        options={columns.map((c) => ({ value: c.id, label: columnLabel(c, t), icon: <ColumnDot id={c.id} /> }))}
       />
       <span className="board__spacer" />
       {task.kind === "commitment" ? (
         <CommitmentActions task={task} />
       ) : task.state === "open" ? (
         <>
-          <Button size="sm" leadingIcon={<Icons.Check size={14} />} onClick={() => void closeTask(task.id, "done")}>
+          <Button
+            size="sm"
+            variant="outline"
+            leadingIcon={<Icons.Check size={14} />}
+            onClick={() => void closeTask(task.id, "done")}
+          >
             {t("tasks.markDone")}
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => void closeTask(task.id, "dropped")}>
+          <Button
+            size="sm"
+            variant="outline"
+            leadingIcon={<Icons.X size={14} />}
+            onClick={() => void closeTask(task.id, "dropped")}
+          >
             {t("tasks.drop")}
           </Button>
         </>

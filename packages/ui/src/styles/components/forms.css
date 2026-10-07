@@ -346,7 +346,7 @@
 }
 .apx-suggest__item.is-active,
 .apx-suggest__item:hover {
-  background: var(--apx-fill);
+  background: var(--apx-popup-hover, var(--apx-fill));
 }
 .apx-suggest__item code {
   font-family: var(--apx-font-mono);

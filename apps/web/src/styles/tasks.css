@@ -215,8 +215,9 @@
   width: 100%;
 }
 
-/* Priority: a dot, red to gray */
-.prio-dot {
+/* Priority: a dot, red to gray. A column: the tone of its group in the list. */
+.prio-dot,
+.col-dot {
   display: inline-block;
   width: 8px;
   height: 8px;
@@ -234,6 +235,19 @@
 }
 .prio-dot.is-low {
   background: var(--apx-border-strong);
+}
+
+.col-dot {
+  background: var(--apx-warning);
+}
+.col-dot.is-backlog {
+  background: var(--apx-fg-subtle);
+}
+.col-dot.is-doing {
+  background: var(--apx-brand);
+}
+.col-dot.is-review {
+  background: var(--apx-violet);
 }
 
 /* Task panel: properties as label · value rows, then what it is about and its conversation or history */
@@ -344,7 +358,7 @@
 }
 .taskmentions__option:hover,
 .taskmentions__option.is-active {
-  background: var(--apx-fill-hover);
+  background: var(--apx-popup-hover, var(--apx-fill));
 }
 .taskmentions__slug {
   margin-left: auto;

@@ -43,7 +43,7 @@
   user-select: none;
 }
 .apx-menu__item[data-highlighted] {
-  background: var(--apx-fill);
+  background: var(--apx-popup-hover, var(--apx-fill));
 }
 .apx-menu__item[data-disabled] {
   opacity: 0.45;

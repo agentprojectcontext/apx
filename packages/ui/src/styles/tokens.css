@@ -137,6 +137,8 @@
   --apx-fill: #272726;
   --apx-fill-hover: #2e2e2c;
   --apx-fill-strong: #353533;
+  /* A hovered row inside a menu or popup: the plain fill barely shows on a raised surface in the dark. */
+  --apx-popup-hover: var(--apx-fill-strong);
   --apx-fg: #ededeb;
   --apx-fg-muted: #a6a59f;
   --apx-fg-subtle: #767570;
@@ -254,6 +256,7 @@
   --apx-fill: hsl(222 14% 12%);
   --apx-fill-hover: hsl(222 14% 15%);
   --apx-fill-strong: hsl(222 14% 18%);
+  --apx-popup-hover: var(--apx-fill-strong);
   --apx-fg: hsl(210 16% 92%);
   --apx-fg-muted: hsl(217 10% 64%);
   --apx-fg-subtle: hsl(217 8% 46%);

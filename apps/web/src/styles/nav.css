@@ -625,7 +625,7 @@
   cursor: pointer;
 }
 .palette__item.is-on {
-  background: var(--apx-fill);
+  background: var(--apx-popup-hover, var(--apx-fill));
 }
 .palette__icon {
   display: grid;
