@@ -26,8 +26,8 @@ async function permission(request: boolean) {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("default", {
       name: "APX",
+      // No `sound`: a name here means a bundled file; leaving it out keeps the system's notification sound.
       importance: Notifications.AndroidImportance.HIGH,
-      sound: "default",
       vibrationPattern: [0, 250, 150, 250],
       lightColor: "#3ec98b",
     });
@@ -77,7 +77,7 @@ export async function showLiveNotice(
       content: {
         title: notice.title,
         body: notice.body,
-        sound: "default",
+        sound: true,
         data: { thread_id: notice.thread_id, source: "apx-live" },
       },
       trigger: Platform.OS === "android" ? { channelId: "default" } : null,
@@ -90,7 +90,7 @@ export async function showLiveNotice(
 
 export function notificationPreview() {
   return Notifications.scheduleNotificationAsync({
-    content: { title: "APX", body: t("notificationPreview"), sound: "default", data: { source: "apx-live" } },
+    content: { title: "APX", body: t("notificationPreview"), sound: true, data: { source: "apx-live" } },
     trigger: Platform.OS === "android" ? { channelId: "default" } : null,
   });
 }
