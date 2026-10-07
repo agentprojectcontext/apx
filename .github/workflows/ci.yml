@@ -209,6 +209,18 @@ jobs:
       # is used by the new TUI.
       - run: npm install --legacy-peer-deps
 
+      # `npm run test` below runs the WHOLE suite, and some backend tests bundle
+      # panel source with esbuild (tests/web-forward-ui.test.js). Without the
+      # panel's own install they cannot resolve react, and every release since
+      # that file landed failed here — before publishing anything — while
+      # `verify`, which does install the panel, stayed green.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Install (web panel)
+        run: pnpm install --frozen-lockfile
+        working-directory: src/interfaces/web
+
       # `npm install` runs `prepare`, which points core.hooksPath at
       # .githooks — so semantic-release's own `git push` fires the local
       # pre-push gate. That gate runs `lint:web`, which needs the panel's
