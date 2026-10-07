@@ -107,6 +107,7 @@ export const enOffice = {
   "tasks.mentionEmpty": "No matching agents",
   "tasks.commentHint": "Write a comment; @name asks an agent here.",
   "tasks.send": "Send",
+  "tasks.sendHint": "Shift+Enter sends · Enter adds a line",
   "error.routines": "Routines: {error}",
   "routines.title": "Routines",
   "routines.col.routine": "Routine",

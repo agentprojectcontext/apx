@@ -139,8 +139,12 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await expect(comment).toHaveValue("Draft to keep");
     await expect(drawer.getByText("@owner please approve the review.", { exact: true })).toBeInViewport();
     await page.screenshot({ path: info.outputPath("task-conversation.png") });
+    // Enter is a new line; Shift+Enter sends.
     await comment.fill("Approved");
-    await drawer.getByRole("button", { name: "Enviar", exact: true }).click();
+    await comment.press("Enter");
+    await expect(comment).toHaveValue("Approved\n");
+    await comment.press("Shift+Enter");
+    await expect(comment).toHaveValue("");
     await expect
       .poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.awaits_owner)
       .toBe(false);

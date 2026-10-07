@@ -9,7 +9,7 @@ import { useT } from "../i18n/index.ts";
 import { insertMention, type Mention, mentionAt, mentionToken } from "./mentions.ts";
 
 /**
- * The comment box under a task's conversation, like the chat's: Enter sends, Shift+Enter adds a line, @ picks an agent
+ * The comment box under a task's conversation, like the chat's: Shift+Enter sends, Enter adds a line, @ picks an agent
  * to ask. `focus` changes when a quote was put in, to bring the caret to the end.
  */
 export function TaskComment({
@@ -83,7 +83,8 @@ export function TaskComment({
     }
   };
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
-    if (!mention || e.nativeEvent.isComposing) return false;
+    if (e.nativeEvent.isComposing) return false;
+    if (!mention) return enter(e);
     if (e.key === "Escape") {
       e.preventDefault();
       setMention(undefined);
@@ -100,7 +101,16 @@ export function TaskComment({
       pick(choice);
       return true;
     }
-    return false;
+    return enter(e);
+  };
+  /** Shift+Enter (or ⌘/Ctrl+Enter) sends; a plain Enter is a new line, as in a written comment. */
+  const enter = (e: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    if (e.key !== "Enter") return false;
+    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+      e.preventDefault();
+      void send();
+    }
+    return true;
   };
   /** The @ button: an @ at the caret (after a space), with the picker open. */
   const startMention = () => {
@@ -124,6 +134,7 @@ export function TaskComment({
         inputLabel={t("tasks.comment")}
         placeholder={t("tasks.commentHint")}
         labels={{ send: t("tasks.send") }}
+        sendHint={t("tasks.sendHint")}
         value={text}
         disabled={sending}
         onValueChange={(value) => {

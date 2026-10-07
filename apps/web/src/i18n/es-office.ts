@@ -110,6 +110,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "tasks.mentionEmpty": "Sin agentes coincidentes",
   "tasks.commentHint": "Escribí un comentario; @nombre le pregunta a un agente acá.",
   "tasks.send": "Enviar",
+  "tasks.sendHint": "Shift+Enter envía · Enter agrega una línea",
   "error.routines": "Rutinas: {error}",
   "routines.title": "Rutinas",
   "routines.col.routine": "Rutina",
