@@ -26,8 +26,11 @@ test("the system prompt has no clock and no roster: same agent and thread, same 
   assert.equal(a, systemPrompt(agent, { kind: "home" }, "es"));
   assert.doesNotMatch(a, /\d{4}|id: scout/);
   assert.match(a, /Spanish \(Rioplatense/);
-  assert.match(a, /Routine searches, duplicate checks.*not reasons to start a worker/);
   assert.match(a, /Never delegate to yourself/);
+  // One rule says when to delegate, and a late hand-off carries what was found.
+  assert.equal(a.match(/^- Delegating:/gm)?.length, 1);
+  assert.match(a, /give what you already found and ask only for what is missing/);
+  assert.doesNotMatch(a, /^- Other agents:|^- Do your own assigned task|^- Work you hand/m);
 });
 
 test("history keeps whole runs, prunes old tool output and stays within budget", () => {
