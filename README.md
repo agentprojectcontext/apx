@@ -18,6 +18,27 @@ over at any moment. v2 is a ground-up rewrite of APX with one rule: **one way to
 The full survey and the staged plan are in [`plan/archivo/03-relevo-y-plan-motor.md`](plan/archivo/03-relevo-y-plan-motor.md)
 (Spanish).
 
+## What every model call carries
+
+<p align="center"><img src="assets/prompt-size.svg" alt="Tokens per model call on a fresh install: APX v2 8.1k, Hermes 13.0k, APX v1 13.2k (Telegram) and 23.6k (web chat), OpenClaw 13.2k" width="760"></p>
+
+Every step of every turn sends the system prompt and the tool definitions again, so their size is paid over and over.
+APX v2 sends the least of the agent apps we measured, and a test keeps it under a budget.
+
+| App | System prompt | Tools sent | First call |
+|---|---|---|---|
+| **APX v2** | 1,260 | 50 tools, 6,859 | **≈ 8,100** |
+| Hermes | 3,956 | 24 tools, 9,070 | ≈ 13,000 |
+| APX v1 (Telegram, CLI, desktop) | 4,626 | 39 tools, 8,609 | ≈ 13,200 |
+| OpenClaw | 9,800 | 14 tools, 3,411 | ≈ 13,200 |
+| APX v1 (web chat, API, routines) | 4,115 | 102 tools, 19,441 | ≈ 23,600 |
+
+Tokens (o200k), first call of a fresh install with default settings, measured by running each app's own prompt builder.
+MCP servers' tools are found with `mcp_search` instead of being sent one by one, and the prompt stays identical across
+calls so the provider's cache keeps it: on a real install with ten MCP servers a one-line answer went from 64k tokens
+to 12k, and from the second call about 97% of it comes from the cache. Method, budget and details:
+[`rules/PROMPT_SIZE.md`](rules/PROMPT_SIZE.md).
+
 ## Layout
 
 ```
