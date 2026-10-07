@@ -10,6 +10,8 @@
 //   apx task done <id>     [--project X] [--by name]
 //   apx task drop <id>     [--project X] [--by name]
 //   apx task reopen <id>   [--project X]
+//   apx task depend <id>   --on <id> [--reason R] [--owner O] [--condition C] [--project X]
+//   apx task undepend <id> --on <id> --reason R [--project X]
 //   apx task patch <id>    [--project X] [--title T] [--description D] [--body B] [--due D]
 //                          [--agent A] [--tag t]
 //
@@ -33,6 +35,8 @@ export const TASK_USAGE = {
   done:   "apx task done <id> [--project X] [--by name]",
   drop:   "apx task drop <id> [--project X] [--by name]",
   reopen: "apx task reopen <id> [--project X]",
+  depend: "apx task depend <id> --on <id> [--reason R] [--owner O] [--condition C] [--project X]",
+  undepend: "apx task undepend <id> --on <id> --reason R [--project X]",
   patch:  "apx task patch <id> [--project X] [--title T] [--description D] [--body B] [--due D] [--agent A] [--tag t]",
 };
 
@@ -255,6 +259,29 @@ export async function cmdTaskReopen(args) {
   const pid = await resolveProjectId(args?.flags?.project);
   const t = await http.post(`/api/projects/${pid}/tasks/${encodeURIComponent(id)}/reopen`);
   console.log(`reopened: ${t.id} — ${t.title}`);
+}
+
+// ── depend / undepend ─────────────────────────────────────────────────────────
+// <id> waits on --on. Lifting a wait takes a reason, so it is never silent.
+export async function cmdTaskDepend(args) {
+  const id = (args._ || [])[0];
+  const on = args.flags?.on;
+  if (!id || !on) return fail("depend", "id and --on required");
+  const pid = await resolveProjectId(args?.flags?.project);
+  const t = await http.post(`/api/projects/${pid}/tasks/${encodeURIComponent(id)}/dependencies`, {
+    on, reason: args.flags?.reason || null, owner: args.flags?.owner || null, condition: args.flags?.condition || null,
+  });
+  console.log(`${t.id} now waits on: ${(t.depends_on || []).map((d) => `${d.task_id} (${d.state})`).join(", ")}`);
+}
+
+export async function cmdTaskUndepend(args) {
+  const id = (args._ || [])[0];
+  const on = args.flags?.on;
+  const reason = args.flags?.reason;
+  if (!id || !on || !reason) return fail("undepend", "id, --on and --reason required");
+  const pid = await resolveProjectId(args?.flags?.project);
+  const t = await http.delete(`/api/projects/${pid}/tasks/${encodeURIComponent(id)}/dependencies/${encodeURIComponent(on)}?reason=${encodeURIComponent(reason)}`);
+  console.log(`${t.id} no longer waits on ${on}`);
 }
 
 // ── patch ─────────────────────────────────────────────────────────────────────

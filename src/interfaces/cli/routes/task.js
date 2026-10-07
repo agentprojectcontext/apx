@@ -4,7 +4,7 @@
 // owns its own routing and imports only the command functions it calls, so the
 // CLI no longer loads all 38 command modules to run one of them.
 
-import { cmdTaskAdd, cmdTaskDone, cmdTaskDrop, cmdTaskList, cmdTaskPatch, cmdTaskReopen, cmdTaskShow, cmdTaskSummary } from "../commands/task.js";
+import { cmdTaskAdd, cmdTaskDone, cmdTaskDrop, cmdTaskList, cmdTaskPatch, cmdTaskReopen, cmdTaskShow, cmdTaskSummary, cmdTaskDepend, cmdTaskUndepend } from "../commands/task.js";
 
 // Aliases accepted for this command. Declared here, next to the command
 // itself — a global alias table would be wrong, since the same word means
@@ -22,6 +22,8 @@ export default async function route(rest, { parseArgs, die }) {
   else if (sub === "done" || sub === "complete") await cmdTaskDone(a);
   else if (sub === "drop" || sub === "archive") await cmdTaskDrop(a);
   else if (sub === "reopen") await cmdTaskReopen(a);
+  else if (sub === "depend") await cmdTaskDepend(a);
+  else if (sub === "undepend") await cmdTaskUndepend(a);
   else if (sub === "patch" || sub === "edit") await cmdTaskPatch(a);
-  else die(`unknown task subcommand: ${sub}\nUsage: apx task <list|summary|add|show|done|drop|reopen|patch>`);
+  else die(`unknown task subcommand: ${sub}\nUsage: apx task <list|summary|add|show|done|drop|reopen|depend|undepend|patch>`);
 }

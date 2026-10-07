@@ -132,6 +132,16 @@ Report "nothing matches <filters>", never "there are no tasks"; for an overview
 ask for `summary: true` instead of guessing a filter. `status` takes custom
 column ids too.
 
+**Dependencies are data, not prose.** When you delegate work that unblocks
+another task, record it on the WAITING task:
+`update_task({ task: B, depends_on_add: [{ task: A, reason, owner, condition }] })`.
+Both sides then show it (`depends_on` on B, `blocks` on A). Same project only;
+cycles are refused. Lift one with `depends_on_remove: [{ task: A, reason }]` —
+the reason is required and kept. A done dependency means B is UNBLOCKED, not
+approved: you still verify A's delivery before B proceeds, and you never start
+work just because a card moved. CLI: `apx task depend B --on A --reason …`,
+`apx task undepend B --on A --reason …`.
+
 **The column is not proof of work.** `get_task` returns `execution`: a
 `verdict` (`working` only when a linked runtime session is open or an agent
 turn is on the thread now; `not_verified` when the column says running and

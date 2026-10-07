@@ -125,6 +125,23 @@ test("the task detail carries its execution view, and a panel move is signed (#5
   assert.equal(detail.status_changed_by, "owner");
 });
 
+test("dependency routes: add, refuse a cycle, lift with a reason (#59)", async () => {
+  const a = await newTask({ title: "dep A" });
+  const b = await newTask({ title: "dep B" });
+  const add = await post(`/projects/0/tasks/${b.id}/dependencies`, { on: a.id, reason: "audita v2" });
+  assert.equal(add.status, 201);
+  assert.equal((await add.json()).depends_on[0].task_id, a.id);
+  const cyc = await post(`/projects/0/tasks/${a.id}/dependencies`, { on: b.id });
+  assert.equal(cyc.status, 400);
+  const noReason = await api(`/projects/0/tasks/${b.id}/dependencies/${a.id}`, { method: "DELETE" });
+  assert.equal(noReason.status, 400);
+  const lift = await api(`/projects/0/tasks/${b.id}/dependencies/${a.id}?reason=${encodeURIComponent("ya no aplica")}`, { method: "DELETE" });
+  assert.equal(lift.status, 200);
+  const after = await lift.json();
+  assert.equal(after.depends_on.length, 0);
+  assert.equal(after.dependency_log[0].removed_reason, "ya no aplica");
+});
+
 // ── subtasks ────────────────────────────────────────────────────────────────
 
 test("?parent selects children, and ?parent= selects the roots", async () => {

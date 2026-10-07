@@ -282,6 +282,13 @@ export interface TaskEntry {
   comments?: TaskComment[];
   /** Detail only: what is actually running, not what the column says. */
   execution?: TaskExecution | null;
+  /** Tasks (same project) this one waits on, with their state (#59). */
+  depends_on?: TaskDependency[];
+  /** Derived: tasks that wait on this one. */
+  blocks?: { task_id: string; title: string; state: string; status?: string; reason?: string | null; condition?: string | null }[];
+  /** Waits that were lifted, with why. */
+  dependency_log?: (TaskDependency & { removed_at: string; removed_by: string | null; removed_reason: string | null })[];
+  open_dependencies?: number;
   /** When the current blocked period began (derived from transitions). */
   blocked_since?: string | null;
   status_changed_at?: string | null;
@@ -331,6 +338,21 @@ export interface TaskComment {
   meta?: { apc_session?: string; runtime?: string; runtime_phase?: string; coordinator?: string | null; error?: string };
 }
 
+export interface TaskDependency {
+  task_id: string;
+  title: string | null;
+  state: "open" | "done" | "dropped" | "missing";
+  status?: string | null;
+  /** The task it waits on is closed as done. Unblocks; does not approve. */
+  satisfied: boolean;
+  satisfied_at?: string | null;
+  reason: string | null;
+  owner: string | null;
+  condition: string | null;
+  since: string;
+  by: string | null;
+}
+
 /** Evidence of work on a task, apart from its column (core/tasks/execution.js). */
 export interface TaskExecution {
   verdict: "working" | "not_verified" | "ended" | "idle" | "closed";
@@ -342,7 +364,7 @@ export interface TaskExecution {
     session: { id: string; runtime: string | null; agent: string | null; started_at: string | null; finished_at: string | null; result?: string } | null;
   };
   last_activity: { at: string; by: string | null; kind: "comment" | "session_started" | "session_finished"; text: string | null } | null;
-  waiting_on: "owner_reply" | "owner" | "blocked" | null;
+  waiting_on: "owner_reply" | "owner" | "dependency" | "blocked" | null;
 }
 
 export interface OrgArea {

@@ -152,6 +152,8 @@ function compact(t) {
     ...(t.subtask_count ? { subtasks: `${t.subtask_done}/${t.subtask_count}` } : {}),
     ...(t.comment_count ? { comments: t.comment_count } : {}),
     ...(t.parent ? { parent: t.parent } : {}),
+    // Still waiting on other tasks — the reason a card does not move.
+    ...(t.open_dependencies ? { waits_on: t.open_dependencies } : {}),
     ...(t.project_name ? { project: t.project_name } : {}),
   };
 }

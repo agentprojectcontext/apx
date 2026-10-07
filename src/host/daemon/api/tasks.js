@@ -30,6 +30,8 @@ import {
   reopenTask,
   setTaskStatus,
   countTasks,
+  addDependency,
+  removeDependency,
 } from "#core/stores/tasks.js";
 import { addComment } from "#core/stores/tasks.js";
 import { readConfig, writeConfig } from "#core/config/index.js";
@@ -269,6 +271,36 @@ export function register(api, { project, projects, config, plugins, registries }
     const updated = reopenTask(p.storagePath, req.params.id);
     if (!updated) return res.status(404).json({ error: "task not found" });
     res.json(updated);
+  });
+
+  // Dependencies (#59): this task waits on another in the same project. The
+  // store refuses cycles and missing targets; lifting a wait needs a reason.
+  api.post("/projects/:pid/tasks/:id/dependencies", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { on, reason = null, owner = null, condition = null, by = OWNER_ACTOR_ID } = req.body || {};
+    if (!on) return res.status(400).json({ error: "on (task id) required" });
+    try {
+      const task = addDependency(p.storagePath, req.params.id, { on, reason, owner, condition, by });
+      if (!task) return res.status(404).json({ error: "task not found" });
+      res.status(201).json(task);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  api.delete("/projects/:pid/tasks/:id/dependencies/:on", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const reason = req.body?.reason ?? req.query?.reason;
+    const by = req.body?.by || OWNER_ACTOR_ID;
+    try {
+      const task = removeDependency(p.storagePath, req.params.id, { on: req.params.on, reason, by });
+      if (!task) return res.status(404).json({ error: "task not found" });
+      res.json(task);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
   });
 
   // Move an open task to a column. The valid set is the project's own columns

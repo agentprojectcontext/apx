@@ -64,6 +64,7 @@ function waitingOn(task, ownerName) {
   if (task.state !== "open") return null;
   if (awaitsOwner(task, ownerAliasesFrom(ownerName))) return "owner_reply";
   if (blockedByOwner(task)) return "owner";
+  if (task.open_dependencies) return "dependency";
   if (task.status === "blocked") return "blocked";
   return null;
 }

@@ -259,6 +259,25 @@ A thread can run with nobody watching, so it has walls: one comment starts at mo
 run, and agents handing a task back and forth get at most eight turns on it per hour. Your own
 comments are not capped.
 
+### Dependencies between tasks
+
+A subtask is part of a bigger task; a **dependency** says one task cannot move until another
+delivers. They are different relations — "audit the corrected plan" waits on "correct the
+plan" without being part of it.
+
+```bash
+apx task depend t_audit --on t_fix --reason "audits the corrected version" \
+  --owner pm --condition "plan v2 corrected and verified"
+apx task undepend t_audit --on t_fix --reason "the fix was cancelled; audit v1"
+```
+
+Opening the waiting task shows what it waits on, with each one's state; opening the other one
+shows what it unblocks. Dependencies stay inside one project, a cycle is refused, and lifting
+one requires a reason that stays on the task. When the dependency is done the waiting task is
+**unblocked, not approved**: nothing moves on its own, and the coordinator still checks the
+delivery. A dropped dependency is flagged so somebody decides whether the wait still holds. Agents
+record these with `update_task` (`depends_on_add` / `depends_on_remove`) when they delegate.
+
 ### Column versus execution
 
 A card's column (`running`, `blocked`…) is a workflow label someone set; it never certified

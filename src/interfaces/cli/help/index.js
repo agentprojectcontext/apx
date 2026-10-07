@@ -1816,6 +1816,8 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["done | complete <id>", "Mark task done."],
       ["drop | archive <id>", "Drop / archive a task."],
       ["reopen <id>", "Reopen a done or dropped task."],
+      ["depend <id> --on <id>", "This task waits on another (same project). --reason, --owner, --condition. Cycles are refused."],
+      ["undepend <id> --on <id> --reason R", "Lift a wait. The reason is kept on the task."],
       ["patch | edit <id>", "Edit fields on an existing task."],
     ],
     options: [

@@ -10,6 +10,7 @@ import { ReadOnlyBlock } from "../ReadOnlyBlock";
 import { TaskComments } from "./TaskComments";
 import { TaskSubtasks } from "./TaskSubtasks";
 import { TaskExecution } from "./TaskExecution";
+import { TaskDependencies } from "./TaskDependencies";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useToast } from "../Toast";
 import { CategoryIcon, StatusIcon, StatusBadge, categoryLabel, effectiveStatus, statusTint } from "./taskStatus";
@@ -261,6 +262,7 @@ export function TaskDetail({
         )}
 
         <TaskExecution execution={task.execution} />
+        <TaskDependencies task={task} onOpenTask={onOpenTask} />
 
         {/* The owner's words first, the agent's prompt second — and the prompt
             only when it exists. A task with an empty "Prompt" box on top read

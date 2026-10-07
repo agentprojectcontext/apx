@@ -261,6 +261,25 @@ cuatro respuestas (cascada incluida), una tarea que ya tiene agentes trabajando 
 una segunda, y los agentes que se pasan una tarea de un lado a otro tienen como mucho ocho turnos
 por hora en ella. Tus propios comentarios no tienen tope.
 
+### Dependencias entre tareas
+
+Una subtarea es parte de una tarea más grande; una **dependencia** dice que una tarea no puede
+avanzar hasta que otra entregue. Son relaciones distintas: "auditar el plan corregido" espera a
+"corregir el plan" sin ser parte de ella.
+
+```bash
+apx task depend t_audit --on t_fix --reason "audita la versión corregida" \
+  --owner pm --condition "plan v2 corregido y verificado"
+apx task undepend t_audit --on t_fix --reason "se canceló la corrección; se audita v1"
+```
+
+Al abrir la tarea que espera ves de qué depende y el estado de cada una; al abrir la otra ves qué
+desbloquea. Las dependencias quedan dentro de un proyecto, un ciclo se rechaza, y levantar una pide
+un motivo que queda en la tarea. Cuando la dependencia se termina, la tarea que esperaba queda
+**desbloqueada, no aprobada**: nada se mueve solo y quien coordina igual verifica la entrega. Una
+dependencia descartada queda marcada para que alguien decida si la espera sigue. Los agentes las
+registran con `update_task` (`depends_on_add` / `depends_on_remove`) cuando delegan.
+
 ### Columna versus ejecución
 
 La columna de una tarjeta (`running`, `blocked`…) es una etiqueta de workflow que alguien

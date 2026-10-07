@@ -9,6 +9,8 @@
 //   create  — sets initial fields (title, description, body, tags, due, agent,
 //             source, meta, parent)
 //   comment — appends one comment to the task's thread (by, text)
+//   depend   — this task waits on another (target, reason, owner, condition)
+//   undepend — that wait is lifted, with the reason it no longer holds
 //   update — shallow-merge patch (`patch` field)
 //   done   — closes the task (`by` field optional)
 //   drop   — archives without "completed" semantics (`by` field optional)
@@ -181,7 +183,35 @@ function projectState(events) {
           category: normalizeTaskCategory(ev.category),
           location: normalizeTaskLocation(ev.location),
           meta: ev.meta && typeof ev.meta === "object" ? { ...ev.meta } : {},
+          // What this task waits on (other tasks in this project), and the
+          // waits that were lifted — kept, with why, so a removed dependency
+          // never just vanishes from the record.
+          depends_on: [],
+          dependency_log: [],
         });
+        break;
+      }
+      case "depend": {
+        if (!existing || !ev.target) break;
+        if (existing.depends_on.some((d) => d.task_id === ev.target)) break;
+        existing.depends_on.push({
+          task_id: ev.target,
+          reason: ev.reason || null,
+          owner: ev.owner || null,
+          condition: ev.condition || null,
+          since: ev.ts,
+          by: ev.by || null,
+        });
+        existing.updated_at = ev.ts;
+        break;
+      }
+      case "undepend": {
+        if (!existing || !ev.target) break;
+        const gone = existing.depends_on.find((d) => d.task_id === ev.target);
+        if (!gone) break;
+        existing.depends_on = existing.depends_on.filter((d) => d.task_id !== ev.target);
+        existing.dependency_log.push({ ...gone, removed_at: ev.ts, removed_by: ev.by || null, removed_reason: ev.reason || null });
+        existing.updated_at = ev.ts;
         break;
       }
       case "update": {
@@ -345,11 +375,51 @@ function childIndex(tasks) {
  * with their full threads is a payload nobody on that screen reads, and the
  * phone pays for it twice.
  */
-function row(task, idx, aliases) {
+/**
+ * Who waits on whom, both directions, with the other side's state. Built once
+ * per fold like childIndex: "blocks" is derived, never stored, so the two
+ * directions cannot disagree.
+ */
+function dependencyIndex(tasks) {
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const blocks = new Map();
+  for (const t of tasks) {
+    for (const d of t.depends_on || []) {
+      const list = blocks.get(d.task_id) || [];
+      list.push({ task_id: t.id, title: t.title, state: t.state, status: t.status, reason: d.reason, condition: d.condition });
+      blocks.set(d.task_id, list);
+    }
+  }
+  return { byId, blocks };
+}
+
+/**
+ * One dependency as a surface reads it. `satisfied` means the task it waits on
+ * is CLOSED as done — that unblocks the next step, it does not approve it: the
+ * coordinator still verifies the delivery. A dropped or missing target is not
+ * satisfied either; it is named so somebody decides whether the wait still holds.
+ */
+function dependencyView(d, deps) {
+  const target = deps?.byId.get(d.task_id) || null;
+  return {
+    ...d,
+    title: target?.title ?? null,
+    state: target?.state ?? "missing",
+    status: target?.status ?? null,
+    satisfied: target?.state === "done",
+    ...(target?.state === "done" ? { satisfied_at: target.done_at || null } : {}),
+  };
+}
+
+function row(task, idx, aliases, deps = null) {
   const kids = idx.get(task.id);
   const { comments, ...rest } = task;
+  const dependsOn = (task.depends_on || []).map((d) => dependencyView(d, deps));
   return {
     ...rest,
+    depends_on: dependsOn,
+    open_dependencies: dependsOn.filter((d) => !d.satisfied).length,
+    blocks: deps?.blocks.get(task.id) || [],
     comment_count: comments.length,
     subtask_count: kids?.total || 0,
     subtask_done: kids?.done || 0,
@@ -395,8 +465,9 @@ export function listTasks(storagePath, opts = {}) {
   const events = readAllEvents(storagePath);
   const all = [...projectState(events).values()];
   const idx = childIndex(all);
+  const deps = dependencyIndex(all);
   const aliases = ownerAliasesFrom(opts.owner_name || null);
-  const tasks = all.map((t) => row(t, idx, aliases));
+  const tasks = all.map((t) => row(t, idx, aliases, deps));
 
   let out = tasks;
   if (opts.state && opts.state !== "all") {
@@ -493,9 +564,10 @@ export function getTask(storagePath, idOrPrefix) {
   const events = readAllEvents(storagePath);
   const tasks = projectState(events);
   const idx = childIndex([...tasks.values()]);
+  const deps = dependencyIndex([...tasks.values()]);
 
   // The detail keeps its thread — it is the one screen that reads it.
-  const full = (t) => ({ ...row(t, idx), comments: t.comments.map((c) => ({ ...c })) });
+  const full = (t) => ({ ...row(t, idx, undefined, deps), comments: t.comments.map((c) => ({ ...c })) });
 
   if (tasks.has(idOrPrefix)) return full(tasks.get(idOrPrefix));
   if (idOrPrefix.length < 3) return null;
@@ -591,6 +663,52 @@ export function addComment(storagePath, idOrPrefix, { by = null, text = "", ment
     mentions: Array.isArray(mentions) ? mentions.filter((m) => typeof m === "string") : [],
     ...(meta && typeof meta === "object" ? { meta } : {}),
   });
+  return getTask(storagePath, existing.id);
+}
+
+/**
+ * Make one task wait on another in the SAME project. Refuses (throws) a
+ * missing target, a self-dependency and anything that would close a cycle —
+ * a silent cycle is two tasks each waiting for the other forever.
+ * Returns the projected task, or null when the task itself does not exist.
+ */
+export function addDependency(storagePath, idOrPrefix, { on, reason = null, owner = null, condition = null, by = null } = {}) {
+  const existing = getTask(storagePath, idOrPrefix);
+  if (!existing) return null;
+  const target = getTask(storagePath, String(on || ""));
+  if (!target) throw new Error(`dependency target not found in this project: ${on}`);
+  if (target.id === existing.id) throw new Error("a task cannot depend on itself");
+  if (existing.depends_on.some((d) => d.task_id === target.id)) return existing;
+  // Would target (transitively) wait on this task already?
+  const all = projectState(readAllEvents(storagePath));
+  const seen = new Set();
+  const stack = [target.id];
+  while (stack.length) {
+    const cur = stack.pop();
+    if (cur === existing.id) throw new Error(`that would make a cycle: ${target.id} already waits on ${existing.id}`);
+    if (seen.has(cur)) continue;
+    seen.add(cur);
+    for (const d of all.get(cur)?.depends_on || []) stack.push(d.task_id);
+  }
+  appendEvent(storagePath, {
+    id: existing.id, ts: nowIso(), op: "depend", target: target.id,
+    reason: reason || null, owner: owner || null, condition: condition || null, by,
+  });
+  return getTask(storagePath, existing.id);
+}
+
+/**
+ * Lift a wait. The reason is required: a dependency removed without one is a
+ * blockage that disappeared and nobody can say why.
+ */
+export function removeDependency(storagePath, idOrPrefix, { on, reason, by = null } = {}) {
+  const existing = getTask(storagePath, idOrPrefix);
+  if (!existing) return null;
+  const why = typeof reason === "string" ? reason.trim() : "";
+  if (!why) throw new Error("removeDependency: reason required");
+  const target = existing.depends_on.find((d) => d.task_id === on || (String(on || "").length >= 3 && d.task_id.startsWith(on)));
+  if (!target) throw new Error(`${existing.id} does not depend on ${on}`);
+  appendEvent(storagePath, { id: existing.id, ts: nowIso(), op: "undepend", target: target.task_id, reason: why, by });
   return getTask(storagePath, existing.id);
 }
 
