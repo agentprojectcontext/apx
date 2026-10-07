@@ -1,0 +1,126 @@
+[
+  {
+    "ask": "Pedile a Scout que investigue los precios de la competencia de Acme y te traiga un resumen",
+    "expect": ["delegate"]
+  },
+  {
+    "ask": "Anotá en el tablero una tarea: preparar la demo para Northwind, que la haga Vera (id: vera)",
+    "expect": ["task_create"]
+  },
+  {
+    "ask": "Pasá la tarea de la demo de Northwind a hecha",
+    "expect": ["task_update", "task_close", "task_list"]
+  },
+  {
+    "ask": "En la tarea del informe, preguntale a Vera si llega el viernes",
+    "expect": ["task_comment", "task_list"]
+  },
+  {
+    "ask": "Mandale a Alex por WhatsApp que llego 10 minutos tarde",
+    "expect": ["message_contact", "contact_list"]
+  },
+  {
+    "ask": "Publicá en #general de Discord que mañana no hay reunión",
+    "expect": ["channel_post", "channel_list"]
+  },
+  {
+    "ask": "Haceme un gráfico interactivo con las ventas de los últimos 6 meses: 10, 12, 9, 15, 18, 21",
+    "expect": ["show_widget"]
+  },
+  {
+    "ask": "En el widget de ventas, cambiá el color de las barras a verde",
+    "expect": ["edit_widget", "read_widget"]
+  },
+  {
+    "ask": "Guardá en informe.md este texto: 'Estado: en curso. Próximo paso: demo el viernes.' y abrímelo para leerlo",
+    "expect": ["file_write"]
+  },
+  {
+    "ask": "En notas.md cambiá 'lunes' por 'martes'",
+    "expect": ["file_edit", "file_read"]
+  },
+  {
+    "ask": "Levantá el servidor de desarrollo con npm run dev y dejalo corriendo",
+    "expect": ["shell"]
+  },
+  {
+    "ask": "¿Qué dice ahora la salida del servidor que dejaste corriendo?",
+    "expect": ["shell_output"]
+  },
+  {
+    "ask": "Buscá en internet qué es el protocolo MCP",
+    "expect": ["web_search"]
+  },
+  {
+    "ask": "Leé esta página y resumila: https://example.com/blog/post",
+    "expect": ["web_read"]
+  },
+  {
+    "ask": "Entrá a mi cuenta de Notion y fijate mis páginas recientes (ya tengo la sesión iniciada en mi navegador)",
+    "expect": ["browser_use_my_login", "browser_open"]
+  },
+  {
+    "ask": "Acordate de que prefiero las reuniones a la tarde",
+    "expect": ["remember"]
+  },
+  {
+    "ask": "¿Qué habíamos decidido sobre el logo nuevo?",
+    "expect": ["recall", "search_chats"]
+  },
+  {
+    "ask": "Necesito decidir algo: ¿a cuál de estos dos proveedores le pido presupuesto? Preguntame con opciones",
+    "expect": ["ask_owner"]
+  },
+  {
+    "ask": "Pasame el archivo reporte.pdf de la carpeta del proyecto acá en el chat",
+    "expect": ["send_file"]
+  },
+  {
+    "ask": "Dibujame un logo minimalista de un zorro naranja",
+    "expect": ["make_image"]
+  },
+  {
+    "ask": "¿De qué trata este video? https://www.youtube.com/watch?v=abc123",
+    "expect": ["video_transcript"]
+  },
+  {
+    "ask": "¿Qué canales tengo conectados?",
+    "expect": ["channel_list"]
+  },
+  {
+    "ask": "¿Qué se habló en el chat #soporte?",
+    "expect": ["read_chat", "search_chats"]
+  },
+  {
+    "ask": "¿Qué rutinas tengo programadas?",
+    "expect": ["routine_list"]
+  },
+  {
+    "ask": "Le había prometido a Alex mandarle el contrato el jueves y lo cumplí",
+    "expect": ["commitment_settle", "task_list"]
+  },
+  {
+    "ask": "¿Quién me escribió por Telegram esperando que lo apruebe?",
+    "expect": ["contact_requests"]
+  },
+  {
+    "ask": "Respondeme con audio en este chat a partir de ahora",
+    "expect": ["voice_replies"]
+  },
+  {
+    "ask": "Dale permiso a Scout para usar las herramientas de postiz sin preguntarme",
+    "expect": ["grant_tool", "none"]
+  },
+  {
+    "ask": "¿Qué agentes hay en el proyecto Acme?",
+    "expect": ["list_agents"]
+  },
+  {
+    "ask": "Corré el build largo (pnpm build) en segundo plano; tarda media hora",
+    "expect": ["shell"]
+  },
+  {
+    "ask": "Hola, ¿cómo andás?",
+    "expect": ["none"]
+  }
+]

@@ -22,6 +22,7 @@
     "e2e": "pnpm build:web && playwright test --project chromium",
     "e2e:desktop": "pnpm build:web && pnpm --filter @apx/desktop build && playwright test --project desktop",
     "perf": "pnpm build:web && node --no-warnings scripts/perf.ts",
+    "tools:review": "node --no-warnings scripts/tool-review.ts",
     "verify": "pnpm preflight && pnpm e2e && pnpm e2e:desktop && node --no-warnings scripts/perf.ts",
     "package": "node scripts/package.ts",
     "package:mac": "node scripts/package.ts mac",
