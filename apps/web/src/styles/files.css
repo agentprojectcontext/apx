@@ -35,16 +35,20 @@
   min-height: 0;
   display: flex;
 }
+/* Centered in the page like the tasks list; once a widget opens beside it, the list moves over to make room. */
 .projwidgets__list {
   flex: 1;
   min-width: 0;
   margin: 0;
-  padding: 12px 24px 24px;
+  padding: 16px max(24px, calc((100% - 1080px) / 2)) 24px;
   overflow: auto;
   list-style: none;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+.projwidgets.has-open .projwidgets__list {
+  padding-inline: 24px;
 }
 .projwidgets__panel {
   position: relative;

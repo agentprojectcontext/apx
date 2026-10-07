@@ -78,7 +78,7 @@ function ProjectWidgets({ projectId }: { projectId: string }) {
       </div>
     );
   return (
-    <div className="projwidgets">
+    <div className={open ? "projwidgets has-open" : "projwidgets"}>
       <ul className="projwidgets__list" aria-label={t("files.scope.widgets")}>
         {mine.map((s) => (
           <li key={s.id}>

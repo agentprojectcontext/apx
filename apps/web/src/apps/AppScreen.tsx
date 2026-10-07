@@ -6,6 +6,7 @@ import { useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { ShareMenu } from "../surfaces/ShareMenu.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
+import { openWidgetChat } from "../surfaces/WidgetChat.tsx";
 
 /** An installed app (a surface with app=true) filling the main area. */
 export function AppScreen() {
@@ -53,6 +54,14 @@ export function AppScreen() {
             })}
           </div>
         </div>
+        <Button
+          size="sm"
+          variant="secondary"
+          leadingIcon={<Icons.MessageSquare size={14} />}
+          onClick={() => void openWidgetChat(app)}
+        >
+          {t("widget.chatShort")}
+        </Button>
         <ShareMenu surface={app} />
         <Button
           size="sm"

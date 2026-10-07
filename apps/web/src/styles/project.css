@@ -633,6 +633,34 @@
 .projboard__tile.is-over {
   box-shadow: 0 0 0 2px var(--apx-accent, var(--apx-border-strong, var(--apx-border)));
 }
+.projboard__frame {
+  min-height: 0;
+  overflow: hidden;
+}
+/* The tile's bottom edge: a thin grip that turns into a bar while hovered or dragged. */
+.projboard__resize {
+  height: 8px;
+  margin-top: -4px;
+  cursor: row-resize;
+  touch-action: none;
+  position: relative;
+}
+.projboard__resize::after {
+  content: "";
+  position: absolute;
+  left: 40%;
+  right: 40%;
+  top: 2px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--apx-border);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.projboard__tile:hover .projboard__resize::after,
+.projboard__resize:focus-visible::after {
+  opacity: 1;
+}
 .projboard__head {
   padding: 8px 10px 8px 8px;
   border-bottom: 1px solid var(--apx-border);

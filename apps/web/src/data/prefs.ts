@@ -32,11 +32,14 @@ export type Prefs = {
   sidebarCollapsed: boolean;
   listW: number;
   panelW: number;
-  /** Each project's board on this device: its widgets' order (by id) and whether it takes the whole width. */
+  /**
+   * Each project's board on this device: its widgets' order (by id), whether it takes the whole width, and the height
+   * the owner dragged each tile to.
+   */
   boards: Record<string, BoardPrefs>;
 };
 
-export type BoardPrefs = { order: string[]; wide: boolean };
+export type BoardPrefs = { order: string[]; wide: boolean; heights: Record<string, number> };
 
 export type InboxView = "tree" | "activity" | "chats";
 
@@ -106,7 +109,10 @@ function boardsOf(raw: unknown): Record<string, BoardPrefs> {
     const v = b as Partial<BoardPrefs> | null;
     if (!v || typeof v !== "object") continue;
     const order = Array.isArray(v.order) ? v.order.filter((x): x is string => typeof x === "string").slice(0, 200) : [];
-    out[id] = { order: [...new Set(order)], wide: v.wide === true };
+    const heights: Record<string, number> = {};
+    if (v.heights && typeof v.heights === "object")
+      for (const [k, h] of Object.entries(v.heights)) if (typeof h === "number" && h > 0) heights[k] = Math.round(h);
+    out[id] = { order: [...new Set(order)], wide: v.wide === true, heights };
   }
   return out;
 }
@@ -116,7 +122,7 @@ export const prefs = createStore<Prefs>(load());
 /** Changes one project's board preferences, keeping the rest. */
 export function setBoard(projectId: string, patch: Partial<BoardPrefs>): void {
   const boards = prefs.get().boards;
-  const current = boards[projectId] ?? { order: [], wide: false };
+  const current = boards[projectId] ?? { order: [], wide: false, heights: {} };
   setPrefs({ boards: { ...boards, [projectId]: { ...current, ...patch } } });
 }
 

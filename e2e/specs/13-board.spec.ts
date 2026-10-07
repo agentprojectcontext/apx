@@ -120,6 +120,12 @@ test("the board is ordered from the grip, takes the full width, and both stay af
     await board.getByRole("button", { name: "Mover Primero (flechas)" }).press("ArrowRight");
     await expect.poll(names).toEqual(["Segundo", "Primero"]);
     await board.getByRole("button", { name: "Tablero a todo el ancho" }).click();
+    // A tile keeps its height and is made taller from its bottom edge.
+    const frame = board.getByRole("article", { name: "Segundo" }).locator(".projboard__frame");
+    const tall = async () => (await frame.boundingBox())?.height ?? 0;
+    const before = await tall();
+    await board.getByRole("separator", { name: /Alto de Segundo/ }).press("ArrowDown");
+    await expect.poll(tall).toBeGreaterThan(before);
 
     await page.reload();
     await expect.poll(names).toEqual(["Segundo", "Primero"]);
@@ -135,6 +141,9 @@ test("the board is ordered from the grip, takes the full width, and both stay af
       .click();
     const drawer = page.getByRole("complementary", { name: "Chat del widget Primero" });
     await expect(drawer.frameLocator("iframe").getByText("Primero")).toBeVisible();
+    // A new session for the widget starts with its name ready in the composer.
+    await drawer.getByRole("button", { name: "Nueva sesión para este widget" }).click();
+    await expect(drawer.getByRole("textbox")).toHaveValue(/Seguí editando el widget «Primero» \(nombre: board-a\)/);
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
   } finally {
