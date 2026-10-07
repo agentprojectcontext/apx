@@ -84,7 +84,7 @@ export function ActionGroup({ parts, waiting = false }: { parts: ToolPart[]; wai
   );
 }
 const s = StyleSheet.create({
-  group: { alignSelf: "flex-start", maxWidth: "88%", gap: 6 },
+  group: { alignSelf: "stretch", gap: 6 },
   heading: {
     minHeight: 36,
     flexDirection: "row",
