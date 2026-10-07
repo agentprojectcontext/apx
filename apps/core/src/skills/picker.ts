@@ -1,5 +1,5 @@
-// Skills by meaning: each message is compared with every skill's description, and the ones that clearly match go into
-// that turn's input (the best one whole, a couple more by name). The numbers live here; the vectors in skill-index.ts.
+// Skills by meaning: each message is compared with every skill's description, and the ones that clearly match are named
+// in that turn's input for the agent to load. Only "/name" puts a body in whole. The numbers live here.
 
 /**
  * Bars on relevance: how far a skill stands above its own floor (its similarity to ordinary, subject-less prompts), in
@@ -7,19 +7,16 @@
  * against anything. See DECISIONS.md#d-028
  */
 export const PICK = {
-  /** At or above: the body goes in whole. */
-  load: 3.0,
-  /** At or above: named, with its one-line description. */
+  /** At or above: named, with its one-line description, for the agent to load. */
   hint: 2.2,
-  /** The one loaded must beat the runner-up by this much (a tie of mediocre matches loads nothing). */
-  margin: 0.4,
   /** Under this raw similarity a skill is unrelated, however far above its floor. */
   floor: 0.3,
-  maxLoaded: 1,
-  maxHints: 2,
+  /** At or above this raw similarity a named skill is recommended strongly; the agent still decides. */
+  strong: 0.6,
+  maxHints: 3,
   /** Shorter messages ("ok", "hola") are not compared. */
   minPrompt: 8,
-  /** A loaded body past this is cut (load_skill gives the rest). */
+  /** A body asked for with "/name" past this is cut (load_skill gives the rest). */
   bodyCap: 6000,
   /** How many of the closest are kept for the chat to show. */
   keep: 5,
@@ -85,23 +82,16 @@ export function floorOf(desc: Float32Array, corpus: Float32Array[]): Floor {
 
 export const relevance = (sim: number, f: Floor) => (sim - f.mu) / f.sd;
 
-/** Which skills go in: `loaded` whole, `hinted` by name. `scored` comes sorted by relevance, best first. */
-export function choose(scored: Scored[]): { loaded: string[]; hinted: string[] } {
-  const eligible = scored.filter((s) => s.sim >= PICK.floor);
-  const [top, runner] = eligible;
-  if (!top || top.rel < PICK.hint) return { loaded: [], hinted: [] };
-  const loaded =
-    top.rel >= PICK.load && top.rel - (runner?.rel ?? 0) >= PICK.margin
-      ? eligible
-          .filter((s) => s.rel >= PICK.load)
-          .slice(0, PICK.maxLoaded)
-          .map((s) => s.name)
-      : [];
-  const hinted = eligible
-    .filter((s) => s.rel >= PICK.hint && !loaded.includes(s.name))
-    .slice(0, PICK.maxHints)
-    .map((s) => s.name);
-  return { loaded, hinted };
+/**
+ * Which skills are named: `strong` ones first, then `hinted`. None goes in whole: a match by meaning is a guess, and a
+ * wrong body costs context and misleads. `scored` comes sorted by relevance, best first. See DECISIONS.md#d-051
+ */
+export function choose(scored: Scored[]): { strong: string[]; hinted: string[] } {
+  const named = scored.filter((s) => s.sim >= PICK.floor && s.rel >= PICK.hint).slice(0, PICK.maxHints);
+  return {
+    strong: named.filter((s) => s.sim >= PICK.strong).map((s) => s.name),
+    hinted: named.filter((s) => s.sim < PICK.strong).map((s) => s.name),
+  };
 }
 
 /**
@@ -110,9 +100,9 @@ export function choose(scored: Scored[]): { loaded: string[]; hinted: string[] }
  */
 export function skillsBlock(
   loaded: Array<{ name: string; body: string }>,
-  hinted: Array<{ name: string; description: string }>,
+  named: Array<{ name: string; description: string; strong?: boolean }>,
 ): string {
-  if (!loaded.length && !hinted.length) return "";
+  if (!loaded.length && !named.length) return "";
   const lines = [
     "A skill is a capability you HAVE: it is installed here and its body says how to use it. These matched this message.",
   ];
@@ -121,11 +111,14 @@ export function skillsBlock(
       s.body.length > PICK.bodyCap ? `${s.body.slice(0, PICK.bodyCap)}\n\n…(cut; load_skill gives the rest)` : s.body;
     lines.push("", `### Loaded: ${s.name}`, body.trim());
   }
-  if (hinted.length) {
-    lines.push("", "Installed and relevant; read before you answer:");
-    for (const s of hinted) lines.push(`- ${s.name}: ${s.description.replace(/\s+/g, " ").trim()}`);
+  const strong = named.filter((s) => s.strong);
+  const rest = named.filter((s) => !s.strong);
+  const list = (group: typeof named) => group.map((s) => `- ${s.name}: ${s.description.replace(/\s+/g, " ").trim()}`);
+  if (strong.length) lines.push("", "Very close to this message; most likely what it needs:", ...list(strong));
+  if (rest.length) lines.push("", "Installed and matching this message:", ...list(rest));
+  if (named.length) {
     lines.push(
-      "If the message asks for what one of these does, call load_skill with its name BEFORE answering. Never say you cannot do something a skill here covers without reading it first.",
+      "Judge each against the message: if it asks for what a skill does, call load_skill with its name BEFORE answering; if it is about something else, ignore it. Never say you cannot do something a skill here covers without reading it first.",
     );
   }
   return lines.join("\n");

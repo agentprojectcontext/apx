@@ -71,16 +71,19 @@ after(async () => {
   env.cleanup();
 });
 
-test("a message that matches a skill gets its body in the turn, and the chat shows what was weighed", async () => {
+test("a message that matches a skill gets it named for the agent to load, and the chat shows what was weighed", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
   await env.client.call("threads.send", { thread: t.id, text: "creame una imagen de un gato" });
   const { messages } = await env.settle(t.id);
   const input = String(llm.calls.at(-1)?.messages.at(-1)?.content);
   assert.match(input, /\[skills matched for this message\]/);
-  assert.match(input, /Loaded: image-gen\nCall the images service/);
+  assert.match(input, /- image-gen: Generate an image from a prompt\./);
+  assert.match(input, /call load_skill/);
+  assert.doesNotMatch(input, /Loaded:|Call the images service/, "a match by meaning never puts the body in");
   assert.doesNotMatch(input, /golf-tee/, "the unrelated skill stays out");
   const part = skillsPart(messages);
-  assert.deepEqual(part?.loaded, ["image-gen"]);
+  assert.deepEqual(part?.loaded, []);
+  assert.deepEqual([...(part?.strong ?? []), ...(part?.hinted ?? [])], ["image-gen"]);
   assert.equal(part?.engine, "local/embeddinggemma");
   assert.equal(part?.scored[0]?.name, "image-gen");
 });
@@ -128,13 +131,13 @@ test("askedSkill reads only a leading /name that is a skill", () => {
   assert.equal(askedSkill("/golf-teetime", list), undefined);
 });
 
-test("only a clear winner is loaded; close ones are named; unrelated ones never count", () => {
+test("close matches are named, very close ones strongly; unrelated ones never count", () => {
   const s = (name: string, sim: number, rel: number) => ({ name, sim, rel });
-  assert.deepEqual(choose([s("a", 0.6, 4), s("b", 0.5, 2.5), s("c", 0.2, 9)].sort((x, y) => y.rel - x.rel)), {
-    loaded: ["a"],
+  assert.deepEqual(choose([s("a", 0.65, 4), s("b", 0.5, 2.5), s("c", 0.2, 9)].sort((x, y) => y.rel - x.rel)), {
+    strong: ["a"],
     hinted: ["b"],
   });
-  // A tie at the top loads nothing (both named instead).
-  assert.deepEqual(choose([s("a", 0.6, 3.5), s("b", 0.6, 3.4)]), { loaded: [], hinted: ["a", "b"] });
-  assert.deepEqual(choose([s("a", 0.6, 1)]), { loaded: [], hinted: [] });
+  // Far above its own floor but raw 0.38: a recommendation, never more.
+  assert.deepEqual(choose([s("a", 0.38, 5)]), { strong: [], hinted: ["a"] });
+  assert.deepEqual(choose([s("a", 0.6, 1)]), { strong: [], hinted: [] });
 });

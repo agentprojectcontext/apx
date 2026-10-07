@@ -364,13 +364,15 @@ const KnownPart = z.discriminatedUnion("type", [
     answer: z.string().optional(),
   }),
   /**
-   * The skills picked by meaning for this turn: given whole (`loaded`), named (`hinted`), and the closest ones weighed
-   * (`scored`, with their raw similarity), so the chat can show what went in and what nearly did.
+   * The skills of this turn: given whole (`loaded`: one named with "/name"), named for the agent to load (`strong`
+   * when very close, else `hinted`), and the closest ones weighed (`scored`, with their raw similarity), so the chat
+   * can show what went in and what nearly did. Turns before strong existed have none.
    */
   z.object({
     type: z.literal("skills"),
     engine: z.string(),
     loaded: z.array(z.string()),
+    strong: z.array(z.string()).optional(),
     hinted: z.array(z.string()),
     scored: z.array(z.object({ name: z.string(), sim: z.number() })),
   }),

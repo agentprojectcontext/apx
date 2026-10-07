@@ -33,7 +33,7 @@ export function askedPick(skill: Skill): SkillPick | undefined {
     const body = parseFrontmatter(readSkillFile(skill)).body;
     return {
       block: skillsBlock([{ name: skill.name, body }], []),
-      part: { type: "skills", engine: "", loaded: [skill.name], hinted: [], scored: [] },
+      part: { type: "skills", engine: "", loaded: [skill.name], strong: [], hinted: [], scored: [] },
     };
   } catch {
     return undefined;
@@ -115,26 +115,19 @@ export function createSkillPicker(deps: { store: Store; services: Services; log:
           })
           .sort((a, b) => b.rel - a.rel);
         if (!scored.length) return undefined;
-        const { loaded, hinted } = choose(scored);
+        const { strong, hinted } = choose(scored);
         const byName = new Map(skills.map((s) => [s.name, s]));
-        const bodies = loaded.flatMap((name) => {
+        const named = [...strong, ...hinted].flatMap((name) => {
           const s = byName.get(name);
-          try {
-            return s ? [{ name, body: parseFrontmatter(readSkillFile(s)).body }] : [];
-          } catch {
-            return [];
-          }
-        });
-        const named = hinted.flatMap((name) => {
-          const s = byName.get(name);
-          return s ? [{ name, description: s.description }] : [];
+          return s ? [{ name, description: s.description, strong: strong.includes(name) }] : [];
         });
         return {
-          block: skillsBlock(bodies, named),
+          block: skillsBlock([], named),
           part: {
             type: "skills",
             engine: model,
-            loaded: bodies.map((b) => b.name),
+            loaded: [],
+            strong,
             hinted,
             scored: scored.slice(0, PICK.keep).map((s) => ({ name: s.name, sim: Math.round(s.sim * 1000) / 1000 })),
           },

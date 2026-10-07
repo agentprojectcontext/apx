@@ -69,7 +69,7 @@ export function agentTools(store: Store): Tool[] {
     defineTool({
       name: "delegate",
       description:
-        "Ask a different agent for its expertise, or start a worker only for substantial independent work that would overwhelm your context or an explicitly requested helper/review. Do routine searches, duplicate checks and individual tool calls yourself; never delegate to yourself or turn ordinary steps into workers. Give agent (id or unique name) and omit worker, or give worker and omit agent. A worker uses your model and tools under its supplied instructions. Give session to continue a sub-thread with its context. If it answers within wait_s you get the answer now; otherwise the result arrives in a new turn: never poll for it.",
+        "Ask a different agent for its expertise, or start a worker only for substantial independent work that would overwhelm your context or an explicitly requested helper/review. Do routine searches, duplicate checks and individual tool calls yourself; never delegate to yourself or turn ordinary steps into workers. Decide before you start: either do the work or delegate it; never research something and then ask another agent to do the same research again (if you already have the facts, answer). Give agent (id or unique name) and omit worker, or give worker and omit agent. A worker uses your model and tools under its supplied instructions. Give session to continue a sub-thread with its context. If it answers within wait_s you get the answer now; otherwise the result arrives in a new turn: never poll for it.",
       args: z
         .object({
           agent: z.string().optional().describe("agent id or unique name; to start a session with an agent"),

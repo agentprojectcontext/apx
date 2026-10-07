@@ -556,3 +556,12 @@ shell's own rule. Those files are not the owner's changes, so they get no change
 copied there too. The system prompt names the folder (one path per chat, so the prefix stays byte-stable) and tells the
 agent that only what the owner keeps goes in the project. The system cleans its temp folder on its own schedule.
 Outside engines' sessions (D-023) are unchanged: their own prompt does not name the folder.
+
+<a id="d-051"></a>
+## D-051 — 2026-10-07 — Skills matched by meaning are only recommended; the agent loads them
+Revises [D-028](#d-028). A match by meaning no longer puts a skill's body in the turn: a skill well above its own
+floor still had a raw similarity under 0.4 and loaded on messages about something else, costing context and steering
+the answer. Every match is now named with its description and the agent judges it and calls `load_skill`. Matches at
+raw similarity 0.6 or more are listed first as "most likely" and show blue in the chat; the rest (relevance 2.2 over
+the floor and raw 0.30, as before) are suggestions; up to three in all. The chat shows near misses from raw 0.15.
+Only a skill the owner names with `/name` goes in whole.

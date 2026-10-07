@@ -67,6 +67,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "usage.state.canceled": "Cancelada",
   "skills.trace.title": "Skills elegidas por significado para este mensaje ({engine})",
   "skills.trace.loaded": "Cargada: su texto completo entró en el contexto de este turno",
+  "skills.trace.strong": "Recomendada: muy parecida al mensaje; entró su nombre y descripción y el agente decide si cargarla",
   "skills.trace.hinted": "Sugerida: entró solo su nombre y descripción; el agente la carga si la necesita",
   "skills.trace.considered": "Considerada: se parecía al mensaje pero no alcanzó para entrar",
   "skills.trace.sim": "Similitud {sim}",

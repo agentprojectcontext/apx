@@ -302,6 +302,11 @@
 .skillchip.is-loaded {
   background: color-mix(in srgb, currentColor 14%, transparent);
 }
+.skillchip.is-strong {
+  color: var(--apx-accent);
+  border-color: color-mix(in srgb, var(--apx-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--apx-accent) 12%, transparent);
+}
 .skillchip.is-hinted {
   border-color: color-mix(in srgb, currentColor 35%, transparent);
   opacity: 0.8;

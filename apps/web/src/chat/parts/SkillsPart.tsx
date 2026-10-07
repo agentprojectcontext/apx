@@ -7,36 +7,41 @@ import { sourceTag } from "../../resources/labels.ts";
 import { go } from "../../shell/nav.ts";
 
 type SkillsPart = Extract<Part, { type: "skills" }>;
-type Kind = "loaded" | "hinted" | "considered";
+type Kind = "loaded" | "strong" | "hinted" | "considered";
 
-/** Near misses worth showing: at/above the picker's raw floor (0.30), so chips are close misses, not noise. */
-const CONSIDERED_MIN_SIM = 0.3;
+/** Near misses worth showing: the faintest resemblance that still says something about the message. */
+const CONSIDERED_MIN_SIM = 0.15;
 const MAX_CONSIDERED = 3;
 
 const LABEL: Record<Kind, (name: string) => string> = {
   loaded: (n) => n,
+  strong: (n) => n,
   hinted: (n) => `${n}?`,
   considered: (n) => `~${n}`,
 };
 const WHY: Record<Kind, MessageKey> = {
   loaded: "skills.trace.loaded",
+  strong: "skills.trace.strong",
   hinted: "skills.trace.hinted",
   considered: "skills.trace.considered",
 };
 
 /**
- * The skills picked by meaning for this turn, as chips over the answer: given whole, named, or only weighed. Each one
+ * The skills of this turn, as chips over the answer: given whole (asked with /name), recommended (blue when very
+ * close), or only weighed. Each one
  * opens a card saying what it cost the context, with a link to the skill.
  */
 export function SkillsPart({ part, projectId }: { part: SkillsPart; projectId: string | undefined }) {
   const t = useT();
-  const injected = new Set([...part.loaded, ...part.hinted]);
+  const strong = part.strong ?? [];
+  const injected = new Set([...part.loaded, ...strong, ...part.hinted]);
   const considered = part.scored
     .filter((s) => !injected.has(s.name) && s.sim >= CONSIDERED_MIN_SIM)
     .slice(0, MAX_CONSIDERED)
     .map((s) => s.name);
   const chips: Array<{ name: string; kind: Kind }> = [
     ...part.loaded.map((name) => ({ name, kind: "loaded" as const })),
+    ...strong.map((name) => ({ name, kind: "strong" as const })),
     ...part.hinted.map((name) => ({ name, kind: "hinted" as const })),
     ...considered.map((name) => ({ name, kind: "considered" as const })),
   ];
