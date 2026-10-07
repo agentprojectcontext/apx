@@ -27,6 +27,8 @@ export function ChatsPage({
   create,
   account,
   refresh,
+  project,
+  setProject,
 }: {
   data: Workspace;
   online: boolean;
@@ -34,9 +36,11 @@ export function ChatsPage({
   create: () => void;
   account: () => void;
   refresh: () => Promise<void>;
+  /** The project filter ("all", "default" or a project id), kept by the workspace so other pages can set it. */
+  project: string;
+  setProject: (project: string) => void;
 }) {
   const [query, setQuery] = useState<string>();
-  const [project, setProject] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
   const working = useMemo(() => workingNow(data.threads, data.jobs.running), [data.threads, data.jobs.running]);
   const rows = listedThreads(data.threads).filter((thread) => {

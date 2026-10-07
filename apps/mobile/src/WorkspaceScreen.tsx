@@ -51,6 +51,7 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
   const [tab, setTab] = useState<Tab>("chats");
   const [thread, setThread] = useState<Thread>();
   const [subpage, setSubpage] = useState<MoreId>();
+  const [chatProject, setChatProject] = useState("all");
   const [routine, setRoutine] = useState<Routine>();
   const fileActions = useMemo(
     () => ({ tree: workspace.fileTree, read: workspace.readFile, media: workspace.fileMedia }),
@@ -157,6 +158,11 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
           id={subpage}
           data={workspace.data}
           back={() => setSubpage(undefined)}
+          openProject={(id) => {
+            setChatProject(id);
+            setSubpage(undefined);
+            setTab("chats");
+          }}
           chatWith={(agent) =>
             void workspace
               .createChat(agent.id)
@@ -175,6 +181,8 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
             create={newChat}
             account={() => setTab("more")}
             refresh={workspace.refresh}
+            project={chatProject}
+            setProject={setChatProject}
           />
         );
       case "inbox":

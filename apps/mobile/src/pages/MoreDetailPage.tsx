@@ -1,5 +1,5 @@
 import { View } from "react-native";
-import { channelName } from "../hooks/chatSelectors";
+import { channelName, listedThreads } from "../hooks/chatSelectors";
 import type { Agent, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { AgentAvatar, Dot, EmptyState, IconTile, ListGroup, ListRow, Screen, SubHeader } from "../ui/kit";
@@ -12,11 +12,13 @@ export function MoreDetailPage({
   data,
   back,
   chatWith,
+  openProject,
 }: {
   id: Exclude<MoreId, "routines" | "settings" | "apps" | "memory" | "files">;
   data: Workspace;
   back: () => void;
   chatWith: (agent: Agent) => void;
+  openProject: (id: string) => void;
 }) {
   const agentName = (agentId: string) => data.agents.find((agent) => agent.id === agentId)?.name ?? agentId;
   const body = () => {
@@ -45,10 +47,9 @@ export function MoreDetailPage({
               key={project.id}
               label={project.name}
               sub={project.description}
-              detail={String(
-                data.threads.filter((thread) => thread.project_id === project.id && !thread.parent_id).length,
-              )}
+              detail={String(listedThreads(data.threads).filter((thread) => thread.project_id === project.id).length)}
               leading={<IconTile icon="Folder" tone="violet" />}
+              onPress={() => openProject(project.id)}
             />
           ))}
         </ListGroup>
