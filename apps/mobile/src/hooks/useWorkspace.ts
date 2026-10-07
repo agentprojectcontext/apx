@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Creds } from "../creds";
 import { showLiveNotice } from "../notifications";
-import { ApxClient, type ApxSocket, type CoreEvent } from "../protocol";
+import { ApxClient, type ApxSocket, type CoreEvent, type RoutineRun, type Schedule } from "../protocol";
 
 export type Agent = {
   id: string;
@@ -79,7 +79,7 @@ export type Routine = {
   enabled: boolean;
   agent_id: string;
   project_id?: string;
-  schedule: { kind: "cron" | "every" | "once" | "manual"; cron?: string; minutes?: number; at?: string };
+  schedule: Schedule;
   action: string;
   prompt: string;
   pre_command?: string;
@@ -371,6 +371,12 @@ export function useWorkspace(creds: Creds) {
     [client, loadSecondary],
   );
 
+  const routineRuns = useCallback(
+    async (routineId: string, limit = 14) =>
+      (await rpc<{ runs: RoutineRun[] }>(client, "routines.runs", { routine: routineId, limit })).runs,
+    [client],
+  );
+
   const createSession = useCallback(
     async (engineId: string, projectId: string) => {
       const agent = data.agents.find((item) => item.kind === "secretary") ?? data.agents[0];
@@ -424,6 +430,7 @@ export function useWorkspace(creds: Creds) {
     respond,
     toggleRoutine,
     runRoutine,
+    routineRuns,
     createChat,
     createSession,
     resumeSession,

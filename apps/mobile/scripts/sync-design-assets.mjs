@@ -120,3 +120,16 @@ writeFileSync(
 
 mkdirSync(resolve(mobile, "assets"), { recursive: true });
 writeFileSync(resolve(mobile, "assets/logo.png"), readFileSync(resolve(mobile, "../web/src/assets/logo.png")));
+
+// The panel's routine activation slots and weekly-cron reading, so both apps draw the same bars.
+mkdirSync(resolve(mobile, "src/routines"), { recursive: true });
+for (const file of ["slots.ts", "cron.ts"]) {
+  const code = readFileSync(resolve(mobile, "../web/src/routines", file), "utf8").replace(
+    'from "@apx/protocol"',
+    'from "../../../../packages/protocol/src/index.ts"',
+  );
+  writeFileSync(
+    resolve(mobile, "src/routines", file),
+    `// Synced from apps/web/src/routines/${file} by scripts/sync-design-assets.mjs.\n${code}`,
+  );
+}

@@ -76,7 +76,11 @@ export function SubHeader({ title, back, right }: { title: string; back: () => v
       <Text accessibilityRole="header" numberOfLines={1} style={[type.title, { flex: 1 }]}>
         {title}
       </Text>
-      {typeof right === "string" ? <Text style={[type.meta, { marginRight: 12 }]}>{right}</Text> : right}
+      {typeof right === "string" ? (
+        <Text style={[type.meta, { marginRight: 12 }]}>{right}</Text>
+      ) : right ? (
+        <View style={{ marginRight: 16 }}>{right}</View>
+      ) : null}
     </View>
   );
 }

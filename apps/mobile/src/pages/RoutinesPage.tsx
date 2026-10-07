@@ -1,131 +1,217 @@
-import { useState } from "react";
-import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import type { Routine, Workspace } from "../hooks/useWorkspace";
-import { AgentAvatar, Card, Muted, Page, PageHeader } from "../ui/components";
+import { t } from "../i18n";
+import type { RoutineRun } from "../protocol";
+import { activationSlots } from "../routines/slots";
+import { flowText, routineStatus, runOutcome, scheduleText } from "../routines/view";
 import { Icon } from "../ui/Icon";
-import { theme as t } from "../ui/theme";
+import { AgentAvatar, EmptyState, Screen, Spinner, SubHeader, Toggle, type } from "../ui/kit";
+import { theme } from "../ui/theme";
+
+export type RoutineActions = {
+  toggle: (routine: Routine, enabled: boolean) => Promise<void>;
+  run: (id: string) => Promise<void>;
+  runs: (id: string, limit?: number) => Promise<RoutineRun[]>;
+};
+
+const BAR: Record<ReturnType<typeof runOutcome> | "none", { color: string; height: number }> = {
+  told: { color: theme.brand, height: 18 },
+  ran: { color: theme.brand, height: 13 },
+  live: { color: theme.info, height: 13 },
+  skipped: { color: theme.fillStrong, height: 8 },
+  none: { color: theme.fillStrong, height: 8 },
+  failed: { color: theme.danger, height: 18 },
+};
+
+/** A routine's recent runs, read again when its latest run starts or ends. */
+export function useRoutineRuns(routine: Routine, load: RoutineActions["runs"], limit = 14) {
+  const [runs, setRuns] = useState<RoutineRun[]>([]);
+  const latest = `${routine.last?.run_id}:${routine.last?.state}`;
+  const reload = useCallback(() => {
+    void load(routine.id, limit)
+      .then(setRuns)
+      .catch(() => undefined);
+  }, [load, routine.id, limit]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `latest` is the signal to read the runs again.
+  useEffect(reload, [reload, latest]);
+  return runs;
+}
 
 export function RoutinesPage({
   data,
   back,
-  toggle,
-  run,
+  open,
+  actions,
 }: {
   data: Workspace;
   back: () => void;
-  toggle: (routine: Routine, enabled: boolean) => Promise<void>;
-  run: (id: string) => Promise<void>;
+  open: (routine: Routine) => void;
+  actions: RoutineActions;
 }) {
+  const active = data.routines.filter((routine) => routine.enabled).length;
+  const routines = [...data.routines].sort(
+    (a, b) => Number(b.enabled) - Number(a.enabled) || a.name.localeCompare(b.name),
+  );
   return (
-    <View style={s.root}>
-      <PageHeader
-        title="Rutinas"
-        subtitle={`${data.routines.filter((item) => item.enabled).length} de ${data.routines.length} activas`}
-        back={back}
-      />
-      <Page>
-        {data.routines.map((routine) => (
-          <RoutineCard key={routine.id} routine={routine} data={data} toggle={toggle} run={run} />
-        ))}
-        {!data.routines.length ? (
-          <View style={s.empty}>
-            <Text style={s.emptyTitle}>Sin rutinas</Text>
-            <Muted>Las automatizaciones del core aparecerán acá.</Muted>
-          </View>
-        ) : null}
-      </Page>
+    <View style={{ flex: 1, backgroundColor: theme.bg }}>
+      <SubHeader title={t("routines")} back={back} right={t("rtSummary", { on: active, all: data.routines.length })} />
+      <Screen>
+        {routines.length ? (
+          routines.map((routine) => (
+            <RoutineCard
+              key={routine.id}
+              routine={routine}
+              data={data}
+              actions={actions}
+              onPress={() => open(routine)}
+            />
+          ))
+        ) : (
+          <EmptyState title={t("rtNone")} body={t("rtNoneBody")} icon="RefreshCw" />
+        )}
+      </Screen>
     </View>
   );
 }
+
 function RoutineCard({
   routine,
   data,
-  toggle,
-  run,
+  actions,
+  onPress,
 }: {
   routine: Routine;
   data: Workspace;
-  toggle: (routine: Routine, enabled: boolean) => Promise<void>;
-  run: (id: string) => Promise<void>;
+  actions: RoutineActions;
+  onPress: () => void;
 }) {
-  const [busy, setBusy] = useState(false);
+  const runs = useRoutineRuns(routine, actions.runs);
   const agent = data.agents.find((item) => item.id === routine.agent_id);
-  const action = async (fn: () => Promise<void>) => {
-    setBusy(true);
-    try {
-      await fn();
-    } finally {
-      setBusy(false);
-    }
-  };
+  const project = data.projects.find((item) => item.id === routine.project_id)?.name ?? t("defaultProject");
+  const status = routineStatus(routine, runs);
+  const usesAgent = routine.action === "agent" || routine.action === "watch";
   return (
-    <Card style={s.card}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        s.card,
+        !routine.enabled && { opacity: 0.6 },
+        pressed && { backgroundColor: theme.fill },
+      ]}
+    >
       <View style={s.top}>
-        <View style={{ flex: 1 }}>
-          <Text style={s.name}>{routine.name}</Text>
-          <Muted>
-            {agent?.name ?? routine.agent_id} · {schedule(routine)}
-          </Muted>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text numberOfLines={1} style={s.name}>
+            {routine.name}
+          </Text>
+          <Text numberOfLines={1} style={type.meta}>
+            {project} · {scheduleText(routine.schedule)}
+          </Text>
         </View>
-        <Switch
-          value={routine.enabled}
-          disabled={busy}
-          onValueChange={(value) => void action(() => toggle(routine, value))}
-          trackColor={{ true: t.brand, false: t.fill }}
-          thumbColor={t.accent}
-        />
+        <RoutineToggle routine={routine} toggle={actions.toggle} />
       </View>
       <View style={s.flow}>
-        <AgentAvatar name={agent?.name ?? routine.agent_id} blob={agent?.blob} size={18} />
-        <Text style={s.flowText} numberOfLines={1}>
-          {routine.pre_command ? "pre → " : ""}Agente → {routine.post_command ? "post" : routine.action || "salida"}
+        {usesAgent && agent ? <AgentAvatar name={agent.name} blob={agent.blob} id={agent.id} size={16} /> : null}
+        <Text numberOfLines={1} style={s.flowText}>
+          {flowText(routine, agent?.name ?? routine.agent_id)}
         </Text>
       </View>
       <View style={s.bottom}>
-        <Muted style={{ flex: 1 }} numberOfLines={1}>
-          {routine.next_run_at ? `Próxima ${time(routine.next_run_at)}` : routine.enabled ? "Activa" : "Pausada"}
-          {routine.last_run_at ? ` · última ${time(routine.last_run_at)}` : ""}
-        </Muted>
-        <Pressable disabled={busy} onPress={() => void action(() => run(routine.id))} style={s.play}>
-          <Icon name="Play" size={16} color={t.fg} />
-        </Pressable>
+        <Bars routine={routine} runs={runs} />
+        <Text numberOfLines={1} style={[type.meta, { flex: 1 }, status.bad && { color: theme.danger }]}>
+          {status.text}
+        </Text>
+        <RunNow routine={routine} run={actions.run} />
       </View>
-    </Card>
+    </Pressable>
   );
 }
-function schedule(routine: Routine) {
-  const value = routine.schedule;
-  if (value.kind === "every") return `Cada ${value.minutes} min`;
-  if (value.kind === "cron") return value.cron ?? "Programada";
-  if (value.kind === "once") return value.at ?? "Una vez";
-  return "Manual";
+
+/** One bar per expected activation: green when it ran (taller when it told you), grey when skipped, red when failed. */
+export function Bars({ routine, runs, count = 12 }: { routine: Routine; runs: RoutineRun[]; count?: number }) {
+  const slots = useMemo(
+    () => activationSlots(routine.schedule, runs, new Date(), routine.next_run_at, count),
+    [routine.schedule, routine.next_run_at, runs, count],
+  );
+  return (
+    <View style={s.bars} accessibilityLabel={t("rtRecent")}>
+      {slots.map((slot, i) => {
+        const bar = BAR[slot.run ? runOutcome(slot.run, routine.action) : "none"];
+        // Slots are fixed positions in the row.
+        // biome-ignore lint/suspicious/noArrayIndexKey: positional
+        return <View key={i} style={[s.bar, { height: bar.height, backgroundColor: bar.color }]} />;
+      })}
+    </View>
+  );
 }
-function time(value?: string) {
-  if (!value) return "";
-  const d = new Date(value);
-  return Number.isNaN(d.getTime())
-    ? value
-    : new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" }).format(d);
+
+export function RoutineToggle({ routine, toggle }: { routine: Routine; toggle: RoutineActions["toggle"] }) {
+  const [value, setValue] = useState(routine.enabled);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setValue(routine.enabled), [routine.enabled]);
+  return (
+    <Toggle
+      label={t("rtEnabled")}
+      value={value}
+      disabled={busy}
+      onChange={(next) => {
+        setValue(next);
+        setBusy(true);
+        toggle(routine, next)
+          .catch((error) => {
+            setValue(!next);
+            Alert.alert(routine.name, error instanceof Error ? error.message : String(error));
+          })
+          .finally(() => setBusy(false));
+      }}
+    />
+  );
 }
+
+export function RunNow({ routine, run }: { routine: Routine; run: RoutineActions["run"] }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t("rtRunNow")}
+      disabled={busy}
+      onPress={() => {
+        setBusy(true);
+        run(routine.id)
+          .catch((error) => Alert.alert(routine.name, error instanceof Error ? error.message : String(error)))
+          .finally(() => setBusy(false));
+      }}
+      style={({ pressed }) => [s.play, pressed && { backgroundColor: theme.fillHover }]}
+    >
+      {busy ? <Spinner size={14} /> : <Icon name="Play" size={14} color={theme.fg} />}
+    </Pressable>
+  );
+}
+
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: t.bg },
-  card: { marginTop: 11, padding: 13, gap: 11 },
-  top: { flexDirection: "row", alignItems: "center" },
-  name: { color: t.fg, fontSize: 14, fontWeight: "700", fontFamily: "monospace" },
-  flow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  flowText: { color: t.muted, fontSize: 12, fontFamily: "monospace", flex: 1 },
-  bottom: { flexDirection: "row", alignItems: "center", gap: 8 },
-  bars: { flexDirection: "row", gap: 3, height: 18, alignItems: "flex-end" },
-  bar: { width: 5, height: 14, borderRadius: 2 },
+  card: {
+    padding: 14,
+    gap: 10,
+    borderRadius: theme.radiusLg,
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
+  top: { flexDirection: "row", alignItems: "center", gap: 10 },
+  name: { color: theme.fg, fontSize: 15, fontWeight: "600", fontFamily: theme.mono },
+  flow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  flowText: { color: theme.fgMuted, fontSize: 12, fontFamily: theme.mono, flexShrink: 1 },
+  bottom: { flexDirection: "row", alignItems: "center", gap: 10 },
+  bars: { flexDirection: "row", alignItems: "flex-end", gap: 3, height: 18 },
+  bar: { width: 5, borderRadius: 2 },
   play: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: t.fill,
+    backgroundColor: theme.fill,
     alignItems: "center",
     justifyContent: "center",
   },
-  playGlyph: { color: t.fg, fontSize: 12 },
-  empty: { padding: 40, alignItems: "center", gap: 8 },
-  emptyTitle: { color: t.fg, fontWeight: "600", fontSize: 16 },
 });

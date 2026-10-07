@@ -6,13 +6,14 @@ import { ChatScreen } from "./ChatScreen";
 import type { Creds } from "./creds";
 import { inboxItems } from "./hooks/inboxItems";
 import { useNotifications } from "./hooks/useNotifications";
-import type { Thread } from "./hooks/useWorkspace";
+import type { Routine, Thread } from "./hooks/useWorkspace";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
 import { ChatsPage } from "./pages/ChatsPage";
 import { InboxPage } from "./pages/InboxPage";
 import { MoreDetailPage } from "./pages/MoreDetailPage";
 import { type MoreId, MorePage } from "./pages/MorePage";
+import { RoutineDetailPage } from "./pages/RoutineDetailPage";
 import { RoutinesPage } from "./pages/RoutinesPage";
 import { SessionsPage } from "./pages/SessionsPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -48,6 +49,11 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
   const [tab, setTab] = useState<Tab>("chats");
   const [thread, setThread] = useState<Thread>();
   const [subpage, setSubpage] = useState<MoreId>();
+  const [routine, setRoutine] = useState<Routine>();
+  const routineActions = useMemo(
+    () => ({ toggle: workspace.toggleRoutine, run: workspace.runRoutine, runs: workspace.routineRuns }),
+    [workspace.toggleRoutine, workspace.runRoutine, workspace.routineRuns],
+  );
   const [surfaces, setSurfaces] = useState(false);
   const [picker, setPicker] = useState<"switch" | "new">();
   const [noticeThread, setNoticeThread] = useState<string>();
@@ -100,13 +106,23 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
           onBack={() => setThread(undefined)}
         />
       );
+    if (routine)
+      return (
+        <RoutineDetailPage
+          routine={workspace.data.routines.find((item) => item.id === routine.id) ?? routine}
+          data={workspace.data}
+          back={() => setRoutine(undefined)}
+          actions={routineActions}
+          openThread={openById}
+        />
+      );
     if (subpage === "routines")
       return (
         <RoutinesPage
           data={workspace.data}
           back={() => setSubpage(undefined)}
-          toggle={workspace.toggleRoutine}
-          run={workspace.runRoutine}
+          open={setRoutine}
+          actions={routineActions}
         />
       );
     if (subpage === "settings")
@@ -187,6 +203,7 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
           onChange={(id) => {
             setTab(id);
             setSubpage(undefined);
+            setRoutine(undefined);
           }}
         />
       ) : null}
