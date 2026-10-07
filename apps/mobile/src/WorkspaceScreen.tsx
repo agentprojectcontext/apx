@@ -130,7 +130,14 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
       case "tasks":
         return <TasksPage data={workspace.data} open={openById} />;
       case "sessions":
-        return <SessionsPage data={workspace.data} open={openThread} create={workspace.createSession} />;
+        return (
+          <SessionsPage
+            data={workspace.data}
+            open={openThread}
+            create={workspace.createSession}
+            resume={workspace.resumeSession}
+          />
+        );
       case "more":
         return <MorePage data={workspace.data} onSelect={setSubpage} />;
     }

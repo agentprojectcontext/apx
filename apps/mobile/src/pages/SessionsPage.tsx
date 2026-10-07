@@ -1,167 +1,229 @@
+import { useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import type { Thread, Workspace } from "../hooks/useWorkspace";
-import { AgentAvatar, Card, EmptyState, Muted, Page, PageHeader, RoundButton } from "../ui/components";
+import { listWhen } from "../format";
+import { engineName, isWorking } from "../hooks/chatSelectors";
+import type { Engine, NativeSession, Thread, Workspace } from "../hooks/useWorkspace";
+import { t } from "../i18n";
 import { EngineIcon } from "../ui/EngineIcon";
 import { Icon } from "../ui/Icon";
-import { theme as t } from "../ui/theme";
+import { BottomSheet, Button, Dot, EmptyState, ListRow, PageTitle, Screen, Spinner, type } from "../ui/kit";
+import { theme } from "../ui/theme";
+
+type EngineId = "claude" | "codex";
+const ENGINES: EngineId[] = ["claude", "codex"];
+/** The last folder of a path: enough to tell sessions apart without showing the whole machine path. */
+const folderOf = (path: string) => path.split(/[\\/]/).filter(Boolean).at(-1) ?? path;
 
 export function SessionsPage({
   data,
   open,
   create,
+  resume,
 }: {
   data: Workspace;
   open: (thread: Thread) => void;
   create: (engine: string, project: string) => Promise<Thread>;
+  resume: (engine: string, id: string) => Promise<Thread>;
 }) {
-  const newSession = (engineId: string) => {
-    const projects = data.projects.filter((project) => Boolean(project.path) && project.registered !== false);
-    if (!projects.length) {
-      Alert.alert("Nueva sesión", "No hay proyectos locales registrados.");
-      return;
-    }
-    Alert.alert("Nueva sesión", "Elegí proyecto", [
-      ...projects.slice(0, 4).map((project) => ({
-        text: project.name,
-        onPress: () =>
-          void create(engineId, project.id)
-            .then(open)
-            .catch((error) => Alert.alert("No se pudo iniciar", String(error))),
-      })),
-      { text: "Cancelar", style: "cancel" },
-    ]);
-  };
-  const engines = data.engines.filter((engine) => engine.id === "claude" || engine.id === "codex");
-  const sessions = data.threads.filter((thread) => thread.engine && ["claude", "codex"].includes(thread.engine));
+  const [picking, setPicking] = useState<EngineId>();
+  const engines = data.engines.filter((engine): engine is Engine & { id: EngineId } =>
+    ENGINES.includes(engine.id as EngineId),
+  );
+  const local = data.projects.filter((project) => project.path && project.registered !== false);
+  const fail = (error: unknown) =>
+    Alert.alert(t("couldNotStart"), error instanceof Error ? error.message : String(error));
   return (
-    <View style={s.root}>
-      <PageHeader title="Sesiones" subtitle="Motores externos que corren en tu Mac. Seguilos y respondé desde acá." />
-      <Page>
-        {engines.map((engine) => {
-          const rows = sessions.filter((thread) => thread.engine === engine.id);
-          const native = data.sessions[engine.id] ?? [];
-          return (
-            <Card key={engine.id} style={s.engineCard}>
-              <View style={s.engineHeader}>
-                <View style={s.engineIcon}>
-                  <EngineIcon engine={engine.id === "claude" ? "claude" : "codex"} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.engineName}>{engine.label}</Text>
-                  <Muted>
-                    ● {engine.logged_in ? "Conectado" : engine.installed ? "Instalado" : "No conectado"} · Mac
-                  </Muted>
-                </View>
-                <RoundButton icon="Plus" label="Sesión" onPress={() => newSession(engine.id)} secondary />
-              </View>
-              {rows.map((thread) => (
-                <SessionRow key={thread.id} thread={thread} data={data} onPress={() => open(thread)} />
-              ))}
-              {native
-                .filter((item) => !rows.some((thread) => thread.id === item.id))
-                .slice(0, 2)
-                .map((item) => (
-                  <View key={item.id} style={s.session}>
-                    <AgentAvatar name={engine.label} size={22} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.sessionTitle} numberOfLines={1}>
-                        {item.title}
-                      </Text>
-                      <Muted numberOfLines={1}>{item.cwd}</Muted>
-                    </View>
-                    <Muted>{time(item.updated_at)}</Muted>
-                  </View>
-                ))}
-              {!rows.length && !native.length ? <Muted style={s.noSessions}>No hay sesiones activas.</Muted> : null}
-            </Card>
-          );
-        })}
-        {engines.length === 0 ? (
-          <EmptyState title="Sin motores conectados" body="Conectá Claude Code o Codex desde tu Mac." glyph="›_" />
-        ) : null}
-        <Pressable style={s.connect}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Icon name="Plus" size={18} />
-            <Text style={s.connectText}>Conectar motor</Text>
+    <Screen gap={14}>
+      <PageTitle title={t("navSessions")} subtitle={t("sessionsLead")} />
+      {engines.map((engine) => (
+        <EngineCard
+          key={engine.id}
+          engine={engine}
+          data={data}
+          open={open}
+          create={() => setPicking(engine.id)}
+          resume={(id) => void resume(engine.id, id).then(open).catch(fail)}
+        />
+      ))}
+      {engines.length === 0 ? (
+        <EmptyState title={t("engineMissing")} body={t("connectEngineHow")} icon="Terminal" />
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => Alert.alert(t("connectEngine"), t("connectEngineHow"))}
+        style={({ pressed }) => [s.connect, pressed && { backgroundColor: theme.fill }]}
+      >
+        <Icon name="Plus" size={16} color={theme.fgMuted} />
+        <Text style={s.connectText}>{t("connectEngine")}</Text>
+      </Pressable>
+      <Text style={[type.meta, { textAlign: "center" }]}>{t("otherEngines")}</Text>
+      {picking ? (
+        <BottomSheet title={t("newSessionIn", { engine: engineName(picking) })} onClose={() => setPicking(undefined)}>
+          {local.length ? (
+            local.map((project) => (
+              <ListRow
+                key={project.id}
+                label={project.name}
+                sub={project.path ? folderOf(project.path) : undefined}
+                leading={<Icon name="Folder" size={18} color={theme.fgMuted} />}
+                onPress={() => {
+                  const engine = picking;
+                  setPicking(undefined);
+                  void create(engine, project.id).then(open).catch(fail);
+                }}
+              />
+            ))
+          ) : (
+            <Text style={[type.muted, { padding: 12 }]}>{t("noLocalProjects")}</Text>
+          )}
+        </BottomSheet>
+      ) : null}
+    </Screen>
+  );
+}
+
+function EngineCard({
+  engine,
+  data,
+  open,
+  create,
+  resume,
+}: {
+  engine: Engine & { id: EngineId };
+  data: Workspace;
+  open: (thread: Thread) => void;
+  create: () => void;
+  resume: (id: string) => void;
+}) {
+  const threads = data.threads
+    .filter((thread) => thread.engine === engine.id && !thread.archived)
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+    .slice(0, 5);
+  // Sessions started outside APX that it has no chat for yet.
+  const native = (data.sessions[engine.id] ?? [])
+    .filter((item) => !threads.some((th) => th.title === item.title))
+    .slice(0, 3);
+  const status = engine.logged_in ? "engineConnected" : engine.installed ? "engineSignedOut" : "engineMissing";
+  return (
+    <View style={s.card}>
+      <View style={s.head}>
+        <EngineIcon engine={engine.id} size={36} shape="tile" />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={s.name}>{engineName(engine.id)}</Text>
+          <View style={s.status}>
+            <Dot color={engine.logged_in ? theme.brand : engine.installed ? theme.warning : theme.fgSubtle} />
+            <Text numberOfLines={1} style={type.meta}>
+              {t(status)}
+            </Text>
           </View>
-        </Pressable>
-        <Muted style={s.engineList}>Gemini CLI · OpenCode · cualquier agente ACP</Muted>
-      </Page>
+        </View>
+        <Button
+          label={t("newSession")}
+          icon="Plus"
+          size="sm"
+          variant="secondary"
+          onPress={create}
+          disabled={!engine.installed}
+        />
+      </View>
+      {threads.map((thread) => (
+        <SessionRow key={thread.id} thread={thread} data={data} onPress={() => open(thread)} />
+      ))}
+      {native.map((item) => (
+        <NativeRow key={item.id} session={item} onPress={() => resume(item.id)} />
+      ))}
+      {!threads.length && !native.length ? <Text style={[type.meta, s.none]}>{t("noSessions")}</Text> : null}
     </View>
   );
 }
+
 function SessionRow({ thread, data, onPress }: { thread: Thread; data: Workspace; onPress: () => void }) {
-  const agent = data.agents.find((item) => item.id === thread.agent_ids[0]);
+  const failed = thread.state === "failed";
+  const project = data.projects.find((item) => item.id === thread.project_id)?.name;
   return (
-    <Pressable onPress={onPress} style={s.session}>
-      <AgentAvatar
-        name={agent?.name ?? thread.title}
-        blob={agent?.blob}
-        id={agent?.id ?? thread.agent_ids[0]}
-        size={22}
-      />
-      <View style={{ flex: 1 }}>
-        <Text style={s.sessionTitle} numberOfLines={1}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.fill }]}
+    >
+      <View style={s.mark}>
+        {isWorking(thread.state) ? (
+          <Spinner size={14} color={theme.brand} />
+        ) : (
+          <Icon name={failed ? "TriangleAlert" : "Check"} size={16} color={failed ? theme.danger : theme.fgSubtle} />
+        )}
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={s.title}>
           {thread.title}
         </Text>
-        <Muted numberOfLines={1}>
-          {data.projects.find((project) => project.id === thread.project_id)?.name ?? "APX"} · {thread.preview}
-        </Muted>
+        <Text numberOfLines={1} style={[s.sub, failed && { color: theme.danger }]}>
+          {[project, thread.preview].filter(Boolean).join(" · ")}
+        </Text>
       </View>
-      <Muted>{time(thread.updated_at)}</Muted>
+      <Text style={type.meta}>{listWhen(thread.updated_at)}</Text>
     </Pressable>
   );
 }
-function time(value?: string) {
-  if (!value) return "";
-  const d = new Date(value);
-  return Number.isNaN(d.getTime())
-    ? ""
-    : new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" }).format(d);
+
+function NativeRow({ session, onPress }: { session: NativeSession; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityHint={t("resume")}
+      onPress={onPress}
+      style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.fill }]}
+    >
+      <View style={s.mark}>
+        <Icon name="History" size={16} color={theme.fgSubtle} />
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={s.title}>
+          {session.title}
+        </Text>
+        <Text numberOfLines={1} style={s.sub}>
+          {folderOf(session.cwd)}
+        </Text>
+      </View>
+      <Text style={type.meta}>{listWhen(session.updated_at)}</Text>
+    </Pressable>
+  );
 }
+
 const s = StyleSheet.create({
-  root: { flex: 1, backgroundColor: t.bg },
-  engineCard: { marginTop: 10, padding: 0, overflow: "hidden" },
-  engineHeader: {
-    minHeight: 67,
+  card: {
+    borderRadius: theme.radiusLg,
+    backgroundColor: theme.surface,
+    borderWidth: 1,
+    borderColor: theme.border,
+    overflow: "hidden",
+  },
+  head: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  name: { color: theme.fg, fontSize: 15, fontWeight: "600" },
+  status: { flexDirection: "row", alignItems: "center", gap: 6 },
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: t.border,
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderTopWidth: 1,
+    borderColor: theme.border,
   },
-  engineIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: t.fill,
-  },
-  engineGlyph: { color: t.accent, fontSize: 22 },
-  engineName: { color: t.fg, fontSize: 14, fontWeight: "600" },
-  session: {
-    minHeight: 55,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: t.border,
-  },
-  sessionTitle: { color: t.fg, fontSize: 13 },
-  noSessions: { padding: 14 },
+  mark: { width: 20, alignItems: "center" },
+  title: { color: theme.fg, fontSize: 14 },
+  sub: { color: theme.fgSubtle, fontSize: 12, fontFamily: theme.mono },
+  none: { paddingHorizontal: 14, paddingBottom: 14 },
   connect: {
-    marginTop: 14,
-    height: 50,
-    borderRadius: 16,
+    height: 52,
+    borderRadius: theme.radiusLg,
     borderWidth: 1,
     borderStyle: "dashed",
-    borderColor: t.borderStrong,
+    borderColor: theme.borderStrong,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
   },
-  connectText: { color: t.muted, fontSize: 14 },
-  engineList: { textAlign: "center", marginTop: 13 },
+  connectText: { color: theme.fgMuted, fontSize: 14 },
 });

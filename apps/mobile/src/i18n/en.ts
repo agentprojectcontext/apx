@@ -111,6 +111,19 @@ export const en = {
   waitsForYourAnswer: "Waits for your answer",
   noTasks: "No open tasks",
   noTasksBody: "Tasks and commitments your agents take on show up here.",
+  sessionsLead: "Outside engines running on your computer. Follow them and answer from here.",
+  engineConnected: "Connected · on your computer",
+  engineSignedOut: "Installed · not signed in",
+  engineMissing: "Not installed",
+  newSession: "Session",
+  newSessionIn: "New {engine} session in",
+  noLocalProjects: "No project with a folder on your computer yet.",
+  noSessions: "No sessions yet.",
+  connectEngine: "Connect engine",
+  connectEngineHow: "Engines are set up in APX on your computer: Settings › Engines.",
+  otherEngines: "Gemini CLI · OpenCode · any ACP agent",
+  resume: "Resume",
+  couldNotStart: "Could not start",
 } as const;
 
 export type Key = keyof typeof en;

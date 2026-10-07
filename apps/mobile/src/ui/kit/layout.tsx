@@ -187,7 +187,9 @@ export function BottomSheet({
         <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 18 }]}>
           <View style={s.handle} />
           {title ? <Text style={s.sheetTitle}>{title}</Text> : null}
-          {children}
+          <ScrollView style={{ flexGrow: 0 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {children}
+          </ScrollView>
         </View>
       </View>
     </Modal>

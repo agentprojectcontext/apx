@@ -376,12 +376,21 @@ export function useWorkspace(creds: Creds) {
         agent_id: agent.id,
         project_id: projectId,
         engine: engineId,
-        title: `Nueva sesión · ${engineId === "claude" ? "Claude Code" : engineId}`,
+        title: `${engineId === "claude" ? "Claude Code" : engineId === "codex" ? "Codex" : engineId}`,
       });
       setData((d) => ({ ...d, threads: [thread, ...d.threads] }));
       return thread;
     },
     [client, data.agents, data.projects],
+  );
+
+  const resumeSession = useCallback(
+    async (engine: string, id: string) => {
+      const thread = await rpc<Thread>(client, "sessions.resume", { engine, id });
+      setData((d) => ({ ...d, threads: [thread, ...d.threads.filter((item) => item.id !== thread.id)] }));
+      return thread;
+    },
+    [client],
   );
 
   const createChat = useCallback(
@@ -411,5 +420,6 @@ export function useWorkspace(creds: Creds) {
     runRoutine,
     createChat,
     createSession,
+    resumeSession,
   };
 }
