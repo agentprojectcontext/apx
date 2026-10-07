@@ -881,7 +881,7 @@ input.wiz__name {
   justify-content: center;
   gap: 12px;
   height: 100%;
-  padding: 16px 40px;
+  padding: 16px 32px;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -901,8 +901,8 @@ input.wiz__name {
 }
 .about__cols {
   display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 32px;
+  grid-template-columns: 200px 1fr;
+  gap: 28px;
   align-items: center;
   width: 100%;
 }
@@ -944,7 +944,7 @@ input.wiz__name {
 .about__portrait,
 .about__portrait canvas {
   display: block;
-  width: 220px;
+  width: 200px;
   height: 200px;
 }
 .about__info {

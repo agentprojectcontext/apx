@@ -33,7 +33,7 @@ export async function showAbout(
     return;
   }
   win = new BrowserWindow({
-    width: 820,
+    width: 680,
     height: 430,
     resizable: false,
     minimizable: false,
