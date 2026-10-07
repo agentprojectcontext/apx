@@ -14,6 +14,7 @@ import type { Llm, LlmRequest } from "../providers/llm.ts";
 import type { AssistantItem, Completion } from "../providers/types.ts";
 import { createCore } from "../server.ts";
 import type { Tool } from "../tools/types.ts";
+import type { InputWaits } from "./inputs.ts";
 
 export type Script = (
   req: LlmRequest,
@@ -60,6 +61,7 @@ export async function startCore(opts: {
   channelAdapters?: Record<string, AdapterFactory>;
   channelRetryMs?: readonly number[];
   roomBurstMs?: number;
+  inputWaits?: InputWaits;
   desktop?: DesktopOps;
   /** Messages on a Mac; none by default, so a test never reads the machine's own. */
   imessage?: IMessageOps | null;
@@ -83,6 +85,7 @@ export async function startCore(opts: {
       ...(opts.channelAdapters ? { channelAdapters: opts.channelAdapters } : {}),
       ...(opts.channelRetryMs ? { channelRetryMs: opts.channelRetryMs } : {}),
       ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),
+      ...(opts.inputWaits ? { inputWaits: opts.inputWaits } : {}),
       ...(opts.desktop ? { desktop: opts.desktop } : {}),
       imessage: opts.imessage ?? null,
       ...(opts.clock ? { clock: opts.clock } : {}),

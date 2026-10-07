@@ -19,19 +19,25 @@ export function ownerTools(store: Store): Tool[] {
     defineTool({
       name: "ask_owner",
       description:
-        "Ask the owner a question and wait for the answer (they see it in the chat). Use it when you cannot continue without a decision or a fact only they have. options = short choices they can tap; they may still answer in their own words.",
+        "Ask the owner a question and wait for the answer (they see it in the chat). Use it when you cannot continue without a decision or a fact only they have. options = short choices they can tap; they may still answer in their own words. If they do not answer soon, the question stays open and their answer reaches you in a new turn.",
       args: z.object({
         question: z.string().min(1).max(1000),
         options: z.array(z.string().min(1).max(80)).max(6).optional(),
+        can_continue: z
+          .boolean()
+          .optional()
+          .describe("true only if you can reasonably go on without the answer: then a late answer is not waited for."),
       }),
       effect: "none",
       // The wait is bounded by the input's own deadline; this only covers a stuck write.
       deadlineMs: 16 * 60_000,
       title: (a) => `Asked you: ${String(a.question ?? "").slice(0, 60)}`,
       async run(a, ctx) {
-        const r = await ctx.askOwner(a.question, a.options);
+        const r = await ctx.askOwner(a.question, a.options, a.can_continue);
         if (r.state === "answered") return `The owner answered: ${r.answer ?? ""}`;
-        return "The owner did not answer in time. Continue without it if you can, or say what you are waiting for.";
+        if (r.state === "pending")
+          return "The owner has not answered yet. The question stays open in the chat and their answer will reach you in a new turn. End this turn now: say briefly what you are waiting for and do not go on with work that depends on it.";
+        return "The owner did not answer in time. Continue without it.";
       },
     }),
     defineTool({

@@ -20,6 +20,7 @@ import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { createAttention } from "./engine/attention.ts";
 import { createEngine } from "./engine/engine.ts";
+import type { InputWaits } from "./engine/inputs.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
 import { afterTaskTurn } from "./engine/office.ts";
 import type { ProfileRoot } from "./engine/profiles.ts";
@@ -79,6 +80,8 @@ export type CoreOptions = {
   channelRetryMs?: readonly number[];
   /** How long a room waits for one person's quick messages to settle (tests shorten it). */
   roomBurstMs?: number;
+  /** How long a turn waits for the owner's answer before it ends and the input stays open (tests shorten it). */
+  inputWaits?: InputWaits;
   /** The scheduler's clock; tests move it to make routines due. */
   clock?: () => Date;
   /** Finder and the trash; tests record the calls instead. */
@@ -244,6 +247,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     profileRoots,
     build: { version: identity.version, code_sha: identity.code_sha },
     hooks,
+    ...(opts.inputWaits ? { inputWaits: opts.inputWaits } : {}),
     mcpTools: mcp.toolsFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),
     afterRun: (run) => {

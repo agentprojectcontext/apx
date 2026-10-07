@@ -536,7 +536,8 @@ async function finishRun(
   let run = store.runs.patch(t.run, { model: outcome.model, ...(usage ? { usage } : {}) });
   run = store.runs.setState(run, "completed");
   store.threads.patch(thread.id, {
-    state: "idle",
+    // A question or confirmation the turn stopped waiting for is still the owner's to answer.
+    state: store.inputs.pending(thread.id).length ? "input-required" : "idle",
     preview: previewOf(text || (t.exec.toolsRan ? "Finished without a message." : "No answer.")),
     unread: (store.threads.get(thread.id)?.unread ?? 0) + 1,
   });

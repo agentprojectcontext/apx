@@ -15,7 +15,7 @@ import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk } from "../tools/shell.ts";
 import type { Confirm, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
-import { EXTERNAL_INPUT_WAIT_MS, INPUT_WAIT_MS, type Inputs } from "./inputs.ts";
+import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { confirmPrompt } from "./owner-words.ts";
 import { guarded, pathsOf } from "./paths.ts";
@@ -183,10 +183,18 @@ export function createExecutor(o: {
         approval: level === "always" ? undefined : tool.approval,
         args: raw,
         detail: describe(args),
-        waitMs: o.external() ? EXTERNAL_INPUT_WAIT_MS : INPUT_WAIT_MS,
+        external: o.external(),
+        stays: true,
         signal,
       });
       signal.throwIfAborted();
+      if (answer.state === "pending") {
+        card("error", "waiting for the owner");
+        return {
+          ok: false,
+          text: "not run yet: the owner has not answered. The request stays open in the chat; if they approve it, a new turn tells you and the same call then runs without asking. End this turn now: say briefly what you are waiting for and do not go on with work that depends on it.",
+        };
+      }
       if (answer.state !== "approved") {
         const why = answer.state === "denied" ? "the owner declined" : "the owner did not answer in time";
         card("error", why);
@@ -215,7 +223,7 @@ export function createExecutor(o: {
         ? { callAsOwner: (method, params) => o.call(method, params, { run, callId, owner: true }) }
         : {}),
       delegate: o.delegate,
-      askOwner: (prompt, options) =>
+      askOwner: (prompt, options, canContinue) =>
         o.inputs.ask({
           run,
           agent,
@@ -224,7 +232,8 @@ export function createExecutor(o: {
           kind: "question",
           prompt,
           options,
-          waitMs: o.external() ? EXTERNAL_INPUT_WAIT_MS : INPUT_WAIT_MS,
+          external: o.external(),
+          stays: !canContinue,
           signal,
         }),
     };
@@ -280,7 +289,9 @@ export function createExecutor(o: {
       prompt: confirmPrompt(store, decision.why, agent.name, req.title),
       tool: req.kind,
       ...(req.detail ? { detail: req.detail } : {}),
-      waitMs: INPUT_WAIT_MS,
+      // The external agent's own tool is not ours to run later: past the wait it counts as no.
+      external: false,
+      stays: false,
       signal,
     });
     return answer.state === "approved";

@@ -14,7 +14,7 @@ import { tripped } from "./breaker.ts";
 import { createDelegations } from "./delegation.ts";
 import type { Display } from "./display.ts";
 import type { Hooks } from "./hooks.ts";
-import { createInputs } from "./inputs.ts";
+import { createInputs, type InputWaits } from "./inputs.ts";
 import { createJobs } from "./jobs.ts";
 import { A2A_DEADLINE_MS } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
@@ -88,6 +88,8 @@ export function createEngine(deps: {
   build?: { version: string; code_sha: string };
   /** Extension points (a plugin's context for owner turns). */
   hooks?: Hooks;
+  /** How long a turn waits for the owner's answer (tests shorten it). */
+  inputWaits?: InputWaits;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
   mcpTools?: (thread: Thread) => Promise<Tool[]>;
   /** Whether a connected node lends this capability now (a phone's location). */
@@ -165,6 +167,7 @@ export function createEngine(deps: {
       clock?.pause();
       return () => clock?.resume();
     },
+    ...(deps.inputWaits ? { waits: deps.inputWaits } : {}),
   });
 
   function admit(a: Admit): RunRecord {

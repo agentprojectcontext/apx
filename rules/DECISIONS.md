@@ -486,3 +486,13 @@ updates itself (it carries its own core): the AppImage replaces its file, the Wi
 disk image to drag in (unsigned, so no silent install). Every platform is built from any computer (`pnpm package:<os>`):
 the only native module, sharp, comes prebuilt per platform (`npm --os/--cpu`), and Node comes from nodejs.org,
 checked against its SHASUMS256.txt.
+
+<a id="d-045"></a>
+## D-045 — 2026-10-07 — A question the owner has not answered stays open; the turn ends and the answer wakes it
+D-012 counted a timeout as a no: after 15 minutes (5 for Claude Code and Codex) a question or a confirmation closed and
+the agent went on without the owner. Now the turn still waits that long, then ends (the model is told to say what it
+waits for and stop) while the input stays answerable for 30 days and the chat shows it waits for the owner
+(`input-required`). The answer starts a new turn, as an answer after a restart already did; an approved call then runs
+once without asking. `ask_owner` takes `can_continue: true` for a question the agent can do without: that one still
+closes when the wait ends. An external agent's own tool (Claude Code's, Codex's) still counts a timeout as a no: it is
+not ours to run later.

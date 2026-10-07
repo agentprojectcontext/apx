@@ -11,10 +11,16 @@ import { badRequest, conflict, notFound, Shutdown } from "../errors.ts";
 import type { Display } from "./display.ts";
 import type { AdmitFn } from "./engine.ts";
 
-/** How long a question or confirmation stays open while the agent waits in its turn. */
+/** How long the agent waits in its turn for an answer before it ends the turn and the input stays open. */
 export const INPUT_WAIT_MS = 15 * 60_000;
 /** Claude Code and Codex reach our tools over a call with its own deadline: the wait must end before it. */
 export const EXTERNAL_INPUT_WAIT_MS = 5 * 60_000;
+/** How long an input the turn stopped waiting for stays answerable; its answer wakes the agent in a new turn. */
+export const OPEN_INPUT_MS = 30 * 24 * 60 * 60_000;
+/** The longest delay setTimeout takes; a later deadline is checked again when this one fires. */
+const MAX_TIMER_MS = 2 ** 31 - 1;
+
+export type InputWaits = { turn: number; external: number };
 
 const partOf = (r: InputRecord): Part => ({
   type: "input",
@@ -35,8 +41,11 @@ export function createInputs(deps: {
   admit: AdmitFn;
   /** Stops the run's deadline while it waits; the returned function starts it again. */
   hold: (runId: string) => () => void;
+  /** How long a turn waits for an answer (tests shorten it). */
+  waits?: InputWaits;
 }) {
   const { store } = deps;
+  const waits = deps.waits ?? { turn: INPUT_WAIT_MS, external: EXTERNAL_INPUT_WAIT_MS };
   const waiting = new Map<string, (r: InputRecord) => void>();
 
   /** Rewrites the input's card in the message that asked, for answers that arrive with no turn listening. */
@@ -88,7 +97,11 @@ export function createInputs(deps: {
   });
 
   return {
-    /** Writes the input, shows it, marks the run as waiting and resolves when it is answered, expires or the run stops. */
+    /**
+     * Writes the input, shows it, marks the run as waiting and resolves when it is answered, the turn's wait ends or
+     * the run stops. When the wait ends, an input that `stays` is still pending (answering it later wakes the agent);
+     * otherwise it expires.
+     */
     async ask(o: {
       run: RunRecord;
       agent: AgentRecord;
@@ -101,9 +114,13 @@ export function createInputs(deps: {
       args?: Record<string, unknown> | undefined;
       detail?: string | undefined;
       options?: string[] | undefined;
-      waitMs: number;
+      /** Claude Code or Codex: its call to our tool has a shorter deadline. */
+      external: boolean;
+      /** Stays open after the turn stops waiting, instead of counting as no answer. */
+      stays: boolean;
       signal: AbortSignal;
     }): Promise<InputRecord> {
+      const waitMs = o.external ? waits.external : waits.turn;
       const rec = store.inputs.create({
         run_id: o.run.id,
         thread_id: o.run.thread_id,
@@ -117,7 +134,7 @@ export function createInputs(deps: {
         args: o.args,
         detail: o.detail,
         options: o.options,
-        waitMs: o.waitMs,
+        waitMs: o.stays ? OPEN_INPUT_MS : waitMs,
       });
       const show = (r: InputRecord) => o.display.upsert((p) => p.type === "input" && p.input_id === r.id, partOf(r));
       show(rec);
@@ -127,13 +144,13 @@ export function createInputs(deps: {
       let timer: ReturnType<typeof setTimeout> | undefined;
       let stop: (() => void) | undefined;
       const expire = () => store.inputs.settle(rec.id, "expired") ?? (store.inputs.get(rec.id) as InputRecord);
+      const current = () => store.inputs.get(rec.id) as InputRecord;
       try {
         const settled = await new Promise<InputRecord>((resolve) => {
           waiting.set(rec.id, resolve);
-          timer = setTimeout(() => resolve(expire()), o.waitMs);
+          timer = setTimeout(() => resolve(o.stays ? current() : expire()), waitMs);
           // A shutdown keeps the input open (the answer wakes the agent after the restart); anything else closes it.
-          stop = () =>
-            resolve(o.signal.reason instanceof Shutdown ? (store.inputs.get(rec.id) as InputRecord) : expire());
+          stop = () => resolve(o.signal.reason instanceof Shutdown ? current() : expire());
           if (o.signal.aborted) stop();
           o.signal.addEventListener("abort", stop, { once: true });
         });
@@ -199,11 +216,25 @@ export function createInputs(deps: {
     restore(): void {
       const expire = (id: string) => {
         const settled = store.inputs.settle(id, "expired");
-        if (settled) settleCard(settled);
+        if (!settled) return;
+        settleCard(settled);
+        const th = store.threads.get(settled.thread_id);
+        if (th?.state === "input-required" && !store.inputs.pending(th.id).length && !store.threads.busy([th.id]))
+          store.threads.patch(th.id, { state: "idle" });
+      };
+      const watch = (r: InputRecord) => {
+        const left = Date.parse(r.expires_at) - Date.now();
+        if (left <= 0) return expire(r.id);
+        setTimeout(
+          () => {
+            const now = store.inputs.get(r.id);
+            if (now?.state === "pending") watch(now);
+          },
+          Math.min(left, MAX_TIMER_MS),
+        ).unref();
       };
       for (const r of store.inputs.overdue()) expire(r.id);
-      for (const r of store.inputs.pending())
-        setTimeout(() => expire(r.id), Math.max(0, Date.parse(r.expires_at) - Date.now())).unref();
+      for (const r of store.inputs.pending()) watch(r);
     },
 
     pending: (thread?: string) => store.inputs.pending(thread).map(publicInput),

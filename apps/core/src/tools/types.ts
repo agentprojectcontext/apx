@@ -45,8 +45,11 @@ export type ToolContext = {
     task: string,
     waitMs: number,
   ): Promise<string>;
-  /** Asks the owner and waits (durably) for the answer; the same machine confirmations use. */
-  askOwner(prompt: string, options?: string[]): Promise<InputRecord>;
+  /**
+   * Asks the owner and waits (durably) for the answer; the same machine confirmations use. Unless the agent can
+   * continue without it, the question stays open after the turn stops waiting and its answer wakes the agent.
+   */
+  askOwner(prompt: string, options?: string[], canContinue?: boolean): Promise<InputRecord>;
   /** Runs a shell command as a terminal job of this run: waits for it (up to timeoutMs) unless `background`. */
   runCommand(o: { command: string; cwd: string; background: boolean; timeoutMs: number }): Promise<{
     job: JobRecord;
