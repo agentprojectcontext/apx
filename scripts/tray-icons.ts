@@ -6,7 +6,13 @@ const assets = path.resolve(import.meta.dirname, "../apps/desktop/assets");
 const browser = await chromium.launch();
 try {
   const page = await browser.newPage();
-  for (const name of ["trayTemplate", "trayTemplate-attention", "tray-color", "tray-color-attention"]) {
+  for (const name of [
+    "trayTemplate",
+    "trayTemplate-attention",
+    "tray-white-attention",
+    "tray-color",
+    "tray-color-attention",
+  ]) {
     const source = await fs.readFile(path.join(assets, `${name}.svg`), "utf8");
     for (const scale of [1, 2]) {
       const png = await page.evaluate(

@@ -281,6 +281,17 @@ test("notifications add and clear the integrated tray indicator, menu-bar count 
       const size = image.getSize();
       const pixels = image.toBitmap();
       let bodyPixels = 0;
+      let orangePixels = 0;
+      for (let i = 0; i < pixels.length; i += 4) {
+        if (
+          (pixels[i + 2] ?? 0) > 220 &&
+          (pixels[i + 1] ?? 0) > 70 &&
+          (pixels[i + 1] ?? 0) < 200 &&
+          (pixels[i] ?? 0) < 80 &&
+          (pixels[i + 3] ?? 0) > 127
+        )
+          orangePixels++;
+      }
       for (let y = Math.floor(size.height / 3); y < size.height; y++) {
         for (let x = 0; x < size.width; x++) {
           if ((pixels[(y * size.width + x) * 4 + 3] ?? 0) > 127) bodyPixels++;
@@ -293,6 +304,7 @@ test("notifications add and clear the integrated tray indicator, menu-bar count 
         template: state.apxTestTrayTemplate,
         size,
         bodyPixels,
+        orangePixels,
         dock: app.dock?.getBadge(),
       };
     });
@@ -305,9 +317,12 @@ test("notifications add and clear the integrated tray indicator, menu-bar count 
   expect(empty.bodyPixels).toBeGreaterThan(0);
   expect(unread.size).toEqual(empty.size);
   expect(unread.bodyPixels).toBeGreaterThan(empty.bodyPixels * 0.75);
+  expect(empty.orangePixels).toBe(0);
+  expect(unread.orangePixels).toBeGreaterThan(0);
   if (process.platform === "darwin") {
     expect(unread.title).toBe("3");
-    expect(unread.template).toBe(true);
+    expect(empty.template).toBe(true);
+    expect(unread.template).toBe(false);
     expect(unread.dock).toBe("3");
     const many = await badge(120);
     expect(many.title).toBe("99+");
@@ -316,6 +331,29 @@ test("notifications add and clear the integrated tray indicator, menu-bar count 
     const one = await badge(1);
     expect(one.title).toBe("1");
     expect(one.dock).toBe("1");
+    const theme = await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource);
+    try {
+      await app.evaluate(({ nativeTheme }) => {
+        nativeTheme.themeSource = "light";
+      });
+      const light = await badge(1);
+      await app.evaluate(({ nativeTheme }) => {
+        nativeTheme.themeSource = "dark";
+      });
+      await expect.poll(async () => (await badge(1)).image).not.toBe(light.image);
+      const dark = await badge(1);
+      expect(dark.orangePixels).toBe(light.orangePixels);
+      expect(dark.template).toBe(false);
+      expect(dark.title).toBe("1");
+      await app.evaluate(({ nativeTheme }) => {
+        nativeTheme.themeSource = "light";
+      });
+      await expect.poll(async () => (await badge(1)).image).toBe(light.image);
+    } finally {
+      await app.evaluate(({ nativeTheme }, theme) => {
+        nativeTheme.themeSource = theme;
+      }, theme);
+    }
   }
   expect(await badge(0)).toEqual(empty);
 });

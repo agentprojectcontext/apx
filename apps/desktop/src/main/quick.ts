@@ -1,7 +1,7 @@
 // The menu-bar icon and its quick chat: a small window under the icon (or centered, from the global shortcut) with
 // the super-agent's chat. It hides when it loses focus, like any menu-bar app.
 import path from "node:path";
-import { app, BrowserWindow, globalShortcut, Menu, nativeImage, screen, Tray } from "electron";
+import { app, BrowserWindow, globalShortcut, Menu, nativeImage, nativeTheme, screen, Tray } from "electron";
 import { setLaunchAtLogin } from "./autostart.ts";
 import { quickPlacement } from "./quick-placement.ts";
 
@@ -36,11 +36,18 @@ export function createQuick(opts: {
   let pressedVisible: boolean | undefined;
 
   function trayImage(): Electron.NativeImage {
-    const name = process.platform === "darwin" ? "trayTemplate" : "tray-color";
+    const attention = unreadCount > 0;
+    const name =
+      process.platform === "darwin"
+        ? attention && nativeTheme.shouldUseDarkColors
+          ? "tray-white"
+          : "trayTemplate"
+        : "tray-color";
     const image = nativeImage.createFromPath(
       path.join(opts.assets, `${name}${unreadCount > 0 ? "-attention" : ""}.png`),
     );
-    if (process.platform === "darwin") image.setTemplateImage(true);
+    // Template tinting would turn the orange badge into the system's monochrome color.
+    if (process.platform === "darwin") image.setTemplateImage(!attention);
     return process.platform === "win32" ? image.resize({ width: 16 }) : image;
   }
 
@@ -135,6 +142,7 @@ export function createQuick(opts: {
     start(): void {
       tray = new Tray(trayImage());
       updateBadge();
+      if (process.platform === "darwin") nativeTheme.on("updated", updateBadge);
       if (process.platform === "darwin") {
         // Mouse-down precedes mouse-up's click, even when a secondary display reports stale tray bounds.
         tray.on("mouse-down", () => {
@@ -247,6 +255,7 @@ export function createQuick(opts: {
       clearTimeout(pending);
       clearTimeout(dismiss);
       globalShortcut.unregisterAll();
+      nativeTheme.off("updated", updateBadge);
       tray?.destroy();
     },
   };
