@@ -8,7 +8,16 @@ import { Dot, IconTile, ListGroup, ListRow, OwnerAvatar, PageTitle, Screen, type
 import { theme } from "../ui/theme";
 import type { Tone } from "../ui/tone";
 
-export type MoreId = "routines" | "agents" | "projects" | "channels" | "memory" | "apps" | "files" | "settings";
+export type MoreId =
+  | "routines"
+  | "agents"
+  | "projects"
+  | "channels"
+  | "memory"
+  | "apps"
+  | "files"
+  | "settings"
+  | "about";
 
 const ROWS: Array<{ id: MoreId; label: Key; icon: IconName; tone: Tone }> = [
   { id: "routines", label: "routines", icon: "RefreshCw", tone: "info" },
@@ -19,6 +28,7 @@ const ROWS: Array<{ id: MoreId; label: Key; icon: IconName; tone: Tone }> = [
   { id: "apps", label: "apps", icon: "LayoutGrid", tone: "brand" },
   { id: "files", label: "files", icon: "FileText", tone: "neutral" },
   { id: "settings", label: "settings", icon: "Settings", tone: "neutral" },
+  { id: "about", label: "about", icon: "Info", tone: "neutral" },
 ];
 
 /** Each row's short summary, and whether it should read as a problem. */

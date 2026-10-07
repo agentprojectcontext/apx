@@ -125,6 +125,14 @@ export type Memory = {
   updated_at: string;
 };
 export type MemoryQuery = { query?: string; scope?: Memory["scope"]; project?: string; limit?: number };
+export type Health = {
+  version: string;
+  code_sha: string;
+  started_at: string;
+  uptime_s: number;
+  rss_mb?: number;
+  subsystems: Record<string, { status: "ok" | "degraded" | "down" | "off"; detail?: string }>;
+};
 export type FileEntry = { name: string; path: string; kind: "dir" | "file"; bytes?: number };
 export type Engine = { id: string; label: string; installed: boolean; logged_in: boolean; detail?: string };
 export type NativeSession = { id: string; title: string; cwd: string; updated_at: string };
@@ -446,6 +454,15 @@ export function useWorkspace(creds: Creds) {
     [client],
   );
 
+  /** What `apx status` tells about the core, plus how many devices are paired. */
+  const serverInfo = useCallback(async () => {
+    const [health, devices] = await Promise.all([
+      rpc<Health>(client, "system.health", {}),
+      rpc<{ devices: unknown[] }>(client, "devices.list", {}).catch(() => undefined),
+    ]);
+    return { health, devices: devices?.devices.length };
+  }, [client]);
+
   const noticePrefs = useCallback(async () => rpc<NoticePrefs>(client, "notices.get", {}), [client]);
   /** Interruption settings are saved whole: the core fills anything left out with its default. */
   const setNoticePrefs = useCallback(
@@ -512,6 +529,7 @@ export function useWorkspace(creds: Creds) {
     removeMemory,
     noticePrefs,
     setNoticePrefs,
+    serverInfo,
     fileTree,
     readFile,
     fileMedia,

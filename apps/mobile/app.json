@@ -9,7 +9,8 @@
     "icon": "../desktop/assets/icon.png",
     "ios": {
       "bundleIdentifier": "dev.apx.mobile",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "buildNumber": "2"
     },
     "android": {
       "package": "dev.apx.mobile",

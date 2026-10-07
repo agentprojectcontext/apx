@@ -9,6 +9,7 @@ import { useNotifications } from "./hooks/useNotifications";
 import type { Routine, Thread } from "./hooks/useWorkspace";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
+import { AboutPage } from "./pages/AboutPage";
 import { ChatsPage } from "./pages/ChatsPage";
 import { FilesPage } from "./pages/FilesPage";
 import { InboxPage } from "./pages/InboxPage";
@@ -148,6 +149,15 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
           back={() => setSubpage(undefined)}
           open={setRoutine}
           actions={routineActions}
+        />
+      );
+    if (subpage === "about")
+      return (
+        <AboutPage
+          data={workspace.data}
+          url={creds.url}
+          back={() => setSubpage(undefined)}
+          load={workspace.serverInfo}
         />
       );
     if (subpage === "files")

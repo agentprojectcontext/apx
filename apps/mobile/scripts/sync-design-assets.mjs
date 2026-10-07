@@ -133,3 +133,17 @@ for (const file of ["slots.ts", "cron.ts"]) {
     `// Synced from apps/web/src/routines/${file} by scripts/sync-design-assets.mjs.\n${code}`,
   );
 }
+
+// The bodies the About portrait draws, inlined: its WebView loads nothing from outside.
+const FACES = ["orbita", "perla", "caracol", "menta", "papa", "parche"];
+const faces = Object.fromEntries(
+  FACES.map((key) => [
+    key,
+    `data:image/webp;base64,${readFileSync(resolve(shared, `src/blobs/bodies/${key}.webp`)).toString("base64")}`,
+  ]),
+);
+mkdirSync(resolve(mobile, "src/about"), { recursive: true });
+writeFileSync(
+  resolve(mobile, "src/about/faces.ts"),
+  `// Generated from packages/ui/src/blobs/bodies by scripts/sync-design-assets.mjs.\nexport const faces: Record<string, string> = ${JSON.stringify(faces, null, 2)};\n`,
+);
