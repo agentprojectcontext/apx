@@ -142,7 +142,6 @@ export function taskTools(): Tool[] {
         note: z.string().max(2000).optional(),
       }),
       effect: "local",
-      confirm: "untrusted",
       deadlineMs: 5_000,
       title: (a) => `Marked ${String(a.task ?? "")} ${String(a.state ?? "")}`,
       async run(a, ctx) {
@@ -161,7 +160,6 @@ export function taskTools(): Tool[] {
         note: z.string().max(2000).optional(),
       }),
       effect: "local",
-      confirm: "untrusted",
       deadlineMs: 5_000,
       title: (a) => `Marked ${String(a.task ?? "")} ${String(a.outcome ?? "")}`,
       async run(a, ctx) {

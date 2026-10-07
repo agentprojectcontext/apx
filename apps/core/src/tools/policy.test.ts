@@ -59,14 +59,16 @@ test("tools: a list naming nothing APX knows does not strip the agent of every t
   );
 });
 
-test("autonomy: ask confirms every call that changes something; total confirms only 'always'", () => {
+test("autonomy: ask confirms every call that changes something; total confirms nothing, not even 'always'", () => {
   const open = tool("x", "external", "untrusted");
   const read = tool("y");
   const always = tool("z", "local", "always");
   assert.equal(authorize(open, {}, agent({ autonomy: "ask" }), false).kind, "confirm");
   assert.equal(authorize(read, {}, agent({ autonomy: "ask" }), true).kind, "allow");
   assert.equal(authorize(open, {}, agent({ autonomy: "total" }), true).kind, "allow");
-  assert.equal(authorize(always, {}, agent({ autonomy: "total" }), false).kind, "confirm");
+  assert.equal(authorize(always, {}, agent({ autonomy: "total" }), false).kind, "allow");
+  assert.equal(authorize(always, {}, agent({ autonomy: "total" }), true).kind, "allow");
+  assert.equal(authorize(always, {}, agent(), false).kind, "confirm");
 });
 
 test("ask-level calls wait unless the agent's autonomy is total", () => {

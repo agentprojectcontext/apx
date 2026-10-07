@@ -51,9 +51,8 @@ export function ownerTools(store: Store): Tool[] {
           .optional()
           .describe("Only for something that cannot wait (money, safety, a hard deadline)."),
       }),
+      // It only ever reaches the owner, so it runs without asking even with outside content in the turn.
       effect: "external",
-      // Outside content in the turn could make it write to the owner in APX's voice: they OK it then.
-      confirm: "untrusted",
       deadlineMs: 15_000,
       title: (a) => `Told you: ${String(a.text ?? "").slice(0, 60)}`,
       async run(a, ctx) {

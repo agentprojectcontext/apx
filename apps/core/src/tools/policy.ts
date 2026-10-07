@@ -47,8 +47,10 @@ const OUTSIDE = "content from outside (web, another agent or a message) is in th
 /** The rule itself, for APX's tools and for what external agents ask to do with theirs. */
 export function decide(level: Confirm, effect: Effect, agent: AgentRecord, untrusted: boolean): Decision {
   const autonomy = agent.autonomy ?? "standard";
+  // Total autonomy is the owner's explicit choice: nothing waits for them, not even `always` (DECISIONS.md#d-047).
+  if (autonomy === "total") return { kind: "allow" };
   if (level === "always") return { kind: "confirm", why: "always", reason: "this action always needs your OK" };
-  if (level === "ask" && autonomy !== "total")
+  if (level === "ask")
     return untrusted
       ? { kind: "confirm", why: "untrusted", reason: OUTSIDE }
       : { kind: "confirm", why: "needs_ok", reason: `${agent.name} needs your OK for this kind of action` };
@@ -58,8 +60,7 @@ export function decide(level: Confirm, effect: Effect, agent: AgentRecord, untru
       why: "asks_every",
       reason: `${agent.name} asks before every action that changes something`,
     };
-  if (autonomy !== "total" && level === "untrusted" && untrusted)
-    return { kind: "confirm", why: "untrusted", reason: OUTSIDE };
+  if (level === "untrusted" && untrusted) return { kind: "confirm", why: "untrusted", reason: OUTSIDE };
   return { kind: "allow" };
 }
 

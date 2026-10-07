@@ -15,7 +15,6 @@ export function documentTool() {
       format: z.enum(["markdown", "text"]).default("markdown"),
     }),
     effect: "local",
-    confirm: "untrusted",
     deadlineMs: 15_000,
     title: (a) =>
       `Opened document ${

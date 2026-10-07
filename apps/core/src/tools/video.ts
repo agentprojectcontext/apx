@@ -124,7 +124,6 @@ export function videoTools(bin: string | undefined): Tool[] {
         lang: z.string().max(12).optional().describe("Captions language to prefer (es, en…); default the video's own."),
       }),
       effect: "external",
-      confirm: "untrusted",
       deadlineMs: 120_000,
       title: (a) => `Watched ${String(a.url ?? "").slice(0, 80)}`,
       async run(a, ctx) {

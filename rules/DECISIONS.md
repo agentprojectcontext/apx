@@ -506,3 +506,15 @@ the agent that wrote the block gets a turn with the exit code and the end of wha
 output like a background job's; pressing run is the owner's own action, so it does not count as an agent acting
 alone. Closing the terminal before the command ends tells nobody. Only a human operator opens terminals: an agent
 cannot press run for itself.
+
+<a id="d-047"></a>
+## D-047 — 2026-10-07 — Total autonomy asks for nothing; low-impact tools stop asking in standard
+D-012 kept `always` confirmations even under total autonomy, so an agent the owner set to run on its own still stopped
+for them. Total is the owner's explicit choice: now nothing waits for them there, `always` included (destructive
+shell commands, commands that reach APX's own API, iMessage, answering a contact, using the owner's browser login).
+The embedded browser still never types passwords or payment data: that is a handoff, not a confirmation. In standard
+autonomy, tools that only keep something of the agent's own or reach only the owner no longer ask while outside
+content is in the turn: `remember` (a note saved then stays tainted and reads as outside content wherever it shows),
+`task_close`, `commitment_settle`, `open_document`, `send_file` (only to the owner's chat; contacts and rooms never get
+it), `make_image`, `video_transcript` and `notify_owner`. Writing files, messaging contacts, typing in the browser,
+`forget`, `grant_tool`, the phone's location and widgets that connect out still ask then. AGENTS.md rule 10 follows.

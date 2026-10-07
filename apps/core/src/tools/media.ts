@@ -12,8 +12,8 @@ export function mediaTools(): Tool[] {
       description:
         "Attach an existing file from your work folder directly to your reply in this chat. Use when the owner asks to see or download a project file, image, video, audio or document here. Images appear inline; videos play in the chat; files can be downloaded. Path may be relative or absolute inside your work folder; maximum 20 MB per file. Call once per file. Never claim a file was attached unless this tool succeeds. Do not substitute a website link for an attachment.",
       args: z.object({ path: z.string().trim().min(1).max(1000) }),
+      // Only to this chat, the owner's: contacts and rooms never get it (CONTACT_TOOLS).
       effect: "local",
-      confirm: "untrusted",
       deadlineMs: 15_000,
       title: (a) =>
         `Attached ${String(a.path ?? "a file")
@@ -54,8 +54,6 @@ export function mediaTools(): Tool[] {
         count: z.number().int().min(1).max(4).optional(),
       }),
       effect: "external",
-      // A page or another agent could make the agent draw for it: ask the owner then.
-      confirm: "untrusted",
       deadlineMs: 11 * 60_000,
       title: (a) => `Drew: ${String(a.prompt ?? "").slice(0, 80)}`,
       async run(a, ctx) {

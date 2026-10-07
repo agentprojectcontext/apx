@@ -52,8 +52,7 @@ export function memoryTools(): Tool[] {
         id: z.string().max(64).optional().describe("the id of one of your notes, to replace its text"),
       }),
       effect: "local",
-      // A page or another agent could plant a "fact" that every later turn would read: ask the owner then.
-      confirm: "untrusted",
+      // Runs without asking: a note saved with outside content in the turn stays tainted (see notesText).
       deadlineMs: 5_000,
       title: (a) => `Remembered: ${String(a.text ?? "").slice(0, 80)}`,
       async run(a, ctx) {
