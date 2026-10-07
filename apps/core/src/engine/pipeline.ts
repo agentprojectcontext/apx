@@ -12,6 +12,7 @@ import { freshSignals, signalLines, watchSignals } from "../domain/signals.ts";
 import type { Store } from "../domain/store.ts";
 import { commandEnv } from "../harness/env.ts";
 import { untrusted } from "../tools/result.ts";
+import { workDir } from "../tools/shell.ts";
 import type { Display } from "./display.ts";
 
 /** A step runs at most this long (and never past its run's own deadline). */
@@ -115,8 +116,9 @@ export function messageText(text: string, pre: StepResult | undefined): string {
 /** One routine run's pipeline: the pre-step before the turn and the post-step after it, shown in the run's message. */
 export function routinePipeline(o: { store: Store; home: string; routine: Routine; run: RunRecord; display: Display }) {
   const { routine, display } = o;
-  const project = routine.project_id ? o.store.projects.get(routine.project_id) : undefined;
-  const cwd = project?.path && project.present ? project.path : path.join(o.home, "work");
+  // The commands run where the routine's agent works in its chat.
+  const thread = o.store.threads.get(o.run.thread_id);
+  const cwd = thread ? workDir(o.store, o.home, thread) : path.join(o.home, "work");
   let pre: StepResult | undefined;
 
   const step = async (code: string, command: string, env: Record<string, string>, signal: AbortSignal) => {
