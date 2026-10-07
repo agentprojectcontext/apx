@@ -11,7 +11,8 @@ import { useWorkspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
 import { ChatsPage } from "./pages/ChatsPage";
 import { InboxPage } from "./pages/InboxPage";
-import { MoreDetailPage, MorePage } from "./pages/MorePage";
+import { MoreDetailPage } from "./pages/MoreDetailPage";
+import { type MoreId, MorePage } from "./pages/MorePage";
 import { RoutinesPage } from "./pages/RoutinesPage";
 import { SessionsPage } from "./pages/SessionsPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -33,11 +34,20 @@ const TABS: Array<NavItem<Tab>> = [
 export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: () => void }) {
   const workspace = useWorkspace(creds);
   const insets = useSafeAreaInsets();
+  const host = useMemo(() => {
+    try {
+      const name = new URL(creds.url).hostname;
+      // A machine name reads better without its network suffix (".local", a tailnet's domain); an IP stays whole.
+      return /^[\d.:[\]]+$/.test(name) ? name : (name.split(".")[0] ?? name);
+    } catch {
+      return creds.url;
+    }
+  }, [creds.url]);
   const inbox = useMemo(() => inboxItems(workspace.data), [workspace.data]);
   useNotifications(creds);
   const [tab, setTab] = useState<Tab>("chats");
   const [thread, setThread] = useState<Thread>();
-  const [subpage, setSubpage] = useState<string>();
+  const [subpage, setSubpage] = useState<MoreId>();
   const [surfaces, setSurfaces] = useState(false);
   const [picker, setPicker] = useState<"switch" | "new">();
   const [noticeThread, setNoticeThread] = useState<string>();
@@ -103,7 +113,20 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
       );
     if (subpage === "settings")
       return <SettingsPage creds={creds} back={() => setSubpage(undefined)} disconnect={onUnpair} />;
-    if (subpage) return <MoreDetailPage id={subpage} data={workspace.data} back={() => setSubpage(undefined)} />;
+    if (subpage && subpage !== "apps" && subpage !== "memory")
+      return (
+        <MoreDetailPage
+          id={subpage}
+          data={workspace.data}
+          back={() => setSubpage(undefined)}
+          chatWith={(agent) =>
+            void workspace
+              .createChat(agent.id)
+              .then(setThread)
+              .catch(() => undefined)
+          }
+        />
+      );
     switch (tab) {
       case "chats":
         return (
@@ -139,7 +162,14 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
           />
         );
       case "more":
-        return <MorePage data={workspace.data} onSelect={setSubpage} />;
+        return (
+          <MorePage
+            data={workspace.data}
+            host={host}
+            online={workspace.online}
+            onSelect={(id) => (id === "apps" ? setSurfaces(true) : setSubpage(id))}
+          />
+        );
     }
   };
   if (workspace.loading && workspace.data.threads.length === 0)

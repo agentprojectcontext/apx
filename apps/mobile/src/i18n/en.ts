@@ -124,6 +124,20 @@ export const en = {
   otherEngines: "Gemini CLI · OpenCode · any ACP agent",
   resume: "Resume",
   couldNotStart: "Could not start",
+  routines: "Routines",
+  agents: "Agents",
+  projects: "Projects",
+  channels: "Channels",
+  memory: "Memory",
+  files: "Files",
+  settings: "Settings",
+  routinesActive: "{n} active",
+  routinesFailed: "{n} failed",
+  memoriesCount: "{n} notes",
+  connectedTo: "Connected to {host}",
+  nothingHere: "Nothing here yet.",
+  channelsHow: "Connect Telegram, WhatsApp, Discord or Slack from APX on your computer.",
+  filesHow: "Your projects' files open in APX on your computer.",
 } as const;
 
 export type Key = keyof typeof en;

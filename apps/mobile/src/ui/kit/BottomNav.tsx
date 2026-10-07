@@ -30,7 +30,9 @@ export function BottomNav<T extends string>({
             onPress={() => onChange(item.id)}
             style={s.tab}
           >
-            <View style={[s.pill, on && { backgroundColor: t.fillStrong }]}>
+            <View style={s.pill}>
+              {/* Its own layer, mounted when active: a background swapped in place lost its radius on Android. */}
+              {on ? <View style={s.pillOn} /> : null}
               <Icon name={item.icon} size={20} color={on ? t.fg : t.fgMuted} />
               {item.badge ? (
                 <View style={s.badge}>
@@ -50,6 +52,15 @@ const s = StyleSheet.create({
   bar: { flexDirection: "row", backgroundColor: t.sidebar, borderTopWidth: 1, borderColor: t.border },
   tab: { flex: 1, height: 76, alignItems: "center", justifyContent: "center", gap: 4 },
   pill: { width: 60, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  pillOn: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    borderRadius: 16,
+    backgroundColor: t.fillStrong,
+  },
   badge: { position: "absolute", top: 1, right: 10 },
   label: { color: t.fgMuted, fontSize: 12 },
   labelOn: { color: t.fg, fontWeight: "600" },

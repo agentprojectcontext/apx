@@ -36,6 +36,11 @@ const CHANNEL_NAMES: Record<string, string> = {
 };
 const ENGINE_NAMES: Record<string, string> = { claude: "Claude Code", codex: "Codex" };
 
+/** A channel type's product name ("WhatsApp"); unknown ones keep their id. */
+export function channelName(type: string): string {
+  return CHANNEL_NAMES[type] ?? type;
+}
+
 /** An outside engine's product name ("Claude Code"); unknown ones keep their id. */
 export function engineName(engine: string): string {
   return ENGINE_NAMES[engine] ?? engine;

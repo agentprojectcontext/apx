@@ -87,6 +87,7 @@ export type Routine = {
   anchor: boolean;
   next_run_at?: string;
   last_run_at?: string;
+  last?: { run_id: string; thread_id: string; state: string; started_at: string; delivered?: boolean };
 };
 /** A channel (Telegram bot, WhatsApp line…) as the phone lists it. */
 export type Channel = { id: string; type: string; label: string; enabled: boolean; agent_id: string };
@@ -117,6 +118,8 @@ export type Workspace = {
   sessions: Record<string, NativeSession[]>;
   jobs: { running: Job[] };
   channels: Channel[];
+  /** How many notes the office remembers (memory.settings), when known. */
+  memories?: number;
   /** The owner's name as set in APX ("" until loaded or when unset). */
   owner: string;
 };
@@ -173,7 +176,7 @@ export function useWorkspace(creds: Creds) {
   const loadSecondary = useCallback(async () => {
     const get = <T>(method: string, params?: Record<string, unknown>) =>
       rpc<T>(client, method, params).catch(() => undefined);
-    const [projects, agents, open, done, dropped, inbox, pending, routines, engines, jobs, owner, channels] =
+    const [projects, agents, open, done, dropped, inbox, pending, routines, engines, jobs, owner, channels, memory] =
       await Promise.all([
         get<{ projects: Project[] }>("projects.list", { include_unregistered: true }),
         get<{ agents: Agent[] }>("agents.list", {}),
@@ -187,6 +190,7 @@ export function useWorkspace(creds: Creds) {
         get<Workspace["jobs"]>("jobs.list", { finished: 12 }),
         get<{ name: string }>("owner.get", {}),
         get<{ channels: Channel[] }>("channels.list", {}),
+        get<{ total: number }>("memory.settings", {}),
       ]);
     let sessions: Workspace["sessions"] = {};
     if (engines?.engines) {
@@ -212,6 +216,7 @@ export function useWorkspace(creds: Creds) {
       jobs: jobs ?? d.jobs,
       owner: owner?.name ?? d.owner,
       channels: channels?.channels ?? d.channels,
+      memories: memory?.total ?? d.memories,
     }));
   }, [client]);
 
