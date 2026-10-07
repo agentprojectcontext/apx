@@ -80,7 +80,7 @@ test("change connection goes back to the question in the same window, and the ap
   await app.close();
 });
 
-test("About opens APX's own window with the hero and this build's version", async () => {
+test("About opens APX's own window with this build's versions and the repo", async () => {
   fs.writeFileSync(path.join(home, "desktop", "connection.json"), JSON.stringify({ mode: "local" }));
   const app = await launch();
   await windowAt(app, (u) => u.startsWith(core));
@@ -88,5 +88,7 @@ test("About opens APX's own window with the hero and this build's version", asyn
   const about = await windowAt(app, (u) => u.includes("?about"));
   await expect(about.locator(".about__version")).toContainText("APX");
   await expect(about.locator(".about__status")).toBeVisible();
+  await expect(about.locator(".about__list")).toContainText("Electron");
+  await expect(about.locator(".about__repo")).toHaveAttribute("href", /github\.com/);
   await app.close();
 });

@@ -202,6 +202,12 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "about.statuses":
     "orbita|Lucía|reparte el trabajo;perla|Tomás|arregla el bug del checkout;caracol|Vera|programa el newsletter;menta|Nova|resume tu bandeja de entrada;cobalto|Revisor|lee los PRs abiertos;noche|Turno noche|publica el reporte semanal",
   "about.foot": "Open source · tu crew, en tu compu o en tu servidor",
+  "about.version": "Versión",
+  "about.electron": "Electron",
+  "about.chromium": "Chromium",
+  "about.node": "Node",
+  "about.system": "Sistema",
+  "about.credits": "Hecho sobre APC, el estándar Agent Project Context. Íconos de Lucide; app con Electron.",
   "connect.kicker": "PRIMER ARRANQUE",
   "connect.title": "¿Dónde corre",
   "connect.titleEnd": "tu APX?",

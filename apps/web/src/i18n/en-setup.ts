@@ -199,6 +199,12 @@ export const enSetup = {
   "about.statuses":
     "orbita|Lucía|is handing out the work;perla|Tomás|is fixing the checkout bug;caracol|Vera|is scheduling the newsletter;menta|Nova|is summarizing your inbox;cobalto|Reviewer|is reading the open PRs;noche|Night shift|is posting the weekly report",
   "about.foot": "Open source · your crew, on your computer or your server",
+  "about.version": "Version",
+  "about.electron": "Electron",
+  "about.chromium": "Chromium",
+  "about.node": "Node",
+  "about.system": "System",
+  "about.credits": "Built on APC, the Agent Project Context standard. Icons by Lucide; shell by Electron.",
   "connect.kicker": "FIRST RUN",
   "connect.title": "Where does",
   "connect.titleEnd": "your APX run?",
