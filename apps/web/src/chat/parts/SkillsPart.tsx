@@ -9,8 +9,8 @@ import { go } from "../../shell/nav.ts";
 type SkillsPart = Extract<Part, { type: "skills" }>;
 type Kind = "loaded" | "strong" | "hinted" | "considered";
 
-/** Near misses worth showing: the faintest resemblance that still says something about the message. */
-const CONSIDERED_MIN_SIM = 0.15;
+/** Near misses worth showing: under this, every skill resembles every message a little. */
+const CONSIDERED_MIN_SIM = 0.3;
 const MAX_CONSIDERED = 3;
 
 const LABEL: Record<Kind, (name: string) => string> = {

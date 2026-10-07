@@ -561,10 +561,11 @@ Outside engines' sessions (D-023) are unchanged: their own prompt does not name 
 ## D-051 — 2026-10-07 — Skills matched by meaning are only recommended; the agent loads them
 Revises [D-028](#d-028). A match by meaning no longer puts a skill's body in the turn: a skill well above its own
 floor still had a raw similarity under 0.4 and loaded on messages about something else, costing context and steering
-the answer. Every match is now named with its description and the agent judges it and calls `load_skill`. Matches at
-raw similarity 0.6 or more are listed first as "most likely" and show blue in the chat; the rest (relevance 2.2 over
-the floor and raw 0.30, as before) are suggestions; up to three in all. The chat shows near misses from raw 0.15.
-Only a skill the owner names with `/name` goes in whole.
+the answer. Every match is now named with its description and the agent judges it and calls `load_skill`. The bars are raw
+similarity, set on the owner's chats with a small local engine: skills about APX itself reached 0.52 on messages about
+something else, real matches 0.49 to 0.73. So a skill is named from 0.50 (and still 2.2 over its floor), listed first as
+"most likely" and blue in the chat from 0.65; up to three in all. The chat shows near misses from 0.30. Only a skill
+the owner names with `/name` goes in whole.
 
 <a id="d-052"></a>
 ## D-052 — 2026-10-07 — A restart of APX picks the turns it cut off back up, once

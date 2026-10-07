@@ -9,10 +9,10 @@
 export const PICK = {
   /** At or above: named, with its one-line description, for the agent to load. */
   hint: 2.2,
-  /** Under this raw similarity a skill is unrelated, however far above its floor. */
-  floor: 0.3,
+  /** Under this raw similarity a skill is not named, however far above its floor: skills about APX itself reach 0.5. */
+  suggest: 0.5,
   /** At or above this raw similarity a named skill is recommended strongly; the agent still decides. */
-  strong: 0.6,
+  strong: 0.65,
   maxHints: 3,
   /** Shorter messages ("ok", "hola") are not compared. */
   minPrompt: 8,
@@ -87,7 +87,7 @@ export const relevance = (sim: number, f: Floor) => (sim - f.mu) / f.sd;
  * wrong body costs context and misleads. `scored` comes sorted by relevance, best first. See DECISIONS.md#d-051
  */
 export function choose(scored: Scored[]): { strong: string[]; hinted: string[] } {
-  const named = scored.filter((s) => s.sim >= PICK.floor && s.rel >= PICK.hint).slice(0, PICK.maxHints);
+  const named = scored.filter((s) => s.sim >= PICK.suggest && s.rel >= PICK.hint).slice(0, PICK.maxHints);
   return {
     strong: named.filter((s) => s.sim >= PICK.strong).map((s) => s.name),
     hinted: named.filter((s) => s.sim < PICK.strong).map((s) => s.name),

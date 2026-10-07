@@ -139,7 +139,8 @@ test("close matches are named, very close ones strongly; unrelated ones never co
     strong: ["a"],
     hinted: ["b"],
   });
-  // Far above its own floor but raw 0.38: a recommendation, never more.
-  assert.deepEqual(choose([s("a", 0.38, 5)]), { strong: [], hinted: ["a"] });
+  // Far above its own floor but raw 0.38 or 0.49: not named at all; 0.55 is a suggestion.
+  assert.deepEqual(choose([s("a", 0.38, 5), s("b", 0.49, 4)]), { strong: [], hinted: [] });
+  assert.deepEqual(choose([s("a", 0.55, 3)]), { strong: [], hinted: ["a"] });
   assert.deepEqual(choose([s("a", 0.6, 1)]), { strong: [], hinted: [] });
 });
