@@ -1,9 +1,10 @@
-import { AgentAvatar, Select, type SelectOption } from "@apx/ui";
+import { AgentAvatar, type SelectOption } from "@apx/ui";
 import { useMemo } from "react";
 import { baseName, blobOf } from "../../data/identity.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
 import { availableAgents } from "./agents.ts";
+import { SearchSelect } from "./SearchSelect.tsx";
 
 const NONE = "~none";
 
@@ -60,8 +61,10 @@ export function AgentSelect({
   const agents = useData((s) => s.agents);
   const options = useAgentOptions(projectId, all, globalAgents);
   return (
-    <Select
+    <SearchSelect
       label={label ?? t("pickers.agent")}
+      searchPlaceholder={t("pickers.searchAgent")}
+      emptyLabel={t("pickers.noMatch")}
       size={size ?? "md"}
       {...(className ? { className } : {})}
       value={value ?? (none ? NONE : null)}

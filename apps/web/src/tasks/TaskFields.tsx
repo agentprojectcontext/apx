@@ -1,6 +1,7 @@
-import type { TaskKind, TaskPriority } from "@apx/protocol";
-import { DatePicker, Icons, SegmentedControl, Select } from "@apx/ui";
+import type { Person, TaskKind, TaskPriority } from "@apx/protocol";
+import { ChannelIcon, DatePicker, Icons, SegmentedControl, Select } from "@apx/ui";
 import { useEffect } from "react";
+import { SearchSelect } from "../common/pickers/SearchSelect.tsx";
 import { loadChannels, useChannels } from "../data/channels.ts";
 import { currentLocale, type MessageKey, useT } from "../i18n/index.ts";
 import { duePresets, REMINDERS, type Reminder } from "./when.ts";
@@ -86,20 +87,36 @@ export function PersonSelect({
   useEffect(() => {
     if (!ready) void loadChannels();
   }, [ready]);
+  const channels = useChannels((s) => s.channels);
   const contacts = persons.filter((p) => p.role !== "owner" && p.role !== "blocked");
+  /** The kinds of channel a contact is on (an address names its channel; one per kind today). */
+  const kindsOf = (p: Person) => [
+    ...new Set(p.addresses.map((a) => channels.find((c) => c.id === a.channel)?.type ?? a.channel)),
+  ];
   return (
-    <Select
+    <SearchSelect
       label={t("commitments.person.label")}
+      searchPlaceholder={t("pickers.searchContact")}
+      emptyLabel={t("pickers.noMatch")}
       size={size ?? "md"}
       value={value ?? null}
       placeholder={contacts.length ? t("commitments.pickPerson") : t("commitments.noContacts")}
       disabled={!contacts.length}
-      options={contacts.map((p) => ({
-        value: p.id,
-        label: p.name,
-        icon: <Icons.User size={14} />,
-        ...(p.nickname && p.nickname !== p.name ? { hint: p.nickname } : {}),
-      }))}
+      options={contacts.map((p) => {
+        const kinds = kindsOf(p);
+        return {
+          value: p.id,
+          label: p.name,
+          icon: <Icons.User size={14} />,
+          ...(p.nickname && p.nickname !== p.name ? { hint: p.nickname } : {}),
+          ...(kinds.length
+            ? {
+                trailing: kinds.map((k) => <ChannelIcon key={k} channel={k} size={13} label={k} />),
+                keywords: kinds.join(" "),
+              }
+            : {}),
+        };
+      })}
       onValueChange={(v) => onChange(v ?? undefined)}
     />
   );

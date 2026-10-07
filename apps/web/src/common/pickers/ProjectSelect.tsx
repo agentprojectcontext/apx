@@ -1,7 +1,8 @@
-import { ProjectTile, Select } from "@apx/ui";
+import { ProjectTile } from "@apx/ui";
 import { DEFAULT_PID, projectEntries, projectInitial, projectTone } from "../../data/identity.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
+import { SearchSelect } from "./SearchSelect.tsx";
 
 /** Where something belongs: the base space (no project) or one of the projects, with its tile. */
 export function ProjectSelect({
@@ -21,8 +22,10 @@ export function ProjectSelect({
   const t = useT();
   const projects = useData((s) => s.projects);
   return (
-    <Select
+    <SearchSelect
       label={label ?? t("pickers.project")}
+      searchPlaceholder={t("pickers.searchProject")}
+      emptyLabel={t("pickers.noMatch")}
       size={size ?? "md"}
       {...(className ? { className } : {})}
       value={value ?? DEFAULT_PID}

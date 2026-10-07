@@ -27,16 +27,16 @@ const fold = (s: string) =>
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase();
 
-/** Every word of the query appears in the label, hint or group. */
+/** Every word of the query appears in the label, hint, group or keywords. */
 function matches(o: SelectOption, query: string): boolean {
-  const hay = fold(`${o.label} ${o.hint ?? ""} ${o.group ?? ""} ${o.value}`);
+  const hay = fold(`${o.label} ${o.hint ?? ""} ${o.group ?? ""} ${o.keywords ?? ""} ${o.value}`);
   return fold(query)
     .split(/\s+/)
     .every((w) => hay.includes(w));
 }
 
-/** A Select for long lists (time zones, languages): the same field, with a search box at the top of the list. Kept
- * out of @apx/ui so the combobox loads with Config, not with the first screen. */
+/** A Select for lists that grow (agents, projects, contacts, time zones, languages): the same field, with a search box
+ * at the top of the list. Kept out of @apx/ui so the combobox loads with the screens that pick, not the first one. */
 export function SearchSelect({
   value,
   onValueChange,
@@ -66,6 +66,7 @@ export function SearchSelect({
       {o.icon && <span className="apx-select__icon">{o.icon}</span>}
       <span className="apx-menu__text">{o.label}</span>
       {o.hint && <span className="apx-select__hint">{o.hint}</span>}
+      {o.trailing && <span className="apx-select__trailing">{o.trailing}</span>}
       <Combobox.ItemIndicator className="apx-select__check">
         <Icons.Check size={14} />
       </Combobox.ItemIndicator>
