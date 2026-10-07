@@ -1,6 +1,6 @@
 import * as Notifications from "expo-notifications";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, BackHandler, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChatScreen } from "./ChatScreen";
 import type { Creds } from "./creds";
@@ -88,6 +88,20 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
     setSubpage(undefined);
     setSurfaces(false);
   }, [noticeThread, workspace.data.threads]);
+  // Android's back button climbs out of the open page before it leaves the app.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (picker) setPicker(undefined);
+      else if (surfaces) setSurfaces(false);
+      else if (thread) setThread(undefined);
+      else if (routine) setRoutine(undefined);
+      else if (subpage) setSubpage(undefined);
+      else if (tab !== "chats") setTab("chats");
+      else return false;
+      return true;
+    });
+    return () => sub.remove();
+  }, [picker, surfaces, thread, routine, subpage, tab]);
   const openThread = async (item: Thread) => {
     setThread(item);
     void workspace.openThread(item.id).catch(() => undefined);
