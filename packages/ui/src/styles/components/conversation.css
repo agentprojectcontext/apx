@@ -194,10 +194,10 @@
   overflow: hidden;
   padding: 0 4px;
 }
-/* Shown after a second on the bubble, so a pointer passing over the chat does not make every row open. */
+/* Shown after half a second on the bubble, so a pointer passing over the chat does not make every row open. */
 .apx-msg:hover .apx-msg__actions {
   opacity: 1;
-  transition-delay: 1s;
+  transition-delay: 0.5s;
 }
 .apx-msg__actions:focus-within {
   opacity: 1;
@@ -215,7 +215,7 @@
 .apx-msg:hover .apx-msg__reveal {
   grid-template-rows: 1fr;
   margin-top: 0;
-  transition-delay: 1s;
+  transition-delay: 0.5s;
 }
 .apx-msg__reveal:focus-within {
   grid-template-rows: 1fr;
