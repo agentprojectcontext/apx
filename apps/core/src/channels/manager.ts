@@ -21,6 +21,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Secrets } from "../secrets.ts";
 import { splitSpoken } from "../services/audio.ts";
 import type { Services } from "../services/registry.ts";
+import { reactAnswer } from "./closers.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
 import { createInbound } from "./inbound.ts";
@@ -155,13 +156,39 @@ export function createChannels(deps: {
     attention: deps.attention,
     ownAccount: (id) => Boolean(live.get(id)?.adapter.caps.ownAccount),
     rooms,
-    react: async (id, conversation, ref, emoji) => {
-      const l = live.get(id);
-      if (l?.status !== "running" || !l.adapter.caps.reactions || !l.adapter.react) return false;
-      await l.adapter.react(conversation, ref, emoji);
-      return true;
-    },
+    react: reactOn,
   });
+
+  /** Puts the agent's emoji on a platform message; false when the channel has no reactions or is not running. */
+  async function reactOn(id: string, conversation: string, ref: string, emoji: string): Promise<boolean> {
+    const l = live.get(id);
+    if (l?.status !== "running" || !l.adapter.caps.reactions || !l.adapter.react) return false;
+    await l.adapter.react(conversation, ref, emoji);
+    return true;
+  }
+
+  /**
+   * The agent answered with a reaction ("REACT ❤️") to the other side's last message here: put on it, shown on that
+   * message, and the words taken out of the chat (the model log keeps them). False when it could not be done.
+   */
+  async function reactInstead(run: RunRecord, to: { channel: string; conversation: string }, emoji: string) {
+    const last = store.threads.context(run.thread_id).their_last;
+    if (last?.channel !== to.channel || last.conversation !== to.conversation) return false;
+    const ok = await reactOn(to.channel, to.conversation, last.ref, emoji).catch((err: unknown) => {
+      log.warn({ run: run.id, err: errorMessage(err, 200) }, "channel reaction not sent");
+      return false;
+    });
+    if (!ok) return false;
+    store.messages.setReaction(last.message_id, "agent", emoji);
+    hideWords(run.message_id);
+    return true;
+  }
+
+  /** An answer that was only a signal (SKIP, REACT): its words leave the chat; the model log keeps them. */
+  function hideWords(messageId: string | undefined): void {
+    const msg = messageId ? store.messages.get(messageId) : undefined;
+    if (msg) store.messages.update({ ...msg, parts: msg.parts.filter((p) => p.type !== "text") });
+  }
 
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
   function followUp(part: Extract<Part, { type: "input" }>, threadId: string): void {
@@ -229,7 +256,14 @@ export function createChannels(deps: {
     const images = (msg?.parts ?? []).flatMap((p) =>
       p.type === "image" && p.media_id ? [{ id: p.media_id, kind: "image" as const, mime: p.mime ?? "image/png" }] : [],
     );
-    if (run.state === "completed" && isSkip(out)) out = "";
+    if (run.state === "completed" && isSkip(out)) {
+      hideWords(run.message_id);
+      return;
+    }
+    const emoji = run.state === "completed" ? reactAnswer(out) : undefined;
+    // A channel without reactions gets the emoji as the answer.
+    if (emoji && (await reactInstead(run, to, emoji))) return;
+    if (emoji) out = emoji;
     if (!out && !images.length) return;
     if (audience?.kind === "contact") out = guardReply(out);
     if (room) out = quietMentions(out);

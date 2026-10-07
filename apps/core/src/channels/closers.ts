@@ -145,3 +145,10 @@ export function reactionFor(text: string): string | undefined {
   if (words.every((w) => LAUGH.test(w))) return "😂";
   return "👍";
 }
+
+/** "REACT ❤️" (or "REACT: 👍"): the agent answers the other side's last message with that emoji instead of words. */
+export function reactAnswer(text: string): string | undefined {
+  const m = /^\W*REACT\W*?:?\s+(\S{1,16})\s*$/iu.exec(text.trim());
+  const emoji = m?.[1]?.replace(/[*_`]/g, "");
+  return emoji && /\p{Extended_Pictographic}/u.test(emoji) ? emoji : undefined;
+}

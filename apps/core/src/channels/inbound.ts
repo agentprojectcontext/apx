@@ -117,6 +117,7 @@ export function createInbound(deps: {
     }
     if (!attachments.length && closesChat(thread.id, text)) {
       const kept = keepQuiet(thread.id, cfg.id, owner ? undefined : person, text.trim());
+      theirLast(thread.id, cfg.id, m, kept);
       const emoji = cfg.closers === "react" ? reactionFor(text) : undefined;
       if (emoji && (await deps.react(cfg.id, m.conversation, m.ref ?? m.external_id, emoji).catch(() => false)))
         store.messages.setReaction(kept, "agent", emoji);
@@ -129,7 +130,7 @@ export function createInbound(deps: {
       (await answerPending(thread.id, text, rowId, { channel: cfg.id, conversation: m.conversation }))
     )
       return "done";
-    await call(
+    const sent = await call(
       "threads.send",
       {
         thread: thread.id,
@@ -149,7 +150,15 @@ export function createInbound(deps: {
       },
       `channel:${rowId}`,
     );
+    theirLast(thread.id, cfg.id, m, sent.message.id);
     return "done";
+  }
+
+  /** Remembers the other side's last message, so the agent can answer it with a reaction (REACT in manager.ts). */
+  function theirLast(threadId: string, channel: string, m: Inbound, messageId: string): void {
+    store.threads.mergeContext(threadId, {
+      their_last: { channel, conversation: m.conversation, ref: m.ref ?? m.external_id, message_id: messageId },
+    });
   }
 
   /** A voice note as words the agent can read (with its caption, if any); says so when it could not be heard. */

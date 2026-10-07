@@ -72,6 +72,8 @@ export type Epoch = { upto: number; summary: string; untrusted: boolean; runs: n
 export type ThreadContext = {
   /** Answers go back to this channel conversation while the last words came from it (in a room, as a reply to `message`). */
   reply_to?: { channel: string; conversation: string; message?: string | undefined };
+  /** The other side's last message on a channel: the platform's id for it (to react to it) and its message here. */
+  their_last?: { channel: string; conversation: string; ref: string; message_id: string };
   /** A public room of a server (a Discord channel): its turns are sealed, whoever wrote. */
   room?: { name: string };
   compaction?: Epoch;

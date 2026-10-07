@@ -25,6 +25,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("who are my contacts")) return callTool("c1", "contact_list", { query: "north" });
   if (said.includes("what routines")) return callTool("c2", "routine_list", {});
   if (said.includes("nothing to add")) return say("SKIP");
+  if (said.includes("react with a heart")) return say("REACT ❤️");
   if (said.includes("can I ask")) return say("Sure, want me to tell them?");
   if (said.includes("tell nobody")) return callTool("m2", "message_contact", { to: "Zed", text: "Hi" });
   return say(`Reply: ${said.split("\n").at(-1)?.slice(0, 80)}`);
@@ -190,6 +191,30 @@ test("with closers set to react, a thanks gets an emoji instead of words", async
   assert.equal(llm.calls.length, calls, "no model call");
   await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" } });
   await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "running");
+});
+
+test("asked to react, the agent puts its emoji on their last message instead of writing", async () => {
+  const id = tg.message(MAG, "the parcel arrived, all good on our side");
+  await until(async () => {
+    const { messages } = await env.client.call("threads.get", { thread });
+    return messages.at(-1)?.author.kind === "agent";
+  }, "answered");
+  await env.settle(thread);
+  const sent = tg.messagesTo(MAG.id).length;
+  const reactions = tg.reactionsTo(MAG.id).length;
+  await env.client.call("threads.send", { thread, text: "react with a heart to their last message" });
+  await env.settle(thread);
+  await until(() => tg.reactionsTo(MAG.id).length > reactions, "reaction sent");
+  assert.deepEqual(tg.reactionsTo(MAG.id).at(-1)?.body, {
+    chat_id: MAG.id,
+    message_id: id,
+    reaction: [{ type: "emoji", emoji: "❤" }],
+  });
+  assert.equal(tg.messagesTo(MAG.id).length, sent, "no words went back");
+  const { messages } = await env.client.call("threads.get", { thread });
+  const theirs = messages.findLast((m) => m.author.kind === "person");
+  assert.deepEqual(theirs?.reactions, [{ emoji: "❤️", by: "agent" }]);
+  assert.ok(!messages.at(-1)?.parts.some((p) => p.type === "text"), "the REACT words leave the chat");
 });
 
 test("the owner tells the agent what to answer in the app; the answer goes to the contact", async () => {

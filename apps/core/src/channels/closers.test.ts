@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { asksSomething, needsNoAnswer, reactionFor } from "./closers.ts";
+import { asksSomething, needsNoAnswer, reactAnswer, reactionFor } from "./closers.ts";
 
 test("a closing message needs no answer", () => {
   for (const t of [
@@ -43,4 +43,12 @@ test("a reaction fits the closing message", () => {
   assert.equal(reactionFor("jajaja"), "😂");
   assert.equal(reactionFor("oka, dale"), "👍");
   assert.equal(reactionFor("👍"), undefined);
+});
+
+test("an answer that is a reaction", () => {
+  assert.equal(reactAnswer("REACT ❤️"), "❤️");
+  assert.equal(reactAnswer("**REACT:** 👍"), "👍");
+  assert.equal(reactAnswer("react 😂\n"), "😂");
+  assert.equal(reactAnswer("REACT to this later"), undefined);
+  assert.equal(reactAnswer("I will react ❤️ soon"), undefined);
 });
