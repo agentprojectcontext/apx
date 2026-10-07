@@ -26,6 +26,7 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   applyDesktopPrefs: (prefs: { shortcut: string; launchAtLogin: boolean }) => ipcRenderer.send("desktop:prefs", prefs),
   setAttention: (unread: number) => ipcRenderer.send("desktop:attention", Number(unread) || 0),
   setTitleBar: (mode: "light" | "dark") => ipcRenderer.send("desktop:titlebar", mode),
+  setLanguage: (language: string) => ipcRenderer.send("desktop:language", String(language)),
   pickFolder: (): Promise<string | undefined> => ipcRenderer.invoke("panel:pick-folder"),
   memory: (): Promise<unknown> => ipcRenderer.invoke("desktop:memory"),
   /** Whether a newer APX app is out (check: ask the release feed now). */

@@ -47,6 +47,8 @@ declare global {
       applyDesktopPrefs?(prefs: { shortcut: string; launchAtLogin: boolean }): void;
       /** How many notices wait for the owner: shown on the menu-bar icon and the Dock. */
       setAttention?(unread: number): void;
+      /** The panel's language, for the shell's own windows (About), which cannot read the panel's settings. */
+      setLanguage?(language: string): void;
       /** Windows/Linux: match the native title-bar overlay to the panel theme. */
       setTitleBar?(mode: "light" | "dark"): void;
       /** The system's folder dialog; undefined when the owner cancels. */

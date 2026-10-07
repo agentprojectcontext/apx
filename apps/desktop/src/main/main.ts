@@ -105,6 +105,8 @@ app.whenReady().then(() => {
   let slot: Bounds | null = null;
   // The quick chat loads from wherever the panel did (the dev server or the core); so does the browser window.
   let base = CORE_URL;
+  // The panel's language (it says so on load and on every change), for the About window.
+  let language: string | undefined;
 
   const popout = createPopout({
     url: () => base,
@@ -232,7 +234,7 @@ app.whenReady().then(() => {
     appMenu(
       () => quick.toggle(false),
       () => void connector.change(),
-      () => base,
+      () => void showAbout("persist:apx-ui", { coreUrl: base, language }),
     ),
   );
 
@@ -241,6 +243,9 @@ app.whenReady().then(() => {
     quick.hide();
     openMain();
     if (typeof threadId === "string") panel.webContents.send("nav:thread", threadId);
+  });
+  ipcMain.on("desktop:language", (e, lang: unknown) => {
+    if (e.sender === panel.webContents && (lang === "en" || lang === "es")) language = lang;
   });
   ipcMain.on("desktop:prefs", (e, prefs: DesktopPrefs) => {
     if (e.sender !== panel.webContents || typeof prefs?.shortcut !== "string") return;
@@ -344,12 +349,12 @@ function externalLinks(wc: WebContents): void {
 }
 
 /** The system's own menus, plus "Quick chat" in Window: reachable from the keyboard and by name. */
-function appMenu(openQuick: () => void, changeConnection: () => void, coreUrl: () => string): Menu {
+function appMenu(openQuick: () => void, changeConnection: () => void, openAbout: () => void): Menu {
   const es = app.getLocale().startsWith("es");
   const about = {
     id: "about",
     label: es ? "Acerca de APX" : "About APX",
-    click: () => void showAbout("persist:apx-ui", coreUrl()),
+    click: openAbout,
   };
   const change = {
     id: "change-connection",

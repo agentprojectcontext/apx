@@ -875,13 +875,13 @@ input.wiz__name {
   }
 }
 
-/* The desktop app's About window: the version on top, the portrait in text beside the facts, the crew below. */
+/* The desktop app's About window: the portrait in text beside the version and the facts, the crew below. */
 .wiz.about {
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 16px;
   height: 100%;
-  padding: 24px 36px;
+  padding: 20px 40px;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -893,6 +893,7 @@ input.wiz__name {
   width: 100%;
 }
 .about__version {
+  align-self: flex-start;
   max-width: 100%;
   overflow: hidden;
   font-family: var(--apx-font-mono);
@@ -930,19 +931,13 @@ input.wiz__name {
 .about__portrait canvas {
   display: block;
   width: 220px;
-  height: 230px;
+  height: 220px;
 }
 .about__info {
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-width: 0;
-}
-.about__name {
-  margin: 0;
-  color: var(--apx-fg);
-  font-size: 22px;
-  font-weight: 600;
 }
 .about__tag,
 .about__credits {

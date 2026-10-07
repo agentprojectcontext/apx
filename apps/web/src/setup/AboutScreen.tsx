@@ -95,14 +95,13 @@ export function AboutScreen() {
   ];
   return (
     <div className="wiz about" data-apx-look="minimal" data-apx-mode="dark">
-      <span className="wiz__pill about__version">
-        <img src={logo} alt="" width={14} height={14} />
-        APX {version}
-      </span>
       <div className="about__cols">
         <GlyphPortrait />
         <div className="about__info">
-          <h1 className="about__name">APX</h1>
+          <span className="wiz__pill about__version">
+            <img src={logo} alt="" width={14} height={14} />
+            APX {version}
+          </span>
           <p className="about__tag">{t("about.foot")}</p>
           <dl className="about__list">
             {rows.map(([label, value]) =>

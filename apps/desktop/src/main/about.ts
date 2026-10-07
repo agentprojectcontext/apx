@@ -24,14 +24,17 @@ async function coreHealth(coreUrl: string): Promise<Health | undefined> {
   }
 }
 
-export async function showAbout(partition: string, coreUrl: string): Promise<void> {
+export async function showAbout(
+  partition: string,
+  { coreUrl, language }: { coreUrl: string; language?: string },
+): Promise<void> {
   if (win && !win.isDestroyed()) {
     win.focus();
     return;
   }
   win = new BrowserWindow({
-    width: 780,
-    height: 450,
+    width: 820,
+    height: 380,
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -64,6 +67,7 @@ export async function showAbout(partition: string, coreUrl: string): Promise<voi
     os: `${SYSTEMS[process.platform] ?? process.platform} ${process.getSystemVersion()} · ${process.arch}`,
     core: new URL(coreUrl).host,
   });
+  if (language) query.set("lang", language);
   if (health?.started_at) query.set("since", health.started_at);
   if (health?.subsystems)
     query.set(

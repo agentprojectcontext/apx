@@ -50,6 +50,7 @@ function Main() {
   }, []);
   useEffect(() => {
     document.documentElement.lang = lang;
+    window.apxDesktop?.setLanguage?.(lang);
   }, [lang]);
   return (
     <ApxProvider look={look} mode={mode} fill style={font === "mono" ? MONO : undefined}>

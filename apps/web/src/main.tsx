@@ -23,7 +23,8 @@ import "./styles/models.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
-import { startI18n } from "./i18n/index.ts";
+import { prefs } from "./data/prefs.ts";
+import { isLanguage, startI18n } from "./i18n/index.ts";
 
 // A newer panel replaced this page's lazy parts (an update, a rebuild): load it again instead of a blank screen. Not
 // twice in a few seconds: a panel that keeps failing shows its error.
@@ -38,6 +39,10 @@ window.addEventListener("vite:preloadError", (e) => {
   e.preventDefault();
   window.location.reload();
 });
+
+// The desktop's About window is on another origin than the panel: the shell passes the panel's language along.
+const lang = new URLSearchParams(window.location.search).get("lang");
+if (isLanguage(lang)) prefs.set({ language: lang });
 
 const root = document.getElementById("root");
 if (!root) throw new Error("#root missing");
