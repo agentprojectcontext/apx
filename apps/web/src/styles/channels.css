@@ -442,14 +442,15 @@
 /* Their emoji (and the agent's) sit on the bubble's lower edge, as the chat apps show them. */
 .chan__reactions {
   display: inline-flex;
+  align-self: flex-start;
   gap: 2px;
-  margin-top: -14px;
-  padding: 1px 6px;
-  border: 1px solid var(--apx-border);
-  border-radius: 999px;
-  background: var(--apx-bg);
-  font-size: var(--apx-text-sm);
-  line-height: 1.4;
+  margin: -12px 0 0 10px;
+  font-size: var(--apx-text-md);
+  line-height: 1;
+}
+.chan__bubble.is-out .chan__reactions {
+  align-self: flex-end;
+  margin: -12px 10px 0 0;
 }
 .chan__when {
   color: var(--apx-fg-subtle);

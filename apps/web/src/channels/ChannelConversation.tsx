@@ -10,6 +10,7 @@ import { go } from "../shell/nav.ts";
 import { RELATION_KEY } from "./ChannelScreen.tsx";
 import { addressText, ContactFace } from "./ContactRow.tsx";
 import { DeliveryTicks, ReactionList } from "./MessageMarks.tsx";
+import { isSignal } from "./signal.ts";
 
 /**
  * The chat with one contact. Their words on the left; what was sent to them (by the agent or by the owner) on the
@@ -177,10 +178,11 @@ export function ChannelConversation(props: {
 
 function Bubble({ m, agentName }: { m: Message; agentName: string }) {
   const t = useT();
-  const words = m.parts
+  const said = m.parts
     .flatMap((p) => (p.type === "text" ? [p.text] : []))
     .join("\n")
     .trim();
+  const words = m.author.kind === "agent" && isSignal(said) ? "" : said;
   const actions = m.parts.flatMap((p) => (p.type === "tool" && p.status !== "error" ? [p.title] : []));
   const out = m.author.kind === "agent" || m.author.kind === "user";
   // The owner's words to the agent (what to answer) read apart from what was sent to the contact.

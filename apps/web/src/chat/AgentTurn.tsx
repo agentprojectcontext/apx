@@ -2,6 +2,7 @@ import type { Agent, Message as Msg, Part, Thread } from "@apx/protocol";
 import { AgentAvatar, EngineIcon, MarkdownView, Message, MessageMeta } from "@apx/ui";
 import { lazy, type ReactNode, Suspense } from "react";
 import { DeliveryTicks, ReactionList } from "../channels/MessageMarks.tsx";
+import { isSignal } from "../channels/signal.ts";
 import { blobOf } from "../data/identity.ts";
 import { baseRef, effortLabel, splitRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
@@ -60,7 +61,7 @@ export function AgentTurn({
   const skills = showSkills ? message.parts.find((p): p is SkillsPick => p.type === "skills") : undefined;
   const projectId = useData((s) => s.threads[message.thread_id]?.project_id);
   const blocks: { key: string; part: Part }[] = message.parts.flatMap((p, i) =>
-    p.type === "tool" || p.type === "skills" || (p.type === "text" && !p.text.trim())
+    p.type === "tool" || p.type === "skills" || (p.type === "text" && (!p.text.trim() || isSignal(p.text)))
       ? []
       : [{ key: p.type === "text" ? `x:${i}` : cardKey(p, i), part: p }],
   );
