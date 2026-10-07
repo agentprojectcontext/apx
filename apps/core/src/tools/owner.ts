@@ -19,7 +19,7 @@ export function ownerTools(store: Store): Tool[] {
     defineTool({
       name: "ask_owner",
       description:
-        "Ask the owner a question and wait for the answer (they see it in the chat). Use it when you cannot continue without a decision or a fact only they have. options = short choices they can tap; they may still answer in their own words. If they do not answer soon, the question stays open and their answer reaches you in a new turn.",
+        "Ask the owner something only they can answer, and wait (they see it in the chat). options: short choices to tap; they may still write their own answer. If they answer late, the answer reaches you in a new turn.",
       args: z.object({
         question: z.string().min(1).max(1000),
         options: z.array(z.string().min(1).max(80)).max(6).optional(),

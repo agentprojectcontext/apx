@@ -110,7 +110,7 @@ export function messageTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "message_contact",
       description:
-        "Send a message to a person on WhatsApp, Telegram or Discord, through APX's own channels, when the owner asks: to one of their contacts ('tell Alex…', 'answer her on WhatsApp'), or to the owner with to=\"me\" ('send me the quote on WhatsApp'). For a room (a Discord #channel) use channel_post. `to`: the contact's name or id, or \"me\". `channel`: whatsapp, telegram or discord (default: the one they talked on last). `files`: paths in the folder you work in (images go as images, anything else as a document, 20 MB at most). Plain text as a person types it, no markdown; it goes out at once and cannot be taken back. Write it in first person as the owner's assistant and never add what the owner did not say. The result shows the end of that chat: read it before telling the owner it went. Never use a phone or a browser to send a message.",
+        "Send a message to a person through APX's channels (WhatsApp, Telegram, Discord) when the owner asks: to a contact ('tell Alex…') or to the owner with to=\"me\". to: a name or id, or \"me\"; channel: whatsapp, telegram or discord (default: where they last talked); files: paths in your work folder (20 MB at most). Plain text, no Markdown, in first person as the owner's assistant, with nothing the owner did not say; it goes out at once and cannot be taken back. The result shows the end of that chat: check it before saying it went. A room (a Discord #channel) is channel_post's. Never use a phone or a browser to send.",
       args: z.object({
         to: z.string().trim().min(1).max(120),
         text: z.string().trim().min(1).max(4000),
@@ -140,7 +140,7 @@ export function messageTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "channel_post",
       description:
-        "Post a message in a room of one of the owner's channels (a Discord #channel the owner listed), when the owner asks ('post the summary in #help'). Rooms are public: everyone there reads it. `room`: its exact name as channel_list shows it (with or without #). `channel`: discord…, only when two channels have a room of that name. `files`: paths in the folder you work in (20 MB at most). Plain text, no markdown, no @everyone; it goes out at once and cannot be taken back. Write only what the owner asked for. To read a room first, use read_chat(\"#name\"). For a person, use message_contact.",
+        'Post in a room of the owner\'s channels (a Discord #channel) when the owner asks. Rooms are public. room: its name as channel_list shows it; channel: only when two channels have a room of that name; files: paths in your work folder (20 MB at most). Plain text, no Markdown, no @everyone, only what the owner asked for; it goes out at once and cannot be taken back. read_chat("#name") reads a room; message_contact writes to a person.',
       args: z.object({
         room: z.string().trim().min(1).max(80),
         text: z.string().trim().min(1).max(4000),

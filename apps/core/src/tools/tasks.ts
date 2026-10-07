@@ -27,20 +27,17 @@ const handsOff = (a: { assignee?: string | null | undefined; text?: string | und
   (a.assignee ? "untrusted" : a.text && /(^|\s)@[\w-]/.test(a.text) ? "untrusted" : "never") as "untrusted" | "never";
 
 const commitmentArgs = {
-  person: z.string().max(80).optional().describe("A commitment: the contact on the other side (name or id)."),
-  owed_by: z
-    .enum(["owner", "person"])
-    .optional()
-    .describe('"owner" if the owner promised it to the person (default), "person" if the person owes it to the owner.'),
-  due_at: z.string().max(40).optional().describe("When it is due: a day (2026-10-05) or a moment (ISO)."),
+  person: z.string().max(80).optional().describe("a commitment's contact (name or id)"),
+  owed_by: z.enum(["owner", "person"]).optional().describe('who promised it: "owner" (default) or "person"'),
+  due_at: z.string().max(40).optional().describe("a day (2026-10-05) or a moment (ISO)"),
 };
 
 const shapeArgs = {
   kind: TaskKind.optional().describe(
-    '"task", "commitment" (with a person) or "errand" (something small to do on the way).',
+    '"commitment" has a person on the other side; "errand" is something small to do on the way.',
   ),
-  priority: TaskPriority.optional().describe("low, normal (default), high or urgent."),
-  tags: z.array(TaskTag).max(12).optional().describe("Short labels that help organize (client, area…)."),
+  priority: TaskPriority.optional().describe("default normal"),
+  tags: z.array(TaskTag).max(12).optional().describe("short labels (client, area…)"),
 };
 
 export function taskTools(): Tool[] {
@@ -78,7 +75,7 @@ export function taskTools(): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "Create a task in this project's board: a clear title, what done looks like in the description, and who does it (an agent id) if you know. A promise between the owner and a contact is a commitment: give the person, who owes it and when it is due; the owner is reminded on that day.",
+        "Create a task on this project's board: a clear title, what done looks like (description) and who does it (assignee: an agent id). A promise between the owner and a contact is a commitment: give the person, who owes it and the due date; the owner is reminded that day.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
@@ -99,7 +96,7 @@ export function taskTools(): Tool[] {
     defineTool({
       name: "task_update",
       description:
-        "Change a task: move it to another column (status), assign it (an agent id, or null), retitle it, mark that it waits for the owner, or set its person, who owes it and its due date.",
+        "Change a task: its column (status), who does it (assignee; null for nobody), title, description, whether it waits for the owner, or a commitment's person, who owes it and due date. To finish or drop it, use task_close.",
       args: z.object({
         task: z.string().min(1).max(64),
         status: z.string().max(40).optional(),

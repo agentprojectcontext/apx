@@ -45,7 +45,7 @@ export function memoryTools(): Tool[] {
     defineTool({
       name: "remember",
       description:
-        "Save a short, durable fact for later threads: a preference, a decision, a name, how something works. One fact per call, in plain words. Never passwords, keys or codes. Skip what is only true for this conversation. To correct a note, pass its id.",
+        "Save one durable fact for later threads, in plain words: a preference, a decision, a name, how something works. Never passwords, keys or codes, nor what is only true in this conversation. To correct a note, pass its id.",
       args: z.object({
         text: z.string().trim().min(3).max(600),
         scope: SCOPE.optional(),

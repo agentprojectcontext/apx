@@ -131,7 +131,7 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
     defineTool({
       name: "shell",
       description:
-        "Run a shell command (sh) in the project's folder. Foreground: waits up to timeout_s and returns the output. background=true: returns a job id at once, the owner sees it running, and you get the end of its output in a new turn when it ends (use it for servers, long builds, watchers). Commands that change things may wait for the owner's OK.",
+        "Run a sh command in the project's folder. In the foreground it waits up to timeout_s and returns the output; background=true returns a job id at once, and the end of its output reaches you in a new turn when it ends (servers, long builds, watchers). Commands that change things may wait for the owner's OK.",
       args: z.object({
         command: z.string().min(1).max(4000),
         background: z.boolean().optional(),
