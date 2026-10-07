@@ -41,6 +41,7 @@ export {
 } from "./components/EngineIcon";
 export { EntityCard, type EntityCardProps } from "./components/EntityCard";
 export { Field, type FieldProps } from "./components/Field";
+export { Help, type HelpItem, type HelpProps } from "./components/Help";
 export { IconButton, type IconButtonProps } from "./components/IconButton";
 export { Input, type InputProps } from "./components/Input";
 export { Kbd, type KbdProps } from "./components/Kbd";

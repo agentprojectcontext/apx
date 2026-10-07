@@ -97,6 +97,54 @@
   outline: 0;
 }
 
+/* ── Help: a "?" after a title, opening what each option is for ─────────── */
+.apx-help {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--apx-fg-subtle);
+  cursor: pointer;
+  vertical-align: middle;
+}
+.apx-help:hover,
+.apx-help[data-popup-open] {
+  color: var(--apx-fg);
+  background: var(--apx-fill);
+}
+.apx-help__panel {
+  padding: 12px 14px;
+  font-size: var(--apx-text-sm);
+  line-height: 1.45;
+}
+.apx-help__title {
+  margin-bottom: 8px;
+  font-weight: var(--apx-weight-semibold);
+}
+.apx-help__items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+.apx-help__item dt {
+  font-weight: var(--apx-weight-medium);
+}
+.apx-help__item dd {
+  margin: 2px 0 0;
+  color: var(--apx-fg-muted);
+}
+.apx-help__body {
+  color: var(--apx-fg-muted);
+}
+.apx-help__items + .apx-help__body {
+  margin-top: 10px;
+}
+
 /* ── SettingRow ────────────────────────────────────────────────────────────── */
 .apx-setting {
   display: flex;
