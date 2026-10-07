@@ -31,7 +31,11 @@ test("changes are staged and committed from the Git view, and the commit opens f
     await side.getByRole("button", { name: "Confirmar" }).click();
     await expect(side.getByText("Sin cambios por confirmar.")).toBeVisible();
 
-    await side.getByRole("button", { name: /docs: shipping day/ }).click();
+    const history = page.getByRole("complementary", { name: "Historial" });
+    await side.getByRole("button", { name: "Ocultar historial" }).click();
+    await expect(history).toBeHidden();
+    await side.getByRole("button", { name: "Mostrar historial" }).click();
+    await history.getByRole("button", { name: /docs: shipping day/ }).click();
     const detail = page.getByRole("region", { name: "Detalle del cambio" });
     await detail.getByTitle("AGENTS.md", { exact: true }).click();
     await expect(detail.getByText("Ships on Fridays.")).toBeVisible();

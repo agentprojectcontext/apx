@@ -1,11 +1,12 @@
 import type { GitFile, Result } from "@apx/protocol";
-import { Button, EmptyState, IconButton, Icons, SectionLabel, Skeleton, Tag, Textarea } from "@apx/ui";
+import { Button, EmptyState, IconButton, Icons, SectionLabel, Skeleton, Spinner, Tag, Textarea } from "@apx/ui";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { shortWhen } from "../../common/format.ts";
 import { client } from "../../data/client.ts";
 import { notify } from "../../data/notices.ts";
 import { useT } from "../../i18n/index.ts";
 import { DiffView } from "../../panel/DiffView.tsx";
+import { GitBar } from "./GitBar.tsx";
+import { GitHistory } from "./GitHistory.tsx";
 
 type Status = Result<"git.status">;
 type Log = Result<"git.log">;
@@ -13,11 +14,20 @@ type Log = Result<"git.log">;
 type Pick = { kind: "file"; path: string; staged: boolean } | { kind: "commit"; sha: string; path?: string };
 
 const PAGE = 50;
+/** Whether the history column is open, remembered on this browser. */
+const HISTORY_KEY = "apx.git.history";
+const readHistoryOpen = () => {
+  try {
+    return localStorage.getItem(HISTORY_KEY) !== "0";
+  } catch {
+    return true;
+  }
+};
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
- * A project's repository as a source-control view: the branch, what is staged and not (stage, unstage, commit), and
- * the history; a file or a commit opens on the right with its diff.
+ * A project's repository as a source-control view: the branch bar, what is staged and not (stage, unstage, commit, with
+ * a message the auxiliary model can write), the history in a column that opens and closes, and the picked diff.
  */
 export function GitPane({ projectId }: { projectId: string }) {
   const t = useT();
@@ -27,6 +37,14 @@ export function GitPane({ projectId }: { projectId: string }) {
   const [pick, setPick] = useState<Pick>();
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [history, setHistory] = useState(readHistoryOpen);
+  const showHistory = (open: boolean) => {
+    setHistory(open);
+    try {
+      localStorage.setItem(HISTORY_KEY, open ? "1" : "0");
+    } catch {}
+  };
 
   const refresh = useCallback(async () => {
     try {
@@ -73,6 +91,18 @@ export function GitPane({ projectId }: { projectId: string }) {
       notify(t("git.committed", { sha: sha.slice(0, 7) }), "info");
       setPick({ kind: "commit", sha });
     });
+  /** A message for what is staged, from the auxiliary model; the owner reads and edits it before committing. */
+  const suggest = async () => {
+    setSuggesting(true);
+    try {
+      const { message: m } = await client.call("git.suggest_message", { project: projectId });
+      if (m) setMessage(m);
+      else notify(t("git.suggestNone"));
+    } catch (e) {
+      notify(t("error.change", { error: errText(e) }));
+    }
+    setSuggesting(false);
+  };
   const more = async () => {
     if (!log) return;
     const next = await client.call("git.log", { project: projectId, limit: PAGE, skip: log.commits.length });
@@ -98,46 +128,37 @@ export function GitPane({ projectId }: { projectId: string }) {
     );
   const canCommit = status.staged.length > 0 && message.trim().length > 0 && !busy;
   return (
-    <div className="git">
+    <div className={history ? "git has-history" : "git"}>
       <nav className="git__side" aria-label={t("git.title")}>
-        <div className="git__branch">
-          <Icons.GitBranch size={14} />
-          <span className="git__branchname">{status.branch ?? t("git.detached")}</span>
-          {status.upstream && (
-            <span className="git__sync" title={status.upstream}>
-              {status.ahead ? (
-                <span>
-                  <Icons.ArrowUp size={12} />
-                  {status.ahead}
-                </span>
-              ) : null}
-              {status.behind ? (
-                <span>
-                  <Icons.ArrowDown size={12} />
-                  {status.behind}
-                </span>
-              ) : null}
-            </span>
-          )}
-          <span className="files__spacer" />
-          <IconButton
-            size="sm"
-            label={t("git.refresh")}
-            icon={<Icons.RefreshCw size={12} />}
-            onClick={() => void refresh()}
-          />
-        </div>
+        <GitBar
+          projectId={projectId}
+          status={status}
+          history={history}
+          onHistory={() => showHistory(!history)}
+          onRefresh={() => void refresh()}
+          act={act}
+        />
         <div className="git__commit">
-          <Textarea
-            aria-label={t("git.message")}
-            placeholder={t("git.message")}
-            rows={2}
-            value={message}
-            onChange={(e) => setMessage(e.currentTarget.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && canCommit) void commit();
-            }}
-          />
+          <div className="git__message">
+            <Textarea
+              aria-label={t("git.message")}
+              placeholder={t("git.message")}
+              rows={3}
+              value={message}
+              onChange={(e) => setMessage(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && canCommit) void commit();
+              }}
+            />
+            <IconButton
+              size="sm"
+              className="git__magic"
+              label={t("git.suggest")}
+              icon={suggesting ? <Spinner size={12} /> : <Icons.Sparkles size={14} />}
+              disabled={suggesting || (!status.staged.length && !status.unstaged.length)}
+              onClick={() => void suggest()}
+            />
+          </div>
           <Button
             size="sm"
             disabled={!canCommit}
@@ -158,41 +179,16 @@ export function GitPane({ projectId }: { projectId: string }) {
           onMove={stage}
         />
         {!status.staged.length && !status.unstaged.length && <p className="git__clean">{t("git.clean")}</p>}
-        <SectionLabel className="git__label">{t("git.history")}</SectionLabel>
-        <ul className="git__log">
-          {log?.commits.map((c) => (
-            <li key={c.sha}>
-              <button
-                type="button"
-                className={`git__commitrow${pick?.kind === "commit" && pick.sha === c.sha ? " is-on" : ""}`}
-                onClick={() => setPick({ kind: "commit", sha: c.sha })}
-                title={c.subject}
-              >
-                <span className="git__dot" />
-                <span className="git__commitmain">
-                  <span className="git__subject">{c.subject}</span>
-                  <span className="git__meta">
-                    {c.author} · {shortWhen(c.at)} · <code>{c.sha.slice(0, 7)}</code>
-                  </span>
-                  {c.refs.length > 0 && (
-                    <span className="git__refs">
-                      {c.refs.map((r) => (
-                        <Tag key={r}>{r}</Tag>
-                      ))}
-                    </span>
-                  )}
-                </span>
-              </button>
-            </li>
-          ))}
-          {log && !log.commits.length && <li className="git__clean">{t("git.noCommits")}</li>}
-        </ul>
-        {log?.more && (
-          <Button size="sm" variant="ghost" onClick={() => void more()}>
-            {t("git.more")}
-          </Button>
-        )}
       </nav>
+      {history && (
+        <GitHistory
+          log={log}
+          picked={pick?.kind === "commit" ? pick.sha : undefined}
+          onPick={(sha) => setPick({ kind: "commit", sha })}
+          onMore={() => void more()}
+          onClose={() => showHistory(false)}
+        />
+      )}
       <section className="git__view" aria-label={t("git.detail")}>
         {!pick ? (
           <EmptyState icon={<Icons.GitBranch />} title={t("git.pick")}>

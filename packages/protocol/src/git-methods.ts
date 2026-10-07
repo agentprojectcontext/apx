@@ -99,6 +99,52 @@ export const gitMethods = {
     effect: false,
     access: "human",
   },
+  /**
+   * A commit message for what is staged (or, with nothing staged, every change), written by the auxiliary model; empty
+   * when there is none set up.
+   */
+  "git.suggest_message": {
+    params: z.object({ project: Id }).strict(),
+    result: z.object({ message: z.string() }),
+    effect: false,
+    access: "human",
+  },
+  /** The local branches (the current one first) and the remote ones. */
+  "git.branches": {
+    params: z.object({ project: Id }).strict(),
+    result: z.object({ current: z.string().optional(), local: z.array(z.string()), remote: z.array(z.string()) }),
+    effect: false,
+    access: "human",
+  },
+  /** Switches to a branch, or makes it from where the repository is (`create`); git refuses when changes would be lost. */
+  "git.checkout": {
+    params: z
+      .object({
+        project: Id,
+        branch: z
+          .string()
+          .min(1)
+          .max(200)
+          .regex(/^(?!-)[^\s~^:?*[\\]+$/),
+        create: z.boolean().default(false),
+      })
+      .strict(),
+    result: z.object({ branch: z.string() }),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * A repository action: pull, push (setting the upstream the first time), fetch, stash the changes or bring the last
+   * stash back, or undo the last commit keeping its changes staged. Returns git's own words.
+   */
+  "git.run": {
+    params: z
+      .object({ project: Id, action: z.enum(["pull", "push", "fetch", "stash", "stash_pop", "undo_commit"]) })
+      .strict(),
+    result: z.object({ output: z.string() }),
+    effect: true,
+    access: "human",
+  },
   /** One file's change in a commit, against its first parent. */
   "git.commit_diff": {
     params: z

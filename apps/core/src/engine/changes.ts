@@ -12,12 +12,15 @@ const MAX_FILES = 50;
 const MAX_DIFF = 200 * 1024;
 
 /** git, with the repo's own config unable to make it run anything: no fsmonitor, hooks, external diff or textconv. */
-export const git = (cwd: string, args: string[], timeout = 10_000) =>
+export const gitBoth = (cwd: string, args: string[], timeout = 10_000) =>
   run(
     "git",
     ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "--no-optional-locks", "-C", cwd, ...args],
-    { timeout, maxBuffer: 4 * 1024 * 1024 },
-  ).then((r) => r.stdout);
+    // Never a prompt nobody can answer: a remote that needs credentials fails instead of waiting on a terminal.
+    { timeout, maxBuffer: 4 * 1024 * 1024, env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "" } },
+  );
+/** git's output (what it reports on stderr, as push and pull do, is in `gitBoth`). */
+export const git = (cwd: string, args: string[], timeout = 10_000) => gitBoth(cwd, args, timeout).then((r) => r.stdout);
 
 /**
  * Every uncommitted file under `cwd` (paths relative to it, git gives them from the repo's root) with its lines added

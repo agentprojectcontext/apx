@@ -91,3 +91,34 @@ test("nothing outside the repository or inside .git; an empty commit is refused 
   await assert.rejects(env.client.call("git.diff", { project, path: "/etc/hosts" }), /outside the repository/);
   await assert.rejects(env.client.call("git.commit", { project, message: "chore: nothing" }), /nothing/);
 });
+
+test("branches are listed, made and switched; stash and undo keep the work; push without a remote says why", async () => {
+  sh("commit", "-q", "--allow-empty", "-m", "chore: base");
+  await env.client.call("git.checkout", { project, branch: "feat/cart", create: true });
+  let b = await env.client.call("git.branches", { project });
+  assert.equal(b.current, "feat/cart");
+  assert.deepEqual(b.local, ["feat/cart", "main"]);
+  await env.client.call("git.checkout", { project, branch: "main" });
+  assert.equal((await env.client.call("git.branches", { project })).current, "main");
+
+  fs.writeFileSync(path.join(repo, "a.txt"), "stashed\n");
+  await env.client.call("git.run", { project, action: "stash" });
+  assert.equal((await env.client.call("git.status", { project })).unstaged.length, 0);
+  await env.client.call("git.run", { project, action: "stash_pop" });
+  assert.equal(fs.readFileSync(path.join(repo, "a.txt"), "utf8"), "stashed\n");
+
+  await env.client.call("git.stage", { project, paths: ["a.txt"] });
+  await env.client.call("git.commit", { project, message: "fix: undo me" });
+  await env.client.call("git.run", { project, action: "undo_commit" });
+  const s = await env.client.call("git.status", { project });
+  assert.deepEqual(
+    s.staged.map((f) => f.path),
+    ["a.txt"],
+  );
+  assert.notEqual((await env.client.call("git.log", { project, limit: 1 })).commits[0]?.subject, "fix: undo me");
+  await assert.rejects(env.client.call("git.run", { project, action: "push" }), /origin/);
+  // With no auxiliary model set up there is no suggestion, and nothing breaks.
+  assert.equal((await env.client.call("git.suggest_message", { project })).message, "");
+  b = await env.client.call("git.branches", { project });
+  assert.deepEqual(b.remote, []);
+});

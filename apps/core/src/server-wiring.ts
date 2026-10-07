@@ -144,7 +144,7 @@ type HandlerDeps = {
   headless: HeadlessBrowser | undefined;
   llmLabel: () => string;
   engine: Parameters<typeof threadHandlers>[1] & Parameters<typeof jobHandlers>[1] & Parameters<typeof taskHandlers>[1];
-  upkeep: Parameters<typeof threadHandlers>[2];
+  upkeep: Parameters<typeof threadHandlers>[2] & Parameters<typeof gitHandlers>[1];
   memory: Parameters<typeof memoryHandlers>[1];
   channels: Parameters<typeof channelHandlers>[1];
   services: Parameters<typeof mediaHandlers>[0];
@@ -215,7 +215,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...agentHandlers(d.store, d.apc, d.engines),
     ...teamHandlers(d.store, d.apc, d.templateRoots, (s) => d.scheduler.nextFor(s)),
     ...fileHandlers(d.store, d.desktop, d.app.home),
-    ...gitHandlers(d.store),
+    ...gitHandlers(d.store, d.upkeep),
     ...terminalHandlers(d.store, d.terminals, d.app.home),
     ...sessionHandlers(d.store, d.native),
     ...setupHandlers({
