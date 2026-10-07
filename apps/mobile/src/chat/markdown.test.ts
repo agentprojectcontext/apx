@@ -29,3 +29,17 @@ test("blocks: paragraphs split by blank lines, headings, lists and fenced code",
   assert.deepEqual(numbers?.kind === "list" && numbers.items.map((item) => item.marker), ["1.", "2."]);
   assert.deepEqual(code, { kind: "code", text: "npm test" });
 });
+
+test("quoted lines become one quote holding their own blocks, with blank quoted lines kept inside", () => {
+  const blocks = parseMarkdown("Antes\n> Resumen:\n> • #54: uno\n> • #55: dos\n>\n> Siguen abiertos.\nDespués");
+  assert.deepEqual(
+    blocks.map((block) => block.kind),
+    ["paragraph", "quote", "paragraph"],
+  );
+  const quote = blocks[1];
+  assert.deepEqual(quote?.kind === "quote" && quote.blocks.map((block) => block.kind), [
+    "paragraph",
+    "list",
+    "paragraph",
+  ]);
+});

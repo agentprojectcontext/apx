@@ -11,11 +11,13 @@ export type Block =
   | { kind: "paragraph"; inline: Inline[] }
   | { kind: "heading"; level: number; inline: Inline[] }
   | { kind: "list"; ordered: boolean; items: Array<{ marker: string; inline: Inline[] }> }
-  | { kind: "code"; text: string };
+  | { kind: "code"; text: string }
+  | { kind: "quote"; blocks: Block[] };
 
 const BULLET = /^\s*[-*•]\s+(.*)$/;
 const NUMBERED = /^\s*(\d+)[.)]\s+(.*)$/;
 const HEADING = /^(#{1,6})\s+(.*)$/;
+const QUOTE = /^\s*>\s?(.*)$/;
 
 /** The common markdown agents write, as blocks; anything else stays plain text. */
 export function parseMarkdown(source: string): Block[] {
@@ -33,6 +35,14 @@ export function parseMarkdown(source: string): Block[] {
       const code: string[] = [];
       for (i++; i < lines.length && !(lines[i] ?? "").trimStart().startsWith("```"); i++) code.push(lines[i] ?? "");
       blocks.push({ kind: "code", text: code.join("\n") });
+      continue;
+    }
+    if (QUOTE.test(line)) {
+      flush();
+      const quoted: string[] = [];
+      for (; i < lines.length && QUOTE.test(lines[i] ?? ""); i++) quoted.push(QUOTE.exec(lines[i] ?? "")?.[1] ?? "");
+      i--;
+      blocks.push({ kind: "quote", blocks: parseMarkdown(quoted.join("\n")) });
       continue;
     }
     const heading = HEADING.exec(line);

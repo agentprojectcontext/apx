@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
-import { type Inline, parseMarkdown } from "../chat/markdown";
+import { type Block, type Inline, parseMarkdown } from "../chat/markdown";
 import { theme } from "./theme";
 
 function Runs({ runs }: { runs: Inline[] }) {
@@ -38,48 +38,58 @@ function Runs({ runs }: { runs: Inline[] }) {
   });
 }
 
-/** An agent's answer: the markdown it writes (headings, lists, code, bold, links) in native text. */
+function Blocks({ blocks, color }: { blocks: Block[]; color: string }) {
+  return blocks.map((block, i) => {
+    const key = `${block.kind}:${i}`;
+    switch (block.kind) {
+      case "heading":
+        return (
+          <Text key={key} selectable style={[s.text, s.heading, { color }]}>
+            <Runs runs={block.inline} />
+          </Text>
+        );
+      case "list":
+        return (
+          <View key={key} style={s.list}>
+            {block.items.map((item, j) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: list items are positional
+              <View key={j} style={s.item}>
+                <Text style={[s.text, s.marker]}>{item.marker}</Text>
+                <Text selectable style={[s.text, { color, flex: 1 }]}>
+                  <Runs runs={item.inline} />
+                </Text>
+              </View>
+            ))}
+          </View>
+        );
+      case "code":
+        return (
+          <Text key={key} selectable style={s.code}>
+            {block.text}
+          </Text>
+        );
+      case "quote":
+        return (
+          <View key={key} style={s.quote}>
+            <Blocks blocks={block.blocks} color={theme.fgMuted} />
+          </View>
+        );
+      default:
+        return (
+          <Text key={key} selectable style={[s.text, { color }]}>
+            <Runs runs={block.inline} />
+          </Text>
+        );
+    }
+  });
+}
+
+/** An agent's answer: the markdown it writes (headings, lists, quotes, code, bold, links) in native text. */
 export function Markdown({ text, color = theme.fg }: { text: string; color?: string }) {
   const blocks = useMemo(() => parseMarkdown(text), [text]);
   return (
     <View style={s.root}>
-      {blocks.map((block, i) => {
-        const key = `${block.kind}:${i}`;
-        switch (block.kind) {
-          case "heading":
-            return (
-              <Text key={key} selectable style={[s.text, s.heading, { color }]}>
-                <Runs runs={block.inline} />
-              </Text>
-            );
-          case "list":
-            return (
-              <View key={key} style={s.list}>
-                {block.items.map((item, j) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: list items are positional
-                  <View key={j} style={s.item}>
-                    <Text style={[s.text, s.marker]}>{item.marker}</Text>
-                    <Text selectable style={[s.text, { color, flex: 1 }]}>
-                      <Runs runs={item.inline} />
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            );
-          case "code":
-            return (
-              <Text key={key} selectable style={s.code}>
-                {block.text}
-              </Text>
-            );
-          default:
-            return (
-              <Text key={key} selectable style={[s.text, { color }]}>
-                <Runs runs={block.inline} />
-              </Text>
-            );
-        }
-      })}
+      <Blocks blocks={blocks} color={color} />
     </View>
   );
 }
@@ -93,6 +103,7 @@ const s = StyleSheet.create({
   inlineCode: { fontFamily: theme.mono, fontSize: 13, backgroundColor: theme.fillStrong },
   link: { textDecorationLine: "underline" },
   list: { gap: 4 },
+  quote: { gap: 8, paddingLeft: 12, borderLeftWidth: 3, borderLeftColor: theme.borderStrong },
   item: { flexDirection: "row", gap: 8 },
   marker: { color: theme.fgSubtle, minWidth: 14 },
   code: {
