@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Image, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, StyleSheet, Text, TextInput, View } from "react-native";
 import { clock } from "../format";
 import { isWorking } from "../hooks/chatSelectors";
 import type { Agent } from "../hooks/useWorkspace";
@@ -146,6 +146,7 @@ export function ChatMessage({
 /** A confirmation or a question waiting in the chat, answered right here. */
 function InputCard({ part, respond }: { part: InputPart; respond: Respond }) {
   const [busy, setBusy] = useState<string>();
+  const [reply, setReply] = useState("");
   const pending = part.state === "pending";
   const answer = (key: string, value: { decision?: "approve" | "deny"; text?: string }) => {
     setBusy(key);
@@ -188,7 +189,7 @@ function InputCard({ part, respond }: { part: InputPart; respond: Respond }) {
               />
             </>
           ) : (
-            part.options?.map((option) => (
+            (part.options ?? []).map((option) => (
               <Button
                 key={option}
                 size="md"
@@ -200,6 +201,25 @@ function InputCard({ part, respond }: { part: InputPart; respond: Respond }) {
               />
             ))
           )}
+        </View>
+      ) : null}
+      {pending && part.kind !== "confirm" ? (
+        <View style={s.reply}>
+          <TextInput
+            value={reply}
+            onChangeText={setReply}
+            placeholder={t("yourAnswer")}
+            placeholderTextColor={theme.fgSubtle}
+            multiline
+            style={s.replyInput}
+          />
+          <Button
+            size="md"
+            label={t("send")}
+            busy={busy === "text"}
+            disabled={Boolean(busy) || !reply.trim()}
+            onPress={() => answer("text", { text: reply.trim() })}
+          />
         </View>
       ) : null}
     </View>
@@ -267,5 +287,17 @@ const s = StyleSheet.create({
   cardTop: { flexDirection: "row", alignItems: "center", gap: 8 },
   cardState: { color: theme.fgSubtle, fontSize: 12, flexShrink: 1 },
   cardText: { color: theme.fg, fontSize: 15, fontWeight: "500" },
+  reply: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+  replyInput: {
+    flex: 1,
+    minHeight: 36,
+    maxHeight: 120,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
+    backgroundColor: theme.fill,
+    color: theme.fg,
+    fontSize: 14,
+  },
   cardActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
 });

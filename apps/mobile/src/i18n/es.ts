@@ -250,4 +250,6 @@ export const es: Record<Key, string> = {
   superAgent: "Superagente",
   noAgentsHere: "No hay agentes en este proyecto.",
   noAgentForSession: "No hay agente que pueda iniciar la sesión.",
+  yourAnswer: "Tu respuesta…",
+  rtCron: "cron {cron}",
 };

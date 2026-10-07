@@ -247,6 +247,8 @@ export const en = {
   superAgent: "Super-agent",
   noAgentsHere: "No agents in this project.",
   noAgentForSession: "No agent can start a session.",
+  yourAnswer: "Your answer…",
+  rtCron: "cron {cron}",
 } as const;
 
 export type Key = keyof typeof en;
