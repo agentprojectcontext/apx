@@ -13,7 +13,7 @@ import { AudioPart } from "./parts/AudioPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
-import { splitQuote } from "./quote.ts";
+import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
 
 const EMPTY: Msg[] = [];
@@ -91,6 +91,17 @@ export function Transcript({ thread }: { thread: Thread }) {
     if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
   };
 
+  // A reply's quote leads back to the message it was taken from.
+  const texts = useMemo(() => messages.map(textOf), [messages]);
+  const quoted = (id: string, quote: string) => {
+    const i = quotedIndex(
+      texts,
+      messages.findIndex((m) => m.id === id),
+      quote,
+    );
+    return i >= 0 ? messages[i]?.id : undefined;
+  };
+
   const working = isWorking(thread.state);
   return (
     <div className="chat__scroll" ref={scroller} onScroll={onScroll}>
@@ -109,7 +120,7 @@ export function Transcript({ thread }: { thread: Thread }) {
             {msg.author.kind === "user" ? (
               <UserMessage thread={thread} message={msg} messages={messages} text={textOf(msg)}>
                 <UserFiles message={msg} />
-                <UserText text={textOf(msg)} />
+                <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
               </UserMessage>
             ) : msg.author.kind === "system" ? (
               <SystemMessage message={msg} />
@@ -122,7 +133,7 @@ export function Transcript({ thread }: { thread: Thread }) {
                 actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
               >
                 <UserFiles message={msg} />
-                <UserText text={textOf(msg)} />
+                <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
               </Message>
             ) : msg.author.kind === "surface" ? (
               <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">
@@ -198,12 +209,36 @@ function textOf(m: Msg): string {
   return m.parts.some((p) => p.type === "audio") ? text.replace(/\[voice note\]\s*/g, "") : text;
 }
 
-/** The owner's (or a contact's) words as written; a leading "> " quote shows as the quote they answer. */
-function UserText({ text }: { text: string }) {
+/**
+ * The owner's (or a contact's) words as written; a leading "> " quote shows as the quote they answer, and leads back
+ * to the message it was taken from when that one is still in the chat.
+ */
+function UserText({ text, sourceOf }: { text: string; sourceOf: (quote: string) => string | undefined }) {
+  const t = useT();
   const { quote, rest } = splitQuote(text);
+  const source = quote ? sourceOf(quote) : undefined;
+  const { author, text: words } = quoteParts(quote);
+  const body = (
+    <>
+      {author && <span className="transcript__quoteauthor">{author}</span>}
+      <span className="transcript__quotetext">{words}</span>
+    </>
+  );
   return (
     <>
-      {quote && <blockquote className="transcript__quote">{quote}</blockquote>}
+      {quote &&
+        (source ? (
+          <button
+            type="button"
+            className="transcript__quote is-link"
+            title={t("msg.quoteJump")}
+            onClick={() => nav.set({ focus: `msg:${source}` })}
+          >
+            {body}
+          </button>
+        ) : (
+          <blockquote className="transcript__quote">{body}</blockquote>
+        ))}
       {rest && <p className="transcript__usertext">{rest}</p>}
     </>
   );

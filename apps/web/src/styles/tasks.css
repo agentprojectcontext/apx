@@ -304,6 +304,12 @@
   overflow: visible;
   border-top: 0;
 }
+.taskpanel__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0;
+}
 .taskpanel .taskdetail__chat .chat__scroll {
   overflow: visible;
 }

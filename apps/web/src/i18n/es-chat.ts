@@ -90,6 +90,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "msg.readAloud": "Leer en voz alta",
   "msg.quote": "Citar",
   "msg.reply": "Responder",
+  "msg.quoteJump": "Ir al mensaje citado",
   "msg.stopReading": "Dejar de leer",
   "msg.noVoice": "Sumá una voz en Configuración › Voces para leer en voz alta",
   "error.fork": "No se pudo bifurcar el chat: {error}",

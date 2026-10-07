@@ -1,5 +1,5 @@
 import type { Message, Task, TaskEvent } from "@apx/protocol";
-import { AgentAvatar, Badge, Button, Icons, Select, Tabs, TagInput, Textarea } from "@apx/ui";
+import { AgentAvatar, Badge, Button, Icons, Select, Skeleton, Tabs, TagInput, Textarea } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { QuoteContext, quoteBlock } from "../chat/quote.ts";
 import { Transcript } from "../chat/Transcript.tsx";
@@ -36,7 +36,9 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
   const t = useT();
   const thread = useData((s) => s.threads[task.thread_id]);
   const load = useData((s) => s.threadLoad[task.thread_id]);
-  const [events, setEvents] = useState<TaskEvent[]>([]);
+  // Another task's history never shows while this one's is read.
+  const [read, setRead] = useState<{ task: string; events: TaskEvent[] }>();
+  const events = read?.task === task.id ? read.events : undefined;
   const [tab, setTab] = useState("chat");
   const [text, setText] = useState("");
   const [focus, setFocus] = useState(0);
@@ -79,7 +81,7 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
   const movedAt = task.activity_at;
   useEffect(() => {
     let current = true;
-    void taskEvents(task.id).then((list) => current && movedAt && setEvents(list));
+    void taskEvents(task.id).then((list) => current && movedAt && setRead({ task: task.id, events: list }));
     return () => {
       current = false;
     };
@@ -105,7 +107,11 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
               content: (
                 <QuoteContext.Provider value={quote}>
                   <div className="taskdetail__chat" ref={chat}>
-                    {thread && load === "ready" && <Transcript thread={thread} />}
+                    {thread && load === "ready" ? (
+                      <Transcript thread={thread} />
+                    ) : (
+                      load !== "error" && <ConversationSkeleton />
+                    )}
                   </div>
                   <TaskComment task={task} text={text} onChange={setText} focus={focus} onSent={toEnd} />
                 </QuoteContext.Provider>
@@ -114,8 +120,8 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
             {
               value: "history",
               label: t("tasks.tab.history"),
-              count: events.length,
-              content: <History events={events} />,
+              ...(events ? { count: events.length } : {}),
+              content: events ? <History events={events} /> : <HistorySkeleton />,
             },
           ]}
         />
@@ -362,5 +368,26 @@ function History({ events }: { events: TaskEvent[] }) {
         );
       })}
     </ol>
+  );
+}
+
+/** While the conversation loads: the shape of a few comments, not an empty box. */
+function ConversationSkeleton() {
+  return (
+    <div className="taskpanel__skeleton" aria-busy="true">
+      <Skeleton width="45%" height={36} shape="block" style={{ alignSelf: "flex-end" }} />
+      <Skeleton width="70%" height={56} shape="block" />
+      <Skeleton width="55%" height={40} shape="block" />
+    </div>
+  );
+}
+
+function HistorySkeleton() {
+  return (
+    <div className="taskpanel__skeleton" aria-busy="true">
+      {[70, 55, 62].map((w) => (
+        <Skeleton key={w} width={`${w}%`} />
+      ))}
+    </div>
   );
 }
