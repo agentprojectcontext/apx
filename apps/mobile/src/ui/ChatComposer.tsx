@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { Attachment } from "../chat/useAttachments";
 import { t } from "../i18n";
-import { Icon } from "./Icon";
+import { Icon, type IconName } from "./Icon";
 import { Spinner } from "./kit";
 import { theme } from "./theme";
 
@@ -50,28 +50,7 @@ export function ChatComposer({
       {attachments.length ? (
         <View style={s.chips}>
           {attachments.map((item) => (
-            <View key={item.key} style={s.chip}>
-              {item.id ? (
-                <Icon
-                  name={item.kind === "image" ? "Image" : item.kind === "audio" ? "Mic" : "Paperclip"}
-                  size={13}
-                  color={theme.fgMuted}
-                />
-              ) : (
-                <Spinner size={12} />
-              )}
-              <Text numberOfLines={1} style={s.chipText}>
-                {item.name}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("removeAttachment")}
-                hitSlop={8}
-                onPress={() => onRemoveAttachment(item.key)}
-              >
-                <Icon name="X" size={13} color={theme.fgSubtle} />
-              </Pressable>
-            </View>
+            <AttachmentTile key={item.key} item={item} onRemove={() => onRemoveAttachment(item.key)} />
           ))}
         </View>
       ) : null}
@@ -173,19 +152,82 @@ export function ChatComposer({
   );
 }
 
+const fileIcon = (mime: string): IconName =>
+  mime.startsWith("audio/")
+    ? "FileAudio"
+    : /zip|tar|rar|7z|gzip/.test(mime)
+      ? "FileArchive"
+      : /^text\/|pdf|json|xml|word|document|sheet|csv|markdown/.test(mime)
+        ? "FileText"
+        : "File";
+
+/** A photo as its thumbnail; any other file as its kind's icon over a name cut short. */
+function AttachmentTile({ item, onRemove }: { item: Attachment; onRemove: () => void }) {
+  return (
+    <View style={s.tile}>
+      {item.kind === "image" ? (
+        <Image source={{ uri: item.uri }} style={s.thumb} />
+      ) : (
+        <View style={s.fileTile}>
+          <Icon name={fileIcon(item.mime)} size={20} color={theme.fgMuted} />
+          <Text numberOfLines={1} ellipsizeMode="middle" style={s.fileName}>
+            {item.name}
+          </Text>
+        </View>
+      )}
+      {item.id ? null : (
+        <View style={s.tileBusy}>
+          <Spinner size={16} />
+        </View>
+      )}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${t("removeAttachment")}: ${item.name}`}
+        hitSlop={8}
+        onPress={onRemove}
+        style={s.tileRemove}
+      >
+        <Icon name="X" size={11} color={theme.fg} />
+      </Pressable>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginLeft: -4 },
-  chip: {
-    maxWidth: 200,
-    height: 28,
-    paddingHorizontal: 10,
-    borderRadius: 14,
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginLeft: -4, marginBottom: 4 },
+  tile: { width: 64, height: 64, marginTop: 4, marginRight: 4 },
+  thumb: { width: 64, height: 64, borderRadius: 12, backgroundColor: theme.fill },
+  fileTile: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
     backgroundColor: theme.fill,
-    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
+    paddingHorizontal: 6,
   },
-  chipText: { color: theme.fg, fontSize: 12, flexShrink: 1 },
+  fileName: { color: theme.fgMuted, fontSize: 10, maxWidth: 52 },
+  tileBusy: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: 12,
+    backgroundColor: theme.overlay,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tileRemove: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: theme.fillStrong,
+    borderWidth: 1,
+    borderColor: theme.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   recording: { minHeight: 28, flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 },
   redDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.danger },
   recordingText: { color: theme.fg, fontSize: 15, fontVariant: ["tabular-nums"] },

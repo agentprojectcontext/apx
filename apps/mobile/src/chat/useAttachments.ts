@@ -7,7 +7,15 @@ import { t } from "../i18n";
 import type { ApxClient } from "../protocol";
 
 /** A file on its way into the chat: uploading until it has the media id the message will carry. */
-export type Attachment = { key: string; name: string; kind: "image" | "audio" | "file"; id?: string };
+export type Attachment = {
+  key: string;
+  name: string;
+  kind: "image" | "audio" | "file";
+  /** Local file, for the thumbnail. */
+  uri: string;
+  mime: string;
+  id?: string;
+};
 
 const LIMITS = { image: 5 * 1024 * 1024, audio: 10 * 1024 * 1024, file: 2 * 1024 * 1024 };
 const kindOf = (mime: string): Attachment["kind"] =>
@@ -24,11 +32,11 @@ export function useAttachments(client: ApxClient, threadId: string) {
         return undefined;
       }
       const key = `${Date.now()}:${name}`;
-      setItems((list) => [...list, { key, name, kind }]);
+      setItems((list) => [...list, { key, name, kind, uri, mime }]);
       try {
         const data = await new File(uri).base64();
         const { media } = await client.call("media.upload", { name, mime, data, thread: threadId });
-        const done = { key, name, kind, id: media.id };
+        const done = { key, name, kind, uri, mime, id: media.id };
         setItems((list) => list.map((item) => (item.key === key ? done : item)));
         return done;
       } catch (error) {
