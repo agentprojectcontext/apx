@@ -12,6 +12,8 @@ export const TerminalInfo = z.object({
   /** false when this machine gives it no real tty (no Python): it still runs commands, without prompts or colors. */
   tty: z.boolean(),
   exit_code: z.number().int().optional(),
+  /** The one command it runs (from a block an agent wrote), instead of an open shell; it ends with the command. */
+  command: z.string().optional(),
   started_at: z.string(),
 });
 export type TerminalInfo = z.infer<typeof TerminalInfo>;
@@ -26,9 +28,14 @@ export const terminalMethods = {
     effect: false,
     access: "human",
   },
-  /** Starts the owner's shell in the chat's folder. */
+  /**
+   * Starts the owner's shell in the chat's folder. With `command`, the shell runs only that (the owner pressed run on
+   * a block an agent wrote, from `message`); when it ends, that agent is told how it went.
+   */
   "terminal.open": {
-    params: z.object({ thread: Id, ...Size }).strict(),
+    params: z
+      .object({ thread: Id, ...Size, command: z.string().trim().min(1).max(4000).optional(), message: Id.optional() })
+      .strict(),
     result: TerminalInfo,
     effect: true,
     access: "human",

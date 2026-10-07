@@ -443,6 +443,7 @@ export const en = {
   "terminal.close": "Close {name}",
   "terminal.ended": "· ended",
   "terminal.openFailed": "The terminal could not open: {error}",
+  "code.run": "Run in a terminal",
   "terminal.agentEmpty": "The agent ran no commands in this chat",
   "terminal.agentEmptyBody":
     "When it runs one (in the foreground or the background) you will see it here with what it printed.",

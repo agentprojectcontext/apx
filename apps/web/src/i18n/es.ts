@@ -449,6 +449,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "terminal.close": "Cerrar {name}",
   "terminal.ended": "· terminó",
   "terminal.openFailed": "No se pudo abrir la terminal: {error}",
+  "code.run": "Ejecutar en una terminal",
   "terminal.agentEmpty": "El agente no corrió comandos en este chat",
   "terminal.agentEmptyBody":
     "Cuando corra uno (en primer plano o en segundo plano) lo vas a ver acá con lo que mostró.",

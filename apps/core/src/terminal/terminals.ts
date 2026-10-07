@@ -14,6 +14,14 @@ const BACKLOG = 256 * 1024;
 const MAX_ALIVE = 12;
 /** Output is sent in batches this far apart, not once per read. */
 const FLUSH_MS = 12;
+/** What the agent is told of a command it suggested, from the end of its output. */
+const ENDED_TAIL = 3000;
+
+// biome-ignore lint/suspicious/noControlCharactersInRegex: terminal escape sequences start with ESC
+const plain = (s: string) => s.replace(/\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|\r/g, "");
+
+/** A command run in a terminal has ended: what it printed (last part, without colors) and how it ended. */
+export type CommandEnded = { info: TerminalInfo; message?: string | undefined; output: string };
 
 type Term = { info: TerminalInfo; child: ChildProcess; backlog: string; pending: string; timer?: NodeJS.Timeout };
 
@@ -40,9 +48,19 @@ function shellEnv(): NodeJS.ProcessEnv {
 const shellOf = () =>
   process.platform === "win32" ? (process.env.COMSPEC ?? "powershell.exe") : (process.env.SHELL ?? "/bin/sh");
 
+/** The shell's arguments: an open (login, interactive) shell, or one that runs only `command` and ends. */
+function shellArgs(shell: string, tty: boolean, command?: string): string[] {
+  if (process.platform === "win32") {
+    if (!command) return [];
+    return /cmd(\.exe)?$/i.test(shell) ? ["/d", "/s", "/c", command] : ["-NoLogo", "-Command", command];
+  }
+  if (command) return ["-l", "-c", command];
+  return tty ? ["-l"] : ["-i"];
+}
+
 export type Terminals = ReturnType<typeof createTerminals>;
 
-export function createTerminals(deps: { bus: Bus }) {
+export function createTerminals(deps: { bus: Bus; commandEnded?: (e: CommandEnded) => void }) {
   const terms = new Map<string, Term>();
   let python: string | undefined | null = null;
   const pythonPath = () => {
@@ -68,27 +86,35 @@ export function createTerminals(deps: { bus: Bus }) {
 
   return {
     list,
-    open(threadId: string, cwd: string, size: { cols: number; rows: number }): TerminalInfo {
+    open(
+      threadId: string,
+      cwd: string,
+      size: { cols: number; rows: number },
+      run?: { command: string; message?: string | undefined },
+    ): TerminalInfo {
       if ([...terms.values()].filter((t) => t.info.alive).length >= MAX_ALIVE)
         throw new Error(`${MAX_ALIVE} terminals are open: close one first`);
       const shell = shellOf();
       const py = pythonPath();
-      const args = process.platform === "win32" ? [] : ["-l"];
+      const args = shellArgs(shell, Boolean(py), run?.command);
       const child = py
         ? spawn(py, [BRIDGE, String(size.rows), String(size.cols), shell, ...args], {
             cwd,
             env: shellEnv(),
             stdio: ["pipe", "pipe", "pipe", "pipe"],
           })
-        : spawn(shell, process.platform === "win32" ? [] : ["-i"], { cwd, env: shellEnv(), stdio: "pipe" });
+        : spawn(shell, args, { cwd, env: shellEnv(), stdio: "pipe" });
       const n = list(threadId).length + 1;
       const info: TerminalInfo = {
         id: `term_${randomUUID().slice(0, 12)}`,
         thread_id: threadId,
-        title: `${path.basename(shell).replace(/\.exe$/i, "")} ${n}`,
+        title: run
+          ? run.command.split("\n")[0]?.slice(0, 40) || "command"
+          : `${path.basename(shell).replace(/\.exe$/i, "")} ${n}`,
         cwd,
         alive: true,
         tty: Boolean(py),
+        ...(run ? { command: run.command } : {}),
         started_at: new Date().toISOString(),
       };
       const t: Term = { info, child, backlog: "", pending: "" };
@@ -109,6 +135,9 @@ export function createTerminals(deps: { bus: Bus }) {
         flush(t);
         t.info = { ...t.info, alive: false, ...(code == null ? {} : { exit_code: code }) };
         deps.bus.emit({ type: "terminal.exited", terminal: info.id, ...(code == null ? {} : { exit_code: code }) });
+        // Closed by the owner before it ended: nobody waits for how it went.
+        if (run && terms.has(info.id))
+          deps.commandEnded?.({ info: t.info, message: run.message, output: plain(t.backlog).slice(-ENDED_TAIL) });
       });
       return info;
     },

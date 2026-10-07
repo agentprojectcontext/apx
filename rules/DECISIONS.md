@@ -496,3 +496,13 @@ waits for and stop) while the input stays answerable for 30 days and the chat sh
 once without asking. `ask_owner` takes `can_continue: true` for a question the agent can do without: that one still
 closes when the wait ends. An external agent's own tool (Claude Code's, Codex's) still counts a timeout as a no: it is
 not ours to run later.
+
+<a id="d-046"></a>
+## D-046 — 2026-10-07 — A shell block an agent wrote runs from the chat, and its end wakes that agent
+A fenced `bash`/`sh`/`zsh` block in an agent's message gets a run button when the chat has a project folder. It opens
+a terminal of its own in the side panel (`terminal.open` with `command` and the `message` it came from) that runs only
+that command on a real tty, so the owner can type what it asks (a `sudo` password, which is not echoed). When it ends,
+the agent that wrote the block gets a turn with the exit code and the end of what it printed, framed as untrusted
+output like a background job's; pressing run is the owner's own action, so it does not count as an agent acting
+alone. Closing the terminal before the command ends tells nobody. Only a human operator opens terminals: an agent
+cannot press run for itself.

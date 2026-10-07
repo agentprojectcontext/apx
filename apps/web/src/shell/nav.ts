@@ -68,6 +68,8 @@ export type NavState = {
   panelWide: boolean;
   browserTab: string | undefined;
   panelDocument: string | undefined;
+  /** The terminal tab to bring forward in the terminal panel (one just opened to run a command). */
+  panelTerminal: string | undefined;
   /** The agent the "agent" side panel shows (opened from its face or name in a chat). */
   panelAgent: string | undefined;
   panelThread: string | undefined;
@@ -161,6 +163,7 @@ export const nav = createStore<NavState>({
   panelWide: false,
   browserTab: undefined,
   panelDocument: undefined,
+  panelTerminal: undefined,
   panelAgent: undefined,
   panelThread: undefined,
   panelParent: undefined,
@@ -417,6 +420,10 @@ export const go = {
   },
   panel(panel: PanelKind | null) {
     nav.set({ panel, panelThread: undefined, panelParent: undefined });
+  },
+  /** The terminal panel, showing that terminal. */
+  terminal(terminalId: string) {
+    nav.set({ panel: "terminal", panelTerminal: terminalId, panelThread: undefined, panelParent: undefined });
   },
   document(mediaId: string) {
     nav.set({ panel: "document", panelDocument: mediaId, panelThread: undefined, panelParent: undefined });

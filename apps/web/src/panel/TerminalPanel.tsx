@@ -5,6 +5,7 @@ import { client } from "../data/client.ts";
 import { watchEvents } from "../data/live.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
+import { useNav } from "../shell/nav.ts";
 import type { Workspace } from "./workspace.ts";
 
 // xterm.js loads with the first terminal opened, not with the panel.
@@ -24,6 +25,7 @@ export function TerminalPanel({ thread, ws }: { thread: Thread; ws?: Workspace }
   const canOpen = Boolean(ws);
   const [terms, setTerms] = useState<TerminalInfo[]>([]);
   const [tab, setTab] = useState<string>("agent");
+  const wanted = useNav((s) => s.panelTerminal);
   const load = useCallback(async () => {
     if (!canOpen) return [];
     const r = await client.call("terminal.list", { thread: threadId }).catch(() => ({ terminals: [] }));
@@ -36,6 +38,10 @@ export function TerminalPanel({ thread, ws }: { thread: Thread; ws?: Workspace }
       if (ev.type === "terminal.exited") void load();
     });
   }, [load]);
+  // A terminal opened elsewhere (a run button in the chat) comes forward once the list knows it.
+  useEffect(() => {
+    if (wanted) void load().then((list) => list.some((x) => x.id === wanted) && setTab(wanted));
+  }, [wanted, load]);
   const open = async () => {
     if (!canOpen) return;
     try {

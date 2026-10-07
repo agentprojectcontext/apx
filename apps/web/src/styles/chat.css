@@ -415,3 +415,16 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* A shell block an agent wrote, with its run button in the corner. */
+.runcode {
+  position: relative;
+}
+.runcode pre {
+  padding-right: 40px;
+}
+.runcode__run {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}

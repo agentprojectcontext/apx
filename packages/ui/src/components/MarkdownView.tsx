@@ -8,15 +8,18 @@ export interface MarkdownViewProps {
   className?: string;
   /** Wraps each link (a right-click menu, for instance); `link` is the ready `<a>`. */
   renderLink?: LinkRenderer;
+  /** Wraps each fenced code block (a run button, for instance); `lang` is the fence's word, lowercased. */
+  renderCode?: CodeRenderer;
 }
 
 export type LinkRenderer = (href: string, link: ReactElement, key: string) => ReactNode;
+export type CodeRenderer = (code: string, lang: string | undefined, pre: ReactElement, key: string) => ReactNode;
 
 type Block =
   | { kind: "p"; text: string }
   | { kind: "h"; level: number; text: string }
   | { kind: "ul" | "ol"; items: string[] }
-  | { kind: "code"; text: string }
+  | { kind: "code"; text: string; lang?: string | undefined }
   | { kind: "table"; headers: string[]; rows: string[][]; align: ("left" | "center" | "right")[] };
 
 function tableCells(line: string): string[] {
@@ -47,10 +50,11 @@ function parseBlocks(src: string): Block[] {
     const line = lines[i] ?? "";
     if (line.trimStart().startsWith("```")) {
       flush();
+      const lang = /^```\s*([\w+-]+)/.exec(line.trimStart())?.[1]?.toLowerCase();
       const code: string[] = [];
       i++;
       while (i < lines.length && !(lines[i] ?? "").trimStart().startsWith("```")) code.push(lines[i++] ?? "");
-      blocks.push({ kind: "code", text: code.join("\n") });
+      blocks.push({ kind: "code", text: code.join("\n"), lang });
       continue;
     }
     const separator = tableCells(lines[i + 1] ?? "");
@@ -159,19 +163,21 @@ function breaks(text: string, key: string): ReactNode {
 }
 
 /** Small, safe Markdown renderer for agent text (no raw HTML, http/mailto links only, new tab). */
-export function MarkdownView({ source, size = "md", className, renderLink }: MarkdownViewProps) {
+export function MarkdownView({ source, size = "md", className, renderLink, renderCode }: MarkdownViewProps) {
   const blocks = parseBlocks(source);
   return (
     <div className={cx("apx-md", `apx-md--${size}`, className)}>
       {blocks.map((b, i) => {
         const k = `b${i}`;
         if (b.kind === "p") return <p key={k}>{inline(b.text, k, renderLink)}</p>;
-        if (b.kind === "code")
-          return (
+        if (b.kind === "code") {
+          const pre = (
             <pre key={k}>
               <code>{b.text}</code>
             </pre>
           );
+          return renderCode ? <Fragment key={k}>{renderCode(b.text, b.lang, pre, k)}</Fragment> : pre;
+        }
         if (b.kind === "h") {
           const Tag = b.level <= 2 ? "h3" : "h4";
           return <Tag key={k}>{inline(b.text, k, renderLink)}</Tag>;

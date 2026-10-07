@@ -18,6 +18,7 @@ import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { SubthreadPart } from "./parts/SubthreadPart.tsx";
 import { SurfacePart } from "./parts/SurfacePart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
+import { runnableCode } from "./RunnableCode.tsx";
 
 const InputPart = lazy(() => import("./parts/InputPart.tsx").then((m) => ({ default: m.InputPart })));
 
@@ -106,7 +107,11 @@ export function AgentTurn({
               ) : undefined
             }
           >
-            {part.type === "text" ? <MarkdownView source={part.text} renderLink={linkMenu} /> : renderCard(part, agent)}
+            {part.type === "text" ? (
+              <MarkdownView source={part.text} renderLink={linkMenu} renderCode={runnableCode(thread, message.id)} />
+            ) : (
+              renderCard(part, agent)
+            )}
           </Message>
         );
       })}

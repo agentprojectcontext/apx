@@ -6,6 +6,9 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
+const llm = scriptedLlm((_req, { said, afterTool }) =>
+  !afterTool && said.includes("run echo") ? callTool("c1", "shell", { command: "echo from-agent" }) : say("ok"),
+);
 let env: Awaited<ReturnType<typeof startCore>>;
 let repo = "";
 let thread = "";
@@ -14,11 +17,7 @@ const git = (...args: string[]) =>
   execFileSync("git", ["-c", "user.name=Acme", "-c", "user.email=dev@example.com", "-C", repo, ...args]);
 
 before(async () => {
-  env = await startCore({
-    llm: scriptedLlm((_req, { said, afterTool }) =>
-      !afterTool && said.includes("run echo") ? callTool("c1", "shell", { command: "echo from-agent" }) : say("ok"),
-    ),
-  });
+  env = await startCore({ llm });
   repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ws-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   fs.mkdirSync(path.join(repo, "src"));
@@ -69,6 +68,53 @@ test("a terminal runs the owner's commands in the chat's folder and keeps what i
   await env.client.call("terminal.close", { terminal: t.id });
   assert.equal((await env.client.call("terminal.list", { thread })).terminals.length, 0);
   await assert.rejects(env.client.call("terminal.open", { thread: bare, cols: 80, rows: 24 }), /no folder/);
+});
+
+test("a command an agent suggested runs in its own terminal, and its end wakes that agent with the output", async () => {
+  await env.client.call("threads.send", { thread, text: "suggest a command" });
+  const { messages } = await env.settle(thread);
+  const suggestion = messages.findLast((m) => m.author.kind === "agent");
+  assert.ok(suggestion);
+  const project_id = (await env.client.call("threads.get", { thread })).thread.project_id;
+  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id });
+  await assert.rejects(
+    env.client.call("terminal.open", { thread: other.id, cols: 80, rows: 24, command: "true", message: suggestion.id }),
+    /not in this chat/,
+  );
+  const before = (await env.client.call("threads.get", { thread })).runs.length;
+  const t = await env.client.call("terminal.open", {
+    thread,
+    cols: 80,
+    rows: 24,
+    command: "echo suggested-$((40+2)) && exit 3",
+    message: suggestion.id,
+  });
+  assert.equal(t.command, "echo suggested-$((40+2)) && exit 3");
+  let runs = before;
+  for (let i = 0; i < 100 && runs === before; i++) {
+    await new Promise((r) => setTimeout(r, 50));
+    runs = (await env.client.call("threads.get", { thread })).runs.length;
+  }
+  await env.settle(thread);
+  assert.equal(runs, before + 1);
+  const seen = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  assert.match(seen, /suggested-42/);
+  assert.match(seen, /exit_code="3"/);
+  assert.match(seen, /The owner ran the command you suggested/);
+  const ended = (await env.client.call("terminal.list", { thread })).terminals.find((x) => x.id === t.id);
+  assert.equal(ended?.alive, false);
+  assert.equal(ended?.exit_code, 3);
+  await env.client.call("terminal.close", { terminal: t.id });
+
+  // A command the owner runs with no agent's block behind it wakes nobody.
+  const alone = await env.client.call("terminal.open", { thread, cols: 80, rows: 24, command: "true" });
+  for (let i = 0; i < 100; i++) {
+    await new Promise((r) => setTimeout(r, 30));
+    const x = (await env.client.call("terminal.list", { thread })).terminals.find((y) => y.id === alone.id);
+    if (!x?.alive) break;
+  }
+  assert.equal((await env.client.call("threads.get", { thread })).runs.length, before + 1);
+  await env.client.call("terminal.close", { terminal: alone.id });
 });
 
 test("any project chat can work in its folder with a write policy, like a code session, and stop", async () => {

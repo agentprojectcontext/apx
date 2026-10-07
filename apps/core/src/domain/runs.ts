@@ -27,6 +27,8 @@ export type Origin =
   | { kind: "input_answer"; input_id: string }
   /** A background command the agent started has ended. */
   | { kind: "job"; job_id: string; command: string; state: RunState; exit_code: number | null }
+  /** A command the agent suggested, which the owner ran in a terminal, has ended. */
+  | { kind: "terminal"; terminal_id: string; command: string; exit_code: number | null }
   | {
       kind: "delegation_result";
       agent_id: string;

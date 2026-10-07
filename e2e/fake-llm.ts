@@ -36,6 +36,9 @@ const REPORT = [
   "Last line of the report.",
 ].join("\n");
 
+/** An answer with a shell block the owner can run from the chat. */
+const SUGGESTION = "Run this in the project:\n\n```bash\necho e2e-suggested-$((6*7))\n```";
+
 /** A tool call to make instead of answering, if the conversation asks for one. */
 function toolCall(messages: Message[], said: string): { name: string; arguments: string } | undefined {
   if (/^read MCP twice/i.test(said)) {
@@ -76,7 +79,11 @@ export async function fakeLlm() {
       const said = lastWords(body.messages ?? []);
       calls.push({ model: body.model ?? "", said });
       const system = String(body.messages?.[0]?.content ?? "");
-      const text = system.startsWith("You are Researcher, a worker") ? REPORT : `Got it: ${said || "(nothing)"}`;
+      const text = system.startsWith("You are Researcher, a worker")
+        ? REPORT
+        : /^suggest a command/i.test(said)
+          ? SUGGESTION
+          : `Got it: ${said || "(nothing)"}`;
       const usage = { prompt_tokens: 120, completion_tokens: 8, total_tokens: 128 };
       const call = toolCall(body.messages ?? [], said);
       if (call) {

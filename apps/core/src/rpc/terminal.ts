@@ -18,8 +18,12 @@ export function terminalHandlers(store: Store, terminals: Terminals) {
       threadFolder(store, thread);
       return { terminals: terminals.list(thread) };
     },
-    "terminal.open": ({ thread, cols, rows }) =>
-      known(() => terminals.open(thread, threadFolder(store, thread), { cols, rows })),
+    "terminal.open": ({ thread, cols, rows, command, message }) => {
+      const cwd = threadFolder(store, thread);
+      if (message && store.messages.get(message)?.thread_id !== thread)
+        throw badRequest(`message ${message} is not in this chat`);
+      return known(() => terminals.open(thread, cwd, { cols, rows }, command ? { command, message } : undefined));
+    },
     "terminal.attach": ({ terminal }) => known(() => terminals.attach(terminal)),
     "terminal.input": ({ terminal, data }) => {
       known(() => terminals.input(terminal, data));

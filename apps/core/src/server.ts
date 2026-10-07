@@ -25,6 +25,7 @@ import { createMemoryIndex } from "./engine/memory-index.ts";
 import { afterTaskTurn } from "./engine/office.ts";
 import type { ProfileRoot } from "./engine/profiles.ts";
 import { createSkillPicker } from "./engine/skill-pick.ts";
+import { wakeAfterCommand } from "./engine/terminal-wake.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
@@ -99,7 +100,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const identity = readIdentity(config.home);
   const db = openDb(config.home);
   const bus = createBus();
-  const terminals = createTerminals({ bus });
+  // The engine exists by the time a command ends.
+  const terminals = createTerminals({ bus, commandEnded: (e) => wakeAfterCommand(store, engine.admit, e) });
   const store = createStore(db, bus);
   const secrets = createSecrets(config.home, config.secrets);
   seed(store, config.agentName);
