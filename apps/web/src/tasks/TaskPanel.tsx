@@ -8,10 +8,11 @@ import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
 import { loadThread } from "../data/actions.ts";
 import { baseName, blobOf } from "../data/identity.ts";
+import { useOwnerName } from "../data/owner.ts";
 import { useData } from "../data/state.ts";
 import { closeTask, settleTask, taskEvents, updateTask, useTasks } from "../data/tasks.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
-import { type HistoryKey, historyLines } from "./history.ts";
+import { useT } from "../i18n/index.ts";
+import { historyLines } from "./history.ts";
 import { TaskComment } from "./TaskComment.tsx";
 import {
   DueField,
@@ -24,26 +25,6 @@ import {
 } from "./TaskFields.tsx";
 import { columnLabel } from "./TaskForms.tsx";
 import { pickerValue, type Reminder, remindAt, reminderOf } from "./when.ts";
-
-/** What each history line says after the author, for the owner ("You …") and for an agent ("Roby …"). */
-const HISTORY: Record<HistoryKey, [MessageKey, MessageKey]> = {
-  create: ["tasks.ev.create.you", "tasks.ev.create"],
-  move: ["tasks.ev.move.you", "tasks.ev.move"],
-  assign: ["tasks.ev.assign.you", "tasks.ev.assign"],
-  unassign: ["tasks.ev.unassign.you", "tasks.ev.unassign"],
-  comment: ["tasks.ev.comment.you", "tasks.ev.comment"],
-  done: ["tasks.ev.done.you", "tasks.ev.done"],
-  drop: ["tasks.ev.drop.you", "tasks.ev.drop"],
-  reopen: ["tasks.ev.reopen.you", "tasks.ev.reopen"],
-  kept: ["tasks.ev.kept.you", "tasks.ev.kept"],
-  missed: ["tasks.ev.missed.you", "tasks.ev.missed"],
-  renegotiate: ["tasks.ev.renegotiate.you", "tasks.ev.renegotiate"],
-  priority: ["tasks.ev.priority.you", "tasks.ev.priority"],
-  due: ["tasks.ev.due.you", "tasks.ev.due"],
-  undue: ["tasks.ev.undue.you", "tasks.ev.undue"],
-  project: ["tasks.ev.project.you", "tasks.ev.project"],
-  edit: ["tasks.ev.edit.you", "tasks.ev.edit"],
-};
 
 /**
  * One task beside the list (the list stays in view): its state, every property editable in place, what it is about,
@@ -284,9 +265,10 @@ function Description({ task }: { task: Task }) {
   );
 }
 
-/** Who did what, newest first: "You moved it from Pending to Review", "Roby marked it done". */
+/** Who did what, newest first, always by name: "Alex moved it from Pending to Review", "Roby marked it done". */
 function History({ events }: { events: TaskEvent[] }) {
   const t = useT();
+  const owner = useOwnerName() || t("tasks.ev.owner");
   const agents = useData((s) => s.agents);
   const projects = useData((s) => s.projects);
   const columns = useTasks((s) => s.columns);
@@ -309,7 +291,6 @@ function History({ events }: { events: TaskEvent[] }) {
     <ol className="taskhistory">
       {lines.map((l, i) => {
         const agent = l.by === "owner" ? undefined : agents[l.by];
-        const [mine, theirs] = HISTORY[l.key];
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: the history is append-only.
           <li key={i} className="taskhistory__line">
@@ -321,7 +302,7 @@ function History({ events }: { events: TaskEvent[] }) {
               </span>
             )}
             <span className="taskhistory__text">
-              {l.by === "owner" ? t(mine, l.vars) : t(theirs, { ...l.vars, name: agent?.name ?? l.by })}
+              {t(`tasks.ev.${l.key}`, { ...l.vars, name: l.by === "owner" ? owner : (agent?.name ?? l.by) })}
             </span>
             <time className="taskhistory__when" dateTime={l.at}>
               {shortWhen(l.at)}

@@ -25,6 +25,7 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
   try {
     await env.client.call("setup.finish", {});
     await env.client.call("agents.update", { agent: "roby", name: "Roby" });
+    await env.client.call("owner.set", { name: "Alex" });
     await env.client.call("agents.create", { slug: "andy", name: "Andy" });
     const folder = path.join(env.home, "northwind");
     const otherFolder = path.join(env.home, "globex");
@@ -107,6 +108,8 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await drawer.getByRole("tab", { name: /^Historial/ }).click();
     await expect(comment).toHaveCount(0);
     await expect(drawer.locator(".taskhistory__line")).not.toHaveCount(0);
+    // What the owner did reads by their name, like an agent's line.
+    await expect(drawer.getByText("Alex se la asignó a Builder", { exact: true })).toBeVisible();
     await drawer.getByRole("tab", { name: "Conversación", exact: true }).click();
     await expect(comment).toHaveValue("Draft to keep");
     await expect(drawer.getByText("@owner please approve the review.", { exact: true })).toBeInViewport();
