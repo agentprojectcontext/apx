@@ -1,33 +1,13 @@
-// Native values mirror the web's minimal dark tokens in packages/ui/src/styles/tokens.css.
+import { Platform } from "react-native";
+import { tokens } from "./tokens";
+
+/** The panel's minimal dark tokens (generated from packages/ui), under the short names the app's styles use. */
 export const theme = {
-  bg: "#161615",
-  surface: "#1e1e1d",
-  raised: "#252524",
-  sidebar: "#1a1a19",
-  fill: "#272726",
-  fillHover: "#2e2e2c",
-  fg: "#ededeb",
-  muted: "#a6a59f",
-  subtle: "#767570",
-  border: "#2c2c2a",
-  borderStrong: "#3b3b38",
-  accent: "#f1f0ec",
-  accentFg: "#141414",
-  brand: "#3ec98b",
-  brandSoft: "#24382f",
-  brandSoftFg: "#6fdcaa",
-  violet: "#a47ff5",
-  violetSoft: "#322842",
-  info: "#6a9cf5",
-  infoSoft: "#26334b",
-  warning: "#eb9a4b",
-  warningSoft: "#413427",
-  danger: "#f06464",
-  dangerSoft: "#422929",
-  radiusSm: 8,
-  radiusMd: 12,
-  radiusLg: 18,
-  radiusXl: 24,
+  ...tokens,
+  muted: tokens.fgMuted,
+  subtle: tokens.fgSubtle,
+  raised: tokens.surfaceRaised,
+  mono: Platform.select({ ios: "Menlo", default: "monospace" }),
   space1: 4,
   space2: 8,
   space3: 12,
@@ -35,3 +15,15 @@ export const theme = {
   space5: 20,
   space6: 24,
 } as const;
+
+export type Tone = "neutral" | "brand" | "violet" | "info" | "warning" | "danger";
+
+/** A tone's soft background and its text color, as the panel's tags and tinted tiles use them. */
+export const toneColors: Record<Tone, { bg: string; fg: string; solid: string }> = {
+  neutral: { bg: tokens.fill, fg: tokens.fgMuted, solid: tokens.fgSubtle },
+  brand: { bg: tokens.brandSoft, fg: tokens.brandSoftFg, solid: tokens.brand },
+  violet: { bg: tokens.violetSoft, fg: tokens.violetSoftFg, solid: tokens.violet },
+  info: { bg: tokens.infoSoft, fg: tokens.infoSoftFg, solid: tokens.info },
+  warning: { bg: tokens.warningSoft, fg: tokens.warningSoftFg, solid: tokens.warning },
+  danger: { bg: tokens.dangerSoft, fg: tokens.dangerSoftFg, solid: tokens.danger },
+};
