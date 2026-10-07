@@ -35,6 +35,7 @@ export function AgentTurn({
   agent,
   showAvatar,
   showTools,
+  showSkills = true,
   engine,
   actions,
 }: {
@@ -43,6 +44,8 @@ export function AgentTurn({
   agent?: Agent;
   showAvatar: boolean;
   showTools: boolean;
+  /** The skills picked for the turn, as chips on top (a task's conversation leaves them out). */
+  showSkills?: boolean;
   /** An engine session: its answers are signed by the engine ("Codex"), not by the agent behind the run. */
   engine?: { id: string; label: string } | undefined;
   /** Extra controls for the whole answer (ask again), with the last bubble's. */
@@ -51,7 +54,7 @@ export function AgentTurn({
   const t = useT();
   const tools = showTools ? message.parts.filter((p): p is ToolPart => p.type === "tool") : [];
   const waiting = useData((s) => (message.run_id ? s.runs[message.run_id]?.state === "input-required" : false));
-  const skills = message.parts.find((p): p is SkillsPick => p.type === "skills");
+  const skills = showSkills ? message.parts.find((p): p is SkillsPick => p.type === "skills") : undefined;
   const projectId = useData((s) => s.threads[message.thread_id]?.project_id);
   const blocks: { key: string; part: Part }[] = message.parts.flatMap((p, i) =>
     p.type === "tool" || p.type === "skills" || (p.type === "text" && !p.text.trim())

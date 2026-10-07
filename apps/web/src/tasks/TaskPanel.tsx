@@ -108,7 +108,7 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
                 <QuoteContext.Provider value={quote}>
                   <div className="taskdetail__chat" ref={chat}>
                     {thread && load === "ready" ? (
-                      <Transcript thread={thread} />
+                      <Transcript thread={thread} comments />
                     ) : (
                       load !== "error" && <ConversationSkeleton />
                     )}

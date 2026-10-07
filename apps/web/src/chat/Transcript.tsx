@@ -20,7 +20,8 @@ const EMPTY: Msg[] = [];
 /** Distance from the bottom (px) under which new content keeps the view pinned to the end. */
 const STICK_PX = 120;
 
-export function Transcript({ thread }: { thread: Thread }) {
+/** `comments`: a task's conversation, read as comments (no skill chips on the agents' answers). */
+export function Transcript({ thread, comments = false }: { thread: Thread; comments?: boolean }) {
   const t = useT();
   const lang = useLanguage();
   const messages = useData((s) => s.messages[thread.id] ?? EMPTY);
@@ -146,6 +147,7 @@ export function Transcript({ thread }: { thread: Thread }) {
                 agent={agents[msg.author.id]}
                 showAvatar={multiAgent}
                 showTools={showTools}
+                showSkills={!comments}
                 engine={engine}
                 actions={<Regenerate thread={thread} message={msg} messages={messages} />}
               />
