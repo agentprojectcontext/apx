@@ -57,9 +57,11 @@ test("a project chat shows its folder's changes, files and a terminal, and can w
   await page.getByRole("menuitem", { name: "Pregunta antes de cambiar" }).click();
   await expect(page.locator(".chat__code")).toContainText("Pregunta antes de cambiar");
 
-  // A chat with no folder offers none of these.
+  // A chat with no folder has no files to browse; its terminal and changes still show what its agent ran and edited.
   await page.goto("/#thread=home");
   await expect(page.locator(".chat__header")).toContainText("Home");
-  await expect(page.locator(".panelswitch").getByRole("button", { name: "Terminal" })).toHaveCount(0);
+  const switcher = page.locator(".panelswitch");
+  await expect(switcher.getByRole("button", { name: "Archivos" })).toHaveCount(0);
+  await expect(switcher.getByRole("button", { name: "Terminal" })).toHaveCount(1);
   fs.rmSync(repo, { recursive: true, force: true });
 });
