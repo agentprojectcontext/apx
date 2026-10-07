@@ -577,3 +577,15 @@ caller, marked `resume_of`. The resumed turn reads a short note saying why it st
 again, and a caller whose delegations are still going is told not to delegate them again. A delegation reports to its
 caller only when its resumed turn ends. A turn that was already a resume is not resumed again, so a crash loop stops;
 a turn waiting on the owner still gets their answer as a new input instead.
+
+<a id="d-053"></a>
+## D-053 — 2026-10-07 — MCP tools are found with mcp_search and run with mcp_call
+Every MCP tool used to go to the model on every call, and every server started at the start of every turn: ten
+ordinary servers came to 319 tools and about 62k tokens per call, several times APX's own prompt. Now a turn offers two
+tools while any server is enabled and approved: `mcp_search` (by words or by server; returns names, descriptions and
+argument schemas, the servers' names in its description) and `mcp_call` (an MCP tool's exact name and its arguments).
+Servers start on the first of either. The executor turns `mcp_call` into a call of the tool it names, so approvals,
+confirmations, steps and cards are that tool's, as before; it runs MCP tools only. The list a turn sends no longer
+changes with which servers started, which keeps the provider's prompt cache. An agent's `tools:` list that names MCP
+tools still restricts, and the tools that join later are held to it and to every caller's. Same idea as v1's `call_mcp`
+and the tool search of other agent apps.

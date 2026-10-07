@@ -251,6 +251,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     hooks,
     ...(opts.inputWaits ? { inputWaits: opts.inputWaits } : {}),
     mcpTools: mcp.toolsFor,
+    mcpServers: mcp.serversFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),
     afterRun: (run) => {
       upkeep.afterRun(run);

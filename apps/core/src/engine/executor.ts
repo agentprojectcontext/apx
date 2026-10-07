@@ -10,6 +10,7 @@ import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
 import { insideReal } from "../paths.ts";
+import { MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
 import { authorize, decide } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk } from "../tools/shell.ts";
@@ -83,6 +84,8 @@ export function createExecutor(o: {
   store: Store;
   inputs: Inputs;
   tools: Tool[];
+  /** Tools that join on first use (MCP's): mcp_call names one, and grant_tool may grant one. */
+  late?: () => Promise<Tool[]>;
   agent: AgentRecord;
   thread: Thread;
   run: () => RunRecord;
@@ -106,6 +109,12 @@ export function createExecutor(o: {
 }): Executor {
   const { store, display, signal, agent, thread } = o;
   const byName = new Map(o.tools.map((t) => [t.name, t]));
+  let joined = false;
+  const join = async () => {
+    if (joined || !o.late) return;
+    joined = true;
+    for (const t of await o.late()) if (!byName.has(t.name)) byName.set(t.name, t);
+  };
   let untrusted = o.untrusted;
   let toolsRan = 0;
 
@@ -135,9 +144,13 @@ export function createExecutor(o: {
     }
   };
 
-  const execute: TurnIO["execute"] = async (callId, name, raw) => {
+  const execute: TurnIO["execute"] = async (callId, called, given) => {
     const run = o.run();
-    const tool = byName.get(name);
+    // mcp_call runs the tool it names, through every check below as if the model had called that tool itself.
+    const { name, args: raw } = called === MCP_CALL ? unwrapCall(given) : { name: called, args: given };
+    if (called === MCP_CALL || name === "grant_tool" || (name.startsWith("mcp_") && !byName.has(name))) await join();
+    const bridged = called !== MCP_CALL || (name.startsWith("mcp_") && name !== MCP_CALL && name !== MCP_SEARCH);
+    const tool = bridged ? byName.get(name) : undefined;
     const title = tool ? toolTitle(store, tool, raw) : name;
     const card = (status: "running" | "ok" | "error", detail?: string) =>
       display.upsert((p) => p.type === "tool" && p.call_id === callId, {
@@ -152,7 +165,10 @@ export function createExecutor(o: {
     signal.throwIfAborted();
     if (!tool) {
       card("error", "unknown tool");
-      return { ok: false, text: `unknown tool ${name}` };
+      return {
+        ok: false,
+        text: `unknown tool ${name}${called === MCP_CALL ? `; ${MCP_CALL} runs a tool ${MCP_SEARCH} found` : ""}`,
+      };
     }
     const parsed = tool.parse(raw);
     if (!parsed.ok) {
@@ -216,7 +232,7 @@ export function createExecutor(o: {
       signal,
       untrusted: () => untrusted,
       approvalFor: (n) => byName.get(n)?.approval,
-      approvalTools: () => o.tools.filter((t) => t.approval).map((t) => t.name),
+      approvalTools: () => [...byName.values()].filter((t) => t.approval).map((t) => t.name),
       upsertPart: display.upsert,
       call: (method, params) => o.call(method, params, { run, callId }),
       // Only after the owner's OK on a tool that always asks for it (the confirmation above ran for this call).

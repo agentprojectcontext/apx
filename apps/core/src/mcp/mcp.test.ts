@@ -9,7 +9,10 @@ const SERVER = path.join(import.meta.dirname, "fake-server.test-support.mjs");
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
-  if (said.includes("use echo")) return callTool("e1", "mcp_notes_echo", { text: "hi" });
+  if (said.includes("bridge shell"))
+    return callTool("x1", "mcp_call", { tool: "shell", args: { command: "echo pwned" } });
+  if (said.includes("find echo")) return callTool("s1", "mcp_search", { query: "echo text back" });
+  if (said.includes("use echo")) return callTool("e1", "mcp_call", { tool: "mcp_notes_echo", args: { text: "hi" } });
   if (said.includes("use token")) return callTool("e2", "mcp_mine_token", {});
   return say("ok");
 });
@@ -61,10 +64,25 @@ test("a project's MCP server does not start until the owner approves it", async 
   assert.ok(!toolsSeen().some((n) => n.startsWith("mcp_")));
 });
 
-test("approved, its tools join the turn and results are outside data; a project file cannot use secrets", async () => {
+test("approved, its tools are found and run through two tools; results are outside data; a project file cannot use secrets", async () => {
   await env.client.call("mcp.trust", { project, server: "notes", trusted: true });
+  // A turn that uses no MCP tool starts no server, and the model sees two tools, not one per MCP tool.
+  await turn("hello");
+  assert.equal((await env.client.call("mcp.list", { project })).servers.find((s) => s.name === "notes")?.status, "off");
+  assert.deepEqual(
+    toolsSeen().filter((n) => n.startsWith("mcp_")),
+    ["mcp_search", "mcp_call"],
+  );
+  assert.match(
+    llm.calls.at(-1)?.tools.find((t) => t.function.name === "mcp_search")?.function.description ?? "",
+    /notes/,
+  );
+  const found = await turn("find echo");
+  assert.match(found, /## mcp_notes_echo\n\[notes\]/);
+  assert.match(found, /args: \{.*"text"/);
   assert.match(await turn("use echo"), /<mcp_result server="notes" tool="echo" trust="untrusted">\necho: hi/);
-  assert.ok(toolsSeen().includes("mcp_notes_echo"));
+  // The bridge runs MCP tools only: an APX tool keeps to its own name and its own checks.
+  assert.match(await turn("bridge shell"), /unknown tool shell; mcp_call runs a tool mcp_search found/);
   const { servers } = await env.client.call("mcp.list", { project });
   const notes = servers.find((s) => s.name === "notes");
   assert.equal(notes?.status, "ready");

@@ -21,6 +21,7 @@ import { askedSkill } from "../skills/picker.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
+import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
 import { inherit } from "../tools/policy.ts";
 import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
@@ -75,6 +76,8 @@ export type TurnDeps = {
   build?: { version: string; code_sha: string } | undefined;
   hooks?: Hooks | undefined;
   mcpTools?: ((thread: Thread) => Promise<Tool[]>) | undefined;
+  /** The MCP servers a thread may reach, by name, without starting them. */
+  mcpServers?: ((thread: Thread) => string[]) | undefined;
   /** Whether a connected node lends a capability: tools that need one are offered only then. */
   hasCap?: ((cap: string) => boolean) | undefined;
   /** Owner text steered into this turn since the last call. */
@@ -170,13 +173,14 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   } catch (err) {
     return end(failRun(deps, { run, turn, display, signal, err }));
   }
-  const { history, input, skills, picked, policy, tools } = prepared;
+  const { history, input, skills, picked, policy, tools, mcpLate } = prepared;
   if (picked) display.upsert((p) => p.type === "skills", picked.part);
   let harness: HarnessId = "native";
   const exec = createExecutor({
     store,
     inputs: deps.inputs,
     tools,
+    late: mcpLate,
     agent: policy.agent,
     thread,
     run: () => run,
@@ -365,8 +369,16 @@ function channelKindOf(store: Store, o: Origin, replyChannel?: string | null) {
 async function turnTools(deps: TurnDeps, turn: Turn) {
   const sealed = turn.audience.kind === "contact";
   const callers = callersOf(deps.store, turn.thread.id);
-  // MCP tools join the built-in ones for this turn; a server that does not start just adds none.
-  const mcpTools = !sealed && deps.mcpTools ? await deps.mcpTools(turn.thread).catch(() => []) : [];
+  // MCP tools are reached through mcp_search and mcp_call; their servers start only when one is first used.
+  const servers = !sealed && deps.mcpTools ? (deps.mcpServers?.(turn.thread) ?? []) : [];
+  let loading: Promise<Tool[]> | undefined;
+  const mcpLate = () => {
+    loading ??= (deps.mcpTools?.(turn.thread) ?? Promise.resolve([]))
+      .catch(() => [])
+      .then((all) => all.filter((t) => policy.allows(t.name) && (!only || only.has(t.name) || only.has(MCP_CALL))));
+    return loading;
+  };
+  const bridge = servers.length ? mcpBridge(servers, mcpLate) : [];
   // With memory off, the tools that read or write it are not offered; iMessage's only once the owner turned it on.
   const memoryOn = memorySettings(deps.store).mode !== "off";
   const imessageOn = deps.store.settings.read("imessage").on;
@@ -385,7 +397,7 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
     callers,
     sealed
       ? offered.filter((t) => forContact.has(t.name))
-      : [...offered.filter((t) => !CONTACT_TOOLS.has(t.name)), ...mcpTools],
+      : [...offered.filter((t) => !CONTACT_TOOLS.has(t.name)), ...bridge],
   );
   // A worker asks no one, and keeps to the tools its caller named for it (when it named any).
   const named = turn.worker?.tools?.length ? new Set(turn.worker.tools) : undefined;
@@ -395,9 +407,9 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   const tools = policy.tools.filter(
     (t) =>
       ((callers.length < MAX_DEPTH && !turn.worker) || (t.name !== "delegate" && t.name !== "list_sessions")) &&
-      (!only || only.has(t.name)),
+      (!only || only.has(t.name) || (t.name === MCP_SEARCH && only.has(MCP_CALL))),
   );
-  return { policy, tools };
+  return { policy, tools, mcpLate };
 }
 
 /** "2.1.1 (commit 75d71df)"; a checkout's placeholder version reads as a development build. */

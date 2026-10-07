@@ -258,6 +258,16 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
 
   return {
     config,
+    /** The servers a turn in this thread may reach, by name, without starting any. */
+    serversFor(thread: Thread): string[] {
+      return [
+        ...new Set(
+          defsFor(thread.project_id)
+            .filter((d) => d.enabled && config.trusted(d))
+            .map((d) => d.name),
+        ),
+      ];
+    },
     /** The MCP tools a turn in this thread may use: enabled, approved servers of its project and the owner's. */
     async toolsFor(thread: Thread): Promise<Tool[]> {
       const defs = defsFor(thread.project_id).filter((d) => d.enabled && config.trusted(d));

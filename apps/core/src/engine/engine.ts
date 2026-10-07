@@ -94,6 +94,8 @@ export function createEngine(deps: {
   inputWaits?: InputWaits;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
   mcpTools?: (thread: Thread) => Promise<Tool[]>;
+  /** The MCP servers a thread may reach, by name, without starting them. */
+  mcpServers?: (thread: Thread) => string[];
   /** Whether a connected node lends this capability now (a phone's location). */
   hasCap?: (cap: string) => boolean;
   /** Work on the thread once a run ended (title, compaction); never blocks the next run. */

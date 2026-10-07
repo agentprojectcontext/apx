@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
-import { allowedTools, authorize } from "./policy.ts";
+import { allowedTools, authorize, inherit } from "./policy.ts";
 import { type Confirm, defineTool, type Effect } from "./types.ts";
 
 const tool = (name: string, effect: Effect = "none", confirm: Confirm = "never") =>
@@ -50,6 +50,23 @@ test("tools: lists filter by name or group and keep the always-available tools",
     "read_output",
     "ask_owner",
   ]);
+});
+
+test("tools: a list of MCP tools still restricts once they come through mcp_search and mcp_call", () => {
+  const withBridge = [...ALL, tool("mcp_search"), tool("mcp_call")];
+  const a = agent({ tools: ["mcp_notes_echo"] });
+  assert.deepEqual(
+    allowedTools(a, withBridge).map((t) => t.name),
+    ["read_output", "ask_owner", "mcp_search", "mcp_call"],
+  );
+  // The MCP tools that join later are held to the same list, and to every caller's up the chain.
+  const p = inherit(a, [agent({ id: "boss", tools: ["mcp"] })], withBridge);
+  assert.equal(p.allows("mcp_notes_echo"), true);
+  assert.equal(p.allows("mcp_notes_wipe"), false);
+  assert.equal(
+    inherit(agent(), [agent({ id: "boss", tools: ["browser"] })], withBridge).allows("mcp_notes_echo"),
+    false,
+  );
 });
 
 test("tools: a list naming nothing APX knows does not strip the agent of every tool", () => {

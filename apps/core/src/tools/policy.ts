@@ -27,12 +27,24 @@ const ALWAYS = new Set(["read_output", "ask_owner", "load_skill", "recall"]);
  * not a restriction: an agent left with no tools at all would be a silent break.
  */
 export function allowedTools(agent: AgentRecord, tools: Tool[]): Tool[] {
-  const wanted = agent.tools?.map((t) => t.trim().toLowerCase()).filter(Boolean) ?? [];
-  if (!wanted.length) return tools;
-  const match = (name: string) => wanted.some((w) => w === name || GROUPS[w]?.(name));
-  if (!tools.some((t) => !ALWAYS.has(t.name) && match(t.name))) return tools;
-  return tools.filter((t) => ALWAYS.has(t.name) || match(t.name));
+  const allows = toolFilter(agent, tools);
+  return tools.filter((t) => allows(t.name));
 }
+
+/**
+ * The same filter as a test on names, decided on `tools` and kept for tools that join later (MCP's, found by
+ * mcp_search). MCP's two bridge tools count as naming MCP: a list of MCP tools alone still restricts.
+ */
+function toolFilter(agent: AgentRecord, tools: Tool[]): (name: string) => boolean {
+  const wanted = agent.tools?.map((t) => t.trim().toLowerCase()).filter(Boolean) ?? [];
+  if (!wanted.length) return () => true;
+  const bridge = (name: string) => BRIDGE.has(name) && wanted.some((w) => w === "mcp" || w.startsWith("mcp_"));
+  const match = (name: string) => wanted.some((w) => w === name || GROUPS[w]?.(name)) || bridge(name);
+  if (!tools.some((t) => !ALWAYS.has(t.name) && match(t.name))) return () => true;
+  return (name) => ALWAYS.has(name) || match(name);
+}
+
+const BRIDGE = new Set(["mcp_search", "mcp_call"]);
 
 /**
  * `untrusted` is whether text from outside (web pages, other agents, channel messages) is in the turn's context:
@@ -74,14 +86,13 @@ export function inherit(
   agent: AgentRecord,
   callers: AgentRecord[],
   tools: Tool[],
-): { agent: AgentRecord; tools: Tool[] } {
-  let allowed = allowedTools(agent, tools);
+): { agent: AgentRecord; tools: Tool[]; allows: (name: string) => boolean } {
+  const filters = [agent, ...callers].map((a) => toolFilter(a, tools));
+  const allows = (name: string) => filters.every((f) => f(name));
   let autonomy = agent.autonomy ?? "standard";
   for (const c of callers) {
-    const theirs = new Set(allowedTools(c, tools).map((t) => t.name));
-    allowed = allowed.filter((t) => theirs.has(t.name));
     const a = c.autonomy ?? "standard";
     if (STRICTNESS[a] < STRICTNESS[autonomy]) autonomy = a;
   }
-  return { agent: { ...agent, autonomy }, tools: allowed };
+  return { agent: { ...agent, autonomy }, tools: tools.filter((t) => allows(t.name)), allows };
 }
