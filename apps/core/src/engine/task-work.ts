@@ -22,16 +22,18 @@ export type Asker =
 /** The agent's chat for this task: its latest one, or a new one. */
 export function sessionFor(store: Store, task: Task, agentId: string): Thread {
   const mine = store.threads.byTask(task.id).filter((t) => t.agent_ids[0] === agentId);
-  return (
-    mine.at(-1) ??
-    store.threads.create({
-      kind: "loose",
-      title: task.title,
-      agent_ids: [agentId],
-      project_id: task.project_id,
-      task_id: task.id,
-    })
-  );
+  const last = mine.at(-1);
+  if (last) return last;
+  const thread = store.threads.create({
+    kind: "loose",
+    title: task.title,
+    agent_ids: [agentId],
+    project_id: task.project_id,
+    task_id: task.id,
+  });
+  // Lists show how many chats a task has.
+  store.tasks.touched(task.id, agentId, "update");
+  return thread;
 }
 
 const originOf = (asker: Asker): Origin =>

@@ -285,6 +285,20 @@
   margin-left: 4px;
 }
 
+/* In the list: how many chats a task was worked in, spinning while one of them runs. */
+.taskrow__chats {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
 /* The chats a task was worked in: one compact row each, opening it in the inbox. */
 .taskwork {
   display: flex;

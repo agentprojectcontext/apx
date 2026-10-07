@@ -50,9 +50,17 @@ const tasksQuery = () =>
     .selectFrom("tasks")
     .leftJoin("persons", "persons.id", "tasks.person_id")
     .selectAll("tasks")
-    .select("persons.name as person_name");
+    .select("persons.name as person_name")
+    // The chats its agents worked it in (task-work.ts).
+    .select((eb) =>
+      eb
+        .selectFrom("threads")
+        .whereRef("threads.task_id", "=", "tasks.id")
+        .select((c) => c.fn.countAll<number>().as("n"))
+        .as("chats"),
+    );
 
-const toTask = (r: Selectable<TasksTable> & { person_name: string | null }): Task => ({
+const toTask = (r: Selectable<TasksTable> & { person_name: string | null; chats: number | null }): Task => ({
   id: r.id,
   ...opt("project_id", r.project_id),
   title: r.title,
@@ -78,6 +86,7 @@ const toTask = (r: Selectable<TasksTable> & { person_name: string | null }): Tas
     : {}),
   ...(r.outcome === "kept" || r.outcome === "missed" || r.outcome === "dropped" ? { outcome: r.outcome } : {}),
   renegotiated: r.renegotiated,
+  chats: Number(r.chats ?? 0),
   created_by: r.created_by,
   created_at: r.created_at,
   updated_at: r.updated_at,

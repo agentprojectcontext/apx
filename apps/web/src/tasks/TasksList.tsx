@@ -107,10 +107,13 @@ export function TasksList({
     errand: scoped.filter((x) => x.kind === "errand").length,
   };
   const shown = scoped.filter((x) => kind === "all" || x.kind === kind);
-  const running = useMemo(
-    () => new Set(Object.values(runs).flatMap((r) => (LIVE.has(r.state) ? [r.thread_id] : []))),
-    [runs],
-  );
+  const threads = useData((s) => s.threads);
+  // A task is being worked while a turn runs in one of its agents' chats (or, from before, in its own thread).
+  const running = useMemo(() => {
+    const live = Object.values(runs).flatMap((r) => (LIVE.has(r.state) ? [r.thread_id] : []));
+    const tasks = new Set(live.flatMap((id) => threads[id]?.task_id ?? []));
+    return new Set([...live, ...Object.values(all).flatMap((x) => (tasks.has(x.id) ? [x.thread_id] : []))]);
+  }, [runs, threads, all]);
   const columns = useTasks((s) => s.columns);
   const { drag, bind } = useLongPressDrag<Task>((task, target) => void dropOn(task, target as GroupId, columns));
   const filled = groupTasks(shown, running);
@@ -304,6 +307,12 @@ function TaskRow(props: {
               </>
             ) : (
               <span className="taskrow__nobody">{t("tasks.nobody")}</span>
+            )}
+            {task.chats > 0 && (
+              <span className="taskrow__chats" title={t("tasks.chats", { n: String(task.chats) })}>
+                {props.running ? <Spinner size={10} /> : <Icons.MessagesSquare size={11} />}
+                {task.chats}
+              </span>
             )}
           </span>
           <span className={due?.late && task.state === "open" ? "taskrow__when is-late" : "taskrow__when"}>

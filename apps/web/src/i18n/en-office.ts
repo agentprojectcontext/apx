@@ -73,6 +73,7 @@ export const enOffice = {
   "tasks.tab.history": "History",
   "tasks.column": "Column",
   "tasks.work": "Work",
+  "tasks.chats": "Worked in {n} chats",
   "tasks.work.none": "Assign an agent and it starts working on it",
   "tasks.work.notYet": "Not started yet",
   "tasks.work.working": "Working…",
