@@ -4,6 +4,7 @@
 // only if it thought to read them — and on a busy turn it did not. Attaching
 // them to the result keeps the system prompt stable (cache-friendly) and lands
 // the rules exactly when the work reaches that folder. Once per turn per file.
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { resolveProject } from "#core/apc/projects-helpers.js";
 import { directoryRulesFor } from "#core/agent/context/turn-context.js";
@@ -72,5 +73,23 @@ export function attachDirectoryRules({ name, args, result, ctx, seen }) {
       files: rules,
     },
     ...result,
+  };
+}
+
+/**
+ * `result` as the trace records it: each attached rules file reduced to one
+ * flat line (path, bytes, hash). Left nested, the trace summarizer collapses
+ * `files[]` to "…(nested)" and the record no longer says WHICH rules arrived.
+ */
+export function folderRulesForTrace(result) {
+  const files = result?.folder_rules?.files;
+  if (!Array.isArray(files)) return result;
+  return {
+    ...result,
+    folder_rules: files.map((f) => {
+      const text = String(f?.content ?? "");
+      const sha = createHash("sha256").update(text).digest("hex").slice(0, 12);
+      return `${f?.path} · ${Buffer.byteLength(text)} bytes · sha256:${sha}`;
+    }),
   };
 }
