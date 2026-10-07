@@ -11,14 +11,27 @@ declare const APX_VERSION: string;
 
 let win: BrowserWindow | undefined;
 
-export function showAbout(partition: string): void {
+type Health = { started_at?: string; subsystems?: Record<string, { status: string }> };
+
+/** The core's own report (`/health` is open), for the window's list; nothing when it does not answer quickly. */
+async function coreHealth(coreUrl: string): Promise<Health | undefined> {
+  try {
+    const res = await fetch(new URL("/health", coreUrl), { signal: AbortSignal.timeout(1500) });
+    const body = (await res.json()) as { ok?: boolean; result?: Health };
+    return body.ok ? body.result : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function showAbout(partition: string, coreUrl: string): Promise<void> {
   if (win && !win.isDestroyed()) {
     win.focus();
     return;
   }
   win = new BrowserWindow({
-    width: 620,
-    height: 400,
+    width: 780,
+    height: 450,
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -44,12 +57,21 @@ export function showAbout(partition: string): void {
   });
   // A checkout's package.json version is a placeholder; releases set the real one from their tag.
   const version = app.isPackaged ? app.getVersion() : APX_VERSION;
+  const health = await coreHealth(coreUrl);
   const query = new URLSearchParams({
     v: version,
     electron: process.versions.electron,
-    chrome: process.versions.chrome,
-    node: process.versions.node,
     os: `${SYSTEMS[process.platform] ?? process.platform} ${process.getSystemVersion()} · ${process.arch}`,
+    core: new URL(coreUrl).host,
   });
+  if (health?.started_at) query.set("since", health.started_at);
+  if (health?.subsystems)
+    query.set(
+      "services",
+      Object.entries(health.subsystems)
+        .map(([name, sub]) => `${name}:${sub.status}`)
+        .join(","),
+    );
+  if (win.isDestroyed()) return;
   void win.loadURL(`${APP_SCHEME}://app/index.html?about&${query}`);
 }

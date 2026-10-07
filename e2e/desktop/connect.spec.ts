@@ -88,7 +88,7 @@ test("About opens APX's own window with this build's versions and the repo", asy
   const about = await windowAt(app, (u) => u.includes("?about"));
   await expect(about.locator(".about__version")).toContainText("APX");
   await expect(about.locator(".about__status")).toBeVisible();
-  await expect(about.locator(".about__list")).toContainText("Electron");
+  await expect(about.locator(".about__list")).toContainText("Protocol");
   await expect(about.locator(".about__repo")).toHaveAttribute("href", /github\.com/);
   await app.close();
 });

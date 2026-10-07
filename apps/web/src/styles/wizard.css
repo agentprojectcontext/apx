@@ -875,23 +875,22 @@ input.wiz__name {
   }
 }
 
-/* The desktop app's About window: the portrait in text on one side, the build's facts on the other. */
+/* The desktop app's About window: the version on top, the portrait in text beside the facts, the crew below. */
 .wiz.about {
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 28px;
   align-items: center;
+  justify-content: center;
+  gap: 18px;
   height: 100%;
-  padding: 28px 32px;
+  padding: 24px 36px;
   box-sizing: border-box;
   overflow: hidden;
 }
-.about__side {
-  display: flex;
-  flex-direction: column;
+.about__cols {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 32px;
   align-items: center;
-  gap: 12px;
-  min-width: 0;
+  width: 100%;
 }
 .about__version {
   max-width: 100%;
@@ -904,11 +903,34 @@ input.wiz__name {
 .about__version img {
   margin-right: 2px;
 }
+.about__services {
+  display: inline-flex;
+  gap: 10px;
+}
+.about__services span::before {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  background: var(--apx-fg-subtle);
+  vertical-align: 1px;
+  content: "";
+}
+.about__services .is-ok::before {
+  background: var(--apx-brand);
+}
+.about__services .is-warn::before {
+  background: var(--apx-warning);
+}
+.about__services .is-down::before {
+  background: var(--apx-danger);
+}
 .about__portrait,
 .about__portrait canvas {
   display: block;
   width: 220px;
-  height: 240px;
+  height: 230px;
 }
 .about__info {
   display: flex;
@@ -967,9 +989,7 @@ input.wiz__name {
   gap: 10px;
   align-items: center;
   max-width: 100%;
-  align-self: flex-start;
   height: 34px;
-  margin-top: 6px;
   padding: 0 14px 0 5px;
   border: 1px solid var(--apx-border);
   border-radius: 999px;

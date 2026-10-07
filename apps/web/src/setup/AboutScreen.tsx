@@ -1,8 +1,9 @@
 import "../styles/wizard.css";
 import { AgentAvatar } from "@apx/ui";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import logo from "../assets/logo.png";
-import { useLanguage, useT } from "../i18n/index.ts";
+import { elapsed } from "../common/format.ts";
+import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import { useScrambleTo } from "./CrewHero.tsx";
 import { startGlyphPortrait } from "./glyphPortrait.ts";
 
@@ -59,46 +60,67 @@ function GlyphPortrait() {
   );
 }
 
-/** The desktop app's About window: this build's versions (sent by the shell in the URL), credits and the repo. */
+const SERVICE_TONE: Record<string, string> = { ok: "is-ok", degraded: "is-warn", down: "is-down" };
+
+/** The core's subsystems as the shell read them from `/health`: "protocol:ok,browser:ok,agent:ok". */
+function Services({ value }: { value: string }) {
+  const services = value
+    .split(",")
+    .map((s) => s.split(":"))
+    .filter((s): s is [string, string] => s.length === 2);
+  return (
+    <span className="about__services">
+      {services.map(([name, status]) => (
+        <span key={name} className={SERVICE_TONE[status] ?? "is-off"}>
+          {name.charAt(0).toUpperCase() + name.slice(1)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** The desktop app's About window: this build and its core (sent by the shell in the URL), credits and the repo. */
 export function AboutScreen() {
   const t = useT();
   const params = new URLSearchParams(window.location.search);
   const version = params.get("v") ?? "";
-  const rows = [
-    ["about.version", version],
+  const since = params.get("since");
+  const services = params.get("services");
+  const rows: Array<[MessageKey, ReactNode]> = [
+    ["about.services", services ? <Services key="services" value={services} /> : t("about.coreDown")],
+    ["about.core", params.get("core")],
+    ["about.upFor", since ? elapsed(since) : null],
     ["about.electron", params.get("electron")],
-    ["about.chromium", params.get("chrome")],
-    ["about.node", params.get("node")],
     ["about.system", params.get("os")],
-  ] as const;
+  ];
   return (
     <div className="wiz about" data-apx-look="minimal" data-apx-mode="dark">
-      <div className="about__side">
-        <span className="wiz__pill about__version">
-          <img src={logo} alt="" width={14} height={14} />
-          APX {version}
-        </span>
+      <span className="wiz__pill about__version">
+        <img src={logo} alt="" width={14} height={14} />
+        APX {version}
+      </span>
+      <div className="about__cols">
         <GlyphPortrait />
+        <div className="about__info">
+          <h1 className="about__name">APX</h1>
+          <p className="about__tag">{t("about.foot")}</p>
+          <dl className="about__list">
+            {rows.map(([label, value]) =>
+              value ? (
+                <div key={label}>
+                  <dt>{t(label)}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ) : null,
+            )}
+          </dl>
+          <p className="about__credits">{t("about.credits")}</p>
+          <a className="about__repo" href={REPO} target="_blank" rel="noreferrer">
+            {REPO.replace("https://", "")}
+          </a>
+        </div>
       </div>
-      <div className="about__info">
-        <h1 className="about__name">APX</h1>
-        <p className="about__tag">{t("about.foot")}</p>
-        <dl className="about__list">
-          {rows.map(([label, value]) =>
-            value ? (
-              <div key={label}>
-                <dt>{t(label)}</dt>
-                <dd>{value}</dd>
-              </div>
-            ) : null,
-          )}
-        </dl>
-        <p className="about__credits">{t("about.credits")}</p>
-        <a className="about__repo" href={REPO} target="_blank" rel="noreferrer">
-          {REPO.replace("https://", "")}
-        </a>
-        <StatusTicker />
-      </div>
+      <StatusTicker />
     </div>
   );
 }

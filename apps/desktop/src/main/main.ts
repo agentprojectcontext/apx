@@ -232,6 +232,7 @@ app.whenReady().then(() => {
     appMenu(
       () => quick.toggle(false),
       () => void connector.change(),
+      () => base,
     ),
   );
 
@@ -343,9 +344,13 @@ function externalLinks(wc: WebContents): void {
 }
 
 /** The system's own menus, plus "Quick chat" in Window: reachable from the keyboard and by name. */
-function appMenu(openQuick: () => void, changeConnection: () => void): Menu {
+function appMenu(openQuick: () => void, changeConnection: () => void, coreUrl: () => string): Menu {
   const es = app.getLocale().startsWith("es");
-  const about = { id: "about", label: es ? "Acerca de APX" : "About APX", click: () => showAbout("persist:apx-ui") };
+  const about = {
+    id: "about",
+    label: es ? "Acerca de APX" : "About APX",
+    click: () => void showAbout("persist:apx-ui", coreUrl()),
+  };
   const change = {
     id: "change-connection",
     label: es ? "Cambiar conexión…" : "Change connection…",
