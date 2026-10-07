@@ -15,12 +15,10 @@ import {
   View,
 } from "react-native";
 import type { Creds } from "./creds";
-import { useNotifications } from "./hooks/useNotifications";
 import { usePairing } from "./hooks/usePairing";
 import { t } from "./i18n";
 import { parsePairingLink } from "./pairing";
 import { Icon } from "./ui/Icon";
-import { NotificationCard } from "./ui/NotificationCard";
 import { theme } from "./ui/theme";
 
 /** Native counterpart of the web's pairing gate, with QR and manual network address entry. */
@@ -30,7 +28,6 @@ export function PairScreen({ link, onPaired }: { link: string | undefined; onPai
   const [url, setUrl] = useState("");
   const [code, setCode] = useState("");
   const { busy, error, pair } = usePairing(link, onPaired);
-  const notifications = useNotifications();
   const scan = async () => {
     if (permission?.granted) setScanning(true);
     else if (permission && !permission.canAskAgain) await Linking.openSettings();
@@ -136,7 +133,6 @@ export function PairScreen({ link, onPaired }: { link: string | undefined; onPai
           )}
           <Text style={s.primaryText}>{t(busy ? "pairing" : "pair")}</Text>
         </Pressable>
-        <NotificationCard status={notifications.status} enable={notifications.enable} />
       </ScrollView>
       <Text style={s.version}>APX v{Constants.expoConfig?.version ?? "2.0.2"}</Text>
     </KeyboardAvoidingView>
