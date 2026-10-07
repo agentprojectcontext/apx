@@ -18,12 +18,13 @@ import { useSlashMenu } from "./SlashMenu.tsx";
 import { useAttachments } from "./useAttachments.ts";
 import { useDictation } from "./useDictation.ts";
 import { useFileDrop } from "./useFileDrop.ts";
+import { VoiceRecording } from "./VoiceRecording.tsx";
 
 const IMAGE_TYPES = "image/png,image/jpeg,image/webp,image/gif";
 
 /**
  * The chat's composer, left to right: + (file, image), the chat's model, then how full the chat is (opens Usage),
- * the mic (dictates into the field) and send. While the agent works, Enter interrupts it and Ctrl/⌘+Enter queues.
+ * the mic (records audio with its words) and send. While the agent works, Enter interrupts it and Ctrl/⌘+Enter queues.
  * A field starting with "/" opens the command and skill menu.
  * Files also arrive dragged or pasted.
  */
@@ -35,10 +36,17 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
   const [text, setText] = useState(() => takeDraft(thread.id));
   const files = useRef<HTMLInputElement>(null);
   const images = useRef<HTMLInputElement>(null);
-  const att = useAttachments(thread.id);
+  const appendWords = (words: string) => setText((cur) => (cur.trim() ? `${cur.trimEnd()} ${words}` : words));
+  const att = useAttachments(thread.id, appendWords);
   const box = useRef<HTMLDivElement>(null);
-  const over = useFileDrop(box, att.add);
-  const mic = useDictation(thread.id, (words) => setText((cur) => (cur.trim() ? `${cur.trimEnd()} ${words}` : words)));
+  const mic = useDictation(thread.id, (audio, words) => {
+    att.restore([audio]);
+    if (words) appendWords(words);
+  });
+  const micBusy = mic.state === "recording" || mic.state === "starting" || mic.state === "transcribing";
+  const over = useFileDrop(box, (files) => {
+    if (!micBusy) att.add(files);
+  });
   const busy = isWorking(thread.state);
   const slash = useSlashMenu({ thread, agent, text, setText, busy });
   const runs = useMemo(
@@ -50,6 +58,7 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
   );
 
   const submit = (value: string, { queue }: { queue: boolean }) => {
+    if (micBusy) return;
     if (att.uploading) return notify(t("composer.stillUploading"), "info");
     const attachments = att.take();
     const words = value.trim() || (attachments.length ? t("composer.attachedOnly") : "");
@@ -64,14 +73,17 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
   const pick = (input: HTMLInputElement | null) => input?.click();
 
   return (
-    <div ref={box} className={`chat__composer${over ? " is-dropping" : ""}`}>
+    <div
+      ref={box}
+      className={`chat__composer${over ? " is-dropping" : ""}${mic.state === "recording" ? " is-recording" : ""}`}
+    >
       <input
         ref={files}
         type="file"
         multiple
         hidden
         onChange={(e) => {
-          att.add(e.currentTarget.files ?? []);
+          if (!micBusy) att.add(e.currentTarget.files ?? []);
           e.currentTarget.value = "";
         }}
       />
@@ -82,7 +94,7 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
         multiple
         hidden
         onChange={(e) => {
-          att.add(e.currentTarget.files ?? []);
+          if (!micBusy) att.add(e.currentTarget.files ?? []);
           e.currentTarget.value = "";
         }}
       />
@@ -97,11 +109,18 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
         value={text}
         onValueChange={setText}
         ready={att.ready && !att.uploading}
-        disabled={offline}
+        disabled={offline || micBusy}
         busy={busy && !text.trim() && !att.ready}
         onStop={() => void cancel(thread.id)}
         onSubmit={submit}
-        header={att.chips.length ? <AttachChips chips={att.chips} onRemove={att.remove} /> : undefined}
+        header={
+          micBusy || att.chips.length ? (
+            <>
+              <VoiceRecording state={mic.state} levels={mic.levels} seconds={mic.seconds} />
+              {att.chips.length > 0 && <AttachChips chips={att.chips} onRemove={att.remove} />}
+            </>
+          ) : undefined
+        }
         popup={slash.popup}
         onInputKeyDown={slash.onKey}
         inputAria={slash.aria}
@@ -113,11 +132,13 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
               items={[
                 {
                   label: t("composer.attachFile"),
+                  disabled: offline || micBusy,
                   icon: <Icons.Paperclip size={14} />,
                   onSelect: () => pick(files.current),
                 },
                 {
                   label: t("composer.attachImage"),
+                  disabled: offline || micBusy,
                   icon: <Icons.Image size={14} />,
                   onSelect: () => pick(images.current),
                 },
@@ -133,7 +154,12 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
                 className={`composer__mic is-${mic.state}`}
                 label={mic.state === "recording" ? t("composer.dictateStop") : t("composer.dictate")}
                 icon={mic.state === "transcribing" ? <Icons.LoaderCircle size={14} /> : <Icons.Mic size={14} />}
-                disabled={offline || mic.state === "transcribing"}
+                disabled={
+                  offline ||
+                  mic.state === "transcribing" ||
+                  mic.state === "starting" ||
+                  (mic.state === "idle" && att.full)
+                }
                 onClick={mic.toggle}
               />
             )}

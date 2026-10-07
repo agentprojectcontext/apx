@@ -1,6 +1,6 @@
 import type { Task, TaskEvent } from "@apx/protocol";
 import { AgentAvatar, Badge, Button, Icons, Select, Tabs, TagInput, Textarea } from "@apx/ui";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Transcript } from "../chat/Transcript.tsx";
 import { Drawer } from "../common/Drawer.tsx";
 import { shortWhen } from "../common/format.ts";
@@ -9,9 +9,10 @@ import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
 import { loadThread } from "../data/actions.ts";
 import { baseName, blobOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
-import { closeTask, commentTask, settleTask, taskEvents, updateTask, useTasks } from "../data/tasks.ts";
+import { closeTask, settleTask, taskEvents, updateTask, useTasks } from "../data/tasks.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { type HistoryKey, historyLines } from "./history.ts";
+import { TaskComment } from "./TaskComment.tsx";
 import {
   DueField,
   KindControl,
@@ -55,6 +56,7 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
   const [events, setEvents] = useState<TaskEvent[]>([]);
   const [tab, setTab] = useState("chat");
   const [text, setText] = useState("");
+  const body = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (load == null) void loadThread(task.thread_id);
   }, [load, task.thread_id]);
@@ -67,51 +69,39 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
       current = false;
     };
   }, [task.id, movedAt]);
-  const send = async () => {
-    if (await commentTask(task.id, text.trim())) setText("");
-  };
-
   return (
-    <Drawer label={task.title} title={task.title} onClose={onClose}>
-      <StateBar task={task} />
-      <Properties task={task} />
-      <Description task={task} />
-      <Tabs
-        variant="pill"
-        className="taskpanel__tabs"
-        value={tab}
-        onValueChange={setTab}
-        items={[
-          {
-            value: "chat",
-            label: t("tasks.tab.chat"),
-            content: (
-              <div className="taskdetail__chat">{thread && load === "ready" && <Transcript thread={thread} />}</div>
-            ),
-          },
-          {
-            value: "history",
-            label: t("tasks.tab.history"),
-            count: events.length,
-            content: <History events={events} />,
-          },
-        ]}
-      />
-      <div className="taskpanel__comment">
-        <Textarea
-          aria-label={t("tasks.comment")}
-          rows={2}
-          placeholder={t("tasks.commentHint")}
-          value={text}
-          onChange={(e) => setText(e.currentTarget.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && text.trim()) void send();
+    <Drawer className="taskpanel" label={task.title} title={task.title} onClose={onClose}>
+      <div className="taskpanel__body" ref={body}>
+        <StateBar task={task} />
+        <Properties task={task} />
+        <Description task={task} />
+        <Tabs
+          variant="pill"
+          className="taskpanel__tabs"
+          value={tab}
+          onValueChange={(value) => {
+            setTab(value);
+            if (value === "chat")
+              requestAnimationFrame(() => body.current?.scrollTo({ top: body.current.scrollHeight }));
           }}
+          items={[
+            {
+              value: "chat",
+              label: t("tasks.tab.chat"),
+              content: (
+                <div className="taskdetail__chat">{thread && load === "ready" && <Transcript thread={thread} />}</div>
+              ),
+            },
+            {
+              value: "history",
+              label: t("tasks.tab.history"),
+              count: events.length,
+              content: <History events={events} />,
+            },
+          ]}
         />
-        <Button size="sm" disabled={!text.trim()} onClick={() => void send()}>
-          {t("tasks.send")}
-        </Button>
       </div>
+      {tab === "chat" && <TaskComment task={task} text={text} onChange={setText} />}
     </Drawer>
   );
 }
@@ -232,6 +222,7 @@ function Properties({ task }: { task: Task }) {
           size="sm"
           value={task.assignee}
           projectId={task.project_id}
+          globalAgents={task.project_id ? "secretary" : "all"}
           none={t("tasks.nobody")}
           onChange={(id) => id !== task.assignee && void updateTask(task.id, { assignee: id ?? null })}
         />
@@ -285,7 +276,7 @@ function Description({ task }: { task: Task }) {
       className="taskdetail__desc"
       aria-label={t("tasks.description")}
       placeholder={t("tasks.descriptionHint")}
-      rows={Math.min(8, Math.max(2, draft.split("\n").length))}
+      rows={Math.min(14, Math.max(6, draft.split("\n").length))}
       value={draft}
       onChange={(e) => setDraft(e.currentTarget.value)}
       onBlur={() => draft !== task.description && void updateTask(task.id, { description: draft })}

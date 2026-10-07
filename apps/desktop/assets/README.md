@@ -9,6 +9,6 @@ The web favicon (`apps/web/src/assets/favicon.svg`) uses the transparent green g
 - `logo-dock.svg`: green on a rounded black tile; source for `icon.png` (1024 × 1024).
 - `trayTemplate.svg`: black, transparent; macOS tints its PNG representations to match the menu bar.
 - `tray-color.svg`: green, transparent, for Windows and Linux.
-- `*-attention.svg`: the same glyph with a separated notification dot.
+- `*-attention.svg`: the same glyph with a notification dot inside its upper-right silhouette, separated from the strokes by a transparent cutout. The macOS dot is monochrome; Windows/Linux use orange (`#ff9500`).
 
-Tray PNGs are rasterized at 22 × 22 and 44 × 44 (`@2x`). Electron uses these native representations; SVGs remain the editable vector sources. The desktop build copies all icon assets into `dist`. Notification state selects the normal or attention image, while the tooltip and macOS title/Dock badge show the unread count.
+Tray PNGs are rasterized at 22 × 22 and 44 × 44 (`@2x`). Electron uses these native representations; SVGs remain the editable vector sources. Regenerate with `node scripts/tray-icons.ts` (uses the existing Playwright Chromium). The desktop build copies all icon assets into `dist`. Notification state selects the normal or attention image. On macOS, the native tray title places the count beside the icon in the system's color, using monospaced digits. The title and Dock badge cap at `99+` and clear at zero; the tooltip keeps the full count.

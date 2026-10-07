@@ -47,6 +47,7 @@ export function createQuick(opts: {
   function updateBadge(): void {
     const text = unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : "";
     tray?.setImage(trayImage());
+    if (process.platform === "darwin") tray?.setTitle(text, { fontType: "monospacedDigit" });
     const suffix = app.getLocale().startsWith("es") ? "avisos pendientes" : "unread notifications";
     tray?.setToolTip(unreadCount > 0 ? `APX · ${unreadCount} ${suffix}` : "APX");
     app.dock?.setBadge(text);
@@ -228,7 +229,7 @@ export function createQuick(opts: {
     },
     /** Opens it (centered under the top of the screen) or hides it when it is in front. */
     toggle,
-    /** Shows a dot on the menu-bar icon and the unread count on the Dock. */
+    /** Shows an integrated indicator, a macOS menu-bar count and the Dock badge. */
     badge(unread: number): void {
       const count = Number.isFinite(unread) ? Math.max(0, Math.floor(unread)) : 0;
       if (count === unreadCount) return;

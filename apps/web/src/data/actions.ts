@@ -245,7 +245,9 @@ export async function screenshot(tab: string): Promise<string> {
 function attachedPart(f: Attached): Part {
   return f.kind === "image"
     ? { type: "image", media_id: f.id, mime: f.mime, alt: f.name }
-    : { type: "file", media_id: f.id, name: f.name, mime: f.mime, bytes: f.bytes };
+    : f.kind === "audio"
+      ? { type: "audio", media_id: f.id, mime: f.mime }
+      : { type: "file", media_id: f.id, name: f.name, mime: f.mime, bytes: f.bytes };
 }
 
 function patchThread(threads: Record<string, Thread>, id: string, patch: Partial<Thread>): Record<string, Thread> {

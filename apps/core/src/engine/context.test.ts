@@ -26,6 +26,8 @@ test("the system prompt has no clock and no roster: same agent and thread, same 
   assert.equal(a, systemPrompt(agent, { kind: "home" }, "es"));
   assert.doesNotMatch(a, /\d{4}|id: scout/);
   assert.match(a, /Spanish \(Rioplatense/);
+  assert.match(a, /Routine searches, duplicate checks.*not reasons to start a worker/);
+  assert.match(a, /Never delegate to yourself/);
 });
 
 test("history keeps whole runs, prunes old tool output and stays within budget", () => {

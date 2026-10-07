@@ -180,7 +180,7 @@ export function TasksList({
           {drag.label}
         </div>
       )}
-      {current && <TaskPanel task={current} onClose={() => setOpen(undefined)} />}
+      {current && <TaskPanel key={current.id} task={current} onClose={() => setOpen(undefined)} />}
       {creating && <NewTask projectId={projectId} onClose={() => setCreating(false)} />}
     </div>
   );

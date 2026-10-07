@@ -51,10 +51,25 @@ gets the types. There is no other way into a handler.
 `~/.apx/v2/apx.db` (SQLite, WAL): projects, agents, threads (incl. a2a sub-threads), messages (what the UI shows),
 `model_log` (what the model saw — never rendered, tagged by run), runs (the durable queue: input, origin, reply destination, depth,
 deadline, A2A-shaped states, usage), steps (one per tool call, written before it runs), surfaces (+ share tokens),
-idempotency. Channel photos/documents enter through `threads.send` as persisted uploads; image references reach
+idempotency. Channel photos/documents and voice notes enter through `threads.send` as persisted uploads; image references reach
 vision models and the panel shows attachments from both sides. Owner uploads are copied into an ignored
 `.apx-attachments/upload-*` folder inside the turn work directory so file tools can inspect PDFs and other
-documents. Contact uploads stay in their sealed chat and never get a shared work-folder copy.
+documents. Contact uploads stay in their sealed chat and never get a shared work-folder copy. Voice uploads stay
+playable beside their words, even if transcription fails; `media.transcribe` can reuse the uploaded file by id.
+Agents share local project files through `send_file` → `media.attach`: a snapshot, at most 20 MB, scoped to
+their running owner's chat and work folder. Images appear inline; video/audio files play and download in the
+panel. Attachments survive changes to the source file and a chat reload.
+Agents open long reports, plans and reusable text documents with `open_document` after writing the file.
+It extends `media.attach` with bounded UTF-8 validation (400,000 bytes, `.md`/`.markdown`/`.txt`), uses the same
+owner-run/work-folder boundary, and persists a file part with document presentation metadata. The web/desktop
+panel renders the saved snapshot as Markdown (including `.txt`), source or download, labeled Document rather
+than App. Only an explicit presentation in the visible chat opens it; file edits never open it automatically.
+File tools persist bounded unified patches in the existing changes part (64,000 characters per file,
+200,000 per turn); repeated edits compare the first original with the final text. The Changes panel lists
+files once, with independent folding diffs and scopes for the last edit turn, all recorded turns (latest edit
+per path), or the current Git folder. Owner-only `files.diff` reads a saved patch by chat/message/part, even
+after source deletion. Older records without patches show labeled current content only when their recorded
+folder still matches the chat's work folder; escapes, Git metadata, binaries and special files are refused.
 `~/.apx/v2/secrets.json` (0600) holds secrets referenced as `secret://name`. `~/.apx/v2/home-id` is the
 install id. Browser sessions live in Electron partitions on the
 desktop (`persist:apx-shared`, `persist:apx-agent-<id>`, in-memory `apx-incog-*`), never in the core.
@@ -81,11 +96,20 @@ notice when there is no text. Tools that touch core state call protocol methods 
 - **Conversation retrieval** (`tools/chats.ts`): global specialists can search the owner's global chats;
   project agents keep their project/participation scope. External-client chats remain private to their client.
   Other agents' channel chats, rooms and subthreads are not shared with global specialists. Search applies
-  visibility before ranking limits, interprets agent names as participants, and includes archived history.
+  visibility before ranking limits, requires every named agent as a participant, and includes archived history.
+  Participants can read delegated chats by session name as well as thread id or title.
   A named agent can retrieve unavailable context through the existing `delegate` path before asking the owner.
+- **Task conversations** (`rpc/tasks.ts`, `engine/office.ts`): `tasks.comment` persists a comment and admits named
+  agents in the task's own chat. Replies can mention teammates, with a bounded chain and the same project scope
+  for names and exact ids. `@owner`, `@human` or the owner's name requests attention without an agent turn;
+  `domain/task-attention.ts` notices the transition to waiting once, and the owner's reply clears it.
+  The panel offers the project team and the super-agent first, keeps the comment footer separate from the
+  scrollable description and conversation, and hides the footer in History while retaining its draft.
 - **a2a** (`engine/delegation.ts`): `delegate` opens a named session (an a2a sub-thread) or continues one by name;
   the child works with no more than its callers (`inherit`); if the caller stopped waiting, the result comes back as
-  an `a2a_result` run. Limits live in `engine/limits.ts`; `engine/breaker.ts` pauses chains that run without the
+  an `a2a_result` run. A turn resumed by an owner answer after restart retains its caller and depth, so its final
+  report still returns automatically. Only the final report enters the caller's context; the child's tool log and
+  progress stay in its own thread. Limits live in `engine/limits.ts`; `engine/breaker.ts` pauses chains that run without the
   owner.
 - **Chat processes panel** (`apps/web/src/panel/ProcessesPanel.tsx`): `threads.list { root_thread }` retrieves
   every delegated descendant without the global list cap. A2A cards open a read-only transcript beside the parent;

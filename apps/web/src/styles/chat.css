@@ -160,6 +160,15 @@
 }
 
 /* Parts */
+.videopart video {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  max-height: 420px;
+  border-radius: var(--apx-radius-md);
+  margin-bottom: 8px;
+}
+
 .imagepart img {
   display: block;
   max-width: 100%;

@@ -79,3 +79,36 @@ or enter one of the printed addresses (the Tailscale URL or the LAN address) and
 minutes and works once; each device gets its own token.
 
 Working on the code: [`AGENTS.md`](AGENTS.md).
+
+### Terminal maintenance and MCP tools
+
+`apx --version` (or `-v`) reports the local CLI build without needing the core. `apx status` shows the running
+core, the Home agent's chosen blob, crew, projects, MCP servers, devices and access; `--plain` removes the card
+and portrait, while `--json` preserves the health response for scripts. Unknown commands and options print a
+short error without a stack trace.
+
+- `apx` (in an interactive terminal) or `apx wizard`: persistent console with Tab completion, history and `/quit`; menu for status, devices, Tailscale, pairing, updates and the panel address.
+- `apx upgrade --check`: check the existing updater; `apx upgrade` applies it. Both support `--json`.
+- `apx devices [list|pair|revoke <id>]`: list paired devices, issue a pairing code, or revoke one device.
+- `apx tailscale status|connect|off`: inspect access, expose APX through an already authenticated Tailscale,
+  or return to local access. Uses the same core settings as the panel.
+- `apx mcp tools <server> [<tool>] [--json]`: tool descriptions and JSON schemas.
+- `apx mcp run <server> <tool> '<json>'`: direct call, raw MCP result as JSON; `-` reads arguments from stdin.
+- `apx mcp check <server>`: connection test. `tools`, `run` and `check` accept `--project <id>` and
+  `--scope global|project`; `apx mcps` accepts the same subcommands.
+
+Direct MCP calls are owner operations, like the v1 CLI: they do not start an agent turn. Servers must be enabled,
+trusted and available in the selected project; outside app tokens and agent actors cannot use this owner door.
+`apx mcp` without a subcommand still serves stdio MCP for external clients, and `apx mcp --run` remains the
+harness bridge. The core uses one MCP connection and invocation implementation for terminal and agent tools.
+
+The web shares one chat interface, while the core retains normal and code threads. `apx chat "…"` uses Home;
+`--agent` selects an agent conversation; `--code` creates a project code thread with its folder and write policy.
+Continue any specific thread with `--thread <id>`.
+
+Terminal blob portraits use the web's canonical bodies and eye coordinates, drawn with true-color half-block
+glyphs (ASCII shading with visible eyes when colors are disabled). The layout places the blob and its tagline on the left, and a shared APX header, the active option and data in an open
+side panel, without boxes or dividers; narrow terminals stack the information. Display identity is cached locally
+so offline help and errors retain the Home agent's face. `apx --status` also opens status. `apx daemon` explains
+which `apx service` commands to use, without running them. Regenerate after
+changing the catalog with `python3 scripts/export-terminal-blobs.py` (Pillow needed only for generation).

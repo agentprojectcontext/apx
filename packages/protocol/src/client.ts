@@ -7,7 +7,14 @@ import type { Actor, ApxErrorShape, ClientRole, EventFrame, ServerFrame, Welcome
 import type { MethodName, Params, Result } from "./methods.ts";
 import { secureRequestKey } from "./request-key.ts";
 
-export { ErrorCode, PERSON_RELATIONS, PROTOCOL_VERSION, pairingLink, UPLOAD_LIMITS } from "./constants.ts";
+export {
+  DOCUMENT_MAX_BYTES,
+  ErrorCode,
+  PERSON_RELATIONS,
+  PROTOCOL_VERSION,
+  pairingLink,
+  UPLOAD_LIMITS,
+} from "./constants.ts";
 
 export class ApxError extends Error {
   readonly code: ApxErrorShape["code"];
@@ -26,6 +33,8 @@ export class ApxError extends Error {
 function clientDeadline(method: string, params: unknown, fallback: number): number {
   if (method === "browser.handoff") return ((params as { timeout_s?: number })?.timeout_s ?? 300) * 1000 + 20_000;
   if (method === "browser.import_cookies") return 130_000;
+  if (method === "mcp.call") return 180_000;
+  if (method === "mcp.describe" || method === "mcp.tools" || method === "mcp.test") return 45_000;
   if (method === "system.import_v1") return 60_000;
   // An update installs dependencies and builds the panel; a check fetches from the remote.
   if (method === "system.update") return 25 * 60_000;
@@ -39,6 +48,7 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   // A homelab GPU may queue an image for minutes (the server gives up at 11); speech at 2.
   if (method === "media.image") return 12 * 60_000;
   if (method === "media.speak") return 150_000;
+  if (method === "media.transcribe") return 190_000;
   // Indexing every note by meaning may take a while on a local model.
   if (method === "memory.reindex") return 10 * 60_000;
   if (method === "runs.wait") return ((params as { timeout_s?: number })?.timeout_s ?? 60) * 1000 + 10_000;

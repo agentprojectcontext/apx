@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { baseName, blobOf } from "../../data/identity.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
+import { availableAgents } from "./agents.ts";
 
 const NONE = "~none";
 
@@ -10,22 +11,23 @@ const NONE = "~none";
  * The agents to pick from, grouped by project (global ones first). `projectId` keeps the global agents and that
  * project's; undefined lists every project's.
  */
-export function useAgentOptions(projectId?: string | undefined, all = false): SelectOption[] {
+export function useAgentOptions(
+  projectId?: string | undefined,
+  all = false,
+  globalAgents: "all" | "secretary" = "all",
+): SelectOption[] {
   const agents = useData((s) => s.agents);
   const projects = useData((s) => s.projects);
   return useMemo(() => {
     const name = (pid: string) => projects.find((p) => p.id === pid)?.name ?? pid;
-    return Object.values(agents)
-      .filter((a) => all || !a.project_id || a.project_id === projectId)
-      .sort((a, b) => (a.project_id ? 1 : 0) - (b.project_id ? 1 : 0) || a.name.localeCompare(b.name))
-      .map((a) => ({
-        value: a.id,
-        label: a.name,
-        icon: <AgentAvatar name={a.name} blob={blobOf(a)} size={16} animated={false} />,
-        group: a.project_id ? name(a.project_id) : baseName(),
-        ...(a.role ? { hint: a.role } : {}),
-      }));
-  }, [agents, projects, projectId, all]);
+    return availableAgents(Object.values(agents), projectId, all, globalAgents).map((a) => ({
+      value: a.id,
+      label: a.name,
+      icon: <AgentAvatar name={a.name} blob={blobOf(a)} size={16} animated={false} />,
+      group: a.project_id ? name(a.project_id) : baseName(),
+      ...(a.role ? { hint: a.role } : {}),
+    }));
+  }, [agents, projects, projectId, all, globalAgents]);
 }
 
 /**
@@ -37,6 +39,7 @@ export function AgentSelect({
   onChange,
   projectId,
   all,
+  globalAgents,
   none,
   label,
   size,
@@ -46,6 +49,7 @@ export function AgentSelect({
   onChange: (id: string | undefined, projectId: string | undefined) => void;
   projectId?: string | undefined;
   all?: boolean;
+  globalAgents?: "all" | "secretary";
   /** The label of "nobody"; without it an agent must be picked. */
   none?: string;
   label?: string;
@@ -54,7 +58,7 @@ export function AgentSelect({
 }) {
   const t = useT();
   const agents = useData((s) => s.agents);
-  const options = useAgentOptions(projectId, all);
+  const options = useAgentOptions(projectId, all, globalAgents);
   return (
     <Select
       label={label ?? t("pickers.agent")}

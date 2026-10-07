@@ -1,22 +1,29 @@
 import { useEffect, useRef, useState } from "react";
-import { transcribe } from "../../data/composer.ts";
+import { type Attached, transcribe, upload } from "../../data/composer.ts";
+import { notify } from "../../data/notices.ts";
+import { t } from "../../i18n/index.ts";
+import { startVoiceMeter } from "./voiceMeter.ts";
 
-export type DictationState = "idle" | "recording" | "transcribing" | "unsupported";
+export type DictationState = "idle" | "starting" | "recording" | "transcribing" | "unsupported";
 
-/** The mic: records until pressed again, then hands the words to `onText` (nothing is sent). */
-export function useDictation(thread: string, onText: (text: string) => void) {
+/** Records a voice note and its words for review in the composer before sending. */
+export function useDictation(thread: string, onAudio: (audio: Attached, text?: string) => void) {
   const [state, setState] = useState<DictationState>(() =>
     typeof MediaRecorder === "undefined" || !navigator.mediaDevices ? "unsupported" : "idle",
   );
+  const [meter, setMeter] = useState({ levels: Array<number>(16).fill(0), seconds: 0 });
   const rec = useRef<MediaRecorder | null>(null);
-  // Cleared on unmount: a mic granted after leaving the chat is closed at once.
+  const stopMeter = useRef<(() => void) | undefined>(undefined);
   const alive = useRef(true);
-  const deliver = useRef(onText);
-  deliver.current = onText;
-  // Leaving the chat stops the mic (and its light) without transcribing.
-  useEffect(
-    () => () => {
+  const starting = useRef(false);
+  const deliver = useRef(onAudio);
+  deliver.current = onAudio;
+
+  useEffect(() => {
+    alive.current = true;
+    return () => {
       alive.current = false;
+      stopMeter.current?.();
       const r = rec.current;
       if (r && r.state !== "inactive") {
         r.ondataavailable = null;
@@ -24,41 +31,67 @@ export function useDictation(thread: string, onText: (text: string) => void) {
         r.stop();
       }
       for (const tr of r?.stream.getTracks() ?? []) tr.stop();
-    },
-    [],
-  );
+    };
+  }, []);
+
+  const finish = async (audio: Blob) => {
+    try {
+      const ext = audio.type.startsWith("audio/mp4") ? "m4a" : audio.type.startsWith("audio/ogg") ? "ogg" : "webm";
+      const media = await upload(new File([audio], `${t("composer.voiceNote")}.${ext}`, { type: audio.type }), thread);
+      const words = await transcribe(media.id, thread);
+      if (alive.current) deliver.current(media, words);
+    } catch (error) {
+      if (alive.current)
+        notify(t("composer.dictationFailed", { error: error instanceof Error ? error.message : String(error) }));
+    } finally {
+      if (alive.current) setState("idle");
+    }
+  };
 
   const start = async () => {
-    let stream: MediaStream;
+    if (starting.current) return;
+    starting.current = true;
+    setState("starting");
+    let stream: MediaStream | undefined;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setState("unsupported");
-      return;
+      if (!alive.current) {
+        for (const tr of stream.getTracks()) tr.stop();
+        return;
+      }
+      const chunks: Blob[] = [];
+      const r = new MediaRecorder(stream);
+      rec.current = r;
+      r.ondataavailable = (e) => {
+        if (e.data.size) chunks.push(e.data);
+      };
+      r.onstop = () => {
+        stopMeter.current?.();
+        for (const tr of r.stream.getTracks()) tr.stop();
+        if (!alive.current) return;
+        setState("transcribing");
+        void finish(new Blob(chunks, { type: r.mimeType || "audio/webm" }));
+      };
+      r.start();
+      setMeter({ levels: Array<number>(16).fill(0), seconds: 0 });
+      stopMeter.current = startVoiceMeter(stream, setMeter);
+      setState("recording");
+    } catch (error) {
+      for (const tr of stream?.getTracks() ?? []) tr.stop();
+      if (alive.current) {
+        setState("idle");
+        notify(t("composer.dictationFailed", { error: error instanceof Error ? error.message : String(error) }));
+      }
+    } finally {
+      starting.current = false;
     }
-    if (!alive.current) {
-      for (const tr of stream.getTracks()) tr.stop();
-      return;
-    }
-    const chunks: Blob[] = [];
-    const r = new MediaRecorder(stream);
-    r.ondataavailable = (e) => chunks.push(e.data);
-    r.onstop = async () => {
-      for (const tr of stream.getTracks()) tr.stop();
-      setState("transcribing");
-      const text = await transcribe(new Blob(chunks, { type: r.mimeType || "audio/webm" }), thread);
-      if (!alive.current) return;
-      setState("idle");
-      if (text) deliver.current(text);
-    };
-    rec.current = r;
-    r.start();
-    setState("recording");
   };
 
   const toggle = () => {
-    if (state === "recording") rec.current?.stop();
-    else if (state === "idle") void start();
+    if (state === "recording" && rec.current?.state === "recording") {
+      setState("transcribing");
+      rec.current.stop();
+    } else if (state === "idle") void start();
   };
-  return { state, toggle };
+  return { state, toggle, ...meter };
 }

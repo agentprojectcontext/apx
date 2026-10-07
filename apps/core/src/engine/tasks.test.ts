@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
+import { mentioned } from "./office.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 // Vera and Roby keep mentioning each other: the cascade must stop by itself.
@@ -12,6 +13,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 120)}`);
   if (said.includes("make a task")) return callTool("t1", "task_create", { title: "Draft the launch post" });
   if (said.includes("peek at the other")) return callTool("t2", "task_list", {});
+  if (said.includes("ask the owner")) return say("@JULIAN please confirm the launch date.");
   if (system.startsWith("You are Vera")) return say("Done my part, @roby your turn.");
   if (system.startsWith("You are Roby")) return say("Thanks, back to you @vera.");
   return say("ok");
@@ -118,9 +120,61 @@ test("an agent of one project is not assigned another project's task", async () 
   fs.writeFileSync(path.join(p2, "AGENTS.md"), "# Initech\n");
   const other = (await env.client.call("projects.register", { path: p2 })).project.id;
   const milton = await env.client.call("agents.create", { project_id: other, slug: "milton", name: "Milton" });
+  assert.deepEqual(mentioned(env.core.store, `@${milton.id}`, project), []);
+  assert.deepEqual(mentioned(env.core.store, `@${milton.id}`, undefined), []);
+  assert.deepEqual(
+    mentioned(env.core.store, `@${milton.id}`, other).map((a) => a.id),
+    [milton.id],
+  );
+  const task = await env.client.call("tasks.create", { title: "Local discussion", project });
+  const comment = await env.client.call("tasks.comment", { task: task.id, text: `@${milton.id} please look` });
+  assert.equal(comment.runs.length, 0);
   await assert.rejects(
     env.client.call("tasks.create", { title: "Elsewhere", project, assignee: milton.id }),
     (e: unknown) => e instanceof ApxError && /another project/.test(e.message),
   );
   fs.rmSync(p2, { recursive: true, force: true });
+});
+
+test("long exact ids are mentioned whole and emails never summon an agent", () => {
+  const id = `helper-${"long-".repeat(12)}id`;
+  env.core.store.agents.upsert({
+    id,
+    name: "Long helper",
+    kind: "agent",
+    role: "Helper",
+    browser_profile: "isolated",
+    project_id: project,
+  });
+  assert.deepEqual(
+    mentioned(env.core.store, `@${id}`, project).map((a) => a.id),
+    [id],
+  );
+  assert.deepEqual(mentioned(env.core.store, "José@roby example@vera", project), []);
+});
+
+test("an agent mentions the owner by name: one notice per request, no extra turn; replying clears it", async () => {
+  await env.client.call("owner.set", { name: "Julián Ríos" });
+  const task = await env.client.call("tasks.create", { title: "Confirm the launch date", project });
+  await env.client.call("tasks.comment", { task: task.id, text: "@vera ask the owner" });
+  const result = await env.settle(task.thread_id);
+  assert.equal(result.runs.length, 1);
+  assert.equal((await env.client.call("tasks.get", { task: task.id })).task.awaits_owner, true);
+  const notices = (await env.client.call("notifications.list", {})).notifications.filter((n) => n.ref === task.id);
+  assert.equal(notices.length, 1);
+  assert.match(notices[0]?.body ?? "", /@JULIAN please confirm/);
+  await env.client.call("tasks.comment", { task: task.id, text: "@vera ask the owner again" });
+  await env.settle(task.thread_id);
+  assert.equal(
+    (await env.client.call("notifications.list", {})).notifications.filter((n) => n.ref === task.id && !n.read_at)
+      .length,
+    1,
+  );
+  await env.client.call("tasks.comment", { task: task.id, text: "Confirmed for Friday" });
+  assert.equal((await env.client.call("tasks.get", { task: task.id })).task.awaits_owner, false);
+  assert.ok(
+    (await env.client.call("notifications.list", {})).notifications
+      .filter((n) => n.ref === task.id)
+      .every((n) => n.read_at),
+  );
 });

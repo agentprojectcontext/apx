@@ -7,7 +7,7 @@ import { notify } from "./notices.ts";
 import { data } from "./state.ts";
 
 /** A file stored by the core, ready to go with the next message. */
-export type Attached = { id: string; kind: "image" | "file"; name: string; mime: string; bytes: number };
+export type Attached = { id: string; kind: "image" | "audio" | "file"; name: string; mime: string; bytes: number };
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -29,6 +29,14 @@ const BY_EXT: Record<string, string> = {
   sh: "text/plain",
   sql: "text/plain",
   pdf: "application/pdf",
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  opus: "audio/ogg",
+  webm: "audio/webm",
+  flac: "audio/flac",
+  aac: "audio/aac",
 };
 
 export function mimeOf(file: { name: string; type: string }): string {
@@ -42,7 +50,12 @@ export function isImage(mime: string): boolean {
 
 /** Over the size the core takes for its kind: the message to show, or undefined when it fits. */
 export function tooBig(file: { name: string; size: number; type: string }): string | undefined {
-  const limit = isImage(mimeOf(file)) ? UPLOAD_LIMITS.imageBytes : UPLOAD_LIMITS.fileBytes;
+  const mime = mimeOf(file);
+  const limit = isImage(mime)
+    ? UPLOAD_LIMITS.imageBytes
+    : mime.startsWith("audio/")
+      ? UPLOAD_LIMITS.audioBytes
+      : UPLOAD_LIMITS.fileBytes;
   return file.size > limit ? t("composer.tooBig", { name: file.name, mb: Math.round(limit / 1024 / 1024) }) : undefined;
 }
 
@@ -68,9 +81,9 @@ export async function upload(file: File, thread: string): Promise<Attached> {
 }
 
 /** Speech to text for the field; undefined (with a notice) when it could not be heard. */
-export async function transcribe(audio: Blob, thread: string): Promise<string | undefined> {
+export async function transcribe(mediaId: string, thread: string): Promise<string | undefined> {
   try {
-    const r = await client.call("media.transcribe", { data: await base64(audio), mime: audio.type, thread });
+    const r = await client.call("media.transcribe", { media_id: mediaId, thread });
     return r.text.trim();
   } catch (e) {
     notify(t("composer.dictationFailed", { error: errText(e) }));

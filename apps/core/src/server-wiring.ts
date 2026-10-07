@@ -68,7 +68,7 @@ import { messageTools } from "./tools/message.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
 import { requestTools } from "./tools/requests.ts";
-import { shellTools } from "./tools/shell.ts";
+import { shellTools, workDir } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
 import { taskTools } from "./tools/tasks.ts";
@@ -213,7 +213,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
     ...agentHandlers(d.store, d.apc, d.engines),
     ...teamHandlers(d.store, d.apc, d.templateRoots, (s) => d.scheduler.nextFor(s)),
-    ...fileHandlers(d.store, d.desktop),
+    ...fileHandlers(d.store, d.desktop, d.app.home),
     ...terminalHandlers(d.store, d.terminals),
     ...sessionHandlers(d.store, d.native),
     ...setupHandlers({
@@ -239,6 +239,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...composerHandlers({
       store: d.store,
       home: d.app.home,
+      workFolder: (thread) => workDir(d.store, d.app.home, thread),
       services: d.services,
       checkModel: (ref, session) => refProblem(ref, d.engines, session),
     }),

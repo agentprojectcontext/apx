@@ -37,7 +37,7 @@ export type Origin =
     };
 
 /** A file or image the owner attached to the message that started the run. */
-export type Attachment = { media_id: string; kind: "image" | "file"; mime: string; name: string };
+export type Attachment = { media_id: string; kind: "image" | "audio" | "file"; mime: string; name: string };
 export type RunInput = {
   origin: Origin;
   text: string;

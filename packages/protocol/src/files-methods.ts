@@ -36,10 +36,22 @@ export const filesMethods = {
     effect: false,
     access: "human",
   },
-  /** One changed file's unified diff against the last commit (a new file shows whole, as added). */
+  /** Working-tree diff against HEAD, or a recorded turn's snapshot when `message` is given. Legacy records return labeled current content. */
   "files.diff": {
-    params: z.object({ thread: Id, path: z.string().min(1).max(1000) }).strict(),
-    result: z.object({ path: z.string(), diff: z.string(), truncated: z.boolean() }),
+    params: z
+      .object({
+        thread: Id,
+        path: z.string().min(1).max(1000),
+        message: Id.optional(),
+        part: z.number().int().nonnegative().optional(),
+      })
+      .strict(),
+    result: z.object({
+      path: z.string(),
+      diff: z.string(),
+      truncated: z.boolean(),
+      source: z.enum(["recorded", "current"]).optional(),
+    }),
     effect: false,
     access: "human",
   },

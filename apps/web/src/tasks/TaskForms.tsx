@@ -132,7 +132,8 @@ export function NewTask({ projectId, onClose }: { projectId?: string | undefined
             <AgentSelect
               value={assignee}
               projectId={project}
-              all={global}
+              all={global && !project}
+              globalAgents={project ? "secretary" : "all"}
               none={t("tasks.nobody")}
               onChange={(id, agentProject) => {
                 setAssignee(id);

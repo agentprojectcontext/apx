@@ -130,7 +130,7 @@ export function createDelegations(deps: {
           ? `refused: no session "${req.session}" in this thread; give an agent to start one (see list_sessions).`
           : "refused: say which agent to ask, or describe a worker.";
       if (!worker && to.id === from.agent.id)
-        return "refused: you cannot delegate to yourself; start a worker for a focused task instead.";
+        return "refused: you cannot delegate to yourself; complete this task directly with your own tools.";
       if (!worker && chainAgents(parentThread.id).includes(to.id))
         return `refused: ${to.name} is already part of this delegation chain (cycle).`;
       const paused = tripped(store, parentThread.id);
@@ -187,7 +187,10 @@ export function createDelegations(deps: {
       let timer: ReturnType<typeof setTimeout> | undefined;
       const done = new Promise<RunRecord | undefined>((resolve) => {
         inline.set(child.id, { caller: from.run.id, resolve });
-        timer = setTimeout(() => resolve(undefined), waitMs);
+        timer = setTimeout(() => {
+          inline.delete(child.id);
+          resolve(undefined);
+        }, waitMs);
       });
       deps.kick(sub.id);
       const quick = await done;

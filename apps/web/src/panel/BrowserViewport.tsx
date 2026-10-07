@@ -1,5 +1,5 @@
-import { Button, EmptyState, Icons, Skeleton } from "@apx/ui";
-import { useEffect, useRef } from "react";
+import { Button, EmptyState, Icons, Skeleton, useApx } from "@apx/ui";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { usePageVisible } from "../common/useInView.ts";
 import { useScreenshot } from "../common/useScreenshot.ts";
 import { createStore, useSlice } from "../data/createStore.ts";
@@ -42,7 +42,9 @@ function PoppedOut() {
 
 function DesktopSlot({ desktop }: { desktop: NonNullable<Window["apxDesktop"]> }) {
   const ref = useRef<HTMLDivElement>(null);
-  const covered = useSlice(cover, (s) => s.on);
+  const dragging = useSlice(cover, (s) => s.on);
+  const overlaid = usePopupOver(ref);
+  const covered = dragging || overlaid;
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -73,6 +75,45 @@ function DesktopSlot({ desktop }: { desktop: NonNullable<Window["apxDesktop"]> }
     };
   }, [desktop, covered]);
   return <div ref={ref} className="browser__page browser__page--native" />;
+}
+
+/**
+ * Whether a menu, popover or dialog of the panel lies over the page area. The native page paints above every HTML
+ * layer, so it steps behind while one is open instead of hiding it.
+ */
+function usePopupOver(slot: RefObject<HTMLDivElement | null>): boolean {
+  const { portalRef } = useApx();
+  const [over, setOver] = useState(false);
+  useEffect(() => {
+    const portal = portalRef.current;
+    if (!portal) return;
+    let frame = 0;
+    const check = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const el = slot.current;
+        if (!el) return setOver(false);
+        const a = el.getBoundingClientRect();
+        const hit = [
+          ...portal.querySelectorAll<HTMLElement>("[role=menu], [role=dialog], [role=listbox], .apx-menu"),
+        ].some((p) => {
+          const b = p.getBoundingClientRect();
+          return (
+            b.width > 0 && b.height > 0 && b.left < a.right && b.right > a.left && b.top < a.bottom && b.bottom > a.top
+          );
+        });
+        setOver(hit);
+      });
+    };
+    const mo = new MutationObserver(check);
+    mo.observe(portal, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "data-open"] });
+    check();
+    return () => {
+      cancelAnimationFrame(frame);
+      mo.disconnect();
+    };
+  }, [portalRef, slot]);
+  return over;
 }
 
 function ScreenshotView({ tab }: { tab: string }) {

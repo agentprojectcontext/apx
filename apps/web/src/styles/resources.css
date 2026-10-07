@@ -845,3 +845,20 @@
   font-size: var(--apx-text-xs);
   font-weight: var(--apx-weight-medium);
 }
+
+/* Tool permissions sit beside the independent connection dot. */
+.mcp-permission {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  color: var(--apx-fg-subtle);
+}
+.mcp-permission.is-ask {
+  color: var(--apx-warning);
+}
+.mcp-permission.is-all {
+  color: var(--apx-brand);
+}
+.mcp-permission.is-some {
+  color: var(--apx-fg);
+}

@@ -9,6 +9,7 @@ import { useLanguage, useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 import { MessageActions } from "./MessageActions.tsx";
+import { AudioPart } from "./parts/AudioPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { ImagePart } from "./parts/ImagePart.tsx";
 import { NoticePart } from "./parts/NoticePart.tsx";
@@ -30,7 +31,7 @@ export function Transcript({ thread }: { thread: Thread }) {
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
-  const multiAgent = thread.kind === "a2a" || thread.agent_ids.length > 1;
+  const multiAgent = thread.kind === "a2a" || thread.kind === "task" || thread.agent_ids.length > 1;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: day labels are re-made when the language changes
   const rows = useMemo(() => {
@@ -106,8 +107,8 @@ export function Transcript({ thread }: { thread: Thread }) {
             {day && <DayDivider label={day} />}
             {msg.author.kind === "user" ? (
               <UserMessage thread={thread} message={msg} messages={messages} text={textOf(msg)}>
-                <p className="transcript__usertext">{textOf(msg)}</p>
                 <UserFiles message={msg} />
+                <p className="transcript__usertext">{textOf(msg)}</p>
               </UserMessage>
             ) : msg.author.kind === "system" ? (
               <SystemMessage message={msg} />
@@ -119,8 +120,8 @@ export function Transcript({ thread }: { thread: Thread }) {
                 meta={<span className="transcript__person">{msg.author.name}</span>}
                 actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
               >
-                <p className="transcript__usertext">{textOf(msg)}</p>
                 <UserFiles message={msg} />
+                <p className="transcript__usertext">{textOf(msg)}</p>
               </Message>
             ) : msg.author.kind === "surface" ? (
               <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">
@@ -174,7 +175,7 @@ function SystemMessage({ message }: { message: Msg }) {
 
 /** What the owner attached to a message: images as thumbnails, other files as named chips. */
 function UserFiles({ message }: { message: Msg }) {
-  const files = message.parts.filter((p) => p.type === "image" || p.type === "file");
+  const files = message.parts.filter((p) => p.type === "image" || p.type === "file" || p.type === "audio");
   if (!files.length) return null;
   return (
     <div className="transcript__files">
@@ -183,6 +184,8 @@ function UserFiles({ message }: { message: Msg }) {
           <ImagePart key={p.media_id ?? p.url} part={p} />
         ) : p.type === "file" ? (
           <FilePart key={p.media_id} part={p} />
+        ) : p.type === "audio" ? (
+          <AudioPart key={p.media_id} part={p} />
         ) : null,
       )}
     </div>
@@ -190,5 +193,6 @@ function UserFiles({ message }: { message: Msg }) {
 }
 
 function textOf(m: Msg): string {
-  return m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n\n");
+  const text = m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n\n");
+  return m.parts.some((p) => p.type === "audio") ? text.replace(/\[voice note\]\s*/g, "") : text;
 }

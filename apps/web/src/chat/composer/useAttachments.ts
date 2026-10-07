@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type Attached, isImage, mimeOf, upload } from "../../data/composer.ts";
+import { type Attached, isImage, mimeOf, transcribe, upload } from "../../data/composer.ts";
 
 /** One file in the composer: uploading, ready to send, or refused (with the reason). */
 export type Chip = {
@@ -15,17 +15,21 @@ export type Chip = {
 const MAX = 8;
 
 /** The files waiting to go with the next message; each uploads as soon as it is added. */
-export function useAttachments(thread: string) {
+export function useAttachments(thread: string, onWords?: (text: string) => void) {
   const [chips, setChips] = useState<Chip[]>([]);
   const live = useRef(chips);
   live.current = chips;
+  const alive = useRef(true);
+  const words = useRef(onWords);
+  words.current = onWords;
   // Previews are object URLs: freed when their chip goes, and when the chat changes.
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
       for (const c of live.current) if (c.preview) URL.revokeObjectURL(c.preview);
-    },
-    [],
-  );
+    };
+  }, []);
 
   const patch = useCallback(
     (key: string, p: Partial<Chip>) => setChips((cs) => cs.map((c) => (c.key === key ? { ...c, ...p } : c))),
@@ -44,7 +48,12 @@ export function useAttachments(thread: string) {
           ...(image ? { preview: URL.createObjectURL(file) } : {}),
         };
         upload(file, thread).then(
-          (media) => patch(chip.key, { media }),
+          async (media) => {
+            const text = media.kind === "audio" ? await transcribe(media.id, thread) : undefined;
+            if (!alive.current || !live.current.some((c) => c.key === chip.key)) return;
+            patch(chip.key, { media });
+            if (text) words.current?.(text);
+          },
           (e: unknown) => patch(chip.key, { error: e instanceof Error ? e.message : String(e) }),
         );
         return chip;
@@ -87,5 +96,5 @@ export function useAttachments(thread: string) {
 
   const uploading = chips.some((c) => !c.media && !c.error);
   const ready = chips.some((c) => c.media);
-  return { chips, add, remove, take, restore, uploading, ready };
+  return { chips, add, remove, take, restore, uploading, ready, full: chips.length >= MAX };
 }

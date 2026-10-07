@@ -97,4 +97,22 @@ test("a voice note is heard, the agent draws, and the answer returns as a voice 
     ),
   );
   assert.ok(home.messages.some((m) => m.parts.some((p) => p.type === "image" && p.media_id)));
+  const recording = home.messages.find((m) => m.author.kind === "user")?.parts.find((p) => p.type === "audio");
+  assert.ok(recording);
+  const saved = await env.client.call("media.get", { id: recording.media_id });
+  assert.equal(saved.mime, "audio/ogg");
+  assert.equal(Buffer.from(saved.data, "base64").toString(), "OggS-fake-voice");
+});
+
+test("a channel voice note stays playable when no transcription engine is configured", async () => {
+  await env.client.call("services.set", { id: "ears", service: null });
+  const before = env.core.store.messages.list("home").length;
+  tg.voice(OWNER);
+  await until(() => env.core.store.messages.list("home").length > before, "the voice without transcription");
+  const message = env.core.store.messages
+    .list("home")
+    .slice(before)
+    .find((m) => m.author.kind === "user");
+  assert.ok(message?.parts.some((p) => p.type === "audio"));
+  assert.ok(message?.parts.some((p) => p.type === "text" && p.text.includes("no transcription engine")));
 });

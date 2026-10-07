@@ -1,5 +1,8 @@
 // What a folder has uncommitted, per git: the card at the end of a code turn and the chat's Changes panel.
 import { execFile } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { promisify } from "node:util";
 import type { ChangedFile, Part } from "@apx/protocol";
 
@@ -9,11 +12,11 @@ const MAX_FILES = 50;
 const MAX_DIFF = 200 * 1024;
 
 /** git, with the repo's own config unable to make it run anything: no fsmonitor, hooks, external diff or textconv. */
-const git = (cwd: string, args: string[]) =>
+const git = (cwd: string, args: string[], timeout = 10_000) =>
   run(
     "git",
     ["-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "--no-optional-locks", "-C", cwd, ...args],
-    { timeout: 10_000, maxBuffer: 4 * 1024 * 1024 },
+    { timeout, maxBuffer: 4 * 1024 * 1024 },
   ).then((r) => r.stdout);
 
 /**
@@ -74,4 +77,31 @@ export async function gitDiff(cwd: string, file: string): Promise<{ diff: string
     );
   }
   return diff.length > MAX_DIFF ? { diff: diff.slice(0, MAX_DIFF), truncated: true } : { diff, truncated: false };
+}
+
+/** A bounded turn snapshot, independent of the folder's repository or subsequent file changes. */
+export async function textDiff(before: string, after: string, limit = 64_000, timeout = 1500) {
+  if (before === after) return { diff: "", truncated: false, added: 0, removed: 0 };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-edit-diff-"));
+  try {
+    fs.writeFileSync(path.join(dir, "before"), before, { mode: 0o600 });
+    fs.writeFileSync(path.join(dir, "after"), after, { mode: 0o600 });
+    const output = await git(
+      dir,
+      ["diff", "--no-ext-diff", "--no-textconv", "--no-index", "--", "before", "after"],
+      timeout,
+    ).catch((error: unknown) => {
+      const failure = error as { code?: number; stdout?: string };
+      if (failure.code === 1 && typeof failure.stdout === "string") return failure.stdout;
+      throw error;
+    });
+    const start = output.indexOf("@@ ");
+    if (start < 0) return undefined;
+    const diff = output.slice(start);
+    const added = diff.split("\n").filter((line) => line.startsWith("+")).length;
+    const removed = diff.split("\n").filter((line) => line.startsWith("-")).length;
+    return { diff: diff.slice(0, limit), truncated: diff.length > limit, added, removed };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }

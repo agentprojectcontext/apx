@@ -22,6 +22,8 @@ export function McpDetail({
   onEdit,
   onRemove,
   testRequest = 0,
+  permissionRequest = 0,
+  toolReload = 0,
 }: {
   server: McpServerStatus;
   projectId: string | undefined;
@@ -30,6 +32,8 @@ export function McpDetail({
   onRemove(): void;
   /** Bumped by "Test" in the list's menu: the test runs here, where its result shows. */
   testRequest?: number;
+  permissionRequest?: number;
+  toolReload?: number;
 }) {
   const t = useT();
   const projects = useData((st) => st.projects);
@@ -160,10 +164,9 @@ export function McpDetail({
         server={s}
         projectId={projectId}
         names={tools}
-        reload={tested}
-        onLoaded={() => {
-          if (s.status !== "ready") void onChanged();
-        }}
+        reload={`${tested}:${permissionRequest}:${toolReload}`}
+        pickRequest={permissionRequest}
+        onLoaded={() => void onChanged()}
       />
 
       {!projectId && shared && <AvailableIn server={s.name} onChanged={onChanged} />}

@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
+import { textDiff } from "../engine/changes.ts";
 import { insideReal, writeAtomic } from "../paths.ts";
 import { untrusted } from "./result.ts";
 import { workDir } from "./shell.ts";
@@ -15,12 +16,23 @@ const MAX_BYTES = 1_000_000;
 const KEPT_RUNS = 20;
 
 type Edit = { path: string; status: string; added: number; removed: number };
+type RecordedEdit = { file: Edit & { diff?: string; truncated?: boolean }; before: string | undefined };
+const SNAPSHOT_BUDGET = 200_000;
+const ORIGINAL_BUDGET = 2_000_000;
 const lineCount = (s: string) => (s ? s.split("\n").length - (s.endsWith("\n") ? 1 : 0) : 0);
 
 export function fileTools(store: Store, home: string): Tool[] {
-  const edited = new Map<string, Map<string, Edit>>();
-  /** The turn's "files edited" card, one line per file, its lines added and removed summed over the turn. */
-  const noteEdit = (ctx: ToolContext, base: string, e: Edit) => {
+  const edited = new Map<string, Map<string, RecordedEdit>>();
+  const recording = new Map<string, Promise<void>>();
+  /** The turn's net edits from each file's first original, with bounded persisted patches. */
+  const recordEdit = async (
+    ctx: ToolContext,
+    base: string,
+    e: Edit,
+    before: string,
+    after: string,
+    deadline: number,
+  ) => {
     let files = edited.get(ctx.run.id);
     if (!files) {
       files = new Map();
@@ -28,18 +40,46 @@ export function fileTools(store: Store, home: string): Tool[] {
       if (edited.size > KEPT_RUNS) edited.delete(edited.keys().next().value ?? "");
     }
     const was = files.get(e.path);
-    files.set(e.path, {
+    const used = [...files.values()].reduce((n, edit) => n + (edit.before?.length ?? 0), 0);
+    const original = was ? was.before : before.length + used <= ORIGINAL_BUDGET ? before : undefined;
+    const snapshotUsed = [...files.values()].reduce(
+      (n, edit) => n + (edit.file.path === e.path ? 0 : (edit.file.diff?.length ?? 0)),
+      0,
+    );
+    const limit = Math.min(64_000, SNAPSHOT_BUDGET - snapshotUsed);
+    // Diff generation cannot turn a successful file write into a reported failure.
+    const remaining = deadline - Date.now();
+    const snapshot =
+      original !== undefined && limit > 0 && remaining > 0
+        ? await textDiff(original, after, limit, remaining).catch(() => undefined)
+        : undefined;
+    const file = {
       path: e.path,
-      status: was?.status === "A" ? "A" : e.status,
-      added: (was?.added ?? 0) + e.added,
-      removed: (was?.removed ?? 0) + e.removed,
-    });
+      status: was?.file.status === "A" ? "A" : e.status,
+      added: snapshot?.added ?? (was?.file.added ?? 0) + e.added,
+      removed: snapshot?.removed ?? (was?.file.removed ?? 0) + e.removed,
+      ...(snapshot ? { diff: snapshot.diff, truncated: snapshot.truncated } : {}),
+    };
+    files.set(e.path, { file, before: original });
     ctx.upsertPart((p) => p.type === "changes", {
       type: "changes",
       cwd: base,
       edits: true,
-      files: [...files.values()],
+      files: [...files.values()].map((edit) => edit.file),
     });
+  };
+  const noteEdit = async (ctx: ToolContext, base: string, e: Edit, before: string, after: string) => {
+    const deadline = Date.now() + 1500;
+    // Parallel harness calls must preserve write order and share the turn's patch budget.
+    const next = (recording.get(ctx.run.id) ?? Promise.resolve())
+      .catch(() => undefined)
+      .then(() => recordEdit(ctx, base, e, before, after, deadline));
+    recording.set(ctx.run.id, next);
+    try {
+      await next;
+    } finally {
+      if (recording.get(ctx.run.id) === next) recording.delete(ctx.run.id);
+    }
   };
   /** The absolute path of `file` inside the work folder, or why it is refused. */
   const resolve = (thread: Parameters<typeof workDir>[2], file: string): { at: string } | { refused: string } => {
@@ -100,12 +140,18 @@ export function fileTools(store: Store, home: string): Tool[] {
         const before = existed ? fs.readFileSync(r.at, "utf8") : "";
         writeAtomic(r.at, a.content);
         const base = workDir(store, home, ctx.thread);
-        noteEdit(ctx, base, {
-          path: path.relative(base, r.at),
-          status: existed ? "M" : "A",
-          added: lineCount(a.content),
-          removed: lineCount(before),
-        });
+        await noteEdit(
+          ctx,
+          base,
+          {
+            path: path.relative(base, r.at),
+            status: existed ? "M" : "A",
+            added: lineCount(a.content),
+            removed: lineCount(before),
+          },
+          before,
+          a.content,
+        );
         return `${existed ? "replaced" : "created"} ${r.at} (${Buffer.byteLength(a.content)} bytes)`;
       },
     }),
@@ -138,12 +184,18 @@ export function fileTools(store: Store, home: string): Tool[] {
         writeAtomic(r.at, next);
         const times = a.all ? count : 1;
         const base = workDir(store, home, ctx.thread);
-        noteEdit(ctx, base, {
-          path: path.relative(base, r.at),
-          status: "M",
-          added: lineCount(a.new) * times,
-          removed: lineCount(a.old) * times,
-        });
+        await noteEdit(
+          ctx,
+          base,
+          {
+            path: path.relative(base, r.at),
+            status: "M",
+            added: lineCount(a.new) * times,
+            removed: lineCount(a.old) * times,
+          },
+          text,
+          next,
+        );
         return `replaced ${a.all ? count : 1} occurrence${(a.all ? count : 1) === 1 ? "" : "s"} in ${r.at}`;
       },
     }),

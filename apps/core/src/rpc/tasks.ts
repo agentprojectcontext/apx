@@ -5,10 +5,11 @@ import type { Author, Task } from "@apx/protocol";
 import { publicRun, type RunRecord } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
+import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { columnsOf, dueOf, tagsOf } from "../domain/tasks.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Engine } from "../engine/engine.ts";
-import { MAX_MENTION_DEPTH, mentioned } from "../engine/office.ts";
+import { MAX_MENTION_DEPTH, mentioned, taskCommentAttention } from "../engine/office.ts";
 import { badRequest, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
@@ -126,10 +127,8 @@ export function taskHandlers(store: Store, engine: Engine) {
       const keeper = c.assignee !== undefined ? c.assignee : cur.assignee;
       const unassign =
         moving && keeper && store.agents.get(keeper)?.project_id && store.agents.get(keeper)?.project_id !== target;
-      // The tray hears of a task when it starts waiting for the owner, not on every later change.
-      if (c.awaits_owner && !cur.awaits_owner && cur.state === "open")
-        store.notifications.add({ kind: "task", title: cur.title, thread_id: cur.thread_id, ref: cur.id });
       return store.tx(() => {
+        noticeTaskWaiting(store, cur, c.awaits_owner ?? cur.awaits_owner);
         if (moving) store.threads.moveTo(cur.thread_id, target);
         return store.tasks.change(
           task,
@@ -180,6 +179,7 @@ export function taskHandlers(store: Store, engine: Engine) {
       return store.tx(() => {
         const message = store.messages.add({ thread_id: t.thread_id, author, parts: [{ type: "text", text }] });
         store.threads.patch(t.thread_id, { preview: previewOf(text) });
+        taskCommentAttention(store, t, text, by(ctx));
         store.tasks.touched(t.id, by(ctx));
         // An agent's comment arrives as another agent's words (untrusted); the owner's as the owner's. Turns started by
         // an agent's mention count as hops, a few at most.

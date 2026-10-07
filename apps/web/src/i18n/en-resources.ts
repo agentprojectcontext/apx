@@ -4,6 +4,7 @@ export const enResources = {
   "res.toolsMode.ask": "Ask first",
   "res.toolsMode.all": "All allowed",
   "res.toolsMode.some": "Some",
+  "res.toolsMode.unknown": "Unverified: open the server to load its tools",
   "res.toolsAskHelp": "Each agent asks you before using a tool that changes something.",
   "res.toolsAllHelp": "No agent asks for these tools. If the server or a tool changes, they ask again.",
   "res.toolsPick": "Click a tool to allow it (green) or to make it ask again.",

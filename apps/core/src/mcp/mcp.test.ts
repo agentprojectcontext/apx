@@ -167,3 +167,45 @@ test("changing the server's definition needs a new approval", async () => {
   const { servers } = await env.client.call("mcp.list", { project });
   assert.equal(servers.find((x) => x.name === "notes")?.status, "needs-approval");
 });
+
+test("terminal MCP calls describe schemas, validate arguments and preserve raw results", async () => {
+  const target = { scope: "global" as const, server: "mine" };
+  const { tools } = await env.client.call("mcp.describe", target);
+  assert.ok(tools.find((t) => t.name === "echo")?.inputSchema.properties);
+  const r = await env.client.call("mcp.call", { ...target, tool: "echo", arguments: { text: "terminal" } });
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const cli = path.resolve(import.meta.dirname, "../../../terminal/src/main.ts");
+  const run = promisify(execFile);
+  const listed = await run(process.execPath, [cli, "mcp", "tools", "mine", "--json"], {
+    env: { ...process.env, APX_URL: env.core.url },
+  });
+  assert.ok(JSON.parse(listed.stdout).tools.some((t: { name: string }) => t.name === "echo"));
+  const called = await run(process.execPath, [cli, "mcp", "run", "mine", "echo", '{"text":"cli"}'], {
+    env: { ...process.env, APX_URL: env.core.url },
+  });
+  assert.equal(JSON.parse(called.stdout).content[0].text, "echo: cli");
+  assert.equal(r.content?.[0]?.text, "echo: terminal");
+  await assert.rejects(
+    env.client.call("mcp.call", { ...target, tool: "echo", arguments: { text: 12 } }),
+    /invalid|expected/i,
+  );
+  await assert.rejects(env.client.call("mcp.call", { ...target, tool: "missing", arguments: {} }), /not found/);
+});
+
+test("direct MCP calls obey project toggles and cannot be made by an agent", async () => {
+  const target = { scope: "global" as const, server: "mine", project };
+  await env.client.call("mcp.toggle", { project, server: "mine", on: false });
+  try {
+    await assert.rejects(
+      env.client.call("mcp.call", { ...target, tool: "echo", arguments: { text: "blocked" } }),
+      /not enabled/,
+    );
+    await assert.rejects(env.client.call("mcp.describe", target), /not enabled/);
+  } finally {
+    await env.client.call("mcp.toggle", { project, server: "mine", on: true });
+  }
+  const { ApxClient } = await import("@apx/protocol/client");
+  const agent = new ApxClient({ url: env.core.url, actor: "agent" });
+  await assert.rejects(agent.call("mcp.call", { ...target, tool: "echo", arguments: { text: "blocked" } }), /reserved/);
+});

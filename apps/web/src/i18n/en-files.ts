@@ -1,5 +1,17 @@
 // UI strings, English: a project's files, read-only.
 export const enFiles = {
+  "panel.document": "Documents",
+  "panel.document.hint": "Read documents from this chat",
+  "document.label": "Document",
+  "document.choose": "Choose a document",
+  "document.empty": "No documents yet",
+  "document.emptyBody": "Reports, plans and reference documents opened by your agent appear here.",
+  "document.source": "View source",
+  "document.view": "Read document",
+  "document.download": "Download",
+  "document.loading": "Loading document…",
+  "document.failed": "Could not load the document. Try again.",
+  "document.retry": "Retry",
   "files.tree": "Project files",
   "files.back": "Files",
   "files.repo": "Repository",

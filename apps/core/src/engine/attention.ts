@@ -29,7 +29,7 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
         ref: e.part.input_id,
       });
     } else if (e.type === "task.updated") {
-      // Raised when a task starts waiting (rpc/tasks.ts); every later update only clears it once it stops.
+      // Raised when a task starts waiting; later updates only clear it once it stops.
       const t = e.task;
       if (!t.awaits_owner || t.state !== "open") store.notifications.resolve("task", t.id);
       // Done, dropped or moved to a later date: the reminder is moot.

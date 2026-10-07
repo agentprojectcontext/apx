@@ -13,6 +13,18 @@ const IMAGES: Record<string, string> = {
   "image/webp": "webp",
   "image/gif": "gif",
 };
+const AUDIO: Record<string, string> = {
+  "audio/webm": "webm",
+  "audio/ogg": "ogg",
+  "audio/mp4": "m4a",
+  "audio/x-m4a": "m4a",
+  "audio/mpeg": "mp3",
+  "audio/wav": "wav",
+  "audio/x-wav": "wav",
+  "audio/flac": "flac",
+  "audio/x-flac": "flac",
+  "audio/aac": "aac",
+};
 /** Text the agent can read as is. */
 const TEXT = /^(text\/[a-z0-9.+-]+|application\/(json|xml|x-yaml|yaml|csv|x-ndjson|javascript|typescript|x-sh))$/;
 /** Binary documents kept for download and inspection with tools in the work folder. */
@@ -24,6 +36,10 @@ const OTHER: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
   "application/vnd.ms-excel": "xls",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
 };
 
 /** The first bytes of each image type. */
@@ -48,11 +64,15 @@ export function saveUpload(
   home: string,
   store: Store,
   a: { name: string; mime: string; bytes: Buffer; thread?: string | undefined },
+  maxBytes?: number,
 ): MediaRecord & { name: string } {
   const image = IMAGES[a.mime];
+  const audio = AUDIO[a.mime.split(";")[0]?.trim() ?? ""];
   const readable = isReadable(a.mime);
-  if (!image && !readable && !OTHER[a.mime]) throw new Error(`${a.name}: ${a.mime || "this type"} cannot be attached`);
-  const limit = image ? UPLOAD_LIMITS.imageBytes : UPLOAD_LIMITS.fileBytes;
+  if (!image && !audio && !readable && !OTHER[a.mime])
+    throw new Error(`${a.name}: ${a.mime || "this type"} cannot be attached`);
+  const limit =
+    maxBytes ?? (image ? UPLOAD_LIMITS.imageBytes : audio ? UPLOAD_LIMITS.audioBytes : UPLOAD_LIMITS.fileBytes);
   if (a.bytes.length > limit) throw new Error(`${a.name} is over ${Math.round(limit / 1024 / 1024)} MB`);
   if (!a.bytes.length) throw new Error(`${a.name} is empty`);
   // A model refuses an image whose bytes are not what its type says: catch it here, with a reason the owner reads.
@@ -61,10 +81,10 @@ export function saveUpload(
   if (readable && a.bytes.includes(0)) throw new Error(`${a.name} is not a text file`);
   const dir = path.join(home, "media", "uploads", new Date().toISOString().slice(0, 10));
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `${randomUUID()}.${image ?? OTHER[a.mime] ?? "txt"}`);
+  const file = path.join(dir, `${randomUUID()}.${image ?? audio ?? OTHER[a.mime] ?? "txt"}`);
   fs.writeFileSync(file, a.bytes, { flag: "wx" });
   const media = store.media.add({
-    kind: image ? "image" : "file",
+    kind: image ? "image" : audio ? "audio" : "file",
     mime: a.mime,
     bytes: a.bytes.length,
     path: file,

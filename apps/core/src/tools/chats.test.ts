@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`seen: ${String(req.messages.at(-1)?.content)}`);
@@ -157,4 +157,100 @@ test("search scopes before ranking limits and excludes external clients, rooms a
   const result = done.messages.at(-1)?.parts.find((p) => p.type === "text")?.text ?? "";
   assert.match(result, /Older owner chat/);
   assert.doesNotMatch(result, /Private \d|External client|\[Contact|\[Room/);
+});
+
+test("participants retrieve their delegation by session name and by both participant names", async () => {
+  const store = env.core.store;
+  const parent = store.threads.create({ kind: "loose", title: "Review task", agent_ids: ["roby"] });
+  const session = store.threads.create({
+    kind: "a2a",
+    title: "Delegated report",
+    agent_ids: ["editor", "roby"],
+    parent_id: parent.id,
+    session: "release-report",
+  });
+  store.messages.add({
+    thread_id: session.id,
+    author: { kind: "agent", id: "editor" },
+    parts: [{ type: "text", text: "releaseproof final report" }],
+  });
+  const unrelated = store.threads.create({ kind: "loose", title: "Unrelated report", agent_ids: ["roby"] });
+  store.messages.add({
+    thread_id: unrelated.id,
+    author: { kind: "agent", id: "roby" },
+    parts: [{ type: "text", text: "releaseproof unrelated" }],
+  });
+  const review = store.threads.create({ kind: "loose", title: "Review findings", agent_ids: ["editor"] });
+  await env.client.call("threads.send", { thread: review.id, text: "read:release-report" });
+  const read = await env.settle(review.id);
+  assert.match(texts(read.messages).at(-1) ?? "", /releaseproof final report/);
+  await env.client.call("threads.send", { thread: review.id, text: "search:Roby Editor releaseproof" });
+  const searched = await env.settle(review.id);
+  assert.match(texts(searched.messages).at(-1) ?? "", /Delegated report/);
+  assert.doesNotMatch(texts(searched.messages).at(-1) ?? "", /Unrelated report/);
+});
+
+test("duplicate session names resolve within the caller's chat and refuse ambiguous global reads", async () => {
+  const store = env.core.store;
+  const parents = ["First caller", "Second caller"].map((title) =>
+    store.threads.create({ kind: "loose", title, agent_ids: ["roby"] }),
+  );
+  for (const parent of parents) {
+    const child = store.threads.create({
+      kind: "a2a",
+      title: `${parent.title} task`,
+      agent_ids: ["editor", "roby"],
+      parent_id: parent.id,
+      session: "shared-name",
+    });
+    store.messages.add({
+      thread_id: child.id,
+      author: { kind: "agent", id: "editor" },
+      parts: [{ type: "text", text: `${parent.title} final report` }],
+    });
+  }
+  const first = parents[0];
+  assert.ok(first);
+  await env.client.call("threads.send", { thread: first.id, text: "read:shared-name" });
+  const local = await env.settle(first.id);
+  assert.match(texts(local.messages).at(-1) ?? "", /First caller final report/);
+  assert.doesNotMatch(texts(local.messages).at(-1) ?? "", /Second caller final report/);
+  const other = store.threads.create({ kind: "loose", title: "Other caller", agent_ids: ["editor"] });
+  await env.client.call("threads.send", { thread: other.id, text: "read:shared-name" });
+  const ambiguous = await env.settle(other.id);
+  assert.match(texts(ambiguous.messages).at(-1) ?? "", /Ambiguous session name/);
+});
+
+test("a longer participant name does not also require an unrelated agent with its shorter name", async () => {
+  const store = env.core.store;
+  const parent = store.threads.create({
+    kind: "loose",
+    title: "Team handoff",
+    project_id: "team",
+    agent_ids: ["roby"],
+  });
+  const session = store.threads.create({
+    kind: "a2a",
+    title: "Team delegated findings",
+    project_id: "team",
+    parent_id: parent.id,
+    agent_ids: ["team-editor", "roby"],
+  });
+  store.messages.add({
+    thread_id: session.id,
+    author: { kind: "agent", id: "team-editor" },
+    parts: [{ type: "text", text: "specificproof final report" }],
+  });
+  const review = store.threads.create({
+    kind: "loose",
+    title: "Team findings review",
+    project_id: "team",
+    agent_ids: ["team-editor"],
+  });
+  await env.client.call("threads.send", {
+    thread: review.id,
+    text: "search:Team editor Roby specificproof",
+  });
+  const done = await env.settle(review.id);
+  assert.match(texts(done.messages).at(-1) ?? "", /Team delegated findings/);
 });

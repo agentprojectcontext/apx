@@ -18,13 +18,64 @@ test("Resources lists a server's tools, allows all or some for every agent, and 
   await tools.getByRole("button", { name: "token" }).click();
   await expect(tools.getByRole("button", { name: "token" })).toHaveAttribute("aria-pressed", "false");
   await expect(tools.getByRole("radio", { name: "Algunas" })).toHaveAttribute("aria-checked", "true");
-  await tools.getByRole("radio", { name: "Preguntan" }).click();
+  await tools.getByRole("radio", { name: "Preguntar" }).click();
   await expect(tools.getByRole("button", { name: "echo" })).toHaveAttribute("aria-pressed", "false");
   await page.locator(".resd__row").getByRole("button", { name: "Quitar aprobación" }).click();
   await expect(page.locator(".resd__callout")).toBeVisible();
   await page.locator(".resd__callout").getByRole("button", { name: "Aprobar" }).click();
   await expect(page.locator(".resd__callout")).toBeHidden();
   await rpc("mcp.set", { name: "permissions", server: null });
+});
+
+test("right-click permissions update the list indicator, persist and open the individual picker", async ({ page }) => {
+  await rpc("setup.finish", {});
+  await rpc("mcp.set", { name: "context-permissions", server: { command: process.execPath, args: [server] } });
+  await rpc("mcp.set", { name: "context-other", server: { command: process.execPath, args: [server] } });
+  try {
+    await open(page, "#view=resources&resourcesTab=mcp");
+    await page.getByRole("radio", { name: /^MCP/ }).click();
+    const row = page.getByRole("button", { name: /^context-permissions/ });
+    await expect(row.getByRole("img", { name: /Sin verificar/ })).toBeVisible();
+    await row.click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Permisos de tools", exact: true }).hover();
+    await page.getByRole("menuitem", { name: "Todas permitidas", exact: true }).click();
+    await expect(row.getByRole("img", { name: "Permisos de tools: Todas permitidas" })).toBeVisible();
+    await expect(row.locator(".apx-pickrow__dot.is-on")).toBeVisible();
+    await page.reload();
+    await page.getByRole("radio", { name: /^MCP/ }).click();
+    await expect(row.getByRole("img", { name: "Permisos de tools: Todas permitidas" })).toBeVisible();
+
+    await row.click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Permisos de tools", exact: true }).hover();
+    await page.getByRole("menuitem", { name: "Algunas", exact: true }).click();
+    const tools = page.locator(".mcptools");
+    await expect(tools.getByRole("radio", { name: "Algunas" })).toHaveAttribute("aria-checked", "true");
+    await tools.getByRole("button", { name: "token", exact: true }).click();
+    await expect(row.getByRole("img", { name: "Permisos de tools: Algunas" })).toBeVisible();
+    await page.getByRole("button", { name: /^context-other/ }).click();
+    await expect(tools.getByRole("radio", { name: "Preguntar" })).toHaveAttribute("aria-checked", "true");
+    await row.click();
+    await expect(tools.getByRole("radio", { name: "Algunas" })).toHaveAttribute("aria-checked", "true");
+
+    await row.click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Permisos de tools", exact: true }).hover();
+    await page.getByRole("menuitem", { name: "Preguntar", exact: true }).click();
+    await expect(row.getByRole("img", { name: "Permisos de tools: Preguntar" })).toBeVisible();
+    await expect(tools.getByRole("button", { name: "echo", exact: true })).toHaveAttribute("aria-pressed", "false");
+    await expect(tools.getByRole("radio", { name: "Preguntar" })).toHaveAttribute("aria-checked", "true");
+
+    await row.click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Quitar aprobación", exact: true }).click();
+    await row.click({ button: "right" });
+    await expect(page.getByRole("menuitem", { name: "Permisos de tools", exact: true })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await page.keyboard.press("Escape");
+  } finally {
+    await rpc("mcp.set", { name: "context-permissions", server: null });
+    await rpc("mcp.set", { name: "context-other", server: null });
+  }
 });
 
 test("chat offers once, session and always; session lets later calls proceed without asking", async ({ page }) => {

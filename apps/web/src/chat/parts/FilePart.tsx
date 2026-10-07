@@ -3,10 +3,17 @@ import { Icons } from "@apx/ui";
 import { useState } from "react";
 import { formatBytes } from "../../common/format.ts";
 import { mediaUrl } from "../../data/media.ts";
+import { useT } from "../../i18n/index.ts";
+import { go } from "../../shell/nav.ts";
+import { useMediaUrl } from "./useMediaUrl.ts";
 
-/** A file the owner attached: its name and size; opens (downloads) through media.get on click. */
+/** An attachment from either participant, with inline video playback and a named download. */
 export function FilePart({ part }: { part: Extract<Part, { type: "file" }> }) {
+  const t = useT();
   const [busy, setBusy] = useState(false);
+  const video = part.mime.startsWith("video/");
+  const audio = part.mime.startsWith("audio/");
+  const src = useMediaUrl(video || audio ? part.media_id : undefined);
   const open = async () => {
     setBusy(true);
     try {
@@ -19,11 +26,34 @@ export function FilePart({ part }: { part: Extract<Part, { type: "file" }> }) {
       setBusy(false);
     }
   };
+  if (part.document)
+    return (
+      <button type="button" className="filepart documentpart" onClick={() => go.document(part.media_id)}>
+        <Icons.FileText size={18} />
+        <span className="documentpart__info">
+          <span className="documentpart__label">{t("document.label")}</span>
+          <span className="filepart__name">{part.document.title}</span>
+          <span className="documentpart__name">{part.name}</span>
+        </span>
+        <span className="filepart__size">{formatBytes(part.bytes)}</span>
+        <Icons.ArrowRight size={14} />
+      </button>
+    );
   return (
-    <button type="button" className="filepart" onClick={() => void open()} disabled={busy} title={part.name}>
-      <Icons.FileText size={14} />
-      <span className="filepart__name">{part.name}</span>
-      <span className="filepart__size">{formatBytes(part.bytes)}</span>
-    </button>
+    <div className={video ? "videopart" : undefined}>
+      {video && src && (
+        // biome-ignore lint/a11y/useMediaCaption: project videos are shared as supplied, without a separate caption track.
+        <video src={src} controls preload="metadata" aria-label={part.name} />
+      )}
+      {audio && src && (
+        // biome-ignore lint/a11y/useMediaCaption: audio files are shared as supplied, without a separate caption track.
+        <audio src={src} controls preload="metadata" aria-label={part.name} />
+      )}
+      <button type="button" className="filepart" onClick={() => void open()} disabled={busy} title={part.name}>
+        <Icons.FileText size={14} />
+        <span className="filepart__name">{part.name}</span>
+        <span className="filepart__size">{formatBytes(part.bytes)}</span>
+      </button>
+    </div>
   );
 }

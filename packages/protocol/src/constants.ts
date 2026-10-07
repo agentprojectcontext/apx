@@ -20,9 +20,16 @@ export const ErrorCode = {
 } as const;
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
-/** What can be attached: images the model can look at, and text it can read (PDFs and others are only listed). */
+/** Upload bounds: audio is transcribed, images reach vision models, and text is read inline. */
 // 5 MB is the largest image every provider takes (Anthropic's limit).
-export const UPLOAD_LIMITS = { imageBytes: 5 * 1024 * 1024, fileBytes: 2 * 1024 * 1024 } as const;
+export const UPLOAD_LIMITS = {
+  imageBytes: 5 * 1024 * 1024,
+  fileBytes: 2 * 1024 * 1024,
+  audioBytes: 10 * 1024 * 1024,
+} as const;
+
+/** Maximum UTF-8 document snapshot rendered in the side panel. */
+export const DOCUMENT_MAX_BYTES = 400_000;
 
 /** How a contact relates to the owner: it shapes how the agent talks to them. */
 export const PERSON_RELATIONS = [

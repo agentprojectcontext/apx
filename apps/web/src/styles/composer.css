@@ -38,14 +38,57 @@
 
 .composer__mic.is-recording {
   color: var(--apx-danger);
-  animation: composer-rec 1.2s ease-in-out infinite;
+}
+.chat__composer.is-recording .apx-composer.is-disabled {
+  opacity: 1;
 }
 .composer__mic.is-transcribing svg {
   animation: composer-spin 1s linear infinite;
 }
-@keyframes composer-rec {
-  50% {
-    opacity: 0.45;
+.voice-recording {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.voice-recording.is-recording {
+  color: var(--apx-danger);
+}
+.voice-recording__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.voice-recording__bars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 3px;
+  height: 24px;
+}
+.voice-recording__bars > span {
+  width: 3px;
+  height: 24px;
+  border-radius: var(--apx-radius-pill);
+  background: currentColor;
+  transition: transform 80ms ease-out;
+}
+.voice-recording__time {
+  font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-recording__bars > span {
+    transition: none;
+  }
+  .composer__mic.is-transcribing svg {
+    animation: none;
   }
 }
 @keyframes composer-spin {
@@ -147,6 +190,13 @@
 }
 
 /* Files in a sent message */
+.attchip.is-audio {
+  max-width: 100%;
+  height: auto;
+  padding: 0 4px 0 0;
+  background: none;
+  border: 0;
+}
 .transcript__files {
   display: flex;
   flex-wrap: wrap;
@@ -157,6 +207,13 @@
 .transcript__files .imagepart img {
   max-width: 220px;
   max-height: 160px;
+}
+.transcript__files .audiopart {
+  flex-basis: 100%;
+  margin-bottom: 8px;
+}
+.attchip.is-audio .audiopart {
+  min-width: 0;
 }
 .filepart {
   display: inline-flex;

@@ -262,7 +262,7 @@ test("a held tray click closes the popup with stale bounds; clicking outside sti
   expect(result.closedOutside).toBe(true);
 });
 
-test("notifications add and clear the tray indicator and Dock count", async () => {
+test("notifications add and clear the integrated tray indicator, menu-bar count and Dock count", async () => {
   const main = await page("main");
   const badge = async (count: number) => {
     await main.evaluate(
@@ -270,18 +270,29 @@ test("notifications add and clear the tray indicator and Dock count", async () =
         (window as unknown as { apxDesktop: { setAttention: (count: number) => void } }).apxDesktop.setAttention(count),
       count,
     );
-    return app.evaluate(({ app }) => {
+    return app.evaluate(({ app, nativeImage }) => {
       const state = globalThis as unknown as {
         apxTestTray: import("electron").Tray;
         apxTestTrayImage: string;
         apxTestTrayTemplate: boolean;
         apxTestTrayTooltip: string;
       };
+      const image = nativeImage.createFromDataURL(state.apxTestTrayImage);
+      const size = image.getSize();
+      const pixels = image.toBitmap();
+      let bodyPixels = 0;
+      for (let y = Math.floor(size.height / 3); y < size.height; y++) {
+        for (let x = 0; x < size.width; x++) {
+          if ((pixels[(y * size.width + x) * 4 + 3] ?? 0) > 127) bodyPixels++;
+        }
+      }
       return {
         title: process.platform === "darwin" ? state.apxTestTray.getTitle() : "",
         tooltip: state.apxTestTrayTooltip,
         image: state.apxTestTrayImage,
         template: state.apxTestTrayTemplate,
+        size,
+        bodyPixels,
         dock: app.dock?.getBadge(),
       };
     });
@@ -291,11 +302,20 @@ test("notifications add and clear the tray indicator and Dock count", async () =
   const unread = await badge(3);
   expect(unread.tooltip).toMatch(/^APX · 3 /);
   expect(unread.image).not.toBe(empty.image);
+  expect(empty.bodyPixels).toBeGreaterThan(0);
+  expect(unread.size).toEqual(empty.size);
+  expect(unread.bodyPixels).toBeGreaterThan(empty.bodyPixels * 0.75);
   if (process.platform === "darwin") {
-    expect(unread.title).toBe("");
+    expect(unread.title).toBe("3");
     expect(unread.template).toBe(true);
     expect(unread.dock).toBe("3");
-    expect((await badge(120)).dock).toBe("99+");
+    const many = await badge(120);
+    expect(many.title).toBe("99+");
+    expect(many.dock).toBe("99+");
+    expect(many.image).toBe(unread.image);
+    const one = await badge(1);
+    expect(one.title).toBe("1");
+    expect(one.dock).toBe("1");
   }
   expect(await badge(0)).toEqual(empty);
 });

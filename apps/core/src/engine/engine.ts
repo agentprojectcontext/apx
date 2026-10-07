@@ -64,6 +64,8 @@ export type Admit = {
   attachments?: Attachment[];
   reply_to?: RunInput["reply_to"];
   depth?: number;
+  /** A resumed delegated turn still reports to the original caller. */
+  parent_run_id?: string | undefined;
 };
 
 export type AdmitFn = (a: Admit) => RunRecord;
@@ -177,6 +179,7 @@ export function createEngine(deps: {
         reply_to: a.reply_to !== undefined ? a.reply_to : (store.threads.context(a.thread_id).reply_to ?? null),
       },
       depth: a.depth ?? 0,
+      parent_run_id: a.parent_run_id,
       deadline_at: new Date(Date.now() + RUN_DEADLINE_MS).toISOString(),
     });
     if (store.threads.get(a.thread_id)?.state !== "working") store.threads.patch(a.thread_id, { state: "submitted" });

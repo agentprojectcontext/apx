@@ -2,7 +2,7 @@ import type { McpServerStatus } from "@apx/protocol";
 import { Button, ContextMenu, Dialog, EmptyState, Icons, MasterDetail, type MenuEntry, PickRow, Tag } from "@apx/ui";
 import { useState } from "react";
 import { projectName } from "../data/identity.ts";
-import { setMcp, toggleMcp, trustMcp } from "../data/resources.ts";
+import { setMcp, setMcpToolMode, toggleMcp, trustMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { mcpDot, STATUS_KEY } from "./labels.ts";
@@ -23,6 +23,10 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
   const [editing, setEditing] = useState<McpServerStatus>();
   const [removing, setRemoving] = useState<McpServerStatus>();
   const [testRequest, setTestRequest] = useState(0);
+  const [permissionRequest, setPermissionRequest] = useState(0);
+  const [permissionServer, setPermissionServer] = useState<string>();
+  const [toolReload, setToolReload] = useState(0);
+  const [permissionsBusy, setPermissionsBusy] = useState(false);
   const all = res.data.servers;
   const shown = (all ?? []).filter(
     (s) =>
@@ -47,6 +51,17 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
   const current = (all ?? []).find((s) => keyOf(s) === picked);
   const inherit = useInheritance(projectId, "mcp", res.loadServers);
   const changed = () => res.loadServers();
+  const setPermissions = async (s: McpServerStatus, mode: "ask" | "all") => {
+    setPermissionsBusy(true);
+    try {
+      await setMcpToolMode(s, mode, s.scope === "project" ? s.project_id : (projectId ?? s.project_id));
+      await changed();
+      setToolReload((n) => n + 1);
+      if (keyOf(s) === picked) setPermissionRequest(0);
+    } finally {
+      setPermissionsBusy(false);
+    }
+  };
   /** What a right-click on a server offers: the same actions as its detail, without opening it first. */
   const actions = (s: McpServerStatus): MenuEntry[] => {
     const inherited = Boolean(projectId) && isGlobal(s);
@@ -63,6 +78,36 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
           setPicked(keyOf(s));
           setTestRequest((n) => n + 1);
         },
+      },
+      {
+        type: "submenu",
+        label: t("res.toolsMode"),
+        icon: <Icons.Shield size={14} />,
+        disabled: permissionsBusy || !s.trusted || !s.enabled || s.off_here,
+        items: [
+          {
+            label: t("res.toolsMode.ask"),
+            icon: <Icons.ShieldAlert size={14} />,
+            checked: s.tool_permission_mode === "ask",
+            onSelect: () => void setPermissions(s, "ask"),
+          },
+          {
+            label: t("res.toolsMode.all"),
+            icon: <Icons.ShieldCheck size={14} />,
+            checked: s.tool_permission_mode === "all",
+            onSelect: () => void setPermissions(s, "all"),
+          },
+          {
+            label: t("res.toolsMode.some"),
+            icon: <Icons.ListChecks size={14} />,
+            checked: s.tool_permission_mode === "some",
+            onSelect: () => {
+              setPicked(keyOf(s));
+              setPermissionServer(keyOf(s));
+              setPermissionRequest((n) => n + 1);
+            },
+          },
+        ],
       },
       ...[
         {
@@ -95,7 +140,12 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
         mono
         title={s.name}
         description={s.off_here ? t("res.offHere") : s.tools ? t("mcp.tools", { n: s.tools }) : t(STATUS_KEY[s.status])}
-        trailing={<Tag>{s.transport}</Tag>}
+        trailing={
+          <>
+            <Tag>{s.transport}</Tag>
+            <PermissionIndicator mode={s.tool_permission_mode} />
+          </>
+        }
         dot={mcpDot(s)}
         muted={s.off_here || s.status === "disabled"}
         selected={keyOf(s) === picked}
@@ -175,6 +225,8 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
               onEdit={() => setEditing(current)}
               onRemove={() => setRemoving(current)}
               testRequest={testRequest}
+              permissionRequest={permissionServer === keyOf(current) ? permissionRequest : 0}
+              toolReload={toolReload}
             />
           )
         }
@@ -224,5 +276,23 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
       )}
       {newServer}
     </>
+  );
+}
+
+function PermissionIndicator({ mode }: { mode: McpServerStatus["tool_permission_mode"] }) {
+  const t = useT();
+  const Icon =
+    mode === "all"
+      ? Icons.ShieldCheck
+      : mode === "some"
+        ? Icons.ListChecks
+        : mode === "ask"
+          ? Icons.ShieldAlert
+          : Icons.CircleDashed;
+  const label = `${t("res.toolsMode")}: ${t(`res.toolsMode.${mode}`)}`;
+  return (
+    <span className={`mcp-permission is-${mode}`} role="img" aria-label={label} title={label}>
+      <Icon size={14} aria-hidden="true" />
+    </span>
   );
 }

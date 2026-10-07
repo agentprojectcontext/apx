@@ -1,7 +1,7 @@
 import type { McpServerStatus, ToolApproval } from "@apx/protocol";
 import { Button, Icons, SegmentedControl } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { approveMcpTool, listApprovals, mcpPermissions, revokeApproval } from "../data/resources.ts";
+import { approveMcpTool, listApprovals, mcpPermissions, revokeApproval, setMcpToolMode } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 
@@ -10,8 +10,8 @@ type Mode = "ask" | "all" | "some";
 
 const ofServer = (s: McpServerStatus) => (g: ToolApproval) => {
   try {
-    const [scope, , name] = JSON.parse(g.server) as string[];
-    return scope === s.scope && name === s.name;
+    const [scope, project, name] = JSON.parse(g.server) as string[];
+    return scope === s.scope && name === s.name && project === (s.scope === "project" ? (s.project_id ?? "") : "");
   } catch {
     return false;
   }
@@ -26,6 +26,7 @@ export function McpTools({
   projectId,
   names,
   reload,
+  pickRequest = 0,
   onLoaded,
 }: {
   server: McpServerStatus;
@@ -33,7 +34,9 @@ export function McpTools({
   /** What is known without starting it (status, last test). */
   names: string[];
   /** Bumped after a test: the list is read again. */
-  reload: number;
+  reload: string;
+  /** Bumped by the list's permission menu to open the individual tool picker. */
+  pickRequest?: number;
   onLoaded(): void;
 }) {
   const t = useT();
@@ -60,27 +63,32 @@ export function McpTools({
       onLoaded();
     });
   }, [s.name, s.scope, project, usable, reload]);
+  useEffect(() => {
+    setPicking(pickRequest > 0);
+  }, [pickRequest]);
 
   const allowed = tools?.filter((x) => x.approved).length ?? 0;
   const mode: Mode = picking ? "some" : !allowed ? "ask" : allowed === tools?.length ? "all" : "some";
   const apply = async (change: () => Promise<unknown>) => {
     setBusy(true);
-    await change();
-    await read();
-    setBusy(false);
+    try {
+      await change();
+      await read();
+      onLoaded();
+    } finally {
+      setBusy(false);
+    }
   };
   const setMode = (m: Mode) => {
+    if (busy) return;
     setPicking(m === "some");
     if (!tools || m === "some") return;
-    void apply(async () => {
-      for (const x of tools) {
-        if (m === "all" && !x.approved) await approveMcpTool(s, x.name, project);
-        if (m === "ask" && x.approved) await revokeApproval(x.key);
-      }
-    });
+    void apply(() => setMcpToolMode(s, m, project));
   };
-  const toggle = (x: Permission) =>
+  const toggle = (x: Permission) => {
+    setPicking(false);
     void apply(() => (x.approved ? revokeApproval(x.key) : approveMcpTool(s, x.name, project)));
+  };
 
   const shown = tools ?? names.map((name) => ({ name, key: name, permanent: false, approved: false }));
   return (

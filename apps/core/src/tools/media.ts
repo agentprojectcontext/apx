@@ -1,10 +1,34 @@
 // make_image: an agent draws with the owner's image services and the image appears in the chat. voice_replies: its
 // answers on a channel also go as voice notes.
 import { z } from "zod";
+import { documentTool } from "./documents.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 export function mediaTools(): Tool[] {
   return [
+    documentTool(),
+    defineTool({
+      name: "send_file",
+      description:
+        "Attach an existing file from your work folder directly to your reply in this chat. Use when the owner asks to see or download a project file, image, video, audio or document here. Images appear inline; videos play in the chat; files can be downloaded. Path may be relative or absolute inside your work folder; maximum 20 MB per file. Call once per file. Never claim a file was attached unless this tool succeeds. Do not substitute a website link for an attachment.",
+      args: z.object({ path: z.string().trim().min(1).max(1000) }),
+      effect: "local",
+      confirm: "untrusted",
+      deadlineMs: 15_000,
+      title: (a) =>
+        `Attached ${String(a.path ?? "a file")
+          .split(/[\\/]/)
+          .at(-1)}`,
+      async run(a, ctx) {
+        const { media: m } = await ctx.call("media.attach", { path: a.path });
+        const part =
+          m.kind === "image"
+            ? { type: "image" as const, media_id: m.id, mime: m.mime, alt: m.name }
+            : { type: "file" as const, media_id: m.id, mime: m.mime, name: m.name, bytes: m.bytes };
+        ctx.upsertPart((p) => (p.type === "image" || p.type === "file") && p.media_id === m.id, part);
+        return `Attached ${m.name} (${m.mime}, ${m.bytes} bytes) in this chat.`;
+      },
+    }),
     defineTool({
       name: "voice_replies",
       description:

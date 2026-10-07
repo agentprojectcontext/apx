@@ -1,0 +1,90 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { after, test } from "node:test";
+import { stripVTControlCharacters } from "node:util";
+import { card, cells, portrait, readTheme, rememberTheme } from "./presentation.ts";
+
+const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-cli-brand-"));
+after(() => fs.rmSync(home, { recursive: true, force: true }));
+
+const cli = (...args: string[]) =>
+  spawnSync(process.execPath, [new URL("./main.ts", import.meta.url).pathname, ...args], {
+    encoding: "utf8",
+    env: { ...process.env, APX_URL: "http://127.0.0.1:1", APX_HOME: home },
+    timeout: 10_000,
+  });
+
+test("version and help work offline, including short flags and JSON", () => {
+  for (const flag of ["--version", "-v"]) {
+    const r = cli(flag);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /APX v2/);
+    assert.ok(!r.stdout.includes("0.0.0"));
+  }
+  const r = cli("--version", "--json");
+  assert.equal(JSON.parse(r.stdout).generation, 2);
+  assert.match(cli("--help").stdout, /apx mcp run/);
+});
+
+test("unknown options and commands fail with useful errors and no stack trace", () => {
+  const option = cli("--unknown-option");
+  assert.equal(option.status, 2);
+  assert.match(option.stderr, /Invalid arguments/);
+  assert.ok(!option.stderr.includes("at parseArgs"));
+  const command = cli("unknown-command");
+  assert.equal(command.status, 1);
+  assert.match(command.stderr, /404/);
+});
+
+test("cards remove untrusted terminal control characters and fit narrow output", () => {
+  const output = card("Error", ["unsafe\u001b[2J title\nline"], 40);
+  assert.ok(!output.includes("\u001b"));
+  assert.ok(output.split("\n").every((s) => s.length <= 40));
+  assert.ok(portrait("noche").length > 0);
+});
+
+test("blob cards keep alignment in color, Unicode and narrow terminals", () => {
+  for (const columns of [24, 40, 80, 100]) {
+    const output = card(
+      "Status",
+      ["A crew 🟢 online", "界 · Devices", "Café"],
+      columns,
+      undefined,
+      { name: "Northwind 🟢", blob: "noche" },
+      true,
+    );
+    const plain = stripVTControlCharacters(output);
+    const widths = plain.split("\n").map(cells);
+    assert.ok(
+      widths.every((n) => n === widths[0]),
+      JSON.stringify(widths),
+    );
+    assert.ok(widths[0] !== undefined && widths[0] <= columns);
+    assert.match(output, /38;2;/);
+  }
+});
+
+test("help and errors preserve the selected blob offline without coloring machine output", () => {
+  rememberTheme(home, { name: "Northwind", blob: "noche" });
+  assert.deepEqual(readTheme(home), { name: "Northwind", blob: "noche" });
+  const help = cli("--help");
+  assert.match(help.stdout, /Seeing Help/);
+  assert.ok(!help.stdout.includes("Northwind"));
+  assert.ok(!help.stdout.includes("\u001b"));
+  const error = cli("missing");
+  assert.match(error.stderr, /Your crew, on your machine/);
+  assert.ok(!error.stderr.includes("Northwind"));
+  const plain = cli("--help", "--plain");
+  assert.ok(!plain.stdout.includes("╭"));
+  assert.match(plain.stdout, /Usage:/);
+});
+
+test("daemon explains the service command without acting as an alias", () => {
+  const r = cli("daemon");
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /apx service status/);
+  assert.match(r.stderr, /apx service restart/);
+});

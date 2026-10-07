@@ -3,6 +3,7 @@
 
 import type { Thread } from "@apx/protocol";
 import type { Inbound, InboundAction, OutboxRow, Presentation } from "../domain/channels.ts";
+import type { MediaRecord } from "../domain/media.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
@@ -74,8 +75,23 @@ export function createInbound(deps: {
     const owner = person.role === "owner";
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
     if (!owner && !person.muted && overLimit(person.id, person.name)) return "ignored";
-    let text = m.voice && !(person.muted && !owner) ? await heard(m, thread.id) : m.text;
+    let text = m.text;
     const attachments: string[] = [];
+    let voice: MediaRecord | undefined;
+    if (m.voice) {
+      try {
+        voice = saveUpload(deps.home, store, {
+          name: "Voice note",
+          mime: m.voice.mime,
+          bytes: Buffer.from(m.voice.data, "base64"),
+          thread: thread.id,
+        });
+        attachments.push(voice.id);
+      } catch {
+        text += "\n[voice note could not be accepted: invalid type, contents or size]";
+      }
+      if (voice && !(person.muted && !owner)) text = await heard(m, thread.id, voice);
+    }
     for (const file of m.files ?? []) {
       try {
         attachments.push(
@@ -126,14 +142,14 @@ export function createInbound(deps: {
   }
 
   /** A voice note as words the agent can read (with its caption, if any); says so when it could not be heard. */
-  async function heard(m: Inbound, threadId: string): Promise<string> {
+  async function heard(m: Inbound, threadId: string, media: MediaRecord): Promise<string> {
     const voice = m.voice;
     if (!voice) return m.text;
     const caption = m.text ? `${m.text}\n` : "";
     if (!deps.services.hasKind("transcription")) return `${caption}[voice note: no transcription engine is set up]`;
     try {
       const { text } = await deps.services.transcribe(
-        { bytes: Buffer.from(voice.data, "base64"), mime: voice.mime, thread: threadId },
+        { bytes: Buffer.from(voice.data, "base64"), mime: voice.mime, thread: threadId, media },
         AbortSignal.timeout(3 * 60_000),
       );
       return `${caption}[voice note] ${text || "(silence)"}`;
@@ -265,7 +281,9 @@ export function createInbound(deps: {
             return [
               m.kind === "image"
                 ? { type: "image" as const, media_id: id, mime: m.mime, alt: m.prompt ?? "image" }
-                : { type: "file" as const, media_id: id, mime: m.mime, name: m.prompt ?? id, bytes: m.bytes },
+                : m.kind === "audio"
+                  ? { type: "audio" as const, media_id: id, mime: m.mime }
+                  : { type: "file" as const, media_id: id, mime: m.mime, name: m.prompt ?? id, bytes: m.bytes },
             ];
           }),
         ],

@@ -9,7 +9,7 @@ import type { NodeBroker } from "../nodes/broker.ts";
 import { type Dispatch, NODE_METHODS } from "../rpc/router.ts";
 import { type Gate, mayBeNode, refuse } from "./guard.ts";
 
-const MAX_PAYLOAD = 8 * 1024 * 1024;
+const MAX_PAYLOAD = 16 * 1024 * 1024;
 
 /** What a connection may call, so the client does not have to guess. */
 function methodsFor(hello: HelloFrame): string[] {

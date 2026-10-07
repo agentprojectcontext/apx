@@ -12,7 +12,7 @@ const GROUPS: Record<string, (name: string) => boolean> = {
   widgets: (n) => n.endsWith("_widget"),
   agents: (n) => n === "list_agents" || n === "delegate" || n === "grant_tool",
   shell: (n) => n.startsWith("shell"),
-  files: (n) => n.startsWith("file_"),
+  files: (n) => n.startsWith("file_") || n === "send_file" || n === "open_document",
   mcp: (n) => n.startsWith("mcp_"),
   memory: (n) => n === "remember" || n === "recall" || n === "forget",
   images: (n) => n === "make_image",

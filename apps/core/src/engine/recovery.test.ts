@@ -2,8 +2,10 @@
 // result still reaches the agent that asked for it.
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { z } from "zod";
 import type { ChatItem } from "../providers/types.ts";
-import { say, scriptedLlm, startCore, texts } from "./testkit.ts";
+import { defineTool } from "../tools/types.ts";
+import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 const llm = scriptedLlm((_req, { system, said }) => {
   if (system.startsWith("You are Scout")) return say("Scout's findings.");
@@ -130,3 +132,81 @@ test("a restart closes a cut turn (effect unknown for a started tool), runs queu
     second.cleanup();
   }
 });
+
+for (const kind of ["question", "confirm"] as const) {
+  test(`a delegated ${kind} answered after restart returns only the final report to its caller`, async () => {
+    let writes = 0;
+    const publish = defineTool({
+      name: "publish_report",
+      description: "Publish a test report",
+      args: z.object({}),
+      effect: "external",
+      confirm: "always",
+      deadlineMs: 5000,
+      title: () => "Published report",
+      async run() {
+        writes++;
+        return "Internal tool output marker.";
+      },
+    });
+    const model = scriptedLlm((_req, { system, said, afterTool }) => {
+      if (system.startsWith("You are Scout")) {
+        if (afterTool || said.includes("Their answer:")) return say("Final report: task complete.");
+        if (said.includes("it will run without asking")) return callTool("approved", "publish_report", {});
+        const call = callTool(
+          "pending",
+          kind === "question" ? "ask_owner" : "publish_report",
+          kind === "question" ? { question: "Which report?" } : {},
+        );
+        return { message: { ...call.message, content: "Internal progress marker." } };
+      }
+      if (said.includes("<delegation_result")) return say(`Received: ${said}`);
+      if (!afterTool) return callTool("delegate", "delegate", { agent: "scout", task: "Prepare report", wait_s: 0 });
+      return say("Task sent.");
+    });
+    const first = await startCore({ llm: model, extraTools: [publish] });
+    let second: Awaited<ReturnType<typeof startCore>> | undefined;
+    try {
+      const parent = await first.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      await first.client.call("threads.send", { thread: parent.id, text: "Prepare report" });
+      let pending: Awaited<ReturnType<typeof first.client.call<"runs.pending">>>["inputs"] = [];
+      for (let i = 0; i < 200 && !pending.length; i++) {
+        pending = (await first.client.call("runs.pending", {})).inputs;
+        if (!pending.length) await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      const input = pending[0];
+      assert.ok(input);
+      assert.equal(input.kind, kind);
+      await first.settle(parent.id);
+      const original = first.core.store.runs.get(input.run_id);
+      assert.ok(original?.parent_run_id);
+      await first.core.close();
+      second = await startCore({ llm: model, home: first.home, extraTools: [publish] });
+      await second.client.call("runs.respond", {
+        input: input.id,
+        ...(kind === "question" ? { text: "Final report" } : { decision: "approve" as const }),
+      });
+      await second.settle(input.thread_id);
+      const resumed = second.core.store.runs.list(input.thread_id).find((r) => r.state === "completed");
+      assert.equal(resumed?.parent_run_id, original.parent_run_id);
+      assert.equal(resumed?.depth, original.depth);
+      const received = await second.settle(parent.id);
+      const result = received.runs.find((r) => {
+        const origin = second?.core.store.runs.get(r.id)?.input?.origin;
+        return origin?.kind === "delegation_result" && origin.run_id === resumed?.id;
+      });
+      assert.equal(result?.state, "completed");
+      const cards = received.messages.flatMap((m) => m.parts).filter((p) => p.type === "subthread");
+      assert.equal(cards.at(-1)?.state, "completed");
+      assert.equal(cards.at(-1)?.summary, "Final report: task complete.");
+      const log = second.core.store.modelLog.forRun(result?.id ?? "");
+      assert.match(JSON.stringify(log), /Final report: task complete/);
+      assert.doesNotMatch(JSON.stringify(log), /Internal progress marker|Internal tool output marker/);
+      assert.equal(writes, kind === "confirm" ? 1 : 0);
+    } finally {
+      if (second) await second.core.close();
+      else await first.core.close();
+      first.cleanup();
+    }
+  });
+}

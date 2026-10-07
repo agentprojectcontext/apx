@@ -102,6 +102,10 @@ test("an agent still cannot delegate to itself", async () => {
   await env.client.call("threads.send", { thread: t.id, text: "delegate to me" });
   const { messages } = await env.settle(t.id);
   assert.match(texts(messages).at(-1) ?? "", /cannot delegate to yourself/);
+  assert.equal(env.core.store.threads.sessions(t.id).length, 0);
+  const refusal = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  assert.match(refusal, /complete this task directly/);
+  assert.doesNotMatch(refusal, /start a worker/);
 });
 
 test("an ambiguous delegation is an invalid call, not a successful tool card", async () => {

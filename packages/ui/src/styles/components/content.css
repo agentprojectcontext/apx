@@ -323,6 +323,23 @@
   color: var(--apx-brand);
 }
 
+.apx-md__table {
+  overflow-x: auto;
+}
+.apx-md__table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.apx-md__table th,
+.apx-md__table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--apx-border);
+  vertical-align: top;
+}
+.apx-md__table th {
+  font-weight: 600;
+}
+
 /* ── LiveBrowserCard ───────────────────────────────────────────────────────── */
 .apx-livebrowser {
   display: flex;

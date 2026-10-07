@@ -220,8 +220,11 @@ export function createServices(deps: {
     /** Whether a kind of service is set up (enabled), without calling it. */
     hasKind: (kind: ServiceKind) => ofKind(kind).some((s) => s.enabled),
     /** A voice note to text with the first transcription engine that answers; the audio is kept as media. */
-    async transcribe(a: { bytes: Buffer; mime: string; thread?: string | undefined }, signal: AbortSignal) {
-      const media = saveFile(a.bytes, a.mime, { kind: "audio", thread_id: a.thread });
+    async transcribe(
+      a: { bytes: Buffer; mime: string; thread?: string | undefined; media?: MediaRecord | undefined },
+      signal: AbortSignal,
+    ) {
+      const media = a.media ?? saveFile(a.bytes, a.mime, { kind: "audio", thread_id: a.thread });
       const { out } = await firstThatWorks(candidates("transcription"), (s) =>
         transcribe(s, { path: media.path, bytes: a.bytes, mime: a.mime }, keyOf(s), signal, f, whisperCpp),
       );

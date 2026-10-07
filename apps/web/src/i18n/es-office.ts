@@ -103,6 +103,8 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "tasks.ev.edit.you": "La editaste",
   "tasks.ev.edit": "{name} la editó",
   "tasks.comment": "Comentario",
+  "tasks.mentionAgents": "Mencionar agente",
+  "tasks.mentionEmpty": "Sin agentes coincidentes",
   "tasks.commentHint": "Escribí un comentario; @nombre le pregunta a un agente acá.",
   "tasks.send": "Enviar",
   "error.routines": "Rutinas: {error}",

@@ -1,6 +1,7 @@
 // What can be done to a task from the list: drop it on a group, or pick an action from its right-click menu.
 import type { Agent, Task, TaskColumn } from "@apx/protocol";
 import { AgentAvatar, Icons, type MenuEntry } from "@apx/ui";
+import { availableAgents } from "../common/pickers/agents.ts";
 import { blobOf } from "../data/identity.ts";
 import { closeTask, updateTask } from "../data/tasks.ts";
 import type { T } from "../i18n/index.ts";
@@ -65,14 +66,12 @@ export function taskMenu(
           onSelect: () => void updateTask(task.id, { assignee: null }),
         },
         { type: "separator" },
-        ...o.agents
-          .filter((a) => !a.project_id || a.project_id === task.project_id)
-          .map((a) => ({
-            label: a.name,
-            icon: <AgentAvatar name={a.name} blob={blobOf(a)} size={14} animated={false} />,
-            checked: a.id === task.assignee,
-            onSelect: () => void updateTask(task.id, { assignee: a.id }),
-          })),
+        ...availableAgents(o.agents, task.project_id, false, task.project_id ? "secretary" : "all").map((a) => ({
+          label: a.name,
+          icon: <AgentAvatar name={a.name} blob={blobOf(a)} size={14} animated={false} />,
+          checked: a.id === task.assignee,
+          onSelect: () => void updateTask(task.id, { assignee: a.id }),
+        })),
       ],
     },
     {

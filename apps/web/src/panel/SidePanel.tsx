@@ -19,10 +19,8 @@ const FilesPane = lazy(() => import("../project/files/FilesPane.tsx").then((m) =
 const UsagePanel = lazy(() => import("./UsagePanel.tsx").then((m) => ({ default: m.UsagePanel })));
 const ChangesPanel = lazy(() => import("./ChangesPanel.tsx").then((m) => ({ default: m.ChangesPanel })));
 const ProcessesPanel = lazy(() => import("./ProcessesPanel.tsx").then((m) => ({ default: m.ProcessesPanel })));
-const ReportedChangesPanel = lazy(() =>
-  import("./ReportedChangesPanel.tsx").then((m) => ({ default: m.ReportedChangesPanel })),
-);
 const TerminalPanel = lazy(() => import("./TerminalPanel.tsx").then((m) => ({ default: m.TerminalPanel })));
+const DocumentPanel = lazy(() => import("./DocumentPanel.tsx").then((m) => ({ default: m.DocumentPanel })));
 
 /** Right column next to the chat ("side panel"). The chat header's switcher picks its kind. */
 export function SidePanel() {
@@ -62,11 +60,15 @@ export function SidePanel() {
         </Suspense>
       ) : panel === "agent" ? (
         <AgentPanel />
+      ) : panel === "changes" && thread ? (
+        <Suspense fallback={null}>
+          <ChangesPanel key={thread.id} thread={thread} ws={ws} />
+        </Suspense>
       ) : (
         <>
           <PanelHeader
             actions={
-              (folder || panel === "terminal" || panel === "changes") && (
+              (folder || panel === "terminal" || panel === "changes" || panel === "document") && (
                 <IconButton
                   label={wide ? t("panel.narrow") : t("panel.widen")}
                   icon={wide ? <Icons.Minimize2 size={14} /> : <Icons.Maximize2 size={14} />}
@@ -81,6 +83,11 @@ export function SidePanel() {
             </span>
           </PanelHeader>
           {panel === "widget" && <WidgetPanel />}
+          {panel === "document" && (
+            <Suspense fallback={null}>
+              <DocumentPanel />
+            </Suspense>
+          )}
           {panel === "usage" && (
             <Suspense fallback={null}>
               <UsagePanel />
@@ -94,11 +101,6 @@ export function SidePanel() {
           {thread && panel === "terminal" && (
             <Suspense fallback={null}>
               <TerminalPanel key={thread.id} thread={thread} ws={ws} />
-            </Suspense>
-          )}
-          {thread && panel === "changes" && (
-            <Suspense fallback={null}>
-              {ws ? <ChangesPanel key={thread.id} ws={ws} /> : <ReportedChangesPanel thread={thread} />}
             </Suspense>
           )}
           {ws && folder && (

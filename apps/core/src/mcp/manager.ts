@@ -46,6 +46,7 @@ export type McpStatus = {
   status: "off" | "needs-approval" | "disabled" | "starting" | "ready" | "error";
   tools: number;
   tool_names: string[];
+  tool_permission_mode: "unknown" | "ask" | "all" | "some";
   vars: Array<{ name: string; set: boolean }>;
   off_here: boolean;
   error?: string;
@@ -169,6 +170,31 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
     return c;
   }
 
+  async function invoke(d: McpDef, t: McpTool, args: Record<string, unknown>, signal: AbortSignal, project?: string) {
+    const current = defsFor(project).find((x) => keyOf(x) === keyOf(d));
+    if (!current || current.hash !== d.hash || !current.enabled || !config.trusted(current))
+      throw new Error("MCP server approval or definition changed; start a new turn");
+    // The connection may have been closed while the turn waited (an owner's long confirmation): reopen it.
+    const c = ensure(d);
+    await c.ready;
+    if (!c.client) throw new Error(`${d.name} is not connected${c.error ? `: ${c.error}` : ""}`);
+    const next = defsFor(project).find((x) => keyOf(x) === keyOf(d));
+    const liveTool = c.tools.find((x) => x.name === t.name);
+    if (
+      !next ||
+      next.hash !== d.hash ||
+      !next.enabled ||
+      !config.trusted(next) ||
+      !liveTool ||
+      mcpApproval(next, liveTool).key !== mcpApproval(d, t).key
+    )
+      throw new Error("MCP approval or tool contract changed; start a new turn");
+    return (await c.client.callTool({ name: t.name, arguments: args }, undefined, {
+      timeout: CALL_MS,
+      signal: signal,
+    })) as { content?: Array<{ type: string; text?: string }>; isError?: boolean; structuredContent?: unknown };
+  }
+
   function adapt(d: McpDef, t: McpTool, name: string): Tool {
     const ro = t.annotations?.readOnlyHint === true && t.annotations?.destructiveHint !== true;
     const effect: Effect = ro ? "none" : "external";
@@ -197,28 +223,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
       },
       title: () => `${d.name}: ${label}`,
       async run(args, ctx) {
-        const current = defsFor(ctx.thread.project_id).find((x) => keyOf(x) === keyOf(d));
-        if (!current || current.hash !== d.hash || !current.enabled || !config.trusted(current))
-          throw new Error("MCP server approval or definition changed; start a new turn");
-        // The connection may have been closed while the turn waited (an owner's long confirmation): reopen it.
-        const c = ensure(d);
-        await c.ready;
-        if (!c.client) throw new Error(`${d.name} is not connected${c.error ? `: ${c.error}` : ""}`);
-        const next = defsFor(ctx.thread.project_id).find((x) => keyOf(x) === keyOf(d));
-        const liveTool = c.tools.find((x) => x.name === t.name);
-        if (
-          !next ||
-          next.hash !== d.hash ||
-          !next.enabled ||
-          !config.trusted(next) ||
-          !liveTool ||
-          mcpApproval(next, liveTool).key !== mcpApproval(d, t).key
-        )
-          throw new Error("MCP approval or tool contract changed; start a new turn");
-        const r = (await c.client.callTool({ name: t.name, arguments: args }, undefined, {
-          timeout: CALL_MS,
-          signal: ctx.signal,
-        })) as { content?: Array<{ type: string; text?: string }>; isError?: boolean; structuredContent?: unknown };
+        const r = await invoke(d, t, args, ctx.signal, ctx.thread.project_id);
         const text =
           (r.content ?? [])
             .map((p) => (p.type === "text" ? (p.text ?? "") : `[${p.type}]`))
@@ -288,6 +293,23 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
         approved: deps.store.approvals.allows(mcpApproval(d, t)),
       }));
     },
+    async describe(d: McpDef, project?: string) {
+      const context = project ?? d.values_of ?? d.project_id ?? d.only;
+      const eligible = defsFor(context).find((x) => keyOf(x) === keyOf(d));
+      if (!eligible?.enabled || !config.trusted(eligible))
+        throw new Error("MCP server is not enabled and approved in this context");
+      await this.toolPermissions(d);
+      const c = ensure(d);
+      return c.tools;
+    },
+    async call(d: McpDef, name: string, args: Record<string, unknown>, project?: string) {
+      const tools = await this.describe(d, project);
+      const t = tools.find((t) => t.name === name);
+      if (!t) throw new Error(`MCP tool ${name} not found`);
+      const parsed = adapt(d, t, name).parse(args);
+      if (!parsed.ok) throw new Error(parsed.error);
+      return invoke(d, t, parsed.args, AbortSignal.timeout(CALL_MS), project ?? d.values_of ?? d.project_id ?? d.only);
+    },
     status(projectId?: string): McpStatus[] {
       const projects = projectId ? [projectId] : deps.store.projects.list().map((p) => p.id);
       const defs = [
@@ -302,6 +324,8 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
         const c = conns.get(keyOf(d));
         const trusted = config.trusted(d);
         const live = c && c.hash === d.hash ? c : undefined;
+        const known = live?.tools ?? [];
+        const allowed = known.filter((t) => deps.store.approvals.allows(mcpApproval(d, t))).length;
         return {
           name: d.name,
           scope: d.scope,
@@ -314,6 +338,13 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
           status: !d.enabled ? "disabled" : !trusted ? "needs-approval" : (live?.status ?? "off"),
           tools: live?.tools.length ?? 0,
           tool_names: live?.tools.map((t) => t.name) ?? [],
+          tool_permission_mode: !known.length
+            ? "unknown"
+            : !allowed
+              ? "ask"
+              : allowed === known.length
+                ? "all"
+                : "some",
           vars: secretNames(d).map((name) => ({
             name,
             set: deps.secrets.resolveIn(`secret://${name}`, projectId ?? d.only) !== undefined,

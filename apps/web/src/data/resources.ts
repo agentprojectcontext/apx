@@ -77,3 +77,15 @@ export const mcpPermissions = (s: McpServerStatus, project?: string) =>
   attempt(async () => (await client.call("mcp.tools", { scope: s.scope, server: s.name, ...scoped(project) })).tools);
 export const approveMcpTool = (s: McpServerStatus, tool: string, project?: string) =>
   attempt(() => client.call("mcp.approveTool", { scope: s.scope, server: s.name, tool, ...scoped(project) }));
+
+/** Uses the same current contracts as individual toggles; a failure stops the batch and shows a notice. */
+export const setMcpToolMode = (s: McpServerStatus, mode: "ask" | "all", project?: string) =>
+  attempt(async () => {
+    const { tools } = await client.call("mcp.tools", { scope: s.scope, server: s.name, ...scoped(project) });
+    for (const tool of tools) {
+      if (mode === "all" && !tool.approved)
+        await client.call("mcp.approveTool", { scope: s.scope, server: s.name, tool: tool.name, ...scoped(project) });
+      if (mode === "ask" && tool.approved) await client.call("tools.revoke", { key: tool.key });
+    }
+    return { ok: true };
+  });

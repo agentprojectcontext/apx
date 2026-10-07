@@ -315,10 +315,17 @@ const KnownPart = z.discriminatedUnion("type", [
     mime: z.string().optional(),
     alt: z.string().default(""),
   }),
-  /** Speech APX made; the bytes come from media.get. */
+  /** Recorded or synthesized speech; the bytes come from media.get. */
   z.object({ type: z.literal("audio"), media_id: Id, mime: z.string(), transcript: z.string().optional() }),
-  /** A file the owner attached to a message; the bytes come from media.get. */
-  z.object({ type: z.literal("file"), media_id: Id, name: z.string(), mime: z.string(), bytes: z.number().int() }),
+  /** A file from either participant; document snapshots also open in the side panel. */
+  z.object({
+    type: z.literal("file"),
+    media_id: Id,
+    name: z.string(),
+    mime: z.string(),
+    bytes: z.number().int(),
+    document: z.object({ title: z.string().max(120), format: z.enum(["markdown", "text"]) }).optional(),
+  }),
   /**
    * What changed in a code thread's folder (uncommitted, per git) when the turn ended; with `edits`, the files the
    * agent wrote in this turn with its file tools.
@@ -333,6 +340,8 @@ const KnownPart = z.discriminatedUnion("type", [
         status: z.string(),
         added: z.number().int().optional(),
         removed: z.number().int().optional(),
+        diff: z.string().max(64_000).optional(),
+        truncated: z.boolean().optional(),
       }),
     ),
     more: z.number().int().optional(),
@@ -870,6 +879,8 @@ export const McpServerStatus = z.object({
   tools: z.number().int(),
   /** Tool names once it has started. */
   tool_names: z.array(z.string()).default([]),
+  /** Owner-wide grants for the current tool contracts; unknown until tools have been loaded. */
+  tool_permission_mode: z.enum(["unknown", "ask", "all", "some"]).default("unknown"),
   /** Stored secrets its definition names (`secret://NAME`), and whether each has a value. */
   vars: z.array(z.object({ name: z.string(), set: z.boolean() })).default([]),
   /** One of the owner's servers that runs only in its project (`project_id`), like v1's per-project servers. */

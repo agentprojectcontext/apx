@@ -14,6 +14,7 @@
 - Preview content uses generic names only (Acme, Northwind, Globex, Roby, Ledger, Scout…). Never real client/project names.
 
 ## Pending re-sync
+- MarkdownView now renders safe pipe tables; its remote preview and bundle need a re-sync.
 - Lint fixes (DECISIONS.md#d-005) changed markup in Avatar, AgentAvatar, Checkbox, Switch, SegmentedControl (now a
   Base UI RadioGroup), DayDivider, VoiceNote and the list keys of ActionGroup/StepList/EntityCard/Menu/Kbd/
   AvatarStack/MessageMeta. Pixel-identical in all four looks, same public API; the remote bundle is just stale.

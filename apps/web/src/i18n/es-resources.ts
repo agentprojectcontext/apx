@@ -3,9 +3,10 @@ import type { MessageKey } from "./en.ts";
 
 export const esResources: Partial<Record<MessageKey, string>> = {
   "res.toolsMode": "Permisos de tools",
-  "res.toolsMode.ask": "Preguntan",
+  "res.toolsMode.ask": "Preguntar",
   "res.toolsMode.all": "Todas permitidas",
   "res.toolsMode.some": "Algunas",
+  "res.toolsMode.unknown": "Sin verificar: abrí el servidor para cargar sus tools",
   "res.toolsAskHelp": "Cada agente te pide permiso antes de usar una tool que cambia algo.",
   "res.toolsAllHelp":
     "Ningún agente pide permiso para estas tools. Si el servidor o una tool cambian, se vuelve a preguntar.",

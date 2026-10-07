@@ -1,0 +1,78 @@
+.documentpanel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px;
+}
+.filepart.documentpart {
+  height: auto;
+  padding: 12px;
+  width: min(100%, 440px);
+  max-width: 100%;
+  min-width: 220px;
+}
+.documentpanel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.documentpanel__head h2 {
+  width: 100%;
+  margin: 0;
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+.documentpanel__filename {
+  flex: 1;
+  color: var(--apx-fg-muted);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.documentpanel__actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.documentpanel__select {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 20px;
+  border: 1px solid var(--apx-border);
+  border-radius: 6px;
+  background: var(--apx-surface);
+  color: var(--apx-fg);
+  font: inherit;
+}
+.documentpanel__source {
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.documentpanel__content {
+  overflow-wrap: anywhere;
+}
+.documentpanel__status {
+  color: var(--apx-fg-muted);
+}
+.documentpart__info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+  text-align: left;
+}
+.documentpart__label,
+.documentpart__name {
+  font-size: 11px;
+  color: var(--apx-fg-muted);
+}
+.documentpart__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

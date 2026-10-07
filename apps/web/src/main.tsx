@@ -3,6 +3,7 @@ import "./app.css";
 import "./styles/inbox.css";
 import "./styles/chat.css";
 import "./styles/side-panel.css";
+import "./styles/documents.css";
 import "./styles/chat-tools.css";
 import "./styles/composer.css";
 import "./styles/inbox-views.css";

@@ -29,16 +29,23 @@ const wordsOf = (text: string): string[] => messageQuery(text)?.match(/[\p{L}\p{
 /** Agent names identify participants, rather than words that must occur in the message body. */
 function searchScope(store: Store, agent: AgentRecord, query: string) {
   const words = wordsOf(query);
-  const named = store.agents.list().filter((a) => {
-    if (a.project_id && a.project_id !== agent.project_id) return false;
-    const name = wordsOf(a.name);
-    return name.length > 0 && name.every((w) => words.includes(w));
-  });
+  const used = new Set<number>();
+  const named = store.agents
+    .list()
+    .filter((a) => !a.project_id || a.project_id === agent.project_id)
+    .map((a) => ({ agent: a, words: wordsOf(a.name) }))
+    .sort((a, b) => b.words.length - a.words.length)
+    .filter((a) => {
+      if (!a.words.length) return false;
+      const at = words.findIndex((_w, i) => a.words.every((w, j) => words[i + j] === w && !used.has(i + j)));
+      if (at < 0) return false;
+      for (let i = 0; i < a.words.length; i++) used.add(at + i);
+      return true;
+    })
+    .map((a) => a.agent);
   const names = new Set(named.flatMap((a) => wordsOf(a.name)));
   const text = words.filter((w) => !names.has(w)).join(" ");
-  const chats = readableChats(store, agent).filter(
-    (t) => !named.length || named.some((a) => t.agent_ids.includes(a.id)),
-  );
+  const chats = readableChats(store, agent).filter((t) => named.every((a) => t.agent_ids.includes(a.id)));
   return { text, chats };
 }
 
@@ -60,13 +67,22 @@ const textOf = (m: Message) =>
 const when = (iso: string) => iso.slice(0, 16).replace("T", " ");
 
 /** A chat named by its id, or by its title ("#general", "Home"): exact first, then the latest that contains it. */
-function findChat(store: Store, agent: AgentRecord, name: string): Thread | undefined {
+function findChat(
+  store: Store,
+  agent: AgentRecord,
+  current: Thread,
+  name: string,
+): Thread | { ambiguous: Thread[] } | undefined {
   const byId = store.threads.get(name);
   if (byId) return canRead(store, agent, byId) ? byId : undefined;
   const q = name.trim().toLowerCase();
   const all = readableChats(store, agent);
   const exact = all.find((t) => t.title.toLowerCase() === q);
   if (exact) return exact;
+  const sessions = all.filter((t) => t.session?.toLowerCase() === q);
+  const local = sessions.find((t) => t.parent_id === current.id);
+  if (local) return local;
+  if (sessions.length) return sessions.length === 1 ? sessions[0] : { ambiguous: sessions };
   const found = store.agents.resolve(name, agent.project_id);
   if (!("error" in found)) {
     const chats = all.filter((t) => t.agent_ids.includes(found.agent.id));
@@ -112,7 +128,7 @@ export function chatTools(store: Store): Tool[] {
     defineTool({
       name: "read_chat",
       description:
-        "Read the latest messages of one of the owner's chats, by its id, title (for example #general), or agent name (prefers their Home chat). Without one that matches, lists the chats you can read.",
+        "Read the latest messages of one of the owner's chats, by its id, title (for example #general), delegation session name, or agent name (prefers their Home chat). Without one that matches, lists the chats you can read.",
       args: z.object({
         chat: z.string().min(1).describe("the chat's id or title"),
         limit: z.number().int().min(1).max(60).optional().describe("how many of its latest messages (default 20)"),
@@ -121,7 +137,13 @@ export function chatTools(store: Store): Tool[] {
       deadlineMs: 5_000,
       title: (a) => `Read the chat ${a.chat}`,
       async run(a, ctx) {
-        const t = findChat(store, ctx.agent, a.chat);
+        const t = findChat(store, ctx.agent, ctx.thread, a.chat);
+        if (t && "ambiguous" in t)
+          return untrusted(
+            "chats",
+            { session: a.chat },
+            `Ambiguous session name; read_chat with one chat id:\n${t.ambiguous.map((x) => `- ${x.title} (chat ${x.id})`).join("\n")}`,
+          );
         if (!t) {
           const known = readableChats(store, ctx.agent)
             .slice(0, 15)

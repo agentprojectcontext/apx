@@ -17,6 +17,16 @@ export function mcpHandlers(mcp: Mcp, store: Store) {
       const tools = await mcp.toolPermissions(d);
       return { tools: tools.map(({ name, key, permanent, approved }) => ({ name, key, permanent, approved })) };
     },
+    "mcp.describe": async ({ scope, server, project }) => {
+      const d = mcp.find(scope, server, project);
+      if (!d) throw notFound(`MCP server ${server}`);
+      return { tools: await mcp.describe(d, project) };
+    },
+    "mcp.call": async ({ scope, server, project, tool, arguments: args }) => {
+      const d = mcp.find(scope, server, project);
+      if (!d) throw notFound(`MCP server ${server}`);
+      return mcp.call(d, tool, args, project);
+    },
     "mcp.approveTool": async ({ scope, server, project, tool }) => {
       const d = mcp.find(scope, server, project);
       if (!d) throw notFound(`MCP server ${server}`);

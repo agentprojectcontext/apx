@@ -2,7 +2,7 @@ import { Fragment, type ReactElement, type ReactNode } from "react";
 import { cx } from "../cx";
 
 export interface MarkdownViewProps {
-  /** Markdown source. Supported: paragraphs, line breaks, # headings, - and 1. lists, ``` code blocks, `code`, **bold**, *italic*, [links](https://…) and bare URLs. */
+  /** Markdown source: paragraphs, headings, lists, code, emphasis, safe links and pipe tables. Raw HTML stays text. */
   source: string;
   size?: "sm" | "md";
   className?: string;
@@ -16,15 +16,28 @@ type Block =
   | { kind: "p"; text: string }
   | { kind: "h"; level: number; text: string }
   | { kind: "ul" | "ol"; items: string[] }
-  | { kind: "code"; text: string };
+  | { kind: "code"; text: string }
+  | { kind: "table"; headers: string[]; rows: string[][]; align: ("left" | "center" | "right")[] };
+
+function tableCells(line: string): string[] {
+  const cells = line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/(?<!\\)\|$/, "")
+    .split(/(?<!\\)\|/);
+  return cells.map((cell) => cell.trim().replace(/\\\|/g, "|"));
+}
 
 const SAFE_HREF = /^(https?:|mailto:)/i;
+const MAX_TABLE_COLUMNS = 64;
+const MAX_TABLE_CELLS = 10_000;
 const INLINE =
   /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\[[^\]\n]+\]\([^)\s]+\))|(\*[^*\s][^*\n]*\*)|(\b_[^_\s][^_\n]*_\b)|(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"])/g;
 
 function parseBlocks(src: string): Block[] {
   const lines = src.replace(/\r\n?/g, "\n").split("\n");
   const blocks: Block[] = [];
+  let tableCellsLeft = MAX_TABLE_CELLS;
   let para: string[] = [];
   const flush = () => {
     if (para.length) blocks.push({ kind: "p", text: para.join("\n") });
@@ -38,6 +51,31 @@ function parseBlocks(src: string): Block[] {
       i++;
       while (i < lines.length && !(lines[i] ?? "").trimStart().startsWith("```")) code.push(lines[i++] ?? "");
       blocks.push({ kind: "code", text: code.join("\n") });
+      continue;
+    }
+    const separator = tableCells(lines[i + 1] ?? "");
+    const headers = tableCells(line);
+    if (
+      line.includes("|") &&
+      headers.length <= MAX_TABLE_COLUMNS &&
+      headers.length <= tableCellsLeft &&
+      separator.length === headers.length &&
+      separator.every((s) => /^:?-{3,}:?$/.test(s))
+    ) {
+      flush();
+      const align = separator.map((s): "left" | "center" | "right" =>
+        s.endsWith(":") ? (s.startsWith(":") ? "center" : "right") : "left",
+      );
+      const rows: string[][] = [];
+      i++;
+      while (
+        i + 1 < lines.length &&
+        (rows.length + 2) * headers.length <= tableCellsLeft &&
+        (lines[i + 1] ?? "").includes("|")
+      )
+        rows.push(tableCells(lines[++i] ?? ""));
+      blocks.push({ kind: "table", headers, rows, align });
+      tableCellsLeft -= (rows.length + 1) * headers.length;
       continue;
     }
     const h = /^(#{1,4})\s+(.*)$/.exec(line);
@@ -138,6 +176,36 @@ export function MarkdownView({ source, size = "md", className, renderLink }: Mar
           const Tag = b.level <= 2 ? "h3" : "h4";
           return <Tag key={k}>{inline(b.text, k, renderLink)}</Tag>;
         }
+        if (b.kind === "table")
+          return (
+            <div key={k} className="apx-md__table">
+              <table>
+                <thead>
+                  <tr>
+                    {b.headers.map((cell, j) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: table columns are positional
+                      <th key={j} scope="col" style={{ textAlign: b.align[j] }}>
+                        {inline(cell, `${k}h${j}`, renderLink)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {b.rows.map((row, r) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: table rows are positional
+                    <tr key={r}>
+                      {b.headers.map((_, j) => (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: table columns are positional
+                        <td key={j} style={{ textAlign: b.align[j] }}>
+                          {inline(row[j] ?? "", `${k}r${r}c${j}`, renderLink)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
         const List = b.kind;
         return (
           <List key={k}>

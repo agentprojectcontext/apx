@@ -2,6 +2,8 @@
 import type { CoreEvent, EventFrame } from "@apx/protocol";
 import type { ApxSocket } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
+import { documentToOpen } from "../panel/documents.ts";
+import { go, nav } from "../shell/nav.ts";
 import { bootstrap, refetchLoaded } from "./actions.ts";
 import { client } from "./client.ts";
 import { jobsChanged } from "./jobs.ts";
@@ -175,6 +177,10 @@ function apply(ev: CoreEvent): void {
         parts[ev.index] = ev.part;
         return { messages: { ...s.messages, [ev.thread_id]: upsertMessage(list, { ...cur, parts }) } };
       });
+      {
+        const document = documentToOpen(ev, nav.get().threadId);
+        if (document) go.document(document.media_id);
+      }
       return;
     case "run.updated":
       data.set((s) => ({ runs: { ...s.runs, [ev.run.id]: ev.run } }));

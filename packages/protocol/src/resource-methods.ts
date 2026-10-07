@@ -132,6 +132,34 @@ export const resourceMethods = {
     effect: true,
     access: "human",
   },
+  "mcp.describe": {
+    params: McpTarget,
+    result: z.object({
+      tools: z.array(
+        z.object({
+          name: z.string(),
+          description: z.string().optional(),
+          inputSchema: z.record(z.string(), z.unknown()),
+        }),
+      ),
+    }),
+    effect: true,
+    access: "human",
+  },
+  "mcp.call": {
+    params: McpTarget.extend({
+      tool: z.string().min(1),
+      arguments: z.record(z.string(), z.unknown()).default({}),
+    }).strict(),
+    result: z.object({
+      content: z.array(z.record(z.string(), z.unknown())).optional(),
+      isError: z.boolean().optional(),
+      structuredContent: z.unknown().optional(),
+    }),
+    effect: true,
+    access: "human",
+    replay: false,
+  },
   "mcp.approveTool": {
     params: McpTarget.extend({ tool: z.string() }),
     result: z.object({ ok: z.literal(true) }),

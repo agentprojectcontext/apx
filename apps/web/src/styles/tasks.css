@@ -237,6 +237,29 @@
 }
 
 /* Task panel: properties as label · value rows, then what it is about and its conversation or history */
+.drawer.taskpanel {
+  overflow: hidden;
+}
+.taskpanel > .taskpanel__body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.taskpanel__body > * {
+  flex-shrink: 0;
+}
+.taskpanel .taskdetail__desc {
+  min-height: 180px;
+  line-height: 1.5;
+}
+.taskpanel .taskdetail__chat {
+  height: clamp(180px, 35vh, 400px);
+  max-height: none;
+}
 .taskprops {
   display: grid;
   grid-template-columns: 116px minmax(0, 1fr);
@@ -276,6 +299,63 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--apx-border-strong);
+  background: var(--apx-surface-raised);
+}
+.taskpanel__commentlabel {
+  align-self: flex-start;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.taskpanel__input {
+  position: relative;
+  width: 100%;
+}
+.taskpanel__input textarea {
+  max-height: 140px;
+}
+.taskmentions {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 1;
+  max-height: min(280px, 40vh);
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md);
+}
+.taskmentions__option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  color: var(--apx-fg);
+  background: transparent;
+  font-size: var(--apx-text-sm);
+  text-align: left;
+}
+.taskmentions__option:hover,
+.taskmentions__option.is-active {
+  background: var(--apx-fill-hover);
+}
+.taskmentions__slug {
+  margin-left: auto;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  overflow-wrap: anywhere;
+}
+.taskmentions__empty {
+  margin: 8px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
 }
 .taskpanel__comment .apx-textarea,
 .taskpanel__comment textarea {

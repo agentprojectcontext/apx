@@ -8,6 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { gitDiff, gitStatus } from "../engine/changes.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { insideReal, real } from "../paths.ts";
+import { reportedDiff } from "./reported-diff.ts";
 import type { Handlers } from "./router.ts";
 
 /** Entries one folder lists at most. */
@@ -49,7 +50,7 @@ export function threadFolder(store: Store, threadId: string): string {
   return p.path;
 }
 
-export function fileHandlers(store: Store, desktop: DesktopOps) {
+export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
   /** The project's folder, and `rel` inside it resolved (refused when it, or what a link points to, leaves it). */
   const locate = (project: string, rel: string) => {
     const p = store.projects.get(project);
@@ -72,7 +73,9 @@ export function fileHandlers(store: Store, desktop: DesktopOps) {
       const files = await gitStatus(cwd);
       return { cwd, git: files !== undefined, files: (files ?? []).filter((f) => !hidden(f.path)) };
     },
-    "files.diff": async ({ thread, path: rel }) => {
+    "files.diff": async (params) => {
+      if (params.message) return reportedDiff(store, home, params);
+      const { thread, path: rel } = params;
       const cwd = folderOf(thread);
       if (!insideReal(cwd, rel) || hidden(rel) || path.isAbsolute(rel))
         throw badRequest(`${rel} is outside the folder`);

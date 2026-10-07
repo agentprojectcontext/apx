@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { fileTools } from "./files.ts";
+import { defineTool, type Tool } from "./types.ts";
 
 const calls: Record<string, [string, object]> = {
   "write it": ["file_write", { path: "pages/btc.html", content: "<h1>BTC $1</h1>\n<p>$1</p>\n<p>$1</p>\n" }],
@@ -17,6 +20,7 @@ const calls: Record<string, [string, object]> = {
   "read page": ["file_read", { path: "pages/btc.html", offset: 2, limit: 1 }],
   "read binary": ["file_read", { path: "pages/blob.bin" }],
   "read outside": ["file_read", { path: "../secrets.index.json" }],
+  parallel: ["file_parallel", {}],
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content)}`);
@@ -25,10 +29,55 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 });
 
 let env: Awaited<ReturnType<typeof startCore>>;
+let parallelFiles: Tool[];
 before(async () => {
-  env = await startCore({ llm });
+  env = await startCore({
+    llm,
+    extraTools: [
+      defineTool({
+        name: "file_parallel",
+        description: "Exercise concurrent file calls",
+        args: z.object({}),
+        effect: "local",
+        deadlineMs: 10_000,
+        title: () => "Parallel writes",
+        async run(_args, ctx) {
+          const write = parallelFiles.find((t) => t.name === "file_write");
+          assert.ok(write);
+          await Promise.all([
+            write.run({ path: "parallel.md", content: "First\n" }, ctx),
+            write.run({ path: "parallel.md", content: "Second\n" }, ctx),
+            ...Array.from({ length: 5 }, (_, i) =>
+              write.run({ path: `large-${i}.md`, content: "Added\n".repeat(20_000) }, ctx),
+            ),
+          ]);
+          return "Done";
+        },
+      }),
+    ],
+  });
+  parallelFiles = fileTools(env.core.store, env.home);
   // Writing is the owner's to allow; this agent may act without asking.
   await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+});
+
+test("parallel writes preserve final disk order and share the recorded patch budget", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await said(t.id, "parallel");
+  const messages = (await env.client.call("threads.get", { thread: t.id })).messages;
+  const part = messages.at(-1)?.parts.find((p) => p.type === "changes");
+  assert.ok(part && part.type === "changes");
+  assert.equal(part.files.length, 6);
+  const parallel = part.files.find((f) => f.path === "parallel.md");
+  assert.ok(parallel?.diff);
+  assert.equal(fs.readFileSync(path.join(env.home, "work", "parallel.md"), "utf8"), "Second\n");
+  assert.match(parallel.diff, /^\+Second$/m);
+  assert.doesNotMatch(parallel.diff, /First/);
+  assert.equal(parallel.added, 1);
+  assert.equal(parallel.removed, 0);
+  assert.ok(part.files.every((f) => (f.diff?.length ?? 0) <= 64_000));
+  assert.ok(part.files.reduce((n, f) => n + (f.diff?.length ?? 0), 0) <= 200_000);
+  assert.ok(part.files.some((f) => f.truncated));
 });
 after(async () => {
   await env.core.close();
@@ -74,13 +123,29 @@ test("the files an agent writes in a turn show in its answer, with the lines add
     type: "changes",
     cwd: path.join(env.home, "work"),
     edits: true,
-    files: [{ path: "pages/new.html", status: "A", added: 2, removed: 0 }],
+    files: [
+      {
+        path: "pages/new.html",
+        status: "A",
+        added: 2,
+        removed: 0,
+        diff: "@@ -0,0 +1,2 @@\n+<p>$1</p>\n+<p>$1</p>\n",
+        truncated: false,
+      },
+    ],
   });
   await env.client.call("threads.send", { thread: t.id, text: "edit new" });
   ({ messages } = await env.settle(t.id));
   const edit = card();
   assert.deepEqual(edit?.type === "changes" && edit.files, [
-    { path: "pages/new.html", status: "M", added: 2, removed: 2 },
+    {
+      path: "pages/new.html",
+      status: "M",
+      added: 2,
+      removed: 2,
+      diff: "@@ -1,2 +1,2 @@\n-<p>$1</p>\n-<p>$1</p>\n+<p>$2</p>\n+<p>$2</p>\n",
+      truncated: false,
+    },
   ]);
 });
 

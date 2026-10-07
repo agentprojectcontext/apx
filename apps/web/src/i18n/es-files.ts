@@ -2,6 +2,18 @@
 import type { MessageKey } from "./en.ts";
 
 export const esFiles: Partial<Record<MessageKey, string>> = {
+  "panel.document": "Documentos",
+  "panel.document.hint": "Leer documentos de este chat",
+  "document.label": "Documento",
+  "document.choose": "Elegir documento",
+  "document.empty": "Todavía no hay documentos",
+  "document.emptyBody": "Acá aparecen informes, planes y documentos de consulta abiertos por tu agente.",
+  "document.source": "Ver código fuente",
+  "document.view": "Leer documento",
+  "document.download": "Descargar",
+  "document.loading": "Cargando documento…",
+  "document.failed": "No se pudo cargar el documento. Volvé a intentar.",
+  "document.retry": "Reintentar",
   "files.tree": "Archivos del proyecto",
   "files.back": "Archivos",
   "files.repo": "Repositorio",

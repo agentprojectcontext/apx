@@ -80,8 +80,7 @@ function attachedFiles(store: Store, thread: string, ids: string[]): Attachment[
   return [...new Set(ids)].map((id) => {
     const m = store.media.get(id);
     // Not media APX made (it has a service) nor another chat's upload.
-    if (!m || m.kind === "audio" || m.service || (m.thread_id && m.thread_id !== thread))
-      throw badRequest(`no attachment ${id}`);
+    if (!m || m.service || (m.thread_id && m.thread_id !== thread)) throw badRequest(`no attachment ${id}`);
     return { media_id: m.id, kind: m.kind, mime: m.mime, name: m.prompt ?? m.id };
   });
 }
@@ -119,13 +118,15 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
           ...files.map((f) =>
             f.kind === "image"
               ? ({ type: "image", media_id: f.media_id, mime: f.mime, alt: f.name } as const)
-              : ({
-                  type: "file",
-                  media_id: f.media_id,
-                  name: f.name,
-                  mime: f.mime,
-                  bytes: store.media.get(f.media_id)?.bytes ?? 0,
-                } as const),
+              : f.kind === "audio"
+                ? ({ type: "audio", media_id: f.media_id, mime: f.mime } as const)
+                : ({
+                    type: "file",
+                    media_id: f.media_id,
+                    name: f.name,
+                    mime: f.mime,
+                    bytes: store.media.get(f.media_id)?.bytes ?? 0,
+                  } as const),
           ),
         ],
       });
@@ -249,7 +250,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       const words = text ?? from.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n");
       if (!words.trim()) throw badRequest("that message has no text to send again");
       const files = from.parts.flatMap((p) =>
-        (p.type === "image" || p.type === "file") && p.media_id ? [p.media_id] : [],
+        (p.type === "image" || p.type === "file" || p.type === "audio") && p.media_id ? [p.media_id] : [],
       );
       store.tx(() => store.modelLog.dropRuns(thread, store.messages.cutFrom(thread, from.seq)));
       return post(thread, words, { kind: "user" }, false, {

@@ -60,13 +60,16 @@ export function createInputs(deps: {
       text = `The owner approved ${r.tool} (${r.detail ?? r.prompt}), but your earlier turn had already ended, so it did not run. If it is still needed, call it again with the same arguments: it will run without asking.${r.answer ? ` Their note: ${r.answer}` : ""}`;
     } else
       text = `The owner declined ${r.tool} (${r.detail ?? r.prompt}). Do not try it again.${r.answer ? ` Their note: ${r.answer}` : ""}`;
+    const previous = store.runs.get(r.run_id);
     deps.admit({
       thread_id: r.thread_id,
       agent_id: r.agent_id,
       trigger: "user",
       origin: { kind: "input_answer", input_id: r.id },
       text,
-      reply_to: store.runs.get(r.run_id)?.input?.reply_to,
+      reply_to: previous?.input?.reply_to,
+      parent_run_id: previous?.parent_run_id,
+      depth: previous?.depth ?? 0,
     });
   }
 

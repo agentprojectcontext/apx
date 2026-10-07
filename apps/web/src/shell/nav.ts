@@ -5,7 +5,16 @@ import { createStore, useSlice } from "../data/createStore.ts";
 import { rememberSidebar } from "../data/prefs.ts";
 import type { MessageKey } from "../i18n/index.ts";
 
-export type PanelKind = "browser" | "terminal" | "files" | "changes" | "widget" | "usage" | "agent" | "processes";
+export type PanelKind =
+  | "browser"
+  | "terminal"
+  | "files"
+  | "changes"
+  | "widget"
+  | "usage"
+  | "agent"
+  | "processes"
+  | "document";
 
 export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "channel" | "engine";
 
@@ -58,6 +67,7 @@ export type NavState = {
   /** The side panel takes half the chat area (files, changes, a terminal), instead of its usual column. */
   panelWide: boolean;
   browserTab: string | undefined;
+  panelDocument: string | undefined;
   /** The agent the "agent" side panel shows (opened from its face or name in a chat). */
   panelAgent: string | undefined;
   panelThread: string | undefined;
@@ -98,7 +108,16 @@ function initialMode(): ApxMode {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-const PANELS: readonly PanelKind[] = ["browser", "terminal", "files", "changes", "widget", "usage", "processes"];
+const PANELS: readonly PanelKind[] = [
+  "browser",
+  "terminal",
+  "files",
+  "changes",
+  "widget",
+  "usage",
+  "processes",
+  "document",
+];
 const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
 const VIEWS: readonly string[] = ["tasks", "resources"];
 
@@ -114,6 +133,7 @@ function fromHash(): Partial<NavState> {
   return {
     ...(h.get("thread") ? { threadId: h.get("thread") ?? undefined } : {}),
     ...(panel && (PANELS as readonly string[]).includes(panel) ? { panel: panel as PanelKind } : {}),
+    panelDocument: panel === "document" ? (h.get("document") ?? undefined) : undefined,
     ...(project
       ? {
           view: "project" as const,
@@ -140,6 +160,7 @@ export const nav = createStore<NavState>({
   panel: null,
   panelWide: false,
   browserTab: undefined,
+  panelDocument: undefined,
   panelAgent: undefined,
   panelThread: undefined,
   panelParent: undefined,
@@ -174,6 +195,7 @@ type Place = Pick<
   | "panel"
   | "panelWide"
   | "browserTab"
+  | "panelDocument"
   | "panelAgent"
   | "panelThread"
   | "panelParent"
@@ -196,6 +218,7 @@ function placeOf(s: NavState): Place {
     panel: s.panel,
     panelWide: s.panelWide,
     browserTab: s.browserTab,
+    panelDocument: s.panelDocument,
     panelAgent: s.panelAgent,
     panelThread: s.panelThread,
     panelParent: s.panelParent,
@@ -267,6 +290,7 @@ nav.subscribe(() => {
     if (s.threadId) h.set("thread", s.threadId);
   } else if (s.threadId) h.set("thread", s.threadId);
   if (s.panel && showsChat(s)) h.set("panel", s.panel);
+  if (s.panel === "document" && showsChat(s) && s.panelDocument) h.set("document", s.panelDocument);
   const next = `#${h.toString()}`;
   if (window.location.hash !== next) history.replaceState(null, "", next);
   rememberPlace(placeOf(s));
@@ -393,6 +417,9 @@ export const go = {
   },
   panel(panel: PanelKind | null) {
     nav.set({ panel, panelThread: undefined, panelParent: undefined });
+  },
+  document(mediaId: string) {
+    nav.set({ panel: "document", panelDocument: mediaId, panelThread: undefined, panelParent: undefined });
   },
   togglePanelWide() {
     nav.set((s) => ({ panelWide: !s.panelWide }));

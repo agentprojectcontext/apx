@@ -101,6 +101,8 @@ export const enOffice = {
   "tasks.ev.edit.you": "You edited it",
   "tasks.ev.edit": "{name} edited it",
   "tasks.comment": "Comment",
+  "tasks.mentionAgents": "Mention an agent",
+  "tasks.mentionEmpty": "No matching agents",
   "tasks.commentHint": "Write a comment; @name asks an agent here.",
   "tasks.send": "Send",
   "error.routines": "Routines: {error}",

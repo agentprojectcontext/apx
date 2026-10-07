@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// The terminal owns no domain logic: every command is a protocol call to the core.
 import { parseArgs } from "node:util";
 import { ApxClient, ApxError } from "@apx/protocol/client";
+// The terminal owns no domain logic: every command is a protocol call to the core.
+import { admin, status, version, wizard } from "./commands/admin.ts";
 import { browser } from "./commands/browser.ts";
 import { channels, contacts, pairing } from "./commands/channels.ts";
 import { chat } from "./commands/chat.ts";
@@ -9,6 +10,7 @@ import { clients } from "./commands/clients.ts";
 import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
 import { localConnection } from "./commands/local.ts";
+import { mcpCommand } from "./commands/mcp.ts";
 import { memory } from "./commands/memory.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
 import { notifications } from "./commands/notifications.ts";
@@ -19,12 +21,22 @@ import { service } from "./commands/service.ts";
 import { bundleAppOf } from "./commands/service-files.ts";
 import { importV1, setupHeadless } from "./commands/setup.ts";
 import { tasks } from "./commands/tasks.ts";
-import { agents, jobs, mcps, projects, runs, secrets, skills, threads, usage } from "./commands/threads.ts";
+import { agents, jobs, projects, runs, secrets, skills, threads, usage } from "./commands/threads.ts";
+import { themedCard as card } from "./presentation.ts";
 
 const HELP = `apx — the APX terminal
 
 Usage:
-  apx status [--json]     Is the core up, and is it running my code?
+  apx                     Interactive crew console (TTY only)
+  apx --version [-v]      Local CLI version (works without the core)
+  apx status (or --status) [--json] [--plain]   Core, crew, projects, MCP, devices and access
+  apx wizard              Guided terminal setup and maintenance
+  apx upgrade [--check] [--json]   Check or apply the core's existing updater
+  apx devices [list|pair|revoke <id>] [--json]
+  apx tailscale [status|connect|off]   Expose APX through Tailscale (must already be logged in)
+  apx mcp tools <server> [<tool>] [--project <id>] [--scope global|project] [--json]
+  apx mcp run <server> <tool> ['{"key":"value"}'|-] [--project <id>]
+  apx mcp check <server> [--project <id>]   Connection test
   apx ping [text]         Round-trip over the live socket
 
   apx browser tabs
@@ -60,7 +72,7 @@ Usage:
   apx pairing [me|ok|no <code>]  Approve who wrote to a channel
   apx compact <thread>    Summarize a thread's older turns now (APX's own loop; Claude Code and Codex compact their own)
   apx usage [days]        Turns and tokens by model, and whether they were included or paid per token
-  apx mcps [list [project]] | trust|untrust <project> <server> | add <name> <command…|url> | rm <name>
+  apx mcps [list [project]] | tools|run|check <server> | trust|untrust <project> <server> | add <name> <command…|url> | rm <name>
                            The one way to talk to an agent. Default: Home (the secretary)
   apx threads [list] | get <thread> | cancel <thread>
   apx runs get <run> | wait <run> [--timeout 60]
@@ -107,51 +119,65 @@ Env: APX_URL (default http://127.0.0.1:<APX_PORT or 7440>), APX_TOKEN (default: 
 // Installed from a bundle: the service it writes and the core it starts run through that install's `current`.
 process.env.APX_APP ||= bundleAppOf(import.meta.dirname);
 
-const { values, positionals } = parseArgs({
-  allowPositionals: true,
-  options: {
-    json: { type: "boolean" },
-    help: { type: "boolean", short: "h" },
-    profile: { type: "string" },
-    by: { type: "string" },
-    submit: { type: "boolean" },
-    thread: { type: "string" },
-    agent: { type: "string" },
-    new: { type: "boolean" },
-    detach: { type: "boolean" },
-    interrupt: { type: "boolean" },
-    steer: { type: "boolean" },
-    code: { type: "boolean" },
-    cwd: { type: "string" },
-    write: { type: "string" },
-    keys: { type: "boolean" },
-    skills: { type: "boolean" },
-    services: { type: "boolean" },
-    refresh: { type: "boolean" },
-    project: { type: "string" },
-    cron: { type: "string" },
-    clear: { type: "boolean" },
-    scopes: { type: "string" },
-    scope: { type: "string" },
-    person: { type: "string" },
-    owed: { type: "string" },
-    due: { type: "string" },
-    every: { type: "string" },
-    at: { type: "string" },
-    pre: { type: "string" },
-    post: { type: "string" },
-    call: { type: "string" },
-    role: { type: "string" },
-    router: { type: "boolean" },
-    timeout: { type: "string" },
-    run: { type: "boolean" },
-    headless: { type: "boolean" },
-    import: { type: "boolean" },
-    expose: { type: "string" },
-    home: { type: "string" },
-    "dry-run": { type: "boolean" },
-  },
-});
+function argumentsOf() {
+  return parseArgs({
+    allowPositionals: true,
+    options: {
+      json: { type: "boolean" },
+      status: { type: "boolean" },
+      version: { type: "boolean", short: "v" },
+      check: { type: "boolean" },
+      plain: { type: "boolean" },
+      help: { type: "boolean", short: "h" },
+      profile: { type: "string" },
+      by: { type: "string" },
+      submit: { type: "boolean" },
+      thread: { type: "string" },
+      agent: { type: "string" },
+      new: { type: "boolean" },
+      detach: { type: "boolean" },
+      interrupt: { type: "boolean" },
+      steer: { type: "boolean" },
+      code: { type: "boolean" },
+      cwd: { type: "string" },
+      write: { type: "string" },
+      keys: { type: "boolean" },
+      skills: { type: "boolean" },
+      services: { type: "boolean" },
+      refresh: { type: "boolean" },
+      project: { type: "string" },
+      cron: { type: "string" },
+      clear: { type: "boolean" },
+      scopes: { type: "string" },
+      scope: { type: "string" },
+      person: { type: "string" },
+      owed: { type: "string" },
+      due: { type: "string" },
+      every: { type: "string" },
+      at: { type: "string" },
+      pre: { type: "string" },
+      post: { type: "string" },
+      call: { type: "string" },
+      role: { type: "string" },
+      router: { type: "boolean" },
+      timeout: { type: "string" },
+      run: { type: "boolean" },
+      headless: { type: "boolean" },
+      import: { type: "boolean" },
+      expose: { type: "string" },
+      home: { type: "string" },
+      "dry-run": { type: "boolean" },
+    },
+  });
+}
+let parsed: ReturnType<typeof argumentsOf>;
+try {
+  parsed = argumentsOf();
+} catch (err) {
+  console.error(card("Invalid arguments", [err instanceof Error ? err.message : String(err), "Try: apx --help"]));
+  process.exit(2);
+}
+const { values, positionals } = parsed;
 const [command, ...rest] = positionals;
 const connection = localConnection();
 const terminalClient = () =>
@@ -161,18 +187,22 @@ const client = terminalClient();
 const agentClient = new ApxClient({ ...connection, client: { name: "apx-mcp", version: "0.0.0" }, actor: "agent" });
 
 try {
-  switch (values.help ? "help" : command) {
-    case "status": {
-      const h = await client.call("system.health", {});
-      if (values.json) {
-        console.log(JSON.stringify(h, null, 2));
-        break;
-      }
-      console.log(`apx core ${h.version} · ${h.code_sha} · up ${h.uptime_s}s`);
-      for (const [name, s] of Object.entries(h.subsystems))
-        console.log(`  ${name.padEnd(12)} ${s.status}${s.detail ? ` — ${s.detail}` : ""}`);
+  switch (values.version ? "version" : values.help ? "help" : values.status ? "status" : command) {
+    case "version":
+      console.log(version(values.json));
       break;
-    }
+    case "status":
+      await status(client, { json: values.json, plain: values.plain });
+      break;
+    case "devices":
+    case "upgrade":
+    case "update":
+    case "tailscale":
+      await admin(client, command ?? "", rest, values);
+      break;
+    case "wizard":
+      await wizard(client);
+      break;
     case "ping": {
       const socket = await client.connect();
       const r = await socket.call("system.ping", rest[0] ? { echo: rest[0] } : {});
@@ -251,7 +281,7 @@ try {
       await usage(client, rest);
       break;
     case "mcps":
-      await mcps(client, rest);
+      await mcpCommand(client, rest, values);
       break;
     case "agents":
       if (rest[0] === "model") await agentModel(client, rest.slice(1), values);
@@ -293,6 +323,10 @@ try {
       });
       break;
     case "mcp": {
+      if (rest.length) {
+        await mcpCommand(client, rest, values);
+        break;
+      }
       if (values.run) {
         // The run token comes in the environment, never on the command line.
         const token = process.env.APX_RUN_TOKEN;
@@ -310,14 +344,54 @@ try {
       await runMcp(mcpClient, values.by ?? "mcp-client", Boolean(clientToken));
       break;
     }
-    default:
+    case "help":
+    case undefined:
+      if (
+        !values.help &&
+        command === undefined &&
+        process.stdin.isTTY &&
+        process.stdout.isTTY &&
+        !values.plain &&
+        !values.json
+      ) {
+        await wizard(client);
+        break;
+      }
+      if (!values.plain && !values.json)
+        console.log(
+          card("Help", [
+            "Agents that remember.",
+            "One core. Every device.",
+            "",
+            "Start: apx wizard",
+            "Crew: apx status",
+            "Core: apx service status",
+            "Tools: apx mcp tools <server>",
+          ]),
+        );
       console.log(HELP);
-      process.exitCode = command && command !== "help" ? 1 : 0;
+      break;
+    case "daemon":
+      console.error(
+        card("Daemon is now service", [
+          "APX v2 calls the background core a service.",
+          "",
+          "Inspect: apx service status",
+          "Restart: apx service restart",
+          "At login: apx service install",
+          "Remove: apx service uninstall",
+        ]),
+      );
+      process.exitCode = 1;
+      break;
+    default:
+      console.error(card("404 · Command not found", [`Unknown command: ${command}`, "Try: apx --help"]));
+      process.exitCode = 1;
   }
 } catch (err) {
-  if (err instanceof ApxError) console.error(`apx: ${err.code}: ${err.message}`);
+  if (err instanceof ApxError) console.error(card(`APX · ${err.code}`, [err.message]));
   else if (err instanceof TypeError && String(err.cause ?? "").includes("ECONNREFUSED"))
     console.error("apx: the core is not running (try: apx service install, or pnpm dev)");
-  else console.error(`apx: ${err instanceof Error ? err.message : String(err)}`);
+  else console.error(card("APX · Error", [err instanceof Error ? err.message : String(err)]));
   process.exitCode = 1;
 }
