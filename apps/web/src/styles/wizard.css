@@ -875,15 +875,29 @@ input.wiz__name {
   }
 }
 
-/* The desktop app's About window: the portrait in text beside the version and the facts, the crew below. */
+/* The desktop app's About window: the name on top, the portrait in text beside the facts, the crew, repo and legal below. */
 .wiz.about {
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 12px;
   height: 100%;
-  padding: 20px 40px;
+  padding: 16px 40px;
   box-sizing: border-box;
   overflow: hidden;
+}
+.about__brand {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  color: var(--apx-fg);
+  font-size: 18px;
+  font-weight: 600;
+}
+.about__legal {
+  margin: 0;
+  color: var(--apx-fg-subtle);
+  font-size: 11px;
 }
 .about__cols {
   display: grid;
@@ -931,12 +945,12 @@ input.wiz__name {
 .about__portrait canvas {
   display: block;
   width: 220px;
-  height: 220px;
+  height: 200px;
 }
 .about__info {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 .about__tag,
@@ -948,7 +962,7 @@ input.wiz__name {
 }
 .about__list {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   margin: 4px 0;
   font-size: 12px;
 }
@@ -956,7 +970,7 @@ input.wiz__name {
   display: flex;
   gap: 12px;
   justify-content: space-between;
-  padding: 3px 0;
+  padding: 2px 0;
   border-bottom: 1px solid var(--apx-border);
 }
 .about__list dt {

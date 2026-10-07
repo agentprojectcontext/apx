@@ -199,6 +199,7 @@ export const enSetup = {
   "about.statuses":
     "orbita|Lucía|is handing out the work;perla|Tomás|is fixing the checkout bug;caracol|Vera|is scheduling the newsletter;menta|Nova|is summarizing your inbox;cobalto|Reviewer|is reading the open PRs;noche|Night shift|is posting the weekly report",
   "about.foot": "Open source · your crew, on your computer or your server",
+  "about.legal": "© {year} APX contributors · MIT license",
   "about.services": "Services",
   "about.coreDown": "The core does not answer",
   "about.core": "Core",

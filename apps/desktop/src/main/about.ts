@@ -34,7 +34,7 @@ export async function showAbout(
   }
   win = new BrowserWindow({
     width: 820,
-    height: 380,
+    height: 430,
     resizable: false,
     minimizable: false,
     maximizable: false,

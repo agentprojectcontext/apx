@@ -95,6 +95,10 @@ export function AboutScreen() {
   ];
   return (
     <div className="wiz about" data-apx-look="minimal" data-apx-mode="dark">
+      <h1 className="about__brand">
+        <img src={logo} alt="" width={22} height={22} />
+        APX
+      </h1>
       <div className="about__cols">
         <GlyphPortrait />
         <div className="about__info">
@@ -114,12 +118,13 @@ export function AboutScreen() {
             )}
           </dl>
           <p className="about__credits">{t("about.credits")}</p>
-          <a className="about__repo" href={REPO} target="_blank" rel="noreferrer">
-            {REPO.replace("https://", "")}
-          </a>
         </div>
       </div>
       <StatusTicker />
+      <a className="about__repo" href={REPO} target="_blank" rel="noreferrer">
+        {REPO.replace("https://", "")}
+      </a>
+      <p className="about__legal">{t("about.legal", { year: new Date().getFullYear() })}</p>
     </div>
   );
 }
