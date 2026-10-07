@@ -19,6 +19,7 @@ import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { confirmPrompt } from "./owner-words.ts";
 import { guarded, pathsOf } from "./paths.ts";
+import { toolTitle } from "./tool-titles.ts";
 
 /** Runs a tool with its own deadline; a canceled turn stops waiting for it. */
 async function runTool(
@@ -137,7 +138,7 @@ export function createExecutor(o: {
   const execute: TurnIO["execute"] = async (callId, name, raw) => {
     const run = o.run();
     const tool = byName.get(name);
-    const title = tool ? tool.title(raw) : name;
+    const title = tool ? toolTitle(store, tool, raw) : name;
     const card = (status: "running" | "ok" | "error", detail?: string) =>
       display.upsert((p) => p.type === "tool" && p.call_id === callId, {
         type: "tool",
