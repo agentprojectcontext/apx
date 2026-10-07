@@ -145,6 +145,10 @@ function projectState(events) {
           updated_at: ev.ts,
           state: "open",
           status: readStatus(ev.status),
+          // When the CURRENT blocked period began. Derived from transitions,
+          // never written: a comment moves updated_at, and a watcher reading
+          // that clock was silenced by the owner asking "any news?".
+          blocked_since: readStatus(ev.status) === "blocked" ? ev.ts : null,
           title: ev.title || "",
           parent: ev.parent || null,
           // Every comment on this task, oldest first. Lives on the same event
@@ -180,8 +184,13 @@ function projectState(events) {
         if (!existing) break;
         const patch = ev.patch && typeof ev.patch === "object" ? ev.patch : {};
         for (const k of Object.keys(patch)) {
-          if (k === "id" || k === "state" || k === "created_at") continue;
-          if (k === "status") existing[k] = readStatus(patch[k]);
+          if (k === "id" || k === "state" || k === "created_at" || k === "blocked_since") continue;
+          if (k === "status") {
+            const next = readStatus(patch[k]);
+            if (next === "blocked" && existing.status !== "blocked") existing.blocked_since = ev.ts;
+            else if (next !== "blocked") existing.blocked_since = null;
+            existing[k] = next;
+          }
           else if (k === "category") existing[k] = normalizeTaskCategory(patch[k]);
           // A patch that clears the location must be able to say so, so null
           // survives here where an unknown key would just be copied.
@@ -214,6 +223,9 @@ function projectState(events) {
         if (!existing) break;
         existing.state = "open";
         existing.reopened_at = ev.ts;
+        // A reopened task that is still in the blocked column is blocked AGAIN,
+        // not blocked since before it was closed.
+        if (existing.status === "blocked") existing.blocked_since = ev.ts;
         existing.updated_at = ev.ts;
         break;
       }
