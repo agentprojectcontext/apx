@@ -110,6 +110,9 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     from outside (provider ids, model ids, effort levels, status codes) never show raw as a label: they go through a
     name (a provider's `label`, `effortLabel`) or show as code. Brand names keep their own case (iMessage, `apx`).
     `[review]`
+23. **Prompt budget.** What every model call carries (a default turn's system prompt and tool definitions) stays
+    within [`rules/PROMPT_SIZE.md`](rules/PROMPT_SIZE.md): APX sends the least of the agent apps measured, keep it so.
+    Per-turn context goes in the input, MCP and extension tools behind `mcp_search`. `[gate]` test.
 
 ### Code comments
 
@@ -134,5 +137,6 @@ expected `code_sha`) and the changed path is exercised for real; anything not ex
 | Which rules have a gate, high-risk changes | [`rules/GUARDRAILS_PROFILE.md`](rules/GUARDRAILS_PROFILE.md) |
 | Why something is the way it is | [`rules/DECISIONS.md`](rules/DECISIONS.md), [`rules/HISTORY.md`](rules/HISTORY.md) |
 | How to verify | [`rules/TESTING.md`](rules/TESTING.md) |
+| Adding to the prompt or a tool | [`rules/PROMPT_SIZE.md`](rules/PROMPT_SIZE.md) |
 | Product direction | [`plan/01-arquitectura-v2.md`](plan/01-arquitectura-v2.md), [`plan/00-plan-maestro.md`](plan/00-plan-maestro.md) |
 | Design system | [`packages/ui/.design-sync/NOTES.md`](packages/ui/.design-sync/NOTES.md), `packages/ui/src/components/*.md` |

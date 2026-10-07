@@ -24,7 +24,7 @@ messages or spends money on the owner's behalf).
 |---|---|---|
 | Typecheck | `pnpm typecheck` | Contract types across all clients; erasable TS only (rule 5) |
 | Lint | `pnpm lint` | Biome recommended + no `console` outside CLI/scripts, `import type`, no `!` assertions; dependency direction (rule 4: `domain` never imports `transport`/`rpc`/`channels`, `rpc` never imports `transport`, `packages/*` never import `apps/*`) |
-| Tests | `pnpm test` | Router, idempotency, safe bind, HTTP ≡ WS, origin/token gate, static path safety, agent runs (streaming, cancel, interrupted turns), delegation (sync + async wake-up), artifacts isolation, node routing, cookie mapping/decryption |
+| Tests | `pnpm test` | Router, idempotency, safe bind, HTTP ≡ WS, origin/token gate, static path safety, agent runs (streaming, cancel, interrupted turns), delegation (sync + async wake-up), artifacts isolation, node routing, cookie mapping/decryption; prompt budget (rule 23: a default turn's system prompt and tools within [`PROMPT_SIZE.md`](PROMPT_SIZE.md)) |
 | Private data | `pnpm check:private` | Rule 17 — local denylist (never committed) + public shapes (phone numbers, `/Users`/`/Volumes` paths) |
 | All | `pnpm preflight` | The four above; run before every push |
 
