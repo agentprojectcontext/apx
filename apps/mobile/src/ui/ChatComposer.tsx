@@ -1,7 +1,8 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { t as translate } from "../i18n";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { t } from "../i18n";
 import { Icon } from "./Icon";
-import { theme as t } from "./theme";
+import { Spinner } from "./kit";
+import { theme } from "./theme";
 
 export function ChatComposer({
   text,
@@ -9,81 +10,99 @@ export function ChatComposer({
   onSend,
   onStop,
   onApps,
+  onModel,
   online,
   busy,
   stopping,
   agentName,
   model,
+  usage,
 }: {
   text: string;
   onChangeText: (text: string) => void;
   onSend: () => void;
   onStop: () => void;
   onApps: () => void;
+  onModel: () => void;
   online: boolean;
   busy: boolean;
   stopping: boolean;
   agentName: string;
-  model?: string;
+  model: string;
+  usage?: string;
 }) {
-  const mainStops = busy && !text.trim();
-  const disabled = !online || stopping || (!mainStops && !text.trim());
+  const typed = Boolean(text.trim());
+  // With nothing typed while the agent works, the main button stops it; with words, they go in (and steer it).
+  const mainStops = busy && !typed;
+  const disabled = !online || stopping || (!mainStops && !typed);
   return (
     <View style={s.composer}>
       <TextInput
-        accessibilityLabel={translate("message")}
+        accessibilityLabel={t("message")}
         multiline
         value={text}
         onChangeText={onChangeText}
-        placeholder={translate("writeToAgent", { name: agentName })}
-        placeholderTextColor={t.subtle}
+        placeholder={t("writeToAgent", { name: agentName })}
+        placeholderTextColor={theme.fgSubtle}
         style={s.input}
-        onSubmitEditing={onSend}
-        returnKeyType="send"
       />
       <View style={s.toolbar}>
-        <Pressable accessibilityRole="button" accessibilityLabel={translate("apps")} onPress={onApps} style={s.chip}>
-          <Icon name="Plus" size={20} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("apps")}
+          onPress={onApps}
+          hitSlop={4}
+          style={s.round}
+        >
+          <Icon name="Plus" size={18} color={theme.fgMuted} />
         </Pressable>
-        <View style={s.modelChip}>
-          <Icon name="Bot" size={13} />
-          <Text numberOfLines={1} style={s.model}>
-            {model ?? agentName}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("modelForChat")}
+          onPress={onModel}
+          style={({ pressed }) => [s.model, pressed && { backgroundColor: theme.fillHover }]}
+        >
+          <Icon name="Bot" size={14} color={theme.fgMuted} />
+          <Text numberOfLines={1} style={s.modelText}>
+            {model}
           </Text>
-        </View>
-        <View style={s.spacer} />
-        {busy && !mainStops ? (
+          <Icon name="ChevronDown" size={12} color={theme.fgMuted} />
+        </Pressable>
+        <View style={{ flex: 1 }} />
+        {usage ? (
+          <View style={s.usage}>
+            <Icon name="Zap" size={12} color={theme.fgSubtle} />
+            <Text style={s.usageText}>{usage}</Text>
+          </View>
+        ) : null}
+        {busy && typed ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={translate("stopAgent")}
+            accessibilityLabel={t("stopAgent")}
             disabled={!online || stopping}
             onPress={onStop}
-            hitSlop={7}
-            style={s.stopSecondary}
+            hitSlop={6}
+            style={[s.round, s.stop]}
           >
-            {stopping ? (
-              <ActivityIndicator size="small" color={t.muted} />
-            ) : (
-              <Icon name="Square" size={16} color={t.fg} />
-            )}
+            {stopping ? <Spinner size={14} /> : <Icon name="Square" size={14} color={theme.fg} />}
           </Pressable>
         ) : null}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={translate(mainStops ? "stopAgent" : "send")}
+          accessibilityLabel={t(mainStops ? "stopAgent" : "send")}
           accessibilityState={{ disabled, busy: stopping }}
           onPress={mainStops ? onStop : onSend}
           disabled={disabled}
-          hitSlop={7}
-          style={[s.action, disabled && s.disabled]}
+          hitSlop={6}
+          style={[s.round, { backgroundColor: disabled ? theme.fillStrong : theme.accent }]}
         >
           {stopping && mainStops ? (
-            <ActivityIndicator size="small" color={t.muted} />
+            <Spinner size={14} />
           ) : (
             <Icon
               name={mainStops ? "Square" : "ArrowUp"}
-              size={mainStops ? 17 : 20}
-              color={disabled ? t.muted : t.accentFg}
+              size={mainStops ? 15 : 18}
+              color={disabled ? theme.fgMuted : theme.accentFg}
             />
           )}
         </Pressable>
@@ -91,57 +110,37 @@ export function ChatComposer({
     </View>
   );
 }
+
 const s = StyleSheet.create({
   composer: {
-    paddingHorizontal: 11,
-    paddingTop: 10,
-    paddingBottom: 6,
-    borderWidth: 1,
-    borderColor: t.border,
-    borderRadius: 20,
-    backgroundColor: t.surface,
     marginHorizontal: 10,
-    marginBottom: 8,
+    marginVertical: 6,
+    paddingTop: 12,
+    paddingRight: 12,
+    paddingBottom: 8,
+    paddingLeft: 16,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: theme.border,
+    backgroundColor: theme.surface,
+    gap: 8,
   },
-  input: { maxHeight: 120, minHeight: 35, color: t.fg, fontSize: 14, paddingVertical: 5, textAlignVertical: "top" },
-  toolbar: { minHeight: 40, flexDirection: "row", alignItems: "center", gap: 8 },
-  chip: {
-    width: 32,
-    height: 30,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: t.fill,
-  },
-  modelChip: {
+  input: { maxHeight: 132, minHeight: 28, color: theme.fg, fontSize: 15, paddingVertical: 4, textAlignVertical: "top" },
+  toolbar: { flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -8 },
+  round: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  stop: { borderWidth: 1, borderColor: theme.borderStrong, marginRight: 4 },
+  model: {
+    height: 32,
+    maxWidth: 170,
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 8,
-    height: 30,
+    gap: 6,
+    paddingHorizontal: 10,
     borderRadius: 16,
-    backgroundColor: t.fill,
-    flexShrink: 1,
-    maxWidth: 190,
+    backgroundColor: theme.fill,
   },
-  model: { color: t.muted, fontSize: 11, flexShrink: 1 },
-  spacer: { flex: 1 },
-  action: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: t.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  disabled: { backgroundColor: t.fill },
-  stopSecondary: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: t.borderStrong,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  modelText: { color: theme.fgMuted, fontSize: 12, flexShrink: 1 },
+  usage: { flexDirection: "row", alignItems: "center", gap: 4, marginRight: 4 },
+  usageText: { color: theme.fgSubtle, fontSize: 12 },
 });

@@ -11,6 +11,7 @@ export type Agent = {
   kind?: "secretary" | "agent";
   role?: string;
   project_id?: string;
+  model_choice?: { model?: string; router: boolean };
 };
 export type Project = {
   id: string;

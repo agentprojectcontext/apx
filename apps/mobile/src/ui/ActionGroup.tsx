@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { t as translate } from "../i18n";
 import type { Message } from "../protocol";
 import { Icon } from "./Icon";
+import { Spinner } from "./kit";
 import { theme as t } from "./theme";
 
 type ToolPart = Extract<Message["parts"][number], { type: "tool" }>;
@@ -25,8 +26,8 @@ export function ActionGroup({ parts, waiting = false }: { parts: ToolPart[]; wai
         onPress={() => setOpen((value) => !value)}
         style={s.heading}
       >
-        <Icon name={open ? "ChevronDown" : "ChevronRight"} size={14} color={t.subtle} />
-        {running ? <ActivityIndicator size={14} color={t.muted} /> : <Icon name="Wrench" size={14} color={t.subtle} />}
+        <Icon name={open ? "ChevronDown" : "ChevronRight"} size={14} color={t.fgMuted} />
+        {running ? <Spinner size={14} /> : null}
         <Text style={s.title}>{title}</Text>
         {failed > 0 ? <Text style={s.failed}>{translate("actionsFailed", { n: String(failed) })}</Text> : null}
       </Pressable>
@@ -42,7 +43,7 @@ export function ActionGroup({ parts, waiting = false }: { parts: ToolPart[]; wai
                 style={s.row}
               >
                 {part.status === "running" ? (
-                  <ActivityIndicator size={12} color={t.muted} />
+                  <Spinner size={12} />
                 ) : (
                   <Icon
                     name={part.status === "error" ? "X" : "Check"}
@@ -71,28 +72,25 @@ export function ActionGroup({ parts, waiting = false }: { parts: ToolPart[]; wai
   );
 }
 const s = StyleSheet.create({
-  group: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: t.border,
-    backgroundColor: t.fill,
-    alignSelf: "stretch",
-    marginBottom: 4,
-  },
+  group: { alignSelf: "flex-start", maxWidth: "88%", gap: 6 },
   heading: {
-    minHeight: 38,
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 11,
-    paddingVertical: 8,
-    flexWrap: "wrap",
+    paddingLeft: 8,
+    paddingRight: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: t.border,
+    borderRadius: 12,
+    alignSelf: "flex-start",
   },
-  title: { color: t.fg, fontSize: 12, fontWeight: "500" },
-  failed: { color: t.danger, fontSize: 11 },
-  rows: { gap: 6, paddingLeft: 30, paddingRight: 12, paddingBottom: 12 },
+  title: { color: t.fgMuted, fontSize: 13 },
+  failed: { color: t.danger, fontSize: 12 },
+  rows: { gap: 6, paddingLeft: 12, paddingRight: 4, paddingBottom: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 22 },
-  name: { color: t.fg, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", fontSize: 11, maxWidth: "42%" },
-  summary: { color: t.muted, fontSize: 11, flex: 1 },
-  detail: { color: t.muted, fontSize: 11, lineHeight: 17, marginLeft: 20, paddingVertical: 6 },
+  name: { color: t.fg, fontFamily: t.mono, fontSize: 11, maxWidth: "42%" },
+  summary: { color: t.fgMuted, fontSize: 12, flex: 1 },
+  detail: { color: t.fgMuted, fontSize: 11, lineHeight: 17, marginLeft: 20, paddingVertical: 6, fontFamily: t.mono },
 });

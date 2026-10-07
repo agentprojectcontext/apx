@@ -1,7 +1,14 @@
 import { randomUUID } from "expo-crypto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ModelChoice } from "../chat/models";
 import type { Creds } from "../creds";
-import { ApxClient, ApxError, type ApxSocket, type CoreEvent, type Message } from "../protocol";
+import { ApxClient, ApxError, type ApxSocket, type CoreEvent, type Message, type Thread } from "../protocol";
+
+type Usage = { context?: number; window?: number };
+/** The newest run that reported how full the chat is. */
+const usageOf = (runs: Array<{ started_at: string; usage?: Usage }>) =>
+  [...runs].sort((a, b) => b.started_at.localeCompare(a.started_at)).find((run) => run.usage?.context)?.usage;
+
 import { isWorking } from "./chatSelectors";
 
 function upsert(messages: Message[], message: Message): Message[] {
@@ -27,6 +34,8 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
   const [online, setOnline] = useState(false);
   const [state, setState] = useState("idle");
   const [error, setError] = useState("");
+  const [thread, setThread] = useState<Thread>();
+  const [usage, setUsage] = useState<Usage>();
   const reload = useRef<() => Promise<void>>(async () => {});
   useEffect(() => {
     let socket: ApxSocket | undefined;
@@ -46,6 +55,8 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
         const result = await client.call("threads.get", { thread: threadId });
         if (stopped || requestVersion !== loadVersion) return;
         if (requestStateVersion === stateVersion) setState(result.thread.state);
+        setThread(result.thread);
+        setUsage(usageOf(result.runs));
         setMessages((current) => {
           let merged = [...result.messages, ...current.filter((message) => message.id.startsWith("local_"))];
           for (const message of changes.values()) merged = upsert(merged, message);
@@ -83,6 +94,9 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
           if (event.type === "thread.updated" && event.thread.id === threadId) {
             stateVersion++;
             setState(event.thread.state);
+            setThread(event.thread);
+          } else if (event.type === "run.updated" && event.run.thread_id === threadId && event.run.usage?.context) {
+            setUsage(event.run.usage);
           } else if (
             (event.type === "message.created" || event.type === "message.updated") &&
             event.message.thread_id === threadId
@@ -129,6 +143,8 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
       }
     };
     setMessages([]);
+    setThread(undefined);
+    setUsage(undefined);
     setState("idle");
     setError("");
     setOnline(false);
@@ -141,7 +157,7 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
     };
   }, [client, threadId, onUnpair]);
 
-  return { messages, setMessages, online, state, setState, error, setError, reload };
+  return { messages, setMessages, online, state, setState, error, setError, reload, thread, setThread, usage };
 }
 
 /** Native counterpart of the web's live store: subscribe, load, fold events, recover missing parts. */
@@ -153,11 +169,8 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
   const sequence = useRef(0);
   const [stopping, setStopping] = useState(false);
   const stopPending = useRef(false);
-  const { messages, setMessages, online, state, setState, error, setError, reload } = useThreadFeed(
-    client,
-    threadId,
-    onUnpair,
-  );
+  const { messages, setMessages, online, state, setState, error, setError, reload, thread, setThread, usage } =
+    useThreadFeed(client, threadId, onUnpair);
   const send = useCallback(
     async (text: string) => {
       const local: Message = {
@@ -213,5 +226,13 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     },
     [client, reload],
   );
-  return { messages, online, state, error, send, respond, stop, stopping };
+  /** The chat's own model; null goes back to the agent's. */
+  const setModel = useCallback(
+    async (choice: ModelChoice | null) => {
+      const result = await client.call("threads.model", { thread: threadId, model_choice: choice });
+      setThread((current) => (current ? { ...current, model_choice: result.model_choice } : current));
+    },
+    [client, threadId, setThread],
+  );
+  return { messages, online, state, error, send, respond, stop, stopping, thread, usage, setModel, client };
 }

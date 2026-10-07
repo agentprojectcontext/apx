@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ago, ahead, dueWhen, elapsed, listWhen } from "./format.ts";
+import { ago, ahead, dayLabel, dueWhen, elapsed, listWhen } from "./format.ts";
 
 // A Wednesday afternoon, local time.
 const now = new Date(2026, 9, 7, 14, 39);
@@ -33,4 +33,10 @@ test("relative times count back and forward in the owner's language", () => {
   assert.equal(ahead(at(1, 8), now, "es"), "Mañana 08:00");
   assert.equal(elapsed(new Date(now.getTime() - 41 * 60_000).toISOString(), now, "es"), "41 min");
   assert.equal(elapsed(new Date(now.getTime() - 65 * 60_000).toISOString(), now, "es"), "1 h 5 min");
+});
+
+test("a transcript's day reads Today, Yesterday or the date", () => {
+  assert.equal(dayLabel(at(0, 9), now, "es"), "Hoy");
+  assert.equal(dayLabel(at(-1, 9), now, "en"), "Yesterday");
+  assert.match(dayLabel(new Date(2026, 8, 11).toISOString(), now, "es"), /^11 sept?\.?$/);
 });

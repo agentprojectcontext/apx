@@ -33,6 +33,13 @@ export function listWhen(iso?: string, now = new Date(), language: Lang = lang):
   }).format(at);
 }
 
+/** A transcript's day row: "Today", "Yesterday" or the date. */
+export function dayLabel(iso?: string, now = new Date(), language: Lang = lang): string {
+  const at = parse(iso);
+  if (at && dayOffset(at, now) === 0) return translator(language)("today");
+  return listWhen(iso, now, language);
+}
+
 /** When a task is due: "Today", "Today 18:00", "Tomorrow", a weekday within the week, or the date. */
 export function dueWhen(iso?: string, now = new Date(), language: Lang = lang): string {
   const at = parse(iso);

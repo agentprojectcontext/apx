@@ -93,12 +93,10 @@ export function WorkspaceScreen({ creds, onUnpair }: { creds: Creds; onUnpair: (
           creds={creds}
           onUnpair={onUnpair}
           onApps={() => setSurfaces(true)}
-          threadId={thread.id}
-          title={thread.title}
-          blob={workspace.data.agents.find((agent) => agent.id === thread.agent_ids[0])?.blob}
-          agentId={thread.agent_ids[0]}
-          agents={workspace.data.agents}
+          base={thread}
+          data={workspace.data}
           onSwitch={() => setPicker("switch")}
+          onNewChat={newChat}
           onBack={() => setThread(undefined)}
         />
       );
