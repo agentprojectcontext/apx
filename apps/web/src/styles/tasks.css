@@ -572,6 +572,19 @@ body.is-dragging {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  margin-top: 2px;
+}
+/* A long name (a team, a channel room) is cut instead of pushing the row apart. */
+.taskrow__sub > .apx-badge {
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.taskrow__sub > .apx-badge > svg {
+  margin-right: 4px;
+  vertical-align: -1px;
 }
 .taskrow__tag {
   display: inline-flex;

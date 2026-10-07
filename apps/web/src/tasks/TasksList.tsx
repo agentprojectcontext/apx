@@ -270,15 +270,16 @@ function TaskRow(props: {
               {task.state !== "open" && closedLabel(task, t) && (
                 <span className={`taskrow__closed is-${task.state}`}>{closedLabel(task, t)}</span>
               )}
-              {task.kind !== "task" && (
-                <span className={`taskrow__commit is-${task.kind}`}>
-                  {task.kind === "commitment" ? <Icons.Calendar size={11} /> : <Icons.MapPin size={11} />}
-                  {kindLabel(task.kind, t)}
-                </span>
-              )}
             </span>
-            {(task.person_id || task.tags.length > 0) && (
+            {/* Every mark goes on one line under the title, side by side: kind, who it is with, date, tags. */}
+            {(task.kind !== "task" || task.person_id || task.tags.length > 0) && (
               <span className="taskrow__sub">
+                {task.kind !== "task" && (
+                  <span className={`taskrow__commit is-${task.kind}`}>
+                    {task.kind === "commitment" ? <Icons.Calendar size={11} /> : <Icons.MapPin size={11} />}
+                    {kindLabel(task.kind, t)}
+                  </span>
+                )}
                 {task.person_id && <CommitmentMeta task={task} />}
                 {task.tags.slice(0, 3).map((tag) => (
                   <span key={tag} className="taskrow__tag">
