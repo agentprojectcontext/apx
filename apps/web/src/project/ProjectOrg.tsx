@@ -20,6 +20,7 @@ export function ProjectOrg({ project, switcher }: { project: ProjectEntry; switc
   const [area, setArea] = useState<Area | "new">();
   const [role, setRole] = useState<{ role?: Role; area?: string }>();
   const team = useMemo(() => Object.values(agents).filter((a) => inProject(a, project.id)), [agents, project.id]);
+  const agentCount = (n: number) => (n === 1 ? t("org.agents.one") : t("org.agents", { n }));
 
   if (!org) return <Skeleton shape="block" height={200} />;
   const rolesOf = (slug: string | undefined) => org.roles.filter((r) => (slug ? r.area === slug : !r.area));
@@ -80,9 +81,7 @@ export function ProjectOrg({ project, switcher }: { project: ProjectEntry; switc
               description={a.goal}
               aside={
                 <span className="org__aside">
-                  <span className="org__count">
-                    {t("org.agents", { n: team.filter((x) => x.area === a.slug).length })}
-                  </span>
+                  <span className="org__count">{agentCount(team.filter((x) => x.area === a.slug).length)}</span>
                   <IconButton
                     size="sm"
                     label={t("org.editArea", { name: a.name })}

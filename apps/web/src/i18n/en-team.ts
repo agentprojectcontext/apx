@@ -10,6 +10,7 @@ export const enTeam = {
   "org.addRole": "Role",
   "org.empty": "No areas yet",
   "org.emptyHint": "Add the company's areas (Finance, Operations…) and the roles in each one.",
+  "org.agents.one": "1 agent",
   "org.agents": "{n} agents",
   "org.general": "General roles",
   "org.generalHint": "Roles that belong to no area.",

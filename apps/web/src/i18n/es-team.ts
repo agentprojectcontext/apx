@@ -12,6 +12,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "org.addRole": "Rol",
   "org.empty": "Todavía no hay áreas",
   "org.emptyHint": "Sumá las áreas de la empresa (Finanzas, Operaciones…) y los roles de cada una.",
+  "org.agents.one": "1 agente",
   "org.agents": "{n} agentes",
   "org.general": "Roles generales",
   "org.generalHint": "Roles que no son de ningún área.",
