@@ -99,19 +99,26 @@
 }
 
 /* ── Overview ──────────────────────────────────────────────────────────────── */
+/* The whole overview scrolls as one page; the board may take the full width, the rest keeps the page's. */
 .overview {
   flex: 1;
   min-width: 0;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  box-sizing: border-box;
+  width: 100%;
+}
+.overview__grid {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   align-content: start;
   gap: 24px;
+  width: 100%;
   max-width: var(--shell-project-max-w);
   margin: 0 auto;
-  padding: 24px;
-  box-sizing: border-box;
-  width: 100%;
 }
 .overview__col,
 .overview__block {
@@ -584,23 +591,31 @@
   font-family: var(--apx-font-mono);
 }
 
-/* The project's board: pinned widgets across the whole overview, as many columns as fit. */
-.board {
-  grid-column: 1 / -1;
+/* The project's board: pinned widgets as many columns as fit, each as tall as its widget; the overview scrolls. */
+.projboard {
+  width: 100%;
+  max-width: var(--shell-project-max-w);
+  margin: 0 auto;
 }
-.board__bar {
+.projboard.is-wide {
+  max-width: none;
+}
+.projboard__bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 4px;
 }
-.board__grid {
+.projboard__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
   align-items: start;
 }
-.board__tile {
+/* While a tile is dragged the widgets' frames must not swallow the pointer, or nothing could be dropped on them. */
+.projboard__grid.is-dragging iframe {
+  pointer-events: none;
+}
+.projboard__tile {
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -608,10 +623,36 @@
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-lg);
   background: var(--apx-surface);
+  transition:
+    opacity 0.15s,
+    box-shadow 0.15s;
 }
-.board__tile .widgets__head {
-  padding: 8px 10px 8px 14px;
+.projboard__tile.is-dragged {
+  opacity: 0.45;
+}
+.projboard__tile.is-over {
+  box-shadow: 0 0 0 2px var(--apx-accent, var(--apx-border-strong, var(--apx-border)));
+}
+.projboard__head {
+  padding: 8px 10px 8px 8px;
   border-bottom: 1px solid var(--apx-border);
+  cursor: grab;
+}
+.projboard__head:active {
+  cursor: grabbing;
+}
+.projboard__grip {
+  flex: none;
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  color: var(--apx-fg-subtle);
+  cursor: grab;
+}
+.projboard__grip:focus-visible {
+  outline: 2px solid var(--apx-focus, var(--apx-accent, currentColor));
 }
 
 /* The tabs' counts read as "Agents (10)". */

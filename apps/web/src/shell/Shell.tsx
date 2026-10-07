@@ -4,6 +4,7 @@ import { applyDesktopPrefs } from "../config/desktopPrefs.ts";
 import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
 import { useThreadDialog } from "../data/threadAdmin.ts";
+import { WidgetChatHost } from "../surfaces/WidgetChat.tsx";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
 import { computeLayout, layoutVars } from "./layout.ts";
 import { go, nav, showsChat, useNav } from "./nav.ts";
@@ -90,6 +91,7 @@ export function Shell() {
         </Suspense>
       )}
       <PhoneDialog />
+      <WidgetChatHost />
       <Toasts />
     </div>
   );

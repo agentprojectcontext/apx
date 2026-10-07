@@ -708,3 +708,22 @@
 .sidepanel > .chat__scroll {
   min-width: 0;
 }
+
+/* A widget's chat over the page: the widget live on top, the conversation filling the rest, the composer below. */
+.drawer.widgetchat {
+  overflow: hidden;
+}
+.widgetchat__preview {
+  flex: none;
+  max-height: 40%;
+  overflow: auto;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+}
+.widgetchat__chat {
+  flex: 1 1 0;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}

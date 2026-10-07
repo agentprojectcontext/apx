@@ -32,7 +32,11 @@ export type Prefs = {
   sidebarCollapsed: boolean;
   listW: number;
   panelW: number;
+  /** Each project's board on this device: its widgets' order (by id) and whether it takes the whole width. */
+  boards: Record<string, BoardPrefs>;
 };
+
+export type BoardPrefs = { order: string[]; wide: boolean };
 
 export type InboxView = "tree" | "activity" | "chats";
 
@@ -56,6 +60,7 @@ const DEFAULTS: Prefs = {
   sidebarCollapsed: false,
   listW: 0,
   panelW: 0,
+  boards: {},
 };
 
 function load(): Prefs {
@@ -86,13 +91,34 @@ function load(): Prefs {
       sidebarCollapsed: raw.sidebarCollapsed === true,
       listW: typeof raw.listW === "number" ? raw.listW : 0,
       panelW: typeof raw.panelW === "number" ? raw.panelW : 0,
+      boards: boardsOf(raw.boards),
     };
   } catch {
     return DEFAULTS;
   }
 }
 
+/** Only well-formed boards survive a stored value written by an older (or a hand-edited) panel. */
+function boardsOf(raw: unknown): Record<string, BoardPrefs> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, BoardPrefs> = {};
+  for (const [id, b] of Object.entries(raw as Record<string, unknown>)) {
+    const v = b as Partial<BoardPrefs> | null;
+    if (!v || typeof v !== "object") continue;
+    const order = Array.isArray(v.order) ? v.order.filter((x): x is string => typeof x === "string").slice(0, 200) : [];
+    out[id] = { order: [...new Set(order)], wide: v.wide === true };
+  }
+  return out;
+}
+
 export const prefs = createStore<Prefs>(load());
+
+/** Changes one project's board preferences, keeping the rest. */
+export function setBoard(projectId: string, patch: Partial<BoardPrefs>): void {
+  const boards = prefs.get().boards;
+  const current = boards[projectId] ?? { order: [], wide: false };
+  setPrefs({ boards: { ...boards, [projectId]: { ...current, ...patch } } });
+}
 
 export function setPrefs(patch: Partial<Prefs>): void {
   prefs.set(patch);

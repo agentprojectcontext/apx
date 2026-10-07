@@ -68,7 +68,7 @@ export function buildSrcdoc(
 <style>${opts.theme}
 html{color-scheme:${opts.mode}}
 html,body{margin:0;background:transparent;color:var(--apx-fg);font-family:var(--apx-font-sans);font-size:14px;line-height:1.45}
-body{padding:0}*{box-sizing:border-box}</style>
+body{padding:0;display:flow-root}*{box-sizing:border-box}</style>
 <script>${bridge(opts.nonce)}</script>`;
   if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => `${m}${head}`);
   if (/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i, (m) => `${m}<head>${head}</head>`);

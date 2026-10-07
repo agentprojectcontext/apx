@@ -90,3 +90,54 @@ test("the base project's files are APX's work folder, where its chats work", asy
   await expect(page.getByText("Carpeta de trabajo de APX", { exact: true })).toBeVisible();
   await expect(page.getByText("Sin carpeta en esta máquina")).toHaveCount(0);
 });
+
+test("the board is ordered from the grip, takes the full width, and both stay after a reload", async ({ page }) => {
+  const projects = (await rpc<{ projects: Array<{ id: string; name: string }> }>("projects.list")).projects;
+  const northwind = projects.find((p) => p.name === "Northwind")?.id ?? "";
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "agent", agent_id: "roby", project_id: northwind });
+  const ids: string[] = [];
+  for (const [name, title] of [
+    ["board-a", "Primero"],
+    ["board-b", "Segundo"],
+  ])
+    ids.push(
+      (
+        await rpc<{ id: string }>("surfaces.show", {
+          name,
+          title,
+          html: `<h1>${title}</h1>`,
+          pinned: true,
+          thread: chat.id,
+        })
+      ).id,
+    );
+  try {
+    await open(page);
+    await page.getByRole("button", { name: /^Northwind/ }).click();
+    const board = page.getByRole("region", { name: "Tablero" });
+    const names = () => board.getByRole("article").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
+    await expect.poll(names).toEqual(["Primero", "Segundo"]);
+    await board.getByRole("button", { name: "Mover Primero (flechas)" }).press("ArrowRight");
+    await expect.poll(names).toEqual(["Segundo", "Primero"]);
+    await board.getByRole("button", { name: "Tablero a todo el ancho" }).click();
+
+    await page.reload();
+    await expect.poll(names).toEqual(["Segundo", "Primero"]);
+    await expect(board.getByRole("button", { name: "Tablero al ancho de la página" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    // A widget's chat opens over the page, with the widget live above it.
+    await board
+      .getByRole("article", { name: "Primero" })
+      .getByRole("button", { name: "Pedirle cambios a su agente" })
+      .click();
+    const drawer = page.getByRole("complementary", { name: "Chat del widget Primero" });
+    await expect(drawer.frameLocator("iframe").getByText("Primero")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
+  } finally {
+    for (const surface of ids) await rpc("surfaces.update", { surface, pinned: false });
+  }
+});

@@ -71,6 +71,8 @@ export async function rewindThread(thread: string, message: string, text?: strin
 
 /** Words handed to a new chat's composer (a fork from the owner's message), taken once when it opens. */
 const drafts = new Map<string, string>();
+/** Words a new chat's composer opens with (a widget's chat names the widget). */
+export const putDraft = (thread: string, text: string): void => void drafts.set(thread, text);
 export const takeDraft = (thread: string): string => {
   const d = drafts.get(thread) ?? "";
   drafts.delete(thread);

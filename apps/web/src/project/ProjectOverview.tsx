@@ -34,114 +34,119 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
   return (
     <div className="overview">
       <ProjectBoard projectId={pid} />
-      <div className="overview__col">
-        <section className="overview__block">
-          <h2 className="overview__h">{t("overview.now")}</h2>
-          {running.length ? (
-            running.map((th) => {
-              const agent = threadAgent(th, agents);
-              return (
+      {/* The rest keeps the page's width; only the board may take the whole screen. */}
+      <div className="overview__grid">
+        <div className="overview__col">
+          <section className="overview__block">
+            <h2 className="overview__h">{t("overview.now")}</h2>
+            {running.length ? (
+              running.map((th) => {
+                const agent = threadAgent(th, agents);
+                return (
+                  <button
+                    key={th.id}
+                    type="button"
+                    className="overview__run"
+                    onClick={() => go.project(pid, "chats", th.id)}
+                  >
+                    <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={32} animated={false} />
+                    <span className="overview__runtext">
+                      <span className="overview__runtitle">{th.title}</span>
+                      <span className="overview__runsub">
+                        {agent?.name ?? t("common.agent")} ·{" "}
+                        {th.state === "input-required"
+                          ? t("running.waitingForYou")
+                          : firstLine(th.preview) || t("thread.working")}
+                      </span>
+                    </span>
+                    {isWorking(th.state) ? <Spinner size={14} /> : <Icons.Hand size={14} />}
+                  </button>
+                );
+              })
+            ) : (
+              <EmptyState variant="dashed">{t("overview.nothingRunning")}</EmptyState>
+            )}
+          </section>
+
+          <section className="overview__block">
+            <h2 className="overview__h">
+              {t("overview.team")}{" "}
+              <span className="overview__hsub">
+                {team.length === 1
+                  ? t("overview.agentsCount.one")
+                  : t("overview.agentsCount.other", { n: team.length })}
+              </span>
+            </h2>
+            {team.length ? (
+              <div className="overview__pills">
+                {team.map((a) => (
+                  <button key={a.id} type="button" className="overview__pill" onClick={() => go.projectTab("team")}>
+                    <AgentAvatar name={a.name} blob={blobOf(a)} size={24} animated={false} />
+                    <span className="overview__pillname">{a.name}</span>
+                    {a.role && <span className="overview__pillrole">{a.role}</span>}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <EmptyState variant="dashed">{t("overview.noAgents")}</EmptyState>
+            )}
+          </section>
+        </div>
+
+        <div className="overview__col">
+          <div className="overview__stats">
+            <Stat value={chats.length} label={t("overview.chats")} onClick={() => go.projectTab("chats")} />
+            <Stat value={unread} label={t("overview.unread")} onClick={() => go.projectTab("chats")} />
+            <Stat value={team.length} label={t("overview.agents")} onClick={() => go.projectTab("team")} />
+          </div>
+
+          {apps.length > 0 && (
+            <section className="overview__block">
+              <h2 className="overview__h">{t("overview.appsOnly")}</h2>
+              {apps.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className="overview__row"
+                  onClick={() => (s.app ? go.app(s.id) : undefined)}
+                  disabled={!s.app}
+                >
+                  <ProjectTile tone="violet" icon={<Icons.LayoutGrid />} size={20} />
+                  <span className="overview__rowname">{s.title}</span>
+                  <span className="overview__rowwhen">{s.app ? t("common.app") : t("overview.pinned")}</span>
+                </button>
+              ))}
+            </section>
+          )}
+
+          <section className="overview__block">
+            <h2 className="overview__h">
+              {t("overview.recent")}
+              {chats.length > 0 && (
+                <button type="button" className="overview__link" onClick={() => go.projectTab("chats")}>
+                  {t("overview.seeAll")}
+                </button>
+              )}
+            </h2>
+            {chats.length ? (
+              chats.slice(0, 5).map((th) => (
                 <button
                   key={th.id}
                   type="button"
-                  className="overview__run"
+                  className="overview__row"
                   onClick={() => go.project(pid, "chats", th.id)}
                 >
-                  <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={32} animated={false} />
-                  <span className="overview__runtext">
-                    <span className="overview__runtitle">{th.title}</span>
-                    <span className="overview__runsub">
-                      {agent?.name ?? t("common.agent")} ·{" "}
-                      {th.state === "input-required"
-                        ? t("running.waitingForYou")
-                        : firstLine(th.preview) || t("thread.working")}
-                    </span>
-                  </span>
-                  {isWorking(th.state) ? <Spinner size={14} /> : <Icons.Hand size={14} />}
+                  <Icons.MessageCircle size={14} />
+                  <span className="overview__rowname">{th.title}</span>
+                  {th.unread > 0 && <span className="overview__unread">{th.unread}</span>}
+                  <span className="overview__rowwhen">{shortWhen(th.updated_at)}</span>
                 </button>
-              );
-            })
-          ) : (
-            <EmptyState variant="dashed">{t("overview.nothingRunning")}</EmptyState>
-          )}
-        </section>
-
-        <section className="overview__block">
-          <h2 className="overview__h">
-            {t("overview.team")}{" "}
-            <span className="overview__hsub">
-              {team.length === 1 ? t("overview.agentsCount.one") : t("overview.agentsCount.other", { n: team.length })}
-            </span>
-          </h2>
-          {team.length ? (
-            <div className="overview__pills">
-              {team.map((a) => (
-                <button key={a.id} type="button" className="overview__pill" onClick={() => go.projectTab("team")}>
-                  <AgentAvatar name={a.name} blob={blobOf(a)} size={24} animated={false} />
-                  <span className="overview__pillname">{a.name}</span>
-                  {a.role && <span className="overview__pillrole">{a.role}</span>}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <EmptyState variant="dashed">{t("overview.noAgents")}</EmptyState>
-          )}
-        </section>
-      </div>
-
-      <div className="overview__col">
-        <div className="overview__stats">
-          <Stat value={chats.length} label={t("overview.chats")} onClick={() => go.projectTab("chats")} />
-          <Stat value={unread} label={t("overview.unread")} onClick={() => go.projectTab("chats")} />
-          <Stat value={team.length} label={t("overview.agents")} onClick={() => go.projectTab("team")} />
-        </div>
-
-        {apps.length > 0 && (
-          <section className="overview__block">
-            <h2 className="overview__h">{t("overview.appsOnly")}</h2>
-            {apps.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className="overview__row"
-                onClick={() => (s.app ? go.app(s.id) : undefined)}
-                disabled={!s.app}
-              >
-                <ProjectTile tone="violet" icon={<Icons.LayoutGrid />} size={20} />
-                <span className="overview__rowname">{s.title}</span>
-                <span className="overview__rowwhen">{s.app ? t("common.app") : t("overview.pinned")}</span>
-              </button>
-            ))}
-          </section>
-        )}
-
-        <section className="overview__block">
-          <h2 className="overview__h">
-            {t("overview.recent")}
-            {chats.length > 0 && (
-              <button type="button" className="overview__link" onClick={() => go.projectTab("chats")}>
-                {t("overview.seeAll")}
-              </button>
+              ))
+            ) : (
+              <EmptyState variant="dashed">{t("overview.noChats")}</EmptyState>
             )}
-          </h2>
-          {chats.length ? (
-            chats.slice(0, 5).map((th) => (
-              <button
-                key={th.id}
-                type="button"
-                className="overview__row"
-                onClick={() => go.project(pid, "chats", th.id)}
-              >
-                <Icons.MessageCircle size={14} />
-                <span className="overview__rowname">{th.title}</span>
-                {th.unread > 0 && <span className="overview__unread">{th.unread}</span>}
-                <span className="overview__rowwhen">{shortWhen(th.updated_at)}</span>
-              </button>
-            ))
-          ) : (
-            <EmptyState variant="dashed">{t("overview.noChats")}</EmptyState>
-          )}
-        </section>
+          </section>
+        </div>
       </div>
     </div>
   );
