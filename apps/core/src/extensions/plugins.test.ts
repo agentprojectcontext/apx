@@ -133,6 +133,8 @@ test("one context provider at a time; off, it stops and turns get nothing from i
   assert.match(input, /core=denied \(127\.0\.0\.1 is not reachable from a plugin\)/);
   assert.match(input, /raw=denied/, "no private http modules");
   assert.match(input, /mapped=denied/, "no IPv4-mapped loopback");
+  // Nor the local network, which it did not ask for.
+  assert.match(await turnInput("now http://192.168.1.1:9/"), /core=denied \(192\.168\.1\.1 is not reachable/);
 });
 
 test("a misbehaving plugin cannot stall turns or APX: odd answers are ignored, a flood stops it", async () => {

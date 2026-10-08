@@ -304,6 +304,8 @@ export const ExtensionManifest = z
         context: z.boolean().default(false),
         /** Whether it may reach the internet (never this machine). */
         network: z.boolean().default(false),
+        /** Whether it may also reach the local network and the owner's tailnet (a home device, a NAS). */
+        local_network: z.boolean().default(false),
       })
       .strict()
       .optional(),
@@ -331,6 +333,7 @@ export const ExtensionInfo = z.object({
       observe: z.array(PluginEvent),
       context: z.boolean(),
       network: z.boolean(),
+      local_network: z.boolean(),
       status: z.enum(["off", "running", "error"]),
       error: z.string().optional(),
     })

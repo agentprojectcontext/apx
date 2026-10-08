@@ -86,8 +86,9 @@ export default function activate(api) {
 ```
 
 - `observe`: any of `thread.updated`, `message.created`, `run.updated`, `task.updated`, `notification.updated`.
-- `api.secrets.<name>` holds its declared secrets; `api.fetch` reaches the internet only with `"network": true`, and
-  never this machine (APX's own port included). It cannot start processes or call APX.
+- `api.secrets.<name>` holds its declared secrets; `api.fetch` reaches the internet only with `"network": true`, the
+  local network and the tailnet only with `"local_network": true` as well, and never this machine (APX's own port
+  included). It cannot start processes or call APX.
 - What `context` returns reaches the agent as **outside data**, not instructions. One extension at a time may add
   context.
 

@@ -343,6 +343,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "ext.plugin.watches": "Observa {events}",
   "ext.plugin.context": "Agrega contexto a tus turnos",
   "ext.plugin.network": "Usa internet",
+  "ext.plugin.localNetwork": "Usa internet y tu red local",
   "ext.plugin.error": "El plugin se detuvo: {error}",
   "ext.runsCode": "Trae código que corre en esta computadora. Encendela sólo si confiás en quien la hizo.",
   "error.clients": "Tokens de API: {error}",

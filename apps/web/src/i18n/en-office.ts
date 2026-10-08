@@ -340,6 +340,7 @@ export const enOffice = {
   "ext.plugin.watches": "Watches {events}",
   "ext.plugin.context": "Adds context to your turns",
   "ext.plugin.network": "Uses the internet",
+  "ext.plugin.localNetwork": "Uses the internet and your local network",
   "ext.plugin.error": "Plugin stopped: {error}",
   "ext.runsCode": "It brings code that runs on this computer. Turn it on only if you trust its author.",
   "error.clients": "API tokens: {error}",

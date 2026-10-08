@@ -12,6 +12,7 @@ import { pathToFileURL } from "node:url";
 
 const [entry] = process.argv.slice(2);
 const network = process.env.APX_PLUGIN_NETWORK === "1";
+const localNetwork = process.env.APX_PLUGIN_LOCAL_NETWORK === "1";
 const MAX_BODY = 20 * 1024 * 1024;
 
 const ALLOWED = new Set([
@@ -54,6 +55,19 @@ closed.addSubnet("169.254.0.0", 16, "ipv4");
 closed.addAddress("::1", "ipv6");
 closed.addAddress("::", "ipv6");
 closed.addSubnet("fe80::", 10, "ipv6");
+// The local network and the tailnet only when the plugin asked for them (DECISIONS.md#d-057).
+if (!localNetwork) {
+  for (const [a, bits] of [
+    ["10.0.0.0", 8],
+    ["172.16.0.0", 12],
+    ["192.168.0.0", 16],
+    ["100.64.0.0", 10],
+    ["224.0.0.0", 4],
+  ])
+    closed.addSubnet(a, bits, "ipv4");
+  closed.addSubnet("fc00::", 7, "ipv6");
+  closed.addSubnet("ff00::", 8, "ipv6");
+}
 function isClosed(address) {
   const family = net.isIP(address);
   if (family === 4) return closed.check(address, "ipv4");

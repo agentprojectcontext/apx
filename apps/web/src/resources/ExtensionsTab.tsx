@@ -142,7 +142,7 @@ function ExtensionSummary({ e }: { e: ExtensionInfo }) {
               {[
                 e.plugin.observe.length ? t("ext.plugin.watches", { events: e.plugin.observe.join(", ") }) : "",
                 e.plugin.context ? t("ext.plugin.context") : "",
-                e.plugin.network ? t("ext.plugin.network") : "",
+                e.plugin.network ? t(e.plugin.local_network ? "ext.plugin.localNetwork" : "ext.plugin.network") : "",
               ]
                 .filter(Boolean)
                 .join(" · ") || "—"}

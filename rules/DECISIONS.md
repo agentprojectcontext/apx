@@ -632,3 +632,6 @@ The G0 audit (plan/parity/07-seguridad.md) left holes open for the owner to deci
 - **A URL that carries values asks after outside content.** `web_read`, `browser_open` and `browser_navigate` with a
   query are `untrusted`: with a page or a message in the turn, `?d=<data>` to someone's site waits for the owner.
   A plain URL does not. Data in the path is not caught.
+- **Plugins reach the local network only if they ask.** With `"network": true` a plugin reaches the internet; the
+  private ranges (10/8, 172.16/12, 192.168/16, the tailnet's 100.64/10, fc00::/7, multicast) need
+  `"local_network": true` as well, shown to the owner before turning it on.

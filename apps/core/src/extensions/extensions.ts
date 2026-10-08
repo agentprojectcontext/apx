@@ -129,6 +129,7 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
             observe: e.manifest.plugin.observe,
             context: e.manifest.plugin.context,
             network: e.manifest.plugin.network,
+            local_network: e.manifest.plugin.network && e.manifest.plugin.local_network,
             ...plugins.status(e.id),
           },
         }

@@ -63,6 +63,7 @@ export function createPlugins(deps: {
     const env: Record<string, string> = {
       APX_DATA_DIR: data,
       APX_PLUGIN_NETWORK: plugin.network ? "1" : "0",
+      APX_PLUGIN_LOCAL_NETWORK: plugin.network && plugin.local_network ? "1" : "0",
       PATH: process.env.PATH ?? "",
       ...nodeChildEnv(),
     };
