@@ -19,7 +19,9 @@ import { registerAppScheme, serveAppScheme, webDist } from "./app-scheme.ts";
 import { installedBrowsers, isWebUrl, openExternal } from "./browser/external.ts";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { type Bounds, createPopout } from "./browser/popout.ts";
+import { computerPermissions, createComputer, openPrivacy } from "./computer.ts";
 import { createConnector } from "./connector.ts";
+import { createCursor } from "./cursor.ts";
 import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
@@ -214,6 +216,13 @@ app.whenReady().then(() => {
   });
 
   let linked = false;
+  // Computer use: off until the panel applies the owner's choice (Config › Desktop); macOS only for now.
+  let computerOn = false;
+  const computer = createComputer({
+    cursor: createCursor(),
+    onActivity: (a) => panel.webContents.send("computer:activity", a),
+  });
+  let link: { refresh(): void } | undefined;
   const connector = createConnector({
     panel: panel.webContents,
     coreUrl: CORE_URL,
@@ -225,7 +234,10 @@ app.whenReady().then(() => {
       quick.start();
       if (linked || !node) return;
       linked = true;
-      startNodeLink(host, node.url, () => {}, node.token);
+      link = startNodeLink(host, node.url, () => {}, node.token, {
+        on: () => computerOn && process.platform === "darwin",
+        handle: computer.handle,
+      });
     },
   });
   app.on("will-quit", () => connector.stop());
@@ -247,11 +259,21 @@ app.whenReady().then(() => {
   ipcMain.on("desktop:language", (e, lang: unknown) => {
     if (e.sender === panel.webContents && (lang === "en" || lang === "es")) language = lang;
   });
-  ipcMain.on("desktop:prefs", (e, prefs: DesktopPrefs) => {
+  ipcMain.on("desktop:prefs", (e, prefs: DesktopPrefs & { computerUse?: boolean }) => {
     if (e.sender !== panel.webContents || typeof prefs?.shortcut !== "string") return;
+    computerOn = prefs.computerUse === true;
+    link?.refresh();
     const error = quick.apply({ shortcut: prefs.shortcut, launchAtLogin: prefs.launchAtLogin === true });
     if (error && Notification.isSupported()) new Notification({ title: "APX", body: error }).show();
   });
+  // Computer use: what macOS allows, where to allow it, and live frames of the window an agent works on (panel only).
+  ipcMain.handle("computer:permissions", (e) => (e.sender === panel.webContents ? computerPermissions() : undefined));
+  ipcMain.handle("computer:open-privacy", (e, kind: unknown) => {
+    if (e.sender === panel.webContents && (kind === "screen" || kind === "accessibility")) openPrivacy(kind);
+  });
+  ipcMain.handle("computer:frame", (e) =>
+    e.sender === panel.webContents && computerOn ? computer.frame().catch(() => undefined) : undefined,
+  );
   // The owner picks a folder (a project's) with the system's own dialog; only the panel may ask.
   ipcMain.handle("panel:pick-folder", async (e) => {
     if (e.sender !== panel.webContents) return undefined;

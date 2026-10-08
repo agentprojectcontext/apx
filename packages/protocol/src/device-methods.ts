@@ -126,7 +126,8 @@ export const deviceMethods = {
    * shows as accessible elements (buttons, toggles, fields, with their values).
    */
   "computer.snapshot": {
-    params: z.object({ thread: Id.optional() }).strict(),
+    /** `app`: bring that app to the front first (its window is the one seen). */
+    params: z.object({ thread: Id.optional(), app: z.string().min(1).max(120).optional() }).strict(),
     result: z.object({
       media: z.object({ id: Id, mime: z.string() }),
       app: z.string(),

@@ -45,8 +45,16 @@ declare global {
       openMain?(threadId?: string): void;
       /** The main window is told to open a chat (asked from the quick window). */
       onOpenThread?(listener: (threadId: string) => void): void;
-      /** Applies the desktop settings (shortcut, start at login) in the shell. */
-      applyDesktopPrefs?(prefs: { shortcut: string; launchAtLogin: boolean }): void;
+      /** Applies the desktop settings (shortcut, start at login, computer use) in the shell. */
+      applyDesktopPrefs?(prefs: { shortcut: string; launchAtLogin: boolean; computerUse?: boolean }): void;
+      /** What macOS lets APX do for computer use: see the screen ("granted"…) and drive other apps. */
+      computerPermissions?(): Promise<{ screen: string; accessibility: boolean } | undefined>;
+      /** Opens the System Settings pane where the owner allows it. */
+      openPrivacy?(kind: "screen" | "accessibility"): Promise<void>;
+      /** A live frame of the window an agent works on (a data URL), or nothing yet. */
+      computerFrame?(): Promise<unknown>;
+      /** An agent looked at the screen, clicked or typed; returns how to stop listening. */
+      onComputerActivity?(listener: (a: unknown) => void): () => void;
       /** How many notices wait for the owner: shown on the menu-bar icon and the Dock. */
       setAttention?(unread: number): void;
       /** The panel's language, for the shell's own windows (About), which cannot read the panel's settings. */

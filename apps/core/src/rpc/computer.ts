@@ -13,8 +13,8 @@ const ACT_MS = 10_000;
 
 export function computerHandlers(broker: NodeBroker, store: Store, home: string) {
   return {
-    "computer.snapshot": async ({ thread }) => {
-      const r = (await broker.invoke(COMPUTER_CAP, "computer.snapshot", {}, SNAPSHOT_MS)) as {
+    "computer.snapshot": async ({ thread, app }) => {
+      const r = (await broker.invoke(COMPUTER_CAP, "computer.snapshot", app ? { app } : {}, SNAPSHOT_MS)) as {
         mime?: string;
         data?: string;
         app?: string;

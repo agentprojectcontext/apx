@@ -1,11 +1,11 @@
-import { Button, Kbd, SettingRow, Switch } from "@apx/ui";
+import { Badge, Button, Kbd, SettingRow, Switch } from "@apx/ui";
 import { type KeyboardEvent, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
-type Prefs = { shortcut: string; launch_at_login: boolean };
+type Prefs = { shortcut: string; launch_at_login: boolean; computer_use: boolean };
 
 const SYMBOL: Record<string, string> = { CommandOrControl: "⌘", Alt: "⌥", Shift: "⇧", Control: "⌃", Space: "Space" };
 
@@ -34,14 +34,18 @@ export function DesktopSection() {
   useEffect(() => {
     void client
       .call("desktop.get", {})
-      .then(setPrefs, () => setPrefs({ shortcut: "Alt+Space", launch_at_login: true }));
+      .then(setPrefs, () => setPrefs({ shortcut: "Alt+Space", launch_at_login: true, computer_use: false }));
   }, []);
 
   const save = async (next: Prefs) => {
     try {
       const saved = await client.call("desktop.set", next);
       setPrefs(saved);
-      window.apxDesktop?.applyDesktopPrefs?.({ shortcut: saved.shortcut, launchAtLogin: saved.launch_at_login });
+      window.apxDesktop?.applyDesktopPrefs?.({
+        shortcut: saved.shortcut,
+        launchAtLogin: saved.launch_at_login,
+        computerUse: saved.computer_use,
+      });
     } catch (e) {
       notify(t("error.desktop", { error: e instanceof Error ? e.message : String(e) }));
     }
@@ -92,6 +96,48 @@ export function DesktopSection() {
           aria-label={t("desktop.login")}
         />
       </SettingRow>
+      {window.apxDesktop?.platform === "darwin" && (
+        <ComputerUse on={prefs.computer_use} onChange={(on) => void save({ ...prefs, computer_use: on })} />
+      )}
+    </>
+  );
+}
+
+type Permissions = { screen: string; accessibility: boolean };
+
+/** Computer use on this Mac: the switch, and the two permissions macOS asks for, each with a way to grant it. */
+function ComputerUse({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+  const t = useT();
+  const [perms, setPerms] = useState<Permissions>();
+  useEffect(() => {
+    const read = () => void window.apxDesktop?.computerPermissions?.().then(setPerms, () => {});
+    read();
+    // The owner grants them in System Settings: coming back here shows the new state.
+    window.addEventListener("focus", read);
+    return () => window.removeEventListener("focus", read);
+  }, []);
+  const row = (kind: "screen" | "accessibility", granted: boolean | undefined) => (
+    <SettingRow title={t(`desktop.cu.${kind}`)} description={t(`desktop.cu.${kind}Hint`)}>
+      <div className="tgtoken">
+        <Badge tone={granted ? "brand" : "warning"} dot>
+          {t(granted ? "desktop.cu.granted" : "desktop.cu.missing")}
+        </Badge>
+        {!granted && (
+          <Button size="sm" variant="secondary" onClick={() => void window.apxDesktop?.openPrivacy?.(kind)}>
+            {t("desktop.cu.open")}
+          </Button>
+        )}
+      </div>
+    </SettingRow>
+  );
+  return (
+    <>
+      <SubHead>{t("desktop.cu")}</SubHead>
+      <SettingRow title={t("desktop.cu.switch")} description={t("desktop.cu.switchHint")}>
+        <Switch size="sm" checked={on} onCheckedChange={onChange} aria-label={t("desktop.cu.switch")} />
+      </SettingRow>
+      {on && perms && row("screen", perms.screen === "granted")}
+      {on && perms && row("accessibility", perms.accessibility)}
     </>
   );
 }

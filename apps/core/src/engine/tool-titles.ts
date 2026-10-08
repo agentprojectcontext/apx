@@ -68,7 +68,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   web_read: (a) => (a.url ? `Leyó ${host(a.url)}` : "Leyó una página"),
   phone_location: () => "Vio dónde está tu teléfono",
   phone_photo: () => "Pidió una foto a tu teléfono",
-  screen_snapshot: () => "Miró tu pantalla",
+  screen_snapshot: (a) => (a.app ? `Miró ${str(a.app)} en tu pantalla` : "Miró tu pantalla"),
   screen_click: (a) => `Hizo clic en ${str(a.app) || "una app"}`,
   screen_type: (a) => `Escribió en ${str(a.app) || "una app"}`,
   task_list: () => "Revisó las tareas",

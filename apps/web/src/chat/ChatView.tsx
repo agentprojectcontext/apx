@@ -9,6 +9,7 @@ import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ChatHeader } from "./ChatHeader.tsx";
 import { ChatComposer } from "./composer/ChatComposer.tsx";
+import { ScreenLive } from "./ScreenLive.tsx";
 import { Transcript } from "./Transcript.tsx";
 
 export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean; compact?: boolean }) {
@@ -94,6 +95,7 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
       ) : (
         <ChatComposer key={thread.id} thread={thread} agent={agent} />
       )}
+      <ScreenLive />
     </section>
   );
 }

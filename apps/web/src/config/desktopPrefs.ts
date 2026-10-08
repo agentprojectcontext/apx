@@ -5,6 +5,10 @@ export async function applyDesktopPrefs(): Promise<void> {
   if (!window.apxDesktop?.applyDesktopPrefs) return;
   try {
     const p = await client.call("desktop.get", {});
-    window.apxDesktop.applyDesktopPrefs({ shortcut: p.shortcut, launchAtLogin: p.launch_at_login });
+    window.apxDesktop.applyDesktopPrefs({
+      shortcut: p.shortcut,
+      launchAtLogin: p.launch_at_login,
+      computerUse: p.computer_use,
+    });
   } catch {}
 }

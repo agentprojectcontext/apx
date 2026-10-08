@@ -23,7 +23,17 @@ contextBridge.exposeInMainWorld("apxDesktop", {
     ipcRenderer.on("nav:thread", (_e, id: unknown) => {
       if (typeof id === "string") listener(id);
     }),
-  applyDesktopPrefs: (prefs: { shortcut: string; launchAtLogin: boolean }) => ipcRenderer.send("desktop:prefs", prefs),
+  applyDesktopPrefs: (prefs: { shortcut: string; launchAtLogin: boolean; computerUse?: boolean }) =>
+    ipcRenderer.send("desktop:prefs", prefs),
+  /** Computer use: what macOS allows APX, where the owner allows it, and the live view of what an agent works on. */
+  computerPermissions: (): Promise<unknown> => ipcRenderer.invoke("computer:permissions"),
+  openPrivacy: (kind: "screen" | "accessibility") => ipcRenderer.invoke("computer:open-privacy", kind),
+  computerFrame: (): Promise<unknown> => ipcRenderer.invoke("computer:frame"),
+  onComputerActivity: (listener: (a: unknown) => void) => {
+    const on = (_e: unknown, a: unknown) => listener(a);
+    ipcRenderer.on("computer:activity", on);
+    return () => ipcRenderer.removeListener("computer:activity", on);
+  },
   setAttention: (unread: number) => ipcRenderer.send("desktop:attention", Number(unread) || 0),
   setTitleBar: (mode: "light" | "dark") => ipcRenderer.send("desktop:titlebar", mode),
   setLanguage: (language: string) => ipcRenderer.send("desktop:language", String(language)),

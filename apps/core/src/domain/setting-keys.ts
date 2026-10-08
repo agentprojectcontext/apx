@@ -61,11 +61,18 @@ const Channel = ChannelInfo.omit({ token_set: true, token_hint: true, status: tr
 export const SETTINGS = {
   task_columns: entry(z.array(TaskColumn).min(1), DEFAULT_COLUMNS),
   notices: entry(NoticePrefs, NoticePrefs.parse({})),
-  /** The quick chat's shortcut and start at login (on: APX is meant to be always there); each field falls back alone. */
-  desktop: entry(z.object({ shortcut: z.string().catch("Alt+Space"), launch_at_login: z.boolean().catch(true) }), {
-    shortcut: "Alt+Space",
-    launch_at_login: true,
-  }),
+  /**
+   * The quick chat's shortcut, start at login (on: APX is meant to be always there) and whether agents may use this
+   * computer's screen (off until the owner turns it on); each field falls back alone.
+   */
+  desktop: entry(
+    z.object({
+      shortcut: z.string().catch("Alt+Space"),
+      launch_at_login: z.boolean().catch(true),
+      computer_use: z.boolean().catch(false),
+    }),
+    { shortcut: "Alt+Space", launch_at_login: true, computer_use: false },
+  ),
   /** Saved without the auxiliary model, which keeps its own key ("model_aux", plain text). */
   memory: entry(MemorySettings.omit({ aux_model: true }).partial(), {}),
   /** About the owner and their time zone (their name is the owner's person; the language is "owner_language"). */

@@ -858,15 +858,18 @@ export const appMethods = {
     access: "human",
   },
   /** The desktop app's settings: the global shortcut of the quick chat and whether APX starts at login. */
+  /** The desktop app's settings: quick chat shortcut, start at login, and computer use on this computer. */
   "desktop.get": {
     params: z.object({}).strict(),
-    result: z.object({ shortcut: z.string(), launch_at_login: z.boolean() }),
+    result: z.object({ shortcut: z.string(), launch_at_login: z.boolean(), computer_use: z.boolean() }),
     effect: false,
     access: "human",
   },
   "desktop.set": {
-    params: z.object({ shortcut: z.string().max(60), launch_at_login: z.boolean() }).strict(),
-    result: z.object({ shortcut: z.string(), launch_at_login: z.boolean() }),
+    params: z
+      .object({ shortcut: z.string().max(60), launch_at_login: z.boolean(), computer_use: z.boolean().default(false) })
+      .strict(),
+    result: z.object({ shortcut: z.string(), launch_at_login: z.boolean(), computer_use: z.boolean() }),
     effect: true,
     access: "human",
   },
