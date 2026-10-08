@@ -7,6 +7,7 @@ import {
   app,
   BaseWindow,
   dialog,
+  globalShortcut,
   ipcMain,
   Menu,
   Notification,
@@ -221,7 +222,22 @@ app.whenReady().then(() => {
   const computer = createComputer({
     cursor: createCursor(),
     onActivity: (a) => panel.webContents.send("computer:activity", a),
+    onStopped: (stopped) => {
+      panel.webContents.send("computer:stopped", stopped);
+      if (stopped && Notification.isSupported())
+        new Notification({
+          title: "APX",
+          body: language === "es" ? "Uso de la computadora detenido." : "Computer use stopped.",
+        }).show();
+    },
   });
+  // The emergency stop, from any app, while computer use is on.
+  const STOP_KEYS = "CommandOrControl+Shift+Escape";
+  const armStop = () => {
+    const armed = globalShortcut.isRegistered(STOP_KEYS);
+    if (computerOn && !armed) globalShortcut.register(STOP_KEYS, () => computer.stop());
+    if (!computerOn && armed) globalShortcut.unregister(STOP_KEYS);
+  };
   let link: { refresh(): void } | undefined;
   const connector = createConnector({
     panel: panel.webContents,
@@ -262,6 +278,7 @@ app.whenReady().then(() => {
   ipcMain.on("desktop:prefs", (e, prefs: DesktopPrefs & { computerUse?: boolean }) => {
     if (e.sender !== panel.webContents || typeof prefs?.shortcut !== "string") return;
     computerOn = prefs.computerUse === true;
+    armStop();
     link?.refresh();
     const error = quick.apply({ shortcut: prefs.shortcut, launchAtLogin: prefs.launchAtLogin === true });
     if (error && Notification.isSupported()) new Notification({ title: "APX", body: error }).show();
@@ -271,6 +288,13 @@ app.whenReady().then(() => {
   ipcMain.handle("computer:open-privacy", (e, kind: unknown) => {
     if (e.sender === panel.webContents && (kind === "screen" || kind === "accessibility")) openPrivacy(kind);
   });
+  ipcMain.handle("computer:stop", (e) => {
+    if (e.sender === panel.webContents) computer.stop();
+  });
+  ipcMain.handle("computer:resume", (e) => {
+    if (e.sender === panel.webContents) computer.resume();
+  });
+  ipcMain.handle("computer:is-stopped", (e) => e.sender === panel.webContents && computer.stopped());
   ipcMain.handle("computer:frame", (e) =>
     e.sender === panel.webContents && computerOn ? computer.frame().catch(() => undefined) : undefined,
   );

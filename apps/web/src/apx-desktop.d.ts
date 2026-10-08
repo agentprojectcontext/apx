@@ -53,6 +53,11 @@ declare global {
       openPrivacy?(kind: "screen" | "accessibility"): Promise<void>;
       /** A live frame of the window an agent works on (a data URL), or nothing yet. */
       computerFrame?(): Promise<unknown>;
+      /** The emergency stop (also ⌘⇧Esc from any app): no agent action reaches the screen until resumed. */
+      stopComputer?(): Promise<void>;
+      resumeComputer?(): Promise<void>;
+      computerStopped?(): Promise<unknown>;
+      onComputerStopped?(listener: (stopped: boolean) => void): () => void;
       /** An agent looked at the screen, clicked or typed; returns how to stop listening. */
       onComputerActivity?(listener: (a: unknown) => void): () => void;
       /** How many notices wait for the owner: shown on the menu-bar icon and the Dock. */

@@ -29,6 +29,15 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   computerPermissions: (): Promise<unknown> => ipcRenderer.invoke("computer:permissions"),
   openPrivacy: (kind: "screen" | "accessibility") => ipcRenderer.invoke("computer:open-privacy", kind),
   computerFrame: (): Promise<unknown> => ipcRenderer.invoke("computer:frame"),
+  /** The emergency stop (also ⌘⇧Esc from any app) and back. */
+  stopComputer: () => ipcRenderer.invoke("computer:stop"),
+  resumeComputer: () => ipcRenderer.invoke("computer:resume"),
+  computerStopped: (): Promise<unknown> => ipcRenderer.invoke("computer:is-stopped"),
+  onComputerStopped: (listener: (stopped: boolean) => void) => {
+    const on = (_e: unknown, stopped: unknown) => listener(stopped === true);
+    ipcRenderer.on("computer:stopped", on);
+    return () => ipcRenderer.removeListener("computer:stopped", on);
+  },
   onComputerActivity: (listener: (a: unknown) => void) => {
     const on = (_e: unknown, a: unknown) => listener(a);
     ipcRenderer.on("computer:activity", on);

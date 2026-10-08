@@ -206,9 +206,22 @@ async function picture(bounds: Bounds | undefined, max: number): Promise<NativeI
   return scale < 1 ? img.resize({ width: Math.round(s.width * scale), quality: "good" }) : img;
 }
 
-export function createComputer(o: { cursor: AgentCursor; onActivity(a: ComputerActivity): void }) {
+/** What an agent hears once the owner pulled the emergency stop. */
+const STOPPED =
+  "the owner stopped computer use (emergency stop): do not try again; tell them, and wait until they resume it";
+
+export function createComputer(o: {
+  cursor: AgentCursor;
+  onActivity(a: ComputerActivity): void;
+  onStopped(stopped: boolean): void;
+}) {
   /** The window an agent is working on: what the panel's live view follows. */
   let target: Target | undefined;
+  /** The emergency stop: nothing reaches the screen until the owner resumes. */
+  let stopped = false;
+  const go = () => {
+    if (stopped) throw new Error(STOPPED);
+  };
 
   async function look(app?: string) {
     if (app) await osa(ACTIVATE, [app]).catch(() => {});
@@ -247,6 +260,7 @@ export function createComputer(o: { cursor: AgentCursor; onActivity(a: ComputerA
 
   return {
     async handle(method: string, params: unknown): Promise<unknown> {
+      go();
       const p = (params ?? {}) as { x?: number; y?: number; app?: string; text?: string };
       if (method === "computer.snapshot") return look(p.app);
       if (method === "computer.click") {
@@ -255,6 +269,8 @@ export function createComputer(o: { cursor: AgentCursor; onActivity(a: ComputerA
         // Approved for this app: bring it back to the front (the owner may have switched), then show where it clicks.
         await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
         await o.cursor.moveTo(x, y, p.app ?? "");
+        // The stop may come while the pointer glides there: then no click.
+        go();
         const app = await osa(CLICK, [String(p.app ?? ""), String(x), String(y)], "JavaScript");
         o.cursor.pulse();
         o.onActivity({ kind: "click", app, window: target?.window ?? "", x, y });
@@ -262,12 +278,26 @@ export function createComputer(o: { cursor: AgentCursor; onActivity(a: ComputerA
       }
       if (method === "computer.type") {
         await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
+        go();
         o.cursor.label("⌨");
         const app = await osa(TYPE, [String(p.app ?? ""), String(p.text ?? "")]);
         o.onActivity({ kind: "type", app, window: target?.window ?? "" });
         return { app };
       }
       throw new Error(`unknown method ${method}`);
+    },
+    stopped: () => stopped,
+    /** The emergency stop: refuses every action from now on and takes the pointer off the screen. */
+    stop() {
+      if (stopped) return;
+      stopped = true;
+      o.cursor.hide();
+      o.onStopped(true);
+    },
+    resume() {
+      if (!stopped) return;
+      stopped = false;
+      o.onStopped(false);
     },
     /** A live frame of the window an agent is working on (found again on its screen), for the panel only. */
     async frame(): Promise<{ data: string; bounds?: Bounds; app: string; window: string } | undefined> {

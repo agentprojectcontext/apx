@@ -65,6 +65,7 @@ export function createCursor() {
     },
     pulse: () => void run("pulse()"),
     label: (s: string) => void run(`setLabel(${JSON.stringify(s.slice(0, 40))})`),
+    hide: () => win?.hide(),
     close: () => win?.destroy(),
   };
 }

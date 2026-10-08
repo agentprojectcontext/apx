@@ -1,4 +1,4 @@
-import { IconButton, Icons } from "@apx/ui";
+import { Button, IconButton, Icons } from "@apx/ui";
 import { type PointerEvent, useEffect, useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
 import { ComputerIcon } from "./parts/ComputerIcon.tsx";
@@ -30,6 +30,7 @@ export function ScreenLive() {
   const [frame, setFrame] = useState<Frame>();
   const [size, setSize] = useState<Size>("mini");
   const [offset, setOffset] = useState<Offset>(HOME);
+  const [stopped, setStopped] = useState(false);
   const card = useRef<HTMLElement>(null);
   const drag = useRef<{ px: number; py: number; from: Offset } | undefined>(undefined);
 
@@ -47,6 +48,15 @@ export function ScreenLive() {
       ),
     [],
   );
+
+  // The emergency stop, pulled here or with ⌘⇧Esc from any app.
+  useEffect(() => {
+    void window.apxDesktop?.computerStopped?.().then(
+      (s) => setStopped(s === true),
+      () => {},
+    );
+    return window.apxDesktop?.onComputerStopped?.(setStopped);
+  }, []);
 
   // Computer use is over after a while with no action: close, forget where it was moved.
   useEffect(() => {
@@ -125,6 +135,17 @@ export function ScreenLive() {
             <span className="screenlive__window"> · {frame?.window || last.window}</span>
           )}
         </span>
+        {!stopped && (
+          <Button
+            size="sm"
+            variant="danger"
+            leadingIcon={<Icons.Square size={11} />}
+            onClick={() => void window.apxDesktop?.stopComputer?.()}
+            title={t("live.stopHint")}
+          >
+            {t("live.stop")}
+          </Button>
+        )}
         <IconButton
           size="sm"
           label={size === "mini" ? t("live.bigger") : t("live.smaller")}
@@ -144,7 +165,15 @@ export function ScreenLive() {
         ) : (
           <div className="screenlive__wait">{t("live.wait")}</div>
         )}
-        {dot && <span className="screenlive__dot" style={dot} />}
+        {dot && !stopped && <span className="screenlive__dot" style={dot} />}
+        {stopped && (
+          <div className="screenlive__stopped" role="status">
+            <span>{t("live.stopped")}</span>
+            <Button size="sm" onClick={() => void window.apxDesktop?.resumeComputer?.()}>
+              {t("live.resume")}
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );

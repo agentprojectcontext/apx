@@ -1039,7 +1039,7 @@ export const en = {
   "desktop.cu": "Computer use",
   "desktop.cu.switch": "Let agents use this computer",
   "desktop.cu.switchHint":
-    "They can look at the window in front and, with your OK for each one, click and type in it. Never passwords.",
+    "They can look at the window in front and, with your OK for each one, click and type in it. Never passwords. ⌘⇧Esc stops it from any app.",
   "desktop.cu.screen": "Screen Recording",
   "desktop.cu.screenHint": "To see the window an agent works on.",
   "desktop.cu.accessibility": "Accessibility",
@@ -1052,6 +1052,10 @@ export const en = {
   "live.bigger": "Make it bigger",
   "live.smaller": "Make it smaller",
   "live.hide": "Hide",
+  "live.stop": "Stop",
+  "live.stopHint": "Emergency stop: no agent can use the computer until you resume. Also ⌘⇧Esc from any app.",
+  "live.stopped": "Stopped. No agent can use the computer until you resume.",
+  "live.resume": "Resume",
   "live.wait": "Waiting for the screen…",
   "error.desktop": "Desktop: {error}",
   "tg.itsMeHint":
