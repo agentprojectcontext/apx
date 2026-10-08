@@ -150,10 +150,16 @@ function run(argv) {
   if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
   const app = $.AXUIElementCreateApplication(procs[0].unixId());
   $.AXUIElementSetAttributeValue(app, $("AXManualAccessibility"), $.kCFBooleanTrue);
+  // A text attribute, or "": anything else (a number, a struct) never breaks the press.
   const str = (el, name) => {
-    const r = Ref();
-    if ($.AXUIElementCopyAttributeValue(el, $(name), r) !== 0 || !r[0]) return "";
-    try { return String(ObjC.unwrap(ObjC.castRefToObject(r[0])) || ""); } catch (e) { return ""; }
+    try {
+      const r = Ref();
+      if ($.AXUIElementCopyAttributeValue(el, $(name), r) !== 0 || !r[0]) return "";
+      const v = ObjC.unwrap(ObjC.castRefToObject(r[0]));
+      return typeof v === "string" ? v : "";
+    } catch (e) {
+      return "";
+    }
   };
   const PRESS = ["AXButton", "AXLink", "AXCheckBox", "AXRadioButton", "AXPopUpButton", "AXMenuButton", "AXMenuItem", "AXTab", "AXDisclosureTriangle", "AXCell", "AXRow", "AXImage", "AXStaticText"];
   const FIELD = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"];
@@ -170,20 +176,25 @@ function run(argv) {
   for (let i = 0; i < 6 && el; i++) {
     const role = str(el, "AXRole");
     seen.push(role || "?");
-    const label = (str(el, "AXTitle") || str(el, "AXDescription") || str(el, "AXValue")).slice(0, 40);
+    const label = (str(el, "AXTitle") || str(el, "AXDescription")).slice(0, 40);
     if (FIELD.indexOf(role) >= 0) {
       if ($.AXUIElementSetAttributeValue(el, $("AXFocused"), $.kCFBooleanTrue) === 0) return "focused " + role + " " + label;
       return "none";
     }
-    const a = Ref();
-    $.AXUIElementCopyActionNames(el, a);
-    const actions = a[0] ? ObjC.deepUnwrap(ObjC.castRefToObject(a[0])) : [];
+    let actions = [];
+    try {
+      const a = Ref();
+      if ($.AXUIElementCopyActionNames(el, a) === 0 && a[0]) actions = ObjC.deepUnwrap(ObjC.castRefToObject(a[0])) || [];
+    } catch (e) {}
     if (PRESS.indexOf(role) >= 0 && actions && actions.indexOf("AXPress") >= 0)
       return $.AXUIElementPerformAction(el, $("AXPress")) === 0 ? "pressed " + role + " " + label : "none";
     if (["AXWebArea", "AXWindow", "AXApplication"].indexOf(role) >= 0) return "none: " + seen.join(" < ");
-    const up = Ref();
-    $.AXUIElementCopyAttributeValue(el, $("AXParent"), up);
-    el = up[0];
+    try {
+      const up = Ref();
+      el = $.AXUIElementCopyAttributeValue(el, $("AXParent"), up) === 0 ? up[0] : null;
+    } catch (e) {
+      el = null;
+    }
   }
   return "none: " + (seen.join(" < ") || "no element at that point");
 }`;
