@@ -94,7 +94,8 @@ Usage:
 
   apx secrets [list] | set <name> (value on stdin) | rm <name>
   apx import-v1 [--keys] [--skills] [--services]
-                           Register the project folders a local APX v1 knows (read-only); --keys also copies
+                           Import what a local APX v1 holds, from its files (read-only, v1 may be stopped):
+                           projects, agents, memory, chats, channels, tasks, routines (off)… --keys also copies
                            its model API keys into v2's secret store, --skills its skills, --services its
                            image engines and voices, once
 

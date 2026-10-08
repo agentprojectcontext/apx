@@ -7,11 +7,25 @@ import { install, restart } from "./service.ts";
 
 export type ImportOptions = { keys: boolean; skills: boolean; services: boolean };
 
+/** What v1 holds that the import copies without asking; keys, skills and services only when their flag says so. */
+const OPT_IN = { keys: "keys", skills: "skills", services: "services" } as const;
+
+/**
+ * From v1's files, as the desktop setup imports (v1's daemon may already be stopped: install.sh stops it before
+ * v2 starts). Only the groups v1 has something in.
+ */
 export async function importV1(client: ApxClient, o: ImportOptions): Promise<void> {
-  const r = await client.call("system.import_v1", o);
-  console.log(
-    `imported ${r.projects} projects, ${r.agents} agents${r.keys.length ? `; keys: ${r.keys.join(", ")}` : ""}${r.skills.length ? `; ${r.skills.length} skills` : ""}${r.services.length ? `; services: ${r.services.join(", ")}` : ""}`,
-  );
+  const { groups } = await client.call("setup.v1_scan", {});
+  const optIn = new Set<string>(Object.values(OPT_IN));
+  const wanted = groups
+    .filter((g) => g.count > 0)
+    .map((g) => g.id)
+    .filter((id) => !optIn.has(id) || o[id as keyof ImportOptions]);
+  if (!wanted.length) return console.log("APX v1 has nothing to import here");
+  const r = await client.call("setup.import_v1", { groups: wanted });
+  const counts = Object.entries(r.imported).filter(([, n]) => n > 0);
+  console.log(`imported from v1: ${counts.map(([g, n]) => `${n} ${g}`).join(", ") || "nothing new"}`);
+  for (const e of r.errors) console.error(`  ${e}`);
 }
 
 /** `client()` is called after each step: exposing creates the token the next calls need. */
