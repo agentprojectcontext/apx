@@ -69,7 +69,15 @@ export function taskTools(): Tool[] {
         const names = new Map(listed?.projects.map((p) => [p.id, p.name]));
         const where = (t: Task) =>
           listed ? (t.project_id ? (names.get(t.project_id) ?? t.project_id) : listed.base.name) : undefined;
-        return r.tasks.length ? `${r.tasks.map((t) => line(t, where(t))).join("\n")}\n${cols}` : `no tasks. ${cols}`;
+        if (r.tasks.length) return `${r.tasks.map((t) => line(t, where(t))).join("\n")}\n${cols}`;
+        // An empty filtered list is not an empty board: say what was asked and what else is open.
+        const scope = [a.state ?? "open", a.mine ? "assigned to you" : "", a.commitments ? "commitments" : ""];
+        const empty = `no tasks (${scope.filter(Boolean).join(", ")}).`;
+        if (!a.mine && !a.commitments && (a.state ?? "open") === "open") return `${empty} ${cols}`;
+        const open = (await ctx.call("tasks.list", {})).tasks;
+        const by = Map.groupBy(open, (t) => t.status);
+        const spread = [...by].map(([status, ts]) => `${ts.length} ${status}`).join(", ");
+        return `${empty} The board has ${open.length} open${open.length ? ` (${spread})` : ""}; task_list with no filters lists them. ${cols}`;
       },
     }),
     defineTool({
