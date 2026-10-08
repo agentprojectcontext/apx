@@ -2,22 +2,47 @@
 // It stays on screen while the agent keeps working (gone after a minute idle or on the stop); its note fades sooner.
 // A transparent window that lets every click through, kept out of screen pictures (content protection), on the screen
 // of the point.
+import fs from "node:fs";
+import path from "node:path";
 import { BrowserWindow, screen } from "electron";
 
-const PAGE = `<!doctype html><html><head><meta charset="utf-8"><style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font:600 12px -apple-system,system-ui}
+/** APX's mark, inline (the cursor page loads nothing from outside). */
+function mark(): string {
+  try {
+    return fs
+      .readFileSync(path.join(import.meta.dirname, "logo-green.svg"), "utf8")
+      .replace(/<title[^>]*>.*?<\/title>/s, "")
+      .replace("<svg ", '<svg width="14" height="14" ');
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * APX's own pointer: a rounded arrow in the brand's lime with a soft glow, a dark bubble with APX's mark for what the
+ * agent is doing, and a lime ring when it clicks.
+ */
+const PAGE = () => `<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font:600 12px/1.25 -apple-system,system-ui}
 #c{position:absolute;left:0;top:0;transform:translate(-100px,-100px);transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .3s;opacity:0}
-#c svg{filter:drop-shadow(0 2px 4px rgba(0,0,0,.45))}
-#l{transition:opacity .4s;position:absolute;left:22px;top:20px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:4px 10px;border-radius:12px 12px 12px 4px;background:#2fb67c;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.3)}
-#r{position:absolute;left:-14px;top:-14px;width:28px;height:28px;border-radius:50%;border:3px solid #2fb67c;opacity:0}
-#r.on{animation:p .6s ease-out}
-@keyframes p{0%{opacity:1;transform:scale(.4)}100%{opacity:0;transform:scale(1.6)}}
-</style></head><body><div id="c"><div id="r"></div><svg width="22" height="26" viewBox="0 0 22 26"><path d="M2 2 L2 21 L7.5 16 L11 24 L14.5 22.5 L11 15 L18.5 15 Z" fill="#2fb67c" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><div id="l"></div></div>
+#p{display:block;filter:drop-shadow(0 0 6px rgba(128,255,0,.55)) drop-shadow(0 3px 5px rgba(0,0,0,.5));animation:breathe 2.4s ease-in-out infinite}
+@keyframes breathe{0%,100%{filter:drop-shadow(0 0 4px rgba(128,255,0,.45)) drop-shadow(0 3px 5px rgba(0,0,0,.5))}50%{filter:drop-shadow(0 0 9px rgba(128,255,0,.75)) drop-shadow(0 3px 5px rgba(0,0,0,.5))}}
+#l{transition:opacity .4s;position:absolute;left:24px;top:24px;display:flex;align-items:center;gap:6px;max-width:280px;padding:5px 10px 5px 7px;border-radius:4px 12px 12px 12px;background:rgba(10,16,12,.92);border:1px solid rgba(128,255,0,.55);color:#eaffd6;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+#l svg{flex:none}
+#t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#r{position:absolute;left:-13px;top:-14px;width:32px;height:32px;border-radius:50%;border:2.5px solid #80ff00;box-shadow:0 0 10px rgba(128,255,0,.7);opacity:0}
+#r.on{animation:ring .6s ease-out}
+@keyframes ring{0%{opacity:1;transform:scale(.35)}100%{opacity:0;transform:scale(1.7)}}
+</style></head><body><div id="c"><div id="r"></div>
+<svg id="p" width="26" height="30" viewBox="0 0 26 30"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b6ff5c"/><stop offset=".55" stop-color="#80ff00"/><stop offset="1" stop-color="#3ec98b"/></linearGradient></defs>
+<path d="M3.2 2.6c0-.9 1-1.4 1.7-.8l17 14.2c.7.6.3 1.8-.7 1.8h-7.1c-.4 0-.8.2-1 .5l-5.6 7.7c-.6.8-1.8.4-1.8-.6z" fill="url(#g)" stroke="#0b130d" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M5.2 5.2v15.2" stroke="rgba(255,255,255,.55)" stroke-width="1.2" stroke-linecap="round"/></svg>
+<div id="l">${mark()}<span id="t"></span></div></div>
 <script>
-const c=document.getElementById("c"),l=document.getElementById("l"),r=document.getElementById("r");let tl,tc;
+const c=document.getElementById("c"),l=document.getElementById("l"),t=document.getElementById("t"),r=document.getElementById("r");let tl,tc;
 const keep=()=>{c.style.opacity=1;clearTimeout(tc);tc=setTimeout(()=>c.style.opacity=0,60000)};
-const note=(s)=>{l.textContent=s||"";l.style.display=s?"block":"none";l.style.opacity=1;clearTimeout(tl);tl=setTimeout(()=>l.style.opacity=0,3500)};
-window.moveTo=(x,y,label)=>{keep();c.style.transform="translate("+x+"px,"+y+"px)";note(label)};
+const note=(s)=>{t.textContent=s||"";l.style.display=s?"flex":"none";l.style.opacity=1;clearTimeout(tl);tl=setTimeout(()=>l.style.opacity=0,3500)};
+window.moveTo=(x,y,label)=>{keep();c.style.transform="translate("+(x-3)+"px,"+(y-2)+"px)";note(label)};
 window.pulse=()=>{keep();r.classList.remove("on");void r.offsetWidth;r.classList.add("on")};
 window.setLabel=(s)=>{keep();note(s)};
 </script></body></html>`;
@@ -51,7 +76,7 @@ export function createCursor() {
       win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
       // Out of every screen picture: the agent must not see its own pointer.
       win.setContentProtection(true);
-      await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(PAGE)}`);
+      await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(PAGE())}`);
       display = d.id;
     } else if (display !== d.id) {
       win.setBounds(d.bounds);

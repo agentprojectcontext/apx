@@ -279,6 +279,23 @@ const parseBounds = (line: string | undefined): Bounds | undefined => {
 };
 
 /** The window in front, wherever it is: its app, name and bounds, and (when asked) its elements. */
+/**
+ * The app's front window as the screen shows it (the window server's list, front to back, normal windows of a real
+ * size): "x,y,w,h<TAB>title", or "" when it has none on screen. Accessibility's own list counts windows a browser
+ * keeps hidden, which sent the picture to the wrong monitor. argv = pid.
+ */
+const SHOWN_WINDOW = `
+function run(argv) {
+  ObjC.import("CoreGraphics");
+  ObjC.import("Foundation");
+  const pid = Number(argv[0]);
+  const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements, 0)));
+  const w = list.find((w) => w.kCGWindowOwnerPID === pid && w.kCGWindowLayer === 0 && w.kCGWindowBounds && w.kCGWindowBounds.Width >= 300 && w.kCGWindowBounds.Height >= 200);
+  if (!w) return "";
+  const b = w.kCGWindowBounds;
+  return [b.X, b.Y, b.Width, b.Height].map(Math.round).join(",") + "\t" + (w.kCGWindowName || "");
+}`;
+
 async function front(withElements: boolean): Promise<Target & { pid: number; lines: string[] }> {
   const [head = "", window = "", bounds, ...lines] = (
     await osa(LOOK, [withElements ? "1" : "0"], "AppleScript", withElements ? ELEMENTS_MS : OSA_MS)
@@ -286,7 +303,16 @@ async function front(withElements: boolean): Promise<Target & { pid: number; lin
   const [app = "", pid = ""] = head.split("\t");
   // AppleScript says "missing value" for an attribute an element does not have.
   const clean = lines.filter(Boolean).map((l) => l.replaceAll("missing value", ""));
-  return { app, pid: Number(pid), window, bounds: parseBounds(bounds), lines: clean };
+  // Where its window really is on screen, whatever monitor: the window server knows better than accessibility.
+  const [shown = "", title = ""] = (await osa(SHOWN_WINDOW, [pid], "JavaScript").catch(() => "")).split("\t");
+  const real = parseBounds(shown);
+  return {
+    app,
+    pid: Number(pid),
+    window: title || window,
+    bounds: real ?? parseBounds(bounds),
+    lines: clean,
+  };
 }
 
 /**
