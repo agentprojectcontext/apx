@@ -13,6 +13,9 @@ const ELEMENTS_MS = 4_000;
 /** The longest side of the picture sent to the core, and of a live frame for the panel. */
 const SHOT_MAX = 1600;
 const FRAME_MAX = 900;
+/** A real click waits for the owner's mouse to rest this long, and gives up after the wait (well inside OSA_MS). */
+const MOUSE_IDLE_S = 0.5;
+const MOUSE_WAIT_MS = 5_000;
 
 type Bounds = { x: number; y: number; width: number; height: number };
 type Target = { app: string; window: string; bounds: Bounds | undefined };
@@ -204,12 +207,24 @@ function run(argv) {
 
 /**
  * A real mouse click, when nothing at the point takes a press: the pointer goes there, clicks and comes straight back
- * to where the owner had it. Refused if another app's window covers the point. argv = app, x, y.
+ * to where the owner had it. It waits for a pause in the owner's mouse first, since a click mixed with their movement
+ * is lost. Refused if another app's window covers the point. argv = app, x, y.
  */
 const CLICK = `
+function idle() {
+  let least = 1e9;
+  for (const t of [$.kCGEventMouseMoved, $.kCGEventLeftMouseDragged, $.kCGEventRightMouseDragged, $.kCGEventLeftMouseDown, $.kCGEventRightMouseDown, $.kCGEventScrollWheel])
+    least = Math.min(least, $.CGEventSourceSecondsSinceLastEventType($.kCGEventSourceStateHIDSystemState, t));
+  return least;
+}
 function run(argv) {
   ObjC.import("CoreGraphics");
   ObjC.import("Foundation");
+  const until = Date.now() + ${MOUSE_WAIT_MS};
+  while (idle() < ${MOUSE_IDLE_S}) {
+    if (Date.now() > until) throw new Error("the owner is using the mouse right now: nothing was clicked, try again in a moment");
+    delay(0.1);
+  }
   const procs = Application("System Events").processes.whose({ name: argv[0] });
   if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
   const pid = procs[0].unixId();
