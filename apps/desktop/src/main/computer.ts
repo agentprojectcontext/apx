@@ -123,53 +123,52 @@ end run`;
 const KEY = `
 function run(argv) {
   ObjC.import("CoreGraphics");
-  const front = Application("System Events").processes.whose({ frontmost: true })[0].name();
-  if (front !== argv[0]) throw new Error("the app in front is " + front + ", not " + argv[0]);
+  const procs = Application("System Events").processes.whose({ name: argv[0] });
+  if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
+  const pid = procs[0].unixId();
   const code = Number(argv[1]);
   const flags = Number(argv[2]);
   for (const down of [true, false]) {
     const e = $.CGEventCreateKeyboardEvent(null, code, down);
     if (flags) $.CGEventSetFlags(e, flags);
-    $.CGEventPost($.kCGHIDEventTap, e);
+    $.CGEventPostToPid(pid, e);
     delay(0.02);
   }
-  return front;
+  return argv[0];
 }`;
 
 /**
- * A real mouse click (CoreGraphics events, in JavaScript for Automation): it moves the pointer there and presses, so
- * it works on any control, not only those with an accessibility action. Refused if another app is in front.
+ * A click sent to the app itself (CoreGraphics events posted to its process): the owner's own pointer does not move
+ * and can keep working elsewhere; the app finds its own window at that point. argv = app, x, y.
  */
 const CLICK = `
 function run(argv) {
   ObjC.import("CoreGraphics");
-  ObjC.import("Foundation");
-  const app = argv[0];
-  const x = Number(argv[1]);
-  const y = Number(argv[2]);
-  const proc = Application("System Events").processes.whose({ frontmost: true })[0];
-  const front = proc.name();
-  if (front !== app) throw new Error("the app in front is " + front + ", not " + app);
-  const pid = proc.unixId();
-  // The window really on top at that point, front to back, among normal windows: it must be the approved app's.
-  const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements, 0)));
-  const top = list.find((w) => w.kCGWindowLayer === 0 && w.kCGWindowBounds && x >= w.kCGWindowBounds.X && x < w.kCGWindowBounds.X + w.kCGWindowBounds.Width && y >= w.kCGWindowBounds.Y && y < w.kCGWindowBounds.Y + w.kCGWindowBounds.Height);
-  if (!top || top.kCGWindowOwnerPID !== pid) throw new Error("another window covers that point (" + (top ? top.kCGWindowOwnerName : "none") + "): take a new screen_snapshot");
-  const p = $.CGPointMake(x, y);
-  for (const type of [$.kCGEventMouseMoved, $.kCGEventLeftMouseDown, $.kCGEventLeftMouseUp]) {
-    $.CGEventPost($.kCGHIDEventTap, $.CGEventCreateMouseEvent(null, type, p, $.kCGMouseButtonLeft));
-    delay(0.05);
-  }
-  return front;
+  const procs = Application("System Events").processes.whose({ name: argv[0] });
+  if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
+  const pid = procs[0].unixId();
+  const p = $.CGPointMake(Number(argv[1]), Number(argv[2]));
+  const post = (type) => {
+    const e = $.CGEventCreateMouseEvent(null, type, p, $.kCGMouseButtonLeft);
+    $.CGEventSetIntegerValueField(e, $.kCGMouseEventClickState, 1);
+    $.CGEventPostToPid(pid, e);
+  };
+  post($.kCGEventMouseMoved);
+  delay(0.03);
+  post($.kCGEventLeftMouseDown);
+  delay(0.04);
+  post($.kCGEventLeftMouseUp);
+  return argv[0];
 }`;
 
 const TYPE = `
 function run(argv) {
   ObjC.import("AppKit");
   ObjC.import("CoreGraphics");
-  const proc = Application("System Events").processes.whose({ frontmost: true })[0];
-  const front = proc.name();
-  if (front !== argv[0]) throw new Error("the app in front is " + front + ", not " + argv[0]);
+  const procs = Application("System Events").processes.whose({ name: argv[0] });
+  if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
+  const proc = procs[0];
+  const pid = proc.unixId();
   let sub = "";
   try {
     sub = proc.attributes.byName("AXFocusedUIElement").value().attributes.byName("AXSubrole").value();
@@ -195,13 +194,13 @@ function run(argv) {
   for (const down of [true, false]) {
     const e = $.CGEventCreateKeyboardEvent(null, 9, down);
     $.CGEventSetFlags(e, 0x100000);
-    $.CGEventPost($.kCGHIDEventTap, e);
+    $.CGEventPostToPid(pid, e);
     delay(0.02);
   }
   delay(0.25);
   pb.clearContents;
   if (saved.length) pb.writeObjects($(saved));
-  return front;
+  return argv[0];
 }`;
 
 /** Whose window is really on top at a screen point (normal windows only): "pid<TAB>name", or "" for none. */
@@ -391,7 +390,6 @@ export function createComputer(o: {
         if (REFUSED_KEYS.has(keys)) throw new Error(`${p.keys} closes or quits things: ask the owner to do it`);
         const k = parseKeys(keys);
         if (!k) throw new Error(`cannot press "${p.keys}": use names like enter, tab, esc, cmd+l, arrows`);
-        await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
         go();
         o.cursor.say(p.note || `⌨ ${p.keys}`);
         const app = await osa(KEY, [String(p.app ?? ""), String(k.code), String(k.flags)], "JavaScript");
@@ -401,8 +399,7 @@ export function createComputer(o: {
       if (method === "computer.click") {
         const x = Number(p.x);
         const y = Number(p.y);
-        // Approved for this app: bring it back to the front (the owner may have switched), then show where it clicks.
-        await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
+        // Sent to the app itself, in front or not: the owner can keep using their computer meanwhile.
         await o.cursor.moveTo(x, y, p.note || p.app || "");
         // The stop may come while the pointer glides there: then no click.
         go();
@@ -412,7 +409,6 @@ export function createComputer(o: {
         return { app };
       }
       if (method === "computer.type") {
-        await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
         go();
         o.cursor.say(p.note || "⌨");
         const app = await osa(TYPE, [String(p.app ?? ""), String(p.text ?? "")], "JavaScript");

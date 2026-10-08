@@ -99,7 +99,7 @@ export function computerTools(store: Store): Tool[] {
     defineTool({
       name: "screen_click",
       description:
-        "Click a point of the owner's screen (screen_snapshot's positions) in the app named, which is brought to the front. The owner approves each click.",
+        "Click a point of the owner's screen (screen_snapshot's positions) in the app named. It goes to that app directly: the owner's own pointer does not move and they can keep working. The owner approves each click.",
       args: z.object({ x: z.number().int(), y: z.number().int(), app: z.string().min(1).max(120), note: NOTE }),
       effect: "external",
       confirm: "always",
@@ -116,7 +116,7 @@ export function computerTools(store: Store): Tool[] {
     defineTool({
       name: "screen_type",
       description:
-        "Type text into the focused field of the app named, which is brought to the front. Never passwords or payment data: those fields are refused; ask the owner to type them.",
+        "Type text into the focused field of the app named (sent to it directly, in front or not). Never passwords or payment data: those fields are refused; ask the owner to type them.",
       args: z.object({ text: z.string().min(1).max(2000), app: z.string().min(1).max(120), note: NOTE }),
       effect: "external",
       confirm: "always",
@@ -133,7 +133,7 @@ export function computerTools(store: Store): Tool[] {
     defineTool({
       name: "screen_key",
       description:
-        'Press keys in the app named, brought to the front: "enter", "tab", "esc", "cmd+l" (address bar), "cmd+t" (new tab), "cmd+f", arrows, "pagedown". Quicker than clicking when a shortcut does it.',
+        'Press keys in the app named (sent to it directly): "enter", "tab", "esc", "cmd+l" (address bar), "cmd+t" (new tab), "cmd+f", arrows, "pagedown". Quicker than clicking when a shortcut does it.',
       args: z.object({ keys: z.string().min(1).max(40), app: z.string().min(1).max(120), note: NOTE }),
       effect: "external",
       confirm: "always",

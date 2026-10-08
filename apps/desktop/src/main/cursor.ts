@@ -46,6 +46,8 @@ export function createCursor() {
       });
       win.setIgnoreMouseEvents(true);
       win.setAlwaysOnTop(true, "screen-saver");
+      // At this level macOS lets it cover the menu bar too; asked before, it moved the window down under it.
+      win.setBounds(d.bounds);
       win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
       // Out of every screen picture: the agent must not see its own pointer.
       win.setContentProtection(true);
@@ -58,7 +60,9 @@ export function createCursor() {
     // Above every window, every time: an app brought forward must not cover it.
     win.setAlwaysOnTop(true, "screen-saver");
     win.showInactive();
-    return { w: win, lx: x - d.bounds.x, ly: y - d.bounds.y };
+    // From where the window really is: macOS may keep it off the menu bar, and the pointer must land on the point.
+    const at = win.getBounds();
+    return { w: win, lx: x - at.x, ly: y - at.y };
   }
 
   const run = (js: string) => win?.webContents.executeJavaScript(js).catch(() => {});
