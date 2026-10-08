@@ -23,12 +23,19 @@ jobs:
       CI: "true"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "24.11"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The public repo's history must stay public-safe too (authors, messages, AI trailers). The private working
+      # repo's older history is rewritten on the way out instead (rules/RELEASE.md#history).
+      - name: Commits (public-safe authors and messages)
+        if: github.repository == 'agentprojectcontext/apx'
+        run: pnpm check:commits HEAD
       - name: Preflight (private terms, schema, lint, typecheck, unit tests)
         run: pnpm preflight
       - name: Mobile (its own install; types and pairing logic)

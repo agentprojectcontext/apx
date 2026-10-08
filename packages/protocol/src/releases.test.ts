@@ -74,8 +74,8 @@ test("the feed is a GitHub repo, or the base URL of a feed shaped like its API",
   await fetchReleases("acme/apx", fake);
   await fetchReleases("http://127.0.0.1:7499/", fake);
   assert.deepEqual(asked, [
-    "https://api.github.com/repos/acme/apx/releases?per_page=30",
-    "http://127.0.0.1:7499/releases?per_page=30",
+    "https://api.github.com/repos/acme/apx/releases?per_page=100",
+    "http://127.0.0.1:7499/releases?per_page=100",
   ]);
 });
 

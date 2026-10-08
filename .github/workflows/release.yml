@@ -27,14 +27,25 @@ jobs:
       TAG: ${{ inputs.tag || github.ref_name }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - run: gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$TAG" -R "$GITHUB_REPOSITORY" --title "APX ${TAG#v}" --generate-notes --verify-tag
+      # While v1 and v2 share the repo, v1 keeps GitHub's "Latest" (its npm users and links point there); v2 builds
+      # still reach v2 installs, which pick the newest v2.x.y themselves. APX_V2_LATEST=true once main is v2.
+      - run: |
+          gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$TAG" -R "$GITHUB_REPOSITORY" \
+            --title "APX ${TAG#v}" --generate-notes --verify-tag --latest="${{ vars.APX_V2_LATEST == 'true' }}"
 
   installers:
     needs: open
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # Servers are often arm64 (Raspberry Pi, ARM VPS) and some Macs are still Intel: those cross-build (native
+        # modules and Node come prebuilt for the target).
+        include:
+          - { os: ubuntu-latest, target: linux --x64 }
+          - { os: ubuntu-latest, target: linux --arm64 }
+          - { os: windows-latest, target: win --x64 }
+          - { os: macos-latest, target: mac --arm64 }
+          - { os: macos-latest, target: mac --x64 }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     env:
@@ -56,7 +67,7 @@ jobs:
         run: cd apps/desktop && npm pkg set version="${TAG#v}"
       - name: Installer, daemon bundle and install scripts
         shell: bash
-        run: pnpm package
+        run: node scripts/package.ts ${{ matrix.target }}
       - name: Attach to the release
         shell: bash
         env:
@@ -65,8 +76,8 @@ jobs:
           shopt -s nullglob
           gh release upload "$TAG" out/*.{AppImage,exe,dmg,zip,tar.gz,sha256,sh,ps1} --clobber
 
-  # The phone app as an installable APK (Expo prebuild + Gradle; the release build signs with the template's debug
-  # key, enough to sideload — the Play Store needs its own key later).
+  # The phone app as an installable APK (Expo prebuild + Gradle). Signed with the repo's release key (the same secrets as
+  # v1's APK) so every later APK installs over it; without them (a fork) the template's debug key, enough to sideload.
   android:
     needs: open
     runs-on: ubuntu-latest
@@ -92,12 +103,37 @@ jobs:
         run: |
           node -e 'const f="app.json",j=require("./"+f);j.expo.version=process.env.TAG.slice(1);require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
           npx expo prebuild --platform android --no-install
+      - name: Signing key
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret: the APK is signed with the debug key."
+            exit 0
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/apx-release.jks"
+          echo "file=$RUNNER_TEMP/apx-release.jks" >> "$GITHUB_OUTPUT"
       - name: APK
         working-directory: apps/mobile/android
-        run: ./gradlew assembleRelease --no-daemon
+        env:
+          KEYSTORE: ${{ steps.keystore.outputs.file }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        # The Android plugin's injected signing properties override the debug config Expo's template writes.
+        run: |
+          signing=()
+          if [ -n "$KEYSTORE" ]; then
+            signing=(-Pandroid.injected.signing.store.file="$KEYSTORE" \
+              -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+              -Pandroid.injected.signing.key.alias=apx -Pandroid.injected.signing.key.password="$KEY_PASSWORD")
+          fi
+          ./gradlew assembleRelease --no-daemon "${signing[@]}"
       - name: Attach to the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "APX-${TAG#v}-android.apk"
-          gh release upload "$TAG" "APX-${TAG#v}-android.apk" --clobber
+          apk="APX-${TAG#v}-android.apk"
+          cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "$apk"
+          sha256sum "$apk" > "$apk.sha256"
+          gh release upload "$TAG" "$apk" "$apk.sha256" --clobber

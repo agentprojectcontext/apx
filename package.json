@@ -15,6 +15,7 @@
     "lint:fix": "biome check --write .",
     "test": "pnpm -r --if-present test",
     "check:private": "node scripts/check-private-terms.ts",
+    "check:commits": "node scripts/check-private-terms.ts --commits",
     "check:schema": "node --no-warnings apps/core/scripts/schema.ts --check",
     "preflight": "pnpm check:private && pnpm check:schema && pnpm lint && pnpm typecheck && pnpm test",
     "app": "node scripts/app.ts",

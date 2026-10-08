@@ -108,7 +108,7 @@ export function newerReleases(list: unknown, current: string): Release[] {
 /** Asks GitHub for the feed's recent releases (no token: 60 requests an hour per address is plenty). */
 export async function fetchReleases(feed: string, fetchImpl: typeof fetch = fetch): Promise<unknown> {
   const base = /^https?:\/\//.test(feed) ? feed.replace(/\/+$/, "") : `https://api.github.com/repos/${feed}`;
-  const r = await fetchImpl(`${base}/releases?per_page=30`, {
+  const r = await fetchImpl(`${base}/releases?per_page=100`, {
     headers: { accept: "application/vnd.github+json", "user-agent": "apx-updates" },
     signal: AbortSignal.timeout(20_000),
   });
