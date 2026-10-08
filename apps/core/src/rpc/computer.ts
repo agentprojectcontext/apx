@@ -1,19 +1,58 @@
 // The owner's computer, as a node, when they turned computer use on in the desktop app: a picture of the screen and
 // a click or typing on the app in front. The core only routes; the desktop checks the app is still the one approved.
+// The emergency stop (the desktop says so) ends the turns that were using the computer: only those, only that time.
 import { COMPUTER_CAP } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { CallError } from "../errors.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
 import { saveUpload } from "../services/uploads.ts";
+import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
 
 /** Reading the accessibility tree of a busy window takes a few seconds. */
 const SNAPSHOT_MS = 20_000;
 const ACT_MS = 10_000;
 
-export function computerHandlers(broker: NodeBroker, store: Store, home: string) {
+/** A turn that used the computer this recently counts as using it when the owner pulls the stop. */
+const ACTIVE_MS = 10 * 60_000;
+
+export function computerHandlers(
+  broker: NodeBroker,
+  store: Store,
+  home: string,
+  engine: { cancel(thread: string): number },
+) {
+  /** The turns using the computer now (run → its chat, last use), and those the owner stopped. */
+  const using = new Map<string, { thread: string; at: number }>();
+  const stopped = new Set<string>();
+
+  broker.onEvent((node, event) => {
+    if (event.type !== "computer.stopped" || !node.caps.includes(COMPUTER_CAP)) return;
+    const now = Date.now();
+    for (const [run, u] of using) {
+      if (now - u.at > ACTIVE_MS) continue;
+      stopped.add(run);
+      engine.cancel(u.thread);
+    }
+    using.clear();
+  });
+
+  /** A computer call from an agent's turn: refused if the owner stopped that turn; remembered for the stop. */
+  const enter = (ctx: CallContext) => {
+    const a = ctx.agent;
+    if (!a) return;
+    if (stopped.has(a.run_id))
+      throw new CallError({
+        code: "conflict",
+        message:
+          "the owner pulled the emergency stop on this turn: do not use the computer again in it; say so and end the turn",
+      });
+    using.set(a.run_id, { thread: a.thread_id, at: Date.now() });
+  };
+
   return {
-    "computer.snapshot": async ({ thread, app }) => {
+    "computer.snapshot": async ({ thread, app }, ctx) => {
+      enter(ctx);
       const r = (await broker.invoke(COMPUTER_CAP, "computer.snapshot", app ? { app } : {}, SNAPSHOT_MS)) as {
         mime?: string;
         data?: string;
@@ -35,7 +74,13 @@ export function computerHandlers(broker: NodeBroker, store: Store, home: string)
         elements: String(r.elements ?? "").slice(0, 12_000),
       };
     },
-    "computer.click": async (p) => (await broker.invoke(COMPUTER_CAP, "computer.click", p, ACT_MS)) as { app: string },
-    "computer.type": async (p) => (await broker.invoke(COMPUTER_CAP, "computer.type", p, ACT_MS)) as { app: string },
+    "computer.click": async (p, ctx) => {
+      enter(ctx);
+      return (await broker.invoke(COMPUTER_CAP, "computer.click", p, ACT_MS)) as { app: string };
+    },
+    "computer.type": async (p, ctx) => {
+      enter(ctx);
+      return (await broker.invoke(COMPUTER_CAP, "computer.type", p, ACT_MS)) as { app: string };
+    },
   } satisfies Partial<Handlers>;
 }

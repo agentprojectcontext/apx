@@ -223,6 +223,7 @@ app.whenReady().then(() => {
     cursor: createCursor(),
     onActivity: (a) => panel.webContents.send("computer:activity", a),
     onStopped: (stopped) => {
+      if (stopped) link?.emit("computer.stopped");
       panel.webContents.send("computer:stopped", stopped);
       if (stopped && Notification.isSupported())
         new Notification({
@@ -238,7 +239,7 @@ app.whenReady().then(() => {
     if (computerOn && !armed) globalShortcut.register(STOP_KEYS, () => computer.stop());
     if (!computerOn && armed) globalShortcut.unregister(STOP_KEYS);
   };
-  let link: { refresh(): void } | undefined;
+  let link: { refresh(): void; emit(type: string, payload?: unknown): void } | undefined;
   const connector = createConnector({
     panel: panel.webContents,
     coreUrl: CORE_URL,
@@ -291,10 +292,6 @@ app.whenReady().then(() => {
   ipcMain.handle("computer:stop", (e) => {
     if (e.sender === panel.webContents) computer.stop();
   });
-  ipcMain.handle("computer:resume", (e) => {
-    if (e.sender === panel.webContents) computer.resume();
-  });
-  ipcMain.handle("computer:is-stopped", (e) => e.sender === panel.webContents && computer.stopped());
   ipcMain.handle("computer:frame", (e) =>
     e.sender === panel.webContents && computerOn ? computer.frame().catch(() => undefined) : undefined,
   );

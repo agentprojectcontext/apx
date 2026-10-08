@@ -5,9 +5,16 @@ import type { ChatItem, ModelFailure, Usage } from "../providers/types.ts";
 import type { Harness } from "./types.ts";
 
 const MAX_STEPS = 14;
+/**
+ * A turn that works on the owner's computer goes step by step (look, click, look again): it gets this many. The owner
+ * is asked whether to go on every 60 computer actions (tools/computer.ts), well before this ends.
+ */
+const COMPUTER_STEPS = 150;
 const MAX_CONTINUATIONS = 2;
 /** Same tool with the same arguments this many times = stuck. */
 const REPEAT_LIMIT = 3;
+/** Looking at the screen again is how a computer session sees what changed: never "the same call" twice. */
+const LOOKS_AGAIN = new Set(["screen_snapshot"]);
 
 /**
  * A note from APX to the model mid-turn. Sent as a tagged user item: some providers fold every system item into
@@ -59,7 +66,8 @@ export function nativeHarness(llm: Llm): Harness {
         return c;
       };
 
-      for (let i = 0; i < MAX_STEPS; i++) {
+      let limit = MAX_STEPS;
+      for (let i = 0; i < limit; i++) {
         // The owner's words added while we work go in after the last tool results, before the next model call.
         for (const t of io.takeSteered?.() ?? [])
           push({ role: "user", content: `[The owner adds, while you work]\n${t}` });
@@ -87,6 +95,8 @@ export function nativeHarness(llm: Llm): Harness {
           } catch {}
           const out = await io.execute(call.id, call.function.name, args);
           push({ role: "tool", tool_call_id: call.id, content: out.text });
+          if (call.function.name.startsWith("screen_")) limit = Math.max(limit, COMPUTER_STEPS);
+          if (LOOKS_AGAIN.has(call.function.name)) continue;
           const sig = `${call.function.name}:${call.function.arguments}`;
           seen.set(sig, (seen.get(sig) ?? 0) + 1);
           if ((seen.get(sig) ?? 0) >= REPEAT_LIMIT) stuck = call.function.name;

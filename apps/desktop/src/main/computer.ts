@@ -206,9 +206,10 @@ async function picture(bounds: Bounds | undefined, max: number): Promise<NativeI
   return scale < 1 ? img.resize({ width: Math.round(s.width * scale), quality: "good" }) : img;
 }
 
-/** What an agent hears once the owner pulled the emergency stop. */
-const STOPPED =
-  "the owner stopped computer use (emergency stop): do not try again; tell them, and wait until they resume it";
+/** What an action already on its way hears when the owner pulls the emergency stop. */
+const STOPPED = "the owner pulled the emergency stop: this action was dropped; end the turn";
+/** Long enough for an action already on its way to be dropped; the core ends the turns themselves. */
+const STOP_HOLD_MS = 3_000;
 
 export function createComputer(o: {
   cursor: AgentCursor;
@@ -217,7 +218,7 @@ export function createComputer(o: {
 }) {
   /** The window an agent is working on: what the panel's live view follows. */
   let target: Target | undefined;
-  /** The emergency stop: nothing reaches the screen until the owner resumes. */
+  /** Just after the emergency stop: what was on its way does not reach the screen. */
   let stopped = false;
   const go = () => {
     if (stopped) throw new Error(STOPPED);
@@ -286,18 +287,19 @@ export function createComputer(o: {
       }
       throw new Error(`unknown method ${method}`);
     },
-    stopped: () => stopped,
-    /** The emergency stop: refuses every action from now on and takes the pointer off the screen. */
+    /**
+     * The emergency stop, for this time only: drops what is on its way, takes the pointer off the screen and tells the
+     * core, which ends the turns that were using the computer. The next request works as usual.
+     */
     stop() {
       if (stopped) return;
       stopped = true;
       o.cursor.hide();
       o.onStopped(true);
-    },
-    resume() {
-      if (!stopped) return;
-      stopped = false;
-      o.onStopped(false);
+      setTimeout(() => {
+        stopped = false;
+        o.onStopped(false);
+      }, STOP_HOLD_MS);
     },
     /** A live frame of the window an agent is working on (found again on its screen), for the panel only. */
     async frame(): Promise<{ data: string; bounds?: Bounds; app: string; window: string } | undefined> {

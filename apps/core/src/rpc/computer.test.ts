@@ -13,7 +13,19 @@ import { UNTRUSTED_MARK } from "../tools/result.ts";
 
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
 
+/** How many tool results this turn has seen so far (the requests a long computer session makes). */
+const toolsSoFar = (req: { messages: Array<{ role: string }> }) => {
+  const lastUser = req.messages.findLastIndex((m) => m.role === "user");
+  return req.messages.slice(lastUser).filter((m) => m.role === "tool").length;
+};
+
 const llm = scriptedLlm((req, { said, afterTool }) => {
+  // A long session: looks again and again until it has seen 62 results, or one says to stop.
+  if (said.includes("keep looking")) {
+    const last = String(req.messages.at(-1)?.content);
+    if (/not done|emergency stop/.test(last) || toolsSoFar(req) >= 62) return say(`Stopped at: ${last.slice(0, 200)}`);
+    return callTool(`k${toolsSoFar(req)}`, "screen_snapshot", {});
+  }
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
   if (said.includes("look at my screen")) return callTool("s1", "screen_snapshot", {});
   if (said.includes("turn on wifi")) return callTool("c1", "screen_click", { x: 640, y: 210, app: "System Settings" });
@@ -103,4 +115,48 @@ test("a click always waits for the owner; denied, it never reaches the desktop",
   await settle(thread);
   assert.ok(calls.slice(before).includes("computer.click"));
   assert.match(await last(thread), /clicked in System Settings/);
+});
+
+test("after 60 actions in one turn the owner is asked whether to go on, and the session goes on when they say so", async () => {
+  await owner.call("agents.update", { agent: "roby", autonomy: "total" });
+  try {
+    const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const before = calls.filter((c) => c === "computer.snapshot").length;
+    await owner.call("threads.send", { thread, text: "keep looking" });
+    let input: { id: string; prompt?: string; options?: string[] } | undefined;
+    for (let i = 0; i < 300 && !input; i++) {
+      input = (await owner.call("runs.pending", { thread })).inputs[0];
+      if (!input) await new Promise((r) => setTimeout(r, 20));
+    }
+    assert.match(input?.prompt ?? "", /60 acciones/);
+    assert.equal(calls.filter((c) => c === "computer.snapshot").length - before, 60, "it waits after 60");
+    await owner.call("runs.respond", { input: input?.id ?? "", text: "Seguir" });
+    await settle(thread);
+    assert.ok(calls.filter((c) => c === "computer.snapshot").length - before > 60, "and goes on once allowed");
+  } finally {
+    await owner.call("agents.update", { agent: "roby", autonomy: "standard" });
+  }
+});
+
+test("the emergency stop ends the turn using the computer, that time only", async () => {
+  await owner.call("agents.update", { agent: "roby", autonomy: "total" });
+  try {
+    const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const before = calls.length;
+    await owner.call("threads.send", { thread, text: "keep looking" });
+    for (let i = 0; i < 200 && calls.length - before < 3; i++) await new Promise((r) => setTimeout(r, 10));
+    desktop?.emit("computer", "computer.stopped", {});
+    await settle(thread);
+    const used = calls.length - before;
+    assert.ok(used < 60, `stopped early (${used} actions)`);
+
+    // A new request uses the computer again: the stop was for that turn.
+    const next = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const again = calls.length;
+    await owner.call("threads.send", { thread: next, text: "look at my screen" });
+    await settle(next);
+    assert.equal(calls.length - again, 1);
+  } finally {
+    await owner.call("agents.update", { agent: "roby", autonomy: "standard" });
+  }
 });

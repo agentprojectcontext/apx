@@ -3,10 +3,45 @@
 // always asks, names the app it was approved for, and the desktop refuses it if another app came to the front.
 import { COMPUTER_CAP } from "@apx/protocol";
 import { z } from "zod";
+import type { Store } from "../domain/store.ts";
 import { untrusted } from "./result.ts";
-import { defineTool, type Tool } from "./types.ts";
+import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
-export function computerTools(): Tool[] {
+/** Actions on the computer in one turn before the owner is asked whether to go on (and again after as many more). */
+export const COMPUTER_ACTIONS_PER_TURN = 60;
+
+const ASK = {
+  es: {
+    q: (n: number) => `Ya hice ${n} acciones en tu computadora en este turno. ¿Sigo?`,
+    go: "Seguir",
+    stop: "Parar",
+  },
+  en: {
+    q: (n: number) => `I have done ${n} actions on your computer this turn. Shall I go on?`,
+    go: "Go on",
+    stop: "Stop",
+  },
+};
+
+export function computerTools(store: Store): Tool[] {
+  /** Actions per turn (run id → count); a turn ends, its count is not needed again. */
+  const counts = new Map<string, number>();
+  /**
+   * One more action in this turn: every COMPUTER_ACTIONS_PER_TURN of them, the owner says whether to go on. Returns a
+   * reason to stop, or undefined to go ahead.
+   */
+  const budget = async (ctx: ToolContext): Promise<string | undefined> => {
+    const n = (counts.get(ctx.run.id) ?? 0) + 1;
+    counts.set(ctx.run.id, n);
+    if (counts.size > 200) counts.delete(counts.keys().next().value as string);
+    if (n === 1 || (n - 1) % COMPUTER_ACTIONS_PER_TURN !== 0) return undefined;
+    const t = ASK[store.settings.get("owner_language") === "en" ? "en" : "es"];
+    const r = await ctx.askOwner(t.q(n - 1), [t.go, t.stop]);
+    if (r.state === "answered" && r.answer === t.go) return undefined;
+    if (r.state === "pending")
+      return "not done: you reached the actions allowed in one turn and asked the owner whether to go on; they have not answered. End this turn now and say you are waiting for them.";
+    return "not done: the owner said to stop using the computer in this turn. End the turn and tell them where you got to.";
+  };
   return [
     defineTool({
       name: "screen_snapshot",
@@ -18,9 +53,12 @@ export function computerTools(): Tool[] {
       effect: "external",
       confirm: "ask",
       needsCap: COMPUTER_CAP,
-      deadlineMs: 30_000,
+      // Bounded by the owner's answer when the turn reaches its actions; the step itself has the core's own deadline.
+      deadlineMs: 16 * 60_000,
       title: () => "Looked at your screen",
       async run(a, ctx) {
+        const why = await budget(ctx);
+        if (why) return why;
         const r = await ctx.call("computer.snapshot", { thread: ctx.thread.id, ...(a.app ? { app: a.app } : {}) });
         return untrusted("screen", { app: r.app, window: r.window }, r.elements || "(no accessible elements)");
       },
@@ -33,9 +71,11 @@ export function computerTools(): Tool[] {
       effect: "external",
       confirm: "always",
       needsCap: COMPUTER_CAP,
-      deadlineMs: 15_000,
+      deadlineMs: 16 * 60_000,
       title: (a) => `Clicked in ${String(a.app ?? "an app")} at ${a.x},${a.y}`,
       async run(a, ctx) {
+        const why = await budget(ctx);
+        if (why) return why;
         const r = await ctx.call("computer.click", a);
         return `clicked in ${r.app}; take a new screen_snapshot to see what changed`;
       },
@@ -48,9 +88,11 @@ export function computerTools(): Tool[] {
       effect: "external",
       confirm: "always",
       needsCap: COMPUTER_CAP,
-      deadlineMs: 15_000,
+      deadlineMs: 16 * 60_000,
       title: (a) => `Typed in ${String(a.app ?? "an app")}`,
       async run(a, ctx) {
+        const why = await budget(ctx);
+        if (why) return why;
         const r = await ctx.call("computer.type", a);
         return `typed in ${r.app}`;
       },

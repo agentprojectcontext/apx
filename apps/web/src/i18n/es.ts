@@ -1055,9 +1055,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "live.hide": "Ocultar",
   "live.stop": "Detener",
   "live.stopHint":
-    "Parada de emergencia: ningún agente puede usar la computadora hasta que reanudes. También con ⌘⇧Esc desde cualquier app.",
-  "live.stopped": "Detenido. Ningún agente puede usar la computadora hasta que reanudes.",
-  "live.resume": "Reanudar",
+    "Parada de emergencia: corta lo que el agente está haciendo en la computadora, solo esta vez. También con ⌘⇧Esc desde cualquier app.",
+  "live.stopped": "Detenido. Se cortó lo que el agente estaba haciendo; pedíselo de nuevo cuando quieras.",
   "live.wait": "Esperando la pantalla…",
   "error.desktop": "Escritorio: {error}",
   "tg.itsMeHint":

@@ -1053,9 +1053,9 @@ export const en = {
   "live.smaller": "Make it smaller",
   "live.hide": "Hide",
   "live.stop": "Stop",
-  "live.stopHint": "Emergency stop: no agent can use the computer until you resume. Also ⌘⇧Esc from any app.",
-  "live.stopped": "Stopped. No agent can use the computer until you resume.",
-  "live.resume": "Resume",
+  "live.stopHint":
+    "Emergency stop: ends what the agent is doing on the computer, this time only. Also ⌘⇧Esc from any app.",
+  "live.stopped": "Stopped. The turns using the computer were ended; ask again whenever you want.",
   "live.wait": "Waiting for the screen…",
   "error.desktop": "Desktop: {error}",
   "tg.itsMeHint":

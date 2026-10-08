@@ -12,7 +12,7 @@ export function startNodeLink(
   onStatus: (s: "connected" | "offline") => void,
   token?: string,
   computer?: { on(): boolean; handle: ComputerHandler },
-): { refresh(): void } {
+): { refresh(): void; emit(type: string, payload?: unknown): void } {
   const client = new ApxClient({
     url,
     ...(token ? { token } : {}),
@@ -50,6 +50,10 @@ export function startNodeLink(
     /** The owner changed computer use: reconnect lending what is on now. */
     refresh() {
       if (socket && lent !== Boolean(computer?.on())) socket.close();
+    },
+    /** An event for the core about what this node lends (the emergency stop). */
+    emit(type, payload = {}) {
+      socket?.emit("computer", type, payload);
     },
   };
 }

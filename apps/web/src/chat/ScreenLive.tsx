@@ -1,4 +1,4 @@
-import { Button, IconButton, Icons } from "@apx/ui";
+import { IconButton, Icons } from "@apx/ui";
 import { type PointerEvent, useEffect, useRef, useState } from "react";
 import { useT } from "../i18n/index.ts";
 import { ComputerIcon } from "./parts/ComputerIcon.tsx";
@@ -50,13 +50,7 @@ export function ScreenLive() {
   );
 
   // The emergency stop, pulled here or with ⌘⇧Esc from any app.
-  useEffect(() => {
-    void window.apxDesktop?.computerStopped?.().then(
-      (s) => setStopped(s === true),
-      () => {},
-    );
-    return window.apxDesktop?.onComputerStopped?.(setStopped);
-  }, []);
+  useEffect(() => window.apxDesktop?.onComputerStopped?.(setStopped), []);
 
   // Computer use is over after a while with no action: close, forget where it was moved.
   useEffect(() => {
@@ -170,9 +164,6 @@ export function ScreenLive() {
         {stopped && (
           <div className="screenlive__stopped" role="status">
             <span>{t("live.stopped")}</span>
-            <Button size="sm" onClick={() => void window.apxDesktop?.resumeComputer?.()}>
-              {t("live.resume")}
-            </Button>
           </div>
         )}
       </div>
