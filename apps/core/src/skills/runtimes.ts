@@ -1,11 +1,10 @@
-// apx skills install-runtimes: copies the skills that teach other agent runtimes (Claude Code, Codex, Cursor…) how
-// to use APX into their skills folders. Local files only, like `apx service`: the core is not involved.
+// The skills that teach other agent runtimes (Claude Code, Codex, Cursor…) how to use APX, copied into their skills
+// folders at every start of the core, so an APX update brings their new text too (`apx skills install-runtimes`).
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
-/** The skills APX ships for other runtimes, one folder each with a SKILL.md (apps/terminal/skills). */
-export const sourceDir = () => path.resolve(import.meta.dirname, "../../skills");
+/** The skills APX ships for other runtimes, one folder each with a SKILL.md (apps/terminal/skills, also packaged). */
+export const sourceDir = () => path.resolve(import.meta.dirname, "../../../terminal/skills");
 
 /**
  * Folders APX once installed in runtimes and no longer ships: removed when found. Only names on this list or in
@@ -36,9 +35,11 @@ export type Runtime = {
   skills: string;
 };
 
+/** Where each runtime keeps its files; Claude Code and Codex can be moved (CLAUDE_CONFIG_DIR, CODEX_HOME). */
+export type RuntimeHomes = { home: string; claude?: string | undefined; codex?: string | undefined };
+
 /** Runtimes whose skills folder APX writes to; one only counts when its own folder exists. */
-export function runtimes(home: string, env: NodeJS.ProcessEnv = {}): Runtime[] {
-  const codex = env.CODEX_HOME || path.join(home, ".codex");
+export function runtimes({ home, claude, codex = path.join(home, ".codex") }: RuntimeHomes): Runtime[] {
   const at = (id: string, label: string, root: string): Runtime => ({
     id,
     label,
@@ -46,7 +47,7 @@ export function runtimes(home: string, env: NodeJS.ProcessEnv = {}): Runtime[] {
     skills: path.join(root, "skills"),
   });
   return [
-    at("claude", "Claude Code", path.join(home, ".claude")),
+    at("claude", "Claude Code", claude ?? path.join(home, ".claude")),
     at("codex", "Codex", codex),
     at("cursor", "Cursor", path.join(home, ".cursor")),
     // The shared folder other runtimes read (skills.sh layout).
@@ -142,31 +143,10 @@ export function apply(p: Plan, skills: Skill[]): void {
   }
 }
 
-const tilde = (p: string, home: string) => (p.startsWith(home + path.sep) ? `~${p.slice(home.length)}` : p);
-
-export function installRuntimeSkills(opts: { dryRun?: boolean | undefined }): void {
-  const home = os.homedir();
-  const skills = readSkills(sourceDir());
-  const p = plan(skills, runtimes(home, process.env));
+/** Plans and (unless a dry run) carries out the install into every runtime found. */
+export function syncRuntimeSkills(homes: RuntimeHomes, opts: { dryRun?: boolean; source?: string } = {}): Plan {
+  const skills = readSkills(opts.source ?? sourceDir());
+  const p = plan(skills, runtimes(homes));
   if (!opts.dryRun) apply(p, skills);
-  const verb: Record<Action, string> = opts.dryRun
-    ? {
-        create: "would create",
-        update: "would update",
-        unchanged: "unchanged",
-        remove: "would remove",
-        "skip-link": "left alone (a link)",
-      }
-    : {
-        create: "created",
-        update: "updated",
-        unchanged: "unchanged",
-        remove: "removed",
-        "skip-link": "left alone (a link)",
-      };
-  for (const s of p.steps)
-    console.log(`${s.runtime.label.padEnd(20)} ${tilde(s.dir, home).padEnd(36)} ${verb[s.action]}`);
-  for (const r of p.missing)
-    console.log(`${r.label.padEnd(20)} ${tilde(r.root, home).padEnd(36)} not installed, skipped`);
-  if (!p.steps.length) console.log("(no agent runtime found: nothing to do)");
+  return p;
 }

@@ -97,6 +97,26 @@ export const resourceMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * Copies APX's skills for other agent apps (Claude Code, Codex, Cursor, ~/.agents) into each one installed, as the
+   * core does at every start; `dry_run` only says what it would do. Other skills in those folders are left alone.
+   */
+  "skills.runtimes": {
+    params: z.object({ dry_run: z.boolean().default(false) }).strict(),
+    result: z.object({
+      steps: z.array(
+        z.object({
+          runtime: z.string(),
+          name: z.string(),
+          dir: z.string(),
+          action: z.enum(["create", "update", "unchanged", "remove", "skip-link"]),
+        }),
+      ),
+      missing: z.array(z.object({ runtime: z.string(), dir: z.string() })),
+    }),
+    effect: true,
+    access: "human",
+  },
   /** Whether a project takes the owner's global skills and MCP servers (each can still be turned off one by one). */
   "resources.inheritance": {
     params: z.object({ project: Id }).strict(),

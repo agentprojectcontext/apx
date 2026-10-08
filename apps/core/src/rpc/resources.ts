@@ -7,6 +7,7 @@ import { badRequest, errorMessage, notFound } from "../errors.ts";
 import type { McpConfig, McpDef } from "../mcp/config.ts";
 import { projectSecretName, type Secrets, splitSecretName } from "../secrets.ts";
 import { skillInfo, writeSkill } from "../skills/edit.ts";
+import { type RuntimeHomes, syncRuntimeSkills } from "../skills/runtimes.ts";
 import { allSkills, NO_GLOBALS, readSkillFile, setSkillOn, skillFiles, skillsOff } from "../skills/skills.ts";
 import type { Handlers } from "./router.ts";
 
@@ -28,7 +29,13 @@ function usedIn(store: Store, mcp: McpConfig): Map<string, string[]> {
   return out;
 }
 
-export function resourceHandlers(deps: { store: Store; home: string; secrets: Secrets; mcp: McpConfig }) {
+export function resourceHandlers(deps: {
+  store: Store;
+  home: string;
+  secrets: Secrets;
+  mcp: McpConfig;
+  runtimeHomes: RuntimeHomes;
+}) {
   const { store, home, mcp } = deps;
   const find = (name: string, project: string | undefined) => {
     const s = allSkills(store, home, project).find((x) => x.name === name);
@@ -106,6 +113,13 @@ export function resourceHandlers(deps: { store: Store; home: string; secrets: Se
       find(name, project);
       setSkillOn(store, name, project, on);
       return { ok: true as const };
+    },
+    "skills.runtimes": ({ dry_run }) => {
+      const p = syncRuntimeSkills(deps.runtimeHomes, { dryRun: dry_run });
+      return {
+        steps: p.steps.map((s) => ({ runtime: s.runtime.label, name: s.name, dir: s.dir, action: s.action })),
+        missing: p.missing.map((r) => ({ runtime: r.label, dir: r.root })),
+      };
     },
   } satisfies Partial<Handlers>;
 }

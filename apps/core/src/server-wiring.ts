@@ -168,6 +168,8 @@ type HandlerDeps = {
   desktop: Parameters<typeof fileHandlers>[1];
   /** Where Claude Code and Codex keep the owner's own sessions. */
   native: Parameters<typeof sessionHandlers>[1];
+  /** Other agent apps' folders that get APX's skills for them. */
+  runtimeHomes: Parameters<typeof resourceHandlers>[0]["runtimeHomes"];
   updates: Updates;
   /** The panel build being served (its entry file). */
   panel: () => string | undefined;
@@ -213,7 +215,13 @@ export function coreHandlers(d: HandlerDeps) {
     ...extensionHandlers(d.extensions, d.mcp),
     ...mcpHandlers(d.mcp, d.store),
     ...integrationHandlers({ store: d.store, secrets: d.secrets, mcp: d.mcp }),
-    ...resourceHandlers({ store: d.store, home: d.app.home, secrets: d.secrets, mcp: d.mcp.config }),
+    ...resourceHandlers({
+      store: d.store,
+      home: d.app.home,
+      secrets: d.secrets,
+      mcp: d.mcp.config,
+      runtimeHomes: d.runtimeHomes,
+    }),
     ...providerHandlers(d.providers, d.secrets, d.chatgpt),
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
     ...agentHandlers(d.store, d.apc, d.engines),

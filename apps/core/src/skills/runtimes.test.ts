@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { apply, plan, readSkills, runtimes, type Skill, sourceDir } from "./runtime-skills.ts";
+import { apply, plan, readSkills, runtimes, type Skill, sourceDir } from "./runtimes.ts";
 
 const tmpHome = () => fs.mkdtempSync(path.join(os.tmpdir(), "apx-runtime-skills-"));
 const write = (file: string, text: string) => {
@@ -30,7 +30,7 @@ test("only installed runtimes are planned; CODEX_HOME moves Codex", () => {
   fs.mkdirSync(path.join(home, ".claude"));
   const codex = path.join(home, "elsewhere", "codex");
   fs.mkdirSync(codex, { recursive: true });
-  const p = plan(skills, runtimes(home, { CODEX_HOME: codex }));
+  const p = plan(skills, runtimes({ home, codex }));
   assert.deepEqual(p.missing.map((r) => r.id).sort(), ["agents", "cursor"]);
   assert.deepEqual(actions(p), [
     "claude:apc-context:create",
@@ -48,7 +48,7 @@ test("install creates, updates, removes retired APX skills and leaves every othe
   write(path.join(dir, "apx", "stale.md"), "from an older version");
   write(path.join(dir, "apx-runtime", "SKILL.md"), "retired");
   write(path.join(dir, "someone-else", "SKILL.md"), "not ours");
-  const targets = runtimes(home).filter((r) => r.id === "claude");
+  const targets = runtimes({ home }).filter((r) => r.id === "claude");
 
   const first = plan(skills, targets);
   assert.deepEqual(actions(first), ["claude:apc-context:create", "claude:apx-runtime:remove", "claude:apx:update"]);
@@ -71,7 +71,7 @@ test("a link in place of a skill is left alone; a retired one is unlinked withou
   fs.mkdirSync(dir, { recursive: true });
   fs.symlinkSync(target, path.join(dir, "apx"));
   fs.symlinkSync(target, path.join(dir, "apx-task"));
-  const targets = runtimes(home).filter((r) => r.id === "agents");
+  const targets = runtimes({ home }).filter((r) => r.id === "agents");
 
   const p = plan(skills, targets);
   assert.deepEqual(actions(p), ["agents:apc-context:create", "agents:apx-task:remove", "agents:apx:skip-link"]);
@@ -84,6 +84,6 @@ test("a link in place of a skill is left alone; a retired one is unlinked withou
 test("a dry plan writes nothing", () => {
   const home = tmpHome();
   fs.mkdirSync(path.join(home, ".cursor"));
-  plan(skills, runtimes(home));
+  plan(skills, runtimes({ home }));
   assert.ok(!fs.existsSync(path.join(home, ".cursor", "skills")));
 });

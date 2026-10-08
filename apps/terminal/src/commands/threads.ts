@@ -193,6 +193,20 @@ export async function usage(client: ApxClient, [days]: string[]): Promise<void> 
     );
 }
 
+/** The skills other agent apps get for APX: the core keeps them current at every start; this does it now. */
+export async function runtimeSkills(client: ApxClient, dryRun: boolean): Promise<void> {
+  const r = await client.call("skills.runtimes", { dry_run: dryRun });
+  const home = process.env.HOME ?? "";
+  const tilde = (p: string) => (home && p.startsWith(`${home}/`) ? `~${p.slice(home.length)}` : p);
+  const verb = dryRun
+    ? { create: "would create", update: "would update", remove: "would remove" }
+    : { create: "created", update: "updated", remove: "removed" };
+  const said = { ...verb, unchanged: "unchanged", "skip-link": "left alone (a link)" };
+  for (const s of r.steps) console.log(`${s.runtime.padEnd(20)} ${tilde(s.dir).padEnd(36)} ${said[s.action]}`);
+  for (const m of r.missing) console.log(`${m.runtime.padEnd(20)} ${tilde(m.dir).padEnd(36)} not installed, skipped`);
+  if (!r.steps.length) console.log("(no agent app found: nothing to do)");
+}
+
 export async function skills(client: ApxClient, [project]: string[]): Promise<void> {
   const r = await client.call("skills.list", project ? { project } : {});
   for (const s of r.skills) console.log(`${s.name.padEnd(32)} ${s.scope.padEnd(8)} ${s.description.slice(0, 90)}`);

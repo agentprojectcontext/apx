@@ -45,6 +45,11 @@ export type CoreConfig = {
   v1: { url: string; home: string };
   /** Where Claude Code and Codex keep the owner's own sessions (read-only, to go on with one in APX). */
   native: { claude: string; codex: string };
+  /**
+   * Other agent apps' folders that get APX's skills for them (Claude Code, Codex, Cursor, ~/.agents). `auto`: kept up
+   * to date at every start; only a core on the default home does it (APX_RUNTIME_SKILLS=on|off overrides).
+   */
+  runtimeSkills: { homes: { home: string; claude: string; codex: string }; auto: boolean };
   /** Telegram's Bot API; a test environment points it at an emulated one (APX_TELEGRAM_API). */
   telegramApi: string | undefined;
   /** Discord's REST API and Gateway; a test environment points them at an emulated one (APX_DISCORD_API, _GATEWAY). */
@@ -178,6 +183,15 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
       claude: env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"),
       codex: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),
     },
+    runtimeSkills: {
+      homes: {
+        home: os.homedir(),
+        claude: env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"),
+        codex: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),
+      },
+      // A scratch core (its own APX_HOME) must not rewrite the owner's apps with its checkout's text.
+      auto: env.APX_RUNTIME_SKILLS === "on" || (!env.APX_HOME && env.APX_RUNTIME_SKILLS !== "off"),
+    },
     providers: [...custom, ...DEFAULT_PROVIDERS],
     secrets: env.APX_SECRETS === "file" || process.platform !== "darwin" ? "file" : "keychain",
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),
@@ -208,6 +222,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     secrets: "file",
     v1,
     native,
+    runtimeSkills: { homes: { home: over.home, ...native }, auto: false },
     updates: false,
     app: undefined,
     releases: undefined,

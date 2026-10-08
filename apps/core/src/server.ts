@@ -31,10 +31,11 @@ import { afterWorkTurn } from "./engine/task-work.ts";
 import { wakeAfterCommand } from "./engine/terminal-wake.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
+import { errorMessage } from "./errors.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
-import { createLog } from "./log.ts";
+import { createLog, type Log } from "./log.ts";
 import { createMcp } from "./mcp/manager.ts";
 import { createCatalog } from "./models/catalog.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
@@ -62,6 +63,7 @@ import { createModelInstaller } from "./services/local-whisper.ts";
 import { createPush } from "./services/push.ts";
 import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
+import { syncRuntimeSkills } from "./skills/runtimes.ts";
 import { skillsFor } from "./skills/skills.ts";
 import { createTerminals } from "./terminal/terminals.ts";
 import { imessageTools } from "./tools/imessage.ts";
@@ -332,6 +334,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       engines: engineIds,
       desktop: opts.desktop ?? systemDesktop,
       native: config.native,
+      runtimeHomes: config.runtimeSkills.homes,
       updates,
       panel: () => panelEntry(servedPanel(config)),
       profileRoots,
@@ -355,6 +358,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   updates.start();
   // The owner's skills get their vectors now, so the first message does not wait for them.
   skills.warm(skillsFor(store, config.home, undefined));
+  if (config.runtimeSkills.auto) keepRuntimeSkills(config.runtimeSkills.homes, log);
   log.info({ url, code_sha: identity.code_sha, home: config.home, llm: llm.label() }, "apx core listening");
 
   return {
@@ -388,4 +392,22 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       db.close();
     },
   };
+}
+
+/** Other agent apps get this version's skills for APX; a folder APX cannot write is only logged. */
+function keepRuntimeSkills(homes: Parameters<typeof syncRuntimeSkills>[0], log: Log): void {
+  setImmediate(() => {
+    try {
+      const changed = syncRuntimeSkills(homes).steps.filter(
+        (s) => s.action !== "unchanged" && s.action !== "skip-link",
+      );
+      if (changed.length)
+        log.info(
+          { skills: changed.map((s) => `${s.runtime.id}:${s.name}:${s.action}`) },
+          "skills for other agent apps updated",
+        );
+    } catch (err) {
+      log.warn({ err: errorMessage(err) }, "could not update the skills for other agent apps");
+    }
+  });
 }

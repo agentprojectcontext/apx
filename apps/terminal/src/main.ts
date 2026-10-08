@@ -16,12 +16,11 @@ import { agentEdit, agentModel, models } from "./commands/models.ts";
 import { notifications } from "./commands/notifications.ts";
 import { pair } from "./commands/pair.ts";
 import { routines } from "./commands/routines.ts";
-import { installRuntimeSkills } from "./commands/runtime-skills.ts";
 import { service } from "./commands/service.ts";
 import { bundleAppOf } from "./commands/service-files.ts";
 import { importV1, setupHeadless } from "./commands/setup.ts";
 import { tasks } from "./commands/tasks.ts";
-import { agents, jobs, projects, runs, secrets, skills, threads, usage } from "./commands/threads.ts";
+import { agents, jobs, projects, runs, runtimeSkills, secrets, skills, threads, usage } from "./commands/threads.ts";
 import { themedCard as card, failure } from "./presentation.ts";
 
 const HELP = `apx — the APX terminal
@@ -57,8 +56,8 @@ Usage:
   apx jobs [list] | get <job> | cancel <job>   Background work: agents' runs and terminal commands
   apx skills [project]    Skills agents can load
   apx skills install-runtimes [--dry-run]
-                           Install (or refresh) the skills that teach Claude Code, Codex, Cursor and ~/.agents how to
-                           use APX; removes skills APX no longer ships, never anyone else's
+                           Refresh now the skills that teach Claude Code, Codex, Cursor and ~/.agents how to use APX
+                           (the core does it at every start); removes ones APX no longer ships, never anyone else's
   apx tasks [add|move|done|say]  The office board (apx tasks help)
   apx routines [add|run|on|off|rm|log]  Scheduled work (apx routines help)
   apx notifications [read]       What is waiting for you
@@ -227,7 +226,7 @@ try {
       await jobs(client, rest);
       break;
     case "skills":
-      if (rest[0] === "install-runtimes") installRuntimeSkills({ dryRun: values["dry-run"] });
+      if (rest[0] === "install-runtimes") await runtimeSkills(client, Boolean(values["dry-run"]));
       else await skills(client, rest);
       break;
     case "channels":

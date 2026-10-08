@@ -205,3 +205,16 @@ test("the owner can see a variable's value; an agent client cannot", async () =>
   await assert.rejects(agent.call("secrets.reveal", { name: "NORTHWIND_TOKEN" }));
   await assert.rejects(env.client.call("secrets.reveal", { name: "NOT_THERE" }));
 });
+
+test("other agent apps get APX's skills: only the installed ones, and a dry run writes nothing", async () => {
+  const claude = path.join(home, "claude-home");
+  fs.mkdirSync(claude, { recursive: true });
+  const dry = await env.client.call("skills.runtimes", { dry_run: true });
+  assert.ok(dry.steps.every((s) => s.runtime === "Claude Code" && s.action === "create"));
+  assert.ok(dry.missing.some((m) => m.runtime === "Codex"));
+  assert.ok(!fs.existsSync(path.join(claude, "skills", "apx")));
+  await env.client.call("skills.runtimes", {});
+  assert.match(fs.readFileSync(path.join(claude, "skills", "apx", "SKILL.md"), "utf8"), /^---\nname: apx\n/);
+  const again = await env.client.call("skills.runtimes", {});
+  assert.ok(again.steps.every((s) => s.action === "unchanged"));
+});
