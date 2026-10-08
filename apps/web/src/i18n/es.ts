@@ -916,6 +916,16 @@ export const es: Partial<Record<MessageKey, string>> = {
   "chat.compactSkipped": "No se resumió: {reason}",
   "error.compact": "No se pudo resumir: {error}",
   "notice.thread.compacted": "Se resumieron los turnos anteriores para que el agente siga con un contexto más chico.",
+  "memory.filter.forgotten": "Olvidadas",
+  "memory.lead.forgotten":
+    "Notas que vos o un agente olvidaron. Ningún agente las ve; podés traer una de vuelta o borrarla para siempre.",
+  "memory.empty.forgotten": "No hay nada olvidado.",
+  "memory.pending": "Para confirmar",
+  "memory.pendingHint": "Un agente aprendió esto sobre vos. Sólo queda en cada chat cuando lo confirmás.",
+  "memory.confirm": "Confirmar",
+  "memory.origin": "Abrir el chat",
+  "memory.restore": "Traer de vuelta",
+  "memory.deleteForever": "Borrar para siempre",
   "memory.tainted": "Con contenido de afuera",
   "memory.taintedHint":
     "Se guardó con contenido externo en el chat. Los agentes la leen como dato, no como palabra tuya; editala para darla por buena.",

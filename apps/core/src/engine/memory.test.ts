@@ -14,6 +14,11 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("note the deploy day"))
     return callTool("r1", "remember", { text: "Deploys to Northwind happen on Thursdays." });
   if (said.includes("forget the owner note")) return callTool("f1", "forget", { id: String(said.split(" ").at(-1)) });
+  if (said.includes("note my tea"))
+    return callTool("o1", "remember", { text: "The owner drinks green tea after lunch.", scope: "global" });
+  if (said.includes("note my sister"))
+    return callTool("o2", "remember", { text: "The owner's sister is called Ada.", scope: "agent" });
+  if (said.includes("forget note")) return callTool("f2", "forget", { id: String(said.split(" ").at(-1)) });
   if (said.includes("search memory")) return callTool("s1", "recall", { query: "cafe" });
   if (said.includes("rewrite note"))
     return callTool("e1", "remember", { text: "Moved.", id: String(said.split(" ").at(-1)) });
@@ -158,4 +163,53 @@ test("standing notes are offered again once the turn that showed them left the m
   assert.equal(fresh.text, undefined, "still in view: nothing new");
   const again = await recallFor(store, byWords, "roby", {}, "", ctx, 10);
   assert.match(again.text ?? "", /short answers/);
+});
+
+test("what an agent learns about the owner waits for the owner, with the run it came from", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await env.client.call("threads.send", { thread: t.id, text: "note my tea" });
+  await env.settle(t.id);
+  const note = (await env.client.call("memory.list", { pending: true })).memories.find((m) => /green tea/.test(m.text));
+  assert.ok(note, "saved, waiting for the owner");
+  assert.equal(note.thread_id, t.id);
+  assert.ok(note.run_id, "the run that wrote it");
+
+  const fresh = async () => {
+    const other = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
+    await env.client.call("threads.send", { thread: other.id, text: "hello" });
+    await env.settle(other.id);
+    return lastInput();
+  };
+  assert.doesNotMatch(await fresh(), /green tea/, "an unconfirmed note does not stand in every turn");
+  await env.client.call("memory.confirm", { id: note.id });
+  assert.equal(env.core.store.memories.get(note.id)?.pending, false);
+  assert.match(await fresh(), /green tea/, "confirmed, it stands like the owner's own");
+});
+
+test("a forgotten note leaves every turn, is not saved again by an agent, and the owner can bring it back", async () => {
+  const note = env.core.store.memories.add({
+    scope: "agent",
+    agent_id: "roby",
+    text: "The owner's sister is called Ada.",
+    source: "agent",
+    author_agent: "roby",
+  });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await env.client.call("threads.send", { thread: t.id, text: `forget note ${note.id}` });
+  await env.settle(t.id);
+  assert.ok(env.core.store.memories.get(note.id)?.forgotten_at, "kept, marked forgotten");
+  assert.equal((await env.client.call("memory.list", { query: "sister Ada" })).memories.length, 0);
+  assert.deepEqual(
+    (await env.client.call("memory.list", { forgotten: true })).memories.map((m) => m.id),
+    [note.id],
+  );
+
+  await env.client.call("threads.send", { thread: t.id, text: "note my sister" });
+  await env.settle(t.id);
+  assert.match(lastInput(), /asked to forget that/);
+
+  await env.client.call("memory.restore", { id: note.id });
+  assert.equal((await env.client.call("memory.list", { query: "sister Ada" })).memories[0]?.id, note.id);
+  await env.client.call("memory.remove", { id: note.id, forever: true });
+  assert.equal(env.core.store.memories.get(note.id), undefined);
 });

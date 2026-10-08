@@ -540,9 +540,14 @@ export const Memory = z.object({
   agent_id: Id.optional(),
   text: z.string(),
   source: z.enum(["owner", "agent"]),
-  /** The agent that wrote it, and the thread it learned it in. */
+  /** The agent that wrote it, and the thread and run it learned it in. */
   author_agent: Id.optional(),
   thread_id: Id.optional(),
+  run_id: Id.optional(),
+  /** A note an agent wrote about the owner (global): it waits for the owner to confirm it before it stands. */
+  pending: z.boolean(),
+  /** Forgotten by the owner or an agent: kept out of every turn until the owner brings it back. */
+  forgotten_at: z.string().optional(),
   /** Saved by an agent while outside content was in its turn: agents see it as data, not as the owner's word. */
   tainted: z.boolean(),
   created_at: z.string(),

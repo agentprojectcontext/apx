@@ -14,7 +14,10 @@ const toMemory = (r: Selectable<MemoriesTable>): Memory => ({
   source: r.source === "owner" ? "owner" : "agent",
   ...opt("author_agent", r.author_agent),
   ...opt("thread_id", r.thread_id),
+  ...opt("run_id", r.run_id),
   tainted: Boolean(r.tainted),
+  pending: Boolean(r.pending),
+  ...opt("forgotten_at", r.forgotten_at),
   created_at: r.created_at,
   updated_at: r.updated_at,
 });
@@ -78,6 +81,10 @@ type Filters = {
   project_id?: string | undefined;
   agent_id?: string | undefined;
   exclude?: string[] | undefined;
+  /** Only notes waiting for the owner (true) or only the ones that stand (false). */
+  pending?: boolean | undefined;
+  /** The forgotten notes instead of the live ones (the owner's list, to bring one back). */
+  forgotten?: boolean | undefined;
 };
 
 /** The notes a view may see, narrowed by the given filters. */
@@ -97,6 +104,8 @@ function visibleWhere(f: Filters) {
     if (f.project_id) conds.push(eb("memories.project_id", "=", f.project_id));
     if (f.agent_id) conds.push(eb("memories.agent_id", "=", f.agent_id));
     if (f.exclude?.length) conds.push(eb("memories.id", "not in", f.exclude));
+    if (f.pending !== undefined) conds.push(eb("memories.pending", "=", f.pending ? 1 : 0));
+    conds.push(eb("memories.forgotten_at", f.forgotten ? "is not" : "is", null));
     return eb.and(conds);
   };
 }
@@ -162,7 +171,7 @@ export function memoriesRepo({ one, all, run }: Sql) {
       const r = one(qb.selectFrom("memories").selectAll().where("id", "=", id));
       return r ? toMemory(r) : undefined;
     },
-    /** Adds a note; the same text already in the same place is returned instead of a copy. */
+    /** Adds a note; the same text already in the same place (even forgotten) is returned instead of a copy. */
     add(m: {
       scope: MemoryScope;
       project_id?: string | undefined;
@@ -171,7 +180,9 @@ export function memoriesRepo({ one, all, run }: Sql) {
       source: "owner" | "agent";
       author_agent?: string | undefined;
       thread_id?: string | undefined;
+      run_id?: string | undefined;
       tainted?: boolean | undefined;
+      pending?: boolean | undefined;
     }): Memory {
       const same = one(
         qb
@@ -196,21 +207,51 @@ export function memoriesRepo({ one, all, run }: Sql) {
           source: m.source,
           author_agent: m.author_agent ?? null,
           thread_id: m.thread_id ?? null,
+          run_id: m.run_id ?? null,
           tainted: m.tainted ? 1 : 0,
+          pending: m.pending ? 1 : 0,
           created_at: at,
           updated_at: at,
         }),
       );
       return repo.get(id) as Memory;
     },
-    edit(id: string, text: string, tainted: boolean): Memory | undefined {
+    edit(id: string, text: string, o: { tainted: boolean; pending: boolean }): Memory | undefined {
       // New words, new meaning: the note is indexed again.
       run(
         qb
           .updateTable("memories")
-          .set({ text, tainted: tainted ? 1 : 0, updated_at: now(), embedding: null, embedding_model: null })
+          .set({
+            text,
+            tainted: o.tainted ? 1 : 0,
+            pending: o.pending ? 1 : 0,
+            updated_at: now(),
+            embedding: null,
+            embedding_model: null,
+          })
           .where("id", "=", id),
       );
+      return repo.get(id);
+    },
+    /** The owner confirms a note an agent wrote about them: from now on it stands like their own. */
+    confirm(id: string): Memory | undefined {
+      run(qb.updateTable("memories").set({ pending: 0, updated_at: now() }).where("id", "=", id));
+      return repo.get(id);
+    },
+    /** Out of every turn and search, but kept: the owner can bring it back (or delete it for good). */
+    forget(id: string): boolean {
+      return (
+        run(
+          qb
+            .updateTable("memories")
+            .set({ forgotten_at: now() })
+            .where("id", "=", id)
+            .where("forgotten_at", "is", null),
+        ) > 0
+      );
+    },
+    restore(id: string): Memory | undefined {
+      run(qb.updateTable("memories").set({ forgotten_at: null, updated_at: now() }).where("id", "=", id));
       return repo.get(id);
     },
     remove(id: string): boolean {

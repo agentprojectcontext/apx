@@ -616,6 +616,10 @@ export const appMethods = {
         scope: MemoryScope.optional(),
         project: Id.optional(),
         agent: Id.optional(),
+        /** Only the notes waiting for the owner to confirm them (true), or only the ones that stand (false). */
+        pending: z.boolean().optional(),
+        /** The forgotten notes instead (the owner's only). */
+        forgotten: z.boolean().optional(),
         limit: z.number().int().min(1).max(500).default(100),
       })
       .strict(),
@@ -675,11 +679,28 @@ export const appMethods = {
     result: Memory,
     effect: true,
   },
-  /** An agent may remove only notes agents wrote that it can see; the owner removes any. */
+  /**
+   * Forgets a note: out of every turn and search until the owner brings it back. An agent may forget only notes agents
+   * wrote that it can see; the owner forgets any, and with `forever` deletes it for good.
+   */
   "memory.remove": {
-    params: z.object({ id: Id }).strict(),
+    params: z.object({ id: Id, forever: z.boolean().optional() }).strict(),
     result: z.object({ removed: z.boolean() }),
     effect: true,
+  },
+  /** The owner confirms a note an agent wrote about them, so it stands in every agent's turns. */
+  "memory.confirm": {
+    params: z.object({ id: Id }).strict(),
+    result: Memory,
+    effect: true,
+    access: "human",
+  },
+  /** Brings a forgotten note back. */
+  "memory.restore": {
+    params: z.object({ id: Id }).strict(),
+    result: Memory,
+    effect: true,
+    access: "human",
   },
   /** The owner's channels (Telegram bots…), their settings and whether each is running. */
   "channels.list": {

@@ -41,7 +41,8 @@ export async function recallFor(
       }
   };
   if (!before) {
-    add(store.memories.list({ view, scope: "global", limit: STANDING }));
+    // What an agent wrote about the owner stands only once the owner confirmed it; until then it shows only on a match.
+    add(store.memories.list({ view, scope: "global", pending: false, limit: STANDING }));
     add(store.memories.list({ view, scope: "agent", agent_id: agentId, limit: STANDING }));
   }
   if (text.trim()) add(await search({ view, query: text.slice(0, 2000), limit: MATCHES }));

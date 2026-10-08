@@ -634,4 +634,11 @@ export const MIGRATIONS: readonly string[] = [
   )
   WHERE delivery IS NULL AND id IN (SELECT message_id FROM outbox WHERE message_id IS NOT NULL);
   `,
+  `
+  -- Where a note came from and what the owner did with it: the run that wrote it; a note an agent wrote about the owner
+  -- (global) waits for the owner to confirm it; a forgotten note stays out of every turn and can be brought back.
+  ALTER TABLE memories ADD COLUMN run_id TEXT;
+  ALTER TABLE memories ADD COLUMN pending INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE memories ADD COLUMN forgotten_at TEXT;
+  `,
 ];

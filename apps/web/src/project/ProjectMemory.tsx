@@ -17,8 +17,9 @@ import { blobOf, type ProjectEntry, teamOf } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { go } from "../shell/nav.ts";
 
-type Filter = "project" | "agents" | "global";
+type Filter = "project" | "agents" | "global" | "forgotten";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -34,9 +35,10 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
   const load = useCallback(async () => {
     const q = query.trim() ? { query: query.trim() } : {};
     try {
-      const scope: MemoryScope = filter === "agents" ? "agent" : filter;
+      const scope: MemoryScope | undefined =
+        filter === "agents" ? "agent" : filter === "forgotten" ? undefined : filter;
       const r = await client.call("memory.list", {
-        scope,
+        ...(scope ? { scope } : { forgotten: true }),
         ...(filter === "project" ? { project: project.id } : {}),
         ...q,
         limit: 500,
@@ -58,6 +60,7 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
     ...(project.isDefault ? [] : [{ value: "project", label: t("memory.filter.project") }]),
     { value: "agents", label: t("memory.filter.agents") },
     { value: "global", label: t("memory.filter.global") },
+    { value: "forgotten", label: t("memory.filter.forgotten") },
   ];
 
   return (
@@ -107,7 +110,9 @@ export function ProjectMemory({ project }: { project: ProjectEntry }) {
           ))}
         </ul>
       )}
-      {filter !== "agents" && <AddNote key={filter} scope={filter} projectId={project.id} onAdded={load} />}
+      {(filter === "project" || filter === "global") && (
+        <AddNote key={filter} scope={filter} projectId={project.id} onAdded={load} />
+      )}
     </div>
   );
 }
@@ -193,14 +198,16 @@ function NoteRow({ note, onChanged }: { note: Memory; onChanged: () => void }) {
       notify(t("error.memory", { error: errText(e) }));
     }
   };
-  const remove = async () => {
+  const act = (call: () => Promise<unknown>) => async () => {
     try {
-      await client.call("memory.remove", { id: note.id });
+      await call();
       onChanged();
     } catch (e) {
       notify(t("error.memory", { error: errText(e) }));
     }
   };
+  const forgotten = Boolean(note.forgotten_at);
+  const remove = act(() => client.call("memory.remove", { id: note.id }));
   return (
     <li className="memory__row">
       {editing ? (
@@ -224,6 +231,11 @@ function NoteRow({ note, onChanged }: { note: Memory; onChanged: () => void }) {
         <div className="memory__text">{note.text}</div>
       )}
       <div className="memory__meta">
+        {note.pending && !forgotten && (
+          <Badge tone="info" title={t("memory.pendingHint")}>
+            {t("memory.pending")}
+          </Badge>
+        )}
         {note.tainted && (
           <Badge tone="warning" title={t("memory.taintedHint")}>
             {t("memory.tainted")}
@@ -238,22 +250,52 @@ function NoteRow({ note, onChanged }: { note: Memory; onChanged: () => void }) {
             {author?.name ?? note.author_agent ?? t("memory.byAgent")}
           </span>
         )}
-        <span className="memory__when">{shortWhen(note.updated_at)}</span>
-        <span className="memory__spacer" />
-        {!editing && (
-          <IconButton
-            size="sm"
-            label={t("memory.edit")}
-            icon={<Icons.Pencil size={14} />}
-            onClick={() => setEditing(true)}
-          />
+        <span className="memory__when">{shortWhen(note.forgotten_at ?? note.updated_at)}</span>
+        {note.thread_id && (
+          <Button size="sm" variant="ghost" onClick={() => go.thread(note.thread_id as string)}>
+            {t("memory.origin")}
+          </Button>
         )}
-        <IconButton
-          size="sm"
-          label={t("memory.remove")}
-          icon={<Icons.Trash2 size={14} />}
-          onClick={() => void remove()}
-        />
+        <span className="memory__spacer" />
+        {forgotten ? (
+          <>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void act(() => client.call("memory.restore", { id: note.id }))()}
+            >
+              {t("memory.restore")}
+            </Button>
+            <IconButton
+              size="sm"
+              label={t("memory.deleteForever")}
+              icon={<Icons.Trash2 size={14} />}
+              onClick={() => void act(() => client.call("memory.remove", { id: note.id, forever: true }))()}
+            />
+          </>
+        ) : (
+          <>
+            {note.pending && (
+              <Button size="sm" onClick={() => void act(() => client.call("memory.confirm", { id: note.id }))()}>
+                {t("memory.confirm")}
+              </Button>
+            )}
+            {!editing && (
+              <IconButton
+                size="sm"
+                label={t("memory.edit")}
+                icon={<Icons.Pencil size={14} />}
+                onClick={() => setEditing(true)}
+              />
+            )}
+            <IconButton
+              size="sm"
+              label={t("memory.remove")}
+              icon={<Icons.Trash2 size={14} />}
+              onClick={() => void remove()}
+            />
+          </>
+        )}
       </div>
     </li>
   );

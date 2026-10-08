@@ -13,7 +13,7 @@ const SCOPE = z
 export const MEMORY_BLOCK_CHARS = 2400;
 
 const line = (m: Memory) =>
-  `- [${m.id}] (${m.scope}${m.source === "owner" ? ", by the owner" : ""}) ${m.text.replace(/\s+/g, " ")}`;
+  `- [${m.id}] (${m.scope}${m.source === "owner" ? ", by the owner" : m.pending ? ", not confirmed by the owner" : ""}) ${m.text.replace(/\s+/g, " ")}`;
 
 /**
  * Notes as the model reads them, capped. A note saved while outside content was in the turn is wrapped as untrusted,

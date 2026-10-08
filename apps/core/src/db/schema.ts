@@ -133,6 +133,9 @@ export interface MemoriesTable {
   tainted: Generated<number>;
   embedding: Uint8Array | null;
   embedding_model: string | null;
+  run_id: string | null;
+  pending: Generated<number>;
+  forgotten_at: string | null;
 }
 
 export interface MessagesTable {
