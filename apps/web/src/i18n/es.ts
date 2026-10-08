@@ -413,7 +413,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.chatOf": "Chat del widget {title}",
   "widget.chatOpen": "Abrir el chat completo",
   "widget.chatNew": "Nueva sesión para este widget",
-  "widget.chatShort": "Chat",
+  "widget.chatShort": "Pedir cambios",
   "widget.askTitle": "Widget nuevo",
   "widget.askDraft": "Haceme un widget para el tablero de este proyecto y fijalo al tablero: ",
   "widget.askWaiting": "El widget aparece acá apenas el agente lo haga.",

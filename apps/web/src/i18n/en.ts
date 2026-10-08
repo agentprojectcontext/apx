@@ -406,7 +406,7 @@ export const en = {
   "widget.chatOf": "Chat of the widget {title}",
   "widget.chatOpen": "Open the whole chat",
   "widget.chatNew": "New session for this widget",
-  "widget.chatShort": "Chat",
+  "widget.chatShort": "Ask for changes",
   "widget.askTitle": "New widget",
   "widget.askDraft": "Make a widget for this project's board and pin it to the board: ",
   "widget.askWaiting": "The widget shows here as soon as the agent makes it.",
