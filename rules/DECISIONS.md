@@ -649,3 +649,6 @@ The G0 audit (plan/parity/07-seguridad.md) left holes open for the owner to deci
   (a contact's, a room's) sits inside APX's sentences and the contact prompt without newlines, tags or quotes, capped.
   `task_list` and `task_update` wrap the list when a title came from an agent (a contact's request among them), as the
   task's own chat already did; a board of the owner's own tasks stays plain.
+- **The log redacts credentials.** Every line passes a redaction step: string fields named like secrets (token,
+  password, api_key, authorization, cookie…) become `[redacted]`, and key shapes anywhere in a string (`sk-`, `ghp_`,
+  `xox?-`, `AIza`, bot tokens, JWTs, `Bearer …`, `?key=`) too. `secret://` references and counts stay.
