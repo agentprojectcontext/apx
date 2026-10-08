@@ -272,6 +272,20 @@ const STOPPED = "the owner pulled the emergency stop: this action was dropped; e
 /** Long enough for an action already on its way to be dropped; the core ends the turns themselves. */
 const STOP_HOLD_MS = 3_000;
 
+/** The owner's screens, numbered as they are now (main first), and which one holds `bounds`. */
+function screensText(bounds?: Bounds): string {
+  const main = screen.getPrimaryDisplay();
+  const all = [main, ...screen.getAllDisplays().filter((d) => d.id !== main.id)];
+  const list = all
+    .map(
+      (d, i) =>
+        `${i + 1}${i === 0 ? " (main)" : ""} at ${d.bounds.x},${d.bounds.y} ${d.bounds.width}x${d.bounds.height}`,
+    )
+    .join("; ");
+  const on = bounds ? all.findIndex((d) => d.id === screen.getDisplayMatching(bounds).id) + 1 : 0;
+  return `${all.length} screen${all.length === 1 ? "" : "s"}: ${list}${on ? `. This window is on screen ${on}` : ""}`;
+}
+
 export function createComputer(o: {
   cursor: AgentCursor;
   onActivity(a: ComputerActivity): void;
@@ -322,7 +336,7 @@ export function createComputer(o: {
     const map = b
       ? `; the picture is ${size.width}x${size.height} px: its pixel (px,py) is the screen point (${b.x} + px*${scale.toFixed(3)}, ${b.y} + py*${scale.toFixed(3)})`
       : "";
-    const header = `${where}${covered}${map}; positions are screen points, centers to click\nrole\tname\tdescription\tvalue\tx,y`;
+    const header = `${screensText(b)}.\n${where}${covered}${map}; positions are screen points, centers to click\nrole\tname\tdescription\tvalue\tx,y`;
     o.onActivity({ kind: "look", app: f.app, window: f.window });
     return {
       mime: "image/jpeg",
@@ -355,8 +369,20 @@ export function createComputer(o: {
           ),
         );
         const app = p.app ?? "the default browser";
+        // Closed before, it takes a moment to start: wait for its window to come up, and say on which screen.
+        let where: string | undefined;
+        if (p.app) {
+          const wanted = p.app.toLowerCase();
+          for (let i = 0; i < 24 && !where; i++) {
+            const f = await front(false).catch(() => undefined);
+            if (f?.bounds && (f.app.toLowerCase() === wanted || wanted.includes(f.app.toLowerCase()))) {
+              target = { app: f.app, window: f.window, bounds: f.bounds };
+              where = `${screensText(f.bounds)}; its window "${f.window}" is at ${f.bounds.x},${f.bounds.y} ${f.bounds.width}x${f.bounds.height}`;
+            } else await new Promise((r) => setTimeout(r, 250));
+          }
+        }
         o.onActivity({ kind: "look", app, window: p.url ?? "" });
-        return { app };
+        return where ? { app, where } : { app };
       }
       if (method === "computer.key") {
         const keys = String(p.keys ?? "")

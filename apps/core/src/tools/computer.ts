@@ -93,7 +93,7 @@ export function computerTools(store: Store): Tool[] {
         const why = await budget(ctx);
         if (why) return why;
         const r = await ctx.call("computer.open", a);
-        return `opened in ${r.app}; take a screen_snapshot of it to see the page`;
+        return `opened in ${r.app}${r.where ? `. ${r.where}` : ""}; take a screen_snapshot of it to see the page`;
       },
     }),
     defineTool({

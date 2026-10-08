@@ -191,7 +191,11 @@ export const deviceMethods = {
         note: z.string().max(80).optional(),
       })
       .strict(),
-    result: z.object({ app: z.string() }),
+    result: z.object({
+      app: z.string(),
+      /** Where its window came up: which of the owner's screens, and its bounds. */
+      where: z.string().optional(),
+    }),
     effect: true,
   },
   "devices.revoke": {

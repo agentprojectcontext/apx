@@ -90,7 +90,8 @@ export function computerHandlers(
     "computer.open": async (p, ctx) => {
       enter(ctx);
       if (!p.url && !p.app) throw new CallError({ code: "bad_request", message: "say a url, an app, or both" });
-      return (await broker.invoke(COMPUTER_CAP, "computer.open", p, ACT_MS)) as { app: string };
+      // An app that was closed takes a few seconds to start and show its window.
+      return (await broker.invoke(COMPUTER_CAP, "computer.open", p, ACT_MS + 8_000)) as { app: string; where?: string };
     },
   } satisfies Partial<Handlers>;
 }
