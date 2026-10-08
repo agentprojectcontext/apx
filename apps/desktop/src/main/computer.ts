@@ -21,7 +21,17 @@ function osa(script: string, args: string[] = [], language = "AppleScript"): Pro
       "osascript",
       ["-l", language, "-e", script, ...args],
       { timeout: OSA_MS, maxBuffer: 4 * 1024 * 1024 },
-      (err, out) => (err ? reject(new Error(String(err.message).slice(0, 300))) : resolve(out.trimEnd())),
+      (err, out, stderr) => {
+        if (!err) return resolve(out.trimEnd());
+        // osascript's own words ("execution error: … (-1743)"), not the script it ran.
+        const why =
+          String(stderr)
+            .trim()
+            .split("\n")
+            .at(-1)
+            ?.replace(/^.*execution error: /, "") || "failed";
+        reject(new Error(why.slice(0, 300)));
+      },
     );
   });
 }
