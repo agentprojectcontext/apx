@@ -35,7 +35,7 @@ export function ToolGroup({ parts, waiting = false }: { parts: ToolPart[]; waiti
       }
       icon={
         computer ? (
-          <ComputerIcon busy={running && !waiting} size={15} />
+          <ComputerIcon busy={running && !waiting} done={!running} size={16} />
         ) : running ? (
           waiting ? (
             <Icons.Hand size={14} />

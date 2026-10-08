@@ -628,3 +628,51 @@
   color: #fff;
   background: rgba(0, 0, 0, 0.72);
 }
+.screenlive__stop {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 7px;
+  gap: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--apx-danger);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    gap 0.2s;
+}
+.screenlive__stop svg {
+  fill: currentColor;
+}
+.screenlive__stoplabel {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 0.2s ease;
+}
+.screenlive__stop:hover,
+.screenlive__stop:focus-visible {
+  gap: 5px;
+  background: var(--apx-danger-soft);
+  color: var(--apx-danger-soft-fg);
+}
+.screenlive__stop:hover .screenlive__stoplabel,
+.screenlive__stop:focus-visible .screenlive__stoplabel {
+  max-width: 80px;
+}
+/* The computer in the actions card: it moves while working, once when it is done, and again under the pointer. */
+.computer-icon.is-done .computer-icon__pointer {
+  animation: computer-pointer 1.6s ease-in-out 2;
+}
+.apx-actions:hover .computer-icon .computer-icon__pointer,
+.turn__tools:hover .computer-icon .computer-icon__pointer {
+  animation: computer-pointer 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .computer-icon .computer-icon__pointer {
+    animation: none !important;
+  }
+}

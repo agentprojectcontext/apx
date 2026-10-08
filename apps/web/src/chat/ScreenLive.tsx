@@ -136,15 +136,16 @@ export function ScreenLive() {
           )}
         </span>
         {!stopped && (
-          <Button
-            size="sm"
-            variant="danger"
-            leadingIcon={<Icons.Square size={11} />}
+          // Small and quiet until the pointer is on it: then it opens and says what it does.
+          <button
+            type="button"
+            className="screenlive__stop"
+            aria-label={t("live.stopHint")}
             onClick={() => void window.apxDesktop?.stopComputer?.()}
-            title={t("live.stopHint")}
           >
-            {t("live.stop")}
-          </Button>
+            <Icons.Square size={10} />
+            <span className="screenlive__stoplabel">{t("live.stop")}</span>
+          </button>
         )}
         <IconButton
           size="sm"

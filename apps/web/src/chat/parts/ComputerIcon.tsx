@@ -1,8 +1,19 @@
-/** A small, friendly computer with a pointer on its screen; the pointer moves while an agent is working on it. */
-export function ComputerIcon({ busy = false, size = 16 }: { busy?: boolean; size?: number }) {
+/**
+ * A small, friendly computer with a pointer on its screen; the pointer moves while an agent works on it (`busy`), and
+ * a couple of times once it is done (`done`).
+ */
+export function ComputerIcon({
+  busy = false,
+  done = false,
+  size = 16,
+}: {
+  busy?: boolean;
+  done?: boolean;
+  size?: number;
+}) {
   return (
     <svg
-      className={busy ? "computer-icon is-busy" : "computer-icon"}
+      className={busy ? "computer-icon is-busy" : done ? "computer-icon is-done" : "computer-icon"}
       width={size}
       height={size}
       viewBox="0 0 24 24"
