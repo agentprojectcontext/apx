@@ -233,6 +233,14 @@ export function createExecutor(o: {
       untrusted: () => untrusted,
       approvalFor: (n) => byName.get(n)?.approval,
       approvalTools: () => [...byName.values()].filter((t) => t.approval).map((t) => t.name),
+      // What this agent may run without asking, with no outside content in the turn: by its autonomy, or by an
+      // owner's grant for good (a grant for this chat only does not pass on).
+      usesFreely: (n) => {
+        const t = byName.get(n);
+        if (!t) return false;
+        if (authorize(t, {} as never, agent, false).kind === "allow") return true;
+        return !!t.approval && store.approvals.allows(t.approval, undefined, agent.id);
+      },
       upsertPart: display.upsert,
       call: (method, params) => o.call(method, params, { run, callId }),
       // Only after the owner's OK on a tool that always asks for it (the confirmation above ran for this call).

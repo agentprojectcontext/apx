@@ -5,6 +5,7 @@ import path from "node:path";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { textDiff } from "../engine/changes.ts";
+import { guarded } from "../engine/paths.ts";
 import { insideReal, writeAtomic } from "../paths.ts";
 import { untrusted } from "./result.ts";
 import { locateFile, scratchRoot } from "./shell.ts";
@@ -20,6 +21,12 @@ type RecordedEdit = { file: Edit & { diff?: string; truncated?: boolean }; befor
 const SNAPSHOT_BUDGET = 200_000;
 const ORIGINAL_BUDGET = 2_000_000;
 const lineCount = (s: string) => (s ? s.split("\n").length - (s.endsWith("\n") ? 1 : 0) : 0);
+
+/** A path, as written by the model, that points at APC files or AGENTS.md of the folder (absolute ones included). */
+function namesGuarded(p: string): boolean {
+  const parts = path.normalize(p).split(/[\\/]/).filter(Boolean);
+  return parts.includes(".apc") || parts.at(-1) === "AGENTS.md";
+}
 
 export function fileTools(store: Store, home: string): Tool[] {
   const edited = new Map<string, Map<string, RecordedEdit>>();
@@ -85,18 +92,29 @@ export function fileTools(store: Store, home: string): Tool[] {
   const resolve = (
     thread: ToolContext["thread"],
     file: string,
+    write = false,
   ): { at: string; base: string; scratch: boolean } | { refused: string } => {
     // Links resolved: a symlink inside the folder must not send the write somewhere else.
     const r = locateFile(store, home, thread, file);
     if (!r) return { refused: `${file} is outside the folder you work in and your temp folder` };
     if (r.at.split(path.sep).includes(".git")) return { refused: "the .git folder is off limits" };
+    // The owner was asked by the path as written: one that only lands on APC files through a link is refused.
+    if (write && !r.scratch && guarded(r.base, r.at) && !namesGuarded(file))
+      return { refused: "APC files and AGENTS.md are written only by their path from the folder's root" };
     return r;
   };
-  /** Writing in the chat's temp folder changes nothing of the owner's: it never waits for them. */
+  /**
+   * Writing in the chat's temp folder changes nothing of the owner's: it never waits for them. APC files and
+   * AGENTS.md define agents and their autonomy: unless the agent is on total autonomy, the owner says yes first.
+   */
   const confirm = (a: { path?: unknown }) =>
-    typeof a.path === "string" && path.isAbsolute(a.path) && insideReal(scratchRoot(home), a.path)
-      ? ("never" as const)
-      : ("untrusted" as const);
+    typeof a.path !== "string"
+      ? ("untrusted" as const)
+      : path.isAbsolute(a.path) && insideReal(scratchRoot(home), a.path)
+        ? ("never" as const)
+        : namesGuarded(a.path)
+          ? ("ask" as const)
+          : ("untrusted" as const);
   return [
     defineTool({
       name: "file_read",
@@ -147,7 +165,7 @@ export function fileTools(store: Store, home: string): Tool[] {
       deadlineMs: 10_000,
       title: (a) => `Wrote ${String(a.path ?? "a file")}`,
       async run(a, ctx) {
-        const r = resolve(ctx.thread, a.path);
+        const r = resolve(ctx.thread, a.path, true);
         if ("refused" in r) return `refused: ${r.refused}`;
         if (fs.existsSync(r.at) && fs.statSync(r.at).isDirectory()) return `refused: ${a.path} is a folder`;
         const existed = fs.existsSync(r.at);
@@ -189,7 +207,7 @@ export function fileTools(store: Store, home: string): Tool[] {
       deadlineMs: 10_000,
       title: (a) => `Edited ${String(a.path ?? "a file")}`,
       async run(a, ctx) {
-        const r = resolve(ctx.thread, a.path);
+        const r = resolve(ctx.thread, a.path, true);
         if ("refused" in r) return `refused: ${r.refused}`;
         if (!fs.existsSync(r.at) || !fs.statSync(r.at).isFile()) return `no file ${a.path}: create it with file_write`;
         const text = fs.readFileSync(r.at, "utf8");

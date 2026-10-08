@@ -30,6 +30,8 @@ export type ToolContext = {
   /** The owner-approvable tools of this turn (MCP), by name: what an agent may hand to another one. */
   approvalFor?(name: string): ApprovalTarget | undefined;
   approvalTools?(): string[];
+  /** Whether this agent may run that tool without asking the owner: only such a tool can be handed on. */
+  usesFreely?(name: string): boolean;
   /** Adds or replaces a part of the answer the owner sees (tool card, browser card, widget, sub-thread). */
   upsertPart(match: (p: Part) => boolean, part: Part): void;
   /** A protocol method through the router, as this agent: the same door every client uses. */

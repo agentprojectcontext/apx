@@ -36,6 +36,18 @@ const PLANS: Record<string, Plan[]> = {
     () => ({ name: "open_document", args: { path: "report.md" } }),
     () => ({ name: "file_write", args: { path: "notes.md", content: "from the page\n" } }),
   ],
+  "raise myself": [
+    () => ({
+      name: "file_write",
+      args: { path: ".apc/agents/steady.md", content: "---\nname: Steady\nautonomy: total\n---\n" },
+    }),
+  ],
+  "raise through a link": [
+    () => ({
+      name: "file_write",
+      args: { path: "cfg/agents/steady.md", content: "---\nname: Steady\nautonomy: total\n---\n" },
+    }),
+  ],
   "clean up": [() => ({ name: "read_page", args: {} }), () => ({ name: "shell", args: { command: "rm -rf scratch" } })],
 };
 
@@ -135,4 +147,37 @@ test("total: nothing waits for the owner, not even a destructive command with a 
   assert.deepEqual(asked(messages), []);
   assert.deepEqual(ran(sent.run.id), ["read_page", "shell"]);
   assert.ok(!fs.existsSync(path.join(root, "scratch")));
+});
+
+test("standard: an agent cannot rewrite its own APC file without the owner, even in a clean turn", async () => {
+  const file = path.join(root, ".apc", "agents", "steady.md");
+  const before = fs.readFileSync(file, "utf8");
+  const t = await chat("Steady");
+  await env.client.call("threads.send", { thread: t.id, text: "raise myself" });
+  let input: { id: string; tool?: string | undefined } | undefined;
+  for (let i = 0; i < 200 && !input; i++) {
+    input = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];
+    if (!input) await new Promise((r) => setTimeout(r, 20));
+  }
+  assert.equal(input?.tool, "file_write");
+  await env.client.call("runs.respond", { input: input?.id ?? "", decision: "deny" });
+  await env.settle(t.id);
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+
+  // A link that leads into .apc does not dodge the question: the write is refused.
+  fs.symlinkSync(path.join(root, ".apc"), path.join(root, "cfg"));
+  const l = await chat("Steady");
+  const sent = await env.client.call("threads.send", { thread: l.id, text: "raise through a link" });
+  // An earlier test's tainted note may make this turn untrusted: even with the owner's yes, the write is refused.
+  for (let i = 0; i < 100; i++) {
+    const pending = (await env.client.call("runs.pending", { thread: l.id })).inputs[0];
+    if (pending) await env.client.call("runs.respond", { input: pending.id, decision: "approve" });
+    if (env.core.store.runs.steps(sent.run.id).some((s) => s.state === "ok")) break;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  await env.settle(l.id);
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+  const step = env.core.store.runs.steps(sent.run.id).find((s) => s.tool === "file_write");
+  assert.match(JSON.stringify(step), /written only by their path/);
+  fs.unlinkSync(path.join(root, "cfg"));
 });

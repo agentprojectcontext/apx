@@ -387,3 +387,29 @@ test("an agent hands its MCP tools to another one for good, never to itself", as
     await e.clean();
   }
 });
+
+test("an agent that asks the owner for a tool cannot hand it to another one", async () => {
+  const e = await setup();
+  try {
+    await e.client.call("agents.create", { slug: "reader", name: "Reader" });
+    await e.client.call("agents.update", { agent: "roby", autonomy: "ask" });
+    const roby = await chat(e);
+    await e.client.call("threads.send", { thread: roby.id, text: "grant" });
+    // On autonomy ask the owner confirms the grant itself.
+    let input: { id: string } | undefined;
+    for (let i = 0; i < 200 && !input; i++) {
+      input = (await e.client.call("runs.pending", { thread: roby.id })).inputs[0];
+      if (!input) await new Promise((r) => setTimeout(r, 20));
+    }
+    await e.client.call("runs.respond", { input: input?.id ?? "", decision: "approve" });
+    await e.settle(roby.id);
+    // Only the read-only tool it runs freely passes on; the one it must ask for stays with the owner.
+    const grants = (await e.client.call("tools.approvals", {})).approvals;
+    assert.deepEqual(
+      grants.map((g) => g.tool),
+      ["echo"],
+    );
+  } finally {
+    await e.clean();
+  }
+});

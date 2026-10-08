@@ -54,16 +54,23 @@ export function agentTools(store: Store): Tool[] {
         ];
         const done: string[] = [];
         const missing: string[] = [];
+        const notMine: string[] = [];
         for (const n of names) {
           const target = ctx.approvalFor?.(n);
           if (!target) missing.push(n);
+          // Nobody hands on more than they hold: a tool this agent must ask the owner for is not its to grant.
+          else if (!ctx.usesFreely?.(n)) notMine.push(n);
           else {
             store.approvals.grant(target, "always", ctx.thread.id, found.agent.id);
             done.push(n);
           }
         }
-        if (!done.length) return `nothing granted: ${a.tools.join(", ")} is not an MCP tool you have`;
-        return `${found.agent.name} can now use without asking: ${done.join(", ")}${missing.length ? `. Not found: ${missing.join(", ")}` : ""}`;
+        const refused = notMine.length
+          ? `. Not granted, you ask the owner for them yourself: ${notMine.join(", ")}`
+          : "";
+        if (!done.length)
+          return `nothing granted: ${a.tools.join(", ")} is not an MCP tool you may use without asking${refused}`;
+        return `${found.agent.name} can now use without asking: ${done.join(", ")}${missing.length ? `. Not found: ${missing.join(", ")}` : ""}${refused}`;
       },
     }),
     defineTool({
