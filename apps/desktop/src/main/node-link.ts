@@ -35,6 +35,8 @@ export function startNodeLink(
       });
       onStatus("connected");
       delay = 500;
+      // The owner's choice may have arrived while connecting: lend what is on now.
+      if (lent !== Boolean(computer?.on())) socket.close();
       await socket.closed;
     } catch {
       // core not up yet
