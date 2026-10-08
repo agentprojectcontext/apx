@@ -1,6 +1,7 @@
 // Channels: the owner's Telegram bots (later WhatsApp…). This module runs their adapters and sends what goes out:
 // the answer of a turn started on a channel, confirmations with buttons, and notices to the owner.
-// What comes in is handled by inbound.ts; sending goes through the durable outbox (delivery.ts).
+// What comes in is handled by inbound.ts, writing to a contact or a room outside a turn by outgoing.ts; sending
+// goes through the durable outbox (delivery.ts).
 // See DECISIONS.md#d-014
 
 import type { ChannelInfo, CoreEvent, Part } from "@apx/protocol";
@@ -10,9 +11,7 @@ import { inQuietHours, noticePrefs } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
-import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
-import { previewOf } from "../domain/threads.ts";
 import { audienceOf } from "../engine/audience.ts";
 import { isSkip } from "../engine/routines.ts";
 import { errorMessage } from "../errors.ts";
@@ -26,16 +25,11 @@ import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
 import { createInbound } from "./inbound.ts";
 import { inputPresentation } from "./notices.ts";
-import { createPoster, type Posted } from "./post.ts";
+import { createOutgoing } from "./outgoing.ts";
+import { createPoster } from "./post.ts";
 import { createRooms, quietMentions } from "./rooms.ts";
 import { channelTexts } from "./texts.ts";
-import {
-  type AdapterFactory,
-  type ChannelAdapter,
-  type ChannelConfig,
-  ChannelRefused,
-  type Presence,
-} from "./types.ts";
+import { type AdapterFactory, type ChannelAdapter, type ChannelConfig, ChannelRefused } from "./types.ts";
 
 const TYPING_EVERY_MS = 4500;
 /** Longer than this, what came before the first tool is part of the answer, not an "on it" line. */
@@ -145,7 +139,15 @@ export function createChannels(deps: {
     judge: deps.judge,
     ...(deps.roomBurstMs !== undefined ? { burstMs: deps.roomBurstMs } : {}),
   });
-  const { post, recentOf } = createPoster(store, delivery);
+  const outgoing = createOutgoing({
+    store,
+    configs,
+    live: (id) => live.get(id),
+    delivery,
+    poster: createPoster(store, delivery),
+    rooms,
+    services: deps.services,
+  });
   const inbound = createInbound({
     store,
     home: deps.home,
@@ -545,186 +547,10 @@ export function createChannels(deps: {
     });
   }
 
-  /**
-   * The owner writing to a contact themselves ("I'll write"): sent as is on the contact's conversation, kept in the
-   * chat as the owner's words, and noted for the agent so its next answer knows what was said.
-   */
-  function sendAsOwner(threadId: string, text: string): void {
-    const thread = store.threads.get(threadId);
-    const ch = thread?.channel;
-    if (!thread || !ch?.person_id || audienceOf(store, thread).kind !== "contact")
-      throw new Error("only a contact's chat on a channel can be written to directly");
-    const name = audienceOf(store, thread).kind === "contact" ? (store.persons.get(ch.person_id)?.name ?? "them") : "";
-    const sent = store.tx(() => {
-      const m = store.messages.add({
-        thread_id: threadId,
-        author: { kind: "user", direct: true },
-        parts: [{ type: "text", text }],
-      });
-      store.modelLog.append(threadId, undefined, [
-        { role: "user", content: `[Your owner wrote to ${name} directly in this chat:]\n${text}` },
-      ]);
-      store.threads.patch(threadId, { preview: previewOf(text) });
-      return m;
-    });
-    delivery.enqueue({
-      channel: ch.id,
-      conversation: ch.conversation,
-      thread_id: threadId,
-      message_id: sent.id,
-      kind: "reply",
-      body: { text },
-    });
-  }
-
-  /**
-   * A person's chat on a channel: the one with their latest words (on `channel`, an id or type, when given), else a new
-   * empty one on the first channel that knows them, its answers going back to them.
-   */
-  function chatWith(personId: string, channel?: string) {
-    const person = store.persons.get(personId);
-    if (!person || person.role === "blocked") throw new Error(`${personId} is not one of the owner's contacts`);
-    const wanted = channel?.toLowerCase();
-    const options = person.addresses.flatMap((a) => {
-      const cfg = configs().find((c) => c.id === a.channel);
-      if (!cfg || (wanted && cfg.id !== wanted && cfg.type !== wanted)) return [];
-      const chat = store.threads.byConversation(cfg.id, a.external_id);
-      return [{ cfg, conversation: a.external_id, chat, running: live.get(cfg.id)?.status === "running" }];
-    });
-    if (!options.length)
-      throw new Error(
-        wanted
-          ? `${person.name} has no address on ${channel}`
-          : `${person.name} has no address on any channel APX runs`,
-      );
-    const pick = [...options].sort(
-      (a, b) =>
-        (b.chat?.updated_at ?? "").localeCompare(a.chat?.updated_at ?? "") || Number(b.running) - Number(a.running),
-    )[0] as (typeof options)[number];
-    const owner = person.role === "owner";
-    let thread = pick.chat ?? (owner ? store.threads.get(HOME_THREAD_ID) : undefined);
-    if (!thread) {
-      thread = store.threads.create({
-        kind: "channel",
-        title: person.name,
-        agent_ids: [pick.cfg.agent_id],
-        channel: { id: pick.cfg.id, conversation: pick.conversation, person_id: person.id },
-      });
-      store.threads.mergeContext(thread.id, { reply_to: { channel: pick.cfg.id, conversation: pick.conversation } });
-    }
-    return { person, pick, owner, thread };
-  }
-
-  /**
-   * An agent writes to a contact for the owner: on the channel asked for, else the one with the contact's most recent
-   * chat, else the first running one that knows them. Kept in their chat (where their answer will come in) and in what
-   * that chat's agent reads, then sent through the outbox.
-   */
-  function messageContact(
-    personId: string,
-    text: string,
-    /** `by`: the agent writing; none: the owner themselves. `files`: media ids sent with it. */
-    o: { channel?: string | undefined; by?: string | undefined; files?: string[] | undefined },
-  ): Posted {
-    const { pick, owner, thread } = chatWith(personId, o.channel);
-    // The chat's agent answers the contact's reply knowing it wrote this first (the owner's own chat logs its turns).
-    const recent = recentOf(thread.id);
-    post(thread, pick.cfg.id, pick.conversation, text, { ...o, logged: !owner });
-    return { thread: thread.id, channel: pick.cfg.label, recent };
-  }
-
-  /**
-   * An agent posts in a public room (a Discord server's channel the owner listed) for the owner: kept in the room's
-   * chat, sent with no pings to everyone. `room` is its exact name, with or without "#"; `channel` (an id or type)
-   * tells two rooms of the same name apart. A near name only gets suggestions: a public post cannot be taken back.
-   */
-  function postInRoom(
-    room: string,
-    text: string,
-    o: { channel?: string | undefined; by?: string | undefined; files?: string[] | undefined },
-  ): Posted {
-    const wanted = room.trim().replace(/^#/, "").toLowerCase();
-    const on = o.channel?.toLowerCase();
-    const all = configs().flatMap((cfg) =>
-      cfg.enabled && (!on || cfg.id === on || cfg.type === on)
-        ? (cfg.rooms?.rooms ?? []).map((r) => ({ cfg, room: r, name: r.name || r.id }))
-        : [],
-    );
-    const exact = all.filter((r) => r.name.toLowerCase() === wanted || r.room.id === wanted);
-    if (exact.length !== 1) {
-      const near = all.filter((r) => r.name.toLowerCase().includes(wanted) || wanted.includes(r.name.toLowerCase()));
-      const list = (rs: typeof all) => rs.map((r) => `#${r.name} (${r.cfg.label})`).join(", ") || "none";
-      throw new Error(
-        exact.length
-          ? `"${room}" is a room on several channels: ${list(exact)}; say which channel`
-          : near.length
-            ? `no room "${room}"; did you mean ${list(near)}?`
-            : `no room "${room}". Rooms: ${list(all)}`,
-      );
-    }
-    const { cfg, room: r } = exact[0] as (typeof exact)[number];
-    const thread = rooms.thread(cfg, r);
-    const recent = recentOf(thread.id);
-    post(thread, cfg.id, r.id, quietMentions(text), { ...o, logged: false });
-    return { thread: thread.id, channel: cfg.label, recent };
-  }
-
-  /**
-   * A person's profile picture from the first running channel that knows them and shows one, kept as media for a day
-   * (a list asks for it on every screen; the platform is asked again only after that).
-   */
-  async function avatar(personId: string): Promise<string | undefined> {
-    const key = `avatar:${personId}`;
-    try {
-      const was = JSON.parse(store.settings.get(key) ?? "null") as { media?: string; at: number } | null;
-      if (was && Date.now() - was.at < AVATAR_TTL_MS && (!was.media || store.media.get(was.media))) return was.media;
-    } catch {}
-    const person = store.persons.get(personId);
-    let asked = false;
-    for (const a of person?.addresses ?? []) {
-      const l = live.get(a.channel);
-      if (!l?.adapter.avatar || l.status !== "running") continue;
-      asked = true;
-      try {
-        const pic = await l.adapter.avatar(a.external_id);
-        if (!pic?.data.length) continue;
-        const m = deps.services.keep(pic.data, pic.mime);
-        store.settings.set(key, JSON.stringify({ media: m.id, at: Date.now() }));
-        return m.id;
-      } catch {
-        // A picture that cannot be read is a list without a face, not an error to show.
-      }
-    }
-    // None shown: not asked again for a day. No channel running: ask again next time.
-    if (asked) store.settings.set(key, JSON.stringify({ at: Date.now() }));
-    return undefined;
-  }
-
-  /** Who of the contacts on a channel is online, as far as it knows (WhatsApp); asking keeps it listening for them. */
-  function presence(channelId: string): Array<{ person_id: string } & Presence> {
-    const l = live.get(channelId);
-    if (!l?.adapter.presence || l.status !== "running") return [];
-    const people = store.persons
-      .list()
-      .filter((p) => p.role === "contact")
-      .flatMap((p) => p.addresses.filter((a) => a.channel === channelId).map((a) => ({ p, a })));
-    const known = l.adapter.presence(people.map((x) => x.a.external_id));
-    return people.flatMap(({ p, a }) => {
-      const s = known[a.external_id];
-      return s ? [{ person_id: p.id, ...s }] : [];
-    });
-  }
-
   return {
     info,
-    avatar,
-    presence,
+    ...outgoing,
     notifyOwner,
-    sendAsOwner,
-    messageContact,
-    postInRoom,
-    /** A person's chat on a channel, made (empty) when they have none yet. */
-    openChat: (personId: string, channel: string) => chatWith(personId, channel).thread,
     approved: inbound.approved,
     afterRun,
     /** Adds, changes or removes a channel and (re)starts it. */
@@ -788,8 +614,6 @@ function draftId(messageId: string): number {
   for (const c of messageId) h = (Math.imul(h, 31) + (c.codePointAt(0) ?? 0)) | 0;
   return h & 0x7fffffff || 1;
 }
-
-const AVATAR_TTL_MS = 24 * 3600_000;
 
 /** Whether a settings change needs the channel started again (what its adapter is built with). */
 function restartsFor(a: Omit<ChannelConfig, "id">, b: Omit<ChannelConfig, "id">): boolean {
