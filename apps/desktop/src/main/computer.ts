@@ -42,7 +42,7 @@ on run argv
   set withElements to (item 1 of argv) is "1"
   tell application "System Events"
     set p to first application process whose frontmost is true
-    set out to (name of p) & linefeed
+    set out to (name of p) & tab & (unix id of p) & linefeed
     try
       set w to front window of p
       set {wx, wy} to position of w
@@ -99,12 +99,14 @@ function run(argv) {
   const app = argv[0];
   const x = Number(argv[1]);
   const y = Number(argv[2]);
-  const front = Application("System Events").processes.whose({ frontmost: true })[0].name();
+  const proc = Application("System Events").processes.whose({ frontmost: true })[0];
+  const front = proc.name();
   if (front !== app) throw new Error("the app in front is " + front + ", not " + app);
+  const pid = proc.unixId();
   // The window really on top at that point, front to back, among normal windows: it must be the approved app's.
   const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements, 0)));
   const top = list.find((w) => w.kCGWindowLayer === 0 && w.kCGWindowBounds && x >= w.kCGWindowBounds.X && x < w.kCGWindowBounds.X + w.kCGWindowBounds.Width && y >= w.kCGWindowBounds.Y && y < w.kCGWindowBounds.Y + w.kCGWindowBounds.Height);
-  if (!top || String(top.kCGWindowOwnerName).toLowerCase() !== app.toLowerCase()) throw new Error("another window covers that point (" + (top ? top.kCGWindowOwnerName : "none") + "): take a new screen_snapshot");
+  if (!top || top.kCGWindowOwnerPID !== pid) throw new Error("another window covers that point (" + (top ? top.kCGWindowOwnerName : "none") + "): take a new screen_snapshot");
   const p = $.CGPointMake(x, y);
   for (const type of [$.kCGEventMouseMoved, $.kCGEventLeftMouseDown, $.kCGEventLeftMouseUp]) {
     $.CGEventPost($.kCGHIDEventTap, $.CGEventCreateMouseEvent(null, type, p, $.kCGMouseButtonLeft));
@@ -131,7 +133,7 @@ on run argv
   end tell
 end run`;
 
-/** Whose window is really on top at a screen point (normal windows only), or "" for none. */
+/** Whose window is really on top at a screen point (normal windows only): "pid<TAB>name", or "" for none. */
 const TOP_AT = `
 function run(argv) {
   ObjC.import("CoreGraphics");
@@ -140,7 +142,7 @@ function run(argv) {
   const y = Number(argv[1]);
   const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements, 0)));
   const top = list.find((w) => w.kCGWindowLayer === 0 && w.kCGWindowBounds && x >= w.kCGWindowBounds.X && x < w.kCGWindowBounds.X + w.kCGWindowBounds.Width && y >= w.kCGWindowBounds.Y && y < w.kCGWindowBounds.Y + w.kCGWindowBounds.Height);
-  return top ? top.kCGWindowOwnerName : "";
+  return top ? top.kCGWindowOwnerPID + "\t" + top.kCGWindowOwnerName : "";
 }`;
 
 const parseBounds = (line: string | undefined): Bounds | undefined => {
@@ -151,11 +153,12 @@ const parseBounds = (line: string | undefined): Bounds | undefined => {
 };
 
 /** The window in front, wherever it is: its app, name and bounds, and (when asked) its elements. */
-async function front(withElements: boolean): Promise<Target & { lines: string[] }> {
-  const [app = "", window = "", bounds, ...lines] = (await osa(LOOK, [withElements ? "1" : "0"])).split("\n");
+async function front(withElements: boolean): Promise<Target & { pid: number; lines: string[] }> {
+  const [head = "", window = "", bounds, ...lines] = (await osa(LOOK, [withElements ? "1" : "0"])).split("\n");
+  const [app = "", pid = ""] = head.split("\t");
   // AppleScript says "missing value" for an attribute an element does not have.
   const clean = lines.filter(Boolean).map((l) => l.replaceAll("missing value", ""));
-  return { app, window, bounds: parseBounds(bounds), lines: clean };
+  return { app, pid: Number(pid), window, bounds: parseBounds(bounds), lines: clean };
 }
 
 /**
@@ -209,10 +212,9 @@ export function createComputer(o: { cursor: AgentCursor; onActivity(a: ComputerA
           "JavaScript",
         ).catch(() => "")
       : "";
+    const [overPid, overName] = over.split("\t");
     const covered =
-      over && over.toLowerCase() !== f.app.toLowerCase()
-        ? `; covered by a window of ${over}: the picture shows that one`
-        : "";
+      over && Number(overPid) !== f.pid ? `; covered by a window of ${overName}: the picture shows that one` : "";
     const header = `${where}${covered}; positions are screen points, centers to click\nrole\tname\tdescription\tvalue\tx,y`;
     o.onActivity({ kind: "look", app: f.app, window: f.window });
     return {
