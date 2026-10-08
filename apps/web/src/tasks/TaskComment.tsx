@@ -65,9 +65,12 @@ export function TaskComment({
     const next = insertMention(text, mention, mentionToken(agent, roster, task.project_id));
     onChange(next.text);
     setMention(undefined);
+    // A late frame must not pull the caret back under what was typed since.
     requestAnimationFrame(() => {
-      input.current?.focus();
-      input.current?.setSelectionRange(next.caret, next.caret);
+      const el = input.current;
+      if (!el || el.value !== next.text) return;
+      el.focus();
+      el.setSelectionRange(next.caret, next.caret);
     });
   };
   const send = async () => {
