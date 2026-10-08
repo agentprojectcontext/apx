@@ -123,7 +123,9 @@ const parseBounds = (line: string | undefined): Bounds | undefined => {
 /** The window in front, wherever it is: its app, name and bounds, and (when asked) its elements. */
 async function front(withElements: boolean): Promise<Target & { lines: string[] }> {
   const [app = "", window = "", bounds, ...lines] = (await osa(LOOK, [withElements ? "1" : "0"])).split("\n");
-  return { app, window, bounds: parseBounds(bounds), lines: lines.filter(Boolean) };
+  // AppleScript says "missing value" for an attribute an element does not have.
+  const clean = lines.filter(Boolean).map((l) => l.replaceAll("missing value", ""));
+  return { app, window, bounds: parseBounds(bounds), lines: clean };
 }
 
 /**

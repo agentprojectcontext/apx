@@ -35,7 +35,7 @@ export function computerTools(): Tool[] {
       name: "screen_click",
       description:
         "Click a point of the owner's screen (from screen_snapshot's positions) in the app named, which must still be in front. The owner approves each click.",
-      args: z.object({ x: z.number().int().min(0), y: z.number().int().min(0), app: z.string().min(1).max(120) }),
+      args: z.object({ x: z.number().int(), y: z.number().int(), app: z.string().min(1).max(120) }),
       effect: "external",
       confirm: "always",
       needsCap: COMPUTER_CAP,

@@ -137,14 +137,14 @@ export const deviceMethods = {
     effect: true,
   },
   /**
-   * A click at a point of the screen, only if `app` is still the app in front (the owner approved it for that app):
+   * A click at a point of the screen (screen points: a monitor left of or above the main one has negative ones), only if `app` is still the app in front (the owner approved it for that app):
    * otherwise nothing happens and the call fails.
    */
   "computer.click": {
     params: z
       .object({
-        x: z.number().int().min(0).max(20_000),
-        y: z.number().int().min(0).max(20_000),
+        x: z.number().int().min(-20_000).max(20_000),
+        y: z.number().int().min(-20_000).max(20_000),
         app: z.string().min(1).max(120),
       })
       .strict(),
