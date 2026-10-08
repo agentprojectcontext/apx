@@ -8,29 +8,22 @@ import {
   Field,
   Icons,
   Input,
+  IntegrationIcon,
   MasterDetail,
   PickRow,
   ProjectTile,
   SegmentedControl,
   Switch,
-  type TileTone,
 } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
+import { loadMarks } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import type { TabProps } from "./ResourcesView.tsx";
 
 type Integration = Result<"integrations.list">["integrations"][number];
-const TONE: Record<string, TileTone> = {
-  github: "neutral",
-  notion: "neutral",
-  slack: "violet",
-  sentry: "violet",
-  "brave-search": "warning",
-  obsidian: "violet",
-};
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** What each one is, in the owner's language (the core's text otherwise). */
 const DESC: Record<string, MessageKey> = {
@@ -49,7 +42,7 @@ const describe = (i: Integration, t: ReturnType<typeof useT>) =>
   DESC[i.id] ? t(DESC[i.id] as MessageKey) : i.description;
 
 function Tile({ i, size = 32 }: { i: Pick<Integration, "id" | "label">; size?: number }) {
-  return <ProjectTile tone={TONE[i.id] ?? "info"} initial={i.label.slice(0, 1)} size={size} />;
+  return <IntegrationIcon id={i.id} name={i.label} size={size} />;
 }
 
 /**
@@ -72,6 +65,7 @@ export function IntegrationsTab({ projectId, query, scope, adding, setAdding }: 
     }
   }, [t]);
   useEffect(() => {
+    loadMarks();
     void load();
   }, [load]);
 

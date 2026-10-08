@@ -213,6 +213,12 @@
   color: var(--apx-fg-muted);
 }
 
+/* ── IntegrationIcon ───────────────────────────────────────────────────────── */
+/* One-colour marks (GitHub, Notion) in the text colour, not the tile's muted one. */
+.apx-tile.apx-intmark {
+  color: var(--apx-fg);
+}
+
 /* ── EngineIcon ────────────────────────────────────────────────────────────── */
 .apx-engine {
   display: inline-grid;

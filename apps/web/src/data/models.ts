@@ -1,7 +1,7 @@
 // Model catalog, install default and router (D-011). Model names only ever come from the core.
 import type { CatalogEngine, ModelChoice, ModelRef, RouterConfig } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
-import { registerMarks } from "@apx/ui";
+import { registerIntegrationMarks, registerMarks } from "@apx/ui";
 import { isKey, t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
@@ -27,10 +27,16 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const missing = (e: unknown) => e instanceof ApxError && e.code === "unknown_method";
 
 let marks: Promise<void> | undefined;
-/** The ACP agents' and model APIs' marks: kept out of the first load, they come with the catalog right after it. */
-function loadMarks(): void {
+/**
+ * The ACP agents', model APIs' and integrations' marks: kept out of the first load, they come with the catalog right
+ * after it, or with the integrations list if that opens first.
+ */
+export function loadMarks(): void {
   marks ??= import("@apx/ui/marks")
-    .then((m) => registerMarks({ ...m.ACP_MARKS, ...m.PROVIDER_MARKS }))
+    .then((m) => {
+      registerMarks({ ...m.ACP_MARKS, ...m.PROVIDER_MARKS });
+      registerIntegrationMarks(m.INTEGRATION_MARKS);
+    })
     .catch(() => {
       marks = undefined;
     });

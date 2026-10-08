@@ -9,7 +9,8 @@ const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist");
 
-// The ACP agents' and model APIs' marks are an entry of their own: the panel loads them after its first screen.
+// The ACP agents', model APIs' and integrations' marks are an entry of their own: the panel loads them after its
+// first screen.
 await build({
   entryPoints: { index: "src/index.ts", marks: "src/marks.ts" },
   outdir: "dist",

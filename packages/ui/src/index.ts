@@ -44,6 +44,13 @@ export { Field, type FieldProps } from "./components/Field";
 export { Help, type HelpItem, type HelpProps } from "./components/Help";
 export { IconButton, type IconButtonProps } from "./components/IconButton";
 export { Input, type InputProps } from "./components/Input";
+export {
+  type IntegrationBrand,
+  IntegrationIcon,
+  type IntegrationIconProps,
+  integrationBrand,
+  registerIntegrationMarks,
+} from "./components/IntegrationIcon";
 export { Kbd, type KbdProps } from "./components/Kbd";
 export { LiveBrowserCard, type LiveBrowserCardProps } from "./components/LiveBrowserCard";
 export { type CodeRenderer, type LinkRenderer, MarkdownView, type MarkdownViewProps } from "./components/MarkdownView";

@@ -112,6 +112,19 @@ test("integrations: GitHub is connected with a token, then disconnected", async 
     .getByRole("button", { name: /Conectar nueva|Integración/ })
     .first()
     .click();
+  // Each app shows its own logo, the ones still coming too.
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByRole("button", { name: /GitHub/ })
+      .locator(".apx-intmark svg"),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByRole("button", { name: /Linear/ })
+      .locator(".apx-intmark svg"),
+  ).toBeVisible();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: /GitHub/ })
