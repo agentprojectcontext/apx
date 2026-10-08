@@ -149,7 +149,9 @@ function run(argv) {
   const procs = Application("System Events").processes.whose({ name: argv[0] });
   if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
   const app = $.AXUIElementCreateApplication(procs[0].unixId());
+  // Electron builds its page tree for AXManualAccessibility, Chrome for AXEnhancedUserInterface (screen readers).
   $.AXUIElementSetAttributeValue(app, $("AXManualAccessibility"), $.kCFBooleanTrue);
+  $.AXUIElementSetAttributeValue(app, $("AXEnhancedUserInterface"), $.kCFBooleanTrue);
   // A text attribute, or "": anything else (a number, a struct) never breaks the press.
   const str = (el, name) => {
     try {
@@ -167,9 +169,10 @@ function run(argv) {
     const ref = Ref();
     return $.AXUIElementCopyElementAtPosition(app, Number(argv[1]), Number(argv[2]), ref) === 0 ? ref[0] : null;
   };
+  // Until the page tree is built, the point only finds the page's frame: ask again a few times.
   let el = at();
-  if (el && ["AXWebArea", "AXScrollArea", "AXWindow", "AXApplication", ""].indexOf(str(el, "AXRole")) >= 0) {
-    delay(0.4);
+  for (let n = 0; n < 4 && el && ["AXWebArea", "AXScrollArea", "AXWindow", "AXApplication", "AXGroup", ""].indexOf(str(el, "AXRole")) >= 0; n++) {
+    delay(0.35);
     el = at();
   }
   const seen = [];
@@ -237,6 +240,7 @@ function run(argv) {
   if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
   const app = $.AXUIElementCreateApplication(procs[0].unixId());
   $.AXUIElementSetAttributeValue(app, $("AXManualAccessibility"), $.kCFBooleanTrue);
+  $.AXUIElementSetAttributeValue(app, $("AXEnhancedUserInterface"), $.kCFBooleanTrue);
   const f = Ref();
   if ($.AXUIElementCopyAttributeValue(app, $("AXFocusedUIElement"), f) !== 0 || !f[0]) return "no";
   const sub = Ref();
