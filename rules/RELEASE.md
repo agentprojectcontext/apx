@@ -31,3 +31,44 @@ v2 is published into v1's public repo (`agentprojectcontext/apx`), which every v
 3. Unification, at the end: on `release/v2`, `git merge -s ours main --allow-unrelated-histories`, then `main`
    fast-forwards to it and v1's old `main` stays as branch `v1`. Both histories survive and `main` holds v2. Set
    `APX_V2_LATEST=true` from then on.
+
+## What a release carries
+
+`release.yml` on a `v2.x.y` tag: for linux x64/arm64, win x64, mac arm64/x64 the desktop installer (AppImage, NSIS
+`.exe`, `.dmg`, plus a `.zip`), the daemon bundle `apx-core-<v>-<os>-<arch>.tar.gz`, a `.sha256` beside each,
+`install.sh` / `install.ps1`; and the Android APK. Nothing is signed yet but the APK (with the repo's
+`ANDROID_KEYSTORE_*` secrets, the same as v1's): macOS needs an Apple Developer ID and notarization, Windows an
+Authenticode certificate (Azure Trusted Signing is the cheap one). Until then the install docs must say how to open
+an unsigned app (macOS: right-click › Open, or System Settings › Privacy & Security; Windows: SmartScreen › More info).
+
+The phone app is `dev.apx.mobile` and v1's is `dev.agentprojectcontext.apx`: they install side by side.
+
+## Install paths
+
+| Who | How | Notes |
+|---|---|---|
+| New, with a desktop | the installer, then the first run (server or client) | |
+| New, a server or VM | `install.sh \| bash` (or `install.ps1`), then `apx setup --headless` | over SSH, linger needs root: install.sh uses passwordless sudo when it can, else says the command |
+| From the desktop, onto a server | first run › Client › SSH › "Install APX there" | sends the app's own install.sh over ssh and installs the app's version |
+| v1 user | the desktop's setup imports from `~/.apx`; on a server install.sh stops v1 and `apx import-v1` imports from its files | a v1 installed with `sudo npm` needs sudo to go |
+| Docker | `scripts/docker/Dockerfile` from a bundle | `APX_TOKEN` required; updates by image |
+
+`install.sh` is fetched from a release, so `releases/latest/download/install.sh` only works once v2 is "Latest".
+While it is not, the URL to give is the release branch's raw file or a specific tag's
+(`releases/download/v2.x.y/install.sh`); the script itself finds the newest v2 either way.
+
+## Testing
+
+Everything here can be tried on the network before anything is published:
+
+```bash
+pnpm package:linux                                  # or :win / :mac; APX_VERSION=2.9.1 names the build
+node scripts/install/feed.ts out/                   # a GitHub-shaped feed of those files on :7480
+e2e/install/servers.sh build ~/.ssh/<key>.pub       # on any Docker host: clean Ubuntu servers with systemd + sshd
+e2e/install/servers.sh feed out/                    # …and the feed beside them (http://apx-feed:7480)
+e2e/install/servers.sh up fresh 2222                # ssh -p 2222 tester@<docker host>; `up old 2223 v1` has APX v1
+e2e/install/servers.sh clean
+```
+
+On a server: `curl -fsSL http://apx-feed:7480/install.sh | bash -s -- --feed http://apx-feed:7480`; the install
+keeps updating from that feed (`apx upgrade`). The desktop app installs onto one with `APX_RELEASES=<feed>` set.

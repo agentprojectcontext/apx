@@ -1,0 +1,14 @@
+# A clean Ubuntu server with systemd (user services, linger) and sshd, for install tests (rules/RELEASE.md#testing).
+# SSH is key-only, as "tester": put the public key to log in with in authorized_keys beside this file first.
+FROM ubuntu:24.04
+ENV container=docker DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends systemd systemd-sysv dbus dbus-user-session libpam-systemd \
+      openssh-server curl ca-certificates xz-utils sudo less procps iproute2 && rm -rf /var/lib/apt/lists/* \
+ && useradd -m -s /bin/bash tester && passwd -l tester \
+ && mkdir -p /home/tester/.ssh && chmod 700 /home/tester/.ssh \
+ && sed -i "s/^#\?PasswordAuthentication.*/PasswordAuthentication no/" /etc/ssh/sshd_config \
+ && systemctl enable ssh && systemctl mask getty@tty1.service
+COPY authorized_keys /home/tester/.ssh/authorized_keys
+RUN chown -R tester:tester /home/tester/.ssh && chmod 600 /home/tester/.ssh/authorized_keys
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]

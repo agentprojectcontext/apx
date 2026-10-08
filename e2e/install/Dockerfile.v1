@@ -1,0 +1,4 @@
+# The clean server plus Node 22 and APX v1 from npm, as a v1 user has it (installed as root, like `sudo npm i -g`).
+FROM apx-test-server
+RUN curl -fsSL https://nodejs.org/dist/v22.21.0/node-v22.21.0-linux-x64.tar.xz | tar -xJ -C /usr/local --strip-components=1 \
+ && npm install -g @agentprojectcontext/apx >/dev/null 2>&1 && apx --version

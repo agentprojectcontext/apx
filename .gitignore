@@ -40,3 +40,6 @@ apps/desktop/.bundle/
 apps/desktop/.node-*/
 apps/desktop/.npx-cache/
 apps/desktop/release/
+
+# Install-test servers: the key a test logs in with (e2e/install/servers.sh build)
+e2e/install/authorized_keys
