@@ -26,7 +26,11 @@ function osa(script: string, args: string[] = []): Promise<string> {
 const ACTIVATE = `
 on run argv
   tell application (item 1 of argv) to activate
-  delay 0.5
+  delay 0.4
+  try
+    tell application "System Events" to tell process (item 1 of argv) to perform action "AXRaise" of window 1
+  end try
+  delay 0.4
 end run`;
 
 /** The app in front, its front window's name and bounds, then its useful elements: role, name, description, value, x,y. */
@@ -44,7 +48,12 @@ on run argv
       if withElements then
         set wanted to {"AXButton", "AXCheckBox", "AXRadioButton", "AXTextField", "AXTextArea", "AXPopUpButton", "AXMenuButton", "AXSlider", "AXSwitch", "AXStaticText", "AXLink", "AXTab", "AXRow", "AXComboBox", "AXSearchField"}
         set n to 0
-        repeat with e in (entire contents of w)
+        try
+          set everything to entire contents of w
+        on error msg
+          return out & "error" & tab & msg
+        end try
+        repeat with e in everything
           if n > 400 then exit repeat
           try
             set r to role of e
@@ -69,8 +78,8 @@ on run argv
           end try
         end repeat
       end if
-    on error
-      set out to out & linefeed & linefeed
+    on error msg
+      set out to out & linefeed & linefeed & "error" & tab & msg
     end try
     return out
   end tell
