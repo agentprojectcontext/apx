@@ -1,0 +1,163 @@
+// Gmail's REST API: searching and reading the owner's mail, writing a draft, and sending a draft the owner approved.
+// Nothing here sends a new message on its own: a message leaves only as a draft that exists first.
+import { pageText } from "../tools/web.ts";
+import type { Google } from "./google.ts";
+
+const ID = "gmail" as const;
+const BODY_CAP = 8_000;
+
+type Header = { name?: string; value?: string };
+type Part = {
+  mimeType?: string;
+  filename?: string;
+  body?: { data?: string; size?: number };
+  parts?: Part[];
+  headers?: Header[];
+};
+type GMessage = { id?: string; threadId?: string; snippet?: string; labelIds?: string[]; payload?: Part };
+
+export type MailSummary = {
+  id: string;
+  thread: string;
+  from: string;
+  to?: string;
+  subject: string;
+  date: string;
+  snippet: string;
+  unread: boolean;
+};
+
+const header = (m: GMessage, name: string) =>
+  m.payload?.headers?.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ?? "";
+
+export function summary(m: GMessage): MailSummary {
+  const to = header(m, "To");
+  return {
+    id: m.id ?? "",
+    thread: m.threadId ?? "",
+    from: header(m, "From"),
+    ...(to ? { to } : {}),
+    subject: header(m, "Subject") || "(no subject)",
+    date: header(m, "Date"),
+    snippet: m.snippet ?? "",
+    unread: Boolean(m.labelIds?.includes("UNREAD")),
+  };
+}
+
+const decode = (data: string | undefined) => (data ? Buffer.from(data, "base64url").toString("utf8") : "");
+
+/** The readable body: the plain-text part, else the HTML one as text. Attachments only by name. */
+export function bodyOf(p: Part | undefined): { text: string; attachments: string[] } {
+  const all: Part[] = [];
+  const walk = (x: Part | undefined) => {
+    if (!x) return;
+    all.push(x);
+    for (const c of x.parts ?? []) walk(c);
+  };
+  walk(p);
+  const attachments = all.flatMap((x) => (x.filename ? [x.filename] : []));
+  const plain = all.find((x) => x.mimeType === "text/plain" && !x.filename && x.body?.data);
+  if (plain) return { text: decode(plain.body?.data), attachments };
+  const html = all.find((x) => x.mimeType === "text/html" && !x.filename && x.body?.data);
+  if (html) return { text: pageText(decode(html.body?.data), "https://mail.google.com/").text, attachments };
+  return { text: "", attachments };
+}
+
+/** RFC 2047, so a subject or a name outside ASCII arrives as written. */
+const word = (s: string) => (/^[\x20-\x7e]*$/.test(s) ? s : `=?UTF-8?B?${Buffer.from(s, "utf8").toString("base64")}?=`);
+
+/** A header's value on one line: a line break in it would start a header (or the body) of its own. */
+const one = (s: string) => s.replace(/[\r\n]+/g, " ");
+
+/** An RFC 2822 message as Gmail's `raw` (base64url). */
+export function rawMessage(m: {
+  to: string[];
+  cc?: string[] | undefined;
+  subject: string;
+  body: string;
+  inReplyTo?: string | undefined;
+  references?: string | undefined;
+}): string {
+  const lines = [
+    `To: ${one(m.to.join(", "))}`,
+    ...(m.cc?.length ? [`Cc: ${one(m.cc.join(", "))}`] : []),
+    `Subject: ${word(one(m.subject))}`,
+    ...(m.inReplyTo ? [`In-Reply-To: ${one(m.inReplyTo)}`, `References: ${one(m.references || m.inReplyTo)}`] : []),
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: base64",
+    "",
+    Buffer.from(m.body, "utf8").toString("base64").replace(/.{76}/g, "$&\r\n"),
+  ];
+  return Buffer.from(lines.join("\r\n"), "utf8").toString("base64url");
+}
+
+export function gmailApi(g: Google) {
+  const base = () => `${g.endpoints.gmail}/users/me`;
+  // Metadata with the headers asked for: Gmail repeats the parameter, which a query object would collapse.
+  const meta = (id: string, headers: string[]) => {
+    const u = new URL(`${base()}/messages/${encodeURIComponent(id)}`);
+    u.searchParams.set("format", "metadata");
+    for (const h of headers) u.searchParams.append("metadataHeaders", h);
+    return g.call<GMessage>(ID, u.toString());
+  };
+  return {
+    async search(o: { q: string; max: number }): Promise<MailSummary[]> {
+      const list = await g.call<{ messages?: Array<{ id: string }> }>(ID, `${base()}/messages`, {
+        query: { q: o.q, maxResults: o.max },
+      });
+      return Promise.all(
+        (list.messages ?? []).map(async (m) => summary(await meta(m.id, ["From", "To", "Subject", "Date"]))),
+      );
+    },
+
+    async read(id: string) {
+      const m = await g.call<GMessage>(ID, `${base()}/messages/${encodeURIComponent(id)}`, {
+        query: { format: "full" },
+      });
+      const { text, attachments } = bodyOf(m.payload);
+      const cc = header(m, "Cc");
+      return {
+        ...summary(m),
+        ...(cc ? { cc } : {}),
+        body: text.length > BODY_CAP ? `${text.slice(0, BODY_CAP)}\n…[cut]` : text,
+        attachments,
+      };
+    },
+
+    /** A draft in the owner's mailbox; as a reply it goes in the same thread, with "Re:" and the right headers. */
+    async draft(o: {
+      to: string[];
+      cc?: string[] | undefined;
+      subject?: string | undefined;
+      body: string;
+      reply_to?: string | undefined;
+    }) {
+      let subject = o.subject ?? "";
+      let thread: string | undefined;
+      let inReplyTo: string | undefined;
+      let references: string | undefined;
+      if (o.reply_to) {
+        const orig = await meta(o.reply_to, ["Subject", "Message-ID", "References"]);
+        thread = orig.threadId;
+        inReplyTo = header(orig, "Message-ID") || undefined;
+        references = [header(orig, "References"), inReplyTo].filter(Boolean).join(" ") || undefined;
+        if (!subject) {
+          const s = header(orig, "Subject");
+          subject = /^re:/i.test(s) ? s : `Re: ${s}`;
+        }
+      }
+      const raw = rawMessage({ to: o.to, cc: o.cc, subject, body: o.body, inReplyTo, references });
+      const d = await g.call<{ id?: string; message?: { id?: string; threadId?: string } }>(ID, `${base()}/drafts`, {
+        method: "POST",
+        body: { message: { raw, ...(thread ? { threadId: thread } : {}) } },
+      });
+      return { draft: d.id ?? "", message: d.message?.id ?? "", subject };
+    },
+
+    async sendDraft(id: string) {
+      const m = await g.call<GMessage>(ID, `${base()}/drafts/send`, { method: "POST", body: { id } });
+      return { message: m.id ?? "", thread: m.threadId ?? "" };
+    },
+  };
+}

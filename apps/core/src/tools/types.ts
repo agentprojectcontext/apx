@@ -79,6 +79,8 @@ export type Tool = {
   local?: ((args: Record<string, unknown>) => boolean) | undefined;
   /** A node capability it needs ("location"): offered only while a node lending it is connected. */
   needsCap?: string | undefined;
+  /** Offered in a thread only when this says so (an account connected and on in the thread's project). */
+  when?: ((thread: Thread) => boolean) | undefined;
   /** Checks the model's arguments; a failure goes back to the model as the tool's result. */
   parse(raw: Record<string, unknown>): { ok: true; args: Record<string, unknown> } | { ok: false; error: string };
   /** Short human title for the tool card ("Opened github.com"). Gets the raw arguments. */
@@ -98,6 +100,7 @@ export function defineTool<S extends Args>(def: {
   deadlineMs: number;
   local?: (args: z.output<S>) => boolean;
   needsCap?: string;
+  when?: (thread: Thread) => boolean;
   title(args: Partial<z.input<S>>): string;
   run(args: z.output<S>, ctx: ToolContext): Promise<string>;
 }): Tool {
@@ -110,6 +113,7 @@ export function defineTool<S extends Args>(def: {
     confirm: (a) => (typeof def.confirm === "function" ? def.confirm(a as z.output<S>) : (def.confirm ?? "never")),
     deadlineMs: def.deadlineMs,
     ...(def.needsCap ? { needsCap: def.needsCap } : {}),
+    ...(def.when ? { when: def.when } : {}),
     ...(def.local ? { local: (a: Record<string, unknown>) => def.local?.(a as z.output<S>) === true } : {}),
     parse(raw) {
       const r = def.args.safeParse(raw);

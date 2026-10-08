@@ -652,3 +652,16 @@ The G0 audit (plan/parity/07-seguridad.md) left holes open for the owner to deci
 - **The log redacts credentials.** Every line passes a redaction step: string fields named like secrets (token,
   password, api_key, authorization, cookie…) become `[redacted]`, and key shapes anywhere in a string (`sk-`, `ghp_`,
   `xox?-`, `AIza`, bot tokens, JWTs, `Bearer …`, `?key=`) too. `secret://` references and counts stay.
+
+<a id="d-058"></a>
+## D-058 — 2026-10-08 — Google Calendar and Gmail are APX's own tools behind the owner's Google sign-in
+The owner brings their own OAuth client (Cloud Console, Desktop app or Web application); APX ships no client id. The
+sign-in needs no route of its own in the core: the redirect URI is the panel's `/oauth/google` page on the core's
+loopback address (the SPA fallback serves it), and that page hands the code to `integrations.oauth_finish`. The
+consent URL carries PKCE (S256) and a state signed with a per-process key, valid ten minutes and used once. The
+client secret and one refresh token per integration are secrets; access tokens live only in memory. The tools are
+built-in tools with `Tool.when` (offered only while that integration is connected and on in the thread's project),
+not an MCP server: no maintained server takes a refresh token by reference, a server per account would hold tokens
+outside the core, and the tools need APX's confirmations and outside-data framing. Events and mail come back as
+untrusted data; creating or changing an event and writing a draft are `ask`; mail leaves only as a draft the owner
+approved sending (`gmail_send_draft`, `always`), never in one silent step.

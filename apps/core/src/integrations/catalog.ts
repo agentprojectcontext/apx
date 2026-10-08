@@ -1,5 +1,5 @@
 // Integrations: an account the owner connects once (GitHub, Notion, Slack…), which brings its MCP server with the
-// variables it needs. Connecting stores the secrets and adds the server as a global one; where it is used is the
+// variables it needs, or a Google account signed in to for APX's own tools. Connecting stores the secrets and adds the server as a global one; where it is used is the
 // usual per-project switch of global servers. The catalog is data: each entry says how its server starts.
 
 export type IntegrationField = {
@@ -22,13 +22,33 @@ export type IntegrationEntry = {
   server: { command: string; args: string[]; env: Record<string, string> };
 };
 
-/** Coming: they need a sign-in flow (OAuth) APX does not run yet. */
+/** Coming: they need a sign-in flow (OAuth) APX does not run for them yet. */
 export const COMING = [
-  { id: "google-calendar", label: "Google Calendar", description: "Your calendar: events, free time, invitations." },
-  { id: "gmail", label: "Gmail", description: "Read and draft mail from your inbox." },
   { id: "linear", label: "Linear", description: "Issues, projects and cycles." },
   { id: "asana", label: "Asana", description: "Tasks and projects of your workspace." },
 ];
+
+/**
+ * Google accounts the owner signs in to (OAuth, with their own client from Google Cloud Console). No MCP server: their
+ * tools are APX's own, offered only while connected (integrations/google.ts, tools/google.ts).
+ */
+export const GOOGLE_INTEGRATIONS = [
+  {
+    id: "google-calendar",
+    label: "Google Calendar",
+    description: "Your calendar: events, free time, invitations.",
+    scopes: ["https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/calendar.readonly"],
+  },
+  {
+    id: "gmail",
+    label: "Gmail",
+    description: "Search and read your mail, and write drafts.",
+    scopes: ["https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.compose"],
+  },
+] as const;
+
+export type GoogleId = (typeof GOOGLE_INTEGRATIONS)[number]["id"];
+export const isGoogleId = (id: string): id is GoogleId => GOOGLE_INTEGRATIONS.some((g) => g.id === id);
 
 export const CATALOG: IntegrationEntry[] = [
   {

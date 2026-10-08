@@ -21,6 +21,7 @@ import { loadMarks } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { GoogleSignInForm } from "./GoogleSignIn.tsx";
 import type { TabProps } from "./ResourcesView.tsx";
 
 type Integration = Result<"integrations.list">["integrations"][number];
@@ -273,7 +274,8 @@ function IntegrationDetail({
         <span className="int__titles">
           <b>{i.label}</b>
           <span>
-            {t("int.connectedAs")} · {where(i, projects.length, t)}
+            {i.oauth?.account ? t("int.signedInAs", { account: i.oauth.account }) : t("int.connectedAs")} ·{" "}
+            {where(i, projects.length, t)}
           </span>
         </span>
         <Button size="sm" variant="secondary" leadingIcon={<Icons.Pencil size={14} />} onClick={() => setAccount(true)}>
@@ -388,8 +390,13 @@ function ConnectDialog({
   );
 }
 
+/** An account signed in to (Google), or one connected by its token. */
+function ConnectForm(props: Parameters<typeof TokenForm>[0]) {
+  return props.i.oauth ? <GoogleSignInForm {...props} /> : <TokenForm {...props} />;
+}
+
 /** Its fields (a token, a folder): secrets go to the Keychain, the rest is written as is. */
-function ConnectForm({
+function TokenForm({
   i,
   title,
   onClose,
@@ -455,7 +462,7 @@ function ConnectForm({
                 autoComplete="off"
                 placeholder={i.connected && f.set ? t("int.keepSecret") : f.placeholder}
                 value={values[f.name] ?? ""}
-                onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.currentTarget.value }))}
+                onChange={({ currentTarget: { value } }) => setValues((v) => ({ ...v, [f.name]: value }))}
               />
             )}
           </Field>

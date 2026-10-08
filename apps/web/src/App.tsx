@@ -16,6 +16,10 @@ const Wizard = lazy(() => import("./setup/Wizard.tsx").then((m) => ({ default: m
 const PairScreen = lazy(() => import("./setup/PairScreen.tsx").then((m) => ({ default: m.PairScreen })));
 const ConnectScreen = lazy(() => import("./setup/ConnectScreen.tsx").then((m) => ({ default: m.ConnectScreen })));
 const AboutScreen = lazy(() => import("./setup/AboutScreen.tsx").then((m) => ({ default: m.AboutScreen })));
+const OAuthReturn = lazy(() => import("./resources/OAuthReturn.tsx").then((m) => ({ default: m.OAuthReturn })));
+
+/** The page Google sends the browser back to after the owner signs in (the core serves the panel there). */
+const OAUTH_RETURN = window.location.pathname === "/oauth/google";
 
 /** The desktop app's menu-bar window loads the panel with ?quick: only the quick chat. */
 const QUICK = new URLSearchParams(window.location.search).has("quick");
@@ -54,7 +58,14 @@ function Main() {
   }, [lang]);
   return (
     <ApxProvider look={look} mode={mode} fill style={font === "mono" ? MONO : undefined}>
-      {gate === "open" && <Panel />}
+      {gate === "open" &&
+        (OAUTH_RETURN ? (
+          <Suspense fallback={null}>
+            <OAuthReturn />
+          </Suspense>
+        ) : (
+          <Panel />
+        ))}
       {gate === "pair" && (
         <Suspense fallback={null}>
           <PairScreen />

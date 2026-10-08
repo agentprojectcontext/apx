@@ -73,6 +73,8 @@ export async function startCore(opts: {
   clock?: () => Date;
   /** Built-in model APIs beside "fake" (as config.ts gives a real install). */
   providers?: ProviderConfig[];
+  /** A stand-in Google (sign-in and REST APIs under one address). */
+  googleApi?: string;
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
@@ -81,7 +83,12 @@ export async function startCore(opts: {
     ...(opts.providers ?? []),
   ];
   const core = await createCore(
-    testConfig({ home, providers, ...(opts.port !== undefined ? { port: opts.port } : {}) }),
+    testConfig({
+      home,
+      providers,
+      ...(opts.port !== undefined ? { port: opts.port } : {}),
+      ...(opts.googleApi ? { googleApi: opts.googleApi } : {}),
+    }),
     {
       quiet: true,
       llm: opts.llm,

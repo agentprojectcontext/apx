@@ -35,7 +35,10 @@ import { errorMessage } from "./errors.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
+import { createGoogle } from "./integrations/google.ts";
+import { GOOGLE, googleAt } from "./integrations/google-oauth.ts";
 import { createLog, type Log } from "./log.ts";
+import { mcpConfig } from "./mcp/config.ts";
 import { createMcp } from "./mcp/manager.ts";
 import { createCatalog } from "./models/catalog.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
@@ -66,6 +69,7 @@ import { mediaData } from "./services/uploads.ts";
 import { syncRuntimeSkills } from "./skills/runtimes.ts";
 import { skillsFor } from "./skills/skills.ts";
 import { createTerminals } from "./terminal/terminals.ts";
+import { googleTools } from "./tools/google.ts";
 import { imessageTools } from "./tools/imessage.ts";
 import type { Tool } from "./tools/types.ts";
 import { createUpdates, type Runner } from "./updates.ts";
@@ -181,8 +185,18 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
         ? systemIMessage()
         : undefined
       : (opts.imessage ?? undefined);
+  const integrationsOff = mcpConfig(store);
+  const google = createGoogle({
+    store,
+    secrets,
+    endpoints: config.googleApi ? googleAt(config.googleApi) : GOOGLE,
+    origin: () => `http://127.0.0.1:${listening}`,
+    // An integration is off where the owner turned it off, and in a project that takes none of their globals.
+    offIn: (project, id) => !integrationsOff.takesGlobals(project) || integrationsOff.offIn(project).includes(id),
+  });
   const tools = builtinTools(store, config.home, () => listening, [
     ...imessageTools(imessage),
+    ...googleTools(google),
     ...(opts.extraTools ?? []),
   ]);
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
@@ -317,6 +331,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       nudges: scheduler.nudges,
       extensions,
       mcp,
+      google,
       providers,
       secrets,
       chatgpt: { login: chatgpt, v1Home: config.v1.home },

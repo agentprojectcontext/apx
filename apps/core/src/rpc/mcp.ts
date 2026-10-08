@@ -7,7 +7,8 @@ import { ARGS_SECRET } from "../mcp/config.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import type { Handlers } from "./router.ts";
 
-export function mcpHandlers(mcp: Mcp, store: Store) {
+/** `switchable`: names besides the global servers the owner turns on or off per project (a connected integration). */
+export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) => boolean = () => false) {
   return {
     "tools.approvals": ({ thread }) => ({ approvals: store.approvals.list(thread) }),
     "tools.revoke": ({ key, thread, agent }) => {
@@ -56,7 +57,7 @@ export function mcpHandlers(mcp: Mcp, store: Store) {
     },
     "mcp.toggle": ({ project, server, on }) => {
       if (!store.projects.get(project)) throw notFound(`project ${project}`);
-      if (!mcp.find("global", server)) throw badRequest(`no global server ${server}`);
+      if (!mcp.find("global", server) && !switchable(server)) throw badRequest(`no global server ${server}`);
       mcp.config.setOn(project, server, on);
       return { servers: mcp.status(project) };
     },

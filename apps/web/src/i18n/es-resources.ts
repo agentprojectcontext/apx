@@ -220,6 +220,19 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "int.whereToGet": "Dónde lo consigo",
   "int.formNote":
     "Los tokens y claves se guardan de forma segura; los agentes los usan a través de su servidor y nunca los ven.",
+  "int.oauthNote":
+    "Usá un OAuth client tuyo de Google Cloud Console: tipo App de escritorio, o Aplicación web con la dirección de abajo como URI de redirección autorizado. Un mismo client sirve para Calendar y Gmail.",
+  "int.redirect": "URI de redirección",
+  "int.signIn": "Iniciar sesión con Google",
+  "int.signInAgain": "Iniciar sesión de nuevo",
+  "int.waiting": "Terminá de iniciar sesión en tu navegador. Esto se cierra solo cuando Google te devuelva.",
+  "int.signedInAs": "Sesión iniciada como {account}",
+  "oauth.working": "Terminando de iniciar sesión…",
+  "oauth.doneTitle": "{name} está conectado",
+  "oauth.doneBody": "Podés cerrar esta pestaña y volver a APX.",
+  "oauth.failTitle": "No se pudo terminar de iniciar sesión",
+  "oauth.nothing": "Acá no hay ningún inicio de sesión para terminar.",
+  "oauth.open": "Abrir APX",
   "int.desc.github": "Repositorios, issues y pull requests.",
   "int.desc.notion": "Páginas y bases de datos de tu workspace.",
   "int.desc.slack": "Canales, mensajes e hilos de tu workspace.",
@@ -227,7 +240,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "int.desc.bravesearch": "Búsqueda web para tus agentes.",
   "int.desc.obsidian": "Leer y escribir las notas de tu vault.",
   "int.desc.googlecalendar": "Tu calendario: eventos, tiempo libre, invitaciones.",
-  "int.desc.gmail": "Leer y redactar mails de tu bandeja.",
+  "int.desc.gmail": "Buscar y leer tus mails, y escribir borradores.",
   "int.desc.linear": "Issues, proyectos y ciclos.",
   "int.desc.asana": "Tareas y proyectos de tu workspace.",
 };

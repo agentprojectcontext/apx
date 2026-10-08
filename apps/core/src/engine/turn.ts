@@ -390,14 +390,16 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
     return loading;
   };
   const bridge = servers.length ? mcpBridge(servers, mcpLate) : [];
-  // With memory off, the tools that read or write it are not offered; iMessage's only once the owner turned it on.
+  // With memory off, the tools that read or write it are not offered; iMessage's only once the owner turned it on; a
+  // tool with `when` (an account's) only where it says.
   const memoryOn = memorySettings(deps.store).mode !== "off";
   const imessageOn = deps.store.settings.read("imessage").on;
   const offered = deps.tools.filter(
     (t) =>
       (memoryOn || !MEMORY_TOOLS.has(t.name)) &&
       (imessageOn || !IMESSAGE_TOOLS.has(t.name)) &&
-      (!t.needsCap || Boolean(deps.hasCap?.(t.needsCap))),
+      (!t.needsCap || Boolean(deps.hasCap?.(t.needsCap))) &&
+      (!t.when || t.when(turn.thread)),
   );
   // A contact's turn gets only what the owner allowed for that person (nothing by default); the owner's turns never
   // see the contact-only tools.

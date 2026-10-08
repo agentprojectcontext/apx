@@ -1,18 +1,27 @@
-// Integrations: connecting an account (its secrets and its MCP server as a global one) and disconnecting it. Where it
-// is used is the per-project switch every global server has (mcp.toggle).
+// Integrations: connecting an account (its secrets and its MCP server as a global one, or a Google sign-in for APX's
+// own tools) and disconnecting it. Where it is used is the per-project switch every global server has (mcp.toggle).
 import os from "node:os";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
-import { CATALOG, COMING, integrationSecret, serverFor } from "../integrations/catalog.ts";
+import {
+  CATALOG,
+  COMING,
+  GOOGLE_INTEGRATIONS,
+  integrationSecret,
+  isGoogleId,
+  serverFor,
+} from "../integrations/catalog.ts";
+import type { Google } from "../integrations/google.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import type { Secrets } from "../secrets.ts";
 import type { Handlers } from "./router.ts";
 
 /** A folder typed as ~/… is the owner's home. */
 const expand = (v: string) => (v.startsWith("~/") ? `${os.homedir()}${v.slice(1)}` : v);
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp: Mcp }) {
-  const { store, secrets, mcp } = deps;
+export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp: Mcp; google: Google }) {
+  const { store, secrets, mcp, google } = deps;
   const connected = (id: string) => mcp.config.global().some((d) => d.name === id);
   /** What was typed in an integration's plain fields (a team id, a folder), to edit it later. */
   const plainOf = (id: string): Record<string, string> => {
@@ -22,11 +31,40 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
       return {};
     }
   };
+  const offIn = (id: string, projects: Array<{ id: string }>) =>
+    projects.filter((p) => mcp.config.offIn(p.id).includes(id)).map((p) => p.id);
+  /** A Google one: the shared OAuth client as its fields, and the account it is signed in as. */
+  const googleEntry = (e: (typeof GOOGLE_INTEGRATIONS)[number], projects: Array<{ id: string }>) => {
+    const client = google.client();
+    const on = google.connected(e.id);
+    const account = google.account(e.id);
+    return {
+      id: e.id,
+      label: e.label,
+      description: e.description,
+      fields: [
+        {
+          name: "client_id",
+          label: "Client id",
+          secret: false,
+          placeholder: "123-abc.apps.googleusercontent.com",
+          url: "https://console.cloud.google.com/apis/credentials",
+          ...(client.client_id ? { value: client.client_id } : {}),
+        },
+        { name: "client_secret", label: "Client secret", secret: true, placeholder: "GOCSPX-…", set: client.secret },
+      ],
+      connected: on,
+      coming: false,
+      off_in: on ? offIn(e.id, projects) : [],
+      oauth: { redirect_uri: google.redirectUri(), ...(account ? { account } : {}) },
+    };
+  };
   return {
     "integrations.list": () => {
       const projects = store.projects.list().filter((p) => p.path);
       return {
         integrations: [
+          ...GOOGLE_INTEGRATIONS.map((e) => googleEntry(e, projects)),
           ...CATALOG.map((e) => ({
             id: e.id,
             label: e.label,
@@ -46,15 +84,14 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
             })),
             connected: connected(e.id),
             coming: false,
-            off_in: connected(e.id)
-              ? projects.filter((p) => mcp.config.offIn(p.id).includes(e.id)).map((p) => p.id)
-              : [],
+            off_in: connected(e.id) ? offIn(e.id, projects) : [],
           })),
           ...COMING.map((c) => ({ ...c, fields: [], connected: false, coming: true, off_in: [] })),
         ],
       };
     },
     "integrations.connect": ({ id, values }) => {
+      if (isGoogleId(id)) throw badRequest(`${id} connects by signing in with Google`);
       const e = CATALOG.find((x) => x.id === id);
       if (!e) throw notFound(`integration ${id}`);
       // Editing a connected one, a field left empty keeps what it had.
@@ -77,7 +114,27 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
       mcp.drop({ scope: "global", name: e.id });
       return { connected: true as const };
     },
+    "integrations.oauth_start": ({ id, values }) => {
+      if (!isGoogleId(id)) throw notFound(`integration ${id} with a sign-in`);
+      try {
+        return { url: google.start(id, { client_id: values?.client_id, client_secret: values?.client_secret }) };
+      } catch (e) {
+        throw badRequest(message(e));
+      }
+    },
+    "integrations.oauth_finish": async ({ code, state }) => {
+      try {
+        const done = await google.finish(code, state);
+        return { id: done.id, ...(done.account ? { account: done.account } : {}) };
+      } catch (e) {
+        throw badRequest(message(e));
+      }
+    },
     "integrations.disconnect": ({ id }) => {
+      if (isGoogleId(id)) {
+        google.disconnect(id);
+        return { connected: false as const };
+      }
       const e = CATALOG.find((x) => x.id === id);
       if (!e) throw notFound(`integration ${id}`);
       mcp.config.setGlobal(e.id, null);

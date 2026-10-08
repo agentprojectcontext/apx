@@ -18,6 +18,8 @@ import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
 import type { Identity } from "./identity.ts";
+import { isGoogleId } from "./integrations/catalog.ts";
+import type { Google } from "./integrations/google.ts";
 import type { Log } from "./log.ts";
 import { refProblem } from "./models/choice.ts";
 import type { NodeBroker } from "./nodes/broker.ts";
@@ -155,6 +157,8 @@ type HandlerDeps = {
   nudges: Parameters<typeof noticeHandlers>[1];
   extensions: Parameters<typeof extensionHandlers>[0];
   mcp: Parameters<typeof extensionHandlers>[1] & Parameters<typeof mcpHandlers>[0];
+  /** The owner's Google account (Calendar, Gmail). */
+  google: Google;
   providers: Parameters<typeof providerHandlers>[0];
   secrets: Parameters<typeof providerHandlers>[1];
   chatgpt: Parameters<typeof providerHandlers>[2];
@@ -213,8 +217,9 @@ export function coreHandlers(d: HandlerDeps) {
     ...phoneHandlers(d.broker, d.store, d.app.home),
     ...computerHandlers(d.broker, d.store, d.app.home, d.engine),
     ...extensionHandlers(d.extensions, d.mcp),
-    ...mcpHandlers(d.mcp, d.store),
-    ...integrationHandlers({ store: d.store, secrets: d.secrets, mcp: d.mcp }),
+    // A connected Google integration is switched per project like a global server.
+    ...mcpHandlers(d.mcp, d.store, (name) => isGoogleId(name) && d.google.connected(name)),
+    ...integrationHandlers({ store: d.store, secrets: d.secrets, mcp: d.mcp, google: d.google }),
     ...resourceHandlers({
       store: d.store,
       home: d.app.home,

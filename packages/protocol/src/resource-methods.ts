@@ -258,6 +258,11 @@ export const resourceMethods = {
           coming: z.boolean(),
           /** Projects where it is turned off (it is on everywhere else). */
           off_in: z.array(Id),
+          /**
+           * One the owner signs in to (Google): the address their OAuth client must allow as redirect, and the
+           * account it is connected as.
+           */
+          oauth: z.object({ redirect_uri: z.string(), account: z.string().optional() }).optional(),
         }),
       ),
     }),
@@ -271,6 +276,29 @@ export const resourceMethods = {
   "integrations.connect": {
     params: z.object({ id: z.string().max(40), values: z.record(z.string().max(40), z.string().max(4000)) }).strict(),
     result: z.object({ connected: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Starts signing in to one that uses OAuth (Google): saves the OAuth client typed (a field left empty keeps the
+   * stored one) and gives the consent URL to open in a browser. Google sends the browser back to the panel's
+   * /oauth/google page, which finishes it.
+   */
+  "integrations.oauth_start": {
+    params: z
+      .object({
+        id: z.string().max(40),
+        values: z.record(z.string().max(40), z.string().max(4000)).optional(),
+      })
+      .strict(),
+    result: z.object({ url: z.string() }),
+    effect: true,
+    access: "human",
+  },
+  /** The code and state Google sent back: a state this core signed minutes ago, used once. */
+  "integrations.oauth_finish": {
+    params: z.object({ code: z.string().min(1).max(2000), state: z.string().min(1).max(2000) }).strict(),
+    result: z.object({ id: z.string(), account: z.string().optional() }),
     effect: true,
     access: "human",
   },

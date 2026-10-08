@@ -12,6 +12,7 @@ import path from "node:path";
 import { fakeDiscord } from "../apps/core/src/channels/fake-discord.test-support.ts";
 import { fakeSlack } from "../apps/core/src/channels/fake-slack.test-support.ts";
 import { fakeTelegram } from "../apps/core/src/channels/fake-telegram.test-support.ts";
+import { fakeGoogle } from "../apps/core/src/integrations/fake-google.test-support.ts";
 import { compileCacheEnv } from "../scripts/compile-cache.ts";
 import { fakeLlm } from "./fake-llm.ts";
 import { writeFixtures } from "./fixtures.ts";
@@ -34,6 +35,7 @@ const fx = writeFixtures(dir, { embedUrl: llm.url.replace(/\/v1$/, "") });
 const tg = await fakeTelegram(E2E.telegramToken);
 const dc = await fakeDiscord(E2E.discordToken);
 const sl = await fakeSlack(E2E.slackTokens);
+const google = await fakeGoogle();
 
 const hook = path.join(root, "e2e/baileys-hook.ts");
 const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.join(root, "apps/core/src/main.ts")], {
@@ -60,6 +62,7 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_DISCORD_API: dc.urls.api,
     APX_DISCORD_GATEWAY: dc.urls.gateway,
     APX_SLACK_API: sl.api,
+    APX_GOOGLE_API: google.url,
     // Never the owner's own Messages, even when the sandbox runs on their Mac.
     APX_IMESSAGE: "off",
     E2E_WA_PORT: String(E2E.whatsapp),
@@ -152,7 +155,7 @@ console.log(
 
 const stop = async () => {
   core.kill("SIGTERM");
-  await Promise.all([llm.close(), tg.close(), new Promise((r) => control.close(r))]);
+  await Promise.all([llm.close(), tg.close(), google.close(), new Promise((r) => control.close(r))]);
   if (!process.env.E2E_KEEP) fs.rmSync(dir, { recursive: true, force: true });
   process.exit(0);
 };
