@@ -138,7 +138,7 @@ export function WidgetChatHost() {
             <IconButton
               size="sm"
               label={t("widget.chatNew")}
-              icon={<Icons.Plus size={14} />}
+              icon={<Icons.RotateCcw size={14} />}
               onClick={() => void restartChat(surface)}
             />
           )}
