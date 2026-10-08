@@ -1,6 +1,7 @@
 // task_*: agents work the office board through the tasks.* methods, like the owner does in the app.
 import { type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
 import { z } from "zod";
+import { inlineName, untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 const line = (t: Task, project?: string) =>
@@ -9,7 +10,11 @@ const line = (t: Task, project?: string) =>
     t.state === "open" ? t.status : t.state,
     t.assignee,
     t.awaits_owner ? "waiting for the owner" : "",
-    t.person_name ? (t.owed_by === "person" ? `${t.person_name} owes it` : `owed to ${t.person_name}`) : "",
+    t.person_name
+      ? t.owed_by === "person"
+        ? `${inlineName(t.person_name)} owes it`
+        : `owed to ${inlineName(t.person_name)}`
+      : "",
     t.due_at ? `due ${t.due_at}` : "",
     t.outcome ?? "",
     t.renegotiated ? `date moved ${t.renegotiated}×` : "",
@@ -18,6 +23,13 @@ const line = (t: Task, project?: string) =>
   ]
     .filter(Boolean)
     .join(", ")})`;
+
+/** Titles the owner did not write (an agent's, a contact's request) are outside data, as in a task's own chat. */
+function taskLines(tasks: Task[], lineOf: (t: Task) => string): string {
+  const text = tasks.map(lineOf).join("\n");
+  if (tasks.every((t) => t.created_by === "owner")) return text;
+  return untrusted("tasks", { note: "titles not all by the owner" }, text);
+}
 
 /**
  * Writing on the board is the owner's own record and runs even with outside content in the turn; handing the work to
@@ -69,7 +81,7 @@ export function taskTools(): Tool[] {
         const names = new Map(listed?.projects.map((p) => [p.id, p.name]));
         const where = (t: Task) =>
           listed ? (t.project_id ? (names.get(t.project_id) ?? t.project_id) : listed.base.name) : undefined;
-        if (r.tasks.length) return `${r.tasks.map((t) => line(t, where(t))).join("\n")}\n${cols}`;
+        if (r.tasks.length) return `${taskLines(r.tasks, (t) => line(t, where(t)))}\n${cols}`;
         // An empty filtered list is not an empty board: say what was asked and what else is open.
         const scope = [a.state ?? "open", a.mine ? "assigned to you" : "", a.commitments ? "commitments" : ""];
         const empty = `no tasks (${scope.filter(Boolean).join(", ")}).`;
@@ -121,7 +133,7 @@ export function taskTools(): Tool[] {
       title: (a) => `Updated the task ${String(a.task ?? "")}`,
       async run({ task, ...c }, ctx) {
         const t = await ctx.call("tasks.update", { task, ...c });
-        return `updated: ${line(t)}`;
+        return `updated: ${taskLines([t], (x) => line(x))}`;
       },
     }),
     defineTool({

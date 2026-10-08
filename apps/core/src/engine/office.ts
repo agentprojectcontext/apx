@@ -6,7 +6,7 @@ import { ownerIdentity } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { previewOf } from "../domain/threads.ts";
-import { untrusted } from "../tools/result.ts";
+import { inlineName, untrusted } from "../tools/result.ts";
 
 /** A mention starts a turn; a turn's mention another, but only this deep, so agents cannot ping-pong forever. */
 export const MAX_MENTION_DEPTH = 2;
@@ -54,7 +54,7 @@ export function taskBlock(store: Store, thread: Pick<Thread, "id" | "task_id">):
   if (!t) return undefined;
   const name = (id: string) => store.agents.get(id)?.name ?? id;
   const who = t.assignee ? name(t.assignee) : "nobody";
-  const state = `${t.state === "open" ? t.status : t.state} · assigned to ${who}${t.awaits_owner ? " · waiting for the owner" : ""}${t.due_at ? ` · due ${t.due_at}` : ""}${t.person_name ? ` · ${t.owed_by === "person" ? `${t.person_name} owes it` : `owed to ${t.person_name}`}` : ""}`;
+  const state = `${t.state === "open" ? t.status : t.state} · assigned to ${who}${t.awaits_owner ? " · waiting for the owner" : ""}${t.due_at ? ` · due ${t.due_at}` : ""}${t.person_name ? ` · ${t.owed_by === "person" ? `${inlineName(t.person_name)} owes it` : `owed to ${inlineName(t.person_name)}`}` : ""}`;
   const words = [t.title, t.description.slice(0, 2000)].filter(Boolean).join("\n");
   const others = store.threads
     .byTask(t.id)

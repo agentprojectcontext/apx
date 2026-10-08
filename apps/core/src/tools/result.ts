@@ -25,10 +25,26 @@ export const UNTRUSTED_MARK = 'trust="untrusted"';
 // Tags only APX writes: outside text that carries them is defused.
 const RESERVED_TAGS = "system_note|owner_instruction";
 
+/**
+ * A name from outside (a contact's, a room's) set inside a sentence APX writes: one line, no tags or quotes, capped,
+ * so it cannot start a line of its own or pose as markup.
+ */
+export function inlineName(name: string, max = 60): string {
+  return oneLine(name)
+    .replace(/[<>]/g, "")
+    .replace(/"/g, "'")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+// biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what is stripped.
+const oneLine = (text: string) => text.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ");
+
 /** Marks text that came from outside (web, other agents, widgets) as data, not instructions. */
 export function untrusted(source: string, attrs: Record<string, string>, body: string): string {
   const a = Object.entries(attrs)
-    .map(([k, v]) => ` ${k}="${v.replace(/["<>]/g, "'")}"`)
+    .map(([k, v]) => ` ${k}="${oneLine(v).replace(/["<>]/g, "'")}"`)
     .join("");
   // The body cannot close its own envelope or pose as APX or the owner.
   const safe = body.replace(new RegExp(`<(/?)(${source}|${RESERVED_TAGS})\\b`, "gi"), "&lt;$1$2");

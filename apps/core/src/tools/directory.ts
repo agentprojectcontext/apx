@@ -3,6 +3,7 @@
 // a contact, and setting up a channel stay the owner's acts (their methods are human-only).
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
+import { inlineName } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 const when = (s: { kind: string; cron?: string; hours?: number; minutes?: number; at?: string }) =>
@@ -91,8 +92,10 @@ export function directoryTools(store: Store): Tool[] {
           .slice(0, 50)
           .map((p) => {
             const on = [...new Set(p.addresses.map((x) => x.channel))].join(", ") || "no channel";
-            const bits = [p.nickname ? `"${p.nickname}"` : "", p.relation ?? "", `on ${on}`, p.muted ? "silenced" : ""];
-            return `- ${p.name} [${p.id}] (${bits.filter(Boolean).join(", ")})${p.note ? `: ${p.note.slice(0, 200)}` : ""}`;
+            const nick = p.nickname ? inlineName(p.nickname) : "";
+            const bits = [nick ? `"${nick}"` : "", p.relation ?? "", `on ${on}`, p.muted ? "silenced" : ""];
+            // A contact's name is the one they gave on their app: one plain line, so it cannot add contacts or orders.
+            return `- ${inlineName(p.name) || "someone"} [${p.id}] (${bits.filter(Boolean).join(", ")})${p.note ? `: ${p.note.slice(0, 200)}` : ""}`;
           })
           .join("\n");
       },

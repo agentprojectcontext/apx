@@ -645,4 +645,7 @@ The G0 audit (plan/parity/07-seguridad.md) left holes open for the owner to deci
 - **Accepted: a shell command the owner approves can call APX's local API.** A token file would not stop it (the
   command runs as the owner and can read it, and an Origin header is easy to forge); the child's environment has no
   APX secrets, and every non-trivial command asks in standard autonomy. The real fix is an OS sandbox for commands.
-
+- **Contact names stay one line, and task titles the owner did not write are outside data.** A name from a channel
+  (a contact's, a room's) sits inside APX's sentences and the contact prompt without newlines, tags or quotes, capped.
+  `task_list` and `task_update` wrap the list when a title came from an agent (a contact's request among them), as the
+  task's own chat already did; a board of the owner's own tasks stays plain.
