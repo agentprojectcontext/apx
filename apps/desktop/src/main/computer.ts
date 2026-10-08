@@ -7,6 +7,8 @@ import { desktopCapturer, type NativeImage, screen, shell, systemPreferences } f
 import type { AgentCursor } from "./cursor.ts";
 
 const OSA_MS = 15_000;
+/** Reading every element of a window, within the core's deadline for a look (the picture still has to follow). */
+const ELEMENTS_MS = 9_000;
 /** The longest side of the picture sent to the core, and of a live frame for the panel. */
 const SHOT_MAX = 1600;
 const FRAME_MAX = 900;
@@ -15,12 +17,12 @@ type Bounds = { x: number; y: number; width: number; height: number };
 type Target = { app: string; window: string; bounds: Bounds | undefined };
 export type ComputerActivity = { kind: "look" | "click" | "type"; app: string; window: string; x?: number; y?: number };
 
-function osa(script: string, args: string[] = [], language = "AppleScript"): Promise<string> {
+function osa(script: string, args: string[] = [], language = "AppleScript", timeout = OSA_MS): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
       "osascript",
       ["-l", language, "-e", script, ...args],
-      { timeout: OSA_MS, maxBuffer: 4 * 1024 * 1024 },
+      { timeout, maxBuffer: 4 * 1024 * 1024 },
       (err, out, stderr) => {
         if (!err) return resolve(out.trimEnd());
         if (err.killed) return reject(new Error("timed out"));
@@ -165,7 +167,9 @@ const parseBounds = (line: string | undefined): Bounds | undefined => {
 
 /** The window in front, wherever it is: its app, name and bounds, and (when asked) its elements. */
 async function front(withElements: boolean): Promise<Target & { pid: number; lines: string[] }> {
-  const [head = "", window = "", bounds, ...lines] = (await osa(LOOK, [withElements ? "1" : "0"])).split("\n");
+  const [head = "", window = "", bounds, ...lines] = (
+    await osa(LOOK, [withElements ? "1" : "0"], "AppleScript", withElements ? ELEMENTS_MS : OSA_MS)
+  ).split("\n");
   const [app = "", pid = ""] = head.split("\t");
   // AppleScript says "missing value" for an attribute an element does not have.
   const clean = lines.filter(Boolean).map((l) => l.replaceAll("missing value", ""));
