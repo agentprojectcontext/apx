@@ -131,34 +131,90 @@ function run(argv) {
   for (const down of [true, false]) {
     const e = $.CGEventCreateKeyboardEvent(null, code, down);
     if (flags) $.CGEventSetFlags(e, flags);
-    $.CGEventPostToPid(pid, e);
+    $.CGEventPost($.kCGHIDEventTap, e);
     delay(0.02);
   }
   return argv[0];
 }`;
 
 /**
- * A click sent to the app itself (CoreGraphics events posted to its process): the owner's own pointer does not move
- * and can keep working elsewhere; the app finds its own window at that point. argv = app, x, y.
+ * Presses the element at a screen point through accessibility (a button, a link, a checkbox), in front or not: no
+ * pointer moves. Chromium and Electron apps build their page tree only when asked (AXManualAccessibility). argv = app,
+ * x, y. Returns "pressed <role>", or "none" when nothing there can be pressed.
+ */
+const AX_PRESS = `
+function run(argv) {
+  ObjC.import("ApplicationServices");
+  const procs = Application("System Events").processes.whose({ name: argv[0] });
+  if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
+  const app = $.AXUIElementCreateApplication(procs[0].unixId());
+  $.AXUIElementSetAttributeValue(app, $("AXManualAccessibility"), $.kCFBooleanTrue);
+  const ref = Ref();
+  if ($.AXUIElementCopyElementAtPosition(app, Number(argv[1]), Number(argv[2]), ref) !== 0) return "none";
+  let el = ref[0];
+  for (let i = 0; i < 6 && el; i++) {
+    const a = Ref();
+    $.AXUIElementCopyActionNames(el, a);
+    const actions = a[0] ? ObjC.deepUnwrap(ObjC.castRefToObject(a[0])) : [];
+    if (actions && actions.indexOf("AXPress") >= 0) {
+      const r = Ref();
+      $.AXUIElementCopyAttributeValue(el, $("AXRole"), r);
+      const role = r[0] ? ObjC.unwrap(ObjC.castRefToObject(r[0])) : "";
+      if ($.AXUIElementPerformAction(el, $("AXPress")) === 0) return "pressed " + role;
+      return "none";
+    }
+    const up = Ref();
+    $.AXUIElementCopyAttributeValue(el, $("AXParent"), up);
+    el = up[0];
+  }
+  return "none";
+}`;
+
+/**
+ * A real mouse click, when nothing at the point takes a press: the pointer goes there, clicks and comes straight back
+ * to where the owner had it. Refused if another app's window covers the point. argv = app, x, y.
  */
 const CLICK = `
 function run(argv) {
   ObjC.import("CoreGraphics");
+  ObjC.import("Foundation");
   const procs = Application("System Events").processes.whose({ name: argv[0] });
   if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
   const pid = procs[0].unixId();
-  const p = $.CGPointMake(Number(argv[1]), Number(argv[2]));
-  const post = (type) => {
-    const e = $.CGEventCreateMouseEvent(null, type, p, $.kCGMouseButtonLeft);
-    $.CGEventSetIntegerValueField(e, $.kCGMouseEventClickState, 1);
-    $.CGEventPostToPid(pid, e);
-  };
-  post($.kCGEventMouseMoved);
-  delay(0.03);
-  post($.kCGEventLeftMouseDown);
-  delay(0.04);
-  post($.kCGEventLeftMouseUp);
+  const x = Number(argv[1]);
+  const y = Number(argv[2]);
+  const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements, 0)));
+  const top = list.find((w) => w.kCGWindowLayer === 0 && w.kCGWindowBounds && x >= w.kCGWindowBounds.X && x < w.kCGWindowBounds.X + w.kCGWindowBounds.Width && y >= w.kCGWindowBounds.Y && y < w.kCGWindowBounds.Y + w.kCGWindowBounds.Height);
+  if (!top || top.kCGWindowOwnerPID !== pid) throw new Error("another window covers that point (" + (top ? top.kCGWindowOwnerName : "none") + "): take a new screen_snapshot");
+  const back = $.CGEventGetLocation($.CGEventCreate(null));
+  const p = $.CGPointMake(x, y);
+  for (const type of [$.kCGEventMouseMoved, $.kCGEventLeftMouseDown, $.kCGEventLeftMouseUp]) {
+    $.CGEventPost($.kCGHIDEventTap, $.CGEventCreateMouseEvent(null, type, p, $.kCGMouseButtonLeft));
+    delay(0.03);
+  }
+  $.CGWarpMouseCursorPosition(back);
+  $.CGAssociateMouseAndMouseCursorPosition(true);
   return argv[0];
+}`;
+
+/**
+ * Types into the app's focused field through accessibility (inserted at the caret), in front or not. argv = app,
+ * text. Returns "typed", or "no" when that field does not take it.
+ */
+const AX_TYPE = `
+function run(argv) {
+  ObjC.import("ApplicationServices");
+  const procs = Application("System Events").processes.whose({ name: argv[0] });
+  if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
+  const app = $.AXUIElementCreateApplication(procs[0].unixId());
+  $.AXUIElementSetAttributeValue(app, $("AXManualAccessibility"), $.kCFBooleanTrue);
+  const f = Ref();
+  if ($.AXUIElementCopyAttributeValue(app, $("AXFocusedUIElement"), f) !== 0 || !f[0]) return "no";
+  const sub = Ref();
+  $.AXUIElementCopyAttributeValue(f[0], $("AXSubrole"), sub);
+  if (sub[0] && ObjC.unwrap(ObjC.castRefToObject(sub[0])) === "AXSecureTextField")
+    throw new Error("the focused field is a password field: the owner types it");
+  return $.AXUIElementSetAttributeValue(f[0], $("AXSelectedText"), $(argv[1])) === 0 ? "typed" : "no";
 }`;
 
 const TYPE = `
@@ -194,7 +250,7 @@ function run(argv) {
   for (const down of [true, false]) {
     const e = $.CGEventCreateKeyboardEvent(null, 9, down);
     $.CGEventSetFlags(e, 0x100000);
-    $.CGEventPostToPid(pid, e);
+    $.CGEventPost($.kCGHIDEventTap, e);
     delay(0.02);
   }
   delay(0.25);
@@ -392,6 +448,8 @@ export function createComputer(o: {
         if (!k) throw new Error(`cannot press "${p.keys}": use names like enter, tab, esc, cmd+l, arrows`);
         go();
         o.cursor.say(p.note || `⌨ ${p.keys}`);
+        // Keys go to the app in front: browsers ignore keys sent to them in the background.
+        await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
         const app = await osa(KEY, [String(p.app ?? ""), String(k.code), String(k.flags)], "JavaScript");
         o.onActivity({ kind: "type", app, window: target?.window ?? "" });
         return { app };
@@ -399,11 +457,18 @@ export function createComputer(o: {
       if (method === "computer.click") {
         const x = Number(p.x);
         const y = Number(p.y);
-        // Sent to the app itself, in front or not: the owner can keep using their computer meanwhile.
         await o.cursor.moveTo(x, y, p.note || p.app || "");
         // The stop may come while the pointer glides there: then no click.
         go();
-        const app = await osa(CLICK, [String(p.app ?? ""), String(x), String(y)], "JavaScript");
+        const at = [String(p.app ?? ""), String(x), String(y)];
+        // Pressed through accessibility when it can (the owner's pointer stays where it is); else a real click that
+        // puts their pointer straight back.
+        const pressed = await osa(AX_PRESS, at, "JavaScript").catch(() => "none");
+        if (!pressed.startsWith("pressed")) {
+          await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
+          await osa(CLICK, at, "JavaScript");
+        }
+        const app = String(p.app ?? "");
         o.cursor.pulse();
         o.onActivity({ kind: "click", app, window: target?.window ?? "", x, y });
         return { app };
@@ -411,7 +476,12 @@ export function createComputer(o: {
       if (method === "computer.type") {
         go();
         o.cursor.say(p.note || "⌨");
-        const app = await osa(TYPE, [String(p.app ?? ""), String(p.text ?? "")], "JavaScript");
+        const typed = await osa(AX_TYPE, [String(p.app ?? ""), String(p.text ?? "")], "JavaScript");
+        if (typed !== "typed") {
+          await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
+          await osa(TYPE, [String(p.app ?? ""), String(p.text ?? "")], "JavaScript");
+        }
+        const app = String(p.app ?? "");
         o.onActivity({ kind: "type", app, window: target?.window ?? "" });
         return { app };
       }
