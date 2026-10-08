@@ -56,9 +56,12 @@ export function codexHarness(opts: {
           ? codex.resumeThread(io.sessionId, threadOptions)
           : codex.startThread(threadOptions);
         const held = worksInFolder(io.thread) && io.thread.write === "auto" && !writes;
-        const { events } = await thread.runStreamed(held ? `${READ_ONLY_NOTE}\n\n${io.input.content}` : io.input.content, {
-          signal: io.signal,
-        });
+        const { events } = await thread.runStreamed(
+          held ? `${READ_ONLY_NOTE}\n\n${io.input.content}` : io.input.content,
+          {
+            signal: io.signal,
+          },
+        );
         let text = "";
         let sessionId = io.sessionId;
         let usage: TurnOutcome["usage"];
