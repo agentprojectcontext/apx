@@ -507,7 +507,7 @@ export function createComputer(o: {
         const at = [String(p.app ?? ""), String(x), String(y)];
         // Pressed through accessibility when it can (the owner's pointer stays where it is); else a real click that
         // puts their pointer straight back.
-        const done = await osa(AX_PRESS, at, "JavaScript").catch(() => "none");
+        const done = await osa(AX_PRESS, at, "JavaScript").catch((e: unknown) => `none: ${errorText(e)}`);
         let how = done;
         if (done.startsWith("none")) {
           await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
@@ -582,3 +582,5 @@ export function openPrivacy(kind: "screen" | "accessibility"): void {
     `x-apple.systempreferences:com.apple.preference.security?${kind === "screen" ? "Privacy_ScreenCapture" : "Privacy_Accessibility"}`,
   );
 }
+
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e)).slice(0, 160);
