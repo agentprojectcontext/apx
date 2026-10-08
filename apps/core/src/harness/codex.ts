@@ -9,7 +9,7 @@ export type McpCommand = { command: string; args: string[]; env: Record<string, 
 
 export function codexHarness(opts: {
   codexPath: () => Promise<string>;
-  cwd: string;
+  cwd: (io: TurnIO) => string;
   /** Opens a tool gate for this turn and returns the MCP command that reaches it; `close` ends it. */
   gate(io: TurnIO): { command: McpCommand; close(): void };
 }): Harness {
@@ -33,7 +33,7 @@ export function codexHarness(opts: {
         // OS sandbox keeps commands and edits inside the folder (the UI says so when the policy is chosen).
         const writes = worksInFolder(io.thread) && io.thread.write === "auto";
         const threadOptions = {
-          workingDirectory: io.thread.cwd ?? opts.cwd,
+          workingDirectory: opts.cwd(io),
           skipGitRepoCheck: true,
           sandboxMode: writes ? ("workspace-write" as const) : ("read-only" as const),
           approvalPolicy: "never" as const,

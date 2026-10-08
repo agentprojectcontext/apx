@@ -91,7 +91,7 @@ async function attempt(
   io: TurnIO,
   o: {
     claudePath: string;
-    cwd: string;
+    cwd: (io: TurnIO) => string;
     chosen: string | undefined;
     effort: string | undefined;
     counts: Counts;
@@ -111,7 +111,7 @@ async function attempt(
       options: {
         abortController: ac,
         pathToClaudeCodeExecutable: o.claudePath,
-        cwd: io.thread.cwd ?? o.cwd,
+        cwd: o.cwd(io),
         // Claude Code itself: its own prompt and the owner's CLAUDE.md and settings, as in the CLI.
         systemPrompt: { type: "preset", preset: "claude_code", append: io.system },
         ...toolOptions(io, o.counts),
@@ -167,7 +167,7 @@ async function attempt(
   }
 }
 
-export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: string }): Harness {
+export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: (io: TurnIO) => string }): Harness {
   return {
     id: "claude",
     async run(io: TurnIO): Promise<TurnOutcome> {

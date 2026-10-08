@@ -95,7 +95,9 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
     if (scratch) throw badRequest("a temp folder is a chat's");
     if (thread) {
       const dir = threadFolder(store, home, thread);
-      if (dir === path.join(home, "work")) fs.mkdirSync(dir, { recursive: true });
+      // APX's own folders (its work folder, a project's side) are made when first opened; the owner's never are.
+      const rel = path.relative(home, dir);
+      if (rel && !rel.startsWith("..") && !path.isAbsolute(rel)) fs.mkdirSync(dir, { recursive: true });
       return dir;
     }
     if (base) {

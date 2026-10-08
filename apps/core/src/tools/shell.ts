@@ -81,8 +81,21 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
 }
 
 /**
+ * APX's own folder for a project, so one project's files never land among another's: the project's folder when APX
+ * made it (a project with no folder elsewhere lives in `projects/<name>`), else `projects/<id>`.
+ */
+export function projectSide(home: string, project: { id: string; path?: string | undefined }) {
+  const projects = path.join(home, "projects");
+  const own = project.path && path.relative(projects, project.path);
+  return own && !own.startsWith("..") && !path.isAbsolute(own)
+    ? (project.path as string)
+    : path.join(projects, project.id);
+}
+
+/**
  * Where an agent works in a thread: a code thread's own folder, else its project's folder when it is on disk, else
- * APX's work folder. Commands run and files are written only inside it, or in the chat's temp folder (scratchDir).
+ * APX's side of the project, else (a chat outside a project) APX's work folder. Commands run and files are written
+ * only inside it, or in the chat's temp folder (scratchDir).
  */
 export function workDir(
   store: Store,
@@ -91,7 +104,22 @@ export function workDir(
 ) {
   if (thread.cwd) return thread.cwd;
   const p = thread.project_id ? store.projects.get(thread.project_id) : undefined;
-  return p?.path && p.present ? p.path : path.join(home, "work");
+  if (!p) return path.join(home, "work");
+  return p.path && p.present ? p.path : projectSide(home, p);
+}
+
+/**
+ * Where an outside agent (Claude, Codex, an ACP agent) works: a code thread's folder, else APX's side of the project,
+ * never the project's own folder (its settings there would apply unchecked), else APX's work folder.
+ */
+export function harnessDir(
+  store: Store,
+  home: string,
+  thread: { cwd?: string | undefined; project_id?: string | undefined },
+) {
+  if (thread.cwd) return thread.cwd;
+  const p = thread.project_id ? store.projects.get(thread.project_id) : undefined;
+  return p ? projectSide(home, p) : path.join(home, "work");
 }
 
 /**

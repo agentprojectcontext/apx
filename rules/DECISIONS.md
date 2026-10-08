@@ -589,3 +589,14 @@ confirmations, steps and cards are that tool's, as before; it runs MCP tools onl
 changes with which servers started, which keeps the provider's prompt cache. An agent's `tools:` list that names MCP
 tools still restricts, and the tools that join later are held to it and to every caller's. Same idea as v1's `call_mcp`
 and the tool search of other agent apps.
+
+<a id="d-054"></a>
+## D-054 — 2026-10-07 — Each project has APX's side of it, `projects/<id>`, so no chat works among other projects
+Outside code threads, Claude, Codex and ACP agents worked in APX's one `work/` folder whatever the project, and a
+project chat whose folder was off this machine (an unplugged drive) fell back to it too: one project's files landed
+among every other's. Now each project has APX's side of it in APX's home: the project's own folder when APX made it
+(`projects/<name>`, a project with no folder elsewhere), else `projects/<id>` (ids carry a `_`, folder names never do,
+so they cannot meet). An outside agent in a project chat works there, never in the project's own folder, where that
+folder's `.claude/` settings would allow tools past APX's gate; a code thread keeps its folder. The native agent keeps
+the project's folder and moves to its side only while the folder is missing. `work/` is left to chats outside a
+project. Made on first use; the files panel shows it as the chat's folder.

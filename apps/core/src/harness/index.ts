@@ -2,7 +2,6 @@
 
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
-import path from "node:path";
 import type { EngineStatus, HarnessId } from "@apx/protocol";
 import { engineOf, harnessOf } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
@@ -10,6 +9,7 @@ import { unauthorized } from "../errors.ts";
 import { cachedCatalog } from "../models/catalog.ts";
 import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
+import { harnessDir } from "../tools/shell.ts";
 import { acpAgents, acpEngine } from "./acp/agents.ts";
 import { acpHarness } from "./acp/harness.ts";
 import { claudeHarness } from "./claude.ts";
@@ -32,13 +32,17 @@ export function createHarnesses(deps: {
   overrides?: Partial<Record<HarnessId, Harness>>;
 }) {
   const { store, llm } = deps;
-  const cwd = path.join(deps.home, "work");
   const gates = new Map<string, Gate>();
   const bin = (name: string) => async () => {
     const p = await which(name);
     if (!p) throw new Error(`${name} is not installed on this machine`);
-    fs.mkdirSync(cwd, { recursive: true });
     return p;
+  };
+  /** The turn's folder, made when it is APX's own (a code thread's folder is the owner's and already there). */
+  const cwd = (io: TurnIO) => {
+    const dir = harnessDir(store, deps.home, io.thread);
+    if (!io.thread.cwd) fs.mkdirSync(dir, { recursive: true });
+    return dir;
   };
   const proxyFor = (io: TurnIO) => {
     const token = openGate(io);
@@ -62,7 +66,7 @@ export function createHarnesses(deps: {
       acpHarness({
         agents: () => acpAgents(store),
         binary: (a) => bin(a.command)(),
-        cwd: (io) => io.thread.cwd ?? cwd,
+        cwd,
         gate: proxyFor,
       }),
   };

@@ -1,5 +1,4 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
-import path from "node:path";
 import type { HarnessId, MethodName, Params, Result, Routine, Thread } from "@apx/protocol";
 import { readOrganization } from "../apc/org.ts";
 import type { AgentRecord } from "../domain/agents.ts";
@@ -25,7 +24,7 @@ import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
 import { inherit } from "../tools/policy.ts";
 import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
-import { scratchDir } from "../tools/shell.ts";
+import { harnessDir, scratchDir } from "../tools/shell.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
 import { callersOf } from "./ancestry.ts";
 import { attachmentsBlock } from "./attachments.ts";
@@ -191,7 +190,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     call: deps.call,
     jobs: deps.jobs,
     apxPort: deps.apxPort,
-    workDir: path.join(deps.home, "work"),
+    workDir: harnessDir(store, deps.home, thread),
     delegate: (to, task, waitMs) => deps.delegate({ run, agent, display }, to, task, waitMs),
   });
   const io = (): TurnIO => ({

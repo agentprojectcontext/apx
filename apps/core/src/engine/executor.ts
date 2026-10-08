@@ -104,7 +104,7 @@ export function createExecutor(o: {
   jobs: Jobs;
   /** APX's own port: a command that reaches it always asks. */
   apxPort: () => number;
-  /** Where an external agent works outside code threads. */
+  /** Where an outside agent works (harnessDir): its tools are checked against this folder. */
   workDir: string;
 }): Executor {
   const { store, display, signal, agent, thread } = o;
@@ -282,7 +282,7 @@ export function createExecutor(o: {
   }
 
   const approve: TurnIO["approve"] = async (req) => {
-    const base = thread.cwd ?? o.workDir;
+    const base = o.workDir;
     const paths = pathsOf(req.input);
     const command = (req.input as { command?: unknown } | undefined)?.command;
     const inside = paths.every((p) => insideReal(base, p));
