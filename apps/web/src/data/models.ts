@@ -1,7 +1,7 @@
 // Model catalog, install default and router (D-011). Model names only ever come from the core.
 import type { CatalogEngine, ModelChoice, ModelRef, RouterConfig } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
-import { registerProviderMarks } from "@apx/ui";
+import { registerMarks } from "@apx/ui";
 import { isKey, t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
@@ -27,10 +27,10 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const missing = (e: unknown) => e instanceof ApxError && e.code === "unknown_method";
 
 let marks: Promise<void> | undefined;
-/** The model APIs' marks: not needed before a list of models or providers shows, so they come with the catalog. */
-function loadProviderMarks(): void {
-  marks ??= import("@apx/ui/provider-marks")
-    .then((m) => registerProviderMarks(m.PROVIDER_MARKS))
+/** The ACP agents' and model APIs' marks: kept out of the first load, they come with the catalog right after it. */
+function loadMarks(): void {
+  marks ??= import("@apx/ui/marks")
+    .then((m) => registerMarks({ ...m.ACP_MARKS, ...m.PROVIDER_MARKS }))
     .catch(() => {
       marks = undefined;
     });
@@ -38,7 +38,7 @@ function loadProviderMarks(): void {
 
 /** Every engine and its models. `refresh` asks the engines again instead of the day cache. */
 export async function loadCatalog(refresh = false): Promise<void> {
-  loadProviderMarks();
+  loadMarks();
   if (models.get().catalogLoad === "loading") return;
   models.set((s) => ({ catalogLoad: s.catalog.length ? s.catalogLoad : "loading" }));
   try {
