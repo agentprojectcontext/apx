@@ -600,3 +600,14 @@ so they cannot meet). An outside agent in a project chat works there, never in t
 folder's `.claude/` settings would allow tools past APX's gate; a code thread keeps its folder. The native agent keeps
 the project's folder and moves to its side only while the folder is missing. `work/` is left to chats outside a
 project. Made on first use; the files panel shows it as the chat's folder.
+
+<a id="d-055"></a>
+## D-055 — 2026-10-08 — Widgets stay in the database, one project's or global, and are shared by copying them
+A widget's HTML, version, places (board, app) and origins stay a row of `surfaces`, not files under the project's
+side: the row is updated atomically by name, every open copy hears the change, the share link and its CSP read the
+same row, and one backup keeps it all. A widget belongs to one project or is global (made in a chat outside a
+project); a project's chat lists and reads only its own, a chat outside one only the global ones. To use one
+elsewhere the owner copies it (`surfaces.copy`: into another project, or global with no project), opens it as an
+app from the sidebar in any project, or publishes its link; an agent never reaches into another project's widgets.
+Files come in only if a widget needs more than one (scripts, images) or a history of its versions: then its content
+goes to `projects/<id>/widgets/<name>/` and the row keeps the rest.

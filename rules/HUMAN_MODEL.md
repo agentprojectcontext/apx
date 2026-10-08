@@ -70,6 +70,12 @@ files once, with independent folding diffs and scopes for the last edit turn, al
 per path), or the current Git folder. Owner-only `files.diff` reads a saved patch by chat/message/part, even
 after source deletion. Older records without patches show labeled current content only when their recorded
 folder still matches the chat's work folder; escapes, Git metadata, binaries and special files are refused.
+Files live in three places ([D-054](DECISIONS.md#d-054), [D-055](DECISIONS.md#d-055)): the project's own folder (the
+repository and its `.apc/`, where the native agent works); APX's side of each project in its home, `projects/<id>` (or
+the project's folder itself when APX made it, `projects/<name>`), where outside agents work outside code threads and
+the native agent falls back while the folder is off this machine; and each chat's temp folder (`apx-scratch-…` in the
+system's temp folder), for downloads and tries, kept with `files.keep`. `work/` is the folder of chats outside a
+project. Widgets are not files: their HTML and where they show live in `surfaces`, scoped to one project or global.
 `~/.apx/v2/secrets.json` (0600) holds secrets referenced as `secret://name`. `~/.apx/v2/home-id` is the
 install id. Browser sessions live in Electron partitions on the
 desktop (`persist:apx-shared`, `persist:apx-agent-<id>`, in-memory `apx-incog-*`), never in the core.
