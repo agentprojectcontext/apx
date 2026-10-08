@@ -35,6 +35,9 @@ export function refuse(
 ): string | undefined {
   const origin = req.headers.origin;
   if (origin && !gate.allowedOrigins.has(origin)) return `origin ${origin} is not allowed`;
+  // Without a token the core is this computer's only. A request a proxy forwarded (tailscale serve, a reverse
+  // proxy) comes from elsewhere even though it arrives on loopback.
+  if (!gate.token && !open && forwarded(req)) return "a request through a proxy needs APX_TOKEN on the core";
   if (gate.token && !knownClient && !open) {
     const auth = req.headers.authorization;
     const bearer = auth?.startsWith("Bearer ") ? auth.slice(7) : undefined;
@@ -49,3 +52,6 @@ export function refuse(
 export function mayBeNode(req: IncomingMessage): boolean {
   return !req.headers.origin;
 }
+
+const PROXY_HEADERS = ["x-forwarded-for", "forwarded", "x-real-ip", "tailscale-user-login"];
+const forwarded = (req: IncomingMessage) => PROXY_HEADERS.some((h) => req.headers[h] !== undefined);

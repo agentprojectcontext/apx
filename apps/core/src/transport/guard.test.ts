@@ -48,3 +48,10 @@ test("malformed paths do not crash the core and cannot escape the panel folder",
   assert.notEqual(await escaped.text(), "nope");
   assert.equal((await fetch(`${core.url}/health`)).status, 200);
 });
+
+test("without a token, a request a proxy forwarded (tailscale serve) is refused", async () => {
+  const json = { "content-type": "application/json" };
+  assert.equal((await rpc({ ...json, "x-forwarded-for": "100.64.0.7" })).status, 403);
+  assert.equal((await rpc({ ...json, "tailscale-user-login": "user@example.com" })).status, 403);
+  assert.equal((await rpc(json)).status, 200);
+});
