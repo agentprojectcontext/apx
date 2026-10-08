@@ -3,6 +3,7 @@
 import { ErrorCode } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, notFound } from "../errors.ts";
+import { ARGS_SECRET } from "../mcp/config.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import type { Handlers } from "./router.ts";
 
@@ -65,6 +66,8 @@ export function mcpHandlers(mcp: Mcp, store: Store) {
       return mcp.test(d);
     },
     "mcp.set": ({ name, server, project }) => {
+      if (Array.isArray(server?.args) && JSON.stringify(server.args).includes("secret://"))
+        throw badRequest(ARGS_SECRET);
       if (!project) {
         mcp.config.setGlobal(name, server);
         mcp.drop({ scope: "global", name });

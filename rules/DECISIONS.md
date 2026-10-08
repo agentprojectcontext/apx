@@ -635,3 +635,14 @@ The G0 audit (plan/parity/07-seguridad.md) left holes open for the owner to deci
 - **Plugins reach the local network only if they ask.** With `"network": true` a plugin reaches the internet; the
   private ranges (10/8, 172.16/12, 192.168/16, the tailnet's 100.64/10, fc00::/7, multicast) need
   `"local_network": true` as well, shown to the owner before turning it on.
+- **Engine sessions keep what they read.** Claude Code and Codex keep their own context between turns: once a turn of
+  theirs read outside content, the thread's log keeps an untrusted note, so every later turn of that session starts
+  untrusted, as a native turn with the same history would.
+- **Codex in an `auto` code chat writes only when the agent may act.** It runs read-only (and tells the owner why)
+  when the agent asks before acting, or when outside content is in the session; total autonomy still writes.
+- **A variable never goes in an MCP server's args.** The process list shows a command's arguments to anyone on the
+  computer: `mcp.set` refuses `secret://` there, and a server that still has one does not start, saying to use env.
+- **Accepted: a shell command the owner approves can call APX's local API.** A token file would not stop it (the
+  command runs as the owner and can read it, and an Origin header is easy to forge); the child's environment has no
+  APX secrets, and every non-trivial command asks in standard autonomy. The real fix is an OS sandbox for commands.
+

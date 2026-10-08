@@ -13,7 +13,7 @@ import { projectSecretName, type Secrets } from "../secrets.ts";
 import { cap, untrusted } from "../tools/result.ts";
 import { type Confirm, type Effect, invalidArguments, type Tool } from "../tools/types.ts";
 import { type McpTool, mcpApproval, serverApprovalId } from "./approval.ts";
-import { type McpDef, mcpConfig } from "./config.ts";
+import { ARGS_SECRET, type McpDef, mcpConfig } from "./config.ts";
 
 const CONNECT_MS = 20_000;
 const CALL_MS = 120_000;
@@ -97,6 +97,7 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
 
   /** Starts a server and lists its tools, within CONNECT_MS. The caller owns the client and closes it. */
   async function connect(d: McpDef): Promise<{ client: Client; tools: McpTool[] }> {
+    if (d.args.some((a) => a.includes("secret://"))) throw new Error(ARGS_SECRET);
     // Loaded with the first server: a core with none never loads the MCP client.
     const [{ Client }, { StdioClientTransport }, { StreamableHTTPClientTransport }] = await Promise.all([
       import("@modelcontextprotocol/sdk/client/index.js"),

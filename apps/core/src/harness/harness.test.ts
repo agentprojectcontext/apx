@@ -7,12 +7,14 @@ import { ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
 import type { Harness, TurnIO } from "./index.ts";
 
-const seen: Array<{ harness: string; io: TurnIO }> = [];
+const seen: Array<{ harness: string; io: TurnIO; outside: boolean }> = [];
 const fake = (id: "claude" | "codex"): Harness => ({
   id,
   async run(io) {
-    seen.push({ harness: id, io });
+    seen.push({ harness: id, io, outside: io.outside() });
     io.onText("thinking…");
+    if (String(io.input.content).includes("search the web"))
+      io.observe({ callId: `${io.run.id}-w`, title: "Searched news", kind: "fetch", status: "ok" });
     const r = await io.execute(`${io.run.id}-x1`, "show_widget", {
       name: "from-claude",
       title: "From Claude",
@@ -215,4 +217,28 @@ test("Claude Code reads the folder's CLAUDE.md through APX, never through a link
   fs.symlinkSync(path.join(dir, "secret.txt"), path.join(dir, "CLAUDE.md"));
   assert.equal(folderClaudeMd(dir), "");
   fs.rmSync(dir, { recursive: true });
+});
+
+test("what an engine session read from outside stays with it: its next turns start untrusted", async () => {
+  const t0 = await session("claude");
+  await env.client.call("threads.send", { thread: t0.id, text: "hello" });
+  await env.settle(t0.id);
+  assert.equal(seen.at(-1)?.outside, false);
+  await env.client.call("threads.send", { thread: t0.id, text: "search the web please" });
+  await env.settle(t0.id);
+  await env.client.call("threads.send", { thread: t0.id, text: "now fix the file" });
+  await env.settle(t0.id);
+  assert.equal(seen.at(-1)?.outside, true);
+});
+
+test("Codex writes in an auto code chat only when the agent may act and nothing from outside is in the session", async () => {
+  const { codexWrites } = await import("./codex.ts");
+  const thread = { cwd: "/work/acme", write: "auto" } as unknown as TurnIO["thread"];
+  const io = (autonomy: string, outside: boolean) =>
+    ({ thread, agent: { autonomy }, outside: () => outside }) as unknown as TurnIO;
+  assert.equal(codexWrites(io("standard", false)), true);
+  assert.equal(codexWrites(io("standard", true)), false);
+  assert.equal(codexWrites(io("ask", false)), false);
+  assert.equal(codexWrites(io("total", true)), true);
+  assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "ask" } } as TurnIO), false);
 });

@@ -161,6 +161,13 @@ test("variables: a project's own value wins for the owner's servers there, and i
   await assert.rejects(env.client.call("secrets.set", { name: "X", value: "y", project: "p_nope" }), /not found/);
 });
 
+test("a variable never goes in a server's args, where the process list shows it", async () => {
+  await assert.rejects(
+    env.client.call("mcp.set", { name: "leaky", server: { command: "npx", args: ["--token", "secret://GH_TOKEN"] } }),
+    /process list: put it in env/,
+  );
+});
+
 test("a project can take none of the owner's global skills or servers; its own still count", async () => {
   skill(path.join(repo, ".apc", "skills"), "acme-only", "Acme's own way.");
   skill(path.join(home, "skills"), "digest", "A weekly digest.");

@@ -175,6 +175,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   const { history, input, skills, picked, policy, tools, mcpLate } = prepared;
   if (picked) display.upsert((p) => p.type === "skills", picked.part);
   let harness: HarnessId = "native";
+  const startedUntrusted = [...history, input].some((m) => String(m.content ?? "").includes(UNTRUSTED_MARK));
   const exec = createExecutor({
     store,
     inputs: deps.inputs,
@@ -185,7 +186,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     run: () => run,
     display,
     signal,
-    untrusted: [...history, input].some((m) => String(m.content ?? "").includes(UNTRUSTED_MARK)),
+    untrusted: startedUntrusted,
     external: () => harness !== "native",
     call: deps.call,
     jobs: deps.jobs,
@@ -206,6 +207,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     models: [],
     signal,
     sessionId: undefined,
+    outside: () => exec.untrusted,
     onText: display.text,
     execute: exec.execute,
     approve: exec.approve,
@@ -227,12 +229,22 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
         run = store.runs.patch(run, { harness: h });
       },
     });
+    // An engine keeps its own session: what it read from outside stays in its context for the next turns too.
+    if (thread.engine && exec.untrusted && !startedUntrusted)
+      store.modelLog.append(thread.id, run.id, [{ role: "user", content: OUTSIDE_IN_SESSION }]);
     run = await finishRun(store, { run, thread, display, exec, outcome, log: deps.log });
   } catch (err) {
     run = failRun(deps, { run, turn, display, signal, err });
   }
   return end(run);
 }
+
+/** Kept in an engine thread's log once its session has read outside content, so later turns start untrusted. */
+const OUTSIDE_IN_SESSION = untrusted(
+  "session_note",
+  {},
+  "This engine session read content from outside APX in an earlier turn; it is still in its context.",
+);
 
 /** A message routine's text, as the run's answer: delivered to the owner like any routine's, with no model call. */
 function sendAsIs(store: Store, t: { run: RunRecord; thread: Thread; display: Display; text: string }): RunRecord {

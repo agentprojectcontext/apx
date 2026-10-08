@@ -24,6 +24,8 @@ export type TurnIO = {
   signal: AbortSignal;
   /** The external harness's own conversation id for this thread, when there is one. */
   sessionId: string | undefined;
+  /** Whether outside content is in this turn so far (or was in this engine session before: it keeps it). */
+  outside(): boolean;
   onText(soFar: string): void;
   /** Runs one APX tool with its card and step record. Every harness calls tools through here. */
   /** `images`: what the tool showed the model to look at with its result (a picture of the screen). */

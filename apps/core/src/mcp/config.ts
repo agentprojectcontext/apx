@@ -8,6 +8,9 @@ import type { Store } from "../domain/store.ts";
 import { extSecret, SECRET_REF } from "../extensions/extensions.ts";
 import { NO_GLOBALS } from "../skills/skills.ts";
 
+/** A command's arguments show in the process list to anyone on the computer: a variable goes in its env instead. */
+export const ARGS_SECRET = "a variable (secret://) in args shows in the process list: put it in env instead";
+
 export type McpDef = {
   name: string;
   scope: "global" | "project";

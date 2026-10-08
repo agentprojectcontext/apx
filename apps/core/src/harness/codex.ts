@@ -5,6 +5,17 @@ import { worksInFolder } from "../domain/threads.ts";
 import { harnessEnv } from "./env.ts";
 import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 
+const READ_ONLY_NOTE =
+  "[APX: this turn is read-only: outside content is in this session, or this agent asks before acting. Say so if a change is needed: the owner can make it, start a new chat, or give the agent total autonomy.]";
+
+/** Whether Codex may edit and run commands in the folder this turn. See DECISIONS.md#d-057 */
+export function codexWrites(io: Pick<TurnIO, "thread" | "agent" | "outside">): boolean {
+  if (!worksInFolder(io.thread) || io.thread.write !== "auto") return false;
+  const autonomy = io.agent.autonomy ?? "standard";
+  if (autonomy === "total") return true;
+  return autonomy !== "ask" && !io.outside();
+}
+
 export type McpCommand = { command: string; args: string[]; env: Record<string, string> };
 
 export function codexHarness(opts: {
@@ -30,8 +41,9 @@ export function codexHarness(opts: {
           env: harnessEnv(),
         });
         // Codex cannot ask mid-turn: in a code thread it writes only when the thread's policy is "auto", and then its
-        // OS sandbox keeps commands and edits inside the folder (the UI says so when the policy is chosen).
-        const writes = worksInFolder(io.thread) && io.thread.write === "auto";
+        // OS sandbox keeps commands and edits inside the folder (the UI says so when the policy is chosen). An agent
+        // that asks first, or outside content in the session, keeps it reading unless the owner chose total autonomy.
+        const writes = codexWrites(io);
         const threadOptions = {
           workingDirectory: opts.cwd(io),
           skipGitRepoCheck: true,
@@ -43,7 +55,10 @@ export function codexHarness(opts: {
         const thread = io.sessionId
           ? codex.resumeThread(io.sessionId, threadOptions)
           : codex.startThread(threadOptions);
-        const { events } = await thread.runStreamed(io.input.content, { signal: io.signal });
+        const held = worksInFolder(io.thread) && io.thread.write === "auto" && !writes;
+        const { events } = await thread.runStreamed(held ? `${READ_ONLY_NOTE}\n\n${io.input.content}` : io.input.content, {
+          signal: io.signal,
+        });
         let text = "";
         let sessionId = io.sessionId;
         let usage: TurnOutcome["usage"];

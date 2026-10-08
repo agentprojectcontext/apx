@@ -73,6 +73,8 @@ export type Executor = {
   approve: TurnIO["approve"];
   observe: TurnIO["observe"];
   readonly toolsRan: number;
+  /** Whether outside content is in the turn so far. */
+  readonly untrusted: boolean;
 };
 
 /** Tool kinds (Agent Client Protocol's names) that only read: inside the agent's folder they run without asking. */
@@ -363,6 +365,9 @@ export function createExecutor(o: {
     observe,
     get toolsRan() {
       return toolsRan;
+    },
+    get untrusted() {
+      return untrusted;
     },
   };
 }
