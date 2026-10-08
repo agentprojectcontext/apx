@@ -15,10 +15,13 @@ type Bounds = { x: number; y: number; width: number; height: number };
 type Target = { app: string; window: string; bounds: Bounds | undefined };
 export type ComputerActivity = { kind: "look" | "click" | "type"; app: string; window: string; x?: number; y?: number };
 
-function osa(script: string, args: string[] = []): Promise<string> {
+function osa(script: string, args: string[] = [], language = "AppleScript"): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile("osascript", ["-e", script, ...args], { timeout: OSA_MS, maxBuffer: 4 * 1024 * 1024 }, (err, out) =>
-      err ? reject(new Error(String(err.message).slice(0, 300))) : resolve(out.trimEnd()),
+    execFile(
+      "osascript",
+      ["-l", language, "-e", script, ...args],
+      { timeout: OSA_MS, maxBuffer: 4 * 1024 * 1024 },
+      (err, out) => (err ? reject(new Error(String(err.message).slice(0, 300))) : resolve(out.trimEnd())),
     );
   });
 }
@@ -85,15 +88,22 @@ on run argv
   end tell
 end run`;
 
+/**
+ * A real mouse click (CoreGraphics events, in JavaScript for Automation): it moves the pointer there and presses, so
+ * it works on any control, not only those with an accessibility action. Refused if another app is in front.
+ */
 const CLICK = `
-on run argv
-  tell application "System Events"
-    set frontName to name of first application process whose frontmost is true
-    if frontName is not (item 1 of argv) then error "the app in front is " & frontName & ", not " & (item 1 of argv)
-    tell process frontName to click at {(item 2 of argv) as integer, (item 3 of argv) as integer}
-    return frontName
-  end tell
-end run`;
+function run(argv) {
+  ObjC.import("CoreGraphics");
+  const front = Application("System Events").processes.whose({ frontmost: true })[0].name();
+  if (front !== argv[0]) throw new Error("the app in front is " + front + ", not " + argv[0]);
+  const p = $.CGPointMake(Number(argv[1]), Number(argv[2]));
+  for (const type of [$.kCGEventMouseMoved, $.kCGEventLeftMouseDown, $.kCGEventLeftMouseUp]) {
+    $.CGEventPost($.kCGHIDEventTap, $.CGEventCreateMouseEvent(null, type, p, $.kCGMouseButtonLeft));
+    delay(0.05);
+  }
+  return front;
+}`;
 
 const TYPE = `
 on run argv
@@ -190,7 +200,7 @@ export function createComputer(o: { cursor: AgentCursor; onActivity(a: ComputerA
         const y = Number(p.y);
         // The owner sees where it is about to click before it does.
         await o.cursor.moveTo(x, y, p.app ?? "");
-        const app = await osa(CLICK, [String(p.app ?? ""), String(x), String(y)]);
+        const app = await osa(CLICK, [String(p.app ?? ""), String(x), String(y)], "JavaScript");
         o.cursor.pulse();
         o.onActivity({ kind: "click", app, window: target?.window ?? "", x, y });
         return { app };
