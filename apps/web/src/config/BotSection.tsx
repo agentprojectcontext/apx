@@ -10,9 +10,10 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
 import { RoomsSection } from "./RoomsSection.tsx";
 
-export type BotKind = "telegram" | "discord" | "slack";
+export type BotKind = "telegram" | "discord" | "slack" | "matrix" | "mattermost" | "signal";
 
-type TokenSpec = { label: MessageKey; placeholder: string; pattern: RegExp };
+/** One field of the secret; `plain` ones (a server's address, a number) are not hidden as they are typed. */
+type TokenSpec = { label: MessageKey; placeholder: string; pattern: RegExp; plain?: boolean };
 
 /**
  * What each bot channel needs: the steps to make the bot, and its token(s). Slack takes two (the bot's and the app's,
@@ -38,7 +39,33 @@ const BOTS: Record<BotKind, { name: string; steps: MessageKey[]; tokens: TokenSp
       { label: "sl.appToken", placeholder: "xapp-…", pattern: /^xapp-[\w-]{10,}$/ },
     ],
   },
+  matrix: {
+    name: "Matrix",
+    steps: ["mx.step1", "mx.step2", "mx.step3"],
+    tokens: [
+      { label: "mx.server", placeholder: "https://matrix.example.org", pattern: /^https?:\/\/\S+$/, plain: true },
+      { label: "mx.token", placeholder: "syt_…", pattern: /^\S{16,}$/ },
+    ],
+  },
+  mattermost: {
+    name: "Mattermost",
+    steps: ["mm.step1", "mm.step2", "mm.step3"],
+    tokens: [
+      { label: "mm.server", placeholder: "https://chat.example.org", pattern: /^https?:\/\/\S+$/, plain: true },
+      { label: "tg.token", placeholder: "abc123…", pattern: /^[a-z0-9]{20,}$/ },
+    ],
+  },
+  signal: {
+    name: "Signal",
+    steps: ["sg.step1", "sg.step2", "sg.step3"],
+    tokens: [
+      { label: "sg.daemon", placeholder: "http://127.0.0.1:8080", pattern: /^https?:\/\/\S+$/, plain: true },
+      { label: "sg.number", placeholder: "+15550001111", pattern: /^\+\d{6,15}$/, plain: true },
+    ],
+  },
 };
+
+export const isBotKind = (k: string): k is BotKind => Object.hasOwn(BOTS, k);
 
 /** A bot channel (Telegram, Discord, Slack): connect it, choose who answers, approve who may write, see what went out. */
 export function BotSection({ kind }: { kind: BotKind }) {
@@ -111,7 +138,7 @@ function Setup({ kind }: { kind: BotKind }) {
           <span className="pform__label">{t(spec.label)}</span>
           <Input
             aria-label={t(spec.label)}
-            type="password"
+            type={spec.plain ? "text" : "password"}
             autoComplete="off"
             placeholder={spec.placeholder}
             value={tokens.values[i]}
@@ -163,7 +190,7 @@ function TokenField({
         <Input
           key={spec.label}
           aria-label={t(spec.label)}
-          type="password"
+          type={spec.plain ? "text" : "password"}
           autoComplete="off"
           autoFocus={Boolean(onCancel) && i === 0}
           placeholder={channel.token_set ? `${t("tg.tokenNew")} (${spec.placeholder})` : spec.placeholder}

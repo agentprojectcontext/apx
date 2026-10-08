@@ -783,7 +783,7 @@ export const en = {
   "channel.imessage.name": "iMessage",
   "channel.imessage.text": "Your agents read and send iMessages on this Mac, sending only with your OK.",
   "channel.matrix.name": "Matrix",
-  "channel.matrix.text": "An account on your Matrix server, with end-to-end encryption.",
+  "channel.matrix.text": "An account on your Matrix server; chats without end-to-end encryption.",
   "channel.teams.name": "Microsoft Teams",
   "channel.teams.text": "A Teams bot in your organization.",
   "channel.googlechat.name": "Google Chat",
@@ -1175,6 +1175,29 @@ export const en = {
   "sl.step4": "Paste both tokens below, write to the app and type its code in “This is my Slack”.",
   "sl.botToken": "Bot token",
   "sl.appToken": "App-level token",
+  "mx.lead":
+    "Talk with your agents from Matrix, on any server. Only direct chats are read, and only the people you approve reach them.",
+  "mx.step1": "Create an account for the agent on your Matrix server (or use one you have for it).",
+  "mx.step2": "Sign in with it in Element, open Settings › Help & About and copy its access token.",
+  "mx.step3":
+    "Paste the server's address and the token below. Start a chat with encryption turned off, write to it and type its code in “This is my Matrix”.",
+  "mx.server": "Server address",
+  "mx.token": "Access token",
+  "mm.lead":
+    "Talk with your agents from Mattermost. Only direct messages are read, and only the people you approve reach them.",
+  "mm.step1": "In System Console › Integrations › Bot accounts, turn bot accounts on.",
+  "mm.step2": "In Integrations › Bot accounts, add a bot and copy its token.",
+  "mm.step3":
+    "Paste the server's address and the token below, write to the bot and type its code in “This is my Mattermost”.",
+  "mm.server": "Server address",
+  "sg.lead":
+    "Talk with your agents from Signal through signal-cli running on this computer. Only one-to-one chats are read.",
+  "sg.step1": "Install signal-cli and link it to a number (a number of its own, or yours as a linked device).",
+  "sg.step2": "Start it as a daemon: signal-cli -a +NUMBER daemon --http 127.0.0.1:8080",
+  "sg.step3":
+    "Paste the daemon's address and the number below, write to it from Signal and type its code in “This is my Signal”.",
+  "sg.daemon": "signal-cli address",
+  "sg.number": "Number",
   "im.lead": "Let your agents read your recent iMessages and send one from this Mac. Sending always waits for your OK.",
   "im.toggle": "Agents may use iMessage",
   "im.toggleHint":

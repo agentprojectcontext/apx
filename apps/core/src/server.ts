@@ -9,6 +9,9 @@ import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
 import { discordAdapter } from "./channels/discord.ts";
 import { createChannels } from "./channels/manager.ts";
+import { matrixAdapter } from "./channels/matrix.ts";
+import { mattermostAdapter } from "./channels/mattermost.ts";
+import { signalAdapter } from "./channels/signal.ts";
 import { slackAdapter } from "./channels/slack.ts";
 import { telegramAdapter } from "./channels/telegram.ts";
 import type { AdapterFactory } from "./channels/types.ts";
@@ -215,6 +218,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       telegram: (c, token) => telegramAdapter(c, token, config.telegramApi ?? "https://api.telegram.org"),
       discord: (c, token) => discordAdapter(c, token, config.discord),
       slack: (c, token) => slackAdapter(c, token, config.slackApi ?? "https://slack.com/api"),
+      // The server's address travels in the secret with the token: these run against the owner's own server.
+      matrix: (c, secret) => matrixAdapter(c, secret),
+      mattermost: (c, secret) => mattermostAdapter(c, secret),
+      signal: (c, secret) => signalAdapter(c, secret),
       whatsapp: (c) =>
         whatsappAdapter({ dir: path.join(config.home, "channels", c.id), selfOwner: c.self_owner === true, log }),
     },

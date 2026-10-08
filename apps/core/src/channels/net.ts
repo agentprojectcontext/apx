@@ -50,3 +50,24 @@ export function splitText(text: string, max: number): string[] {
   if (rest) out.push(rest);
   return out;
 }
+
+/**
+ * Buttons as numbered options, for channels without buttons: the options last offered in each conversation, and a
+ * reply that is only one of their numbers read as that button pressed.
+ */
+export function numberedOptions() {
+  const offered = new Map<string, Array<{ id: string; label: string }>>();
+  return {
+    /** The text with the options under it; remembers them for the conversation. */
+    text(conversation: string, text: string, buttons: Array<{ id: string; label: string }> | undefined): string {
+      if (!buttons?.length) return text;
+      offered.set(conversation, buttons);
+      return `${text}\n\n${buttons.map((b, i) => `${i + 1}. ${b.label}`).join("\n")}`;
+    },
+    /** The id of the option this reply picks, if it is only a number offered here. */
+    pick(conversation: string, reply: string): string | undefined {
+      const n = /^\s*(\d{1,2})\s*$/.exec(reply)?.[1];
+      return n ? offered.get(conversation)?.[Number(n) - 1]?.id : undefined;
+    },
+  };
+}

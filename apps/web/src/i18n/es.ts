@@ -788,7 +788,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "channel.slack.text": "Una app de Slack a la que le escribís por mensaje directo. Solo contesta a quien apruebes.",
   "channel.signal.text": "Tu número a través de signal-cli en esta computadora.",
   "channel.imessage.text": "Tus agentes leen y mandan iMessages en esta Mac; mandar, solo con tu OK.",
-  "channel.matrix.text": "Una cuenta en tu servidor de Matrix, con cifrado de punta a punta.",
+  "channel.matrix.text": "Una cuenta en tu servidor de Matrix; chats sin cifrado de punta a punta.",
   "channel.teams.text": "Un bot de Teams en tu organización.",
   "channel.googlechat.text": "Un bot en los espacios de Google Chat de tu cuenta de trabajo.",
   "channel.mattermost.text": "Un bot en tu servidor de Mattermost.",
@@ -1182,6 +1182,30 @@ export const es: Partial<Record<MessageKey, string>> = {
   "sl.step4": "Pegá los dos tokens abajo, escribile a la app y poné su código en “Este es mi Slack”.",
   "sl.botToken": "Token del bot",
   "sl.appToken": "Token de la app",
+  "mx.lead":
+    "Hablá con tus agentes desde Matrix, en cualquier servidor. Sólo se leen los chats directos, y sólo llegan las personas que aprobás.",
+  "mx.step1": "Creá una cuenta para el agente en tu servidor de Matrix (o usá una que tengas para eso).",
+  "mx.step2": "Entrá con ella en Element, abrí Ajustes › Ayuda y acerca de, y copiá su token de acceso.",
+  "mx.step3":
+    "Pegá la dirección del servidor y el token acá abajo. Empezá un chat con el cifrado apagado, escribile y poné su código en “Este es mi Matrix”.",
+  "mx.server": "Dirección del servidor",
+  "mx.token": "Token de acceso",
+  "mm.lead":
+    "Hablá con tus agentes desde Mattermost. Sólo se leen los mensajes directos, y sólo llegan las personas que aprobás.",
+  "mm.step1": "En System Console › Integrations › Bot accounts, activá las cuentas de bot.",
+  "mm.step2": "En Integrations › Bot accounts, agregá un bot y copiá su token.",
+  "mm.step3":
+    "Pegá la dirección del servidor y el token acá abajo, escribile al bot y poné su código en “Este es mi Mattermost”.",
+  "mm.server": "Dirección del servidor",
+  "sg.lead":
+    "Hablá con tus agentes desde Signal con signal-cli corriendo en esta computadora. Sólo se leen los chats de a dos.",
+  "sg.step1":
+    "Instalá signal-cli y vinculalo a un número (uno propio para el agente, o el tuyo como dispositivo vinculado).",
+  "sg.step2": "Arrancalo como daemon: signal-cli -a +NUMERO daemon --http 127.0.0.1:8080",
+  "sg.step3":
+    "Pegá la dirección del daemon y el número acá abajo, escribile desde Signal y poné su código en “Este es mi Signal”.",
+  "sg.daemon": "Dirección de signal-cli",
+  "sg.number": "Número",
   "im.lead":
     "Dejá que tus agentes lean tus iMessages recientes y manden uno desde esta Mac. Mandar siempre espera tu OK.",
   "im.toggle": "Los agentes pueden usar iMessage",

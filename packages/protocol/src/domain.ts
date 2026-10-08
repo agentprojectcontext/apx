@@ -609,7 +609,7 @@ export type ChannelStrangers = z.infer<typeof ChannelStrangers>;
 
 /** A channel instance as the owner configured it, and how it is doing. */
 /** The channels APX can run: a bot or account the owner connects. */
-export const ChannelType = z.enum(["telegram", "whatsapp", "discord", "slack"]);
+export const ChannelType = z.enum(["telegram", "whatsapp", "discord", "slack", "matrix", "mattermost", "signal"]);
 export type ChannelType = z.infer<typeof ChannelType>;
 
 /**
