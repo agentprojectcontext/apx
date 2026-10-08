@@ -11,6 +11,8 @@
   font-weight: var(--apx-weight-medium);
   box-shadow: var(--apx-shadow-md);
   font-family: var(--apx-font-sans);
+  /* A label, never a target: it must not catch the click meant for the control it covers. */
+  pointer-events: none;
 }
 .apx-tooltip__kbd {
   opacity: 0.6;
