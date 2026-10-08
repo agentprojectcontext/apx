@@ -72,7 +72,8 @@ export function systemdUnit(spec: ServiceSpec): string {
     "",
     "[Service]",
     `ExecStart=${exec}`,
-    `WorkingDirectory=${sdQuote(spec.cwd)}`,
+    // A path as it is: systemd refuses a quoted one here ("path is not absolute"), unlike ExecStart's words.
+    `WorkingDirectory=${spec.cwd.replace(/%/g, "%%")}`,
     ...env,
     "Restart=always",
     "RestartSec=2",

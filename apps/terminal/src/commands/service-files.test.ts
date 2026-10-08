@@ -43,6 +43,7 @@ test("the systemd unit restarts the core always and quotes paths with spaces and
   assert.match(unit, /^Restart=always$/m);
   assert.match(unit, /^Environment="APX_HOME=\/data\/apx 100%%"$/m);
   assert.match(unit, /^WantedBy=default.target$/m);
+  assert.match(systemdUnit({ ...spec, cwd: "/srv/my apx 100%" }), /^WorkingDirectory=\/srv\/my apx 100%%$/m);
 });
 
 test("the launchd agent keeps the core alive, starts at login and logs to the home", () => {
