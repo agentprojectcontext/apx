@@ -608,6 +608,8 @@
 .projboard__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  /* A widened tile pushes the next ones down; dense lets a later one fill the gap it leaves. */
+  grid-auto-flow: row dense;
   gap: 16px;
   align-items: start;
 }
@@ -616,10 +618,10 @@
   pointer-events: none;
 }
 .projboard__tile {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  overflow: hidden;
   border: 1px solid var(--apx-border);
   border-radius: var(--apx-radius-lg);
   background: var(--apx-surface);
@@ -636,6 +638,7 @@
 .projboard__frame {
   min-height: 0;
   overflow: hidden;
+  border-radius: 0 0 var(--apx-radius-lg) var(--apx-radius-lg);
 }
 /* The tile's bottom edge: a thin grip that turns into a bar while hovered or dragged. */
 .projboard__resize {
@@ -657,9 +660,61 @@
   opacity: 0;
   transition: opacity 0.15s;
 }
+/* The right edge sits in the gap beside the tile, clear of the widget's own scrollbar. */
+.projboard__widen {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -12px;
+  width: 8px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.projboard__widen::after {
+  content: "";
+  position: absolute;
+  top: 40%;
+  bottom: 40%;
+  left: 2px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--apx-border);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
 .projboard__tile:hover .projboard__resize::after,
-.projboard__resize:focus-visible::after {
+.projboard__resize:focus-visible::after,
+.projboard__tile:hover .projboard__widen::after,
+.projboard__widen:focus-visible::after {
   opacity: 1;
+}
+/* The board's last place: make or load another widget. */
+.projboard__add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 200px;
+  padding: 20px;
+  border: 1px dashed var(--apx-border-strong);
+  border-radius: var(--apx-radius-lg);
+  text-align: center;
+  color: var(--apx-fg-muted);
+}
+.projboard__addicon {
+  color: var(--apx-fg-subtle);
+}
+.projboard__addtext {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+}
+.projboard__addactions {
+  display: flex;
+  gap: 8px;
+}
+.projboard__askers {
+  justify-content: center;
 }
 .projboard__head {
   padding: 8px 10px 8px 8px;

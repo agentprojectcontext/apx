@@ -39,7 +39,13 @@ export type Prefs = {
   boards: Record<string, BoardPrefs>;
 };
 
-export type BoardPrefs = { order: string[]; wide: boolean; heights: Record<string, number> };
+/** `widths` are how many of the board's columns a tile spans (1 when absent). */
+export type BoardPrefs = {
+  order: string[];
+  wide: boolean;
+  heights: Record<string, number>;
+  widths: Record<string, number>;
+};
 
 export type InboxView = "tree" | "activity" | "chats";
 
@@ -112,7 +118,10 @@ function boardsOf(raw: unknown): Record<string, BoardPrefs> {
     const heights: Record<string, number> = {};
     if (v.heights && typeof v.heights === "object")
       for (const [k, h] of Object.entries(v.heights)) if (typeof h === "number" && h > 0) heights[k] = Math.round(h);
-    out[id] = { order: [...new Set(order)], wide: v.wide === true, heights };
+    const widths: Record<string, number> = {};
+    if (v.widths && typeof v.widths === "object")
+      for (const [k, w] of Object.entries(v.widths)) if (typeof w === "number" && w >= 1) widths[k] = Math.round(w);
+    out[id] = { order: [...new Set(order)], wide: v.wide === true, heights, widths };
   }
   return out;
 }
@@ -122,7 +131,7 @@ export const prefs = createStore<Prefs>(load());
 /** Changes one project's board preferences, keeping the rest. */
 export function setBoard(projectId: string, patch: Partial<BoardPrefs>): void {
   const boards = prefs.get().boards;
-  const current = boards[projectId] ?? { order: [], wide: false, heights: {} };
+  const current = boards[projectId] ?? { order: [], wide: false, heights: {}, widths: {} };
   setPrefs({ boards: { ...boards, [projectId]: { ...current, ...patch } } });
 }
 

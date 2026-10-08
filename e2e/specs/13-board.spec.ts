@@ -126,9 +126,15 @@ test("the board is ordered from the grip, takes the full width, and both stay af
     const before = await tall();
     await board.getByRole("separator", { name: /Alto de Segundo/ }).press("ArrowDown");
     await expect.poll(tall).toBeGreaterThan(before);
+    // …and wider from its right edge, spanning two columns.
+    const wide = async () => (await frame.boundingBox())?.width ?? 0;
+    const narrow = await wide();
+    await board.getByRole("separator", { name: /Ancho de Segundo/ }).press("ArrowRight");
+    await expect.poll(wide).toBeGreaterThan(narrow * 1.5);
 
     await page.reload();
     await expect.poll(names).toEqual(["Segundo", "Primero"]);
+    await expect.poll(wide).toBeGreaterThan(narrow * 1.5);
     await expect(board.getByRole("button", { name: "Tablero al ancho de la página" })).toHaveAttribute(
       "aria-pressed",
       "true",
@@ -178,4 +184,18 @@ test("a widget of another project is copied onto this board, and a new one is as
   const copies = (await rpc<{ surfaces: Array<{ id: string; title: string }> }>("surfaces.list", {})).surfaces;
   for (const s of copies.filter((x) => x.title === "Uptime" && x.id !== original.id))
     await rpc("surfaces.update", { surface: s.id, pinned: false });
+});
+
+test("the board's dashed tile asks an agent for a new widget, picked by its blob", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: /^Northwind/ }).click();
+  const board = page.getByRole("region", { name: "Tablero" });
+  await board.getByRole("button", { name: "Crear", exact: true }).click();
+  await board.getByRole("button", { name: /super-agente/ }).click();
+  const drawer = page.getByRole("complementary", { name: "Chat del widget Widget nuevo" });
+  await expect(drawer.getByRole("textbox")).toHaveValue(/Haceme un widget para el tablero de este proyecto/);
+  await page.keyboard.press("Escape");
+  await board.getByRole("button", { name: "Cargar", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Copiar de otro proyecto" })).toBeVisible();
+  await page.keyboard.press("Escape");
 });

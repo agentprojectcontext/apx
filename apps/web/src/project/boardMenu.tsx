@@ -1,17 +1,29 @@
-import type { SurfaceSummary } from "@apx/protocol";
-import { Icons, type MenuEntry } from "@apx/ui";
+import type { Agent, SurfaceSummary } from "@apx/protocol";
+import { AgentAvatar, Icons, type MenuEntry } from "@apx/ui";
 import { useMemo } from "react";
 import { copySurface, setSurfaceFlags } from "../data/actions.ts";
-import { projectEntries, realProjectId, teamOf } from "../data/identity.ts";
+import { blobOf, projectEntries, realProjectId, teamOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { askForWidget } from "../surfaces/WidgetChat.tsx";
 
+export type BoardChoices = {
+  /** The header's "+": loading one, and asking an agent for a new one. */
+  menu: MenuEntry[];
+  /** Only loading one: this project's own widgets and copies from other projects. */
+  load: MenuEntry[];
+  /** Who can make a new one: the project's agents, then the super-agent. */
+  askers: Agent[];
+  /** Asks that agent for a new widget, in a chat that opens over the page. */
+  ask(agentId: string): void;
+  askerLabel(agent: Agent): string;
+};
+
 /**
- * The board's "+": the project's own widgets (one already there checked, not addable twice), asking an agent of the
- * project (or the super-agent) for a new one, and copying one from another project onto this board.
+ * The board's choices: the project's own widgets (one already there checked, not addable twice), asking an agent of
+ * the project (or the super-agent) for a new one, and copying one from another project onto this board.
  */
-export function useBoardMenu(projectId: string, mine: SurfaceSummary[]): MenuEntry[] {
+export function useBoardChoices(projectId: string, mine: SurfaceSummary[]): BoardChoices {
   const t = useT();
   const agents = useData((s) => s.agents);
   const threads = useData((s) => s.threads);
@@ -35,7 +47,9 @@ export function useBoardMenu(projectId: string, mine: SurfaceSummary[]): MenuEnt
           .sort((a, b) => a.title.localeCompare(b.title)),
       }))
       .filter((x) => x.widgets.length);
-    return [
+    const askerLabel = (a: Agent) => (a.id === superAgent ? t("board.askSuper", { name: a.name }) : a.name);
+    const ask = (agentId: string) => void askForWidget(agentId, here);
+    const load: MenuEntry[] = [
       { type: "label", label: t("board.mine") },
       ...(mine.length
         ? mine.map((s) => ({
@@ -49,17 +63,6 @@ export function useBoardMenu(projectId: string, mine: SurfaceSummary[]): MenuEnt
       { type: "separator" },
       {
         type: "submenu",
-        label: t("board.ask"),
-        icon: <Icons.Sparkles />,
-        items: askers.length
-          ? askers.map((a) => ({
-              label: a.id === superAgent ? t("board.askSuper", { name: a.name }) : a.name,
-              onSelect: () => void askForWidget(a.id, here),
-            }))
-          : [{ label: t("board.noAgents"), disabled: true }],
-      },
-      {
-        type: "submenu",
         label: t("board.copy"),
         icon: <Icons.Copy />,
         disabled: !elsewhere.length,
@@ -70,5 +73,22 @@ export function useBoardMenu(projectId: string, mine: SurfaceSummary[]): MenuEnt
         })),
       },
     ];
+    const menu: MenuEntry[] = [
+      ...load.slice(0, -1),
+      {
+        type: "submenu",
+        label: t("board.ask"),
+        icon: <Icons.Sparkles />,
+        items: askers.length
+          ? askers.map((a) => ({
+              label: askerLabel(a),
+              icon: <AgentAvatar name={a.name} blob={blobOf(a)} size={16} animated={false} />,
+              onSelect: () => ask(a.id),
+            }))
+          : [{ label: t("board.noAgents"), disabled: true }],
+      },
+      ...load.slice(-1),
+    ];
+    return { menu, load, askers, ask, askerLabel };
   }, [t, agents, projects, surfaces, superAgent, projectId, mine]);
 }
