@@ -4,14 +4,16 @@
 #   irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
 #   .\install.ps1 -File apx-core-2.2.0-win-x64.tar.gz      # a bundle you already have (no download)
 #
-# Parameters: -File <bundle>  -Version <x.y.z>  -Feed <owner/repo>  -NoService
+# Parameters: -File <bundle>  -Version <x.y.z>  -Feed <owner/repo | http(s) URL>  -NoService  -Uninstall
+# A feed URL is a GitHub-shaped test feed (scripts/install/feed.ts): <url>/releases and <url>/download/v<x.y.z>/<file>.
 # It lands in %USERPROFILE%\.apx\v2\app (APX_APP to change it); your data stays in %USERPROFILE%\.apx\v2, and APX v1's
 # files in %USERPROFILE%\.apx are never touched. If APX v1 is installed, its daemon is stopped and its `apx` removed.
 param(
   [string]$File = "",
   [string]$Version = "",
   [string]$Feed = $(if ($env:APX_RELEASES) { $env:APX_RELEASES } else { "agentprojectcontext/apx" }),
-  [switch]$NoService
+  [switch]$NoService,
+  [switch]$Uninstall
 )
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
@@ -22,6 +24,24 @@ function Die($m) { Write-Host "error: $m" -ForegroundColor Red; exit 1 }
 
 $App = if ($env:APX_APP) { $env:APX_APP } else { Join-Path $env:USERPROFILE ".apx\v2\app" }
 $Arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "x64" }
+$Bin = Join-Path $App "bin"
+
+# -Uninstall: the login entry and the program go; the data in .apx\v2 stays (delete it yourself to start over).
+if ($Uninstall) {
+  $cmd = Join-Path $Bin "apx.cmd"
+  if (Test-Path $cmd) {
+    Say "Stopping the APX daemon"
+    $env:APX_APP = $App
+    & $cmd service uninstall
+  }
+  if (Test-Path (Join-Path $App "current")) { (Get-Item (Join-Path $App "current")).Delete() }
+  Remove-Item -Recurse -Force $App -ErrorAction SilentlyContinue
+  $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+  [Environment]::SetEnvironmentVariable("Path", (($userPath -split ";") | Where-Object { $_ -and $_ -ne $Bin }) -join ";", "User")
+  Say "APX is uninstalled. Your data is still in $(Join-Path $env:USERPROFILE '.apx\v2')"
+  exit 0
+}
+
 $Tar = Join-Path $env:SystemRoot "System32\tar.exe"
 if (-not (Test-Path $Tar)) { Die "tar.exe is missing (Windows 10 1803 or newer has it)" }
 
@@ -37,18 +57,21 @@ try {
     Copy-Item $File (Join-Path $Work $Name)
     if (Test-Path "$File.sha256") { Copy-Item "$File.sha256" (Join-Path $Work "$Name.sha256") }
   } else {
+    $UrlFeed = $Feed -match '^https?://'
+    $Api = if ($UrlFeed) { $Feed.TrimEnd("/") } else { "https://api.github.com/repos/$Feed" }
     if (-not $Version) {
       Say "Looking for the newest APX in $Feed"
       $releases = Invoke-RestMethod -Headers @{ "accept" = "application/vnd.github+json"; "user-agent" = "apx-install" } `
-        -Uri "https://api.github.com/repos/$Feed/releases?per_page=30"
+        -Uri "$Api/releases?per_page=100"
+      # The highest plain vX.Y.Z from 2 up, not the newest by date: a fix to an older line can come after a newer one.
       $tag = $releases | Where-Object { -not $_.draft -and -not $_.prerelease -and $_.tag_name -match '^v([2-9]\d*\.\d+\.\d+)$' } |
-        Select-Object -First 1
+        Sort-Object { [version]$_.tag_name.Substring(1) } -Descending | Select-Object -First 1
       if (-not $tag) { Die "no APX release found in $Feed" }
       $Version = $tag.tag_name.Substring(1)
     }
     $Version = $Version.TrimStart("v")
     $Name = "apx-core-$Version-win-$Arch.tar.gz"
-    $Base = "https://github.com/$Feed/releases/download/v$Version"
+    $Base = if ($UrlFeed) { "$Api/download/v$Version" } else { "https://github.com/$Feed/releases/download/v$Version" }
     Say "Downloading APX $Version (win-$Arch)"
     Invoke-WebRequest -Uri "$Base/$Name" -OutFile (Join-Path $Work $Name)
     Invoke-WebRequest -Uri "$Base/$Name.sha256" -OutFile (Join-Path $Work "$Name.sha256")
@@ -101,7 +124,7 @@ try {
   New-Item -ItemType Junction -Path $current -Target $target | Out-Null
 
   # 6. The `apx` command, always through `current`, on the user's PATH.
-  $bin = Join-Path $App "bin"
+  $bin = $Bin
   New-Item -ItemType Directory -Force -Path $bin | Out-Null
   @"
 @echo off
@@ -119,6 +142,8 @@ if not defined APX_APP set "APX_APP=$App"
 
   # 7. The daemon at login, started again if it stops.
   if (-not $NoService) {
+    # A feed other than the public one (a test feed, a mirror) is where this install keeps updating from.
+    if ($Feed -ne "agentprojectcontext/apx") { $env:APX_RELEASES = $Feed }
     Say "Starting the APX daemon"
     & (Join-Path $bin "apx.cmd") service install
     if ($LASTEXITCODE -ne 0) { Warn "the service did not install; run: apx service install" }

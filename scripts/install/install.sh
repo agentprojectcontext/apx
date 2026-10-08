@@ -5,7 +5,8 @@
 #   curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash
 #   bash install.sh --file apx-core-2.2.0-linux-x64.tar.gz      # a bundle you already have (no download)
 #
-# Options: --file <bundle>  --version <x.y.z>  --feed <owner/repo>  --no-service
+# Options: --file <bundle>  --version <x.y.z>  --feed <owner/repo | http(s) URL>  --no-service  --uninstall
+# A feed URL is a GitHub-shaped test feed (scripts/install/feed.ts): <url>/releases and <url>/download/v<x.y.z>/<file>.
 # It lands in ~/.apx/v2/app (APX_APP to change it); your data stays in ~/.apx/v2, and APX v1's files in ~/.apx are never
 # touched. If APX v1 is installed, its daemon is stopped and its `apx` command removed: this one takes its place.
 set -euo pipefail
@@ -16,6 +17,7 @@ BIN="$HOME/.local/bin"
 FILE=""
 VERSION=""
 SERVICE=1
+UNINSTALL=0
 
 say() { printf '\033[1m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[33mwarning:\033[0m %s\n' "$*" >&2; }
@@ -30,8 +32,9 @@ while [ $# -gt 0 ]; do
     --version) VERSION="${2:?--version needs x.y.z}"; VERSION="${VERSION#v}"; shift 2 ;;
     --feed) FEED="${2:?--feed needs owner/repo}"; shift 2 ;;
     --no-service) SERVICE=0; shift ;;
+    --uninstall) UNINSTALL=1; shift ;;
     -h | --help)
-      echo "usage: install.sh [--file <apx-core-…tar.gz>] [--version x.y.z] [--feed owner/repo] [--no-service]"
+      echo "usage: install.sh [--file <apx-core-…tar.gz>] [--version x.y.z] [--feed owner/repo|url] [--no-service] [--uninstall]"
       exit 0
       ;;
     *) die "unknown option: $1 (see --help)" ;;
@@ -48,6 +51,18 @@ case "$(uname -m)" in
   arm64 | aarch64) ARCH=arm64 ;;
   *) die "no APX bundle for $(uname -m)" ;;
 esac
+
+# --uninstall: the service and the program go; the data in ~/.apx/v2 stays (delete it yourself to start over).
+if [ "$UNINSTALL" = 1 ]; then
+  if [ -x "$BIN/apx" ] && [ -e "$APP/current" ]; then
+    say "Stopping the APX daemon"
+    APX_APP="$APP" "$BIN/apx" service uninstall || warn "the service did not uninstall; see apx service status"
+  fi
+  rm -rf "$APP"
+  if [ -f "$BIN/apx" ] && grep -q 'written by install.sh' "$BIN/apx"; then rm -f "$BIN/apx"; fi
+  say "APX is uninstalled. Your data is still in ${APX_HOME:-$HOME/.apx/v2}"
+  exit 0
+fi
 
 need() { command -v "$1" >/dev/null 2>&1 || die "$1 is needed (install it and run this again)"; }
 need tar
@@ -72,18 +87,28 @@ if [ -n "$FILE" ]; then
   if [ -f "$FILE.sha256" ]; then cp "$FILE.sha256" "$WORK/$NAME.sha256"; fi
 else
   need curl
+  case "$FEED" in
+    http://* | https://*) API="${FEED%/}" ;;
+    *) API="https://api.github.com/repos/$FEED" ;;
+  esac
   if [ -z "$VERSION" ]; then
     say "Looking for the newest APX in $FEED"
-    # Newest first; plain vX.Y.Z tags from 2 up (v1's and pre-releases are left out).
-    VERSION="$(curl -fsSL -H 'accept: application/vnd.github+json' "https://api.github.com/repos/$FEED/releases?per_page=30" |
-      grep -o '"tag_name": *"v[2-9][0-9]*\.[0-9]*\.[0-9]*"' | head -n1 | sed 's/.*"v\([^"]*\)"/\1/')" ||
-      true
+    # The highest plain vX.Y.Z from 2 up (v1's tags and pre-releases are left out), not the newest by date: a fix
+    # to an older line can be published after a newer one.
+    VERSION="$(curl -fsSL -H 'accept: application/vnd.github+json' "$API/releases?per_page=100" |
+      grep -o '"tag_name": *"v[2-9][0-9]*\.[0-9]*\.[0-9]*"' | sed 's/.*"v\([^"]*\)"/\1/' |
+      sort -t. -k1,1n -k2,2n -k3,3n | tail -n1)" || true
     [ -n "$VERSION" ] || die "no APX release found in $FEED"
   fi
   NAME="apx-core-$VERSION-$OS-$ARCH.tar.gz"
-  BASE="https://github.com/$FEED/releases/download/v$VERSION"
+  case "$FEED" in
+    http://* | https://*) BASE="$API/download/v$VERSION" ;;
+    *) BASE="https://github.com/$FEED/releases/download/v$VERSION" ;;
+  esac
   say "Downloading APX $VERSION ($OS-$ARCH)"
-  curl -fL --progress-bar -o "$WORK/$NAME" "$BASE/$NAME" || die "could not download $BASE/$NAME"
+  # A bar for a person at a terminal; quiet when another program reads the output (the desktop app over SSH).
+  if [ -t 2 ]; then BAR=--progress-bar; else BAR=-sS; fi
+  curl -fL "$BAR" -o "$WORK/$NAME" "$BASE/$NAME" || die "could not download $BASE/$NAME"
   curl -fsSL -o "$WORK/$NAME.sha256" "$BASE/$NAME.sha256" || die "could not download $NAME.sha256"
 fi
 
@@ -121,7 +146,10 @@ if [ -f "$HOME/Library/LaunchAgents/dev.apx.daemon.plist" ]; then
 fi
 if command -v npm >/dev/null 2>&1 && npm ls -g --depth=0 @agentprojectcontext/apx >/dev/null 2>&1; then
   say "Removing APX v1's apx command (its files in ~/.apx stay, to import them)"
-  npm uninstall -g @agentprojectcontext/apx >/dev/null 2>&1 || warn "could not remove v1 (npm uninstall -g @agentprojectcontext/apx)"
+  # A global installed with sudo needs sudo to go: tried only when it asks for no password.
+  npm uninstall -g @agentprojectcontext/apx >/dev/null 2>&1 ||
+    { command -v sudo >/dev/null 2>&1 && sudo -n npm uninstall -g @agentprojectcontext/apx >/dev/null 2>&1; } ||
+    warn "APX v1's apx is still in $(dirname "$(command -v apx)"). Remove it:  sudo npm uninstall -g @agentprojectcontext/apx"
 fi
 
 # 5. The `apx` command, always through `current` so an update is picked up without touching it.
@@ -137,23 +165,36 @@ chmod 755 "$BIN/apx"
 case ":$PATH:" in
   *":$BIN:"*) ;;
   *)
+    added=0
     for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.profile"; do
       if [ -f "$rc" ] && ! grep -q '.local/bin' "$rc"; then
         printf '\n# Added by the APX installer\nexport PATH="$HOME/.local/bin:$PATH"\n' >>"$rc"
+        added=1
       fi
     done
-    warn "$BIN was not on your PATH: added to your shell's startup file. Open a new terminal, or run: export PATH=\"$BIN:\$PATH\""
+    if [ "$added" = 1 ]; then
+      warn "$BIN was not on your PATH: added to your shell's startup file. Open a new terminal, or run: export PATH=\"$BIN:\$PATH\""
+    fi
     ;;
 esac
 
 # 6. The daemon as a service: started now, at login, and again if it stops (systemd user unit or launchd agent).
 if [ "$SERVICE" = 1 ]; then
   say "Starting the APX daemon as a service"
+  # A feed other than the public one (a test feed, a mirror) is where this install keeps updating from.
+  if [ "$FEED" != agentprojectcontext/apx ]; then export APX_RELEASES="$FEED"; fi
   APX_APP="$APP" "$BIN/apx" service install || warn "the service did not install; run: apx service install"
 fi
 
-say "APX $VERSION is installed. Try: apx status"
-if [ "$OS" = linux ] && [ "$SERVICE" = 1 ]; then
-  echo "    On a server, keep it running after you log out:  sudo loginctl enable-linger $(id -un)"
+# 7. On Linux a user's services stop when their last session ends (an SSH logout) unless the user lingers. Over SSH
+# that takes root (polkit allows it to a user only at a local seat): sudo when it asks for no password.
+if [ "$OS" = linux ] && [ "$SERVICE" = 1 ] && command -v loginctl >/dev/null 2>&1; then
+  if [ "$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null)" != yes ]; then
+    loginctl enable-linger "$(id -un)" >/dev/null 2>&1 ||
+      { command -v sudo >/dev/null 2>&1 && sudo -n loginctl enable-linger "$(id -un)" >/dev/null 2>&1; } ||
+      warn "APX stops when you log out. To keep it running, run once:  sudo loginctl enable-linger $(id -un)"
+  fi
 fi
+
+say "APX $VERSION is installed. Try: apx status"
 echo "    To use it from another computer: apx expose tailscale (or lan), then apx pair"
