@@ -6,6 +6,7 @@ import path from "node:path";
 import {
   app,
   BaseWindow,
+  clipboard,
   dialog,
   globalShortcut,
   ipcMain,
@@ -23,6 +24,7 @@ import { type Bounds, createPopout } from "./browser/popout.ts";
 import { computerPermissions, createComputer, openPrivacy } from "./computer.ts";
 import { createConnector } from "./connector.ts";
 import { createCursor } from "./cursor.ts";
+import { editMenu } from "./edit-menu.ts";
 import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
@@ -88,6 +90,17 @@ app.whenReady().then(() => {
   });
   app.on("activate", openMain);
   app.on("second-instance", openMain);
+  // Every page (the panel, the quick chat, browser tabs) gets the edit menu on a right click.
+  app.on("web-contents-created", (_e, contents) => {
+    contents.on("context-menu", (_ev, params) => {
+      const items = editMenu(params, app.getLocale(), {
+        replaceMisspelling: (word) => contents.replaceMisspelling(word),
+        addToDictionary: (word) => contents.session.addWordToSpellCheckerDictionary(word),
+        copyText: (text) => clipboard.writeText(text),
+      });
+      if (items.length) Menu.buildFromTemplate(items).popup({ frame: params.frame ?? undefined });
+    });
+  });
   serveAppScheme("persist:apx-ui", webDist(DIST));
   const host = new BrowserHost();
   blockAppOrigins([CORE_URL, WEB_URL]);
