@@ -30,6 +30,7 @@ import { browserHandlers } from "./rpc/browser.ts";
 import { channelHandlers } from "./rpc/channels.ts";
 import { clientHandlers } from "./rpc/clients.ts";
 import { composerHandlers } from "./rpc/composer.ts";
+import { computerHandlers } from "./rpc/computer.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
@@ -60,6 +61,7 @@ import type { Secrets } from "./secrets.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
 import { chatTools } from "./tools/chats.ts";
+import { computerTools } from "./tools/computer.ts";
 import { contactTools } from "./tools/contact.ts";
 import { directoryTools } from "./tools/directory.ts";
 import { fileTools } from "./tools/files.ts";
@@ -127,6 +129,7 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...memoryTools(),
     ...mediaTools(),
     ...phoneTools(),
+    ...computerTools(),
     ...taskTools(),
     ...videoTools(findProgram("yt-dlp")),
     ...webTools(),
@@ -206,6 +209,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...deviceHandlers(d.store, { addresses: d.addresses }),
     ...accessHandlers(d.access),
     ...phoneHandlers(d.broker, d.store, d.app.home),
+    ...computerHandlers(d.broker, d.store, d.app.home),
     ...extensionHandlers(d.extensions, d.mcp),
     ...mcpHandlers(d.mcp, d.store),
     ...integrationHandlers({ store: d.store, secrets: d.secrets, mcp: d.mcp }),

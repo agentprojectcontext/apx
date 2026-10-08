@@ -1,7 +1,9 @@
-// Keeps the desktop connected to the core as a node lending "browser". Reconnects with backoff, forever.
-import { BROWSER_CAP } from "@apx/protocol";
+// Keeps the desktop connected to the core as a node lending "browser" (and "computer" when the owner turned it on).
+// Reconnects with backoff, forever.
+import { BROWSER_CAP, COMPUTER_CAP } from "@apx/protocol";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import type { BrowserHost } from "./browser/host.ts";
+import { computerUseOn, handleComputer } from "./computer.ts";
 
 export function startNodeLink(
   host: BrowserHost,
@@ -20,8 +22,12 @@ export function startNodeLink(
 
   const loop = async (delay: number): Promise<void> => {
     try {
-      socket = await client.connect("node", [BROWSER_CAP]);
-      socket.onRequest((method, params) => host.handle(method, params));
+      // Computer use is lent only when the owner turned it on for this computer.
+      const caps = computerUseOn() ? [BROWSER_CAP, COMPUTER_CAP] : [BROWSER_CAP];
+      socket = await client.connect("node", caps);
+      socket.onRequest((method, params) =>
+        method.startsWith("computer.") ? handleComputer(method, params) : host.handle(method, params),
+      );
       onStatus("connected");
       delay = 500;
       await socket.closed;

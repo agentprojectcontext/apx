@@ -27,6 +27,11 @@ export type PushTarget = z.infer<typeof PushTarget>;
 /** What a phone lends the core as a node: where it is, and its camera (the owner takes the picture). */
 export const PHONE_LOCATION_CAP = "location";
 export const PHONE_CAMERA_CAP = "camera";
+/**
+ * What the desktop lends when the owner turned computer use on there: looking at the screen and acting on the window
+ * in front. Off unless the owner opts in on that computer.
+ */
+export const COMPUTER_CAP = "computer";
 
 export const AccessMode = z.enum(["local", "lan", "tailscale"]);
 export type AccessMode = z.infer<typeof AccessMode>;
@@ -114,6 +119,41 @@ export const deviceMethods = {
   "phone.photo": {
     params: z.object({ reason: z.string().max(200).optional(), thread: Id.optional() }).strict(),
     result: z.object({ media: z.object({ id: Id, mime: z.string() }) }),
+    effect: true,
+  },
+  /**
+   * The desktop, as a node: a picture of the screen (kept as media), the app and window in front, and what that window
+   * shows as accessible elements (buttons, toggles, fields, with their values).
+   */
+  "computer.snapshot": {
+    params: z.object({ thread: Id.optional() }).strict(),
+    result: z.object({
+      media: z.object({ id: Id, mime: z.string() }),
+      app: z.string(),
+      window: z.string(),
+      elements: z.string(),
+    }),
+    effect: true,
+  },
+  /**
+   * A click at a point of the screen, only if `app` is still the app in front (the owner approved it for that app):
+   * otherwise nothing happens and the call fails.
+   */
+  "computer.click": {
+    params: z
+      .object({
+        x: z.number().int().min(0).max(20_000),
+        y: z.number().int().min(0).max(20_000),
+        app: z.string().min(1).max(120),
+      })
+      .strict(),
+    result: z.object({ app: z.string() }),
+    effect: true,
+  },
+  /** Types text into the focused field of `app`, never into a password field. */
+  "computer.type": {
+    params: z.object({ text: z.string().min(1).max(2000), app: z.string().min(1).max(120) }).strict(),
+    result: z.object({ app: z.string() }),
     effect: true,
   },
   "devices.revoke": {
