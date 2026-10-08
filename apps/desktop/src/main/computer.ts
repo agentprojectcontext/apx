@@ -23,6 +23,7 @@ function osa(script: string, args: string[] = [], language = "AppleScript"): Pro
       { timeout: OSA_MS, maxBuffer: 4 * 1024 * 1024 },
       (err, out, stderr) => {
         if (!err) return resolve(out.trimEnd());
+        if (err.killed) return reject(new Error("timed out"));
         // osascript's own words ("execution error: … (-1743)"), not the script it ran.
         const why =
           String(stderr)
@@ -207,7 +208,11 @@ export function createComputer(o: { cursor: AgentCursor; onActivity(a: ComputerA
 
   async function look(app?: string) {
     if (app) await osa(ACTIVATE, [app]).catch(() => {});
-    const f = await front(true);
+    // A busy window (a long list) can take longer to read than to see: then the picture goes alone.
+    const f = await front(true).catch(async () => ({
+      ...(await front(false)),
+      lines: ["(this window's elements took too long to read: use the picture)"],
+    }));
     target = { app: f.app, window: f.window, bounds: f.bounds };
     const img = await picture(f.bounds, SHOT_MAX);
     const where = f.bounds
