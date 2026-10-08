@@ -611,3 +611,14 @@ elsewhere the owner copies it (`surfaces.copy`: into another project, or global 
 app from the sidebar in any project, or publishes its link; an agent never reaches into another project's widgets.
 Files come in only if a widget needs more than one (scripts, images) or a history of its versions: then its content
 goes to `projects/<id>/widgets/<name>/` and the row keeps the rest.
+
+<a id="d-056"></a>
+## D-056 — 2026-10-08 — Computer use ships on macOS; total autonomy clicks without asking, the turn limit still asks
+The spike passed on a real Mac (three screens, System Settings and Chrome), so computer use is a product feature,
+off until the owner turns it on in Config › Desktop. Looking asks (`ask`); clicking, typing and keys are `always`, so
+in total autonomy they run without a question, as D-047 says for every `always` tool. What still holds in total: the
+switch itself, the two macOS permissions, the emergency stop (it ends every run using the computer, for that turn
+only), the question every 60 actions in one turn (a question, not a confirmation, so autonomy does not skip it), a
+refused password field, a refused click where another app's window covers the point, and a real click that waits for
+the owner's mouse to rest. Reading every element of a large window can outlast its time limit: the look then comes
+back with the picture alone and says so. Windows and Linux do not lend the capability yet.
