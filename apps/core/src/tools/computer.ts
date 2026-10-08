@@ -22,12 +22,6 @@ export function computerTools(): Tool[] {
       title: () => "Looked at your screen",
       async run(a, ctx) {
         const r = await ctx.call("computer.snapshot", { thread: ctx.thread.id, ...(a.app ? { app: a.app } : {}) });
-        ctx.upsertPart((p) => p.type === "image" && p.media_id === r.media.id, {
-          type: "image",
-          media_id: r.media.id,
-          mime: r.media.mime,
-          alt: `The screen: ${r.app}${r.window ? ` · ${r.window}` : ""}`,
-        });
         return untrusted("screen", { app: r.app, window: r.window }, r.elements || "(no accessible elements)");
       },
     }),

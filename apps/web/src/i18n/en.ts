@@ -378,6 +378,8 @@ export const en = {
   "tools.working": "Working · action {n}",
   "tools.waiting": "Waiting for you · action {n}",
   "tools.summary": "Actions 1–{n} of {n}",
+  "tools.computer.working": "Controlling the computer…",
+  "tools.computer.done": "Controlled the computer · {n} actions",
   "tools.failed.one": "failed",
   "tools.failed.other": "failed",
   "run.submitted": "Sent",
@@ -1050,7 +1052,6 @@ export const en = {
   "live.bigger": "Make it bigger",
   "live.smaller": "Make it smaller",
   "live.hide": "Hide",
-  "live.paused": "Paused",
   "live.wait": "Waiting for the screen…",
   "error.desktop": "Desktop: {error}",
   "tg.itsMeHint":

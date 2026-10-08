@@ -1,6 +1,7 @@
 import type { Part } from "@apx/protocol";
 import { ActionGroup, type ActionItem, Icons, Spinner } from "@apx/ui";
 import { useT } from "../../i18n/index.ts";
+import { ComputerIcon } from "./ComputerIcon.tsx";
 
 type ToolPart = Extract<Part, { type: "tool" }>;
 
@@ -15,6 +16,8 @@ export function ToolGroup({ parts, waiting = false }: { parts: ToolPart[]; waiti
   const n = parts.length;
   const failed = parts.filter((p) => p.status === "error").length;
   const running = parts.some((p) => p.status === "running");
+  // Computer use reads as one thing: the agent controlling the computer, not a list of pictures.
+  const computer = parts.length > 0 && parts.every((p) => p.tool.startsWith("screen_"));
   const items: ActionItem[] = parts.map((p) => ({
     name: p.tool,
     detail: p.title,
@@ -23,8 +26,24 @@ export function ToolGroup({ parts, waiting = false }: { parts: ToolPart[]; waiti
   return (
     <ActionGroup
       className="turn__tools"
-      title={running ? t(waiting ? "tools.waiting" : "tools.working", { n }) : t("tools.summary", { n })}
-      icon={running ? waiting ? <Icons.Hand size={14} /> : <Spinner size={14} /> : undefined}
+      title={
+        computer
+          ? t(running && !waiting ? "tools.computer.working" : running ? "tools.waiting" : "tools.computer.done", { n })
+          : running
+            ? t(waiting ? "tools.waiting" : "tools.working", { n })
+            : t("tools.summary", { n })
+      }
+      icon={
+        computer ? (
+          <ComputerIcon busy={running && !waiting} size={15} />
+        ) : running ? (
+          waiting ? (
+            <Icons.Hand size={14} />
+          ) : (
+            <Spinner size={14} />
+          )
+        ) : undefined
+      }
       failed={failed}
       failedLabel={failed === 1 ? t("tools.failed.one") : t("tools.failed.other")}
       items={items}

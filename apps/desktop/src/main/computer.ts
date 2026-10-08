@@ -243,7 +243,8 @@ export function createComputer(o: { cursor: AgentCursor; onActivity(a: ComputerA
       if (method === "computer.click") {
         const x = Number(p.x);
         const y = Number(p.y);
-        // The owner sees where it is about to click before it does.
+        // Approved for this app: bring it back to the front (the owner may have switched), then show where it clicks.
+        await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
         await o.cursor.moveTo(x, y, p.app ?? "");
         const app = await osa(CLICK, [String(p.app ?? ""), String(x), String(y)], "JavaScript");
         o.cursor.pulse();
@@ -251,6 +252,7 @@ export function createComputer(o: { cursor: AgentCursor; onActivity(a: ComputerA
         return { app };
       }
       if (method === "computer.type") {
+        await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
         o.cursor.label("⌨");
         const app = await osa(TYPE, [String(p.app ?? ""), String(p.text ?? "")]);
         o.onActivity({ kind: "type", app, window: target?.window ?? "" });

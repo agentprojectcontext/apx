@@ -1,5 +1,5 @@
 // Computer use through a fake desktop node: the tools exist only while a node lends "computer"; looking at the screen
-// waits for the owner and comes back as outside content; a click always waits, and a denied one never reaches the node.
+// waits for the owner and comes back as outside content, with no picture in the chat; a click always waits, and a denied one never reaches the node.
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -83,10 +83,8 @@ test("computer use exists only while the desktop lends it; looking at the screen
   await answer(thread, "approve");
   await settle(thread);
   const parts = (await owner.call("threads.get", { thread })).messages.flatMap((m) => m.parts);
-  assert.ok(
-    parts.some((p) => p.type === "image"),
-    "the picture of the screen is shown in the chat",
-  );
+  // The chat shows "controlling the computer" and the live view, not a picture per look.
+  assert.ok(!parts.some((p) => p.type === "image"), "no picture of the screen lands in the chat");
   const seen = String(llm.calls.at(-1)?.messages.at(-1)?.content);
   assert.match(seen, /AXCheckBox\tWi-Fi/);
   assert.ok(seen.includes(UNTRUSTED_MARK), "what the screen shows reaches the model as outside content");

@@ -526,6 +526,9 @@
   width: min(640px, calc(100% - 32px));
 }
 .screenlive__head {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -543,9 +546,6 @@
 }
 .screenlive__window {
   color: var(--apx-fg-muted);
-}
-.screenlive__paused {
-  font-size: 11px;
 }
 .screenlive__view {
   position: relative;
@@ -573,10 +573,11 @@
   box-shadow: 0 0 0 4px rgba(47, 182, 124, 0.35);
   pointer-events: none;
 }
+/* Hidden, it waits as a pill at the top right of the chat, under its header: easy to find, out of the way. */
 .screenlive__pill {
   position: absolute;
   right: 16px;
-  bottom: 96px;
+  top: 64px;
   z-index: 20;
   display: inline-flex;
   align-items: center;
@@ -588,4 +589,28 @@
   color: var(--apx-fg);
   font-size: 12px;
   cursor: pointer;
+}
+.computer-icon {
+  color: var(--apx-brand, #2fb67c);
+  flex: none;
+}
+.computer-icon.is-busy .computer-icon__pointer {
+  animation: computer-pointer 1.6s ease-in-out infinite;
+}
+@keyframes computer-pointer {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  35% {
+    transform: translate(2.5px, -1.5px);
+  }
+  70% {
+    transform: translate(-1px, 1.5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .computer-icon.is-busy .computer-icon__pointer {
+    animation: none;
+  }
 }

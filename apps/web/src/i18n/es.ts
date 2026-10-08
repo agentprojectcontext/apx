@@ -384,6 +384,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tools.working": "Trabajando · acción {n}",
   "tools.waiting": "Esperándote · acción {n}",
   "tools.summary": "Acciones 1–{n} de {n}",
+  "tools.computer.working": "Controlando el equipo…",
+  "tools.computer.done": "Controló el equipo · {n} acciones",
   "tools.failed.one": "falló",
   "tools.failed.other": "fallaron",
   "run.submitted": "Enviado",
@@ -1051,7 +1053,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "live.bigger": "Agrandar",
   "live.smaller": "Achicar",
   "live.hide": "Ocultar",
-  "live.paused": "En pausa",
   "live.wait": "Esperando la pantalla…",
   "error.desktop": "Escritorio: {error}",
   "tg.itsMeHint":
