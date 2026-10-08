@@ -78,10 +78,10 @@ export function computerTools(store: Store): Tool[] {
     defineTool({
       name: "screen_open",
       description:
-        "Open a web address straight away (in app, a browser such as Google Chrome, as a new tab; else the default browser), or open an app. Faster than clicking through: use it to go to a site or a search results page (put the search in the URL).",
+        'Open a web address straight away, as a new tab in app (a browser), or open an app. When the owner names a browser ("in my Chrome"), always pass it as app, here and in every other screen_ tool: without app it opens in their default browser, which may be another one. Faster than clicking through: go to a site or a search results page directly (put the search in the URL).',
       args: z.object({
         url: z.string().url().max(2000).optional(),
-        app: z.string().min(1).max(120).optional(),
+        app: z.string().min(1).max(120).optional().describe('the browser or app, e.g. "Google Chrome"'),
         note: NOTE,
       }),
       effect: "external",

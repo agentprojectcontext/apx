@@ -116,25 +116,25 @@ on run argv
   end tell
 end run`;
 
-/** Keys in the app in front: argv = app, "code" or "text", the key code or character, the modifiers ("cmd shift"). */
+/**
+ * Real keyboard events (CoreGraphics, in JavaScript for Automation): argv = app, key code, modifier flags. System
+ * Events' keystroke is not used: macOS refuses it to helper processes even with Accessibility allowed.
+ */
 const KEY = `
-on run argv
-  tell application "System Events"
-    set frontName to name of first application process whose frontmost is true
-    if frontName is not (item 1 of argv) then error "the app in front is " & frontName & ", not " & (item 1 of argv)
-    set mods to {}
-    if (item 4 of argv) contains "cmd" then set end of mods to command down
-    if (item 4 of argv) contains "shift" then set end of mods to shift down
-    if (item 4 of argv) contains "option" then set end of mods to option down
-    if (item 4 of argv) contains "ctrl" then set end of mods to control down
-    if (item 2 of argv) is "code" then
-      key code ((item 3 of argv) as integer) using mods
-    else
-      keystroke (item 3 of argv) using mods
-    end if
-    return frontName
-  end tell
-end run`;
+function run(argv) {
+  ObjC.import("CoreGraphics");
+  const front = Application("System Events").processes.whose({ frontmost: true })[0].name();
+  if (front !== argv[0]) throw new Error("the app in front is " + front + ", not " + argv[0]);
+  const code = Number(argv[1]);
+  const flags = Number(argv[2]);
+  for (const down of [true, false]) {
+    const e = $.CGEventCreateKeyboardEvent(null, code, down);
+    if (flags) $.CGEventSetFlags(e, flags);
+    $.CGEventPost($.kCGHIDEventTap, e);
+    delay(0.02);
+  }
+  return front;
+}`;
 
 /**
  * A real mouse click (CoreGraphics events, in JavaScript for Automation): it moves the pointer there and presses, so
@@ -164,22 +164,45 @@ function run(argv) {
 }`;
 
 const TYPE = `
-on run argv
-  tell application "System Events"
-    set frontName to name of first application process whose frontmost is true
-    if frontName is not (item 1 of argv) then error "the app in front is " & frontName & ", not " & (item 1 of argv)
-    tell process frontName
-      set f to value of attribute "AXFocusedUIElement"
-      set sub to ""
-      try
-        set sub to value of attribute "AXSubrole" of f
-      end try
-      if sub is "AXSecureTextField" then error "the focused field is a password field: the owner types it"
-    end tell
-    keystroke (item 2 of argv)
-    return frontName
-  end tell
-end run`;
+function run(argv) {
+  ObjC.import("AppKit");
+  ObjC.import("CoreGraphics");
+  const proc = Application("System Events").processes.whose({ frontmost: true })[0];
+  const front = proc.name();
+  if (front !== argv[0]) throw new Error("the app in front is " + front + ", not " + argv[0]);
+  let sub = "";
+  try {
+    sub = proc.attributes.byName("AXFocusedUIElement").value().attributes.byName("AXSubrole").value();
+  } catch (e) {}
+  if (sub === "AXSecureTextField") throw new Error("the focused field is a password field: the owner types it");
+  // Pasted, not typed key by key: fast, any language; the owner's clipboard is put back right after.
+  const pb = $.NSPasteboard.generalPasteboard;
+  // Everything it held (text, an image, files), item by item, to put back as it was.
+  const saved = [];
+  const items = pb.pasteboardItems;
+  for (let i = 0; i < items.count; i++) {
+    const item = items.objectAtIndex(i);
+    const copy = $.NSPasteboardItem.alloc.init;
+    for (let j = 0; j < item.types.count; j++) {
+      const type = item.types.objectAtIndex(j);
+      const data = item.dataForType(type);
+      if (!data.isNil()) copy.setDataForType(data, type);
+    }
+    saved.push(copy);
+  }
+  pb.clearContents;
+  pb.setStringForType($(argv[1]), $.NSPasteboardTypeString);
+  for (const down of [true, false]) {
+    const e = $.CGEventCreateKeyboardEvent(null, 9, down);
+    $.CGEventSetFlags(e, 0x100000);
+    $.CGEventPost($.kCGHIDEventTap, e);
+    delay(0.02);
+  }
+  delay(0.25);
+  pb.clearContents;
+  if (saved.length) pb.writeObjects($(saved));
+  return front;
+}`;
 
 /** Whose window is really on top at a screen point (normal windows only): "pid<TAB>name", or "" for none. */
 const TOP_AT = `
@@ -345,7 +368,7 @@ export function createComputer(o: {
         await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
         go();
         o.cursor.say(p.note || `⌨ ${p.keys}`);
-        const app = await osa(KEY, [String(p.app ?? ""), k.kind, k.key, k.mods]);
+        const app = await osa(KEY, [String(p.app ?? ""), String(k.code), String(k.flags)], "JavaScript");
         o.onActivity({ kind: "type", app, window: target?.window ?? "" });
         return { app };
       }
@@ -366,7 +389,7 @@ export function createComputer(o: {
         await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
         go();
         o.cursor.say(p.note || "⌨");
-        const app = await osa(TYPE, [String(p.app ?? ""), String(p.text ?? "")]);
+        const app = await osa(TYPE, [String(p.app ?? ""), String(p.text ?? "")], "JavaScript");
         o.onActivity({ kind: "type", app, window: target?.window ?? "" });
         return { app };
       }
