@@ -1,0 +1,145 @@
+---
+title: App de escritorio
+description: La app de APX para macOS, Windows y Linux, con el panel, un chat rápido, el navegador que manejan tus agentes y la elección de a qué APX se conecta.
+sidebar:
+  order: 1
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+
+La app de escritorio es la forma más cómoda de convivir con APX. Su ventana es el panel, el mismo que el core le sirve
+a un navegador. Alrededor, la app suma tres cosas que una página web no puede: un ícono en la barra de menú con un chat
+rápido, un navegador de verdad que tus agentes pueden manejar y (en una Mac) la opción de dejar que los agentes usen
+tu computadora.
+
+## La ventana
+
+La ventana principal es el panel: Inbox, Tareas, Proyectos, Configuración y todo lo demás que cuentan estas páginas.
+Cerrarla solo la esconde. Las pestañas del navegador y la conexión con el core siguen vivas, y el Dock, el ícono de la
+barra de menú o abrir APX de nuevo la traen de vuelta. Lo que la cierra de verdad es **Salir**.
+
+Corre un solo APX a la vez: si lo abrís otra vez, trae al frente el que ya está corriendo.
+
+## El ícono de la barra de menú y el chat rápido
+
+APX pone un ícono en la barra de menú (en la bandeja del sistema en Windows y Linux):
+
+- **Un clic** abre el chat rápido, una ventanita de 400×600 debajo del ícono con tu chat Home (la secretaria). Se
+  vuelve a esconder cuando pierde el foco.
+- **Doble clic** abre la ventana principal.
+- **Clic derecho** muestra el menú: **Abrir APX**, **Chat rápido** y **Salir de APX**.
+
+Cuando algo te está esperando, el ícono muestra un globito con la cantidad (en una Mac, también al lado del ícono y en
+el Dock).
+
+El chat rápido además tiene un **atajo global** que lo abre y lo cierra desde cualquier app, centrado cerca del borde
+de arriba de la pantalla. Es `Alt+Space` hasta que lo cambies. También está **Chat rápido** en el menú **Ventana** de
+la app.
+
+## Configuración › Escritorio
+
+<Shot name="settings-desktop" alt="Configuración, sección Escritorio: el atajo del chat rápido, abrir al iniciar y el uso de la computadora con sus permisos de macOS" caption="Configuración › Escritorio" />
+
+Estos ajustes se guardan en el core, pero solo aplican dentro de la app de escritorio (en un navegador común, la
+sección lo avisa).
+
+| Ajuste | Qué hace |
+|---|---|
+| **Atajo** | El atajo global del chat rápido. Hacé clic y apretá las teclas. **Quitar** lo deja sin atajo. Si otra app ya usa esas teclas, APX te avisa. |
+| **Abrir al iniciar la compu** | APX se abre cuando iniciás sesión. Viene prendido. |
+| **Dejar que los agentes usen esta computadora** | El uso de la computadora, solo en macOS y apagado hasta que lo prendas. Mirá abajo. |
+
+### Uso de la computadora (macOS)
+
+Con el uso de la computadora prendido, los agentes pueden mirar la ventana que está al frente y, con tu OK, hacer clic
+y escribir en ella. Necesita dos permisos de macOS, que aparecen ahí mismo con su estado y un botón **Abrir Ajustes del
+Sistema**: **Grabación de pantalla** (para ver la ventana) y **Accesibilidad** (para leer sus botones y campos, hacer
+clic y escribir).
+
+Algunas cosas valen en cualquier nivel de autonomía, incluso total:
+
+- `⌘⇧Esc` es el freno de emergencia, desde cualquier app. Corta todas las corridas que estén usando la computadora.
+- Cada 60 acciones en un mismo turno, el agente te pregunta antes de seguir.
+- Los campos de contraseña se rechazan.
+
+Mirar la pantalla es una herramienta `ask`; hacer clic, escribir y apretar teclas son herramientas `always`, así que
+preguntan en cualquier autonomía menos total (mirá [Autonomía](/es/concepts/autonomy/)). Windows y Linux todavía no
+prestan esta capacidad.
+
+## El navegador que manejan tus agentes
+
+La app de escritorio se conecta al core como un **nodo**: le presta su `browser` (y `computer`, cuando prendés el uso
+de la computadora). Los agentes abren pestañas ahí, leen páginas, hacen clic y escriben, y vos podés mirar o tomar el
+control cuando quieras. Las pestañas van aparte del panel, así que recargar el panel nunca las cierra.
+
+Sin la app de escritorio, el core usa su propio Chrome sin ventana, que no te puede pasar el control ni usar tus
+sesiones iniciadas. Más en [Navegador](/es/office/browser/).
+
+<Aside type="note">
+El navegador se le presta al core que esta app corre o al que llega por SSH. Una app conectada a un core remoto **por
+dirección** todavía no le presta su navegador.
+</Aside>
+
+## A qué APX se conecta
+
+La primera vez que abrís la app instalada, te pregunta **¿Dónde corre tu APX?**
+
+<Tabs>
+<TabItem label="Servidor (esta compu)">
+
+APX corre acá: la app arranca su propio core. Después te pregunta **¿Desde dónde lo vas a usar?**
+
+- **Solo desde esta computadora**: lo más seguro. Nadie más llega al core.
+- **También desde mi red local**: otros equipos de tu casa u oficina, cada uno con un código de vinculación.
+- **Tailscale**: tus equipos desde cualquier lado, con https. Necesita Tailscale instalado.
+
+Si es la primera vez, después elegís empezar de cero o importar desde APX v1.
+
+Si ya hay un core corriendo en esta compu (puerto `7440`), la app usa ese en vez de arrancar otro.
+
+</TabItem>
+<TabItem label="Cliente (otra máquina)">
+
+APX ya corre en otra compu o en un servidor, y esta app solo se conecta. Dos formas:
+
+- **Dirección**: la URL del core, por ejemplo la de Tailscale. La primera vez, el core le pide a esta app un código de
+  vinculación; lo sacás en ese APX en **Configuración › Conexiones › Dispositivos** o con `apx pair`.
+- **SSH**: `usuario@servidor` (con `:puerto` si hace falta). La app usa tu propio `ssh`, tus claves, tu agente y tu
+  `~/.ssh/config` para traer el core del servidor a esta compu, así que el servidor no abre ningún puerto. Si no puede
+  entrar, si no encuentra APX en el servidor o si el core no responde, te dice cuál de las tres pasó.
+
+</TabItem>
+</Tabs>
+
+Para elegir otro APX más adelante, usá el menú de la app: **APX › Cambiar conexión…**
+
+Cómo preparar el lado del servidor está en [APX en un servidor](/es/devices/server/).
+
+## Actualizaciones
+
+La app instalada se actualiza sola. Cada tantas horas revisa las versiones publicadas y, cuando sale un APX más nuevo,
+el panel lo muestra en la barra de arriba. Cuando vos decís, baja el instalador para tu sistema y lo verifica contra su
+`.sha256`:
+
+- **Linux** (AppImage) y **Windows** terminan solos y vuelven a abrir.
+- **macOS** abre la imagen de disco para que arrastres APX. La app todavía no está firmada, así que no puede
+  reemplazarse sola en silencio.
+
+La app trae su propio core, así que actualizar la app actualiza ese core también. Si la app está conectada a un core
+en un servidor, la actualización que ofrece el panel es la del servidor.
+
+## Correrla desde el código
+
+¿Trabajás en APX? Desde el repositorio:
+
+```bash
+pnpm install
+pnpm app    # compila el panel y la app de escritorio, arranca el core y abre la app
+```
+
+## Para seguir
+
+- [APX en tu teléfono](/es/devices/phone/)
+- [APX en un servidor](/es/devices/server/)
+- [Problemas frecuentes](/es/reference/troubleshooting/)

@@ -1,0 +1,151 @@
+---
+title: Conversaciones
+description: Hilos, turnos y pasos, los tipos de conversación que guarda APX y por qué un turno sobrevive a un reinicio.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps, Tabs, TabItem, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+Todo lo que le decís a un agente, y todo lo que los agentes se dicen entre ellos, vive en una misma forma. Aprendé tres
+palabras y el resto de APX se lee solo.
+
+| Palabra | Quiere decir | Ejemplo |
+|---|---|---|
+| **Hilo** (thread) | Una conversación. | Tu chat con Lucía. |
+| **Turno** (run) | Un turno de un agente en el hilo, guardado con su entrada y su origen antes de empezar. | Lucía respondiendo "Planificá el lanzamiento de Q4". |
+| **Paso** (step) | Una llamada a una herramienta dentro de un turno. | Lucía creando una tarea para Tomás. |
+
+## Una sola conversación en todos lados
+
+El chat de Home es especial: es la misma conversación estés donde estés. Le escribís a Home desde el panel, el chat
+rápido del escritorio, tu teléfono o Telegram, y todo cae en un mismo hilo, con una sola memoria de lo que dijiste.
+Un mensaje por WhatsApp en la parada del colectivo y la continuación en tu escritorio son un chat, no dos.
+
+<Shot name="home-hero" alt="El Inbox con el chat de Home abierto: una charla corta con la secretaria sobre las prioridades del día" caption="Home: una conversación, todos los dispositivos y canales" />
+
+Esto se puede cambiar por canal, para que tus mensajes vayan a un chat propio de ese canal. Mirá
+[Canales](/es/channels/overview/).
+
+## Tipos de hilo
+
+| Tipo | Qué es |
+|---|---|
+| `home` | El chat de Home. Hay uno solo. |
+| `agent` | El chat propio de un agente. |
+| `loose` | Otro chat que abrís con **Nuevo chat**. |
+| `group` | Un chat con varios agentes a la vez. |
+| `a2a` | Un agente pidiéndole algo a otro (o a un ayudante). Aparece como una tarjeta de avance en el chat de quien pidió. |
+| `code` | Un chat que trabaja en una carpeta, con una política de escritura. Más abajo. |
+| `channel` | Una conversación en un canal: el chat de un contacto o una sala. |
+| `task` | La conversación detrás de una tarea. |
+| `routine` | Una ejecución de una rutina. Cada una tiene la suya, con el nombre de la rutina y la hora. |
+
+## Estados de un turno
+
+Un turno pasa por pocos estados. La lista de chats y el menú **Procesos** los muestran a medida que cambian.
+
+| Estado | Quiere decir |
+|---|---|
+| `submitted` | Guardado y en cola. Un hilo corre sus turnos de a uno, en orden. |
+| `working` | El agente está pensando o usando herramientas. |
+| `input-required` | El agente te está esperando: una pregunta o una aprobación. |
+| `completed` | Listo. |
+| `failed` | Algo se rompió. El chat dice qué. |
+| `canceled` | Lo frenaste vos (con /stop, el botón de frenar o `apx threads cancel`). |
+
+Una pregunta que te hace un agente no vence con el turno. El turno termina, el chat muestra que te está esperando, y
+la pregunta queda para responder durante 30 días. Tu respuesta arranca un turno nuevo. Mirá
+[Autonomía y seguridad](/es/concepts/autonomy/).
+
+## Los turnos sobreviven a los reinicios
+
+Cada turno se anota con su entrada antes de empezar, y cada paso antes de que corra su herramienta. Así, cuando APX
+se reinicia (una actualización, un crash, una notebook que se durmió en medio de un turno), nada se pierde en
+silencio:
+
+- Un turno cortado **se retoma una vez**, con una nota corta que le dice al agente por qué se frenó. Un turno que ya
+  era una retomada no se retoma de nuevo, así un loop de crashes se corta solo.
+- Una herramienta que había arrancado y cambia algo se informa como **efecto desconocido**, para que el agente
+  revise antes de reintentar en vez de hacerlo dos veces.
+- Las delegaciones que seguían en curso le reportan a quien las pidió cuando terminan, aunque el turno de esa persona
+  haya terminado hace rato.
+
+## Hilos de código
+
+Un hilo de código es un chat que trabaja en una carpeta dentro de un proyecto registrado, con una regla para lo que
+el agente puede cambiar ahí:
+
+| Política de escritura | El agente… |
+|---|---|
+| `ask` | te pregunta antes de cambiar archivos (por defecto). |
+| `auto` | cambia archivos libremente. |
+| `read-only` | sólo lee. |
+
+Arrancá uno desde un proyecto, o desde la terminal dentro de la carpeta del proyecto:
+
+<Terminal command={'apx chat "Make the coupon field ignore case" --code --cwd ~/work/acme-store --write ask'}>{`Done: codes are trimmed and upper-cased before the check.
+— completed · gemini/gemini-3.8-flash · thread th_4be19c07a2d35e61`}</Terminal>
+
+Un hilo de código también puede ser una **sesión de motor**: un chat con Claude Code, Codex u otro agente ACP en
+persona, con su propio prompt y su configuración, en tu carpeta. Las sesiones que ya tenés en `~/.claude` y
+`~/.codex` aparecen en **Sesiones externas** en la barra lateral, y podés retomar cualquiera desde APX. Mirá
+[Código](/es/office/code/) y [Modelos y motores](/es/concepts/models/).
+
+## Jobs
+
+Algunos trabajos corren de fondo: una delegación de un agente, o un comando de terminal que arrancó un agente (un
+build, un servidor de desarrollo, un script largo). Eso son **jobs**. Un comando de fondo corre como mucho 6 horas, y
+cuando termina despierta al agente que lo arrancó con el final de su salida.
+
+<Terminal command="apx jobs">{`job_9c2e71d04ab83f15     terminal working    pnpm dev
+
+finished:
+job_17ad0e5c9b2f4e88     terminal completed  pnpm test (exit 0)
+job_5f0b8e2a7c1d9346     agent    completed  Tomás: fix the checkout coupon`}</Terminal>
+
+`apx jobs get <job>` muestra la salida de un job, y `apx jobs cancel <job>` lo frena. En el panel, el menú
+**Procesos** de la barra de arriba muestra lo que está corriendo en todos los chats.
+
+## Compactación
+
+Los chats largos pesan. Cuando un hilo crece, APX resume sus turnos viejos en un resumen fijo de cinco partes y deja
+los más nuevos palabra por palabra, así el agente sigue trabajando con un contexto más chico. Un resumen de contenido
+de afuera sigue marcado como de afuera, así las reglas de seguridad no se aflojan.
+
+- Pasa solo con **Resumir los chats largos** en Configuración › Memoria (prendido por defecto).
+- Escribí `/compact` en un chat para hacerlo ya, o corré `apx compact <thread>`.
+- Las sesiones de Claude Code y Codex compactan sus propias transcripciones.
+
+## Desde la terminal
+
+`apx chat` es la única forma de hablarle a un agente desde la terminal. Sin `--agent` ni `--thread`, le habla a Home.
+
+<Terminal command={'apx chat "¿Qué tengo para hoy?"'}>{`Tres cosas: el plan de Q4 de Lucía espera tu OK, Tomás tiene el arreglo del checkout en revisión,
+y Vera programó el newsletter para el viernes a las 9:00.
+— completed · gemini/gemini-3.8-flash · thread home`}</Terminal>
+
+| Comando | Hace |
+|---|---|
+| `apx chat "…" [--agent <id> \| --thread <id>]` | Manda un mensaje y espera la respuesta. `--new` arranca un chat nuevo, `--detach` vuelve enseguida. |
+| `apx chat "…" --interrupt` / `--steer` | Si hay un turno corriendo: lo frena y responde esto, o suma esto al turno en curso. |
+| `apx threads` | Lista los hilos con su estado y tipo. |
+| `apx threads get <thread>` | Muestra los últimos mensajes de un hilo. |
+| `apx threads cancel <thread>` | Frena lo que esté corriendo ahí. |
+| `apx runs get <run>` / `apx runs wait <run> [--timeout 60]` | Un turno en JSON, ahora o cuando termine. |
+| `apx runs pending [thread]` | Lo que los agentes están esperando de vos. |
+| `apx runs respond <input> approve\|deny` | Responde una aprobación. Mirá [Autonomía y seguridad](/es/concepts/autonomy/). |
+| `apx jobs [list] \| get <job> \| cancel <job>` | Trabajo de fondo. |
+| `apx compact <thread>` | Resume ya los turnos viejos de un hilo. |
+
+<Terminal command="apx threads">{`home                   idle       home   Home
+th_4be19c07a2d35e61    completed  code   Lucía · acme-store
+th_a07c33e19d5b2f40    input-required agent  Lucía
+th_e2915bd0c4f7a813    working    routine Daily sales check · 10/8/26, 9:00 AM`}</Terminal>
+
+<CardGrid>
+  <LinkCard title="Chat" description="Todo lo que podés hacer en un chat." href="/es/office/chat/" />
+  <LinkCard title="Memoria" description="Lo que pasa de un hilo a otro." href="/es/concepts/memory/" />
+</CardGrid>

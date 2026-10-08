@@ -1,0 +1,122 @@
+---
+title: Si venís de v1
+description: Qué cambió entre APX v1 y v2, cómo traer tu equipo y cómo correr los dos mientras te pasás.
+sidebar:
+  order: 5
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import Terminal from "../../../../components/Terminal.astro";
+
+APX v2 es una reescritura, no una actualización. Las ideas que te gustaban siguen acá: una secretaria, agentes de
+proyecto, tareas, compromisos, rutinas, canales. Lo que cambió es la cañería de abajo: donde v1 tenía varias formas de
+hacer lo mismo, v2 tiene una. Tus proyectos abren tal cual y la importación trae el resto.
+
+## Qué sigue igual
+
+- **Los proyectos siguen siendo carpetas APC.** `AGENTS.md` y `.apc/` funcionan sin cambios, así que tus proyectos de
+  v1 abren en v2 sin convertir nada. Cada agente sigue siendo un archivo Markdown en `.apc/agents/`.
+- **La oficina sigue ahí.** Tareas con comentarios que llaman a agentes, compromisos con personas, rutinas, memoria
+  por proyecto y por agente.
+- **Tus canales y tu secretaria.** Telegram, WhatsApp y Discord vienen con sus contactos, y tu super-agente mantiene
+  su nombre, su cara y su personalidad.
+
+## Qué cambió
+
+| En v1 | En v2 |
+| --- | --- |
+| Ledgers por canal y día, archivos de sesión, archivos de conversación, archivos de sesiones de código | **Hilos.** Un solo lugar donde vive una conversación, con sus corridas (turnos de agente) y pasos (llamadas a herramientas), todo en una base de datos |
+| El super-agente y sus logs diarios por canal | **Home**, tu secretaria. Su chat es una sola conversación en todos lados; el asistente de configuración todavía le dice super-agente |
+| El proyecto Default | El **proyecto base**: sin carpeta propia, donde viven Home y tus agentes globales. Se sigue llamando Default si no le cambiás el nombre |
+| Engines (proveedores de LLM) | **Proveedores**, que aparecen como motores en Config › Motores y modelos. Los modelos se nombran `motor/modelo` y un router elige uno en cada turno |
+| Runtimes (`apx run` con Claude Code, Codex, OpenCode…) | **Harnesses**. Las CLIs de código corren solo en sus propias sesiones: hilos de código (`apx chat --code`) y **Sesiones externas** |
+| `apx exec`, `apx run`, `apx code` y muchas otras formas de hablarle a un agente | **`apx chat`**, la única, para Home, cualquier agente o un hilo de código |
+| Varios caminos de agente a agente | Uno: un sub-hilo con `threads.send`, que se ve como una tarjeta de progreso en tu chat |
+| Endpoints REST escritos a mano | Un protocolo tipado que usan todas las apps y la terminal |
+| El vault de agentes | Plantillas de agentes que sumás desde la pestaña **Agentes** de un proyecto con **Importar** |
+| `apx daemon` | `apx service install`, `status`, `restart` (`apx daemon` ahora solo explica) |
+| `~/.apx`, puerto 7430 | `~/.apx/v2`, puerto 7440 |
+
+Algunos comandos que eran solo de v1, como `apx company`, ya no están.
+
+## Traé tu equipo
+
+La importación solo lee v1. No se toca nada en `~/.apx`, así que podés volver cuando quieras.
+
+<Tabs syncKey="import">
+<TabItem label="Asistente de configuración">
+
+<Steps>
+
+1. Abrí el asistente de configuración: arranca solo la primera vez, o desde el menú de tu cuenta › **Configuración
+   inicial**.
+
+2. En **Bienvenida**, elegí **Importar desde APX v1**. APX te muestra la versión que encontró y cuántos proyectos
+   tiene.
+
+3. En **Importar v1**, elegí qué traer. Cada grupo muestra lo que encontró:
+
+   | Grupo | Qué viene |
+   | --- | --- |
+   | Proyectos | Sus carpetas y agentes; los agentes de Default de v1 pasan a ser agentes globales, con su memoria |
+   | Skills | Tus skills globales |
+   | Motores | Tus proveedores de modelos y sus claves (guardadas de forma segura), Ollama, tu sesión de ChatGPT y tu cadena de modelos |
+   | Variables | Tokens y claves que usan tus servidores MCP |
+   | Servidores MCP | Los tuyos y los de cada proyecto; sus claves pasan a tus variables |
+   | Memoria | Tus notas y las de cada proyecto |
+   | Chats | Tus chats con el super-agente (Telegram, WhatsApp, web…) y los de tus agentes, con sus fechas |
+   | Identidad y perfil | Quién sos, la personalidad de tu super-agente, su perfil de secretaria con su horario y tus horas de silencio |
+   | Motor de embeddings | El que encuentra notas por significado y elige skills |
+   | Imágenes y voces | Servidores de imágenes, voces y transcripción de notas de voz |
+   | Canales | Telegram, WhatsApp y Discord: cuentas, contactos y las salas de tu servidor |
+   | Tareas abiertas | Con vencimiento, prioridad y etiquetas; las terminadas quedan en v1 |
+   | Compromisos | Pasan a ser tareas de tipo compromiso, con su persona |
+   | Rutinas | Llegan **apagadas**: prendelas cuando dejes de usar v1 |
+
+4. Seguí con el asistente. En **Listo**, si el `apx` de v1 sigue instalado, **Que apx sea esta versión** hace que el
+   comando `apx` sea esta versión. Tus archivos de v1 quedan en `~/.apx`.
+
+</Steps>
+
+Los chats de cada canal de v1 llegan como un hilo (uno por chat en Telegram), así encontrás "Telegram" y no cien días
+sueltos. Importar los chats de nuevo no suma nada. Los logs de rutinas y los archivos de media quedan en v1.
+
+</TabItem>
+<TabItem label="Terminal">
+
+En un servidor, o si solo querés lo básico, importá desde la terminal:
+
+<Terminal command="apx import-v1 --keys --skills">{`imported 4 projects, 9 agents; keys: gemini, openai; 12 skills`}</Terminal>
+
+| Opción | Suma |
+| --- | --- |
+| *(ninguna)* | Las carpetas de proyecto que conoce v1, con sus agentes |
+| `--keys` | Las API keys de modelos de v1, al almacén de secretos de v2 |
+| `--skills` | Las skills de v1 |
+| `--services` | Los motores de imágenes y las voces de v1 |
+
+En un servidor nuevo, `apx setup --headless --import` corre la misma importación como parte de la configuración. Para
+chats, canales, tareas y el resto, abrí el asistente de configuración desde una app conectada a ese servidor.
+
+</TabItem>
+</Tabs>
+
+## Los dos, uno al lado del otro
+
+v1 y v2 no comparten carpeta ni puerto, así que pueden correr en la misma máquina mientras te pasás.
+
+| | v1 | v2 |
+| --- | --- | --- |
+| Datos | `~/.apx` | `~/.apx/v2` |
+| Puerto | 7430 | 7440 |
+| Comando | `apx` hasta que cambies | `apx` una vez instalado o cambiado |
+
+<Aside type="caution" title="Un bot, un daemon">
+Dos daemons contestarían los dos al mismo bot de Telegram. Por eso el instalador de servidor frena el daemon de v1. Si
+dejás v1 corriendo en una compu, no conectes los mismos bots en los dos, y dejá apagadas las rutinas importadas hasta
+que jubiles v1.
+</Aside>
+
+El instalador de servidor frena el daemon de v1 y saca su comando `apx` (`npm uninstall -g`), pero deja sus archivos
+en `~/.apx` para que los importes después. En la app de escritorio, **Que apx sea esta versión** del asistente hace el
+mismo cambio para el comando.

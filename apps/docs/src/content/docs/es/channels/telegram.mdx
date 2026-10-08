@@ -1,0 +1,124 @@
+---
+title: Telegram
+description: Creá un bot de Telegram, conectalo a APX y hablá con tus agentes desde el teléfono.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+Telegram es el canal más rápido de configurar: un bot tuyo, un token y un código para probar que el chat es tuyo. Tus
+mensajes caen en Home, las respuestas aparecen mientras se escriben, y podés mandar notas de voz, fotos y archivos.
+
+## Creá el bot
+
+<Steps>
+
+1. En Telegram, abrí **@BotFather**, mandá `/newbot` y seguí los pasos: un nombre visible y después un usuario que
+   termine en `bot`.
+
+2. BotFather te contesta con el token del bot. Tiene esta forma: `123456789:AA…`. Guardalo bien: quien lo tenga
+   controla el bot.
+
+</Steps>
+
+## Conectalo a APX
+
+<Tabs>
+<TabItem label="Panel">
+
+<Steps>
+
+1. Abrí **Configuración › Canales**. Si ya hay otro canal, usá **Agregar canal** y elegí **Telegram**.
+
+2. Pegá el token en **Token del bot** y elegí **Quién responde** (tu secretaria, de entrada).
+
+3. Tocá **Conectar bot**. El estado pasa a **Conectado**.
+
+</Steps>
+
+</TabItem>
+<TabItem label="Terminal">
+
+El token se lee de `APX_CHANNEL_TOKEN`, nunca de la línea de comandos, así no queda en el historial de la shell:
+
+```bash
+read -rs APX_CHANNEL_TOKEN && export APX_CHANNEL_TOKEN   # pegá el token y Enter
+apx channels add telegram acme-bot --agent nova
+unset APX_CHANNEL_TOKEN
+```
+
+`acme-bot` es el id del canal (minúsculas, números y `-`); `--agent` recibe el id de un agente (`apx agents` los
+lista).
+
+</TabItem>
+</Tabs>
+
+El token se guarda en tu almacén de secretos (el Llavero en macOS). El panel solo muestra el principio y el final;
+con **Cambiar token** lo reemplazás.
+
+## Emparejate
+
+El bot todavía no te conoce: para él sos un desconocido más. Vinculá tu cuenta una vez:
+
+<Steps>
+
+1. Escribile cualquier cosa a tu bot desde tu Telegram. Te contesta con un código de 6 números.
+
+2. En **Configuración › Canales**, en **Tu cuenta**, escribí el código en **Este es mi Telegram** y tocá
+   **Vincular**. (La pantalla del canal en la barra lateral ofrece lo mismo, como **Vinculá tu Telegram**.)
+
+</Steps>
+
+Desde la terminal es `apx pairing me <código>`. Poné solo un código que te mandó tu propio bot, nunca uno que te pase
+otra persona.
+
+Desde ahí, lo que le escribís al bot sos vos: va a **Home** (o a un chat propio, si pusiste **Tus mensajes** en
+**Chat propio**), con todas las tools y la memoria de tu agente.
+
+<Shot name="channel" alt="La pantalla del canal de Telegram: una lista de contactos a la izquierda y una conversación a la derecha" caption="La pantalla del canal: contactos y sus chats" />
+
+## Las respuestas aparecen mientras se escriben
+
+En Telegram ves la respuesta como un borrador que crece mientras el agente la escribe, y queda como un mensaje normal
+cuando termina. Las respuestas largas se parten en varios mensajes. Si tu Telegram no admite borradores, la respuesta
+llega entera.
+
+Las preguntas que te hace el agente (aprobaciones, opciones) vienen con botones, así que podés aprobar un paso desde
+el teléfono.
+
+## Otras personas
+
+Cualquier otra persona que encuentre tu bot es un desconocido. De entrada (**Mandar código**) recibe un código y
+espera hasta que lo aprobás: desde el pedido en **Esperando tu aprobación**, desde tu aviso, diciéndoselo a tu agente
+o con `apx pairing ok <código>`. Podés cambiar a **Avisarme**, **Contestar** o **Ignorar**; mirá
+[A quién le contesta](/es/channels/overview/#a-quién-le-contesta).
+
+Las personas aprobadas son contactos: sus chats están sellados (sin tools, sin nada de tu memoria). Aparecen en
+**Personas en Telegram**, donde las podés bloquear u olvidar.
+
+## Un bot por proyecto
+
+El panel configura un bot de Telegram. Si querés un bot aparte para un proyecto, agregalo desde la terminal con su
+propio id y token, y apuntalo al agente de ese proyecto:
+
+```bash
+read -rs APX_CHANNEL_TOKEN && export APX_CHANNEL_TOKEN
+apx channels add telegram northwind-bot --agent <id-del-agente-del-proyecto>
+unset APX_CHANNEL_TOKEN
+```
+
+Después escribile al bot nuevo y vinculate con `apx pairing me <código>`: **Configuración › Canales** muestra el
+primer bot de cada tipo.
+
+<Aside type="caution">
+Cada bot necesita su propio token de BotFather. Dos canales no pueden compartir uno: Telegram entrega los mensajes de
+un bot a un solo receptor.
+</Aside>
+
+<Terminal command="apx channels">{`telegram       telegram  running   @acme_store_bot    agent nova
+northwind-bot  telegram  running   @northwind_bot     agent lucia`}</Terminal>
+
+Para quitar un bot: **Quitar este bot** en su configuración, o `apx channels rm <id>`. Su token se va con él.

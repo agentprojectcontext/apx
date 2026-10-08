@@ -1,0 +1,91 @@
+---
+title: Integraciones y variables
+description: Conectá una cuenta una vez para darles sus tools a los agentes, y guardá tokens y claves como variables que los agentes usan sin ver.
+sidebar:
+  order: 4
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+## Integraciones
+
+Una integración es una cuenta que conectás una vez, como GitHub o Notion. Conectarla guarda su token como variable y
+suma su servidor MCP como uno de tus servidores globales, así tus agentes pueden usar sus tools enseguida.
+
+<Steps>
+
+1. Abrí **Recursos › Integraciones** y tocá **Conectar**.
+
+2. Elegí una en **Conectar una integración** y completá sus campos. Cada campo tiene su **Dónde lo consigo**.
+
+3. Tocá **Conectar**. Los tokens y claves van a tu almacén de secretos; los agentes los usan a través del servidor y
+   nunca los ven.
+
+4. En **Dónde se usa**, elegí **Todos los proyectos** o solo los proyectos que quieras.
+
+</Steps>
+
+<Shot name="resources-integrations" alt="Recursos, pestaña Integraciones: integraciones conectadas y el catálogo de las que se pueden conectar" caption="Recursos › Integraciones" />
+
+| Integración | Les da a tus agentes | Vos ponés |
+|---|---|---|
+| GitHub | Repositorios, issues y pull requests | Un token de acceso personal |
+| Notion | Páginas y bases de datos de tu espacio de trabajo | Un token de integración |
+| Slack | Canales, mensajes e hilos de tu espacio de trabajo | Un token de bot y el id del equipo |
+| Sentry | Errores e issues de tus proyectos | Un token de acceso |
+| Brave Search | Búsqueda web | Una API key |
+| Obsidian | Leer y escribir las notas de tu bóveda | La carpeta de la bóveda |
+| Google Calendar, Gmail, Linear, Asana | | Marcadas **Pronto**: necesitan un inicio de sesión que APX todavía no hace |
+
+Estos servidores arrancan con `npx`, así que la máquina donde corre el core necesita Node.js e internet la primera vez
+que arranca cada uno. Una vez conectada, una integración se porta como cualquier otro servidor MCP: tiene [permisos
+de tools](/es/extend/mcp/#permisos-de-tools), y los agentes llegan a sus tools con `mcp_search` y `mcp_call`.
+
+Para cambiar un token, abrí la integración y editala (un campo secreto vacío conserva el guardado). **Desconectar** la
+quita.
+
+## Variables y secretos
+
+Las variables son donde APX guarda tokens, API keys y contraseñas para tus servidores MCP, proveedores de modelos y
+canales. Lo que necesita una la nombra como `secret://NOMBRE`; el valor lo lee solo el código que lo usa, justo cuando
+lo usa. Los agentes pueden usar una variable por su nombre pero nunca ven el valor, y nunca va a un prompt ni a un
+log.
+
+Se manejan en **Recursos › Variables**: **+ Variable** agrega una (el valor va directo al core), el ojo te muestra un
+valor a vos, y cada fila dice dónde se usa.
+
+<Shot name="resources-variables" alt="Recursos, pestaña Variables: una tabla de variables con su alcance, el valor oculto y dónde se usa cada una" caption="Recursos › Variables" />
+
+### Dónde se guardan los valores
+
+- **macOS**: en tu Llavero de inicio de sesión.
+- **Linux, Windows**, o cualquier core arrancado con `APX_SECRETS=file`: en `secrets.json` dentro de la carpeta de
+  APX, legible solo por tu usuario (modo 600).
+
+### Un valor propio de un proyecto
+
+Una variable puede tener un valor **solo para un proyecto**. En los chats de ese proyecto, tus servidores MCP usan ese
+valor en lugar del global (la fila dice **Pisa la global**). Sirve cuando un proyecto necesita otra cuenta, como el
+token de GitHub de un cliente.
+
+### Desde la terminal
+
+El valor se lee de la entrada estándar, nunca de la línea de comandos, así no queda en el historial de la shell ni en
+la lista de procesos:
+
+```bash
+pbpaste | apx secrets set github-token   # macOS: desde el portapapeles
+apx secrets set github-token < token.txt # o desde un archivo
+apx secrets                              # nombres y cuándo cambiaron; nunca los valores
+apx secrets rm github-token
+```
+
+<Terminal command="apx secrets">{`github-token         2026-10-08T09:12:44.120Z
+brave-search-key     2026-10-02T17:30:05.981Z`}</Terminal>
+
+<Aside type="caution">
+Nunca pongas un token en `.apc/`, `AGENTS.md` ni en un archivo commiteado. Un `.apc/mcps.json` de proyecto que
+menciona `secret://` se ignora a propósito: los secretos son de tus propios servidores, configurados en tu máquina.
+</Aside>

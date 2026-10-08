@@ -1,0 +1,4 @@
+# The docs site installs on its own (the root workspace excludes apps/docs): Astro stays out of everyone else's install.
+allowBuilds:
+  esbuild: true
+  sharp: true

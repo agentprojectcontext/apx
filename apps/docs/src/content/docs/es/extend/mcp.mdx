@@ -1,0 +1,113 @@
+---
+title: Servidores MCP
+description: Dale a tus agentes las tools de cualquier servidor MCP, global o por proyecto, sin inflar cada prompt.
+sidebar:
+  order: 2
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+Los servidores MCP (Model Context Protocol) suman tools: uno de GitHub deja que los agentes lean issues, uno de base de
+datos deja que consulten, y así. APX corre los servidores que usan tus agentes y pone cada tool detrás de tus
+permisos.
+
+<Aside type="note">
+Esta página trata de los servidores que usan **los agentes de APX** (`apx mcps`). Para usar APX **desde** Claude Code,
+Codex u otro cliente MCP, mirá [Clientes externos](/es/extend/outside-clients/).
+</Aside>
+
+## Servidores globales y de proyecto
+
+- Los **globales** son tuyos. Los heredan todos los proyectos; un proyecto puede apagar uno para sí mismo, o dejar
+  de usar los globales del todo. Su entorno y sus headers pueden usar tus
+  [variables](/es/extend/integrations/#variables-y-secretos) como `secret://NOMBRE`.
+- Los **de proyecto** se declaran en `.apc/mcps.json` del proyecto, que se commitea con el repositorio:
+
+```json title=".apc/mcps.json"
+{
+  "mcpServers": {
+    "docs": { "command": "npx", "args": ["-y", "@acme/docs-mcp"] },
+    "status": { "url": "https://mcp.example.com/status" }
+  }
+}
+```
+
+Un repositorio puede nombrar cualquier comando, así que **un servidor de proyecto arranca solo después de que aprobás
+esa definición exacta**. Si el archivo cambia, hay que aprobarlo de nuevo. `.apc/mcps.json` nunca guarda tokens: una
+definición que menciona `secret://` ahí se ignora.
+
+## Agregar, aprobar, quitar
+
+<Tabs>
+<TabItem label="Panel">
+
+En **Recursos › MCP**, **+ MCP** abre **Nuevo servidor MCP**: un nombre, **Cómo se conecta** (**Comando** o
+**URL**), y su **Entorno** o **Headers**, donde un valor puede ser una de tus variables. Un servidor de proyecto
+muestra **Aprobar** hasta que lo aprobás; leé el comando antes. **Probar** lo arranca y lista sus tools.
+
+</TabItem>
+<TabItem label="Terminal">
+
+```bash
+apx mcps                                   # todos los servidores: estado, cantidad de tools, error o destino
+apx mcps list acme-store                   # como los ve un proyecto
+apx mcps add github -- npx -y @modelcontextprotocol/server-github
+apx mcps add status https://mcp.example.com/status
+apx mcps trust acme-store docs             # aprobar un servidor de proyecto tal como lo define su archivo ahora
+apx mcps untrust acme-store docs
+apx mcps rm github
+```
+
+Poné `--` antes de un comando cuyos argumentos empiezan con `-` (como `npx -y`), así `apx` no los toma como opciones
+propias. El entorno y los headers se editan en el panel.
+
+</TabItem>
+</Tabs>
+
+<Shot name="resources-mcp" alt="Recursos, pestaña MCP: una lista de servidores MCP con su estado y cantidad de tools, uno abierto con su comando y sus tools" caption="Recursos › MCP" />
+
+Los servidores no corren todo el tiempo: un servidor está **Listo** y arranca solo cuando un agente lo usa por primera
+vez.
+
+## Probar un servidor desde la terminal
+
+`apx mcp tools`, `run` y `check` hablan directo con un servidor, algo útil cuando algo no anda:
+
+<Terminal command="apx mcp check github">{`github: OK · 812 ms · 26 tools`}</Terminal>
+
+```bash
+apx mcp tools github                       # cada tool con su esquema y un comando run listo para usar
+apx mcp tools github search_issues         # solo una
+apx mcp run github search_issues '{"q":"repo:acme/store is:open label:bug"}'
+echo '{"q":"is:open"}' | apx mcp run github search_issues -
+```
+
+Sumá `--project <id>` para un servidor de proyecto, y `--scope global|project` cuando un nombre existe en los dos.
+
+## Permisos de tools
+
+Cada servidor tiene **Permisos de tools**:
+
+- **Preguntar**: cada agente te pide permiso antes de usar una tool que cambia algo.
+- **Todas permitidas**: ningún agente pide permiso para estas tools. Si el servidor o una tool cambian, se vuelve a
+  preguntar.
+- **Algunas**: tocá una tool para permitirla (verde) o para que vuelva a preguntar.
+
+Encima de eso siguen valiendo la autonomía de cada agente y su lista `tools:`, y lo que aprobaste "siempre" para un
+agente o un chat aparece en **Permitidas para un agente o un chat**. Mirá [Autonomía](/es/concepts/autonomy/).
+
+## Por qué los agentes ven solo dos tools de MCP
+
+Mandarle al modelo todas las tools de MCP en cada llamada se vuelve caro enseguida. En una instalación real, diez
+servidores comunes sumaban 319 tools: una respuesta de una línea costaba **64.432 tokens** de prompt.
+
+Por eso los agentes no reciben esas tools directamente. Mientras haya algún servidor prendido y aprobado, reciben dos:
+
+- `mcp_search` busca tools por palabras o por servidor, con su descripción y sus argumentos.
+- `mcp_call` corre una por su nombre exacto.
+
+La misma respuesta de una línea pasa a costar **11.838 tokens**, y la lista de tools no cambia de una llamada a otra,
+lo que mantiene caliente la caché de prompt del proveedor del modelo. Las aprobaciones, confirmaciones y tarjetas de
+tools en el chat funcionan igual que si el agente hubiera llamado la tool directamente.

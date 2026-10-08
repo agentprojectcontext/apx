@@ -1,0 +1,122 @@
+---
+// A terminal window: a prompt with the command, then its output as selectable text. Output lines are colored by
+// their first mark: ✓ green, ✗/error red, ⚠ yellow, #/// dim, •/›/→ accent.
+//
+//   <Terminal command="apx status">{`✓ core  running  http://127.0.0.1:7440
+// • crew  Home + 3 agents`}</Terminal>
+interface Props {
+  command: string;
+  caption?: string;
+  title?: string;
+}
+const { command, caption, title = "apx" } = Astro.props;
+
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+let raw = Astro.slots.has("default") ? await Astro.slots.render("default") : "";
+raw = raw
+  .replace(/<\/?p>/g, "")
+  .replace(/^[ \t]*\n+/, "")
+  .replace(/\s+$/, "");
+
+function color(line: string) {
+  const t = line.trimStart();
+  if (/^(✓|✔)/.test(t)) return `<span class="ok">${line}</span>`;
+  if (/^(✗|✘|✖|×|error[: ]|failed)/i.test(t)) return `<span class="err">${line}</span>`;
+  if (/^(⚠|!)/.test(t)) return `<span class="warn">${line}</span>`;
+  if (/^(#|\/\/)/.test(t)) return `<span class="dim">${line}</span>`;
+  if (/^(•|›|»|▸|→)/.test(t)) return `<span class="accent">${line}</span>`;
+  return line;
+}
+const body = raw ? raw.split("\n").map(color).join("\n") : "";
+---
+
+<figure class="apx-term not-content">
+  <div class="apx-term__win">
+    <div class="apx-term__bar" aria-hidden="true">
+      <span class="d r"></span><span class="d y"></span><span class="d g"></span>
+      <span class="apx-term__title">{title}</span>
+    </div>
+    <pre class="apx-term__body"><span class="p">❯</span> <span class="c" set:html={esc(command)} />{body && "\n"}<span set:html={body} /></pre>
+  </div>
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .apx-term {
+    margin: 1.75rem 0;
+  }
+  .apx-term__win {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: #0d0f11;
+    box-shadow: 0 24px 60px -30px rgba(0, 0, 0, 0.55);
+  }
+  .apx-term__bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .d {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #2b3036;
+  }
+  .apx-term:hover .d.r {
+    background: #ff5f57;
+  }
+  .apx-term:hover .d.y {
+    background: #febc2e;
+  }
+  .apx-term:hover .d.g {
+    background: #28c840;
+  }
+  .apx-term__title {
+    margin-left: 10px;
+    font: 500 12px/1 var(--sl-font-mono);
+    color: #6b737b;
+  }
+  .apx-term__body {
+    margin: 0;
+    padding: 1rem 1.15rem 1.2rem;
+    background: transparent;
+    border: 0;
+    color: #c9d1d9;
+    font: 0.84rem/1.6 var(--sl-font-mono);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .p {
+    color: #3fb950;
+    user-select: none;
+  }
+  .c {
+    color: #f0f3f6;
+    font-weight: 500;
+  }
+  .apx-term__body :global(.ok) {
+    color: #56d364;
+  }
+  .apx-term__body :global(.warn) {
+    color: #e3b341;
+  }
+  .apx-term__body :global(.err) {
+    color: #ff7b72;
+  }
+  .apx-term__body :global(.dim) {
+    color: #6e7681;
+  }
+  .apx-term__body :global(.accent) {
+    color: #7ee787;
+  }
+  figcaption {
+    margin-top: 0.7rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--sl-color-gray-3);
+  }
+</style>

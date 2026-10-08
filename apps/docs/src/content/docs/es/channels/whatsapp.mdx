@@ -1,0 +1,80 @@
+---
+title: WhatsApp
+description: Vinculá WhatsApp con un QR, como una línea aparte para tu agente o como tu propio número.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+APX se vincula a WhatsApp como lo hace WhatsApp Web: como un dispositivo vinculado de un número, escaneando un QR. No
+es la API de WhatsApp Business, y no hay ninguna cuenta de bot que crear.
+
+## Dos formas de usarlo
+
+**Una línea aparte** (la opción de entrada). Un segundo número que usa solo tu agente. Le escribís desde tu propio
+teléfono, como le escribirías a un asistente. Es lo que quiere la mayoría: tu agente tiene sus chats y los tuyos
+siguen siendo tuyos.
+
+**Tu propio número.** Prendé **Esta línea es mi propio teléfono** y hablás con tu agente en el chat "Mensaje a mí
+mismo" de WhatsApp. Lo que les escribís a otras personas desde tu teléfono sigue siendo tuyo: APX nunca contesta en
+tu nombre ahí.
+
+Después podés cambiar con el mismo interruptor, en la configuración del canal.
+
+## Vinculalo
+
+<Steps>
+
+1. Abrí **Configuración › Canales**, usá **Agregar canal** y elegí **WhatsApp** (o entrá directo si es el primero).
+
+2. Elegí **Quién responde**, y prendé **Esta línea es mi propio teléfono** si vinculás tu propio número.
+
+3. Tocá **Vincular**. Aparece un QR; cambia cada pocos segundos y la página lo mantiene al día.
+
+4. En el teléfono que tiene el número: **WhatsApp › Configuración › Dispositivos vinculados › Vincular un
+   dispositivo**, y apuntá al código.
+
+</Steps>
+
+El estado pasa a **Conectado**. El soporte de WhatsApp se carga la primera vez que lo vinculás, así que esa primera
+conexión puede tardar un poco.
+
+## Vinculá tu teléfono a la línea
+
+En una línea aparte, APX no sabe qué número sos vos hasta que se lo decís. Hasta entonces, lo que le escribas a la
+línea es de un desconocido. Dos formas, en **Tu teléfono**:
+
+- **Escribile a la línea** desde tu WhatsApp. El pedido aparece en la lista; tocá **Es mi número**. WhatsApp muestra
+  el número, así que no hace falta código.
+- **Agregar mi número**: escribilo con el código de país (`+1 555 0100`) y tocá **Guardar**.
+
+Una vez vinculado, tus mensajes van a **Home**, o a un chat propio si pusiste **Tus mensajes** en **Chat propio**.
+
+Con tu propio número no hay nada que vincular: quien escribe en "Mensaje a mí mismo" sos vos.
+
+## Solo contactos
+
+APX lee los chats uno a uno. Los grupos, las listas de difusión y los canales de WhatsApp se ignoran. Las notas de voz
+en chats privados se transcriben (mirá [Notas de voz](/es/channels/overview/#notas-de-voz)), y las opciones que te
+ofrece el agente llegan como una lista numerada: contestá con el número.
+
+## Desconocidos
+
+Los desconocidos funcionan como en cualquier canal (**Mandar código**, **Avisarme**, **Contestar**, **Ignorar**), con
+una diferencia en tu propio número: APX nunca manda un código desde ahí. En ese caso la primera opción es **Anotar**:
+la persona queda anotada en la configuración del canal para que la apruebes, y no se le manda nada.
+
+**Avisarme** suele ser lo más cómodo en WhatsApp: te llega un aviso con quién escribió, su número y su primer
+mensaje. Si decís que sí (con el botón, o diciéndoselo a tu agente), se le contesta ese primer mensaje.
+
+## Cuando se desconecta
+
+- Si WhatsApp cierra la sesión del dispositivo (por ejemplo, lo sacaste de **Dispositivos vinculados**), APX borra la
+  sesión guardada y el canal muestra un error. Tocá **Vincular de nuevo** y escaneá un código nuevo.
+- **Desvincular WhatsApp** quita el canal y su carpeta de sesión.
+
+<Aside type="caution">
+APX usa el protocolo de dispositivos vinculados de WhatsApp a través de una biblioteca de código abierto, no una API
+oficial. Usalo para conversaciones normales, no para mensajes masivos.
+</Aside>

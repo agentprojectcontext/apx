@@ -1,0 +1,80 @@
+---
+title: WhatsApp
+description: Link WhatsApp by QR, as a line of its own for your agent or as your own number.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+APX links to WhatsApp the way WhatsApp Web does: as a linked device of a number, scanned with a QR. It isn't the
+WhatsApp Business API, and there's no bot account to create.
+
+## Two ways to use it
+
+**A line of its own** (the default). A second number, used only by your agent. You write to it from your own phone,
+like you'd write to an assistant. This is the setup most people want: your agent has its own chats, and yours stay
+yours.
+
+**Your own number.** Turn on **This line is my own phone** and you talk to your agent in WhatsApp's
+"Message yourself" chat. What you type to other people on your phone stays yours: APX never answers in your name
+there.
+
+You can switch later with the same toggle in the channel's settings.
+
+## Link it
+
+<Steps>
+
+1. Open **Settings › Channels**, use **Add channel** and pick **WhatsApp** (or open it directly if it's the first).
+
+2. Choose **Who answers**, and set **This line is my own phone** if you're linking your own number.
+
+3. Press **Link**. A QR shows up; it changes every few seconds and the page keeps it fresh.
+
+4. On the phone that has the number: **WhatsApp › Settings › Linked devices › Link a device**, and point it at the
+   code.
+
+</Steps>
+
+The status turns to **Connected**. WhatsApp support loads the first time you link it, so that first connection can
+take a moment.
+
+## Link your phone to the line
+
+On a line of its own, APX doesn't know which number is you until you tell it. Until then, what you write to the line
+is a stranger's. Two ways, under **Your phone**:
+
+- **Write to the line** from your own WhatsApp. The request shows up in the list; tap **It's my number**. WhatsApp
+  shows the number, so no code is needed.
+- **Add my number**: type it with the country code (`+1 555 0100`) and press **Save**.
+
+Once linked, your messages go to **Home**, or to a chat of their own if you set **Your messages** to **Own chat**.
+
+On your own number there's nothing to link: whoever writes in "Message yourself" is you.
+
+## Contacts only
+
+APX reads one-to-one chats. Groups, broadcasts and WhatsApp channels are ignored. Voice notes in private chats are
+transcribed (see [Voice notes](/channels/overview/#voice-notes)), and options the agent offers you arrive as a
+numbered list: answer with the number.
+
+## Strangers
+
+Strangers work as on every channel (**Send a code**, **Ask me**, **Answer**, **Ignore**), with one difference on your
+own number: APX never sends a code from it. There, the first option is **List them**: the person is listed in the
+channel's settings for you to approve, and nothing is sent to them.
+
+**Ask me** is often the most comfortable on WhatsApp: you get a notice with who wrote, their number and their first
+message. Say yes (the button, or tell your agent) and that first message is answered.
+
+## When it disconnects
+
+- If WhatsApp logs the device out (you removed it from **Linked devices**, for example), APX deletes the stored
+  session and the channel shows an error. Press **Link again** and scan a new code.
+- **Unlink WhatsApp** removes the channel and its session folder.
+
+<Aside type="caution">
+APX uses WhatsApp's linked-device protocol through an open-source library, not an official API. Use it for normal
+conversations, not bulk messaging.
+</Aside>

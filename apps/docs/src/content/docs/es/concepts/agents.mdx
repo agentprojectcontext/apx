@@ -1,0 +1,234 @@
+---
+title: Agentes
+description: Quién trabaja para vos en APX, cómo cada agente es un archivo markdown y cómo se pasan el trabajo entre ellos.
+sidebar:
+  order: 1
+---
+
+import { Aside, Steps, Tabs, TabItem, CardGrid, Card, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+import Blob from "../../../../components/Blob.astro";
+
+
+Un agente es alguien de tu equipo: un nombre, una cara, un rol, unas instrucciones y las herramientas que puede usar.
+Algunos trabajan con vos en todos lados, otros pertenecen a un proyecto, y otros existen para un solo encargo y
+después desaparecen.
+
+<div style={{ display: "flex", gap: "1.25rem", flexWrap: "wrap", alignItems: "center", margin: "1.5rem 0" }}>
+  <Blob name="menta" size={56} bob />
+  <Blob name="orbita" size={56} />
+  <Blob name="perla" size={56} />
+  <Blob name="cobalto" size={56} />
+  <Blob name="brasa" size={56} />
+  <Blob name="amatista" size={56} />
+</div>
+
+## Cuatro tipos de agente
+
+<CardGrid>
+  <Card title="Home, la secretaria" icon="star">
+    Tu agente principal. Le ponés nombre y cara durante la configuración. Su chat es **Home**: una sola conversación
+    que te sigue a todos los canales. Sabe quién sos, le delega al resto del equipo y no se puede borrar.
+  </Card>
+  <Card title="Agentes de proyecto" icon="document">
+    Viven en la carpeta `.apc/agents/` de un proyecto, un archivo markdown cada uno. Leen el `AGENTS.md` del proyecto,
+    trabajan en su carpeta y viajan con el repo.
+  </Card>
+  <Card title="Agentes globales" icon="puzzle">
+    Viven en tu proyecto base, al lado de Home. No tienen carpeta propia y trabajan en cualquier proyecto.
+  </Card>
+  <Card title="Ayudantes" icon="rocket">
+    Ayudantes descartables que un agente arranca para un trabajo puntual (una búsqueda larga, una revisión). Usan el
+    modelo y las herramientas de quien los llamó, reportan y chau.
+  </Card>
+</CardGrid>
+
+## Blobos
+
+Cada agente tiene una cara: un **blobo**. Hay 35 (menta, orbita, cobalto, brasa, amatista, perla, noche, kiwi…). Sus
+ojos siguen tu puntero, acá y en la app. Home recibe su cara durante la configuración; para cualquier otro agente, lo
+escribís en su archivo como `icon:` o lo definís con `apx agents set <agent> blob=…`.
+
+## Un agente es un archivo markdown
+
+Un agente de proyecto es `.apc/agents/<slug>.md`: un bloque de frontmatter con sus campos y después un cuerpo con sus
+instrucciones. El archivo manda. APX vigila `.apc/`, así que un cambio guardado aparece en la app al toque, y lo que
+cambiás en la app se escribe en el mismo archivo.
+
+Esta es Lucía, la product manager de Acme Store:
+
+```markdown title=".apc/agents/lucia.md"
+---
+name: Lucía
+role: Product manager
+description: Owns the Acme Store roadmap and hands out the work.
+icon: orbita
+area: product
+autonomy: standard
+personality: Warm and direct. Numbers first, then the plan.
+tools: agents, tasks, widgets, browser, memory
+skills: weekly-report
+aliases: pm
+---
+
+You are Lucía, product manager at Acme Store. Split big asks into tasks, assign them
+and follow up until they close. When a decision needs the owner, ask once, clearly.
+```
+
+<Aside>
+  Las instrucciones pueden estar en el idioma que quieras. Las plantillas que trae APX están escritas en inglés.
+</Aside>
+
+### Referencia del frontmatter
+
+| Campo | Qué hace |
+|---|---|
+| `name` | El nombre que se ve en todos lados. Si falta, se usa el slug. |
+| `role` | Una línea bajo el nombre: "Product manager", "Developer". |
+| `description` | Para qué está el agente. También se pone delante de las instrucciones cuando el cuerpo no lo dice. |
+| `icon` | El blobo del agente (`orbita`, `menta`, `cobalto`…). |
+| `emoji` | Un emoji opcional que se guarda con el agente (los archivos de otras herramientas suelen traer uno). |
+| `parent` | El slug del agente al que reporta. Si no está, reporta a Home. |
+| `area` | El área a la que pertenece, para el organigrama (`product`, `engineering`…). |
+| `autonomy` | `ask`, `standard` (por defecto) o `total`. Mirá [Autonomía y seguridad](/es/concepts/autonomy/). |
+| `personality` | Cómo suena, aparte de lo que hace. Hasta 1.000 caracteres. |
+| `tools` | Limita al agente a esas herramientas o grupos. Sin este campo, tiene todas. |
+| `skills` | Limita qué skills se le ofrecen. Sin este campo, todas. |
+| `aliases` | Slugs viejos. Renombrás el archivo, ponés acá el slug anterior y el agente conserva sus chats. |
+| `model` | `engine:model`, como lo escribía APX v1. Se lee cuando el agente aparece por primera vez; después, el modelo se cambia desde la app o con `apx agents model`. `inherit` es el modelo por defecto de la instalación. |
+
+El cuerpo son las instrucciones propias del agente. Escribilo como una nota para alguien que recién entra: qué le
+toca, cómo trabaja, qué no tiene que hacer nunca solo.
+
+**Grupos de herramientas** que podés nombrar en `tools:`: `browser`, `widgets`, `agents` (listar agentes, delegar,
+dar una herramienta), `shell`, `files`, `mcp`, `memory`, `images`, `tasks`. También podés nombrar herramientas
+sueltas. Algunas quedan siempre, diga lo que diga la lista, porque sólo leen o te preguntan: leer una salida,
+hacerte una pregunta, cargar una skill y buscar en las notas.
+
+<Aside type="tip">
+  Una lista `tools:` que no nombra nada que APX conozca (un archivo escrito para otra herramienta) se ignora, en vez
+  de dejar al agente sin ninguna herramienta.
+</Aside>
+
+## Crear y editar agentes
+
+<Tabs syncKey="surface">
+  <TabItem label="Panel">
+<Steps>
+
+1. Abrí un proyecto y andá a la pestaña **Agentes**.
+2. Tocá **Agente** para escribir uno nuevo, o **Importar** para instalar una plantilla (más abajo).
+3. Ponele nombre, rol, descripción e instrucciones, y tocá **Crear agente**. APX escribe el archivo en `.apc/agents/` del
+   proyecto.
+4. Tocá el nombre de cualquier agente en la cabecera de un chat para abrir su panel lateral: rol, a quién reporta,
+   autonomía, modelo, perfil del navegador y sus números.
+
+</Steps>
+
+<Shot name="team" alt="La pestaña Agents de Acme Store en vista Hierarchy: Lucía arriba, con Tomás, Vera y Desk debajo" caption="Agentes › Jerarquía" />
+
+<Shot name="agent-panel" alt="El panel lateral de Lucía abierto junto a su chat, con su rol, autonomía y modelo" caption="Tocá el nombre de un agente en un chat para abrir su panel" />
+
+Si creás un agente desde el proyecto base, queda como agente global: trabaja en cualquier proyecto.
+  </TabItem>
+  <TabItem label="Terminal">
+Listá el equipo y el modelo de cada agente (★ marca a Home):
+
+<Terminal command="apx agents">{`nova                         ★ Nova             default                      personal secretary
+3f9a1c0d7e21-lucia             Lucía            router                       Product manager
+3f9a1c0d7e21-tomas             Tomás            default                      Developer`}</Terminal>
+
+Creá uno. Con `--project` va a `.apc/agents/` de ese proyecto; sin eso, queda como agente global:
+
+<Terminal command={'apx agents new vera "Vera" --project p_3f9a1c0d7e21 --role "Marketing"'}>{`Vera (3f9a1c0d7e21-vera) · written to .apc/agents/`}</Terminal>
+
+Cambiá campos con pares `clave=valor` (`name`, `role`, `slug`, `parent`, `blob`):
+
+<Terminal command="apx agents set 3f9a1c0d7e21-vera parent=lucia blob=cobalto">{`Vera (3f9a1c0d7e21-vera) · vera · Marketing`}</Terminal>
+
+Archivá uno. Su archivo pasa a `.apc/agents/.archived/` (nunca se borra) y sus chats quedan:
+
+<Terminal command="apx agents archive 3f9a1c0d7e21-vera">{`archived; file moved to ~/work/acme-store/.apc/agents/.archived/vera.md`}</Terminal>
+
+Elegí su modelo (mirá [Modelos y motores](/es/concepts/models/)):
+
+<Terminal command="apx agents model 3f9a1c0d7e21-lucia gemini/gemini-3.8-flash --router">{`Lucía: gemini/gemini-3.8-flash → router`}</Terminal>
+  </TabItem>
+</Tabs>
+
+### Plantillas
+
+**Importar**, en la pestaña Agentes, ofrece agentes listos y equipos enteros, de `examples/agents/` en el repo de APX
+(y de tu bóveda de APX v1, sólo lectura). Un `<slug>.md` suelto es un agente solo, como el Researcher o el Price
+Finder. Una carpeta con `TEAM.md` es un equipo: el de producto (un orquestador, un PM, un desarrollador, un diseñador,
+QA…) o el ejecutivo, que además trae sus rutinas semanales.
+
+Instalar copia el archivo tal cual en `.apc/agents/`. Sólo puede cambiar `parent`, para colgar al líder del equipo
+debajo del orquestador que el proyecto ya tiene. Un slug que el proyecto ya usa se saltea, nunca se pisa.
+
+## El organigrama
+
+La pestaña **Agentes** dibuja tu equipo de dos maneras:
+
+- **Jerarquía**: un árbol armado con el `parent:` de cada agente. Los que no tienen parent reportan a Home.
+- **Áreas y roles**: los agentes agrupados por su `area:`, con las áreas y roles del proyecto.
+
+<Shot name="org" alt="La vista Areas and roles: áreas Product, Engineering y Growth con sus roles y agentes" caption="Agentes › Áreas y roles" />
+
+Las áreas y roles son para empresas: viven en `.apc/organization.json` (hasta 40 áreas y 200 roles), y el tipo del
+proyecto pasa a **Empresa** cuando los agregás. Los agentes los leen, así Lucía sabe que Growth es de Vera.
+
+```json title=".apc/organization.json"
+{
+  "areas": [
+    { "slug": "product", "name": "Product", "goal": "Ship what customers ask for" },
+    { "slug": "growth", "name": "Growth", "goal": "More repeat customers" }
+  ],
+  "roles": [
+    { "slug": "pm", "name": "Product manager", "area": "product" },
+    { "slug": "mkt", "name": "Marketing", "area": "growth" }
+  ]
+}
+```
+
+## Delegar
+
+Un agente con la herramienta `delegate` puede pasarle una tarea a un agente fijo ("pedile a Tomás que arregle el
+checkout") o arrancar un **ayudante**: alguien que define en el momento con un nombre, instrucciones y, si quiere, una
+lista más corta de herramientas. El ayudante usa el modelo de quien lo llamó, no tiene personalidad ni conoce al
+resto del equipo, no le pregunta a nadie más y reporta.
+
+La respuesta vuelve en el mismo turno si es rápida, o más tarde como un turno nuevo que despierta a quien la pidió. El
+chat muestra una tarjeta con el avance, el informe completo (plegado hasta que lo abrís) y cuánto tardó.
+
+APX mantiene la delegación con correa:
+
+| Límite | Valor |
+|---|---|
+| Cuántos niveles se anidan | 2 (tu agente → un ayudante → el ayudante del ayudante) |
+| Delegaciones a la vez desde un chat | 3 |
+| Tiempo que puede trabajar una delegación | 10 minutos |
+| Turnos que los agentes arrancan solos sin vos | 16, o 600.000 tokens; después la cadena se pausa hasta que escribas |
+
+Una delegación nunca tiene más poder que quien la pidió: sólo recibe las herramientas que todos los agentes de la
+cadena pueden usar, y la autonomía más estricta entre ellos.
+
+## Una sola forma de hablarle a un agente
+
+Todo lo que le habla a un agente entra por la misma puerta: vos en el panel, la CLI `apx`, un mensaje de un canal,
+una rutina, un widget, una app de afuera y los agentes entre sí. Por eso el trabajo entre agentes aparece en tus chats
+como cualquier otro turno, y por eso sus límites y aprobaciones no se pueden saltear.
+
+<Terminal command={'apx chat "¿En qué está Tomás?" --agent 3f9a1c0d7e21-lucia'}>{`Tomás tiene en curso el rediseño del checkout y el arreglo de las fotos del catálogo en revisión.`}</Terminal>
+
+Sin `--agent`, le hablás a Home.
+
+## Seguí por acá
+
+<CardGrid>
+  <LinkCard title="Proyectos" description="La carpeta .apc/ donde viven los agentes." href="/es/concepts/projects/" />
+  <LinkCard title="Autonomía y seguridad" description="Qué puede hacer un agente sin preguntar." href="/es/concepts/autonomy/" />
+  <LinkCard title="Modelos y motores" description="Con qué modelo piensa cada agente." href="/es/concepts/models/" />
+  <LinkCard title="Memoria" description="Qué recuerdan los agentes entre chats." href="/es/concepts/memory/" />
+</CardGrid>

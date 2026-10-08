@@ -1,0 +1,139 @@
+---
+title: Your phone
+description: Open APX on your phone, pair it with a one-time code, revoke it when you want, and get notices by push.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+import Shot from "../../../components/Shot.astro";
+import Terminal from "../../../components/Terminal.astro";
+
+Your phone talks to the same core as the panel, through the same protocol. It never gets the core's own token:
+it trades a one-time code for a key of its own, which you can take back at any moment without touching anything
+else.
+
+<Aside type="caution" title="First, the phone has to reach the core">
+A core that only listens on its own computer (the default) can't be reached by a phone. Open it to your local
+network or your Tailscale network first: in **Settings › Connections › Devices** under **Who can reach this APX**,
+in the desktop app's first run, or with `apx expose` on a server ([Run APX on a server](/devices/server/)).
+</Aside>
+
+## Open on your phone
+
+The quickest way: click **Open on your phone** in the top bar (it's also in your account menu). A QR appears.
+
+<Shot name="phone-pair" alt="The Open on your phone dialog with a pairing QR code and the code typed out below it" caption="Open on your phone" />
+
+Scan it with the phone's camera. It opens the APX app, pairs the phone if it isn't paired yet, and opens the chat you
+were looking at. A phone already paired with this core just opens the chat.
+
+The code under the QR works once, for 10 minutes. While the dialog is open APX renews it before it runs out, and
+closing the dialog voids it. If the core only listens on this computer, the dialog says **Your phone cannot reach
+this core yet** instead of showing a QR.
+
+<Shot name="phone-home" alt="The APX panel at phone width, with the Home chat open" frame="phone" />
+
+### From the phone's browser
+
+You don't need the app to use the panel on a phone. Open the core's address in the phone's browser (the Tailscale
+address, or the LAN one such as `http://192.168.1.20:7440`). The panel asks to **Pair this device**: type a code from
+**Settings › Connections › Devices › Pair a device** or from `apx pair`, and the browser keeps its own key. The panel
+adapts to the narrow screen.
+
+## Pairing codes and device keys
+
+Every pairing works the same way, whether it's a phone, a browser or another computer:
+
+- The code has **8 characters**, without look-alikes (no `0`/`O`, no `1`/`I`), and lives **10 minutes** in the core's
+  memory. Restarting the core voids pending codes.
+- It works **once**. The device trades it for a key of its own; the core stores only that key's hash.
+- **Five wrong codes** void every pending code and pause pairing for **five minutes**.
+- The QR carries an `apx://pair?…` link with the code and the addresses the core can be reached on. If you set
+  `APX_PUBLIC_URL` (a VPS or Tailscale address), it goes first.
+
+You can make a code in three places:
+
+- **Open on your phone** in the panel (also opens the current chat on the phone).
+- **Settings › Connections › Devices › Pair a device**: a QR, the code and the addresses.
+- The terminal, on the machine that runs the core:
+
+<Terminal command="apx pair">{`Pairing code: ABCD2345
+Expires at 10:40:00 (in about 10 min)
+
+Addresses a device may reach this core on:
+  https://<machine>.<tailnet>.ts.net
+
+In the APX app, open Pair and paste the link, or enter an address and the code:
+  apx://pair?c=ABCD2345&u=https%3A%2F%2F<machine>.<tailnet>.ts.net`}</Terminal>
+
+## See and revoke devices
+
+<Shot name="settings-devices" alt="Settings, Devices section: paired devices with their platform and last seen time, and the connection options" caption="Settings › Connections › Devices" />
+
+**Settings › Connections › Devices** lists every paired device with its platform and when it was last seen. The trash
+button (**Remove**) revokes that device: its key stops working at once, and only that one. A revoked phone goes back
+to the pairing screen.
+
+From the terminal:
+
+```bash
+apx devices                 # list paired devices
+apx devices pair            # a new code (same as apx pair)
+apx devices revoke <id>     # revoke one device
+```
+
+## The APX app for phones
+
+<Aside type="note" title="Partial">
+The APX app (Expo, for iOS and Android) works, but it isn't in the App Store or Google Play yet and hasn't been
+tested on a real phone. To try it today you build it from the repository (`apps/mobile`).
+</Aside>
+
+What it does once paired:
+
+- **Pairs** by scanning the QR, opening an `apx://pair` link, or typing the address and the code by hand. It keeps its
+  key in the system's secure storage.
+- **Shows your Home chat live**, over the same socket the panel uses.
+- **Shows your pinned widgets and apps** (the Apps button), each full screen, sandboxed the same way the panel does it.
+- **Lends the phone to the core as a node**: agents get `phone_location` and `phone_photo`, but only while the phone
+  is connected. A photo is always taken by you on the phone (the app shows why the agent wants it). Location asks the
+  system's permission once, and asks for your OK whenever outside content is in the turn.
+- **Takes notifications**, described next.
+
+If you can't reach the core, the app keeps its pairing for when it can. Unpairing (or revoking it in the panel) sends
+it back to the pairing screen.
+
+To run it from a checkout:
+
+```bash
+cd apps/mobile
+npm install
+npx expo start      # Expo Go or a dev build; the core must be reachable on the network
+```
+
+## Push notifications
+
+The phone can be where your notices go, so routine news, reminders and questions from agents reach you even with the
+app closed.
+
+<Steps>
+
+1. Give the device a way to receive push. The APX app registers itself with Expo push when the build has an EAS
+   project id. Otherwise, under the device in **Settings › Connections › Devices**, use **Set up notifications** and
+   paste an ntfy or UnifiedPush address.
+
+2. Pick the phone in **Settings › Interruptions › Where notices go**. It shows up as the device's name followed by
+   "(push)".
+
+</Steps>
+
+The same interruption budget decides what reaches the phone: daily cap, quiet hours and the rest
+([Secretary](/office/secretary/)). A device can only set its own push address, and the push token never goes back to
+any client.
+
+## Where to next
+
+- [Run APX on a server](/devices/server/), to reach it from anywhere
+- [Desktop app](/devices/desktop/)
+- [Troubleshooting](/reference/troubleshooting/): pairing codes that don't work

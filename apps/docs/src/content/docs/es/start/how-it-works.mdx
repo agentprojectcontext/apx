@@ -1,0 +1,128 @@
+---
+title: Cómo funciona
+description: El core, el protocolo, operadores y nodos, proveedores y harnesses, y cómo un mensaje se vuelve una respuesta.
+sidebar:
+  order: 4
+---
+
+import { Aside, CardGrid, LinkCard, Steps } from "@astrojs/starlight/components";
+
+No necesitás nada de esto para usar APX. Pero conocer las pocas piezas que se mueven hace que el resto de la
+documentación cierre: por qué la terminal y la app siempre coinciden, por qué un reinicio no pierde nada y qué
+significa "motor" cuando elegís un modelo.
+
+```text
+   App de escritorio    Panel en un navegador    terminal apx        Teléfono
+  (presta navegador,                                             (presta cámara,
+   uso de la compu)                                                ubicación)
+        │                       │                      │                 │
+        └───────────────────────┴───── protocolo ──────┴─────────────────┘
+                   métodos tipados por HTTP, eventos en vivo por WebSocket
+                                           │
+                      ┌────────────────────▼────────────────────┐
+                      │  core · 127.0.0.1:7440                  │
+                      │  router → turnos → herramientas → datos │
+                      │  canales · rutinas · memoria · MCP      │
+                      │  ~/.apx/v2/apx.db (SQLite)              │
+                      └──────┬──────────────────────────┬───────┘
+                             │                          │
+                APIs de modelos (proveedores)   Telegram · WhatsApp ·
+                Claude Code · Codex (harnesses)   Discord · Slack
+```
+
+## El core
+
+El core es un proceso en segundo plano y es lo único que es dueño del estado. Agentes, hilos, tareas, rutinas,
+memoria, canales y configuración viven en una sola base SQLite, `~/.apx/v2/apx.db`. Cada app que usás es una ventana
+a eso.
+
+- Por defecto escucha en `127.0.0.1:7440`, así que solo esta computadora llega a él. No acepta escuchar en una
+  dirección de red sin un token, y `apx expose` te arma las dos cosas.
+- Corre cada turno de agente, cada rutina y cada canal. Cuando cerrás la app, el trabajo sigue.
+- El trabajo en curso se anota antes de correr. Si el core se reinicia en medio de un turno, lo retoma una vez y te
+  dice con honestidad si hay alguna acción de la que no puede saber cómo terminó.
+
+Mirá cómo anda cuando quieras con `apx status`, o `apx service status` para el servicio en segundo plano.
+
+## Un solo protocolo
+
+Todos los clientes le hablan al core por un único contrato: un registro tipado de unos 230 métodos, que se llaman por
+HTTP, con eventos en vivo por un WebSocket. No hay puertas laterales. El panel, la terminal y el teléfono llaman a los
+mismos métodos, y por eso un mensaje que mandás desde la terminal aparece en la app mientras se escribe.
+
+Los métodos que cambian algo llevan una clave de idempotencia, así que un reintento después de un corte nunca hace la
+cosa dos veces.
+
+## Operadores y nodos
+
+Los clientes son de dos tipos:
+
+- **Operadores**: muestran y controlan. La app de escritorio, el panel en un navegador, la terminal `apx`, la app del
+  teléfono.
+- **Nodos**: le prestan al core algo que no tiene por su cuenta. La app de escritorio presta el **navegador** (y, en
+  macOS, el **uso de la computadora** cuando lo activás). El teléfono presta la **ubicación** y la **cámara**.
+
+Cuando un agente quiere abrir una página, el core manda esa llamada al nodo que ofrece un navegador. Si no hay app de
+escritorio conectada, usa un Chrome sin ventana, sin tus sesiones iniciadas y sin forma de tomar el control.
+
+## Proveedores y harnesses
+
+Dos palabras explican cómo se llega a los modelos:
+
+- Un **proveedor** es una API de modelos: Gemini, Anthropic, OpenAI, tu plan de ChatGPT, OpenRouter, Groq, Ollama,
+  LM Studio o cualquier endpoint compatible con OpenAI. En la app aparecen como motores en Config › Motores y modelos.
+- Un **harness** es lo que corre el ciclo de un turno. **native** es el ciclo propio de APX, y todos los agentes
+  corren ahí con el modelo de un proveedor. **claude** corre Claude Code con tu propia sesión, **codex** corre Codex,
+  y **acp** (parcial) corre otras CLIs de agentes como OpenCode o Gemini CLI.
+
+Tus agentes, el router y el modelo por defecto siempre usan proveedores a través del ciclo propio de APX, así tienen
+las herramientas, la memoria y las reglas de seguridad de APX. Las CLIs de código corren en sus propias sesiones: los
+hilos de código y las sesiones de Claude Code y Codex que APX encuentra en tu disco, en **Sesiones externas**.
+
+Un modelo se nombra `motor/modelo`, con un esfuerzo opcional después de un `#`, y el router elige uno en cada turno
+según tus reglas y la cadena de respaldo. Mirá [Modelos](/es/concepts/models/).
+
+## Hilos, corridas y pasos
+
+Todo lo que pasa queda registrado de la misma forma:
+
+| Palabra | Qué es | Ejemplos |
+| --- | --- | --- |
+| **Hilo** | Una conversación. | El chat de Home, un chat con Lucía, un grupo, una sesión de código, el trabajo de una tarea, una rutina, un contacto de Telegram |
+| **Corrida** | Un turno de un agente en un hilo, guardado con su entrada y su origen. | Enviada, trabajando, esperándote, completa, fallida, cancelada |
+| **Paso** | Una llamada a una herramienta dentro de una corrida. | Leer un archivo, abrir una página, mandar un mensaje |
+
+Cuando un agente le pide ayuda a otro, eso es un sub-hilo con sus propias corridas, que en tu chat se ve como una
+tarjeta de progreso que podés abrir. Hay una sola forma de hacerlo, el mismo `threads.send` que usan la app y la
+terminal.
+
+## Del mensaje a la respuesta
+
+<Steps>
+
+1. Le escribís a Lucía en la app, por Telegram o con `apx chat`. Todos llaman a `threads.send`.
+2. El core guarda una corrida con tu mensaje antes de que pase cualquier otra cosa.
+3. Arma lo que lee el modelo: las instrucciones de Lucía, el proyecto, las notas de memoria y las skills que
+   coinciden, y la conversación. El comienzo del prompt no cambia entre llamadas, así los proveedores lo pueden
+   cachear.
+4. El modelo responde a través del proveedor y quizás pide herramientas. Cada llamada a una herramienta es un paso, y
+   el core la chequea contra la autonomía de Lucía antes de correrla. Si necesita tu OK, la corrida te espera.
+5. La respuesta llega como eventos a cada cliente que esté mirando, y la corrida termina con un estado final.
+
+</Steps>
+
+<Aside title="El texto de afuera es dato">
+Las páginas web, los mensajes de canales, el texto de otros agentes y la salida de las herramientas le llegan al
+modelo marcados como datos, nunca como instrucciones. Mientras haya contenido así en un turno, las acciones de alto
+impacto te preguntan primero, salvo que hayas elegido autonomía total para ese agente. Más en
+[Autonomía](/es/concepts/autonomy/).
+</Aside>
+
+## Para seguir leyendo
+
+<CardGrid>
+  <LinkCard title="Agentes" description="Quiénes son y cómo se definen." href="/es/concepts/agents/" />
+  <LinkCard title="Conversaciones" description="Hilos, corridas y pasos en detalle." href="/es/concepts/conversations/" />
+  <LinkCard title="Correr APX en un servidor" description="Exponé el core, emparejá dispositivos, mantenelo andando." href="/es/devices/server/" />
+  <LinkCard title="Clientes de afuera" description="Que Claude Code, Codex y otras apps usen APX." href="/es/extend/outside-clients/" />
+</CardGrid>

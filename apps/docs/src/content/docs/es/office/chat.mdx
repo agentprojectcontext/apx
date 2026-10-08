@@ -1,0 +1,152 @@
+---
+title: Chat
+description: El Inbox, el cuadro de redacción, los comandos con barra y el panel lateral donde ves trabajar a tus agentes.
+sidebar:
+  order: 1
+---
+
+import { Aside, Steps, Tabs, TabItem, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+En APX todo arranca con una conversación. Le escribís a un agente, trabaja (lee, navega, corre comandos, delega) y
+ves cada paso en el mismo lugar. Esta página cubre el chat del panel: el Inbox, el cuadro de redacción, los comandos
+que podés escribir y el panel lateral que muestra lo que está haciendo el agente.
+
+## El Inbox
+
+**Inbox** en la barra lateral lista todos tus chats: el de Home, el de cada agente, los grupales, las sesiones de
+código y los chats que abren las tareas y las rutinas. Elegí cómo verlos con el selector de arriba:
+
+| Vista | Qué muestra |
+|---|---|
+| **Árbol** | Los chats agrupados por proyecto y después por agente: de un vistazo ves con quién hablaste en Acme Store. |
+| **Actividad** | Los chats por momento: En curso, Hoy, Ayer, Esta semana, Antes. |
+| **Por chat** | Una sola lista, los más nuevos primero. |
+
+<Shot name="inbox" alt="El Inbox en vista Árbol: el chat de Home, chats con agentes de un proyecto y un chat grupal, agrupados por proyecto y agente" caption="El Inbox, vista Árbol" />
+
+**Buscar chats** filtra la lista mientras escribís, y **Nuevo chat** abre un chat con cualquier agente del proyecto
+actual (o con Home). El menú de cada chat te deja **Fijar arriba**, **Renombrar**, **Marcar como leído**,
+**Archivar** o **Borrar**. El chat principal de Home no se puede archivar ni borrar: es la conversación que siempre
+tenés.
+
+## Hablar con un agente
+
+Abrí un chat y escribí. La cara y el nombre del agente están en el encabezado; tocalos (**Ver a** y su nombre) para
+abrir el panel del agente con su rol, su modelo y su memoria.
+
+Mientras trabaja, ves cada paso en el momento: las herramientas que usó, las páginas que abrió, los agentes a los que
+les preguntó. **Mostrar herramientas** en el encabezado prende o apaga esos pasos si solo querés las respuestas.
+Cuando un agente necesita tu OK (para correr un comando, mandar un mensaje, usar tu login en un sitio) el chat
+muestra la pregunta con **Aceptar una vez**, **Aceptar durante esta sesión** o **Aceptar siempre para este agente**.
+
+Un ejemplo. Lucía es la PM de Acme Store:
+
+> **Vos:** Lucía, ¿qué está trabando el lanzamiento de primavera?
+>
+> **Lucía:** Dos cosas: las fotos de producto (tarea de Vera, vence el jueves) y la página de tarifas de envío, que
+> Tomás todavía no empezó. ¿Le pido una fecha a Tomás?
+
+Desde la terminal, la misma conversación está a un comando:
+
+<Terminal command={`apx chat "¿Qué está trabando el lanzamiento de primavera?" --agent <id-de-lucia>`}>{`# sin --agent va a Home, tu secretaria`}</Terminal>
+
+## El cuadro de redacción
+
+La caja de abajo ("Escribile a Lucía…") es donde escribís. Algunas cosas que hace:
+
+- **Adjuntos.** Arrastrá archivos o imágenes al chat, o usá **Adjuntar** › **Archivo** / **Imagen**.
+- **Selector de modelo.** Cada chat usa el modelo de su agente. Podés elegir otro solo para este chat, o **Auto** para
+  que decida el router; **Volver al del agente** lo deshace. El chip de al lado muestra cuánto contexto se usó y abre
+  el panel de Consumo.
+- **Dictado por voz.** **Dictar** pasa lo que decís a texto. Instalá un modelo de transcripción local (whisper.cpp)
+  en Configuración › Voces para que quede todo en tu máquina.
+- **Teclas.** Enter envía (si el agente está trabajando, lo corta y responde esto). Ctrl/⌘+Enter lo deja en cola para
+  cuando termine. Shift+Enter agrega una línea.
+
+## Comandos con barra
+
+Escribí `/` en el cuadro de redacción para abrir el menú de comandos y skills.
+
+<Shot name="slash" alt="El cuadro de redacción con el menú de / abierto, con /new, /compact, /model, /effort y skills" caption="Escribí / para comandos y skills" />
+
+| Comando | Qué hace |
+|---|---|
+| `/new` | Chat nuevo con este agente. |
+| `/compact` | Resume los turnos anteriores para liberar contexto. |
+| `/model` | Cambia el modelo de este chat. |
+| `/effort` | Cuánto piensa el modelo (esfuerzo de razonamiento). |
+| `/stop` | Detiene al agente. |
+| `/usage` | Qué tan lleno está el chat y cuánto costó. |
+| `/skills` | Ver y administrar skills. |
+| `/<skill>` | Carga esa skill completa para este mensaje, por ejemplo `/release-notes`. |
+
+Las skills se explican en [Skills](/es/extend/skills/); los modelos y el esfuerzo, en [Modelos](/es/concepts/models/).
+
+## Editar, regenerar, bifurcar
+
+Cada mensaje tiene sus acciones al pasar el mouse:
+
+- **Editar mensaje** en uno tuyo lo reescribe y lo vuelve a mandar. Lo que vino después se borra (el agente lo
+  olvida), y APX te pregunta antes.
+- **Regenerar respuesta** en una respuesta del agente vuelve a correr ese turno.
+- **Bifurcar en un chat nuevo** copia la conversación hasta ese mensaje en un chat nuevo, para probar otro camino sin
+  perder este.
+- También están **Copiar**, **Citar**, **Responder** y **Leer en voz alta** (con una voz configurada en
+  Configuración › Voces).
+
+## El panel lateral
+
+El selector a la derecha del encabezado abre un panel lateral. Cada vista muestra otro lado del trabajo del chat:
+
+| Panel | Qué ves |
+|---|---|
+| **Navegador** | La página que maneja tu agente, en vivo. Podés tomar el control. Mirá [Navegador](/es/office/browser/). |
+| **Documentos** | Informes, planes y documentos de consulta que el agente abrió para vos. |
+| **Terminal** | Los comandos que corrió el agente (con lo que imprimieron) y tu propia terminal en la carpeta del chat. |
+| **Archivos** | La carpeta donde trabaja este chat, más sus archivos temporales. |
+| **Cambios** | Las ediciones que registró el agente, del último turno o de todos, y el diff de la carpeta actual, archivo por archivo. |
+| **Procesos del chat** | Los subagentes y comandos de este chat: activos y terminados. |
+| **Widget** | Lo que el agente armó para vos en este chat. Mirá [Tablero y widgets](/es/office/board/). |
+| **Consumo** | Tokens, corridas y costo de este chat, y si entraron en un plan o se pagan por token. |
+
+<Tabs>
+  <TabItem label="Archivos">
+    <Shot name="chat-panel" alt="Un chat con el panel lateral abierto en Archivos, con el árbol de la carpeta del chat" />
+  </TabItem>
+  <TabItem label="Terminal">
+    <Shot name="chat-terminal" alt="Un chat con el panel lateral abierto en Terminal, con los comandos que corrió el agente" />
+  </TabItem>
+</Tabs>
+
+Cuando un agente escribe un bloque de shell en su respuesta (por ejemplo, un comando que necesita `sudo`), el bloque
+trae **Ejecutar en una terminal**. Se abre en el panel Terminal sobre una terminal real, así podés escribir ahí una
+contraseña; cuando termina, al agente que lo escribió le llega cómo salió.
+
+## Buscá todo con ⌘K
+
+**Buscar o saltar a…** en la barra de arriba (⌘K, Ctrl+K en Windows y Linux) abre una paleta que encuentra chats,
+proyectos, agentes, tareas abiertas y configuración, y también busca **en los mensajes**: escribí "tarifas de envío"
+y saltá directo al mensaje donde Tomás las mencionó. ⌘J abre el chat de Home desde cualquier lado.
+
+<Shot name="command-palette" alt="La paleta de ⌘K abierta con resultados agrupados en Ir a, Chats, Proyectos, Agentes y En los mensajes" caption="⌘K busca chats, lugares y mensajes" />
+
+## Chat rápido desde la bandeja
+
+En la app de escritorio, el ícono de APX en la barra de menú (o la bandeja del sistema) abre **Chat rápido**: una
+ventanita con el chat de Home, desde cualquier app. El atajo global se configura en Configuración › Escritorio
+(Alt+Space por defecto). Cerrarla solo la esconde; **Abrir en la app** lleva la conversación a la ventana principal.
+Mirá [App de escritorio](/es/devices/desktop/).
+
+<Aside type="tip">
+El chat de Home es una sola conversación en todos lados: lo que escribís desde Telegram o WhatsApp también cae ahí,
+salvo que un canal esté apuntado a otro chat. Mirá [Conversaciones](/es/concepts/conversations/).
+</Aside>
+
+## Lo que sigue
+
+<CardGrid>
+  <LinkCard title="Tareas" href="/es/office/tasks/" description="Dale trabajo a un agente y seguilo en un tablero." />
+  <LinkCard title="Código" href="/es/office/code/" description="Hilos de código y los paneles Terminal, Archivos y Cambios." />
+</CardGrid>

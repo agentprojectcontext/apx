@@ -1,0 +1,126 @@
+---
+title: Primeros pasos
+description: Pasá por el asistente de configuración, conectá un modelo, saludá a Home, sumá un proyecto y hablale a tu equipo desde la terminal.
+sidebar:
+  order: 3
+---
+
+import { Aside, CardGrid, LinkCard, Steps } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+La primera vez que abrís APX, un asistente corto arma tu equipo. Son unos minutos, todo se puede cambiar después en
+Config, y lo podés volver a abrir desde el menú de tu cuenta › **Configuración inicial**.
+
+## El asistente de configuración
+
+<Shot name="wizard-welcome" alt="La configuración inicial en el paso de bienvenida, con las opciones Empezar de cero e Importar desde APX v1" caption="Bienvenida: arrancás de cero o traés tu equipo de v1" />
+
+<Steps>
+
+1. **Bienvenida.** Elegí **Empezar de cero**. Si APX encuentra un APX v1 en esta computadora, también te ofrece
+   **Importar desde APX v1**, con cuántos proyectos encontró. Importar suma un paso donde elegís qué traer (mirá
+   [Si venís de v1](/es/start/from-v1/)).
+
+2. **Super-agente.** Es Home, tu secretaria: coordina al resto y atiende tus canales. Ponele un **Nombre** y elegí su
+   blobo, una de 35 caras. Va apareciendo al lado del formulario mientras elegís.
+
+   <Shot name="wizard-agent" alt="El paso del agente: un campo de nombre, una grilla de caras de blobos y el blobo elegido en grande a la derecha" />
+
+3. **Motores.** Conectá los modelos que ya pagás: iniciá sesión con tu plan de ChatGPT o tocá **Agregar API key**
+   para Gemini, Anthropic, OpenAI, OpenRouter y otros. Los motores locales como Ollama no piden clave. Después ordená
+   la **Cadena de modelos** con las flechas: el primero es el de por defecto y, si falla, toma la posta el siguiente.
+
+4. **Memoria.** Elegí **Buscar por palabras** (las notas aparecen por las palabras que comparten con tu mensaje),
+   **Buscar por significado** (lo mismo, más las notas que lo dicen con otras palabras; necesita un motor de
+   embeddings como Ollama, Gemini u OpenAI) o **Sin memoria**. Abajo hay dos interruptores: elegir skills por
+   significado en cada mensaje y achicar los chats largos con resúmenes.
+
+5. **Canales.** Opcional. Pegá el token de un bot de Telegram que te da @BotFather y tocá **Conectar**, o vinculá
+   WhatsApp con un QR, como WhatsApp Web. Discord y Slack se configuran después en Config › Canales.
+
+6. **Proyectos.** Tu proyecto base siempre está y no tiene carpeta propia; ahí viven Home y tus agentes globales. Le
+   podés cambiar el nombre, sumar una carpeta ahora con **Con carpeta** o saltearlo con **Por ahora no**. Tocá
+   **Crear crew**.
+
+7. **Listo.** Tu equipo está armado. Tocá **Abrir APX**.
+
+</Steps>
+
+<Aside type="tip">
+¿Sin escritorio? En un servidor, `apx setup --headless` hace lo mismo desde la terminal, y `apx wizard` abre una
+consola guiada para el estado, los dispositivos, Tailscale, el emparejamiento y las actualizaciones.
+</Aside>
+
+## Elegí un modelo
+
+En el asistente elegiste una cadena de modelos por defecto. La cambiás cuando quieras:
+
+- **Config › Motores y modelos** lista cada motor con sus modelos y te deja sumar claves o iniciar sesión.
+- **Config › Router** define reglas que eligen un modelo en cada turno (imágenes, mensajes largos, un canal, palabras
+  clave) y la cadena de respaldo.
+- En un chat, el selector de modelo del compositor cambia el modelo solo para ese chat, y `/model` hace lo mismo
+  desde el teclado.
+
+Desde la terminal, `apx models` lista cada motor con sus modelos y `apx models default` define el de la instalación.
+Más en [Modelos](/es/concepts/models/).
+
+## Saludá a Home
+
+El chat de Home está en el **Inbox**. Escribí en el compositor ("Escribile a …" con el nombre de tu secretaria) y
+dale Enter.
+
+<Shot name="home-hero" alt="El Inbox con el chat de Home abierto y un intercambio corto con la secretaria" />
+
+Probá con algo de verdad:
+
+- "¿Qué podés hacer por mí?"
+- "Recordame llamar a Northwind por la factura el viernes a las 10."
+- "Abrí el sitio de Acme Store y contame qué dice la home."
+
+El chat de Home es una sola conversación en todos lados: cuando conectes Telegram o WhatsApp, lo que mandes por ahí
+también cae acá.
+
+## Sumá un proyecto
+
+Un proyecto es una carpeta donde trabajan tus agentes: un repo, una tienda, la carpeta de una empresa. En la barra
+lateral, tocá **Nuevo proyecto**. El diálogo **Sumar un proyecto** te pregunta **Dónde vive**:
+
+- **En una carpeta**: elegí una carpeta como `~/work/acme`. Si no tiene `AGENTS.md`, APX escribe uno con el nombre del
+  proyecto.
+- **Sin carpeta**: el proyecto se crea dentro de la carpeta de APX.
+
+O desde la terminal:
+
+<Terminal command="apx projects register ~/work/acme" />
+
+El proyecto aparece en la barra lateral con sus pestañas: Resumen, Chats, Agentes, Tareas, Rutinas, Archivos, Memoria
+y Recursos. Sumá agentes en la pestaña **Agentes** con **Agente**, o traé uno de una plantilla con **Importar**. Más en
+[Proyectos](/es/concepts/projects/).
+
+## Preguntá desde la terminal
+
+`apx chat` es la única forma de hablarle a un agente desde la terminal. Sin opciones, le escribe a Home:
+
+<Terminal command={`apx chat "¿Qué queda abierto en Acme Store?"`}>{`Hay dos tareas abiertas en Acme Store: Tomás está arreglando el bug del checkout
+y el newsletter de Vera espera tu revisión.
+— completed · thread home`}</Terminal>
+
+Hablale a un agente puntual con `--agent`, arrancá un chat nuevo con `--new` o abrí un hilo de código en la carpeta
+donde estás con `--code`:
+
+```bash
+apx chat "Armá las notas del release" --agent "Lucía"
+apx chat "¿Por qué falla el test del carrito?" --code --cwd ~/work/acme
+```
+
+Todo lo que escribís desde la terminal aparece en la app, y al revés.
+
+## Para seguir
+
+<CardGrid>
+  <LinkCard title="Cómo funciona" description="El core, el protocolo y las piezas alrededor." href="/es/start/how-it-works/" />
+  <LinkCard title="Agentes" description="Dales roles, caras, skills y autonomía." href="/es/concepts/agents/" />
+  <LinkCard title="Chat" description="Comandos con barra, el panel lateral, adjuntos y volver atrás." href="/es/office/chat/" />
+  <LinkCard title="Canales" description="Hablale a tu equipo desde Telegram, WhatsApp, Discord o Slack." href="/es/channels/overview/" />
+</CardGrid>

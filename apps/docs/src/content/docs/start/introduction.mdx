@@ -1,0 +1,107 @@
+---
+title: Introduction
+description: APX is a crew of AI agents that lives on your machine, and these docs show you how to work with it.
+sidebar:
+  order: 1
+---
+
+import { Aside, Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../components/Shot.astro";
+import Blob from "../../../components/Blob.astro";
+
+<Blob name="menta" size={56} />
+
+APX is a crew of AI agents that lives on your machine. You get a secretary that knows you, agents that work inside
+your projects, and a browser they can drive while you watch. You reach them from wherever you are: the desktop app,
+the terminal, your phone, or the chat apps you already use.
+
+It is open source and runs on your computer or on a server you own. Your projects stay plain folders, your state
+stays in one local database, and the models are the ones you already pay for.
+
+<Shot name="home-hero" alt="The Inbox with Home's chat open: a short conversation with the secretary" caption="Home, your secretary, in the desktop app" />
+
+## Meet the crew
+
+- **Home** is your secretary. It answers you in the app, in the terminal and on your channels, keeps your
+  commitments in view, can open and close your day with a short brief, and hands work to the rest of the crew. Its chat is one
+  conversation everywhere: a message you send from Telegram lands in the same place as one you type in the app.
+- **Project agents** live in your project folders, each one a small Markdown file with a name, a role, a face and
+  instructions. Lucía can run the Acme Store project while Tomás fixes the checkout and Vera writes the newsletter.
+- **The browser** is built into the desktop app. Agents open tabs, read pages and click through forms; you can take
+  control at any moment, and it hands passwords, codes and card details back to you.
+
+You talk to all of them from the **desktop app**, the **`apx` terminal**, your **phone**, and **Telegram, WhatsApp,
+Discord or Slack**. Every one of those is a window onto the same core, so nothing gets out of sync.
+
+## The main ideas on one screen
+
+<CardGrid>
+  <Card title="One core" icon="seti:db">
+    A single background process owns everything: agents, chats, tasks, memory. Every app is a client of it.
+  </Card>
+  <Card title="Projects are folders" icon="open-book">
+    A project is a folder with `AGENTS.md` and `.apc/`, the open APC standard. Agents are files you can read and commit.
+  </Card>
+  <Card title="Threads, runs, steps" icon="list-format">
+    A conversation is a thread; each agent turn in it is a run; each tool call is a step. All of them survive a restart.
+  </Card>
+  <Card title="Your models" icon="rocket">
+    Gemini, Anthropic, OpenAI, your ChatGPT plan, Ollama and more. A router picks the model per turn and falls back.
+  </Card>
+  <Card title="Autonomy you choose" icon="approve-check">
+    Each agent asks before changes, asks only when it matters, or runs on its own. Outside text is never an order.
+  </Card>
+  <Card title="An office" icon="star">
+    Tasks, commitments, routines, memory and a board of live widgets, shared by you and the crew.
+  </Card>
+</CardGrid>
+
+## One way to do each thing
+
+APX v2 is a rewrite with one rule: there is one way to do each thing. Where v1 had many paths for the same job, v2
+has one, and every client goes through it.
+
+| What | v1 | v2 |
+| --- | --- | --- |
+| Code paths that run an agent turn | about 23 | **1** |
+| Ways to talk to an agent | about 40 | **1** (`threads.send`) |
+| Ways for one agent to talk to another | 12 | **1** |
+| Ways to build what the model reads | 9 | **1** |
+| Places where a conversation lives | 10 | **1** (thread, run, steps) |
+| API surface | about 378 endpoints | **one typed registry** of about 230 methods |
+
+### Small prompts, every call
+
+Every step of every turn sends the system prompt and the tool definitions again, so their size is paid over and over.
+APX keeps them small, and a test fails the build if they grow past the budget.
+
+| App | First model call of a fresh install |
+| --- | --- |
+| **APX v2** | **≈ 8,100 tokens** |
+| Hermes | ≈ 13,000 tokens |
+| APX v1 (Telegram, terminal, desktop) | ≈ 13,200 tokens |
+| OpenClaw | ≈ 13,200 tokens |
+| APX v1 (web chat, API, routines) | ≈ 23,600 tokens |
+
+MCP tools are found with a search tool instead of being sent one by one. On a real install with ten MCP servers, a
+one-line answer went from about 64k tokens to about 12k, and from the second call roughly 97% of it comes from the
+provider's prompt cache.
+
+<Aside type="tip" title="Coming from APX v1?">
+v2 runs beside v1 and can import your projects, agents, chats and settings. Start at
+[Coming from v1](/start/from-v1/).
+</Aside>
+
+## What's in these docs
+
+<CardGrid>
+  <LinkCard title="Install APX" description="Desktop app, a server or VPS, or a checkout of the code." href="/start/install/" />
+  <LinkCard title="First steps" description="The setup wizard, your first model and your first project." href="/start/first-steps/" />
+  <LinkCard title="How it works" description="The core, the protocol, nodes, and how a turn runs." href="/start/how-it-works/" />
+  <LinkCard title="Core ideas" description="Agents, projects, conversations, models, autonomy and memory." href="/concepts/agents/" />
+  <LinkCard title="Your office" description="Chat, tasks, routines, the secretary, the board and the browser." href="/office/chat/" />
+  <LinkCard title="Channels" description="Telegram, WhatsApp, Discord, Slack and iMessage." href="/channels/overview/" />
+  <LinkCard title="Extend" description="Skills, MCP servers, extensions, integrations and outside apps." href="/extend/skills/" />
+  <LinkCard title="Everywhere" description="The desktop app, your phone and a server." href="/devices/desktop/" />
+  <LinkCard title="Reference" description="Every apx command, configuration and troubleshooting." href="/reference/cli/" />
+</CardGrid>

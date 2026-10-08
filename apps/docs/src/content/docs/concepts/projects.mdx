@@ -1,0 +1,137 @@
+---
+title: Projects
+description: A project is a folder with AGENTS.md and .apc/, the open APC standard; APX reads it, watches it and keeps its own side apart.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps, Tabs, TabItem, CardGrid, LinkCard, FileTree } from "@astrojs/starlight/components";
+import Shot from "../../../components/Shot.astro";
+import Terminal from "../../../components/Terminal.astro";
+
+A project is a place where work happens: a repo, a company, your personal life admin. In APX it is a folder that
+follows **APC** (Agent Project Context), an open standard: an `AGENTS.md` at the root and a `.apc/` folder beside it.
+Your agents, their instructions, the project's skills and MCP servers all live in those files, so they travel with
+the folder, show up in `git diff`, and can be read by any tool that understands the standard.
+
+## What is in a project
+
+<FileTree>
+- acme-store/
+  - AGENTS.md what the project is and how to work in it
+  - .apc/
+    - project.json name, description and type
+    - memory.md your fixed notes for this project's agents
+    - organization.json areas and roles (companies)
+    - mcps.json MCP servers for this project
+    - agents/
+      - lucia.md
+      - tomas.md
+      - vera.md
+      - .archived/ removed agents land here, never erased
+    - skills/
+      - weekly-report/
+        - SKILL.md
+  - src/
+  - …
+</FileTree>
+
+| File | What APX does with it |
+|---|---|
+| `AGENTS.md` | Project context every agent here reads. Long files are capped at 12,000 characters, keeping the head and the tail. |
+| `.apc/project.json` | `name`, `description` and `kind`. A committed `apx_id` keeps the project's id stable; a clone or worktree next to the original gets its own. |
+| `.apc/agents/<slug>.md` | One agent each. See [Agents](/concepts/agents/). |
+| `.apc/memory.md` | Notes you write by hand. Agents always read it and never write it (capped at 6,000 characters). |
+| `.apc/skills/<name>/SKILL.md` | Skills only this project's agents get. See [Skills](/extend/skills/). |
+| `.apc/mcps.json` | `{"mcpServers": …}` for this project, with no secrets in it. Each server must be trusted before it runs. See [MCP servers](/extend/mcp/). |
+| `.apc/organization.json` | Areas and roles for a company (up to 40 areas, 200 roles). |
+
+APX watches `.apc/` and `AGENTS.md`. Edit a file in your editor, save it, and the app picks it up a moment later.
+
+<Aside type="caution">
+  APX refuses symlinks inside `.apc/`, both when reading and when writing. A repo can't pull another file from your
+  machine into an agent's prompt, or redirect APX's writes somewhere else.
+</Aside>
+
+## Project types
+
+Each project has a type, picked when you add it or later in its settings:
+
+| Type | For |
+|---|---|
+| Personal | Your own things. No team or structure. |
+| App | An application people use. |
+| Company | Areas, roles and an executive team. |
+| Software | A library or CLI other programs use. |
+| Other | None of the above. |
+
+Only a **Company** gets areas and roles. Importing the executive team makes a project a company on its own.
+
+## Add a project
+
+<Tabs syncKey="surface">
+  <TabItem label="Panel">
+<Steps>
+
+1. In the sidebar, click **New project**.
+2. Under **Where it lives**, pick **In a folder** and choose the repo or folder, or **No folder** to make one inside
+   APX's own folder (`~/.apx/v2/projects/<name>`).
+3. Give it a name (the folder's, if you leave it empty), a type and a description, then **Add**.
+
+</Steps>
+
+If the folder has no `AGENTS.md`, APX writes a one-line one and creates `.apc/`. Nothing else in your folder is
+touched.
+  </TabItem>
+  <TabItem label="Terminal">
+Register a folder that already has an `AGENTS.md` or a `.apc/`:
+
+<Terminal command="apx projects register ~/work/acme-store">{`Acme Store (p_3f9a1c0d7e21): 4 agents`}</Terminal>
+
+List them. A `!` means the folder is not on disk right now (a moved folder, an unplugged drive):
+
+<Terminal command="apx projects">{`p_3f9a1c0d7e21     Acme Store               company
+p_8b20e4f1a9c3   ! Northwind site           app`}</Terminal>
+
+Read the files again by hand, for every project or one:
+
+<Terminal command="apx projects sync p_3f9a1c0d7e21">{`read 1 projects · 4 agents · 0 archived`}</Terminal>
+  </TabItem>
+</Tabs>
+
+## The base project
+
+Home and your global agents live in the **base project**. It has no folder: APX keeps its name and type, its agents
+work anywhere, and it can't be deleted. You name it during setup and can rename it later; it stays the base project
+whatever you call it. When you want agents that work in a specific folder, make a project for that folder.
+
+## What APX keeps on its side
+
+The project folder is yours. Everything APX needs that is not part of the standard stays in APX's home
+(`~/.apx/v2`):
+
+- **The database** (`apx.db`): chats, runs, tasks, routines, notes, widgets and an index of your projects' agents.
+  The files stay the source of truth for agent definitions; the index is rebuilt from them.
+- **APX's side of the project**: `~/.apx/v2/projects/<name>` for a project APX made with no folder elsewhere, and
+  `~/.apx/v2/projects/<id>` for every other one. Outside agents (Claude Code, Codex) in a project chat work there,
+  never in your folder, so one project's scratch files never land among another's.
+
+Code threads are the exception: they work in your project's folder on purpose. See
+[Conversations](/concepts/conversations/).
+
+## Inside a project
+
+Open a project from the sidebar and you get its tabs: **Overview**, **Chats**, **Agents**, **Tasks**, **Routines**,
+**Files**, **Memory** and **Resources**. The Overview is the project at a glance: a Board with the widgets you
+pinned, what is running now, the team, a few numbers and the latest chats.
+
+<Shot name="project" alt="Acme Store's Overview tab: a Board with a sales widget and a launch checklist, the team and recent chats" caption="Acme Store › Overview" />
+
+<CardGrid>
+  <LinkCard title="Agents" description="The team in .apc/agents/." href="/concepts/agents/" />
+  <LinkCard title="Tasks" description="The project's work, assigned to agents." href="/office/tasks/" />
+  <LinkCard title="Routines" description="Scheduled work for the project." href="/office/routines/" />
+  <LinkCard title="Board and widgets" description="Live widgets pinned to the Overview." href="/office/board/" />
+  <LinkCard title="Memory" description="Project notes and each agent's notebook." href="/concepts/memory/" />
+  <LinkCard title="Code" description="Files, terminal and git from a chat." href="/office/code/" />
+</CardGrid>

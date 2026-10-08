@@ -1,0 +1,158 @@
+---
+title: Instalar
+description: Instalá APX como app de escritorio, en un servidor o VPS, o desde el código fuente.
+sidebar:
+  order: 2
+---
+
+import { Aside, FileTree, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import Terminal from "../../../../components/Terminal.astro";
+
+APX es un proceso en segundo plano, el **core**, más las apps que le hablan. Elegí cómo querés correrlo: la app de
+escritorio trae su propio core, una instalación de servidor corre el core sin pantalla, y desde el código corrés todo
+tal cual está.
+
+<Tabs syncKey="install">
+<TabItem label="App de escritorio">
+
+La app de escritorio es la forma más fácil de arrancar. Trae su propio core, el panel y el navegador que manejan tus
+agentes, y vive en la barra de menú o en la bandeja del sistema.
+
+<Steps>
+
+1. Bajate el instalador para tu sistema desde los
+   [releases de APX](https://github.com/agentprojectcontext/apx/releases): el `.dmg` para macOS, el instalador `.exe`
+   para Windows o el `.AppImage` para Linux.
+
+2. Abrilo. La versión de macOS todavía no está firmada, así que macOS te avisa la primera vez; permitila desde
+   Configuración del Sistema › Privacidad y seguridad.
+
+3. En el primer arranque, APX te pregunta **¿Dónde corre tu APX?**
+
+   - **Servidor**: APX corre en esta computadora. El core se instala y arranca acá. Después elegís desde dónde lo vas
+     a usar: **Solo desde esta computadora** (lo más seguro), **También desde mi red local** o **Tailscale** (tus
+     dispositivos desde cualquier lado, por https; necesita Tailscale instalado).
+   - **Cliente**: APX ya corre en otra máquina y esta app solo se conecta, por **Dirección** (su URL de Tailscale,
+     por ejemplo) o por **SSH** como `usuario@servidor`. SSH usa tu propio `ssh` y tus claves: el core se queda en el
+     servidor y no se abre ningún puerto. Un APX remoto te pide un código de emparejamiento, que sacás en esa máquina
+     en Config › Dispositivos o con `apx pair`.
+
+4. Con un core local, después se abre el asistente de configuración. Seguilo en [Primeros pasos](/es/start/first-steps/).
+
+</Steps>
+
+Lo podés cambiar después desde el menú APX › Cambiar conexión.
+
+</TabItem>
+<TabItem label="Servidor o VPS">
+
+En una máquina sin escritorio, un script instala el core, el comando `apx` y el Node que los corre. No hace falta root
+ni tener Node instalado.
+
+<Terminal command="curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash" />
+
+En Windows, desde PowerShell:
+
+```powershell
+irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
+```
+
+El script acepta algunas opciones:
+
+| Opción | Qué hace |
+| --- | --- |
+| `--file <bundle>` | Instala un bundle que ya tenés en vez de bajarlo. |
+| `--version <x.y.z>` | Instala esa versión en vez de la más nueva. |
+| `--feed <owner/repo>` | Busca los releases en otro repositorio. |
+| `--no-service` | Instala sin arrancar el core como servicio. |
+
+Queda en `~/.apx/v2/app` (una carpeta por versión y un link `current`) y arranca el core como servicio. Después
+terminás la configuración con un comando:
+
+<Terminal command="apx setup --headless --expose tailscale">{`[1] Run the core as a service
+# …
+[3] Expose the core (tailscale)
+# …
+[4] Pair a device
+# un código de un solo uso, las direcciones y un link apx://pair`}</Terminal>
+
+`setup --headless` instala el servicio, opcionalmente importa APX v1 (`--import`, más `--keys`, `--skills`,
+`--services`), opcionalmente abre el core a tu tailnet o a tu red (`--expose tailscale` o `--expose lan`) y te
+muestra un código para emparejar la app de escritorio o el teléfono.
+
+<Aside type="caution" title="Servidores Linux">
+Un servicio de usuario se frena cuando cerrás sesión. Para que siga corriendo: `sudo loginctl enable-linger "$USER"`.
+</Aside>
+
+El servicio es una unidad de usuario de systemd en Linux, un agente de launchd en macOS y una entrada de inicio de
+sesión en Windows. Lo manejás con `apx service install`, `uninstall`, `status` y `restart`. El core no acepta
+escuchar más allá de esta máquina sin un token; `apx expose` te lo crea. Más en
+[Correr APX en un servidor](/es/devices/server/).
+
+</TabItem>
+<TabItem label="Desde el código">
+
+Para trabajar en APX, o para correr el código más nuevo, usá un checkout. Necesitás Node 24.11 o más nuevo y pnpm.
+
+```bash
+pnpm install
+pnpm app     # compila el panel y la app de escritorio, arranca el core y abre la app
+pnpm dev     # solo el core, en 127.0.0.1:7440, que se reinicia cuando cambia un archivo
+```
+
+El core corre su TypeScript directo, así que no tiene paso de build. Desde el checkout, la terminal es
+`node apps/terminal/src/main.ts`; con un alias se siente instalada:
+
+```bash
+alias apx="node $PWD/apps/terminal/src/main.ts"
+apx status
+```
+
+`apx status` te muestra si el core está arriba, el equipo, los proyectos, los servidores MCP, los dispositivos y quién
+puede llegar a él.
+
+</TabItem>
+</Tabs>
+
+## Dónde viven tus datos
+
+Todo lo que guarda APX está en una carpeta, `~/.apx/v2` (con `APX_HOME` la movés). Tus proyectos se quedan donde
+están; APX solo les suma `AGENTS.md` y `.apc/`.
+
+<FileTree>
+- ~/.apx/v2/
+  - apx.db todo el estado: agentes, hilos, tareas, memoria, configuración (SQLite)
+  - core.env el token del core, el host y la dirección pública, si los configurás
+  - secrets.json los valores secretos, donde no se usa el llavero del sistema
+  - skills/ tus skills globales
+  - extensions/
+  - projects/ el lado de APX de cada proyecto, como sus widgets
+  - media/
+  - logs/
+  - backups/
+  - app/ el core instalado, en instalaciones de servidor
+</FileTree>
+
+En macOS, los valores secretos van a tu llavero de sesión (Keychain); en el resto, a `secrets.json` con permisos solo
+para vos.
+
+## Actualizaciones
+
+APX busca una versión nueva cada pocas horas y, cuando sale una, muestra una pastilla **Actualización** en la barra
+de arriba; ahí ves qué trae y actualizás cuando quieras.
+
+- **App de escritorio**: se actualiza sola. El AppImage y el instalador de Windows instalan la versión nueva por su
+  cuenta; en macOS abre la imagen de disco nueva para que la arrastres.
+- **Instalación de servidor**: `apx upgrade --check` te dice si hay un release más nuevo, y `apx upgrade` lo instala
+  al lado del que corre y reinicia. Una app de escritorio conectada al servidor también lo puede actualizar.
+- **Checkout**: APX sigue `main` del checkout desde donde corre; actualizar hace pull, instala, compila y reinicia.
+
+Con `APX_UPDATES=off` se apagan los chequeos.
+
+## Convivir con APX v1
+
+<Aside title="v1 y v2, uno al lado del otro">
+v2 no toca los archivos de v1. v1 se queda con `~/.apx` y el puerto **7430**; v2 usa `~/.apx/v2` y el puerto
+**7440**. El instalador de servidor frena el daemon de v1 y reemplaza su comando `apx` por el de v2, pero tus archivos
+de v1 quedan en su lugar para que los importes. Mirá [Si venís de v1](/es/start/from-v1/).
+</Aside>

@@ -1,0 +1,142 @@
+---
+title: Rutinas
+description: Trabajo que un agente hace solo, con horario, con comandos opcionales antes y después, y silencio cuando no hay nada que decir.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+Una rutina es trabajo que un agente hace solo, con horario: revisar el stock cada mañana de semana, mirar los pull
+requests abiertos cada hora, armar un resumen semanal para un cliente. Te enterás solo cuando hay algo para contarte.
+
+Las rutinas viven en la pestaña **Rutinas** de cada proyecto (las de Home, en el proyecto base). **Nueva rutina**
+abre el editor.
+
+<Shot name="routines" alt="La pestaña Rutinas de un proyecto: cada rutina con su flujo, una fila de 14 barras de activación y su próxima corrida" caption="Rutinas, con sus últimas activaciones" />
+
+## Acciones
+
+Cada rutina hace una de cuatro cosas:
+
+| Acción | Qué pasa |
+|---|---|
+| **Agente** | Un agente (Home o uno del proyecto) responde tu prompt. Te avisa solo cuando tiene algo para decir. |
+| **Mensaje** | Te manda un mensaje fijo por tu canal (Telegram, WhatsApp…). Sin modelo. |
+| **Shell** | Solo corre un comando en la carpeta del proyecto. Sin modelo ni aviso. |
+| **Vigía** | Recorre tu trabajo buscando lo que vale una palabra (tareas atrasadas, compromisos por vencer, proyectos quietos) y llama al modelo solo cuando hay algo nuevo. |
+
+## Horarios
+
+| Cuándo | Ejemplo |
+|---|---|
+| **Con horario** | Elegí días y hora ("Días hábiles a las 08:30"), o **Escribir un cron**: cinco campos, en tu hora local. `30 8 * * 1-5` es días hábiles a las 08:30. |
+| **Cada** | Cada N minutos, horas, días o semanas. Mínimo 5 minutos. |
+| **Una vez** | Una sola fecha y hora. |
+| **A mano** | Solo cuando apretás **Correr ahora**. |
+
+Una corrida que se perdió con el core apagado corre una vez cuando vuelve, nunca dos.
+
+## El silencio también es una respuesta: SKIP
+
+El prompt de una rutina de agente son tus propias palabras. Cuando esta vez no hay nada que valga contarte, el agente
+responde solo `SKIP` y no te llega nada. Escribí prompts que dejen lugar para eso:
+
+> Revisá los pedidos de ayer buscando algo raro: reembolsos de más de 200, un producto vendiendo 3 veces su promedio,
+> un pago rechazado. Si no hay nada, respondé SKIP.
+
+## Comandos antes y después
+
+**Agregar comandos antes y después** le suma a la rutina un pre-comando y un post-comando. Los dos son comandos de
+shell que escribís vos (los agentes no pueden), corren en la carpeta del proyecto, dos minutos como máximo y sin
+credenciales en su entorno.
+
+<Steps>
+
+1. **Pre-comando** corre primero. Su salida le llega al agente donde escribas `{{pre_output}}` en el prompt (o
+   después del prompt si no lo ponés), marcada como dato de afuera.
+2. **Llamar al modelo** decide si el agente corre, según el resultado del pre-comando:
+
+   | Opción | Se llama al modelo |
+   |---|---|
+   | **Siempre** | cada vez |
+   | **Si hay salida** | solo cuando el pre-comando imprimió algo |
+   | **Si falla** | solo cuando el pre-comando salió con error |
+   | **Nunca** | nunca (corren solo los comandos) |
+
+3. **Post-comando** corre al final con lo que salió, en estas variables de entorno:
+
+   | Variable | Valor |
+   |---|---|
+   | `APX_LLM_OUTPUT` | Lo que respondió el agente (o el mensaje) |
+   | `APX_STATUS` | `completed`, `failed` o `skipped` |
+   | `APX_SKIPPED` | `1` si no se llamó al modelo, si no `0` |
+   | `APX_PRE_OUTPUT` | La salida del pre-comando |
+   | `APX_PRE_EXIT` | El código de salida del pre-comando |
+
+</Steps>
+
+Así una rutina gasta **0 tokens** los días tranquilos: el pre-comando de Tomás lista los productos con poco stock,
+con **Si hay salida**, y el modelo se llama solo los días en que hay alguno.
+
+Una rutina de **Mensaje** también usa `{{pre_output}}`: "El clima de hoy: `{{pre_output}}`" te manda la salida del
+comando tal cual, sin modelo.
+
+## Anclas: llega siempre
+
+Las novedades de una rutina normalmente pasan por tu [presupuesto de interrupciones](/es/office/secretary/#el-presupuesto-de-interrupciones):
+un tope diario, espacios entre avisos, horario de silencio. Prendé **Llega siempre** en una rutina que nunca querés
+que se frene, como un resumen de la mañana: sus novedades llegan aunque sea de noche o ya se haya llegado al tope, y
+no cuentan para él.
+
+## Correr ahora y las barras de activación
+
+**Correr ahora** arranca una rutina en el momento, tenga el horario que tenga. Cada rutina muestra sus **últimas
+activaciones** como 14 barras, de la más vieja a la más nueva:
+
+| Barra | Significa |
+|---|---|
+| **La acción corrió** | Corrió y no tenía nada para contarte. |
+| **Te avisó** | Corrió y te mandó algo. |
+| **Salteada, 0 tokens** | No se llamó al modelo (el pre-comando no lo pidió, o no había nada nuevo para vigilar). |
+| **Falló** | La corrida falló. |
+| **No corrió** | Un momento en que tenía que correr y no corrió. |
+
+Cada corrida es un chat propio, así que podés abrirla y ver exactamente qué hizo el agente.
+
+## Desde la terminal
+
+<Terminal command="apx routines help">{`apx routines                                   Routines and when they run next
+apx routines add <name> <prompt…> --agent a [--project p] (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
+                 [--pre "<command>"] [--call always|output|fails|never] [--post "<command>"]
+                                                The pre-command's output reaches the prompt at {{pre_output}}
+apx routines run <id>                          Run now
+apx routines on|off <id>
+apx routines rm <id>
+apx routines log <id>                          Recent runs`}</Terminal>
+
+Sin `--cron`, `--every` ni `--at`, la rutina corre a mano. `--every` va en minutos. La CLI crea rutinas de agente;
+las de mensaje, shell y vigía, y las anclas, se configuran en el panel.
+
+```bash
+# Días hábiles a las 9: Tomás mira el stock bajo, solo cuando hay
+apx routines add stock-bajo "Esta es la lista de stock bajo de hoy: {{pre_output}} Armá el pedido para el proveedor." \
+  --agent <id-tomas> --project <id-acme> --cron "0 9 * * 1-5" \
+  --pre "./scripts/low-stock.sh" --call output
+
+apx routines run <id-rutina>     # probala ahora
+apx routines log <id-rutina>     # corridas recientes; "(nothing to say)" marca un SKIP
+```
+
+<Aside type="note">
+Las rutinas son tuyas: solo vos las creás o las cambiás. Un agente no puede programarse trabajo fijo a sí mismo.
+</Aside>
+
+## Lo que sigue
+
+<CardGrid>
+  <LinkCard title="Secretaria" href="/es/office/secretary/" description="Las rutinas de apertura, cierre y vigía, y tu presupuesto de interrupciones." />
+  <LinkCard title="Extensiones" href="/es/extend/extensions/" description="Las extensiones pueden sugerir plantillas de rutinas." />
+</CardGrid>

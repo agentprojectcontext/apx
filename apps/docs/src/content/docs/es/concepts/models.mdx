@@ -1,0 +1,160 @@
+---
+title: Modelos y motores
+description: Proveedores y harnesses, cómo se nombra un modelo, cómo el router elige uno por turno y a dónde van tus tokens.
+sidebar:
+  order: 4
+---
+
+import { Aside, Steps, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+APX no trae un modelo propio. Vos traés uno (o varios): una API key, tu plan de ChatGPT, un modelo que corre en tu
+máquina. APX elige el indicado para cada turno y pasa al siguiente cuando uno falla.
+
+## Dos palabras: proveedor y harness
+
+| | Es | Ejemplos |
+|---|---|---|
+| **Proveedor** | Una API de modelos que llama el loop propio de APX. Con esto piensan tus agentes. | Gemini, Anthropic, OpenAI, OpenRouter, un Ollama local, tu plan de ChatGPT |
+| **Harness** | Lo que corre el loop de un turno. `native` es el de APX; los otros son CLIs de código que corren su propio loop. | `native`, `claude` (Claude Code), `codex` (Codex), `acp` (OpenCode, Qwen Code, Gemini CLI, goose…) |
+
+Tus agentes, el router y el modelo por defecto de la instalación usan siempre **proveedores** a través del loop de
+APX, con las herramientas, la memoria y las reglas de seguridad de APX. Claude Code, Codex y las otras CLIs corren
+**en sus propias sesiones**: le hablás a la CLI en persona, en una carpeta, desde **Sesiones externas**. No son
+modelos para tus agentes.
+
+<Aside>
+  Tu suscripción de Claude funciona sólo dentro de Claude Code: Anthropic limita su inicio de sesión a Claude Code.
+  Así que en APX vive en las sesiones de Claude Code, y los agentes que quieras que piensen con Claude usan una API key
+  de Anthropic.
+</Aside>
+
+## Sumar un proveedor
+
+Abrí **Configuración › Motores y modelos**. En **APIs de modelos (loop propio de APX)**, tocá **Agregar proveedor** y
+elegí su tipo; la dirección se completa sola. Pegá la key (APX la guarda en el almacén de secretos y no la vuelve a
+mostrar) y la lista de modelos se le pide al proveedor mismo.
+
+Presets: **OpenCode Zen**, **Gemini**, **Anthropic**, **OpenAI**, **OpenRouter**, **Groq**, **Cerebras**,
+**DeepSeek**, **Mistral**, **Ollama**, **LM Studio**, y **OpenAI-compatible** para cualquier otra cosa que hable esa
+API. Ollama y LM Studio corren en tu máquina y no necesitan key.
+
+<Shot name="settings-engines" alt="Configuración, Engines and models: la tarjeta del plan de ChatGPT y una lista de APIs de modelos con su estado" caption="Configuración › Motores y modelos" />
+
+En un servidor sin panel, tres variables de entorno suman un proveedor OpenAI-compatible: `APX_LLM_BASE_URL`,
+`APX_LLM_KEY_REF` (el nombre de un secreto) y `APX_LLM_MODELS`. Mirá [Configuración](/es/reference/configuration/).
+
+### Tu plan de ChatGPT
+
+Tu plan de ChatGPT también puede ser un proveedor, que aparece como **Codex**. Sus modelos corren entonces en el loop
+de APX, con las herramientas de APX.
+
+<Steps>
+
+1. En ChatGPT, abrí Settings › Security y prendé **Device code authorization for Codex**. Sin eso, el inicio de
+   sesión no puede terminar.
+2. En **Configuración › Motores y modelos**, tocá **Conectar** en la tarjeta del plan de ChatGPT y después
+   **Iniciar sesión con ChatGPT**.
+3. Abrí la página que te muestra APX y escribí ahí el código. APX espera hasta que termines en el navegador.
+
+</Steps>
+
+APX tiene su propio inicio de sesión, separado del de la app de Codex, y lo renueva solo. Si APX v1 ya tenía la sesión
+iniciada, podés tomar esa sesión sin un código nuevo.
+
+## Cómo se nombra un modelo
+
+Un modelo se escribe `engine/model`, con un esfuerzo de razonamiento opcional después de un `#`:
+
+```text
+gemini/gemini-3.8-flash          un modelo del proveedor gemini
+chatgpt/gpt-6-sol#high           el modelo de tu plan de ChatGPT, pensando más
+ollama                           un motor solo: su modelo por defecto
+acp:opencode/<model>             un agente ACP, en sus propias sesiones
+```
+
+El id del motor es el id del proveedor, el que se ve en su configuración. Los esfuerzos que acepta un modelo los dice
+el modelo mismo (low, medium, high, etcétera). En un chat, `/effort` lo cambia para ese chat.
+
+## El router
+
+El router decide qué modelo responde cada turno. Está en **Configuración › Router**.
+
+- **Reglas**, revisadas de arriba hacia abajo: gana la primera que coincide. Una regla puede mirar si el mensaje trae
+  una imagen, su largo, qué tan grande es el contexto, el canal, quién arrancó el turno (una persona, otro agente, el
+  resultado de un agente, una app, un canal, una rutina, el sistema), el tipo de agente y palabras clave. Una regla
+  sin condiciones coincide con todos los turnos.
+- **La cadena de modelos**: el #1 es el por defecto y, si falla, se prueban los de abajo en orden.
+
+<Shot name="settings-router" alt="Configuración, Router: dos reglas arriba y una cadena de tres modelos abajo" caption="Configuración › Router" />
+
+Un turno pasa al modelo siguiente **sólo si el que falló todavía no había usado ninguna herramienta**. Si ya corrió
+una, el turno falla con honestidad: reintentar en otro modelo podría hacer lo mismo dos veces. Cuando sí cambia, el
+chat muestra un aviso con qué modelo no respondió y por qué.
+
+## Por agente, por chat, por defecto
+
+Tres lugares eligen modelo, del más puntual al más general:
+
+| Dónde | Cómo | Quiere decir |
+|---|---|---|
+| Un chat | El selector de modelo del compositor | Sólo este chat. |
+| Un agente | El panel del agente, o `apx agents model` | Un modelo fijo, un modelo con el router detrás (`--router`), el router solo, o el por defecto de la instalación. |
+| La instalación | `apx models default`, o la cadena del router | Todos los agentes que no eligieron otro. |
+
+## Consumo
+
+Cada turno anota su modelo y sus tokens, y si estaban **incluidos** en una suscripción o eran **medidos** (pagados por
+token). Lo ves en el panel lateral **Consumo** de un chat, con `/usage` en un chat, o para toda la instalación:
+
+<Terminal command="apx usage 7">{`since 2026-10-01
+gemini/gemini-3.8-flash                      metered     212 runs     1840233 in      96410 out
+chatgpt/gpt-6-sol                            included     48 runs      603118 in      41022 out`}</Terminal>
+
+## Desde la terminal
+
+<Terminal command="apx models">{`claude — Claude Code
+  claude/sonnet
+codex — Codex
+  codex/gpt-6-sol
+gemini — Gemini
+  gemini/gemini-3.8-flash
+  gemini/gemini-3.8-pro
+chatgpt — Codex
+  chatgpt/gpt-6-sol
+ollama — Ollama (not available)`}</Terminal>
+
+La lista arranca con las CLIs (`claude`, `codex`, los agentes ACP), cuyos modelos usás en sus propias sesiones, y
+sigue con tus proveedores. A cada motor se le pide su propia lista; `apx models --refresh` vuelve a preguntar en vez
+de usar la caché de un día.
+
+<Terminal command="apx models config">{`default: router
+router chain: gemini/gemini-3.8-flash → chatgpt/gpt-6-sol
+  rule {"has_image":true} → gemini/gemini-3.8-pro  # photos and screenshots`}</Terminal>
+
+| Comando | Hace |
+|---|---|
+| `apx models default <engine/model \| engine \| router> [--router]` | Define el modelo por defecto de la instalación. |
+| `apx models chain <ref> [<ref>…]` | Define la cadena de respaldo del router, en orden. |
+| `apx models rules < rules.json` | Reemplaza las reglas del router (JSON por stdin). |
+| `apx agents model <agent> <ref \| router \| default> [--router]` | Define el modelo de un agente. |
+
+Un archivo de reglas es una lista. Todas las condiciones de `when` tienen que cumplirse; `model` es lo que elige la
+regla:
+
+```json title="rules.json"
+[
+  { "when": { "has_image": true }, "model": "gemini/gemini-3.8-pro", "note": "photos and screenshots" },
+  { "when": { "triggers": ["routine"], "max_chars": 2000 }, "model": "ollama" },
+  { "when": { "keywords": ["contrato", "factura"] }, "model": "chatgpt/gpt-6-sol#high" }
+]
+```
+
+Las condiciones son `has_image`, `min_chars`, `max_chars`, `min_context_chars`, `channels`, `triggers` (`user`,
+`a2a`, `a2a_result`, `surface`, `channel`, `routine`, `system`), `agent_kinds` (`secretary`, `agent`) y `keywords`.
+
+<CardGrid>
+  <LinkCard title="Código" description="Sesiones de Claude Code y Codex desde APX." href="/es/office/code/" />
+  <LinkCard title="Configuración" description="Variables de entorno y archivos." href="/es/reference/configuration/" />
+</CardGrid>

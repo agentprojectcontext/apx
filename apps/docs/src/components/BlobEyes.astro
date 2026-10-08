@@ -1,0 +1,46 @@
+---
+// Once per page: every blobo's eyes blink now and then and look toward the pointer.
+---
+
+<script>
+  const mouse = { x: innerWidth / 2, y: innerHeight / 3 };
+  addEventListener(
+    "pointermove",
+    (e) => {
+      mouse.x = e.clientX;
+      mouse.y = e.clientY;
+    },
+    { passive: true },
+  );
+  const next = new WeakMap<Element, { blink: number; next: number }>();
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function loop(t: number) {
+    for (const el of document.querySelectorAll<HTMLElement>(".apx-blob")) {
+      const box = el.getBoundingClientRect();
+      if (!box.width || box.bottom < -50 || box.top > innerHeight + 50) continue;
+      let s = next.get(el);
+      if (!s) {
+        s = { blink: 0, next: t + 800 + Math.random() * 4000 };
+        next.set(el, s);
+      }
+      const ex = box.left + box.width * Number(el.dataset.cx ?? 0.5);
+      const ey = box.top + box.height * Number(el.dataset.cy ?? 0.5);
+      const dx = mouse.x - ex;
+      const dy = mouse.y - ey;
+      const d = Math.hypot(dx, dy) || 1;
+      // Offsets are in the body's 256-unit canvas, so the look is the same at every size.
+      const k = still ? 0 : Math.min(1, d / 300);
+      const ox = (dx / d) * 9 * k;
+      const oy = (dy / d) * 7 * k;
+      if (t > s.next) {
+        s.blink = t;
+        s.next = t + 2200 + Math.random() * 4200;
+      }
+      const scale = t - s.blink < 140 ? 0.12 : 1;
+      for (const eye of el.querySelectorAll<SVGElement>(".eye"))
+        eye.style.transform = `translate(${ox.toFixed(1)}px,${oy.toFixed(1)}px) scaleY(${scale})`;
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+</script>

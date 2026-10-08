@@ -1,0 +1,269 @@
+---
+title: El comando apx
+description: Todos los comandos de apx, agrupados según para qué sirven, con sus opciones y el entorno que leen.
+sidebar:
+  order: 1
+---
+
+import { Aside } from "@astrojs/starlight/components";
+import Terminal from "../../../../components/Terminal.astro";
+
+`apx` es la terminal de APX. No tiene lógica propia: cada comando es una llamada al core que está corriendo, las mismas
+que hace el panel. Así que todo lo que hacés acá lo podés hacer también en el panel, y casi todo al revés.
+
+`apx --help` muestra la lista completa. `apx tasks help` y `apx routines help` muestran el detalle de esos dos grupos.
+
+<Aside type="tip">
+Lo que va entre ángulos lo completás vos: `<id>` es un id que sale del comando que lista eso (`apx agents`,
+`apx threads`, `apx tasks`…), `<agent>` el id de un agente, `<project>` el de un proyecto.
+</Aside>
+
+## La consola interactiva
+
+Corré `apx` sin argumentos en una terminal interactiva (o `apx wizard`) y tenés una consola con autocompletado con Tab
+e historial:
+
+| Comando | Qué hace |
+|---|---|
+| `/status` | Core, equipo y proyectos (igual que `apx status`). |
+| `/devices` | Dispositivos vinculados. |
+| `/tailscale` | El acceso por red y el estado de Tailscale. |
+| `/connect` | Expone APX por Tailscale. |
+| `/pair` | Un código para conectar un dispositivo nuevo. |
+| `/updates` | Busca un APX más nuevo. |
+| `/panel` | La dirección del panel web. |
+| `/help`, `/quit` | El menú de nuevo; volver a tu shell. |
+
+Los números del `1` al `6` son atajos de las opciones del menú y el `0` sale. Fuera de una terminal (un script, un
+pipe) la consola no arranca: `apx` muestra la ayuda.
+
+## Estado y mantenimiento
+
+| Comando | Qué hace |
+|---|---|
+| `apx status` | La versión y el commit del core, cuánto lleva prendido, memoria, URL, cada subsistema, el equipo, los proyectos, los servidores MCP, los dispositivos, el acceso y los chats. También `apx --status`. |
+| `apx --version` | La versión y el commit de esta CLI (`-v`). Anda sin el core. |
+| `apx ping [text]` | Una ida y vuelta por el socket en vivo. |
+| `apx upgrade --check` | ¿Hay un APX más nuevo? |
+| `apx upgrade` | Aplicarlo, igual que **Actualizar ahora** en el panel. |
+| `apx daemon` | Explica qué comando `apx service` usar (el core en segundo plano ahora es un servicio). |
+| `apx --help` | La lista completa (`-h`). |
+
+`apx status`, `apx devices`, `apx tailscale status`, `apx upgrade`, `apx mcp tools`, `apx mcp check` y `apx memory`
+aceptan `--json`. `apx status --plain` saca la tarjeta y el retrato.
+
+<Terminal command="apx --version">{`APX v2 · 2.2.0 · 1a2b3c4d5e6f`}</Terminal>
+
+## Servicio, acceso y dispositivos
+
+| Comando | Qué hace |
+|---|---|
+| `apx service install` | Corre el core en segundo plano: una unidad de usuario de systemd (Linux), un agente de launchd (macOS) o una entrada de inicio de sesión (Windows), que arranca al iniciar sesión y de nuevo si se cae. |
+| `apx service status` | Si el servicio está instalado y corriendo, y si el core responde. |
+| `apx service restart` | Lo reinicia (el core lee `core.env` al arrancar). |
+| `apx service uninstall` | Saca el servicio. |
+| `apx expose tailscale` | Publica el core en tu tailnet en `https://<machine>.<tailnet>.ts.net`; el core queda en loopback. |
+| `apx expose lan` | Escucha en todas las direcciones de red de esta máquina. |
+| `apx expose off` | De nuevo solo esta compu (el token queda). |
+| `apx expose status` | Qué está en vigor, el puerto, el token (si hay o no) y el archivo de configuración. |
+| `apx tailscale [status]` | El estado de Tailscale y el modo de acceso, preguntándole al core. |
+| `apx tailscale connect` | Expone APX por Tailscale (tiene que tener la sesión iniciada). |
+| `apx tailscale off` | Vuelve al acceso local. |
+| `apx pair` | Un código de un solo uso, las direcciones y un enlace `apx://pair` para un teléfono u otra compu. |
+| `apx devices [list]` | Dispositivos vinculados. |
+| `apx devices pair` | Igual que `apx pair`. |
+| `apx devices revoke <id>` | Revoca la llave de un dispositivo. |
+| `apx setup --headless` | Un servidor sin escritorio: servicio, importación opcional (`--import`), exposición opcional (`--expose tailscale` o `--expose lan`) y después un código para vincular. |
+| `apx import-v1` | Registra las carpetas de proyecto que conoce un APX v1 local (solo lee v1). `--keys` también copia sus claves de API de modelos, `--skills` sus skills, `--services` sus motores de imágenes y voces. |
+
+`apx expose` edita `<home>/core.env` directamente; después reiniciá el core (`apx service restart`). `apx tailscale`
+pasa por el core que está corriendo, que se reinicia solo cuando corre bajo un supervisor como el servicio, y si no te
+avisa que lo reinicies. Más en [APX en un servidor](/es/devices/server/).
+
+<Terminal command="apx expose status">{`only this computer can reach the core
+port     7440
+token    none (the core only accepts this computer)
+settings ~/.apx/v2/core.env (none yet)`}</Terminal>
+
+## Chats y corridas
+
+| Comando | Qué hace |
+|---|---|
+| `apx chat "<text>"` | Hablale a Home (la secretaria) y mirá la respuesta mientras se arma: pasos de herramientas, subhilos, widgets, preguntas. |
+| `apx chat "<text>" --agent <id>` | Hablale a un agente, en su última conversación con vos (`--new` arranca otra). |
+| `apx chat "<text>" --thread <id>` | Escribí en un hilo puntual. |
+| `apx chat "<text>" --code` | Un hilo de código en el proyecto registrado que contiene la carpeta actual (`--cwd <folder>` para otra, `--write ask`, `auto` o `read-only`, `--agent <id>`). |
+| `apx threads [list]` | Los hilos con su estado y tipo. |
+| `apx threads get <thread>` | Los últimos 20 mensajes de un hilo. |
+| `apx threads cancel <thread>` | Frena lo que esté corriendo ahí. |
+| `apx runs get <run>` | Una corrida, en JSON. |
+| `apx runs wait <run>` | Espera a que termine (`--timeout 60`, en segundos). |
+| `apx runs pending [thread]` | Lo que los agentes esperan de vos: confirmaciones y preguntas. |
+| `apx runs respond <input> approve` | Aprobar (o `deny`), con una nota opcional y `--scope once`, `session` o `always`. |
+| `apx runs respond <input> "<answer>"` | Responder una pregunta. |
+| `apx jobs [list]` | El trabajo en segundo plano que corre ahora y los últimos 10 terminados. |
+| `apx jobs get <job>` | El estado y la salida de un trabajo. |
+| `apx jobs cancel <job>` | Lo frena. |
+| `apx compact <thread>` | Resume ya los turnos viejos de un hilo (el loop propio de APX). |
+| `apx notifications` | Lo que te está esperando. |
+| `apx notifications read` | Marca todo como leído. |
+
+`apx chat` también acepta `--detach` (manda y vuelve sin esperar), y `--interrupt` o `--steer` para cuando el agente ya
+está trabajando (frenarlo, o meter el mensaje en el turno que corre). Sin esas opciones, el mensaje espera su turno.
+
+<Terminal command={`apx chat "¿Qué hay abierto en Acme Store?"`}>{`  ✓ List tasks
+Hay dos tareas abiertas en Acme Store: el catálogo de primavera (en curso, Lucía) y las tarifas de envío (te esperan a vos).
+— completed · thread home`}</Terminal>
+
+## Agentes y proyectos
+
+| Comando | Qué hace |
+|---|---|
+| `apx agents` | Los agentes y el modelo con que corre cada uno (★ marca a Home). |
+| `apx agents new <slug> "<Name>"` | Un agente nuevo; `--project <id>` lo pone en un proyecto (se escribe en `.apc/agents/<slug>.md`), `--role "<role>"` le da un rol. |
+| `apx agents set <agent> key=value…` | Cambia `name`, `role`, `slug`, `parent` o `blob`. |
+| `apx agents archive <agent>` | Archiva un agente (el archivo de un agente de proyecto pasa a `.apc/agents/.archived/`). |
+| `apx agents model <agent> <ref>` | Su modelo: `<engine>/<model>`, `<engine>`, `router` o `default`; `--router` deja el router como respaldo. |
+| `apx projects [list]` | Los proyectos (un `!` marca una carpeta que no está). |
+| `apx projects register <folder>` | Registra una carpeta con `AGENTS.md` y/o `.apc/`. |
+| `apx projects sync [project]` | Vuelve a leer los archivos del proyecto. |
+
+## Modelos y consumo
+
+| Comando | Qué hace |
+|---|---|
+| `apx models` | Cada motor y los modelos que ofrece (`--refresh` les vuelve a preguntar). |
+| `apx models config` | El predeterminado de la instalación, la cadena del router y sus reglas. |
+| `apx models default <ref>` | El predeterminado: `<engine>/<model>`, `<engine>` o `router` (`--router` para dejar el router de respaldo). |
+| `apx models chain <ref> [<ref>…]` | La cadena de respaldo del router, en orden. |
+| `apx models rules < rules.json` | Las reglas del router, como un array JSON por stdin. |
+| `apx usage [days]` | Turnos y tokens por modelo en los últimos días (30 por defecto), y si entraron en un plan o se pagaron por token. |
+
+Qué es una referencia de modelo y el router está en [Modelos](/es/concepts/models/).
+
+## Oficina
+
+| Comando | Qué hace |
+|---|---|
+| `apx tasks` | Las tareas abiertas por columna (`--project <id>` para un proyecto). |
+| `apx tasks add <title…>` | Una tarea nueva: `--project <id>`, `--agent <id>` (asignarla), `--due 2026-10-05`. Con `--person <name> --owed me` o `--owed them` es un compromiso. |
+| `apx tasks commitments` | Lo que debés y lo que te deben. |
+| `apx tasks move <id> <column>` | La pasa a otra columna. |
+| `apx tasks done <id>` | La cierra como hecha (también `drop` y `reopen`). |
+| `apx tasks say <id> <text…>` | Un comentario; un `@agente` en el texto le pregunta a ese agente ahí. |
+| `apx routines` | Las rutinas y cuándo corren (`--project <id>`). |
+| `apx routines add <name> <prompt…> --agent <id>` | Una rutina nueva. Horario con `--cron "30 8 * * 1-5"`, `--every 60` (minutos) o `--at <fecha ISO>`; sin ninguno es a mano. También `--project`, `--pre "<command>"`, `--post "<command>"`, `--call always`, `output`, `fails` o `never`. |
+| `apx routines run <id>` | La corre ya. |
+| `apx routines on <id>` | La prende (`off` la apaga). |
+| `apx routines rm <id>` | La borra. |
+| `apx routines log <id>` | Sus últimas corridas. |
+| `apx memory [words]` | Las notas que guardan los agentes, de la más nueva a la más vieja, o las que mejor coinciden con las palabras (`--project`, `--agent`, `--json`). |
+| `apx memory add [scope] <text>` | Agrega una nota. El alcance es `global`, `project` o `agent` (con `--project <id>` o `--agent <id>`); sin alcance sigue esas opciones, y si no, `global`. |
+| `apx memory rm <id…>` | Borra notas. |
+
+En una rutina, la salida del pre-comando llega al prompt donde escribas `{{pre_output}}`. Más en
+[Tareas](/es/office/tasks/), [Rutinas](/es/office/routines/) y [Memoria](/es/concepts/memory/).
+
+## Canales y contactos
+
+| Comando | Qué hace |
+|---|---|
+| `apx channels` | Los canales y su estado. |
+| `apx channels add telegram <id> --agent <agent>` | Agrega un bot de Telegram. El token sale de `APX_CHANNEL_TOKEN`, nunca de la línea de comandos. |
+| `apx channels rm <id>` | Borra un canal y su token. |
+| `apx channels outbox` | Lo que se mandó últimamente y cómo salió. |
+| `apx contacts` | Las personas y sus direcciones. |
+| `apx contacts add <name…>` | Agrega un contacto. |
+| `apx contacts block <id>` | Bloquea a una persona (`unblock` para deshacerlo). |
+| `apx contacts rm <id>` | Borra a una persona. |
+| `apx pairing` | Desconocidos esperando aprobación. |
+| `apx pairing me <code>` | Esta dirección es mía (del dueño). |
+| `apx pairing ok <code> [name…]` | Aprobar como contacto. |
+| `apx pairing no <code>` | Rechazarlo. |
+
+Los demás canales (WhatsApp, Discord, Slack) se configuran en el panel. Mirá [Canales](/es/channels/overview/).
+
+## Skills, MCP, extensiones y secretos
+
+| Comando | Qué hace |
+|---|---|
+| `apx skills [project]` | Las skills que pueden cargar los agentes. |
+| `apx skills install-runtimes` | Actualiza ya las skills que le enseñan a Claude Code, Codex, Cursor y `~/.agents` a usar APX (el core también lo hace en cada arranque). `--dry-run` muestra qué cambiaría. |
+| `apx mcps [list [project]]` | Los servidores MCP, con su estado y cantidad de herramientas. |
+| `apx mcps add <name> <command…>` | Agrega uno propio: un comando con sus argumentos, o una URL. |
+| `apx mcps rm <name>` | Lo saca. |
+| `apx mcps trust <project> <server>` | Aprueba un servidor que nombra el `.apc/mcps.json` de un proyecto (`untrust` para deshacerlo). |
+| `apx mcp tools <server> [<tool>]` | Las descripciones de las herramientas y sus esquemas JSON. |
+| `apx mcp run <server> <tool> '<json>'` | Llama a una herramienta directo y muestra el resultado crudo; `-` lee los argumentos de stdin. |
+| `apx mcp check <server>` | Una prueba de conexión. |
+| `apx extensions` | Las extensiones instaladas. |
+| `apx extensions inspect <folder>` | Qué traería una carpeta; no instala nada. |
+| `apx extensions install <folder>` | La copia, apagada. |
+| `apx extensions on <id>` | La prende (`off` la apaga). |
+| `apx extensions secret <id> <name>` | Le da un secreto, con el valor por stdin (`--clear` lo borra). |
+| `apx extensions rm <id>` | La saca. |
+| `apx clients` | Las apps de afuera con un token propio. |
+| `apx clients add <name>` | Un token para una (se muestra una vez), `--scopes chat,browser` (por defecto `chat`). |
+| `apx clients rm <id>` | Lo revoca. |
+| `apx secrets [list]` | Los nombres de los secretos y cuándo cambiaron (nunca los valores). |
+| `apx secrets set <name>` | Guarda un secreto; el valor llega por stdin. |
+| `apx secrets rm <name>` | Lo borra. |
+
+`apx mcp tools`, `run` y `check` aceptan `--project <id>` y `--scope global` o `--scope project`. Las llamadas MCP
+directas son operaciones tuyas: no arrancan un turno de un agente.
+
+Los valores nunca van en la línea de comandos, donde quedarían en el historial de tu shell:
+
+```bash
+printf '%s' "$KEY" | apx secrets set gemini
+```
+
+<Terminal command="apx mcp check github">{`github: OK · 412 ms · 26 tools`}</Terminal>
+
+### apx como servidor MCP
+
+| Comando | Qué hace |
+|---|---|
+| `apx mcp` | Un servidor MCP por stdio con las herramientas `browser_*`, para Claude Code, Codex y otros clientes (`--by <agent>` dice quién lo usa). Con `APX_CLIENT_TOKEN` además ofrece `apx_agents`, `apx_ask` y `apx_read`. |
+| `apx mcp --run` | Las herramientas de una corrida de un agente, para un harness de afuera (lee `APX_RUN_TOKEN`). Lo usa APX mismo. |
+
+```bash
+apx clients add claude-code
+claude mcp add apx -e APX_CLIENT_TOKEN=<token> -- apx mcp
+```
+
+Más en [Clientes de afuera](/es/extend/outside-clients/).
+
+## El navegador
+
+| Comando | Qué hace |
+|---|---|
+| `apx browser tabs` | Las pestañas abiertas. |
+| `apx browser open <url>` | Abre una pestaña: `--profile shared`, `incognito` o `agent:<id>`; `--by <agent>`. |
+| `apx browser nav <tab> <url>` | Va a una página. |
+| `apx browser snapshot <tab>` | Los elementos de la página, con refs para hacer clic o escribir. |
+| `apx browser click <tab> <ref>` | Hace clic en un elemento. |
+| `apx browser type <tab> <ref> <text>` | Escribe en él (`--submit` para apretar Enter). |
+| `apx browser shot <tab> <file.jpg>` | Guarda una captura. |
+| `apx browser close <tab>` | Cierra la pestaña. |
+| `apx browser control <tab> user` | Te quedás vos con la pestaña; `idle` o `done` en vez de `user` para soltarla. |
+| `apx browser cookies` | Los navegadores cuyas sesiones se pueden importar. |
+| `apx browser cookies <source> [filter]` | Los dominios con cookies en uno de ellos (solo cantidades). |
+| `apx browser import <source> <domain,…>` | Importa las cookies de esos dominios (`--profile shared` o `agent:<id>`). |
+
+Mirá [Navegador](/es/office/browser/).
+
+## Entorno
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `APX_URL` | `http://127.0.0.1:7440` | El core con el que habla esta terminal. El puerto sigue a `APX_PORT`, después a `core.env`. |
+| `APX_TOKEN` | el de `<home>/core.env` | El token del core, para un core que lo pide. |
+| `APX_HOME` | `~/.apx/v2` | La carpeta de APX: donde se lee y se escribe `core.env`. |
+
+Los comandos que necesitan un secreto lo leen del entorno o de stdin, nunca de los argumentos: `APX_CHANNEL_TOKEN` para
+`apx channels add`, `APX_CLIENT_TOKEN` para `apx mcp`. Todas las variables que lee el core están en
+[Configuración](/es/reference/configuration/).
+
+Un comando u opción desconocidos muestran un error corto y `Try: apx --help`. Si el core está caído vas a ver
+`apx: the core is not running`; mirá [Problemas frecuentes](/es/reference/troubleshooting/).

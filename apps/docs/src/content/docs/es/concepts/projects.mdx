@@ -1,0 +1,137 @@
+---
+title: Proyectos
+description: Un proyecto es una carpeta con AGENTS.md y .apc/, el estándar abierto APC; APX la lee, la vigila y guarda lo suyo aparte.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps, Tabs, TabItem, CardGrid, LinkCard, FileTree } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+Un proyecto es un lugar donde pasa el trabajo: un repo, una empresa, los trámites de tu vida. En APX es una carpeta
+que sigue **APC** (Agent Project Context), un estándar abierto: un `AGENTS.md` en la raíz y una carpeta `.apc/` al
+lado. Tus agentes, sus instrucciones, las skills y los servidores MCP del proyecto viven en esos archivos, así que
+viajan con la carpeta, aparecen en `git diff` y cualquier herramienta que entienda el estándar los puede leer.
+
+## Qué hay en un proyecto
+
+<FileTree>
+- acme-store/
+  - AGENTS.md qué es el proyecto y cómo se trabaja en él
+  - .apc/
+    - project.json nombre, descripción y tipo
+    - memory.md tus notas fijas para los agentes del proyecto
+    - organization.json áreas y roles (empresas)
+    - mcps.json servidores MCP del proyecto
+    - agents/
+      - lucia.md
+      - tomas.md
+      - vera.md
+      - .archived/ los agentes que sacás terminan acá, nunca se borran
+    - skills/
+      - weekly-report/
+        - SKILL.md
+  - src/
+  - …
+</FileTree>
+
+| Archivo | Qué hace APX con él |
+|---|---|
+| `AGENTS.md` | Contexto del proyecto que leen todos sus agentes. Los archivos largos se recortan a 12.000 caracteres, conservando el principio y el final. |
+| `.apc/project.json` | `name`, `description` y `kind`. Un `apx_id` commiteado mantiene estable el id del proyecto; un clon o worktree al lado del original recibe uno propio. |
+| `.apc/agents/<slug>.md` | Un agente cada uno. Mirá [Agentes](/es/concepts/agents/). |
+| `.apc/memory.md` | Notas que escribís a mano. Los agentes siempre lo leen y nunca lo escriben (hasta 6.000 caracteres). |
+| `.apc/skills/<name>/SKILL.md` | Skills que sólo reciben los agentes de este proyecto. Mirá [Skills](/es/extend/skills/). |
+| `.apc/mcps.json` | `{"mcpServers": …}` del proyecto, sin secretos adentro. Cada servidor tiene que estar aprobado antes de correr. Mirá [Servidores MCP](/es/extend/mcp/). |
+| `.apc/organization.json` | Áreas y roles de una empresa (hasta 40 áreas y 200 roles). |
+
+APX vigila `.apc/` y `AGENTS.md`. Editás un archivo en tu editor, lo guardás, y la app lo toma un momento después.
+
+<Aside type="caution">
+  APX rechaza los symlinks dentro de `.apc/`, tanto al leer como al escribir. Un repo no puede meter otro archivo de
+  tu máquina en el prompt de un agente, ni desviar lo que APX escribe a otro lado.
+</Aside>
+
+## Tipos de proyecto
+
+Cada proyecto tiene un tipo, que elegís al sumarlo o después en su configuración:
+
+| Tipo | Para |
+|---|---|
+| Personal | Tus cosas. Sin equipo ni estructura. |
+| App | Una aplicación que usa gente. |
+| Empresa | Áreas, roles y un equipo ejecutivo. |
+| Software | Una biblioteca o CLI que usan otros programas. |
+| Otro | Ninguno de los anteriores. |
+
+Sólo una **Empresa** tiene áreas y roles. Importar el equipo ejecutivo convierte un proyecto en empresa por sí solo.
+
+## Sumar un proyecto
+
+<Tabs syncKey="surface">
+  <TabItem label="Panel">
+<Steps>
+
+1. En la barra lateral, tocá **Nuevo proyecto**.
+2. En **Dónde vive**, elegí **En una carpeta** y buscá el repo o la carpeta, o **Sin carpeta** para crear una dentro
+   de la carpeta de APX (`~/.apx/v2/projects/<name>`).
+3. Ponele nombre (si lo dejás vacío, el de la carpeta), tipo y descripción, y tocá **Sumar**.
+
+</Steps>
+
+Si la carpeta no tiene `AGENTS.md`, APX escribe uno de una línea y crea `.apc/`. No toca nada más de tu carpeta.
+  </TabItem>
+  <TabItem label="Terminal">
+Registrá una carpeta que ya tenga `AGENTS.md` o `.apc/`:
+
+<Terminal command="apx projects register ~/work/acme-store">{`Acme Store (p_3f9a1c0d7e21): 4 agents`}</Terminal>
+
+Listalos. Un `!` quiere decir que la carpeta no está en el disco ahora (la moviste, el disco está desenchufado):
+
+<Terminal command="apx projects">{`p_3f9a1c0d7e21     Acme Store               company
+p_8b20e4f1a9c3   ! Northwind site           app`}</Terminal>
+
+Releé los archivos a mano, de todos los proyectos o de uno:
+
+<Terminal command="apx projects sync p_3f9a1c0d7e21">{`read 1 projects · 4 agents · 0 archived`}</Terminal>
+  </TabItem>
+</Tabs>
+
+## El proyecto base
+
+Home y tus agentes globales viven en el **proyecto base**. No tiene carpeta: APX guarda su nombre y su tipo, sus
+agentes trabajan en cualquier lado y no se puede borrar. Le ponés nombre durante la configuración y lo podés cambiar
+después; sigue siendo el proyecto base se llame como se llame. Cuando quieras agentes que trabajen en una carpeta
+puntual, creá un proyecto para esa carpeta.
+
+## Lo que APX guarda de su lado
+
+La carpeta del proyecto es tuya. Todo lo que APX necesita y no es parte del estándar queda en el home de APX
+(`~/.apx/v2`):
+
+- **La base de datos** (`apx.db`): chats, turnos, tareas, rutinas, notas, widgets y un índice de los agentes de tus
+  proyectos. Los archivos siguen mandando en la definición de los agentes; el índice se rearma desde ellos.
+- **El lado de APX del proyecto**: `~/.apx/v2/projects/<name>` para un proyecto que APX creó sin carpeta en otro
+  lado, y `~/.apx/v2/projects/<id>` para todos los demás. Los agentes de afuera (Claude Code, Codex) en un chat del
+  proyecto trabajan ahí, nunca en tu carpeta, así los archivos temporales de un proyecto no caen entre los de otro.
+
+Los hilos de código son la excepción: trabajan en la carpeta de tu proyecto a propósito. Mirá
+[Conversaciones](/es/concepts/conversations/).
+
+## Adentro de un proyecto
+
+Abrí un proyecto desde la barra lateral y vas a ver sus pestañas: **Resumen**, **Chats**, **Agentes**, **Tareas**,
+**Rutinas**, **Archivos**, **Memoria** y **Recursos**. El Resumen es el proyecto de un vistazo: un Board con los
+widgets que fijaste, lo que está corriendo ahora, el equipo, algunos números y los últimos chats.
+
+<Shot name="project" alt="La pestaña Overview de Acme Store: un Board con un widget de ventas y un checklist de lanzamiento, el equipo y los chats recientes" caption="Acme Store › Resumen" />
+
+<CardGrid>
+  <LinkCard title="Agentes" description="El equipo en .apc/agents/." href="/es/concepts/agents/" />
+  <LinkCard title="Tareas" description="El trabajo del proyecto, asignado a agentes." href="/es/office/tasks/" />
+  <LinkCard title="Rutinas" description="Trabajo programado del proyecto." href="/es/office/routines/" />
+  <LinkCard title="Board y widgets" description="Widgets vivos fijados en el Resumen." href="/es/office/board/" />
+  <LinkCard title="Memoria" description="Notas del proyecto y el cuaderno de cada agente." href="/es/concepts/memory/" />
+  <LinkCard title="Código" description="Archivos, terminal y git desde un chat." href="/es/office/code/" />
+</CardGrid>

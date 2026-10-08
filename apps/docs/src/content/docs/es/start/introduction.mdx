@@ -1,0 +1,108 @@
+---
+title: Introducción
+description: APX es un equipo de agentes de IA que vive en tu máquina, y esta documentación te muestra cómo trabajar con él.
+sidebar:
+  order: 1
+---
+
+import { Aside, Card, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Blob from "../../../../components/Blob.astro";
+
+<Blob name="menta" size={56} />
+
+APX es un equipo de agentes de IA que vive en tu máquina. Tenés una secretaria que te conoce, agentes que trabajan
+dentro de tus proyectos y un navegador que ellos manejan mientras mirás. Les hablás desde donde estés: la app de
+escritorio, la terminal, el teléfono o las apps de chat que ya usás.
+
+Es open source y corre en tu computadora o en un servidor tuyo. Tus proyectos siguen siendo carpetas comunes, tu
+estado vive en una sola base de datos local y los modelos son los que ya pagás.
+
+<Shot name="home-hero" alt="El Inbox con el chat de Home abierto: una conversación corta con la secretaria" caption="Home, tu secretaria, en la app de escritorio" />
+
+## Conocé al equipo
+
+- **Home** es tu secretaria. Te responde en la app, en la terminal y en tus canales, tiene a la vista tus
+  compromisos, puede abrir y cerrar tu día con un resumen corto y le pasa trabajo al resto del equipo. Su chat es una
+  sola conversación en todos lados: lo que mandás por Telegram cae en el mismo lugar que lo que escribís en la app.
+- **Los agentes de proyecto** viven en las carpetas de tus proyectos, cada uno en un archivo Markdown chiquito con
+  nombre, rol, cara e instrucciones. Lucía puede llevar el proyecto Acme Store mientras Tomás arregla el checkout y
+  Vera escribe el newsletter.
+- **El navegador** viene adentro de la app de escritorio. Los agentes abren pestañas, leen páginas y completan
+  formularios; vos podés tomar el control cuando quieras, y las contraseñas, códigos y tarjetas te los devuelve a vos.
+
+Les hablás a todos desde la **app de escritorio**, la terminal **`apx`**, tu **teléfono** y **Telegram, WhatsApp,
+Discord o Slack**. Cada una es una ventana al mismo core, así que nada se desincroniza.
+
+## Las ideas principales, en una pantalla
+
+<CardGrid>
+  <Card title="Un solo core" icon="seti:db">
+    Un único proceso en segundo plano es dueño de todo: agentes, chats, tareas, memoria. Cada app es cliente suyo.
+  </Card>
+  <Card title="Los proyectos son carpetas" icon="open-book">
+    Un proyecto es una carpeta con `AGENTS.md` y `.apc/`, el estándar abierto APC. Los agentes son archivos que podés leer y commitear.
+  </Card>
+  <Card title="Hilos, corridas, pasos" icon="list-format">
+    Una conversación es un hilo; cada turno de un agente es una corrida; cada llamada a una herramienta es un paso. Todo sobrevive a un reinicio.
+  </Card>
+  <Card title="Tus modelos" icon="rocket">
+    Gemini, Anthropic, OpenAI, tu plan de ChatGPT, Ollama y más. Un router elige el modelo en cada turno y tiene plan B.
+  </Card>
+  <Card title="La autonomía la elegís vos" icon="approve-check">
+    Cada agente pregunta antes de cambiar algo, pregunta solo cuando importa o anda solo. El texto de afuera nunca es una orden.
+  </Card>
+  <Card title="Una oficina" icon="star">
+    Tareas, compromisos, rutinas, memoria y un tablero de widgets vivos, compartidos entre vos y el equipo.
+  </Card>
+</CardGrid>
+
+## Una sola forma de hacer cada cosa
+
+APX v2 es una reescritura con una regla: hay una sola forma de hacer cada cosa. Donde v1 tenía muchos caminos para lo
+mismo, v2 tiene uno, y todos los clientes pasan por ahí.
+
+| Qué | v1 | v2 |
+| --- | --- | --- |
+| Caminos de código que corren un turno | unos 23 | **1** |
+| Formas de hablarle a un agente | unas 40 | **1** (`threads.send`) |
+| Formas de que un agente le hable a otro | 12 | **1** |
+| Formas de armar lo que lee el modelo | 9 | **1** |
+| Lugares donde vive una conversación | 10 | **1** (hilo, corrida, pasos) |
+| Superficie de API | unos 378 endpoints | **un registro tipado** de unos 230 métodos |
+
+### Prompts chicos, en cada llamada
+
+Cada paso de cada turno vuelve a mandar el prompt de sistema y las definiciones de herramientas, así que su tamaño se
+paga una y otra vez. APX los mantiene chicos, y un test rompe el build si se pasan del presupuesto.
+
+| App | Primera llamada al modelo en una instalación nueva |
+| --- | --- |
+| **APX v2** | **≈ 8.100 tokens** |
+| Hermes | ≈ 13.000 tokens |
+| APX v1 (Telegram, terminal, escritorio) | ≈ 13.200 tokens |
+| OpenClaw | ≈ 13.200 tokens |
+| APX v1 (chat web, API, rutinas) | ≈ 23.600 tokens |
+
+Las herramientas MCP se encuentran con una herramienta de búsqueda en vez de mandarse una por una. En una instalación
+real con diez servidores MCP, una respuesta de una línea pasó de unos 64k tokens a unos 12k, y desde la segunda
+llamada cerca del 97% sale de la caché de prompts del proveedor.
+
+<Aside type="tip" title="¿Venís de APX v1?">
+v2 corre al lado de v1 y puede importar tus proyectos, agentes, chats y configuración. Arrancá en
+[Si venís de v1](/es/start/from-v1/).
+</Aside>
+
+## Qué hay en esta documentación
+
+<CardGrid>
+  <LinkCard title="Instalar APX" description="La app de escritorio, un servidor o VPS, o el código fuente." href="/es/start/install/" />
+  <LinkCard title="Primeros pasos" description="El asistente de configuración, tu primer modelo y tu primer proyecto." href="/es/start/first-steps/" />
+  <LinkCard title="Cómo funciona" description="El core, el protocolo, los nodos y cómo corre un turno." href="/es/start/how-it-works/" />
+  <LinkCard title="Ideas clave" description="Agentes, proyectos, conversaciones, modelos, autonomía y memoria." href="/es/concepts/agents/" />
+  <LinkCard title="Tu oficina" description="Chat, tareas, rutinas, la secretaria, el tablero y el navegador." href="/es/office/chat/" />
+  <LinkCard title="Canales" description="Telegram, WhatsApp, Discord, Slack e iMessage." href="/es/channels/overview/" />
+  <LinkCard title="Extender" description="Skills, servidores MCP, extensiones, integraciones y apps de afuera." href="/es/extend/skills/" />
+  <LinkCard title="En todos lados" description="La app de escritorio, tu teléfono y un servidor." href="/es/devices/desktop/" />
+  <LinkCard title="Referencia" description="Cada comando de apx, la configuración y cómo resolver problemas." href="/es/reference/cli/" />
+</CardGrid>

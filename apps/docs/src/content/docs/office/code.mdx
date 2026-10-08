@@ -1,0 +1,121 @@
+---
+title: Code
+description: Code threads in a project's folder, the write policy, the Terminal, Files and Changes panels, and Claude Code and Codex sessions inside APX.
+sidebar:
+  order: 7
+---
+
+import { Aside, Steps, Tabs, TabItem, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../components/Shot.astro";
+import Terminal from "../../../components/Terminal.astro";
+
+APX is not only for office work. An agent can work inside a project's folder: read the code, edit files, run tests and
+commands, and show you every change as a diff. You can do it in two ways: a **code thread** with one of your agents,
+or a session with **Claude Code** or **Codex** themselves, right inside APX.
+
+## Code threads
+
+A code thread is a chat whose agent works in a folder of a [project](/concepts/projects/). Its header shows the folder
+and the write policy, so you always know where it is working and how freely.
+
+<Tabs>
+  <TabItem label="Panel">
+    In the Inbox, **New chat** › **New code session with** and pick an agent. The option shows when the project's
+    folder is on this machine.
+  </TabItem>
+  <TabItem label="Terminal">
+    From inside the project's folder (or with `--cwd`):
+
+    <Terminal command={`apx chat "Add a free-shipping banner over 50 to the cart page" --code --write ask`}>{`code thread th_8c41d07e2b9a5f13 · web/cart · write: ask`}</Terminal>
+
+    The folder must be inside a registered project (`apx projects register <folder>`). Without `--agent`, Home does
+    the work.
+  </TabItem>
+</Tabs>
+
+### The write policy
+
+| Policy | What it means |
+|---|---|
+| **Asks before changes** (`ask`) | The default. Edits and commands go through the usual approvals of the agent's [autonomy](/concepts/autonomy/). Codex cannot ask mid-turn, so under this policy it only reads. |
+| **Edits freely** (`auto`) | Claude Code and Codex sessions edit files inside the folder without asking (never git's config, `.apc/` or `AGENTS.md`). Commands still follow the agent's autonomy. |
+| **Read-only** (`read-only`) | Only reads. Anything that would need your OK is refused. |
+
+### Working in the folder from any chat
+
+You don't need a new thread for a quick fix. In a project chat with an agent, open the chat's menu (**More**) ›
+**Project folder** and pick a policy; **Does not work in the folder** turns it back off. Tomás can be planning the
+launch with you one minute and fixing the cart page the next, in the same chat.
+
+## The panels you'll use
+
+Open the side panel from the chat header. Three views matter most when code is involved:
+
+| Panel | What you get |
+|---|---|
+| **Terminal** | Every command the agent ran, with what it printed, foreground or background. **Open a terminal** gives you your own shell in the same folder. |
+| **Files** | The chat's folder (**Chat folder**) and its scratch files (**Temporary**). Open a file to read it; Markdown reads as a page. |
+| **Changes** | The edits the agent recorded, for the **Last turn** or **All turns**, and the **Current folder**'s git diff, file by file. |
+
+<Shot name="chat-terminal" alt="A code chat with the Terminal side panel open, showing the test command the agent ran and its output" caption="The Terminal panel: the agent's commands and your own shell" />
+
+When the agent needs you to run something itself (a command with `sudo`, say), it writes it as a shell block with
+**Run in a terminal**. It runs on a real terminal in the side panel, so you can type the password there, and the agent
+hears how it ended.
+
+### Git: the project's Files tab
+
+For commits, go to the project's **Files** tab › **Git** (Source control). There you can stage and unstage files,
+**Commit** (or **Write the message with AI**), pull, push, fetch, stash, undo the last commit, switch branches and read
+the history.
+
+<Shot name="files" alt="Acme Store's Files tab with the folder tree on the left and a file open in the code view" caption="A project's Files tab" />
+
+## Claude Code and Codex sessions
+
+If you use Claude Code or Codex, APX can host their sessions. You talk to the engine itself, with your own login and
+plan, and APX gives it its chat, panels, approvals and history.
+
+**External sessions** in the sidebar lists each coding CLI installed on this computer. Pick one:
+
+<Steps>
+
+1. Make sure it is signed in. **Settings › External sessions** shows each CLI's state (for Claude Code, open it in a
+   terminal and sign in; for Codex, run `codex login`).
+2. **New session** asks for a project with a folder: the session works there.
+3. Write as you would in the CLI. Its tool calls, edits and commands show in the chat and the side panels like any
+   other.
+
+</Steps>
+
+<Shot name="external-sessions" alt="External sessions, Claude Code: sessions started in APX at the top and, under On this computer, sessions found on disk with their folders" caption="External sessions" />
+
+### Resuming your own sessions
+
+Below the sessions started in APX, **On this computer** lists the Claude Code and Codex sessions you already have on
+this machine (from `~/.claude` and `~/.codex`), with their folder. Click one to **go on with it here**: the engine
+picks up its own session, history included, and from then on it lives in APX too.
+
+<Aside type="note" title="What APX keeps in check">
+- Claude Code loads only your own user settings, not a repository's `.claude/settings` files (which could allow tools
+  past APX's approvals). APX reads the folder's `CLAUDE.md` itself and adds it to the prompt.
+- Codex in an **Edits freely** chat runs read-only (and says why) while the agent asks before acting or the session
+  has read outside content; total autonomy still writes.
+- Once an engine session reads outside content (a web page, a message), the rest of that session is treated as
+  untrusted, as an APX agent's would be.
+</Aside>
+
+Other coding CLIs that speak the Agent Client Protocol (OpenCode, Qwen Code, Gemini CLI and others) show up in
+External sessions as well. That support is partial.
+
+<Aside type="tip">
+These CLIs run only in their own sessions: they are not models for your agents or the router. Your Claude plan, for
+example, is used only through Claude Code sessions. See [Models](/concepts/models/).
+</Aside>
+
+## Next
+
+<CardGrid>
+  <LinkCard title="Chat" href="/office/chat/" description="Every side panel and the composer." />
+  <LinkCard title="Outside clients" href="/extend/outside-clients/" description="Let Claude Code or Codex call your APX agents and browser." />
+</CardGrid>

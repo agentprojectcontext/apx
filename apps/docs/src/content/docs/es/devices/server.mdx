@@ -1,0 +1,206 @@
+---
+title: APX en un servidor
+description: Instalá el core en un VPS o en un servidor de tu casa sin escritorio, dejalo corriendo como servicio, llegá por Tailscale o por tu red y conectá tus dispositivos.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import Terminal from "../../../../components/Terminal.astro";
+
+El core anda perfecto solo. Ponelo en un VPS chico o en una compu que esté siempre prendida, y tus agentes siguen
+trabajando (rutinas, canales, tareas) mientras tu notebook duerme. La app de escritorio y tu teléfono se conectan a él.
+
+Nada de esto necesita root, y el servidor no necesita tener Node instalado: el paquete trae el suyo.
+
+## 1. Instalar
+
+<Tabs>
+<TabItem label="Linux y macOS">
+
+```bash
+curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash
+```
+
+Opciones: `--file <paquete>` (un paquete que ya tenés, sin descargar), `--version <x.y.z>`, `--feed <owner/repo>`,
+`--no-service`.
+
+```bash
+bash install.sh --file apx-core-<version>-linux-x64.tar.gz
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+En PowerShell:
+
+```powershell
+irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
+```
+
+Parámetros: `-File <paquete>`, `-Version <x.y.z>`, `-Feed <owner/repo>`, `-NoService`.
+
+</TabItem>
+</Tabs>
+
+Qué hace el script:
+
+- Baja el paquete de APX más nuevo para tu sistema y lo verifica contra su `.sha256`.
+- Lo descomprime en `~/.apx/v2/app/versions/<version>/` y apunta `~/.apx/v2/app/current` a esa carpeta. La versión que
+  corría antes queda hasta la próxima actualización.
+- Escribe el comando `apx` en `~/.local/bin` (y suma esa carpeta al archivo de arranque de tu shell si no estaba en el
+  `PATH`).
+- Si tenés APX v1 instalado, frena su daemon y saca su comando `apx`. Sus archivos en `~/.apx` quedan, para que puedas
+  importarlos.
+- Arranca el core como servicio, salvo que hayas pasado `--no-service`.
+
+Tus datos viven en `~/.apx/v2`, aparte de la app.
+
+## 2. Configurarlo
+
+Un solo comando termina de preparar el servidor:
+
+```bash
+apx setup --headless --expose tailscale     # o --expose lan
+```
+
+Sumá `--import` (con `--keys`, `--skills` y `--services` si los querés) para traer los proyectos y agentes de un APX v1
+en la misma máquina.
+
+Corre, en orden, los mismos pasos que podrías hacer a mano:
+
+<Steps>
+
+1. **Correr el core como servicio.** `apx service install` escribe una unidad de usuario de systemd (Linux), un agente
+   de launchd (macOS) o una entrada de inicio de sesión (Windows), arranca el core y espera a que responda. Vuelve a
+   arrancar al iniciar sesión y cada vez que se cae.
+
+2. **Importar APX v1** (solo con `--import`). Lo mismo que `apx import-v1`. Solo lee los archivos de v1.
+
+3. **Exponer el core** (solo con `--expose`). Lo mismo que `apx expose tailscale` o `apx expose lan`, seguido de
+   `apx service restart`, porque el core lee su configuración al arrancar.
+
+4. **Vincular un dispositivo.** Lo mismo que `apx pair`: muestra un código de un solo uso, las direcciones y un enlace
+   `apx://pair`.
+
+</Steps>
+
+<Aside type="caution" title="Linux: que siga corriendo cuando cerrás sesión">
+Un servicio de usuario de systemd se frena cuando cerrás tu sesión en el servidor. Activá el linger una vez (necesita
+`sudo`); la instalación te muestra esta línea:
+
+```bash
+sudo loginctl enable-linger "$USER"
+```
+</Aside>
+
+Revisalo cuando quieras:
+
+<Terminal command="apx service status">{`service  systemd: active
+core     answers on http://127.0.0.1:7440`}</Terminal>
+
+En Linux, el log del core está en el journal: `journalctl --user -u apx -f`. En macOS y Windows está en
+`~/.apx/v2/logs/core.log`.
+
+## 3. Elegir quién puede llegar
+
+Por defecto el core solo le responde a su propia máquina. `apx expose` cambia eso:
+
+| Comando | Qué hace |
+|---|---|
+| `apx expose tailscale` | Deja el core en `127.0.0.1` y lo publica con `tailscale serve` en `https://<machine>.<tailnet>.ts.net`, alcanzable solo desde tu tailnet. |
+| `apx expose lan` | Hace que el core escuche en todas las direcciones (`APX_HOST=0.0.0.0`), por ejemplo `http://192.168.1.20:7440`. |
+| `apx expose off` | Vuelve a solo esta compu. El token queda. |
+| `apx expose status` | Qué está en vigor, el puerto, si hay token y dónde está el archivo de configuración. |
+
+Tanto `tailscale` como `lan` crean un token para el core si no tiene, y lo muestran una sola vez. Después reiniciá el
+core (`apx service restart`) para que lea el cambio.
+
+<Aside type="tip" title="¿Tailscale o red local?">
+Para un VPS, elegí **Tailscale**. El core nunca escucha en una dirección pública, el tráfico va por https y solo los
+equipos de tu tailnet pueden llegar. Tailscale tiene que estar instalado y con la sesión iniciada en el servidor, con
+MagicDNS prendido; si `tailscale serve` falla, puede que tengas que habilitar HTTPS para tu tailnet en el panel de
+administración de Tailscale.
+
+**Red local** es http sin cifrar en todas las direcciones de la máquina. Usala solo en una red en la que confíes (tu
+casa, tu oficina), o poné tu propio proxy con TLS adelante. Nunca en un servidor con IP pública.
+
+En cualquiera de los dos casos, cada pedido de afuera necesita el token del core o la llave de un dispositivo
+vinculado. El core se niega a escuchar en una dirección que no sea loopback sin `APX_TOKEN`, y rechaza un pedido que
+llega a través de un proxy cuando no tiene token.
+</Aside>
+
+`apx tailscale status`, `apx tailscale connect` y `apx tailscale off` hacen lo mismo para Tailscale a través del core
+que está corriendo, como hace el panel en **Configuración › Conexiones › Dispositivos**.
+
+### core.env y el token
+
+`apx expose` escribe `<home>/core.env` (`~/.apx/v2/core.env`, salvo que `APX_HOME` diga otra cosa), que solo vos podés
+leer (modo 600). Solo puede definir estas claves: `APX_HOST`, `APX_PORT`, `APX_TOKEN`, `APX_PUBLIC_URL`,
+`APX_ALLOWED_ORIGINS`. Después de `apx expose tailscale` queda así:
+
+```ini
+# APX core settings (KEY=VALUE). Written by `apx expose`; the process environment wins over this file.
+APX_TOKEN=<64 caracteres hexadecimales>
+APX_PUBLIC_URL=https://<machine>.<tailnet>.ts.net
+```
+
+Las variables de entorno del proceso le ganan al archivo. El comando `apx` y la app de escritorio en la misma máquina
+leen el token de acá solos, así que no tenés que copiarlo a ningún lado. Los otros dispositivos nunca lo reciben: se
+vinculan.
+
+## 4. Conectar tus dispositivos
+
+Corré `apx pair` en el servidor cada vez que necesites un código (sirve una vez, por 10 minutos).
+
+<Terminal command="apx pair">{`Pairing code: ABCD2345
+Expires at 10:40:00 (in about 10 min)
+
+Addresses a device may reach this core on:
+  https://<machine>.<tailnet>.ts.net
+
+In the APX app, open Pair and paste the link, or enter an address and the code:
+  apx://pair?c=ABCD2345&u=https%3A%2F%2F<machine>.<tailnet>.ts.net`}</Terminal>
+
+- **App de escritorio**: en el primer arranque elegí **Cliente**, y después **Dirección** (la de Tailscale o la de la
+  red local; el panel te pide el código) o **SSH** (`usuario@servidor`). SSH usa tus propias claves y trae el core a tu
+  compu, así que anda aunque el servidor no esté expuesto a nadie. Detalles en [App de escritorio](/es/devices/desktop/).
+- **Teléfono**: escaneá el QR desde el panel, pegá el enlace `apx://pair` en la app de APX, o abrí la dirección en el
+  navegador del teléfono y escribí el código. Mirá [Tu teléfono](/es/devices/phone/).
+- **Un navegador en otra compu**: abrí la dirección y escribí el código.
+
+Cada dispositivo tiene su propia llave. Revocá uno con `apx devices revoke <id>` o en **Configuración › Conexiones ›
+Dispositivos**.
+
+## Actualizaciones
+
+Una instalación con el paquete se actualiza sola. Cada 6 horas (la primera vez, un minuto después de arrancar) el core
+le pregunta a los GitHub Releases de `agentprojectcontext/apx` si hay un APX más nuevo. El panel lo muestra en la barra
+de arriba, sea que lo abras en el servidor o desde una app de escritorio conectada a él, y **Actualizar ahora** baja el
+paquete nuevo, verifica su `.sha256`, lo descomprime al lado del que está corriendo, mueve `current` y reinicia el core.
+
+Desde la terminal:
+
+```bash
+apx upgrade --check     # ¿hay un APX más nuevo?
+apx upgrade             # aplicarlo
+```
+
+Volver a correr el script de instalación también instala la versión más nueva. `APX_UPDATES=off` frena los chequeos;
+`APX_RELEASES=<owner/repo>` los apunta a otro origen (`off` también los frena).
+
+## Desde el código, en cambio
+
+En una máquina donde trabajás en APX:
+
+```bash
+pnpm install
+alias apx="node $PWD/apps/terminal/src/main.ts"
+apx service install
+```
+
+## Para seguir
+
+- [App de escritorio](/es/devices/desktop/) y [Tu teléfono](/es/devices/phone/)
+- [Configuración](/es/reference/configuration/): todas las variables de entorno
+- [Problemas frecuentes](/es/reference/troubleshooting/)

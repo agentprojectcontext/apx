@@ -1,0 +1,111 @@
+---
+title: Memory
+description: What agents remember between chats, who writes it, how the right notes reach each turn, and how to see, confirm and undo them.
+sidebar:
+  order: 6
+---
+
+import { Aside, Steps, Tabs, TabItem, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../components/Shot.astro";
+import Terminal from "../../../components/Terminal.astro";
+
+Memory in APX is a set of short notes: "Alex prefers numbers before prose", "Deploys go out on Fridays", "The
+supplier's contact is Northwind". Each note has an owner and a scope, you can read every one of them, and nothing gets
+written behind your back.
+
+## Three scopes, plus a file
+
+| Scope | About | Who sees it |
+|---|---|---|
+| **Global** | You: your preferences, the people in your life, how you work. | Every agent. |
+| **Project** | One project: decisions, conventions, how things are done there. | Every agent, in every chat of that project. |
+| **Agent** | One agent's own notebook. | Only that agent. |
+
+And then there is `.apc/memory.md`, a file in the project that **you** write by hand. Agents always read it and
+never write it: it is the place for fixed rules you don't want any agent to edit. See [Projects](/concepts/projects/).
+
+## Who writes notes
+
+Two ways, both visible:
+
+- **You.** Add a note in a project's **Memory** tab, or with `apx memory add`. Or just tell an agent "remember that…".
+- **An agent**, with its `remember` tool, when it learns something worth keeping. Inside a project it saves to the
+  project by default, otherwise to the global notes. It can correct its own notes and remove one with `forget`.
+
+There is **no silent extraction**: APX doesn't mine your chats for facts in the background. A note exists because
+you or an agent deliberately saved it, and the chat shows a "Remembered: …" step when an agent does.
+
+Agents can't edit or remove the notes you wrote. And some notes wait for you:
+
+- **To confirm.** A global note an agent wrote about you only stands in every chat once you confirm it. Until then it
+  shows up only when it matches what you said.
+- **From outside content.** A note saved while a web page, a channel message or another agent's text was in the
+  turn is marked as such. Agents read it as data, not as your word, until you edit it to vouch for it.
+
+## How notes reach a turn
+
+Notes never go in the system prompt. Instead, when an agent answers in a thread:
+
+1. On its **first turn** in that thread it gets its standing notes: up to 8 of the global ones and up to 8 from its
+   own notebook, newest first, plus **up to 5 notes that match your message**.
+2. On **later turns** it gets only new matches it hasn't seen in that thread.
+3. Whenever it needs something specific, it searches with its `recall` tool.
+
+Keeping notes out of the system prompt keeps the start of every request identical, so the provider can cache it and
+each turn costs less.
+
+## Words or meaning
+
+**Settings › Memory** picks how notes are found:
+
+| Mode | How it works |
+|---|---|
+| **Search by words** | The default. Notes that share words with your message come up (accents ignored). Nothing else to set up. |
+| **Search by meaning** | An embedding engine understands what each note is about, so "when is the team offsite?" also finds "The retreat is on June 3". Needs an embedding engine. |
+| **No memory** | Every chat starts from zero; agents keep no notes. |
+
+For search by meaning, add an embedding engine under **Embedding engines**: a local Ollama, or Gemini or OpenAI with
+a key. They are tried in order and the first that answers is used. **Index now** indexes your existing notes and
+**Try a search** lets you check what a question would bring back.
+
+<Shot name="settings-memory" alt="Settings, Memory: the three modes, the embedding engines, skill picking and long-chat options" caption="Settings › Memory" />
+
+The same screen holds two related switches:
+
+- **Pick skills by meaning**: each message is compared with your skills and the ones that fit are offered to the
+  agent. See [Skills](/extend/skills/).
+- **Summarize long chats** and the **Helper model** that writes the summaries and chat titles (Automatic, a model
+  you choose, or Off). See [Conversations](/concepts/conversations/#compaction).
+
+## See, confirm and undo
+
+A project's **Memory** tab shows its notes and lets you switch between **This project**, **Agents' notebooks**,
+**About you** and **Forgotten**. Search them, add one, edit or remove any.
+
+<Shot name="memory" alt="Acme Store's Memory tab: project notes with who wrote each one, and a search box" caption="A project's Memory tab" />
+
+- A note **To confirm** has a **Confirm** button and a link to the chat where the agent learned it.
+- Forgetting is reversible. A removed note goes to **Forgotten**, where no agent sees it; **Bring back** restores
+  it and **Delete for good** really deletes it.
+
+## From the terminal
+
+List the newest notes, or the best matches for some words:
+
+<Terminal command="apx memory deploy">{`mem_2a9f4c01d7b6e358  project:p_3f9a1c0d7e21   you   Deploys go out on Fridays.
+mem_81c3e0b5a4f2d917  agent:3f9a1c0d7e21-tomas 3f9a  Run the checkout tests before any deploy.`}</Terminal>
+
+Add one. The scope defaults to global, or to project or agent when you pass `--project` or `--agent`:
+
+<Terminal command={'apx memory add project "Free shipping starts at $50." --project p_3f9a1c0d7e21'}>{`mem_c47e19a20b85f6d3  project:p_3f9a1c0d7e21`}</Terminal>
+
+Remove notes by id:
+
+<Terminal command="apx memory rm mem_c47e19a20b85f6d3">{`mem_c47e19a20b85f6d3  removed`}</Terminal>
+
+`apx memory --json` prints the notes as JSON.
+
+<CardGrid>
+  <LinkCard title="Conversations" description="Threads, runs and compaction." href="/concepts/conversations/" />
+  <LinkCard title="Autonomy and safety" description="Why outside content is marked." href="/concepts/autonomy/" />
+</CardGrid>

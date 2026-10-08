@@ -1,0 +1,123 @@
+---
+title: How it works
+description: The core, the protocol, operators and nodes, providers and harnesses, and how a message becomes an answer.
+sidebar:
+  order: 4
+---
+
+import { Aside, CardGrid, LinkCard, Steps } from "@astrojs/starlight/components";
+
+You don't need any of this to use APX. But knowing the few moving parts makes everything else in these docs click:
+why the terminal and the app always agree, why a restart loses nothing, and what "engine" means when you pick a model.
+
+```text
+   Desktop app        Panel in a browser      apx terminal         Phone
+  (lends browser,                                              (lends camera,
+   computer use)                                                 location)
+        │                     │                     │                  │
+        └─────────────────────┴──── protocol ───────┴──────────────────┘
+                     typed methods over HTTP, live events over WebSocket
+                                          │
+                     ┌────────────────────▼────────────────────┐
+                     │  core · 127.0.0.1:7440                  │
+                     │  router → turns → tools → domain        │
+                     │  channels · routines · memory · MCP     │
+                     │  ~/.apx/v2/apx.db (SQLite)              │
+                     └──────┬──────────────────────────┬───────┘
+                            │                          │
+               model APIs (providers)        Telegram · WhatsApp ·
+               Claude Code · Codex (harnesses)  Discord · Slack
+```
+
+## The core
+
+The core is one background process, and it is the only thing that owns state. Agents, threads, tasks, routines,
+memory, channels and settings all live in a single SQLite database, `~/.apx/v2/apx.db`. Every app you use is a
+window onto it.
+
+- It listens on `127.0.0.1:7440` by default, so only this computer can reach it. It refuses to listen on a network
+  address without a token, and `apx expose` sets both up for you.
+- It runs every agent turn, every routine and every channel. When you close the app, the work goes on.
+- Work in flight is written down before it runs. If the core restarts in the middle of a turn, it picks that turn
+  back up once and tells you honestly about any action whose outcome it can't know.
+
+Check on it any time with `apx status`, or `apx service status` for the background service.
+
+## One protocol
+
+Every client talks to the core through one contract: a typed registry of about 230 methods, called over HTTP and
+followed by live events over a WebSocket. There are no side doors. The panel, the terminal and the phone call the
+same methods, which is why a message you send from the terminal shows up in the app as it's being written.
+
+Methods that change something carry an idempotency key, so a retry after a dropped connection never does the thing
+twice.
+
+## Operators and nodes
+
+Clients come in two kinds:
+
+- **Operators** show and control things: the desktop app, the panel in a browser, the `apx` terminal, the phone app.
+- **Nodes** lend the core a capability it doesn't have on its own. The desktop app lends the **browser** (and, on
+  macOS, **computer use** once you turn it on). The phone lends **location** and the **camera**.
+
+When an agent wants to open a page, the core routes that call to the node that offers a browser. With no desktop app
+connected, it falls back to a headless Chrome, without your logins or a way to take over.
+
+## Providers and harnesses
+
+Two words cover how models are reached:
+
+- A **provider** is a model API: Gemini, Anthropic, OpenAI, your ChatGPT plan, OpenRouter, Groq, Ollama, LM Studio, or
+  any OpenAI-compatible endpoint. In the app these show up as engines in Settings › Engines and models.
+- A **harness** is what runs a turn's loop. **native** is APX's own loop, and every agent runs on it with a provider's
+  model. **claude** runs Claude Code with your own login, **codex** runs Codex, and **acp** (partial) runs other agent
+  CLIs such as OpenCode or Gemini CLI.
+
+Your agents, the router and the default model always use providers through APX's own loop, so they get APX's tools,
+memory and safety rules. The coding CLIs run in their own sessions: code threads, and the Claude Code and Codex
+sessions APX finds on your disk under **External sessions**.
+
+A model is named `engine/model`, with an optional effort after a `#`, and the router picks one per turn from your
+rules and fallback chain. See [Models](/concepts/models/).
+
+## Threads, runs and steps
+
+Everything that happens is recorded the same way:
+
+| Word | Means | Examples |
+| --- | --- | --- |
+| **Thread** | A conversation. | Home's chat, a chat with Lucía, a group, a code session, a task's work, a routine, a Telegram contact |
+| **Run** | One agent turn in a thread, saved with its input and where it came from. | Submitted, working, waiting for you, completed, failed, canceled |
+| **Step** | One tool call inside a run. | Reading a file, opening a page, sending a message |
+
+When one agent asks another for help, that's a sub-thread with its own runs, shown in your chat as a progress card
+you can open. There is one way to do it, the same `threads.send` the app and the terminal use.
+
+## From message to answer
+
+<Steps>
+
+1. You write to Lucía in the app, on Telegram or with `apx chat`. Each one calls `threads.send`.
+2. The core saves a run with your message before anything else happens.
+3. It builds what the model reads: Lucía's instructions, the project, the matching memory notes and skills, and the
+   conversation. The prompt prefix stays the same between calls, so providers can cache it.
+4. The model answers through the provider, maybe asking for tools. Each tool call becomes a step, and the core checks
+   it against Lucía's autonomy before it runs. If it needs your OK, the run waits for you.
+5. The answer streams as events to every client that's watching, and the run ends with a final state.
+
+</Steps>
+
+<Aside title="Outside text is data">
+Web pages, channel messages, other agents' text and tool output reach the model marked as data, never as
+instructions. While such content is in a turn, high-impact actions ask you first unless you chose total autonomy for
+that agent. More in [Autonomy](/concepts/autonomy/).
+</Aside>
+
+## Keep reading
+
+<CardGrid>
+  <LinkCard title="Agents" description="Who they are and how they're defined." href="/concepts/agents/" />
+  <LinkCard title="Conversations" description="Threads, runs and steps in depth." href="/concepts/conversations/" />
+  <LinkCard title="Run APX on a server" description="Expose the core, pair devices, keep it running." href="/devices/server/" />
+  <LinkCard title="Outside clients" description="Let Claude Code, Codex and other apps use APX." href="/extend/outside-clients/" />
+</CardGrid>

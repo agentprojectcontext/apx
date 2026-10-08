@@ -1,0 +1,230 @@
+---
+import { Image } from "astro:assets";
+// A screenshot of the real app in a window (or phone) frame, in the theme the reader is looking at: <name>.webp is the
+// light capture and <name>-dark.webp the dark one, both taken by scripts/shots.ts against a demo core. `split` shows
+// both at once, cut on a diagonal. A missing capture shows a dashed box with its name.
+import type { ImageMetadata } from "astro";
+
+interface Props {
+  /** File name in src/assets/shots, without the extension (and without -dark). */
+  name: string;
+  alt: string;
+  caption?: string;
+  /** window: the desktop app's frame; phone: a handset; none: just the image with a border. */
+  frame?: "window" | "phone" | "none";
+  /** Text in the window's title bar. */
+  title?: string;
+  /** Light and dark side by side, cut on a diagonal. */
+  split?: boolean;
+  /** Labels for the two halves when split. */
+  labels?: [string, string];
+  /** Load it right away (above the fold). */
+  eager?: boolean;
+}
+
+const shots = import.meta.glob<ImageMetadata>("../assets/shots/*.webp", { eager: true, import: "default" });
+const {
+  name,
+  alt,
+  caption,
+  frame = "window",
+  title = "APX",
+  split = false,
+  labels = ["Light", "Dark"],
+  eager = false,
+} = Astro.props;
+const light = shots[`../assets/shots/${name}.webp`];
+const dark = shots[`../assets/shots/${name}-dark.webp`];
+const widths = frame === "phone" ? [390, 780] : [800, 1200, 1600, 2400];
+const sizes = frame === "phone" ? "(max-width: 600px) 80vw, 340px" : "(max-width: 900px) 100vw, 1100px";
+const loading = eager ? "eager" : "lazy";
+---
+
+<figure class:list={["apx-shot", `apx-shot--${frame}`, { "apx-shot--split": split && dark, "has-dark": dark }]}>
+  <div class="apx-shot__frame">
+    {
+      frame === "window" && (
+        <div class="apx-shot__bar" aria-hidden="true">
+          <span class="dot r" />
+          <span class="dot y" />
+          <span class="dot g" />
+          <span class="apx-shot__title">{title}</span>
+        </div>
+      )
+    }
+    {
+      light ? (
+        <div class="apx-shot__img">
+          <Image class="is-light" src={light} alt={alt} widths={widths} sizes={sizes} quality={86} loading={loading} />
+          {dark && (
+            <Image
+              class="is-dark"
+              src={dark}
+              alt={split ? "" : alt}
+              widths={widths}
+              sizes={sizes}
+              quality={86}
+              loading={loading}
+            />
+          )}
+          {split && dark && (
+            <>
+              <svg class="apx-shot__cut" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <line x1="62" y1="0" x2="38" y2="100" />
+              </svg>
+              <span class="apx-shot__tag apx-shot__tag--l">{labels[0]}</span>
+              <span class="apx-shot__tag apx-shot__tag--d">{labels[1]}</span>
+            </>
+          )}
+        </div>
+      ) : (
+        <div class="apx-shot__missing">
+          <span>Screenshot</span>
+          <code>{name}</code>
+        </div>
+      )
+    }
+  </div>
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+  .apx-shot {
+    --bar: #eceef1;
+    --bar-line: #dfe2e6;
+    --bar-text: #6b7280;
+    margin: 2rem 0;
+  }
+  :global(:root[data-theme="dark"]) .apx-shot.has-dark:not(.apx-shot--split) {
+    --bar: #1a1c1f;
+    --bar-line: #26292d;
+    --bar-text: #8b939b;
+  }
+  .apx-shot__frame {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--apx-line-2);
+    background: var(--bar);
+    box-shadow:
+      0 30px 70px -30px var(--apx-shadow),
+      0 0 0 6px var(--apx-ring);
+  }
+  .apx-shot__bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 12px;
+    background: var(--bar);
+    border-bottom: 1px solid var(--bar-line);
+  }
+  .apx-shot--split .apx-shot__bar {
+    background: linear-gradient(105deg, #eceef1 0 52%, #1a1c1f 52% 100%);
+    border-bottom-color: transparent;
+  }
+  .dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+  }
+  .dot.r {
+    background: #ff5f57;
+  }
+  .dot.y {
+    background: #febc2e;
+  }
+  .dot.g {
+    background: #28c840;
+  }
+  .apx-shot__title {
+    margin-left: 10px;
+    font: 500 12px/1 var(--sl-font-mono);
+    color: var(--bar-text);
+  }
+  .apx-shot__img {
+    position: relative;
+  }
+  .apx-shot :global(img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0;
+  }
+  /* One capture, in the reader's theme. */
+  .apx-shot.has-dark:not(.apx-shot--split) :global(.is-dark) {
+    display: none;
+  }
+  :global(:root[data-theme="dark"]) .apx-shot.has-dark:not(.apx-shot--split) :global(.is-dark) {
+    display: block;
+  }
+  :global(:root[data-theme="dark"]) .apx-shot.has-dark:not(.apx-shot--split) :global(.is-light) {
+    display: none;
+  }
+  /* Both, cut on a diagonal: dark on the right. */
+  .apx-shot--split :global(.is-dark) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    clip-path: polygon(62% 0, 100% 0, 100% 100%, 38% 100%);
+  }
+  .apx-shot__cut {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .apx-shot__cut line {
+    stroke: #3fb950;
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
+    filter: drop-shadow(0 0 6px rgba(63, 185, 80, 0.8));
+  }
+  .apx-shot__tag {
+    position: absolute;
+    bottom: 14px;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font: 600 11px/1 var(--sl-font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .apx-shot__tag--l {
+    left: 14px;
+    background: #0b0d0f;
+    color: #fff;
+  }
+  .apx-shot__tag--d {
+    right: 14px;
+    background: #fff;
+    color: #0b0d0f;
+  }
+  .apx-shot--phone .apx-shot__frame {
+    max-width: 340px;
+    margin: 0 auto;
+    border-radius: 44px;
+    border: 10px solid #121417;
+    box-shadow:
+      0 0 0 1px #2a2f35,
+      0 40px 80px -30px var(--apx-shadow);
+  }
+  .apx-shot--none .apx-shot__frame {
+    box-shadow: 0 20px 50px -30px var(--apx-shadow);
+  }
+  .apx-shot__missing {
+    display: grid;
+    place-items: center;
+    gap: 0.4rem;
+    padding: 4rem 1rem;
+    border: 2px dashed #c9ced4;
+    color: #6b7280;
+    font-size: 0.85rem;
+  }
+  figcaption {
+    margin-top: 0.85rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--sl-color-gray-3);
+  }
+</style>

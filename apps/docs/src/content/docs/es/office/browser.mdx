@@ -1,0 +1,130 @@
+---
+title: Navegador
+description: El navegador integrado que manejan tus agentes, sus perfiles, cómo importar tus sesiones, tomar el control y el uso de la computadora en macOS.
+sidebar:
+  order: 6
+---
+
+import { Aside, Steps, Tabs, TabItem, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+Los agentes navegan la web en un navegador de verdad, integrado en la [app de escritorio](/es/devices/desktop/). Ves
+cada página en vivo en el panel lateral **Navegador** del chat, y podés agarrar el volante cuando quieras.
+
+## Mirar navegar a un agente
+
+Cuando un agente abre una página, el chat muestra una tarjeta del navegador y el panel lateral **Navegador** sigue la
+pestaña en vivo: "Vera está navegando · proveedor.example.com". Desde el panel podés abrir la pestaña en una ventana
+aparte o en tu propio navegador.
+
+> **Vos:** Vera, compará los precios de envío de nuestros dos correos para una caja de 2 kg a Córdoba.
+>
+> **Vera:** Abro los dos cotizadores… El primero sale 4,20 menos, pero el segundo entrega un día antes.
+
+## Tomar el control
+
+Apretá **Tomar control** en una pestaña y es tuya: hacé clic, escribí, scrolleá. El agente espera. **Devolver** se la
+devuelve.
+
+El agente también te puede pedir que sigas vos. Cuando un sitio pide login, una contraseña, un código 2FA o un
+captcha, el agente te pasa la pestaña ("Vera necesita que sigas vos") y espera hasta 5 minutos mientras terminás.
+Después sigue desde la página donde la dejaste.
+
+<Aside type="caution" title="Nunca escribe tus contraseñas">
+El navegador integrado se niega a escribir en campos de contraseña, de códigos de un solo uso y de tarjetas, sea cual
+sea la autonomía. Eso siempre te lo pasa a vos. Además, a los agentes se les indica que nunca te pidan contraseñas
+por chat.
+</Aside>
+
+## Perfiles
+
+Cada agente navega con uno de tres perfiles, que se elige por agente en **Configuración › Agentes** (o en el panel
+del propio agente):
+
+| Perfil | Cookies y sesiones |
+|---|---|
+| **Compartido** | Un perfil que comparten todos los agentes que lo usan. Iniciás sesión una vez y les sirve a todos. Es el de siempre. |
+| **Aislado** | Un perfil propio de ese agente; nada pasa de un agente a otro. |
+| **Incógnito** | No se guarda nada. No se le pueden importar sesiones. |
+
+## Importar tus sesiones
+
+Si ya iniciaste sesión en un sitio desde tu propio navegador, no hace falta volver a hacerlo en el de APX.
+**Configuración › Navegador** copia tus sesiones al perfil compartido: elegí un navegador de origen (Chrome, Brave,
+Arc, Edge, Zen o Firefox), filtrá los dominios e importá solo los que necesitás. Tu navegador puede pedirte permiso;
+los valores nunca salen de tu máquina.
+
+Los agentes también lo pueden pedir. Cuando un sitio pide login, un agente puede pedir usar tu sesión para ese
+dominio. Eso te pide OK cada vez (solo la autonomía total lo saltea), y los agentes lo prueban antes de pasarte la
+pestaña.
+
+## Sin la app de escritorio
+
+Cuando ninguna app de escritorio presta un navegador (un servidor, o una Mac con la app cerrada), el core arranca su
+propio Chrome, Chromium o Edge **headless**, sin ventana, en el primer pedido de navegador. Navega igual, pero ahí
+nadie puede tomar el control y no se usan tus sesiones. `APX_HEADLESS=off` lo apaga; `APX_CHROME` lo apunta a un
+navegador específico.
+
+## Desde la terminal
+
+`apx browser` maneja el mismo navegador desde tu shell, útil para scripts y para ver lo mismo que ve un agente.
+
+<Terminal command="apx --help">{`apx browser tabs
+apx browser open <url> [--profile shared|incognito|agent:<id>] [--by <agent>]
+apx browser nav <tab> <url>
+apx browser snapshot <tab>
+apx browser click <tab> <ref>
+apx browser type <tab> <ref> <text> [--submit]
+apx browser shot <tab> <file.jpg>
+apx browser close <tab>
+apx browser control <tab> user|idle|done
+apx browser cookies                          List browsers whose sessions can be imported
+apx browser cookies <source> [filter]        Domains with cookies (counts only)
+apx browser import <source> <domain,…> [--profile shared|agent:<id>]`}</Terminal>
+
+`snapshot` lista los elementos de la página con referencias que toman `click` y `type`. `control` define quién tiene
+la pestaña. `cookies` muestra solo cantidades, nunca valores.
+
+Las apps de afuera, como Claude Code, también pueden usar este navegador, con `apx mcp`. Mirá
+[Clientes externos](/es/extend/outside-clients/).
+
+## Uso de la computadora en macOS
+
+Más allá del navegador, los agentes pueden usar las apps de tu Mac: mirar la ventana que está al frente, hacer clic,
+escribir y apretar teclas. Viene **apagado**.
+
+<Shot name="settings-desktop" alt="Configuración, Escritorio: atajo del chat rápido, abrir al iniciar la compu y el interruptor de uso de la computadora con los permisos de Grabación de pantalla y Accesibilidad" caption="Configuración › Escritorio" />
+
+<Steps>
+
+1. Abrí **Configuración › Escritorio** y prendé **Dejar que los agentes usen esta computadora**.
+2. Dale a macOS los permisos de **Grabación de pantalla** (para ver la ventana en la que trabaja un agente) y
+   **Accesibilidad** (para leer los botones y campos de una ventana, hacer clic y escribir). **Abrir Ajustes del
+   Sistema** te lleva ahí.
+3. Pedilo en un chat: "Tomás, abrí la app de la impresora de etiquetas e imprimí las 12 etiquetas de envío de hoy".
+
+</Steps>
+
+Mientras un agente usa la computadora, el chat muestra **Lo que ve el agente**, una vista en vivo de la pantalla.
+
+- Mirar la pantalla te pide OK, y también cada clic, tecla y texto escrito. Con autonomía total no pregunta ninguno.
+- Cada 60 acciones en un mismo turno frena y pregunta si sigue, en cualquier autonomía.
+- Se niega a escribir en campos de contraseña, y a hacer clic donde otra app tapa ese punto.
+- Un clic real espera a que tu mouse esté quieto, así no te pelea el puntero.
+
+<Aside type="danger" title="Parada de emergencia">
+**Detener** en la vista en vivo, o **⌘⇧Esc** desde cualquier app, corta en el acto todos los turnos que están usando
+la computadora. Volvé a pedirlo cuando quieras.
+</Aside>
+
+<Aside type="note">
+Por ahora el uso de la computadora es solo para macOS. Windows y Linux todavía no prestan esa capacidad.
+</Aside>
+
+## Lo que sigue
+
+<CardGrid>
+  <LinkCard title="Autonomía y aprobaciones" href="/es/concepts/autonomy/" description="Qué pregunta antes y cómo cambiarlo." />
+  <LinkCard title="App de escritorio" href="/es/devices/desktop/" description="Instalá la app que trae el navegador." />
+</CardGrid>

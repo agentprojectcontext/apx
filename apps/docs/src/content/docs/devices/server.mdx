@@ -1,0 +1,201 @@
+---
+title: Run APX on a server
+description: Install the core on a VPS or a home server with no desktop, keep it running as a service, reach it over Tailscale or your network, and connect your devices.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import Terminal from "../../../components/Terminal.astro";
+
+The core runs fine on its own. Put it on a small VPS or a computer that is always on, and your agents keep working
+(routines, channels, tasks) while your laptop sleeps. The desktop app and your phone connect to it.
+
+Nothing here needs root, and the server doesn't need Node installed: the bundle brings its own.
+
+## 1. Install
+
+<Tabs>
+<TabItem label="Linux and macOS">
+
+```bash
+curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash
+```
+
+Options: `--file <bundle>` (a bundle you already have, no download), `--version <x.y.z>`, `--feed <owner/repo>`,
+`--no-service`.
+
+```bash
+bash install.sh --file apx-core-<version>-linux-x64.tar.gz
+```
+
+</TabItem>
+<TabItem label="Windows">
+
+In PowerShell:
+
+```powershell
+irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
+```
+
+Parameters: `-File <bundle>`, `-Version <x.y.z>`, `-Feed <owner/repo>`, `-NoService`.
+
+</TabItem>
+</Tabs>
+
+What the script does:
+
+- Downloads the newest APX bundle for your system and checks it against its `.sha256`.
+- Unpacks it into `~/.apx/v2/app/versions/<version>/` and points `~/.apx/v2/app/current` at it. The version that ran
+  before stays until the next update.
+- Writes the `apx` command to `~/.local/bin` (and adds that folder to your shell's startup file if it wasn't on your
+  `PATH`).
+- If APX v1 is installed, stops its daemon and removes its `apx` command. Its files in `~/.apx` stay, so you can
+  import them.
+- Starts the core as a service, unless you passed `--no-service`.
+
+Your data lives in `~/.apx/v2`, apart from the app itself.
+
+## 2. Set it up
+
+One command takes the server the rest of the way:
+
+```bash
+apx setup --headless --expose tailscale     # or --expose lan
+```
+
+Add `--import` (with `--keys`, `--skills`, `--services` if you want them) to bring the projects and agents of an APX
+v1 on the same machine.
+
+It runs, in order, the steps you could also run by hand:
+
+<Steps>
+
+1. **Run the core as a service.** `apx service install` writes a systemd user unit (Linux), a launchd agent (macOS)
+   or a login entry (Windows), starts the core, and waits until it answers. It starts again at login and whenever it
+   dies.
+
+2. **Import APX v1** (only with `--import`). Same as `apx import-v1`. It only reads v1's files.
+
+3. **Expose the core** (only with `--expose`). Same as `apx expose tailscale` or `apx expose lan`, followed by
+   `apx service restart`, because the core reads its settings when it starts.
+
+4. **Pair a device.** Same as `apx pair`: prints a one-time code, the addresses and an `apx://pair` link.
+
+</Steps>
+
+<Aside type="caution" title="Linux: keep it running after you log out">
+A systemd user service stops when you log out of the server. Turn on lingering once (it needs `sudo`); the install
+prints this line for you:
+
+```bash
+sudo loginctl enable-linger "$USER"
+```
+</Aside>
+
+Check it any time:
+
+<Terminal command="apx service status">{`service  systemd: active
+core     answers on http://127.0.0.1:7440`}</Terminal>
+
+On Linux the core's log is in the journal: `journalctl --user -u apx -f`. On macOS and Windows it's
+`~/.apx/v2/logs/core.log`.
+
+## 3. Choose who can reach it
+
+By default the core only answers its own machine. `apx expose` changes that:
+
+| Command | What it does |
+|---|---|
+| `apx expose tailscale` | Keeps the core on `127.0.0.1` and publishes it with `tailscale serve` at `https://<machine>.<tailnet>.ts.net`, reachable only from your tailnet. |
+| `apx expose lan` | Makes the core listen on every address (`APX_HOST=0.0.0.0`), for example `http://192.168.1.20:7440`. |
+| `apx expose off` | Back to this computer only. The token stays. |
+| `apx expose status` | What is in effect, the port, whether there's a token, and where the settings file is. |
+
+Both `tailscale` and `lan` create a token for the core if it has none, and print it once. Restart the core afterwards
+(`apx service restart`) so it reads the change.
+
+<Aside type="tip" title="Tailscale or LAN?">
+**Tailscale** is the one to pick for a VPS. The core never listens on a public address, traffic is https, and only
+devices in your tailnet can reach it. Tailscale must be installed and logged in on the server, with MagicDNS on; if
+`tailscale serve` fails, HTTPS may need enabling for your tailnet in Tailscale's admin.
+
+**LAN** is plain http on every network address of the machine. Use it only on a network you trust (your home, your
+office), or put your own TLS proxy in front. Never use it on a server with a public IP.
+
+Either way, every request from outside needs the core's token or a paired device's key. The core refuses to listen
+on a non-loopback address without `APX_TOKEN`, and refuses a request that comes through a proxy when it has no token.
+</Aside>
+
+`apx tailscale status`, `apx tailscale connect` and `apx tailscale off` do the same for Tailscale through the running
+core, the way the panel does in **Settings › Connections › Devices**.
+
+### core.env and the token
+
+`apx expose` writes `<home>/core.env` (`~/.apx/v2/core.env` unless `APX_HOME` says otherwise), readable only by you
+(mode 600). It may set only these keys: `APX_HOST`, `APX_PORT`, `APX_TOKEN`, `APX_PUBLIC_URL`, `APX_ALLOWED_ORIGINS`.
+After `apx expose tailscale` it looks like this:
+
+```ini
+# APX core settings (KEY=VALUE). Written by `apx expose`; the process environment wins over this file.
+APX_TOKEN=<64 hex characters>
+APX_PUBLIC_URL=https://<machine>.<tailnet>.ts.net
+```
+
+The process environment wins over the file. The `apx` command and the desktop app on the same machine read the token
+from here on their own, so you don't need to copy it anywhere. Other devices never get it: they pair.
+
+## 4. Connect your devices
+
+Run `apx pair` on the server whenever you need a code (it works once, for 10 minutes).
+
+<Terminal command="apx pair">{`Pairing code: ABCD2345
+Expires at 10:40:00 (in about 10 min)
+
+Addresses a device may reach this core on:
+  https://<machine>.<tailnet>.ts.net
+
+In the APX app, open Pair and paste the link, or enter an address and the code:
+  apx://pair?c=ABCD2345&u=https%3A%2F%2F<machine>.<tailnet>.ts.net`}</Terminal>
+
+- **Desktop app**: on its first run choose **Client**, then either **Address** (the Tailscale or LAN address; the
+  panel asks for the code) or **SSH** (`user@server`). SSH uses your own keys and forwards the core to your computer,
+  so it works even when the server is exposed to nobody. Details in [Desktop app](/devices/desktop/).
+- **Phone**: scan the QR from the panel, paste the `apx://pair` link in the APX app, or open the address in the
+  phone's browser and type the code. See [Your phone](/devices/phone/).
+- **A browser on another computer**: open the address and type the code.
+
+Every device gets its own key. Revoke one with `apx devices revoke <id>` or in **Settings › Connections › Devices**.
+
+## Updates
+
+A bundle install updates itself. Every 6 hours (the first time a minute after it starts) the core asks the GitHub
+Releases of `agentprojectcontext/apx` whether there is a newer APX. The panel shows it in the top bar, whether you
+opened it on the server or from a desktop app connected to it, and **Update now** downloads the new bundle, checks its
+`.sha256`, unpacks it beside the running one, moves `current` and restarts the core.
+
+From the terminal:
+
+```bash
+apx upgrade --check     # is there a newer APX?
+apx upgrade             # apply it
+```
+
+Running the install script again also installs the newest version. `APX_UPDATES=off` stops the checks;
+`APX_RELEASES=<owner/repo>` points them at another feed (`off` also stops them).
+
+## From a checkout instead
+
+On a machine where you work on APX itself:
+
+```bash
+pnpm install
+alias apx="node $PWD/apps/terminal/src/main.ts"
+apx service install
+```
+
+## Where to next
+
+- [Desktop app](/devices/desktop/) and [Your phone](/devices/phone/)
+- [Configuration](/reference/configuration/): every environment variable
+- [Troubleshooting](/reference/troubleshooting/)

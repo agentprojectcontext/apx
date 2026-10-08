@@ -1,0 +1,158 @@
+/* APX docs theme: the site's look (Geist, near-black, green) on Starlight, in dark and light. */
+
+:root {
+  --sl-font: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --sl-font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sl-content-width: 46rem;
+  --sl-text-h1: 2.6rem;
+  --sl-text-h2: 1.75rem;
+  --sl-text-h3: 1.3rem;
+
+  /* Dark (default), the site's palette. */
+  --sl-color-white: #eceef0;
+  --sl-color-gray-1: #d2d6da;
+  --sl-color-gray-2: #b1b8bf;
+  --sl-color-gray-3: #8b939b;
+  --sl-color-gray-4: #5b636b;
+  --sl-color-gray-5: #2a2f35;
+  --sl-color-gray-6: #16191c;
+  --sl-color-black: #08090a;
+  --sl-color-accent-low: #0e2a16;
+  --sl-color-accent: #3fb950;
+  --sl-color-accent-high: #b4f2c0;
+  --sl-color-text-accent: #7ee787;
+  --sl-color-bg-nav: rgba(8, 9, 10, 0.78);
+  --sl-color-bg-sidebar: #08090a;
+  --sl-color-hairline-light: rgba(255, 255, 255, 0.06);
+  --sl-color-hairline: rgba(255, 255, 255, 0.08);
+  --sl-color-hairline-shade: rgba(255, 255, 255, 0.12);
+
+  --apx-line: rgba(255, 255, 255, 0.08);
+  --apx-line-2: rgba(255, 255, 255, 0.14);
+  --apx-card: #111315;
+  --apx-ring: rgba(255, 255, 255, 0.03);
+  --apx-shadow: rgba(0, 0, 0, 0.75);
+  --apx-glow: rgba(63, 185, 80, 0.14);
+}
+
+:root[data-theme="light"] {
+  --sl-color-white: #0b0d0f;
+  --sl-color-gray-1: #1f2429;
+  --sl-color-gray-2: #3a4148;
+  --sl-color-gray-3: #5b636b;
+  --sl-color-gray-4: #8b939b;
+  --sl-color-gray-5: #d5d9dd;
+  --sl-color-gray-6: #eef0f2;
+  --sl-color-gray-7: #f6f7f8;
+  --sl-color-black: #ffffff;
+  --sl-color-accent-low: #dcf5e2;
+  --sl-color-accent: #1f8f37;
+  --sl-color-accent-high: #0b3d18;
+  --sl-color-text-accent: #18802f;
+  --sl-color-bg-nav: rgba(255, 255, 255, 0.82);
+  --sl-color-bg-sidebar: #ffffff;
+  --sl-color-hairline-light: rgba(0, 0, 0, 0.05);
+  --sl-color-hairline: rgba(0, 0, 0, 0.08);
+  --sl-color-hairline-shade: rgba(0, 0, 0, 0.12);
+
+  --apx-line: rgba(0, 0, 0, 0.08);
+  --apx-line-2: rgba(0, 0, 0, 0.12);
+  --apx-card: #f7f8f9;
+  --apx-ring: rgba(0, 0, 0, 0.025);
+  --apx-shadow: rgba(15, 23, 42, 0.28);
+  --apx-glow: rgba(63, 185, 80, 0.12);
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Header: glass, like the site's nav. */
+.page > header.header {
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border-bottom: 1px solid var(--apx-line);
+}
+.site-title {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.site-title img {
+  height: 1.6rem;
+}
+
+/* Headings: tight, like the site's. */
+.sl-markdown-content :is(h1, h2, h3, h4),
+h1#_top {
+  letter-spacing: -0.035em;
+  font-weight: 600;
+}
+h1#_top {
+  font-size: clamp(2.1rem, 4vw, var(--sl-text-h1));
+  line-height: 1.05;
+}
+.sl-markdown-content h2 {
+  margin-top: 2.6rem;
+}
+
+/* Sidebar: group labels as the site's mono eyebrows, the current page as a soft pill. */
+.sidebar-content .group-label .large {
+  font: 500 0.72rem / 1 var(--sl-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sl-color-text-accent);
+}
+.sidebar-content a {
+  border-radius: 8px;
+}
+.sidebar-content a[aria-current="page"],
+.sidebar-content a[aria-current="page"]:hover {
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-text-accent);
+  font-weight: 500;
+}
+
+/* Inline code and code blocks. */
+.sl-markdown-content :not(pre) > code {
+  border-radius: 6px;
+  padding: 0.1em 0.38em;
+  background: var(--sl-color-gray-6);
+  border: 1px solid var(--apx-line);
+}
+.expressive-code .frame {
+  --ec-brdRad: 12px;
+}
+
+/* Cards: the site's dark tiles with a green hover. */
+.sl-markdown-content .card,
+.sl-link-card {
+  border-radius: 16px;
+  border-color: var(--apx-line);
+  background: var(--apx-card);
+  transition:
+    border-color 0.2s,
+    transform 0.2s;
+}
+.sl-link-card:hover {
+  border-color: color-mix(in srgb, var(--sl-color-accent) 55%, transparent);
+  transform: translateY(-2px);
+}
+
+/* Asides with rounder corners. */
+.starlight-aside {
+  border-radius: 12px;
+}
+
+/* Tables: quiet lines. */
+.sl-markdown-content table {
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 0.92em;
+}
+
+/* Page hero blob next to the title (BlobTitle). */
+.apx-page-blob {
+  float: right;
+  margin: -0.4rem 0 0.6rem 1rem;
+}

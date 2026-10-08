@@ -1,0 +1,154 @@
+---
+title: Install
+description: Install APX as a desktop app, on a server or VPS, or from a checkout of the code.
+sidebar:
+  order: 2
+---
+
+import { Aside, FileTree, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import Terminal from "../../../components/Terminal.astro";
+
+APX is one background process, the **core**, plus the apps that talk to it. Pick how you want to run it: the desktop
+app brings its own core, a server install runs the core with no screen, and a checkout runs the code as it is.
+
+<Tabs syncKey="install">
+<TabItem label="Desktop app">
+
+The desktop app is the easiest start. It carries its own core, the panel and the built-in browser your agents drive,
+and it lives in your menu bar or tray.
+
+<Steps>
+
+1. Download the installer for your system from the
+   [APX releases](https://github.com/agentprojectcontext/apx/releases): the `.dmg` for macOS, the `.exe` installer
+   for Windows, or the `.AppImage` for Linux.
+
+2. Open it. The macOS build is not signed yet, so macOS warns you the first time; allow it from
+   System Settings › Privacy & Security.
+
+3. On first run, APX asks **Where does your APX run?**
+
+   - **Server**: APX runs on this computer. The core is installed and started here. You then choose where you'll use
+     it from: **Only from this computer** (the safest), **Also from my local network**, or **Tailscale** (your
+     devices from anywhere, over https; needs Tailscale installed).
+   - **Client**: APX already runs on another machine and this app only connects to it, either by **Address** (its
+     Tailscale URL, for example) or over **SSH** as `user@server`. SSH uses your own `ssh` and keys: the core stays on
+     the server and no port is opened. A remote APX asks for a pairing code, which you get on that machine in
+     Settings › Devices or with `apx pair`.
+
+4. With a local core, the setup wizard opens next. Follow it in [First steps](/start/first-steps/).
+
+</Steps>
+
+You can switch later from the APX menu › Change connection.
+
+</TabItem>
+<TabItem label="Server or VPS">
+
+On a machine with no desktop, one script installs the core, the `apx` command and the Node that runs them. Nothing
+needs root and you don't need Node installed.
+
+<Terminal command="curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash" />
+
+On Windows, in PowerShell:
+
+```powershell
+irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
+```
+
+The script accepts a few options:
+
+| Option | What it does |
+| --- | --- |
+| `--file <bundle>` | Installs a bundle you already have instead of downloading one. |
+| `--version <x.y.z>` | Installs that version instead of the newest. |
+| `--feed <owner/repo>` | Looks for releases in another repository. |
+| `--no-service` | Installs without starting the core as a service. |
+
+It lands in `~/.apx/v2/app` (one folder per version and a `current` link) and starts the core as a service. Then
+finish the setup in one command:
+
+<Terminal command="apx setup --headless --expose tailscale">{`[1] Run the core as a service
+# …
+[3] Expose the core (tailscale)
+# …
+[4] Pair a device
+# a one-time code, the addresses and an apx://pair link`}</Terminal>
+
+`setup --headless` installs the service, optionally imports APX v1 (`--import`, plus `--keys`, `--skills`,
+`--services`), optionally opens the core to your tailnet or your network (`--expose tailscale` or `--expose lan`), and
+prints a pairing code for your desktop app or phone.
+
+<Aside type="caution" title="Linux servers">
+A user service stops when you log out. Keep it running with `sudo loginctl enable-linger "$USER"`.
+</Aside>
+
+The service is a systemd user unit on Linux, a launchd agent on macOS and a login entry on Windows. Manage it with
+`apx service install`, `uninstall`, `status` and `restart`. The core refuses to listen beyond this machine without a
+token; `apx expose` creates one for you. More in [Run APX on a server](/devices/server/).
+
+</TabItem>
+<TabItem label="From source">
+
+To work on APX, or to run the newest code, use a checkout. You need Node 24.11 or later and pnpm.
+
+```bash
+pnpm install
+pnpm app     # build the panel and the desktop app, start the core and open the app
+pnpm dev     # only the core, on 127.0.0.1:7440, restarting when a file changes
+```
+
+The core runs its TypeScript directly, so there's no build step for it. From the checkout, the terminal is
+`node apps/terminal/src/main.ts`; an alias makes it feel installed:
+
+```bash
+alias apx="node $PWD/apps/terminal/src/main.ts"
+apx status
+```
+
+`apx status` shows whether the core is up, the crew, projects, MCP servers, devices and who can reach it.
+
+</TabItem>
+</Tabs>
+
+## Where your data lives
+
+Everything APX keeps is in one folder, `~/.apx/v2` (set `APX_HOME` to move it). Your projects stay where they are;
+APX only adds `AGENTS.md` and `.apc/` to them.
+
+<FileTree>
+- ~/.apx/v2/
+  - apx.db all state: agents, threads, tasks, memory, settings (SQLite)
+  - core.env the core's token, host and public address, when set
+  - secrets.json secret values, where the system keychain is not used
+  - skills/ your global skills
+  - extensions/
+  - projects/ APX's side of each project, such as its widgets
+  - media/
+  - logs/
+  - backups/
+  - app/ the installed core, for server installs
+</FileTree>
+
+On macOS, secret values go to your login Keychain; elsewhere they go to `secrets.json` with owner-only permissions.
+
+## Updates
+
+APX checks for a new version every few hours and shows an **Update** pill in the top bar when one is out; it shows
+what the new version brings and lets you update when you want.
+
+- **Desktop app**: it updates itself. The AppImage and the Windows installer install the new version on their own;
+  on macOS it opens the new disk image for you to drag in.
+- **Server install**: `apx upgrade --check` tells you if there's a newer release, and `apx upgrade` installs it
+  beside the running one and restarts. A desktop app connected to the server can update it too.
+- **Checkout**: APX follows `main` of the checkout it runs from; updating pulls, installs, builds and restarts.
+
+Set `APX_UPDATES=off` to stop the checks.
+
+## Living beside APX v1
+
+<Aside title="v1 and v2 side by side">
+v2 does not touch v1's files. v1 keeps `~/.apx` and port **7430**; v2 uses `~/.apx/v2` and port **7440**. The server
+installer stops v1's daemon and replaces v1's `apx` command with v2's, but your v1 files stay in place so you can
+import them. See [Coming from v1](/start/from-v1/).
+</Aside>

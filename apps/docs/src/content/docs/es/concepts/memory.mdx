@@ -1,0 +1,114 @@
+---
+title: Memoria
+description: Qué recuerdan los agentes entre chats, quién lo escribe, cómo llegan las notas justas a cada turno y cómo verlas, confirmarlas y deshacerlas.
+sidebar:
+  order: 6
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+La memoria en APX es un conjunto de notas cortas: "Alex prefiere los números antes que el texto", "Los deploys salen
+los viernes", "El contacto del proveedor es Northwind". Cada nota tiene un autor y un alcance, podés leerlas todas, y
+nada se escribe a tus espaldas.
+
+## Tres alcances, más un archivo
+
+| Alcance | Sobre | Quién la ve |
+|---|---|---|
+| **Global** | Vos: tus preferencias, la gente de tu vida, cómo trabajás. | Todos los agentes. |
+| **Proyecto** | Un proyecto: decisiones, convenciones, cómo se hacen las cosas ahí. | Todos los agentes, en cada chat de ese proyecto. |
+| **Agente** | El cuaderno propio de un agente. | Sólo ese agente. |
+
+Y además está `.apc/memory.md`, un archivo del proyecto que escribís **vos** a mano. Los agentes siempre lo leen y
+nunca lo escriben: es el lugar para reglas fijas que no querés que ningún agente edite. Mirá
+[Proyectos](/es/concepts/projects/).
+
+## Quién escribe las notas
+
+Dos caminos, los dos a la vista:
+
+- **Vos.** Sumás una nota en la pestaña **Memoria** de un proyecto, o con `apx memory add`. O directamente le decís a
+  un agente "acordate de que…".
+- **Un agente**, con su herramienta `remember`, cuando aprende algo que vale la pena guardar. Dentro de un proyecto
+  la guarda en el proyecto; si no, en las notas globales. Puede corregir sus propias notas y sacar una con `forget`.
+
+**No hay extracción silenciosa**: APX no revuelve tus chats buscando datos en segundo plano. Una nota existe porque
+vos o un agente la guardaron a propósito, y el chat muestra un paso "Remembered: …" cuando lo hace un agente.
+
+Los agentes no pueden editar ni borrar las notas que escribiste vos. Y algunas notas te esperan:
+
+- **Para confirmar.** Una nota global que un agente escribió sobre vos queda en todos los chats recién cuando la
+  confirmás. Mientras tanto, aparece sólo cuando coincide con lo que dijiste.
+- **Con contenido de afuera.** Una nota guardada mientras había una página web, un mensaje de un canal o el texto de
+  otro agente en el turno queda marcada así. Los agentes la leen como dato, no como palabra tuya, hasta que la edites
+  para respaldarla.
+
+## Cómo llegan las notas a un turno
+
+Las notas nunca van en el prompt de sistema. En cambio, cuando un agente responde en un hilo:
+
+1. En su **primer turno** en ese hilo recibe sus notas fijas: hasta 8 de las globales y hasta 8 de su propio
+   cuaderno, las más nuevas primero, más **hasta 5 notas que coinciden con tu mensaje**.
+2. En los **turnos siguientes** recibe sólo coincidencias nuevas que todavía no vio en ese hilo.
+3. Cuando necesita algo puntual, busca con su herramienta `recall`.
+
+Dejar las notas fuera del prompt de sistema mantiene idéntico el comienzo de cada pedido, así el proveedor lo puede
+cachear y cada turno sale más barato.
+
+## Palabras o significado
+
+**Configuración › Memoria** elige cómo se encuentran las notas:
+
+| Modo | Cómo funciona |
+|---|---|
+| **Buscar por palabras** | El de por defecto. Aparecen las notas que comparten palabras con tu mensaje (sin importar los acentos). No hay nada más que configurar. |
+| **Buscar por significado** | Un motor de embeddings entiende de qué habla cada nota, así "¿cuándo es el offsite del equipo?" también encuentra "El retiro es el 3 de junio". Necesita un motor de embeddings. |
+| **Sin memoria** | Cada chat arranca de cero; los agentes no guardan notas. |
+
+Para buscar por significado, sumá un motor en **Motores de embeddings**: un Ollama local, o Gemini u OpenAI con una
+key. Se prueban en orden y se usa el primero que responde. **Indexar ahora** indexa las notas que ya tenés y **Probar
+una búsqueda** te deja ver qué traería una pregunta.
+
+<Shot name="settings-memory" alt="Configuración, Memory: los tres modos, los motores de embeddings, la elección de skills y las opciones de chats largos" caption="Configuración › Memoria" />
+
+La misma pantalla tiene dos opciones relacionadas:
+
+- **Elegir skills por significado**: cada mensaje se compara con tus skills y las que encajan se le ofrecen al agente.
+  Mirá [Skills](/es/extend/skills/).
+- **Resumir los chats largos** y el **Modelo ayudante** que escribe los resúmenes y los títulos de los chats
+  (Automático, Elegido o Desactivado). Mirá [Conversaciones](/es/concepts/conversations/).
+
+## Ver, confirmar y deshacer
+
+La pestaña **Memoria** de un proyecto muestra sus notas y te deja cambiar entre **Este proyecto**, **Cuadernos de
+agentes**, **Sobre vos** y **Olvidadas**. Buscalas, sumá una, editá o sacá cualquiera.
+
+<Shot name="memory" alt="La pestaña Memory de Acme Store: notas del proyecto con quién escribió cada una, y un buscador" caption="La pestaña Memoria de un proyecto" />
+
+- Una nota **Para confirmar** tiene un botón **Confirmar** y un link al chat donde el agente la aprendió.
+- Olvidar se puede deshacer. Una nota que sacás va a **Olvidadas**, donde ningún agente la ve; **Traer de vuelta** la
+  recupera y **Borrar para siempre** la borra de verdad.
+
+## Desde la terminal
+
+Listá las notas más nuevas, o las que mejor coinciden con algunas palabras:
+
+<Terminal command="apx memory deploy">{`mem_2a9f4c01d7b6e358  project:p_3f9a1c0d7e21   you   Deploys go out on Fridays.
+mem_81c3e0b5a4f2d917  agent:3f9a1c0d7e21-tomas 3f9a  Run the checkout tests before any deploy.`}</Terminal>
+
+Sumá una. El alcance es global por defecto, o de proyecto o agente cuando pasás `--project` o `--agent`:
+
+<Terminal command={'apx memory add project "El envío es gratis desde $50." --project p_3f9a1c0d7e21'}>{`mem_c47e19a20b85f6d3  project:p_3f9a1c0d7e21`}</Terminal>
+
+Sacá notas por id:
+
+<Terminal command="apx memory rm mem_c47e19a20b85f6d3">{`mem_c47e19a20b85f6d3  removed`}</Terminal>
+
+`apx memory --json` muestra las notas en JSON.
+
+<CardGrid>
+  <LinkCard title="Conversaciones" description="Hilos, turnos y compactación." href="/es/concepts/conversations/" />
+  <LinkCard title="Autonomía y seguridad" description="Por qué se marca el contenido de afuera." href="/es/concepts/autonomy/" />
+</CardGrid>

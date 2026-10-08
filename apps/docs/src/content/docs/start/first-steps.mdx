@@ -1,0 +1,124 @@
+---
+title: First steps
+description: Run the setup wizard, connect a model, say hi to Home, add a project and talk to your crew from the terminal.
+sidebar:
+  order: 3
+---
+
+import { Aside, CardGrid, LinkCard, Steps } from "@astrojs/starlight/components";
+import Shot from "../../../components/Shot.astro";
+import Terminal from "../../../components/Terminal.astro";
+
+The first time APX opens, a short wizard sets up your crew. It takes a few minutes, everything in it can be changed
+later in Settings, and you can open it again from the account menu › **First-run setup**.
+
+## The setup wizard
+
+<Shot name="wizard-welcome" alt="The first-run setup on its welcome step, with the choices Start from scratch and Import from APX v1" caption="Welcome: start fresh or bring your v1 crew" />
+
+<Steps>
+
+1. **Welcome.** Choose **Start from scratch**. If APX finds an APX v1 on this computer, it also offers
+   **Import from APX v1**, with how many projects it found. Importing adds a step where you pick what to bring
+   (see [Coming from v1](/start/from-v1/)).
+
+2. **Super-agent.** This is Home, your secretary: it coordinates the rest and answers your channels. Give it a
+   **Name** and pick its blob, one of 35 faces. It shows up beside the form as you choose.
+
+   <Shot name="wizard-agent" alt="The agent step: a name field, a grid of blob faces and the chosen blob shown large on the right" />
+
+3. **Engines.** Connect the models you already pay for: sign in with your ChatGPT plan, or **Add API key** for
+   Gemini, Anthropic, OpenAI, OpenRouter and others. Local engines such as Ollama need no key. Then order the
+   **Model chain** with the arrows: the first model is the default, and if it fails the next one takes over.
+
+4. **Memory.** Choose **Search by words** (notes found by the words they share with your message), **Search by
+   meaning** (the same, plus notes that say it differently; needs an embedding engine like Ollama, Gemini or OpenAI)
+   or **No memory**. Two switches below: pick skills by meaning for each message, and keep long chats small with
+   summaries.
+
+5. **Channels.** Optional. Paste a Telegram bot token from @BotFather and press **Connect**, or link WhatsApp with
+   a QR as you would WhatsApp Web. Discord and Slack are set up later in Settings › Channels.
+
+6. **Projects.** Your base project is always there and has no folder of its own; Home and your global agents live
+   in it. You can rename it, add a folder now with **With a folder**, or skip with **Not now**. Press
+   **Create crew**.
+
+7. **Done.** Your crew is ready. Press **Open APX**.
+
+</Steps>
+
+<Aside type="tip">
+No desktop? On a server, `apx setup --headless` does the same job from the terminal, and `apx wizard` opens a guided
+console for status, devices, Tailscale, pairing and updates.
+</Aside>
+
+## Pick a model
+
+You chose a default model chain in the wizard. You can change it at any time:
+
+- **Settings › Engines and models** lists every engine with its models and lets you add keys or sign in.
+- **Settings › Router** sets rules that pick a model per turn (images, long messages, a channel, keywords) and the
+  fallback chain.
+- In a chat, the model picker in the composer changes the model for that chat only, and `/model` does the same from
+  the keyboard.
+
+From the terminal, `apx models` lists every engine and its models, and `apx models default` sets the install's
+default. More in [Models](/concepts/models/).
+
+## Say hi to Home
+
+Home's chat is in the **Inbox**. Write in the composer ("Message …" with your secretary's name) and press
+Enter.
+
+<Shot name="home-hero" alt="The Inbox with Home's chat open and a short exchange with the secretary" />
+
+Try something real:
+
+- "What can you do for me?"
+- "Remind me to call Northwind about the invoice on Friday at 10."
+- "Open the Acme Store site and tell me what the home page says."
+
+Home's chat is one conversation everywhere: when you connect Telegram or WhatsApp, the messages you send there land
+here too.
+
+## Add a project
+
+A project is a folder your agents work in: a repo, a shop, a company folder. In the sidebar, press **New project**.
+The **Add a project** dialog asks **Where it lives**:
+
+- **In a folder**: pick a folder like `~/work/acme`. If it has no `AGENTS.md`, APX writes one naming the project.
+- **No folder**: the project is made inside APX's own folder.
+
+Or from the terminal:
+
+<Terminal command="apx projects register ~/work/acme" />
+
+The project shows up in the sidebar with its tabs: Overview, Chats, Agents, Tasks, Routines, Files, Memory and
+Resources. Add agents in the **Agents** tab with **Agent**, or bring one from a template with **Import**. More in [Projects](/concepts/projects/).
+
+## Ask from the terminal
+
+`apx chat` is the one way to talk to an agent from the terminal. With no options it writes to Home:
+
+<Terminal command={`apx chat "What's still open in Acme Store?"`}>{`Two tasks are open in Acme Store: Tomás is fixing the checkout bug,
+and Vera's newsletter is waiting for your review.
+— completed · thread home`}</Terminal>
+
+Talk to a specific agent with `--agent`, start a fresh chat with `--new`, or open a code thread in the folder you're
+in with `--code`:
+
+```bash
+apx chat "Draft the release notes" --agent "Lucía"
+apx chat "Why does the cart test fail?" --code --cwd ~/work/acme
+```
+
+Everything you write from the terminal shows up in the app, and the other way around.
+
+## Where to go next
+
+<CardGrid>
+  <LinkCard title="How it works" description="The core, the protocol and the pieces around them." href="/start/how-it-works/" />
+  <LinkCard title="Agents" description="Give agents roles, faces, skills and autonomy." href="/concepts/agents/" />
+  <LinkCard title="Chat" description="Slash commands, the side panel, attachments and rewinding." href="/office/chat/" />
+  <LinkCard title="Channels" description="Talk to your crew from Telegram, WhatsApp, Discord or Slack." href="/channels/overview/" />
+</CardGrid>

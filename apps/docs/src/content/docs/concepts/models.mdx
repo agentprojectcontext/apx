@@ -1,0 +1,156 @@
+---
+title: Models and engines
+description: Providers and harnesses, how a model is named, how the router picks one per turn, and where your tokens go.
+sidebar:
+  order: 4
+---
+
+import { Aside, Steps, Tabs, TabItem, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../components/Shot.astro";
+import Terminal from "../../../components/Terminal.astro";
+
+APX doesn't come with a model of its own. You bring one (or several): an API key, your ChatGPT plan, a model running
+on your machine. APX picks the right one for each turn and falls back when one fails.
+
+## Two words: provider and harness
+
+| | Is | Examples |
+|---|---|---|
+| **Provider** | A model API that APX's own loop calls. Your agents think with these. | Gemini, Anthropic, OpenAI, OpenRouter, a local Ollama, your ChatGPT plan |
+| **Harness** | What runs a turn's loop. `native` is APX's own; the others are coding CLIs that run their own loop. | `native`, `claude` (Claude Code), `codex` (Codex), `acp` (OpenCode, Qwen Code, Gemini CLI, goose…) |
+
+Your agents, the router and the install default always use **providers** through APX's loop, with APX's tools,
+memory and safety rules. Claude Code, Codex and the other CLIs run **in their own sessions**: you talk to the CLI
+itself, in a folder, from **External sessions**. They are not models for your agents.
+
+<Aside>
+  Your Claude subscription works only inside Claude Code: Anthropic limits its sign-in to Claude Code. So in APX it
+  lives in Claude Code sessions, and agents that should think with Claude use an Anthropic API key.
+</Aside>
+
+## Add a provider
+
+Open **Settings › Engines and models**. Under **Model APIs (APX's own loop)**, click **Add provider** and pick its
+kind; the address fills in. Paste the key (APX stores it in the secret store and never shows it again) and the
+model list is asked to the provider itself.
+
+Presets: **OpenCode Zen**, **Gemini**, **Anthropic**, **OpenAI**, **OpenRouter**, **Groq**, **Cerebras**,
+**DeepSeek**, **Mistral**, **Ollama**, **LM Studio**, and **OpenAI-compatible** for anything else that speaks that
+API. Ollama and LM Studio run on your machine and need no key.
+
+<Shot name="settings-engines" alt="Settings, Engines and models: the ChatGPT plan card and a list of model APIs with their status" caption="Settings › Engines and models" />
+
+On a server with no panel, three environment variables add one OpenAI-compatible provider: `APX_LLM_BASE_URL`,
+`APX_LLM_KEY_REF` (a secret's name) and `APX_LLM_MODELS`. See [Configuration](/reference/configuration/).
+
+### Your ChatGPT plan
+
+Your ChatGPT plan can be a provider too, shown as **Codex**. Its models then run in APX's loop with APX's tools.
+
+<Steps>
+
+1. In ChatGPT, open Settings › Security and turn on **Device code authorization for Codex**. Without it the sign-in
+   can't finish.
+2. In **Settings › Engines and models**, click **Connect** on the ChatGPT plan card, then **Sign in with ChatGPT**.
+3. Open the page APX shows and type the code there. APX waits until you finish in the browser.
+
+</Steps>
+
+APX keeps its own sign-in, apart from the Codex app's, and refreshes it on its own. If APX v1 was already signed in,
+**Use APX v1's sign-in** takes it over with no new code.
+
+## Naming a model
+
+A model is written as `engine/model`, with an optional reasoning effort after a `#`:
+
+```text
+gemini/gemini-3.8-flash          a model of the gemini provider
+chatgpt/gpt-6-sol#high           your ChatGPT plan's model, thinking harder
+ollama                           an engine alone: its own default model
+acp:opencode/<model>             an ACP agent, in its own sessions
+```
+
+The engine id is the provider's id, as shown in its settings ("Its id in model names"). The efforts a model takes
+come from the model itself (low, medium, high and so on). In a chat, `/effort` changes it for that chat.
+
+## The router
+
+The router decides which model answers each turn. Find it in **Settings › Router**.
+
+- **Rules**, checked top to bottom: the first one that matches picks the model. A rule can look at whether the
+  message has an image, its length, how big the context is, the channel, who started the turn (a person, another
+  agent, an agent's result, an app, a channel, a routine, the system), the agent's kind and keywords. A rule with no
+  conditions matches every turn.
+- **The model chain**: #1 is the default, and if it fails the ones below are tried in order.
+
+<Shot name="settings-router" alt="Settings, Router: two rules on top and a model chain of three models below" caption="Settings › Router" />
+
+A turn falls back to the next model **only if the failing one had not run a tool yet**. Once a tool ran, the turn
+fails honestly instead: trying again on another model could do the same thing twice. When it does switch, the chat
+shows a "Switched model" notice saying which model didn't answer and why.
+
+## Per agent, per chat, by default
+
+Three places pick a model, most specific first:
+
+| Where | How | It means |
+|---|---|---|
+| A chat | The model picker in the composer | Only this chat. |
+| An agent | The agent's panel, or `apx agents model` | A fixed model, a model with the router behind it (`--router`), the router alone, or the install default. |
+| The install | `apx models default`, or the router's chain | Every agent without its own choice. |
+
+## Usage
+
+Every turn records its model and tokens, and whether they were **included** in a subscription or **metered** (paid
+per token). See it in the chat's **Usage** side panel, with `/usage` in a chat, or for the whole install:
+
+<Terminal command="apx usage 7">{`since 2026-10-01
+gemini/gemini-3.8-flash                      metered     212 runs     1840233 in      96410 out
+chatgpt/gpt-6-sol                            included     48 runs      603118 in      41022 out`}</Terminal>
+
+## From the terminal
+
+<Terminal command="apx models">{`claude — Claude Code
+  claude/sonnet
+codex — Codex
+  codex/gpt-6-sol
+gemini — Gemini
+  gemini/gemini-3.8-flash
+  gemini/gemini-3.8-pro
+chatgpt — Codex
+  chatgpt/gpt-6-sol
+ollama — Ollama (not available)`}</Terminal>
+
+The list starts with the CLIs (`claude`, `codex`, any ACP agents), whose models you use in their own sessions, then
+your providers. Each engine is asked for its own list; `apx models --refresh` asks again instead of using the
+day-old cache.
+
+<Terminal command="apx models config">{`default: router
+router chain: gemini/gemini-3.8-flash → chatgpt/gpt-6-sol
+  rule {"has_image":true} → gemini/gemini-3.8-pro  # photos and screenshots`}</Terminal>
+
+| Command | Does |
+|---|---|
+| `apx models default <engine/model \| engine \| router> [--router]` | Sets the install default. |
+| `apx models chain <ref> [<ref>…]` | Sets the router's fallback chain, in order. |
+| `apx models rules < rules.json` | Replaces the router's rules (JSON on stdin). |
+| `apx agents model <agent> <ref \| router \| default> [--router]` | Sets one agent's model. |
+
+A rules file is a list. Every condition in `when` must hold; `model` is what the rule picks:
+
+```json title="rules.json"
+[
+  { "when": { "has_image": true }, "model": "gemini/gemini-3.8-pro", "note": "photos and screenshots" },
+  { "when": { "triggers": ["routine"], "max_chars": 2000 }, "model": "ollama" },
+  { "when": { "keywords": ["contract", "invoice"] }, "model": "chatgpt/gpt-6-sol#high" }
+]
+```
+
+The conditions are `has_image`, `min_chars`, `max_chars`, `min_context_chars`, `channels`, `triggers` (`user`,
+`a2a`, `a2a_result`, `surface`, `channel`, `routine`, `system`), `agent_kinds` (`secretary`, `agent`) and
+`keywords`.
+
+<CardGrid>
+  <LinkCard title="Code" description="Claude Code and Codex sessions from APX." href="/office/code/" />
+  <LinkCard title="Configuration" description="Environment variables and files." href="/reference/configuration/" />
+</CardGrid>

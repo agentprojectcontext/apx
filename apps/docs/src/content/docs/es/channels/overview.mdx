@@ -1,0 +1,138 @@
+---
+title: Canales
+description: Cómo habla APX por Telegram, WhatsApp, Discord, Slack e iMessage, y a quién le contesta ahí.
+sidebar:
+  order: 1
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+Un canal te deja hablar con tus agentes desde una app que ya usás, y deja que otras personas también les escriban.
+Los canales se conectan en **Configuración › Canales**. Después cada uno aparece en la barra lateral, bajo
+**Canales**, con sus contactos y sus chats.
+
+<Shot name="settings-channels" alt="Configuración, sección Canales: un bot de Telegram conectado con su estado, quién responde y cómo se comporta" caption="Configuración › Canales" />
+
+## Tres palabras: canal, contacto, sala
+
+- Un **canal** es una app por la que habla APX: Telegram, WhatsApp, Discord, Slack, iMessage.
+- Un **contacto** es una persona en un canal. Cada contacto tiene un chat directo con tu agente.
+- Una **sala** es un lugar compartido que leen muchas personas, como un canal de tu servidor de Discord.
+
+Cada chat con un contacto y cada sala queda guardado como una conversación de APX, así que lo podés leer, buscar y
+meterte desde el panel. Los agentes usan las mismas palabras: pueden listar canales y contactos, escribirle a un
+contacto, leer una sala y publicar en una por su nombre exacto.
+
+## Adónde van tus mensajes
+
+Cuando **vos** le escribís a tu agente por un canal, tu mensaje va a **Home**: una sola conversación con tu
+secretaria, escribas desde el panel, la terminal, Telegram o WhatsApp. Lo que empezaste en la compu lo seguís desde el
+teléfono.
+
+Si preferís tener un canal aparte, poné **Tus mensajes** en **Chat propio** en la configuración de ese canal. Tus
+mensajes desde ahí tienen entonces su propio chat.
+
+## A quién le contesta
+
+APX te contesta a vos y a las personas que aprobás. Cualquier otra es un desconocido, y vos elegís qué pasa cuando
+escribe uno (**Desconocidos**, en la configuración del canal):
+
+| Opción | Qué pasa |
+|---|---|
+| **Mandar código** | Recibe un código de emparejamiento. Nadie le contesta hasta que lo aprobás, desde la configuración del canal o desde tu aviso. |
+| **Avisarme** | Te llega un aviso con quién escribió y qué dijo. Si decís que sí (con el botón del aviso o diciéndoselo a tu agente), se le contesta ese mensaje. |
+| **Contestar** | Se le contesta enseguida y queda como contacto nuevo, en un chat sellado con límite por hora. |
+| **Ignorar** | Nadie le contesta y no queda anotado. |
+
+También podés aprobar desde la terminal, o simplemente decírselo a tu agente ("dejala pasar"). El agente te pide el
+OK antes de dejar entrar a nadie.
+
+<Terminal command="apx pairing">{`482913  telegram  Ana: Hola, ¿es la tienda?`}</Terminal>
+
+```bash
+apx pairing ok 482913 "Ana"    # aprobar como contacto
+apx pairing no 482913          # descartar el pedido
+apx pairing me 482913          # esta dirección es mía (tuya, la del dueño)
+```
+
+## Los contactos están sellados
+
+Una persona aprobada es un **contacto**, con un rol: vos (dueño), contacto o bloqueado. El chat de un contacto está
+**sellado**: el agente le contesta sin tools y sin nada de tu memoria, así que el mensaje de un desconocido no puede
+hacerlo actuar por vos.
+
+Abrí un contacto desde la pantalla del canal para configurar:
+
+- **Quién es**, en tus palabras. Llega solo a los turnos que le contestan a esa persona.
+- **Reglas**, que van últimas en el prompt y le ganan a la cautela del agente.
+- **Qué puede hacer esta conversación**: **Tomar pedidos de turno**, **Tomar pedidos** (cada uno queda como tarea
+  para vos) y **Contestar desde mis notas** (tus notas generales, de lectura). Todo apagado de entrada.
+- **Silenciar**: sus mensajes se guardan pero nunca llegan a un modelo.
+
+En el chat de un contacto en el panel, **Quién contesta** cambia entre el agente (vos le decís qué contestar) y
+**Escribo yo** (tus palabras salen tal cual las escribiste).
+
+```bash
+apx contacts                 # personas y sus direcciones
+apx contacts add Ana Pérez   # agregar una a mano (las direcciones se vinculan con el emparejamiento)
+apx contacts block <id>      # o unblock, rm
+```
+
+## Mientras el agente trabaja
+
+**Mientras trabaja** decide qué pasa si mandás otro mensaje antes de que termine la respuesta:
+
+- **Espera**: tu mensaje nuevo espera y se contesta cuando termina el actual.
+- **Interrumpe**: corta lo que estaba haciendo y arranca de nuevo con tu mensaje.
+- **Se suma**: tu mensaje se suma al turno en curso; el agente lo lee entre pasos y sigue. Funciona en el motor de
+  APX; en otros motores espera.
+
+En Telegram y WhatsApp, **Mensajes que no necesitan respuesta** elige qué recibe un "ok", un gracias o una despedida:
+**Silencio** o **Reaccionar** (un emoji), sin llamar al modelo en ningún caso.
+
+## Entregas y avisos
+
+Todo lo que manda APX pasa por un **outbox** durable: un mensaje sobrevive a un reinicio y se reintenta, y cada uno
+termina como enviado, quizás enviado o fallido. La configuración del canal muestra lo **Enviado hace poco**; la
+terminal muestra más:
+
+<Terminal command="apx channels outbox">{`10-08T09:14  sent      telegram  reply   Tu pedido salió esta mañana…
+10-08T09:02  sent      telegram  notice  Resumen de la mañana: 3 tareas vencen hoy…`}</Terminal>
+
+En **Avisos para vos**, **Las confirmaciones te siguen** manda a tu canal, con botones, una pregunta que un agente
+hizo en la app y nadie contestó (al minuto, a los 2 o a los 10 minutos, o nunca). El horario de silencio y el tope
+diario están en **Configuración › Interrupciones**.
+
+## Notas de voz
+
+Las notas de voz que mandás por Telegram o WhatsApp se transcriben y se contestan como texto. La transcripción usa los
+motores de **Configuración › Voces** (incluido whisper.cpp local). Pedile al agente que te conteste con voz y prende
+las respuestas habladas para ese chat; para eso también hace falta una voz en **Configuración › Voces**.
+
+## Qué canales funcionan hoy
+
+| Canal | Estado | Cómo se conecta |
+|---|---|---|
+| [Telegram](/es/channels/telegram/) | Completo | Un bot que creás con BotFather |
+| [WhatsApp](/es/channels/whatsapp/) | Completo | Un dispositivo vinculado, por QR |
+| [Discord](/es/channels/discord-slack/) | Completo | Un bot: mensajes directos y salas del servidor |
+| [Slack](/es/channels/discord-slack/) | Completo | Una app en Socket Mode: mensajes directos |
+| [iMessage](/es/channels/imessage/) | Tools en la Mac | Los agentes leen y mandan; no entran chats |
+| Matrix, Mattermost, Signal | Sin verificar | Están en el panel, todavía sin probar contra un servidor real |
+| Teams, Google Chat, Email, SMS, LINE | Pronto | Aparecen en la lista, todavía no se pueden conectar |
+
+<Aside type="note">
+La terminal solo agrega bots de Telegram. Todos los demás canales se configuran en **Configuración › Canales**.
+</Aside>
+
+<Terminal command="apx channels">{`telegram       telegram  running   @acme_store_bot    agent nova
+whatsapp       whatsapp  running   +1 555 0100        agent nova`}</Terminal>
+
+<CardGrid>
+  <LinkCard title="Telegram" href="/es/channels/telegram/" description="El más rápido de configurar." />
+  <LinkCard title="WhatsApp" href="/es/channels/whatsapp/" description="Una línea aparte, o tu propio número." />
+  <LinkCard title="Discord y Slack" href="/es/channels/discord-slack/" description="Bots por mensaje directo, y salas de Discord." />
+  <LinkCard title="Autonomía" href="/es/concepts/autonomy/" description="Qué pueden hacer los agentes sin preguntar." />
+</CardGrid>

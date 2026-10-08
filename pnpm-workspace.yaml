@@ -3,6 +3,8 @@ packages:
   - "packages/*"
   # Expo installs on its own (cd apps/mobile && npm install): React Native stays out of everyone else's install.
   - "!apps/mobile"
+  # The docs site (Astro) installs on its own too: cd apps/docs && pnpm install.
+  - "!apps/docs"
 allowBuilds:
   esbuild: true
   electron: true

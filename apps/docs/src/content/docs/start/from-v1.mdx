@@ -1,0 +1,120 @@
+---
+title: Coming from v1
+description: What changed between APX v1 and v2, how to bring your crew over, and how to run both while you switch.
+sidebar:
+  order: 5
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import Terminal from "../../../components/Terminal.astro";
+
+APX v2 is a rewrite, not an upgrade. The ideas you liked are still here: a secretary, project agents, tasks,
+commitments, routines, channels. What changed is the plumbing underneath: where v1 had several ways to do the same
+thing, v2 has one. Your projects open as they are, and the import brings the rest.
+
+## What's the same
+
+- **Projects are still APC folders.** `AGENTS.md` and `.apc/` work unchanged, so your v1 projects open in v2 with no
+  conversion. Agents are still one Markdown file each in `.apc/agents/`.
+- **The office is still there.** Tasks with comments that call agents, commitments to people, routines, memory per
+  project and per agent.
+- **Your channels and your secretary.** Telegram, WhatsApp and Discord come over with their contacts, and your
+  super-agent keeps its name, face and personality.
+
+## What changed
+
+| In v1 | In v2 |
+| --- | --- |
+| Ledgers per channel and day, session files, conversation files, code-session files | **Threads.** One place a conversation lives, with its runs (agent turns) and steps (tool calls), all in one database |
+| Super-agent and its daily channel logs | **Home**, your secretary. Its chat is one conversation everywhere; the setup wizard still calls it the super-agent |
+| The Default project | The **base project**: no folder of its own, home of Home and your global agents. It's still called Default unless you rename it |
+| Engines (LLM providers) | **Providers**, shown as engines in Settings › Engines and models. Models are named `engine/model` and a router picks one per turn |
+| Runtimes (`apx run` with Claude Code, Codex, OpenCode…) | **Harnesses**. Coding CLIs run only in their own sessions: code threads (`apx chat --code`) and **External sessions** |
+| `apx exec`, `apx run`, `apx code` and many other ways to talk to an agent | **`apx chat`**, the one way, for Home, any agent or a code thread |
+| Several agent-to-agent paths | One: a sub-thread through `threads.send`, shown as a progress card in your chat |
+| Hand-written REST endpoints | One typed protocol that every app and the terminal use |
+| The agent vault | Agent templates you add from a project's **Agents** tab with **Import** |
+| `apx daemon` | `apx service install`, `status`, `restart` (`apx daemon` now only explains) |
+| `~/.apx`, port 7430 | `~/.apx/v2`, port 7440 |
+
+A few v1-only commands, such as `apx company`, are gone.
+
+## Bring your crew over
+
+The import only reads v1. Nothing in `~/.apx` is changed, so you can go back whenever you want.
+
+<Tabs syncKey="import">
+<TabItem label="Setup wizard">
+
+<Steps>
+
+1. Open the setup wizard: it starts on its own the first time, or from the account menu › **First-run setup**.
+
+2. On **Welcome**, choose **Import from APX v1**. APX shows the version it found and how many projects it has.
+
+3. On **Import v1**, pick what to bring. Each group shows what it found:
+
+   | Group | What comes |
+   | --- | --- |
+   | Projects | Their folders and agents; v1's Default agents become global agents, with their memory |
+   | Skills | Your global skills |
+   | Engines | Your model providers and keys (stored securely), Ollama, your ChatGPT sign-in, and your model chain |
+   | Variables | Tokens and keys your MCP servers use |
+   | MCP servers | Yours and each project's; their keys move to your variables |
+   | Memory | Your notes and each project's |
+   | Chats | Your chats with the super-agent (Telegram, WhatsApp, web…) and your agents', with their dates |
+   | Identity and profile | Who you are, your super-agent's personality, its secretary profile and schedule, your quiet hours |
+   | Embedding engine | The one that finds notes by meaning and picks skills |
+   | Images and voices | Image servers, voices and voice-note transcription |
+   | Channels | Telegram, WhatsApp and Discord: accounts, contacts and your server's rooms |
+   | Open tasks | With due date, priority and tags; finished ones stay in v1 |
+   | Commitments | They become tasks of the commitment kind, with their person |
+   | Routines | They come in **off**: turn them on when you stop using v1 |
+
+4. Go on through the wizard. On **Done**, if v1's `apx` is still installed, **Make apx this version** makes the
+   `apx` command this version. Your v1 files stay in `~/.apx`.
+
+</Steps>
+
+Each v1 channel's chats come in as one thread (one per chat on Telegram), so you find "Telegram" rather than a
+hundred days of it. Importing chats again adds nothing new. Routine logs and media files stay in v1.
+
+</TabItem>
+<TabItem label="Terminal">
+
+On a server, or if you only want the basics, import from the terminal:
+
+<Terminal command="apx import-v1 --keys --skills">{`imported 4 projects, 9 agents; keys: gemini, openai; 12 skills`}</Terminal>
+
+| Option | Also brings |
+| --- | --- |
+| *(none)* | The project folders v1 knows, with their agents |
+| `--keys` | v1's model API keys, into v2's secret store |
+| `--skills` | v1's skills |
+| `--services` | v1's image engines and voices |
+
+On a fresh server, `apx setup --headless --import` runs the same import as part of the setup. For chats, channels,
+tasks and the rest, open the setup wizard from an app connected to that server.
+
+</TabItem>
+</Tabs>
+
+## Running both side by side
+
+v1 and v2 don't share a folder or a port, so they can run on the same machine while you switch.
+
+| | v1 | v2 |
+| --- | --- | --- |
+| Data | `~/.apx` | `~/.apx/v2` |
+| Port | 7430 | 7440 |
+| Command | `apx` until you switch | `apx` once installed or switched |
+
+<Aside type="caution" title="One bot, one daemon">
+Two daemons would both answer the same Telegram bot. The server installer stops v1's daemon for that reason. If you
+keep v1 running on a desktop, don't connect the same bots in both, and leave the imported routines off until v1 is
+retired.
+</Aside>
+
+The server installer stops v1's daemon and removes v1's `apx` command (`npm uninstall -g`), leaving its files in
+`~/.apx` so you can import them later. In the desktop app, the wizard's **Make apx this version** does the same switch
+for the command.

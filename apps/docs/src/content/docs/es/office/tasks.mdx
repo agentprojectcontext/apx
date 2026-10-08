@@ -1,0 +1,141 @@
+---
+title: Tareas
+description: Un tablero del que trabajan tus agentes, con compromisos para lo que le prometiste a alguien y lo que te deben.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+Las tareas son el tablero de pendientes de la oficina, compartido entre vos y tus agentes. Las creás vos, las crean
+ellos, y darle una a un agente alcanza para que arranque. **Tareas** en la barra lateral las muestra de todos los
+proyectos; cada proyecto tiene además su pestaña **Tareas** con **Nueva tarea**.
+
+<Shot name="tasks" alt="La pantalla de Tareas con los grupos En curso, Pendiente, En revisión y Bloqueada, cada uno con tareas, responsable y vencimiento" caption="Tareas, de todos los proyectos" />
+
+## Qué tiene una tarea
+
+| Campo | Valores |
+|---|---|
+| **Tipo** | **Tarea** (trabajo de un proyecto), **Compromiso** (algo prometido con alguien) o **Recado** (algo chico para hacer al pasar: comprar, llamar, retirar). |
+| **Columna** | **Por planificar** (recién llegada, las nuevas caen acá), **Para hacer** (decidida, es lo próximo), **En curso** (alguien la está haciendo), **Revisión** (terminada, falta revisarla). |
+| **Prioridad** | Urgente, Alta, Normal, Baja. |
+| **Quién la hace** | Un agente, o nadie. Elegir un agente de un proyecto pone la tarea en ese proyecto. |
+| **Vencimiento y recordatorio** | Cuando vence, 1 hora antes, 1 día antes, otro momento o sin recordatorio. |
+| **Etiquetas** | Palabras libres (`cliente`, `lanzamiento`…). |
+
+**Hecha** y **Descartar** cierran una tarea; **Reabrir** la trae de vuelta. El filtro de arriba cambia entre
+**Todas**, **Tareas**, **Compromisos** y **Recados**.
+
+### Cómo se agrupa la lista
+
+- **En curso**: su columna es En curso, o un agente la está trabajando ahora.
+- **Pendiente**: Por planificar o Para hacer, nadie la empezó todavía.
+- **En revisión**: terminada, falta que alguien la revise.
+- **Bloqueada**: espera tu respuesta. Un agente te preguntó algo, o la marcaste con **Espera tu respuesta** desde el
+  menú de la tarea.
+- **Cerradas hace poco**: hechas o descartadas, las más nuevas primero.
+
+## Asignar arranca el trabajo
+
+Dale una tarea a un agente (al crearla o después) y empieza a trabajar enseguida, en **su propio chat para esa
+tarea**. Ese chat es uno más del Inbox: podés abrirlo y mirar, o hablar ahí con el agente.
+
+<Steps>
+
+1. Lucía crea "Escribir la página de tarifas de envío" en Acme Store y elige a **Tomás** en **Quién la hace**.
+2. Se abre el chat de Tomás para la tarea con el texto de la tarea, y arranca: lee el proyecto, arma un borrador.
+3. Cada vez que termina un turno, su respuesta se publica en la tarea como **comentario suyo**. La tarea guarda la
+   conversación sobre el trabajo; el chat guarda el trabajo en sí (cada herramienta, cada archivo).
+4. Cuando necesita una decisión, te pregunta. La tarea pasa a **Bloqueada** hasta que respondas.
+
+</Steps>
+
+Abrí una tarea y su panel muestra la descripción, los campos, la **Conversación** (comentarios) y el **Historial**
+(quién la creó, movió, asignó o cerró). **Abrir el chat de Tomás para esta tarea** te lleva a donde pasa el trabajo.
+Si la reasignás, el nuevo agente tiene su propio chat y se entera de quién la trabajó antes.
+
+<Shot name="task-drawer" alt="Una tarea abierta en su panel: título, responsable, prioridad y una conversación con comentarios del dueño y de un agente" caption="El panel de una tarea: comentarios, campos y el chat de trabajo" />
+
+Las tareas asignadas que nunca arrancaron se retoman solas: una vez por hora, las más urgentes se ponen en marcha.
+
+### Comentarios y @menciones
+
+Escribí en el cuadro **Comentario** de la tarea. Un `@nombre` le pregunta a ese agente: responde en su propio chat
+para la tarea, y su respuesta vuelve como comentario. Preguntale a Vera desde la tarea de Lucía:
+
+> @Vera ¿podés tener las fotos de producto para el jueves? Esta página las necesita.
+
+Los agentes se mencionan entre ellos igual (hasta dos saltos), y un agente te puede mencionar a vos para llamarte la
+atención.
+
+## Subtareas
+
+Una tarea puede nombrar una tarea madre, así "Lanzamiento de primavera" agrupa las fotos de Vera y la página de
+tarifas de Tomás.
+
+<Aside type="caution" title="Parcial">
+Las subtareas existen en el core (una tarea creada por el protocolo puede nombrar a su madre), pero el panel todavía
+las lista como tareas comunes y las herramientas de tareas de los agentes todavía no ponen una madre.
+</Aside>
+
+## Compromisos
+
+Un compromiso es una tarea con **una persona** (uno de tus [contactos](/es/channels/overview/)) y **quién lo debe**:
+**Lo debo yo** (le prometiste algo a alguien) o **Me lo deben** (alguien te prometió algo a vos). Tiene vencimiento
+como cualquier tarea, así que se recuerda y se avisa antes de que se haga tarde.
+
+<Shot name="commitments" alt="Tareas filtradas por Compromisos: lo que le debés a cada persona y lo que cada persona te debe, con vencimientos" caption="El filtro Compromisos" />
+
+Un compromiso termina de una de tres formas, o cambia de fecha:
+
+| Acción | Qué registra |
+|---|---|
+| **Cumplido** | Se entregó. Lo cierra como hecho. |
+| **No se cumplió** | Pasó la fecha sin entregarse. Lo cierra. |
+| **Liberar** | Se liberó de común acuerdo. Lo cierra. |
+| **Nueva fecha** | Se renegoció: sigue abierto con la fecha nueva, y un contador muestra cuántas veces se movió. |
+
+Solo tu palabra cierra un compromiso. Los agentes nunca marcan uno como cumplido o no cumplido por su cuenta: la
+rutina de cierre del día te pregunta cómo salieron, y el agente anota tu respuesta (mirá
+[Secretaria](/es/office/secretary/)).
+
+## Desde la terminal
+
+<Terminal command="apx tasks help">{`apx tasks [--project p]                 Open tasks by column
+apx tasks add <title…> [--project p] [--agent a] [--person name --owed me|them] [--due 2026-10-05]
+apx tasks commitments                    What you owe and what you are owed
+apx tasks move <id> <column>
+apx tasks done|drop|reopen <id>
+apx tasks say <id> <text…>               Comment; @agent asks that agent there`}</Terminal>
+
+Algunos ejemplos (los ids de agente y de proyecto son los que imprimen `apx agents` y `apx projects`):
+
+```bash
+# Una tarea para Tomás en Acme Store: arranca en el momento
+apx tasks add Escribir la página de tarifas de envío --project <id-acme> --agent <id-tomas>
+
+# Le prometiste a Marta (un contacto de Northwind) un presupuesto para el viernes
+apx tasks add Mandar el presupuesto mayorista --person Marta --owed me --due 2026-10-10
+
+# Moverla, comentarla, cerrarla
+apx tasks move <id-tarea> review
+apx tasks say <id-tarea> @Lucía revisás el texto antes del viernes
+apx tasks done <id-tarea>
+```
+
+Las columnas para `move` son `backlog`, `todo`, `doing` y `review`.
+
+<Aside type="note">
+Los agentes pueden abrir, mover, comentar y cerrar tareas con sus propias herramientas, así que "Lucía, poné eso en
+el tablero para Tomás" funciona en cualquier chat.
+</Aside>
+
+## Lo que sigue
+
+<CardGrid>
+  <LinkCard title="Rutinas" href="/es/office/routines/" description="Trabajo que un agente hace solo, con horario." />
+  <LinkCard title="Secretaria" href="/es/office/secretary/" description="Apertura y cierre del día, y lo que te llega sin pedirlo." />
+</CardGrid>

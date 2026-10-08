@@ -1,0 +1,48 @@
+---
+title: iMessage
+description: Let your agents read your recent iMessages and send one from your Mac, with your OK.
+sidebar:
+  order: 5
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+iMessage isn't a channel your agents answer on. It lends them two tools on the Mac where APX runs:
+
+- **Read** your recent iMessages: all chats, or one person's by phone number or email. Other people's words come back
+  as outside data, never as instructions.
+- **Send** one, to a phone number with its country code (`+1 555 0100`) or an Apple ID email. Sending always waits
+  for your OK.
+
+Nothing comes in: when someone writes to you on iMessage, no agent answers. You ask ("did Ana text me about Friday?",
+"tell her I'll be late"), and the agent reads or drafts the message for you to approve.
+
+## Turn it on
+
+<Steps>
+
+1. Open **Settings › Channels**, **Add channel › iMessage**, and turn on **Agents may use iMessage**.
+
+2. For reading: give the app running APX **Full Disk Access** in **System Settings › Privacy & Security**.
+
+3. For sending: the first time, macOS asks whether APX may control Messages. Say yes.
+
+</Steps>
+
+It only works on a Mac signed in to your iMessage account, and only when the APX core runs on that Mac. A core on a
+server or another system shows **Only on a Mac** instead.
+
+## Sending asks you
+
+A message from your Mac speaks as you, so `imessage_send` is one of the tools that ask for your OK every time: you see
+who it's for and the text, and approve or deny. The only exception is an agent you set to total autonomy, which asks
+for nothing; see [Autonomy](/concepts/autonomy/).
+
+## Turn it off completely
+
+The switch in Settings turns the tools off. To make sure a core never offers them (a test core, or one in a sandbox),
+start it with:
+
+```bash
+APX_IMESSAGE=off
+```

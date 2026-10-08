@@ -1,0 +1,184 @@
+---
+title: Configuración
+description: Dónde guarda APX su estado, core.env, todas las variables de entorno, los puertos, los secretos y dónde vive cada ajuste en el panel.
+sidebar:
+  order: 2
+---
+
+import { Aside, FileTree } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+
+Casi todo en APX se configura desde el panel y queda en la base de datos del core. Lo que queda para archivos y
+variables de entorno es la parte de la máquina: dónde está la carpeta de APX, quién puede llegar al core y algunas
+llaves de encendido.
+
+## La carpeta de APX
+
+APX guarda todo su estado en una carpeta: `~/.apx/v2`, salvo que `APX_HOME` diga otra cosa. Está dentro del `~/.apx`
+de APX v1, y v2 nunca escribe los archivos de v1 que hay ahí.
+
+<FileTree>
+- ~/.apx/v2/
+  - **apx.db** todo lo que guarda el core: agentes, hilos, tareas, rutinas, memoria, ajustes (SQLite)
+  - core.env quién puede llegar al core: host, puerto, token, dirección pública
+  - secrets.json los valores de los secretos, cuando se guardan en un archivo (modo 600)
+  - secrets.index.json solo nombres y fechas, cuando están en el Llavero de macOS
+  - skills/ tus skills globales, una carpeta con un SKILL.md cada una
+  - extensions/ las extensiones instaladas
+  - profiles/ los perfiles de secretaria que agregaste
+  - projects/ el lado de APX de cada proyecto: proyectos sin carpeta propia, widgets
+  - work/ donde trabajan los agentes en chats fuera de un proyecto
+  - jobs/ la salida de los trabajos en segundo plano
+  - media/ archivos subidos, enviados y generados, por fecha
+  - channels/ datos de cada canal, como la sesión de WhatsApp
+  - browser/ el perfil compartido del Chrome sin ventana
+  - models/ modelos locales que instalaste, como el del dictado por voz
+  - logs/ core.log cuando el core corre como servicio en macOS o Windows
+  - app/ el paquete instalado, en un servidor: versions/ y el enlace current
+</FileTree>
+
+Tus proyectos quedan donde están: un proyecto es una carpeta con `AGENTS.md` y/o `.apc/`, y APX lee y escribe ahí sus
+agentes, su memoria y sus skills ([Proyectos](/es/concepts/projects/)).
+
+<Aside type="caution">
+`apx.db` y `secrets.json` son del core. Los agentes no pueden leer ni cambiar la carpeta de APX con sus herramientas, y
+vos no deberías editarlos a mano mientras el core corre. Para probar cosas sin tocar tus datos reales, arrancá un core
+con su propio `APX_HOME` (mirá [Problemas frecuentes](/es/reference/troubleshooting/#empezar-de-cero-sin-perder-nada)).
+</Aside>
+
+## core.env
+
+`<home>/core.env` dice cómo está expuesto el core. Lo escriben `apx expose`, **Configuración › Conexiones ›
+Dispositivos** y el primer arranque de la app de escritorio; lo leen el core, el comando `apx` y la app de escritorio.
+Es un archivo `CLAVE=VALOR` común, que solo vos podés leer (modo 600), y solo cuentan estas claves:
+
+| Clave | Qué define |
+|---|---|
+| `APX_HOST` | La dirección donde escucha el core. |
+| `APX_PORT` | Su puerto. |
+| `APX_TOKEN` | El token del core. |
+| `APX_PUBLIC_URL` | La dirección que usan los otros dispositivos, primera en el QR de vinculación. |
+| `APX_ALLOWED_ORIGINS` | Orígenes web extra que pueden llamar al core. |
+
+Las variables de entorno del proceso siempre le ganan al archivo. El core lo lee al arrancar, así que un cambio
+necesita un reinicio.
+
+## Variables de entorno
+
+### El core
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `APX_HOME` | `~/.apx/v2` | La carpeta de APX. |
+| `APX_PORT` | `7440` | El puerto del core. |
+| `APX_HOST` | `127.0.0.1` | La dirección donde escucha. Cualquier cosa que no sea loopback necesita `APX_TOKEN`, o el core no arranca. |
+| `APX_TOKEN` | ninguno | El token del core. Sin token, el core solo acepta esta compu. |
+| `APX_PUBLIC_URL` | ninguna | La dirección por la que los dispositivos llegan a este core desde afuera (un VPS o un nombre de Tailscale). Va primera en el QR de vinculación. |
+| `APX_ALLOWED_ORIGINS` | ninguno | Orígenes extra que pueden llamar al core, separados por comas. |
+| `APX_SECRETS` | Llavero en macOS, archivo en el resto | `file` guarda los secretos en `<home>/secrets.json` también en macOS. |
+| `APX_UPDATES` | prendido | `off` deja de buscar un APX más nuevo. |
+| `APX_RELEASES` | `agentprojectcontext/apx` | El repositorio de GitHub cuyos releases anuncian un paquete nuevo. `off` lo frena. |
+| `APX_APP` | `~/.apx/v2/app` | Donde el script de instalación pone el paquete (sus versiones y `current`). |
+| `APX_AGENT_NAME` | uno al azar | El nombre de Home en una instalación nueva. |
+| `APX_LLM_TIMEOUT_MS` | `45000` | Cuánto espera el core el primer byte de la respuesta de un modelo. |
+| `APX_IMESSAGE` | prendido | `off` esconde las herramientas de iMessage (solo Mac). |
+| `APX_HEADLESS` | prendido | `off`: sin Chrome sin ventana cuando ninguna app de escritorio presta un navegador. |
+| `APX_CHROME` | lo busca solo | El binario de Chrome, Chromium o Edge para el navegador sin ventana. |
+| `APX_RUNTIME_SKILLS` | prendido en la carpeta por defecto | `on` u `off`: mantener al día las skills de APX en Claude Code, Codex, Cursor y `~/.agents` en cada arranque. Un core con su propio `APX_HOME` no lo hace, salvo que esto diga `on`. |
+| `APX_WEB_DIST` | la compilación del workspace | El panel compilado que sirve. |
+| `APX_V1_URL` | `http://127.0.0.1:7430` | El daemon de APX v1, solo para la importación (que solo lee). |
+| `APX_V1_HOME` | `~/.apx` | La carpeta de APX v1, solo para la importación. |
+| `CLAUDE_CONFIG_DIR` | `~/.claude` | Donde Claude Code guarda tus sesiones (se leen para listarlas y retomarlas). |
+| `CODEX_HOME` | `~/.codex` | Donde Codex guarda tus sesiones. |
+| `APX_SUPERVISED` | la ponen los supervisores | `1` cuando algo vuelve a arrancar el core después de que sale para actualizarse (`pnpm app` y el servicio la ponen). |
+
+### Un proveedor de modelos propio
+
+Estas cuatro suman un proveedor compatible con OpenAI, primero en la lista: un servidor local, un gateway, cualquier
+cosa que hable esa API. También podés sumar proveedores desde el panel ([Modelos](/es/concepts/models/)).
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `APX_LLM_BASE_URL` | ninguna | La URL base del proveedor. Definirla suma el proveedor. |
+| `APX_LLM_KEY_REF` | `env:APX_LLM_KEY` | De dónde sale su clave: `secret://<nombre>` o `env:<VAR>`. |
+| `APX_LLM_KEY` | ninguna | La clave, cuando la referencia es la que viene por defecto. |
+| `APX_LLM_MODELS` | le pregunta al proveedor | Una lista fija de modelos separados por comas, para servidores que no pueden listar los suyos. |
+
+### La terminal
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `APX_URL` | `http://127.0.0.1:7440` | El core con el que habla `apx`. |
+| `APX_TOKEN` | el de `core.env` | El token que presenta. |
+| `APX_CHANNEL_TOKEN` | ninguno | El token de un bot de Telegram, para `apx channels add`. |
+| `APX_CLIENT_TOKEN` | ninguno | El token de una app de afuera, para `apx mcp`. |
+
+### La app de escritorio
+
+| Variable | Por defecto | Qué hace |
+|---|---|---|
+| `APX_URL` | `http://127.0.0.1:7440` | El core local que abre. |
+| `APX_CONNECTION` | pregunta en el primer arranque | `local` saltea la pregunta y usa el core de esta compu. |
+| `APX_DESKTOP_DATA` | la carpeta de datos de apps del sistema | Una carpeta de datos aparte: sus propias sesiones del navegador y su propio candado de instancia única. |
+| `APX_WEB_URL` | `http://127.0.0.1:7441` | El servidor de desarrollo del panel, que prueba primero cuando corre desde el código. |
+
+## Puertos
+
+| Puerto | Qué |
+|---|---|
+| `7440` | El core: el panel, el protocolo y `/health`. Se cambia con `APX_PORT`. |
+| `7441` | El servidor de desarrollo del panel (`pnpm --filter @apx/web dev`), solo cuando trabajás en APX. |
+| `7430` | El daemon de APX v1. v2 no lo usa, así que pueden correr los dos a la vez. |
+| `443` | Donde `apx expose tailscale` publica el core dentro de tu tailnet (`tailscale serve`). |
+
+## Secretos
+
+APX nunca pone el valor de un secreto en un prompt, un log o un archivo de configuración. Los ajustes y los agentes se
+refieren a los secretos por nombre (`secret://gemini`) y el core los resuelve solo donde se usan.
+
+- **macOS**: los valores van a tu Llavero de inicio de sesión, bajo el servicio `apx2` para la carpeta por defecto.
+  `<home>/secrets.index.json` solo lista nombres y fechas.
+- **Linux, Windows o `APX_SECRETS=file`**: los valores van a `<home>/secrets.json`, que solo vos podés leer.
+
+Se manejan en **Recursos › Variables** (globales o por proyecto; el valor de un proyecto le gana al global), o con
+`apx secrets` (el valor siempre por stdin).
+
+## Dónde vive cada ajuste
+
+Abrí **Configuración** con `⌘,` o desde el menú de tu cuenta. Las secciones, por grupo:
+
+| Grupo | Sección | Qué ajustás ahí |
+|---|---|---|
+| General | **Cuenta** | Tu nombre, sobre vos, el idioma de tus agentes, tu zona horaria. |
+| | **Apariencia** | Modo, estilo, fuente, ancho e idioma (abajo). |
+| Modelos | **Motores y modelos** | Los proveedores y sus claves, los inicios de sesión, qué modelos hay. |
+| | **Sesiones externas** | Las CLI de Claude Code y Codex en esta máquina. |
+| | **Router** | La cadena de respaldo y las reglas que eligen un modelo. |
+| | **Memoria** | El modo de memoria, el selector de skills, la compactación. |
+| | **Voces** | Los motores que pasan las notas de voz a texto y que hablan las respuestas. |
+| | **Imágenes** | Los motores de imágenes, en orden. |
+| Agentes | **Agentes** | El modelo y el perfil de navegador de cada agente. |
+| | **Perfil** | El perfil de tu secretaria y sus rutinas. |
+| | **Canales** | Telegram, WhatsApp, Discord, Slack y los demás. |
+| | **Interrupciones** | Tope diario, horas de silencio, a dónde llegan los avisos. |
+| Conexiones | **Dispositivos** | Quién puede llegar a este APX, vinculación, dispositivos vinculados, push. |
+| | **Tokens de API** | Tokens para apps de afuera. |
+| Entorno | **Navegador** | Importar tus sesiones al navegador de APX. |
+| | **Escritorio** | El atajo del chat rápido, abrir al iniciar, el uso de la computadora. |
+| | **Avanzado** | La versión del core, `code_sha`, cuánto lleva prendido, los servicios y el uso de RAM. |
+
+## Idiomas y temas
+
+<Shot name="settings-appearance" alt="Configuración, sección Apariencia: fuente de la interfaz, ancho de la transcripción, modo, estilo e idioma" caption="Configuración › Apariencia" />
+
+**Configuración › Apariencia** tiene:
+
+- **Modo**: Claro u Oscuro. La primera vez sigue a tu sistema.
+- **Estilo**: Minimal (el look de v2) o Clásico v1 (el verde y la tipografía de v1).
+- **Fuente de la interfaz**: Sistema o Mono, para menús, barras laterales y paneles.
+- **Ancho de la transcripción**: Estrecho, Medio o Ancho, el ancho máximo del chat y del cuadro de redacción.
+- **Idioma**: inglés o español. Sigue el idioma de tu navegador hasta que elijas uno, y aplica solo en ese
+  dispositivo.
+
+El modo y el idioma también están en el menú de tu cuenta. El idioma de tus agentes es otro ajuste, en
+**Configuración › Cuenta**.

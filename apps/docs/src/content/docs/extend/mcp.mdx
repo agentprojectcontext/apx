@@ -1,0 +1,110 @@
+---
+title: MCP servers
+description: Give your agents the tools of any MCP server, globally or per project, without bloating every prompt.
+sidebar:
+  order: 2
+---
+
+import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import Shot from "../../../components/Shot.astro";
+import Terminal from "../../../components/Terminal.astro";
+
+MCP (Model Context Protocol) servers add tools: a GitHub server lets agents read issues, a database server lets them
+query, and so on. APX runs the servers your agents use and keeps each tool behind your permissions.
+
+<Aside type="note">
+This page is about servers **APX's agents** use (`apx mcps`). To use APX **from** Claude Code, Codex or another MCP
+client, see [Outside clients](/extend/outside-clients/).
+</Aside>
+
+## Global and project servers
+
+- **Global** servers are yours. Every project inherits them; a project can turn one off for itself, or stop using
+  the global ones altogether. Their environment and headers may use your [variables](/extend/integrations/#variables-and-secrets)
+  as `secret://NAME`.
+- **Project** servers are declared in the project's `.apc/mcps.json`, committed with the repository:
+
+```json title=".apc/mcps.json"
+{
+  "mcpServers": {
+    "docs": { "command": "npx", "args": ["-y", "@acme/docs-mcp"] },
+    "status": { "url": "https://mcp.example.com/status" }
+  }
+}
+```
+
+A repository can name any command, so **a project server starts only after you approve that exact definition**. If
+the file changes, it needs approving again. `.apc/mcps.json` never holds tokens: a definition that mentions
+`secret://` is ignored there.
+
+## Add, approve, remove
+
+<Tabs>
+<TabItem label="Panel">
+
+In **Resources › MCP**, **+ MCP** opens **New MCP server**: a name, **How it connects** (**Command** or **URL**), and
+its **Environment** or **Headers**, where a value can be one of your variables. A project's server shows **Approve**
+until you approve it; read the command first. **Test** starts it and lists its tools.
+
+</TabItem>
+<TabItem label="Terminal">
+
+```bash
+apx mcps                                   # every server: status, tool count, error or target
+apx mcps list acme-store                   # as one project sees them
+apx mcps add github -- npx -y @modelcontextprotocol/server-github
+apx mcps add status https://mcp.example.com/status
+apx mcps trust acme-store docs             # approve a project's server as its file defines it now
+apx mcps untrust acme-store docs
+apx mcps rm github
+```
+
+Put `--` before a command whose arguments start with `-` (like `npx -y`), so `apx` doesn't read them as its own
+options. Environment and headers are edited in the panel.
+
+</TabItem>
+</Tabs>
+
+<Shot name="resources-mcp" alt="Resources, MCP tab: a list of MCP servers with their status and tool counts, one open with its command and tools" caption="Resources › MCP" />
+
+Servers don't run all the time: a server is **Ready** and starts only when an agent first uses it.
+
+## Try a server from the terminal
+
+`apx mcp tools`, `run` and `check` talk to a server directly, which is handy when something doesn't work:
+
+<Terminal command="apx mcp check github">{`github: OK · 812 ms · 26 tools`}</Terminal>
+
+```bash
+apx mcp tools github                       # every tool with its schema and a ready-made run command
+apx mcp tools github search_issues         # just one
+apx mcp run github search_issues '{"q":"repo:acme/store is:open label:bug"}'
+echo '{"q":"is:open"}' | apx mcp run github search_issues -
+```
+
+Add `--project <id>` for a project's server, and `--scope global|project` when a name exists in both.
+
+## Tool permissions
+
+Each server has **Tool permissions**:
+
+- **Ask first**: each agent asks you before using a tool that changes something.
+- **All allowed**: no agent asks for these tools. If the server or a tool changes, they ask again.
+- **Some**: click a tool to allow it (green) or to make it ask again.
+
+On top of that, an agent's own autonomy and its `tools:` list still apply, and anything you approved "always" for one
+agent or chat shows under **Allowed for one agent or chat**. See [Autonomy](/concepts/autonomy/).
+
+## Why agents see only two MCP tools
+
+Sending every MCP tool to the model on every call gets expensive fast. On a real install, ten ordinary servers
+brought 319 tools: a one-line answer cost **64,432 tokens** of prompt.
+
+So agents don't get those tools directly. While any server is on and approved, they get two:
+
+- `mcp_search` finds tools by words or by server, with their descriptions and arguments.
+- `mcp_call` runs one by its exact name.
+
+The same one-line answer then costs **11,838 tokens**, and the list of tools stays the same from call to call, which
+keeps the model provider's prompt cache warm. Approvals, confirmations and the tool cards in the chat work exactly as
+if the agent had called the tool directly.

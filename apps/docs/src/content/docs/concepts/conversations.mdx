@@ -1,0 +1,150 @@
+---
+title: Conversations
+description: Threads, runs and steps, the kinds of conversation APX keeps, and why a turn survives a restart.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps, Tabs, TabItem, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../components/Shot.astro";
+import Terminal from "../../../components/Terminal.astro";
+
+Everything you say to an agent, and everything agents say to each other, lives in one shape. Learn three words and
+the rest of APX reads easily.
+
+| Word | Means | Example |
+|---|---|---|
+| **Thread** | A conversation. | Your chat with Lucía. |
+| **Run** | One agent turn in it, saved with its input and where it came from before it starts. | Lucía answering "Plan the Q4 launch". |
+| **Step** | One tool call inside a run. | Lucía creating a task for Tomás. |
+
+## One conversation everywhere
+
+Home's chat is special: it is the same conversation wherever you are. Write to Home from the panel, the desktop's
+Quick chat, your phone or Telegram, and it all lands in one thread with one memory of what you said. A message on
+WhatsApp at the bus stop and a follow-up at your desk are one chat, not two.
+
+<Shot name="home-hero" alt="The Inbox with Home's chat open: a short conversation with the secretary about the day's priorities" caption="Home: one conversation, every device and channel" />
+
+You can change this per channel and send your messages to a chat of their own instead. See
+[Channels](/channels/overview/).
+
+## Kinds of thread
+
+| Kind | What it is |
+|---|---|
+| `home` | Home's chat. There is exactly one. |
+| `agent` | An agent's own chat. |
+| `loose` | Another chat you start with **New chat**. |
+| `group` | A chat with several agents at once. |
+| `a2a` | An agent asking another (or a worker) for something. Shows up as a progress card in the caller's chat. |
+| `code` | A chat that works in a folder, with a write policy. See below. |
+| `channel` | A conversation on a channel: a contact's chat or a room. |
+| `task` | The conversation behind a task. |
+| `routine` | One routine run. Each run gets its own, named after the routine and the time. |
+
+## Run states
+
+A run moves through a small set of states. The chat list and the Processes menu show them as they change.
+
+| State | Means |
+|---|---|
+| `submitted` | Saved and queued. A thread runs its turns one at a time, in order. |
+| `working` | The agent is thinking or calling tools. |
+| `input-required` | The agent is waiting for you: a question or an approval. |
+| `completed` | Done. |
+| `failed` | Something broke. The chat says what. |
+| `canceled` | You stopped it (with /stop, the stop button or `apx threads cancel`). |
+
+A question an agent asks you doesn't expire with the turn. The turn ends, the chat shows it is waiting for you, and
+the question stays answerable for 30 days. Your answer starts a new turn. See
+[Autonomy and safety](/concepts/autonomy/).
+
+## Turns survive restarts
+
+Every run is written down with its input before it starts, and every step before its tool runs. So when APX
+restarts (an update, a crash, a laptop that went to sleep mid-turn), nothing is silently lost:
+
+- A turn that was cut off is **picked back up once**, with a short note telling the agent why it stopped. A turn
+  that was already a resume is not resumed again, so a crash loop stops by itself.
+- A tool that had started and changes something is reported as **effect unknown**, so the agent checks before
+  trying again rather than doing it twice.
+- Delegations that were still going report back to their caller when they finish, even if the caller's turn is
+  long gone.
+
+## Code threads
+
+A code thread is a chat that works in a folder inside a registered project, with a rule for what the agent may
+change there:
+
+| Write policy | The agent… |
+|---|---|
+| `ask` | asks you before changing files (the default). |
+| `auto` | changes files freely. |
+| `read-only` | only reads. |
+
+Start one from a project, or from the terminal inside the project's folder:
+
+<Terminal command={'apx chat "Make the coupon field ignore case" --code --cwd ~/work/acme-store --write ask'}>{`Done: codes are trimmed and upper-cased before the check.
+— completed · gemini/gemini-3.8-flash · thread th_4be19c07a2d35e61`}</Terminal>
+
+A code thread can also be an **engine session**: a chat with Claude Code, Codex or another ACP agent itself, with
+its own prompt and settings, in your folder. The sessions you already have in `~/.claude` and `~/.codex` show up
+under **External sessions** in the sidebar, and you can pick any of them up from APX. See
+[Code](/office/code/) and [Models and engines](/concepts/models/).
+
+## Jobs
+
+Some work runs in the background: an agent's delegated run, or a terminal command an agent started (a build, a dev
+server, a long script). Those are **jobs**. A background command runs for at most 6 hours, and when it ends it wakes
+the agent that started it with the tail of its output.
+
+<Terminal command="apx jobs">{`job_9c2e71d04ab83f15     terminal working    pnpm dev
+
+finished:
+job_17ad0e5c9b2f4e88     terminal completed  pnpm test (exit 0)
+job_5f0b8e2a7c1d9346     agent    completed  Tomás: fix the checkout coupon`}</Terminal>
+
+`apx jobs get <job>` prints a job's output, and `apx jobs cancel <job>` stops it. In the panel, the **Processes**
+menu in the top bar shows what is running across every chat.
+
+## Compaction
+
+Long chats get heavy. When a thread grows, APX summarizes its older turns into a fixed five-part summary and keeps
+the newest turns word for word, so the agent keeps working with a smaller context. A summary of outside content
+stays marked as outside content, so the safety rules don't relax.
+
+- It happens on its own with **Summarize long chats** in Settings › Memory (on by default).
+- Type `/compact` in a chat to do it now, or run `apx compact <thread>`.
+- Claude Code and Codex sessions compact their own transcripts.
+
+## From the terminal
+
+`apx chat` is the one way to talk to an agent from the terminal. With no `--agent` or `--thread`, it talks to Home.
+
+<Terminal command={'apx chat "What is on my plate today?"'}>{`Three things: Lucía's Q4 plan is waiting for your OK, Tomás has the checkout fix in review,
+and Vera scheduled the newsletter for Friday at 9:00.
+— completed · gemini/gemini-3.8-flash · thread home`}</Terminal>
+
+| Command | Does |
+|---|---|
+| `apx chat "…" [--agent <id> \| --thread <id>]` | Sends a message and waits for the answer. `--new` starts a fresh chat, `--detach` returns right away. |
+| `apx chat "…" --interrupt` / `--steer` | If a turn is running: stop it and answer this instead, or add this to the running turn. |
+| `apx threads` | Lists threads with their state and kind. |
+| `apx threads get <thread>` | Prints a thread's latest messages. |
+| `apx threads cancel <thread>` | Stops what is running in it. |
+| `apx runs get <run>` / `apx runs wait <run> [--timeout 60]` | A run as JSON, now or once it ends. |
+| `apx runs pending [thread]` | What agents are waiting on from you. |
+| `apx runs respond <input> approve\|deny` | Answers an approval. See [Autonomy and safety](/concepts/autonomy/). |
+| `apx jobs [list] \| get <job> \| cancel <job>` | Background work. |
+| `apx compact <thread>` | Summarizes a thread's older turns now. |
+
+<Terminal command="apx threads">{`home                   idle       home   Home
+th_4be19c07a2d35e61    completed  code   Lucía · acme-store
+th_a07c33e19d5b2f40    input-required agent  Lucía
+th_e2915bd0c4f7a813    working    routine Daily sales check · 10/8/26, 9:00 AM`}</Terminal>
+
+<CardGrid>
+  <LinkCard title="Chat" description="Everything you can do in a chat." href="/office/chat/" />
+  <LinkCard title="Memory" description="What carries over between threads." href="/concepts/memory/" />
+</CardGrid>

@@ -1,0 +1,150 @@
+---
+title: Extensiones
+description: Empaquetá skills, servidores MCP, plantillas de rutinas y sus secretos en una carpeta que se instala apagada y se enciende toda junta.
+sidebar:
+  order: 3
+---
+
+import { Aside, FileTree, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+Una extensión es una carpeta con un `apx-extension.json` que junta varias cosas: skills, servidores MCP, plantillas de
+rutinas, los secretos que necesitan y, si hace falta, un plugin en un sandbox. APX lee el manifiesto sin correr nada,
+la instala **apagada**, y encenderla aprueba exactamente los archivos que tenía.
+
+## ¿Necesitás una?
+
+Empezá por lo más chico que resuelva el problema:
+
+| Querés | Hacé |
+|---|---|
+| Saber hacer algo para los agentes de un proyecto | Una [skill de proyecto](/es/extend/skills/) en `.apc/skills/` |
+| Un servidor MCP más para tus agentes | `apx mcps add` (mirá [Servidores MCP](/es/extend/mcp/)) |
+| Skills, servidores y rutinas que viajan juntos, para compartir o reusar | **Una extensión** |
+| Código que mira eventos o suma contexto a tus turnos | Una extensión con plugin |
+
+## Un ejemplo real: daily brief
+
+El repositorio de APX trae `examples/extensions/daily-brief`: una skill y una rutina de días hábiles que la usa.
+
+<FileTree>
+- daily-brief/
+  - apx-extension.json
+  - skills/
+    - daily-brief/
+      - SKILL.md
+</FileTree>
+
+```json title="apx-extension.json"
+{
+  "id": "daily-brief",
+  "name": "Daily brief",
+  "version": "1.0.0",
+  "description": "A short morning brief: open tasks, what is due, what others owe you.",
+  "skills": "skills",
+  "routines": [
+    {
+      "name": "Morning brief",
+      "schedule": { "kind": "cron", "cron": "30 8 * * 1-5" },
+      "prompt": "Use the daily-brief skill to write my morning brief."
+    }
+  ]
+}
+```
+
+La skill le dice al agente que lea tus tareas y compromisos abiertos, escriba como mucho ocho líneas y conteste `SKIP`
+cuando no hay nada que valga la pena decir (una rutina que contesta `SKIP` no le avisa a nadie).
+
+## El manifiesto
+
+El esquema es estricto: las claves desconocidas se rechazan.
+
+| Campo | Qué lleva |
+|---|---|
+| `id` | Minúsculas, números, `_` y `-`, hasta 20 caracteres. |
+| `name`, `version` | Obligatorios. `description` es opcional, hasta 500 caracteres. |
+| `skills` | Una carpeta de carpetas de skills, cada una con su `SKILL.md`. |
+| `mcp` | Servidores por nombre (letras, números y `_`): `command` + `args` + `env`, o `url` + `headers`. Un comando que empieza con `./` corre desde la carpeta de la extensión. |
+| `routines` | Plantillas con `name`, `schedule` (`cron`, `every` cada N minutos con N de 5 o más, o `once`) y `prompt`. |
+| `secrets` | Hasta 10, cada uno con `name`, `label` y una `url` opcional de dónde sacarlo. Cada valor lo escribís una vez. |
+| `plugin` | Código opcional; mirá más abajo. |
+
+Un servidor MCP de una extensión solo puede usar los secretos **propios** de la extensión, como `secret://name`. No
+puede nombrar tus otras variables ni el entorno, así que un paquete no puede llevarse tus credenciales a otro lado.
+
+```json title="Un servidor MCP con su propio secreto"
+"mcp": {
+  "crm": { "command": "node", "args": ["./server.mjs"], "env": { "CRM_TOKEN": "secret://token" } }
+},
+"secrets": [{ "name": "token", "label": "CRM API token", "url": "https://example.com/settings/tokens" }]
+```
+
+## Instalala
+
+<Tabs>
+<TabItem label="Panel">
+
+<Steps>
+
+1. Abrí **Recursos › Extensiones** y tocá **Instalar**.
+
+2. Pegá la ruta de la carpeta, tocá **Revisar** para ver qué trae, y después **Instalar**.
+
+3. Llega apagada. Completá sus claves (**Editar**) y encendela.
+
+4. Sus rutinas son sugerencias: **Agregar a Rutinas** pone una en Rutinas, apagada hasta que la enciendas.
+
+</Steps>
+
+</TabItem>
+<TabItem label="Terminal">
+
+```bash
+apx extensions inspect ~/work/daily-brief     # qué traería; no se instala nada
+apx extensions install ~/work/daily-brief     # se copia, apagada
+apx extensions secret <id> <name>             # el valor de un secreto declarado, por stdin (--clear lo borra)
+apx extensions on daily-brief
+apx extensions                                # las instaladas, encendidas o apagadas
+apx extensions off daily-brief
+apx extensions rm daily-brief
+```
+
+</TabItem>
+</Tabs>
+
+<Terminal command="apx extensions install ~/work/daily-brief">{`daily-brief  Daily brief v1.0.0  · off  · 3f9c1a7e5b2d8c40
+  A short morning brief: open tasks, what is due, what others owe you.
+  skills: daily-brief
+  routines: Morning brief
+
+Turn it on with: apx extensions on daily-brief`}</Terminal>
+
+<Shot name="resources-extensions" alt="Recursos, pestaña Extensiones: extensiones instaladas con su interruptor, skills, servidores y rutinas" caption="Recursos › Extensiones" />
+
+Instalar copia archivos comunes a la carpeta de APX y les toma una huella. Si la copia instalada cambia en el disco,
+APX apaga la extensión en el próximo arranque hasta que la vuelvas a aprobar. Para traer cambios de la carpeta
+original, instalala de nuevo o usá **Volver a leer** en su detalle.
+
+## Plugins
+
+Cuando los archivos no alcanzan, una extensión puede traer un plugin: un archivo `.mjs` que corre en su propio
+proceso, mira eventos (una tarea cambió, llegó un mensaje…) y puede sumar contexto a tus turnos.
+
+```json
+"plugin": { "entry": "plugin.mjs", "observe": ["task.updated"], "context": false, "network": false }
+```
+
+Corre en un sandbox con el modelo de permisos de Node: lee solo su carpeta, escribe solo su carpeta de datos, no
+arranca procesos y no puede llamar a APX. Llega a internet solo con `"network": true`, y nunca a esta máquina. Lo que
+suma como contexto le llega al agente como dato de afuera, no como instrucciones.
+
+<Aside type="caution">
+Una extensión con plugin corre código en tu computadora. El panel te lo avisa antes de encenderla: hacelo solo si
+confiás en quien la hizo.
+</Aside>
+
+<Aside type="tip">
+APX trae una skill `apx-extensions` para Claude Code, Codex y otras apps de agentes, así le podés pedir a una de ellas
+que te arme una extensión. Mirá [Skills](/es/extend/skills/#enseñale-a-otras-apps-de-agentes-a-usar-apx).
+</Aside>

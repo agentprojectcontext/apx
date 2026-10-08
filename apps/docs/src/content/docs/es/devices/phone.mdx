@@ -1,0 +1,141 @@
+---
+title: Tu teléfono
+description: Abrí APX en el teléfono, vinculalo con un código de un solo uso, revocalo cuando quieras y recibí avisos por push.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+Tu teléfono habla con el mismo core que el panel, por el mismo protocolo. Nunca recibe el token del core: cambia un
+código de un solo uso por una llave propia, que podés quitarle cuando quieras sin tocar nada más.
+
+<Aside type="caution" title="Primero, el teléfono tiene que llegar al core">
+Un core que solo escucha en su propia computadora (lo que viene por defecto) no es alcanzable desde un teléfono.
+Abrilo primero a tu red local o a tu red de Tailscale: en **Configuración › Conexiones › Dispositivos**, en **Quién
+puede llegar a este APX**; en el primer arranque de la app de escritorio; o con `apx expose` en un servidor
+([APX en un servidor](/es/devices/server/)).
+</Aside>
+
+## Abrir en el teléfono
+
+La forma más rápida: hacé clic en **Abrir en el teléfono** en la barra de arriba (también está en el menú de tu
+cuenta). Aparece un QR.
+
+<Shot name="phone-pair" alt="El diálogo Abrir en el teléfono con un código QR de vinculación y el código escrito debajo" caption="Abrir en el teléfono" />
+
+Escanealo con la cámara del teléfono. Abre la app de APX, vincula el teléfono si todavía no estaba vinculado y abre el
+chat que estabas mirando. Un teléfono ya vinculado con este core solo abre el chat.
+
+El código que aparece debajo del QR sirve una vez, por 10 minutos. Mientras el diálogo está abierto, APX lo renueva
+antes de que venza, y al cerrarlo lo anula. Si el core solo escucha en esta compu, en vez del QR el diálogo dice **Tu
+teléfono todavía no llega a este core**.
+
+<Shot name="phone-home" alt="El panel de APX con ancho de teléfono y el chat Home abierto" frame="phone" />
+
+### Desde el navegador del teléfono
+
+No necesitás la app para usar el panel en el teléfono. Abrí la dirección del core en el navegador del teléfono (la de
+Tailscale, o la de la red local, como `http://192.168.1.20:7440`). El panel te pide **Vinculá este dispositivo**:
+escribí un código de **Configuración › Conexiones › Dispositivos › Vincular un dispositivo** o de `apx pair`, y el
+navegador se guarda su propia llave. El panel se acomoda a la pantalla angosta.
+
+## Códigos de vinculación y llaves de dispositivo
+
+Toda vinculación funciona igual, sea un teléfono, un navegador u otra computadora:
+
+- El código tiene **8 caracteres**, sin los que se confunden (ni `0`/`O`, ni `1`/`I`), y vive **10 minutos** en la
+  memoria del core. Reiniciar el core anula los códigos pendientes.
+- Sirve **una vez**. El dispositivo lo cambia por una llave propia; el core guarda solo el hash de esa llave.
+- **Cinco códigos incorrectos** anulan todos los pendientes y pausan la vinculación por **cinco minutos**.
+- El QR lleva un enlace `apx://pair?…` con el código y las direcciones donde se puede llegar al core. Si configurás
+  `APX_PUBLIC_URL` (la dirección de un VPS o de Tailscale), va primera.
+
+Podés generar un código en tres lugares:
+
+- **Abrir en el teléfono**, en el panel (además abre el chat actual en el teléfono).
+- **Configuración › Conexiones › Dispositivos › Vincular un dispositivo**: un QR, el código y las direcciones.
+- La terminal, en la máquina donde corre el core:
+
+<Terminal command="apx pair">{`Pairing code: ABCD2345
+Expires at 10:40:00 (in about 10 min)
+
+Addresses a device may reach this core on:
+  https://<machine>.<tailnet>.ts.net
+
+In the APX app, open Pair and paste the link, or enter an address and the code:
+  apx://pair?c=ABCD2345&u=https%3A%2F%2F<machine>.<tailnet>.ts.net`}</Terminal>
+
+## Ver y revocar dispositivos
+
+<Shot name="settings-devices" alt="Configuración, sección Dispositivos: los dispositivos vinculados con su plataforma y la última vez que se vieron, y las opciones de conexión" caption="Configuración › Conexiones › Dispositivos" />
+
+**Configuración › Conexiones › Dispositivos** lista cada dispositivo vinculado con su plataforma y cuándo se vio por
+última vez. El botón de la papelera (**Quitar**) revoca ese dispositivo: su llave deja de funcionar al instante, y solo
+la suya. Un teléfono revocado vuelve a la pantalla de vinculación.
+
+Desde la terminal:
+
+```bash
+apx devices                 # lista los dispositivos vinculados
+apx devices pair            # un código nuevo (igual que apx pair)
+apx devices revoke <id>     # revoca un dispositivo
+```
+
+## La app de APX para teléfonos
+
+<Aside type="note" title="Parcial">
+La app de APX (Expo, para iOS y Android) funciona, pero todavía no está en la App Store ni en Google Play y no se probó
+en un teléfono real. Para usarla hoy, la compilás desde el repositorio (`apps/mobile`).
+</Aside>
+
+Lo que hace una vez vinculada:
+
+- **Se vincula** escaneando el QR, abriendo un enlace `apx://pair` o escribiendo a mano la dirección y el código. Guarda
+  su llave en el almacenamiento seguro del sistema.
+- **Muestra tu chat Home en vivo**, por el mismo socket que usa el panel.
+- **Muestra tus widgets y apps fijados** (el botón Apps), cada uno a pantalla completa y aislado igual que en el panel.
+- **Le presta el teléfono al core como nodo**: los agentes tienen `phone_location` y `phone_photo`, pero solo mientras
+  el teléfono está conectado. La foto siempre la sacás vos en el teléfono (la app te muestra para qué la pide el
+  agente). La ubicación pide el permiso del sistema una vez, y te pide el OK cada vez que hay contenido de afuera en el
+  turno.
+- **Recibe notificaciones**, como se cuenta abajo.
+
+Si no llega al core, la app conserva la vinculación para cuando pueda. Desvincularla (o revocarla en el panel) la
+devuelve a la pantalla de vinculación.
+
+Para correrla desde el código:
+
+```bash
+cd apps/mobile
+npm install
+npx expo start      # Expo Go o un dev build; el core tiene que ser alcanzable en la red
+```
+
+## Notificaciones push
+
+El teléfono puede ser el lugar adonde llegan tus avisos, así las novedades de las rutinas, los recordatorios y las
+preguntas de los agentes te encuentran aunque la app esté cerrada.
+
+<Steps>
+
+1. Dale al dispositivo una forma de recibir push. La app de APX se registra sola en Expo push cuando la compilación
+   tiene un id de proyecto de EAS. Si no, debajo del dispositivo en **Configuración › Conexiones › Dispositivos**, usá
+   **Configurar notificaciones** y pegá una dirección de ntfy o UnifiedPush.
+
+2. Elegí el teléfono en **Configuración › Interrupciones › A dónde llegan los avisos**. Aparece con el nombre del
+   dispositivo seguido de "(push)".
+
+</Steps>
+
+El mismo presupuesto de interrupciones decide qué llega al teléfono: tope diario, horas de silencio y lo demás
+([Secretaria](/es/office/secretary/)). Un dispositivo solo puede configurar su propia dirección de push, y el token de
+push nunca vuelve a ningún cliente.
+
+## Para seguir
+
+- [APX en un servidor](/es/devices/server/), para llegar desde cualquier lado
+- [App de escritorio](/es/devices/desktop/)
+- [Problemas frecuentes](/es/reference/troubleshooting/): códigos de vinculación que no andan

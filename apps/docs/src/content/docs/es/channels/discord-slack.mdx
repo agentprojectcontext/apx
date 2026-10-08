@@ -1,0 +1,111 @@
+---
+title: Discord y Slack
+description: Conectá un bot de Discord (mensajes directos y salas del servidor) o una app de Slack en Socket Mode (mensajes directos).
+sidebar:
+  order: 4
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Los dos se conectan sin URL pública ni bibliotecas extra: APX abre el socket de la propia plataforma desde tu máquina.
+Por mensaje directo funcionan como Telegram: te emparejás con un código, los desconocidos esperan tu aprobación y el
+outbox guarda cada respuesta. Discord además puede atender salas de tu servidor.
+
+## Discord
+
+### Creá el bot
+
+<Steps>
+
+1. En el **Discord Developer Portal**, creá una aplicación y entrá a **Bot**.
+
+2. Activá **Message Content Intent**, después **Reset Token** y copiá el token.
+
+3. En **Installation**, agregá el bot a tu cuenta (o a un servidor donde estés) para poder escribirle.
+
+4. En APX, abrí **Configuración › Canales**, **Agregar canal › Discord**. Pegá el token en **Token del bot**, elegí
+   **Quién responde** y tocá **Conectar bot**.
+
+5. Escribile al bot por mensaje directo. Te contesta con un código: ponelo en **Este es mi Discord** y tocá
+   **Vincular**.
+
+</Steps>
+
+Tus mensajes directos van a Home, como en todos los canales. Las demás personas que le escriben directo al bot son
+desconocidos y siguen la opción **Desconocidos** del canal.
+
+### Salas del servidor
+
+Las salas de Discord se eligen una por una. Una sala que no está en la lista no existe para APX: ni se lee ni se
+guarda. En **Salas del servidor**, agregá cada una con **Nombre de la sala** e **ID de la sala**, y después **Agregar
+sala**.
+
+<Aside type="tip">
+Para sacar el ID de una sala, activá Modo desarrollador en Discord (Ajustes › Avanzado) y hacé clic derecho en el
+canal › Copiar ID del canal.
+</Aside>
+
+Cada sala tiene un modo:
+
+| Modo | El bot… |
+|---|---|
+| **Cuando lo llaman** | contesta cuando lo @mencionan, le responden o usan uno de sus nombres como palabra. Es el de entrada. |
+| **Cuando sirve** | además evalúa los mensajes sin llamado con un modelo barato, según lo que escribiste en **Cuándo vale la pena responder**. |
+| **Siempre** | contesta todos los mensajes. |
+| **Solo leer** | nunca habla; la sala se guarda para que los agentes la puedan leer. |
+
+El resto de la sección define cómo se porta ahí:
+
+- **Cómo lo llaman**: palabras extra que cuentan como llamarlo, además de @mencionarlo o responderle. Separadas por
+  coma.
+- **Solo te contesta a vos**: lee a todos pero solo te responde a vos.
+- **Lo que sabe y puede responder**: tus notas para esa comunidad (qué es el proyecto, dónde está la documentación).
+  Son públicas.
+- **Reglas**: lo que nunca debe decir o hacer ahí. Van al final y ganan sobre todo lo demás.
+- **Límites**: segundos entre respuestas a una persona y respuestas por hora en una sala, para no inundar una sala
+  activa. A vos no te aplican.
+
+<Aside type="caution" title="Las salas son públicas, así que sus turnos están sellados">
+En una sala el agente contesta sin tools, sin memoria y sin nada tuyo, aunque seas vos quien escribe. Lee los últimos
+mensajes de la sala como datos y le responde al mensaje que contesta, sin menciones. Si una respuesta falla, te
+avisa a vos; no se publica nada.
+</Aside>
+
+Cada mensaje de una sala de la lista queda en el chat de esa sala en APX. Los agentes pueden leer una sala (por
+ejemplo, "¿qué dijeron hoy en #general?") y publicar en una por su nombre exacto; un nombre parecido solo recibe una
+sugerencia, porque una publicación pública no se puede deshacer.
+
+<Aside type="note">
+Discord no vuelve a mandar un mensaje que llegó mientras APX estaba desconectado, así que un mensaje directo enviado
+en ese hueco se pierde.
+</Aside>
+
+## Slack
+
+Slack se conecta en **Socket Mode**: la app abre una conexión desde tu máquina, así que no hace falta una URL pública.
+A tus agentes solo les llegan los mensajes directos a la app; los canales del espacio de trabajo se ignoran.
+
+<Steps>
+
+1. En **api.slack.com/apps**, creá una app y activá **Socket Mode**. Copiá el token de la app (`xapp-…`).
+
+2. Dale al bot los permisos `chat:write`, `im:history`, `users:read` y `files:write`, y suscribilo al evento
+   `message.im`.
+
+3. En **App Home**, permití mensajes en la pestaña **Messages**. Instalá la app y copiá el token del bot (`xoxb-…`).
+
+4. En APX, abrí **Configuración › Canales**, **Agregar canal › Slack**. Pegá los dos tokens (**Token del bot** y
+   **Token de la app**), elegí **Quién responde** y tocá **Conectar bot**.
+
+5. Escribile a la app y poné su código en **Este es mi Slack**.
+
+</Steps>
+
+APX guarda los dos tokens juntos como un solo secreto. El emparejamiento, los desconocidos, los contactos, los botones
+y el outbox funcionan como en los demás canales.
+
+<Aside type="tip">
+Slack como canal (hablar con tus agentes en Slack) no es lo mismo que la integración **Slack** de **Recursos ›
+Integraciones**, que les da a los agentes tools para leer y publicar en tu espacio de trabajo. Mirá
+[Integraciones](/es/extend/integrations/).
+</Aside>

@@ -1,0 +1,90 @@
+---
+title: Skills
+description: Teach your agents how to do something once, in a SKILL.md they load when a task needs it.
+sidebar:
+  order: 1
+---
+
+import { Aside, FileTree, Steps } from "@astrojs/starlight/components";
+import Shot from "../../../components/Shot.astro";
+import Terminal from "../../../components/Terminal.astro";
+
+A skill is know-how in a file: the steps, rules and examples for one kind of task. Agents see each skill's name and
+one-line description, and load the whole text only when a task needs it, so a hundred skills cost almost nothing until
+they're used.
+
+## What a skill looks like
+
+A skill is a folder with a `SKILL.md`. The frontmatter has a `name` and a `description`; the body is the know-how.
+
+```markdown title="weekly-report/SKILL.md"
+---
+name: weekly-report
+description: Writes the Friday status report from this week's closed tasks. Use when asked for the weekly report.
+---
+# Weekly report
+
+1. List the tasks closed since Monday with `task_list`.
+2. Group them by project, one line each, newest first.
+3. End with what is still blocked and who it waits on.
+```
+
+The description matters most: it's what agents read to decide whether to load the skill. Say **when** to use it, not
+only what it is. Names use letters, digits, dots, `-` and `_`.
+
+## Global and project skills
+
+<FileTree>
+- ~/.apx/v2/skills/ global: every project inherits them
+  - weekly-report/
+    - SKILL.md
+- ~/work/acme-store/.apc/skills/ this project only
+  - release-notes/
+    - SKILL.md
+</FileTree>
+
+- **Global** skills live in APX's home (`~/.apx/v2/skills/`). Every project inherits them; a project can turn one off
+  for itself, or stop using the global ones altogether.
+- **Project** skills live in the project's `.apc/skills/`, travel with the repository, and only its agents see them.
+- Skills can also come from an [extension](/extend/extensions/).
+
+Manage them in **Resources › Skills**: read, edit, create (**+ Skill**), and turn each one on or off globally or per
+project. When you edit a global skill from inside a project, APX asks whether to change the original or give that
+project its own copy.
+
+<Shot name="resources-skills" alt="Resources, Skills tab: a list of global and project skills with one open, showing its description and where it is on" caption="Resources › Skills" />
+
+## How agents pick them
+
+Every agent gets a short catalog of the skills it can use. With an embedding engine set up (**Settings › Memory ›
+Pick skills by meaning**), each message you send is also compared with your skills by meaning, and up to three that
+fit are suggested to the agent for that turn. The agent judges them and loads the ones it needs with `load_skill`.
+You see the pick as chips over the answer: loaded, suggested, or considered.
+
+To load one yourself, name it in the composer: type `/` and pick it, or write `/weekly-report`. Its whole text goes
+into that turn, with or without an embedding engine. `/skills` opens the skills list.
+
+<Aside type="note">
+Contacts' chats on channels and outside engines' sessions (Claude Code, Codex) don't get APX's skills.
+</Aside>
+
+## From the terminal
+
+<Terminal command="apx skills">{`weekly-report                    global   Writes the Friday status report from this week's closed tasks. Use when asked for the week
+daily-brief                      global   Writes a short morning brief from the owner's open tasks and commitments.`}</Terminal>
+
+`apx skills <project>` lists them as one project sees them.
+
+## Teach other agent apps to use APX
+
+APX ships a few skills for **other** agent apps, so Claude Code, Codex, Cursor and anything that reads `~/.agents`
+know how to use APX (`apx`, `apx-mcp`, `apx-extensions`, `apc-context`). The core copies them into each app's skills
+folder at every start, only for the apps you have installed. To refresh them now, or see what would change:
+
+```bash
+apx skills install-runtimes --dry-run
+apx skills install-runtimes
+```
+
+It only touches skills APX ships (and removes ones it no longer ships), never anyone else's. See
+[Outside clients](/extend/outside-clients/) to connect those apps to your agents.

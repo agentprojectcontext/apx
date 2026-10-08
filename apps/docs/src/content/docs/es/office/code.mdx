@@ -1,0 +1,123 @@
+---
+title: Código
+description: Hilos de código en la carpeta de un proyecto, la política de escritura, los paneles Terminal, Archivos y Cambios, y las sesiones de Claude Code y Codex dentro de APX.
+sidebar:
+  order: 7
+---
+
+import { Aside, Steps, Tabs, TabItem, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+APX no es solo para trabajo de oficina. Un agente puede trabajar dentro de la carpeta de un proyecto: leer el código,
+editar archivos, correr tests y comandos, y mostrarte cada cambio como un diff. Hay dos formas: un **hilo de código**
+con uno de tus agentes, o una sesión con **Claude Code** o **Codex** en persona, dentro de APX.
+
+## Hilos de código
+
+Un hilo de código es un chat cuyo agente trabaja en una carpeta de un [proyecto](/es/concepts/projects/). Su
+encabezado muestra la carpeta y la política de escritura, así siempre sabés dónde está trabajando y con cuánta
+libertad.
+
+<Tabs>
+  <TabItem label="Panel">
+    En el Inbox, **Nuevo chat** › **Nueva sesión de código con** y elegí un agente. La opción aparece cuando la
+    carpeta del proyecto está en esta máquina.
+  </TabItem>
+  <TabItem label="Terminal">
+    Desde la carpeta del proyecto (o con `--cwd`):
+
+    <Terminal command={`apx chat "Sumá un banner de envío gratis desde 50 a la página del carrito" --code --write ask`}>{`code thread th_8c41d07e2b9a5f13 · web/cart · write: ask`}</Terminal>
+
+    La carpeta tiene que estar dentro de un proyecto registrado (`apx projects register <carpeta>`). Sin `--agent`,
+    el trabajo lo hace Home.
+  </TabItem>
+</Tabs>
+
+### La política de escritura
+
+| Política | Qué significa |
+|---|---|
+| **Pregunta antes de cambiar** (`ask`) | La de siempre. Las ediciones y los comandos pasan por las aprobaciones de la [autonomía](/es/concepts/autonomy/) del agente. Codex no puede preguntar en medio de un turno, así que con esta política solo lee. |
+| **Edita libremente** (`auto`) | Las sesiones de Claude Code y Codex editan archivos dentro de la carpeta sin preguntar (nunca la config de git, `.apc/` ni `AGENTS.md`). Los comandos siguen la autonomía del agente. |
+| **Sólo lectura** (`read-only`) | Solo lee. Lo que necesitaría tu OK se rechaza. |
+
+### Trabajar en la carpeta desde cualquier chat
+
+No hace falta un hilo nuevo para un arreglo rápido. En el chat de un proyecto con un agente, abrí el menú del chat
+(**Más**) › **Carpeta del proyecto** y elegí una política; **No trabaja en la carpeta** lo vuelve a apagar. Tomás puede
+estar planeando el lanzamiento con vos y al rato arreglando la página del carrito, en el mismo chat.
+
+## Los paneles que vas a usar
+
+Abrí el panel lateral desde el encabezado del chat. Cuando hay código de por medio, importan sobre todo tres vistas:
+
+| Panel | Qué tenés |
+|---|---|
+| **Terminal** | Cada comando que corrió el agente, con lo que imprimió, en primer plano o de fondo. **Abrir una terminal** te da tu propia terminal en la misma carpeta. |
+| **Archivos** | La carpeta del chat (**Carpeta del chat**) y sus archivos de trabajo (**Temporales**). Abrí un archivo para leerlo; el Markdown se lee como página. |
+| **Cambios** | Las ediciones que registró el agente, del **Último turno** o de **Todos los turnos**, y el diff de git de la **Carpeta actual**, archivo por archivo. |
+
+<Shot name="chat-terminal" alt="Un chat de código con el panel lateral Terminal abierto, mostrando el comando de tests que corrió el agente y su salida" caption="El panel Terminal: los comandos del agente y tu propia terminal" />
+
+Cuando el agente necesita que vos corras algo (un comando con `sudo`, por ejemplo), lo escribe como un bloque de shell
+con **Ejecutar en una terminal**. Corre en una terminal real en el panel lateral, así podés escribir ahí la
+contraseña, y al agente le llega cómo terminó.
+
+### Git: la pestaña Archivos del proyecto
+
+Para hacer commits, andá a la pestaña **Archivos** del proyecto › **Git** (Control de versiones). Ahí podés preparar y
+quitar archivos de preparados, **Confirmar** (o **Escribir el mensaje con IA**), hacer pull, push y fetch, guardar
+cambios aparte (stash), deshacer el último commit, cambiar de rama y leer el historial.
+
+<Shot name="files" alt="La pestaña Archivos de Acme Store con el árbol de carpetas a la izquierda y un archivo abierto en la vista de código" caption="La pestaña Archivos de un proyecto" />
+
+## Sesiones de Claude Code y Codex
+
+Si usás Claude Code o Codex, APX puede alojar sus sesiones. Hablás con el motor en persona, con tu propio login y tu
+plan, y APX le da su chat, sus paneles, sus aprobaciones y su historial.
+
+**Sesiones externas** en la barra lateral lista cada CLI de código instalada en esta computadora. Elegí una:
+
+<Steps>
+
+1. Fijate que tenga la sesión iniciada. **Configuración › Sesiones externas** muestra el estado de cada CLI (para
+   Claude Code, abrilo en una terminal e iniciá sesión; para Codex, corré `codex login`).
+2. **Nueva sesión** te pide un proyecto con carpeta: la sesión trabaja ahí.
+3. Escribí como lo harías en la CLI. Sus herramientas, ediciones y comandos aparecen en el chat y en los paneles
+   laterales como en cualquier otro.
+
+</Steps>
+
+<Shot name="external-sessions" alt="Sesiones externas, Claude Code: arriba las sesiones empezadas en APX y, bajo En esta computadora, las sesiones encontradas en disco con sus carpetas" caption="Sesiones externas" />
+
+### Retomar tus propias sesiones
+
+Debajo de las sesiones empezadas en APX, **En esta computadora** lista las sesiones de Claude Code y Codex que ya
+tenés en esta máquina (de `~/.claude` y `~/.codex`), con su carpeta. Tocá una para **seguirla acá**: el motor retoma
+su propia sesión, con historial y todo, y desde ahí vive también en APX.
+
+<Aside type="note" title="Lo que APX controla">
+- Claude Code carga solo tu configuración de usuario, no los archivos `.claude/settings` de un repositorio (que
+  podrían habilitar herramientas salteando las aprobaciones de APX). APX lee el `CLAUDE.md` de la carpeta por su
+  cuenta y lo suma al prompt.
+- Codex en un chat con **Edita libremente** corre en sólo lectura (y explica por qué) mientras el agente pregunte
+  antes de actuar o la sesión haya leído contenido de afuera; con autonomía total sí escribe.
+- Una vez que una sesión de motor lee contenido de afuera (una página web, un mensaje), el resto de esa sesión se
+  trata como no confiable, igual que la de un agente de APX.
+</Aside>
+
+Otras CLIs de código que hablan el Agent Client Protocol (OpenCode, Qwen Code, Gemini CLI y otras) también aparecen
+en Sesiones externas. Ese soporte es parcial.
+
+<Aside type="tip">
+Estas CLIs corren solo en sus propias sesiones: no son modelos para tus agentes ni para el router. Tu plan de Claude,
+por ejemplo, se usa solo a través de las sesiones de Claude Code. Mirá [Modelos](/es/concepts/models/).
+</Aside>
+
+## Lo que sigue
+
+<CardGrid>
+  <LinkCard title="Chat" href="/es/office/chat/" description="Todos los paneles laterales y el cuadro de redacción." />
+  <LinkCard title="Clientes externos" href="/es/extend/outside-clients/" description="Dejá que Claude Code o Codex llamen a tus agentes y al navegador de APX." />
+</CardGrid>

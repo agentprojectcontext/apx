@@ -1,0 +1,206 @@
+---
+title: Troubleshooting
+description: Common problems with APX and how to fix them, from a core that won't start to a channel that doesn't answer.
+sidebar:
+  order: 3
+---
+
+import { Aside } from "@astrojs/starlight/components";
+import Terminal from "../../../components/Terminal.astro";
+
+Most problems come down to three questions: is the core running, can this client reach it, and is it allowed in. Start
+there.
+
+## Is the core running, and on which code?
+
+`apx status` asks the core itself. The first line is the version and the commit it runs (`code_sha`), followed by its
+uptime, memory, URL and the state of each subsystem:
+
+```bash
+apx status          # the core's version and code_sha, subsystems, crew, devices, access
+apx --version       # this CLI's own version and commit, without asking the core
+apx service status  # is the service installed, and does the core answer?
+```
+
+If the commit isn't the one you expect (say, after an update), the core is still running the old code: restart it with
+`apx service restart`, or quit and open the desktop app. In the panel, **Settings › Advanced** shows the same version
+and `code_sha`.
+
+If the core isn't running at all you'll see:
+
+<Terminal command="apx status">{`apx: the core is not running (try: apx service install, or pnpm dev)`}</Terminal>
+
+Start it with the desktop app, `apx service install` (or `apx service restart` if the service exists), or `pnpm dev`
+from a checkout. If it starts and dies, read its log.
+
+## Where the logs are
+
+The core writes one JSON line per event. Credentials in them are replaced with `[redacted]`.
+
+| How the core runs | Where its log is |
+|---|---|
+| As a service on Linux | `journalctl --user -u apx -f` |
+| As a service on macOS or Windows | `~/.apx/v2/logs/core.log` |
+| Inside the desktop app | `core.log` in the app's logs folder (the app names the folder if it can't reach its core) |
+| `pnpm dev` | The terminal you started it in |
+
+## The port is already in use
+
+Only one process can listen on `7440`. If another core already holds it (an earlier `pnpm dev`, the desktop app's own
+core, the service), a second core fails to start. `apx service install` checks first and says so:
+
+```text
+a core already answers on http://127.0.0.1:7440 and it is not the service's. Stop it first (it may be `pnpm dev` or the desktop app), then run install again.
+```
+
+Stop the other one, or give this core another port with `APX_PORT` (the terminal follows `APX_PORT` and `core.env`
+too). The desktop app doesn't fight over it: if a core already answers on `7440`, it uses that one.
+
+## "Missing or bad token"
+
+Once the core is exposed (LAN or Tailscale) it has a token, and every request needs it or a paired device's key. The
+`apx` command and the desktop app on the same machine read it from `<home>/core.env` on their own. If you see
+`APX · unauthorized` with `missing or bad token`:
+
+- You're using a different home than the core: check `APX_HOME`, or pass `APX_TOKEN` explicitly.
+- You're on another machine: don't copy the token, pair instead (`apx pair` on the server). A browser shows **Pair this
+  device**.
+- The device was revoked: pair it again.
+
+Two more you may meet when changing access by hand:
+
+- The core refuses to start with `refusing to listen on 0.0.0.0 without APX_TOKEN`: a non-loopback `APX_HOST` always
+  needs a token. `apx expose lan` creates one for you.
+- `a request through a proxy needs APX_TOKEN on the core`: something (like `tailscale serve`) forwards requests to a
+  core with no token. `apx expose tailscale` creates one.
+
+## An access change didn't apply
+
+The core reads `core.env` only when it starts. After `apx expose`, run `apx service restart` (the panel restarts its
+own core when it can, or says **Saved: it applies when the core starts again**). `apx status` shows `Restart needed`
+while the saved access differs from the running one.
+
+`apx expose status` also tells you if an environment variable is overriding the file (`the environment overrides:
+APX_HOST`, for example): the process environment always wins.
+
+## A pairing code doesn't work
+
+| What you see | Why, and what to do |
+|---|---|
+| "That code is wrong or expired" | Codes last 10 minutes and work once. Restarting the core also voids them. Ask for a new one. |
+| "Too many wrong codes" | Five wrong codes pause pairing for five minutes. Wait, then ask for a new code. |
+| "Your phone cannot reach this core yet" | The core only listens on its own computer. Expose it (LAN or Tailscale), restart it and pair again. |
+| The phone can't connect at all | It isn't on the same network (LAN) or in your tailnet (Tailscale), or the address is wrong. Try the address in the phone's browser. |
+
+More in [Your phone](/devices/phone/).
+
+## A channel doesn't answer
+
+```bash
+apx channels          # each channel's state, and its last error
+apx channels outbox   # what was sent lately: queued, sending, sent, uncertain or failed, with the error
+apx pairing           # strangers waiting for your approval
+```
+
+- **A stranger gets no answer**: by default a new person gets a pairing code and waits for you. Approve them with
+  `apx pairing ok <code>` (or `apx pairing me <code>` if it's you on another address), or tell your secretary.
+- **Your own message seems to go nowhere**: by default your messages on a channel go to the Home chat, so the answer is
+  there too.
+- **A person is blocked**: blocked people get no answer. Check `apx contacts`.
+- **A send is `uncertain`**: the core was cut while sending, so it can't know whether it arrived. It isn't sent twice.
+- **Two APX answer the same bot**: don't run APX v1 and v2 with the same bot. Installing v2 stops v1's daemon for this
+  reason.
+
+More in [Channels](/channels/overview/).
+
+## Model errors
+
+```bash
+apx models            # each engine, and "(not available)" with the reason when it can't be used
+apx models --refresh  # ask the engines again
+apx models config     # the install default, the router chain and its rules
+```
+
+- **An engine is not available**: usually a missing key or sign-in. Add it in **Settings › Engines and models**.
+- **The router didn't fall back**: it moves to the next model in the chain only when a model fails **before any tool
+  ran** in that turn.
+- **A model takes too long to start answering**: the core waits 45 seconds for the first byte (`APX_LLM_TIMEOUT_MS`).
+
+More in [Models](/concepts/models/).
+
+## An MCP server fails
+
+```bash
+apx mcps                    # every server, its state (ready, needs-approval, error…) and its error
+apx mcp check <server>      # a connection test: OK or Failed, the time and the tool count
+apx mcp tools <server>      # what it offers
+```
+
+<Terminal command="apx mcp check notes">{`notes: Failed · 3012 ms · 0 tools
+connect ECONNREFUSED 127.0.0.1:3000`}</Terminal>
+
+- **needs-approval**: a server from a project's `.apc/mcps.json` runs only once you trust that exact definition:
+  `apx mcps trust <project> <server>`.
+- **A missing key**: MCP servers get their secrets by reference; set them in **Resources › Variables**.
+- **Ambiguous server**: the same name exists globally and in a project. Add `--project <id>` and `--scope`.
+
+More in [MCP servers](/extend/mcp/).
+
+## The browser needs the desktop app
+
+Agents drive the browser the desktop app lends. Without the app the core uses its own headless Chrome, which can't
+hand control to you and never uses your logins. Errors you may see:
+
+- `no connected node offers "browser" (open the APX desktop app)`: open the desktop app on the computer that runs the
+  core, or one connected to it over SSH. An app connected **by address** doesn't lend its browser yet.
+- `no Chrome, Chromium or Edge on this machine`: install one for the headless fallback, or point `APX_CHROME` at it.
+  `APX_HEADLESS=off` turns the fallback off.
+
+For reading pages and searching, agents also have `web_read` and `web_search`, which need no browser at all. More in
+[Browser](/office/browser/).
+
+## APX v1 and v2 side by side
+
+They don't step on each other:
+
+| | APX v1 | APX v2 |
+|---|---|---|
+| Port | `7430` | `7440` |
+| Data | `~/.apx` | `~/.apx/v2` |
+
+v2 never writes v1's files. Installing v2 with the install script stops v1's daemon and removes v1's `apx` command,
+because both would answer the same channels; v1's files stay so you can import them with `apx import-v1` or the setup
+wizard (read-only on v1). `apx daemon` is v1's habit: in v2 it explains the `apx service` commands.
+
+## Start fresh without losing anything
+
+To try something risky, start a second core with its own home, its own port and its secrets in a file, so nothing
+touches your real data or your Keychain:
+
+```bash
+# From a checkout
+APX_HOME=~/work/apx-scratch APX_PORT=7460 APX_SECRETS=file pnpm dev
+
+# From an installed bundle
+APX_HOME=~/work/apx-scratch APX_PORT=7460 APX_SECRETS=file \
+  ~/.apx/v2/app/current/node/bin/node ~/.apx/v2/app/current/apps/core/src/main.ts
+```
+
+Then point the terminal at it:
+
+```bash
+APX_HOME=~/work/apx-scratch APX_URL=http://127.0.0.1:7460 apx status
+```
+
+A core with its own `APX_HOME` also leaves the skills of Claude Code, Codex and Cursor alone. Delete the scratch folder
+when you're done.
+
+<Aside type="caution">
+Don't delete `~/.apx/v2` to "reset" APX: it holds every agent, chat, task and note, and on a server the installed app
+too. Move things aside instead, and only with the core stopped.
+</Aside>
+
+## Still stuck?
+
+Ask on [Discord](https://discord.gg/vxdZuT5WuE) with the output of `apx status --plain` and the last lines of the
+core's log (check them for anything private first).

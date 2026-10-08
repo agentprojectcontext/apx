@@ -1,0 +1,139 @@
+---
+title: Tasks
+description: A board your agents work from, with commitments for what you promised people and what they owe you.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../components/Shot.astro";
+import Terminal from "../../../components/Terminal.astro";
+
+Tasks are the office's to-do board, shared by you and your agents. You create them, agents create them, and giving one
+to an agent is enough for it to start. **Tasks** in the sidebar shows them from every project; each project has its
+own **Tasks** tab with **New task**.
+
+<Shot name="tasks" alt="The Tasks screen with groups In progress, Pending, In review and Blocked, each listing tasks with assignee and due date" caption="Tasks, across every project" />
+
+## What a task has
+
+| Field | Values |
+|---|---|
+| **Type** | **Task** (work in a project), **Commitment** (something promised with someone) or **Errand** (something small to do on the way: buy, call, pick up). |
+| **Column** | **Backlog** (just arrived, new tasks land here), **To do** (decided, it is next), **Doing** (someone is on it now), **Review** (finished, waiting for a check). |
+| **Priority** | Urgent, High, Normal, Low. |
+| **Who does it** | An agent, or nobody. Picking a project's agent puts the task in that project. |
+| **Due date and reminder** | When it is due, 1 hour before, 1 day before, another time, or no reminder. |
+| **Tags** | Free words (`client`, `launch`…). |
+
+**Done** and **Drop** close a task; **Reopen** brings it back. The filter at the top switches between **All**,
+**Tasks**, **Commitments** and **Errands**.
+
+### How the list is grouped
+
+- **In progress**: its column is Doing, or an agent is working on it right now.
+- **Pending**: Backlog or To do, nobody started it yet.
+- **In review**: finished, waiting for someone to check it.
+- **Blocked**: waiting for your answer. An agent asked you something, or you marked it **Waits for your answer** from
+  the task's menu.
+- **Closed recently**: done or dropped, newest first.
+
+## Assigning starts the work
+
+Give a task to an agent (when you create it, or later) and it starts working right away, in **its own chat for that
+task**. That chat is a normal chat listed in the Inbox: you can open it and watch, or talk to the agent there.
+
+<Steps>
+
+1. Lucía creates "Write the shipping rates page" in Acme Store and picks **Tomás** in **Who does it**.
+2. Tomás's chat for the task opens with the task's words and he starts: reads the project, drafts the page.
+3. Each time a turn of his ends, his answer is posted to the task as **his comment**. The task keeps the conversation
+   about the work; the chat keeps the work itself (every tool call, every file).
+4. When he needs a decision, he asks you. The task moves to **Blocked** until you answer.
+
+</Steps>
+
+Open a task and its drawer shows the description, the fields, the **Conversation** (comments) and the **History**
+(who created, moved, assigned or closed it). **Open Tomás's chat for this task** jumps to where the work happens. If
+you reassign it, the new agent gets its own chat and is told who worked on it before.
+
+<Shot name="task-drawer" alt="A task open in its drawer: title, assignee, priority, and a conversation of comments from the owner and an agent" caption="A task's drawer: comments, fields and the work chat" />
+
+Assigned tasks that never started are picked up on their own: once an hour, the most pressing few get started.
+
+### Comments and @mentions
+
+Write in the task's **Comment** box. An `@name` asks that agent: it answers in its own chat for the task, and its
+answer comes back as a comment. Ask Vera from Lucía's task:
+
+> @Vera can you have the product photos by Thursday? This page needs them.
+
+Agents can mention each other the same way (two hops deep at most), and an agent can mention you to get your
+attention.
+
+## Sub-tasks
+
+A task can name a parent task, so "Spring launch" can hold the photos for Vera and the rates page for Tomás.
+
+<Aside type="caution" title="Partial">
+Sub-tasks exist in the core (a task created through the protocol can name its parent), but the panel still lists them
+as ordinary tasks and agents' task tools do not set a parent yet.
+</Aside>
+
+## Commitments
+
+A commitment is a task with **a person** (one of your [contacts](/channels/overview/)) and **who owes it**: **I owe it** (you promised something to someone) or
+**They owe me** (someone promised something to you). It has a due date like any task, so it is reminded and raised
+before it is late.
+
+<Shot name="commitments" alt="Tasks filtered to Commitments: what you owe each person and what each person owes you, with due dates" caption="The Commitments filter" />
+
+A commitment ends one of three ways, or gets a new date:
+
+| Action | What it records |
+|---|---|
+| **Kept** | Delivered. Closes it as done. |
+| **Missed** | Its date passed undelivered. Closes it. |
+| **Release** | Released by agreement. Closes it. |
+| **New date** | Renegotiated: it stays open with the new date, and a counter shows how many times it moved. |
+
+Only your word settles a commitment. Agents never mark one kept or missed on their own: the day-close routine asks you
+how they went, and the agent records your answer (see [Secretary](/office/secretary/)).
+
+## From the terminal
+
+<Terminal command="apx tasks help">{`apx tasks [--project p]                 Open tasks by column
+apx tasks add <title…> [--project p] [--agent a] [--person name --owed me|them] [--due 2026-10-05]
+apx tasks commitments                    What you owe and what you are owed
+apx tasks move <id> <column>
+apx tasks done|drop|reopen <id>
+apx tasks say <id> <text…>               Comment; @agent asks that agent there`}</Terminal>
+
+A few examples (agent and project ids are the ones `apx agents` and `apx projects` print):
+
+```bash
+# A task for Tomás in Acme Store: he starts on it at once
+apx tasks add Write the shipping rates page --project <acme-id> --agent <tomas-id>
+
+# You promised Marta (a contact at Northwind) a quote by Friday
+apx tasks add Send the wholesale quote --person Marta --owed me --due 2026-10-10
+
+# Move it, comment on it, close it
+apx tasks move <task-id> review
+apx tasks say <task-id> @Lucía please check the copy before Friday
+apx tasks done <task-id>
+```
+
+Columns for `move` are `backlog`, `todo`, `doing` and `review`.
+
+<Aside type="note">
+Agents can open, move, comment on and close tasks with their own tools, so "Lucía, put that on the board for Tomás"
+works in any chat.
+</Aside>
+
+## Next
+
+<CardGrid>
+  <LinkCard title="Routines" href="/office/routines/" description="Work an agent does on its own, on a schedule." />
+  <LinkCard title="Secretary" href="/office/secretary/" description="Day open, day close and what reaches you unasked." />
+</CardGrid>

@@ -1,0 +1,109 @@
+---
+title: Discord and Slack
+description: Connect a Discord bot (direct messages and server rooms) or a Slack app in Socket Mode (direct messages).
+sidebar:
+  order: 4
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Both connect without a public URL or an extra library: APX opens the platform's own socket from your machine. In
+direct messages they work like Telegram: you pair yourself with a code, strangers wait for your approval, and the
+outbox keeps every reply. Discord can also look after rooms of your server.
+
+## Discord
+
+### Create the bot
+
+<Steps>
+
+1. In the **Discord Developer Portal**, create an application and open **Bot**.
+
+2. Turn on **Message Content Intent**, then **Reset Token** and copy the token.
+
+3. Under **Installation**, add the bot to your account (or to a server you're in), so you can write to it.
+
+4. In APX, open **Settings › Channels**, **Add channel › Discord**. Paste the token in **Bot token**, choose **Who
+   answers** and press **Connect bot**.
+
+5. Write to the bot in a direct message. It answers with a code: type it under **This is my Discord** and press
+   **Link**.
+
+</Steps>
+
+Your direct messages now go to Home, like on every channel. Other people who write to the bot directly are strangers
+and follow the channel's **Strangers** setting.
+
+### Server rooms
+
+Discord rooms are opt-in. A room that isn't listed doesn't exist for APX: it's neither read nor stored. Under **Server
+rooms**, add each one by **Room name** and **Room id**, then **Add room**.
+
+<Aside type="tip">
+To get a room's id, turn on Developer Mode in Discord (Settings › Advanced), then right-click the channel › Copy
+Channel ID.
+</Aside>
+
+Each room has a mode:
+
+| Mode | The bot… |
+|---|---|
+| **When called** | answers when someone @mentions it, replies to it, or uses one of its names as a word. The default. |
+| **When useful** | also judges uncalled messages with a cheap model, against what you wrote in **When an answer is worth it**. |
+| **Always** | answers every message. |
+| **Read only** | never speaks; the room is kept so agents can read it. |
+
+The rest of the section shapes how it behaves there:
+
+- **What calls it**: extra words that count as calling it, besides an @mention or a reply. Comma-separated.
+- **Answers only you**: it reads everyone but answers only you.
+- **What it knows and can answer**: your notes for that community (what the project is, where the docs are). They
+  are public.
+- **Rules**: what it must never say or do there. They go last and win over everything else.
+- **Limits**: seconds between answers to one person and answers per hour in a room, so it doesn't flood a busy room.
+  They don't apply to you.
+
+<Aside type="caution" title="Rooms are public, so their turns are sealed">
+In a room the agent answers with no tools, no memory and nothing of yours, even when you're the one writing. It reads
+the room's latest messages as data and replies to the message it answers, without mentions. If an answer fails, you
+get told; nothing is posted.
+</Aside>
+
+Every message of a listed room is kept in that room's chat in APX. Agents can read a room (for example, "what did
+they say in #general today?") and post in one by its exact name; a near miss only gets a suggestion, since a public
+post can't be taken back.
+
+<Aside type="note">
+Discord doesn't send again a message that arrived while APX was disconnected, so a direct message sent during that
+gap is missed.
+</Aside>
+
+## Slack
+
+Slack connects in **Socket Mode**: the app opens a connection from your machine, so no public URL is needed. Only
+direct messages to the app reach your agents; the workspace's channels are ignored.
+
+<Steps>
+
+1. At **api.slack.com/apps**, create an app and turn on **Socket Mode**. Copy the app-level token (`xapp-…`).
+
+2. Give the bot the scopes `chat:write`, `im:history`, `users:read` and `files:write`, and subscribe to the
+   `message.im` event.
+
+3. In **App Home**, allow messages in the **Messages** tab. Install the app and copy the bot token (`xoxb-…`).
+
+4. In APX, open **Settings › Channels**, **Add channel › Slack**. Paste both tokens (**Bot token** and **App-level
+   token**), choose **Who answers** and press **Connect bot**.
+
+5. Write to the app and type its code under **This is my Slack**.
+
+</Steps>
+
+APX stores the two tokens together as one secret. Pairing, strangers, contacts, buttons and the outbox work as on
+the other channels.
+
+<Aside type="tip">
+Slack the channel (talking to your agents in Slack) is not the same as the **Slack** integration in
+**Resources › Integrations**, which gives agents tools to read and post in your workspace. See
+[Integrations](/extend/integrations/).
+</Aside>

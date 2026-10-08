@@ -1,0 +1,90 @@
+---
+title: Tablero y widgets
+description: Los agentes arman widgets vivos en el chat; vos los fijás al Tablero de un proyecto, los abrís como apps a pantalla completa, los copiás y los compartís.
+sidebar:
+  order: 5
+---
+
+import { Aside, Steps, CardGrid, LinkCard } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+
+Pedile a un agente un gráfico, un dashboard, una checklist o una herramientita, y arma un **widget**: una pieza de
+HTML autocontenida que se ve ahí mismo en el chat. Los widgets están vivos: cuando el agente cambia uno, se actualiza
+al instante en todos los lugares donde está abierto. Fijá los útiles al **Tablero** de un proyecto y tenés un
+dashboard que tus agentes mantienen al día.
+
+## Los agentes los arman en el chat
+
+Pedilo con tus palabras:
+
+> **Vos:** Vera, haceme un widget con los pedidos de esta semana por día y los 5 productos más vendidos.
+>
+> **Vera:** Acá está. Lee los números del export de la tienda; pedime cualquier cambio.
+
+El widget aparece en la respuesta. Para cambiarlo, pedíselo ("poné las barras en verde, sumá la semana pasada para
+comparar"): el agente edita el mismo widget en lugar de hacer uno nuevo, y ves la versión nueva en su lugar.
+
+Los widgets toman los colores del panel (claro y oscuro) y no salen a la red salvo que declaren de dónde sacan datos
+en vivo: entonces el encabezado del widget dice **Datos en vivo de** y los hosts. Un widget que se conecta afuera te
+pide OK mientras haya contenido de afuera en el turno.
+
+## El panel lateral Widget
+
+Abrí el panel lateral en **Widget** para ver, más grande, cada widget que armó el agente en este chat. El encabezado
+de cada widget tiene las mismas acciones donde sea que aparezca (chat, panel, Tablero, Apps):
+
+| Acción | Qué hace |
+|---|---|
+| **Pedirle cambios a su agente** | Abre el chat del widget con el agente que lo mantiene. |
+| **Fijar al tablero** / **Quitar del tablero** | Lo pone en (o lo saca de) el Tablero del proyecto. |
+| **Instalar como app** / **Abrir como app** | Lo suma a Apps en la barra lateral y lo abre a pantalla completa. |
+| **Compartir** | Privado por defecto; **Cualquiera con el enlace** lo puede ver sin editar. **Copiar enlace** para mandarlo. |
+
+## Fijalo al Tablero del proyecto
+
+La pestaña **Resumen** de un proyecto arranca con su **Tablero**: los widgets fijados a ese proyecto, en vivo.
+
+<Shot name="project" alt="La pestaña Resumen de Acme Store con el Tablero y widgets fijados: pedidos de la semana, stock bajo y checklist del lanzamiento" caption="El Tablero de Acme Store" />
+
+<Steps>
+
+1. En un chat, fijá un widget con **Fijar al tablero**, o en el Tablero apretá **Sumar un widget**.
+2. **Pedir un widget nuevo a…** y elegí un agente (o Home): aparece en el Tablero apenas el agente lo hace.
+3. O elegí uno que ya existe: **De este proyecto**, o **Copiar de otro proyecto**. Un Tablero vacío ofrece lo mismo
+   como **Crear** y **Cargar**.
+4. Arrastrá la barra de un widget para ordenarlo; ajustá alto y ancho con las manijas (o con las flechas). **Tablero
+   a todo el ancho** usa toda la ventana.
+
+</Steps>
+
+## Apps: un widget a pantalla completa
+
+**Apps** en la barra lateral lista los widgets que instalaste como apps. Cada uno se abre a pantalla completa, desde
+cualquier proyecto, con quién lo hizo y dónde vive. **Quitar de apps** lo saca de la lista (el widget sigue
+existiendo).
+
+<Shot name="app-widget" alt="Un widget abierto a pantalla completa como App, con su título y el proyecto y agente que lo hicieron" caption="Un widget como App" />
+
+## De quién es cada widget
+
+Un widget es de un proyecto, o es global si se hizo en un chat fuera de todo proyecto. Los chats de un proyecto ven
+solo los widgets de ese proyecto; los chats fuera de un proyecto ven solo los globales. Para usar un widget en otro
+lado:
+
+- **Copialo** a otro proyecto (desde el Tablero de ese proyecto: **Sumar un widget** › **Copiar de otro proyecto**).
+- **Abrilo como app**, desde cualquier proyecto.
+- **Compartí** su enlace.
+
+Un agente nunca toca los widgets de otro proyecto.
+
+<Aside type="note">
+Los widgets se guardan en la base de datos de APX, no como archivos en tu proyecto: un backup de APX los guarda a
+todos y un enlace compartido siempre muestra la versión actual.
+</Aside>
+
+## Lo que sigue
+
+<CardGrid>
+  <LinkCard title="Chat" href="/es/office/chat/" description="El panel lateral y el resto del chat." />
+  <LinkCard title="Proyectos" href="/es/concepts/projects/" description="Qué es un proyecto y qué vive en él." />
+</CardGrid>

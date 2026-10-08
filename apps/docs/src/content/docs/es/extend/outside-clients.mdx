@@ -1,0 +1,132 @@
+---
+title: Clientes externos
+description: Usá los agentes y el navegador de APX desde Claude Code, Codex o cualquier cliente MCP, con un token limitado a lo que puede hacer.
+sidebar:
+  order: 5
+---
+
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+APX también es un servidor MCP. Registrá `apx mcp` en Claude Code, Codex o cualquier otro cliente MCP, y esa app puede
+preguntarles cosas a tus agentes de APX y manejar el navegador integrado de APX.
+
+## Qué recibe el cliente
+
+`apx mcp` es un servidor MCP por stdio que reenvía al core que está corriendo. Lo que ofrece depende del token con
+el que arranca:
+
+| Arranca con | Tools |
+|---|---|
+| Sin token | `browser_*`: tabs, open, navigate, snapshot, click, type, screenshot, text, history, handoff, close |
+| Un token con alcance **Chat** | `apx_agents`, `apx_ask`, `apx_read` |
+| Un token con **Chat** y **Navegador** | Los dos grupos |
+
+- `apx_agents` lista tus agentes.
+- `apx_ask` le pregunta a uno y espera la respuesta hasta 5 minutos. Pasale el `thread` que devuelve para seguir el
+  chat.
+- `apx_read` lee un chat que empezó el cliente.
+
+Las tools del navegador necesitan la app de escritorio de APX abierta, porque el navegador es de ella. Los campos de
+contraseña, código de un solo uso y tarjeta se rechazan: `browser_handoff` te pasa la pestaña para que inicies sesión
+vos.
+
+## Creá un token
+
+Cada app tiene su propio token. Se muestra una sola vez; APX guarda solo una huella.
+
+<Tabs>
+<TabItem label="Panel">
+
+En **Configuración › Tokens de API**, escribí un **Nombre de la app**, marcá **Chat** y/o **Navegador**, y tocá
+**Crear token**. Copialo enseguida. Cada token muestra cuándo se usó por última vez, y **Revocar** lo quita.
+
+<Shot name="settings-tokens" alt="Configuración, Tokens de API: una lista de tokens de apps con sus alcances y último uso, y un formulario para crear uno nuevo" caption="Configuración › Tokens de API" />
+
+</TabItem>
+<TabItem label="Terminal">
+
+```bash
+apx clients add claude-code                    # alcance chat
+apx clients add codex --scopes chat,browser
+apx clients                                    # lista, con el último uso
+apx clients rm <id>                            # revocar
+```
+
+</TabItem>
+</Tabs>
+
+<Aside type="caution" title="Un token actúa como un modelo, nunca como vos">
+Una app con token solo puede llamar lo que permiten sus alcances, y solo en los chats que ella empezó. Tus agentes
+toman su texto como un pedido de otra app, no como una orden tuya, así que un prompt secuestrado en esa app no puede
+hacerlos actuar como vos. Guardá el token en la configuración MCP de la app, nunca en un repositorio, un prompt ni en
+`.apc/`.
+</Aside>
+
+## Registrá APX en tu cliente
+
+<Tabs>
+<TabItem label="Claude Code">
+
+```bash
+claude mcp add apx --scope user -e APX_CLIENT_TOKEN=<token> -- apx mcp
+claude mcp add apx-browser --scope user -- apx mcp        # solo navegador, sin token
+claude mcp list
+```
+
+`--scope user` lo deja disponible en todos los proyectos.
+
+</TabItem>
+<TabItem label="Codex">
+
+```bash
+codex mcp add apx --env APX_CLIENT_TOKEN=<token> -- apx mcp
+codex mcp list
+```
+
+</TabItem>
+<TabItem label="Otros clientes">
+
+```json
+{
+  "command": "apx",
+  "args": ["mcp"],
+  "env": { "APX_CLIENT_TOKEN": "<token>" }
+}
+```
+
+</TabItem>
+</Tabs>
+
+Si `apx` no está en el PATH del cliente, usá la ruta completa que imprime `command -v apx`. Para un core en otro
+puerto u otra máquina, sumá también `APX_URL` al entorno.
+
+Después simplemente pedí, por ejemplo en Claude Code: "preguntale a mi secretaria de APX qué vence esta semana". O, con
+el alcance de navegador: "abrí el admin de Acme Store en el navegador de APX y fijate los pedidos de hoy".
+
+## Enseñale APX al cliente
+
+APX copia unas skills en Claude Code, Codex, Cursor y `~/.agents` cada vez que arranca, así esas apps saben usar `apx`
+y estas tools. Mirá [Skills](/es/extend/skills/#enseñale-a-otras-apps-de-agentes-a-usar-apx).
+
+## Cuando las tools no aparecen
+
+<Steps>
+
+1. Corré `apx status`: ¿el core está andando?
+
+2. Corré `apx mcp` en una terminal. Debería quedarse esperando en silencio (Ctrl-C para salir). Cualquier error ahí es
+   el real.
+
+3. Solo tools de navegador, sin `apx_*`: falta el token o fue revocado (`apx clients`).
+
+4. Token pero sin tools de navegador: sus alcances dejan afuera el navegador (`--scopes chat,browser`).
+
+5. Las llamadas al navegador fallan como no disponibles: la app de escritorio no está abierta.
+
+</Steps>
+
+<Aside type="note">
+`apx mcp --run` es otra cosa, que se usa adentro de las corridas propias de APX. No lo registres en un cliente.
+</Aside>

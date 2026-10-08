@@ -1,0 +1,92 @@
+---
+title: Skills
+description: Enseñale a tus agentes a hacer algo una vez, en un SKILL.md que cargan cuando una tarea lo necesita.
+sidebar:
+  order: 1
+---
+
+import { Aside, FileTree, Steps } from "@astrojs/starlight/components";
+import Shot from "../../../../components/Shot.astro";
+import Terminal from "../../../../components/Terminal.astro";
+
+Una skill es saber hacer algo, puesto en un archivo: los pasos, las reglas y los ejemplos para un tipo de tarea. Los
+agentes ven el nombre y la descripción de una línea de cada skill, y cargan el texto completo solo cuando una tarea lo
+necesita. Así, cien skills casi no cuestan nada hasta que se usan.
+
+## Cómo es una skill
+
+Una skill es una carpeta con un `SKILL.md`. El frontmatter tiene `name` y `description`; el cuerpo es el saber hacer.
+
+```markdown title="weekly-report/SKILL.md"
+---
+name: weekly-report
+description: Writes the Friday status report from this week's closed tasks. Use when asked for the weekly report.
+---
+# Weekly report
+
+1. List the tasks closed since Monday with `task_list`.
+2. Group them by project, one line each, newest first.
+3. End with what is still blocked and who it waits on.
+```
+
+Lo que más importa es la descripción: es lo que leen los agentes para decidir si cargar la skill. Decí **cuándo**
+usarla, no solo qué es. Los nombres usan letras, números, puntos, `-` y `_`.
+
+## Skills globales y de proyecto
+
+<FileTree>
+- ~/.apx/v2/skills/ globales: las heredan todos los proyectos
+  - weekly-report/
+    - SKILL.md
+- ~/work/acme-store/.apc/skills/ solo de este proyecto
+  - release-notes/
+    - SKILL.md
+</FileTree>
+
+- Las **globales** viven en la carpeta de APX (`~/.apx/v2/skills/`). Las heredan todos los proyectos; un proyecto
+  puede apagar una para sí mismo, o dejar de usar las globales del todo.
+- Las **de proyecto** viven en `.apc/skills/` del proyecto, viajan con el repositorio y solo las ven sus agentes.
+- También pueden venir de una [extensión](/es/extend/extensions/).
+
+Se manejan en **Recursos › Skills**: leer, editar, crear (**+ Skill**) y prender o apagar cada una globalmente o por
+proyecto. Si editás una skill global desde adentro de un proyecto, APX te pregunta si cambiar la original o darle a
+ese proyecto su propia copia.
+
+<Shot name="resources-skills" alt="Recursos, pestaña Skills: una lista de skills globales y de proyecto, con una abierta que muestra su descripción y dónde está prendida" caption="Recursos › Skills" />
+
+## Cómo las eligen los agentes
+
+Cada agente recibe un catálogo corto de las skills que puede usar. Con un motor de embeddings configurado
+(**Configuración › Memoria › Elegir skills por significado**), cada mensaje que mandás además se compara por
+significado con tus skills, y hasta tres que encajan se le sugieren al agente para ese turno. El agente las evalúa y
+carga las que necesita con `load_skill`. La elección se ve como chips sobre la respuesta: cargada, sugerida o
+considerada.
+
+Para cargar una vos, nombrala en el compositor: escribí `/` y elegila, o escribí `/weekly-report`. Su texto completo
+entra en ese turno, haya o no motor de embeddings. `/skills` abre la lista de skills.
+
+<Aside type="note">
+Los chats con contactos en los canales y las sesiones de motores externos (Claude Code, Codex) no reciben las skills
+de APX.
+</Aside>
+
+## Desde la terminal
+
+<Terminal command="apx skills">{`weekly-report                    global   Writes the Friday status report from this week's closed tasks. Use when asked for the week
+daily-brief                      global   Writes a short morning brief from the owner's open tasks and commitments.`}</Terminal>
+
+`apx skills <proyecto>` las lista como las ve un proyecto.
+
+## Enseñale a otras apps de agentes a usar APX
+
+APX trae unas skills para **otras** apps de agentes, así Claude Code, Codex, Cursor y todo lo que lea `~/.agents` sabe
+usar APX (`apx`, `apx-mcp`, `apx-extensions`, `apc-context`). El core las copia en la carpeta de skills de cada app
+cada vez que arranca, solo para las apps que tenés instaladas. Para actualizarlas ahora, o ver qué cambiaría:
+
+```bash
+apx skills install-runtimes --dry-run
+apx skills install-runtimes
+```
+
+Solo toca las skills que trae APX (y quita las que ya no trae), nunca las de otros. Mirá
+[Clientes externos](/es/extend/outside-clients/) para conectar esas apps a tus agentes.
