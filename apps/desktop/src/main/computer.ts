@@ -166,8 +166,10 @@ function run(argv) {
     delay(0.4);
     el = at();
   }
+  const seen = [];
   for (let i = 0; i < 6 && el; i++) {
     const role = str(el, "AXRole");
+    seen.push(role || "?");
     const label = (str(el, "AXTitle") || str(el, "AXDescription") || str(el, "AXValue")).slice(0, 40);
     if (FIELD.indexOf(role) >= 0) {
       if ($.AXUIElementSetAttributeValue(el, $("AXFocused"), $.kCFBooleanTrue) === 0) return "focused " + role + " " + label;
@@ -178,12 +180,12 @@ function run(argv) {
     const actions = a[0] ? ObjC.deepUnwrap(ObjC.castRefToObject(a[0])) : [];
     if (PRESS.indexOf(role) >= 0 && actions && actions.indexOf("AXPress") >= 0)
       return $.AXUIElementPerformAction(el, $("AXPress")) === 0 ? "pressed " + role + " " + label : "none";
-    if (["AXWebArea", "AXWindow", "AXApplication"].indexOf(role) >= 0) return "none";
+    if (["AXWebArea", "AXWindow", "AXApplication"].indexOf(role) >= 0) return "none: " + seen.join(" < ");
     const up = Ref();
     $.AXUIElementCopyAttributeValue(el, $("AXParent"), up);
     el = up[0];
   }
-  return "none";
+  return "none: " + (seen.join(" < ") || "no element at that point");
 }`;
 
 /**
@@ -507,10 +509,10 @@ export function createComputer(o: {
         // puts their pointer straight back.
         const done = await osa(AX_PRESS, at, "JavaScript").catch(() => "none");
         let how = done;
-        if (done === "none") {
+        if (done.startsWith("none")) {
           await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
           await osa(CLICK, at, "JavaScript");
-          how = "a real click (nothing there takes a press)";
+          how = `a real click (nothing there takes a press: ${done.replace(/^none:? ?/, "")})`;
         }
         const app = String(p.app ?? "");
         o.cursor.pulse();
