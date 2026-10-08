@@ -14,19 +14,21 @@ import { UNTRUSTED_MARK } from "../tools/result.ts";
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
 
 /** How many tool results this turn has seen so far (the requests a long computer session makes). */
-const toolsSoFar = (req: { messages: Array<{ role: string }> }) => {
-  const lastUser = req.messages.findLastIndex((m) => m.role === "user");
+const toolsSoFar = (req: { messages: Array<{ role: string; content?: unknown }> }) => {
+  const lastUser = req.messages.findLastIndex(
+    (m) => m.role === "user" && !String(m.content).startsWith("<system_note>"),
+  );
   return req.messages.slice(lastUser).filter((m) => m.role === "tool").length;
 };
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   // A long session: looks again and again until it has seen 62 results, or one says to stop.
   if (said.includes("keep looking")) {
-    const last = String(req.messages.at(-1)?.content);
+    const last = String(req.messages.findLast((m) => m.role === "tool")?.content ?? "");
     if (/not done|emergency stop/.test(last) || toolsSoFar(req) >= 62) return say(`Stopped at: ${last.slice(0, 200)}`);
     return callTool(`k${toolsSoFar(req)}`, "screen_snapshot", {});
   }
-  if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
+  if (afterTool) return say(`Done: ${String(req.messages.findLast((m) => m.role === "tool")?.content).slice(0, 300)}`);
   if (said.includes("look at my screen")) return callTool("s1", "screen_snapshot", {});
   if (said.includes("turn on wifi")) return callTool("c1", "screen_click", { x: 640, y: 210, app: "System Settings" });
   return say(`tools: ${req.tools.map((t) => t.function.name).join(",")}`);
@@ -97,9 +99,14 @@ test("computer use exists only while the desktop lends it; looking at the screen
   const parts = (await owner.call("threads.get", { thread })).messages.flatMap((m) => m.parts);
   // The chat shows "controlling the computer" and the live view, not a picture per look.
   assert.ok(!parts.some((p) => p.type === "image"), "no picture of the screen lands in the chat");
-  const seen = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  const msgs = llm.calls.at(-1)?.messages ?? [];
+  const seen = String(msgs.findLast((m) => m.role === "tool")?.content);
   assert.match(seen, /AXCheckBox\tWi-Fi/);
   assert.ok(seen.includes(UNTRUSTED_MARK), "what the screen shows reaches the model as outside content");
+  // And the model looks at the picture itself, after the result.
+  const shown = msgs.at(-1) as { role: string; images?: Array<{ mime: string }> };
+  assert.equal(shown.role, "user");
+  assert.equal(shown.images?.[0]?.mime, "image/jpeg");
 });
 
 test("a click always waits for the owner; denied, it never reaches the desktop", async () => {

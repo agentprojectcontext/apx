@@ -32,6 +32,8 @@ export type ToolContext = {
   approvalTools?(): string[];
   /** Whether this agent may run that tool without asking the owner: only such a tool can be handed on. */
   usesFreely?(name: string): boolean;
+  /** An image the model looks at with this call's result (a picture of the screen); only native turns carry it. */
+  see?(image: { media_id: string; mime: string }): void;
   /** Adds or replaces a part of the answer the owner sees (tool card, browser card, widget, sub-thread). */
   upsertPart(match: (p: Part) => boolean, part: Part): void;
   /** A protocol method through the router, as this agent: the same door every client uses. */

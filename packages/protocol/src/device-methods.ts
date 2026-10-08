@@ -127,7 +127,13 @@ export const deviceMethods = {
    */
   "computer.snapshot": {
     /** `app`: bring that app to the front first (its window is the one seen). */
-    params: z.object({ thread: Id.optional(), app: z.string().min(1).max(120).optional() }).strict(),
+    params: z
+      .object({
+        thread: Id.optional(),
+        app: z.string().min(1).max(120).optional(),
+        note: z.string().max(80).optional(),
+      })
+      .strict(),
     result: z.object({
       media: z.object({ id: Id, mime: z.string() }),
       app: z.string(),
@@ -146,6 +152,8 @@ export const deviceMethods = {
         x: z.number().int().min(-20_000).max(20_000),
         y: z.number().int().min(-20_000).max(20_000),
         app: z.string().min(1).max(120),
+        /** What the agent is doing, in a few words: shown beside its pointer on the owner's screen. */
+        note: z.string().max(80).optional(),
       })
       .strict(),
     result: z.object({ app: z.string() }),
@@ -153,7 +161,36 @@ export const deviceMethods = {
   },
   /** Types text into the focused field of `app`, never into a password field. */
   "computer.type": {
-    params: z.object({ text: z.string().min(1).max(2000), app: z.string().min(1).max(120) }).strict(),
+    params: z
+      .object({
+        text: z.string().min(1).max(2000),
+        app: z.string().min(1).max(120),
+        note: z.string().max(80).optional(),
+      })
+      .strict(),
+    result: z.object({ app: z.string() }),
+    effect: true,
+  },
+  /**
+   * Presses keys in `app` (brought to the front): "enter", "tab", "esc", "cmd+l", "cmd+t", "cmd+shift+r", arrows…
+   * Quitting, closing windows and logging out are refused.
+   */
+  "computer.key": {
+    params: z
+      .object({ keys: z.string().min(1).max(40), app: z.string().min(1).max(120), note: z.string().max(80).optional() })
+      .strict(),
+    result: z.object({ app: z.string() }),
+    effect: true,
+  },
+  /** Opens a web address (in `app`, a browser, as a new tab; else the default one) or an app, straight away. */
+  "computer.open": {
+    params: z
+      .object({
+        url: z.string().url().max(2000).optional(),
+        app: z.string().min(1).max(120).optional(),
+        note: z.string().max(80).optional(),
+      })
+      .strict(),
     result: z.object({ app: z.string() }),
     effect: true,
   },

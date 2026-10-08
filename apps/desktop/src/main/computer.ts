@@ -5,10 +5,11 @@
 import { execFile } from "node:child_process";
 import { desktopCapturer, type NativeImage, screen, shell, systemPreferences } from "electron";
 import type { AgentCursor } from "./cursor.ts";
+import { parseKeys, REFUSED_KEYS } from "./keys.ts";
 
 const OSA_MS = 15_000;
 /** Reading every element of a window, within the core's deadline for a look (the picture still has to follow). */
-const ELEMENTS_MS = 9_000;
+const ELEMENTS_MS = 4_000;
 /** The longest side of the picture sent to the core, and of a live frame for the panel. */
 const SHOT_MAX = 1600;
 const FRAME_MAX = 900;
@@ -39,14 +40,18 @@ function osa(script: string, args: string[] = [], language = "AppleScript", time
   });
 }
 
+/** Brings an app forward, only when it is not there already (most actions find it in front). */
 const ACTIVATE = `
 on run argv
-  tell application (item 1 of argv) to activate
-  delay 0.4
+  set target to item 1 of argv
+  tell application "System Events" to set frontName to name of first application process whose frontmost is true
+  if frontName is target then return
+  tell application target to activate
+  delay 0.2
   try
-    tell application "System Events" to tell process (item 1 of argv) to perform action "AXRaise" of window 1
+    tell application "System Events" to tell process target to perform action "AXRaise" of window 1
   end try
-  delay 0.4
+  delay 0.1
 end run`;
 
 /** The app in front, its front window's name and bounds, then its useful elements: role, name, description, value, x,y. */
@@ -58,6 +63,16 @@ on run argv
     set out to (name of p) & tab & (unix id of p) & linefeed
     try
       set w to front window of p
+      -- The app's main window, not a small popup in front of it (an extension's, a palette).
+      try
+        repeat with cand in (windows of p)
+          set {cw, ch} to size of cand
+          if cw is greater than or equal to 300 and ch is greater than or equal to 200 then
+            set w to contents of cand
+            exit repeat
+          end if
+        end repeat
+      end try
       set {wx, wy} to position of w
       set {ww, wh} to size of w
       set out to out & (name of w) & linefeed & wx & "," & wy & "," & ww & "," & wh & linefeed
@@ -98,6 +113,26 @@ on run argv
       set out to out & linefeed & linefeed & "error" & tab & msg
     end try
     return out
+  end tell
+end run`;
+
+/** Keys in the app in front: argv = app, "code" or "text", the key code or character, the modifiers ("cmd shift"). */
+const KEY = `
+on run argv
+  tell application "System Events"
+    set frontName to name of first application process whose frontmost is true
+    if frontName is not (item 1 of argv) then error "the app in front is " & frontName & ", not " & (item 1 of argv)
+    set mods to {}
+    if (item 4 of argv) contains "cmd" then set end of mods to command down
+    if (item 4 of argv) contains "shift" then set end of mods to shift down
+    if (item 4 of argv) contains "option" then set end of mods to option down
+    if (item 4 of argv) contains "ctrl" then set end of mods to control down
+    if (item 2 of argv) is "code" then
+      key code ((item 3 of argv) as integer) using mods
+    else
+      keystroke (item 3 of argv) using mods
+    end if
+    return frontName
   end tell
 end run`;
 
@@ -224,14 +259,17 @@ export function createComputer(o: {
     if (stopped) throw new Error(STOPPED);
   };
 
-  async function look(app?: string) {
+  async function look(app?: string, note?: string) {
     if (app) await osa(ACTIVATE, [app]).catch(() => {});
     // A busy window (a long list) can take longer to read than to see: then the picture goes alone.
     const f = await front(true).catch(async () => ({
       ...(await front(false)),
-      lines: ["(this window's elements took too long to read: use the picture)"],
+      lines: ["(this window's elements took too long to read: look at the picture)"],
     }));
     target = { app: f.app, window: f.window, bounds: f.bounds };
+    // What it is doing, by the window it looks at (the pointer never shows in the picture).
+    const b0 = f.bounds;
+    if (b0) void o.cursor.moveTo(b0.x + b0.width / 2, b0.y + 40, note || "👀");
     const img = await picture(f.bounds, SHOT_MAX);
     const where = f.bounds
       ? `window at ${f.bounds.x},${f.bounds.y}, ${f.bounds.width}x${f.bounds.height} points`
@@ -262,14 +300,48 @@ export function createComputer(o: {
   return {
     async handle(method: string, params: unknown): Promise<unknown> {
       go();
-      const p = (params ?? {}) as { x?: number; y?: number; app?: string; text?: string };
-      if (method === "computer.snapshot") return look(p.app);
+      const p = (params ?? {}) as {
+        x?: number;
+        y?: number;
+        app?: string;
+        text?: string;
+        keys?: string;
+        url?: string;
+        note?: string;
+      };
+      if (method === "computer.snapshot") return look(p.app, p.note);
+      if (method === "computer.open") {
+        const args = p.app ? ["-a", p.app, ...(p.url ? [p.url] : [])] : [String(p.url)];
+        o.cursor.say(p.note || (p.url ? new URL(p.url).host : (p.app ?? "")));
+        await new Promise<void>((resolve, reject) =>
+          execFile("open", args, { timeout: OSA_MS }, (err) =>
+            err ? reject(new Error("could not open it")) : resolve(),
+          ),
+        );
+        const app = p.app ?? "the default browser";
+        o.onActivity({ kind: "look", app, window: p.url ?? "" });
+        return { app };
+      }
+      if (method === "computer.key") {
+        const keys = String(p.keys ?? "")
+          .toLowerCase()
+          .replace(/\s+/g, "");
+        if (REFUSED_KEYS.has(keys)) throw new Error(`${p.keys} closes or quits things: ask the owner to do it`);
+        const k = parseKeys(keys);
+        if (!k) throw new Error(`cannot press "${p.keys}": use names like enter, tab, esc, cmd+l, arrows`);
+        await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
+        go();
+        o.cursor.say(p.note || `⌨ ${p.keys}`);
+        const app = await osa(KEY, [String(p.app ?? ""), k.kind, k.key, k.mods]);
+        o.onActivity({ kind: "type", app, window: target?.window ?? "" });
+        return { app };
+      }
       if (method === "computer.click") {
         const x = Number(p.x);
         const y = Number(p.y);
         // Approved for this app: bring it back to the front (the owner may have switched), then show where it clicks.
         await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
-        await o.cursor.moveTo(x, y, p.app ?? "");
+        await o.cursor.moveTo(x, y, p.note || p.app || "");
         // The stop may come while the pointer glides there: then no click.
         go();
         const app = await osa(CLICK, [String(p.app ?? ""), String(x), String(y)], "JavaScript");
@@ -280,7 +352,7 @@ export function createComputer(o: {
       if (method === "computer.type") {
         await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
         go();
-        o.cursor.label("⌨");
+        o.cursor.say(p.note || "⌨");
         const app = await osa(TYPE, [String(p.app ?? ""), String(p.text ?? "")]);
         o.onActivity({ kind: "type", app, window: target?.window ?? "" });
         return { app };

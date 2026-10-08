@@ -71,6 +71,8 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   screen_snapshot: (a) => (a.app ? `Miró ${str(a.app)} en tu pantalla` : "Miró tu pantalla"),
   screen_click: (a) => `Hizo clic en ${str(a.app) || "una app"}`,
   screen_type: (a) => `Escribió en ${str(a.app) || "una app"}`,
+  screen_key: (a) => `Apretó ${str(a.keys)} en ${str(a.app) || "una app"}`,
+  screen_open: (a) => `Abrió ${str(a.url ?? a.app)}`,
   task_list: () => "Revisó las tareas",
   task_create: (a) => `Creó la tarea ${str(a.title, 60)}`,
   task_update: (a) => `Actualizó la tarea ${str(a.task)}`,

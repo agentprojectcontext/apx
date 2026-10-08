@@ -30,10 +30,14 @@ export function scriptedLlm(script: Script): Llm & { calls: LlmRequest[] } {
     async complete(req) {
       calls.push({ ...req, messages: [...req.messages] });
       const system = String(req.messages[0]?.content ?? "");
-      // What was said in the last user item, without the per-turn context header (time, roster).
-      const raw = String([...req.messages].reverse().find((m) => m.role === "user")?.content ?? "");
+      // What was said in the last user item, without the per-turn context header (time, roster). APX's own notes
+      // mid-turn (a picture of the screen after a tool) are not the owner speaking.
+      const note = (m: (typeof req.messages)[number]) =>
+        m.role === "user" && String(m.content).startsWith("<system_note>");
+      const raw = String([...req.messages].reverse().find((m) => m.role === "user" && !note(m))?.content ?? "");
       const said = raw.startsWith("[context:") ? raw.slice(raw.indexOf("\n\n") + 2) : raw;
-      const afterTool = req.messages.at(-1)?.role === "tool";
+      const lastReal = req.messages.findLast((m) => !note(m));
+      const afterTool = lastReal?.role === "tool";
       const out = await script(req, { system, said, afterTool });
       if (out.message.content) req.onText?.(String(out.message.content));
       return { model: "fake/fake-1", finish: out.message.tool_calls?.length ? "tool_calls" : "stop", ...out };

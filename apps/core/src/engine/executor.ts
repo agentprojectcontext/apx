@@ -225,6 +225,7 @@ export function createExecutor(o: {
     toolsRan++;
     const stepId = store.runs.beginStep(run.id, { call_id: callId, tool: name, args, effect: tool.effect });
     store.runs.setActivity(run.id, title, true);
+    const seen: Array<{ media_id: string; mime: string }> = [];
     const ctx: Omit<ToolContext, "runCommand"> = {
       agent,
       thread,
@@ -240,6 +241,9 @@ export function createExecutor(o: {
         if (!t) return false;
         if (authorize(t, {} as never, agent, false).kind === "allow") return true;
         return !!t.approval && store.approvals.allows(t.approval, undefined, agent.id);
+      },
+      see: (image) => {
+        seen.push(image);
       },
       upsertPart: display.upsert,
       call: (method, params) => o.call(method, params, { run, callId }),
@@ -263,6 +267,7 @@ export function createExecutor(o: {
         }),
     };
     const out = await runTool(tool, args, { ...ctx, runCommand: (c) => runCommand(c, run) });
+    const images = out.ok && seen.length ? { images: seen } : {};
     if (out.text.includes(UNTRUSTED_MARK) && !tool.local?.(args)) untrusted = true;
     const full = out.text.slice(0, STORED_OUTPUT_CHARS);
     store.runs.endStep(run.id, callId, out.ok ? "ok" : "error", out.text.slice(0, STEP_SUMMARY_CHARS), full);
@@ -273,6 +278,7 @@ export function createExecutor(o: {
     return {
       ok: out.ok,
       text: shown === out.text ? shown : `${shown}\n[full output: ${out.text.length} chars; read_output ref=${stepId}]`,
+      ...images,
     };
   };
 

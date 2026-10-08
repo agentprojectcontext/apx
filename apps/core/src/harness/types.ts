@@ -26,7 +26,12 @@ export type TurnIO = {
   sessionId: string | undefined;
   onText(soFar: string): void;
   /** Runs one APX tool with its card and step record. Every harness calls tools through here. */
-  execute(callId: string, name: string, args: Record<string, unknown>): Promise<{ ok: boolean; text: string }>;
+  /** `images`: what the tool showed the model to look at with its result (a picture of the screen). */
+  execute(
+    callId: string,
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<{ ok: boolean; text: string; images?: Array<{ media_id: string; mime: string }> }>;
   /** Appends items to what the model saw in this turn (native writes as it goes, so a crash keeps them). */
   log(items: ChatItem[]): void;
   /** What the owner added while the turn runs (steer); a loop that can take it mid-turn calls this between steps. */

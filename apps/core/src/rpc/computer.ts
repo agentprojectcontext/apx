@@ -51,9 +51,10 @@ export function computerHandlers(
   };
 
   return {
-    "computer.snapshot": async ({ thread, app }, ctx) => {
+    "computer.snapshot": async ({ thread, app, note }, ctx) => {
       enter(ctx);
-      const r = (await broker.invoke(COMPUTER_CAP, "computer.snapshot", app ? { app } : {}, SNAPSHOT_MS)) as {
+      const ask = { ...(app ? { app } : {}), ...(note ? { note } : {}) };
+      const r = (await broker.invoke(COMPUTER_CAP, "computer.snapshot", ask, SNAPSHOT_MS)) as {
         mime?: string;
         data?: string;
         app?: string;
@@ -81,6 +82,15 @@ export function computerHandlers(
     "computer.type": async (p, ctx) => {
       enter(ctx);
       return (await broker.invoke(COMPUTER_CAP, "computer.type", p, ACT_MS)) as { app: string };
+    },
+    "computer.key": async (p, ctx) => {
+      enter(ctx);
+      return (await broker.invoke(COMPUTER_CAP, "computer.key", p, ACT_MS)) as { app: string };
+    },
+    "computer.open": async (p, ctx) => {
+      enter(ctx);
+      if (!p.url && !p.app) throw new CallError({ code: "bad_request", message: "say a url, an app, or both" });
+      return (await broker.invoke(COMPUTER_CAP, "computer.open", p, ACT_MS)) as { app: string };
     },
   } satisfies Partial<Handlers>;
 }
