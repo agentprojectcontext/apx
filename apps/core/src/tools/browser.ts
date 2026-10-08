@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import { cap, untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
+import { urlConfirm } from "./web.ts";
 
 const HANDOFF_S = 300;
 
@@ -61,6 +62,7 @@ export function browserTools(): Tool[] {
         "Open a URL in a new browser tab: the owner's embedded browser when the APX app is open (they can watch it), APX's own headless one otherwise (nobody sees it, nobody can log in for you). Returns the tab id. For reading or looking something up, web_read and web_search are faster; use the browser when a page needs JavaScript, clicks or forms, or when they failed.",
       args: z.object({ url: z.string().describe("http(s) URL") }),
       effect: "external",
+      confirm: (a) => urlConfirm(a.url),
       deadlineMs: 30_000,
       title: (a) => `Opened ${host(a.url)}`,
       async run(a, ctx) {
@@ -75,6 +77,7 @@ export function browserTools(): Tool[] {
       description: "Navigate an open tab to a URL.",
       args: z.object({ tab: tabArg, url: z.string().describe("URL") }),
       effect: "external",
+      confirm: (a) => urlConfirm(a.url),
       deadlineMs: 30_000,
       title: (a) => `Went to ${host(a.url)}`,
       async run(a, ctx) {

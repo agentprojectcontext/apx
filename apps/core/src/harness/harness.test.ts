@@ -203,3 +203,16 @@ test("Claude Code gets each tool's real schema: arrays stay arrays, limits stay 
   assert.ok(!schema.safeParse({ question: "Which?", options: "red, blue" }).success);
   assert.ok(!schema.safeParse({ question: "" }).success);
 });
+
+test("Claude Code reads the folder's CLAUDE.md through APX, never through a link", async () => {
+  const { folderClaudeMd } = await import("./claude.ts");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-claude-md-"));
+  assert.equal(folderClaudeMd(dir), "");
+  fs.writeFileSync(path.join(dir, "CLAUDE.md"), "Use pnpm.");
+  assert.match(folderClaudeMd(dir), /CLAUDE\.md\n\nUse pnpm\.$/);
+  fs.rmSync(path.join(dir, "CLAUDE.md"));
+  fs.writeFileSync(path.join(dir, "secret.txt"), "private");
+  fs.symlinkSync(path.join(dir, "secret.txt"), path.join(dir, "CLAUDE.md"));
+  assert.equal(folderClaudeMd(dir), "");
+  fs.rmSync(dir, { recursive: true });
+});

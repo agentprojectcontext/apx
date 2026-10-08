@@ -1,5 +1,7 @@
 // Claude Code in its own sessions: the owner's own `claude` (their login, CLAUDE.md and settings) through the Agent
 // SDK; every APX tool call comes back through `io.execute`. See DECISIONS.md#d-007
+import fs from "node:fs";
+import path from "node:path";
 import { z } from "zod";
 import { errorMessage } from "../errors.ts";
 import { harnessEnv } from "./env.ts";
@@ -37,6 +39,25 @@ const KIND: Record<string, string> = {
 /** What a Claude Code tool call is about, for its card and the owner's question. */
 function subjectOf(input: Record<string, unknown>): string {
   return String(input.file_path ?? input.path ?? input.command ?? input.url ?? input.query ?? "");
+}
+
+const CLAUDE_MD_CAP = 12_000;
+
+/**
+ * The folder's CLAUDE.md, read by APX: the repo's own .claude/settings files are not loaded, since their allow rules
+ * and hooks would skip APX's approval. A link is not followed (it could point at any file of the owner's).
+ */
+export function folderClaudeMd(cwd: string): string {
+  const file = path.join(cwd, "CLAUDE.md");
+  try {
+    if (fs.lstatSync(file).isSymbolicLink()) return "";
+    const text = fs.readFileSync(file, "utf8").trim();
+    if (!text) return "";
+    const body = text.length > CLAUDE_MD_CAP ? `${text.slice(0, CLAUDE_MD_CAP)}\n[… cut]` : text;
+    return `\n\n# The folder's CLAUDE.md\n\n${body}`;
+  } catch {
+    return "";
+  }
 }
 
 type Counts = { apx: number; builtins: number; permissions: number };
@@ -106,16 +127,18 @@ async function attempt(
   let sessionId = o.resume;
   try {
     const sdk = await loadSdk();
+    const cwd = o.cwd(io);
     const q = sdk.query({
       prompt: io.input.content,
       options: {
         abortController: ac,
         pathToClaudeCodeExecutable: o.claudePath,
-        cwd: o.cwd(io),
-        // Claude Code itself: its own prompt and the owner's CLAUDE.md and settings, as in the CLI.
-        systemPrompt: { type: "preset", preset: "claude_code", append: io.system },
+        cwd,
+        // Claude Code itself: its own prompt and the owner's own CLAUDE.md and settings; the folder's settings are a
+        // repo's word, not the owner's, so only its CLAUDE.md comes in. See DECISIONS.md#d-057
+        systemPrompt: { type: "preset", preset: "claude_code", append: io.system + folderClaudeMd(cwd) },
         ...toolOptions(io, o.counts),
-        settingSources: ["user", "project", "local"],
+        settingSources: ["user"],
         strictMcpConfig: true,
         settings: { disableClaudeAiConnectors: true, syncClaudeAiSkills: false, syncClaudeAiPlugins: false },
         mcpServers: { apx: apxServer(sdk, io, o.counts) },

@@ -622,3 +622,13 @@ only), the question every 60 actions in one turn (a question, not a confirmation
 refused password field, a refused click where another app's window covers the point, and a real click that waits for
 the owner's mouse to rest. Reading every element of a large window can outlast its time limit: the look then comes
 back with the picture alone and says so. Windows and Linux do not lend the capability yet.
+
+<a id="d-057"></a>
+## D-057 — 2026-10-08 — Security holes closed for the beta
+The G0 audit (plan/parity/07-seguridad.md) left holes open for the owner to decide; for the beta they are closed:
+- **Claude Code loads only the owner's own settings.** A repo's `.claude/settings*.json` could allow tools or run hooks
+  that skip APX's approval; now `settingSources` is `["user"]` and APX reads the folder's `CLAUDE.md` itself (not
+  through a link) and appends it to the prompt. A repo's own Claude skills and `@` imports are no longer loaded.
+- **A URL that carries values asks after outside content.** `web_read`, `browser_open` and `browser_navigate` with a
+  query are `untrusted`: with a page or a message in the turn, `?d=<data>` to someone's site waits for the owner.
+  A plain URL does not. Data in the path is not caught.

@@ -5,7 +5,19 @@ import dns from "node:dns/promises";
 import net from "node:net";
 import { z } from "zod";
 import { untrusted } from "./result.ts";
-import { defineTool, type Tool } from "./types.ts";
+import { type Confirm, defineTool, type Tool } from "./types.ts";
+
+/**
+ * A URL that carries values (a query) can send something out to whoever runs that site: after outside content it
+ * asks, like any other way out. See DECISIONS.md#d-057
+ */
+export function urlConfirm(url: unknown): Confirm {
+  try {
+    return new URL(String(url)).search.length > 1 ? "untrusted" : "never";
+  } catch {
+    return "never";
+  }
+}
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";
@@ -223,6 +235,7 @@ export function webTools(): Tool[] {
         offset: z.number().int().min(0).optional().describe("char offset for the next part"),
       }),
       effect: "external",
+      confirm: (a) => urlConfirm(a.url),
       deadlineMs: 45_000,
       title: (a) => {
         try {
