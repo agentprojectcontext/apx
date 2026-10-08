@@ -249,5 +249,11 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "connect.error.badSsh": "Escribí usuario@servidor.",
   "connect.error.sshFailed": "No pude entrar por SSH (¿la clave está cargada en el agente?).",
   "connect.error.sshDown": "Llegué por SSH, pero el core de APX no responde en el servidor.",
-  "connect.error.sshNoApx": "Ese servidor no tiene APX. Instalalo ahí y volvé a conectar:",
+  "connect.error.sshNoApx": "Ese servidor no tiene APX. APX puede instalarlo ahí por vos, o podés correr esto en él:",
+  "connect.error.sshUnsupported": "APX se instala solo en servidores Linux y macOS. En este, instalalo a mano.",
+  "connect.error.installFailed": "La instalación en el servidor no terminó.",
+  "connect.error.sshLinger":
+    "APX quedó instalado ahí, pero se detiene cada vez que te desconectás. Corré esto una vez en el servidor y conectá:",
+  "connect.installThere": "Instalar APX ahí",
+  "connect.installing": "Instalando APX en el servidor. Tarda un minuto o dos.",
 };

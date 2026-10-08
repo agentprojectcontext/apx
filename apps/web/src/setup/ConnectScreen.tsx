@@ -30,7 +30,12 @@ const REASONS: Record<string, MessageKey> = {
   sshFailed: "connect.error.sshFailed",
   sshDown: "connect.error.sshDown",
   sshNoApx: "connect.error.sshNoApx",
+  sshUnsupported: "connect.error.sshUnsupported",
+  installFailed: "connect.error.installFailed",
+  sshLinger: "connect.error.sshLinger",
 };
+/** How many lines of the server install's output the screen keeps in view. */
+const LOG_LINES = 8;
 
 /**
  * The desktop app's first run, before any APX is reached: this computer runs APX (server), or the app connects to one
@@ -46,6 +51,8 @@ export function ConnectScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [install, setInstall] = useState(false);
+  const [log, setLog] = useState<string[]>();
+  const [command, setCommand] = useState<string>();
   // The website's hero first; then, like a blind, it rises and the question unrolls under it (at once with less motion).
   const [revealed, setRevealed] = useState(
     () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
@@ -63,17 +70,32 @@ export function ConnectScreen() {
     };
   }, [revealed]);
 
-  const answer = async (ask: () => Promise<Answer> | undefined) => {
+  const answer = async (ask: () => Promise<Answer | undefined> | undefined) => {
     setBusy(true);
     setError(undefined);
     setInstall(false);
+    setCommand(undefined);
     const r = await ask();
     // Connected: the window leaves this page; until then the button stays busy.
     if (!r || r.ok) return;
     setBusy(false);
-    setError(r.reason && REASONS[r.reason] ? t(REASONS[r.reason] as MessageKey) : (r.error ?? r.reason));
+    const reason = r.reason && REASONS[r.reason] ? t(REASONS[r.reason] as MessageKey) : undefined;
+    // A command to run on the server shows as one, under the sentence that asks for it.
+    const asks = r.reason === "sshLinger";
+    setError(asks ? reason : [reason, r.error].filter(Boolean).join(" ") || r.reason);
+    setCommand(asks ? r.error : undefined);
     setInstall(r.reason === "sshNoApx");
   };
+  const installThere = () =>
+    void answer(async () => {
+      setLog([]);
+      const stop = window.apxConnect?.onProgress((line) => setLog((l) => [...(l ?? []), line].slice(-LOG_LINES)));
+      try {
+        return await window.apxConnect?.installSsh(address);
+      } finally {
+        stop?.();
+      }
+    });
   const startServer = () => void answer(() => window.apxConnect?.local(access));
   const connect = (e: FormEvent) => {
     e.preventDefault();
@@ -84,6 +106,7 @@ export function ConnectScreen() {
     setStep("start");
     setError(undefined);
     setInstall(false);
+    setLog(undefined);
   };
 
   return (
@@ -211,12 +234,26 @@ export function ConnectScreen() {
                   </span>
                 )}
                 {install && <pre className="connect__install">{INSTALL}</pre>}
+                {command && <pre className="connect__install">{command}</pre>}
+                {log && (
+                  <>
+                    {busy && <span className="wiz__hintline">{t("connect.installing")}</span>}
+                    <pre id="install-log" className="connect__install" aria-live="polite">
+                      {log.join("\n")}
+                    </pre>
+                  </>
+                )}
               </div>
               <div className="wiz__foot">
                 <button type="button" className="wiz__back" onClick={back}>
                   {t("setup.back")}
                 </button>
                 <span className="wiz__spacer" />
+                {install && via === "ssh" && (
+                  <Button id="install-there" variant="secondary" size="lg" disabled={busy} onClick={installThere}>
+                    {t("connect.installThere")}
+                  </Button>
+                )}
                 <Button id="client-go" type="submit" size="lg" loading={busy} disabled={!address.trim()}>
                   {t("connect.connect")}
                 </Button>

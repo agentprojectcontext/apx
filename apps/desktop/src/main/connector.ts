@@ -1,6 +1,7 @@
 // What the window opens: the first-run choice (server or client) on an installed app, then the APX it chose — its
 // own core here, one at an address, or one over SSH. The panel is the same web app in every case.
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { app, ipcMain, type WebContents } from "electron";
 import { APP_SCHEME, FIRST_RUN_URL } from "./app-scheme.ts";
@@ -14,7 +15,7 @@ import {
   validSshTarget,
 } from "./connection.ts";
 import { type EmbeddedCore, isUp, startEmbeddedCore, waitUp } from "./core-process.ts";
-import { remoteApx, startTunnel, type Tunnel } from "./ssh-tunnel.ts";
+import { installArgs, remoteApx, remoteInstall, startTunnel, type Tunnel } from "./ssh-tunnel.ts";
 
 type Answer = { ok: true } | { ok: false; reason?: string; error?: string };
 
@@ -69,10 +70,7 @@ export function createConnector(opts: {
     if (!onChooser(e.sender)) return { ok: false, error: "not allowed" };
     if (typeof input !== "string" || !validSshTarget(input)) return { ok: false, reason: "badSsh" };
     const target = input.trim();
-    const probe = startTunnel(target, corePort, () => {});
-    const up = await waitUp(probe.url, 15_000);
-    probe.stop();
-    if (!up) {
+    if (!(await sshCoreUp(target))) {
       const remote = remoteApx(target);
       return {
         ok: false,
@@ -81,6 +79,37 @@ export function createConnector(opts: {
     }
     return choose({ mode: "ssh", target });
   });
+
+  // The server has no APX: this app installs its own version there (install.sh over ssh), then connects.
+  ipcMain.handle("connect:ssh-install", async (e, input: unknown): Promise<Answer> => {
+    if (!onChooser(e.sender)) return { ok: false, error: "not allowed" };
+    if (typeof input !== "string" || !validSshTarget(input)) return { ok: false, reason: "badSsh" };
+    const target = input.trim();
+    const script = fs.readFileSync(installScript(), "utf8");
+    const args = installArgs(app.getVersion(), process.env.APX_RELEASES);
+    const r = await remoteInstall(target, script, args, (line) => {
+      if (!e.sender.isDestroyed()) e.sender.send("connect:progress", line);
+    });
+    if (!r.ok) return r;
+    if (!(await sshCoreUp(target, 30_000))) return { ok: false, reason: "sshDown" };
+    // Installed, but it would stop whenever this app disconnects: the owner runs one command as root, then connects.
+    if (!r.lingers) return { ok: false, reason: "sshLinger", error: `sudo loginctl enable-linger ${r.user}` };
+    return choose({ mode: "ssh", target });
+  });
+
+  async function sshCoreUp(target: string, wait = 15_000): Promise<boolean> {
+    const probe = startTunnel(target, corePort, () => {});
+    const up = await waitUp(probe.url, wait);
+    probe.stop();
+    return up;
+  }
+
+  /** install.sh as this build carries it (the stage copies it next to the core; a checkout has it in scripts/). */
+  function installScript(): string {
+    return app.isPackaged
+      ? path.join(process.resourcesPath, "apx", "scripts", "install", "install.sh")
+      : path.resolve(opts.dist, "../../../scripts/install/install.sh");
+  }
 
   /** The bundled core reads core.env when it starts: after an exposure change it starts again (a checkout's is not ours). */
   async function restartOwnCore(): Promise<void> {

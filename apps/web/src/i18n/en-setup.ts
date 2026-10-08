@@ -246,5 +246,11 @@ export const enSetup = {
   "connect.error.badSsh": "Type user@server.",
   "connect.error.sshFailed": "Could not log in over SSH (is the key loaded in the agent?).",
   "connect.error.sshDown": "SSH works, but the APX core does not answer on the server.",
-  "connect.error.sshNoApx": "That server has no APX. Install it there and connect again:",
+  "connect.error.sshNoApx": "That server has no APX. APX can install it there for you, or you can run this on it:",
+  "connect.error.sshUnsupported": "APX installs itself on Linux and macOS servers. On this one, install it by hand.",
+  "connect.error.installFailed": "The install on the server did not finish.",
+  "connect.error.sshLinger":
+    "APX is installed there, but it stops whenever you disconnect. Run this once on the server, then connect:",
+  "connect.installThere": "Install APX there",
+  "connect.installing": "Installing APX on the server. It takes a minute or two.",
 } as const;

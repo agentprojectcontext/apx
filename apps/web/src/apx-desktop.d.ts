@@ -23,6 +23,9 @@ declare global {
       local(access: "none" | "lan" | "tailscale"): Promise<ConnectAnswer>;
       url(url: string): Promise<ConnectAnswer>;
       ssh(target: string): Promise<ConnectAnswer>;
+      /** Installs APX on that server over SSH (this app's version), then connects to it. */
+      installSsh(target: string): Promise<ConnectAnswer>;
+      onProgress(listener: (line: string) => void): () => void;
     };
     apxDesktop?: {
       /** Host OS of the desktop shell (`darwin` | `win32` | `linux`). */

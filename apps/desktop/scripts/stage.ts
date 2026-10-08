@@ -26,7 +26,15 @@ const copy = (rel: string) =>
 
 const web = path.join(repo, "apps/web/dist/index.html");
 if (!fs.existsSync(web)) throw new Error("build the panel first: pnpm build:web");
-for (const rel of ["apps/core/src", "apps/terminal/src", "apps/terminal/skills", "apps/web/dist", "examples/agents"])
+// install.sh too: the desktop app installs the daemon on a server over SSH with its own copy.
+for (const rel of [
+  "apps/core/src",
+  "apps/terminal/src",
+  "apps/terminal/skills",
+  "apps/web/dist",
+  "examples/agents",
+  "scripts/install/install.sh",
+])
   copy(rel);
 for (const app of ["core", "terminal"]) {
   const pkg = JSON.parse(fs.readFileSync(path.join(repo, `apps/${app}/package.json`), "utf8")) as Record<
