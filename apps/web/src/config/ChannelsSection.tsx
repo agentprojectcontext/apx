@@ -6,6 +6,7 @@ import { loadChannels, useChannels } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { BotSection, isBotKind } from "./BotSection.tsx";
+import { EmailSection } from "./EmailSection.tsx";
 import { IMessageSection } from "./IMessageSection.tsx";
 import { ChannelSoon } from "./OtherSections.tsx";
 import { SectionHead } from "./SectionHead.tsx";
@@ -20,6 +21,7 @@ const LEAD: Partial<Record<ChannelKind, MessageKey>> = {
   mattermost: "mm.lead",
   signal: "sg.lead",
   imessage: "im.lead",
+  email: "em.lead",
 };
 
 /** Config › Channels: a tab per connected channel, and "+" for the kinds not connected yet. */
@@ -78,6 +80,8 @@ export function ChannelsSection() {
         <WhatsAppSection />
       ) : current === "imessage" ? (
         <IMessageSection />
+      ) : current === "email" ? (
+        <EmailSection />
       ) : (
         <ChannelSoon channel={current} />
       )}

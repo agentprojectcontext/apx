@@ -71,6 +71,8 @@ export type ChannelDraft = {
   rooms?: ChannelInfo["rooms"];
   /** Silence or an emoji for a message that needs no answer (kept on every save). */
   closers?: ChannelInfo["closers"];
+  /** Email: the mailbox and its servers (kept on every save). */
+  email?: ChannelInfo["email"];
 };
 
 /** Lets agents read and send iMessages on this Mac (or stops them). */
@@ -82,7 +84,16 @@ export async function setIMessage(on: boolean): Promise<void> {
   }
 }
 
-const TYPES = ["telegram", "whatsapp", "discord", "slack"] as const;
+const TYPES = [
+  "telegram",
+  "whatsapp",
+  "discord",
+  "slack",
+  "matrix",
+  "mattermost",
+  "signal",
+  "email",
+] as const satisfies readonly ChannelInfo["type"][];
 
 /** Saves a channel (and its token when one was typed); the core restarts it. */
 export async function saveChannel(id: string, draft: ChannelDraft | null, token?: string): Promise<boolean> {

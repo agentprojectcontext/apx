@@ -25,6 +25,8 @@ import type { ChannelConfig } from "./types.ts";
 /** A contact gets at most this many automatic answers per hour; then the owner is told once. */
 const CONTACT_PER_HOUR = 20;
 const HOUR_MS = 3600_000;
+/** Pairing codes a channel sends to strangers per hour; past it, requests are only listed for the owner. */
+const CODES_PER_HOUR = 10;
 const LIVE = new Set(["submitted", "working", "input-required"]);
 
 export function createInbound(deps: {
@@ -48,6 +50,7 @@ export function createInbound(deps: {
   const { store, log, call, delivery } = deps;
   const recent = new Map<string, number[]>();
   const paused = new Set<string>();
+  const codesSent = new Map<string, number[]>();
 
   /** Stores a one-to-one message (or one in a listed room) and handles it; other groups are never stored nor answered. */
   function receive(channel: string, m: Inbound): void {
@@ -213,6 +216,15 @@ export function createInbound(deps: {
     return true;
   }
 
+  /** Each pairing code sent counts against its channel's hourly cap; true when this one would go past it. */
+  function codesOver(channel: string): boolean {
+    const now = Date.now();
+    const times = (codesSent.get(channel) ?? []).filter((t) => now - t < HOUR_MS);
+    if (times.length >= CODES_PER_HOUR) return true;
+    codesSent.set(channel, [...times, now]);
+    return false;
+  }
+
   /** Someone with no address on file, handled as the channel says: a code, a question to the owner, an answer, nothing. */
   async function stranger(cfg: ChannelConfig, m: Inbound, rowId: string): Promise<"done" | "ignored"> {
     if (cfg.strangers === "ignore") return "ignored";
@@ -245,8 +257,9 @@ export function createInbound(deps: {
       deps.attention({ kind: "channel", title: request.name, body: text, ref: pairingRef(request.code) });
       return "ignored";
     }
-    // On the owner's own number the request is only listed: the owner's friends must not get a code from it.
-    if (deps.ownAccount(cfg.id)) return "ignored";
+    // On the owner's own number the request is only listed: the owner's friends must not get a code from it. Past
+    // the hourly cap of codes (a wave of spam mail) the rest are only listed too: no reply goes to forged senders.
+    if (deps.ownAccount(cfg.id) || codesOver(cfg.id)) return "ignored";
     const agent = store.agents.get(cfg.agent_id)?.name ?? "APX";
     delivery.enqueue({
       channel: cfg.id,

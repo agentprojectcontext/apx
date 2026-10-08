@@ -9,6 +9,7 @@ import {
   BaseProject,
   CatalogEngine,
   ChannelClosers,
+  ChannelEmail,
   ChannelInfo,
   ChannelRooms,
   ChannelStrangers,
@@ -748,6 +749,7 @@ export const appMethods = {
             self_owner: z.boolean().optional(),
             rooms: ChannelRooms.optional(),
             closers: ChannelClosers.default("silent"),
+            email: ChannelEmail.optional(),
           })
           .nullable(),
         token: z.string().min(8).max(400).optional(),

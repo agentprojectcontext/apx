@@ -8,6 +8,7 @@ import { createAccess } from "./access.ts";
 import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
 import { discordAdapter } from "./channels/discord.ts";
+import { emailAdapter } from "./channels/email.ts";
 import { createChannels } from "./channels/manager.ts";
 import { matrixAdapter } from "./channels/matrix.ts";
 import { mattermostAdapter } from "./channels/mattermost.ts";
@@ -238,6 +239,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       matrix: (c, secret) => matrixAdapter(c, secret),
       mattermost: (c, secret) => mattermostAdapter(c, secret),
       signal: (c, secret) => signalAdapter(c, secret),
+      // The secret is the mailbox's password; the servers are in the channel's settings.
+      email: (c, password) => emailAdapter(c, password, { dir: path.join(config.home, "channels", c.id) }),
       whatsapp: (c) =>
         whatsappAdapter({ dir: path.join(config.home, "channels", c.id), selfOwner: c.self_owner === true, log }),
     },

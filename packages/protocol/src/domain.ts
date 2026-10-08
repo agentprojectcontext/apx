@@ -609,7 +609,16 @@ export type ChannelStrangers = z.infer<typeof ChannelStrangers>;
 
 /** A channel instance as the owner configured it, and how it is doing. */
 /** The channels APX can run: a bot or account the owner connects. */
-export const ChannelType = z.enum(["telegram", "whatsapp", "discord", "slack", "matrix", "mattermost", "signal"]);
+export const ChannelType = z.enum([
+  "telegram",
+  "whatsapp",
+  "discord",
+  "slack",
+  "matrix",
+  "mattermost",
+  "signal",
+  "email",
+]);
 export type ChannelType = z.infer<typeof ChannelType>;
 
 /**
@@ -649,6 +658,39 @@ export const ChannelRooms = z.object({
 });
 export type ChannelRooms = z.infer<typeof ChannelRooms>;
 
+/** How a mail server is reached: TLS from the start (993, 465), STARTTLS (143, 587), or plain (this machine only). */
+export const MailServer = z.object({
+  host: z
+    .string()
+    .min(1)
+    .max(253)
+    .regex(/^[a-z0-9.:[\]-]+$/i),
+  port: z.number().int().min(1).max(65_535),
+  tls: z.enum(["implicit", "starttls", "none"]),
+});
+export type MailServer = z.infer<typeof MailServer>;
+
+/** An email channel's mailbox: read over IMAP, answered over SMTP. The password is the channel's secret. */
+export const ChannelEmail = z.object({
+  /** The address mail is sent from (and the mailbox's own, whose mail is never answered). */
+  address: z.email().max(254),
+  /** The display name on sent mail. */
+  name: z.string().max(80).optional(),
+  /** The sign-in name, when it is not the address. */
+  username: z.string().max(254).optional(),
+  imap: MailServer,
+  smtp: MailServer,
+  mailbox: z.string().min(1).max(200).default("INBOX"),
+  /** Only mail from these addresses (or "@domain") is read; empty: anyone (strangers get a pairing code). */
+  allowed: z.array(z.string().min(3).max(254)).max(100).default([]),
+  /**
+   * Also read mail its server could not verify (no DKIM, SPF or DMARC pass for the sender's domain). Off: such mail is
+   * dropped, since anyone can write the owner's address in a From line.
+   */
+  trust_unverified: z.boolean().default(false),
+});
+export type ChannelEmail = z.infer<typeof ChannelEmail>;
+
 export const ChannelClosers = z.enum(["silent", "react"]);
 export type ChannelClosers = z.infer<typeof ChannelClosers>;
 
@@ -680,6 +722,8 @@ export const ChannelInfo = z.object({
    * reaction where the channel has them. Neither calls the model.
    */
   closers: ChannelClosers.optional(),
+  /** Email: the mailbox and its servers. */
+  email: ChannelEmail.optional(),
   token_set: z.boolean(),
   /** The stored token, masked for the owner to recognize it: the bot's number and the secret's last four. */
   token_hint: z.string().optional(),

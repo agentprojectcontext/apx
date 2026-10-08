@@ -15,7 +15,7 @@ export const CHANNEL_KINDS = {
   teams: { name: "channel.teams.name", text: "channel.teams.text", tone: "violet", soon: true },
   googlechat: { name: "channel.googlechat.name", text: "channel.googlechat.text", tone: "brand", soon: true },
   mattermost: { name: "channel.mattermost.name", text: "channel.mattermost.text", tone: "info", soon: false },
-  email: { name: "channel.email.name", text: "channel.email.text", tone: "neutral", soon: true },
+  email: { name: "channel.email.name", text: "channel.email.text", tone: "neutral", soon: false },
   sms: { name: "channel.sms.name", text: "channel.sms.text", tone: "danger", soon: true },
   line: { name: "channel.line.name", text: "channel.line.text", tone: "brand", soon: true },
 } as const satisfies Record<string, { name: MessageKey; text: MessageKey; tone: string; soon: boolean }>;

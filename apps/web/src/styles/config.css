@@ -1005,3 +1005,26 @@
 .devices__pushControls > button {
   flex-shrink: 0;
 }
+
+/* ── Email ──────────────────────────────────────────────────────────────── */
+.emailsrv {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 80px minmax(0, 210px);
+  gap: 8px;
+}
+.emailallowed {
+  min-width: 240px;
+}
+.emailedit {
+  padding: 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-control-radius);
+}
+@media (max-width: 560px) {
+  .emailsrv {
+    grid-template-columns: minmax(0, 1fr) 80px;
+  }
+  .emailsrv > :last-child {
+    grid-column: 1 / -1;
+  }
+}

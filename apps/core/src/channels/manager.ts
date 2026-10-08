@@ -535,7 +535,8 @@ export function createChannels(deps: {
       return {
         ...c,
         token_set: token !== undefined,
-        ...(token ? { token_hint: hintOf(token) } : {}),
+        // A mailbox's password shows none of its characters.
+        ...(token ? { token_hint: c.type === "email" ? "••••••••" : hintOf(token) } : {}),
         status: l?.status ?? "off",
         ...(l?.error ? { error: l.error } : {}),
         ...(l?.account ? { account: l.account } : {}),
@@ -802,6 +803,7 @@ function restartsFor(a: Omit<ChannelConfig, "id">, b: Omit<ChannelConfig, "id">)
     a.type !== b.type ||
     a.enabled !== b.enabled ||
     Boolean(a.self_owner) !== Boolean(b.self_owner) ||
-    rooms(a) !== rooms(b)
+    rooms(a) !== rooms(b) ||
+    JSON.stringify(a.email ?? null) !== JSON.stringify(b.email ?? null)
   );
 }

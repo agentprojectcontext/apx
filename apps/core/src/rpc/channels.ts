@@ -170,6 +170,10 @@ const LABELS: Record<string, string> = {
   whatsapp: "WhatsApp",
   discord: "Discord",
   slack: "Slack",
+  matrix: "Matrix",
+  mattermost: "Mattermost",
+  signal: "Signal",
+  email: "Email",
 };
 
 /** What the owner typed as the address the channel uses: a WhatsApp number's account, a Telegram chat id. */
@@ -178,6 +182,10 @@ function typedAddress(type: string, typed: string): string | undefined {
     if (typed.includes("@")) return normalJid(typed) || undefined;
     const digits = typed.replace(/\D/g, "");
     return digits.length >= 8 && digits.length <= 15 ? `${digits}@s.whatsapp.net` : undefined;
+  }
+  if (type === "email") {
+    const a = typed.trim().toLowerCase();
+    return /^[^\s<>@,;"]+@[^\s<>@,;"]+\.[^\s<>@,;"]+$/.test(a) ? a : undefined;
   }
   return /^-?\d{3,20}$/.test(typed.trim()) ? typed.trim() : undefined;
 }
