@@ -11,6 +11,7 @@ import {
   globalShortcut,
   ipcMain,
   Menu,
+  type MenuItemConstructorOptions,
   Notification,
   shell,
   type WebContents,
@@ -28,7 +29,8 @@ import { editMenu } from "./edit-menu.ts";
 import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
-import { createDesktopUpdater } from "./updater.ts";
+import { createUpdateMenu } from "./update-menu.ts";
+import { createDesktopUpdater, type DesktopUpdate } from "./updater.ts";
 
 const CORE_URL = process.env.APX_URL ?? "http://127.0.0.1:7440";
 const WEB_URL = process.env.APX_WEB_URL ?? "http://127.0.0.1:7441";
@@ -272,13 +274,33 @@ app.whenReady().then(() => {
   });
   app.on("will-quit", () => connector.stop());
 
-  Menu.setApplicationMenu(
-    appMenu(
-      () => quick.toggle(false),
-      () => void connector.change(),
-      () => void showAbout("persist:apx-ui", { coreUrl: base, language }),
-    ),
-  );
+  // A newer APX: the panel and the app menu show it; the app downloads it and it goes in at the next restart.
+  const updater = createDesktopUpdater({
+    quit: () => {
+      quitting = true;
+      app.quit();
+    },
+    changed: (s) => {
+      setMenu(s);
+      panel.webContents.send("desktop:update-changed", s);
+    },
+  });
+  const updateMenu = createUpdateMenu({
+    updater,
+    window: win,
+    es: app.getLocale().startsWith("es"),
+    platform: process.platform,
+  });
+  const setMenu = (s: DesktopUpdate) =>
+    Menu.setApplicationMenu(
+      appMenu(
+        () => quick.toggle(false),
+        () => void connector.change(),
+        () => void showAbout("persist:apx-ui", { coreUrl: base, language }),
+        updateMenu.item(s),
+      ),
+    );
+  setMenu(updater.status());
 
   ipcMain.on("quick:open-main", (e, threadId: unknown) => {
     if (!quick.isQuick(e.sender)) return;
@@ -330,20 +352,19 @@ app.whenReady().then(() => {
   });
   app.on("will-quit", () => quick.stop());
 
-  // A newer APX: the panel shows it and asks for it; the app downloads and puts it in place.
-  const updater = createDesktopUpdater({
-    quit: () => {
-      quitting = true;
-      app.quit();
-    },
-  });
   ipcMain.handle("desktop:update-status", (e, check: unknown) => {
     if (e.sender !== panel.webContents) return undefined;
     return check === true ? updater.check() : updater.status();
   });
   ipcMain.handle("desktop:update-install", (e) => (e.sender === panel.webContents ? updater.install() : undefined));
-  updater.start();
-  app.on("will-quit", () => updater.stop());
+  ipcMain.on("desktop:update-restart", (e) => {
+    if (e.sender === panel.webContents) updater.restart();
+  });
+  updater.start(updateMenu.found);
+  app.on("will-quit", () => {
+    updater.stop();
+    updater.quitting();
+  });
 
   void connector.open();
 
@@ -405,7 +426,12 @@ function externalLinks(wc: WebContents): void {
 }
 
 /** The system's own menus, plus "Quick chat" in Window: reachable from the keyboard and by name. */
-function appMenu(openQuick: () => void, changeConnection: () => void, openAbout: () => void): Menu {
+function appMenu(
+  openQuick: () => void,
+  changeConnection: () => void,
+  openAbout: () => void,
+  update: MenuItemConstructorOptions | undefined,
+): Menu {
   const es = app.getLocale().startsWith("es");
   const about = {
     id: "about",
@@ -424,6 +450,7 @@ function appMenu(openQuick: () => void, changeConnection: () => void, openAbout:
             label: app.name,
             submenu: [
               about,
+              ...(update ? [update] : []),
               { type: "separator" as const },
               change,
               { type: "separator" as const },
@@ -435,7 +462,18 @@ function appMenu(openQuick: () => void, changeConnection: () => void, openAbout:
             ],
           },
         ]
-      : [{ label: "APX", submenu: [about, change, { type: "separator" as const }, { role: "quit" as const }] }]),
+      : [
+          {
+            label: "APX",
+            submenu: [
+              about,
+              ...(update ? [update] : []),
+              change,
+              { type: "separator" as const },
+              { role: "quit" as const },
+            ],
+          },
+        ]),
     { role: "fileMenu" },
     { role: "editMenu" },
     { role: "viewMenu" },

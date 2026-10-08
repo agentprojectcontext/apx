@@ -6,8 +6,12 @@ export type DesktopUpdate = {
   current: string;
   latest?: string;
   notes: string[];
-  /** auto: it puts itself in place and restarts; drag: macOS opens the disk image for the owner. */
+  /** auto: it downloads and goes in at the next restart; drag: macOS opens the disk image for the owner. */
   install: "auto" | "drag" | "none";
+  /** Downloading the newer app now. */
+  downloading?: boolean;
+  /** The newer app, downloaded and checked: it goes in when APX restarts. */
+  ready?: string;
   checked_at?: string;
   error?: string;
 };
@@ -68,8 +72,12 @@ declare global {
       pickFolder?(): Promise<string | undefined>;
       /** Whether a newer APX app is out; `check` asks the release feed now. */
       updateStatus?(check?: boolean): Promise<DesktopUpdate | undefined>;
-      /** Downloads the newer app and puts it in place. */
-      installUpdate?(): Promise<{ ok: true; restarting: boolean } | { ok: false; error: string } | undefined>;
+      /** Downloads the newer app and leaves it ready (`ready: false`: opened for the owner to drag in). */
+      installUpdate?(): Promise<{ ok: true; ready: boolean } | { ok: false; error: string } | undefined>;
+      /** Quits and opens the newer app that is ready. */
+      restartToUpdate?(): void;
+      /** The app's update changed, wherever it was started (the panel or the app menu). */
+      onUpdateStatus?(listener: (status: DesktopUpdate) => void): () => void;
       /** What each of the app's processes takes in memory (the panel, each browser tab, the GPU…), biggest first. */
       memory?(): Promise<
         | {

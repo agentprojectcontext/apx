@@ -29,9 +29,12 @@ export function UpdatePill() {
     );
   const newer = newerOf(status, app);
   if (!newer) return null;
-  const label = newer.version
-    ? t("update.pillVersion", { v: newer.version })
-    : t("update.pill", { n: status?.behind ?? 0 });
+  const label =
+    newer.target === "app" && app?.ready
+      ? t("update.pillRestart", { v: app.ready })
+      : newer.version
+        ? t("update.pillVersion", { v: newer.version })
+        : t("update.pill", { n: status?.behind ?? 0 });
   return (
     <button type="button" className="updatepill" aria-label={label} onClick={() => openUpdate(newer.target)}>
       <Icons.ArrowDown size={12} />

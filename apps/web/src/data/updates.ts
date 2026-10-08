@@ -17,7 +17,8 @@ type State = {
   panelStale: boolean;
   /** The dialog is open (from the top bar's pill or the corner card). */
   open: boolean;
-  phase: "idle" | "updating" | "restarting" | "done" | "failed";
+  /** ready: the desktop app downloaded the newer one, which goes in when it restarts (now or later). */
+  phase: "idle" | "updating" | "ready" | "restarting" | "done" | "failed";
   log: string;
 };
 const store = createStore<State>({
@@ -79,6 +80,8 @@ async function loadApp(check: boolean): Promise<void> {
   const app = await window.apxDesktop?.updateStatus?.(check).catch(() => undefined);
   if (app) store.set({ app });
 }
+// Started from the app menu, or found by the app's own check: the pill and the card follow it.
+window.apxDesktop?.onUpdateStatus?.((app) => store.set({ app }));
 
 export async function loadUpdates(check = false): Promise<void> {
   void loadApp(check);
@@ -113,8 +116,14 @@ async function applyAppUpdate(): Promise<void> {
   }));
   if (!r) store.set({ phase: "failed", log: "" });
   else if (!r.ok) store.set({ phase: "failed", log: r.error });
-  // Restarting: the app quits and opens the new one. Otherwise (macOS) the owner drags it in.
-  else store.set({ phase: r.restarting ? "restarting" : "done" });
+  // Ready: it goes in when the app restarts. Otherwise (a disk image) the owner drags it in.
+  else store.set({ phase: r.ready ? "ready" : "done" });
+}
+
+/** The desktop app quits and opens the newer one it has ready. */
+export function restartApp(): void {
+  store.set({ phase: "restarting" });
+  window.apxDesktop?.restartToUpdate?.();
 }
 
 /** What is newer, if anything: the desktop app first (it carries its own core), then the core. */
@@ -122,12 +131,13 @@ export function newerOf(
   status: Status | undefined,
   app: DesktopUpdate | undefined,
 ): { target: State["target"]; version?: string } | undefined {
-  if (app?.latest) return { target: "app", version: app.latest };
+  if (app?.ready || app?.latest) return { target: "app", version: app.ready ?? app.latest };
   if (status?.behind) return { target: "core", version: status.source === "release" ? status.latest : undefined };
   return undefined;
 }
 
-/** Opens the dialog on what is newer. */
-export const openUpdate = (target: State["target"]) => store.set({ target, open: true, phase: "idle", log: "" });
+/** Opens the dialog on what is newer; a desktop app that already has it downloaded only asks when to restart. */
+export const openUpdate = (target: State["target"]) =>
+  store.set((s) => ({ target, open: true, phase: target === "app" && s.app?.ready ? "ready" : "idle", log: "" }));
 
 export const closeUpdate = () => store.set({ open: false, phase: "idle", log: "" });

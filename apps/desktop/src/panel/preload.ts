@@ -48,8 +48,16 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   memory: (): Promise<unknown> => ipcRenderer.invoke("desktop:memory"),
   /** Whether a newer APX app is out (check: ask the release feed now). */
   updateStatus: (check?: boolean): Promise<unknown> => ipcRenderer.invoke("desktop:update-status", check === true),
-  /** Downloads the newer app and puts it in place (it restarts by itself, or opens for the owner on macOS). */
+  /** Downloads the newer app and leaves it ready for the next restart (or opens it for the owner to drag in). */
   installUpdate: (): Promise<unknown> => ipcRenderer.invoke("desktop:update-install"),
+  /** Quits and opens the newer app that is ready. */
+  restartToUpdate: () => ipcRenderer.send("desktop:update-restart"),
+  /** The app's update changed (found, downloading, ready), wherever it was started (the panel or the app menu). */
+  onUpdateStatus: (listener: (status: unknown) => void) => {
+    const on = (_e: unknown, s: unknown) => listener(s);
+    ipcRenderer.on("desktop:update-changed", on);
+    return () => ipcRenderer.removeListener("desktop:update-changed", on);
+  },
   // The local core's token when it asks for one (it listens beyond this computer); asked once, at load.
   coreToken: (ipcRenderer.sendSync("desktop:core-token") as string | undefined) || undefined,
   // Whether the core runs on this computer (not one at an address or over SSH): Finder can show its files.

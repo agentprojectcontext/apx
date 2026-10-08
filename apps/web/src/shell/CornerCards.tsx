@@ -1,7 +1,8 @@
+import "../styles/corner.css";
 import { Button, ChannelIcon, IconButton, Icons, ProjectTile } from "@apx/ui";
 import type { CSSProperties, ReactNode } from "react";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
-import { newerOf, openUpdate, useUpdates } from "../data/updates.ts";
+import { newerOf, openUpdate, restartApp, useUpdates } from "../data/updates.ts";
 import { useT } from "../i18n/index.ts";
 
 const LINKS = {
@@ -28,15 +29,17 @@ export function CornerCards({ floating = false }: { floating?: boolean }) {
   const cards: ReactNode[] = [];
   if (update?.version) {
     const version = update.version;
+    // Downloaded already (the desktop app does it on its own): only the restart is left.
+    const ready = update.target === "app" && app?.ready === version;
     cards.push(
       <CornerCard
         key="update"
         id="update"
         icon={<ProjectTile tone="brand" size={24} icon={<Icons.ArrowDown size={14} />} />}
-        title={t("update.cardTitle", { v: version })}
-        description={t("update.cardDesc")}
-        action={t("update.cardCta")}
-        onAction={() => openUpdate(update.target)}
+        title={t(ready ? "update.cardReady" : "update.cardTitle", { v: version })}
+        description={t(ready ? "update.cardReadyDesc" : "update.cardDesc")}
+        action={t(ready ? "update.restartNow" : "update.cardCta")}
+        onAction={() => (ready ? restartApp() : openUpdate(update.target))}
         onClose={() => closeCard({ update: version })}
       />,
     );

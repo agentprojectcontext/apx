@@ -35,11 +35,14 @@ const step = (cmd: string, cmdArgs: string[], cwd = repo, env: NodeJS.ProcessEnv
   execFileSync(cmd, cmdArgs, { cwd, env, stdio: "inherit", shell: win });
 };
 
-// A release's tag (CI sets package.json from it), or here the last tag and the commits past it.
-const version = buildVersion(
-  (JSON.parse(fs.readFileSync(path.join(desktop, "package.json"), "utf8")) as { version: string }).version,
-  repo,
-);
+// A release's tag (CI sets package.json from it), or here the last tag and the commits past it; APX_VERSION names it
+// outright (two builds to try an update between).
+const version =
+  process.env.APX_VERSION ||
+  buildVersion(
+    (JSON.parse(fs.readFileSync(path.join(desktop, "package.json"), "utf8")) as { version: string }).version,
+    repo,
+  );
 const env = { ...process.env, APX_VERSION: version };
 
 const before = new Set(fs.existsSync(out) ? fs.readdirSync(out) : []);

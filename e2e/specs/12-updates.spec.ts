@@ -70,19 +70,36 @@ test("a daemon installed from a bundle offers the newer release by its version",
 const desktopWithUpdate = (page: Page, install: "auto" | "drag") =>
   page.addInitScript((mode) => {
     const w = window as unknown as Record<string, unknown>;
-    w.installs = 0;
+    w.installs = Number(sessionStorage.getItem("installs") ?? 0);
+    w.restarts = 0;
+    // Kept across a reload, as the app keeps it while the panel reloads.
+    const ready = () => sessionStorage.getItem("ready") ?? undefined;
     w.apxDesktop = {
       platform: mode === "drag" ? "darwin" : "linux",
       setBrowserBounds: () => {},
-      updateStatus: async () => ({ current: "9.0.0", latest: "9.1.0", notes: ["feat: app updates"], install: mode }),
+      updateStatus: async () => ({
+        current: "9.0.0",
+        latest: "9.1.0",
+        notes: ["feat: app updates"],
+        install: mode,
+        ready: ready(),
+      }),
       installUpdate: async () => {
         w.installs = Number(w.installs) + 1;
-        return { ok: true, restarting: mode === "auto" };
+        sessionStorage.setItem("installs", String(w.installs));
+        if (mode === "auto") sessionStorage.setItem("ready", "9.1.0");
+        return { ok: true, ready: mode === "auto" };
+      },
+      restartToUpdate: () => {
+        w.restarts = Number(w.restarts) + 1;
       },
     };
   }, install);
 
-test("the desktop app offers its own newer version and puts it in place", async ({ page }) => {
+const count = (page: Page, key: "installs" | "restarts") =>
+  page.evaluate((k) => (window as unknown as Record<string, number>)[k], key);
+
+test("the desktop app downloads its newer version, then asks to restart now", async ({ page }) => {
   await desktopWithUpdate(page, "auto");
   await open(page);
   await page.getByRole("button", { name: "APX 9.1.0 · Actualizar" }).click();
@@ -90,15 +107,38 @@ test("the desktop app offers its own newer version and puts it in place", async 
   await expect(dialog.getByText(/Salió APX 9\.1\.0 \(esta app es la 9\.0\.0\)/)).toBeVisible();
   await expect(dialog.getByText("feat: app updates")).toBeVisible();
   await dialog.getByRole("button", { name: "Actualizar ahora" }).click();
+  await expect(dialog.getByText("APX 9.1.0 ya está descargado y listo. Reiniciá APX para usarlo.")).toBeVisible();
+  await expect(dialog.getByText("Si elegís más tarde, se instala cuando salgas de APX.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Reiniciar ahora" }).click();
   await expect(dialog.getByText("Reiniciando APX con la versión nueva…")).toBeVisible();
-  expect(await page.evaluate(() => (window as unknown as { installs: number }).installs)).toBe(1);
+  expect(await count(page, "installs")).toBe(1);
+  expect(await count(page, "restarts")).toBe(1);
 });
 
-test("on macOS the new app is downloaded and opened for the owner to drag in", async ({ page }) => {
+test("later: the dialog closes and the pill offers the restart", async ({ page }) => {
+  await desktopWithUpdate(page, "auto");
+  await open(page);
+  await page.getByRole("button", { name: "APX 9.1.0 · Actualizar" }).click();
+  const dialog = page.getByRole("dialog", { name: "Hay una versión nueva de APX" });
+  await dialog.getByRole("button", { name: "Actualizar ahora" }).click();
+  await dialog.getByRole("button", { name: "Más tarde" }).click();
+  await expect(dialog).toBeHidden();
+  await page.reload();
+  await page.getByRole("button", { name: "APX 9.1.0 · Reiniciar" }).click();
+  await expect(dialog.getByText("APX 9.1.0 ya está descargado y listo. Reiniciá APX para usarlo.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Reiniciar ahora" }).click();
+  expect(await count(page, "installs")).toBe(1);
+  expect(await count(page, "restarts")).toBe(1);
+});
+
+test("on macOS without a place it can replace, the new app is downloaded and opened for the owner to drag in", async ({
+  page,
+}) => {
   await desktopWithUpdate(page, "drag");
   await open(page);
   await page.getByRole("button", { name: "APX 9.1.0 · Actualizar" }).click();
   const dialog = page.getByRole("dialog", { name: "Hay una versión nueva de APX" });
+  await expect(dialog.getByText(/se abre para que la arrastres a Aplicaciones/)).toBeVisible();
   await dialog.getByRole("button", { name: "Descargar" }).click();
   await expect(dialog.getByText(/arrastralo a Aplicaciones/)).toBeVisible();
 });

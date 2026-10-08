@@ -483,7 +483,7 @@ Node. Installed APX learns of a newer one from the GitHub Releases of a public r
 published there. A bundle install downloads, checks and unpacks the newer bundle beside the running one, moves
 `current` and restarts (`system.update`), so a desktop connected to a server updates the server. The desktop app
 updates itself (it carries its own core): the AppImage replaces its file, the Windows installer runs, macOS opens the
-disk image to drag in (unsigned, so no silent install). Every platform is built from any computer (`pnpm package:<os>`):
+disk image to drag in (unsigned, so no silent install; replaced by [D-058](#d-058)). Every platform is built from any computer (`pnpm package:<os>`):
 the only native module, sharp, comes prebuilt per platform (`npm --os/--cpu`), and Node comes from nodejs.org,
 checked against its SHASUMS256.txt.
 
@@ -665,3 +665,20 @@ not an MCP server: no maintained server takes a refresh token by reference, a se
 outside the core, and the tools need APX's confirmations and outside-data framing. Events and mail come back as
 untrusted data; creating or changing an event and writing a draft are `ask`; mail leaves only as a draft the owner
 approved sending (`gmail_send_draft`, `always`), never in one silent step.
+
+<a id="d-058"></a>
+## D-058 — 2026-10-08 — The desktop app downloads its update and asks when to restart
+D-044 had macOS open the disk image for the owner to drag in, because an unsigned app cannot use the system's silent
+updater. The app now replaces itself without it: it downloads the release's `.zip`, checks its `.sha256`, unpacks it
+beside the running `APX.app`, and swaps the two once APX (and the core it runs from inside the bundle) has quit, putting
+the old one back if the swap fails. A file the app downloads itself carries no quarantine flag, so nothing asks again.
+The update is found by the app's own check (every 6 hours; the first a minute after start) and downloaded on its own;
+it then says once that it is ready (a notification, the top bar's pill, the corner card) and goes in when the owner
+picks "Restart now", or when they quit APX. Started from the app menu ("Check for updates…", "Update to APX x.y.z…")
+or the panel, it asks right away: restart now or later. While one waits, the app menu says "Restart to update to APX
+x.y.z". The AppImage works the same way (its file is replaced at once and the next start is the new one); Windows
+keeps its installer, which runs on "Restart now" only, since it reopens APX when it ends. Where the app cannot write
+its own place (a read-only folder, run from the disk image, a translocated copy) macOS still opens the disk image. An
+unsigned build keeps losing the macOS permissions (Accessibility, Screen Recording) at each update, as it did with the
+drag; only a Developer ID signature ends that. `APX_RELEASES` also takes a base URL, so a local feed can stand in for
+GitHub to try an update between two builds (`APX_VERSION` names a build's version in `pnpm package`).

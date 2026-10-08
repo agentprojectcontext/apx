@@ -157,7 +157,17 @@ export const en = {
   "update.title": "A newer APX is out",
   "update.lead": "{n} changes on main that this APX does not have yet:",
   "update.leadRelease": "APX {v} is out. What it brings:",
-  "update.leadApp": "APX {v} is out (this app is {current}). It downloads, replaces this one and opens again.",
+  "update.leadApp": "APX {v} is out (this app is {current}). It downloads now and goes in when APX restarts.",
+  "update.leadAppDrag":
+    "APX {v} is out (this app is {current}). It downloads and opens for you to drag into Applications.",
+  "update.leadReady": "APX {v} is downloaded and ready. Restart APX to use it.",
+  "update.readyLater": "If you choose later, it goes in when you quit APX.",
+  "update.readyLaterMenu": "If you choose later, it waits in the APX menu: Restart to update.",
+  "update.restartNow": "Restart now",
+  "update.later": "Later",
+  "update.pillRestart": "APX {v} · Restart",
+  "update.cardReady": "APX {v} is ready",
+  "update.cardReadyDesc": "Downloaded and checked. Restart APX to use it, now or when it suits you.",
   "update.download": "Download",
   "update.downloading": "Downloading the new APX…",
   "update.dragDone":

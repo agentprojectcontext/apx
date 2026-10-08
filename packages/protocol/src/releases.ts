@@ -1,7 +1,10 @@
 // Where an installed APX learns that a newer one is out: the GitHub Releases of a public repo. Shared by the core (a
 // server install updates itself) and the desktop app (it updates the app, which carries its own core).
 
-/** owner/repo whose Releases hold the installers and the daemon bundles. APX_RELEASES overrides it; "off" disables. */
+/**
+ * owner/repo whose Releases hold the installers and the daemon bundles. APX_RELEASES overrides it (an owner/repo, or
+ * the base URL of a GitHub-shaped API such as a local test feed); "off" disables.
+ */
 export const RELEASE_FEED = "agentprojectcontext/apx";
 export const RELEASE_CHECK_EVERY_MS = 6 * 3600_000;
 
@@ -31,8 +34,13 @@ export const nodeOs = (p: Platform) => (p.os === "mac" ? "darwin" : p.os === "wi
 export const coreBundleName = (version: string, p: Platform) => `apx-core-${version}-${p.os}-${p.arch}.tar.gz`;
 
 /** The desktop app's installer for this platform, as electron-builder names it (it says x86_64 for an x64 AppImage). */
-export function desktopAssetFor(assets: ReleaseAsset[], version: string, p: Platform): ReleaseAsset | undefined {
-  const ext = p.os === "linux" ? ".AppImage" : p.os === "mac" ? ".dmg" : ".exe";
+export function desktopAssetFor(
+  assets: ReleaseAsset[],
+  version: string,
+  p: Platform,
+  kind: "installer" | "zip" = "installer",
+): ReleaseAsset | undefined {
+  const ext = kind === "zip" ? ".zip" : p.os === "linux" ? ".AppImage" : p.os === "mac" ? ".dmg" : ".exe";
   const arches = p.arch === "x64" ? ["x64", "x86_64", "amd64"] : ["arm64", "aarch64"];
   return assets.find((a) => arches.some((arch) => a.name === `APX-${version}-${p.os}-${arch}${ext}`));
 }
@@ -99,7 +107,8 @@ export function newerReleases(list: unknown, current: string): Release[] {
 
 /** Asks GitHub for the feed's recent releases (no token: 60 requests an hour per address is plenty). */
 export async function fetchReleases(feed: string, fetchImpl: typeof fetch = fetch): Promise<unknown> {
-  const r = await fetchImpl(`https://api.github.com/repos/${feed}/releases?per_page=30`, {
+  const base = /^https?:\/\//.test(feed) ? feed.replace(/\/+$/, "") : `https://api.github.com/repos/${feed}`;
+  const r = await fetchImpl(`${base}/releases?per_page=30`, {
     headers: { accept: "application/vnd.github+json", "user-agent": "apx-updates" },
     signal: AbortSignal.timeout(20_000),
   });

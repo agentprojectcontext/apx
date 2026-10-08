@@ -161,7 +161,17 @@ export const es: Partial<Record<MessageKey, string>> = {
   "update.title": "Hay una versión nueva de APX",
   "update.lead": "{n} cambios en main que este APX todavía no tiene:",
   "update.leadRelease": "Salió APX {v}. Qué trae:",
-  "update.leadApp": "Salió APX {v} (esta app es la {current}). Se descarga, reemplaza a esta y se vuelve a abrir.",
+  "update.leadApp": "Salió APX {v} (esta app es la {current}). Se descarga ahora y se instala cuando reinicies APX.",
+  "update.leadAppDrag":
+    "Salió APX {v} (esta app es la {current}). Se descarga y se abre para que la arrastres a Aplicaciones.",
+  "update.leadReady": "APX {v} ya está descargado y listo. Reiniciá APX para usarlo.",
+  "update.readyLater": "Si elegís más tarde, se instala cuando salgas de APX.",
+  "update.readyLaterMenu": "Si elegís más tarde, queda en el menú APX: Reiniciar para actualizar.",
+  "update.restartNow": "Reiniciar ahora",
+  "update.later": "Más tarde",
+  "update.pillRestart": "APX {v} · Reiniciar",
+  "update.cardReady": "APX {v} está listo",
+  "update.cardReadyDesc": "Descargado y verificado. Reiniciá APX para usarlo, ahora o cuando te quede cómodo.",
   "update.download": "Descargar",
   "update.downloading": "Descargando el APX nuevo…",
   "update.dragDone":

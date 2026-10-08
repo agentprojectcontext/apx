@@ -1,5 +1,5 @@
 import { Button, Dialog, Spinner } from "@apx/ui";
-import { applyUpdate, closeUpdate, loadUpdates, useUpdates } from "../data/updates.ts";
+import { applyUpdate, closeUpdate, loadUpdates, restartApp, useUpdates } from "../data/updates.ts";
 import { useT } from "../i18n/index.ts";
 
 /** The update dialog (from the pill or the corner card): what changed, and "Update now". */
@@ -8,20 +8,24 @@ export function UpdateDialog() {
   const status = useUpdates((s) => s.status);
   const app = useUpdates((s) => s.app);
   const target = useUpdates((s) => s.target);
-  const phase = useUpdates((s) => s.phase);
+  const own = useUpdates((s) => s.phase);
   const log = useUpdates((s) => s.log);
   const close = () => {
     if (phase === "updating" || phase === "restarting") return;
     closeUpdate();
   };
+  // Started from the app menu, the app may already be downloading it, or have it ready.
+  const phase = target === "app" && own === "idle" ? (app?.ready ? "ready" : app?.downloading ? "updating" : own) : own;
   const changes = (target === "app" ? app?.notes : status?.changes) ?? [];
+  const drag = target === "app" && app?.install === "drag";
   const lead =
     target === "app"
-      ? t("update.leadApp", { v: app?.latest ?? "", current: app?.current ?? "" })
+      ? phase === "ready" || phase === "restarting"
+        ? t("update.leadReady", { v: app?.ready ?? app?.latest ?? "" })
+        : t(drag ? "update.leadAppDrag" : "update.leadApp", { v: app?.latest ?? "", current: app?.current ?? "" })
       : status?.source === "release"
         ? t("update.leadRelease", { v: status.latest ?? "" })
         : t("update.lead", { n: status?.behind ?? 0 });
-  const drag = target === "app" && app?.install === "drag";
   return (
     <Dialog
       open
@@ -35,6 +39,13 @@ export function UpdateDialog() {
               {t("update.check")}
             </Button>
             <Button onClick={() => void applyUpdate()}>{t(drag ? "update.download" : "update.now")}</Button>
+          </>
+        ) : phase === "ready" ? (
+          <>
+            <Button variant="secondary" onClick={close}>
+              {t("update.later")}
+            </Button>
+            <Button onClick={restartApp}>{t("update.restartNow")}</Button>
           </>
         ) : phase === "done" || phase === "failed" ? (
           <Button variant="secondary" onClick={close}>
@@ -57,6 +68,11 @@ export function UpdateDialog() {
             phase === "updating" ? (target === "app" ? "update.downloading" : "update.updating") : "update.restarting",
           )}
         </div>
+      )}
+      {phase === "ready" && (
+        <p className="update__note">
+          {t(window.apxDesktop?.platform === "win32" ? "update.readyLaterMenu" : "update.readyLater")}
+        </p>
       )}
       {phase === "done" && <p className="update__note">{t(drag ? "update.dragDone" : "update.done")}</p>}
       {phase === "failed" && (

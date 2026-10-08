@@ -4,6 +4,7 @@ import {
   compareVersions,
   coreBundleName,
   desktopAssetFor,
+  fetchReleases,
   newerReleases,
   parseSha256,
   platformOf,
@@ -43,7 +44,12 @@ test("only published vX.Y.Z releases newer than this one count, newest first", (
 });
 
 test("each platform finds its own installer and daemon bundle", () => {
-  const assets = ["APX-2.2.0-linux-x86_64.AppImage", "APX-2.2.0-mac-arm64.dmg", "APX-2.2.0-win-x64.exe"].map((n) => ({
+  const assets = [
+    "APX-2.2.0-linux-x86_64.AppImage",
+    "APX-2.2.0-mac-arm64.dmg",
+    "APX-2.2.0-mac-arm64.zip",
+    "APX-2.2.0-win-x64.exe",
+  ].map((n) => ({
     name: n,
     url: n,
   }));
@@ -53,9 +59,24 @@ test("each platform finds its own installer and daemon bundle", () => {
   assert.equal(desktopAssetFor(assets, "2.2.0", linux)?.name, "APX-2.2.0-linux-x86_64.AppImage");
   assert.equal(desktopAssetFor(assets, "2.2.0", mac)?.name, "APX-2.2.0-mac-arm64.dmg");
   assert.equal(desktopAssetFor(assets, "2.2.1", mac), undefined);
+  assert.equal(desktopAssetFor(assets, "2.2.0", mac, "zip")?.name, "APX-2.2.0-mac-arm64.zip");
   assert.equal(coreBundleName("2.2.0", linux), "apx-core-2.2.0-linux-x64.tar.gz");
   assert.equal(platformOf("freebsd", "x64"), undefined);
   assert.equal(platformOf("linux", "ia32"), undefined);
+});
+
+test("the feed is a GitHub repo, or the base URL of a feed shaped like its API", async () => {
+  const asked: string[] = [];
+  const fake = (async (url: string) => {
+    asked.push(url);
+    return new Response("[]");
+  }) as typeof fetch;
+  await fetchReleases("acme/apx", fake);
+  await fetchReleases("http://127.0.0.1:7499/", fake);
+  assert.deepEqual(asked, [
+    "https://api.github.com/repos/acme/apx/releases?per_page=30",
+    "http://127.0.0.1:7499/releases?per_page=30",
+  ]);
 });
 
 test("a .sha256 file gives its digest", () => {

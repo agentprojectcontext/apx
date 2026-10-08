@@ -1,0 +1,78 @@
+/* Corner cards: a deck, the first in front and in flow; up to two more peek out above it, smaller and faded. */
+.corner {
+  --corner-peek: 0px;
+  position: relative;
+  flex: none;
+  margin: 0 8px 8px;
+  padding-top: var(--corner-peek);
+}
+/* Beside the rail, at the bottom: the composer and its send button stay clear on the right. */
+.corner.is-floating {
+  position: absolute;
+  left: calc(var(--shell-sidebar-w) + 12px);
+  bottom: 12px;
+  z-index: 30;
+  width: min(300px, calc(100% - var(--shell-sidebar-w) - 24px));
+  margin: 0;
+}
+.corner__card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 12px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+  border: 1px solid var(--apx-card-border);
+  color: var(--apx-fg);
+  font-size: var(--apx-text-sm);
+  transform-origin: top center;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+.corner.is-floating .corner__card {
+  box-shadow: var(--apx-shadow-md);
+}
+.corner__card:first-child {
+  position: relative;
+  z-index: 3;
+}
+/* Behind the front card only their top edge shows, and they take no clicks. */
+.corner__card:not(:first-child) {
+  position: absolute;
+  top: var(--corner-peek);
+  left: 0;
+  right: 0;
+  height: 40px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.corner__card:nth-child(2) {
+  z-index: 2;
+  transform: translateY(-8px) scale(0.95);
+  opacity: 0.7;
+}
+.corner__card:nth-child(3) {
+  z-index: 1;
+  transform: translateY(-16px) scale(0.9);
+  opacity: 0.45;
+}
+.corner__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.corner__title {
+  flex: 1;
+  min-width: 0;
+  font-weight: var(--apx-weight-medium);
+}
+.corner__desc {
+  color: var(--apx-fg-muted);
+  line-height: var(--apx-leading);
+}
+@media (prefers-reduced-motion: reduce) {
+  .corner__card {
+    transition: none;
+  }
+}
