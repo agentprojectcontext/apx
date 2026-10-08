@@ -13,6 +13,7 @@ import { PhoneDialog } from "./PhoneDialog.tsx";
 import { Sidebar } from "./Sidebar.tsx";
 import { Toasts } from "./Toasts.tsx";
 import { Topbar } from "./Topbar.tsx";
+import { UpdateDialogHost } from "./UpdatePill.tsx";
 import { ShellLayout } from "./useShellLayout.ts";
 import { useViewportWidth } from "./useViewportWidth.ts";
 
@@ -25,6 +26,7 @@ const ProjectScreen = lazy(() => import("../project/ProjectScreen.tsx").then((m)
 const ResourcesScreen = lazy(() =>
   import("../project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen })),
 );
+const CornerCards = lazy(() => import("./CornerCards.tsx").then((m) => ({ default: m.CornerCards })));
 const CommandPalette = lazy(() => import("./CommandPalette.tsx").then((m) => ({ default: m.CommandPalette })));
 const ThreadDialogs = lazy(() => import("../inbox/ThreadDialogs.tsx").then((m) => ({ default: m.ThreadDialogs })));
 const TasksScreen = lazy(() => import("../tasks/TasksScreen.tsx").then((m) => ({ default: m.TasksScreen })));
@@ -92,6 +94,13 @@ export function Shell() {
       )}
       <PhoneDialog />
       <WidgetChatHost />
+      <UpdateDialogHost />
+      {/* Over the foot of the list column: on a phone, or with the list hidden, it would cover the composer. */}
+      {layout.rail && !layout.compact && layout.listW > 0 && (
+        <Suspense fallback={null}>
+          <CornerCards floating />
+        </Suspense>
+      )}
       <Toasts />
     </div>
   );

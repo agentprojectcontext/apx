@@ -15,6 +15,8 @@ type State = {
   target: "core" | "app";
   /** The core serves a newer panel than this page runs. */
   panelStale: boolean;
+  /** The dialog is open (from the top bar's pill or the corner card). */
+  open: boolean;
   phase: "idle" | "updating" | "restarting" | "done" | "failed";
   log: string;
 };
@@ -23,6 +25,7 @@ const store = createStore<State>({
   app: undefined,
   target: "core",
   panelStale: false,
+  open: false,
   phase: "idle",
   log: "",
 });
@@ -114,7 +117,17 @@ async function applyAppUpdate(): Promise<void> {
   else store.set({ phase: r.restarting ? "restarting" : "done" });
 }
 
-/** Opens the dialog on what is newer: the desktop app first (it carries its own core), then the core. */
-export const chooseTarget = (target: State["target"]) => store.set({ target, phase: "idle", log: "" });
+/** What is newer, if anything: the desktop app first (it carries its own core), then the core. */
+export function newerOf(
+  status: Status | undefined,
+  app: DesktopUpdate | undefined,
+): { target: State["target"]; version?: string } | undefined {
+  if (app?.latest) return { target: "app", version: app.latest };
+  if (status?.behind) return { target: "core", version: status.source === "release" ? status.latest : undefined };
+  return undefined;
+}
 
-export const resetUpdate = () => store.set({ phase: "idle", log: "" });
+/** Opens the dialog on what is newer. */
+export const openUpdate = (target: State["target"]) => store.set({ target, open: true, phase: "idle", log: "" });
+
+export const closeUpdate = () => store.set({ open: false, phase: "idle", log: "" });

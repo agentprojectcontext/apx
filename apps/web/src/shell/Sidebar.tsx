@@ -1,5 +1,5 @@
 import { Icons, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
-import { useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import { loadChannels } from "../data/channels.ts";
 import { isListed } from "../data/identity.ts";
 import { setPrefs } from "../data/prefs.ts";
@@ -12,6 +12,9 @@ import { LAYOUT } from "./layout.ts";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
 import { SidebarSection } from "./SidebarSection.tsx";
+
+// Not needed for the first paint.
+const CornerCards = lazy(() => import("./CornerCards.tsx").then((m) => ({ default: m.CornerCards })));
 
 /** Inbox · Tasks (pinned) · Channels · Projects · External sessions · Apps · Resources · Settings · account. `rail` = 60px icons. */
 export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
@@ -85,6 +88,11 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
           </>
         )}
       </div>
+      {!rail && (
+        <Suspense fallback={null}>
+          <CornerCards />
+        </Suspense>
+      )}
       <div className="sidebar__foot">
         <NavItem
           collapsed={rail}

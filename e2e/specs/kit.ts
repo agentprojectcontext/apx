@@ -93,8 +93,18 @@ export async function until<T>(fn: () => Promise<T | undefined | false>, ms = 10
 // Noise that is not the app's: the favicon, and a fetch the browser aborts when a test navigates away.
 const IGNORED = [/favicon/i, /net::ERR_ABORTED/];
 
-export const test = base.extend<{ page: Page }>({
-  page: async ({ page }, use) => {
+export const test = base.extend<{ page: Page; cornerCards: boolean }>({
+  // The corner cards cover what sits under them, so they start closed unless a spec is about them.
+  cornerCards: [false, { option: true }],
+  page: async ({ page, cornerCards }, use) => {
+    if (!cornerCards)
+      await page.addInitScript(() => {
+        // It also runs in sandboxed widget frames, which have no storage.
+        try {
+          if (!localStorage.getItem("apx.corner"))
+            localStorage.setItem("apx.corner", JSON.stringify({ discord: true, star: true }));
+        } catch {}
+      });
     const errors: string[] = [];
     page.on("console", (m) => {
       if (m.type() === "error" && !IGNORED.some((r) => r.test(m.text()))) errors.push(m.text());

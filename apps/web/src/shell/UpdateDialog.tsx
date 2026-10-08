@@ -1,9 +1,9 @@
 import { Button, Dialog, Spinner } from "@apx/ui";
-import { applyUpdate, loadUpdates, resetUpdate, useUpdates } from "../data/updates.ts";
+import { applyUpdate, closeUpdate, loadUpdates, useUpdates } from "../data/updates.ts";
 import { useT } from "../i18n/index.ts";
 
-/** The update pill's dialog: what changed, and "Update now". */
-export function UpdateDialog({ onClose }: { onClose(): void }) {
+/** The update dialog (from the pill or the corner card): what changed, and "Update now". */
+export function UpdateDialog() {
   const t = useT();
   const status = useUpdates((s) => s.status);
   const app = useUpdates((s) => s.app);
@@ -12,8 +12,7 @@ export function UpdateDialog({ onClose }: { onClose(): void }) {
   const log = useUpdates((s) => s.log);
   const close = () => {
     if (phase === "updating" || phase === "restarting") return;
-    resetUpdate();
-    onClose();
+    closeUpdate();
   };
   const changes = (target === "app" ? app?.notes : status?.changes) ?? [];
   const lead =
