@@ -37,7 +37,7 @@ export {
   EngineIcon,
   type EngineIconProps,
   engineBrand,
-  registerProviderMarks,
+  registerMarks,
 } from "./components/EngineIcon";
 export { EntityCard, type EntityCardProps } from "./components/EntityCard";
 export { Field, type FieldProps } from "./components/Field";

@@ -62,6 +62,15 @@ function initialBundleKb(): number {
   return total / 1024;
 }
 
+// A core already on the port would answer for ours: the numbers, and its models, would be someone else's.
+if (
+  await fetch(`${base}/health`).then(
+    () => true,
+    () => false,
+  )
+)
+  throw new Error(`port ${port} is taken (another APX core?): stop it or set PERF_PORT`);
+
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-perf-"));
 const llm = await fakeLlm();
 const startCore = (apxHome: string) =>

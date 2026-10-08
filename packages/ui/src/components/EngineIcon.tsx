@@ -1,6 +1,6 @@
 import { Bot } from "lucide-react";
 import { type CSSProperties, useId, useSyncExternalStore } from "react";
-import { ACP_MARKS, type AcpBrand, type AcpMark } from "../acp-marks";
+import type { AcpBrand, AcpMark } from "../acp-marks";
 import { cx } from "../cx";
 import { ENGINE_MARKS } from "../engine-marks";
 import type { ProviderBrand } from "../provider-marks";
@@ -66,14 +66,16 @@ export function engineBrand(id: string | undefined): EngineBrand | undefined {
   return undefined;
 }
 
+type LateBrand = AcpBrand | ProviderBrand;
+
 /**
- * The model APIs' marks arrive later (`@apx/ui/provider-marks`, loaded with the model catalog): until then a model API
+ * The ACP agents' and model APIs' marks arrive after the first screen (`@apx/ui/marks`): until then such an engine
  * shows the neutral bot, then every icon draws its mark.
  */
-let providerMarks: Partial<Record<ProviderBrand, AcpMark>> = {};
+let lateMarks: Partial<Record<LateBrand, AcpMark>> = {};
 const markListeners = new Set<() => void>();
-export function registerProviderMarks(marks: Partial<Record<ProviderBrand, AcpMark>>): void {
-  providerMarks = { ...providerMarks, ...marks };
+export function registerMarks(marks: Partial<Record<LateBrand, AcpMark>>): void {
+  lateMarks = { ...lateMarks, ...marks };
   for (const l of markListeners) l();
 }
 const subscribeMarks = (fn: () => void) => {
@@ -81,7 +83,8 @@ const subscribeMarks = (fn: () => void) => {
   return () => markListeners.delete(fn);
 };
 
-const isAcp = (b: EngineBrand): b is AcpBrand => b in ACP_MARKS;
+const ACP_BRANDS = new Set<string>(Object.values(ACP_IDS));
+const isAcp = (b: EngineBrand): b is AcpBrand => ACP_BRANDS.has(b);
 /** Every model API with a mark; typed against the marks module, so a mark added there must be named here. */
 const PROVIDER_BRANDS: Record<ProviderBrand, true> = {
   groq: true,
@@ -108,9 +111,9 @@ export interface EngineIconProps {
 
 /** The official mark of an engine or a model API, so each one reads at a glance. */
 export function EngineIcon({ engine, size = 16, tile = false, label, className }: EngineIconProps) {
-  const marks = useSyncExternalStore(subscribeMarks, () => providerMarks);
+  const marks = useSyncExternalStore(subscribeMarks, () => lateMarks);
   const named = engineBrand(engine);
-  const brand = named && isProvider(named) && !marks[named] ? undefined : named;
+  const brand = named && (isAcp(named) || isProvider(named)) && !marks[named] ? undefined : named;
   const gid = useId().replace(/:/g, "");
   const box: CSSProperties = { width: size, height: size };
   const a11y = label ? { role: "img" as const, "aria-label": label } : { "aria-hidden": true as const };
@@ -124,7 +127,7 @@ export function EngineIcon({ engine, size = 16, tile = false, label, className }
   if (isAcp(brand) || isProvider(brand)) {
     // One-colour marks in the text colour (brand colours kept where the mark has them); on a tile, centred on the
     // neutral round tile.
-    const m = (isAcp(brand) ? ACP_MARKS[brand] : marks[brand]) as AcpMark;
+    const m = marks[brand] as AcpMark;
     const paths = m.paths.map((p) => (
       <path
         key={p.d.slice(0, 24)}

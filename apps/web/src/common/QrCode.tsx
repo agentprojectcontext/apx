@@ -1,34 +1,15 @@
-import qrcode from "qrcode-generator";
-import { useMemo } from "react";
+// The QR library loads only when a code shows (pairing a phone, linking WhatsApp), never with the first screen.
+import { lazy, Suspense } from "react";
 
-/**
- * A QR code drawn as SVG squares (dark on light, with its quiet zone), from the text it carries. Every module gets the
- * same whole number of pixels: uneven modules are what a phone camera struggles with.
- */
-export function QrCode({ value, size = 260, label }: { value: string; size?: number; label: string }) {
-  const { n, path } = useMemo(() => {
-    const qr = qrcode(0, "M");
-    qr.addData(value);
-    qr.make();
-    const count = qr.getModuleCount();
-    let d = "";
-    for (let r = 0; r < count; r++)
-      for (let c = 0; c < count; c++) if (qr.isDark(r, c)) d += `M${c + 4} ${r + 4}h1v1h-1z`;
-    return { n: count + 8, path: d };
-  }, [value]);
-  const px = Math.max(3, Math.floor(size / n)) * n;
+const QrSvg = lazy(() => import("./QrSvg.tsx").then((m) => ({ default: m.QrSvg })));
+
+export type QrCodeProps = { value: string; size?: number; label: string };
+
+export function QrCode(props: QrCodeProps) {
+  const size = props.size ?? 260;
   return (
-    <svg
-      className="qrcode"
-      role="img"
-      aria-label={label}
-      width={px}
-      height={px}
-      viewBox={`0 0 ${n} ${n}`}
-      shapeRendering="crispEdges"
-    >
-      <rect width={n} height={n} fill="#fff" />
-      <path d={path} fill="#000" />
-    </svg>
+    <Suspense fallback={<span className="qrcode" style={{ display: "inline-block", width: size, height: size }} />}>
+      <QrSvg {...props} />
+    </Suspense>
   );
 }
