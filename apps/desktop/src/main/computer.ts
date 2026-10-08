@@ -241,6 +241,9 @@ async function picture(bounds: Bounds | undefined, max: number): Promise<NativeI
   return scale < 1 ? img.resize({ width: Math.round(s.width * scale), quality: "good" }) : img;
 }
 
+/** Browsers, by their process names: their pages are read from the picture. */
+const BROWSERS = /^(google chrome|chrome|safari|zen|firefox|arc|microsoft edge|brave browser|opera|vivaldi|chromium)$/i;
+
 /** What an action already on its way hears when the owner pulls the emergency stop. */
 const STOPPED = "the owner pulled the emergency stop: this action was dropped; end the turn";
 /** Long enough for an action already on its way to be dropped; the core ends the turns themselves. */
@@ -261,11 +264,15 @@ export function createComputer(o: {
 
   async function look(app?: string, note?: string) {
     if (app) await osa(ACTIVATE, [app]).catch(() => {});
-    // A busy window (a long list) can take longer to read than to see: then the picture goes alone.
-    const f = await front(true).catch(async () => ({
-      ...(await front(false)),
-      lines: ["(this window's elements took too long to read: look at the picture)"],
-    }));
+    // A browser's page is read from its picture: its elements take seconds and say less. Elsewhere a busy window
+    // (a long list) can also take longer to read than to see: then the picture goes alone.
+    const quick = await front(false);
+    const f = BROWSERS.test(quick.app)
+      ? { ...quick, lines: ["(a browser: read the page from the picture)"] }
+      : await front(true).catch(() => ({
+          ...quick,
+          lines: ["(this window's elements took too long to read: look at the picture)"],
+        }));
     target = { app: f.app, window: f.window, bounds: f.bounds };
     // What it is doing, by the window it looks at (the pointer never shows in the picture).
     const b0 = f.bounds;
@@ -286,7 +293,13 @@ export function createComputer(o: {
     const [overPid, overName] = over.split("\t");
     const covered =
       over && Number(overPid) !== f.pid ? `; covered by a window of ${overName}: the picture shows that one` : "";
-    const header = `${where}${covered}; positions are screen points, centers to click\nrole\tname\tdescription\tvalue\tx,y`;
+    // How a point in the picture maps to the screen, to click what only the picture shows.
+    const size = img.getSize();
+    const scale = b ? b.width / size.width : 1;
+    const map = b
+      ? `; the picture is ${size.width}x${size.height} px: its pixel (px,py) is the screen point (${b.x} + px*${scale.toFixed(3)}, ${b.y} + py*${scale.toFixed(3)})`
+      : "";
+    const header = `${where}${covered}${map}; positions are screen points, centers to click\nrole\tname\tdescription\tvalue\tx,y`;
     o.onActivity({ kind: "look", app: f.app, window: f.window });
     return {
       mime: "image/jpeg",
