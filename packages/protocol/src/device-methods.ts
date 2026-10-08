@@ -156,7 +156,11 @@ export const deviceMethods = {
         note: z.string().max(80).optional(),
       })
       .strict(),
-    result: z.object({ app: z.string() }),
+    result: z.object({
+      app: z.string(),
+      /** What it did there: pressed or focused which element, or a real click. */
+      how: z.string().optional(),
+    }),
     effect: true,
   },
   /** Types text into the focused field of `app`, never into a password field. */

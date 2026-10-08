@@ -19,30 +19,36 @@ function mark(): string {
 }
 
 /**
- * APX's own pointer: a rounded arrow in the brand's lime with a soft glow, a dark bubble with APX's mark for what the
- * agent is doing, and a lime ring when it clicks.
+ * APX's own pointer: a white arrow with a thick rounded edge in APX's lime (outlined dark, to read on light pages), a soft glow and three twinkling sparks, a dark
+ * bubble with APX's mark for what the agent is doing, and a green ring when it clicks.
  */
 const PAGE = () => `<!doctype html><html><head><meta charset="utf-8"><style>
 html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font:600 12px/1.25 -apple-system,system-ui}
 #c{position:absolute;left:0;top:0;transform:translate(-100px,-100px);transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .3s;opacity:0}
-#p{display:block;filter:drop-shadow(0 0 6px rgba(128,255,0,.55)) drop-shadow(0 3px 5px rgba(0,0,0,.5));animation:breathe 2.4s ease-in-out infinite}
-@keyframes breathe{0%,100%{filter:drop-shadow(0 0 4px rgba(128,255,0,.45)) drop-shadow(0 3px 5px rgba(0,0,0,.5))}50%{filter:drop-shadow(0 0 9px rgba(128,255,0,.75)) drop-shadow(0 3px 5px rgba(0,0,0,.5))}}
-#l{transition:opacity .4s;position:absolute;left:24px;top:24px;display:flex;align-items:center;gap:6px;max-width:280px;padding:5px 10px 5px 7px;border-radius:4px 12px 12px 12px;background:rgba(10,16,12,.92);border:1px solid rgba(128,255,0,.55);color:#eaffd6;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+#p{display:block;overflow:visible;filter:drop-shadow(0 0 5px rgba(128,255,0,.7)) drop-shadow(0 2px 4px rgba(0,0,0,.35))}
+.sp{transform-box:fill-box;transform-origin:center;animation:tw 1.8s ease-in-out infinite}
+.sp2{animation-delay:.6s}.sp3{animation-delay:1.2s}
+@keyframes tw{0%,100%{opacity:.55;transform:scale(.75)}50%{opacity:1;transform:scale(1.15)}}
+#l{transition:opacity .4s;position:absolute;left:36px;top:30px;display:flex;align-items:center;gap:6px;max-width:280px;padding:5px 10px 5px 7px;border-radius:4px 12px 12px 12px;background:rgba(10,16,12,.92);border:1px solid rgba(128,255,0,.55);color:#eaffd6;box-shadow:0 4px 14px rgba(0,0,0,.4)}
 #l svg{flex:none}
 #t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#r{position:absolute;left:-13px;top:-14px;width:32px;height:32px;border-radius:50%;border:2.5px solid #80ff00;box-shadow:0 0 10px rgba(128,255,0,.7);opacity:0}
+#r{position:absolute;left:-11px;top:-12px;width:32px;height:32px;border-radius:50%;border:2.5px solid #80ff00;box-shadow:0 0 10px rgba(128,255,0,.7);opacity:0}
 #r.on{animation:ring .6s ease-out}
 @keyframes ring{0%{opacity:1;transform:scale(.35)}100%{opacity:0;transform:scale(1.7)}}
 </style></head><body><div id="c"><div id="r"></div>
-<svg id="p" width="26" height="30" viewBox="0 0 26 30"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b6ff5c"/><stop offset=".55" stop-color="#80ff00"/><stop offset="1" stop-color="#3ec98b"/></linearGradient></defs>
-<path d="M3.2 2.6c0-.9 1-1.4 1.7-.8l17 14.2c.7.6.3 1.8-.7 1.8h-7.1c-.4 0-.8.2-1 .5l-5.6 7.7c-.6.8-1.8.4-1.8-.6z" fill="url(#g)" stroke="#0b130d" stroke-width="1.6" stroke-linejoin="round"/>
-<path d="M5.2 5.2v15.2" stroke="rgba(255,255,255,.55)" stroke-width="1.2" stroke-linecap="round"/></svg>
+<svg id="p" width="34" height="34" viewBox="0 0 34 34">
+<path d="M5 4.2 24.6 18.6c.8.6.5 1.8-.5 2l-8 1.6c-.4.1-.7.3-.9.6l-4.7 6.6c-.6.8-1.8.6-2-.4L4.1 5.3c-.2-.9.6-1.6.9-1.1z" fill="none" stroke="#0e1a10" stroke-width="5" stroke-linejoin="round"/>
+<path d="M5 4.2 24.6 18.6c.8.6.5 1.8-.5 2l-8 1.6c-.4.1-.7.3-.9.6l-4.7 6.6c-.6.8-1.8.6-2-.4L4.1 5.3c-.2-.9.6-1.6.9-1.1z" fill="#fff" stroke="#80ff00" stroke-width="3" stroke-linejoin="round"/>
+<path class="sp" d="M28 21.5l1 2.4 2.4 1-2.4 1-1 2.4-1-2.4-2.4-1 2.4-1z" fill="#80ff00" stroke="#0e1a10" stroke-width=".5" stroke-linejoin="round"/>
+<path class="sp sp2" d="M22.5 26.5l.7 1.7 1.7.7-1.7.7-.7 1.7-.7-1.7-1.7-.7 1.7-.7z" fill="#80ff00" stroke="#0e1a10" stroke-width=".5" stroke-linejoin="round"/>
+<path class="sp sp3" d="M27.3 30.2l.45 1.05 1.05.45-1.05.45-.45 1.05-.45-1.05-1.05-.45 1.05-.45z" fill="#80ff00" stroke="#0e1a10" stroke-width=".5" stroke-linejoin="round"/>
+</svg>
 <div id="l">${mark()}<span id="t"></span></div></div>
 <script>
 const c=document.getElementById("c"),l=document.getElementById("l"),t=document.getElementById("t"),r=document.getElementById("r");let tl,tc;
 const keep=()=>{c.style.opacity=1;clearTimeout(tc);tc=setTimeout(()=>c.style.opacity=0,60000)};
 const note=(s)=>{t.textContent=s||"";l.style.display=s?"flex":"none";l.style.opacity=1;clearTimeout(tl);tl=setTimeout(()=>l.style.opacity=0,3500)};
-window.moveTo=(x,y,label)=>{keep();c.style.transform="translate("+(x-3)+"px,"+(y-2)+"px)";note(label)};
+window.moveTo=(x,y,label)=>{keep();c.style.transform="translate("+(x-5)+"px,"+(y-4)+"px)";note(label)};
 window.pulse=()=>{keep();r.classList.remove("on");void r.offsetWidth;r.classList.add("on")};
 window.setLabel=(s)=>{keep();note(s)};
 </script></body></html>`;

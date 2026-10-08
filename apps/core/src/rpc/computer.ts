@@ -77,7 +77,7 @@ export function computerHandlers(
     },
     "computer.click": async (p, ctx) => {
       enter(ctx);
-      return (await broker.invoke(COMPUTER_CAP, "computer.click", p, ACT_MS)) as { app: string };
+      return (await broker.invoke(COMPUTER_CAP, "computer.click", p, ACT_MS)) as { app: string; how?: string };
     },
     "computer.type": async (p, ctx) => {
       enter(ctx);

@@ -138,9 +138,10 @@ function run(argv) {
 }`;
 
 /**
- * Presses the element at a screen point through accessibility (a button, a link, a checkbox), in front or not: no
- * pointer moves. Chromium and Electron apps build their page tree only when asked (AXManualAccessibility). argv = app,
- * x, y. Returns "pressed <role>", or "none" when nothing there can be pressed.
+ * Acts on the element at a screen point through accessibility, in front or not, with no pointer moving: presses a
+ * control (button, link, checkbox, tab, menu item…), or focuses a field. Chromium and Electron build their page tree
+ * only when asked (AXManualAccessibility), so a first look that finds only the page itself waits and asks again.
+ * argv = app, x, y. Returns "pressed <role> <name>", "focused <role> <name>", or "none".
  */
 const AX_PRESS = `
 function run(argv) {
@@ -149,20 +150,35 @@ function run(argv) {
   if (!procs.length) throw new Error(argv[0] + " is not open: open it with screen_open");
   const app = $.AXUIElementCreateApplication(procs[0].unixId());
   $.AXUIElementSetAttributeValue(app, $("AXManualAccessibility"), $.kCFBooleanTrue);
-  const ref = Ref();
-  if ($.AXUIElementCopyElementAtPosition(app, Number(argv[1]), Number(argv[2]), ref) !== 0) return "none";
-  let el = ref[0];
+  const str = (el, name) => {
+    const r = Ref();
+    if ($.AXUIElementCopyAttributeValue(el, $(name), r) !== 0 || !r[0]) return "";
+    try { return String(ObjC.unwrap(ObjC.castRefToObject(r[0])) || ""); } catch (e) { return ""; }
+  };
+  const PRESS = ["AXButton", "AXLink", "AXCheckBox", "AXRadioButton", "AXPopUpButton", "AXMenuButton", "AXMenuItem", "AXTab", "AXDisclosureTriangle", "AXCell", "AXRow", "AXImage", "AXStaticText"];
+  const FIELD = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"];
+  const at = () => {
+    const ref = Ref();
+    return $.AXUIElementCopyElementAtPosition(app, Number(argv[1]), Number(argv[2]), ref) === 0 ? ref[0] : null;
+  };
+  let el = at();
+  if (el && ["AXWebArea", "AXScrollArea", "AXWindow", "AXApplication", ""].indexOf(str(el, "AXRole")) >= 0) {
+    delay(0.4);
+    el = at();
+  }
   for (let i = 0; i < 6 && el; i++) {
+    const role = str(el, "AXRole");
+    const label = (str(el, "AXTitle") || str(el, "AXDescription") || str(el, "AXValue")).slice(0, 40);
+    if (FIELD.indexOf(role) >= 0) {
+      if ($.AXUIElementSetAttributeValue(el, $("AXFocused"), $.kCFBooleanTrue) === 0) return "focused " + role + " " + label;
+      return "none";
+    }
     const a = Ref();
     $.AXUIElementCopyActionNames(el, a);
     const actions = a[0] ? ObjC.deepUnwrap(ObjC.castRefToObject(a[0])) : [];
-    if (actions && actions.indexOf("AXPress") >= 0) {
-      const r = Ref();
-      $.AXUIElementCopyAttributeValue(el, $("AXRole"), r);
-      const role = r[0] ? ObjC.unwrap(ObjC.castRefToObject(r[0])) : "";
-      if ($.AXUIElementPerformAction(el, $("AXPress")) === 0) return "pressed " + role;
-      return "none";
-    }
+    if (PRESS.indexOf(role) >= 0 && actions && actions.indexOf("AXPress") >= 0)
+      return $.AXUIElementPerformAction(el, $("AXPress")) === 0 ? "pressed " + role + " " + label : "none";
+    if (["AXWebArea", "AXWindow", "AXApplication"].indexOf(role) >= 0) return "none";
     const up = Ref();
     $.AXUIElementCopyAttributeValue(el, $("AXParent"), up);
     el = up[0];
@@ -489,15 +505,17 @@ export function createComputer(o: {
         const at = [String(p.app ?? ""), String(x), String(y)];
         // Pressed through accessibility when it can (the owner's pointer stays where it is); else a real click that
         // puts their pointer straight back.
-        const pressed = await osa(AX_PRESS, at, "JavaScript").catch(() => "none");
-        if (!pressed.startsWith("pressed")) {
+        const done = await osa(AX_PRESS, at, "JavaScript").catch(() => "none");
+        let how = done;
+        if (done === "none") {
           await osa(ACTIVATE, [String(p.app ?? "")]).catch(() => {});
           await osa(CLICK, at, "JavaScript");
+          how = "a real click (nothing there takes a press)";
         }
         const app = String(p.app ?? "");
         o.cursor.pulse();
         o.onActivity({ kind: "click", app, window: target?.window ?? "", x, y });
-        return { app };
+        return { app, how };
       }
       if (method === "computer.type") {
         go();

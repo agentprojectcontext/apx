@@ -110,7 +110,7 @@ export function computerTools(store: Store): Tool[] {
         const why = await budget(ctx);
         if (why) return why;
         const r = await ctx.call("computer.click", a);
-        return `clicked in ${r.app}; take a new screen_snapshot to see what changed`;
+        return `clicked in ${r.app}${r.how ? `: ${r.how}` : ""}; take a new screen_snapshot to check it worked`;
       },
     }),
     defineTool({
