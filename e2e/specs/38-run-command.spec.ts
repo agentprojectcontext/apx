@@ -1,5 +1,6 @@
-// A shell block an agent wrote runs from any chat: its own terminal opens in the side panel (where a password could be
-// typed) and, when the command ends, the agent is told how it went and answers again.
+// A shell block an agent wrote runs from any chat: its output streams into a card under the block, its button brings
+// that terminal forward in the side panel (where a password could be typed) and, when the command ends, the agent is
+// told how it went and answers again.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -23,12 +24,18 @@ test("a suggested command runs in a terminal from the chat and its end wakes the
   await expect(page.getByText("echo e2e-suggested-$((6*7))")).toBeVisible();
 
   await page.getByRole("button", { name: "Ejecutar en una terminal" }).click();
-  const panel = page.getByRole("complementary", { name: "Panel lateral" });
-  await expect(panel.getByRole("tab", { name: /echo e2e-suggested/ })).toHaveAttribute("aria-selected", "true");
-  await expect(panel.locator(".term__xterm")).toContainText("e2e-suggested-42", { timeout: 15_000 });
+  const out = page.locator(".runcode__out");
+  await expect(out.locator(".runcode__screen")).toContainText("e2e-suggested-42", { timeout: 15_000 });
+  await expect(out.getByText("Salió con 0")).toBeVisible();
 
   // The command ended: the agent got its output in a new turn and answered.
   await expect(page.getByText(/Got it: The owner ran the command you suggested/)).toBeVisible({ timeout: 15_000 });
+
+  // Its terminal is one click away in the side panel, with what it printed.
+  await out.getByRole("button", { name: "Abrir en el panel lateral" }).click();
+  const panel = page.getByRole("complementary", { name: "Panel lateral" });
+  await expect(panel.getByRole("tab", { name: /echo e2e-suggested/ })).toHaveAttribute("aria-selected", "true");
+  await expect(panel.locator(".term__xterm")).toContainText("e2e-suggested-42");
   fs.rmSync(repo, { recursive: true, force: true });
 });
 
@@ -37,8 +44,9 @@ test("in a chat with no project the block runs too, in APX's work folder", async
   await page.getByRole("textbox", { name: /^Escribile a/ }).fill("suggest a command");
   await page.getByRole("button", { name: "Enviar" }).click();
   await page.getByRole("button", { name: "Ejecutar en una terminal" }).last().click();
-  const panel = page.getByRole("complementary", { name: "Panel lateral" });
-  await expect(panel.locator(".term__xterm")).toContainText("e2e-suggested-42", { timeout: 15_000 });
+  await expect(page.locator(".runcode__out .runcode__screen").last()).toContainText("e2e-suggested-42", {
+    timeout: 15_000,
+  });
   await expect(page.getByText(/Got it: The owner ran the command you suggested/).last()).toBeVisible({
     timeout: 15_000,
   });
