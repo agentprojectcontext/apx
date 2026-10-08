@@ -95,9 +95,17 @@ end run`;
 const CLICK = `
 function run(argv) {
   ObjC.import("CoreGraphics");
+  ObjC.import("Foundation");
+  const app = argv[0];
+  const x = Number(argv[1]);
+  const y = Number(argv[2]);
   const front = Application("System Events").processes.whose({ frontmost: true })[0].name();
-  if (front !== argv[0]) throw new Error("the app in front is " + front + ", not " + argv[0]);
-  const p = $.CGPointMake(Number(argv[1]), Number(argv[2]));
+  if (front !== app) throw new Error("the app in front is " + front + ", not " + app);
+  // The window really on top at that point, front to back, among normal windows: it must be the approved app's.
+  const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements, 0)));
+  const top = list.find((w) => w.kCGWindowLayer === 0 && w.kCGWindowBounds && x >= w.kCGWindowBounds.X && x < w.kCGWindowBounds.X + w.kCGWindowBounds.Width && y >= w.kCGWindowBounds.Y && y < w.kCGWindowBounds.Y + w.kCGWindowBounds.Height);
+  if (!top || String(top.kCGWindowOwnerName).toLowerCase() !== app.toLowerCase()) throw new Error("another window covers that point (" + (top ? top.kCGWindowOwnerName : "none") + "): take a new screen_snapshot");
+  const p = $.CGPointMake(x, y);
   for (const type of [$.kCGEventMouseMoved, $.kCGEventLeftMouseDown, $.kCGEventLeftMouseUp]) {
     $.CGEventPost($.kCGHIDEventTap, $.CGEventCreateMouseEvent(null, type, p, $.kCGMouseButtonLeft));
     delay(0.05);
@@ -122,6 +130,18 @@ on run argv
     return frontName
   end tell
 end run`;
+
+/** Whose window is really on top at a screen point (normal windows only), or "" for none. */
+const TOP_AT = `
+function run(argv) {
+  ObjC.import("CoreGraphics");
+  ObjC.import("Foundation");
+  const x = Number(argv[0]);
+  const y = Number(argv[1]);
+  const list = ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly | $.kCGWindowListExcludeDesktopElements, 0)));
+  const top = list.find((w) => w.kCGWindowLayer === 0 && w.kCGWindowBounds && x >= w.kCGWindowBounds.X && x < w.kCGWindowBounds.X + w.kCGWindowBounds.Width && y >= w.kCGWindowBounds.Y && y < w.kCGWindowBounds.Y + w.kCGWindowBounds.Height);
+  return top ? top.kCGWindowOwnerName : "";
+}`;
 
 const parseBounds = (line: string | undefined): Bounds | undefined => {
   const [x, y, width, height] = (line ?? "").split(",").map(Number);
@@ -180,7 +200,20 @@ export function createComputer(o: { cursor: AgentCursor; onActivity(a: ComputerA
     const where = f.bounds
       ? `window at ${f.bounds.x},${f.bounds.y}, ${f.bounds.width}x${f.bounds.height} points`
       : "the main screen";
-    const header = `${where}; positions are screen points, centers to click\nrole\tname\tdescription\tvalue\tx,y`;
+    // The picture shows what is on screen: say so when another window covers this one.
+    const b = f.bounds;
+    const over = b
+      ? await osa(
+          TOP_AT,
+          [String(Math.round(b.x + b.width / 2)), String(Math.round(b.y + b.height / 2))],
+          "JavaScript",
+        ).catch(() => "")
+      : "";
+    const covered =
+      over && over.toLowerCase() !== f.app.toLowerCase()
+        ? `; covered by a window of ${over}: the picture shows that one`
+        : "";
+    const header = `${where}${covered}; positions are screen points, centers to click\nrole\tname\tdescription\tvalue\tx,y`;
     o.onActivity({ kind: "look", app: f.app, window: f.window });
     return {
       mime: "image/jpeg",
