@@ -1163,6 +1163,7 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /** Every widget, or with `project_id` only that project's (the global ones are listed without it). */
   "surfaces.list": {
     params: z.object({ project_id: Id.optional() }).strict(),
     result: z.object({ surfaces: z.array(SurfaceSummary) }),

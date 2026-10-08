@@ -20,6 +20,8 @@ const calls: Record<string, object | [string, object]> = {
   "edit it": ["edit_widget", { name: "btc-live", edits: [{ old: "<div id=p></div>", new: "<div id=price>$&</div>" }] }],
   "edit missing": ["edit_widget", { name: "btc-live", edits: [{ old: "<span>", new: "x" }] }],
   "edit nothing": ["edit_widget", { name: "no-such", edits: [{ old: "a", new: "b" }] }],
+  "project widget": { name: "acme-sales", title: "Acme sales", html: "<p>sales</p>" },
+  "read the global one": ["read_widget", { name: "btc-live" }],
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content)}`);
@@ -94,4 +96,30 @@ test("an agent reads a widget and changes a piece of it; where the owner put it 
   assert.match(await said(t.id, "edit missing"), /edit 1: old was not found; nothing changed/);
   assert.equal((await env.client.call("surfaces.get", { surface: id })).version, before + 1);
   assert.match(await said(t.id, "edit nothing"), /no widget named no-such/);
+});
+
+test("a project's chat lists and reads only that project's widgets, and a chat outside one only the global ones", async () => {
+  const loose = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "global" });
+  assert.match(await said(loose.id, "live widget"), /shown, in no project/);
+  const { project } = await env.client.call("projects.create", { name: "Acme" });
+  const t = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "roby",
+    title: "acme",
+    project_id: project.id,
+  });
+  assert.doesNotMatch(await said(t.id, "project widget"), /in no project/);
+
+  const inProject = await said(t.id, "list widgets");
+  assert.match(inProject, /- acme-sales: Acme sales/);
+  assert.doesNotMatch(inProject, /btc-live/);
+  assert.match(await said(t.id, "read the global one"), /no widget named btc-live/);
+  const outside = await said(loose.id, "list widgets");
+  assert.match(outside, /- btc-live: BTC live/);
+  assert.doesNotMatch(outside, /acme-sales/);
+
+  const names = async (project_id?: string) =>
+    (await env.client.call("surfaces.list", project_id ? { project_id } : {})).surfaces.map((s) => s.name).sort();
+  assert.deepEqual(await names(project.id), ["acme-sales"]);
+  assert.deepEqual(await names(), ["acme-sales", "btc-live"]);
 });

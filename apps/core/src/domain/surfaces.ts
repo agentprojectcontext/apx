@@ -30,21 +30,23 @@ function connectOf(raw: string | null): { connect?: string[] } {
   return parsed.success && parsed.data.length ? { connect: parsed.data } : {};
 }
 
+/** The surfaces of a project, or the global ones when there is no project. */
+const inScope = (projectId: string | undefined) => (eb: ExpressionBuilder<Database, "surfaces">) =>
+  eb(eb.fn.coalesce("project_id", eb.val("")), "=", projectId ?? "");
+
 /** The surface named `name` in a project, or among global ones when there is no project. */
 const named = (projectId: string | undefined, name: string) => (eb: ExpressionBuilder<Database, "surfaces">) =>
-  eb.and([eb(eb.fn.coalesce("project_id", eb.val("")), "=", projectId ?? ""), eb("name", "=", name)]);
+  eb.and([inScope(projectId)(eb), eb("name", "=", name)]);
 
 export const summary = ({ html: _html, ...rest }: Surface): SurfaceSummary => rest;
 
 export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
   const emit = (s: Surface) => bus.emit({ type: "surface.updated", surface: summary(s) });
   const repo = {
-    list(projectId?: string): SurfaceSummary[] {
+    /** Every surface, or only one project's (`project: undefined` is the global ones), never mixing the two. */
+    list(only?: { project: string | undefined }): SurfaceSummary[] {
       const q = qb.selectFrom("surfaces").selectAll().orderBy("updated_at", "desc");
-      const rows = all(
-        projectId ? q.where((eb) => eb.or([eb("project_id", "=", projectId), eb("project_id", "is", null)])) : q,
-      );
-      return rows.map((r) => summary(toSurface(r)));
+      return all(only ? q.where(inScope(only.project)) : q).map((r) => summary(toSurface(r)));
     },
     get(id: string): Surface | undefined {
       const r = one(qb.selectFrom("surfaces").selectAll().where("id", "=", id));

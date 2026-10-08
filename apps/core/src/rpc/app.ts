@@ -173,7 +173,9 @@ export function appHandlers(deps: {
       deps.apc.unregister(id);
       return { ok: true as const };
     },
-    "surfaces.list": ({ project_id }) => ({ surfaces: store.surfaces.list(project_id) }),
+    "surfaces.list": ({ project_id }) => ({
+      surfaces: store.surfaces.list(project_id ? { project: project_id } : undefined),
+    }),
     "surfaces.get": ({ surface }) => {
       const s = store.surfaces.get(surface);
       if (!s) throw notFound(`surface ${surface}`);

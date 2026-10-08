@@ -61,6 +61,7 @@ export function surfaceTools(store: Store): Tool[] {
         });
         card(ctx, surface);
         const where = [
+          surface.project_id ? "" : "in no project (a chat outside a project makes a global widget)",
           surface.pinned ? "pinned to the project's board" : "",
           surface.app ? "listed as an app" : "",
           surface.connect ? `connecting to ${surface.connect.join(", ")}` : "",
@@ -71,15 +72,16 @@ export function surfaceTools(store: Store): Tool[] {
     defineTool({
       name: "read_widget",
       description:
-        "Read a widget of this project by its name: its title, version, the origins it connects to and its full HTML, to change it with edit_widget. Without a name it lists the widgets there are.",
+        "Read a widget of this project by its name: its title, version, the origins it connects to and its full HTML, to change it with edit_widget. Without a name it lists this project's widgets (outside a project, the global ones).",
       args: z.object({ name: z.string().optional() }),
       effect: "none",
       deadlineMs: 10_000,
       title: (a) => (a.name ? `Read the widget ${String(a.name)}` : "Listed the widgets"),
       async run(a, ctx) {
         if (!a.name) {
-          const list = store.surfaces.list(ctx.thread.project_id);
-          if (!list.length) return "no widgets yet: make one with show_widget.";
+          const list = store.surfaces.list({ project: ctx.thread.project_id });
+          if (!list.length)
+            return `no widgets ${ctx.thread.project_id ? "in this project" : "outside a project"} yet: make one with show_widget.`;
           return list
             .slice(0, 40)
             .map((s) => `- ${s.name}: ${s.title} (v${s.version}${s.pinned ? ", pinned" : ""}${s.app ? ", app" : ""})`)
