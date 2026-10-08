@@ -162,6 +162,11 @@ export function themedCard(title: string, lines: string[], columns?: number, acc
   return card(title, lines, columns, accent, readTheme(apxHome()));
 }
 
+/** An error for stderr: the card, or one plain line when the caller asked for machine output (--plain, --json). */
+export function failure(title: string, lines: string[], plain = false): string {
+  return !plain ? themedCard(title, lines) : `apx: ${clean(title)}: ${lines.map(clean).join(" · ")}`;
+}
+
 export const duration = (seconds: number) => {
   const n = Math.floor(seconds);
   return n < 60

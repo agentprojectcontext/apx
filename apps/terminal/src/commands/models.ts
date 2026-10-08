@@ -58,7 +58,8 @@ export async function models(client: ApxClient, [sub, ...args]: string[], o: { r
 }
 
 export async function agentModel(client: ApxClient, [agent, ref]: string[], o: { router?: boolean }) {
-  if (!agent) throw new Error("usage: apx agents model <agent> <ref|router|default> [--router]");
+  if (!agent || !ref)
+    throw new Error("usage: apx agents model <agent> <engine/model|engine|router|default> [--router]");
   const a = await client.call("agents.update", { agent, model_choice: parseChoice(ref, o.router ?? false) });
   console.log(`${a.name}: ${a.model_choice ? show(a.model_choice) : "install default"}`);
 }

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
 import { stripVTControlCharacters } from "node:util";
-import { card, cells, portrait, readTheme, rememberTheme } from "./presentation.ts";
+import { card, cells, failure, portrait, readTheme, rememberTheme } from "./presentation.ts";
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-cli-brand-"));
 after(() => fs.rmSync(home, { recursive: true, force: true }));
@@ -37,6 +37,19 @@ test("unknown options and commands fail with useful errors and no stack trace", 
   const command = cli("unknown-command");
   assert.equal(command.status, 1);
   assert.match(command.stderr, /404/);
+});
+
+test("with --plain an error is one line with the message, for scripts and agents", () => {
+  const r = cli("agents", "model", "roby", "--plain");
+  assert.equal(r.status, 1);
+  assert.equal(
+    r.stderr.trim(),
+    "apx: APX · Error: usage: apx agents model <agent> <engine/model|engine|router|default> [--router]",
+  );
+  assert.equal(
+    failure("APX · not_found", ["agent \u001b[2Jx not found"], true),
+    "apx: APX · not_found: agent  [2Jx not found",
+  );
 });
 
 test("cards remove untrusted terminal control characters and fit narrow output", () => {

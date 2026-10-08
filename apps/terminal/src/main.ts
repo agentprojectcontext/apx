@@ -22,7 +22,7 @@ import { bundleAppOf } from "./commands/service-files.ts";
 import { importV1, setupHeadless } from "./commands/setup.ts";
 import { tasks } from "./commands/tasks.ts";
 import { agents, jobs, projects, runs, secrets, skills, threads, usage } from "./commands/threads.ts";
-import { themedCard as card } from "./presentation.ts";
+import { themedCard as card, failure } from "./presentation.ts";
 
 const HELP = `apx — the APX terminal
 
@@ -174,10 +174,11 @@ let parsed: ReturnType<typeof argumentsOf>;
 try {
   parsed = argumentsOf();
 } catch (err) {
-  console.error(card("Invalid arguments", [err instanceof Error ? err.message : String(err), "Try: apx --help"]));
+  console.error(failure("Invalid arguments", [err instanceof Error ? err.message : String(err), "Try: apx --help"]));
   process.exit(2);
 }
 const { values, positionals } = parsed;
+const fail = (title: string, lines: string[]) => failure(title, lines, Boolean(values.plain || values.json));
 const [command, ...rest] = positionals;
 const connection = localConnection();
 const terminalClient = () =>
@@ -385,13 +386,13 @@ try {
       process.exitCode = 1;
       break;
     default:
-      console.error(card("404 · Command not found", [`Unknown command: ${command}`, "Try: apx --help"]));
+      console.error(fail("404 · Command not found", [`Unknown command: ${command}`, "Try: apx --help"]));
       process.exitCode = 1;
   }
 } catch (err) {
-  if (err instanceof ApxError) console.error(card(`APX · ${err.code}`, [err.message]));
+  if (err instanceof ApxError) console.error(fail(`APX · ${err.code}`, [err.message]));
   else if (err instanceof TypeError && String(err.cause ?? "").includes("ECONNREFUSED"))
     console.error("apx: the core is not running (try: apx service install, or pnpm dev)");
-  else console.error(card("APX · Error", [err instanceof Error ? err.message : String(err)]));
+  else console.error(fail("APX · Error", [err instanceof Error ? err.message : String(err)]));
   process.exitCode = 1;
 }
