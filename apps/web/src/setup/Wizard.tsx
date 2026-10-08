@@ -14,6 +14,7 @@ import { addProject, closeSetup, finishSetup, importV1, scanV1, useSetup, type V
 import { useData } from "../data/state.ts";
 import { updateAgent } from "../data/team.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { useDesktopClass } from "../shell/desktop.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { type Draft, defaultDraft } from "./draft.ts";
 import { ChannelsStep, DoneStep, EnginesStep, MemoryStep, ProjectStep } from "./StepsConfig.tsx";
@@ -38,6 +39,7 @@ type Step = "welcome" | "import" | "agent" | "engines" | "memory" | "channels" |
 export function Wizard() {
   const t = useT();
   const mode = useNav((s) => s.mode);
+  const desktop = useDesktopClass();
   const status = useSetup((s) => s.status);
   const agents = useData((s) => s.agents);
   const config = useModels((s) => s.config);
@@ -187,7 +189,7 @@ export function Wizard() {
 
   return (
     <div className="wiz">
-      <header className="wiz__head">
+      <header className={`wiz__head${desktop}`}>
         <div className="wiz__brand">
           <img src={logo} alt="" width={24} height={24} />
           <span>APX</span>
@@ -244,6 +246,9 @@ export function Wizard() {
           {step !== "welcome" && <Preview draft={d} imports={scan} />}
         </div>
       </div>
+      <footer className={`wiz__version${step === "welcome" ? "" : " is-side"}`}>
+        APX v{import.meta.env.VITE_APX_VERSION}
+      </footer>
     </div>
   );
 }

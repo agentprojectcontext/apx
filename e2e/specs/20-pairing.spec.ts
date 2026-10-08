@@ -89,7 +89,7 @@ test("panel pairs with a code when the core asks for a token", async ({ page }) 
   await expect(page.getByText(/^APX v\d+\.\d+\.\d+/)).toBeVisible();
   await expect(page.getByText(/apx pair en un servidor/)).toBeVisible();
   const logo = await page.locator(".pair__head img").boundingBox();
-  const footer = await page.locator(".pair__version").boundingBox();
+  const footer = await page.locator(".wiz__version").boundingBox();
   const viewport = page.viewportSize();
   expect(logo && viewport && Math.abs(logo.x + logo.width / 2 - viewport.width / 2) < 2).toBeTruthy();
   expect(footer && viewport && Math.abs(footer.y + footer.height - viewport.height) < 2).toBeTruthy();

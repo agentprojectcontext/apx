@@ -70,7 +70,7 @@ export function PairScreen() {
           </form>
         </div>
       </div>
-      <footer className="pair__version">APX v{import.meta.env.VITE_APX_VERSION}</footer>
+      <footer className="wiz__version">APX v{import.meta.env.VITE_APX_VERSION}</footer>
     </div>
   );
 }

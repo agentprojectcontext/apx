@@ -3,6 +3,7 @@ import { Button, Icons, Input, SegmentedControl } from "@apx/ui";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import logo from "../assets/logo.png";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { useDesktopClass } from "../shell/desktop.ts";
 import { CrewHero } from "./CrewHero.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
@@ -37,6 +38,7 @@ const REASONS: Record<string, MessageKey> = {
  */
 export function ConnectScreen() {
   const t = useT();
+  const desktop = useDesktopClass();
   const [step, setStep] = useState<"start" | "server" | "client">("start");
   const [access, setAccess] = useState<Access>("none");
   const [via, setVia] = useState<Via>("url");
@@ -86,7 +88,7 @@ export function ConnectScreen() {
 
   return (
     <div className="wiz is-connect" data-apx-look="minimal" data-apx-mode="dark">
-      <header className="wiz__head">
+      <header className={`wiz__head${desktop}`}>
         <div className="wiz__brand">
           <img src={logo} alt="" width={24} height={24} />
           <span>APX</span>
@@ -223,6 +225,7 @@ export function ConnectScreen() {
           )}
         </div>
       </div>
+      <footer className="wiz__version">APX v{import.meta.env.VITE_APX_VERSION}</footer>
     </div>
   );
 }

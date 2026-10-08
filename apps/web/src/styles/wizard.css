@@ -30,6 +30,14 @@
 .wiz__head button {
   -webkit-app-region: no-drag;
 }
+/* Desktop app: the brand clears the traffic lights (macOS), the exit button clears the overlay (Windows, Linux). */
+.wiz__head.is-mac:not(.is-fullscreen) {
+  padding-left: 84px;
+}
+.wiz__head.is-win,
+.wiz__head.is-linux {
+  padding-right: 148px;
+}
 .wiz__brand {
   display: flex;
   gap: 10px;
@@ -1053,13 +1061,23 @@ input.wiz__name {
 .pair__head {
   justify-content: center;
 }
-.pair__version {
+/* This build's version, at the foot: centred on single-column screens, under the crew card on the steps. */
+.wiz__version {
   flex: none;
-  padding: 16px 24px;
+  padding: 12px 24px 16px;
   color: var(--apx-fg-subtle);
   font-family: var(--apx-font-mono);
   font-size: 12px;
   text-align: center;
+  user-select: text;
+}
+.wiz__version.is-side {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 32px 14px;
+  box-sizing: border-box;
+  text-align: right;
 }
 .wiz__chain .chain__item {
   flex-wrap: wrap;

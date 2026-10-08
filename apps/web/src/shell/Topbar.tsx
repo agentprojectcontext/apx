@@ -7,6 +7,7 @@ import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
 import { AttentionTray } from "./AttentionTray.tsx";
+import { useDesktopClass } from "./desktop.ts";
 import { go, PROJECT_TABS, useNav, useNavHistory } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
 import { UpdatePill } from "./UpdatePill.tsx";
@@ -42,16 +43,9 @@ function useCrumbs(): string[] {
   return thread ? [inbox, projectName(projects, thread.project_id), thread.title] : [inbox];
 }
 
-function desktopClass(): string {
-  if (typeof window === "undefined" || !window.apxDesktop) return "";
-  const platform = window.apxDesktop.platform;
-  const os =
-    platform === "darwin" ? " is-mac" : platform === "win32" ? " is-win" : platform === "linux" ? " is-linux" : "";
-  return ` is-desktop${os}`;
-}
-
 export function Topbar() {
   const t = useT();
+  const desktop = useDesktopClass();
   const crumbs = useCrumbs();
   const mode = useNav((s) => s.mode);
   const canBack = useNavHistory((s) => s.canBack);
@@ -70,7 +64,7 @@ export function Topbar() {
     })),
   ];
   return (
-    <header className={`topbar${desktopClass()}`}>
+    <header className={`topbar${desktop}`}>
       <div className="topbar__left">
         <IconButton
           size="sm"
