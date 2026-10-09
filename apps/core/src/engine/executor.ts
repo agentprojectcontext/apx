@@ -120,7 +120,10 @@ export function createExecutor(o: {
   let untrusted = o.untrusted;
   let toolsRan = 0;
 
-  /** A command as a terminal job of this run. Foreground: waits, stops it at the timeout or when the turn stops. */
+  /**
+   * A command as a terminal job of this run, stopped at its timeout. Foreground: waits, and also stops when the turn
+   * stops; background: returns at once.
+   */
   const runCommand = async (
     c: { command: string; cwd: string; background: boolean; timeoutMs: number },
     run: RunRecord,
@@ -133,7 +136,14 @@ export function createExecutor(o: {
       agent_id: agent.id,
       background: c.background,
     });
-    if (c.background) return { job, output: "" };
+    if (c.background) {
+      // A background job outlives the turn, not its deadline (rule 9).
+      const timer = setTimeout(() => o.jobs.cancel(job.id), c.timeoutMs);
+      timer.unref();
+      const clear = () => clearTimeout(timer);
+      done.then(clear, clear);
+      return { job, output: "" };
+    }
     const stop = () => o.jobs.cancel(job.id);
     const timer = setTimeout(stop, c.timeoutMs);
     signal.addEventListener("abort", stop, { once: true });

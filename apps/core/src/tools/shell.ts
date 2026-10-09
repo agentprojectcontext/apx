@@ -51,6 +51,34 @@ const normalize = (c: string) =>
 /** A plain, project-local argument: not a path that leaves the folder, not the home, no `..`. */
 const localArg = (a: string) => !a.startsWith("/") && !a.includes("..") && !/^(~|\.apx)/.test(a);
 
+/** Programs that walk a whole folder tree; grep and ls only with a recursive flag. */
+const WALKERS = new Set(["find", "fd", "rg", "du", "tree"]);
+const RECURSIVE = { grep: /^-(\w*[rR]\w*|-recursive)$/, ls: /^-\w*R\w*$/ } as const;
+/** Folders whose children are whole disks, home folders or top-level system folders (/usr, /Library). */
+const MOUNTS = new Set(["/", "/Volumes", "/Users", "/home", "/mnt", "/media", "/run/media"]);
+
+/**
+ * The folder a command would walk when it is a whole disk, a top-level folder or a home folder, else undefined. Such a walk takes minutes
+ * and reads everything the owner keeps, whatever the agent was looking for.
+ */
+export function broadScan(command: string, home = os.homedir()): string | undefined {
+  for (const segment of command.split(/[;&|\n]|\$\(/)) {
+    const [word = "", ...args] = segment.replace(/["']/g, "").trim().split(/\s+/);
+    const program = path.basename(word);
+    const walks =
+      WALKERS.has(program) ||
+      ((program === "grep" || program === "ls") && args.some((a) => RECURSIVE[program].test(a)));
+    if (!walks) continue;
+    for (const arg of args) {
+      const expanded = arg.replace(/^(~|\$HOME|\$\{HOME\})(?=\/|$)/, home);
+      if (!path.isAbsolute(expanded)) continue;
+      const at = path.resolve(expanded);
+      if (at === home || at === path.dirname(home) || MOUNTS.has(at) || MOUNTS.has(path.dirname(at))) return at;
+    }
+  }
+  return undefined;
+}
+
 /**
  * How much the owner must be asked for this command. Only simple commands of known reading programs, with plain
  * arguments inside the project, run without asking; anything the classifier cannot be sure of asks.
@@ -154,6 +182,9 @@ export function locateFile(
   return insideReal(scratch, file) ? { base: scratch, at: path.resolve(file), scratch: true } : undefined;
 }
 
+/** How long a background job may run when the agent does not say: servers and watchers pass a longer timeout_s. */
+const BACKGROUND_S = 3600;
+
 export function shellTools(store: Store, home: string, apxPort: () => number): Tool[] {
   return [
     defineTool({
@@ -161,9 +192,26 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
       description:
         "Run a sh command in the project's folder. In the foreground it waits up to timeout_s and returns the output; background=true returns a job id at once, and the end of its output reaches you in a new turn when it ends (servers, long builds, watchers). Commands that change things may wait for the owner's OK.",
       args: z.object({
-        command: z.string().min(1).max(4000),
+        command: z
+          .string()
+          .min(1)
+          .max(4000)
+          .superRefine((c, ctx) => {
+            const at = broadScan(c);
+            if (at)
+              ctx.addIssue({
+                code: "custom",
+                message: `refused: this walks all of ${at}. Search a specific folder; to find what you or another agent did, use search_chats`,
+              });
+          }),
         background: z.boolean().optional(),
-        timeout_s: z.number().int().min(1).max(600).optional().describe("foreground only; default 120"),
+        timeout_s: z
+          .number()
+          .int()
+          .min(1)
+          .max(86_400)
+          .optional()
+          .describe("default 120 in the foreground (at most 600); a background job stops after it, default 3600"),
         cwd: z
           .string()
           .max(500)
@@ -181,6 +229,7 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
         const where = locateFile(store, home, ctx.thread, a.cwd ?? ".");
         if (!where) return `refused: ${a.cwd} is outside the project folder and your temp folder`;
         const { base, at: cwd } = where;
+        const limit = a.background ? (a.timeout_s ?? BACKGROUND_S) : Math.min(a.timeout_s ?? 120, 600);
         // APX's own home (database, secrets index, job logs) is never an agent's to read or change.
         if (a.command.includes(home) || /\.apx(2\b|\/v2\b)/.test(a.command))
           return "refused: APX's own folder is off limits";
@@ -190,12 +239,11 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
           command: a.command,
           cwd,
           background: a.background ?? false,
-          timeoutMs: (a.timeout_s ?? 120) * 1000,
+          timeoutMs: limit * 1000,
         });
         if (a.background)
-          return `started job ${r.job.id} in the background (${cwd}). You will get the end of its output when it ends; shell_output reads it now.`;
-        const exit =
-          r.job.state === "canceled" ? `stopped after ${a.timeout_s ?? 120}s` : `exit ${r.job.exit_code ?? "?"}`;
+          return `started job ${r.job.id} in the background (${cwd}); it stops after ${limit}s. You will get the end of its output when it ends; shell_output reads it now.`;
+        const exit = r.job.state === "canceled" ? `stopped after ${limit}s` : `exit ${r.job.exit_code ?? "?"}`;
         return `${exit} · ${cwd}\n${untrusted("command_output", { job: r.job.id }, r.output || "(no output)")}`;
       },
     }),

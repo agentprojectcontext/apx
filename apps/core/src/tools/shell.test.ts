@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { commandRisk } from "./shell.ts";
+import { broadScan, commandRisk } from "./shell.ts";
 
 test("command risk: reading runs, changing asks, destroying always asks", () => {
   for (const c of ["ls -la", "git status", "cat a.txt | grep x | wc -l", "find . -name x.ts -type f", "pwd && date"])
@@ -78,9 +78,38 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("background please"))
     return callTool("s2", "shell", { command: "sleep 0.2 && echo bg-done", background: true });
   if (said.includes("long please")) return callTool("s3", "shell", { command: "sleep 30", background: true });
+  if (said.includes("brief job please"))
+    return callTool("s6", "shell", { command: "sleep 30", background: true, timeout_s: 1 });
+  if (said.includes("scan please"))
+    return callTool("s7", "shell", { command: "find /Volumes/disk -type d -name audit -print" });
   if (said.includes("touch please")) return callTool("s4", "shell", { command: "touch made-by-agent" });
   if (said.includes("escape please")) return callTool("s5", "shell", { command: "ls", cwd: "../.." });
   return say("ok");
+});
+
+test("a walk over a whole disk or home folder is found; a specific folder is not", () => {
+  const home = "/Users/acme";
+  for (const c of [
+    "find / -name x",
+    "find /Volumes/disk -type d -name audit -print 2>/dev/null",
+    "pwd; ls -la; find '/Volumes/disk' -path '*x*'",
+    "find ~ -name notes.md",
+    "find $HOME -name notes.md",
+    "grep -rn token /Users/acme",
+    "rg needle /Users",
+    "du -sh /home/acme",
+    "ls -lR /",
+  ])
+    assert.ok(broadScan(c, home), c);
+  for (const c of [
+    "find . -name x",
+    "find /Volumes/disk/work/acme -name x",
+    "find ~/work/acme -name x",
+    "grep -n token /Users/acme/notes.md",
+    "ls -lrt /",
+    "cat /Users/acme",
+  ])
+    assert.equal(broadScan(c, home), undefined, c);
 });
 
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -134,6 +163,26 @@ test("stopping a background job cancels it and wakes nobody", async () => {
   assert.equal((await env.client.call("jobs.get", { job: job.id })).job.state, "canceled");
   await new Promise((r) => setTimeout(r, 100));
   assert.equal((await env.client.call("threads.get", { thread: t })).runs.length, 1);
+});
+
+test("a background job stops at its timeout", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "brief job please" });
+  await env.settle(t);
+  const { running } = await env.client.call("jobs.list", { finished: 5 });
+  const job = running.find((j) => j.title === "sleep 30" && j.thread_id === t);
+  assert.ok(job);
+  for (let i = 0; i < 100 && (await env.client.call("jobs.get", { job: job.id })).job.state === "working"; i++)
+    await new Promise((r) => setTimeout(r, 50));
+  assert.equal((await env.client.call("jobs.get", { job: job.id })).job.state, "canceled");
+});
+
+test("a walk over a whole disk is refused before the owner is asked", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "scan please" });
+  await env.settle(t);
+  assert.match(lastSeen(), /refused: this walks all of \/Volumes\/disk/);
+  assert.equal((await env.client.call("runs.pending", { thread: t })).inputs.length, 0);
 });
 
 test("a command that changes something waits for the owner", async () => {
