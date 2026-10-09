@@ -1,4 +1,5 @@
 // apx routines: an agent's scheduled work from the terminal.
+import fs from "node:fs";
 import { CallModel, type Routine, type Schedule } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
@@ -6,6 +7,9 @@ const USAGE = `apx routines                                   Routines and when 
 apx routines add <name> <prompt…> --agent a [--project p] (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
                  [--pre "<command>"] [--call always|output|fails|never] [--post "<command>"]
                                                 The pre-command's output reaches the prompt at {{pre_output}}
+apx routines show <id>                         Its schedule, commands and full prompt
+apx routines edit <id> [<prompt…> | --prompt-file f] [--name n] [--cron …|--every …|--at …]
+                 [--pre "<command>"] [--call …] [--post "<command>"]   Change only what is given
 apx routines run <id>                          Run now
 apx routines on|off <id>
 apx routines rm <id>
@@ -20,6 +24,8 @@ type Opts = {
   pre?: string | undefined;
   post?: string | undefined;
   call?: string | undefined;
+  name?: string | undefined;
+  promptFile?: string | undefined;
 };
 
 const scheduleOf = (o: Opts): Schedule =>
@@ -46,6 +52,24 @@ const callModel = (v: string): CallModel => {
   return r.data;
 };
 
+/** routines.set for an existing routine: what the options give replaces it, the rest stays as it was. */
+export function editOf(r: Routine, o: Opts, prompt: string | undefined) {
+  const changed = o.cron ?? o.every ?? o.at;
+  return {
+    id: r.id,
+    name: o.name ?? r.name,
+    agent: o.agent ?? r.agent_id,
+    ...(r.project_id ? { project: r.project_id } : {}),
+    schedule: changed ? scheduleOf(o) : r.schedule,
+    prompt: prompt ?? r.prompt,
+    // Absent, the core keeps a routine's commands; "" removes one.
+    ...(o.pre === undefined ? {} : { pre_command: o.pre }),
+    ...(o.post === undefined ? {} : { post_command: o.post }),
+    ...(o.call ? { call_model: callModel(o.call) } : {}),
+    enabled: r.enabled,
+  };
+}
+
 const when = (iso: string | undefined) => (iso ? new Date(iso).toLocaleString() : "—");
 
 export async function routines(client: ApxClient, [sub, id, ...rest]: string[], opts: Opts): Promise<void> {
@@ -68,6 +92,27 @@ export async function routines(client: ApxClient, [sub, id, ...rest]: string[], 
       ...(opts.call ? { call_model: callModel(opts.call) } : {}),
     });
     console.log(`${r.id}  next: ${when(r.next_run_at)}`);
+    return;
+  }
+  if (sub === "show" && id) {
+    const r = await get(id);
+    console.log(
+      `${r.id}  ${r.name}  · ${r.agent_id}  · ${describe(r.schedule)}  · ${r.enabled ? `next ${when(r.next_run_at)}` : "off"}`,
+    );
+    if (r.pre_command) console.log(`pre:  ${r.pre_command}`);
+    if (r.post_command) console.log(`post: ${r.post_command}`);
+    console.log(`\n${r.prompt}`);
+    return;
+  }
+  if (sub === "edit" && id) {
+    if (rest.length && opts.promptFile) throw new Error("give the prompt as words or --prompt-file, not both");
+    const prompt = opts.promptFile
+      ? fs.readFileSync(opts.promptFile, "utf8")
+      : rest.length
+        ? rest.join(" ")
+        : undefined;
+    const saved = await client.call("routines.set", editOf(await get(id), opts, prompt));
+    console.log(`${saved.id}  saved · ${saved.enabled ? `next ${when(saved.next_run_at)}` : "off"}`);
     return;
   }
   if (sub === "run" && id) {

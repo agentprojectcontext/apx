@@ -59,7 +59,7 @@ Usage:
                            Refresh now the skills that teach Claude Code, Codex, Cursor and ~/.agents how to use APX
                            (the core does it at every start); removes ones APX no longer ships, never anyone else's
   apx tasks [add|move|done|say]  The office board (apx tasks help)
-  apx routines [add|run|on|off|rm|log]  Scheduled work (apx routines help)
+  apx routines [add|show|edit|run|on|off|rm|log]  Scheduled work (apx routines help)
   apx notifications [read]       What is waiting for you
   apx clients [add <name>|rm <id>]  Outside apps with their own token (Claude Code, Codex…)
   apx extensions [inspect|install|on|off|secret|rm]  Skills, MCP servers and routines in one folder
@@ -158,6 +158,8 @@ function argumentsOf() {
       pre: { type: "string" },
       post: { type: "string" },
       call: { type: "string" },
+      name: { type: "string" },
+      "prompt-file": { type: "string" },
       role: { type: "string" },
       router: { type: "boolean" },
       timeout: { type: "string" },
@@ -273,6 +275,8 @@ try {
         pre: values.pre,
         post: values.post,
         call: values.call,
+        name: values.name,
+        promptFile: values["prompt-file"],
       });
       break;
     case "memory":
