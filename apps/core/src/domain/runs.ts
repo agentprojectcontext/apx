@@ -87,6 +87,17 @@ export type Step = {
   result: string | undefined;
 };
 
+/** A tool call found by search, with the run that made it. */
+export type StepHit = {
+  thread_id: string;
+  agent_id: string;
+  tool: string;
+  args: string;
+  state: StepState;
+  result: string | undefined;
+  started_at: string;
+};
+
 const LIVE = ["submitted", "working", "input-required"] as const;
 
 /** Tokens a run spent; a run without usage counts as zero. */
@@ -377,6 +388,22 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .where("r.thread_id", "=", threadId),
       );
       return r?.output == null ? undefined : r.output;
+    },
+    /** Tool calls in these threads whose tool or arguments hold every word, newest first. Results are outside text. */
+    searchSteps(words: string[], threadIds: string[], limit = 10): StepHit[] {
+      if (!words.length || !threadIds.length) return [];
+      const haystack = raw<string>`s.tool || ' ' || s.args`;
+      const like = (w: string) => `%${w.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+      return all(
+        qb
+          .selectFrom("steps as s")
+          .innerJoin("runs as r", "r.id", "s.run_id")
+          .select(["r.thread_id", "r.agent_id", "s.tool", "s.args", "s.state", "s.result", "s.started_at"])
+          .where("r.thread_id", "in", threadIds)
+          .where((eb) => eb.and(words.map((w) => raw<boolean>`${haystack} like ${like(w)} escape '\\'`)))
+          .orderBy("s.started_at", "desc")
+          .limit(limit),
+      ).map((r) => ({ ...r, state: r.state as StepState, result: r.result ?? undefined }));
     },
     steps(runId: string): Step[] {
       return all(qb.selectFrom("steps").selectAll().where("run_id", "=", runId).orderBy("seq")).map((r) => ({

@@ -254,3 +254,43 @@ test("a longer participant name does not also require an unrelated agent with it
   const done = await env.settle(review.id);
   assert.match(texts(done.messages).at(-1) ?? "", /Team delegated findings/);
 });
+
+test("search finds what an agent did in its own runs, by tool and arguments, and only in chats it can read", async () => {
+  const store = env.core.store;
+  const step = (threadId: string, agentId: string, postId: string) => {
+    const run = store.runs.create({
+      thread_id: threadId,
+      agent_id: agentId,
+      trigger: "routine",
+      input: { origin: { kind: "routine", id: "rtn_board", name: "Board check" }, text: "check" },
+      deadline_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+    store.runs.setState(run, "completed");
+    store.runs.beginStep(run.id, {
+      call_id: "c1",
+      tool: "mcp_board_create_comment",
+      args: { post_id: postId, content: "a reply about retries" },
+      effect: "external",
+    });
+    store.runs.endStep(run.id, "c1", "ok", "Comment added");
+  };
+  const routine = store.threads.create({ kind: "loose", title: "Board check", agent_ids: ["roby"] });
+  step(routine.id, "roby", "post-4f1a");
+  const hidden = store.threads.create({
+    kind: "loose",
+    title: "Team board check",
+    project_id: "team",
+    agent_ids: ["team-editor"],
+  });
+  step(hidden.id, "team-editor", "post-9c2b");
+
+  // A global specialist, not the secretary: it must not see the project team's chat.
+  const chat = store.threads.create({ kind: "loose", title: "Board audit", agent_ids: ["editor"] });
+  await env.client.call("threads.send", { thread: chat.id, text: "search:create_comment post" });
+  const text = (await env.settle(chat.id)).messages.at(-1)?.parts.find((p) => p.type === "text")?.text ?? "";
+  assert.match(
+    text,
+    /Tool calls:\n- \[Board check · chat [^\]]+\] .* Roby called mcp_board_create_comment .*post-4f1a.* → Comment added/,
+  );
+  assert.doesNotMatch(text, /post-9c2b/);
+});

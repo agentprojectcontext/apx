@@ -9,6 +9,8 @@ import { cap, untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 const MESSAGE_CHARS = 1500;
+/** A found tool call shows the head of its arguments and of its result: enough to recognise it. */
+const CALL_CHARS = 300;
 
 /** Global agents share the owner's global chats; project teams stay within their scope. */
 function canRead(store: Store, agent: AgentRecord, t: Thread): boolean {
@@ -96,7 +98,7 @@ export function chatTools(store: Store): Tool[] {
     defineTool({
       name: "search_chats",
       description:
-        "Search what was said in the owner's other chats (channel rooms like a Discord #general, other agents' threads, earlier chats): Use topic keywords; agent names filter chat participants. Messages with every topic word, best match first. Then read_chat to see one in full. If unavailable, ask the named agent with delegate before asking the owner to repeat context.",
+        "Search what was said and done in the owner's other chats (channel rooms like a Discord #general, other agents' threads, earlier chats and your routine runs): Use topic keywords; agent names filter chat participants. Messages with every topic word, best match first, then tool calls whose tool or arguments hold them (what was published, sent or read). Then read_chat to see one in full. If unavailable, ask the named agent with delegate before asking the owner to repeat context.",
       args: z.object({
         query: z.string().min(2).describe("words to find"),
         limit: z.number().int().min(1).max(20).optional().describe("how many messages (default 10)"),
@@ -120,9 +122,16 @@ export function chatTools(store: Store): Tool[] {
             const t = byId.get(m.thread_id) as Thread;
             return `- [${t.title} · chat ${t.id}] ${when(m.created_at)} ${authorOf(store, m)}: ${snippet}`;
           });
-        return rows.length
-          ? untrusted("chats", { query: a.query }, rows.join("\n"))
-          : "no message in accessible chats matches; try fewer topic keywords, or use list_agents and delegate to ask the named agent for context";
+        const calls = store.runs.searchSteps(wordsOf(scope.text), [...byId.keys()], a.limit ?? 10).map((c) => {
+          const t = byId.get(c.thread_id) as Thread;
+          const who = store.agents.get(c.agent_id)?.name ?? c.agent_id;
+          const result = c.result ? ` → ${cap(c.result, CALL_CHARS)}` : "";
+          return `- [${t.title} · chat ${t.id}] ${when(c.started_at)} ${who} called ${c.tool} ${cap(c.args, CALL_CHARS)}${result}`;
+        });
+        const found = [...rows, ...(calls.length ? ["Tool calls:", ...calls] : [])];
+        return found.length
+          ? untrusted("chats", { query: a.query }, found.join("\n"))
+          : "no message or tool call in accessible chats matches; try fewer topic keywords, or use list_agents and delegate to ask the named agent for context";
       },
     }),
     defineTool({
