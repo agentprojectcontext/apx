@@ -96,6 +96,10 @@ export function findRoutine(list: readonly Routine[], ref: string, project?: str
 export async function routines(client: ApxClient, [sub, id, ...rest]: string[], opts: Opts): Promise<void> {
   const get = async (ref: string): Promise<Routine> =>
     findRoutine((await client.call("routines.list", {})).routines, ref, opts.project);
+  if (sub === "help") {
+    console.log(USAGE);
+    return;
+  }
   if (sub === "add") {
     const prompt = rest.join(" ");
     if (!id || !prompt || !opts.agent) throw new Error(USAGE);

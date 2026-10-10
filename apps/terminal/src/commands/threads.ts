@@ -1,8 +1,15 @@
 // apx threads / runs / agents / secrets: reading and steering what the core holds.
-import { ApprovalScope } from "@apx/protocol";
+import { ApprovalScope, type Author, type Message } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
-export async function threads(client: ApxClient, [sub, id]: string[]): Promise<void> {
+/** Who wrote a message, in one word: the agent's id, or the author's kind. */
+export const authorOf = (a: Author) => (a.kind === "agent" ? a.id : a.kind);
+
+/** A message as one line of text: its text parts, notices in brackets, other parts by their type. */
+export const messageText = (m: Message) =>
+  m.parts.map((p) => (p.type === "text" ? p.text : p.type === "notice" ? `[${p.text}]` : `[${p.type}]`)).join(" ");
+
+export async function threads(client: ApxClient, [sub, id, ...rest]: string[]): Promise<void> {
   if (!sub || sub === "list") {
     const { threads } = await client.call("threads.list", {});
     for (const t of threads) console.log(`${t.id.padEnd(22)} ${t.state.padEnd(10)} ${t.kind.padEnd(6)} ${t.title}`);
@@ -12,13 +19,8 @@ export async function threads(client: ApxClient, [sub, id]: string[]): Promise<v
   if (sub === "get") {
     const t = await client.call("threads.get", { thread: id });
     console.log(`${t.thread.title} · ${t.thread.kind} · ${t.thread.state}`);
-    for (const m of t.messages.slice(-20)) {
-      const who = m.author.kind === "agent" ? m.author.id : m.author.kind;
-      const text = m.parts
-        .map((p) => (p.type === "text" ? p.text : p.type === "notice" ? `[${p.text}]` : `[${p.type}]`))
-        .join(" ");
-      console.log(`  ${who.padEnd(10)} ${text.slice(0, 200)}`);
-    }
+    for (const m of t.messages.slice(-20))
+      console.log(`  ${authorOf(m.author).padEnd(10)} ${messageText(m).slice(0, 200)}`);
     return;
   }
   if (sub === "cancel") {

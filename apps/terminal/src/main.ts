@@ -58,7 +58,7 @@ Usage:
   apx skills install-runtimes [--dry-run]
                            Refresh now the skills that teach Claude Code, Codex, Cursor and ~/.agents how to use APX
                            (the core does it at every start); removes ones APX no longer ships, never anyone else's
-  apx tasks [add|move|done|say]  The office board (apx tasks help)
+  apx tasks [add|show|edit|move|done|say]  The office board (apx tasks help)
   apx routines [add|show|edit|run|on|off|rm|log]  Scheduled work (apx routines help)
   apx notifications [read]       What is waiting for you
   apx clients [add <name>|rm <id>]  Outside apps with their own token (Claude Code, Codex…)
@@ -160,6 +160,10 @@ function argumentsOf() {
       call: { type: "string" },
       name: { type: "string" },
       "prompt-file": { type: "string" },
+      title: { type: "string" },
+      desc: { type: "string" },
+      "desc-file": { type: "string" },
+      tags: { type: "string" },
       role: { type: "string" },
       router: { type: "boolean" },
       timeout: { type: "string" },
@@ -254,6 +258,10 @@ try {
         person: values.person,
         owed: values.owed,
         due: values.due,
+        title: values.title,
+        desc: values.desc,
+        descFile: values["desc-file"],
+        tags: values.tags,
       });
       break;
     case "clients":

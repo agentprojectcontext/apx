@@ -29,6 +29,15 @@ test("version and help work offline, including short flags and JSON", () => {
   assert.match(cli("--help").stdout, /apx mcp run/);
 });
 
+test("the help the top-level help advertises is help, not an error", () => {
+  for (const command of ["routines", "tasks"]) {
+    const r = cli(command, "help");
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, new RegExp(`^apx ${command}`));
+    assert.equal(r.stderr, "");
+  }
+});
+
 test("unknown options and commands fail with useful errors and no stack trace", () => {
   const option = cli("--unknown-option");
   assert.equal(option.status, 2);

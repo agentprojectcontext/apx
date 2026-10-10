@@ -1,24 +1,95 @@
 // apx tasks: the office board from the terminal.
+import fs from "node:fs";
 import type { ApxClient } from "@apx/protocol/client";
+import { authorOf, messageText } from "./threads.ts";
 
 const USAGE = `apx tasks [--project p]                 Open tasks by column
 apx tasks add <title…> [--project p] [--agent a] [--person name --owed me|them] [--due 2026-10-05]
+apx tasks show <id>                      Its fields, description and comments
+apx tasks edit <id> [--title t] [--desc d | --desc-file f|-] [--agent a] [--due d] [--tags a,b]
+                                         Change only what is given; --agent "" and --due "" clear them
 apx tasks commitments                    What you owe and what you are owed
 apx tasks move <id> <column>
 apx tasks done|drop|reopen <id>
 apx tasks say <id> <text…>               Comment; @agent asks that agent there`;
 
-export async function tasks(
-  client: ApxClient,
-  [sub, id, ...rest]: string[],
-  opts: {
-    project?: string | undefined;
-    agent?: string | undefined;
-    person?: string | undefined;
-    owed?: string | undefined;
-    due?: string | undefined;
-  },
-): Promise<void> {
+type Opts = {
+  project?: string | undefined;
+  agent?: string | undefined;
+  person?: string | undefined;
+  owed?: string | undefined;
+  due?: string | undefined;
+  title?: string | undefined;
+  desc?: string | undefined;
+  descFile?: string | undefined;
+  tags?: string | undefined;
+};
+
+const when = (iso: string) => new Date(iso).toLocaleString();
+
+/** tasks.update params for `apx tasks edit`: only the fields given; "" clears the agent and the due date. */
+export function taskEditOf(
+  task: string,
+  o: Opts,
+  readFile = (f: string) => fs.readFileSync(f === "-" ? 0 : f, "utf8"),
+) {
+  if (o.desc !== undefined && o.descFile) throw new Error("give the description as --desc or --desc-file, not both");
+  const description = o.descFile ? readFile(o.descFile) : o.desc;
+  const patch = {
+    ...(o.title !== undefined ? { title: o.title } : {}),
+    ...(description !== undefined ? { description } : {}),
+    ...(o.agent !== undefined ? { assignee: o.agent || null } : {}),
+    ...(o.due !== undefined ? { due_at: o.due || null } : {}),
+    ...(o.tags !== undefined
+      ? {
+          tags: o.tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
+        }
+      : {}),
+  };
+  if (!Object.keys(patch).length) throw new Error(`nothing to change\n\n${USAGE}`);
+  return { task, ...patch };
+}
+
+export async function tasks(client: ApxClient, [sub, id, ...rest]: string[], opts: Opts): Promise<void> {
+  if (sub === "help") {
+    console.log(USAGE);
+    return;
+  }
+  if (sub === "show" && id) {
+    const { task: t, sessions } = await client.call("tasks.get", { task: id });
+    console.log(`${t.id}  ${t.title}`);
+    const fields: [string, string | undefined][] = [
+      [
+        "Status",
+        `${t.status}${t.state === "open" ? "" : ` (${t.state})`}${t.awaits_owner ? " · waiting for you" : ""}`,
+      ],
+      ["Agent", t.assignee],
+      ["Project", t.project_id],
+      ["Due", t.due_at && when(t.due_at)],
+      ["Tags", t.tags.join(", ") || undefined],
+      ["Person", t.person_name && `${t.person_name} · ${t.owed_by === "person" ? "owed to you" : "you owe it"}`],
+      ["Thread", t.thread_id],
+      ["Worked in", sessions.map((x) => x.id).join(", ") || undefined],
+    ];
+    for (const [label, value] of fields) if (value) console.log(`${`${label}:`.padEnd(11)}${value}`);
+    if (t.description.trim()) console.log(`\n${t.description.trim()}`);
+    // Comments live in the task's own conversation.
+    const { messages } = await client.call("threads.get", { thread: t.thread_id });
+    const comments = messages.filter((m) => m.author.kind !== "system" && messageText(m).trim());
+    console.log(comments.length ? "\nComments" : "\n(no comments)");
+    for (const m of comments) console.log(`  ${when(m.created_at)}  ${authorOf(m.author)}\n    ${messageText(m)}`);
+    return;
+  }
+  if (sub === "edit" && id) {
+    const t = await client.call("tasks.update", taskEditOf(id, opts));
+    console.log(
+      `${t.id}  saved · ${t.title}${t.assignee ? `  · ${t.assignee}` : ""}${t.due_at ? `  · due ${when(t.due_at)}` : ""}`,
+    );
+    return;
+  }
   if (sub === "add") {
     const title = [id, ...rest].filter(Boolean).join(" ");
     if (!title) throw new Error(USAGE);
