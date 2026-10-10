@@ -9,7 +9,7 @@ type Options = { project?: string | undefined; scope?: string | undefined; json?
 export async function mcpCommand(client: ApxClient, args: string[], o: Options): Promise<void> {
   const [sub, server, tool, raw] = args;
   if (sub !== "tools" && sub !== "run" && sub !== "check") {
-    await mcps(client, args);
+    await mcps(client, args, o);
     return;
   }
   if (!server) throw new Error(`usage: apx mcp ${sub} <server> [<tool>] [--project <id>]`);

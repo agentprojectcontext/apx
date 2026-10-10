@@ -15,6 +15,17 @@ export async function threads(client: ApxClient, [sub, id, ...rest]: string[]): 
     for (const t of threads) console.log(`${t.id.padEnd(22)} ${t.state.padEnd(10)} ${t.kind.padEnd(6)} ${t.title}`);
     return;
   }
+  if (sub === "search") {
+    const query = [id, ...rest].filter(Boolean).join(" ").trim();
+    if (!query) throw new Error("usage: apx threads search <words…>");
+    const { hits } = await client.call("threads.search", { query });
+    for (const h of hits)
+      console.log(
+        `${h.thread_id.padEnd(22)} ${new Date(h.created_at).toLocaleString()}  ${authorOf(h.author).padEnd(10)} ${h.snippet.replace(/\s+/g, " ")}`,
+      );
+    if (!hits.length) console.log("(no messages match)");
+    return;
+  }
   if (!id) throw new Error(`usage: apx threads ${sub} <thread>`);
   if (sub === "get") {
     const t = await client.call("threads.get", { thread: id });
@@ -124,6 +135,12 @@ export async function projects(client: ApxClient, [sub, arg]: string[]): Promise
     console.log(`read ${r.projects} projects · ${r.agents} agents · ${r.archived} archived`);
     return;
   }
+  if (sub === "rm") {
+    if (!arg) throw new Error("usage: apx projects rm <project>");
+    await client.call("projects.unregister", { project: arg });
+    console.log(`${arg} is no longer a project in APX; its folder and files were not touched`);
+    return;
+  }
   throw new Error(`unknown projects command: ${sub}`);
 }
 
@@ -152,7 +169,11 @@ export async function jobs(client: ApxClient, [sub, id]: string[]): Promise<void
 }
 
 /** apx mcps: MCP servers agents may use (list, approve a project's, add or remove the owner's own). */
-export async function mcps(client: ApxClient, [sub, a, b, ...rest]: string[]): Promise<void> {
+export async function mcps(
+  client: ApxClient,
+  [sub, a, b, ...rest]: string[],
+  o: { project?: string | undefined } = {},
+): Promise<void> {
   if (!sub || sub === "list") {
     const { servers } = await client.call("mcp.list", a ? { project: a } : {});
     for (const s of servers)
@@ -166,6 +187,14 @@ export async function mcps(client: ApxClient, [sub, a, b, ...rest]: string[]): P
     if (!a || !b) throw new Error(`usage: apx mcps ${sub} <project> <server>`);
     const r = await client.call("mcp.trust", { project: a, server: b, trusted: sub === "trust" });
     console.log(`${r.server.name}: ${r.server.status}`);
+    return;
+  }
+  if (sub === "on" || sub === "off") {
+    // A global server is switched per project: the core keeps no install-wide off switch.
+    if (!a || !o.project) throw new Error(`usage: apx mcps ${sub} <server> --project <project>`);
+    const r = await client.call("mcp.toggle", { project: o.project, server: a, on: sub === "on" });
+    const s = r.servers.find((x) => x.name === a && x.scope === "global");
+    console.log(`${a} in ${o.project}: ${sub}${s && sub === "on" ? ` · ${s.status}` : ""}`);
     return;
   }
   if (sub === "add") {
@@ -209,8 +238,21 @@ export async function runtimeSkills(client: ApxClient, dryRun: boolean): Promise
   if (!r.steps.length) console.log("(no agent app found: nothing to do)");
 }
 
-export async function skills(client: ApxClient, [project]: string[]): Promise<void> {
+export async function skills(
+  client: ApxClient,
+  [sub, name]: string[],
+  o: { project?: string | undefined } = {},
+): Promise<void> {
+  if (sub === "on" || sub === "off") {
+    if (!name) throw new Error(`usage: apx skills ${sub} <skill> [--project <project>]`);
+    await client.call("skills.toggle", { name, on: sub === "on", ...(o.project ? { project: o.project } : {}) });
+    console.log(`${name}: ${sub}${o.project ? ` in ${o.project}` : " everywhere"}`);
+    return;
+  }
+  // `apx skills`, `apx skills list [project]` or, as before, `apx skills <project>`.
+  const project = (sub === "list" ? name : sub) ?? o.project;
   const r = await client.call("skills.list", project ? { project } : {});
-  for (const s of r.skills) console.log(`${s.name.padEnd(32)} ${s.scope.padEnd(8)} ${s.description.slice(0, 90)}`);
+  for (const s of r.skills)
+    console.log(`${s.name.padEnd(32)} ${s.scope.padEnd(8)} ${s.on ? "   " : "off"} ${s.description.slice(0, 90)}`);
   if (!r.skills.length) console.log("(no skills: add folders with a SKILL.md under ~/.apx/v2/skills or .apc/skills)");
 }
