@@ -15,6 +15,7 @@ import { image, say, transcribe } from "./commands/media.ts";
 import { memory } from "./commands/memory.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
 import { notifications } from "./commands/notifications.ts";
+import { org, owner, profiles } from "./commands/owner.ts";
 import { pair } from "./commands/pair.ts";
 import { routines } from "./commands/routines.ts";
 import { service } from "./commands/service.ts";
@@ -74,6 +75,10 @@ Usage:
   apx contacts [add|block|rm]    People APX talks to on channels
   apx pairing [me|ok|no <code>]  Approve who wrote to a channel
   apx compact <thread>    Summarize a thread's older turns now (APX's own loop; Claude Code and Codex compact their own)
+  apx owner [set key=value…]     Who you are, for your agents: name, about, language, timezone
+  apx org [set] [--project p]    A project's areas and roles (set: JSON on stdin)
+  apx profiles [list] | use <id> [key=value…] | off | restore <routine>
+                           What the super-agent is for (a profile), its settings and the routines it keeps
   apx image "<prompt>" [--out file] [--size WxH]   Draw an image and save it
   apx say "<text>" [--out file]    Speak text and save the audio
   apx transcribe <audio file>      Speech to text
@@ -306,6 +311,15 @@ try {
       break;
     case "usage":
       await usage(client, rest);
+      break;
+    case "owner":
+      await owner(client, rest);
+      break;
+    case "org":
+      await org(client, rest, { project: values.project });
+      break;
+    case "profiles":
+      await profiles(client, rest);
       break;
     case "image":
       await image(client, rest, { out: values.out, size: values.size });
