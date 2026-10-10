@@ -66,6 +66,10 @@ test("another agent's news goes to the owner as before until a relay routine run
   await runRoutine(brief.id);
   assert.equal(lastNotice("routine:Brief")?.state, "no_channel");
 
+  // A day's cap already spent: the team news still goes (only quiet hours hold it).
+  const prefs = await env.client.call("notices.get", {});
+  await env.client.call("notices.set", { ...prefs, budget_per_day: 1 });
+  env.core.store.nudges.add({ kind: "routine:Other", text: "spent", state: "sent", exempt: false });
   const calls = llm.calls.length;
   const told = await runRoutine(relay.id);
   assert.equal(llm.calls.length, calls + 1);
@@ -79,6 +83,8 @@ test("another agent's news goes to the owner as before until a relay routine run
   assert.equal(told.run?.delivered, true);
   assert.equal(lastNotice("routine:april-check")?.state, "merged", "told once");
   assert.equal(lastNotice("routine:Team news")?.text, "April commented on a post; nothing needs you.");
+  assert.notEqual(lastNotice("routine:Team news")?.state, "dropped", "past the daily cap, it still goes");
+  await env.client.call("notices.set", prefs);
 
   // Nothing waiting: no model call, nothing for the owner.
   const quiet = await runRoutine(relay.id);

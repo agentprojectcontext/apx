@@ -74,6 +74,8 @@ export function officeScheduler(deps: {
         thread_id: run.thread_id,
         project_id: routine.project_id,
         anchor: routine.anchor,
+        // The team news comes as often as the owner set it and carries everyone's news: past the cap, it would be lost.
+        asked: routine.action === "relay",
         relay: store.agents.get(routine.agent_id)?.kind !== "secretary",
       });
       attention.add({
