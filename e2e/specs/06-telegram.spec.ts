@@ -19,8 +19,8 @@ test("the owner links their Telegram with the code and talks to the super-agent 
 
   await world.telegram(owner, "Remind me to stretch");
   await until(async () => (await world.sentTo(owner.id)).some((m) => m.text?.includes("Got it: Remind me to stretch")));
-  // While it was written, the answer showed as a draft in the owner's chat (its first words, at least).
-  expect((await world.draftsTo(owner.id)).some((d) => d.text?.startsWith("Got it:"))).toBe(true);
+  // While it worked the owner saw "typing…", never a streamed draft (it locked their chat until the answer was done).
+  expect(await world.draftsTo(owner.id)).toEqual([]);
   // The owner's own chat with the bot opens beside the list, with what they wrote there.
   await page.getByRole("button", { name: /^Vos/ }).click();
   await expect(page.getByRole("main").getByText("Remind me to stretch").first()).toBeVisible();

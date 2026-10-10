@@ -53,7 +53,7 @@ export const world = {
   dmSentTo: async (channel: "dc" | "sl", user: string) =>
     ((await (await fetch(`${control}/${channel}/sent?user=${user}`)).json()) as { sent: Array<{ text?: string }> })
       .sent,
-  /** The answers Telegram showed as they were written (drafts), to a chat. */
+  /** Streamed drafts sent to a chat (APX sends none: a draft locks the owner's Telegram chat). */
   draftsTo: async (chat: number) =>
     ((await (await fetch(`${control}/tg/drafts?chat=${chat}`)).json()) as { drafts: Array<{ text?: string }> }).drafts,
   sentTo: async (chat: number) =>

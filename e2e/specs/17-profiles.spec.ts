@@ -18,7 +18,7 @@ test("picking the secretary seeds its routines; a new time moves the morning bri
   const dialog = page.getByRole("dialog", { name: "Configuración" });
   await expect(dialog.getByRole("radio", { name: /Ninguno/ })).toBeChecked();
   await dialog.getByRole("radio", { name: /Secretaria/ }).click();
-  for (const name of ["Abrir el día", "Cerrar el día", "Vigilar"])
+  for (const name of ["Abrir el día", "Cerrar el día", "Vigilar", "Novedades del equipo"])
     await expect(dialog.getByText(name, { exact: true }).last()).toBeVisible();
 
   await dialog.getByLabel("Abrir el día", { exact: true }).fill("07:15");

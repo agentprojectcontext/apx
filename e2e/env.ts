@@ -104,7 +104,8 @@ const control = http.createServer((req, res) => {
     }
     if (req.url?.startsWith("/tg/drafts")) {
       const chat = new URL(req.url, "http://x").searchParams.get("chat");
-      return json(200, { drafts: tg.draftsTo(Number(chat)).map((s) => s.body) });
+      const drafts = tg.sent.filter((s) => s.method === "sendMessageDraft" && String(s.body.chat_id) === chat);
+      return json(200, { drafts: drafts.map((s) => s.body) });
     }
     // Discord and Slack: someone writing to the bot in a direct message, and what the bot sent to them.
     if (req.url === "/dc/message" && req.method === "POST") {
