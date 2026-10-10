@@ -19,6 +19,7 @@ const calls: Record<string, [string, object]> = {
   git: ["file_write", { path: ".git/config", content: "no" }],
   "read page": ["file_read", { path: "pages/btc.html", offset: 2, limit: 1 }],
   "read binary": ["file_read", { path: "pages/blob.bin" }],
+  "read picture": ["file_read", { path: "pages/dot.png" }],
   "read outside": ["file_read", { path: "../secrets.index.json" }],
   parallel: ["file_parallel", {}],
 };
@@ -158,4 +159,17 @@ test("an agent reads a text file by lines, as data; a binary one or one outside 
   assert.match(page, /<file path="pages\/btc\.html" trust="untrusted">\ntwo\n<\/file>/);
   assert.match(await said(t.id, "read binary"), /is not a text file/);
   assert.match(await said(t.id, "read outside"), /outside the folder/);
+});
+
+test("an agent that reads an image file sees it", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "picture" });
+  const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+  fs.writeFileSync(path.join(env.home, "work", "pages", "dot.png"), Buffer.from(png, "base64"));
+  assert.match(await said(t.id, "read picture"), /the picture shows \(from file_read\)/);
+  const messages = llm.calls.at(-1)?.messages ?? [];
+  assert.match(
+    String(messages.findLast((m) => m.role === "tool")?.content),
+    /pages\/dot\.png: an image \(image\/png, \d+ bytes\)/,
+  );
+  assert.equal(messages.filter((m) => m.role === "user" && m.images?.length).length, 1);
 });
