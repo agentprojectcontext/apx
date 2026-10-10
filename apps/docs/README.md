@@ -9,7 +9,7 @@ It installs on its own, outside the pnpm workspace, so Astro stays out of everyo
 ```bash
 cd apps/docs
 pnpm install
-pnpm dev          # http://localhost:7450
+pnpm dev          # http://127.0.0.1:4400
 pnpm build        # static site in dist/ (DOCS_SITE / DOCS_BASE set where it is published)
 pnpm shots        # retake every screenshot against a demo core (see below)
 ```

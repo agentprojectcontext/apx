@@ -6,9 +6,9 @@
   "type": "module",
   "packageManager": "pnpm@11.11.0",
   "scripts": {
-    "dev": "astro dev --port 7450",
+    "dev": "astro dev --host 127.0.0.1 --port 4400",
     "build": "astro build",
-    "preview": "astro preview --port 7450",
+    "preview": "astro preview --host 127.0.0.1 --port 4400",
     "shots": "node --no-warnings scripts/shots.ts"
   },
   "dependencies": {
