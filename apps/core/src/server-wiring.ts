@@ -73,6 +73,7 @@ import { messageTools } from "./tools/message.ts";
 import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
 import { requestTools } from "./tools/requests.ts";
+import { routineTools } from "./tools/routines.ts";
 import { locateFile, shellTools, workDir } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
@@ -127,6 +128,7 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...fileTools(store, home),
     ...messageTools(store, home),
     ...directoryTools(store),
+    ...routineTools(store),
     ...skillTools(store, home),
     ...memoryTools(),
     ...mediaTools(),

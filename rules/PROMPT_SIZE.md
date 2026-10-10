@@ -8,10 +8,10 @@ it that way.
 
 Measured on a fresh install: the secretary, a new chat, default settings, no skills or MCP servers added.
 
-| Part | Budget | Now (2026-10-07) |
+| Part | Budget | Now (2026-10-10) |
 |---|---|---|
 | System prompt | 6,500 chars (about 1,450 tokens) | 5,694 chars, 1,260 tokens |
-| Tool definitions (42, without the browser) | 28,000 chars (about 6,700 tokens) | 25,327 chars, 6,050 tokens |
+| Tool definitions (43, without the browser) | 28,000 chars (about 6,700 tokens) | 26,613 chars, 6,350 tokens |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
 
 `apps/core/src/engine/prompt-budget.test.ts` fails past the budget. Raising it is allowed with a reason in the commit

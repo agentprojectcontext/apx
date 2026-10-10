@@ -682,3 +682,12 @@ its own place (a read-only folder, run from the disk image, a translocated copy)
 unsigned build keeps losing the macOS permissions (Accessibility, Screen Recording) at each update, as it did with the
 drag; only a Developer ID signature ends that. `APX_RELEASES` also takes a base URL, so a local feed can stand in for
 GitHub to try an update between two builds (`APX_VERSION` names a build's version in `pnpm package`).
+
+## D-059 — 2026-10-10 — Agents change routines through `routine_set`, and the owner approves each call
+D-016 kept routines owner-only until an agent creating standing work had a confirmation design. D-047's `always`
+level is that design: `routine_set` creates a routine, changes one by id or name (only what it is given), turns it on
+or off, or runs it now, and every call waits for the owner's yes (total autonomy, the owner's explicit choice, asks
+for nothing). The approved call runs `routines.set` / `routines.run` as the owner's act (`callAsOwner`), the same door
+the app and `apx routines edit` use. It never sets a pre- or post-command or a shell routine: those run commands on
+the owner's machine on a schedule and stay in the app and the terminal. Removing a routine stays the owner's too.
+`routine_list` with a name returns that routine's whole prompt, so an agent edits the text it read, not a guess.

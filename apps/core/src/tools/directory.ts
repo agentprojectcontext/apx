@@ -1,17 +1,10 @@
-// routine_list / contact_list / channel_list: what the owner set up, read by their agent ("what routines do I have?",
-// "who is Alex?", "can you reach Discord?"). Read only: running, changing or removing a routine, adding or forgetting
-// a contact, and setting up a channel stay the owner's acts (their methods are human-only).
+// contact_list / channel_list: what the owner set up, read by their agent ("who is Alex?", "can you reach Discord?").
+// Read only: adding or forgetting a contact and setting up a channel stay the owner's acts (their methods are
+// human-only). Routines are in routines.ts.
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { inlineName } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
-
-const when = (s: { kind: string; cron?: string; hours?: number; minutes?: number; at?: string }) =>
-  s.kind === "cron"
-    ? `cron ${s.cron}`
-    : s.kind === "every"
-      ? `every ${s.hours ?? s.minutes} ${s.hours ? "h" : "min"}`
-      : String(s.at ?? s.kind);
 
 /** What a room's mode means for the agent reading the list. */
 const ROOM_MODE = {
@@ -42,35 +35,6 @@ export function directoryTools(store: Store): Tool[] {
           ...rows,
           'Write to people with message_contact (contact_list finds them). Read a room with read_chat("#name"); post in it with channel_post.',
         ].join("\n");
-      },
-    }),
-    defineTool({
-      name: "routine_list",
-      description:
-        "List the owner's routines (scheduled jobs), global and per project: name, id, agent, project, when it runs, on or off, last and next run. To run, change or turn one off, the owner does it in Routines (or `apx routines show|edit|run|off <name or id>`): say so.",
-      args: z.object({}),
-      effect: "none",
-      deadlineMs: 5_000,
-      title: () => "Looked at the routines",
-      async run() {
-        const all = store.routines.list();
-        if (!all.length) return "no routines.";
-        const projects = new Map(store.projects.list(false).map((p) => [p.id, p.name]));
-        return all
-          .map(
-            (r) =>
-              `- ${r.name} [${r.id}] (${[
-                `agent ${r.agent_id}`,
-                r.project_id ? `project ${projects.get(r.project_id) ?? r.project_id}` : "",
-                when(r.schedule as Parameters<typeof when>[0]),
-                r.enabled ? "on" : "off",
-                r.last_run_at ? `last ${r.last_run_at.slice(0, 16).replace("T", " ")}` : "",
-                r.enabled && r.next_run_at ? `next ${r.next_run_at.slice(0, 16).replace("T", " ")}` : "",
-              ]
-                .filter(Boolean)
-                .join(", ")})`,
-          )
-          .join("\n");
       },
     }),
     defineTool({

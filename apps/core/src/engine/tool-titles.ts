@@ -32,7 +32,8 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   search_chats: (a) => `Buscó «${str(a.query, 60)}» en los chats`,
   read_chat: (a) => `Leyó el chat ${str(a.chat)}`,
   channel_list: () => "Revisó los canales",
-  routine_list: () => "Revisó las rutinas",
+  routine_list: (a) => (a.routine ? `Revisó la rutina ${str(a.routine)}` : "Revisó las rutinas"),
+  routine_set: (a) => (a.routine ? `Cambió la rutina ${str(a.routine)}` : `Creó la rutina ${str(a.name)}`),
   contact_list: () => "Revisó los contactos",
   list_agents: () => "Buscó agentes",
   grant_tool: (a) =>
