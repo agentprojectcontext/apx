@@ -24,7 +24,8 @@ import {
 const USAGE = `apx service install     Run the core in the background, started at login and again if it dies
 apx service uninstall
 apx service status
-apx service restart`;
+apx service restart
+apx service logs [-n 100] [-f]   The core's log on this machine (<home>/logs/core.log; on Linux, the systemd journal)`;
 
 /** The core exits with this code to be started again after an update (apps/core/src/updates.ts). */
 const RESTART_CODE = 75;
@@ -85,8 +86,13 @@ const supervisorRun = () =>
     ? { node: bundleRun(process.env.APX_APP).node, terminal: bundleRun(process.env.APX_APP).terminal }
     : { node: process.execPath, terminal: terminalMain() };
 
-export async function service(sub: string | undefined, opts: { home?: string | undefined } = {}) {
+export async function service(
+  sub: string | undefined,
+  opts: { home?: string | undefined; lines?: string | undefined; follow?: boolean | undefined } = {},
+) {
+  if (sub === "help") return console.log(USAGE);
   if (sub === "install") return install();
+  if (sub === "logs") return logs(apxHome(), Number(opts.lines ?? 100), Boolean(opts.follow));
   if (sub === "uninstall") return uninstall();
   if (sub === "status") return status();
   if (sub === "restart") return restart();
@@ -179,6 +185,57 @@ export async function restart(): Promise<void> {
     else startWindows(apxHome());
   }
   console.log("restarting the core");
+}
+
+/** The last `n` lines of a file, read from its end so a large log is not loaded whole. */
+export function lastLines(file: string, n: number): string[] {
+  const fd = fs.openSync(file, "r");
+  try {
+    const size = fs.fstatSync(fd).size;
+    let text = "";
+    for (let end = size; end > 0 && text.split("\n").length <= n + 1; ) {
+      const start = Math.max(0, end - 64 * 1024);
+      const chunk = Buffer.alloc(end - start);
+      fs.readSync(fd, chunk, 0, chunk.length, start);
+      text = chunk.toString("utf8") + text;
+      end = start;
+    }
+    const lines = text.split("\n");
+    if (lines.at(-1) === "") lines.pop();
+    return lines.slice(-n);
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/** `apx service logs`: this machine's core log, read from the file; never asks the core. */
+export async function logs(home: string, n: number, follow: boolean): Promise<void> {
+  if (!Number.isInteger(n) || n < 1) throw new Error("-n is a number of lines, like -n 100");
+  const file = path.join(home, "logs", "core.log");
+  if (!fs.existsSync(file)) {
+    if (process.platform === "linux" && installed()) {
+      console.log(`The service logs to the systemd journal:  journalctl --user -u apx -n ${n}${follow ? " -f" : ""}`);
+      return;
+    }
+    throw new Error(
+      `no core log at ${file}: the service writes it (apx service install); a core started with pnpm dev or the desktop app logs to its own terminal`,
+    );
+  }
+  for (const line of lastLines(file, n)) console.log(line);
+  if (!follow) return;
+  let at = fs.statSync(file).size;
+  fs.watchFile(file, { interval: 500 }, (now) => {
+    // A shorter file was started again: read it from the top.
+    if (now.size < at) at = 0;
+    if (now.size === at) return;
+    const chunk = Buffer.alloc(now.size - at);
+    const fd = fs.openSync(file, "r");
+    fs.readSync(fd, chunk, 0, chunk.length, at);
+    fs.closeSync(fd);
+    at = now.size;
+    process.stdout.write(chunk);
+  });
+  await new Promise(() => {});
 }
 
 function startWindows(home: string) {

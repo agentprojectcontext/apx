@@ -119,6 +119,7 @@ Usage:
   apx service install|uninstall|status|restart
                            Run the core in the background (systemd, launchd or a Windows login entry), started at
                            login and again if it dies
+  apx service logs [-n 100] [-f]   The core's log, read on this machine only (never through the core)
   apx expose tailscale|lan|off|status
                            Who may reach the core: your tailnet (https://<machine>.ts.net), the network, or only
                            this computer. Writes <home>/core.env; restart the core afterwards
@@ -192,6 +193,8 @@ function argumentsOf() {
       "dry-run": { type: "boolean" },
       out: { type: "string" },
       size: { type: "string" },
+      lines: { type: "string", short: "n" },
+      follow: { type: "boolean", short: "f" },
     },
   });
 }
@@ -355,7 +358,7 @@ try {
       });
       break;
     case "service":
-      await service(rest[0], { home: values.home });
+      await service(rest[0], { home: values.home, lines: values.lines, follow: values.follow });
       break;
     case "expose":
       await expose(rest[0]);
