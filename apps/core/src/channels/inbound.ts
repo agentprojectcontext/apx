@@ -17,7 +17,7 @@ import { saveUpload } from "../services/uploads.ts";
 import { untrusted } from "../tools/result.ts";
 import { asksSomething, asksToStop, needsNoAnswer, reactionFor } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
-import { buttonId, parseButton } from "./notices.ts";
+import { buttonId, parseButton, ratingOf } from "./notices.ts";
 import type { createRooms } from "./rooms.ts";
 import { channelTexts } from "./texts.ts";
 import type { ChannelConfig } from "./types.ts";
@@ -373,15 +373,21 @@ export function createInbound(deps: {
 
   /**
    * Someone put an emoji on one of the messages sent on this channel (or took theirs off): shown on it in the app.
-   * Never a turn: a reaction needs no answer and costs nothing. Only from someone known, in a one-to-one chat.
+   * Never a turn: a reaction needs no answer and costs nothing. Only from someone known, in a one-to-one chat. The
+   * owner's 👍/👎 on a routine's or an agent's news rates it.
    */
   function reaction(channel: string, r: InboundReaction): void {
     if (!r.private) return;
     const person = store.persons.byAddress(channel, r.sender.id);
     if (!person || person.role === "blocked") return;
     const sent = store.channels.outbox.byExternal(channel, r.target);
-    if (sent?.message_id && sent.conversation === r.conversation)
-      store.messages.setReaction(sent.message_id, "them", r.emoji);
+    if (!sent || sent.conversation !== r.conversation) return;
+    if (sent.message_id) store.messages.setReaction(sent.message_id, "them", r.emoji);
+    const feedback = ratingOf(r.emoji);
+    if (person.role === "owner" && sent.body.rate && feedback !== undefined)
+      void call("notices.feedback", { id: sent.body.rate, feedback }, { actor: "human" }).catch((err: unknown) =>
+        log.warn({ channel, err: errorMessage(err, 200) }, "rating not kept"),
+      );
   }
 
   /** The owner's text answers an open question of that thread, when one is waiting for words. */
@@ -411,11 +417,6 @@ export function createInbound(deps: {
       if (button.kind === "pairing") {
         await call("pairing.respond", { code: button.code, decision: button.decision }, { actor: "human" });
         reply(button.decision === "contact" ? t.approved : t.denied);
-        return;
-      }
-      if (button.kind === "feedback") {
-        await call("notices.feedback", { id: button.nudgeId, feedback: button.feedback }, { actor: "human" });
-        reply(t.rated);
         return;
       }
       const input = store.inputs.get(button.inputId);

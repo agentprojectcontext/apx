@@ -31,9 +31,6 @@ const es = {
   notHandled: (name: string, why: string) => `No pude procesar un mensaje de ${name}: ${why}`,
   buttonFailed: (why: string) => `No pude hacerlo: ${why}`,
   stopped: "Listo, paré.",
-  useful: "👍 Útil",
-  notUseful: "👎 No me sirve",
-  rated: "Anotado, gracias.",
   due: (title: string, person?: string, owedBy?: "owner" | "person") =>
     person
       ? owedBy === "person"
@@ -73,9 +70,6 @@ const en: typeof es = {
   notHandled: (name, why) => `I couldn't handle a message from ${name}: ${why}`,
   buttonFailed: (why) => `I couldn't do it: ${why}`,
   stopped: "Done, I stopped.",
-  useful: "👍 Useful",
-  notUseful: "👎 Not useful",
-  rated: "Noted, thanks.",
   due: (title, person, owedBy) =>
     person
       ? owedBy === "person"

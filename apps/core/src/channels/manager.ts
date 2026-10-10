@@ -120,7 +120,7 @@ export function createChannels(deps: {
         thread_id: threadId,
         kind,
         body: {
-          ...(body.optionalButtons && !l.adapter.caps.buttons ? { text: body.text } : body),
+          ...body,
           ...(inQuietHours(prefs) ? { silent: true } : {}),
         },
       });

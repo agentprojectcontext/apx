@@ -375,7 +375,7 @@ test("a refused connection is retried (nothing went out); two quick saves leave 
   assert.ok(tg.polls() - a < 16, `polls in 500 ms: ${tg.polls() - a}`);
 });
 
-test("a routine's news reaches the owner with 👍/👎; a press is kept on the notice", async () => {
+test("a routine's news reaches the owner without buttons; the owner's 👍/👎 reaction rates it", async () => {
   const r = await env.client.call("routines.set", {
     name: "rated-probe",
     agent: "roby",
@@ -388,11 +388,19 @@ test("a routine's news reaches the owner with 👍/👎; a press is kept on the 
   const rated = () => tg.messagesTo(OWNER.id).find((m) => /Rate me/.test(String(m.body.text)));
   await until(() => Boolean(rated()), "routine notice");
   assert.equal(rated()?.body.text, "Rate me", "the routine's words alone, no title");
-  const markup = rated()?.body.reply_markup as { inline_keyboard: Array<Array<{ callback_data: string }>> };
-  const down = markup.inline_keyboard[1]?.[0]?.callback_data ?? "";
-  assert.match(down, /^f:ndg_.+:d$/);
-  tg.press(OWNER, down);
-  const id = down.split(":")[1] ?? "";
-  await until(() => env.core.store.nudges.get(id)?.feedback === "down", "feedback stored");
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /Anotado/.test(String(m.body.text))), "thanks");
+  assert.equal(rated()?.body.reply_markup, undefined, "no 👍/👎 buttons");
+  const id = env.core.store.nudges.list(1)[0]?.id ?? "";
+  const msg = rated()?.message_id ?? 0;
+  const before = tg.messagesTo(OWNER.id).length;
+  tg.react(OWNER, msg, "👎");
+  await until(() => env.core.store.nudges.get(id)?.feedback === "down", "👎 kept");
+  tg.react(OWNER, msg, "🔥");
+  await until(() => env.core.store.nudges.get(id)?.feedback === "up", "🔥 counts as useful");
+  tg.react(OWNER, msg);
+  await until(() => env.core.store.nudges.get(id)?.feedback === undefined, "taking it off clears it");
+  // Someone else's reaction never rates the owner's notices, and rating sends nothing back.
+  tg.react(ANA, msg, "👍");
+  await new Promise((r) => setTimeout(r, 150));
+  assert.equal(env.core.store.nudges.get(id)?.feedback, undefined);
+  assert.equal(tg.messagesTo(OWNER.id).length, before);
 });

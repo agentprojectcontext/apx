@@ -2,7 +2,6 @@
 // tray and, through the interruption budget (engine/nudges.ts), to the owner's channel, in the owner's language. A due
 // date passing only lands in the tray: the watch routine mentions overdue work in one line, never a message per task.
 // The same clock picks up, hourly, assigned tasks whose work never started.
-import { ratedPresentation } from "./channels/notices.ts";
 import { channelTexts } from "./channels/texts.ts";
 import type { Presentation } from "./domain/channels.ts";
 import type { Store } from "./domain/store.ts";
@@ -29,8 +28,7 @@ export function officeScheduler(deps: {
   const { store, attention } = deps;
   const nudges = createNudges({
     store,
-    send: (text, threadId, rate) =>
-      deps.notifyOwner(rate ? ratedPresentation(text, rate, channelTexts(store)) : { text }, threadId),
+    send: (text, threadId, rate) => deps.notifyOwner({ text, ...(rate ? { rate } : {}) }, threadId),
     digest: (texts) => channelTexts(store).digest(texts),
     ...(deps.now ? { now: deps.now } : {}),
   });

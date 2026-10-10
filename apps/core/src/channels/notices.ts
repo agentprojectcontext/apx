@@ -3,22 +3,20 @@ import type { Part } from "@apx/protocol";
 import type { Presentation } from "../domain/channels.ts";
 
 /**
- * Button ids on a channel (Telegram allows 64 bytes): an input's approve/deny/option, a pairing decision, or the
- * owner's 👍/👎 on a notice. Built and read only here.
+ * Button ids on a channel (Telegram allows 64 bytes): an input's approve/deny/option or a pairing decision. Built and
+ * read only here.
  */
 export const buttonId = {
   approve: (inputId: string) => `i:${inputId}:a`,
   deny: (inputId: string) => `i:${inputId}:d`,
   option: (inputId: string, n: number) => `i:${inputId}:o${n}`,
   pairing: (code: string, decision: "contact" | "deny") => `p:${code}:${decision}`,
-  rate: (nudgeId: string, feedback: "up" | "down") => `f:${nudgeId}:${feedback === "up" ? "u" : "d"}`,
 };
 
 export type Button =
   | { kind: "input"; inputId: string; answer: "approve" | "deny" }
   | { kind: "option"; inputId: string; index: number }
-  | { kind: "pairing"; code: string; decision: "contact" | "deny" }
-  | { kind: "feedback"; nudgeId: string; feedback: "up" | "down" };
+  | { kind: "pairing"; code: string; decision: "contact" | "deny" };
 
 export function parseButton(data: string): Button | undefined {
   const [kind, ref, what] = data.split(":");
@@ -27,8 +25,6 @@ export function parseButton(data: string): Button | undefined {
     return { kind: "input", inputId: ref, answer: what === "a" ? "approve" : "deny" };
   if (kind === "i" && /^o\d+$/.test(what)) return { kind: "option", inputId: ref, index: Number(what.slice(1)) };
   if (kind === "p" && (what === "contact" || what === "deny")) return { kind: "pairing", code: ref, decision: what };
-  if (kind === "f" && (what === "u" || what === "d"))
-    return { kind: "feedback", nudgeId: ref, feedback: what === "u" ? "up" : "down" };
   return undefined;
 }
 
@@ -51,14 +47,12 @@ export function inputPresentation(part: Extract<Part, { type: "input" }>, labels
   return { text: body.slice(0, 3500), ...(buttons.length ? { buttons } : {}) };
 }
 
-/** A notice the owner may rate: its 👍/👎 buttons, left out by a channel without buttons. */
-export function ratedPresentation(text: string, nudgeId: string, labels: { useful: string; notUseful: string }) {
-  return {
-    text,
-    buttons: [
-      { id: buttonId.rate(nudgeId, "up"), label: labels.useful },
-      { id: buttonId.rate(nudgeId, "down"), label: labels.notUseful },
-    ],
-    optionalButtons: true,
-  } satisfies Presentation;
+/** Reactions the owner puts on a notice that count as 👍 or 👎 (no buttons: a reaction is one tap and adds no message). */
+const UP = new Set(["👍", "❤", "❤️", "🔥", "👏", "🙏", "💯", "🎉", "😍", "🤩", "👌", "⚡", "🏆", "🥰", "😁"]);
+const DOWN = new Set(["👎", "💩", "🤮", "😴", "🥱", "🤬", "😡", "🙄", "😐", "🤨", "😢"]);
+
+/** What a reaction on a rated notice says: useful, not useful, nothing (taken off), or none of those. */
+export function ratingOf(emoji: string): "up" | "down" | null | undefined {
+  if (!emoji) return null;
+  return UP.has(emoji) ? "up" : DOWN.has(emoji) ? "down" : undefined;
 }
