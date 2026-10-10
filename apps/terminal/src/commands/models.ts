@@ -1,5 +1,6 @@
 // apx models / apx agents model: which models each engine offers, the install default, the router, and each
 // agent's choice. Every value is data in the core; nothing here knows a model name.
+import fs from "node:fs";
 import type { ModelChoice, RouterConfig } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
@@ -64,12 +65,57 @@ export async function agentModel(client: ApxClient, [agent, ref]: string[], o: {
   console.log(`${a.name}: ${a.model_choice ? show(a.model_choice) : "install default"}`);
 }
 
-/** apx agents new|set|archive: a project agent's changes land in its .apc/agents/<slug>.md. */
+const SET_USAGE = "usage: apx agents set <agent> [name=… role=… slug=… parent=… blob=…] [--prompt-file f|-]";
+
+/** agents.update params for `apx agents set`: key=value pairs, and the prompt from a file or stdin ("-"). */
+export function agentSetOf(
+  agent: string | undefined,
+  pairs: string[],
+  promptFile: string | undefined,
+  readFile = (f: string) => fs.readFileSync(f === "-" ? 0 : f, "utf8"),
+) {
+  if (!agent || (!pairs.length && !promptFile)) throw new Error(SET_USAGE);
+  const patch: Record<string, string> = {};
+  for (const p of pairs) {
+    const i = p.indexOf("=");
+    if (i < 1) throw new Error(`expected key=value, got "${p}"`);
+    patch[p.slice(0, i)] = p.slice(i + 1);
+  }
+  if (promptFile) {
+    if ("prompt" in patch) throw new Error("give the prompt as prompt=… or --prompt-file, not both");
+    patch.prompt = readFile(promptFile);
+  }
+  return { agent, ...patch };
+}
+
+/** apx agents show|new|set|archive: a project agent's changes land in its .apc/agents/<slug>.md. */
 export async function agentEdit(
   client: ApxClient,
   [sub, ...args]: string[],
-  o: { project?: string | undefined; role?: string | undefined },
+  o: { project?: string | undefined; role?: string | undefined; "prompt-file"?: string | undefined },
 ) {
+  if (sub === "show") {
+    if (!args[0]) throw new Error("usage: apx agents show <agent>");
+    const { agent: a, prompt } = await client.call("agents.get", { agent: args[0] });
+    console.log(`${a.id}  ${a.name}${a.kind === "secretary" ? "  · Home" : ""}`);
+    const fields: [string, string | undefined][] = [
+      ["Role", a.role || undefined],
+      ["Project", a.project_id],
+      ["File", a.source === "apc" && a.slug ? `.apc/agents/${a.slug}.md` : undefined],
+      ["Reports to", a.parent],
+      ["Area", a.area],
+      ["Model", a.model_choice ? show(a.model_choice) : "install default"],
+      ["Autonomy", a.autonomy],
+      ["Browser", a.browser_profile],
+      ["Tools", a.tools?.join(", ")],
+      ["Skills", a.skills?.join(", ")],
+      ["Personality", a.personality],
+      ["About", a.description],
+    ];
+    for (const [label, value] of fields) if (value) console.log(`${`${label}:`.padEnd(13)}${value}`);
+    console.log(prompt.trim() ? `\n${prompt.trim()}` : "\n(no prompt)");
+    return;
+  }
   if (sub === "new") {
     const [slug, ...name] = args;
     if (!slug || !name.length)
@@ -85,14 +131,7 @@ export async function agentEdit(
   }
   if (sub === "set") {
     const [agent, ...pairs] = args;
-    if (!agent || !pairs.length) throw new Error("usage: apx agents set <agent> name=… role=… slug=… parent=… blob=…");
-    const patch: Record<string, string> = {};
-    for (const p of pairs) {
-      const i = p.indexOf("=");
-      if (i < 1) throw new Error(`expected key=value, got "${p}"`);
-      patch[p.slice(0, i)] = p.slice(i + 1);
-    }
-    const a = await client.call("agents.update", { agent, ...patch });
+    const a = await client.call("agents.update", agentSetOf(agent, pairs, o["prompt-file"]));
     console.log(`${a.name} (${a.id})${a.slug ? ` · ${a.slug}` : ""} · ${a.role}`);
     return;
   }

@@ -66,6 +66,7 @@ Usage:
   apx extensions [inspect|install|on|off|secret|rm]  Skills, MCP servers and routines in one folder
   apx memory [words]      Notes agents keep between threads (newest first, or the best matches for the words)
   apx memory add [global|project|agent] <text> [--project p] [--agent a]
+  apx memory edit <id> <text…>   Rewrite a note in place
   apx memory rm <id…>     Remove notes
   apx channels [add|rm|outbox]   Channels (Telegram bots); apx channels add telegram <id> --agent <a>
   apx contacts [add|block|rm]    People APX talks to on channels
@@ -84,8 +85,10 @@ Usage:
                            Projects are folders with AGENTS.md / .apc/; their agents come from those files
   apx projects rm <project>   Forget a project in APX; its folder and files are never deleted
   apx agents              Agents and the model each one runs on
+  apx agents show <agent>            Its fields and full prompt
   apx agents new <slug> "<Name>" [--project <id>] [--role "<role>"]
   apx agents set <agent> name=… role=… slug=… parent=… blob=…
+  apx agents set <agent> --prompt-file <file | ->   Its prompt from a file, or stdin with -
   apx agents archive <agent>         Project agents: changes are written to .apc/agents/<slug>.md
   apx agents model <agent> <engine/model | engine | router | default> [--router]
                            An agent's model; --router keeps the router as its fallback

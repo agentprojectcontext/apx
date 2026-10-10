@@ -28,6 +28,15 @@ export async function memory(
       console.log(`${m.id}  ${where(m)}`);
       return;
     }
+    case "edit": {
+      const [id, ...words] = rest;
+      const text = words.join(" ").trim();
+      if (!id || !text) throw new Error('usage: apx memory edit <id> "new text"');
+      // With an id the core rewrites that note in place and keeps its own scope; `scope` is only the schema's.
+      const m = await client.call("memory.add", { id, text, scope: "global" });
+      console.log(`${m.id}  ${where(m)}  edited`);
+      return;
+    }
     case "rm":
     case "remove": {
       for (const id of rest) {
