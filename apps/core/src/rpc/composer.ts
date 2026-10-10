@@ -44,7 +44,10 @@ export function composerHandlers(deps: {
         throw badRequest(errorMessage(err));
       }
     },
-    "media.transcribe": async ({ data, mime, media_id, thread }) => {
+    "media.transcribe": async ({ data, mime, media_id, thread }, ctx) => {
+      // Anyone but the owner transcribes only audio already in the chat it runs in (file_read on an audio file).
+      if (ctx.actor !== "human" && (!media_id || !ctx.agent || thread !== ctx.agent.thread_id))
+        throw unauthorized("an agent transcribes only audio attached in its own chat");
       if (thread && !store.threads.get(thread)) throw notFound(`thread ${thread}`);
       const media = media_id ? store.media.get(media_id) : undefined;
       if (media_id && (media?.kind !== "audio" || media.service || (media.thread_id && media.thread_id !== thread)))

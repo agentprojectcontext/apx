@@ -41,7 +41,10 @@ export const composerMethods = {
     effect: true,
     access: "human",
   },
-  /** Speech to text for the composer's microphone: the words go into the field, nothing is sent. */
+  /**
+   * Speech to text for the composer's microphone (the words go into the field, nothing is sent), or for an agent
+   * reading an audio file it attached in its own chat (`media_id`).
+   */
   "media.transcribe": {
     params: z
       .object({
@@ -60,7 +63,6 @@ export const composerMethods = {
       ),
     result: z.object({ text: z.string(), service: z.string() }),
     effect: false,
-    access: "human",
   },
   /** The chat's own model: tried before the agent's. null goes back to the agent's choice. */
   "threads.model": {

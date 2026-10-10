@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { ApxClient } from "@apx/protocol/client";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { fileTools } from "./files.ts";
@@ -20,6 +23,7 @@ const calls: Record<string, [string, object]> = {
   "read page": ["file_read", { path: "pages/btc.html", offset: 2, limit: 1 }],
   "read binary": ["file_read", { path: "pages/blob.bin" }],
   "read picture": ["file_read", { path: "pages/dot.png" }],
+  "read memo": ["file_read", { path: "pages/memo.mp3" }],
   "read outside": ["file_read", { path: "../secrets.index.json" }],
   parallel: ["file_parallel", {}],
 };
@@ -172,4 +176,39 @@ test("an agent that reads an image file sees it", async () => {
     /pages\/dot\.png: an image \(image\/png, \d+ bytes\)/,
   );
   assert.equal(messages.filter((m) => m.role === "user" && m.images?.length).length, 1);
+});
+
+test("an agent that reads an audio file gets its transcript, as data; only the owner transcribes anything else", async () => {
+  const ears = http.createServer((_req, res) => {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ text: "buy milk on the way home" }));
+  });
+  await new Promise<void>((r) => ears.listen(0, "127.0.0.1", r));
+  try {
+    const url = `http://127.0.0.1:${(ears.address() as AddressInfo).port}`;
+    await env.client.call("services.set", {
+      id: "ears",
+      service: {
+        kind: "transcription",
+        dialect: "whisper-local",
+        label: "Ears",
+        base_url: url,
+        enabled: true,
+        needs_key: false,
+      },
+    });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "memo" });
+    fs.writeFileSync(path.join(env.home, "work", "pages", "memo.mp3"), Buffer.from("ID3-not-really-mp3"));
+    assert.match(
+      await said(t.id, "read memo"),
+      /pages\/memo\.mp3: audio \(audio\/mpeg\), transcribed:\n<transcript path="pages\/memo\.mp3" trust="untrusted">\nbuy milk on the way home\n<\/transcript>/,
+    );
+    const agent = new ApxClient({ url: env.core.url, actor: "agent" });
+    await assert.rejects(
+      agent.call("media.transcribe", { data: Buffer.from("x").toString("base64"), mime: "audio/webm" }),
+      /only audio attached in its own chat/,
+    );
+  } finally {
+    await new Promise<void>((r) => ears.close(() => r()));
+  }
 });
