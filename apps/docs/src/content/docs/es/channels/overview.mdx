@@ -84,10 +84,13 @@ apx contacts block <id>      # o unblock, rm
 
 **Mientras trabaja** decide qué pasa si mandás otro mensaje antes de que termine la respuesta:
 
+- **Se suma** (por defecto): tu mensaje se suma al turno en curso; el agente lo lee entre pasos y sigue. Funciona en
+  el motor de APX; en otros motores espera.
 - **Espera**: tu mensaje nuevo espera y se contesta cuando termina el actual.
 - **Interrumpe**: corta lo que estaba haciendo y arranca de nuevo con tu mensaje.
-- **Se suma**: tu mensaje se suma al turno en curso; el agente lo lee entre pasos y sigue. Funciona en el motor de
-  APX; en otros motores espera.
+
+Con cualquier opción, un "pará" corto ("pará", "basta", "cancelá", "stop") mientras trabaja corta el turno: te llega
+"Listo, paré." y nada más.
 
 En Telegram y WhatsApp, **Mensajes que no necesitan respuesta** elige qué recibe un "ok", un gracias o una despedida:
 **Silencio** o **Reaccionar** (un emoji), sin llamar al modelo en ningún caso.

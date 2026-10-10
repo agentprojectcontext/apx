@@ -470,7 +470,7 @@ function importTelegram(deps: V1ImportDeps, agentId: string): number {
         agent_id: agentId,
         enabled: true,
         strangers: "pair",
-        concurrency: "queue",
+        concurrency: "steer",
         owner_thread: "home",
       },
       tg.token,
@@ -498,7 +498,7 @@ function importDiscord(deps: V1ImportDeps, agentId: string): number {
         enabled: dc.enabled,
         // v1 answered strangers only in its rooms; a direct message from one waits for the owner.
         strangers: "ask",
-        concurrency: "queue",
+        concurrency: "steer",
         owner_thread: "home",
         rooms: dc.rooms,
       },
@@ -542,7 +542,7 @@ function importWhatsApp(deps: V1ImportDeps, agentId: string): number {
       agent_id: agentId,
       enabled: true,
       strangers: "ask",
-      concurrency: "queue",
+      concurrency: "steer",
       owner_thread: "home",
       self_owner: wa.selfOwner,
     });

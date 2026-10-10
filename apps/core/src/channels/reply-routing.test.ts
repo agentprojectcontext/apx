@@ -52,7 +52,12 @@ async function setup(t: TestContext, llm: Llm, extraTools: Tool[] = [probe]) {
     await tg.close();
     f.env.cleanup();
   });
-  await f.env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
+  // Where answers go when turns wait in line (not the default, where a message joins the running turn).
+  await f.env.client.call("channels.set", {
+    id: "tg",
+    channel: { type: "telegram", agent_id: "roby", concurrency: "queue" },
+    token: TOKEN,
+  });
   const owner = f.env.core.store.persons.owner();
   f.env.core.store.persons.link(owner.id, { channel: "tg", external_id: String(OWNER.id) });
   return f;

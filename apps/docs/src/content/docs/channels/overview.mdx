@@ -83,10 +83,13 @@ apx contacts block <id>      # or unblock, rm
 
 **While it is working** decides what happens if you send another message before the answer is done:
 
+- **Slip in** (the default): your message joins the running turn; the agent reads it between steps and keeps going.
+  This works on APX's own engine; other engines wait.
 - **Wait**: your new message waits, and is answered when the current one finishes.
 - **Interrupt**: it stops what it was doing and starts over with your new message.
-- **Slip in**: your message joins the running turn; the agent reads it between steps and keeps going. This works on
-  APX's own engine; other engines wait.
+
+Whatever the setting, a short "stop" ("stop", "pará", "basta", "cancelá") while it works stops the turn: you get
+"Done, I stopped." and nothing else.
 
 On Telegram and WhatsApp, **Messages that need no answer** chooses what an "ok", a thanks or a goodbye gets:
 **Silence** or **React** (an emoji), with no model call either way.

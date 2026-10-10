@@ -744,7 +744,7 @@ export const appMethods = {
             enabled: z.boolean().default(true),
             agent_id: Id,
             strangers: ChannelStrangers.default("pair"),
-            concurrency: z.enum(["queue", "interrupt", "steer"]).default("queue"),
+            concurrency: z.enum(["queue", "interrupt", "steer"]).default("steer"),
             owner_thread: z.enum(["home", "own"]).default("home"),
             self_owner: z.boolean().optional(),
             rooms: ChannelRooms.optional(),

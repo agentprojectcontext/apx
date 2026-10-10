@@ -118,6 +118,24 @@ export function needsNoAnswer(text: string, openQuestion: boolean): boolean {
   });
 }
 
+/** A short message that only says to stop ("pará", "basta ya", "stop it"), accents and repeated letters removed. */
+const STOP_WORK =
+  /^(para|pare|paralo|parala|stop|halt|abort|cancel|basta|frena|frenalo|cancela|cancelalo|cancelar|detente|detenete|dejalo|deja eso|olvidalo|no sigas)( (todo|ya|eso|ahi|it|now|por favor|porfa|please))*$/;
+
+/** The owner asks the agent to stop what it is doing (said while a turn runs: it is canceled, not answered). */
+export function asksToStop(text: string): boolean {
+  const flat = text
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(squeeze)
+    .join(" ");
+  return STOP_WORK.test(flat);
+}
+
 /** The agent's words asked something anywhere: a short reply may be its answer. */
 export const asksSomething = (text: string): boolean => text.includes("?");
 

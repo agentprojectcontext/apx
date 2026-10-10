@@ -17,6 +17,9 @@ const ANA = { id: 2002, name: "Ana" };
 const SECOND = { id: 3003, name: "Owner (work phone)" };
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
+  const last = String(req.messages.at(-1)?.content);
+  if (last.startsWith("[The owner adds")) return say(`Steered: ${last.split("\n")[1]}`);
+  if (said.includes("slow job") && !afterTool) return callTool("s1", "slowpoke", {});
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 80)}`);
   if (said.includes("launch the probe")) return callTool("p1", "probe", {});
   if (said.includes("where do you live")) return say("My files are in /Users/someone/secret/notes.md, **sorry**.");
@@ -36,6 +39,26 @@ const probe = defineTool({
   run: async () => "probed",
 });
 
+/** A tool that holds its turn until the test lets it go (or the turn is stopped). */
+const gate = { waiting: false, open: () => {} };
+const slowpoke = defineTool({
+  name: "slowpoke",
+  description: "test tool that waits",
+  args: z.object({}),
+  effect: "none",
+  deadlineMs: 60_000,
+  title: () => "Slowpoke",
+  run: (_a, ctx) =>
+    new Promise<string>((resolve) => {
+      gate.waiting = true;
+      gate.open = () => {
+        gate.waiting = false;
+        resolve("slow done");
+      };
+      ctx.signal.addEventListener("abort", () => gate.open(), { once: true });
+    }),
+});
+
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 
@@ -52,7 +75,7 @@ before(async () => {
   tg = await fakeTelegram(TOKEN);
   env = await startCore({
     llm,
-    extraTools: [probe],
+    extraTools: [probe, slowpoke],
     channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) },
   });
   await env.client.call("channels.set", {
@@ -119,6 +142,34 @@ test("while the agent works the owner sees typing, never a streamed draft that w
   await until(() => tg.messagesTo(OWNER.id).some((m) => /you said: stream this/.test(String(m.body.text))), "reply");
   assert.ok(tg.sent.some((m) => m.method === "sendChatAction" && String(m.body.chat_id) === String(OWNER.id)));
   assert.equal(tg.sent.filter((m) => m.method === "sendMessageDraft").length, 0);
+});
+
+test("a message while the agent works joins its turn; a short stop ends it without a new one", async () => {
+  const toOwner = () => tg.messagesTo(OWNER.id).map((m) => String(m.body.text));
+  const runCount = async () => (await env.client.call("threads.get", { thread: "home" })).runs.length;
+  const runsBefore = await runCount();
+  tg.message(OWNER, "slow job");
+  await until(() => gate.waiting, "tool running");
+  tg.message(OWNER, "also add the totals");
+  await until(async () => {
+    const home = await env.client.call("threads.get", { thread: "home" });
+    return home.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text === "also add the totals"));
+  }, "second message kept");
+  gate.open();
+  await until(() => toOwner().some((t) => t.includes("Steered: also add the totals")), "steered answer");
+  assert.equal(await runCount(), runsBefore + 1, "both messages in one turn");
+
+  const before = toOwner().length;
+  tg.message(OWNER, "slow job");
+  await until(() => gate.waiting, "tool running again");
+  tg.message(OWNER, "Pará");
+  await until(() => toOwner().includes("Listo, paré."), "stop acknowledged");
+  await until(() => !gate.waiting, "tool stopped");
+  await new Promise((r) => setTimeout(r, 200));
+  assert.deepEqual(toOwner().slice(before), ["Listo, paré."], "no half answer and no answer to the stop");
+  const after = await env.client.call("threads.get", { thread: "home" });
+  assert.equal(after.runs.length, runsBefore + 2, "the stop started no turn");
+  assert.equal(after.runs[0]?.state, "canceled", "runs are newest first");
 });
 
 test("a confirmation reaches the owner with buttons and a press approves it", async () => {

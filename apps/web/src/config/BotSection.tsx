@@ -121,7 +121,7 @@ function Setup({ kind }: { kind: BotKind }) {
     setBusy(true);
     await saveChannel(
       kind,
-      { agent_id: agent, enabled: true, strangers: "pair", concurrency: "queue", owner_thread: "home" },
+      { agent_id: agent, enabled: true, strangers: "pair", concurrency: "steer", owner_thread: "home" },
       tokens.joined,
     );
     setBusy(false);

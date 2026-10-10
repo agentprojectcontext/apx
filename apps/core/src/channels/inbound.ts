@@ -15,7 +15,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { untrusted } from "../tools/result.ts";
-import { asksSomething, needsNoAnswer, reactionFor } from "./closers.ts";
+import { asksSomething, asksToStop, needsNoAnswer, reactionFor } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
 import { buttonId, parseButton } from "./notices.ts";
 import type { createRooms } from "./rooms.ts";
@@ -127,6 +127,19 @@ export function createInbound(deps: {
       return "done";
     }
     text = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
+    // "Pará" while the agent works: the turn stops, and the word is kept without starting another.
+    if (owner && !attachments.length && asksToStop(text) && working(thread.id)) {
+      await call("threads.cancel", { thread: thread.id }, { actor: "human" }, `channel:${rowId}:stop`);
+      theirLast(thread.id, cfg.id, m, keepQuiet(thread.id, cfg.id, undefined, text));
+      delivery.enqueue({
+        channel: cfg.id,
+        conversation: m.conversation,
+        thread_id: thread.id,
+        kind: "notice",
+        body: { text: channelTexts(store).stopped },
+      });
+      return "done";
+    }
     if (
       owner &&
       !m.files?.length &&
@@ -188,13 +201,18 @@ export function createInbound(deps: {
    */
   function closesChat(threadId: string, text: string): boolean {
     if (store.inputs.pending(threadId).length) return false;
-    if (store.runs.list(threadId, 5).some((r) => LIVE.has(r.state))) return false;
+    if (working(threadId)) return false;
     const last = store.messages
       .list(threadId)
       .findLast((x) => x.author.kind === "agent" || x.author.kind === "person" || x.author.kind === "user");
     const said =
       last?.author.kind === "agent" ? last.parts.map((p) => (p.type === "text" ? p.text : "")).join("\n") : "";
     return needsNoAnswer(text, asksSomething(said));
+  }
+
+  /** A turn of the thread is running, queued or waiting for an answer. */
+  function working(threadId: string): boolean {
+    return store.runs.list(threadId, 5).some((r) => LIVE.has(r.state));
   }
 
   /** Each automatic answer to a contact costs a model call: past the hourly limit they wait and the owner hears it. */

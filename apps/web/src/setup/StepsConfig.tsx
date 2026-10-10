@@ -174,7 +174,7 @@ function TelegramCard() {
     setBusy(true);
     const ok = await saveChannel(
       "telegram",
-      { agent_id: boss.id, enabled: true, strangers: "pair", concurrency: "queue", owner_thread: "home" },
+      { agent_id: boss.id, enabled: true, strangers: "pair", concurrency: "steer", owner_thread: "home" },
       token.trim(),
     );
     setBusy(false);
@@ -248,7 +248,7 @@ function WhatsAppCard() {
       agent_id: boss.id,
       enabled: true,
       strangers: "ask",
-      concurrency: "queue",
+      concurrency: "steer",
       owner_thread: "home",
       self_owner: wa?.self_owner ?? selfOwner,
     });

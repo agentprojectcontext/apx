@@ -248,7 +248,8 @@ export function createChannels(deps: {
     const ack = acked.get(run.id);
     acked.delete(run.id);
     const to = replyTo(run.id);
-    if (!to || run.trigger === "surface") return;
+    // A stopped turn's half-written answer is not news: the owner stopped it.
+    if (!to || run.trigger === "surface" || run.state === "canceled") return;
     const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
     let out = (msg?.parts ?? [])
       .map((p) => (p.type === "text" ? p.text : ""))

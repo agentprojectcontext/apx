@@ -12,7 +12,7 @@ import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./Channe
 import { SubHead } from "./SectionHead.tsx";
 
 const CHANNEL_ID = "whatsapp";
-const DEFAULTS = { enabled: true, strangers: "pair", concurrency: "queue", owner_thread: "home" } as const;
+const DEFAULTS = { enabled: true, strangers: "pair", concurrency: "steer", owner_thread: "home" } as const;
 
 /**
  * WhatsApp, linked like WhatsApp Web with a QR: a line of its own the owner writes to from their phone, or the owner's
