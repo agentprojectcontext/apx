@@ -203,8 +203,35 @@ test("owner only: in rooms only the owner gets answers", async () => {
   await until(() => posts(ROOMS.help).length === n + 1, "the owner is answered");
   const call = llm.calls.at(-1);
   assert.match(String(call?.messages.at(-1)?.content), /<room_message from="[^"]*" owner="yes"/);
-  assert.equal(call?.tools?.length ?? 0, 0, "the owner too gets a sealed turn in a public room");
+  // The owner too gets a sealed turn in a public room: by default only the web, to look things up when they ask.
+  assert.deepEqual(call?.tools?.map((t) => t.function.name).sort(), ["web_read", "web_search"]);
+  assert.match(String(call?.messages[0]?.content), /This turn has only web search and reading/);
   await set(false);
+});
+
+test("research: none for members by default; off closes it to the owner too, everyone opens it to all", async () => {
+  const research = async (level: "off" | "owner" | "everyone") => {
+    const cur = (await env.client.call("channels.list", {})).channels[0];
+    await env.client.call("channels.set", {
+      id: "dc",
+      channel: { type: "discord", agent_id: "roby", rooms: cur?.rooms ?? { rooms: [] }, research: level },
+    });
+    await until(async () => (await env.client.call("channels.list", {})).channels[0]?.status === "running", "up");
+  };
+  const toolsFor = async (who: { id: string; name: string }, text: string) => {
+    await pause(1100);
+    const n = posts(ROOMS.help).length;
+    dc.message(who, text, { room: ROOMS.help });
+    await until(() => posts(ROOMS.help).length === n + 1, `answered: ${text}`);
+    const call = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).includes(text));
+    return (call?.tools ?? []).map((t) => t.function.name).sort();
+  };
+  assert.deepEqual(await toolsFor(BEN, "roby find the docs for me"), [], "a member gets no tools by default");
+  await research("off");
+  assert.deepEqual(await toolsFor(OWNER, "roby search the changelog"), []);
+  await research("everyone");
+  assert.deepEqual(await toolsFor(BEN, "roby read the install page"), ["web_read", "web_search"]);
+  await research("owner");
 });
 
 test("the owner's agent lists the channels with their rooms, and nothing secret", async () => {

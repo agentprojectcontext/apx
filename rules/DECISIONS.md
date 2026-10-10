@@ -703,3 +703,14 @@ models and the browser profile are not among its fields: how far an agent may ac
 rename keeps the agent's id, so threads, tasks, routines and messages that point at it need no rewrite; a project
 agent's new slug keeps the old one as an alias and moves its reports' `parent` along.
 
+<a id="d-059"></a>
+## D-059 — 2026-10-10 — A sealed chat may search the web, as its channel allows
+D-014 sealed rooms and contacts' chats with no tools, so the owner asking the agent in a public Discord room to look
+something up got "I can't from here". A channel now says who may have its sealed chats search the web and read public
+pages (`research`: `off`, `owner`, `everyone`; unset means `owner`): `owner` opens it only to a turn the owner started
+(their message in a room, checked by account, or their words in a contact's chat from the app). It adds exactly
+`web_search` and `web_read` and nothing else: no shell, files, browser, memory, projects or MCP. Both tools already
+reach only public addresses (resolved names included, never this machine or the local network) and return untrusted
+data; a page's address carrying values still asks after outside content, as D-057 says. What a sealed turn could leak
+through them is only what it holds: the room's public talk, or a contact's own chat (and the owner's general
+notes, where the owner let that person's chat read them).

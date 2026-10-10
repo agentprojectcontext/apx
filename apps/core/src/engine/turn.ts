@@ -26,9 +26,18 @@ import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { harnessDir, scratchDir } from "../tools/shell.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
+import { WEB_TOOLS } from "../tools/web.ts";
 import { callersOf } from "./ancestry.ts";
 import { attachmentsBlock } from "./attachments.ts";
-import { type Audience, audienceOf, contactPrompt, ownerInstruction, roomInput, roomPrompt } from "./audience.ts";
+import {
+  type Audience,
+  audienceOf,
+  contactPrompt,
+  ownerInstruction,
+  roomInput,
+  roomPrompt,
+  sealedWeb,
+} from "./audience.ts";
 import { gitChanges } from "./changes.ts";
 import {
   HISTORY_BUDGET_CHARS,
@@ -106,6 +115,8 @@ type Turn = {
   thread: Thread;
   input: NonNullable<RunRecord["input"]>;
   audience: Audience;
+  /** A sealed turn (a room, a contact's chat) its channel lets search the web and read public pages. */
+  web: boolean;
   /** In a worker's session: the instructions its caller wrote (the agent is the caller itself). */
   worker?: Worker | undefined;
 };
@@ -118,11 +129,13 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   const agent = store.agents.get(start.agent_id);
   if (!thread || !agent || !start.input)
     return store.runs.setState(start, "failed", !start.input ? "run has no input" : "thread or agent is gone");
+  const audience = audienceOf(store, thread);
   const turn: Turn = {
     agent,
     thread,
     input: start.input,
-    audience: audienceOf(store, thread),
+    audience,
+    web: sealedWeb(store, audience, start.input.origin),
     worker: store.threads.context(thread.id).worker,
   };
 
@@ -406,7 +419,9 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   // A contact's turn gets only what the owner allowed for that person (nothing by default); the owner's turns never
   // see the contact-only tools.
   const forContact =
-    turn.audience.kind === "contact" ? contactToolNames(turn.audience.person?.perms) : new Set<string>();
+    turn.audience.kind === "contact"
+      ? new Set([...contactToolNames(turn.audience.person?.perms), ...(turn.web ? WEB_TOOLS : [])])
+      : new Set<string>();
   const policy = inherit(
     turn.agent,
     callers,
@@ -449,8 +464,8 @@ function systemFor(
   const lang = store.settings.get("owner_language") || "es";
   if (turn.audience.kind === "contact")
     return turn.audience.room
-      ? roomPrompt(turn.agent, turn.audience.room, lang)
-      : contactPrompt(turn.agent, turn.audience, lang);
+      ? roomPrompt(turn.agent, turn.audience.room, lang, turn.web)
+      : contactPrompt(turn.agent, turn.audience, lang, turn.web);
   // The thread's project when it has one (a global agent working there needs its AGENTS.md too).
   const projectId = turn.thread.project_id ?? turn.agent.project_id;
   if (turn.worker)

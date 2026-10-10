@@ -89,6 +89,15 @@ export const enChannels = {
   "ch.flag.rules": "Has rules of their own",
   "ch.reaction.agent": "{agent}'s reaction",
   "ch.reaction.them": "Their reaction",
+  "ch.research": "Search the web",
+  "ch.research.off": "Off",
+  "ch.research.owner": "Only you",
+  "ch.research.everyone": "Everyone",
+  "ch.researchHint.off": "In rooms and contacts' chats it never searches the web; it only talks.",
+  "ch.researchHint.owner":
+    "When you ask in a room (or from the app in a contact's chat), it searches the web and reads public pages. Never your computer, files or memory.",
+  "ch.researchHint.everyone":
+    "Anyone it answers in rooms and contacts' chats can have it search the web and read public pages. Never your computer, files or memory.",
   "ch.closers": "Messages that need no answer",
   "ch.closers.silent": "Silence",
   "ch.closers.react": "React",

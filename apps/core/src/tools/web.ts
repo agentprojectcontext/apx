@@ -193,6 +193,9 @@ const ENGINES: Array<{ name: string; url: (q: string) => string; parse: (html: s
   { name: "duckduckgo", url: (q) => `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(q)}`, parse: ddgHits },
 ];
 
+/** What a sealed chat (a room, a contact's) may get when its channel allows research: nothing else opens with it. */
+export const WEB_TOOLS: ReadonlySet<string> = new Set(["web_search", "web_read"]);
+
 export function webTools(): Tool[] {
   return [
     defineTool({

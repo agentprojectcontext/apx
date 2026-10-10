@@ -11,6 +11,7 @@ import {
   ChannelClosers,
   ChannelEmail,
   ChannelInfo,
+  ChannelResearch,
   ChannelRooms,
   ChannelStrangers,
   ChannelType,
@@ -749,6 +750,7 @@ export const appMethods = {
             self_owner: z.boolean().optional(),
             rooms: ChannelRooms.optional(),
             closers: ChannelClosers.default("silent"),
+            research: ChannelResearch.default("owner"),
             email: ChannelEmail.optional(),
           })
           .nullable(),

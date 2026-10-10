@@ -71,6 +71,8 @@ export type ChannelDraft = {
   rooms?: ChannelInfo["rooms"];
   /** Silence or an emoji for a message that needs no answer (kept on every save). */
   closers?: ChannelInfo["closers"];
+  /** Who may have its rooms and contacts' chats search the web (kept on every save). */
+  research?: ChannelInfo["research"];
   /** Email: the mailbox and its servers (kept on every save). */
   email?: ChannelInfo["email"];
 };

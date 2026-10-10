@@ -96,6 +96,7 @@ function Linked({ channel }: { channel: ChannelInfo }) {
     owner_thread: channel.owner_thread,
     self_owner: channel.self_owner,
     closers: channel.closers,
+    research: channel.research,
   };
   const save = (patch: Partial<ChannelDraft>) => saveChannel(channel.id, { ...draft, ...patch });
   const running = channel.status === "running";

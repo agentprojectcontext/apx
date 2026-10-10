@@ -92,6 +92,15 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.flag.rules": "Tiene reglas propias",
   "ch.reaction.agent": "Reacción de {agent}",
   "ch.reaction.them": "Su reacción",
+  "ch.research": "Buscar en la web",
+  "ch.research.off": "No",
+  "ch.research.owner": "Solo vos",
+  "ch.research.everyone": "Todos",
+  "ch.researchHint.off": "En las salas y en los chats de contactos nunca busca en la web; solo conversa.",
+  "ch.researchHint.owner":
+    "Cuando se lo pedís en una sala (o desde la app en el chat de un contacto), busca en la web y lee páginas públicas. Nunca tu computadora, tus archivos ni tu memoria.",
+  "ch.researchHint.everyone":
+    "Cualquiera a quien le responda en salas y chats de contactos puede pedirle que busque en la web y lea páginas públicas. Nunca tu computadora, tus archivos ni tu memoria.",
   "ch.closers": "Mensajes que no necesitan respuesta",
   "ch.closers.silent": "Silencio",
   "ch.closers.react": "Reaccionar",

@@ -282,6 +282,7 @@ function Connected({ channel }: { channel: ChannelInfo }) {
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
     closers: channel.closers,
+    research: channel.research,
     ...(email ? { email } : {}),
   };
   const save = (patch: Partial<ChannelDraft>, newPassword?: string) =>

@@ -1,6 +1,6 @@
 // What every channel's settings share: who answers and how, who waits to be let in, the people on it, what was sent,
 // and how notices reach the owner.
-import type { ChannelClosers, ChannelInfo, Person } from "@apx/protocol";
+import type { ChannelClosers, ChannelInfo, ChannelResearch, Person } from "@apx/protocol";
 import { Badge, Button, IconButton, Icons, Input, Menu, SegmentedControl, SettingRow } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { ownerOn, PairingRow } from "../channels/StartRows.tsx";
@@ -98,6 +98,19 @@ export function Behavior({
           />
         </SettingRow>
       )}
+      <SettingRow title={t("ch.research")} description={t(`ch.researchHint.${channel.research ?? "owner"}`)}>
+        <SegmentedControl
+          size="sm"
+          label={t("ch.research")}
+          value={channel.research ?? "owner"}
+          onValueChange={(v) => void save({ research: v as ChannelResearch })}
+          options={[
+            { value: "off", label: t("ch.research.off") },
+            { value: "owner", label: t("ch.research.owner") },
+            { value: "everyone", label: t("ch.research.everyone") },
+          ]}
+        />
+      </SettingRow>
       <SettingRow title={t("tg.strangers")} description={t(STRANGER_HINT[strangerMode(channel)])}>
         <SegmentedControl
           size="sm"

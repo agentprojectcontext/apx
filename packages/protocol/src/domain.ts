@@ -694,6 +694,13 @@ export type ChannelEmail = z.infer<typeof ChannelEmail>;
 export const ChannelClosers = z.enum(["silent", "react"]);
 export type ChannelClosers = z.infer<typeof ChannelClosers>;
 
+/**
+ * Who may have a sealed chat of this channel (a room, a contact's chat) search the web and read public pages: no one,
+ * only the owner when they ask in a room, or anyone it answers. Nothing else of the owner's ever opens to them.
+ */
+export const ChannelResearch = z.enum(["off", "owner", "everyone"]);
+export type ChannelResearch = z.infer<typeof ChannelResearch>;
+
 export const ChannelInfo = z.object({
   id: z.string(),
   type: ChannelType,
@@ -722,6 +729,8 @@ export const ChannelInfo = z.object({
    * reaction where the channel has them. Neither calls the model.
    */
   closers: ChannelClosers.optional(),
+  /** Web search and reading in its sealed chats (none set: only when the owner asks). See DECISIONS.md#d-059 */
+  research: ChannelResearch.optional(),
   /** Email: the mailbox and its servers. */
   email: ChannelEmail.optional(),
   token_set: z.boolean(),

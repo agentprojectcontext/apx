@@ -55,6 +55,14 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   await names.fill("roby");
   await names.blur();
   await expect(names).toHaveValue("roby");
+  // Its rooms may look things up on the web: by default only when the owner asks; here, for everyone.
+  await expect(page.getByRole("radio", { name: "Solo vos" })).toBeChecked();
+  await page.getByRole("radio", { name: "Todos" }).click();
+  await until(async () =>
+    (await rpc<{ channels: Array<{ id: string; research?: string }> }>("channels.list")).channels.some(
+      (c) => c.id === "discord" && c.research === "everyone",
+    ),
+  );
 
   // Each save restarts the bot with its rooms: it listens again before anyone writes.
   await until(async () =>
