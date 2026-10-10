@@ -11,6 +11,7 @@ import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
 import { localConnection } from "./commands/local.ts";
 import { mcpCommand } from "./commands/mcp.ts";
+import { image, say, transcribe } from "./commands/media.ts";
 import { memory } from "./commands/memory.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
 import { notifications } from "./commands/notifications.ts";
@@ -73,6 +74,9 @@ Usage:
   apx contacts [add|block|rm]    People APX talks to on channels
   apx pairing [me|ok|no <code>]  Approve who wrote to a channel
   apx compact <thread>    Summarize a thread's older turns now (APX's own loop; Claude Code and Codex compact their own)
+  apx image "<prompt>" [--out file] [--size WxH]   Draw an image and save it
+  apx say "<text>" [--out file]    Speak text and save the audio
+  apx transcribe <audio file>      Speech to text
   apx usage [days]        Turns and tokens by model, and whether they were included or paid per token
   apx mcps [list [project]] | tools|run|check <server> | trust|untrust <project> <server> | add <name> <command…|url> | rm <name>
   apx mcps on|off <server> --project p   Turn one of your servers on or off inside a project
@@ -181,6 +185,8 @@ function argumentsOf() {
       expose: { type: "string" },
       home: { type: "string" },
       "dry-run": { type: "boolean" },
+      out: { type: "string" },
+      size: { type: "string" },
     },
   });
 }
@@ -300,6 +306,15 @@ try {
       break;
     case "usage":
       await usage(client, rest);
+      break;
+    case "image":
+      await image(client, rest, { out: values.out, size: values.size });
+      break;
+    case "say":
+      await say(client, rest, { out: values.out });
+      break;
+    case "transcribe":
+      await transcribe(client, rest);
       break;
     case "mcps":
       await mcpCommand(client, rest, values);
