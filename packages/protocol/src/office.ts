@@ -102,9 +102,10 @@ export type CallModel = z.infer<typeof CallModel>;
  * What a routine does: its agent answers the prompt; or the prompt itself is sent to the owner as it is (a message,
  * `{{pre_output}}` filled with the pre-command's output, no model); or only its pre-command runs (a shell job).
  */
-/** Its agent answers the prompt; a message is sent as written; only its command runs; or its agent watches the owner's
- * work (late tasks, commitments, quiet projects) and is called only when something new shows up. */
-export const RoutineAction = z.enum(["agent", "message", "shell", "watch"]);
+/** Its agent answers the prompt; a message is sent as written; only its command runs; its agent watches the owner's
+ * work (late tasks, commitments, quiet projects) and is called only when something new shows up; or its agent tells
+ * the owner, in one message, what the other agents' routines and notices had for them (called only when there is). */
+export const RoutineAction = z.enum(["agent", "message", "shell", "watch", "relay"]);
 export type RoutineAction = z.infer<typeof RoutineAction>;
 
 /** Work an agent does on its own on a schedule; the owner hears back only when there is something to say. */
@@ -170,7 +171,7 @@ export const ProfileRoutine = z.object({
   name: Localized,
   /** v1's names for the same routine: an imported one is adopted instead of doubled. */
   v1: z.array(z.string()).default([]),
-  action: z.enum(["agent", "watch", "message"]).default("agent"),
+  action: z.enum(["agent", "watch", "message", "relay"]).default("agent"),
   anchor: z.boolean().default(false),
   schedule: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("cron"), cron: z.string().max(120) }),

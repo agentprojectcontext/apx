@@ -74,6 +74,7 @@ export function officeScheduler(deps: {
         thread_id: run.thread_id,
         project_id: routine.project_id,
         anchor: routine.anchor,
+        relay: store.agents.get(routine.agent_id)?.kind !== "secretary",
       });
       attention.add({
         kind: "routine",

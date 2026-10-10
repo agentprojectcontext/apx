@@ -11,6 +11,7 @@ const NOTIFY_STATE = {
   held: "held: the owner's quiet hours; it goes when they end",
   dropped: "kept in the owner's tray only (their interruption budget); do not send it again",
   merged: "sent with others",
+  relay: "handed to the super-agent, who tells the owner in its next team news; do not send it again",
   no_channel: "in the owner's tray (they have no channel set up)",
 } as const;
 

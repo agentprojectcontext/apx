@@ -1336,6 +1336,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nudge.state.sent": "Enviado",
   "nudge.state.merged": "Enviado junto",
   "nudge.state.held": "Esperando el fin del silencio",
+  "nudge.state.relay": "Esperando las novedades del equipo",
   "nudge.state.dropped": "Solo en la bandeja",
   "nudge.state.no_channel": "Sin canal",
   "nudge.linkHint": "Las horas de silencio, el tope diario y lo que se mandó sin pedirlo están en Interrupciones.",

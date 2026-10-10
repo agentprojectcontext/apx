@@ -1322,6 +1322,7 @@ export const en = {
   "nudge.state.sent": "Sent",
   "nudge.state.merged": "Sent together",
   "nudge.state.held": "Waiting for quiet hours to end",
+  "nudge.state.relay": "Waiting for the team news",
   "nudge.state.dropped": "Only in the tray",
   "nudge.state.no_channel": "No channel",
   "nudge.linkHint": "Quiet hours, the daily cap and what was sent unasked are in Interruptions.",

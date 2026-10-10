@@ -1,5 +1,5 @@
 // An agent telling the owner something unasked: through the interruption budget (engine/nudges.ts), like a routine's
-// news, and into the attention tray either way.
+// news (another agent's waits for the super-agent's team news), and into the attention tray either way.
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Nudges } from "../engine/nudges.ts";
@@ -22,6 +22,7 @@ export function noticeHandlers(store: Store, nudges: Nudges) {
         thread_id: thread.id,
         project_id: thread.project_id,
         critical,
+        relay: agent.kind !== "secretary",
       });
       store.notifications.add({
         kind: "agent",

@@ -122,9 +122,11 @@ function RoutineRow(props: {
       ? props.agentName
       : r.action === "watch"
         ? t("routines.flow.watch", { agent: props.agentName })
-        : r.action === "message"
-          ? t("routines.flow.message")
-          : undefined,
+        : r.action === "relay"
+          ? t("routines.flow.relay", { agent: props.agentName })
+          : r.action === "message"
+            ? t("routines.flow.message")
+            : undefined,
     r.post_command && t("routines.flow.post"),
   ].filter(Boolean);
   return (

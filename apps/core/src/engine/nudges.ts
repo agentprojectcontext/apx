@@ -1,7 +1,8 @@
 // The interruption budget: the one gate every message APX sends the owner unasked goes through (routine news, the
-// reminders they set). Anchors always arrive; in quiet hours the rest waits and goes together when they end; past the
-// day's cap, too soon after another about the same project or of the same kind, or of a kind the owner keeps marking
-// 👎, it stays in the tray only. Answers to the owner's own messages never come here.
+// reminders they set). Anchors always arrive; another agent's news waits for the super-agent's team news while a
+// relay routine runs (one voice, a few times a day); in quiet hours the rest waits and goes together when they end;
+// past the day's cap, too soon after another about the same project or of the same kind, or of a kind the owner keeps
+// marking 👎, it stays in the tray only. Answers to the owner's own messages never come here.
 import type { Nudge } from "@apx/protocol";
 import { inQuietHours, noticePrefs, quietEnd } from "../domain/notices.ts";
 import { nudgeId } from "../domain/nudges.ts";
@@ -41,7 +42,12 @@ export type Offer = {
   /** The owner asked for it at this time (a reminder they set): not counted, but it waits out quiet hours. */
   asked?: boolean | undefined;
   critical?: boolean | undefined;
+  /** Another agent's (not the super-agent's): told in the team news when a relay routine runs. */
+  relay?: boolean | undefined;
 };
+
+/** A relay routine is on: the super-agent tells the owner the other agents' news, in one message. */
+export const relaying = (store: Store) => store.routines.list().some((r) => r.enabled && r.action === "relay");
 
 export function createNudges(deps: {
   store: Store;
@@ -89,6 +95,17 @@ export function createNudges(deps: {
     offer(o: Offer): Nudge["state"] {
       const at = clock();
       if (o.anchor) return deliver(o, true, "anchor");
+      if (o.relay && !o.critical && relaying(store)) {
+        const unhelpful = muted(store, o.kind, at);
+        store.nudges.add({
+          ...strip(o),
+          at: at.toISOString(),
+          state: unhelpful ? "dropped" : "relay",
+          reason: unhelpful ? "you marked this kind unhelpful" : "for the team news",
+          exempt: false,
+        });
+        return unhelpful ? "dropped" : "relay";
+      }
       const prefs = noticePrefs(store);
       if (inQuietHours(prefs, at) && !(o.critical && prefs.critical_wakes)) {
         store.nudges.add({

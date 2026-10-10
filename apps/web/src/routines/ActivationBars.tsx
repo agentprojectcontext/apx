@@ -6,8 +6,8 @@ import { routineRuns } from "../data/routines.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { activationSlots } from "./slots.ts";
 
-/** An agent answers (agent) or watches (watch): both have one, and both can spare a model call. */
-export const hasAgent = (a: Routine["action"]) => a === "agent" || a === "watch";
+/** An agent answers (agent), watches (watch) or tells the team news (relay): each has one and can spare a model call. */
+export const hasAgent = (a: Routine["action"]) => a === "agent" || a === "watch" || a === "relay";
 
 /** How one activation ended: it failed, is still running, was skipped (no tokens spent), told the owner, or ran. */
 export const barOf = (x: RoutineRun, action: Routine["action"]) => {

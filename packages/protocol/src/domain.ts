@@ -910,8 +910,9 @@ export const Nudge = z.object({
   thread_id: Id.optional(),
   project_id: Id.optional(),
   /** sent; held (quiet hours, it goes when they end); dropped (over the cap or too soon after another); merged (held,
-   * then sent inside a digest); no_channel (nowhere to send it). */
-  state: z.enum(["sent", "held", "dropped", "merged", "no_channel"]),
+   * then sent inside a digest, or told in the team news); relay (another agent's news, waiting for the super-agent's
+   * team news); no_channel (nowhere to send it). */
+  state: z.enum(["sent", "held", "dropped", "merged", "relay", "no_channel"]),
   reason: z.string().optional(),
   /** It always arrives (an anchor like the morning brief) or went past the cap as critical: not counted. */
   exempt: z.boolean(),

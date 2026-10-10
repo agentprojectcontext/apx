@@ -14,6 +14,7 @@ import { commandEnv } from "../harness/env.ts";
 import { untrusted } from "../tools/result.ts";
 import { workDir } from "../tools/shell.ts";
 import type { Display } from "./display.ts";
+import { takeTeamNews } from "./team-news.ts";
 
 /** A step runs at most this long (and never past its run's own deadline). */
 export const STEP_TIMEOUT_MS = 120_000;
@@ -162,6 +163,21 @@ export function routinePipeline(o: { store: Store; home: string; routine: Routin
     };
   };
 
+  /**
+   * A relay: its agent is called only when other agents' news waits for it; the news reaches it as data, not
+   * instructions. In the owner's quiet hours it waits, like a watch: the first run after tells all of it.
+   */
+  const relay = (result: StepResult | undefined) => {
+    const news = inQuietHours(noticePrefs(o.store), new Date()) ? undefined : takeTeamNews(o.store);
+    o.store.routines.modelCalled(o.run.id, Boolean(news));
+    if (!news) return { call: false, prompt: (t: string) => t };
+    const block = untrusted("team_news", { count: String(news.count) }, news.lines);
+    return {
+      call: true,
+      prompt: (t: string) => `${result ? withPreOutput(t, result) : t}\n\n${block}`,
+    };
+  };
+
   return {
     /**
      * Runs the pre-command (if any) and says what comes next: the model (an agent routine), a message to send as it is
@@ -171,6 +187,7 @@ export function routinePipeline(o: { store: Store; home: string; routine: Routin
       if (routine.pre_command) pre = await step("routine.pre", routine.pre_command, {}, signal);
       const result = pre;
       if (routine.action === "watch") return watch(result);
+      if (routine.action === "relay") return relay(result);
       const goOn = result ? callsModel(routine.call_model, result) : true;
       if (routine.action !== "agent") {
         o.store.routines.modelCalled(o.run.id, false);

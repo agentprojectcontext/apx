@@ -10,6 +10,7 @@ const STATE_TONE: Record<Nudge["state"], "brand" | "neutral" | "warning" | "dang
   sent: "brand",
   merged: "brand",
   held: "warning",
+  relay: "neutral",
   dropped: "neutral",
   no_channel: "danger",
 };

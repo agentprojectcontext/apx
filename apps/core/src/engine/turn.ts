@@ -262,6 +262,8 @@ function skipModel(
   if (t.action === "shell") t.display.notice("info", "routine.shell", "Ran the command.");
   else if (t.action === "watch")
     t.display.notice("info", "routine.watch.quiet", "Nothing new to watch: the model was not called.");
+  else if (t.action === "relay")
+    t.display.notice("info", "routine.relay.quiet", "No team news to tell: the model was not called.");
   else
     t.display.notice(
       "info",

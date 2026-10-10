@@ -73,6 +73,10 @@ export function nudgesRepo({ one, all, run }: Sql) {
         qb.selectFrom("nudges").selectAll().where("state", "=", "held").where("hold_until", "<=", at).orderBy("n"),
       ).map(toNudge);
     },
+    /** Other agents' news waiting for the team news, oldest first. */
+    relayed(): Nudge[] {
+      return all(qb.selectFrom("nudges").selectAll().where("state", "=", "relay").orderBy("n")).map(toNudge);
+    },
     settle(ids: string[], state: Nudge["state"], reason?: string): void {
       if (!ids.length) return;
       run(

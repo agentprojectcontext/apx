@@ -23,7 +23,7 @@ const set = async (patch: Record<string, string | number>) => {
   return env.client.call("profiles.set", { id: "secretary", values: { ...active.values, ...patch } });
 };
 
-test("no profile by default; APX's own are listed; the secretary seeds open, close and watch on the super-agent", async () => {
+test("no profile by default; APX's own are listed; the secretary seeds open, close, watch and team news on the super-agent", async () => {
   const before = await get();
   assert.equal(before.active.id, null);
   assert.deepEqual(before.routines, []);
@@ -48,6 +48,9 @@ test("no profile by default; APX's own are listed; the secretary seeds open, clo
   assert.deepEqual(by("watch")?.schedule, { kind: "every", minutes: 120 });
   assert.equal(by("watch")?.action, "watch");
   assert.equal(by("watch")?.anchor, false, "the watch goes through the budget");
+  assert.deepEqual(by("team-news")?.schedule, { kind: "every", minutes: 240 });
+  assert.equal(by("team-news")?.action, "relay", "the other agents' news, told by the super-agent");
+  assert.equal(by("team-news")?.anchor, false);
   for (const r of routines) {
     assert.equal(r.agent_id, "roby");
     assert.equal(r.enabled, true);
@@ -89,7 +92,7 @@ test("the super-agent's prompt says its role while the profile is on", async () 
   assert.match(await system(), /formally \(usted\)/);
   await env.client.call("profiles.set", { id: null, values: {} });
   const kept = env.core.store.routines.list().filter((r) => r.origin?.startsWith("secretary:"));
-  assert.ok(kept.length === 3 && kept.every((r) => !r.enabled), "none turns its routines off and keeps them");
+  assert.ok(kept.length === 4 && kept.every((r) => !r.enabled), "none turns its routines off and keeps them");
   assert.doesNotMatch(await system(), /chief of staff/);
   await set({});
 });
@@ -122,7 +125,7 @@ test("an imported v1 routine of the same job is adopted, not doubled", async () 
     assert.equal(close.length, 1);
     assert.equal(close[0]?.id, v1.id, "v1's own routine became the profile's");
     assert.match(close[0]?.prompt ?? "", /Close the owner's day/, "with v2's prompt: v1's named v1's tools");
-    assert.equal(routines.length, 3);
+    assert.equal(routines.length, 4);
   } finally {
     await fresh.core.close();
     fresh.cleanup();

@@ -54,6 +54,22 @@
       "default": 2
     },
     {
+      "key": "team_news_every_h",
+      "type": "number",
+      "unit": "hours",
+      "min": 1,
+      "max": 24,
+      "label": {
+        "en": "Team news every",
+        "es": "Novedades del equipo cada"
+      },
+      "help": {
+        "en": "What your other agents' routines had for you, told in one message; they never write to you on their own.",
+        "es": "Lo que las rutinas de tus otros agentes tenían para vos, contado en un solo mensaje; ellos nunca te escriben por su cuenta."
+      },
+      "default": 4
+    },
+    {
       "key": "calendar_command",
       "type": "command",
       "label": {
@@ -195,6 +211,21 @@
         "hours": "{{watch_every_h}}"
       },
       "prompt": "New signals from the owner's work are below. If ONE of them is worth interrupting the owner for now, say it in one line with a suggestion. Otherwise answer only SKIP. Never list everything; never repeat what they already know."
+    },
+    {
+      "key": "team-news",
+      "name": {
+        "en": "Team news",
+        "es": "Novedades del equipo"
+      },
+      "v1": ["secretary-a2a-sweep", "a2a-sweep"],
+      "action": "relay",
+      "anchor": false,
+      "schedule": {
+        "kind": "every",
+        "hours": "{{team_news_every_h}}"
+      },
+      "prompt": "Your other agents' news for the owner since the last team news are below, each with who it came from. Tell the owner in ONE short message, as yourself: group by agent, a line or two each, only what changed, needs their decision or is worth knowing; leave out routine noise, errors nobody can act on and anything said already. Plain lines, no headings. If none of it is worth the owner's attention, answer only SKIP."
     }
   ]
 }
