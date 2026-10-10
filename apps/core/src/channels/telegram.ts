@@ -22,8 +22,6 @@ const MAX_BACKOFF_MS = 60_000;
 /** Voice notes up to this size are fetched for transcription (the Bot API serves files up to 20 MB). */
 const MAX_VOICE_BYTES = 10 * 1024 * 1024;
 const UPLOAD_MS = 60_000;
-/** A draft longer than a message is not streamed further; the final message (in parts) carries it. */
-const DRAFT_MAX = 4096;
 
 type TgUser = { id: number; first_name?: string; last_name?: string; username?: string };
 type TgChat = { id: number; type: string };
@@ -108,8 +106,6 @@ function mediaNote(m: TgMessage): string | undefined {
 export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.org"): ChannelAdapter => {
   const ac = new AbortController();
   let loop: Promise<void> | undefined;
-  /** Off once Telegram says it has no drafts (an older Bot API server): the answer then arrives whole, as before. */
-  let drafts = true;
 
   async function api<T>(method: string, body: object, timeoutMs = CALL_MS, signal = ac.signal): Promise<T> {
     if (!token) throw new TgError(401, "no bot token");
@@ -366,7 +362,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   }
 
   return {
-    caps: { typing: true, buttons: true, drafts: true, reactions: true },
+    caps: { typing: true, buttons: true, reactions: true },
     async start(io) {
       const me = await api<{ username?: string }>("getMe", {}).catch((err: unknown) => {
         throw err instanceof TgError && (err.code === 401 || err.code === 404)
@@ -420,16 +416,6 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
       if (!f.file_path) return undefined;
       const res = await fetch(`${apiBase}/file/bot${token}/${f.file_path}`, { signal: AbortSignal.timeout(CALL_MS) });
       return res.ok ? { mime: "image/jpeg", data: Buffer.from(await res.arrayBuffer()) } : undefined;
-    },
-    async draft(conversation, draftId, text) {
-      if (!drafts || !text.trim() || text.length > DRAFT_MAX) return;
-      try {
-        // Plain text: a half-written answer may hold Markdown that does not parse yet.
-        await api("sendMessageDraft", { chat_id: Number(conversation), draft_id: draftId, text }, 8000);
-      } catch (err) {
-        if (err instanceof TgError && (err.code === 404 || /method not found|not supported/i.test(err.message)))
-          drafts = false;
-      }
     },
     async react(conversation, ref, emoji) {
       const shown = TG_REACTION[emoji] ?? emoji;

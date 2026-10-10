@@ -114,29 +114,11 @@ test("a stranger gets a code; the owner approves it as themselves; then their wo
   assert.equal(tg.messagesTo(OWNER.id).length, 2);
 });
 
-test("the owner sees the answer as a draft while it is written; a contact never gets drafts", async () => {
-  const before = tg.draftsTo(OWNER.id).length;
+test("while the agent works the owner sees typing, never a streamed draft that would lock their chat", async () => {
   tg.message(OWNER, "stream this");
   await until(() => tg.messagesTo(OWNER.id).some((m) => /you said: stream this/.test(String(m.body.text))), "reply");
-  const drafts = tg.draftsTo(OWNER.id).slice(before);
-  assert.ok(drafts.length >= 1, "at least one draft before the message");
-  assert.match(String(drafts[0]?.body.text), /you said: stream this/);
-  assert.ok(Number(drafts[0]?.body.draft_id) > 0);
-  // The draft went out before the final message.
-  const draftAt = tg.sent.indexOf(drafts[0] as (typeof tg.sent)[number]);
-  const finalAt = tg.sent.findIndex((m) => m.method === "sendMessage" && /stream this/.test(String(m.body.text)));
-  assert.ok(draftAt < finalAt);
-
-  // A Bot API server without drafts: the answer still arrives whole, and drafts are not tried again.
-  tg.failures.set("sendMessageDraft", [
-    { status: 404, body: { ok: false, error_code: 404, description: "Not Found" } },
-  ]);
-  tg.message(OWNER, "no drafts here");
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /you said: no drafts here/.test(String(m.body.text))), "whole");
-  const after = tg.draftsTo(OWNER.id).length;
-  tg.message(OWNER, "still none");
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /you said: still none/.test(String(m.body.text))), "whole 2");
-  assert.equal(tg.draftsTo(OWNER.id).length, after);
+  assert.ok(tg.sent.some((m) => m.method === "sendChatAction" && String(m.body.chat_id) === String(OWNER.id)));
+  assert.equal(tg.sent.filter((m) => m.method === "sendMessageDraft").length, 0);
 });
 
 test("a confirmation reaches the owner with buttons and a press approves it", async () => {
@@ -161,7 +143,6 @@ test("a contact gets a sealed agent: no tools, no owner context, and a filtered 
 
   tg.message(ANA, "where do you live");
   await until(() => tg.messagesTo(ANA.id).length === 2, "contact reply");
-  assert.equal(tg.draftsTo(ANA.id).length, 0, "a contact's answer is filtered first, never drafted");
   assert.match(String(tg.messagesTo(ANA.id)[1]?.body.text), /My files are in \[hidden\]/);
   const call = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).includes("where do you live"));
   assert.match(String(call?.messages[0]?.content), /Ana is NOT your owner/);

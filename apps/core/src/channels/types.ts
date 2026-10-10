@@ -19,8 +19,6 @@ export type AdapterCaps = {
   typing: boolean;
   /** Inline buttons (approve / deny, options). */
   buttons: boolean;
-  /** Shows the answer as it is written (a draft the final message replaces). */
-  drafts?: boolean;
   /** Puts an emoji on a message (`react`). */
   reactions?: boolean;
   /**
@@ -84,8 +82,6 @@ export interface ChannelAdapter {
   /** Text, then `files` (the presentation's media, already read). */
   send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string }>;
   typing?(conversation: string): Promise<void>;
-  /** The answer so far, shown as a draft under one id per answer; the final message is sent with `send`. */
-  draft?(conversation: string, draftId: number, text: string): Promise<void>;
   /** Puts the agent's emoji on a message (`ref`: the platform's id of it); "" takes it off. */
   react?(conversation: string, ref: string, emoji: string): Promise<void>;
   /** The profile picture someone shows on the platform (none when hidden or not set). */
