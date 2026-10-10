@@ -87,3 +87,18 @@ test("edit calls tasks.update; help prints the usage without calling the core", 
   assert.match(await printed(() => tasks(client, ["help"], {})), /apx tasks show <id>/);
   assert.equal(calls.length, 1);
 });
+
+test("settle sends the outcome, the new date and the note; an unknown outcome prints the usage", async () => {
+  const { client, calls } = recordingClient({ "tasks.settle": { ...task, kind: "commitment" } });
+  const out = await printed(() =>
+    tasks(client, ["settle", "tsk_1", "renegotiated", "asked", "for", "a", "week"], { due: "2026-10-12" }),
+  );
+  assert.match(out, /^tsk_1 {2}renegotiated {2}· due /);
+  await printed(() => tasks(client, ["settle", "tsk_1", "kept"], {}));
+  assert.deepEqual(calls, [
+    ["tasks.settle", { task: "tsk_1", outcome: "renegotiated", due_at: "2026-10-12", note: "asked for a week" }],
+    ["tasks.settle", { task: "tsk_1", outcome: "kept" }],
+  ]);
+  await assert.rejects(tasks(client, ["settle", "tsk_1", "later"], {}), /apx tasks settle <id>/);
+  assert.equal(calls.length, 2);
+});

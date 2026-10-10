@@ -9,6 +9,9 @@ apx tasks show <id>                      Its fields, description and comments
 apx tasks edit <id> [--title t] [--desc d | --desc-file f|-] [--agent a] [--due d] [--tags a,b]
                                          Change only what is given; --agent "" and --due "" clear them
 apx tasks commitments                    What you owe and what you are owed
+apx tasks settle <id> kept|missed|dropped [note…]
+apx tasks settle <id> renegotiated --due <date> [note…]
+                                         How a commitment went; renegotiated keeps it open with the new date
 apx tasks move <id> <column>
 apx tasks done|drop|reopen <id>
 apx tasks say <id> <text…>               Comment; @agent asks that agent there`;
@@ -118,6 +121,19 @@ export async function tasks(client: ApxClient, [sub, id, ...rest]: string[], opt
         );
     }
     if (!list.length) console.log("(no open commitments)");
+    return;
+  }
+  if (sub === "settle" && id && rest[0]) {
+    const [outcome, ...note] = rest;
+    if (outcome !== "kept" && outcome !== "missed" && outcome !== "dropped" && outcome !== "renegotiated")
+      throw new Error(USAGE);
+    const t = await client.call("tasks.settle", {
+      task: id,
+      outcome,
+      ...(opts.due ? { due_at: opts.due } : {}),
+      ...(note.length ? { note: note.join(" ") } : {}),
+    });
+    console.log(`${t.id}  ${outcome}${t.state === "open" && t.due_at ? `  · due ${when(t.due_at)}` : ""}`);
     return;
   }
   if (sub === "move" && id && rest[0]) {

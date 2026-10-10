@@ -5,7 +5,9 @@ const USAGE = {
   channels: `apx channels                                  List channels and their state
 apx channels add telegram <id> --agent <agent>  Add a Telegram bot; reads its token from APX_CHANNEL_TOKEN
 apx channels rm <id>                            Remove a channel (and its token)
-apx channels outbox                             What was sent lately and how it went`,
+apx channels outbox                             What was sent lately and how it went
+apx channels send <channel> <contact> <text…>   Write to a contact yourself, in their chat on that channel
+                                                (contact: an id or name from apx contacts)`,
   contacts: `apx contacts                                  People and their addresses
 apx contacts add <name…>                        Add a contact (link addresses with pairing)
 apx contacts block|unblock <id>
@@ -17,6 +19,10 @@ apx pairing no <code>`,
 };
 
 export async function channels(client: ApxClient, [sub, ...rest]: string[], opts: { agent?: string | undefined }) {
+  if (sub === "help") {
+    console.log(USAGE.channels);
+    return;
+  }
   if (sub === "add") {
     const [type, id] = rest;
     // The token comes in the environment, never on the command line (it would stay in the shell history).
@@ -26,6 +32,15 @@ export async function channels(client: ApxClient, [sub, ...rest]: string[], opts
   } else if (sub === "rm") {
     if (!rest[0]) throw new Error(USAGE.channels);
     await client.call("channels.set", { id: rest[0], channel: null });
+  } else if (sub === "send") {
+    const [channel, to, ...words] = rest;
+    if (!channel || !to || !words.length) throw new Error(USAGE.channels);
+    const person = await contactOf(client, to);
+    // The same two steps as the panel's "I'll write": the contact's chat on that channel, then the message in it.
+    const chat = await client.call("channels.open", { person: person.id, channel });
+    await client.call("channels.send", { thread: chat.id, text: words.join(" ") });
+    console.log(`sent to ${person.name} on ${channel}`);
+    return;
   } else if (sub === "outbox") {
     for (const i of (await client.call("channels.outbox", {})).items)
       console.log(
@@ -39,6 +54,20 @@ export async function channels(client: ApxClient, [sub, ...rest]: string[], opts
       `${c.id.padEnd(14)} ${c.type.padEnd(9)} ${c.status.padEnd(9)} ${(c.account ?? "").padEnd(18)} agent ${c.agent_id}${c.error ? `  — ${c.error}` : ""}`,
     );
   if (!list.length) console.log(`(no channels)\n\n${USAGE.channels}`);
+}
+
+/** A contact by id, or by name when exactly one has it (case does not matter). */
+async function contactOf(client: ApxClient, idOrName: string) {
+  const { persons } = await client.call("contacts.list", {});
+  const byId = persons.find((p) => p.id === idOrName);
+  if (byId) return byId;
+  const named = persons.filter((p) => p.name.toLowerCase() === idOrName.toLowerCase());
+  if (named.length === 1 && named[0]) return named[0];
+  throw new Error(
+    named.length
+      ? `${named.length} contacts are named ${idOrName}: use the id (apx contacts)`
+      : `no contact ${idOrName}`,
+  );
 }
 
 export async function contacts(client: ApxClient, [sub, ...rest]: string[]) {
