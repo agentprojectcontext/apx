@@ -7,13 +7,14 @@ const USAGE = `apx routines                                   Routines and when 
 apx routines add <name> <prompt…> --agent a [--project p] (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
                  [--pre "<command>"] [--call always|output|fails|never] [--post "<command>"]
                                                 The pre-command's output reaches the prompt at {{pre_output}}
-apx routines show <id>                         Its schedule, commands and full prompt
-apx routines edit <id> [<prompt…> | --prompt-file f] [--name n] [--cron …|--every …|--at …]
+apx routines show <routine>                    Its schedule, commands and full prompt
+apx routines edit <routine> [<prompt…> | --prompt-file f] [--name n] [--cron …|--every …|--at …]
                  [--pre "<command>"] [--call …] [--post "<command>"]   Change only what is given
-apx routines run <id>                          Run now
-apx routines on|off <id>
-apx routines rm <id>
-apx routines log <id>                          Recent runs`;
+apx routines run <routine>                     Run now
+apx routines on|off <routine>
+apx routines rm <routine>
+apx routines log <routine>                     Recent runs
+<routine> is its id (rtn_…) or its name; --project narrows a name to one project's routines`;
 
 type Opts = {
   project?: string | undefined;
@@ -72,12 +73,29 @@ export function editOf(r: Routine, o: Opts, prompt: string | undefined) {
 
 const when = (iso: string | undefined) => (iso ? new Date(iso).toLocaleString() : "—");
 
+/** The routine `ref` names: its id, else its exact name, else its name in any case. Two with that name is an error. */
+export function findRoutine(list: readonly Routine[], ref: string, project?: string): Routine {
+  const byId = list.find((r) => r.id === ref);
+  if (byId) return byId;
+  const scoped = project ? list.filter((r) => r.project_id === project) : list;
+  const exact = scoped.filter((r) => r.name === ref);
+  const named = exact.length ? exact : scoped.filter((r) => r.name.toLowerCase() === ref.toLowerCase());
+  if (named.length === 1 && named[0]) return named[0];
+  if (named.length > 1)
+    throw new Error(
+      `${named.length} routines are named ${ref}; give the id:\n${named
+        .map((r) => `  ${r.id}  · ${r.agent_id}${r.project_id ? `  · project ${r.project_id}` : ""}`)
+        .join("\n")}`,
+    );
+  const near = scoped.filter((r) => r.name.toLowerCase().includes(ref.toLowerCase())).map((r) => r.name);
+  throw new Error(
+    `no routine ${ref}${project ? ` in project ${project}` : ""}${near.length ? ` (did you mean ${near.slice(0, 5).join(", ")}?)` : ""}; apx routines lists them`,
+  );
+}
+
 export async function routines(client: ApxClient, [sub, id, ...rest]: string[], opts: Opts): Promise<void> {
-  const get = async (routine: string): Promise<Routine> => {
-    const r = (await client.call("routines.list", {})).routines.find((x) => x.id === routine);
-    if (!r) throw new Error(`no routine ${routine}`);
-    return r;
-  };
+  const get = async (ref: string): Promise<Routine> =>
+    findRoutine((await client.call("routines.list", {})).routines, ref, opts.project);
   if (sub === "add") {
     const prompt = rest.join(" ");
     if (!id || !prompt || !opts.agent) throw new Error(USAGE);
@@ -116,7 +134,7 @@ export async function routines(client: ApxClient, [sub, id, ...rest]: string[], 
     return;
   }
   if (sub === "run" && id) {
-    const r = await client.call("routines.run", { routine: id });
+    const r = await client.call("routines.run", { routine: (await get(id)).id });
     console.log(`started in thread ${r.thread_id}`);
     return;
   }
@@ -136,12 +154,12 @@ export async function routines(client: ApxClient, [sub, id, ...rest]: string[], 
     return;
   }
   if (sub === "rm" && id) {
-    const r = await client.call("routines.remove", { routine: id });
+    const r = await client.call("routines.remove", { routine: (await get(id)).id });
     console.log(r.removed ? "removed" : "no such routine");
     return;
   }
   if (sub === "log" && id) {
-    const { runs } = await client.call("routines.runs", { routine: id });
+    const { runs } = await client.call("routines.runs", { routine: (await get(id)).id });
     for (const r of runs)
       console.log(
         `${when(r.started_at)}  ${r.state}${r.delivered === false ? "  (nothing to say)" : ""}  thread ${r.thread_id}`,

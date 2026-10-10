@@ -47,19 +47,19 @@ export function directoryTools(store: Store): Tool[] {
     defineTool({
       name: "routine_list",
       description:
-        "List the owner's routines (scheduled jobs): name, agent, project, when it runs, on or off, last and next run. To run, change or turn one off, the owner does it in Routines (or `apx routines`): say so.",
+        "List the owner's routines (scheduled jobs), global and per project: name, id, agent, project, when it runs, on or off, last and next run. To run, change or turn one off, the owner does it in Routines (or `apx routines show|edit|run|off <name or id>`): say so.",
       args: z.object({}),
       effect: "none",
       deadlineMs: 5_000,
       title: () => "Looked at the routines",
       async run() {
-        const all = store.routines.list(null);
+        const all = store.routines.list();
         if (!all.length) return "no routines.";
         const projects = new Map(store.projects.list(false).map((p) => [p.id, p.name]));
         return all
           .map(
             (r) =>
-              `- ${r.name} (${[
+              `- ${r.name} [${r.id}] (${[
                 `agent ${r.agent_id}`,
                 r.project_id ? `project ${projects.get(r.project_id) ?? r.project_id}` : "",
                 when(r.schedule as Parameters<typeof when>[0]),
