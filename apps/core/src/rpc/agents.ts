@@ -131,9 +131,15 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
       if (edits && cur.source === "apc" && cur.project_id && cur.slug) {
         const root = rootOf(cur.project_id);
         const slug = p.slug ?? cur.slug;
+        // Its reports name it by slug: a rename moves them along, so the team chart keeps its shape.
+        const reports =
+          slug !== cur.slug
+            ? store.agents.list().filter((a) => a.project_id === cur.project_id && a.parent === cur.slug)
+            : [];
         onDisk(() => {
           if (slug !== cur.slug) renameAgentFile(root, cur.slug as string, slug);
           updateAgentFile(root, slug, definition, p.prompt);
+          for (const r of reports) if (r.slug) updateAgentFile(root, r.slug, { parent: slug });
         });
         apc.sync(cur.project_id);
       } else if (edits) {

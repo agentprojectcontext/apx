@@ -60,6 +60,7 @@ import { threadAdminHandlers } from "./rpc/thread-admin.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import { transcriptionHandlers } from "./rpc/transcription.ts";
 import type { Secrets } from "./secrets.ts";
+import { agentSetTools } from "./tools/agent-set.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
 import { chatTools } from "./tools/chats.ts";
@@ -120,6 +121,7 @@ export function extensionStack(d: { store: Store; secrets: Secrets; bus: Bus; lo
 export function builtinTools(store: Store, home: string, port: () => number, extra: Tool[] = []): Tool[] {
   return [
     ...agentTools(store),
+    ...agentSetTools(store),
     ...chatTools(store),
     ...browserTools(),
     ...surfaceTools(store),

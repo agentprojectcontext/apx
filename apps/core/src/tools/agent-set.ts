@@ -1,0 +1,92 @@
+// agent_set: the super-agent runs the team for the owner (create, rename, rewrite a prompt, archive), each change once
+// the owner says yes. Autonomy and models stay the owner's own (DECISIONS.md#d-060).
+import { z } from "zod";
+import type { AgentRecord } from "../domain/agents.ts";
+import type { Store } from "../domain/store.ts";
+import { defineTool, type Tool } from "./types.ts";
+
+/** Tools only the super-agent is offered (see policy.ts). */
+export const SUPER_AGENT_TOOLS: ReadonlySet<string> = new Set(["agent_set"]);
+
+const Slug = z
+  .string()
+  .regex(/^[a-z][a-z0-9_-]*$/)
+  .max(64);
+
+function card(store: Store, a: AgentRecord): string {
+  const project = a.project_id ? (store.projects.get(a.project_id)?.name ?? a.project_id) : "";
+  return [
+    `${a.name} (id: ${a.id}${a.slug && a.slug !== a.id ? `, slug: ${a.slug}` : ""})${project ? ` [${project}]` : ""}`,
+    a.role ? `role: ${a.role}` : "",
+    a.parent ? `reports to: ${a.parent}` : "",
+    a.description ? `description: ${a.description}` : "",
+    a.personality ? `personality: ${a.personality}` : "",
+    "prompt:",
+    a.prompt || "(empty)",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function agentSetTools(store: Store): Tool[] {
+  const args = z.object({
+    agent: z.string().trim().min(1).max(120).optional().describe("id or name; omit to create one"),
+    slug: Slug.optional().describe("a new agent's id, or a project agent's new file name"),
+    name: z.string().trim().min(1).max(80).optional(),
+    role: z.string().max(200).optional(),
+    description: z.string().max(2000).optional(),
+    prompt: z.string().max(100_000).optional(),
+    personality: z.string().max(1000).optional(),
+    parent: z.string().max(64).optional().describe("who it reports to"),
+    archive: z.boolean().optional(),
+  });
+  type Args = z.output<typeof args>;
+  const changes = (a: Args) =>
+    [a.slug, a.name, a.role, a.description, a.prompt, a.personality, a.parent].some((v) => v !== undefined) ||
+    a.archive === true;
+  return [
+    defineTool({
+      name: "agent_set",
+      description:
+        "Run the team: with only agent, read its definition and whole prompt; create one (slug and name), change one (only what you give; prompt replaces the whole prompt) or archive it. The owner approves each change.",
+      args,
+      effect: "local",
+      confirm: (a) => (changes(a) ? "always" : "never"),
+      deadlineMs: 15_000,
+      title: (a) =>
+        !a.agent
+          ? `Created the agent ${a.name ?? a.slug ?? ""}`
+          : `${a.archive ? "Archived" : changes(a as Args) ? "Changed" : "Looked at"} ${a.agent}`,
+      async run(a, ctx) {
+        let cur: AgentRecord | undefined;
+        if (a.agent) {
+          const found = store.agents.resolve(a.agent, ctx.thread.project_id);
+          if ("error" in found) return found.error;
+          cur = found.agent;
+        }
+        if (cur && !changes(a)) return card(store, cur);
+        if (!ctx.callAsOwner) return "not run: the owner did not approve it";
+        if (!cur) {
+          if (!a.slug || !a.name) return "a new agent needs slug and name";
+          const made = await ctx.callAsOwner("agents.create", {
+            ...(ctx.thread.project_id ? { project_id: ctx.thread.project_id } : {}),
+            slug: a.slug,
+            name: a.name,
+            role: a.role ?? "",
+            ...(a.description ? { description: a.description } : {}),
+            prompt: a.prompt ?? "",
+            ...(a.parent ? { parent: a.parent } : {}),
+          });
+          return `created: ${made.name} (id: ${made.id})`;
+        }
+        if (a.archive) {
+          const r = await ctx.callAsOwner("agents.archive", { agent: cur.id });
+          return `archived ${cur.name}${r.moved_to ? `; its file is now ${r.moved_to}` : ""}`;
+        }
+        const { agent: _a, archive: _x, ...fields } = a;
+        const now = await ctx.callAsOwner("agents.update", { agent: cur.id, ...fields });
+        return `saved: ${now.name} (id: ${now.id}${now.slug ? `, slug: ${now.slug}` : ""})`;
+      },
+    }),
+  ];
+}

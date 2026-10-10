@@ -36,6 +36,14 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   routine_set: (a) => (a.routine ? `Cambió la rutina ${str(a.routine)}` : `Creó la rutina ${str(a.name)}`),
   contact_list: () => "Revisó los contactos",
   list_agents: () => "Buscó agentes",
+  agent_set: (a) =>
+    !a.agent
+      ? `Creó el agente ${str(a.name ?? a.slug)}`
+      : a.archive
+        ? `Archivó a ${str(a.agent)}`
+        : [a.slug, a.name, a.role, a.description, a.prompt, a.personality, a.parent].some((v) => v !== undefined)
+          ? `Cambió a ${str(a.agent)}`
+          : `Miró a ${str(a.agent)}`,
   grant_tool: (a) =>
     `Dejó que ${str(a.agent ?? "un agente")} use ${(Array.isArray(a.tools) ? a.tools : []).join(", ").slice(0, 60)}`,
   delegate: (a) => {

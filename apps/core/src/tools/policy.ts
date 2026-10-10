@@ -1,5 +1,6 @@
 // The one place that decides whether an agent's tool call runs, waits for the owner, or is refused.
 import type { AgentRecord } from "../domain/agents.ts";
+import { SUPER_AGENT_TOOLS } from "./agent-set.ts";
 import type { Confirm, Effect, Tool } from "./types.ts";
 
 /** Why the owner is asked: always, outside content in the turn, the action's kind, or an agent that asks for all. */
@@ -10,7 +11,7 @@ export type Decision = { kind: "allow" } | { kind: "confirm"; why: ConfirmWhy; r
 const GROUPS: Record<string, (name: string) => boolean> = {
   browser: (n) => n.startsWith("browser_"),
   widgets: (n) => n.endsWith("_widget"),
-  agents: (n) => n === "list_agents" || n === "delegate" || n === "grant_tool",
+  agents: (n) => n === "list_agents" || n === "delegate" || n === "grant_tool" || n === "agent_set",
   shell: (n) => n.startsWith("shell"),
   files: (n) => n.startsWith("file_") || n === "send_file" || n === "open_document",
   mcp: (n) => n.startsWith("mcp_"),
@@ -36,6 +37,12 @@ export function allowedTools(agent: AgentRecord, tools: Tool[]): Tool[] {
  * mcp_search). MCP's two bridge tools count as naming MCP: a list of MCP tools alone still restricts.
  */
 function toolFilter(agent: AgentRecord, tools: Tool[]): (name: string) => boolean {
+  const listed = byList(agent, tools);
+  // Running the team is the super-agent's job alone, whatever another agent's list says.
+  return (name) => (agent.kind === "secretary" || !SUPER_AGENT_TOOLS.has(name)) && listed(name);
+}
+
+function byList(agent: AgentRecord, tools: Tool[]): (name: string) => boolean {
   const wanted = agent.tools?.map((t) => t.trim().toLowerCase()).filter(Boolean) ?? [];
   if (!wanted.length) return () => true;
   const bridge = (name: string) => BRIDGE.has(name) && wanted.some((w) => w === "mcp" || w.startsWith("mcp_"));

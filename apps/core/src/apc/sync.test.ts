@@ -163,6 +163,16 @@ test("review fixes: an old slug can be reused after a rename; a clone with the s
     assert.equal(agents.find((a) => a.id === "abc123def456-arch")?.slug, "architect");
     assert.equal(agents.find((a) => a.id === again.id)?.name, "New Arch");
 
+    const report = await env.client.call("agents.create", {
+      project_id: "p_abc123def456",
+      slug: "drafter",
+      name: "Drafter",
+      parent: "architect",
+    });
+    await env.client.call("agents.update", { agent: "abc123def456-arch", slug: "lead" });
+    const moved = (await env.client.call("agents.list", {})).agents.find((a) => a.id === report.id);
+    assert.equal(moved?.parent, "lead", "a rename moves its reports along");
+
     makeProject(clone);
     const second = await env.client.call("projects.register", { path: clone });
     assert.notEqual(second.project.id, "p_abc123def456");

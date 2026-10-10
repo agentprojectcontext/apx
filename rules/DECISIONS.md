@@ -691,3 +691,15 @@ for nothing). The approved call runs `routines.set` / `routines.run` as the owne
 the app and `apx routines edit` use. It never sets a pre- or post-command or a shell routine: those run commands on
 the owner's machine on a schedule and stay in the app and the terminal. Removing a routine stays the owner's too.
 `routine_list` with a name returns that routine's whole prompt, so an agent edits the text it read, not a guess.
+
+## D-060 — 2026-10-10 — The super-agent runs the team with `agent_set`; the owner approves each change
+v1 had nine tools to manage agents (create, import, configure, rename, remove, set a prompt, set identity…), offered
+to every agent. v2 has one, `agent_set`, and only the super-agent gets it (policy.ts filters it out for every other
+agent, whatever its `tools:` list says): with only `agent` it reads that agent's definition and whole prompt (no OK
+needed); otherwise it creates one, changes only the fields given (name, role, description, prompt, personality,
+parent, a project agent's slug) or archives it, through `agents.create` / `agents.update` / `agents.archive` as the
+owner's act, each call waiting for the owner's yes (D-047 `always`; total autonomy asks nothing). Autonomy, tools,
+models and the browser profile are not among its fields: how far an agent may act stays the owner's own setting. A
+rename keeps the agent's id, so threads, tasks, routines and messages that point at it need no rewrite; a project
+agent's new slug keeps the old one as an alias and moves its reports' `parent` along.
+
