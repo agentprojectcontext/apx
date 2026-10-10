@@ -1,6 +1,5 @@
 // An agent telling the owner something unasked: through the interruption budget (engine/nudges.ts), like a routine's
 // news, and into the attention tray either way.
-import { channelTexts } from "../channels/texts.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Nudges } from "../engine/nudges.ts";
@@ -19,7 +18,7 @@ export function noticeHandlers(store: Store, nudges: Nudges) {
       if (thread.kind === "routine") throw badRequest("a routine's answer already reaches the owner: say it there");
       const state = nudges.offer({
         kind: `agent:${agent.id}`,
-        text: channelTexts(store).routine(agent.name, text),
+        text,
         thread_id: thread.id,
         project_id: thread.project_id,
         critical,

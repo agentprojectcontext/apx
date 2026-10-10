@@ -68,7 +68,8 @@ export function officeScheduler(deps: {
     },
     deliver: ({ routine, run, text, failed }) => {
       const texts = channelTexts(store);
-      const body = failed ? texts.routineFailed(routine.name, text.slice(0, 300)) : texts.routine(routine.name, text);
+      // The agent's words as they are, with no title (v1 never added one): the chat in the app says which routine.
+      const body = failed ? texts.routineFailed(routine.name, text.slice(0, 300)) : text;
       nudges.offer({
         kind: `routine:${routine.name}`,
         text: body,

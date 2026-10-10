@@ -387,6 +387,7 @@ test("a routine's news reaches the owner with 👍/👎; a press is kept on the 
   await env.client.call("routines.run", { routine: r.id });
   const rated = () => tg.messagesTo(OWNER.id).find((m) => /Rate me/.test(String(m.body.text)));
   await until(() => Boolean(rated()), "routine notice");
+  assert.equal(rated()?.body.text, "Rate me", "the routine's words alone, no title");
   const markup = rated()?.body.reply_markup as { inline_keyboard: Array<Array<{ callback_data: string }>> };
   const down = markup.inline_keyboard[1]?.[0]?.callback_data ?? "";
   assert.match(down, /^f:ndg_.+:d$/);

@@ -34,7 +34,6 @@ const es = {
   useful: "👍 Útil",
   notUseful: "👎 No me sirve",
   rated: "Anotado, gracias.",
-  routine: (name: string, text: string) => `**${name}**\n\n${text}`,
   due: (title: string, person?: string, owedBy?: "owner" | "person") =>
     person
       ? owedBy === "person"
@@ -77,7 +76,6 @@ const en: typeof es = {
   useful: "👍 Useful",
   notUseful: "👎 Not useful",
   rated: "Noted, thanks.",
-  routine: (name, text) => `**${name}**\n\n${text}`,
   due: (title, person, owedBy) =>
     person
       ? owedBy === "person"
