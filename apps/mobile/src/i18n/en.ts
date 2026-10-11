@@ -151,6 +151,7 @@ export const en = {
   modelForChat: "Model for this conversation",
   searchModels: "Search models",
   noModels: "No model matches.",
+  couldNotCreateChat: "Could not create the chat",
   couldNotChangeModel: "Could not change the model",
   chatOptions: "More options",
   reconnecting: "Reconnecting…",

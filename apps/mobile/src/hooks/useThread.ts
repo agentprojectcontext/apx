@@ -10,6 +10,7 @@ const usageOf = (runs: Array<{ started_at: string; usage?: Usage }>) =>
   [...runs].sort((a, b) => b.started_at.localeCompare(a.started_at)).find((run) => run.usage?.context)?.usage;
 
 import { APP_CLIENT } from "../appInfo";
+import { isNewChat } from "../chat/newChat";
 import { isWorking } from "./chatSelectors";
 
 function upsert(messages: Message[], message: Message): Message[] {
@@ -50,6 +51,8 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
     let loadVersion = 0;
     let stateVersion = 0;
     const load = async () => {
+      // A new chat is not in the core until its first message: the socket only says whether the core is reachable.
+      if (isNewChat(threadId)) return;
       const requestVersion = ++loadVersion;
       const requestStateVersion = stateVersion;
       try {

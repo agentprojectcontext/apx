@@ -22,7 +22,8 @@ const kindOf = (mime: string): Attachment["kind"] =>
   mime.startsWith("image/") ? "image" : mime.startsWith("audio/") ? "audio" : "file";
 
 /** Picks photos, takes pictures or picks files, and uploads each with media.upload as soon as it is chosen. */
-export function useAttachments(client: ApxClient, threadId: string) {
+/** `threadId` is undefined for a new chat not made yet: the files go with its first message all the same. */
+export function useAttachments(client: ApxClient, threadId: string | undefined) {
   const [items, setItems] = useState<Attachment[]>([]);
   const upload = useCallback(
     async (uri: string, name: string, mime: string, size?: number): Promise<Attachment | undefined> => {
@@ -35,7 +36,12 @@ export function useAttachments(client: ApxClient, threadId: string) {
       setItems((list) => [...list, { key, name, kind, uri, mime }]);
       try {
         const data = await new File(uri).base64();
-        const { media } = await client.call("media.upload", { name, mime, data, thread: threadId });
+        const { media } = await client.call("media.upload", {
+          name,
+          mime,
+          data,
+          ...(threadId ? { thread: threadId } : {}),
+        });
         const done = { key, name, kind, uri, mime, id: media.id };
         setItems((list) => list.map((item) => (item.key === key ? done : item)));
         return done;

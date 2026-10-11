@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, BackHandler, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChatScreen } from "./ChatScreen";
+import { newChatThread } from "./chat/newChat";
 import type { Creds } from "./creds";
 import { inboxItems } from "./hooks/inboxItems";
 import { useNotifications } from "./hooks/useNotifications";
@@ -169,6 +170,8 @@ export function WorkspaceScreen({
           data={workspace.data}
           onSwitch={() => setPicker("switch")}
           onNewChat={newChat}
+          make={workspace.makeChat}
+          onMade={setThread}
           onBack={() => setThread(undefined)}
         />
       );
@@ -257,12 +260,7 @@ export function WorkspaceScreen({
             setSubpage(undefined);
             setTab("chats");
           }}
-          chatWith={(agent) =>
-            void workspace
-              .createChat(agent.id)
-              .then(setThread)
-              .catch(() => undefined)
-          }
+          chatWith={(agent) => setThread(newChatThread({ agent: agent.id }, t("newChat")))}
         />
       );
     switch (tab) {
@@ -297,7 +295,7 @@ export function WorkspaceScreen({
           <SessionsPage
             data={workspace.data}
             open={openThread}
-            create={workspace.createSession}
+            create={async (engine, project) => workspace.newSession(engine, project)}
             resume={workspace.resumeSession}
           />
         );
@@ -341,10 +339,10 @@ export function WorkspaceScreen({
           mode={picker}
           onClose={() => setPicker(undefined)}
           onOpen={openThread}
-          onCreate={async (agent, projectId) => {
-            const created = await workspace.createChat(agent.id, projectId);
-            setThread(created);
-          }}
+          // Made in the core with its first message (see chat/newChat.ts).
+          onCreate={async (agent, projectId) =>
+            setThread(newChatThread({ agent: agent.id, ...(projectId ? { project: projectId } : {}) }, t("newChat")))
+          }
         />
       ) : null}
     </View>

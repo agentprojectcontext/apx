@@ -153,6 +153,7 @@ export const es: Record<Key, string> = {
   modelForChat: "Modelo para esta conversación",
   searchModels: "Buscar modelos",
   noModels: "Ningún modelo coincide.",
+  couldNotCreateChat: "No se pudo crear el chat",
   couldNotChangeModel: "No se pudo cambiar el modelo",
   chatOptions: "Más opciones",
   reconnecting: "Reconectando…",

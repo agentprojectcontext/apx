@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { APP_CLIENT } from "../appInfo";
+import { newChatThread, parseNewChat } from "../chat/newChat";
 import type { Creds } from "../creds";
 import { t } from "../i18n";
 import { showLiveNotice } from "../notifications";
@@ -193,6 +194,9 @@ export const emptyWorkspace: Workspace = {
 async function rpc<T>(client: ApxClient, method: string, params: Record<string, unknown> = {}): Promise<T> {
   return (await client.call(method as never, params as never)) as T;
 }
+
+const sessionTitle = (engineId: string) =>
+  engineId === "claude" ? "Claude Code" : engineId === "codex" ? "Codex" : engineId;
 
 export function useWorkspace(creds: Creds) {
   const [client] = useState(() => new ApxClient({ url: creds.url, token: creds.token, client: APP_CLIENT }));
@@ -531,23 +535,31 @@ export function useWorkspace(creds: Creds) {
     [client],
   );
 
-  const createSession = useCallback(
-    async (engineId: string, projectId: string) => {
+  /** A new session to open: checked here, made in the core with its first message (see chat/newChat.ts). */
+  const newSession = useCallback(
+    (engineId: string, projectId: string): Thread => {
       const agent = data.agents.find((item) => item.kind === "secretary") ?? data.agents[0];
       if (!agent) throw new Error(t("noAgentForSession"));
       const project = data.projects.find((item) => item.id === projectId);
       if (!project?.path || project.registered === false) throw new Error(t("noLocalProjects"));
+      return newChatThread({ agent: agent.id, project: projectId, engine: engineId }, sessionTitle(engineId));
+    },
+    [data.agents, data.projects],
+  );
+
+  const createSession = useCallback(
+    async (engineId: string, projectId: string, agentId: string) => {
       const thread = await rpc<Thread>(client, "threads.create", {
         kind: "code",
-        agent_id: agent.id,
+        agent_id: agentId,
         project_id: projectId,
         engine: engineId,
-        title: `${engineId === "claude" ? "Claude Code" : engineId === "codex" ? "Codex" : engineId}`,
+        title: sessionTitle(engineId),
       });
       setData((d) => ({ ...d, threads: [thread, ...d.threads] }));
       return thread;
     },
-    [client, data.agents, data.projects],
+    [client],
   );
 
   const resumeSession = useCallback(
@@ -570,6 +582,18 @@ export function useWorkspace(creds: Creds) {
       return thread;
     },
     [client],
+  );
+
+  /** Makes a new chat or session the owner just wrote the first message in. */
+  const makeChat = useCallback(
+    async (base: Thread) => {
+      const spec = parseNewChat(base.id);
+      if (!spec) throw new Error(`not a new chat: ${base.id}`);
+      return spec.engine && spec.project
+        ? createSession(spec.engine, spec.project, spec.agent)
+        : createChat(spec.agent, spec.project);
+    },
+    [createSession, createChat],
   );
 
   return {
@@ -600,7 +624,8 @@ export function useWorkspace(creds: Creds) {
     readFile,
     fileMedia,
     createChat,
-    createSession,
+    newSession,
+    makeChat,
     resumeSession,
   };
 }

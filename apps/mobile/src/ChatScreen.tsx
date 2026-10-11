@@ -1,7 +1,9 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { draftOf, keepDraft } from "./chat/drafts";
 import { type CatalogEngine, choiceText, type ModelChoice } from "./chat/models";
+import { isNewChat } from "./chat/newChat";
 import { type TranscriptRow, usageText, withDays } from "./chat/transcript";
 import { useAttachments } from "./chat/useAttachments";
 import { useVoiceNote } from "./chat/useVoiceNote";
@@ -29,6 +31,8 @@ export function ChatScreen({
   onBack,
   onSwitch,
   onNewChat,
+  make,
+  onMade,
 }: {
   creds: Creds;
   onUnpair: () => void;
@@ -39,34 +43,69 @@ export function ChatScreen({
   onBack: () => void;
   onSwitch: () => void;
   onNewChat: () => void;
+  /** Makes a new chat (see chat/newChat.ts) in the core, as its first message goes. */
+  make: (base: Thread) => Promise<Thread>;
+  /** Opens the chat a new one became. */
+  onMade: (thread: Thread) => void;
 }) {
   const live = useThread(creds, base.id, onUnpair);
   const insets = useSafeAreaInsets();
   const thread = (live.thread as Thread | undefined) ?? base;
   const agent = data.agents.find((item) => item.id === thread.agent_ids[0]);
   const name = thread.engine ? thread.title : (agent?.name ?? thread.title);
-  const [text, setText] = useState("");
+  const fresh = isNewChat(base.id);
+  // What is typed stays as the chat's draft until it is sent.
+  const [text, setTextNow] = useState(() => draftOf(base.id));
+  useEffect(() => keepDraft(base.id, text), [base.id, text]);
+  const setText = (value: string) => {
+    keepDraft(base.id, value);
+    setTextNow(value);
+  };
   const [sheet, setSheet] = useState<"model" | "menu" | "attach">();
-  const files = useAttachments(live.client, base.id);
+  // Files and voice notes of a new chat are uploaded to no chat yet; they go with its first message.
+  const files = useAttachments(live.client, fresh ? undefined : base.id);
   const voice = useVoiceNote({
     client: live.client,
-    threadId: base.id,
+    threadId: fresh ? undefined : base.id,
     upload: files.upload,
-    onWords: (words) => setText((current) => (current.trim() ? `${current.trim()} ${words}` : words)),
+    onWords: (words) => setTextNow((current) => (current.trim() ? `${current.trim()} ${words}` : words)),
   });
   const list = useRef<FlatList<TranscriptRow>>(null);
   const rows = useMemo(() => withDays(live.messages).reverse(), [live.messages]);
   const working = isWorking(live.state);
   const engine = thread.engine === "claude" || thread.engine === "codex" ? thread.engine : undefined;
-  const choice = (thread as { model_choice?: ModelChoice }).model_choice;
+  // A new chat keeps the model picked in it until it is made.
+  const [freshChoice, setFreshChoice] = useState<ModelChoice>();
+  const choice = fresh ? freshChoice : (thread as { model_choice?: ModelChoice }).model_choice;
+  const [making, setMaking] = useState(false);
   const effective = choice ?? agent?.model_choice;
   const send = () => {
+    if (making) return;
     const attachments = files.take();
     // The core wants words with every message; files alone say so, as the panel does.
     const words = text.trim() || (attachments.length ? t("attachedOnly") : "");
     if (!words) return;
     setText("");
-    void live.send(words, attachments).catch(() => setText(words));
+    if (!fresh) return void live.send(words, attachments).catch(() => setText(words));
+    setMaking(true);
+    make(base).then(
+      async (made) => {
+        if (freshChoice)
+          await live.client
+            .call("threads.model", { thread: made.id, model_choice: freshChoice })
+            .catch(() => undefined);
+        // The chat is made: words a send then refuses wait in its own draft.
+        await live.client
+          .call("threads.send", { thread: made.id, text: words, ...(attachments.length ? { attachments } : {}) })
+          .catch(() => keepDraft(made.id, words));
+        onMade(made);
+      },
+      (error: unknown) => {
+        setMaking(false);
+        setText(words);
+        Alert.alert(t("couldNotCreateChat"), error instanceof Error ? error.message : String(error));
+      },
+    );
   };
   const loadCatalog = useCallback(
     async () => (await live.client.call("models.list", {})).engines as CatalogEngine[],
@@ -111,13 +150,16 @@ export function ChatScreen({
           </View>
         </Pressable>
         <IconButton icon="SquarePen" label={t("newChat")} size={18} color={theme.fgMuted} onPress={onNewChat} />
-        <IconButton
-          icon="MoreHorizontal"
-          label={t("chatOptions")}
-          size={18}
-          color={theme.fgMuted}
-          onPress={() => setSheet("menu")}
-        />
+        {/* A new chat has nothing to rename, archive or delete until its first message makes it. */}
+        {fresh ? null : (
+          <IconButton
+            icon="MoreHorizontal"
+            label={t("chatOptions")}
+            size={18}
+            color={theme.fgMuted}
+            onPress={() => setSheet("menu")}
+          />
+        )}
       </View>
       <FlatList
         ref={list}
@@ -151,7 +193,7 @@ export function ChatScreen({
         onRemoveAttachment={files.remove}
         voice={{ ...voice, start: () => void voice.start(), stop: () => void voice.stop() }}
         onModel={() => setSheet("model")}
-        online={live.online}
+        online={live.online && !making}
         busy={working}
         stopping={live.stopping}
         agentName={name}
@@ -189,6 +231,7 @@ export function ChatScreen({
           onClose={() => setSheet(undefined)}
           onPick={(picked) => {
             setSheet(undefined);
+            if (fresh) return setFreshChoice(picked ?? undefined);
             void live
               .setModel(picked)
               .catch((error) =>

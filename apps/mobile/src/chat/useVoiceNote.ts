@@ -22,7 +22,8 @@ export function useVoiceNote({
   onWords,
 }: {
   client: ApxClient;
-  threadId: string;
+  /** Undefined for a new chat not made yet: the audio goes with its first message. */
+  threadId: string | undefined;
   upload: (uri: string, name: string, mime: string) => Promise<Attachment | undefined>;
   onWords: (words: string) => void;
 }) {
@@ -50,7 +51,7 @@ export function useVoiceNote({
       const audio = await upload(uri, `${t("voiceNote")}.m4a`, "audio/mp4");
       if (!audio?.id) return;
       const heard = await client
-        .call("media.transcribe", { media_id: audio.id, thread: threadId })
+        .call("media.transcribe", { media_id: audio.id, ...(threadId ? { thread: threadId } : {}) })
         .catch(() => undefined);
       if (heard?.text.trim()) onWords(heard.text.trim());
     } finally {
