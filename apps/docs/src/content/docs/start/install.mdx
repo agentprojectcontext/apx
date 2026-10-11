@@ -11,6 +11,12 @@ import Terminal from "../../../components/Terminal.astro";
 APX is one background process, the **core**, plus the apps that talk to it. Pick how you want to run it: the desktop
 app brings its own core, a server install runs the core with no screen, and a checkout runs the code as it is.
 
+<Aside type="note" title="APX v2 is in beta">
+Builds come out often and some edges are rough. Your data stays in `~/.apx/v2` across updates, and APX v1's files are
+never changed. Tell us what breaks on [GitHub](https://github.com/agentprojectcontext/apx/issues) or
+[Discord](https://discord.gg/vxdZuT5WuE).
+</Aside>
+
 <Tabs syncKey="install">
 <TabItem label="Desktop app">
 
@@ -20,11 +26,24 @@ and it lives in your menu bar or tray.
 <Steps>
 
 1. Download the installer for your system from the
-   [APX releases](https://github.com/agentprojectcontext/apx/releases): the `.dmg` for macOS, the `.exe` installer
-   for Windows, or the `.AppImage` for Linux.
+   [APX v2 releases](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true). Pick the newest `v2.x.y`
+   (v1's releases live in the same list):
 
-2. Open it. The macOS build is not signed yet, so macOS warns you the first time; allow it from
-   System Settings › Privacy & Security.
+   | System | File |
+   | --- | --- |
+   | macOS, Apple silicon | `APX-<version>-mac-arm64.dmg` |
+   | macOS, Intel | `APX-<version>-mac-x64.dmg` |
+   | Windows | `APX-<version>-win-x64.exe` |
+   | Linux | `APX-<version>-linux-x64.AppImage` (or `-arm64`) |
+
+2. Install it and open it. The beta apps are not signed yet, so your system warns you the first time (see below).
+
+   - **macOS**: open the `.dmg` and drag **APX** to **Applications**. The first time, right-click APX in Applications
+     and choose **Open**, then **Open** again. If macOS only offers to move it to the trash, open
+     **System Settings › Privacy & Security**, scroll down to the message about APX and click **Open anyway**.
+   - **Windows**: run the `.exe`. When SmartScreen says it protected your PC, click **More info**, then **Run anyway**.
+   - **Linux**: make the AppImage runnable and open it: `chmod +x APX-*.AppImage`, then `./APX-<version>-linux-x64.AppImage`
+     (or double-click it).
 
 3. On first run, APX asks **Where does your APX run?**
 
@@ -42,18 +61,30 @@ and it lives in your menu bar or tray.
 
 You can switch later from the APX menu › Change connection.
 
+<Aside type="caution" title="Unsigned apps">
+macOS needs an Apple Developer ID and Windows an Authenticode certificate for the warning to go away; the beta has
+neither yet. The installers are the ones built by the
+[release workflow](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true), each with a `.sha256`
+beside it to check the download. If macOS says **"APX" is damaged and can't be opened**, that is the download's
+quarantine mark on an unsigned app, not a broken file. Clear it and open APX again:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/APX.app
+```
+</Aside>
+
 </TabItem>
 <TabItem label="Server or VPS">
 
 On a machine with no desktop, one script installs the core, the `apx` command and the Node that runs them. Nothing
 needs root and you don't need Node installed.
 
-<Terminal command="curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash" />
+<Terminal command="curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash" />
 
 On Windows, in PowerShell:
 
 ```powershell
-irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
+irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
 ```
 
 The script accepts a few options:
@@ -64,6 +95,10 @@ The script accepts a few options:
 | `--version <x.y.z>` | Installs that version instead of the newest. |
 | `--feed <owner/repo>` | Looks for releases in another repository. |
 | `--no-service` | Installs without starting the core as a service. |
+| `--uninstall` | Removes the service and the program; your data stays (see [Uninstall](#uninstall)). |
+
+To pass options through the pipe: `curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --version 2.3.0`.
+On Windows the parameters are `-File`, `-Version`, `-Feed`, `-NoService` and `-Uninstall`.
 
 It lands in `~/.apx/v2/app` (one folder per version and a `current` link) and starts the core as a service. Then
 finish the setup in one command:
@@ -86,6 +121,25 @@ A user service stops when you log out. Keep it running with `sudo loginctl enabl
 The service is a systemd user unit on Linux, a launchd agent on macOS and a login entry on Windows. Manage it with
 `apx service install`, `uninstall`, `status` and `restart`. The core refuses to listen beyond this machine without a
 token; `apx expose` creates one for you. More in [Run APX on a server](/devices/server/).
+
+</TabItem>
+<TabItem label="Docker">
+
+`scripts/docker/Dockerfile` in the repository packs a release's daemon bundle (the same one `install.sh` installs)
+into an image. Download the Linux bundle for your machine (`apx-core-<version>-linux-x64.tar.gz` or `-arm64`) from the
+[v2 releases](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true) into a checkout of the
+repository, then:
+
+```bash
+docker build -f scripts/docker/Dockerfile --build-arg BUNDLE=apx-core-<version>-linux-x64.tar.gz -t apx .
+docker run -d --name apx -p 7440:7440 -v apx-data:/data -e APX_TOKEN=<a long random string> apx
+docker exec -it apx apx pair            # pair the desktop app or the phone with it
+```
+
+- The core listens on every interface of the container, so it refuses to start without `APX_TOKEN`.
+- Your data is in the `/data` volume (`APX_HOME=/data`); secrets go to a file there, not a keychain.
+- It never updates itself (`APX_UPDATES=off`): build a new image from a newer bundle and run it on the same volume.
+- Publish the port only where you trust the network, or keep it on `127.0.0.1` and put your own TLS proxy in front.
 
 </TabItem>
 <TabItem label="From source">
@@ -145,10 +199,57 @@ what the new version brings and lets you update when you want.
 
 Set `APX_UPDATES=off` to stop the checks.
 
+## Uninstall
+
+Uninstalling removes the program and its service. **Your data stays** in `~/.apx/v2`; delete that folder yourself
+if you want to start over. APX v1's files in `~/.apx` are never touched either way.
+
+<Tabs syncKey="install">
+<TabItem label="Desktop app">
+
+- **macOS**: quit APX from its menu bar icon and drag **APX** from Applications to the trash.
+- **Windows**: Settings › Apps › Installed apps › **APX** › Uninstall.
+- **Linux**: quit APX and delete the AppImage.
+
+If you also installed the core as a service on this computer (`apx service install`, or a server install), remove it
+with `apx service uninstall` or the server steps in the next tab.
+
+</TabItem>
+<TabItem label="Server or VPS">
+
+Run the installer again with the uninstall flag:
+
+```bash
+curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --uninstall
+```
+
+On Windows, in PowerShell, save the script and run it with `-Uninstall`:
+
+```powershell
+irm https://agentprojectcontext.github.io/apx/v2/install.ps1 -OutFile install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
+```
+
+It stops the service, removes `~/.apx/v2/app` and the `apx` command it wrote, and leaves your data where it is. With
+a saved copy of the script it is `bash install.sh --uninstall`.
+
+</TabItem>
+<TabItem label="Docker">
+
+`docker rm -f apx` removes the container; the `apx-data` volume keeps your data until you `docker volume rm apx-data`.
+
+</TabItem>
+<TabItem label="From source">
+
+`apx service uninstall` removes the service; the checkout is yours to delete.
+
+</TabItem>
+</Tabs>
+
 ## Living beside APX v1
 
 <Aside title="v1 and v2 side by side">
 v2 does not touch v1's files. v1 keeps `~/.apx` and port **7430**; v2 uses `~/.apx/v2` and port **7440**. The server
 installer stops v1's daemon and replaces v1's `apx` command with v2's, but your v1 files stay in place so you can
-import them. See [Coming from v1](/start/from-v1/).
+import them. See [Upgrade from v1](/start/from-v1/#upgrade-from-v1).
 </Aside>

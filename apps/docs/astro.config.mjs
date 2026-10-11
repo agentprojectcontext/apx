@@ -1,4 +1,6 @@
 // @ts-check
+import { copyFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
 
@@ -22,6 +24,21 @@ function withBase() {
   return walk;
 }
 
+/** The install scripts are served beside the site (<base>install.sh), copied from scripts/install/ at build time. */
+function installScripts() {
+  const from = new URL("../../scripts/install/", import.meta.url);
+  return {
+    name: "apx-install-scripts",
+    hooks: {
+      /** @param {{ dir: URL }} options */
+      "astro:build:done": async ({ dir }) => {
+        for (const file of ["install.sh", "install.ps1"])
+          await copyFile(fileURLToPath(new URL(file, from)), fileURLToPath(new URL(file, dir)));
+      },
+    },
+  };
+}
+
 const section = (/** @type {string} */ label, /** @type {string} */ es, /** @type {string} */ directory) => ({
   label,
   translations: { es },
@@ -34,7 +51,10 @@ export default defineConfig({
   trailingSlash: "always",
   devToolbar: { enabled: false },
   markdown: { remarkPlugins: [withBase] },
+  // <base>docs/ is the address to give for "the docs": it lands on the first page. Destinations are not given the base.
+  redirects: { "/docs": `${base}start/introduction/`, "/es/docs": `${base}es/start/introduction/` },
   integrations: [
+    installScripts(),
     starlight({
       title: "APX",
       description: "APX: a crew of AI agents that lives on your machine. Documentation for APX v2.",

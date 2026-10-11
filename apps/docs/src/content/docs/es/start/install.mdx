@@ -12,6 +12,12 @@ APX es un proceso en segundo plano, el **core**, más las apps que le hablan. El
 escritorio trae su propio core, una instalación de servidor corre el core sin pantalla, y desde el código corrés todo
 tal cual está.
 
+<Aside type="note" title="APX v2 está en beta">
+Salen versiones seguido y hay bordes sin pulir. Tus datos quedan en `~/.apx/v2` entre actualizaciones, y los archivos
+de APX v1 no se tocan nunca. Contanos qué se rompe en [GitHub](https://github.com/agentprojectcontext/apx/issues) o en
+[Discord](https://discord.gg/vxdZuT5WuE).
+</Aside>
+
 <Tabs syncKey="install">
 <TabItem label="App de escritorio">
 
@@ -21,11 +27,26 @@ agentes, y vive en la barra de menú o en la bandeja del sistema.
 <Steps>
 
 1. Bajate el instalador para tu sistema desde los
-   [releases de APX](https://github.com/agentprojectcontext/apx/releases): el `.dmg` para macOS, el instalador `.exe`
-   para Windows o el `.AppImage` para Linux.
+   [releases de APX v2](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true). Elegí el `v2.x.y`
+   más nuevo (los releases de v1 están en la misma lista):
 
-2. Abrilo. La versión de macOS todavía no está firmada, así que macOS te avisa la primera vez; permitila desde
-   Configuración del Sistema › Privacidad y seguridad.
+   | Sistema | Archivo |
+   | --- | --- |
+   | macOS, Apple silicon | `APX-<versión>-mac-arm64.dmg` |
+   | macOS, Intel | `APX-<versión>-mac-x64.dmg` |
+   | Windows | `APX-<versión>-win-x64.exe` |
+   | Linux | `APX-<versión>-linux-x64.AppImage` (o `-arm64`) |
+
+2. Instalala y abrila. Las apps de la beta todavía no están firmadas, así que tu sistema te avisa la primera vez
+   (mirá más abajo).
+
+   - **macOS**: abrí el `.dmg` y arrastrá **APX** a **Aplicaciones**. La primera vez, hacé clic derecho en APX dentro
+     de Aplicaciones, elegí **Abrir** y otra vez **Abrir**. Si macOS solo te ofrece tirarla a la papelera, andá a
+     **Ajustes del Sistema › Privacidad y seguridad**, bajá hasta el aviso sobre APX y tocá **Abrir igualmente**.
+   - **Windows**: corré el `.exe`. Cuando SmartScreen diga que protegió tu PC, hacé clic en **Más información** y
+     después en **Ejecutar de todas formas**.
+   - **Linux**: hacé ejecutable el AppImage y abrilo: `chmod +x APX-*.AppImage`, después
+     `./APX-<versión>-linux-x64.AppImage` (o doble clic).
 
 3. En el primer arranque, APX te pregunta **¿Dónde corre tu APX?**
 
@@ -43,18 +64,30 @@ agentes, y vive en la barra de menú o en la bandeja del sistema.
 
 Lo podés cambiar después desde el menú APX › Cambiar conexión.
 
+<Aside type="caution" title="Apps sin firmar">
+Para que el aviso desaparezca, macOS necesita un Apple Developer ID y Windows un certificado Authenticode; la beta
+todavía no tiene ninguno. Los instaladores son los que arma el
+[workflow de releases](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true), cada uno con su
+`.sha256` al lado para chequear la descarga. Si macOS dice **"APX" está dañado y no puede abrirse**, es la marca de
+cuarentena de la descarga sobre una app sin firmar, no un archivo roto. Sacala y abrí APX de nuevo:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/APX.app
+```
+</Aside>
+
 </TabItem>
 <TabItem label="Servidor o VPS">
 
 En una máquina sin escritorio, un script instala el core, el comando `apx` y el Node que los corre. No hace falta root
 ni tener Node instalado.
 
-<Terminal command="curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash" />
+<Terminal command="curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash" />
 
 En Windows, desde PowerShell:
 
 ```powershell
-irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
+irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
 ```
 
 El script acepta algunas opciones:
@@ -65,6 +98,10 @@ El script acepta algunas opciones:
 | `--version <x.y.z>` | Instala esa versión en vez de la más nueva. |
 | `--feed <owner/repo>` | Busca los releases en otro repositorio. |
 | `--no-service` | Instala sin arrancar el core como servicio. |
+| `--uninstall` | Saca el servicio y el programa; tus datos quedan (mirá [Desinstalar](#desinstalar)). |
+
+Para pasar opciones por el pipe: `curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --version 2.3.0`.
+En Windows los parámetros son `-File`, `-Version`, `-Feed`, `-NoService` y `-Uninstall`.
 
 Queda en `~/.apx/v2/app` (una carpeta por versión y un link `current`) y arranca el core como servicio. Después
 terminás la configuración con un comando:
@@ -88,6 +125,26 @@ El servicio es una unidad de usuario de systemd en Linux, un agente de launchd e
 sesión en Windows. Lo manejás con `apx service install`, `uninstall`, `status` y `restart`. El core no acepta
 escuchar más allá de esta máquina sin un token; `apx expose` te lo crea. Más en
 [Correr APX en un servidor](/es/devices/server/).
+
+</TabItem>
+<TabItem label="Docker">
+
+`scripts/docker/Dockerfile` del repositorio mete el bundle del daemon de un release (el mismo que instala
+`install.sh`) en una imagen. Bajate el bundle de Linux para tu máquina (`apx-core-<versión>-linux-x64.tar.gz` o
+`-arm64`) de los [releases de v2](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true) dentro de un
+checkout del repositorio, y después:
+
+```bash
+docker build -f scripts/docker/Dockerfile --build-arg BUNDLE=apx-core-<versión>-linux-x64.tar.gz -t apx .
+docker run -d --name apx -p 7440:7440 -v apx-data:/data -e APX_TOKEN=<un texto largo al azar> apx
+docker exec -it apx apx pair            # emparejá la app de escritorio o el teléfono
+```
+
+- El core escucha en todas las interfaces del contenedor, así que no arranca sin `APX_TOKEN`.
+- Tus datos están en el volumen `/data` (`APX_HOME=/data`); los secretos van a un archivo ahí, no a un llavero.
+- Nunca se actualiza solo (`APX_UPDATES=off`): armá una imagen nueva con un bundle más nuevo y correla sobre el mismo
+  volumen.
+- Publicá el puerto solo en una red de confianza, o dejalo en `127.0.0.1` y poné tu propio proxy TLS adelante.
 
 </TabItem>
 <TabItem label="Desde el código">
@@ -149,10 +206,58 @@ de arriba; ahí ves qué trae y actualizás cuando quieras.
 
 Con `APX_UPDATES=off` se apagan los chequeos.
 
+## Desinstalar
+
+Desinstalar saca el programa y su servicio. **Tus datos quedan** en `~/.apx/v2`; borrá esa carpeta vos si querés
+empezar de cero. Los archivos de APX v1 en `~/.apx` no se tocan en ningún caso.
+
+<Tabs syncKey="install">
+<TabItem label="App de escritorio">
+
+- **macOS**: cerrá APX desde su ícono en la barra de menú y arrastrá **APX** de Aplicaciones a la papelera.
+- **Windows**: Configuración › Aplicaciones › Aplicaciones instaladas › **APX** › Desinstalar.
+- **Linux**: cerrá APX y borrá el AppImage.
+
+Si además instalaste el core como servicio en esta computadora (`apx service install`, o una instalación de
+servidor), sacalo con `apx service uninstall` o con los pasos de servidor de la pestaña siguiente.
+
+</TabItem>
+<TabItem label="Servidor o VPS">
+
+Corré el instalador otra vez con la opción de desinstalar:
+
+```bash
+curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --uninstall
+```
+
+En Windows, desde PowerShell, guardá el script y correlo con `-Uninstall`:
+
+```powershell
+irm https://agentprojectcontext.github.io/apx/v2/install.ps1 -OutFile install.ps1
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
+```
+
+Frena el servicio, borra `~/.apx/v2/app` y el comando `apx` que escribió, y deja tus datos donde están. Con una copia
+guardada del script es `bash install.sh --uninstall`.
+
+</TabItem>
+<TabItem label="Docker">
+
+`docker rm -f apx` borra el contenedor; el volumen `apx-data` guarda tus datos hasta que hagas
+`docker volume rm apx-data`.
+
+</TabItem>
+<TabItem label="Desde el código">
+
+`apx service uninstall` saca el servicio; el checkout es tuyo para borrar.
+
+</TabItem>
+</Tabs>
+
 ## Convivir con APX v1
 
 <Aside title="v1 y v2, uno al lado del otro">
 v2 no toca los archivos de v1. v1 se queda con `~/.apx` y el puerto **7430**; v2 usa `~/.apx/v2` y el puerto
 **7440**. El instalador de servidor frena el daemon de v1 y reemplaza su comando `apx` por el de v2, pero tus archivos
-de v1 quedan en su lugar para que los importes. Mirá [Si venís de v1](/es/start/from-v1/).
+de v1 quedan en su lugar para que los importes. Mirá [Actualizar desde v1](/es/start/from-v1/#actualizar-desde-v1).
 </Aside>

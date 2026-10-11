@@ -796,14 +796,282 @@ a.card:hover,
   color: var(--fg);
 }
 
+/* Beta mark */
+.beta {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent-2);
+  font: 600 11px / 1 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.beta--lg {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  transform: translateY(-0.35em);
+}
+
+/* New in v2 */
+.news {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 44px;
+}
+.news__item {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+  overflow: hidden;
+}
+.news__item.wide {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+}
+.news__item.wide .news__text {
+  flex: 0 0 38%;
+}
+.news__text h3 {
+  margin: 16px 0 0;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+.news__text p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+.news__shot {
+  flex: 1;
+  min-width: 0;
+  margin-top: auto;
+}
+.news__shot .apx-shot {
+  margin: 0;
+}
+.news__shot .apx-shot--phone {
+  max-width: 220px;
+  margin: 0 auto;
+}
+
+/* A drawn browser for the card that has no screenshot. */
+.browser-mock {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  border: 1px solid var(--line-2);
+  background: var(--card-2);
+  overflow: hidden;
+  font-size: 13px;
+}
+.browser-mock__tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 8px 0;
+}
+.browser-mock__tabs span {
+  padding: 6px 12px;
+  border-radius: 9px 9px 0 0;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.browser-mock__tabs span.on {
+  background: var(--card);
+  color: var(--fg);
+}
+.browser-mock__url {
+  margin: 0;
+  padding: 9px 14px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  font: 500 12px / 1 var(--mono);
+  color: var(--muted);
+}
+.browser-mock__page {
+  display: grid;
+  gap: 9px;
+  padding: 18px 16px;
+}
+.browser-mock__page i {
+  display: block;
+  height: 9px;
+  border-radius: 6px;
+  background: var(--ghost-2);
+}
+.browser-mock__page i.short {
+  width: 60%;
+}
+.browser-mock__who,
+.browser-mock__hand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+.browser-mock__who b {
+  color: var(--fg);
+  font-weight: 600;
+}
+.browser-mock__hand {
+  justify-self: start;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #e3b341 45%, transparent);
+  color: #e3b341;
+  font-size: 12.5px;
+}
+
+/* Download */
+.dl {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 16px;
+  margin-top: 44px;
+}
+.dl .card {
+  min-width: 0;
+  padding: 26px;
+}
+.dl h3 {
+  margin: 0 0 14px;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+.dl__os {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+}
+.dl__os a {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--ghost);
+  border: 1px solid var(--line);
+  transition: border-color 0.2s;
+}
+.dl__os a:hover {
+  border-color: var(--accent);
+}
+.dl__os b {
+  font-weight: 600;
+}
+.dl__os code {
+  font: 500 13px / 1.3 var(--mono);
+  color: var(--accent-2);
+}
+.dl__os span {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.dl__cli h3 + .install,
+.dl__cli .install + h3 {
+  margin-top: 0;
+}
+.dl__cli .install + h3 {
+  margin-top: 22px;
+}
+.install--block {
+  display: flex;
+  width: 100%;
+  height: 46px;
+  font-size: 12.5px;
+  text-align: left;
+}
+.install--block .cmd {
+  flex: 1;
+}
+.dl__guides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 22px 0 0;
+  font-size: 14.5px;
+  font-weight: 500;
+}
+.dl__guides a {
+  color: var(--accent-2);
+}
+.dl__note {
+  grid-column: 1 / -1;
+  border-color: color-mix(in srgb, #e3b341 40%, var(--line));
+}
+.dl__note > p {
+  margin: -6px 0 18px;
+  color: var(--muted);
+  font-size: 15px;
+}
+.dl__note dl {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin: 0;
+}
+.dl__note dt {
+  font-weight: 600;
+  font-size: 14.5px;
+}
+.dl__note dd {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.dl__cmd {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font: 500 12px / 1.45 var(--mono);
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 1000px) {
   .bento {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dl {
+    grid-template-columns: 1fr;
+  }
+  .dl__note dl {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 @media (max-width: 720px) {
   .steps,
-  .bento {
+  .bento,
+  .news,
+  .dl__note dl {
+    grid-template-columns: 1fr;
+  }
+  .news__item.wide {
+    flex-direction: column;
+  }
+  .dl__os {
     grid-template-columns: 1fr;
   }
   .tile.wide {
@@ -821,5 +1089,11 @@ a.card:hover,
   .install {
     font-size: 12px;
     padding-left: 14px;
+  }
+}
+@media (max-width: 480px) {
+  .brand__tag,
+  .nav__cta a[aria-label="GitHub"] {
+    display: none;
   }
 }

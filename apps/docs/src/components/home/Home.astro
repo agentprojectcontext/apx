@@ -16,7 +16,11 @@ const t = HOME[lang];
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 const href = (path: string) => (/^https?:/.test(path) ? path : `${base}${path}`);
 const pre = lang === "es" ? "/es" : "";
-const install = "curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash";
+// v2's releases are not GitHub's "Latest" while v1 shares the repo, so the scripts are served by this site.
+const site = "https://agentprojectcontext.github.io/apx/v2";
+const install = `curl -fsSL ${site}/install.sh | bash`;
+const installWin = `irm ${site}/install.ps1 | iex`;
+const releases = "https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true";
 const heroBlobs = ["menta", "orbita", "cobalto", "brasa", "amatista"] as const;
 const parade = [
   "menta",
@@ -76,7 +80,7 @@ const discord = "https://discord.gg/vxdZuT5WuE";
 
     <nav class="nav" id="nav">
       <div class="wrap nav__in">
-        <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="28" height="28" />APX <span class="brand__tag">docs</span></a>
+        <a class="brand" href={href(`${pre}/`)}><img src={logo.src} alt="" width="28" height="28" />APX <span class="brand__tag">v2</span><span class="beta">{t.beta}</span></a>
         <div class="nav__links">
           <a href={href(`${pre}/start/introduction/`)}>{t.nav.start}</a>
           <a href={href(`${pre}/concepts/agents/`)}>{t.nav.ideas}</a>
@@ -123,6 +127,7 @@ const discord = "https://discord.gg/vxdZuT5WuE";
         </div>
         <div class="hero__actions">
           <a class="btn btn-accent" href={href(`${pre}/start/introduction/`)}>{t.getStarted} →</a>
+          <a class="btn btn-ghost" href="#download">{lang === "es" ? "Descargar" : "Download"}</a>
           <a class="btn btn-ghost" href={href(`${pre}/start/install/`)}>{lang === "es" ? "Instalación" : "Install guide"}</a>
         </div>
         <div class="status" id="status" data-lines={JSON.stringify(t.status)}>
@@ -140,6 +145,104 @@ const discord = "https://discord.gg/vxdZuT5WuE";
           <Shot name="home-hero" alt={t.shotAlt} title="APX · Home" split labels={[t.real.light, t.real.dark]} eager />
         </div>
         <p class="stage__note">{t.real.body}</p>
+      </div>
+    </section>
+
+
+    <section class="sec" id="new">
+      <div class="wrap">
+        <p class="eyebrow">{t.newIn.eyebrow}</p>
+        <h2 class="h2">{t.newIn.title}</h2>
+        <p class="lead">{t.newIn.lead}</p>
+        <div class="news">
+          {
+            t.newIn.items.map((n, i) => (
+              <a class:list={["news__item card", { wide: i === 0 }]} href={href(n.href)}>
+                <div class="news__text">
+                  <Blob name={n.blob as "menta"} size={44} />
+                  <h3>{n.title}</h3>
+                  <p>{n.body}</p>
+                </div>
+                {n.shot ? (
+                  <div class="news__shot">
+                    <Shot name={n.shot} alt="" frame={n.shot.startsWith("phone") ? "phone" : "none"} />
+                  </div>
+                ) : (
+                  n.mock && (
+                    <div class="news__shot browser-mock" aria-hidden="true">
+                      <div class="browser-mock__tabs">
+                        {n.mock.tabs.map((tab, j) => <span class:list={{ on: j === 0 }}>{tab}</span>)}
+                      </div>
+                      <div class="browser-mock__url">{n.mock.url}</div>
+                      <div class="browser-mock__page">
+                        <i /><i /><i class="short" />
+                        <p class="browser-mock__who"><Blob name="cobalto" size={22} /><b>{n.mock.who}</b> {n.mock.what}</p>
+                        <p class="browser-mock__hand">{n.mock.hand}</p>
+                      </div>
+                    </div>
+                  )
+                )}
+              </a>
+            ))
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="sec" id="download">
+      <div class="wrap">
+        <p class="eyebrow">{t.download.eyebrow}</p>
+        <h2 class="h2">{t.download.title} <span class="beta beta--lg">{t.beta}</span></h2>
+        <p class="lead">{t.download.lead}</p>
+        <div class="dl">
+          <div class="dl__apps card">
+            <h3>{t.download.desktop}</h3>
+            <ul class="dl__os">
+              {
+                t.download.os.map((o) => (
+                  <li>
+                    <a href={releases}>
+                      <b>{o.name}</b>
+                      <code>{o.file}</code>
+                      <span>{o.note}</span>
+                    </a>
+                  </li>
+                ))
+              }
+            </ul>
+            <a class="btn btn-light" href={releases}>{t.download.releases} ↗</a>
+          </div>
+          <div class="dl__cli card">
+            <h3>{t.download.server}</h3>
+            <button class="install install--block" type="button" data-copy={install} data-done={t.copied}>
+              <span class="dollar">$</span><span class="cmd">{install}</span><span class="copy">{t.copy}</span>
+            </button>
+            <h3>{t.download.windows}</h3>
+            <button class="install install--block" type="button" data-copy={installWin} data-done={t.copied}>
+              <span class="dollar">&gt;</span><span class="cmd">{installWin}</span><span class="copy">{t.copy}</span>
+            </button>
+            <p class="dl__guides">
+              {t.download.guides.map(([label, to]) => <a href={href(to ?? "/")}>{label} →</a>)}
+            </p>
+          </div>
+          <div class="dl__note card">
+            <h3>{t.download.unsigned.title}</h3>
+            <p>{t.download.unsigned.body}</p>
+            <dl>
+              {
+                t.download.unsigned.items.map(([os, how, cmd]) => (
+                  <div>
+                    <dt>{os}</dt>
+                    <dd>
+                      {how}
+                      {cmd && <code class="dl__cmd">{cmd}</code>}
+                    </dd>
+                  </div>
+                ))
+              }
+            </dl>
+          </div>
+        </div>
       </div>
     </section>
 

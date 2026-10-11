@@ -19,11 +19,12 @@ Nada de esto necesita root, y el servidor no necesita tener Node instalado: el p
 <TabItem label="Linux y macOS">
 
 ```bash
-curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash
+curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
 ```
 
 Opciones: `--file <paquete>` (un paquete que ya tenés, sin descargar), `--version <x.y.z>`, `--feed <owner/repo>`,
-`--no-service`.
+`--no-service`, `--uninstall`. Por el pipe van después de `bash -s --`, por ejemplo
+`curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --no-service`.
 
 ```bash
 bash install.sh --file apx-core-<version>-linux-x64.tar.gz
@@ -35,10 +36,30 @@ bash install.sh --file apx-core-<version>-linux-x64.tar.gz
 En PowerShell:
 
 ```powershell
-irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
+irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
 ```
 
-Parámetros: `-File <paquete>`, `-Version <x.y.z>`, `-Feed <owner/repo>`, `-NoService`.
+Parámetros: `-File <paquete>`, `-Version <x.y.z>`, `-Feed <owner/repo>`, `-NoService`, `-Uninstall`.
+
+</TabItem>
+<TabItem label="Desde la app de escritorio">
+
+No hace falta abrir una terminal en el servidor. En el primer arranque de la app de escritorio (o en el menú APX ›
+Cambiar conexión):
+
+<Steps>
+
+1. Elegí **Cliente**, después **SSH**, y escribí `usuario@servidor`. Usa tu propio `ssh` y tus claves.
+
+2. Si APX todavía no está en ese servidor, la app te lo dice y te ofrece **Instalarlo por mí** (o **Instalarlo a
+   mano**, que te muestra el comando). Manda el mismo `install.sh` por SSH e instala la versión de la propia app.
+   Funciona en servidores Linux y macOS; en Windows, instalalo a mano.
+
+3. En Linux después te pide que APX siga corriendo cuando te desconectes, un paso que necesita al administrador del
+   servidor: **Hacerlo por mí** te pide la contraseña de sudo (va directo a `sudo` por SSH y no se guarda), o **Lo
+   hago a mano** te muestra el comando. Después se conecta y sigue con la configuración de tu crew.
+
+</Steps>
 
 </TabItem>
 </Tabs>
@@ -87,10 +108,10 @@ Corre, en orden, los mismos pasos que podrías hacer a mano:
 
 <Aside type="caution" title="Linux: que siga corriendo cuando cerrás sesión">
 Un servicio de usuario de systemd se frena cuando cerrás tu sesión en el servidor. Activá el linger una vez (necesita
-`sudo`); la instalación te muestra esta línea:
+`sudo`). El instalador lo hace solo cuando sudo no pide contraseña; si no, te muestra esta línea, con tu usuario:
 
 ```bash
-sudo loginctl enable-linger "$USER"
+sudo loginctl enable-linger <usuario>
 ```
 </Aside>
 
@@ -167,7 +188,10 @@ In the APX app, open Pair and paste the link, or enter an address and the code:
   compu, así que anda aunque el servidor no esté expuesto a nadie. Detalles en [App de escritorio](/es/devices/desktop/).
 - **Teléfono**: escaneá el QR desde el panel, pegá el enlace `apx://pair` en la app de APX, o abrí la dirección en el
   navegador del teléfono y escribí el código. Mirá [Tu teléfono](/es/devices/phone/).
-- **Un navegador en otra compu**: abrí la dirección y escribí el código.
+- **Un navegador en otra compu**: abrí la dirección del core (la de Tailscale, o la de la red local, como
+  `http://192.168.1.20:7440`). El panel te pide **Vinculá este dispositivo**: escribí un código de `apx pair` (o de
+  **Configuración › Conexiones › Dispositivos › Vincular un dispositivo** en un dispositivo ya vinculado), y ese
+  navegador se guarda su propia llave. No hay que instalar nada en esa compu.
 
 Cada dispositivo tiene su propia llave. Revocá uno con `apx devices revoke <id>` o en **Configuración › Conexiones ›
 Dispositivos**.
@@ -188,6 +212,15 @@ apx upgrade             # aplicarlo
 
 Volver a correr el script de instalación también instala la versión más nueva. `APX_UPDATES=off` frena los chequeos;
 `APX_RELEASES=<owner/repo>` los apunta a otro origen (`off` también los frena).
+
+## Desinstalar
+
+```bash
+curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --uninstall
+```
+
+Frena el servicio y borra `~/.apx/v2/app` y el comando `apx`; tus datos en `~/.apx/v2` quedan. En Windows, guardá
+`install.ps1` y correlo con `-Uninstall` ([Desinstalar](/es/start/install/#desinstalar)).
 
 ## Desde el código, en cambio
 

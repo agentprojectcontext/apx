@@ -2,11 +2,98 @@
 export type Lang = "en" | "es";
 
 const en = {
-  title: "APX docs: meet your crew",
+  beta: "Beta",
+  newIn: {
+    eyebrow: "New in v2",
+    title: "More than a chat window.",
+    lead: "A crew that works together, a browser they can drive, little apps they build for you, and the chats and phone you already carry.",
+    items: [
+      {
+        blob: "orbita",
+        shot: "team",
+        title: "A crew of agents",
+        body: "Home, your secretary, plus an agent per role in each project. They hand work to each other and you watch it as a card in your chat.",
+        href: "/concepts/agents/",
+      },
+      {
+        blob: "cobalto",
+        shot: "",
+        title: "A browser they drive",
+        mock: {
+          tabs: ["Orders · Acme Store", "Northwind supplies"],
+          url: "shop.example.com/admin/orders",
+          who: "Tomás",
+          what: "is reading this week's orders",
+          hand: "Sign-in needed: your turn",
+        },
+        body: "The desktop app carries a real browser your agents can open, read and click through, in tabs you can watch. Passwords and payments stay with you.",
+        href: "/office/browser/",
+      },
+      {
+        blob: "amatista",
+        shot: "app-widget",
+        title: "Widgets and apps",
+        body: "Ask for a chart, a checklist or a small tool: an agent builds it, and you pin it to the project's board or open it full screen.",
+        href: "/office/board/",
+      },
+      {
+        blob: "brasa",
+        shot: "channel",
+        title: "Your channels",
+        body: "Telegram, WhatsApp, Discord, Slack and iMessage. Each contact and each room is one conversation, with the same memory as the app.",
+        href: "/channels/overview/",
+      },
+      {
+        blob: "aqua",
+        shot: "phone-home",
+        title: "On your phone",
+        body: "Pair your phone with a code and talk to Home from anywhere. The Android app is in the releases; it installs beside v1's.",
+        href: "/devices/phone/",
+      },
+    ],
+  },
+  download: {
+    eyebrow: "Download the beta",
+    title: "Get APX v2.",
+    lead: "The desktop app brings its own core. On a server or a VM, one line installs the core alone.",
+    desktop: "Desktop app",
+    os: [
+      { name: "macOS", file: ".dmg", note: "Apple silicon and Intel" },
+      { name: "Windows", file: ".exe", note: "x64" },
+      { name: "Linux", file: ".AppImage", note: "x64 and arm64" },
+      { name: "Android", file: ".apk", note: "The phone app" },
+    ],
+    releases: "Every v2 download",
+    server: "Linux and macOS servers",
+    windows: "Windows, in PowerShell",
+    unsigned: {
+      title: "The beta apps are not signed yet",
+      body: "Your system warns you the first time. That is expected; here is how to go on.",
+      items: [
+        [
+          "macOS",
+          "Open the .dmg and drag APX to Applications. The first time, right-click APX › Open, or allow it in System Settings › Privacy & Security › Open anyway.",
+          "",
+        ],
+        [
+          "If macOS says it is damaged",
+          "Run this once, then open it again:",
+          "xattr -dr com.apple.quarantine /Applications/APX.app",
+        ],
+        ["Windows", "SmartScreen says it protected your PC: click More info › Run anyway.", ""],
+        ["Linux", "Make the AppImage runnable, then open it:", "chmod +x APX-*.AppImage"],
+      ],
+    },
+    guides: [
+      ["Install guide", "/start/install/"],
+      ["Upgrade from v1", "/start/from-v1/#upgrade-from-v1"],
+    ],
+  },
+  title: "APX v2 beta: meet your crew",
   description:
     "Documentation for APX v2: a crew of AI agents that lives on your machine. Install it, meet Home, add a project and put your agents to work.",
   nav: { start: "Start", ideas: "Core ideas", office: "Office", channels: "Channels", cli: "CLI" },
-  pill: { strong: "APX v2 docs", rest: "· one way to do each thing" },
+  pill: { strong: "APX v2 beta", rest: "· tell us what breaks" },
   meet: "Learn",
   your: "your",
   words: ["crew.", "secretary.", "office.", "routines.", "channels."],
@@ -178,11 +265,98 @@ const en = {
 export type HomeText = typeof en;
 
 const es: HomeText = {
-  title: "Docs de APX: conocé a tu crew",
+  beta: "Beta",
+  newIn: {
+    eyebrow: "Lo nuevo en v2",
+    title: "Más que una ventana de chat.",
+    lead: "Un crew que trabaja en equipo, un navegador que pueden manejar, apps chiquitas que te arman, y los chats y el celular que ya usás.",
+    items: [
+      {
+        blob: "orbita",
+        shot: "team",
+        title: "Un crew de agentes",
+        body: "Home, tu secretaria, y un agente por rol en cada proyecto. Se pasan el trabajo entre ellos y lo ves como una tarjeta en tu chat.",
+        href: "/es/concepts/agents/",
+      },
+      {
+        blob: "cobalto",
+        shot: "",
+        title: "Un navegador que manejan",
+        mock: {
+          tabs: ["Pedidos · Acme Store", "Northwind insumos"],
+          url: "shop.example.com/admin/orders",
+          who: "Tomás",
+          what: "está leyendo los pedidos de la semana",
+          hand: "Hay que iniciar sesión: te toca",
+        },
+        body: "La app de escritorio trae un navegador de verdad que tus agentes abren, leen y recorren, en pestañas que podés mirar. Contraseñas y pagos quedan para vos.",
+        href: "/es/office/browser/",
+      },
+      {
+        blob: "amatista",
+        shot: "app-widget",
+        title: "Widgets y apps",
+        body: "Pedí un gráfico, una checklist o una herramienta chica: un agente la arma, y la fijás en el tablero del proyecto o la abrís en pantalla completa.",
+        href: "/es/office/board/",
+      },
+      {
+        blob: "brasa",
+        shot: "channel",
+        title: "Tus canales",
+        body: "Telegram, WhatsApp, Discord, Slack e iMessage. Cada contacto y cada sala es una conversación, con la misma memoria que la app.",
+        href: "/es/channels/overview/",
+      },
+      {
+        blob: "aqua",
+        shot: "phone-home",
+        title: "En tu celular",
+        body: "Vinculá el celular con un código y hablale a Home desde donde estés. La app de Android está en los releases; se instala al lado de la de v1.",
+        href: "/es/devices/phone/",
+      },
+    ],
+  },
+  download: {
+    eyebrow: "Bajate la beta",
+    title: "Instalá APX v2.",
+    lead: "La app de escritorio trae su propio core. En un servidor o una VM, una línea instala solo el core.",
+    desktop: "App de escritorio",
+    os: [
+      { name: "macOS", file: ".dmg", note: "Apple silicon e Intel" },
+      { name: "Windows", file: ".exe", note: "x64" },
+      { name: "Linux", file: ".AppImage", note: "x64 y arm64" },
+      { name: "Android", file: ".apk", note: "La app del celular" },
+    ],
+    releases: "Todas las descargas de v2",
+    server: "Servidores Linux y macOS",
+    windows: "Windows, en PowerShell",
+    unsigned: {
+      title: "Las apps de la beta todavía no están firmadas",
+      body: "Tu sistema te avisa la primera vez. Es lo esperado; así seguís.",
+      items: [
+        [
+          "macOS",
+          "Abrí el .dmg y arrastrá APX a Aplicaciones. La primera vez, clic derecho en APX › Abrir, o permitilo en Ajustes del Sistema › Privacidad y seguridad › Abrir igualmente.",
+          "",
+        ],
+        [
+          "Si macOS dice que está dañada",
+          "Corré esto una vez y abrila de nuevo:",
+          "xattr -dr com.apple.quarantine /Applications/APX.app",
+        ],
+        ["Windows", "SmartScreen dice que protegió tu PC: clic en Más información › Ejecutar de todas formas.", ""],
+        ["Linux", "Hacé ejecutable el AppImage y abrilo:", "chmod +x APX-*.AppImage"],
+      ],
+    },
+    guides: [
+      ["Guía de instalación", "/es/start/install/"],
+      ["Actualizar desde v1", "/es/start/from-v1/#actualizar-desde-v1"],
+    ],
+  },
+  title: "APX v2 beta: conocé a tu crew",
   description:
     "Documentación de APX v2: un crew de agentes de IA que vive en tu máquina. Instalalo, conocé a Home, sumá un proyecto y poné a trabajar a tus agentes.",
   nav: { start: "Empezar", ideas: "Ideas clave", office: "Oficina", channels: "Canales", cli: "CLI" },
-  pill: { strong: "Docs de APX v2", rest: "· una sola forma de hacer cada cosa" },
+  pill: { strong: "APX v2 beta", rest: "· contanos qué se rompe" },
   meet: "Conocé",
   your: "a tu",
   words: ["crew.", "secretaria.", "oficina.", "turno noche.", "equipo."],

@@ -19,11 +19,12 @@ Nothing here needs root, and the server doesn't need Node installed: the bundle 
 <TabItem label="Linux and macOS">
 
 ```bash
-curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash
+curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
 ```
 
 Options: `--file <bundle>` (a bundle you already have, no download), `--version <x.y.z>`, `--feed <owner/repo>`,
-`--no-service`.
+`--no-service`, `--uninstall`. Through the pipe they go after `bash -s --`, for example
+`curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --no-service`.
 
 ```bash
 bash install.sh --file apx-core-<version>-linux-x64.tar.gz
@@ -35,10 +36,29 @@ bash install.sh --file apx-core-<version>-linux-x64.tar.gz
 In PowerShell:
 
 ```powershell
-irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
+irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
 ```
 
-Parameters: `-File <bundle>`, `-Version <x.y.z>`, `-Feed <owner/repo>`, `-NoService`.
+Parameters: `-File <bundle>`, `-Version <x.y.z>`, `-Feed <owner/repo>`, `-NoService`, `-Uninstall`.
+
+</TabItem>
+<TabItem label="From the desktop app">
+
+You don't need to open a terminal on the server. In the desktop app's first run (or APX menu › Change connection):
+
+<Steps>
+
+1. Choose **Client**, then **SSH**, and type `user@server`. It uses your own `ssh` and keys.
+
+2. If APX isn't on that server yet, the app says so and offers **Install it for me** (or **Install it myself**, which
+   shows the command to run). It sends the same `install.sh` over SSH and installs the app's own version. It works on
+   Linux and macOS servers; on Windows, install by hand.
+
+3. On Linux it then asks to keep APX running when you disconnect, a step that needs the server's administrator:
+   **Do it for me** asks for the sudo password (sent straight to `sudo` over SSH and not kept), or **I'll do it
+   myself** shows the command. Then it connects and goes on to set up your crew.
+
+</Steps>
 
 </TabItem>
 </Tabs>
@@ -85,11 +105,11 @@ It runs, in order, the steps you could also run by hand:
 </Steps>
 
 <Aside type="caution" title="Linux: keep it running after you log out">
-A systemd user service stops when you log out of the server. Turn on lingering once (it needs `sudo`); the install
-prints this line for you:
+A systemd user service stops when you log out of the server. Turn on lingering once (it needs `sudo`). The installer
+does it on its own when sudo asks for no password; otherwise it prints this line for you, with your user name:
 
 ```bash
-sudo loginctl enable-linger "$USER"
+sudo loginctl enable-linger <user>
 ```
 </Aside>
 
@@ -163,7 +183,10 @@ In the APX app, open Pair and paste the link, or enter an address and the code:
   so it works even when the server is exposed to nobody. Details in [Desktop app](/devices/desktop/).
 - **Phone**: scan the QR from the panel, paste the `apx://pair` link in the APX app, or open the address in the
   phone's browser and type the code. See [Your phone](/devices/phone/).
-- **A browser on another computer**: open the address and type the code.
+- **A browser on another computer**: open the core's address (the Tailscale one, or the LAN one such as
+  `http://192.168.1.20:7440`). The panel asks to **Pair this device**: type a code from `apx pair` (or from
+  **Settings › Connections › Devices › Pair a device** on a device already paired), and that browser keeps its own
+  key. Nothing to install on that computer.
 
 Every device gets its own key. Revoke one with `apx devices revoke <id>` or in **Settings › Connections › Devices**.
 
@@ -183,6 +206,15 @@ apx upgrade             # apply it
 
 Running the install script again also installs the newest version. `APX_UPDATES=off` stops the checks;
 `APX_RELEASES=<owner/repo>` points them at another feed (`off` also stops them).
+
+## Uninstall
+
+```bash
+curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --uninstall
+```
+
+It stops the service and removes `~/.apx/v2/app` and the `apx` command; your data in `~/.apx/v2` stays. On Windows,
+save `install.ps1` and run it with `-Uninstall` ([Uninstall](/start/install/#uninstall)).
 
 ## From a checkout instead
 

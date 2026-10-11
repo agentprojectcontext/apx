@@ -12,6 +12,71 @@ APX v2 is a rewrite, not an upgrade. The ideas you liked are still here: a secre
 commitments, routines, channels. What changed is the plumbing underneath: where v1 had several ways to do the same
 thing, v2 has one. Your projects open as they are, and the import brings the rest.
 
+## Upgrade from v1
+
+Upgrading means installing v2 next to v1 and importing. **v1's data in `~/.apx` is never changed**: the import only
+reads it, so you can go back to v1 whenever you want.
+
+<Tabs syncKey="upgrade">
+<TabItem label="Desktop">
+
+<Steps>
+
+1. Install the v2 desktop app for your system ([Install](/start/install/)). The beta apps are not signed yet; the
+   install page says how to open them the first time.
+
+2. On first run choose **Server** (APX runs on this computer). The setup finds `~/.apx` on its own and, on
+   **Welcome**, offers **Import from APX v1** with the version and the projects it found.
+
+3. Pick what to bring ([the groups](#bring-your-crew-over)) and go on. On **Done**, **Make apx this version** points
+   the `apx` command at v2.
+
+4. If v1's daemon still runs on this computer, quit it before you connect the same bots in v2 (see
+   [One bot, one daemon](#running-both-side-by-side)).
+
+</Steps>
+
+</TabItem>
+<TabItem label="Server">
+
+<Steps>
+
+1. Run the installer. It stops v1's daemon (its systemd unit or launchd agent) and removes v1's npm package
+   `@agentprojectcontext/apx`, so the `apx` command becomes v2's:
+
+   ```bash
+   curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
+   ```
+
+2. Import from v1's files:
+
+   ```bash
+   apx import-v1 --keys --skills
+   ```
+
+   Or do it as part of the setup: `apx setup --headless --import --keys --skills`. For chats, channels, tasks and the
+   rest, open the setup wizard from an app connected to this server.
+
+</Steps>
+
+<Aside type="caution" title="v1 installed with sudo npm">
+A global npm package installed with `sudo` needs `sudo` to go. The installer tries it only when sudo asks for no
+password; otherwise it warns that v1's `apx` is still there. Remove it yourself, then open a new terminal:
+
+```bash
+sudo npm uninstall -g @agentprojectcontext/apx
+```
+</Aside>
+
+</TabItem>
+<TabItem label="Phone">
+
+The v2 phone app (`dev.apx.mobile`) is a different app from v1's (`dev.agentprojectcontext.apx`): it installs **side
+by side**, so you can keep v1's until you are done. Pair the new one with your v2 core ([Your phone](/devices/phone/)).
+
+</TabItem>
+</Tabs>
+
 ## What's the same
 
 - **Projects are still APC folders.** `AGENTS.md` and `.apc/` work unchanged, so your v1 projects open in v2 with no
