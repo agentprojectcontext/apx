@@ -358,6 +358,7 @@ export const en = {
   tkDeleteAsk: "“{title}”, its history and its conversation are deleted for good.",
   tkCloseAsk: "“{title}” goes to Closed; you can reopen it whenever you want.",
   tkWork: "Work",
+  tkWorkChat: "1 chat",
   tkWorkChats: "{n} chats",
   tkWorkNone: "Assign an agent and it starts working on it, in a chat of its own.",
   tkWorkNotYet: "Not started yet.",

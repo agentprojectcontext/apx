@@ -203,7 +203,9 @@ export function TaskDetailPage({
             leading={<Icon name="MessageCircle" size={18} color={theme.fgMuted} />}
             detail={
               sessions?.length
-                ? t("tkWorkChats", { n: sessions.length })
+                ? sessions.length === 1
+                  ? t("tkWorkChat")
+                  : t("tkWorkChats", { n: sessions.length })
                 : t(task.assignee ? "tkWorkNotYetShort" : "tkWorkNoneShort")
             }
             onPress={() => setWork(true)}

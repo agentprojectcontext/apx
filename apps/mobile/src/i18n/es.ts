@@ -362,6 +362,7 @@ export const es: Record<Key, string> = {
   tkDeleteAsk: "“{title}”, su historial y su conversación se borran para siempre.",
   tkCloseAsk: "“{title}” pasa a Cerradas; la podés reabrir cuando quieras.",
   tkWork: "Trabajo",
+  tkWorkChat: "1 chat",
   tkWorkChats: "{n} chats",
   tkWorkNone: "Asigná un agente y empieza a trabajarla, en un chat propio.",
   tkWorkNotYet: "Todavía no empezó.",
