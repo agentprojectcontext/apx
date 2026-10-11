@@ -70,6 +70,10 @@ test("the Windows login entry runs the terminal's supervisor, through cmd only f
     '"C:\\Node\\node.exe" --disable-warning=ExperimentalWarning "C:\\apx\\apps\\terminal\\src\\main.ts" service run --home "C:\\Users\\u\\.apx\\v2"',
   );
   assert.match(windowsRunCommand({ ...o, electron: true }), /^cmd \/d \/c "set ELECTRON_RUN_AS_NODE=1&& "C:/);
+  assert.match(
+    windowsRunCommand({ ...o, electron: false, env: { APX_RELEASES: "http://192.168.0.10:7480" } }),
+    /^cmd \/d \/c "set APX_RELEASES=http:\/\/192.168.0.10:7480&& "C:\\Node\\node.exe" .* service run --home .*"$/,
+  );
 });
 
 test("a bundle install runs through current, and its terminal finds the install it lives in", () => {

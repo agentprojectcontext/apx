@@ -124,7 +124,16 @@ export function launchdPlist(spec: ServiceSpec): string {
  * The Windows login entry: it starts `apx service run`, the terminal's own supervisor, since a Run value cannot
  * restart what dies. Electron's binary only behaves as Node with ELECTRON_RUN_AS_NODE, set through cmd.
  */
-export function windowsRunCommand(o: { node: string; terminal: string; home: string; electron: boolean }): string {
+export function windowsRunCommand(o: {
+  node: string;
+  terminal: string;
+  home: string;
+  electron: boolean;
+  /** Variables the login entry sets first (a login starts it with the user's environment, not the installer's). */
+  env?: Record<string, string>;
+}): string {
   const cmd = `"${o.node}" ${NODE_FLAGS.join(" ")} "${o.terminal}" service run --home "${o.home}"`;
-  return o.electron ? `cmd /d /c "set ELECTRON_RUN_AS_NODE=1&& ${cmd}"` : cmd;
+  const env = { ...(o.electron ? { ELECTRON_RUN_AS_NODE: "1" } : {}), ...o.env };
+  const sets = Object.entries(env).map(([k, v]) => `set ${k}=${v}&& `);
+  return sets.length ? `cmd /d /c "${sets.join("")}${cmd}"` : cmd;
 }

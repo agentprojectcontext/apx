@@ -132,14 +132,10 @@ export async function install(): Promise<void> {
     console.log(`installed ${launchdFile()}`);
     console.log(`logs: ${s.log}`);
   } else {
-    const command = windowsRunCommand({
-      ...supervisorRun(),
-      home,
-      electron: Boolean(process.env.ELECTRON_RUN_AS_NODE),
-    });
+    const command = windowsCommand(home);
     must("reg", ["add", RUN_KEY, "/v", WINDOWS_RUN_VALUE, "/t", "REG_SZ", "/d", command, "/f"]);
     if (wasInstalled) stopWindows(home);
-    startWindows(home);
+    startWindows(command);
     console.log(`installed the login entry ${WINDOWS_RUN_VALUE}`);
     console.log(`logs: ${s.log}`);
   }
@@ -182,7 +178,7 @@ export async function restart(): Promise<void> {
     // The supervisor starts the core again once it exits.
     const core = readPids(apxHome())?.core;
     if (core && alive(core)) process.kill(core);
-    else startWindows(apxHome());
+    else startWindows(windowsCommand(apxHome()));
   }
   console.log("restarting the core");
 }
@@ -238,13 +234,24 @@ export async function logs(home: string, n: number, follow: boolean): Promise<vo
   await new Promise(() => {});
 }
 
-function startWindows(home: string) {
-  const run = supervisorRun();
-  spawn(run.node, [...NODE_FLAGS, run.terminal, "service", "run", "--home", home], {
-    detached: true,
-    stdio: "ignore",
-    windowsHide: true,
-  }).unref();
+/** The login entry's command; a release feed other than the public one goes in it, as systemd's unit keeps it. */
+function windowsCommand(home: string): string {
+  const feed = process.env.APX_RELEASES;
+  return windowsRunCommand({
+    ...supervisorRun(),
+    home,
+    electron: Boolean(process.env.ELECTRON_RUN_AS_NODE),
+    ...(feed ? { env: { APX_RELEASES: feed } } : {}),
+  });
+}
+
+/**
+ * Starts the login entry's command now, created by WMI rather than as a child: Windows' sshd ends every process of
+ * the session when it closes, so a supervisor spawned from `apx service install` over SSH died at logout.
+ */
+function startWindows(command: string) {
+  const ps = `Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = '${command.replace(/'/g, "''")}' } | Out-Null`;
+  must("powershell", ["-NoProfile", "-NonInteractive", "-Command", ps]);
 }
 
 function stopWindows(home: string) {
