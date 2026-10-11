@@ -71,6 +71,12 @@ contextBridge.exposeInMainWorld("apxConnect", {
   url: (url: string): Promise<Answer> => ipcRenderer.invoke("connect:url", url),
   ssh: (target: string): Promise<Answer> => ipcRenderer.invoke("connect:ssh", target),
   installSsh: (target: string): Promise<Answer> => ipcRenderer.invoke("connect:ssh-install", target),
+  // Which step the main process is on (ssh, probe, install, connect); returns a function that stops listening.
+  onStep: (listener: (step: string) => void): (() => void) => {
+    const on = (_e: unknown, step: string) => listener(step);
+    ipcRenderer.on("connect:step", on);
+    return () => ipcRenderer.off("connect:step", on);
+  },
   // One line of the server install's output at a time; returns a function that stops listening.
   onProgress: (listener: (line: string) => void): (() => void) => {
     const on = (_e: unknown, line: string) => listener(line);

@@ -30,10 +30,16 @@ const REASONS: Record<string, MessageKey> = {
   badSsh: "connect.error.badSsh",
   sshFailed: "connect.error.sshFailed",
   sshDown: "connect.error.sshDown",
-  sshNoApx: "connect.error.sshNoApx",
   sshUnsupported: "connect.error.sshUnsupported",
   installFailed: "connect.error.installFailed",
   sshLinger: "connect.error.sshLinger",
+};
+/** What the desktop app is doing while the owner waits, as it reports each step. */
+const STEPS: Record<string, MessageKey> = {
+  ssh: "connect.step.ssh",
+  probe: "connect.step.probe",
+  install: "connect.step.install",
+  connect: "connect.step.connect",
 };
 const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 /** How many lines of the server install's output the screen keeps in view. */
@@ -52,7 +58,10 @@ export function ConnectScreen() {
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const [install, setInstall] = useState(false);
+  // The server has no APX: it can be installed from here or by hand (then the command shows).
+  const [noApx, setNoApx] = useState(false);
+  const [byHand, setByHand] = useState(false);
+  const [doing, setDoing] = useState<string>();
   const [log, setLog] = useState<string[]>();
   const [command, setCommand] = useState<string>();
   // The website's hero first; then, like a blind, it rises and the question unrolls under it (at once with less motion).
@@ -85,18 +94,30 @@ export function ConnectScreen() {
   const answer = async (ask: () => Promise<Answer | undefined> | undefined) => {
     setBusy(true);
     setError(undefined);
-    setInstall(false);
     setCommand(undefined);
-    const r = await ask();
+    setDoing(undefined);
+    const stop = window.apxConnect?.onStep?.(setDoing);
+    let r: Answer | undefined;
+    try {
+      r = await ask();
+    } finally {
+      stop?.();
+    }
     // Connected: the window leaves this page; until then the button stays busy.
     if (!r || r.ok) return;
     setBusy(false);
+    setDoing(undefined);
+    // Not an error: the next step is to install it.
+    if (r.reason === "sshNoApx") {
+      setNoApx(true);
+      return;
+    }
+    setNoApx(false);
     const reason = r.reason && REASONS[r.reason] ? t(REASONS[r.reason] as MessageKey) : undefined;
     // A command to run on the server shows as one, under the sentence that asks for it.
     const asks = r.reason === "sshLinger";
     setError(asks ? reason : [reason, r.error].filter(Boolean).join(" ") || r.reason);
     setCommand(asks ? r.error : undefined);
-    setInstall(r.reason === "sshNoApx");
   };
   const installThere = () =>
     void answer(async () => {
@@ -112,12 +133,15 @@ export function ConnectScreen() {
   const connect = (e: FormEvent) => {
     e.preventDefault();
     if (!address.trim() || busy) return;
+    setNoApx(false);
+    setByHand(false);
+    setLog(undefined);
     void answer(() => (via === "url" ? window.apxConnect?.url(address) : window.apxConnect?.ssh(address)));
   };
   const back = () => {
     setStep("start");
     setError(undefined);
-    setInstall(false);
+    setNoApx(false);
     setLog(undefined);
   };
 
@@ -219,7 +243,7 @@ export function ConnectScreen() {
                   onValueChange={(v) => {
                     setVia(v as Via);
                     setError(undefined);
-                    setInstall(false);
+                    setNoApx(false);
                   }}
                 />
               </div>
@@ -237,23 +261,39 @@ export function ConnectScreen() {
                   autoFocus
                   invalid={Boolean(error)}
                   leadingIcon={via === "url" ? <Icons.Link size={16} /> : <Icons.Terminal size={16} />}
-                  onChange={(e) => setAddress(e.currentTarget.value)}
+                  onChange={(e) => {
+                    setAddress(e.currentTarget.value);
+                    setNoApx(false);
+                    setByHand(false);
+                  }}
                 />
                 <span className="wiz__hintline">{t(via === "url" ? "connect.urlHint" : "connect.sshHint")}</span>
+                {busy && doing && STEPS[doing] && (
+                  <span id="client-step" className="wiz__hintline" aria-live="polite">
+                    {t(STEPS[doing] as MessageKey)}
+                  </span>
+                )}
+                {noApx && !busy && (
+                  <span id="client-noapx" className="wiz__hintline">
+                    {t("connect.noApx")}
+                  </span>
+                )}
+                {noApx && byHand && (
+                  <>
+                    <span className="wiz__hintline">{t("connect.byHandHint")}</span>
+                    <pre className="connect__install">{INSTALL}</pre>
+                  </>
+                )}
                 {error && (
                   <span id="client-error" className="wiz__hintline is-error" role="alert">
                     {error}
                   </span>
                 )}
-                {install && <pre className="connect__install">{INSTALL}</pre>}
                 {command && <pre className="connect__install">{command}</pre>}
-                {log && (
-                  <>
-                    {busy && <span className="wiz__hintline">{t("connect.installing")}</span>}
-                    <pre id="install-log" className="connect__install" aria-live="polite">
-                      {log.join("\n")}
-                    </pre>
-                  </>
+                {log && log.length > 0 && (
+                  <pre id="install-log" className="connect__install" aria-live="polite">
+                    {log.join("\n")}
+                  </pre>
                 )}
               </div>
               <div className="wiz__foot">
@@ -261,14 +301,28 @@ export function ConnectScreen() {
                   {t("setup.back")}
                 </button>
                 <span className="wiz__spacer" />
-                {install && via === "ssh" && (
-                  <Button id="install-there" variant="secondary" size="lg" disabled={busy} onClick={installThere}>
-                    {t("connect.installThere")}
+                {noApx && via === "ssh" ? (
+                  <>
+                    {!byHand && (
+                      <Button
+                        id="install-hand"
+                        variant="ghost"
+                        size="lg"
+                        disabled={busy}
+                        onClick={() => setByHand(true)}
+                      >
+                        {t("connect.installByHand")}
+                      </Button>
+                    )}
+                    <Button id="install-there" size="lg" loading={busy} onClick={installThere}>
+                      {t("connect.installThere")}
+                    </Button>
+                  </>
+                ) : (
+                  <Button id="client-go" type="submit" size="lg" loading={busy} disabled={!address.trim()}>
+                    {t(busy ? "connect.connecting" : "connect.connect")}
                   </Button>
                 )}
-                <Button id="client-go" type="submit" size="lg" loading={busy} disabled={!address.trim()}>
-                  {t("connect.connect")}
-                </Button>
               </div>
             </form>
           )}

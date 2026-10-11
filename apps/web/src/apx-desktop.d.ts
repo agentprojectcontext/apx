@@ -26,6 +26,8 @@ declare global {
       /** Installs APX on that server over SSH (this app's version), then connects to it. */
       installSsh(target: string): Promise<ConnectAnswer>;
       onProgress(listener: (line: string) => void): () => void;
+      /** Missing in builds from before the steps were reported. */
+      onStep?(listener: (step: string) => void): () => void;
     };
     apxDesktop?: {
       /** Host OS of the desktop shell (`darwin` | `win32` | `linux`). */

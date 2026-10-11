@@ -70,7 +70,9 @@ export function createConnector(opts: {
     if (!onChooser(e.sender)) return { ok: false, error: "not allowed" };
     if (typeof input !== "string" || !validSshTarget(input)) return { ok: false, reason: "badSsh" };
     const target = input.trim();
+    step(e.sender, "ssh");
     if (!(await sshCoreUp(target))) {
+      step(e.sender, "probe");
       const remote = remoteApx(target);
       return {
         ok: false,
@@ -87,15 +89,22 @@ export function createConnector(opts: {
     const target = input.trim();
     const script = fs.readFileSync(installScript(), "utf8");
     const args = installArgs(app.getVersion(), process.env.APX_RELEASES);
+    step(e.sender, "install");
     const r = await remoteInstall(target, script, args, (line) => {
       if (!e.sender.isDestroyed()) e.sender.send("connect:progress", line);
     });
     if (!r.ok) return r;
+    step(e.sender, "connect");
     if (!(await sshCoreUp(target, 30_000))) return { ok: false, reason: "sshDown" };
     // Installed, but it would stop whenever this app disconnects: the owner runs one command as root, then connects.
     if (!r.lingers) return { ok: false, reason: "sshLinger", error: `sudo loginctl enable-linger ${r.user}` };
     return choose({ mode: "ssh", target });
   });
+
+  /** Tells the first-run screen which step it is waiting on. */
+  function step(sender: WebContents, id: "ssh" | "probe" | "install" | "connect"): void {
+    if (!sender.isDestroyed()) sender.send("connect:step", id);
+  }
 
   async function sshCoreUp(target: string, wait = 15_000): Promise<boolean> {
     const probe = startTunnel(target, corePort, () => {});
