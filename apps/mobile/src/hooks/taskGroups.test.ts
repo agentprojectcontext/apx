@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { taskGroups } from "./taskGroups.ts";
+import { closedTasks, taskGroups } from "./taskGroups.ts";
 import type { Task } from "./useWorkspace";
 
 const task = (id: string, extra: Partial<Task> = {}): Task => ({
@@ -46,4 +46,21 @@ test("the filter splits commitments from tasks and errands", () => {
     taskGroups(all, filter).flatMap((group) => group.tasks.map((item) => item.id));
   assert.deepEqual(ids("commitment"), ["c"]);
   assert.deepEqual(ids("task"), ["t", "e"]);
+});
+
+test("closed tasks, done and dropped, list the latest first and follow the filter", () => {
+  const tasks = [
+    task("a", { state: "done", activity_at: "2026-10-07T09:00:00Z" }),
+    task("b", { state: "dropped", activity_at: "2026-10-08T09:00:00Z" }),
+    task("c", { state: "done", kind: "commitment", activity_at: "2026-10-09T09:00:00Z" }),
+    task("d"),
+  ];
+  assert.deepEqual(
+    closedTasks(tasks, "all").map((item) => item.id),
+    ["c", "b", "a"],
+  );
+  assert.deepEqual(
+    closedTasks(tasks, "task").map((item) => item.id),
+    ["b", "a"],
+  );
 });

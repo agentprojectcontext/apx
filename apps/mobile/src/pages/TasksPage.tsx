@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { dueWhen } from "../format";
-import { type TaskFilter, type TaskGroup, taskGroups } from "../hooks/taskGroups";
+import { closedTasks, type TaskFilter, type TaskGroup, taskGroups } from "../hooks/taskGroups";
 import type { Task, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
-import { AgentAvatar, EmptyState, GroupLabel, PageTitle, Screen, Segmented, Tag, type } from "../ui/kit";
+import { Icon } from "../ui/Icon";
+import { AgentAvatar, EmptyState, Fab, GroupLabel, PageTitle, Screen, Segmented, Tag, type } from "../ui/kit";
 import { theme } from "../ui/theme";
 
 const COLORS: Record<TaskGroup["id"], string> = {
@@ -14,42 +15,64 @@ const COLORS: Record<TaskGroup["id"], string> = {
   blocked: theme.warning,
 };
 
-export function TasksPage({ data, open }: { data: Workspace; open: (threadId: string) => void }) {
+/** Open tasks by group, then the latest closed ones folded; a task opens its page, the button makes a new one. */
+export function TasksPage({ data, open, create }: { data: Workspace; open: (task: Task) => void; create: () => void }) {
   const [filter, setFilter] = useState<TaskFilter>("all");
+  const [showClosed, setShowClosed] = useState(false);
   const groups = useMemo(() => taskGroups(data.tasks, filter), [data.tasks, filter]);
+  const closed = useMemo(() => closedTasks(data.tasks, filter), [data.tasks, filter]);
   return (
-    <Screen
-      inset={false}
-      gap={8}
-      header={
-        <>
-          <PageTitle title={t("navTasks")} inset />
-          <Segmented
-            value={filter}
-            onChange={setFilter}
-            style={{ marginHorizontal: 16, marginBottom: 4 }}
-            options={[
-              { value: "all", label: t("tasksAll") },
-              { value: "task", label: t("tasksTasks") },
-              { value: "commitment", label: t("tasksCommitments") },
-            ]}
-          />
-        </>
-      }
-    >
-      {groups.length ? (
-        groups.map((group) => (
-          <View key={group.id}>
-            <GroupLabel label={`${t(group.label)} · ${group.tasks.length}`} color={COLORS[group.id]} />
-            {group.tasks.map((task) => (
-              <TaskRow key={task.id} task={task} data={data} onPress={() => open(task.thread_id)} />
-            ))}
+    <View style={{ flex: 1 }}>
+      <Screen
+        inset={false}
+        gap={8}
+        header={
+          <>
+            <PageTitle title={t("navTasks")} inset />
+            <Segmented
+              value={filter}
+              onChange={setFilter}
+              style={{ marginHorizontal: 16, marginBottom: 4 }}
+              options={[
+                { value: "all", label: t("tasksAll") },
+                { value: "task", label: t("tasksTasks") },
+                { value: "commitment", label: t("tasksCommitments") },
+              ]}
+            />
+          </>
+        }
+      >
+        {groups.length ? (
+          groups.map((group) => (
+            <View key={group.id}>
+              <GroupLabel label={`${t(group.label)} · ${group.tasks.length}`} color={COLORS[group.id]} />
+              {group.tasks.map((task) => (
+                <TaskRow key={task.id} task={task} data={data} onPress={() => open(task)} />
+              ))}
+            </View>
+          ))
+        ) : (
+          <EmptyState title={t("noTasks")} body={t("noTasksBody")} icon="ListChecks" />
+        )}
+        {closed.length ? (
+          <View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showClosed }}
+              onPress={() => setShowClosed(!showClosed)}
+              style={s.closedLabel}
+            >
+              <GroupLabel label={`${t("tkClosed")} · ${closed.length}`} color={theme.fgSubtle} inset={0} />
+              <Icon name={showClosed ? "ChevronDown" : "ChevronRight"} size={14} color={theme.fgSubtle} />
+            </Pressable>
+            {showClosed
+              ? closed.map((task) => <TaskRow key={task.id} task={task} data={data} onPress={() => open(task)} />)
+              : null}
           </View>
-        ))
-      ) : (
-        <EmptyState title={t("noTasks")} body={t("noTasksBody")} icon="ListChecks" />
-      )}
-    </Screen>
+        ) : null}
+      </Screen>
+      <Fab icon="Plus" label={t("tkNew")} onPress={create} />
+    </View>
   );
 }
 
@@ -65,7 +88,7 @@ function TaskRow({ task, data, onPress }: { task: Task; data: Workspace; onPress
     >
       <AgentAvatar name={who} blob={agent?.blob} id={agent?.id ?? task.assignee} size={36} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={type.rowTitle}>{task.title}</Text>
+        <Text style={[type.rowTitle, task.state !== "open" && s.closedTitle]}>{task.title}</Text>
         <Text numberOfLines={1} style={type.meta}>
           {[who, project, task.due_at && dueWhen(task.due_at)].filter(Boolean).join(" · ")}
         </Text>
@@ -77,6 +100,8 @@ function TaskRow({ task, data, onPress }: { task: Task; data: Workspace; onPress
 }
 
 const s = StyleSheet.create({
+  closedLabel: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 20, paddingBottom: 72 },
+  closedTitle: { color: theme.fgMuted, textDecorationLine: "line-through" },
   row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 10, paddingHorizontal: 20 },
   note: { color: theme.warning, fontSize: 12 },
 });

@@ -4,7 +4,7 @@ import type { Routine, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import { flowText, routineStatus, runOutcome, scheduleText } from "../routines/view";
 import { Icon } from "../ui/Icon";
-import { Card, ListGroup, Screen, Spinner, SubHeader, type } from "../ui/kit";
+import { Card, IconButton, ListGroup, Screen, Spinner, SubHeader, type } from "../ui/kit";
 import { theme } from "../ui/theme";
 import { Bars, type RoutineActions, RoutineToggle, RunNow, useRoutineRuns } from "./RoutinesPage";
 
@@ -23,12 +23,14 @@ export function RoutineDetailPage({
   back,
   actions,
   openThread,
+  edit,
 }: {
   routine: Routine;
   data: Workspace;
   back: () => void;
   actions: RoutineActions;
   openThread: (id: string) => void;
+  edit: () => void;
 }) {
   const runs = useRoutineRuns(routine, actions.runs, 20);
   const agent = data.agents.find((item) => item.id === routine.agent_id);
@@ -36,7 +38,16 @@ export function RoutineDetailPage({
   const status = routineStatus(routine, runs);
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <SubHeader title={routine.name} back={back} right={<RoutineToggle routine={routine} toggle={actions.toggle} />} />
+      <SubHeader
+        title={routine.name}
+        back={back}
+        right={
+          <View style={s.row}>
+            <IconButton icon="Pencil" label={t("rtEdit")} size={18} onPress={edit} />
+            <RoutineToggle routine={routine} toggle={actions.toggle} />
+          </View>
+        }
+      />
       <Screen>
         <Card style={s.card}>
           <Text style={type.meta}>

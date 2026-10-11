@@ -17,10 +17,13 @@ import { InboxPage } from "./pages/InboxPage";
 import { MemoryPage } from "./pages/MemoryPage";
 import { MoreDetailPage } from "./pages/MoreDetailPage";
 import { type MoreId, MorePage } from "./pages/MorePage";
+import { NewTaskPage } from "./pages/NewTaskPage";
 import { RoutineDetailPage } from "./pages/RoutineDetailPage";
+import { RoutineEditPage } from "./pages/RoutineEditPage";
 import { RoutinesPage } from "./pages/RoutinesPage";
 import { SessionsPage } from "./pages/SessionsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { TasksPage } from "./pages/TasksPage";
 import { SurfacesScreen } from "./SurfacesScreen";
 import { ChatPicker } from "./ui/ChatPicker";
@@ -66,6 +69,9 @@ export function WorkspaceScreen({
   const [subpage, setSubpage] = useState<MoreId>();
   const [chatProject, setChatProject] = useState("all");
   const [routine, setRoutine] = useState<Routine>();
+  const [editingRoutine, setEditingRoutine] = useState(false);
+  /** The task whose page is open, or "new" while the owner writes one. */
+  const [task, setTask] = useState<string>();
   const fileActions = useMemo(
     () => ({ tree: workspace.fileTree, read: workspace.readFile, media: workspace.fileMedia }),
     [workspace.fileTree, workspace.readFile, workspace.fileMedia],
@@ -77,6 +83,10 @@ export function WorkspaceScreen({
   const routineActions = useMemo(
     () => ({ toggle: workspace.toggleRoutine, run: workspace.runRoutine, runs: workspace.routineRuns }),
     [workspace.toggleRoutine, workspace.runRoutine, workspace.routineRuns],
+  );
+  const taskActions = useMemo(
+    () => ({ detail: workspace.taskDetail, update: workspace.updateTask, close: workspace.closeTask }),
+    [workspace.taskDetail, workspace.updateTask, workspace.closeTask],
   );
   const [surfaces, setSurfaces] = useState(false);
   const [picker, setPicker] = useState<"switch" | "new">();
@@ -123,14 +133,16 @@ export function WorkspaceScreen({
       if (picker) setPicker(undefined);
       else if (surfaces) setSurfaces(false);
       else if (thread) setThread(undefined);
+      else if (editingRoutine) setEditingRoutine(false);
       else if (routine) setRoutine(undefined);
+      else if (task) setTask(undefined);
       else if (subpage) setSubpage(undefined);
       else if (tab !== "chats") setTab("chats");
       else return false;
       return true;
     });
     return () => sub.remove();
-  }, [picker, surfaces, thread, routine, subpage, tab]);
+  }, [picker, surfaces, thread, editingRoutine, routine, task, subpage, tab]);
   const openThread = async (item: Thread) => {
     setThread(item);
     void workspace.openThread(item.id).catch(() => undefined);
@@ -160,13 +172,43 @@ export function WorkspaceScreen({
           onBack={() => setThread(undefined)}
         />
       );
-    if (routine)
+    const shownRoutine = routine && (workspace.data.routines.find((item) => item.id === routine.id) ?? routine);
+    if (shownRoutine && editingRoutine)
+      return (
+        <RoutineEditPage
+          routine={shownRoutine}
+          data={workspace.data}
+          back={() => setEditingRoutine(false)}
+          save={workspace.saveRoutine}
+        />
+      );
+    if (shownRoutine)
       return (
         <RoutineDetailPage
-          routine={workspace.data.routines.find((item) => item.id === routine.id) ?? routine}
+          routine={shownRoutine}
+          edit={() => setEditingRoutine(true)}
           data={workspace.data}
           back={() => setRoutine(undefined)}
           actions={routineActions}
+          openThread={openById}
+        />
+      );
+    if (task === "new")
+      return (
+        <NewTaskPage
+          data={workspace.data}
+          back={() => setTask(undefined)}
+          create={workspace.createTask}
+          created={(item) => setTask(item.id)}
+        />
+      );
+    if (task)
+      return (
+        <TaskDetailPage
+          task={workspace.data.tasks.find((item) => item.id === task)}
+          data={workspace.data}
+          back={() => setTask(undefined)}
+          actions={taskActions}
           openThread={openById}
         />
       );
@@ -249,7 +291,7 @@ export function WorkspaceScreen({
           />
         );
       case "tasks":
-        return <TasksPage data={workspace.data} open={openById} />;
+        return <TasksPage data={workspace.data} open={(item) => setTask(item.id)} create={() => setTask("new")} />;
       case "sessions":
         return (
           <SessionsPage
@@ -288,6 +330,8 @@ export function WorkspaceScreen({
             setTab(id);
             setSubpage(undefined);
             setRoutine(undefined);
+            setEditingRoutine(false);
+            setTask(undefined);
           }}
         />
       ) : null}

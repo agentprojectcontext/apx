@@ -10,7 +10,9 @@ import {
   type NoticePrefs,
   type RoutineRun,
   type Schedule,
+  type TaskEvent,
 } from "../protocol";
+import { DEFAULT_COLUMNS, type TaskColumn, type TaskPatch } from "../tasks/fields";
 
 export type Agent = {
   id: string;
@@ -49,6 +51,7 @@ export type Thread = {
 export type Task = {
   id: string;
   title: string;
+  description?: string;
   status: string;
   state: string;
   kind: "task" | "commitment" | "errand";
@@ -58,7 +61,18 @@ export type Task = {
   thread_id: string;
   due_at?: string;
   awaits_owner: boolean;
+  /** A commitment: the person on the other side, and how it ended once closed. */
+  person_name?: string;
+  outcome?: "kept" | "missed" | "dropped";
+  renegotiated?: number;
   activity_at: string;
+};
+/** A new task as the owner fills it in. */
+export type NewTask = Omit<TaskPatch, "awaits_owner" | "project" | "assignee" | "due_at"> & {
+  title: string;
+  project?: string;
+  assignee?: string;
+  due_at?: string;
 };
 export type Notice = {
   id: string;
@@ -143,6 +157,8 @@ export type Workspace = {
   projects: Project[];
   agents: Agent[];
   tasks: Task[];
+  /** The board's columns, as tasks.list gives them. */
+  columns: TaskColumn[];
   notices: Notice[];
   unread: number;
   inputs: PendingInput[];
@@ -162,6 +178,7 @@ export const emptyWorkspace: Workspace = {
   projects: [],
   agents: [],
   tasks: [],
+  columns: DEFAULT_COLUMNS,
   notices: [],
   unread: 0,
   inputs: [],
@@ -211,7 +228,7 @@ export function useWorkspace(creds: Creds) {
       await Promise.all([
         get<{ projects: Project[] }>("projects.list", { include_unregistered: true }),
         get<{ agents: Agent[] }>("agents.list", {}),
-        get<{ tasks: Task[] }>("tasks.list", { state: "open", limit: 200 }),
+        get<{ tasks: Task[]; columns: TaskColumn[] }>("tasks.list", { state: "open", limit: 200 }),
         get<{ tasks: Task[] }>("tasks.list", { state: "done", limit: 25 }),
         get<{ tasks: Task[] }>("tasks.list", { state: "dropped", limit: 25 }),
         get<{ notifications: Notice[]; unread: number }>("notifications.list", { limit: 100 }),
@@ -239,6 +256,7 @@ export function useWorkspace(creds: Creds) {
       projects: projects?.projects ?? d.projects,
       agents: agents?.agents ?? d.agents,
       tasks: open ? [...open.tasks, ...(done?.tasks ?? []), ...(dropped?.tasks ?? [])] : d.tasks,
+      columns: open?.columns.length ? open.columns : d.columns,
       notices: inbox?.notifications ?? d.notices,
       unread: inbox?.unread ?? d.unread,
       inputs: pending?.inputs ?? d.inputs,
@@ -375,25 +393,32 @@ export function useWorkspace(creds: Creds) {
     [client, loadSecondary],
   );
 
-  const toggleRoutine = useCallback(
-    async (routine: Routine, enabled: boolean) => {
-      await rpc(client, "routines.set", {
-        id: routine.id,
-        name: routine.name,
-        agent: routine.agent_id,
-        project: routine.project_id,
-        schedule: routine.schedule,
-        action: routine.action,
-        prompt: routine.prompt,
-        pre_command: routine.pre_command,
-        post_command: routine.post_command,
-        call_model: routine.call_model,
-        anchor: routine.anchor,
-        enabled,
+  /** A routine is saved whole: what the owner changed over what it had. */
+  const saveRoutine = useCallback(
+    async (routine: Routine, patch: Partial<Routine> = {}) => {
+      const next = { ...routine, ...patch };
+      const saved = await rpc<Routine>(client, "routines.set", {
+        id: next.id,
+        name: next.name,
+        agent: next.agent_id,
+        project: next.project_id,
+        schedule: next.schedule,
+        action: next.action,
+        prompt: next.prompt,
+        pre_command: next.pre_command ?? "",
+        post_command: next.post_command ?? "",
+        call_model: next.call_model,
+        anchor: next.anchor,
+        enabled: next.enabled,
       });
+      setData((d) => ({ ...d, routines: d.routines.map((item) => (item.id === saved.id ? saved : item)) }));
       await loadSecondary();
     },
     [client, loadSecondary],
+  );
+  const toggleRoutine = useCallback(
+    (routine: Routine, enabled: boolean) => saveRoutine(routine, { enabled }),
+    [saveRoutine],
   );
 
   const runRoutine = useCallback(
@@ -408,6 +433,42 @@ export function useWorkspace(creds: Creds) {
     async (routineId: string, limit = 14) =>
       (await rpc<{ runs: RoutineRun[] }>(client, "routines.runs", { routine: routineId, limit })).runs,
     [client],
+  );
+
+  /** A task the core changed takes its place in the list at once; the next sync confirms it. */
+  const putTask = useCallback((task: Task) => {
+    setData((d) => ({ ...d, tasks: [task, ...d.tasks.filter((item) => item.id !== task.id)] }));
+    return task;
+  }, []);
+  const taskDetail = useCallback(
+    async (taskId: string) => {
+      const result = await rpc<{ task: Task; events: TaskEvent[] }>(client, "tasks.get", { task: taskId });
+      putTask(result.task);
+      return result.events;
+    },
+    [client, putTask],
+  );
+  const createTask = useCallback(
+    async (task: NewTask) => putTask(await rpc<Task>(client, "tasks.create", task)),
+    [client, putTask],
+  );
+  const updateTask = useCallback(
+    async (taskId: string, patch: TaskPatch) =>
+      putTask(await rpc<Task>(client, "tasks.update", { task: taskId, ...patch })),
+    [client, putTask],
+  );
+  /** Done, dropped or open again; a commitment is settled instead: kept, missed or released. */
+  const closeTask = useCallback(
+    async (task: Task, state: "done" | "dropped" | "open" | "missed") => {
+      if (task.kind === "commitment" && state !== "open") {
+        const outcome = state === "done" ? "kept" : state;
+        return putTask(await rpc<Task>(client, "tasks.settle", { task: task.id, outcome }));
+      }
+      return putTask(
+        await rpc<Task>(client, "tasks.close", { task: task.id, state: state === "missed" ? "dropped" : state }),
+      );
+    },
+    [client, putTask],
   );
 
   const memories = useCallback(
@@ -522,8 +583,13 @@ export function useWorkspace(creds: Creds) {
     readNotice,
     respond,
     toggleRoutine,
+    saveRoutine,
     runRoutine,
     routineRuns,
+    taskDetail,
+    createTask,
+    updateTask,
+    closeTask,
     memories,
     addMemory,
     removeMemory,

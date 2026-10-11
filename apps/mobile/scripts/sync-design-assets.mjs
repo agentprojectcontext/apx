@@ -62,6 +62,13 @@ const names = [
   "Image",
   "Camera",
   "Mic",
+  "CircleCheck",
+  "CircleX",
+  "Calendar",
+  "RotateCcw",
+  "Hand",
+  "Flag",
+  "UserRound",
 ];
 const icons = {};
 for (const name of names) {
@@ -143,6 +150,19 @@ for (const file of ["slots.ts", "cron.ts"]) {
   writeFileSync(
     resolve(mobile, "src/routines", file),
     `// Synced from apps/web/src/routines/${file} by scripts/sync-design-assets.mjs.\n${code}`,
+  );
+}
+
+// The board's due dates and the way a task's history reads, so the phone and the panel say the same.
+mkdirSync(resolve(mobile, "src/tasks"), { recursive: true });
+for (const file of ["when.ts", "history.ts"]) {
+  const code = readFileSync(resolve(mobile, "../web/src/tasks", file), "utf8").replace(
+    'from "@apx/protocol"',
+    'from "../../../../packages/protocol/src/index.ts"',
+  );
+  writeFileSync(
+    resolve(mobile, "src/tasks", file),
+    `// Synced from apps/web/src/tasks/${file} by scripts/sync-design-assets.mjs.\n${code}`,
   );
 }
 

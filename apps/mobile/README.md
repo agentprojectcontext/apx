@@ -30,6 +30,10 @@ A core on a VPS or reached through Tailscale: choose Tailscale in Settings › C
 `apx expose tailscale` on that server and restart the core. Tailscale Serve forwards the tailnet's HTTPS address to
 the core on loopback; `apx pair` creates the one-time code. Network settings always belong to the core's machine.
 
+- **Keeps the board and the routines**: a task opens its page (title, description, column, priority, who does it, due
+  date, project, type, waiting for the owner), closes as done or dropped (a commitment as kept, missed or released),
+  reopens, and shows its history; the Tasks tab writes new ones. A routine's page edits its name, prompt, agent,
+  schedule and commands, turns it on or off and runs it now.
 - **Shows the pinned widgets and apps** (Apps button): each opens full screen in a WebView with the panel's strict CSP
   (inline code only, no network, no navigation) and the phone's light or dark colors; a widget's `sendPrompt()` after
   a real touch goes to its thread, as in the panel.
@@ -41,7 +45,8 @@ Revoked credentials return to pairing on the next launch; an unreachable core ke
 
 The screens follow the APX Mobile design (the panel's minimal look, dark mode). Colors and radii come from
 `packages/ui/src/styles/tokens.css` through `npm run sync:design`, which writes `src/ui/tokens.ts` along with the
-icons, blob eyes, engine marks and the panel's routine slot logic (`src/routines/slots.ts`, `cron.ts`); never edit
+icons, blob eyes, engine marks, the panel's routine slot logic (`src/routines/slots.ts`, `cron.ts`) and the board's
+due dates and task history (`src/tasks/when.ts`, `history.ts`); never edit
 those files by hand. Screens are built from `src/ui/kit` (buttons, chips, tags, cards, list groups, the switch,
 segmented control, spinner, headers, bottom sheet, tab bar), so a style changes in one place. Every word on screen
 goes through `src/i18n` (English, Spanish).

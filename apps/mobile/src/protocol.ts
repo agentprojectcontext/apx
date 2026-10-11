@@ -10,6 +10,7 @@ export type {
   RoutineRun,
   Schedule,
   Surface,
+  TaskEvent,
   Thread,
 } from "../../../packages/protocol/src/index.ts";
 
