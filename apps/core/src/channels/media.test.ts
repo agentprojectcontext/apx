@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
@@ -33,6 +35,8 @@ const media = http.createServer((req, res) => {
 });
 
 const llm = scriptedLlm((_req, { said, afterTool }) => {
+  if (said.includes("mandame el reel"))
+    return afterTool ? say("Here is the reel.") : callTool("f1", "send_file", { path: "reel.mp4" });
   if (afterTool) return say("Here is your fox, drawn.");
   if (said.includes("[voice note] quiero un dibujo")) return callTool("d1", "make_image", { prompt: "a fox" });
   return say("ok");
@@ -102,6 +106,27 @@ test("a voice note is heard, the agent draws, and the answer returns as a voice 
   const saved = await env.client.call("media.get", { id: recording.media_id });
   assert.equal(saved.mime, "audio/ogg");
   assert.equal(Buffer.from(saved.data, "base64").toString(), "OggS-fake-voice");
+});
+
+test("a file the agent attaches on a channel turn reaches the channel, with or without a voice note", async () => {
+  fs.mkdirSync(path.join(env.home, "work"), { recursive: true });
+  fs.writeFileSync(path.join(env.home, "work", "reel.mp4"), Buffer.alloc(2048, 1));
+  for (const voice of [false, true]) {
+    await env.client.call("threads.voice", { thread: "home", on: voice });
+    const before = tg.filesTo(OWNER.id).filter((s) => s.method === "sendDocument").length;
+    tg.message(OWNER, "mandame el reel");
+    await until(
+      () => tg.filesTo(OWNER.id).filter((s) => s.method === "sendDocument").length > before,
+      `the reel as a document (voice ${voice})`,
+      8000,
+    );
+    const doc = tg
+      .filesTo(OWNER.id)
+      .filter((s) => s.method === "sendDocument")
+      .at(-1);
+    assert.equal(doc?.body.filename, "reel.mp4");
+    await env.settle("home");
+  }
 });
 
 test("a channel voice note stays playable when no transcription engine is configured", async () => {

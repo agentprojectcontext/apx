@@ -277,9 +277,12 @@ export function createChannels(deps: {
         deps.attention({ kind: "channel", level: "error", title: audience.name, body: text, thread_id: run.thread_id });
       } else out = channelTexts(store).failed(why);
     }
-    const images = (msg?.parts ?? []).flatMap((p) =>
-      p.type === "image" && p.media_id ? [{ id: p.media_id, kind: "image" as const, mime: p.mime ?? "image/png" }] : [],
-    );
+    // What the agent attached (send_file, make_image) goes with the answer; a file left behind is a promise broken.
+    const attached = (msg?.parts ?? []).flatMap((p): NonNullable<Presentation["media"]> => {
+      if (p.type === "image" && p.media_id) return [{ id: p.media_id, kind: "image", mime: p.mime ?? "image/png" }];
+      if (p.type === "file") return [{ id: p.media_id, kind: "file", mime: p.mime, name: p.name }];
+      return [];
+    });
     if (run.state === "completed" && isSkip(out)) {
       hideWords(run.message_id);
       return;
@@ -289,7 +292,7 @@ export function createChannels(deps: {
       await reactInstead(run, to, emoji);
       return;
     }
-    if (!out && !images.length) return;
+    if (!out && !attached.length) return;
     if (audience?.kind === "contact") out = guardReply(out);
     if (room) out = quietMentions(out);
     const replyRef = room && to.message ? { reply_to: to.message } : {};
@@ -304,12 +307,12 @@ export function createChannels(deps: {
       });
     const voice = out && run.state === "completed" ? await voiceFor(run.thread_id, out) : undefined;
     if (!voice) {
-      send({ text: out, media: images, ...replyRef });
+      send({ text: out, media: attached, ...replyRef });
       return;
     }
     // A voice note with its transcript (only what it says), then the rest of the answer as its own message.
     send({ text: voice.spoken, media: [voice.media], mediaFirst: true, ...replyRef });
-    if (voice.rest || images.length) send({ text: voice.rest, media: images });
+    if (voice.rest || attached.length) send({ text: voice.rest, media: attached });
   }
 
   /** When the chat asked for spoken answers: the first part as a voice note (shown in the app too), and the rest. */
