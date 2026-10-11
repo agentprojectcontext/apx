@@ -1,10 +1,12 @@
 // What the window opens: the first-run choice (server or client) on an installed app, then the APX it chose — its
 // own core here, one at an address, or one over SSH. The panel is the same web app in every case.
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { app, ipcMain, type WebContents } from "electron";
 import { APP_SCHEME, FIRST_RUN_URL } from "./app-scheme.ts";
+import { openAskpass, type Prompt } from "./askpass.ts";
 import {
   type Connection,
   forgetConnection,
@@ -15,11 +17,23 @@ import {
   validSshTarget,
 } from "./connection.ts";
 import { type EmbeddedCore, isUp, startEmbeddedCore, waitUp } from "./core-process.ts";
-import { installArgs, remoteApx, remoteInstall, remoteLinger, startTunnel, type Tunnel } from "./ssh-tunnel.ts";
+import { appKeyPath, askpassSupported, authorizeKey, ensureAppKey, localSshVersion } from "./ssh-login.ts";
+import {
+  installArgs,
+  remoteApx,
+  remoteInstall,
+  remoteLinger,
+  startTunnel,
+  type Tunnel,
+  useIdentity,
+} from "./ssh-tunnel.ts";
 
 // ready: installed on a server and reachable, but not opened yet (the screen says so first); linger names the user
-// whose services stop at logout until they linger.
-type Answer = { ok: true; ready?: true; linger?: string } | { ok: false; reason?: string; error?: string };
+// whose services stop at logout until they linger. key: this app's public key, for the owner to add by hand.
+type Answer =
+  | { ok: true; ready?: true; linger?: string }
+  | { ok: false; reason?: string; error?: string; key?: string };
+type Step = "ssh" | "login" | "probe" | "install" | "connect";
 
 export function createConnector(opts: {
   panel: WebContents;
@@ -38,6 +52,9 @@ export function createConnector(opts: {
     process.env.APX_CONNECTION === "local" ? { mode: "local" } : loadConnection(dataDir);
   let core: EmbeddedCore | undefined;
   let tunnel: Tunnel | undefined;
+  // ssh's questions waiting for the owner's answer on the first-run screen (never logged, never kept).
+  const pending = new Map<string, (answer: string | undefined) => void>();
+  useIdentity(appKeyPath(dataDir));
 
   const onChooser = (sender: WebContents) =>
     sender === opts.panel && sender.getURL().startsWith(`${APP_SCHEME}://app/`);
@@ -73,15 +90,28 @@ export function createConnector(opts: {
     if (typeof input !== "string" || !validSshTarget(input)) return { ok: false, reason: "badSsh" };
     const target = input.trim();
     step(e.sender, "ssh");
-    if (!(await sshCoreUp(target))) {
-      step(e.sender, "probe");
-      const remote = remoteApx(target);
-      return {
-        ok: false,
-        reason: remote === "unreachable" ? "sshFailed" : remote === "missing" ? "sshNoApx" : "sshDown",
-      };
+    let remote = await remoteApx(target);
+    if (remote === "password") {
+      const login = await passwordLogin(e.sender, target);
+      if (!login.ok) return login;
+      remote = await remoteApx(target);
+      // The key is in authorized_keys, yet the server still wants a password: it does not take keys.
+      if (remote === "password" || remote === "unreachable") return { ok: false, reason: "sshKeyRefused" };
     }
+    if (remote === "unreachable") return { ok: false, reason: "sshFailed" };
+    step(e.sender, "probe");
+    // A core that answers wins, even one put there some other way than an `apx` command.
+    if (!(await sshCoreUp(target))) return { ok: false, reason: remote === "missing" ? "sshNoApx" : "sshDown" };
     return choose({ mode: "ssh", target });
+  });
+
+  // The owner's answer to the question on screen; `undefined` cancels it.
+  ipcMain.on("connect:answer", (e, id: unknown, answer: unknown) => {
+    if (!onChooser(e.sender) || typeof id !== "string") return;
+    const done = pending.get(id);
+    if (!done) return;
+    pending.delete(id);
+    done(typeof answer === "string" ? answer.replace(/[\r\n]/g, "").slice(0, 4096) : undefined);
   });
 
   // The server has no APX: this app installs its own version there (install.sh over ssh), then connects.
@@ -92,9 +122,7 @@ export function createConnector(opts: {
     const script = fs.readFileSync(installScript(), "utf8");
     const args = installArgs(app.getVersion(), process.env.APX_RELEASES);
     step(e.sender, "install");
-    const r = await remoteInstall(target, script, args, (line) => {
-      if (!e.sender.isDestroyed()) e.sender.send("connect:progress", line);
-    });
+    const r = await remoteInstall(target, script, args, (line) => progress(e.sender, line));
     if (!r.ok) return r;
     step(e.sender, "connect");
     if (!(await sshCoreUp(target, 30_000))) return { ok: false, reason: "sshDown" };
@@ -111,8 +139,48 @@ export function createConnector(opts: {
   });
 
   /** Tells the first-run screen which step it is waiting on. */
-  function step(sender: WebContents, id: "ssh" | "probe" | "install" | "connect"): void {
+  function step(sender: WebContents, id: Step): void {
     if (!sender.isDestroyed()) sender.send("connect:step", id);
+  }
+
+  /** One line of the server's (or ssh's) output for the first-run screen's terminal. */
+  function progress(sender: WebContents, line: string): void {
+    if (!sender.isDestroyed()) sender.send("connect:progress", line);
+  }
+
+  /**
+   * The server only takes a password: one interactive ssh asks the owner on the screen (askpass) and adds this app's
+   * key there; from then on every ssh logs in with it. An ssh too old to ask without a terminal: the key, by hand.
+   */
+  async function passwordLogin(sender: WebContents, target: string): Promise<Answer> {
+    const pubkey = ensureAppKey(dataDir);
+    if (!pubkey || !askpassSupported(localSshVersion()))
+      return { ok: false, reason: "sshPasswordManual", ...(pubkey ? { key: pubkey } : {}) };
+    step(sender, "login");
+    const askpass = await openAskpass({
+      ask: (p) => ask(sender, p),
+      exe: process.execPath,
+      // From a checkout the executable is Electron itself, which needs the app's folder.
+      appDir: app.isPackaged ? undefined : app.getAppPath(),
+    });
+    try {
+      const ok = await authorizeKey(target, pubkey, askpass.env, (line) => progress(sender, line));
+      return ok ? { ok: true } : { ok: false, reason: "sshAuthFailed" };
+    } finally {
+      askpass.close();
+      for (const done of pending.values()) done(undefined);
+      pending.clear();
+      if (!sender.isDestroyed()) sender.send("connect:prompt", null);
+    }
+  }
+
+  function ask(sender: WebContents, prompt: Prompt): Promise<string | undefined> {
+    if (sender.isDestroyed()) return Promise.resolve(undefined);
+    const id = randomUUID();
+    return new Promise((resolve) => {
+      pending.set(id, resolve);
+      sender.send("connect:prompt", { id, ...prompt });
+    });
   }
 
   async function sshCoreUp(target: string, wait = 15_000): Promise<boolean> {

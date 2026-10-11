@@ -19,6 +19,7 @@ import {
 } from "electron";
 import { showAbout } from "./about.ts";
 import { registerAppScheme, serveAppScheme, webDist } from "./app-scheme.ts";
+import { runAskpass } from "./askpass.ts";
 import { installedBrowsers, isWebUrl, openExternal } from "./browser/external.ts";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { type Bounds, createPopout } from "./browser/popout.ts";
@@ -31,6 +32,10 @@ import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
 import { createUpdateMenu } from "./update-menu.ts";
 import { createDesktopUpdater, type DesktopUpdate } from "./updater.ts";
+
+// ssh runs this same executable as its SSH_ASKPASS (askpass.ts): it answers one question and exits before the app's
+// data folder, its scheme or the single-instance lock are touched.
+if (process.env.APX_ASKPASS) process.exit(await runAskpass(process.env, process.argv));
 
 const CORE_URL = process.env.APX_URL ?? "http://127.0.0.1:7440";
 const WEB_URL = process.env.APX_WEB_URL ?? "http://127.0.0.1:7441";

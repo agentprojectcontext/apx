@@ -67,8 +67,11 @@ contextBridge.exposeInMainWorld("apxDesktop", {
 });
 
 // ready: installed on a server and reachable, but not opened yet (the screen says so first); linger names the user
-// whose services stop at logout until they linger.
-type Answer = { ok: true; ready?: true; linger?: string } | { ok: false; reason?: string; error?: string };
+// whose services stop at logout until they linger. key: this app's public key, for the owner to add by hand.
+type Answer =
+  | { ok: true; ready?: true; linger?: string }
+  | { ok: false; reason?: string; error?: string; key?: string };
+type SshPrompt = { id: string; text: string; secret: boolean };
 // The first-run screen (apx-app://app/?connect): the main process only answers it while the window shows that page.
 contextBridge.exposeInMainWorld("apxConnect", {
   local: (access: string): Promise<Answer> => ipcRenderer.invoke("connect:local", access),
@@ -89,4 +92,13 @@ contextBridge.exposeInMainWorld("apxConnect", {
     ipcRenderer.on("connect:progress", on);
     return () => ipcRenderer.off("connect:progress", on);
   },
+  // ssh asks something (password, passphrase, host key); null = no question is waiting any more.
+  onPrompt: (listener: (prompt: SshPrompt | null) => void): (() => void) => {
+    const on = (_e: unknown, prompt: SshPrompt | null) => listener(prompt);
+    ipcRenderer.on("connect:prompt", on);
+    return () => ipcRenderer.off("connect:prompt", on);
+  },
+  // The owner's answer to that question; undefined cancels it.
+  answer: (id: string, answer: string | undefined) =>
+    ipcRenderer.send("connect:answer", String(id), typeof answer === "string" ? answer : undefined),
 });

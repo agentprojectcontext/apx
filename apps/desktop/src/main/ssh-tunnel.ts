@@ -2,9 +2,22 @@
 // this computer, so the server never opens a port. The local port equals the remote one: the core only accepts the
 // panel from its own origin.
 import { type ChildProcess, spawn, spawnSync } from "node:child_process";
+import fs from "node:fs";
 import { stripVTControlCharacters } from "node:util";
 
 export type Tunnel = { url: string; stop(): void };
+
+let identity: string | undefined;
+
+/** This app's own key (see ssh-login.ts), offered by every ssh run besides the owner's keys and agent. */
+export function useIdentity(file: string | undefined): void {
+  identity = file;
+}
+
+/** `-i <app key>` once the key exists; no IdentitiesOnly, so the owner's own keys keep working. */
+export function identityArgs(): string[] {
+  return identity && fs.existsSync(identity) ? ["-i", identity] : [];
+}
 
 /** ssh's arguments for target "user@host[:port]" forwarding the core's port. */
 export function sshArgs(target: string, corePort: number): string[] {
@@ -19,6 +32,7 @@ export function sshArgs(target: string, corePort: number): string[] {
     "ServerAliveInterval=30",
     "-o",
     "StrictHostKeyChecking=accept-new",
+    ...identityArgs(),
     ...(sshPort ? ["-p", sshPort] : []),
     "-L",
     `127.0.0.1:${corePort}:127.0.0.1:${corePort}`,
@@ -27,7 +41,7 @@ export function sshArgs(target: string, corePort: number): string[] {
   ];
 }
 
-function splitTarget(target: string): [string, string | undefined] {
+export function splitTarget(target: string): [string, string | undefined] {
   const m = /^(.*?)(?::(\d{1,5}))?$/.exec(target.trim());
   return [m?.[1] ?? target, m?.[2]];
 }
@@ -69,6 +83,7 @@ export function sshCommand(target: string, command: string, connectTimeout = 10)
     `ConnectTimeout=${connectTimeout}`,
     "-o",
     "StrictHostKeyChecking=accept-new",
+    ...identityArgs(),
     ...(sshPort ? ["-p", sshPort] : []),
     "--",
     hostPart,
@@ -81,12 +96,38 @@ export function sshCommand(target: string, command: string, connectTimeout = 10)
 const HAS_APX =
   'test -x "$HOME/.local/bin/apx" || case "$(apx --version 2>/dev/null)" in "APX v"[2-9]*) exit 0 ;; *) exit 1 ;; esac';
 
-/** Whether the server has an APX command (to tell "not installed" apart from "not running" and "no login"). */
-export function remoteApx(target: string): "installed" | "missing" | "unreachable" {
-  const r = spawnSync("ssh", sshCommand(target, HAS_APX), { timeout: 20_000, windowsHide: true });
+/**
+ * Whether the server has an APX command (to tell "not installed" apart from "not running" and "no login"), and when
+ * the login failed, whether the server would take a password instead.
+ */
+export async function remoteApx(target: string): Promise<"installed" | "missing" | "unreachable" | "password"> {
+  const r = await run(sshCommand(target, HAS_APX), 20_000);
   // ssh itself exits 255 when it cannot log in; anything else is the remote command's own answer.
   if (r.status === 0) return "installed";
+  if (needsPassword(r.status, r.stderr)) return "password";
   return r.status === 255 || r.status === null ? "unreachable" : "missing";
+}
+
+/** One ssh run without blocking the app (the window keeps hearing its steps meanwhile). */
+function run(args: string[], timeoutMs: number): Promise<{ status: number | null; stderr: string }> {
+  return new Promise((resolve) => {
+    const child = spawn("ssh", args, { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
+    let stderr = "";
+    const timer = setTimeout(() => child.kill(), timeoutMs);
+    child.stderr.on("data", (d: Buffer) => {
+      if (stderr.length < 16_000) stderr += d.toString();
+    });
+    child.on("error", () => {});
+    child.on("close", (status) => {
+      clearTimeout(timer);
+      resolve({ status, stderr });
+    });
+  });
+}
+
+/** ssh could not log in, and the server offered a password (or keyboard-interactive) the BatchMode run cannot type. */
+export function needsPassword(status: number | null, stderr: string): boolean {
+  return status === 255 && /Permission denied \([^)]*\b(password|keyboard-interactive)\b[^)]*\)/.test(stderr);
 }
 
 export type RemoteInstall =
