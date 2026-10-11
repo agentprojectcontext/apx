@@ -21,7 +21,7 @@ A "runtime" is an external AI coding CLI that APX invokes headlessly. APX spawns
 | id | binary | Headless flag |
 |---|---|---|
 | `claude-code`   | `claude`        | `-p "<prompt>" --append-system-prompt "<sys>" --output-format json` |
-| `codex`         | `codex`         | `exec "<prompt>" --sandbox workspace-write --skip-git-repo-check --json` |
+| `codex`         | `codex`         | `exec "<prompt>" --sandbox workspace-write --skip-git-repo-check --json` (+ `--add-dir` for a linked worktree's git metadata) |
 | `opencode`      | `opencode`      | `run "<prompt>"` (non-interactive) |
 | `aider`         | `aider`         | `--message "<prompt>" --yes-always --no-auto-commits` |
 | `cursor-agent`  | `cursor-agent`  | headless print mode |
