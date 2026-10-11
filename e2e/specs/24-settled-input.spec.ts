@@ -11,7 +11,7 @@ test("an approved request shrinks to one line saying what was asked and how it e
   const card = page.locator(".inputcard.is-pending");
   await expect(card).toContainText("Necesita tu OK");
   await expect(card).toContainText("para usar shell");
-  await card.getByRole("button", { name: "Aprobar" }).click();
+  await card.getByRole("button", { name: "Aceptar una vez" }).click();
 
   const line = page.locator(".inputline");
   await expect(line).toContainText("Pidió permiso para usar shell");
