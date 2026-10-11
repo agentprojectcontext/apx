@@ -260,6 +260,10 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
             .where("id", "=", id),
         );
     },
+    /** Moves a working run's deadline (an engine session's, while it keeps working). */
+    setDeadline(id: string, at: string): void {
+      run(qb.updateTable("runs").set({ deadline_at: at }).where("id", "=", id).where("ended_at", "is", null));
+    },
     setState(cur: RunRecord, state: RunState, error?: string): RunRecord {
       const terminal = TERMINAL.has(state);
       const base = repo.get(cur.id) ?? cur;

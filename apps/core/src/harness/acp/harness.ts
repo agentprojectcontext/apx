@@ -62,6 +62,7 @@ export function acpHarness(opts: {
         ],
         onUpdate(u) {
           if (!prompting) return;
+          io.alive?.();
           const kind = String(u.sessionUpdate ?? "");
           if (kind === "agent_message_chunk") {
             const c = u.content as { type?: string; text?: string } | undefined;

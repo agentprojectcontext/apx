@@ -66,6 +66,7 @@ export function codexHarness(opts: {
         let sessionId = io.sessionId;
         let usage: TurnOutcome["usage"];
         for await (const ev of events) {
+          io.alive?.();
           if (ev.type === "thread.started") sessionId = ev.thread_id;
           // Codex's own commands, edits and searches: shown as cards and recorded as steps.
           else if ((ev.type === "item.started" || ev.type === "item.completed") && ev.item.type !== "agent_message") {

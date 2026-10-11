@@ -90,6 +90,8 @@ export type TurnDeps = {
   hasCap?: ((cap: string) => boolean) | undefined;
   /** Owner text steered into this turn since the last call. */
   takeSteered(): string[];
+  /** The engine showed a sign of life: an outside engine's idle deadline starts over. */
+  alive?: (() => void) | undefined;
   /** A protocol method through the router, as the agent of `as.run`. */
   call: ToolCall;
   delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number): Promise<string>;
@@ -226,6 +228,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     approve: exec.approve,
     observe: exec.observe,
     takeSteered: deps.takeSteered,
+    alive: deps.alive ?? (() => {}),
     log: (items) => store.modelLog.append(thread.id, run.id, items),
   });
 

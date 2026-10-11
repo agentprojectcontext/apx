@@ -94,6 +94,8 @@ export type CoreOptions = {
   roomBurstMs?: number;
   /** How long a turn waits for the owner's answer before it ends and the input stays open (tests shorten it). */
   inputWaits?: InputWaits;
+  /** How long an outside engine may go without an event before its turn ends (tests shorten it). */
+  engineIdleMs?: number;
   /** The scheduler's clock; tests move it to make routines due. */
   clock?: () => Date;
   /** How long a finished turn's chat may stay unread before the tray notices it (tests shorten it). */
@@ -285,6 +287,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     build: { version: identity.version, code_sha: identity.code_sha },
     hooks,
     ...(opts.inputWaits ? { inputWaits: opts.inputWaits } : {}),
+    ...(opts.engineIdleMs ? { engineIdleMs: opts.engineIdleMs } : {}),
     mcpTools: mcp.toolsFor,
     mcpServers: mcp.serversFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),

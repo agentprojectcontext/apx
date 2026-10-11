@@ -27,6 +27,8 @@ export type TurnIO = {
   /** Whether outside content is in this turn so far (or was in this engine session before: it keeps it). */
   outside(): boolean;
   onText(soFar: string): void;
+  /** Any event from an outside engine (a token, a tool's progress, a status): it is still working. */
+  alive?(): void;
   /** Runs one APX tool with its card and step record. Every harness calls tools through here. */
   /** `images`: what the tool showed the model to look at with its result (a picture of the screen). */
   execute(

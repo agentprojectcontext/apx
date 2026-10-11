@@ -150,6 +150,7 @@ async function attempt(
       },
     });
     for await (const m of q) {
+      io.alive?.();
       if (m.type === "stream_event" && !m.parent_tool_use_id) {
         const ev = m.event;
         if (ev.type === "message_start") text = "";

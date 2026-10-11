@@ -24,25 +24,34 @@ import type { SkillPicker } from "./skill-pick.ts";
 import { runTurn, type ToolCall } from "./turn.ts";
 
 export const RUN_DEADLINE_MS = 6 * 60_000;
-/** A coding session with an outside engine (Claude Code, Codex) works for long stretches on its own. */
-export const CODE_DEADLINE_MS = 60 * 60_000;
+/**
+ * A session with an outside engine (Claude Code, Codex, an ACP agent) has no time limit while it works: it ends
+ * only after this long without a single event from it. See DECISIONS.md#d-061
+ */
+export const ENGINE_IDLE_MS = 20 * 60_000;
 /** Time a turn gets back after the owner answers, even if its clock had almost run out. */
 const AFTER_ANSWER_MS = 60_000;
+/** How often a working engine's moving deadline is written to its run (not on every streamed token). */
+const DEADLINE_WRITE_MS = 60_000;
 
-type Clock = { pause(): void; resume(): void; stop(): void };
+type Clock = { pause(): void; resume(): void; stop(): void; touch(): void };
+type Limit = { ms: number; idle: boolean };
 
-function runDeadline(store: Store, threadId: string, trigger: string | undefined): number {
-  if (trigger === "a2a") return A2A_DEADLINE_MS;
-  const thread = store.threads.get(threadId);
-  return thread?.kind === "code" && thread.engine ? CODE_DEADLINE_MS : RUN_DEADLINE_MS;
+function runLimit(store: Store, threadId: string, trigger: string | undefined, idleMs = ENGINE_IDLE_MS): Limit {
+  if (trigger === "a2a") return { ms: A2A_DEADLINE_MS, idle: false };
+  return store.threads.get(threadId)?.engine ? { ms: idleMs, idle: true } : { ms: RUN_DEADLINE_MS, idle: false };
 }
 
-/** A deadline that can be held (nested holds count): used while a turn waits for the owner. */
-function pausableClock(ms: number, fire: () => void): Clock {
-  let left = ms;
+/**
+ * A deadline that can be held (nested holds count): used while a turn waits for the owner. An idle clock starts
+ * over on every sign of life (`touch`) and reports its new end through `moved`.
+ */
+function pausableClock(limit: Limit, fire: () => void, moved: (at: number) => void = () => {}): Clock {
+  let left = limit.ms;
   let since = Date.now();
   let holds = 0;
-  let timer: ReturnType<typeof setTimeout> | undefined = setTimeout(fire, ms);
+  let timer: ReturnType<typeof setTimeout> | undefined = setTimeout(fire, limit.ms);
+  let written = since;
   return {
     pause() {
       if (holds++ > 0) return;
@@ -57,6 +66,17 @@ function pausableClock(ms: number, fire: () => void): Clock {
     },
     stop() {
       clearTimeout(timer);
+    },
+    touch() {
+      if (!limit.idle || holds > 0) return;
+      const now = Date.now();
+      clearTimeout(timer);
+      since = now;
+      left = limit.ms;
+      timer = setTimeout(fire, limit.ms);
+      if (now - written < DEADLINE_WRITE_MS) return;
+      written = now;
+      moved(now + limit.ms);
     },
   };
 }
@@ -100,6 +120,8 @@ export function createEngine(deps: {
   hooks?: Hooks;
   /** How long a turn waits for the owner's answer (tests shorten it). */
   inputWaits?: InputWaits;
+  /** How long an outside engine may go without an event (tests shorten it). */
+  engineIdleMs?: number;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
   mcpTools?: (thread: Thread) => Promise<Tool[]>;
   /** The MCP servers a thread may reach, by name, without starting them. */
@@ -196,7 +218,7 @@ export function createEngine(deps: {
       },
       depth: a.depth ?? 0,
       parent_run_id: a.parent_run_id,
-      deadline_at: new Date(Date.now() + runDeadline(store, a.thread_id, a.trigger)).toISOString(),
+      deadline_at: new Date(Date.now() + runLimit(store, a.thread_id, a.trigger, deps.engineIdleMs).ms).toISOString(),
     });
     if (store.threads.get(a.thread_id)?.state !== "working") store.threads.patch(a.thread_id, { state: "submitted" });
     // After the caller's transaction commits: the turn must never run on a row that could still roll back.
@@ -223,8 +245,18 @@ export function createEngine(deps: {
   async function execute(run: RunRecord): Promise<void> {
     const ac = new AbortController();
     // A restart re-runs queued work with a fresh deadline: the clock starts when the run can actually work.
-    const clock = pausableClock(runDeadline(deps.store, run.thread_id, run.trigger), () =>
-      ac.abort(new DeadlineExceeded()),
+    const limit = runLimit(deps.store, run.thread_id, run.trigger, deps.engineIdleMs);
+    const clock = pausableClock(
+      limit,
+      () =>
+        ac.abort(
+          new DeadlineExceeded(
+            limit.idle
+              ? `the engine sent nothing for ${Math.round(limit.ms / 60_000)} minutes and was stopped`
+              : "the turn ran out of time",
+          ),
+        ),
+      (at) => deps.store.runs.setDeadline(run.id, new Date(at).toISOString()),
     );
     active.set(run.id, { ac, thread: run.thread_id, clock });
     try {
@@ -234,7 +266,7 @@ export function createEngine(deps: {
         return texts;
       };
       const done = await runTurn(
-        { ...deps, inputs, jobs, takeSteered, delegate: delegations.delegate },
+        { ...deps, inputs, jobs, takeSteered, delegate: delegations.delegate, alive: clock.touch },
         run,
         ac.signal,
       );

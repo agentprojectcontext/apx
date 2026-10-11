@@ -714,3 +714,13 @@ reach only public addresses (resolved names included, never this machine or the 
 data; a page's address carrying values still asks after outside content, as D-057 says. What a sealed turn could leak
 through them is only what it holds: the room's public talk, or a contact's own chat (and the owner's general
 notes, where the owner let that person's chat read them).
+
+<a id="d-061"></a>
+## D-061 — 2026-10-11 — An outside engine's session has an idle deadline, not a fixed one
+Rule 9 gives every turn a deadline. A Claude Code, Codex or ACP session works for long stretches on its own (a build,
+a test run, a refactor), and any fixed limit cut real work mid-way and showed it as "aborted by user". Its run's
+deadline now moves: the turn ends only after `ENGINE_IDLE_MS` (20 minutes) without a single event from the engine
+(a token, a tool's progress heartbeat, a status). Each event restarts the clock, and the run's `deadline_at` is
+rewritten at most once a minute, so the persisted deadline stays honest. While the engine waits for the owner's OK the
+clock is held, as for any turn. The owner can always stop a session; a stopped-for-silence turn fails with that reason
+and reaches the tray like any other failure. Chat turns on our own loop keep their fixed minutes.
