@@ -74,6 +74,19 @@ Agent SDK then made Claude send `options: "red, blue"`, our own check refused it
 option buttons. The shape now comes from `z.fromJSONSchema` of the same schema the tool defines.
 Where: `apps/core/src/harness/claude.ts`.
 
+<a id="codex-linked-worktree"></a>
+### Codex gets a linked worktree's git metadata, not the shared `.git` root
+Codex's `workspace-write` sandbox keeps `.git` read-only, and a linked worktree keeps its index, HEAD and FETCH_HEAD
+in `<common>/worktrees/<name>`, outside the folder: fetch, add and commit failed with "Operation not permitted". When
+Codex writes and the folder is a linked worktree, it now also gets that worktree's git dir and the common dir's
+`objects`, `refs` and `logs` (`additionalDirectories`, which the SDK passes as `--add-dir` on resumed turns too).
+Granting the whole common dir would open `config` and `hooks`, where one written line runs code outside the
+sandbox the next time anyone uses git there, plus every other worktree's metadata. What stays failing, by choice:
+anything that locks a file in the common dir's root, `config.lock` (setting an upstream) and `packed-refs.lock`
+(deleting a branch; auto-maintenance prints it too, with exit 0). `refs` is one directory, so the agent can also move
+other branches, `main` included: accepted. The git call drops inherited `GIT_*` variables, so a `GIT_DIR` cannot
+point it at another repo. Where: `apps/core/src/harness/worktree.ts`, `codex.ts`.
+
 <a id="shell-classifier"></a>
 ### A "reading" shell command is judged only when it is a simple one
 The first classifier split commands on `&& || ; |` and trusted a list of programs: a newline, a single `&`,

@@ -4,6 +4,7 @@ import { Codex, type ModelReasoningEffort } from "@openai/codex-sdk";
 import { worksInFolder } from "../domain/threads.ts";
 import { harnessEnv } from "./env.ts";
 import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
+import { linkedWorktreeWritableDirs } from "./worktree.ts";
 
 const READ_ONLY_NOTE =
   "[APX: this turn is read-only: outside content is in this session, or this agent asks before acting. Say so if a change is needed: the owner can make it, start a new chat, or give the agent total autonomy.]";
@@ -44,10 +45,14 @@ export function codexHarness(opts: {
         // OS sandbox keeps commands and edits inside the folder (the UI says so when the policy is chosen). An agent
         // that asks first, or outside content in the session, keeps it reading unless the owner chose total autonomy.
         const writes = codexWrites(io);
+        const workingDirectory = opts.cwd(io);
+        // Its own sandbox keeps .git read-only; in a linked worktree git writes outside the folder too.
+        const gitDirs = writes ? await linkedWorktreeWritableDirs(workingDirectory) : [];
         const threadOptions = {
-          workingDirectory: opts.cwd(io),
+          workingDirectory,
           skipGitRepoCheck: true,
           sandboxMode: writes ? ("workspace-write" as const) : ("read-only" as const),
+          ...(gitDirs.length ? { additionalDirectories: gitDirs } : {}),
           approvalPolicy: "never" as const,
           ...(chosen ? { model: chosen } : {}),
           ...(effort ? { modelReasoningEffort: effort as ModelReasoningEffort } : {}),
