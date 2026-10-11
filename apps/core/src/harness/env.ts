@@ -6,7 +6,7 @@ export function childEnv(): Record<string, string> {
 }
 
 /** Variable names that usually hold credentials. */
-const SECRET_NAME = /(KEY|TOKEN|SECRET|PASSW|CREDENTIAL|AUTH|COOKIE|SESSION|PRIVATE)/i;
+export const SECRET_NAME = /(KEY|TOKEN|SECRET|PASSW|CREDENTIAL|AUTH|COOKIE|SESSION|PRIVATE)/i;
 
 /**
  * A command an agent runs gets less: no credentials at all. Agent CLIs may need their own keys; a shell command

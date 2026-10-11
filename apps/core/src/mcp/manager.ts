@@ -7,13 +7,14 @@ import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { badRequest, conflict, errorMessage, unavailable } from "../errors.ts";
-import { commandEnv } from "../harness/env.ts";
+import { commandEnv, SECRET_NAME } from "../harness/env.ts";
 import type { Log } from "../log.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import { cap, untrusted } from "../tools/result.ts";
 import { type Confirm, type Effect, invalidArguments, type Tool } from "../tools/types.ts";
 import { type McpTool, mcpApproval, serverApprovalId } from "./approval.ts";
 import { ARGS_SECRET, type McpDef, mcpConfig } from "./config.ts";
+import { createStderrLogs } from "./logs.ts";
 
 const CONNECT_MS = 20_000;
 const CALL_MS = 120_000;
@@ -79,6 +80,7 @@ const toolName = (server: string, tool: string) => `mcp_${server}_${tool}`.repla
 export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
   const config = mcpConfig(deps.store);
   const conns = new Map<string, Conn>();
+  const stderr = createStderrLogs();
   const keyOf = (d: McpDef) => `${d.scope}:${d.project_id ?? ""}:${d.values_of ?? ""}:${d.name}`;
 
   /**
@@ -105,18 +107,31 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
       import("@modelcontextprotocol/sdk/client/streamableHttp.js"),
     ]);
     const client = new Client({ name: "apx", version: "2" });
-    const transport = d.url
-      ? new StreamableHTTPClientTransport(new URL(d.url), {
-          requestInit: { headers: resolve(d.headers, d.values_of) },
-        })
-      : new StdioClientTransport({
-          command: d.command ?? "",
-          args: d.args.map((a) => resolveText(a, d.values_of)),
-          // Only what the definition gives it, on top of an environment without credentials.
-          env: { ...commandEnv(), ...resolve(d.env, d.values_of) },
-          ...(d.cwd ? { cwd: d.cwd } : {}),
-          stderr: "ignore",
-        });
+    let transport: InstanceType<typeof StreamableHTTPClientTransport> | InstanceType<typeof StdioClientTransport>;
+    if (d.url)
+      transport = new StreamableHTTPClientTransport(new URL(d.url), {
+        requestInit: { headers: resolve(d.headers, d.values_of) },
+      });
+    else {
+      const env = resolve(d.env, d.values_of);
+      const stdio = new StdioClientTransport({
+        command: d.command ?? "",
+        args: d.args.map((a) => resolveText(a, d.values_of)),
+        // Only what the definition gives it, on top of an environment without credentials.
+        env: { ...commandEnv(), ...env },
+        ...(d.cwd ? { cwd: d.cwd } : {}),
+        stderr: "pipe",
+      });
+      // A server may print what it was given: its secrets and credential-like variables are masked in its log.
+      const hidden = [
+        ...secretNames(d).map((n) => deps.secrets.resolveIn(`secret://${n}`, d.values_of) ?? ""),
+        ...Object.keys(d.env)
+          .filter((k) => SECRET_NAME.test(k) || d.env[k]?.includes("secret://"))
+          .map((k) => env[k] ?? ""),
+      ];
+      stderr.follow(keyOf(d), stdio.stderr, hidden);
+      transport = stdio;
+    }
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
@@ -394,16 +409,22 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
         return { ok: false, ms: Date.now() - t0, tools: [], error: errorMessage(err) };
       }
     },
+    /** The last `n` lines a server printed on stderr while this core ran (started by an agent or a test). */
+    logs(d: McpDef, n: number) {
+      return stderr.read(keyOf(d), n);
+    },
     /** Closes a server's connection now (approval withdrawn, definition removed). */
     drop(d: Pick<McpDef, "scope" | "project_id" | "name">): void {
       deps.store.approvals.revokeServer(serverApprovalId(d));
+      const prefix = `${d.scope}:${d.project_id ?? ""}:`;
+      const mine = (key: string) => key.startsWith(prefix) && key.endsWith(`:${d.name}`);
       for (const [key, c] of conns) {
-        const prefix = `${d.scope}:${d.project_id ?? ""}:`;
-        if (key.startsWith(prefix) && key.endsWith(`:${d.name}`)) {
+        if (mine(key)) {
           void c.client?.close().catch(() => {});
           conns.delete(key);
         }
       }
+      stderr.forget(mine);
     },
     /** A global server as it runs in `projectId` (or in its own project, when it is limited to one). */
     find(scope: "global" | "project", name: string, projectId?: string): McpDef | undefined {

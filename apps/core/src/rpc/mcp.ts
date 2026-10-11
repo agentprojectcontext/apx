@@ -45,6 +45,11 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       store.approvals.grant(target, "always", "");
       return { ok: true };
     },
+    "mcp.logs": ({ scope, server, project, lines }) => {
+      const d = mcp.find(scope, server, project);
+      if (!d) throw notFound(`MCP server ${server}`);
+      return { lines: mcp.logs(d, lines) };
+    },
     "mcp.list": ({ project }) => ({ servers: mcp.status(project) }),
     "mcp.trust": ({ project, server, trusted }) => {
       const d = mcp.find(project ? "project" : "global", server, project);

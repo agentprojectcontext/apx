@@ -188,6 +188,16 @@ export const resourceMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * The last lines a stdio server printed on stderr while the core runs (memory only, oldest first; values of its
+   * secrets and credential-like variables masked). Empty for a server that has not started since.
+   */
+  "mcp.logs": {
+    params: McpTarget.extend({ lines: z.number().int().min(1).max(300).default(100) }).strict(),
+    result: z.object({ lines: z.array(z.object({ at: z.string(), text: z.string() })) }),
+    effect: false,
+    access: "human",
+  },
   "mcp.list": {
     params: z.object({ project: Id.optional() }).strict(),
     result: z.object({ servers: z.array(McpServerStatus) }),
