@@ -9,6 +9,7 @@ import { useNotifications } from "./hooks/useNotifications";
 import type { Routine, Thread } from "./hooks/useWorkspace";
 import { useWorkspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
+import { setViewingThread } from "./notifications";
 import { AboutPage } from "./pages/AboutPage";
 import { ChatsPage } from "./pages/ChatsPage";
 import { FilesPage } from "./pages/FilesPage";
@@ -80,6 +81,12 @@ export function WorkspaceScreen({
   const [surfaces, setSurfaces] = useState(false);
   const [picker, setPicker] = useState<"switch" | "new">();
   const [noticeThread, setNoticeThread] = useState<string>();
+  // News about the chat on screen does not sound; the others still do.
+  const viewing = !surfaces ? thread?.id : undefined;
+  useEffect(() => {
+    setViewingThread(viewing);
+    return () => setViewingThread(undefined);
+  }, [viewing]);
   useEffect(() => {
     const receive = (response: Notifications.NotificationResponse) => {
       const id = response.notification.request.content.data?.thread_id;

@@ -95,3 +95,32 @@ test("a task waiting on the owner reads as blocked and opens its conversation", 
   assert.equal(item?.tone, "warning");
   assert.deepEqual(item?.primary.action, { kind: "open", thread: "t1" });
 });
+
+test("a finished run opens its chat; a failed one reads as failed; a session shows its terminal", () => {
+  const items = inboxItems(
+    data({
+      threads: [thread("t1"), thread("s1", { kind: "code", title: "Claude Code" })],
+      notices: [
+        notice("ok", { kind: "run", thread_id: "t1", created_at: "2026-10-07T12:00:00Z" }),
+        notice("bad", { kind: "run", level: "error", thread_id: "s1", created_at: "2026-10-07T11:00:00Z" }),
+        notice("code", { kind: "run", thread_id: "s1", created_at: "2026-10-07T10:00:00Z" }),
+      ],
+    }),
+  );
+  assert.deepEqual(
+    items.map((item) => [item.label, item.tone, item.icon]),
+    [
+      ["inboxFinished", "brand", undefined],
+      ["inboxFailed", "danger", "TriangleAlert"],
+      ["inboxFinished", "brand", "Terminal"],
+    ],
+  );
+  assert.equal(items[0]?.agentId, "agent-1");
+  assert.deepEqual(items[0]?.primary.action, { kind: "open", thread: "t1" });
+});
+
+test("a kind this app does not know yet shows as a plain notice with the generic icon", () => {
+  const [item] = inboxItems(data({ notices: [notice("x", { kind: "engine", thread_id: "t1" })] }));
+  assert.equal(item?.label, "inboxNotice");
+  assert.equal(item?.icon, "Bell");
+});

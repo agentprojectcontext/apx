@@ -13,11 +13,36 @@ export type NotificationStatus = {
 };
 const delivered = new Set<string>();
 let remoteDevice: string | undefined;
+/** The chat on screen: news about it is already in front of the owner. */
+let viewing: string | undefined;
+
+/** The open chat changed; its notifications in the tray go away, the owner is reading it. */
+export function setViewingThread(threadId: string | undefined): void {
+  viewing = threadId;
+  if (threadId) void dismissThread(threadId).catch(() => undefined);
+}
+
+/** Whether an alert about this chat would only repeat what is on screen. */
+export function onScreen(threadId: string | undefined, appState: string = AppState.currentState): boolean {
+  return Boolean(threadId && threadId === viewing && appState === "active");
+}
+
+async function dismissThread(threadId: string) {
+  const shown = await Notifications.getPresentedNotificationsAsync();
+  await Promise.all(
+    shown
+      .filter((item) => item.request.content.data?.thread_id === threadId)
+      .map((item) => Notifications.dismissNotificationAsync(item.request.identifier)),
+  );
+}
 
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    const local = notification.request.content.data?.source === "apx-live";
-    const show = !(remoteDevice && AppState.currentState === "active" && !local);
+    const data = notification.request.content.data;
+    const local = data?.source === "apx-live";
+    // In the app, a remote push repeats the live notice; about the chat on screen, neither sounds.
+    const thread = typeof data?.thread_id === "string" ? data.thread_id : undefined;
+    const show = !(remoteDevice && AppState.currentState === "active" && !local) && !onScreen(thread);
     return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show, shouldSetBadge: show };
   },
 });
@@ -60,13 +85,21 @@ export async function configureNotifications(creds?: Creds, request = true): Pro
   }
 }
 
-/** Translate unread live notices to OS notifications; remote push already covers a registered device. */
+/**
+ * Translate unread live notices to OS notifications, with sound: not about the chat on screen, and not while the app
+ * is away on a device the core reaches by push (that push already sounds). A notice read elsewhere leaves the tray.
+ */
 export async function showLiveNotice(
   notice: { id: string; title: string; body: string; read_at?: string; thread_id?: string },
   device: string,
 ): Promise<void> {
   const key = `${device}:${notice.id}`;
-  if (notice.read_at || delivered.has(key) || (remoteDevice === device && AppState.currentState !== "active")) return;
+  if (notice.read_at) {
+    if (delivered.has(key)) await Notifications.dismissNotificationAsync(`apx-${notice.id}`);
+    return;
+  }
+  if (delivered.has(key) || onScreen(notice.thread_id)) return;
+  if (remoteDevice === device && AppState.currentState !== "active") return;
   const permission = await Notifications.getPermissionsAsync();
   if (!permission.granted && permission.ios?.status !== Notifications.IosAuthorizationStatus.PROVISIONAL) return;
   if (delivered.has(key)) return;

@@ -1,4 +1,5 @@
 import type { Key } from "../i18n/index.ts";
+import type { IconName } from "../ui/Icon";
 import type { Tone } from "../ui/tone.ts";
 import type { Notice, Workspace } from "./useWorkspace";
 
@@ -21,7 +22,7 @@ export type InboxItem = {
   /** Words shown apart, quoted (a question's options, what a confirmation would do). */
   quote?: string;
   agentId?: string;
-  icon?: "RefreshCw" | "MessageCircle" | "Bell" | "TriangleAlert" | "Clock";
+  icon?: IconName;
   primary: { label: Key; action: InboxAction };
   secondary: { label: Key; action: InboxAction };
   /** The notice behind it, marked read when the owner acts on the card. */
@@ -118,13 +119,29 @@ function noticeItem(
       secondary: { label: "done", action: { kind: "dismiss" } },
     };
   }
+  if (notice.kind === "run") {
+    // A turn that ended while the owner was away: a session (Claude Code, Codex) shows its terminal, a chat its agent.
+    const failed = notice.level === "error";
+    const session = thread?.kind === "code";
+    return {
+      ...base,
+      label: failed ? "inboxFailed" : "inboxFinished",
+      tone: failed ? "danger" : "brand",
+      context: ctx(name, thread?.title),
+      icon: failed ? "TriangleAlert" : session ? "Terminal" : base.agentId ? undefined : "CircleCheck",
+      primary: { label: notice.thread_id ? "view" : "done", action: notice.thread_id ? open : { kind: "dismiss" } },
+      secondary: { label: "done", action: { kind: "dismiss" } },
+    };
+  }
   const channel = notice.kind === "channel";
+  // A kind this app does not know yet still shows, as a plain notice.
+  const known = channel || notice.kind === "agent";
   return {
     ...base,
     label: notice.level === "error" ? "inboxFailed" : channel ? "inboxMessage" : "inboxNotice",
     tone: notice.level === "error" ? "danger" : channel ? "brand" : notice.level === "warn" ? "warning" : "neutral",
     context: ctx(name, thread?.title),
-    icon: channel ? "MessageCircle" : base.agentId ? undefined : "Bell",
+    icon: channel ? "MessageCircle" : known && base.agentId ? undefined : "Bell",
     primary: { label: notice.thread_id ? "view" : "done", action: notice.thread_id ? open : { kind: "dismiss" } },
     secondary: { label: "done", action: { kind: "dismiss" } },
   };

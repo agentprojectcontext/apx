@@ -52,7 +52,9 @@ Metro watches files only outside CI mode: start it without `CI=1`, or saved chan
 
 Android creates a high-importance `default` channel before requesting notification permission. Unread
 `notification.updated` events produce native notifications while the live connection runs. A notification opens
-its conversation; duplicate updates of the same notice do not create additional alerts. Settings shows the delivery
+its conversation; duplicate updates of the same notice do not create additional alerts. News about the chat on
+screen stays quiet (opening a chat also clears its notifications from the tray), and a notice read elsewhere leaves
+it. A remote push carrying `data.thread_id` opens its chat the same way. Settings shows the delivery
 status and provides a local notification preview.
 
 Local permission does not guarantee delivery after the OS suspends or closes the app. Remote Expo push requires

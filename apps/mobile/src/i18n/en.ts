@@ -87,6 +87,7 @@ export const en = {
   inboxBlocked: "Blocked",
   inboxDue: "Due",
   inboxFailed: "Failed",
+  inboxFinished: "Finished",
   inboxRoutine: "Routine",
   inboxMessage: "Message",
   inboxNotice: "Notice",

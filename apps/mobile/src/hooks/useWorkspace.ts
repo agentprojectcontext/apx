@@ -62,7 +62,8 @@ export type Task = {
 };
 export type Notice = {
   id: string;
-  kind: "input" | "task" | "due" | "routine" | "channel" | "agent";
+  /** "run": a chat or session ended (or failed) while unread; kinds a newer core adds read as plain notices. */
+  kind: "input" | "task" | "due" | "routine" | "channel" | "agent" | "run" | (string & {});
   level: string;
   title: string;
   body: string;

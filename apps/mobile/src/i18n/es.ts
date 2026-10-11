@@ -89,6 +89,7 @@ export const es: Record<Key, string> = {
   inboxBlocked: "Bloqueada",
   inboxDue: "Vence",
   inboxFailed: "Falló",
+  inboxFinished: "Terminó",
   inboxRoutine: "Rutina",
   inboxMessage: "Mensaje",
   inboxNotice: "Aviso",
