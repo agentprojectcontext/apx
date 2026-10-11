@@ -6,26 +6,26 @@ import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { noticeTaskWaiting } from "../domain/task-attention.ts";
-import { columnsOf, dueOf, tagsOf } from "../domain/tasks.ts";
+import {
+  boardScope,
+  checkAssignee,
+  checkColumn,
+  checkSettle,
+  columnsOf,
+  dueOf,
+  personOf,
+  tagsOf,
+  visibleTask,
+} from "../domain/tasks.ts";
 import type { Engine } from "../engine/engine.ts";
 import { type Asker, addComment, askMentioned, startTaskWork } from "../engine/task-work.ts";
-import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
+import { conflict, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
 import { removeThreadFiles } from "./thread-admin.ts";
 
 export function taskHandlers(store: Store, engine: Engine, home: string) {
-  /** The agent's project (from its thread), or undefined for the owner. */
-  /**
-   * An agent works on its chat's project. The super-agent outside any project keeps the owner's whole board, as in v1:
-   * opening and closing the day span every project.
-   */
-  const agentScope = (ctx: CallContext) => {
-    if (!ctx.agent) return undefined;
-    const project = store.threads.get(ctx.agent.thread_id)?.project_id;
-    if (!project && store.agents.get(ctx.agent.id)?.kind === "secretary") return undefined;
-    return { project };
-  };
+  const agentScope = (ctx: CallContext) => boardScope(store, ctx.agent);
   const by = (ctx: CallContext) => ctx.agent?.id ?? "owner";
   /** Who is asking for work: the owner, or an agent one hop further than the turn it calls from. */
   const askerOf = (ctx: CallContext): Asker =>
@@ -40,43 +40,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
         }
       : { kind: "owner" };
 
-  /** A task the caller may see and change. */
-  function visible(id: string, ctx: CallContext): Task {
-    const t = store.tasks.get(id);
-    if (!t) throw notFound(`task ${id}`);
-    const scope = agentScope(ctx);
-    if (scope && t.project_id && t.project_id !== scope.project)
-      throw unauthorized("an agent works only on its own project's tasks");
-    return t;
-  }
-
-  const checkStatus = (status: string | undefined) => {
-    if (status && !columnsOf(store).some((c) => c.id === status))
-      throw badRequest(
-        `no column "${status}" (columns: ${columnsOf(store)
-          .map((c) => c.id)
-          .join(", ")})`,
-      );
-  };
-  /** An assignee must exist and belong to the task's project (or to none). */
-  const checkAgent = (id: string | null | undefined, project: string | undefined) => {
-    if (!id) return;
-    const a = store.agents.get(id);
-    if (!a) throw notFound(`agent ${id}`);
-    if (a.project_id && a.project_id !== project) throw badRequest(`${a.name} works in another project`);
-  };
-  /** A person by id or exact name (any case); never the owner or a blocked person, never a guess between two. */
-  const personOf = (ref: string): string => {
-    const key = ref.trim().toLowerCase();
-    const byId = store.persons.get(ref);
-    const named = byId ? [byId] : store.persons.list().filter((x) => x.name.toLowerCase() === key);
-    if (named.length > 1) throw badRequest(`${named.length} contacts are called ${ref}; use the id`);
-    const p = named[0];
-    if (!p) throw notFound(`person ${ref} (add them to your contacts first)`);
-    if (p.role === "owner") throw badRequest("a commitment is with someone else, not with the owner");
-    if (p.role === "blocked") throw badRequest(`${p.name} is blocked`);
-    return p.id;
-  };
+  const visible = (id: string, ctx: CallContext): Task => visibleTask(store, id, agentScope(ctx));
 
   return {
     "tasks.list": ({ project, state, assignee, commitments, person, limit }, ctx) => {
@@ -92,13 +56,13 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       return { task: t, events: store.tasks.events(t.id), sessions: store.threads.byTask(t.id) };
     },
     "tasks.create": (p, ctx) => {
-      checkStatus(p.status);
+      checkColumn(store, p.status);
       const scope = agentScope(ctx);
       const project = scope ? scope.project : p.project;
-      checkAgent(p.assignee, project);
+      checkAssignee(store, p.assignee, project);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       if (p.parent) visible(p.parent, ctx);
-      const person = p.person ? personOf(p.person) : undefined;
+      const person = p.person ? personOf(store, p.person) : undefined;
       const due = dueOf(p.due_at);
       const remind = dueOf(p.remind_at);
       // The task's conversation: the assignee answers there, or the super-agent until someone is assigned.
@@ -129,14 +93,14 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
     },
     "tasks.update": ({ task, person, due_at, remind_at, project, tags, ...c }, ctx) => {
       const cur = visible(task, ctx);
-      checkStatus(c.status);
+      checkColumn(store, c.status);
       // An agent keeps its tasks in its own project; the owner can move one anywhere (null = global).
       if (project !== undefined && agentScope(ctx))
         throw unauthorized("an agent cannot move a task to another project");
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       const moving = project !== undefined && (project ?? undefined) !== cur.project_id;
       const target = moving ? (project ?? undefined) : cur.project_id;
-      checkAgent(c.assignee, target);
+      checkAssignee(store, c.assignee, target);
       // Its agent stays only if it can work there.
       const keeper = c.assignee !== undefined ? c.assignee : cur.assignee;
       const unassign =
@@ -151,7 +115,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
             ...(moving ? { project_id: target ?? null } : {}),
             ...(unassign ? { assignee: null } : {}),
             ...(tags !== undefined ? { tags: tagsOf(tags) ?? [] } : {}),
-            ...(person !== undefined ? { person_id: person === null ? null : personOf(person) } : {}),
+            ...(person !== undefined ? { person_id: person === null ? null : personOf(store, person) } : {}),
             // Someone on the other side makes it a commitment, unless a kind was given.
             ...(person && !c.kind ? { kind: "commitment" as const } : {}),
             ...(due_at !== undefined ? { due_at: dueOf(due_at) } : {}),
@@ -176,12 +140,8 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
     },
     "tasks.settle": ({ task, outcome, due_at, note }, ctx) => {
       const t = visible(task, ctx);
-      if (t.kind !== "commitment") throw badRequest("only a commitment is kept, missed or renegotiated");
-      if (outcome === "renegotiated") {
-        if (!due_at) throw badRequest("a renegotiated commitment needs its new date (due_at)");
-        if (t.state !== "open") throw badRequest("reopen it first: a closed commitment has no date to move");
-        return store.tasks.renegotiate(task, dueOf(due_at) ?? "", by(ctx), note) as Task;
-      }
+      checkSettle(t, outcome, due_at);
+      if (outcome === "renegotiated") return store.tasks.renegotiate(task, dueOf(due_at) ?? "", by(ctx), note) as Task;
       return store.tasks.change(
         task,
         { state: outcome === "kept" ? "done" : "dropped", outcome, awaits_owner: false },
