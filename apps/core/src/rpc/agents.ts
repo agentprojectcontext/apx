@@ -9,11 +9,13 @@ import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import { refProblem } from "../models/choice.ts";
+import { toolCatalog } from "../tools/policy.ts";
+import type { Tool } from "../tools/types.ts";
 import type { Handlers } from "./router.ts";
 
 /** Engines a model ref may name. Harness engines are asked live: ACP agents come from settings. */
 
-export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
+export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, tools: readonly Tool[] = []) {
   /** A choice that names a model nothing can run is refused when it is set, not on every turn after. */
   const checkChoice = (c: ModelChoice | null | undefined) => {
     const why = c?.model ? refProblem(c.model, engines) : undefined;
@@ -71,6 +73,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
 
   return {
     "agents.list": () => ({ agents: store.agents.list().map(publicAgent) }),
+    "agents.tools": () => ({ tools: toolCatalog(tools) }),
     "agents.get": ({ agent }) => {
       const a = store.agents.get(agent);
       if (!a) throw notFound(`agent ${agent}`);
@@ -125,6 +128,8 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
         area: p.area,
         personality: p.personality,
         autonomy: p.autonomy,
+        tools: p.tools,
+        skills: p.skills,
       };
       const edits =
         Object.values(definition).some((v) => v !== undefined) || p.prompt !== undefined || p.slug !== undefined;
@@ -155,6 +160,8 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds) {
           ...(p.autonomy ? { autonomy: p.autonomy } : {}),
           ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
           ...(p.personality !== undefined ? { personality: p.personality || undefined } : {}),
+          ...(p.tools !== undefined ? { tools: p.tools.length ? p.tools : undefined } : {}),
+          ...(p.skills !== undefined ? { skills: p.skills.length ? p.skills : undefined } : {}),
           ...(p.blob ? { blob: p.blob } : {}),
         });
       }

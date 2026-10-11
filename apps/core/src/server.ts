@@ -362,6 +362,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       },
       apc,
       engines: engineIds,
+      tools,
       desktop: opts.desktop ?? systemDesktop,
       native: config.native,
       runtimeHomes: config.runtimeSkills.homes,

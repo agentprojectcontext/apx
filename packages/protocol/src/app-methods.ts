@@ -248,6 +248,18 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * APX's own tools an agent's list may name, with the group each belongs to; `kept` ones every agent keeps. MCP
+   * tools are named as `mcp_<server>_*` or one by one.
+   */
+  "agents.tools": {
+    params: z.object({}).strict(),
+    result: z.object({
+      tools: z.array(z.object({ name: z.string(), group: z.string().optional(), kept: z.boolean() })),
+    }),
+    effect: false,
+    access: "human",
+  },
   /** One agent with its prompt (the system prompt the owner writes; lists leave it out). */
   "agents.get": {
     params: z.object({ agent: Id }).strict(),
@@ -275,6 +287,9 @@ export const appMethods = {
         autonomy: Autonomy.optional(),
         parent: z.string().max(64).optional(),
         blob: z.string().max(40).optional(),
+        /** The tools (or groups) it may use, and the skills it works with; [] goes back to all of them. */
+        tools: z.array(z.string().trim().min(1).max(80)).max(200).optional(),
+        skills: z.array(z.string().trim().min(1).max(120)).max(200).optional(),
         /** Renames the file (project agents); the agent keeps its id and the old slug is kept as an alias. */
         slug: z
           .string()

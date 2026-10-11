@@ -195,3 +195,46 @@ test("review fixes: an old slug can be reused after a rename; a clone with the s
     fs.rmSync(clone, { recursive: true, force: true });
   }
 });
+
+test("an agent's tools and skills are set from APX: a project agent's file says them, a global agent keeps them", async () => {
+  const llm = scriptedLlm((req) => say(`tools: ${req.tools.map((t) => t.function.name).join(",")}`));
+  const env = await startCore({ llm });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apct-"));
+  try {
+    makeProject(root);
+    await env.client.call("projects.register", { path: root });
+    const { tools } = await env.client.call("agents.tools", {});
+    assert.deepEqual(
+      tools.find((t) => t.name === "shell_output"),
+      { name: "shell_output", group: "shell", kept: false },
+    );
+    assert.equal(tools.find((t) => t.name === "recall")?.kept, true);
+    assert.ok(!tools.some((t) => t.name === "agent_set"), "the super-agent's own tools are not offered");
+
+    await env.client.call("agents.update", {
+      agent: "abc123def456-arch",
+      tools: ["files", "web_read"],
+      skills: ["pdf"],
+    });
+    const file = fs.readFileSync(path.join(root, ".apc", "agents", "arch.md"), "utf8");
+    assert.match(file, /\ntools: files, web_read\n/);
+    assert.match(file, /\nskills: pdf\n/);
+    const arch = (await env.client.call("agents.list", {})).agents.find((a) => a.id === "abc123def456-arch");
+    assert.deepEqual([arch?.tools, arch?.skills], [["files", "web_read"], ["pdf"]]);
+
+    await env.client.call("agents.update", { agent: "abc123def456-arch", tools: [], skills: [] });
+    assert.doesNotMatch(fs.readFileSync(path.join(root, ".apc", "agents", "arch.md"), "utf8"), /tools:|skills:/);
+
+    await env.client.call("agents.create", { slug: "clerk", name: "Clerk" });
+    await env.client.call("agents.update", { agent: "clerk", tools: ["web_search"] });
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "clerk" });
+    await env.client.call("threads.send", { thread: t.id, text: "hi" });
+    await env.settle(t.id);
+    const offered = llm.calls.at(-1)?.tools.map((x) => x.function.name) ?? [];
+    assert.ok(offered.includes("web_search") && !offered.includes("shell"), offered.join(","));
+  } finally {
+    await env.core.close();
+    env.cleanup();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

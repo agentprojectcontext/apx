@@ -23,6 +23,16 @@ const GROUPS: Record<string, (name: string) => boolean> = {
 /** Tools every agent keeps whatever its list says: they only read what the turn or memory holds, or ask the owner. */
 const ALWAYS = new Set(["read_output", "ask_owner", "load_skill", "recall"]);
 
+/** What an agent's editor offers: each assignable tool with its group, and whether every agent keeps it anyway. */
+export function toolCatalog(tools: readonly Tool[]): Array<{ name: string; group?: string; kept: boolean }> {
+  return tools
+    .filter((t) => !SUPER_AGENT_TOOLS.has(t.name))
+    .map((t) => {
+      const group = Object.keys(GROUPS).find((g) => GROUPS[g]?.(t.name));
+      return { name: t.name, ...(group ? { group } : {}), kept: ALWAYS.has(t.name) };
+    });
+}
+
 /**
  * The agent's `tools:` list as a filter. A list that names nothing APX knows (a file written for another tool) is
  * not a restriction: an agent left with no tools at all would be a silent break.
