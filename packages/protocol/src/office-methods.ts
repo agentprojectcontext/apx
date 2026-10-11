@@ -115,6 +115,16 @@ export const officeMethods = {
     result: Task,
     effect: true,
   },
+  /**
+   * Deletes a task for good: its history and its conversation. Subtasks and the agents' own chats about it stay.
+   * Refused while a turn or a job runs in its conversation (stop it first).
+   */
+  "tasks.delete": {
+    params: z.object({ task: Id }).strict(),
+    result: z.object({ deleted: Id }),
+    effect: true,
+    access: "human",
+  },
   /** A comment in the task's conversation; an @mentioned agent answers there. */
   "tasks.comment": {
     params: z.object({ task: Id, text: z.string().trim().min(1).max(20_000) }).strict(),

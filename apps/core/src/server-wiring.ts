@@ -216,7 +216,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...channelHandlers(d.store, d.channels),
     ...mediaHandlers(d.services),
     ...transcriptionHandlers(d.services, d.localModels),
-    ...taskHandlers(d.store, d.engine),
+    ...taskHandlers(d.store, d.engine, d.app.home),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
     ...noticeHandlers(d.store, d.nudges),
     ...notificationHandlers(d.store),

@@ -24,6 +24,8 @@ export const CoreEvent = z.discriminatedUnion("type", [
   z.object({ type: z.literal("run.updated"), run: Run }),
   z.object({ type: z.literal("job.updated"), job: Job }),
   z.object({ type: z.literal("task.updated"), task: Task }),
+  /** A task was deleted for good (its conversation goes as a thread.deleted). */
+  z.object({ type: z.literal("task.deleted"), task_id: Id }),
   z.object({ type: z.literal("notification.updated"), notification: Notification }),
   z.object({ type: z.literal("surface.updated"), surface: SurfaceSummary }),
   z.object({ type: z.literal("browser.tabs"), tabs: z.array(TabInfo) }),

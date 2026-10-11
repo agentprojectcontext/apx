@@ -9,11 +9,12 @@ import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { columnsOf, dueOf, tagsOf } from "../domain/tasks.ts";
 import type { Engine } from "../engine/engine.ts";
 import { type Asker, addComment, askMentioned, startTaskWork } from "../engine/task-work.ts";
-import { badRequest, notFound, unauthorized } from "../errors.ts";
+import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
+import { removeThreadFiles } from "./thread-admin.ts";
 
-export function taskHandlers(store: Store, engine: Engine) {
+export function taskHandlers(store: Store, engine: Engine, home: string) {
   /** The agent's project (from its thread), or undefined for the owner. */
   /**
    * An agent works on its chat's project. The super-agent outside any project keeps the owner's whole board, as in v1:
@@ -187,6 +188,21 @@ export function taskHandlers(store: Store, engine: Engine) {
         by(ctx),
         note,
       ) as Task;
+    },
+    "tasks.delete": ({ task }, ctx) => {
+      const t = visible(task, ctx);
+      const ids = store.threads.get(t.thread_id) ? store.threads.family(t.thread_id) : [];
+      // Refused rather than canceled, as for a chat: a turn half-way through a tool may still be changing things.
+      if (store.threads.busy(ids)) throw conflict("something is running in this task's conversation: stop it first");
+      const files = store.tx(() => {
+        store.notifications.dropThreads(ids);
+        store.notifications.resolve("task", t.id);
+        store.notifications.resolve("due", t.id);
+        store.tasks.remove(t.id);
+        return store.threads.remove(ids);
+      });
+      removeThreadFiles(home, files);
+      return { deleted: t.id };
     },
     "tasks.comment": ({ task, text }, ctx) => {
       const t = visible(task, ctx);

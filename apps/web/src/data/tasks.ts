@@ -39,6 +39,14 @@ export function taskChanged(task: Task): void {
   store.set((s) => ({ tasks: { ...s.tasks, [task.id]: task } }));
 }
 
+/** A task.deleted event. */
+export function taskDeleted(id: string): void {
+  store.set((s) => {
+    const { [id]: _gone, ...tasks } = s.tasks;
+    return { tasks };
+  });
+}
+
 export async function createTask(p: Params<"tasks.create">) {
   try {
     taskChanged(await client.call("tasks.create", p));

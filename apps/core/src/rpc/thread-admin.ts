@@ -14,6 +14,12 @@ import { codeFolder } from "./threads.ts";
 
 const textOf = (m: Message) => m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n");
 
+/** The media and job logs deleted threads leave on disk; only files under the home (a row never points elsewhere). */
+export function removeThreadFiles(home: string, files: { media: string[]; jobs: string[] }): void {
+  const owned = [...files.media, ...files.jobs.map((id) => path.join(home, "jobs", `${id}.log`))];
+  for (const file of owned) if (isInside(home, file)) fs.rmSync(file, { force: true });
+}
+
 export function threadAdminHandlers(store: Store, home: string) {
   const isHome = (id: string, kind: string) => id === HOME_THREAD_ID || kind === "home";
 
@@ -48,9 +54,7 @@ export function threadAdminHandlers(store: Store, home: string) {
         store.notifications.dropThreads(ids);
         return store.threads.remove(ids);
       });
-      const owned = [...files.media, ...files.jobs.map((id) => path.join(home, "jobs", `${id}.log`))];
-      // Only files under the home: a row never sends a delete elsewhere on disk.
-      for (const file of owned) if (isInside(home, file)) fs.rmSync(file, { force: true });
+      removeThreadFiles(home, files);
       return { deleted: ids };
     },
     "threads.fork": ({ thread, message, title }) => {

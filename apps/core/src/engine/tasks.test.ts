@@ -276,3 +276,26 @@ test("an agent mentions the owner by name: one notice per request, no extra turn
       .every((n) => n.read_at),
   );
 });
+
+test("deleting a task takes its history and conversation; subtasks and the agents' chats about it stay", async () => {
+  const t = await env.client.call("tasks.create", { title: "Retire the old landing", project });
+  const sub = await env.client.call("tasks.create", { title: "Redirect the old links", project, parent: t.id });
+  await env.client.call("tasks.comment", { task: t.id, text: "@vera take a look" });
+  const { sessions } = await settleTask(t.id);
+  const seen: string[] = [];
+  const off = env.core.bus.on((e) => {
+    if (e.type === "task.deleted") seen.push(e.task_id);
+  });
+  const r = await env.client.call("tasks.delete", { task: t.id }, "task-del-1");
+  off();
+  assert.deepEqual(r, { deleted: t.id });
+  assert.deepEqual(seen, [t.id]);
+  assert.equal(env.core.store.tasks.get(t.id), undefined);
+  assert.equal(env.core.store.tasks.events(t.id).length, 0);
+  assert.equal(env.core.store.threads.get(t.thread_id), undefined);
+  assert.equal(env.core.store.tasks.get(sub.id)?.parent_id, undefined);
+  for (const s of sessions) assert.equal(env.core.store.threads.get(s.id)?.task_id, undefined);
+  // The same key replays the answer; a new one finds nothing left.
+  assert.deepEqual(await env.client.call("tasks.delete", { task: t.id }, "task-del-1"), r);
+  await assert.rejects(env.client.call("tasks.delete", { task: t.id }), /not found|task/);
+});

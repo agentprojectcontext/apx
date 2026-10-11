@@ -307,6 +307,17 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
         );
       return rows.map(toTask);
     },
+    /**
+     * Deletes the task and its history (its conversation goes with `threads.remove`). Subtasks stay as tasks of their
+     * own, and the agents' chats that worked it stay, no longer naming it.
+     */
+    remove(id: string): void {
+      run(qb.updateTable("tasks").set({ parent_id: null }).where("parent_id", "=", id));
+      run(qb.updateTable("threads").set({ task_id: null }).where("task_id", "=", id));
+      run(qb.deleteFrom("task_events").where("task_id", "=", id));
+      run(qb.deleteFrom("tasks").where("id", "=", id));
+      bus.emit({ type: "task.deleted", task_id: id });
+    },
     events(id: string): TaskEvent[] {
       return all(qb.selectFrom("task_events").selectAll().where("task_id", "=", id).orderBy("n")).map((r) => ({
         at: r.at,

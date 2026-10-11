@@ -11,7 +11,7 @@ import { loadNotifications, notificationChanged } from "./notifications.ts";
 import { denied } from "./pairing.ts";
 import { routineRunChanged } from "./routines.ts";
 import { data, upsertMessage } from "./state.ts";
-import { loadTasks, taskChanged, tasksLoaded } from "./tasks.ts";
+import { loadTasks, taskChanged, taskDeleted, tasksLoaded } from "./tasks.ts";
 import { forgetThreads } from "./threadAdmin.ts";
 import { needsPairing } from "./token.ts";
 import { loadUpdates, notePanel } from "./updates.ts";
@@ -192,6 +192,9 @@ function apply(ev: CoreEvent): void {
       return;
     case "task.updated":
       taskChanged(ev.task);
+      return;
+    case "task.deleted":
+      taskDeleted(ev.task_id);
       return;
     case "notification.updated":
       notificationChanged(ev.notification);
