@@ -1,5 +1,5 @@
 import type { ChatgptStatus } from "@apx/protocol";
-import { Button, Checkbox, Dialog, EngineIcon, Icons } from "@apx/ui";
+import { Button, Dialog, EngineIcon, Icons } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { chatgptChanged, chatgptConnect, chatgptDisconnect, chatgptStatus } from "../data/chatgpt.ts";
 import { notify } from "../data/notices.ts";
@@ -9,14 +9,14 @@ import { useT } from "../i18n/index.ts";
 const SECURITY_SETTINGS = "https://chatgpt.com/#settings/Security";
 
 /**
- * Connects the ChatGPT plan to APX's own loop, shown as Codex: first the setting ChatGPT asks for, then a code typed at
- * OpenAI's page (the core waits for it), or APX v1's sign-in taken over. Codex CLI's own sign-in is never used.
+ * Connects the ChatGPT plan to APX's own loop, shown as Codex: a code typed at OpenAI's page (the core waits for it),
+ * or APX v1's sign-in taken over. The setting ChatGPT may ask for first is a hint while waiting and the answer to a
+ * refusal, never a gate. Codex CLI's own sign-in is never used.
  */
 export function PlanLogin({ onClose }: { onClose(): void }) {
   const t = useT();
   const [s, setS] = useState<ChatgptStatus>();
   const [busy, setBusy] = useState(false);
-  const [ready, setReady] = useState(false);
   useEffect(() => {
     void chatgptStatus().then(setS);
   }, []);
@@ -92,22 +92,31 @@ export function PlanLogin({ onClose }: { onClose(): void }) {
               </Button>
             </div>
             <p className="chatgpt__hint">{t("plan.login.waiting")}</p>
-          </div>
-        ) : (
-          <div className="chatgpt__start">
-            <div className="planlogin__pre">
-              <div className="planlogin__pretitle">
-                <EngineIcon engine="codex" size={16} />
-                {t("plan.login.preTitle")}
-              </div>
-              <p>{t("plan.login.preBody")}</p>
+            <p className="chatgpt__hint">
+              {t("plan.login.ifRefused")}{" "}
               <a href={SECURITY_SETTINGS} target="_blank" rel="noreferrer" className="planlogin__link">
                 {t("plan.login.preLink")}
                 <Icons.ExternalLink size={12} />
               </a>
-              <Checkbox checked={ready} onCheckedChange={setReady} label={t("plan.login.preCheck")} />
-            </div>
-            <Button loading={busy} disabled={!ready} onClick={() => void start()}>
+            </p>
+          </div>
+        ) : (
+          <div className="chatgpt__start">
+            {/* Only after a refusal: the usual reason is ChatGPT's device-code setting being off. */}
+            {s.error && (
+              <div className="planlogin__pre">
+                <div className="planlogin__pretitle">
+                  <EngineIcon engine="codex" size={16} />
+                  {t("plan.login.preTitle")}
+                </div>
+                <p>{t("plan.login.preBody")}</p>
+                <a href={SECURITY_SETTINGS} target="_blank" rel="noreferrer" className="planlogin__link">
+                  {t("plan.login.preLink")}
+                  <Icons.ExternalLink size={12} />
+                </a>
+              </div>
+            )}
+            <Button loading={busy} onClick={() => void start()}>
               {t("plan.login.start")}
             </Button>
             {s.v1_available && (

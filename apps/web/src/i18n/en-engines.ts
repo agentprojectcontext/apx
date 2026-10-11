@@ -16,11 +16,11 @@ export const enEngines = {
   "plan.login.title": "Connect Codex",
   "plan.login.lead":
     "Your agents use your ChatGPT plan's models with APX's tools and rules. APX keeps its own sign-in, apart from the Codex app's.",
-  "plan.login.preTitle": "Before you start",
+  "plan.login.preTitle": "If it would not finish",
   "plan.login.preBody":
     "ChatGPT asks you to turn on “Device code authorization for Codex” in Settings › Security. Without it the sign-in cannot finish.",
   "plan.login.preLink": "Open ChatGPT's security settings",
-  "plan.login.preCheck": "I turned it on",
+  "plan.login.ifRefused": "ChatGPT won’t take the code? It may need “Device code authorization for Codex” turned on.",
   "plan.login.start": "Sign in with ChatGPT",
   "plan.login.fromV1": "Use APX v1's sign-in",
   "plan.login.fromV1Hint": "APX v1 is already signed in: APX takes that sign-in over, with no new code.",

@@ -18,11 +18,12 @@ export const esEngines: Record<keyof typeof enEngines, string> = {
   "plan.login.title": "Conectar Codex",
   "plan.login.lead":
     "Tus agentes usan los modelos de tu plan de ChatGPT con las herramientas y reglas de APX. APX tiene su propio login, separado del de la app de Codex.",
-  "plan.login.preTitle": "Antes de empezar",
+  "plan.login.preTitle": "Si no te deja terminar",
   "plan.login.preBody":
     "ChatGPT pide activar «Autorización con código de dispositivo para Codex» en Configuración › Seguridad. Sin eso el login no se puede terminar.",
   "plan.login.preLink": "Abrir la seguridad de ChatGPT",
-  "plan.login.preCheck": "Ya la activé",
+  "plan.login.ifRefused":
+    "¿ChatGPT no acepta el código? Puede que tengas que activar «Autorización con código de dispositivo para Codex».",
   "plan.login.start": "Iniciar sesión con ChatGPT",
   "plan.login.fromV1": "Usar el login de APX v1",
   "plan.login.fromV1Hint": "APX v1 ya tiene la sesión iniciada: APX la toma sin pedirte un código nuevo.",

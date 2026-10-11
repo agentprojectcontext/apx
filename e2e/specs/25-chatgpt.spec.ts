@@ -27,14 +27,10 @@ test("the ChatGPT plan comes first as Codex, fixed, and connects with its own si
   await codex.getByRole("button", { name: "Conectar" }).click();
   const signIn = page.getByRole("dialog", { name: "Conectar Codex" });
   await expect(signIn).toContainText("separado del de la app de Codex");
-  await expect(signIn.getByRole("link", { name: /Abrir la seguridad de ChatGPT/ })).toHaveAttribute(
-    "href",
-    "https://chatgpt.com/#settings/Security",
-  );
+  // Signing in is one click: ChatGPT's device-code setting is only a hint once a code is out, or after a refusal.
   const start = signIn.getByRole("button", { name: "Iniciar sesión con ChatGPT" });
-  await expect(start).toBeDisabled();
-  await signIn.getByText("Ya la activé").click();
   await expect(start).toBeEnabled();
+  await expect(signIn.getByRole("checkbox")).toHaveCount(0);
   await signIn.getByRole("button", { name: "Cancelar" }).click();
 
   // A known model API not set up yet has its card, named with a capital, and opens already filled in.
