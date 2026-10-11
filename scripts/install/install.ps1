@@ -1,7 +1,7 @@
 # Installs (or updates) the APX daemon on Windows, without the desktop app: the core, the `apx` command and the Node
 # that runs them, as one bundle from a release. Nothing needs an administrator.
 #
-#   irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
+#   irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
 #   .\install.ps1 -File apx-core-2.2.0-win-x64.tar.gz      # a bundle you already have (no download)
 #
 # Parameters: -File <bundle>  -Version <x.y.z>  -Feed <owner/repo | http(s) URL>  -NoService  -Uninstall

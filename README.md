@@ -66,9 +66,9 @@ daemon, the `apx` command and the Node that runs them in `~/.apx/v2/app` and sta
 root; your data stays in `~/.apx/v2`; an APX v1 there is stopped and its `apx` replaced, its files kept to import):
 
 ```bash
-curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash
+curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
 # a bundle you already have:  bash install.sh --file apx-core-<version>-linux-x64.tar.gz
-# Windows (PowerShell):       irm https://github.com/agentprojectcontext/apx/releases/latest/download/install.ps1 | iex
+# Windows (PowerShell):       irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
 
 apx setup --headless --expose tailscale   # or --expose lan; add --import to bring a local APX v1's projects
 ```

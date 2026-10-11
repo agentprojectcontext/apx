@@ -17,7 +17,7 @@ type Answer = { ok: true; ready?: true; linger?: string } | { ok: false; reason?
 const INTRO_MS = 3400;
 /** What puts the APX daemon on a server that has none (install.sh, attached to every release). */
 const INSTALL =
-  "curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash\napx setup --headless";
+  "curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash\napx setup --headless";
 
 const ACCESS: Array<{ id: Access; icon: typeof Icons.Lock; title: MessageKey; body: MessageKey }> = [
   { id: "none", icon: Icons.Lock, title: "connect.access.none", body: "connect.access.noneBody" },

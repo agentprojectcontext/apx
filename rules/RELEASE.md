@@ -53,9 +53,9 @@ The phone app is `dev.apx.mobile` and v1's is `dev.agentprojectcontext.apx`: the
 | v1 user | the desktop's setup imports from `~/.apx`; on a server install.sh stops v1 and `apx import-v1` imports from its files | a v1 installed with `sudo npm` needs sudo to go |
 | Docker | `scripts/docker/Dockerfile` from a bundle | `APX_TOKEN` required; updates by image |
 
-`install.sh` is fetched from a release, so `releases/latest/download/install.sh` only works once v2 is "Latest".
-While it is not, the URL to give is the release branch's raw file or a specific tag's
-(`releases/download/v2.x.y/install.sh`); the script itself finds the newest v2 either way.
+The install scripts have a URL of their own, served by the Pages site (`apps/docs` copies them in when it builds):
+`https://agentprojectcontext.github.io/apx/v2/install.sh` and `…/install.ps1`. A release's `latest/download` URL would
+be v1's while v1 is "Latest"; the script finds the newest v2 release itself either way.
 
 ## Testing
 

@@ -2,7 +2,7 @@
 # Installs (or updates) the APX daemon on Linux or macOS, without the desktop app: the core, the `apx` command and the
 # Node that runs them, as one bundle from a release. Nothing needs root.
 #
-#   curl -fsSL https://github.com/agentprojectcontext/apx/releases/latest/download/install.sh | bash
+#   curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
 #   bash install.sh --file apx-core-2.2.0-linux-x64.tar.gz      # a bundle you already have (no download)
 #
 # Options: --file <bundle>  --version <x.y.z>  --feed <owner/repo | http(s) URL>  --no-service  --uninstall
