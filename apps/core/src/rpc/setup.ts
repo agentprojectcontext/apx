@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { errorMessage } from "../errors.ts";
-import { v1Projects } from "../import/v1-data.ts";
+import { jsonFile, v1Projects } from "../import/v1-data.ts";
 import { importV1, scanV1, type V1ImportDeps } from "../import/v1-setup.ts";
 import type { Handlers } from "./router.ts";
 
@@ -18,7 +18,7 @@ const TERMINAL = path.resolve(import.meta.dirname, "../../../terminal");
 
 const readJson = (file: string): Record<string, unknown> | undefined => {
   try {
-    const v = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+    const v = jsonFile(file);
     return v && typeof v === "object" ? (v as Record<string, unknown>) : undefined;
   } catch {
     return undefined;

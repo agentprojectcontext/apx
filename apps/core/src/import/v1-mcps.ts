@@ -1,7 +1,7 @@
 // v1's MCP servers (~/.apx/mcps.json and each project's mcps.json in its v1 storage) as the owner's own servers in
 // v2: a project's runs only in that project. Values never stay in plain text when they look like a credential.
-import fs from "node:fs";
 import path from "node:path";
+import { jsonFile } from "./v1-data.ts";
 
 export type V1Mcp = { name: string; server: Record<string, unknown> };
 
@@ -15,7 +15,7 @@ const obj = (v: unknown): Record<string, unknown> =>
 /** The servers of one v1 mcps.json, as v1 wrote them. */
 export function v1Mcps(file: string): V1Mcp[] {
   try {
-    const doc = obj(JSON.parse(fs.readFileSync(file, "utf8")));
+    const doc = obj(jsonFile(file));
     return Object.entries(obj(doc.mcpServers)).flatMap(([name, s]) =>
       NAME.test(name) && (obj(s).command || obj(s).url) ? [{ name, server: obj(s) }] : [],
     );

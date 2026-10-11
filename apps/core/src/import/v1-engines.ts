@@ -2,7 +2,6 @@
 // (v2's built-in gemini, anthropic and openai just get theirs), Ollama a keyless local one, and the ChatGPT plan v2's
 // built-in `chatgpt`. v1's main model and its fallback chain become the install default and the router's chain.
 // v1's folder is only read.
-import fs from "node:fs";
 import path from "node:path";
 import { ModelRef, type RouterConfig } from "@apx/protocol";
 import { harnessOf } from "../domain/refs.ts";
@@ -11,6 +10,7 @@ import { modelSettings } from "../models/choice.ts";
 import { NO_KEY } from "../providers/llm.ts";
 import type { ProviderEntry, ProviderRegistry } from "../providers/registry.ts";
 import type { Secrets } from "../secrets.ts";
+import { jsonFile } from "./v1-data.ts";
 
 type V1Engine = {
   engine?: unknown;
@@ -63,7 +63,7 @@ const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : unde
 
 function readConfig(home: string): Record<string, unknown> {
   try {
-    const v = JSON.parse(fs.readFileSync(path.join(home, "config.json"), "utf8")) as unknown;
+    const v = jsonFile(path.join(home, "config.json"));
     return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
   } catch {
     return {};

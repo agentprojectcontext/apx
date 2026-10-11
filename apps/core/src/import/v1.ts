@@ -6,6 +6,7 @@ import path from "node:path";
 import { ImageDefaults, type ServiceSettings } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
 import type { Secrets } from "../secrets.ts";
+import { jsonFile } from "./v1-data.ts";
 
 type V1Project = { id: number; name: string; path: string; missing: boolean };
 
@@ -26,7 +27,7 @@ function v1Value(config: unknown, dotted: string): string | undefined {
 export function importKeys(home: string, secrets: Secrets): string[] {
   const keys: string[] = [];
   try {
-    const config = JSON.parse(fs.readFileSync(path.join(home, "config.json"), "utf8")) as unknown;
+    const config = jsonFile(path.join(home, "config.json"));
     for (const [from, name] of Object.entries(V1_KEYS)) {
       const value = v1Value(config, from);
       if (value && !secrets.listed(name)) {
@@ -215,7 +216,7 @@ export async function importFromV1(
   let services: string[] = [];
   if (opts.services) {
     try {
-      services = opts.services(v1Services(JSON.parse(fs.readFileSync(path.join(opts.home, "config.json"), "utf8"))));
+      services = opts.services(v1Services(jsonFile(path.join(opts.home, "config.json"))));
     } catch {}
   }
   const skills = opts.skills ? importSkills(path.join(opts.home, "skills"), path.join(opts.v2Home, "skills")) : [];

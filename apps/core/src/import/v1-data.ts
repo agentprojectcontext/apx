@@ -4,9 +4,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { ChannelRooms, type PersonRelation, RoomMode, type ServiceSettings } from "@apx/protocol";
 
+/** A JSON file of v1's, parsed; throws like JSON.parse. Windows editors and PowerShell 5 may start it with a BOM. */
+export const jsonFile = (file: string): unknown => JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
+
 const readJson = (file: string): unknown => {
   try {
-    return JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+    return jsonFile(file);
   } catch {
     return undefined;
   }
