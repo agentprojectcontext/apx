@@ -42,15 +42,21 @@ export function loadMarks(): void {
     });
 }
 
+/** The latest catalog request: an older answer arriving after it (a provider switched off, then on) is dropped. */
+let catalogAsk = 0;
+
 /** Every engine and its models. `refresh` asks the engines again instead of the day cache. */
 export async function loadCatalog(refresh = false): Promise<void> {
   loadMarks();
   if (models.get().catalogLoad === "loading") return;
   models.set((s) => ({ catalogLoad: s.catalog.length ? s.catalogLoad : "loading" }));
+  const ask = ++catalogAsk;
   try {
     const r = await client.call("models.list", { refresh });
+    if (ask !== catalogAsk) return;
     models.set({ catalog: r.engines, catalogLoad: "ready" });
   } catch (e) {
+    if (ask !== catalogAsk) return;
     models.set((s) => ({ catalogLoad: missing(e) || !s.catalog.length ? "unavailable" : "ready" }));
     if (refresh && !missing(e)) notify(t("error.loadModels", { error: errText(e) }));
   }
