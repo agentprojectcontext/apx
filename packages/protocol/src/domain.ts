@@ -115,6 +115,8 @@ export const CatalogEngine = z.object({
     }),
   ),
   fetched_at: z.string().optional(),
+  /** A model API's everyday chat model: what the router chain gets when the owner adds this provider. */
+  starter: z.string().optional(),
 });
 export type CatalogEngine = z.infer<typeof CatalogEngine>;
 

@@ -17,6 +17,7 @@ import { which } from "../harness/detect.ts";
 import { harnessEnv } from "../harness/env.ts";
 import { NO_KEY } from "../providers/llm.ts";
 import type { Secrets } from "../secrets.ts";
+import { starterModel } from "./starter.ts";
 
 const run = promisify(execFile);
 const TTL_MS = 24 * 3600_000;
@@ -39,6 +40,7 @@ export type CatalogEngine = {
   detail?: string;
   models: CatalogModel[];
   fetched_at?: string;
+  starter?: string;
 };
 
 /**
@@ -268,7 +270,7 @@ export function createCatalog(deps: {
   return {
     /** Every engine with its models. Uses the cache unless `refresh` or the cache is older than a day. */
     async list(refresh = false): Promise<CatalogEngine[]> {
-      return Promise.all(
+      const listed = await Promise.all(
         engines().map(({ base, list }) => {
           const hit = cached(base.id);
           const fresh = hit?.fetched_at && Date.now() - Date.parse(hit.fetched_at) < TTL_MS;
@@ -281,6 +283,13 @@ export function createCatalog(deps: {
           return p;
         }),
       );
+      return listed.map((e) => {
+        if (e.kind !== "provider") return e;
+        // A list the owner gave (a local gateway) is in their order: its first model is the one they use.
+        const own = deps.providers().find((p) => p.id === e.id)?.models[0];
+        const starter = own ?? starterModel(e.models);
+        return starter ? { ...e, starter } : e;
+      });
     },
   };
 }

@@ -1,5 +1,5 @@
 import { Badge, Button, Dialog, Icons, Input, ProjectTile, Select, Spinner, Switch } from "@apx/ui";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import type { ChannelKind } from "../channels/kinds.ts";
 import { QrCode } from "../common/QrCode.tsx";
@@ -7,14 +7,14 @@ import { RouterChain } from "../config/models/RouterChain.tsx";
 import { ProvidersGrid } from "../config/ProvidersGrid.tsx";
 import { loadChannels, saveChannel, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
-import { loadCatalog, splitRef } from "../data/models.ts";
+import { loadCatalog, splitRef, useModels } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
 import { useProviders } from "../data/providers.ts";
 import { useSetup } from "../data/setup.ts";
 import { type DataState, useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { kindOptions, NO_KIND } from "../project/ProjectSettings.tsx";
-import type { Draft, StepProps } from "./draft.ts";
+import { type Draft, type StepProps, withStarters } from "./draft.ts";
 import { StepHead } from "./StepsIntro.tsx";
 
 /** Provider management is shared with settings; the wizard saves its router on Continue. */
@@ -25,13 +25,22 @@ export function EnginesStep({ draft: d, set }: StepProps) {
   useEffect(() => {
     void loadCatalog();
   }, []);
+  const catalog = useModels((s) => s.catalog);
+  // Providers seen with a key, and the ones that got theirs here: each brings its everyday model to the chain once.
+  const keyed = useRef<Set<string>>(undefined);
+  const pending = useRef<string[]>([]);
   useEffect(() => {
     if (loaded !== "ready") return;
-    const chain = d.chain.filter((ref) =>
-      providers.some((p) => p.id === splitRef(ref).engine && p.enabled && p.key_set),
-    );
-    if (chain.length !== d.chain.length) set({ chain });
-  }, [providers, loaded, d.chain, set]);
+    const ready = providers.filter((p) => p.enabled && p.key_set).map((p) => p.id);
+    // On arrival only an empty chain is filled; afterwards, any provider that gets its key.
+    const fresh = keyed.current ? ready.filter((id) => !keyed.current?.has(id)) : d.chain.length ? [] : ready;
+    keyed.current = new Set(ready);
+    pending.current = [...new Set([...pending.current, ...fresh])].filter((id) => ready.includes(id));
+    const kept = d.chain.filter((ref) => ready.includes(splitRef(ref).engine));
+    const { chain, waiting } = withStarters(kept, pending.current, catalog);
+    pending.current = waiting;
+    if (chain.join() !== d.chain.join()) set({ chain });
+  }, [providers, loaded, catalog, d.chain, set]);
   return (
     <>
       <StepHead

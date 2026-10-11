@@ -1,5 +1,5 @@
 // What the owner chose so far in the setup, before each step saves it.
-import type { MemorySettings } from "@apx/protocol";
+import type { CatalogEngine, MemorySettings } from "@apx/protocol";
 import type { V1Group } from "../data/setup.ts";
 
 export type Draft = {
@@ -43,3 +43,26 @@ export const defaultDraft = (): Draft => ({
 });
 
 export type StepProps = { draft: Draft; set: (p: Partial<Draft>) => void };
+
+/** "gemini/gemini-2.5-flash#high" → "gemini". */
+const engineOf = (ref: string) => ref.split(/[/#]/)[0] ?? ref;
+
+/**
+ * The chain with each of these providers' everyday model at the end, for the ones it has none of yet; also which
+ * providers are still waiting for the catalog to name theirs.
+ */
+export function withStarters(
+  chain: readonly string[],
+  providers: readonly string[],
+  catalog: readonly CatalogEngine[],
+): { chain: string[]; waiting: string[] } {
+  const out = [...chain];
+  const waiting: string[] = [];
+  for (const id of providers) {
+    if (out.some((ref) => engineOf(ref) === id)) continue;
+    const starter = catalog.find((e) => e.id === id && e.available)?.starter;
+    if (starter) out.push(`${id}/${starter}`);
+    else waiting.push(id);
+  }
+  return { chain: out, waiting };
+}

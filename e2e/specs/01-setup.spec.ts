@@ -47,10 +47,10 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   const ollama = wizard.locator(".pcard").filter({ hasText: /^Ollama/ });
   await ollama.getByRole("switch").click();
   await expect(wizard.locator(".chain__item")).toHaveCount(1);
+  // A provider that gets ready brings its everyday model to the chain by itself.
   await ollama.getByRole("switch").click();
-  await wizard.getByRole("button", { name: "Agregar un modelo", exact: true }).click();
-  await page.getByRole("option").filter({ hasText: "ollama/fake-1" }).click();
   await expect(wizard.locator(".chain__item")).toHaveCount(2);
+  await expect(wizard.locator(".chain__item").last().getByRole("combobox")).toContainText("fake-1");
   await wizard.locator(".chain__item").last().getByRole("button", { name: "Subir", exact: true }).click();
   await expect(wizard.locator(".chain__item").first().getByRole("combobox")).toContainText("fake-1");
   await wizard.locator(".chain__item").first().getByRole("button", { name: "Bajar", exact: true }).click();
