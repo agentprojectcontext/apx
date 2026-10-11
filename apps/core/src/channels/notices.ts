@@ -28,7 +28,13 @@ export function parseButton(data: string): Button | undefined {
   return undefined;
 }
 
-type Labels = { approve: string; deny: string };
+type Labels = { approve: string; deny: string; cut: (more: number) => string };
+
+/**
+ * A confirmation is one message on every channel, its buttons under the words: up to 20k chars of a call's detail
+ * would be several messages on the chunking ones and cut by the others.
+ */
+const NOTICE_CHARS = 3500;
 
 /** A confirmation or a question as a message with buttons only the owner can press. */
 export function inputPresentation(part: Extract<Part, { type: "input" }>, labels: Labels): Presentation {
@@ -44,7 +50,15 @@ export function inputPresentation(part: Extract<Part, { type: "input" }>, labels
   const body = [part.prompt, part.tool ? `${part.tool}${part.detail ? `: ${part.detail}` : ""}` : ""]
     .filter(Boolean)
     .join("\n");
-  return { text: body.slice(0, 3500), ...(buttons.length ? { buttons } : {}) };
+  return { text: fitted(body, labels.cut), ...(buttons.length ? { buttons } : {}) };
+}
+
+/** The question comes first, so a cut takes the end of the call's detail and says how much the panel still shows. */
+function fitted(body: string, cut: Labels["cut"]): string {
+  if (body.length <= NOTICE_CHARS) return body;
+  // Sized with the whole length: the count it finally shows has no more digits.
+  const keep = NOTICE_CHARS - `… ${cut(body.length)}`.length;
+  return `${body.slice(0, keep).trimEnd()}… ${cut(body.length - keep)}`;
 }
 
 /** Reactions the owner puts on a notice that count as 👍 or 👎 (no buttons: a reaction is one tap and adds no message). */
