@@ -30,7 +30,7 @@ test("version and help work offline, including short flags and JSON", () => {
 });
 
 test("the help the top-level help advertises is help, not an error", () => {
-  for (const command of ["routines", "tasks", "channels", "owner", "org", "profiles", "service"]) {
+  for (const command of ["routines", "tasks", "channels", "owner", "org", "profiles", "service", "init", "mcps"]) {
     const r = cli(command, "help");
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stdout, new RegExp(`^apx ${command}`));

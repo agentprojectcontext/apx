@@ -4,15 +4,39 @@ import { mcps } from "./threads.ts";
 
 const quote = (s: string) => `'${s.replaceAll("'", "'\"'\"'")}'`;
 
-type Options = { project?: string | undefined; scope?: string | undefined; json?: boolean | undefined };
+type Options = {
+  project?: string | undefined;
+  scope?: string | undefined;
+  json?: boolean | undefined;
+  lines?: string | undefined;
+};
+
+export const MCPS_USAGE = `apx mcps [list [project]]                      MCP servers agents may use, and their state
+apx mcps tools|run|check <server> …            Its tools, run one, or test that it starts (apx mcp tools …)
+apx mcps logs <server> [--project p] [-n 100]  What it printed on stderr since the core started (secrets masked)
+apx mcps trust|untrust <project> <server>      Approve a project's server as its .apc/mcps.json defines it
+apx mcps on|off <server> --project p           Turn one of your servers on or off inside a project
+apx mcps add <name> <command…|url>             Add one of your own; apx mcps rm <name> removes it`;
 
 export async function mcpCommand(client: ApxClient, args: string[], o: Options): Promise<void> {
   const [sub, server, tool, raw] = args;
-  if (sub !== "tools" && sub !== "run" && sub !== "check") {
+  if (sub === "help") {
+    console.log(MCPS_USAGE);
+    return;
+  }
+  const lines = o.lines === undefined ? 100 : Number(o.lines);
+  if (sub === "logs" && (!Number.isInteger(lines) || lines < 1 || lines > 300))
+    throw new Error("-n is a number of lines, from 1 to 300");
+  if (sub !== "tools" && sub !== "run" && sub !== "check" && sub !== "logs") {
     await mcps(client, args, o);
     return;
   }
-  if (!server) throw new Error(`usage: apx mcp ${sub} <server> [<tool>] [--project <id>]`);
+  if (!server)
+    throw new Error(
+      sub === "logs"
+        ? "usage: apx mcps logs <server> [--project <id>] [-n 100]"
+        : `usage: apx mcp ${sub} <server> [<tool>] [--project <id>]`,
+    );
   const { servers } = await client.call("mcp.list", o.project ? { project: o.project } : {});
   const matches = servers.filter((s) => s.name === server && (!o.scope || s.scope === o.scope));
   const local = o.project ? matches.find((s) => s.scope === "project" && s.project_id === o.project) : undefined;
@@ -24,6 +48,16 @@ export async function mcpCommand(client: ApxClient, args: string[], o: Options):
     server,
     ...(o.project ? { project: o.project } : found.scope === "project" ? { project: found.project_id } : {}),
   };
+  if (sub === "logs") {
+    const r = await client.call("mcp.logs", { ...target, lines });
+    if (o.json) console.log(JSON.stringify(r, null, 2));
+    else for (const l of r.lines) console.log(`${new Date(l.at).toLocaleTimeString()}  ${clean(l.text)}`);
+    if (!r.lines.length && !o.json)
+      console.log(
+        `(${clean(server)} printed nothing since the core started; it runs when an agent uses it or with apx mcp check)`,
+      );
+    return;
+  }
   if (sub === "check") {
     const r = await client.call("mcp.test", target);
     console.log(

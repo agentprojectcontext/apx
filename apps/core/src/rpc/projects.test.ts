@@ -78,3 +78,37 @@ test("a project is created with a name and kind: without a folder in APX's home,
     fs.rmSync(outside, { recursive: true, force: true });
   }
 });
+
+test("register with init writes only what is missing, never over a file, and again is the same project", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-project-init-")));
+  try {
+    const plain = path.join(outside, "northwind");
+    fs.mkdirSync(plain);
+    const a = await env.client.call("projects.register", { path: plain, init: true });
+    assert.equal(fs.readFileSync(path.join(plain, "AGENTS.md"), "utf8"), "# northwind\n");
+    assert.ok(fs.statSync(path.join(plain, ".apc")).isDirectory());
+    fs.writeFileSync(path.join(plain, ".apc", "project.json"), '{"name":"Northwind"}');
+    const again = await env.client.call("projects.register", { path: plain, init: true });
+    assert.equal(again.project.id, a.project.id);
+    assert.equal(again.project.name, "Northwind");
+    assert.equal(fs.readFileSync(path.join(plain, ".apc", "project.json"), "utf8"), '{"name":"Northwind"}');
+
+    const documented = path.join(outside, "acme");
+    fs.mkdirSync(documented);
+    fs.writeFileSync(path.join(documented, "AGENTS.md"), "# Acme\n\nUse metric units.\n");
+    await env.client.call("projects.register", { path: documented, init: true });
+    assert.equal(fs.readFileSync(path.join(documented, "AGENTS.md"), "utf8"), "# Acme\n\nUse metric units.\n");
+    assert.ok(fs.existsSync(path.join(documented, ".apc")));
+
+    await assert.rejects(
+      env.client.call("projects.register", { path: path.join(outside, "missing"), init: true }),
+      /not a folder/,
+    );
+    assert.ok(!fs.existsSync(path.join(outside, "missing")));
+  } finally {
+    await env.core.close();
+    env.cleanup();
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});

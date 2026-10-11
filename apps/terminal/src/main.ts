@@ -9,6 +9,7 @@ import { chat } from "./commands/chat.ts";
 import { clients } from "./commands/clients.ts";
 import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
+import { init } from "./commands/init.ts";
 import { localConnection } from "./commands/local.ts";
 import { mcpCommand } from "./commands/mcp.ts";
 import { image, say, transcribe } from "./commands/media.ts";
@@ -85,6 +86,7 @@ Usage:
   apx usage [days]        Turns and tokens by model, and whether they were included or paid per token
   apx mcps [list [project]] | tools|run|check <server> | trust|untrust <project> <server> | add <name> <command…|url> | rm <name>
   apx mcps on|off <server> --project p   Turn one of your servers on or off inside a project
+  apx mcps logs <server> [--project p] [-n 100]   What a server printed on stderr since the core started
                            The one way to talk to an agent. Default: Home (the secretary)
   apx threads [list] | get <thread> | cancel <thread>
   apx threads search <words…>   Messages with every word, best first
@@ -94,6 +96,8 @@ Usage:
   apx projects [list] | register <folder> | sync [project]
                            Projects are folders with AGENTS.md / .apc/; their agents come from those files
   apx projects rm <project>   Forget a project in APX; its folder and files are never deleted
+  apx init [folder]       Make a folder (default: this one) an APC project and register it; writes only what is
+                           missing (AGENTS.md, .apc/), never over an existing file
   apx agents              Agents and the model each one runs on
   apx agents show <agent>            Its fields and full prompt
   apx agents new <slug> "<Name>" [--project <id>] [--role "<role>"]
@@ -343,6 +347,9 @@ try {
       break;
     case "projects":
       await projects(client, rest);
+      break;
+    case "init":
+      await init(client, rest, { json: values.json });
       break;
     case "models":
       await models(client, rest, values);
