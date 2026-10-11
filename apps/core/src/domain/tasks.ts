@@ -4,7 +4,7 @@ import type { CommitmentOutcome, Task, TaskColumn, TaskEvent, TaskKind, TaskPrio
 import type { Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { TasksTable } from "../db/schema.ts";
-import { badRequest } from "../errors.ts";
+import { badRequest, notFound, unauthorized } from "../errors.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 import type { Store } from "./store.ts";
 
@@ -43,6 +43,69 @@ export function dueOf(text: string | null | undefined): string | null {
 /** Tags as typed, without repeats (any case). */
 export const tagsOf = (tags: string[] | undefined) =>
   tags && [...new Map(tags.map((t) => [t.trim().toLowerCase(), t.trim()])).values()].filter(Boolean);
+
+// The checks a task call must pass, in one place: the methods run them, and the task tools run them before the owner
+// is asked, so nobody approves a call that could only fail.
+
+/**
+ * Where a caller works on the board: undefined is all of it (the owner, or the super-agent outside any project);
+ * any other agent works on its chat's project and the global tasks.
+ */
+export function boardScope(
+  store: Store,
+  agent: { id: string; thread_id: string } | undefined,
+): { project: string | undefined } | undefined {
+  if (!agent) return undefined;
+  const project = store.threads.get(agent.thread_id)?.project_id;
+  if (!project && store.agents.get(agent.id)?.kind === "secretary") return undefined;
+  return { project };
+}
+
+/** A task the caller may see and change. */
+export function visibleTask(store: Store, id: string, scope: { project: string | undefined } | undefined): Task {
+  const t = store.tasks.get(id);
+  if (!t) throw notFound(`task ${id}`);
+  if (scope && t.project_id && t.project_id !== scope.project)
+    throw unauthorized("an agent works only on its own project's tasks");
+  return t;
+}
+
+/** A column the board has. */
+export function checkColumn(store: Store, status: string | undefined): void {
+  const columns = columnsOf(store);
+  if (status && !columns.some((c) => c.id === status))
+    throw badRequest(`no column "${status}" (columns: ${columns.map((c) => c.id).join(", ")})`);
+}
+
+/** An assignee must exist and belong to the task's project (or to none). */
+export function checkAssignee(store: Store, id: string | null | undefined, project: string | undefined): void {
+  if (!id) return;
+  const a = store.agents.get(id);
+  if (!a) throw notFound(`agent ${id}`);
+  if (a.project_id && a.project_id !== project) throw badRequest(`${a.name} works in another project`);
+}
+
+/** A person by id or exact name (any case); never the owner or a blocked person, never a guess between two. */
+export function personOf(store: Store, ref: string): string {
+  const key = ref.trim().toLowerCase();
+  const byId = store.persons.get(ref);
+  const named = byId ? [byId] : store.persons.list().filter((x) => x.name.toLowerCase() === key);
+  if (named.length > 1) throw badRequest(`${named.length} contacts are called ${ref}; use the id`);
+  const p = named[0];
+  if (!p) throw notFound(`person ${ref} (add them to your contacts first)`);
+  if (p.role === "owner") throw badRequest("a commitment is with someone else, not with the owner");
+  if (p.role === "blocked") throw badRequest(`${p.name} is blocked`);
+  return p.id;
+}
+
+/** Whether a commitment can be settled that way. */
+export function checkSettle(t: Task, outcome: CommitmentOutcome | "renegotiated", due_at: string | undefined): void {
+  if (t.kind !== "commitment") throw badRequest("only a commitment is kept, missed or renegotiated");
+  if (outcome !== "renegotiated") return;
+  if (!due_at) throw badRequest("a renegotiated commitment needs its new date (due_at)");
+  if (t.state !== "open") throw badRequest("reopen it first: a closed commitment has no date to move");
+  dueOf(due_at);
+}
 
 /** Tasks with the name of their commitment's person. */
 const tasksQuery = () =>
