@@ -22,8 +22,19 @@ export async function loadNotifications(): Promise<void> {
   }
 }
 
+type NewNoticeListener = (n: Notification) => void;
+const listeners = new Set<NewNoticeListener>();
+
+/** Called for each notice that arrives unread, or comes back with news (a later turn in the same chat). */
+export function onNewNotice(listener: NewNoticeListener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
 /** A notification.updated event. */
 export function notificationChanged(n: Notification): void {
+  const prev = store.get().items[n.id];
+  if (!n.read_at && (!prev || prev.created_at !== n.created_at)) for (const l of listeners) l(n);
   store.set((s) => {
     const prev = s.items[n.id];
     // A notice not in the list yet that arrives read was unread before (it is older than the page we hold).

@@ -6,6 +6,7 @@ import { pairingChannel } from "../data/channels.ts";
 import { readNotifications, useAttention } from "../data/notifications.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "./nav.ts";
+import { startOsNotices } from "./osNotices.ts";
 
 const KIND_ICON: Record<Notification["kind"], typeof Icons.Bell> = {
   input: Icons.Hand,
@@ -35,6 +36,7 @@ export function AttentionTray() {
   const items = useAttention((s) => s.items);
   const unread = useAttention((s) => s.unread);
   const [open, setOpen] = useState(false);
+  useEffect(() => startOsNotices(), []);
   useEffect(() => {
     window.apxDesktop?.setAttention?.(unread);
   }, [unread]);
