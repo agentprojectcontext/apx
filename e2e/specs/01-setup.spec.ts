@@ -44,6 +44,10 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await expect(card.getByRole("switch")).not.toBeChecked();
   await card.getByRole("button", { name: "Quitar", exact: true }).click();
   await expect(card).toHaveCount(0);
+  // A built-in one removed is gone too, not back as a suggestion of its kind.
+  const anthropic = wizard.locator(".pcard").filter({ hasText: /^Anthropic/ });
+  await anthropic.getByRole("button", { name: "Quitar", exact: true }).click();
+  await expect(anthropic).toHaveCount(0);
   const ollama = wizard.locator(".pcard").filter({ hasText: /^Ollama/ });
   await ollama.getByRole("switch").click();
   await expect(wizard.locator(".chain__item")).toHaveCount(1);

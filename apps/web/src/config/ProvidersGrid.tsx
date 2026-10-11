@@ -169,7 +169,8 @@ function ProviderCard({ p, onEdit, compact }: { p: ProviderInfo; onEdit: () => v
           size="sm"
           label={t("providers.remove")}
           icon={<Icons.Trash2 size={14} />}
-          onClick={() => void removeProvider(p.id)}
+          // Removed means gone from the grid: not back as a suggestion of the same kind ("Add provider" still has it).
+          onClick={() => void removeProvider(p.id).then(() => hideSuggestion(kindOf(p)))}
         />
       </div>
     </div>
