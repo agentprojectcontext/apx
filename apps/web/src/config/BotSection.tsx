@@ -66,6 +66,8 @@ const BOTS: Record<BotKind, { name: string; steps: MessageKey[]; tokens: TokenSp
 };
 
 export const isBotKind = (k: string): k is BotKind => Object.hasOwn(BOTS, k);
+/** How to make a kind's bot and the token(s) it takes (the setup connects Discord and Slack with it too). */
+export const botSpec = (kind: BotKind) => BOTS[kind];
 
 /** A bot channel (Telegram, Discord, Slack): connect it, choose who answers, approve who may write, see what went out. */
 export function BotSection({ kind }: { kind: BotKind }) {
@@ -96,7 +98,7 @@ export function BotSection({ kind }: { kind: BotKind }) {
 }
 
 /** The token fields of a kind, as one value ("xoxb-… xapp-…" for Slack) once every field holds a valid token. */
-function useTokens(kind: BotKind) {
+export function useTokens(kind: BotKind) {
   const specs = BOTS[kind].tokens;
   const [values, setValues] = useState<string[]>(() => specs.map(() => ""));
   const ok = specs.every((s, i) => s.pattern.test((values[i] ?? "").trim()));

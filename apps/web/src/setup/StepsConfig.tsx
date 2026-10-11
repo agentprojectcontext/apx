@@ -1,7 +1,6 @@
 import { Badge, Button, Dialog, Icons, Input, ProjectTile, Select, Spinner, Switch } from "@apx/ui";
 import { useEffect, useRef, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
-import type { ChannelKind } from "../channels/kinds.ts";
 import { QrCode } from "../common/QrCode.tsx";
 import { RouterChain } from "../config/models/RouterChain.tsx";
 import { ProvidersGrid } from "../config/ProvidersGrid.tsx";
@@ -14,6 +13,7 @@ import { useSetup } from "../data/setup.ts";
 import { type DataState, useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { kindOptions, NO_KIND } from "../project/ProjectSettings.tsx";
+import { BotCard } from "./BotCard.tsx";
 import { type Draft, type StepProps, withStarters } from "./draft.ts";
 import { EmbedderCard } from "./EmbedderCard.tsx";
 import { StepHead } from "./StepsIntro.tsx";
@@ -131,12 +131,7 @@ export function MemoryStep({ draft: d, set }: StepProps) {
   );
 }
 
-const SOON: Array<{ kind: ChannelKind; line: MessageKey; body: MessageKey }> = [
-  { kind: "slack", line: "setup.channels.slack", body: "setup.channels.slackBody" },
-  { kind: "discord", line: "setup.channels.discord", body: "setup.channels.discordBody" },
-];
-
-/** Telegram (a token and it is up) and WhatsApp (a QR from the phone) work now; the rest are coming. */
+/** Telegram (a token and it is up), WhatsApp (a QR from the phone), Discord and Slack (their bot's token). */
 export function ChannelsStep({ name }: { name: string }) {
   const t = useT();
   return (
@@ -152,19 +147,8 @@ export function ChannelsStep({ name }: { name: string }) {
       <div className="wiz__engines">
         <TelegramCard />
         <WhatsAppCard />
-        {SOON.map((c) => (
-          <div key={c.kind} className="wiz__engine is-soon">
-            <div className="wiz__enginehead">
-              <KindTile kind={c.kind} size={34} />
-              <span className="wiz__enginetitles">
-                <b className="is-mono">{c.kind.toUpperCase()}</b>
-                <span>{t(c.line)}</span>
-              </span>
-              <Badge>{t("setup.channels.soon")}</Badge>
-            </div>
-            <p className="wiz__enginebody">{t(c.body)}</p>
-          </div>
-        ))}
+        <BotCard kind="discord" line="setup.channels.discord" body="setup.channels.discordBody" />
+        <BotCard kind="slack" line="setup.channels.slack" body="setup.channels.slackBody" />
       </div>
     </>
   );
@@ -332,8 +316,8 @@ export function ProjectStep({ draft: d, set }: StepProps) {
   };
   const choices: Array<{ id: Draft["projectChoice"]; title: MessageKey; body: MessageKey; icon: typeof Icons.Folder }> =
     [
-      { id: "folder", title: "setup.project.folder", body: "setup.project.folderBody", icon: Icons.Folder },
-      { id: "later", title: "setup.project.later", body: "setup.project.laterBody", icon: Icons.Clock },
+      { id: "folder", title: "setup.project.folder", body: "setup.project.folderBody", icon: Icons.FolderOpen },
+      { id: "later", title: "setup.project.later", body: "setup.project.laterBody", icon: Icons.Archive },
     ];
   return (
     <>

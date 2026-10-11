@@ -69,13 +69,19 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   // Channels: WhatsApp links from here too (it is linked in 10-whatsapp); the emulated Telegram bot.
   await expect(wizard.getByRole("button", { name: "Vincular" })).toBeVisible();
   const { token, repo } = await world.info();
-  await wizard.getByRole("textbox", { name: "Token del bot" }).fill(token);
-  await wizard.getByRole("button", { name: "Conectar" }).click();
+  await wizard.getByRole("textbox", { name: "Token del bot", exact: true }).fill(token);
+  const telegram = wizard.locator(".wiz__engine").filter({ hasText: "TELEGRAM" });
+  await telegram.getByRole("button", { name: "Conectar" }).click();
   await expect(wizard.getByText("@apx_test_bot")).toBeVisible();
+  // Discord and Slack connect from here too (their bot's token), with how to make the bot one click away.
+  const discord = wizard.locator(".wiz__engine").filter({ hasText: "DISCORD" });
+  await expect(discord.getByRole("textbox", { name: "Discord: Token del bot" })).toBeVisible();
+  await discord.getByRole("button", { name: /Cómo crear el bot de Discord/ }).click();
+  await expect(discord.locator(".wiz__howto li")).toHaveCount(4);
   await wizard.getByRole("button", { name: "Continuar" }).click();
 
   // A project with a folder.
-  await wizard.getByRole("button", { name: /Con carpeta/ }).click();
+  await wizard.getByRole("button", { name: /Elegir una carpeta/ }).click();
   await wizard.getByPlaceholder("/ruta/a/tu/proyecto").fill(repo);
   await wizard.getByRole("button", { name: "Crear crew" }).click();
   await expect(wizard.getByText(/está listo|is ready/)).toBeVisible();
@@ -146,7 +152,7 @@ test("the setup opens again from the account menu and starts from scratch", asyn
   await baseName.fill("Northwind");
   await wizard.getByRole("combobox", { name: "Tipo" }).click();
   await page.getByRole("option", { name: /Empresa/ }).click();
-  await wizard.getByRole("button", { name: /Por ahora no/ }).click();
+  await wizard.getByRole("button", { name: /Usar la carpeta de APX/ }).click();
   await wizard.getByRole("button", { name: "Crear crew" }).click();
   await wizard.getByRole("button", { name: "Ahora no" }).click();
   await expect(wizard).toBeHidden();

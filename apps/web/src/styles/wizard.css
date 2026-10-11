@@ -472,6 +472,22 @@ input.wiz__name {
 .wiz__hintline.is-error {
   color: var(--apx-danger);
 }
+.wiz__hintline.is-link {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.wiz__howto {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+  line-height: 1.5;
+}
 .wiz__hintline.is-ok {
   color: var(--apx-brand-soft-fg);
 }
