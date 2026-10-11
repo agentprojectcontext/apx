@@ -6,7 +6,6 @@ export const enSetup = {
   "setup.welcome.start": "Start",
   "setup.next": "Continue",
   "setup.create": "Create crew",
-  "setup.open": "Open APX",
   "setup.working": "Saving…",
   "setup.step.welcome": "Welcome",
   "setup.step.import": "Import v1",
@@ -167,7 +166,8 @@ export const enSetup = {
   "setup.done.ready": "is ready.",
   "setup.done.body":
     "Your crew lives in {home} and in each project's .apc/. Everything can be changed later in Settings.",
-  "setup.done.copy": "Copy",
+  "setup.done.opening": "Opening your chat with {name}…",
+  "setup.done.takeOverSkip": "Not now",
   "setup.done.takeOverDo": "Use v2 as apx",
   "setup.done.takeOverDone": "Done: apx is now v2.",
   "setup.done.takeOver": "Make apx this version",

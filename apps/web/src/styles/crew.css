@@ -1,0 +1,190 @@
+/* The website's hero ("Meet your crew") and its stage: the desktop app's first run and the setup's welcome. */
+/* Desktop first run: the website's hero, then the question unrolls under it like a blind. */
+.wiz.is-connect .wiz__scroll {
+  overflow-x: hidden;
+}
+/* The intro places itself (top-anchored), so the choice lands near the middle once the headline rises. */
+.wiz__grid.connect:has(.connect__stage) {
+  align-content: start;
+}
+.connect__stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  min-height: 100%;
+}
+.connect__stage::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1600px;
+  height: 820px;
+  pointer-events: none;
+  background:
+    radial-gradient(560px 360px at 50% 42%, color-mix(in srgb, var(--apx-brand) 14%, transparent), transparent 70%),
+    radial-gradient(460px 280px at 32% 30%, rgba(139, 92, 246, 0.1), transparent 70%),
+    radial-gradient(460px 280px at 68% 34%, rgba(255, 122, 26, 0.08), transparent 70%);
+  transform: translateX(-50%);
+  mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 70%, transparent);
+  transition: opacity 0.9s;
+}
+.connect__stage.is-ready::before {
+  opacity: 0.45;
+}
+.crew {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  align-items: center;
+  margin-top: 12vh;
+  text-align: center;
+  transition:
+    margin-top 0.9s cubic-bezier(0.7, 0, 0.2, 1),
+    gap 0.9s cubic-bezier(0.7, 0, 0.2, 1);
+}
+.crew.is-compact {
+  gap: 0;
+  margin-top: 4vh;
+}
+.crew__pill {
+  max-height: 40px;
+  animation: crew-fade 0.8s ease both;
+  transition:
+    opacity 0.4s,
+    max-height 0.9s cubic-bezier(0.7, 0, 0.2, 1);
+}
+/* Once the question shows, the headline alone stays on top: the choice sits near the middle of the window. */
+.crew.is-compact .crew__pill {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+.crew__title {
+  margin: 0;
+  font-size: clamp(56px, 9vw, 116px);
+  font-weight: 600;
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+  transition: font-size 0.9s cubic-bezier(0.7, 0, 0.2, 1);
+}
+.crew.is-compact .crew__title {
+  font-size: clamp(36px, 4.6vw, 54px);
+}
+.crew__row {
+  display: flex;
+  gap: 0.18em;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+.crew__blob {
+  display: inline-flex;
+  width: 0.92em;
+  height: 0.92em;
+}
+.crew__blob .crew__face {
+  animation: crew-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.crew__ch {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(12px);
+  transform: translateY(0.35em);
+  animation: crew-ch 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.crew__word {
+  display: inline-block;
+  padding-bottom: 0.08em;
+  color: var(--apx-brand);
+}
+/* The sheen only once the word turns: letters easing in under a text-clipped background would not show. */
+.crew__word.is-sheen {
+  color: transparent;
+  background: linear-gradient(95deg, var(--apx-fg) 10%, var(--apx-brand) 50%, var(--apx-fg) 90%);
+  background-clip: text;
+  background-size: 200% 100%;
+  animation: crew-sheen 6s linear infinite;
+}
+.crew__parade {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  max-height: 64px;
+  transition:
+    opacity 0.5s,
+    max-height 0.9s cubic-bezier(0.7, 0, 0.2, 1);
+}
+.crew.is-compact .crew__parade {
+  max-height: 0;
+  opacity: 0;
+}
+.crew__member {
+  opacity: 0;
+  animation: crew-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.connect__blind {
+  width: 100%;
+  max-width: 760px;
+  margin-top: 18px;
+  opacity: 0;
+  clip-path: inset(0 0 100% 0);
+  transform: translateY(-28px);
+  transition:
+    clip-path 1s cubic-bezier(0.7, 0, 0.2, 1) 0.25s,
+    transform 1s cubic-bezier(0.7, 0, 0.2, 1) 0.25s,
+    opacity 0.4s 0.25s;
+}
+.is-ready .connect__blind {
+  opacity: 1;
+  clip-path: inset(0 0 0 0);
+  transform: none;
+}
+@keyframes crew-ch {
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+@keyframes crew-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2) rotate(-25deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes crew-sheen {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes crew-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crew__ch,
+  .crew__member,
+  .crew__blob .crew__face,
+  .crew__pill {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    animation: none;
+  }
+  .crew,
+  .crew__title,
+  .crew__parade,
+  .connect__blind {
+    transition: none;
+  }
+}

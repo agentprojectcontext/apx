@@ -75,8 +75,12 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await wizard.getByPlaceholder("/ruta/a/tu/proyecto").fill(repo);
   await wizard.getByRole("button", { name: "Crear crew" }).click();
   await expect(wizard.getByText(/está listo|is ready/)).toBeVisible();
-  await wizard.getByRole("button", { name: "Abrir APX" }).click();
+  // With v1's `apx` here the owner first says whether `apx` becomes v2; then the app opens by itself.
+  await expect(wizard.getByText("Abriendo tu chat con Robina…")).toBeHidden();
+  await wizard.getByRole("button", { name: "Ahora no" }).click();
+  await expect(wizard.getByText("Abriendo tu chat con Robina…")).toBeVisible();
   await expect(wizard).toBeHidden();
+  await expect(page).toHaveURL(/thread=home/);
 
   // What came in.
   const projects = (await rpc<{ projects: Array<{ name: string }> }>("projects.list")).projects.map((p) => p.name);
@@ -119,7 +123,7 @@ test("the setup opens again from the account menu and starts from scratch", asyn
   await page.getByRole("option", { name: /Empresa/ }).click();
   await wizard.getByRole("button", { name: /Por ahora no/ }).click();
   await wizard.getByRole("button", { name: "Crear crew" }).click();
-  await wizard.getByRole("button", { name: "Abrir APX" }).click();
+  await wizard.getByRole("button", { name: "Ahora no" }).click();
   await expect(wizard).toBeHidden();
   const { base } = await rpc<{ base: { name: string; kind?: string } }>("projects.list");
   expect(base).toEqual({ name: "Northwind", kind: "company" });

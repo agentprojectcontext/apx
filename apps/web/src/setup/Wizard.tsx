@@ -173,7 +173,7 @@ export function Wizard() {
   const finish = async () => {
     await finishSetup();
     await bootstrap().catch(() => {});
-    go.inbox();
+    go.inboxThread("home");
   };
 
   const name = d.name.trim() || t("setup.preview.unset");
@@ -185,7 +185,7 @@ export function Wizard() {
     memory: <MemoryStep draft={d} set={set} />,
     channels: <ChannelsStep name={d.name.trim() || t("agent.super")} />,
     project: <ProjectStep draft={d} set={set} />,
-    done: <DoneStep name={name} />,
+    done: <DoneStep name={name} onFinish={() => void finish()} />,
   };
 
   return (
@@ -223,7 +223,7 @@ export function Wizard() {
         <div className={`wiz__grid${step === "welcome" ? " is-single" : ""}`}>
           <div className="wiz__main">
             {body[step]}
-            {step !== "welcome" && (
+            {step !== "welcome" && step !== "done" && (
               <div className="wiz__foot">
                 {at > 0 && (
                   <button type="button" className="wiz__back" onClick={() => setAt((i) => Math.max(i - 1, 0))}>
@@ -232,15 +232,9 @@ export function Wizard() {
                 )}
                 <span className="wiz__spacer" />
                 {blocked && <span className="wiz__hint">{t(blocked)}</span>}
-                {step === "done" ? (
-                  <Button size="lg" onClick={() => void finish()}>
-                    {t("setup.open")}
-                  </Button>
-                ) : (
-                  <Button size="lg" disabled={Boolean(blocked)} loading={busy} onClick={() => void next()}>
-                    {step === "project" ? t("setup.create") : t("setup.next")}
-                  </Button>
-                )}
+                <Button size="lg" disabled={Boolean(blocked)} loading={busy} onClick={() => void next()}>
+                  {step === "project" ? t("setup.create") : t("setup.next")}
+                </Button>
               </div>
             )}
           </div>

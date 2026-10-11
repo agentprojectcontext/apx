@@ -405,13 +405,26 @@ export function ProjectStep({ draft: d, set }: StepProps) {
   );
 }
 
-export function DoneStep({ name }: { name: string }) {
+/** How long "ready" shows before the app opens by itself. */
+const DONE_MS = 2400;
+
+/**
+ * The crew is ready: a moment to read it, then the app opens by itself. With v1's `apx` on this machine the owner
+ * first says whether `apx` becomes this one (a real choice, so it waits for it).
+ */
+export function DoneStep({ name, onFinish }: { name: string; onFinish: () => void }) {
   const t = useT();
   const home = useSetup((s) => s.status?.v1?.home);
   const terminal = useSetup((s) => s.status?.terminal);
-  const [cli, setCli] = useState<{ busy?: boolean; ok?: boolean; detail?: string }>({});
-  const command = "apx status";
-  const copy = () => void navigator.clipboard.writeText(command).catch(() => {});
+  const [cli, setCli] = useState<{ busy?: boolean; ok?: boolean; skip?: boolean; detail?: string }>({});
+  const asks = Boolean(home && terminal) && !cli.ok && !cli.skip;
+  const finish = useRef(onFinish);
+  finish.current = onFinish;
+  useEffect(() => {
+    if (asks) return;
+    const timer = window.setTimeout(() => finish.current(), DONE_MS);
+    return () => window.clearTimeout(timer);
+  }, [asks]);
   const takeOver = async () => {
     setCli({ busy: true });
     try {
@@ -436,19 +449,24 @@ export function DoneStep({ name }: { name: string }) {
               <Icons.Check size={12} /> {t("setup.done.takeOverDone")}
             </span>
           ) : (
-            <Button size="sm" variant="secondary" loading={cli.busy} onClick={() => void takeOver()}>
-              {t("setup.done.takeOverDo")}
-            </Button>
+            !cli.skip && (
+              <span className="wiz__inline">
+                <Button size="sm" variant="secondary" loading={cli.busy} onClick={() => void takeOver()}>
+                  {t("setup.done.takeOverDo")}
+                </Button>
+                <Button size="sm" variant="ghost" disabled={cli.busy} onClick={() => setCli({ skip: true })}>
+                  {t("setup.done.takeOverSkip")}
+                </Button>
+              </span>
+            )
           )}
           {cli.ok === false && <span className="wiz__hintline is-error">{cli.detail}</span>}
         </div>
       )}
-      {(cli.ok || !home) && (
-        <span className="wiz__command">
-          <span className="is-muted">$</span> {command}
-          <button type="button" onClick={copy}>
-            {t("setup.done.copy")}
-          </button>
+      {!asks && (
+        <span className="wiz__opening" role="status">
+          <span className="wiz__openingbar" style={{ animationDuration: `${DONE_MS}ms` }} />
+          {t("setup.done.opening", { name })}
         </span>
       )}
     </div>
