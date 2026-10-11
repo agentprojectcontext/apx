@@ -25,7 +25,9 @@
   "mac": {
     "target": ["dmg", "zip"],
     "icon": "assets/icon.png",
-    "category": "public.app-category.productivity"
+    "category": "public.app-category.productivity",
+    "identity": "-",
+    "hardenedRuntime": false
   },
   "win": {
     "target": ["nsis", "zip"],
