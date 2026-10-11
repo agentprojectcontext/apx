@@ -1186,12 +1186,17 @@ export const es: Partial<Record<MessageKey, string>> = {
     "El archivo del modelo ggml. APX arranca whisper.cpp cuando llega una nota de voz y lo apaga tras 10 minutos sin uso. Necesita whisper.cpp y ffmpeg instalados.",
   "rooms.title": "Salas del servidor",
   "rooms.lead":
-    "Las salas de tu servidor donde el bot lee y puede hablar. Una sala que no está en la lista no existe para APX. Ahí contesta en público y sellado: sin herramientas, sin memoria y sin nada tuyo, también cuando escribís vos.",
+    "Las salas de tu servidor donde el bot lee y puede hablar. Una sala que no está en la lista no existe para APX. Ahí contesta en público y sellado: sin memoria y sin nada tuyo, también cuando escribís vos; como mucho busca en la web, según diga “Buscar en la web”.",
   "rooms.mode": "Modo de #{room}",
   "rooms.mode.mention": "Cuando lo llaman",
   "rooms.mode.useful": "Cuando sirve",
   "rooms.mode.always": "Siempre",
   "rooms.mode.read": "Solo leer",
+  "rooms.modeHint.mention": "Contesta cuando alguien dice su nombre, lo @menciona o le responde.",
+  "rooms.modeHint.useful":
+    "También cuando nadie lo llama: un modelo barato lee cada mensaje y contesta solo si vale la pena, con tu criterio de abajo.",
+  "rooms.modeHint.always": "Contesta todos los mensajes, dentro de los límites de la sala.",
+  "rooms.modeHint.read": "Nunca contesta; guarda lo que se dice para que tus agentes lo puedan leer.",
   "rooms.remove": "Quitar #{room}",
   "rooms.name": "Nombre de la sala",
   "rooms.namePlaceholder": "general",

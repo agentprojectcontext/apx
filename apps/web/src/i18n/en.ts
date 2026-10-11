@@ -1179,12 +1179,17 @@ export const en = {
     "The ggml model file. APX starts whisper.cpp when a voice note arrives and stops it after 10 minutes unused. It needs whisper.cpp and ffmpeg installed.",
   "rooms.title": "Server rooms",
   "rooms.lead":
-    "The rooms of your server where the bot reads and may speak. A room not on the list does not exist for APX. There it answers in public and sealed: no tools, no memory and nothing of yours, also when you write.",
+    "The rooms of your server where the bot reads and may speak. A room not on the list does not exist for APX. There it answers in public and sealed: no memory and nothing of yours, also when you write; at most it searches the web, as “Search the web” says.",
   "rooms.mode": "Mode of #{room}",
   "rooms.mode.mention": "When called",
   "rooms.mode.useful": "When useful",
   "rooms.mode.always": "Always",
   "rooms.mode.read": "Read only",
+  "rooms.modeHint.mention": "Answers when someone says its name, @mentions it or replies to it.",
+  "rooms.modeHint.useful":
+    "Also when nobody calls it: a cheap model reads each message and answers only if it is worth it, by your criterion below.",
+  "rooms.modeHint.always": "Answers every message, within the room's limits.",
+  "rooms.modeHint.read": "Never answers; it keeps what is said so your agents can read it.",
   "rooms.remove": "Remove #{room}",
   "rooms.name": "Room name",
   "rooms.namePlaceholder": "general",

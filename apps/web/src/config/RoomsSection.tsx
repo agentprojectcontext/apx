@@ -57,7 +57,11 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
               onValueChange={(v) =>
                 v && set({ rooms: cur.rooms.map((x) => (x.id === r.id ? { ...x, mode: v as RoomMode } : x)) })
               }
-              options={MODES.map((m) => ({ value: m, label: t(`rooms.mode.${m}`) }))}
+              options={MODES.map((m) => ({
+                value: m,
+                label: t(`rooms.mode.${m}`),
+                description: t(`rooms.modeHint.${m}`),
+              }))}
             />
             <Button
               size="sm"
