@@ -67,6 +67,20 @@ export function nudgesRepo({ one, all, run }: Sql) {
       if (by.kind) q = q.where("kind", "=", by.kind);
       return one(q.orderBy("at", "desc").limit(1))?.at;
     },
+    /** What went out to the owner after `at`, oldest first. */
+    sentSince(at: string, limit: number): Nudge[] {
+      return all(
+        qb
+          .selectFrom("nudges")
+          .selectAll()
+          .where("state", "=", "sent")
+          .where("at", ">", at)
+          .orderBy("n", "desc")
+          .limit(limit),
+      )
+        .map(toNudge)
+        .reverse();
+    },
     /** Held messages whose wait is over, oldest first. */
     heldUntil(at: string): Nudge[] {
       return all(

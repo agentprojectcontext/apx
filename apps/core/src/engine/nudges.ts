@@ -7,6 +7,7 @@ import type { Nudge } from "@apx/protocol";
 import { inQuietHours, noticePrefs, quietEnd } from "../domain/notices.ts";
 import { nudgeId } from "../domain/nudges.ts";
 import type { Store } from "../domain/store.ts";
+import { untrusted } from "../tools/result.ts";
 
 /** How far back the owner's 👍/👎 count, and how many 👎 (with no later 👍) mute a kind. */
 const RATING_DAYS = 14;
@@ -29,6 +30,28 @@ export function ratingNote(store: Store, kind: string, at = new Date()): string 
   if (!r.up && !r.down) return "";
   const last = r.last === "down" ? "not useful" : "useful";
   return `In the last ${RATING_DAYS} days the owner marked ${r.up} of these messages useful and ${r.down} not useful (the latest: ${last}).${r.last === "down" ? " Be shorter and say only what changed; if nothing did, say so in one line." : ""}`;
+}
+
+/** How many of the messages sent meanwhile a turn sees, and how much of each. */
+const MEANWHILE_MAX = 3;
+const MEANWHILE_CHARS = 600;
+/** With no earlier turn in the chat, how far back "meanwhile" goes. */
+const MEANWHILE_FIRST_MS = 12 * 3600_000;
+
+/**
+ * What APX sent the owner unasked since this chat's previous turn (routine news, the team news): they answer it on
+ * the same channel, so the turn must know what they are answering. Agents' words, so outside data.
+ */
+export function sentMeanwhile(store: Store, threadId: string, runId: string, at = new Date()): string | undefined {
+  const previous = store.runs.list(threadId, 2).find((r) => r.id !== runId);
+  const since = previous?.started_at ?? new Date(at.getTime() - MEANWHILE_FIRST_MS).toISOString();
+  const sent = store.nudges.sentSince(since, MEANWHILE_MAX);
+  if (!sent.length) return undefined;
+  return sent
+    .map((n) =>
+      untrusted("sent_to_owner", { what: n.kind.replace(/^routine:/, ""), at: n.at }, n.text.slice(0, MEANWHILE_CHARS)),
+    )
+    .join("\n");
 }
 
 export type Offer = {

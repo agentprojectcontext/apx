@@ -232,6 +232,8 @@ export function turnInput(opts: {
   waiting?: string | undefined;
   /** A routine's turn: how the owner rated its earlier messages. */
   feedback?: string | undefined;
+  /** What APX sent the owner on their channel since this chat's previous turn: what they may be answering. */
+  meanwhile?: string | undefined;
   /** The owner's time zone (IANA); none: this machine's. */
   timeZone?: string | undefined;
   /** Where this message came from ("telegram", "whatsapp"…); none: the app. */
@@ -259,6 +261,7 @@ export function turnInput(opts: {
     opts.extension ? `[extension context]\n${opts.extension}` : "",
     opts.waiting ? `[waiting]\n${opts.waiting}` : "",
     opts.feedback ? `[owner feedback]\n${opts.feedback}` : "",
+    opts.meanwhile ? `[sent to the owner since your last turn here, on their channel]\n${opts.meanwhile}` : "",
   ].filter(Boolean);
   return `${head.join("\n")}\n\n${frameInput(opts.origin, opts.text)}`;
 }

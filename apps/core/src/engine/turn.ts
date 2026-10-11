@@ -56,7 +56,7 @@ import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
-import { ratingNote } from "./nudges.ts";
+import { ratingNote, sentMeanwhile } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands } from "./pipeline.ts";
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
@@ -372,6 +372,11 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
                 channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
                 voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
                 feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
+                // The owner's channel lands in Home: what went out on it meanwhile is what they may be answering.
+                meanwhile:
+                  thread.kind === "home" && (o.kind === "user" || (o.kind === "channel" && o.role === "owner"))
+                    ? sentMeanwhile(store, thread.id, run.id)
+                    : undefined,
               }),
       };
   const at = store.modelLog.append(thread.id, run.id, [input]);
