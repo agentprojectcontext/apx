@@ -179,14 +179,15 @@ export async function wizard(client: ApxClient): Promise<void> {
     completer: (line: string): [string[], string] => [commands.filter((c) => c.startsWith(line)), line],
   });
   let closed = false;
-  let busy = false;
+  const runner = consoleCommands(client);
   rl.on("SIGINT", () => {
     process.exitCode = 130;
     rl.close();
   });
+  // Never process.exit here: exiting while a request is still open can crash Node on Windows (a libuv assertion).
   rl.on("close", () => {
     closed = true;
-    if (busy) process.exit(Number(process.exitCode ?? 0));
+    runner.cancel();
   });
   const menu = () =>
     console.log(
@@ -226,32 +227,55 @@ export async function wizard(client: ApxClient): Promise<void> {
       choice = aliases[choice] ?? choice;
       if (!choice) continue;
       if (choice === "/quit" || choice === "exit") break;
-      busy = true;
       try {
-        if (choice === "/status") await status(client, {});
-        else if (choice === "/devices") await admin(client, "devices", [], {});
-        else if (choice === "/tailscale") await admin(client, "tailscale", ["status"], {});
-        else if (choice === "/connect") await admin(client, "tailscale", ["connect"], {});
-        else if (choice === "/pair") await pair(client);
-        else if (choice === "/updates") await admin(client, "upgrade", [], { check: true });
-        else if (choice === "/panel") console.log(`Open the APX panel: ${localConnection().url}`);
-        else if (choice === "/help") menu();
-        else if (choice.startsWith("daemon") || choice.startsWith("/daemon"))
-          console.log(card("Use service", ["Background core: apx service status", "Restart: apx service restart"]));
-        else
-          console.log(
-            card("404 · Command not found", [
-              `Unknown console command: ${choice}`,
-              "Use /help to see commands; /quit to return to your shell.",
-            ]),
-          );
+        await runner.run((c) => consoleCommand(c, choice, menu));
       } catch (err) {
-        console.error(card("Command failed", [err instanceof Error ? err.message : String(err)]));
-      } finally {
-        busy = false;
+        if (!closed) console.error(card("Command failed", [err instanceof Error ? err.message : String(err)]));
       }
     }
   } finally {
     rl.close();
   }
+}
+
+/**
+ * Runs one console command at a time on a client of its own, so `cancel` (the console closing) aborts the
+ * request still in flight and Node can exit on its own.
+ */
+export function consoleCommands(client: ApxClient) {
+  let current: AbortController | undefined;
+  return {
+    async run(command: (client: ApxClient) => Promise<void>): Promise<void> {
+      const controller = new AbortController();
+      current = controller;
+      try {
+        await command(client.withSignal(controller.signal));
+      } finally {
+        if (current === controller) current = undefined;
+      }
+    },
+    cancel(): void {
+      current?.abort();
+    },
+  };
+}
+
+async function consoleCommand(client: ApxClient, choice: string, menu: () => void): Promise<void> {
+  if (choice === "/status") await status(client, {});
+  else if (choice === "/devices") await admin(client, "devices", [], {});
+  else if (choice === "/tailscale") await admin(client, "tailscale", ["status"], {});
+  else if (choice === "/connect") await admin(client, "tailscale", ["connect"], {});
+  else if (choice === "/pair") await pair(client);
+  else if (choice === "/updates") await admin(client, "upgrade", [], { check: true });
+  else if (choice === "/panel") console.log(`Open the APX panel: ${localConnection().url}`);
+  else if (choice === "/help") menu();
+  else if (choice.startsWith("daemon") || choice.startsWith("/daemon"))
+    console.log(card("Use service", ["Background core: apx service status", "Restart: apx service restart"]));
+  else
+    console.log(
+      card("404 · Command not found", [
+        `Unknown console command: ${choice}`,
+        "Use /help to see commands; /quit to return to your shell.",
+      ]),
+    );
 }
