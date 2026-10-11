@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { draftOf, keepDraft } from "./chat/drafts";
 import { type CatalogEngine, choiceText, type ModelChoice } from "./chat/models";
 import { isNewChat } from "./chat/newChat";
-import { type TranscriptRow, usageText, withDays } from "./chat/transcript";
+import { showsStartHint, type TranscriptRow, usageText, withDays } from "./chat/transcript";
 import { useAttachments } from "./chat/useAttachments";
 import { useVoiceNote } from "./chat/useVoiceNote";
 import type { Creds } from "./creds";
@@ -18,7 +18,7 @@ import { ChatMenu } from "./ui/ChatMenu";
 import { ChatMessage } from "./ui/ChatMessage";
 import { EngineIcon } from "./ui/EngineIcon";
 import { Icon } from "./ui/Icon";
-import { AgentAvatar, BottomSheet, IconButton, ListRow, Spinner } from "./ui/kit";
+import { AgentAvatar, BottomSheet, EmptyState, IconButton, ListRow, Spinner } from "./ui/kit";
 import { ModelSheet } from "./ui/ModelSheet";
 import { theme } from "./ui/theme";
 
@@ -161,27 +161,33 @@ export function ChatScreen({
           />
         )}
       </View>
-      <FlatList
-        ref={list}
-        inverted
-        data={rows}
-        keyExtractor={(row) => (row.kind === "day" ? row.key : row.message.id)}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        contentContainerStyle={s.transcript}
-        renderItem={({ item }) =>
-          item.kind === "day" ? (
-            <Text style={s.day}>{dayLabel(item.at)}</Text>
-          ) : (
-            <ChatMessage
-              message={item.message}
-              agents={data.agents}
-              waiting={live.state === "input-required"}
-              respond={live.respond}
-            />
-          )
-        }
-      />
+      {showsStartHint({ rows: rows.length, working, fresh, loaded: Boolean(live.thread) }) ? (
+        <View style={s.empty}>
+          <EmptyState icon="MessageCircle" title={t("chatWith", { name })} body={t("chatStartHint")} />
+        </View>
+      ) : (
+        <FlatList
+          ref={list}
+          inverted
+          data={rows}
+          keyExtractor={(row) => (row.kind === "day" ? row.key : row.message.id)}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={s.transcript}
+          renderItem={({ item }) =>
+            item.kind === "day" ? (
+              <Text style={s.day}>{dayLabel(item.at)}</Text>
+            ) : (
+              <ChatMessage
+                message={item.message}
+                agents={data.agents}
+                waiting={live.state === "input-required"}
+                respond={live.respond}
+              />
+            )
+          }
+        />
+      )}
       {live.error ? <Text style={s.error}>{live.error}</Text> : null}
       <ChatComposer
         text={text}
@@ -287,6 +293,7 @@ const s = StyleSheet.create({
   status: { flexDirection: "row", alignItems: "center", gap: 6 },
   statusText: { color: theme.fgSubtle, fontSize: 12, flexShrink: 1 },
   transcript: { paddingHorizontal: 16, paddingVertical: 12 },
+  empty: { flex: 1, justifyContent: "center" },
   day: { alignSelf: "center", color: theme.fgSubtle, fontSize: 12, paddingVertical: 8 },
   error: { color: theme.danger, paddingHorizontal: 16, paddingVertical: 4, fontSize: 12 },
 });

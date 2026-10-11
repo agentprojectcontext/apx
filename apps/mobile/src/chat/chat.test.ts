@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Message } from "../protocol";
 import { choiceText, modelOptions, splitRef } from "./models.ts";
-import { compact, usageText, withDays } from "./transcript.ts";
+import { compact, showsStartHint, usageText, withDays } from "./transcript.ts";
 
 const message = (id: string, created_at: string): Message =>
   ({ id, thread_id: "t", seq: 1, author: { kind: "user" }, parts: [], created_at }) as Message;
@@ -72,4 +72,13 @@ test("a model choice reads as its ref without the effort, or as the router", () 
   assert.equal(choiceText({ model: "chatgpt/gpt-6#high", router: false }, catalog, "Auto"), "chatgpt/gpt-6");
   assert.equal(choiceText({ model: "gemini", router: false }, catalog, "Auto"), "Gemini");
   assert.equal(choiceText({ router: true }, catalog, "Auto"), "Auto");
+});
+
+test("an empty chat says where to start once loaded, not while loading or while the agent works", () => {
+  const empty = { rows: 0, working: false, fresh: false, loaded: true };
+  assert.equal(showsStartHint(empty), true);
+  assert.equal(showsStartHint({ ...empty, loaded: false }), false);
+  assert.equal(showsStartHint({ ...empty, loaded: false, fresh: true }), true);
+  assert.equal(showsStartHint({ ...empty, working: true }), false);
+  assert.equal(showsStartHint({ ...empty, rows: 2 }), false);
 });

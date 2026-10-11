@@ -88,6 +88,8 @@ export const en = {
   noChatsBody: "Try another filter or start a conversation.",
   noMessagesYet: "No messages yet.",
   newChat: "New chat",
+  chatWith: "Chat with {name}",
+  chatStartHint: "Write below to get started.",
   inboxApproval: "Approval",
   inboxQuestion: "Question",
   inboxBlocked: "Blocked",

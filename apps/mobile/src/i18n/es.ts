@@ -91,6 +91,8 @@ export const es: Record<Key, string> = {
   noChatsBody: "Probá otro filtro o empezá una conversación.",
   noMessagesYet: "Todavía no hay mensajes.",
   newChat: "Nuevo chat",
+  chatWith: "Chat con {name}",
+  chatStartHint: "Escribí abajo para empezar.",
   inboxApproval: "Aprobación",
   inboxQuestion: "Pregunta",
   inboxBlocked: "Bloqueada",

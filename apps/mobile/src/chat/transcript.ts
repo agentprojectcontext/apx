@@ -34,3 +34,8 @@ export function usageText(usage?: { context?: number; window?: number }): string
   if (!usage?.context) return undefined;
   return usage.window ? `${compact(usage.context)} / ${compact(usage.window)}` : compact(usage.context);
 }
+
+/** A chat with no message yet says where to start, once it has loaded (a new chat has nothing to load). */
+export function showsStartHint(chat: { rows: number; working: boolean; fresh: boolean; loaded: boolean }): boolean {
+  return chat.rows === 0 && !chat.working && (chat.fresh || chat.loaded);
+}
