@@ -1,5 +1,6 @@
 // First run: a new install opens the setup by itself. Bringing v1 in, then the super-agent, engines, memory, the
 // Telegram bot (emulated) and a project folder; then the setup again from the account menu, from scratch.
+import { AGENT_NAMES } from "../../packages/protocol/src/constants.ts";
 import { expect, rpc, test, until, world } from "./kit.ts";
 
 test("a new install opens the setup and imports APX v1", async ({ page }) => {
@@ -103,7 +104,12 @@ test("the setup opens again from the account menu and starts from scratch", asyn
   await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
   const wizard = page.locator(".wiz");
   await wizard.getByRole("button", { name: /Empezar de cero/ }).click();
-  await expect(wizard.getByRole("textbox", { name: "Nombre" })).toHaveValue("Robina");
+  const name = wizard.getByRole("textbox", { name: "Nombre" });
+  await expect(name).toHaveValue("Robina");
+  // The dice picks another of the names a fresh install picks from.
+  await wizard.getByRole("button", { name: "Otro nombre" }).click();
+  await expect(name).toHaveValue(new RegExp(`^(${AGENT_NAMES.join("|")})$`));
+  await name.fill("Robina");
   for (let i = 0; i < 4; i++) await wizard.getByRole("button", { name: "Continuar" }).click();
   // The base project gets a name (it could stay Default) and a kind before any folder.
   const baseName = wizard.getByRole("textbox", { name: "Nombre del proyecto base" });

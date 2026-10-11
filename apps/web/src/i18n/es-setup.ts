@@ -83,6 +83,7 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.agent.body":
     "Coordina al resto, atiende tus canales y vive en Default. Elegí su blobo y su nombre: va apareciendo a la derecha.",
   "setup.agent.name": "Nombre",
+  "setup.agent.randomName": "Otro nombre",
   "setup.agent.namePlaceholder": "Por ejemplo, Roby",
   "setup.agent.blobs": "Blobo · {n} caras",
   "setup.agent.needBlob": "Elegí un blobo",

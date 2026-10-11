@@ -82,6 +82,7 @@ export const enSetup = {
   "setup.agent.body":
     "It coordinates the rest, answers your channels and lives in Default. Pick its blob and its name: it shows up on the right.",
   "setup.agent.name": "Name",
+  "setup.agent.randomName": "Another name",
   "setup.agent.namePlaceholder": "For example, Roby",
   "setup.agent.blobs": "Blob · {n} faces",
   "setup.agent.needBlob": "Pick a blob",

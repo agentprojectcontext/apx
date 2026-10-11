@@ -3,9 +3,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { AGENT_NAMES } from "@apx/protocol";
 import { testConfig } from "../config.ts";
 import { createCore } from "../server.ts";
-import { AGENT_NAMES } from "./seed.ts";
 
 test("a fresh install names its super-agent from the list, unless the install says which name", async () => {
   for (const agentName of [undefined, "Ada"]) {
@@ -15,6 +15,6 @@ test("a fresh install names its super-agent from the list, unless the install sa
     await core.close();
     fs.rmSync(home, { recursive: true, force: true });
     if (agentName) assert.equal(boss?.name, agentName);
-    else assert.ok(AGENT_NAMES.includes(boss?.name ?? ""), `unexpected name ${boss?.name}`);
+    else assert.ok((AGENT_NAMES as readonly string[]).includes(boss?.name ?? ""), `unexpected name ${boss?.name}`);
   }
 });

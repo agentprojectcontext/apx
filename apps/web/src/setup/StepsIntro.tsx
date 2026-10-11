@@ -1,5 +1,6 @@
 import type { Result } from "@apx/protocol";
-import { AgentAvatar, BLOB_NAMES, Button, Icons, Input, Skeleton, Switch } from "@apx/ui";
+import { randomAgentName } from "@apx/protocol/client";
+import { AgentAvatar, BLOB_NAMES, Button, IconButton, Icons, Input, Skeleton, Switch } from "@apx/ui";
 import type { ReactNode } from "react";
 import type { V1Group, V1Groups } from "../data/setup.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -189,6 +190,14 @@ export function AgentStep({ draft: d, set }: StepProps) {
           value={d.name}
           maxLength={80}
           onChange={(e) => set({ name: e.currentTarget.value })}
+          trailing={
+            <IconButton
+              size="sm"
+              label={t("setup.agent.randomName")}
+              icon={<Icons.Dices size={16} />}
+              onClick={() => set({ name: randomAgentName(d.name.trim()) })}
+            />
+          }
         />
       </div>
       <div className="wiz__field">

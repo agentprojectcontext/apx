@@ -43,6 +43,28 @@ export const PERSON_RELATIONS = [
   "other",
 ] as const;
 
+/** Names for a fresh super-agent, picked at random (and again from the setup's dice): a hint that the owner names it. */
+export const AGENT_NAMES = [
+  "Nova",
+  "Milo",
+  "Kira",
+  "Lumo",
+  "Iris",
+  "Zeta",
+  "Pipa",
+  "Teo",
+  "Luma",
+  "Bruno",
+  "Maya",
+  "Coco",
+] as const;
+
+/** A name from AGENT_NAMES other than `current`, at random. */
+export function randomAgentName(current?: string): string {
+  const pool = AGENT_NAMES.filter((n) => n !== current);
+  return pool[Math.floor(Math.random() * pool.length)] ?? AGENT_NAMES[0];
+}
+
 /** What a pairing QR carries: the core's addresses a device may reach, the one-time code and, maybe, the chat to open. */
 export function pairingLink(p: { code: string; urls: readonly string[]; thread?: string }): string {
   const q = new URLSearchParams([["c", p.code], ...p.urls.map((u) => ["u", u] as [string, string])]);

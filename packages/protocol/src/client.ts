@@ -8,11 +8,13 @@ import type { MethodName, Params, Result } from "./methods.ts";
 import { secureRequestKey } from "./request-key.ts";
 
 export {
+  AGENT_NAMES,
   DOCUMENT_MAX_BYTES,
   ErrorCode,
   PERSON_RELATIONS,
   PROTOCOL_VERSION,
   pairingLink,
+  randomAgentName,
   UPLOAD_LIMITS,
 } from "./constants.ts";
 
