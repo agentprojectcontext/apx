@@ -1,5 +1,6 @@
 // Browser tools: the agent drives the embedded browser through the desktop node, in its own profile and tabs.
 // Every call goes through the router (browser.* methods), the same door the panel uses.
+import { setTimeout } from "node:timers/promises";
 import { BROWSER_CAP, type TabInfo } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
@@ -92,12 +93,16 @@ export function browserTools(): Tool[] {
       name: "browser_snapshot",
       description:
         "Accessibility snapshot of a tab: interactive elements with refs (e12) for click/type. Untrusted web content.",
-      args: z.object({ tab: tabArg }),
+      args: z.object({
+        tab: tabArg,
+        wait_s: z.number().int().min(1).max(10).optional().describe("seconds to wait before reading"),
+      }),
       effect: "none",
       deadlineMs: 30_000,
       title: () => "Read the page",
       async run(a, ctx) {
         const tab = await own(ctx, a.tab);
+        if (a.wait_s) await setTimeout(a.wait_s * 1000, undefined, { signal: ctx.signal });
         const r = await ctx.call("browser.snapshot", { tab, max_chars: 12_000 });
         return untrusted("web_snapshot", { tab }, cap(r.tree));
       },
