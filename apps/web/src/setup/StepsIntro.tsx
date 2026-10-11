@@ -83,8 +83,15 @@ export function Welcome({
               </span>
               <span className="wiz__choicebody">
                 {v1.version
-                  ? t("setup.welcome.importBody", { version: v1.version, home: v1.home, projects: v1.projects })
-                  : t("setup.welcome.importNoVersion", { home: v1.home, projects: v1.projects })}
+                  ? t(v1.projects === 1 ? "setup.welcome.importBody.one" : "setup.welcome.importBody.other", {
+                      version: v1.version,
+                      home: v1.home,
+                      projects: v1.projects,
+                    })
+                  : t(v1.projects === 1 ? "setup.welcome.importNoVersion.one" : "setup.welcome.importNoVersion.other", {
+                      home: v1.home,
+                      projects: v1.projects,
+                    })}
               </span>
             </button>
           </div>
