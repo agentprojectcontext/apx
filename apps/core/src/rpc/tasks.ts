@@ -20,7 +20,7 @@ import {
 import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
 import { type Asker, addComment, askMentioned, startTaskWork } from "../engine/task-work.ts";
-import { conflict, notFound, unauthorized } from "../errors.ts";
+import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
 import { removeThreadFiles } from "./thread-admin.ts";
