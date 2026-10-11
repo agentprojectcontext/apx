@@ -289,6 +289,8 @@ export function createConnector(opts: {
 
   return {
     open,
+    /** The core of the server this app reaches over SSH (through its tunnel), when that is the connection. */
+    remoteCoreUrl: (): string | undefined => (conn?.mode === "ssh" && tunnel ? tunnel.url : undefined),
     /**
      * Back to the first-run choice in the same window. Nothing restarts: a checkout's supervisor (`pnpm app`) takes its
      * core down with the app.
