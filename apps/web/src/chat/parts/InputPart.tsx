@@ -1,3 +1,4 @@
+import "../../styles/screens.css";
 import type { Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons } from "@apx/ui";
 import { useState } from "react";

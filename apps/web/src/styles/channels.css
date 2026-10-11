@@ -1,9 +1,3 @@
-/* A channel's logo where a tile goes: same box, no frame. */
-.kindtile {
-  display: inline-grid;
-  place-items: center;
-  flex: none;
-}
 /* A channel with its contacts: list · chat · contact card. */
 .chan {
   display: grid;
@@ -361,17 +355,6 @@
 .chan__who .chan__meta {
   display: block;
 }
-.chan__ticks {
-  display: inline-flex;
-  margin-left: 4px;
-  vertical-align: -2px;
-}
-.chan__ticks.is-read {
-  color: var(--apx-info);
-}
-.chan__ticks.is-failed {
-  color: var(--apx-danger);
-}
 .chan__nobody {
   padding: 12px;
   color: var(--apx-fg-subtle);
@@ -588,10 +571,6 @@
   gap: 20px;
   align-items: center;
   padding: 12px 0 4px;
-}
-.qrcode {
-  flex: none;
-  border-radius: 12px;
 }
 .waqr__text {
   display: flex;

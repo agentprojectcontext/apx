@@ -1,3 +1,4 @@
+import "../styles/screens.css";
 import { EmptyState, Icons } from "@apx/ui";
 import { DEFAULT_PID, teamOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";

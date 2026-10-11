@@ -1,3 +1,4 @@
+import "../styles/screens.css";
 import type { ProjectKind } from "@apx/protocol";
 import { Button, Dialog, Field, Icons, Input, Select, type SelectOption, Textarea } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";

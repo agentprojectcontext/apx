@@ -262,28 +262,6 @@
   overflow: hidden;
   white-space: nowrap;
 }
-.selectbtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex: none;
-  max-width: 190px;
-  height: 28px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: var(--apx-control-radius);
-  background: var(--apx-fill);
-  font-size: var(--apx-text-xs);
-}
-.selectbtn:hover,
-.selectbtn[data-popup-open] {
-  background: var(--apx-fill-hover);
-}
-.selectbtn__text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* Canales */
 .channelcfg {
@@ -632,11 +610,6 @@
 
 .extcard {
   margin-bottom: 12px;
-}
-.devices__code {
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-lg);
-  letter-spacing: 0.12em;
 }
 .devices__url {
   display: block;

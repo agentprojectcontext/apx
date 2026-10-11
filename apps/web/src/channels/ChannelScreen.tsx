@@ -1,3 +1,4 @@
+import "../styles/screens.css";
 import type { ChannelInfo, Person, RoomMode, Thread } from "@apx/protocol";
 import { EmptyState, IconButton, Icons, ProjectTile, SearchField } from "@apx/ui";
 import { useEffect, useMemo, useRef, useState } from "react";

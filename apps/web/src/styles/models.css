@@ -1,9 +1,5 @@
 /* Model pickers, router editor and model catalog (Config › Engines and models, Agents, team cards). Tokens only. */
 
-.selectbtn__warn {
-  flex: none;
-  color: var(--apx-warning);
-}
 .chipbtn {
   max-width: 100%;
   border: 0;
@@ -17,132 +13,6 @@
 .chipbtn.is-own[data-popup-open] {
   background: var(--apx-info-soft);
   filter: brightness(0.97);
-}
-
-/* Catalog list inside a picker */
-.mlist {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.mlist__scroll {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 260px;
-  overflow-y: auto;
-  margin: 0 -4px;
-  padding: 0 4px;
-}
-.mlist__empty {
-  margin: 8px 4px;
-  font-size: var(--apx-text-sm);
-  color: var(--apx-fg-muted);
-}
-.mlist__group {
-  display: flex;
-  flex-direction: column;
-}
-.mlist__engine {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px 4px;
-  background: var(--apx-surface-raised);
-  font-size: var(--apx-text-xs);
-  font-weight: var(--apx-weight-medium);
-  color: var(--apx-fg-subtle);
-}
-.mlist__opt {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 30px;
-  padding: 4px 8px;
-  border: 0;
-  border-radius: var(--apx-radius-sm);
-  background: transparent;
-  color: var(--apx-fg);
-  font: inherit;
-  font-size: var(--apx-text-sm);
-  text-align: left;
-  cursor: pointer;
-}
-.mlist__opt:hover,
-.mlist__opt:focus-visible {
-  background: var(--apx-fill-hover);
-  outline: none;
-}
-.mlist__check {
-  flex: none;
-  display: inline-grid;
-  place-items: center;
-  width: 14px;
-  color: var(--apx-brand);
-}
-.mlist__name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mlist__ref {
-  flex: none;
-  max-width: 50%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-2xs);
-  color: var(--apx-fg-subtle);
-}
-
-/* Model choice popover */
-.mchoice {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.mchoice__text {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.mchoice__title {
-  font-weight: var(--apx-weight-medium);
-}
-.mchoice__desc {
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-muted);
-  text-wrap: pretty;
-}
-.mchoice__label {
-  padding: 2px 8px 4px;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
-}
-.mchoice__fallback {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-  padding: 10px 8px 2px;
-  border-top: 1px solid var(--apx-border);
-  font-size: var(--apx-text-sm);
-}
-.mchoice__inuse {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-brand);
 }
 
 /* Router */
@@ -432,19 +302,6 @@
   flex: none;
   width: 116px;
 }
-.mlist__effort {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 4px 2px;
-  border-top: 1px solid var(--apx-border);
-  color: var(--apx-fg-muted);
-  font-size: var(--apx-text-sm);
-}
-.mlist__effort .apx-select {
-  width: 160px;
-}
 
 /* The ChatGPT plan among the model APIs: fixed, first, with a soft gradient that tells it apart. */
 .pcard--plan {
@@ -512,7 +369,6 @@
   align-items: flex-start;
   gap: 2px;
 }
-.mlist__engine .apx-engine,
 .catalog__summary .apx-engine {
   flex: none;
 }
