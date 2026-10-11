@@ -3,3 +3,4 @@ node_modules/
 ios/
 android/
 dist/
+google-services.json

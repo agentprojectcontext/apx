@@ -41,7 +41,9 @@ v2 is published into v1's public repo (`agentprojectcontext/apx`), which every v
 Authenticode certificate (Azure Trusted Signing is the cheap one). Until then the install docs must say how to open
 an unsigned app (macOS: right-click › Open, or System Settings › Privacy & Security; Windows: SmartScreen › More info).
 
-The phone app is `dev.apx.mobile` and v1's is `dev.agentprojectcontext.apx`: they install side by side.
+The phone app is `dev.apx.mobile` and v1's is `dev.agentprojectcontext.apx`: they install side by side. Its APK
+carries arm64-v8a only and its versionCode follows the tag (2.1.3 → 20103); Expo push needs the owner's EAS project
+and Firebase app, set once as repo variable/secret ([apps/mobile/README.md](../apps/mobile/README.md#push)).
 
 ## Install paths
 

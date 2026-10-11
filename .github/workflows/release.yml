@@ -11,6 +11,9 @@ on:
       tag:
         description: "Existing tag to (re)build, e.g. v2.0.0"
         required: true
+      android_abis:
+        description: "Android ABIs in the APK, comma-separated (default arm64-v8a; e.g. armeabi-v7a,arm64-v8a,x86_64)"
+        required: false
 
 permissions:
   contents: write
@@ -86,6 +89,10 @@ jobs:
     timeout-minutes: 45
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
+      # app.config.js reads these at prebuild and again inside Gradle: the versionCode follows the tag's version, the
+      # APK carries these ABIs, and with an EAS project id (a repo variable) the app registers for Expo push.
+      APX_ANDROID_ABIS: ${{ inputs.android_abis || vars.APX_ANDROID_ABIS || 'arm64-v8a' }}
+      APX_EAS_PROJECT_ID: ${{ vars.APX_EAS_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -100,6 +107,17 @@ jobs:
       - name: Install
         working-directory: apps/mobile
         run: npm ci --no-audit --no-fund
+      # Expo push on Android goes through FCM: the Firebase app's google-services.json, kept as a secret.
+      - name: Firebase config
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "::warning::No ANDROID_GOOGLE_SERVICES_JSON_BASE64 secret: the APK gets push only through ntfy."
+            exit 0
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > "$RUNNER_TEMP/google-services.json"
+          echo "APX_GOOGLE_SERVICES_FILE=$RUNNER_TEMP/google-services.json" >> "$GITHUB_ENV"
       - name: Native project
         working-directory: apps/mobile
         run: |

@@ -22,9 +22,9 @@ While paired it also:
 - **Lends the phone to the core as a node** (`location`, `camera`): agents get `phone_location` and `phone_photo`
   only while it is connected. A picture is always taken by the owner (the app shows why it is asked); location asks
   the system's permission once.
-- **Registers for push** with its Expo push token, when the app has an EAS project id (`extra.eas.projectId` in
-  `app.json`). Without one, paste an ntfy / UnifiedPush address for the device in Settings › Connections › Devices. Then pick the phone
-  in Config › Interruptions › Where notices go: the same budget decides what reaches it.
+- **Registers for push** with its Expo push token, when the build has an EAS project id (`APX_EAS_PROJECT_ID`, see
+  [Push](#push)). Without one, the owner gives the phone an ntfy address in the panel. Then pick the phone in
+  Config › Interruptions › Where notices go: the same budget decides what reaches it.
 
 A core on a VPS or reached through Tailscale: choose Tailscale in Settings › Connections › Devices, or run
 `apx expose tailscale` on that server and restart the core. Tailscale Serve forwards the tailnet's HTTPS address to
@@ -62,7 +62,60 @@ screen stays quiet (opening a chat also clears its notifications from the tray),
 it. A remote push carrying `data.thread_id` opens its chat the same way. Settings shows the delivery
 status and provides a local notification preview.
 
-Local permission does not guarantee delivery after the OS suspends or closes the app. Remote Expo push requires
-an EAS project ID, Android FCM configuration (`google-services.json` in the native build and FCM v1 credentials in
-EAS), and APNs credentials for iOS. Select the paired device as the destination in the core's interruption settings.
-Missing configuration is displayed explicitly; no permanent background service is started.
+Local permission does not guarantee delivery after the OS suspends or closes the app: that needs push (below).
+Select the paired device as the destination in the core's interruption settings. Missing configuration is displayed
+explicitly; no permanent background service is started.
+
+## Push
+
+Two ways reach a phone whose app is closed. Settings on the phone says which one is active.
+
+**ntfy, today, no account.** The core posts each notice to an ntfy topic and the ntfy app on the phone shows it;
+tapping it opens APX on its chat (`apx://open?t=<thread>`).
+
+1. Install ntfy on the phone (Play Store or F-Droid) and subscribe to a long random topic, e.g.
+   `apx-<20 random letters>` on `ntfy.sh`. The topic name is the only key: whoever knows it reads the notices. A
+   self-hosted ntfy keeps the text off the public server, and has no daily limit (ntfy.sh's free tier caps what one
+   core may send).
+2. In the panel: Settings › Connections › Devices › the phone › Set up notifications, paste `https://ntfy.sh/<topic>`,
+   Use for push.
+3. Config › Interruptions › Where notices go: the phone.
+
+**Expo push, once the owner has the accounts.** The app registers its Expo push token by itself; the core sends to
+Expo's service with no credential of its own. A build needs two values, both read by `app.config.js` from the
+environment (never committed):
+
+| Variable | What | CI |
+|---|---|---|
+| `APX_EAS_PROJECT_ID` | the EAS project's id | repo variable `APX_EAS_PROJECT_ID` |
+| `APX_GOOGLE_SERVICES_FILE` | path to the Firebase app's `google-services.json` (Android needs FCM) | repo secret `ANDROID_GOOGLE_SERVICES_JSON_BASE64` (the file in base64) |
+
+Owner steps, once:
+
+1. Expo: sign in (`npx expo login`, free account), then in `apps/mobile` run `npx eas-cli@latest init` and create the
+   project. It prints the project id (a UUID); with a dynamic config it does not write it anywhere. Save it as the
+   repo variable `APX_EAS_PROJECT_ID` (GitHub › Settings › Secrets and variables › Actions › Variables).
+2. Firebase: in the console create a project, add an Android app with package `dev.apx.mobile`, download
+   `google-services.json`, and save `base64 -i google-services.json` as the repo secret
+   `ANDROID_GOOGLE_SERVICES_JSON_BASE64`.
+3. FCM for Expo: Firebase › Project settings › Service accounts › Generate new private key; upload that JSON with
+   `npx eas-cli@latest credentials` › Android › `dev.apx.mobile` › Google Service Account › FCM V1 (or on expo.dev ›
+   the project › Credentials). Keep Expo's "enhanced push security" off: the core sends without an access token.
+4. iOS later: an APNs key through `eas credentials` (needs the Apple Developer account).
+5. The next tag builds an APK that registers for push; Settings on the phone says "Push service registered".
+
+Set both or neither: a project id without the Firebase file makes Android refuse the token (Settings shows the error).
+
+## Release build
+
+CI (`release.yml`, job `android`) runs `expo prebuild` and `./gradlew assembleRelease`, signed with the repo's key.
+`app.config.js` derives from `app.json`'s version (set from the tag):
+
+- **versionCode** `major*10000 + minor*100 + patch` (2.0.10 → 20010), so each release installs over the one before
+  (minor and patch stay under 100). iOS's build number is the same.
+- **ABIs**: arm64-v8a only (42 MB instead of 106 MB with all four). `APX_ANDROID_ABIS=armeabi-v7a,arm64-v8a,x86_64`
+  builds others, locally or in CI (the workflow's `android_abis` input, or the repo variable `APX_ANDROID_ABIS`).
+
+```bash
+npx expo prebuild --platform android --no-install && (cd android && ./gradlew assembleRelease)
+```

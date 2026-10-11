@@ -9,12 +9,10 @@
     "icon": "../desktop/assets/icon.png",
     "ios": {
       "bundleIdentifier": "dev.apx.mobile",
-      "supportsTablet": true,
-      "buildNumber": "12"
+      "supportsTablet": true
     },
     "android": {
-      "package": "dev.apx.mobile",
-      "versionCode": 12
+      "package": "dev.apx.mobile"
     },
     "plugins": [
       [
