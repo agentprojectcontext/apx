@@ -1,14 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, type StyleProp, StyleSheet, Text, TextInput, type TextStyle, View } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  Text,
+  TextInput,
+  type TextStyle,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ago, dueWhen } from "../format";
-import type { Task, Workspace } from "../hooks/useWorkspace";
+import type { Task, Thread, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import type { TaskEvent } from "../protocol";
 import type { TaskComment } from "../tasks/comments";
 import { columnName, KIND_KEY, PRIORITY_KEY, type TaskPatch, type TaskPriority, taskValues } from "../tasks/fields";
 import { type HistoryKey, historyLines } from "../tasks/history";
+import { CommentBox, Comments } from "../tasks/TaskComments";
 import { TaskFields } from "../tasks/TaskFields";
 import { closeChoices, confirmClose, failAlert, type TaskActions, TaskMenu } from "../tasks/TaskMenu";
+import { WorkSheet } from "../tasks/TaskWork";
+import { Icon } from "../ui/Icon";
 import {
   AgentAvatar,
   Button,
@@ -16,6 +29,7 @@ import {
   EmptyState,
   IconButton,
   ListGroup,
+  ListRow,
   OwnerAvatar,
   Screen,
   Segmented,
@@ -53,8 +67,9 @@ const OUTCOME_KEY: Record<NonNullable<Task["outcome"]>, Key> = {
 };
 
 /**
- * One task: its title, the bar that closes or reopens it and opens its conversation, the description (tap or the
- * pencil to edit), its properties, and its comments beside its history. The "…" holds the rest (delete included).
+ * One task: its title, the bar that closes or reopens it and opens its work (the agents' chats about it), the
+ * description (tap or the pencil to edit), its properties, its comments beside its history, and a box to comment.
+ * The "…" holds the rest (delete included).
  */
 export function TaskDetailPage({
   task,
@@ -69,7 +84,9 @@ export function TaskDetailPage({
   actions: TaskActions;
   openThread: (id: string) => void;
 }) {
-  const [detail, setDetail] = useState<{ events: TaskEvent[]; comments: TaskComment[] }>();
+  const [detail, setDetail] = useState<{ events: TaskEvent[]; comments: TaskComment[]; sessions: Thread[] }>();
+  const [work, setWork] = useState(false);
+  const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState<string>();
   const [menu, setMenu] = useState(false);
   const [tab, setTab] = useState<"comments" | "history">("comments");
@@ -80,7 +97,7 @@ export function TaskDetailPage({
     if (!taskId) return;
     void load(taskId)
       .then(setDetail)
-      .catch(() => setDetail((now) => now ?? { events: [], comments: [] }));
+      .catch(() => setDetail((now) => now ?? { events: [], comments: [], sessions: [] }));
   }, [load, taskId]);
   // Read again whenever the task moves (a comment, a change from elsewhere).
   // biome-ignore lint/correctness/useExhaustiveDependencies: activity is the signal to reload, not an input.
@@ -105,10 +122,21 @@ export function TaskDetailPage({
   const closedLabel = task.outcome
     ? t(OUTCOME_KEY[task.outcome])
     : t(task.state === "done" ? "tkStateDone" : "tkStateDropped");
-  const comments = detail?.comments ?? [];
-  const shown = comments.length ? tab : "history";
+  const comments = detail?.comments;
+  const sessions = detail?.sessions;
+  const comment = (text: string) =>
+    actions
+      .comment(task.id, text)
+      .then(() => {
+        setTab("comments");
+        reload();
+      })
+      .catch((error: unknown) => {
+        fail(error);
+        throw error;
+      });
   return (
-    <View style={s.page}>
+    <KeyboardAvoidingView style={s.page} behavior="padding" keyboardVerticalOffset={insets.top}>
       <SubHeader
         title={t(KIND_KEY[task.kind])}
         back={back}
@@ -159,16 +187,28 @@ export function TaskDetailPage({
             />
           ))}
           <Button
-            label={t("tkChat")}
+            label={sessions?.length ? `${t("tkWork")} · ${sessions.length}` : t("tkWork")}
             icon="MessageCircle"
             size="sm"
             variant="secondary"
             style={s.barButton}
-            onPress={() => openThread(task.thread_id)}
+            onPress={() => setWork(true)}
           />
         </View>
         <Description key={`description-${task.id}`} task={task} save={(description) => update({ description })} />
         <TaskFields data={data} value={taskValues(task)} onChange={update} />
+        <ListGroup>
+          <ListRow
+            label={t("tkWork")}
+            leading={<Icon name="MessageCircle" size={18} color={theme.fgMuted} />}
+            detail={
+              sessions?.length
+                ? t("tkWorkChats", { n: sessions.length })
+                : t(task.assignee ? "tkWorkNotYetShort" : "tkWorkNoneShort")
+            }
+            onPress={() => setWork(true)}
+          />
+        </ListGroup>
         <ListGroup>
           <View style={s.toggleRow}>
             <Text style={[type.rowTitle, { flex: 1 }]}>{t("tkWaits")}</Text>
@@ -180,35 +220,42 @@ export function TaskDetailPage({
             />
           </View>
         </ListGroup>
-        {comments.length ? (
-          <Segmented
-            value={shown}
-            onChange={setTab}
-            options={[
-              { value: "comments", label: `${t("tkComments")} · ${comments.length}` },
-              { value: "history", label: t("tkHistory") },
-            ]}
-          />
-        ) : (
-          <Text style={[type.meta, s.inset]}>{t("tkHistory")}</Text>
-        )}
-        {shown === "comments" ? (
+        <Segmented
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: "comments", label: `${t("tkComments")} · ${comments?.length ?? 0}` },
+            { value: "history", label: t("tkHistory") },
+          ]}
+        />
+        {tab === "comments" ? (
           <Comments comments={comments} data={data} />
         ) : (
           <History events={detail?.events} data={data} />
         )}
       </Screen>
+      <CommentBox send={comment} />
+      {work ? (
+        <WorkSheet
+          task={task}
+          data={data}
+          sessions={sessions}
+          load={actions.detail}
+          openThread={openThread}
+          onClose={() => setWork(false)}
+        />
+      ) : null}
       {menu ? (
         <TaskMenu
           task={task}
           data={data}
           actions={actions}
           onClose={() => setMenu(false)}
-          onConversation={() => openThread(task.thread_id)}
+          openThread={openThread}
           onDeleted={back}
         />
       ) : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -338,33 +385,6 @@ function Description({ task, save }: { task: Task; save: (text: string) => void 
   );
 }
 
-function Comments({ comments, data }: { comments: TaskComment[]; data: Workspace }) {
-  return (
-    <ListGroup>
-      {comments.map((comment) => {
-        const agent = comment.by === "owner" ? undefined : data.agents.find((item) => item.id === comment.by);
-        const name = comment.by === "owner" ? data.owner || t("tkYou") : (agent?.name ?? comment.by);
-        return (
-          <View key={comment.id} style={s.comment}>
-            <View style={s.commentHead}>
-              {comment.by === "owner" ? (
-                <OwnerAvatar name={name} size={24} />
-              ) : (
-                <AgentAvatar name={name} blob={agent?.blob} id={agent?.id ?? comment.by} size={24} />
-              )}
-              <Text style={[type.rowTitle, { flex: 1 }]} numberOfLines={1}>
-                {name}
-              </Text>
-              <Text style={type.meta}>{ago(comment.at)}</Text>
-            </View>
-            <Markdown text={comment.text} />
-          </View>
-        );
-      })}
-    </ListGroup>
-  );
-}
-
 function History({ events, data }: { events?: TaskEvent[]; data: Workspace }) {
   const lines = useMemo(
     () =>
@@ -435,8 +455,6 @@ const s = StyleSheet.create({
   pencil: { width: 36, height: 36, marginRight: -8 },
   description: { color: theme.fg, fontSize: 14, lineHeight: 20 },
   toggleRow: { minHeight: 56, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 14 },
-  comment: { gap: 6, paddingVertical: 10, paddingHorizontal: 14 },
-  commentHead: { flexDirection: "row", alignItems: "center", gap: 10 },
   event: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 14 },
   loading: { padding: 24, alignItems: "center" },
 });

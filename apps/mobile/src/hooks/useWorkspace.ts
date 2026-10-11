@@ -446,17 +446,33 @@ export function useWorkspace(creds: Creds) {
     setData((d) => ({ ...d, tasks: [task, ...d.tasks.filter((item) => item.id !== task.id)] }));
     return task;
   }, []);
-  /** Its history and its comments (read without marking the conversation seen). */
+  /**
+   * Its history, its comments (read without marking them seen) and its work: the agents' chats it was worked in,
+   * oldest first.
+   */
   const taskDetail = useCallback(
     async (taskId: string) => {
-      const result = await rpc<{ task: Task; events: TaskEvent[] }>(client, "tasks.get", { task: taskId });
+      const result = await rpc<{ task: Task; events: TaskEvent[]; sessions: Thread[] }>(client, "tasks.get", {
+        task: taskId,
+      });
       putTask(result.task);
       const conversation = await rpc<{ messages: Message[] }>(client, "threads.get", {
         thread: result.task.thread_id,
       }).catch(() => undefined);
-      return { events: result.events, comments: taskComments(conversation?.messages ?? []) };
+      return {
+        events: result.events,
+        comments: taskComments(conversation?.messages ?? []),
+        sessions: result.sessions,
+      };
     },
     [client, putTask],
+  );
+  /** A comment on the task; an @mentioned agent answers it in its own chat for the task. */
+  const commentTask = useCallback(
+    async (taskId: string, text: string) => {
+      await rpc(client, "tasks.comment", { task: taskId, text });
+    },
+    [client],
   );
   /** Deletes it for good, with its history and conversation. */
   const deleteTask = useCallback(
@@ -629,6 +645,7 @@ export function useWorkspace(creds: Creds) {
     updateTask,
     closeTask,
     deleteTask,
+    commentTask,
     memories,
     addMemory,
     removeMemory,

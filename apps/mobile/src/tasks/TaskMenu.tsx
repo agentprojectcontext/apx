@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Alert } from "react-native";
-import type { Task, Workspace } from "../hooks/useWorkspace";
+import type { Task, Thread, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import type { TaskEvent } from "../protocol";
 import { Icon, type IconName } from "../ui/Icon";
@@ -9,14 +9,16 @@ import { theme } from "../ui/theme";
 import type { TaskComment } from "./comments";
 import { columnName, PRIORITY_KEY, type TaskPatch, taskValues } from "./fields";
 import { FieldSheet, type TaskField } from "./TaskFields";
+import { WorkSheet } from "./TaskWork";
 
 export type CloseState = "done" | "dropped" | "open" | "missed";
 
 export type TaskActions = {
-  detail: (taskId: string) => Promise<{ events: TaskEvent[]; comments: TaskComment[] }>;
+  detail: (taskId: string) => Promise<{ events: TaskEvent[]; comments: TaskComment[]; sessions: Thread[] }>;
   update: (taskId: string, patch: TaskPatch) => Promise<Task>;
   close: (task: Task, state: CloseState) => Promise<Task>;
   remove: (taskId: string) => Promise<void>;
+  comment: (taskId: string, text: string) => Promise<void>;
 };
 
 export type CloseChoice = { state: CloseState; label: Key; icon: IconName };
@@ -56,7 +58,7 @@ export const failAlert = (title: string) => (error: unknown) =>
   Alert.alert(title, error instanceof Error ? error.message : String(error));
 
 /**
- * A task's options in a sheet, from a long press on the list or the page's "…": open it or its conversation, move it,
+ * A task's options in a sheet, from a long press on the list or the page's "…": open it or its agents' chats, move it,
  * change its priority or who does it, wait for the owner, close, reopen or delete it (closing and deleting ask first).
  */
 export function TaskMenu({
@@ -65,7 +67,7 @@ export function TaskMenu({
   actions,
   onClose,
   onOpen,
-  onConversation,
+  openThread,
   onDeleted,
 }: {
   task: Task;
@@ -73,10 +75,10 @@ export function TaskMenu({
   actions: TaskActions;
   onClose: () => void;
   onOpen?: () => void;
-  onConversation: () => void;
+  openThread: (id: string) => void;
   onDeleted?: () => void;
 }) {
-  const [field, setField] = useState<TaskField>();
+  const [field, setField] = useState<TaskField | "work">();
   const fail = failAlert(task.title);
   const open = task.state === "open";
   const value = taskValues(task);
@@ -98,6 +100,8 @@ export function TaskMenu({
       onPress={onPress}
     />
   );
+  if (field === "work")
+    return <WorkSheet task={task} data={data} load={actions.detail} openThread={openThread} onClose={onClose} />;
   if (field) return <FieldSheet field={field} data={data} value={value} onChange={update} onClose={onClose} />;
   return (
     <BottomSheet title={task.title} onClose={onClose}>
@@ -107,10 +111,7 @@ export function TaskMenu({
             onOpen();
           })
         : null}
-      {item(t("tkConversation"), "MessageCircle", () => {
-        onClose();
-        onConversation();
-      })}
+      {item(t("tkWork"), "MessageCircle", () => setField("work"))}
       {open
         ? item(t("tkColumn"), "LayoutGrid", () => setField("status"), {
             detail: column ? columnName(column, t) : task.status,

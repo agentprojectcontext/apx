@@ -91,8 +91,9 @@ export function WorkspaceScreen({
       update: workspace.updateTask,
       close: workspace.closeTask,
       remove: workspace.deleteTask,
+      comment: workspace.commentTask,
     }),
-    [workspace.taskDetail, workspace.updateTask, workspace.closeTask, workspace.deleteTask],
+    [workspace.taskDetail, workspace.updateTask, workspace.closeTask, workspace.deleteTask, workspace.commentTask],
   );
   const [surfaces, setSurfaces] = useState(false);
   const [picker, setPicker] = useState<"switch" | "new">();

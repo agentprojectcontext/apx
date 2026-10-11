@@ -111,7 +111,7 @@ export function TasksPage({
           actions={actions}
           onClose={() => setMenu(undefined)}
           onOpen={() => open(menuTask)}
-          onConversation={() => openThread(menuTask.thread_id)}
+          openThread={openThread}
         />
       ) : null}
     </View>
