@@ -24,7 +24,7 @@ export function AgentPanel() {
       team={teamOf(agents, agent.project_id ?? DEFAULT_PID)}
       inPanel
       onClose={() => go.panel(null)}
-      onChat={() => (agent.kind === "secretary" ? go.thread("home") : void startChat(agent, agent.project_id))}
+      onChat={() => (agent.kind === "secretary" ? go.thread("home") : startChat(agent, agent.project_id))}
     />
   );
 }

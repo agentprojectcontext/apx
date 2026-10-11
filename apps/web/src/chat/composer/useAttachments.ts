@@ -15,7 +15,7 @@ export type Chip = {
 const MAX = 8;
 
 /** The files waiting to go with the next message; each uploads as soon as it is added. */
-export function useAttachments(thread: string, onWords?: (text: string) => void) {
+export function useAttachments(thread: string | undefined, onWords?: (text: string) => void) {
   const [chips, setChips] = useState<Chip[]>([]);
   const live = useRef(chips);
   live.current = chips;

@@ -1,11 +1,10 @@
 import type { Agent } from "@apx/protocol";
 import { AgentAvatar, Icons, Menu, type MenuEntry } from "@apx/ui";
-import { type ReactElement, useMemo, useState } from "react";
-import { createThread } from "../data/actions.ts";
+import { type ReactElement, useMemo } from "react";
 import { blobOf, inProject, realProjectId } from "../data/identity.ts";
-import { notify } from "../data/notices.ts";
+import { newChatId } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
-import { t as tr, useT } from "../i18n/index.ts";
+import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 
 /** Who can start a chat in a project: the super-agent first, then the project's own agents. */
@@ -21,20 +20,12 @@ export function useChatAgents(projectId: string | undefined): Agent[] {
   }, [agents, projectId]);
 }
 
-/** Create a chat with `agent` in a nav project (undefined / the base space = no project) and open it. */
-export async function startChat(agent: Agent, projectId: string | undefined, code = false): Promise<void> {
-  try {
-    const t = await createThread({
-      agentId: agent.id,
-      projectId: realProjectId(projectId),
-      // A code session is named after its folder by the core.
-      ...(code ? { code: { write: "ask" as const } } : { title: tr("chat.new") }),
-    });
-    if (projectId) go.project(projectId, "chats", t.id);
-    else go.thread(t.id);
-  } catch (e) {
-    notify(tr("error.createChat", { error: e instanceof Error ? e.message : String(e) }));
-  }
+/** Open a new chat with `agent` in a nav project (undefined / the base space = no project): made when first sent. */
+export function startChat(agent: Agent, projectId: string | undefined, code = false): void {
+  const project = realProjectId(projectId);
+  const id = newChatId({ agent: agent.id, ...(project ? { project } : {}), code });
+  if (projectId) go.project(projectId, "chats", id);
+  else go.thread(id);
 }
 
 /** "New chat with <agent>" picker around any trigger. */
@@ -45,7 +36,6 @@ export function NewChatMenu({ projectId, trigger }: { projectId: string | undefi
   const pid = realProjectId(projectId);
   // A code session needs the project's folder on disk.
   const onDisk = projects.some((p) => p.id === pid && p.path && p.present);
-  const [busy, setBusy] = useState(false);
   const items: MenuEntry[] = list.length
     ? [
         { type: "label", label: t("chat.newWith") },
@@ -54,12 +44,7 @@ export function NewChatMenu({ projectId, trigger }: { projectId: string | undefi
             label: a.name,
             icon: <AgentAvatar name={a.name} blob={blobOf(a)} size={18} animated={false} />,
             shortcut: a.kind === "secretary" ? t("agent.super") : undefined,
-            disabled: busy,
-            onSelect: async () => {
-              setBusy(true);
-              await startChat(a, projectId);
-              setBusy(false);
-            },
+            onSelect: () => startChat(a, projectId),
           }),
         ),
         ...(onDisk
@@ -69,12 +54,7 @@ export function NewChatMenu({ projectId, trigger }: { projectId: string | undefi
                 (a): MenuEntry => ({
                   label: a.name,
                   icon: <Icons.Code size={16} />,
-                  disabled: busy,
-                  onSelect: async () => {
-                    setBusy(true);
-                    await startChat(a, projectId, true);
-                    setBusy(false);
-                  },
+                  onSelect: () => startChat(a, projectId, true),
                 }),
               ),
             ]

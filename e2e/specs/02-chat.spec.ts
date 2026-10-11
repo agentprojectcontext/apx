@@ -22,6 +22,7 @@ test("a new chat starts empty and keeps its own conversation", async ({ page }) 
   await page.getByRole("button", { name: "Nuevo chat" }).first().click();
   await page.getByRole("menuitem", { name: /Scout/ }).click();
   await expect(page.getByRole("textbox", { name: "Escribile a Scout…" })).toBeVisible();
+  expect((await rpc<{ threads: unknown[] }>("threads.list")).threads.length).toBe(count);
   const box = page.getByRole("textbox", { name: /^Escribile a/ });
   await box.fill("Second chat");
   await box.press("Enter");
@@ -96,10 +97,15 @@ test("the / menu: commands and skills, a skill named loads whole, /new opens a f
   await expect(menu).toBeHidden();
   await expect(box).toHaveValue("/comp");
 
+  // The new chat is made with its first message, not before.
   const count = (await rpc<{ threads: unknown[] }>("threads.list")).threads.length;
   await box.fill("/new");
   await box.press("Enter");
   await expect(page.getByRole("textbox", { name: /^Escribile a/ })).toHaveValue("");
   await expect(page.getByText("Got it: /image-gen dibujá un perro")).toBeHidden();
+  expect((await rpc<{ threads: unknown[] }>("threads.list")).threads.length).toBe(count);
+  await box.fill("Fresh start");
+  await box.press("Enter");
+  await expect(page.getByRole("main").locator("p", { hasText: "Got it: Fresh start" })).toBeVisible();
   expect((await rpc<{ threads: unknown[] }>("threads.list")).threads.length).toBe(count + 1);
 });

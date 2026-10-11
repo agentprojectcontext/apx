@@ -5,6 +5,7 @@ import { shortWhen } from "../common/format.ts";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
 import { client } from "../data/client.ts";
 import { secretary, threadAgent } from "../data/identity.ts";
+import { newChatId } from "../data/newChat.ts";
 import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -187,48 +188,25 @@ export function EngineSessions() {
           </div>
         )}
       </div>
-      {creating && (
-        <NewSession
-          engineId={engineId}
-          label={label}
-          onClose={() => setCreating(false)}
-          onMade={(id) => setIds((cur) => [id, ...(cur ?? [])])}
-        />
-      )}
+      {creating && <NewSession engineId={engineId} label={label} onClose={() => setCreating(false)} />}
     </section>
   );
 }
 
-/** A new session with the engine itself, in a project's folder. */
-function NewSession(props: { engineId: string; label: string; onClose(): void; onMade(id: string): void }) {
+/** A new session with the engine itself, in a project's folder: made with its first message (see newChat.ts). */
+function NewSession(props: { engineId: string; label: string; onClose(): void }) {
   const t = useT();
   const agents = useData((s) => s.agents);
   const projects = useData((s) => s.projects);
   const [project, setProject] = useState<string | undefined>(
     () => projects.find((p) => p.path && p.registered !== false)?.id,
   );
-  const [busy, setBusy] = useState(false);
   const folder = projects.find((p) => p.id === project)?.path;
-  const start = async () => {
+  const start = () => {
     const agent = secretary(agents);
     if (!agent || !project) return;
-    setBusy(true);
-    try {
-      const th = await client.call("threads.create", {
-        kind: "code",
-        agent_id: agent.id,
-        project_id: project,
-        engine: props.engineId,
-        title: t("engine.newTitle", { engine: props.label }),
-      });
-      props.onMade(th.id);
-      go.engine(props.engineId, th.id);
-      props.onClose();
-    } catch (e) {
-      notify(t("error.load", { error: errText(e) }));
-    } finally {
-      setBusy(false);
-    }
+    go.engine(props.engineId, newChatId({ agent: agent.id, project, engine: props.engineId }));
+    props.onClose();
   };
   return (
     <Dialog
@@ -240,7 +218,7 @@ function NewSession(props: { engineId: string; label: string; onClose(): void; o
           <Button variant="secondary" onClick={props.onClose}>
             {t("common.cancel")}
           </Button>
-          <Button disabled={!folder} loading={busy} onClick={() => void start()}>
+          <Button disabled={!folder} onClick={start}>
             {t("engine.start")}
           </Button>
         </>

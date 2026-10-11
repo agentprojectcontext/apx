@@ -1,16 +1,18 @@
 import type { Agent, CatalogEngine, Run, Thread } from "@apx/protocol";
 import { Composer, EngineIcon, IconButton, Icons, Menu, withMentions } from "@apx/ui";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
-import { cancel, send } from "../../data/actions.ts";
+import { cancel, makeChat, send } from "../../data/actions.ts";
 import { setThreadModel } from "../../data/composer.ts";
+import { draftOf, keepDraft } from "../../data/drafts.ts";
 import { isWorking } from "../../data/identity.ts";
 import { choiceLabel, splitRef, useModels } from "../../data/models.ts";
+import { isNewChat } from "../../data/newChat.ts";
 import { notify } from "../../data/notices.ts";
 import { useData } from "../../data/state.ts";
-import { takeDraft } from "../../data/threadAdmin.ts";
 import { useT } from "../../i18n/index.ts";
+import { go } from "../../shell/nav.ts";
 import { AttachChips } from "./AttachChips.tsx";
 import { ContextChip } from "./ContextChip.tsx";
 import { contextOf, spentOf } from "./context.ts";
@@ -26,20 +28,38 @@ const IMAGE_TYPES = "image/png,image/jpeg,image/webp,image/gif";
  * The chat's composer, left to right: + (file, image), the chat's model, then how full the chat is (opens Usage),
  * the mic (records audio with its words) and send. While the agent works, Enter interrupts it and Ctrl/⌘+Enter queues.
  * A field starting with "/" opens the command and skill menu.
- * Files also arrive dragged or pasted.
+ * Files also arrive dragged or pasted. What is typed stays as the chat's draft until it is sent.
+ * A new chat (see newChat.ts) is made with its first message; `onMade` then opens it (by default, where it was).
  */
-export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
+export function ChatComposer({
+  thread,
+  agent,
+  onMade = (id) => go.madeThread(thread.id, id),
+}: {
+  thread: Thread;
+  agent: Agent | undefined;
+  onMade?: (id: string) => void;
+}) {
   const t = useT();
   const offline = useData((s) => s.connection === "offline");
   const engine = useEngineLabel(thread.engine);
   const runsById = useData((s) => s.runs);
-  const [text, setText] = useState(() => takeDraft(thread.id));
+  const [text, setTextNow] = useState(() => draftOf(thread.id));
+  useEffect(() => keepDraft(thread.id, text), [thread.id, text]);
+  // Typed text is kept at once too: a pick that also leaves the chat (/new) unmounts it before the effect runs.
+  const setText = (v: string | ((cur: string) => string)) => {
+    if (typeof v === "string") keepDraft(thread.id, v);
+    setTextNow(v);
+  };
+  const fresh = isNewChat(thread.id);
+  // Files and voice notes of a new chat are uploaded to no chat yet; they go with its first message.
+  const made = fresh ? undefined : thread.id;
   const files = useRef<HTMLInputElement>(null);
   const images = useRef<HTMLInputElement>(null);
   const appendWords = (words: string) => setText((cur) => (cur.trim() ? `${cur.trimEnd()} ${words}` : words));
-  const att = useAttachments(thread.id, appendWords);
+  const att = useAttachments(made, appendWords);
   const box = useRef<HTMLDivElement>(null);
-  const mic = useDictation(thread.id, (audio, words) => {
+  const mic = useDictation(made, (audio, words) => {
     att.restore([audio]);
     if (words) appendWords(words);
   });
@@ -57,18 +77,33 @@ export function ChatComposer({ thread, agent }: { thread: Thread; agent: Agent |
     [runsById, thread.id],
   );
 
+  // A new chat is made once: what is sent while it is being made waits.
+  const making = useRef(false);
   const submit = (value: string, { queue }: { queue: boolean }) => {
-    if (micBusy) return;
+    if (micBusy || making.current) return;
     if (att.uploading) return notify(t("composer.stillUploading"), "info");
     const attachments = att.take();
     const words = value.trim() || (attachments.length ? t("composer.attachedOnly") : "");
     if (!words) return;
     setText("");
     // A send that fails gives the words and the files back, so nothing the owner wrote is lost.
-    send(thread.id, words, { attachments, queue }).catch(() => {
+    const giveBack = () => {
       setText((cur) => cur || value);
       att.restore(attachments);
-    });
+    };
+    if (!fresh) return void send(thread.id, words, { attachments, queue }).catch(giveBack);
+    making.current = true;
+    makeChat(thread.id).then(
+      async (chat) => {
+        // The chat is made: words a send then refuses wait in its own draft.
+        await send(chat.id, words, { attachments, queue }).catch(() => keepDraft(chat.id, value));
+        onMade(chat.id);
+      },
+      () => {
+        making.current = false;
+        giveBack();
+      },
+    );
   };
   const pick = (input: HTMLInputElement | null) => input?.click();
 

@@ -355,6 +355,14 @@ export const go = {
         : { view: "inbox", threadId, listInFront: false },
     );
   },
+  /** A new chat just made takes the place of the empty one it was, wherever it is open; back skips the empty one. */
+  madeThread(newId: string, threadId: string) {
+    if (nav.get().threadId !== newId) return;
+    applyingHistory = true;
+    nav.set({ threadId });
+    applyingHistory = false;
+    currentPlace = placeOf(nav.get());
+  },
   /** Always the Inbox, whatever is open (running pill, deep links). */
   inboxThread(threadId: string) {
     nav.set({ view: "inbox", threadId, listInFront: false });

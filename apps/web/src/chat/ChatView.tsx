@@ -4,6 +4,7 @@ import { usePageVisible } from "../common/useInView.ts";
 import { loadThread, markRead } from "../data/actions.ts";
 import { threadAgent } from "../data/identity.ts";
 import { retryNow } from "../data/live.ts";
+import { isNewChat, useNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
@@ -16,14 +17,17 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
   const t = useT();
   const threadId = useNav((s) => s.threadId);
   const ready = useData((s) => s.ready);
-  const thread = useData((s) => (threadId ? s.threads[threadId] : undefined));
+  const stored = useData((s) => (threadId ? s.threads[threadId] : undefined));
+  // A new chat is shown from here alone until its first message makes it in the core.
+  const fresh = useNewChat(threadId);
+  const thread = stored ?? fresh;
   const load = useData((s) => (threadId ? s.threadLoad[threadId] : undefined));
   const agents = useData((s) => s.agents);
   const visible = usePageVisible();
   const offline = useData((s) => s.connection === "offline");
 
   useEffect(() => {
-    if (threadId && ready && load == null) void loadThread(threadId);
+    if (threadId && ready && load == null && !isNewChat(threadId)) void loadThread(threadId);
   }, [threadId, ready, load]);
 
   const unread = thread?.unread ?? 0;
@@ -58,7 +62,7 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
       </section>
     );
   }
-  if (!ready || (load !== "ready" && load !== "error")) return <ChatSkeleton />;
+  if (!ready || (!isNewChat(threadId) && load !== "ready" && load !== "error")) return <ChatSkeleton />;
   if (!thread) {
     return (
       <section className="chat chat--empty">

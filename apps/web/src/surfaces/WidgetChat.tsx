@@ -6,9 +6,9 @@ import { Transcript } from "../chat/Transcript.tsx";
 import { Drawer } from "../common/Drawer.tsx";
 import { createThread, loadThread } from "../data/actions.ts";
 import { createStore, useSlice } from "../data/createStore.ts";
+import { keepDraft } from "../data/drafts.ts";
 import { notify } from "../data/notices.ts";
 import { data, useData } from "../data/state.ts";
-import { putDraft } from "../data/threadAdmin.ts";
 import { t as tr, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { SurfaceFrame } from "./SurfaceFrame.tsx";
@@ -50,7 +50,7 @@ async function newChat(surface: SurfaceSummary): Promise<string | undefined> {
       title: surface.title,
     });
     // Its first words name the widget, so the agent updates that one instead of making another.
-    putDraft(thread.id, tr("widget.chatDraft", { title: surface.title, name: surface.name }));
+    keepDraft(thread.id, tr("widget.chatDraft", { title: surface.title, name: surface.name }));
     return thread.id;
   } catch (e) {
     notify(tr("error.change", { error: errText(e) }));
@@ -89,7 +89,7 @@ const close = () => open.set({ surfaceId: undefined, threadId: undefined });
 export async function askForWidget(agentId: string, projectId: string | undefined): Promise<void> {
   try {
     const thread = await createThread({ agentId, ...(projectId ? { projectId } : {}), title: tr("widget.askTitle") });
-    putDraft(thread.id, tr("widget.askDraft"));
+    keepDraft(thread.id, tr("widget.askDraft"));
     open.set({ surfaceId: undefined, threadId: thread.id });
   } catch (e) {
     notify(tr("error.change", { error: errText(e) }));

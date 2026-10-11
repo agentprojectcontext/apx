@@ -71,7 +71,7 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
       setSelected(a.id);
     },
     onEdit: setEditing,
-    onChat: (a) => void startChat(a, project.id),
+    onChat: (a) => startChat(a, project.id),
     onDelete: setDeleting,
   };
 
@@ -146,7 +146,7 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
             live={live}
             selected={selected}
             onOpen={(a) => setSelected(a.id === selected ? undefined : a.id)}
-            onChat={(a) => void startChat(a, project.id)}
+            onChat={(a) => startChat(a, project.id)}
             menu={(a) => agentMenu(a, t, actions)}
             areaName={(slug) => org?.areas.find((x) => x.slug === slug)?.name ?? slug}
           />
@@ -155,7 +155,7 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
               agent={current}
               team={team}
               onClose={() => setSelected(undefined)}
-              onChat={() => void startChat(current, project.id)}
+              onChat={() => startChat(current, project.id)}
             />
           )}
         </div>

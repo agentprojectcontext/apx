@@ -7,7 +7,7 @@ import { startVoiceMeter } from "./voiceMeter.ts";
 export type DictationState = "idle" | "starting" | "recording" | "transcribing" | "unsupported";
 
 /** Records a voice note and its words for review in the composer before sending. */
-export function useDictation(thread: string, onAudio: (audio: Attached, text?: string) => void) {
+export function useDictation(thread: string | undefined, onAudio: (audio: Attached, text?: string) => void) {
   const [state, setState] = useState<DictationState>(() =>
     typeof MediaRecorder === "undefined" || !navigator.mediaDevices ? "unsupported" : "idle",
   );

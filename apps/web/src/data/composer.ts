@@ -3,6 +3,7 @@ import type { ModelChoice } from "@apx/protocol";
 import { UPLOAD_LIMITS } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
+import { chooseNewChatModel, isNewChat } from "./newChat.ts";
 import { notify } from "./notices.ts";
 import { data } from "./state.ts";
 
@@ -68,22 +69,23 @@ async function base64(blob: Blob): Promise<string> {
 }
 
 /** Uploads one file; throws the core's reason (wrong type, too big, empty) for the chip to show. */
-export async function upload(file: File, thread: string): Promise<Attached> {
+/** `thread` is left out for a new chat: the file goes with its first message all the same. */
+export async function upload(file: File, thread: string | undefined): Promise<Attached> {
   const big = tooBig(file);
   if (big) throw new Error(big);
   const { media } = await client.call("media.upload", {
     name: file.name,
     mime: mimeOf(file),
     data: await base64(file),
-    thread,
+    ...(thread ? { thread } : {}),
   });
   return { id: media.id, kind: media.kind, name: media.name, mime: media.mime, bytes: media.bytes };
 }
 
 /** Speech to text for the field; undefined (with a notice) when it could not be heard. */
-export async function transcribe(mediaId: string, thread: string): Promise<string | undefined> {
+export async function transcribe(mediaId: string, thread: string | undefined): Promise<string | undefined> {
   try {
-    const r = await client.call("media.transcribe", { media_id: mediaId, thread });
+    const r = await client.call("media.transcribe", { media_id: mediaId, ...(thread ? { thread } : {}) });
     return r.text.trim();
   } catch (e) {
     notify(t("composer.dictationFailed", { error: errText(e) }));
@@ -91,8 +93,9 @@ export async function transcribe(mediaId: string, thread: string): Promise<strin
   }
 }
 
-/** The chat's own model; null goes back to the agent's. */
+/** The chat's own model; null goes back to the agent's. A new chat keeps it until it is made. */
 export async function setThreadModel(thread: string, choice: ModelChoice | null): Promise<void> {
+  if (isNewChat(thread)) return chooseNewChatModel(thread, choice);
   try {
     const r = await client.call("threads.model", { thread, model_choice: choice });
     data.set((s) => {

@@ -3,6 +3,7 @@ import type { Thread, WritePolicy } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
+import { keepDraft } from "./drafts.ts";
 import { notify } from "./notices.ts";
 import { data } from "./state.ts";
 
@@ -33,6 +34,7 @@ export async function deleteThread(id: string): Promise<boolean> {
   try {
     const { deleted } = await client.call("threads.delete", { thread: id });
     forgetThreads(deleted);
+    for (const gone of deleted) keepDraft(gone, "");
     return true;
   } catch (e) {
     notify(t("error.deleteChat", { error: errText(e) }));
@@ -69,21 +71,11 @@ export async function rewindThread(thread: string, message: string, text?: strin
   }
 }
 
-/** Words handed to a new chat's composer (a fork from the owner's message), taken once when it opens. */
-const drafts = new Map<string, string>();
-/** Words a new chat's composer opens with (a widget's chat names the widget). */
-export const putDraft = (thread: string, text: string): void => void drafts.set(thread, text);
-export const takeDraft = (thread: string): string => {
-  const d = drafts.get(thread) ?? "";
-  drafts.delete(thread);
-  return d;
-};
-
 /** A new chat with this one's history up to `message` (its id), the owner's words ready when forked at them. */
 export async function forkThread(thread: string, message: string, title: string): Promise<string | undefined> {
   try {
     const r = await client.call("threads.fork", { thread, message, title });
-    if (r.draft) drafts.set(r.thread.id, r.draft);
+    if (r.draft) keepDraft(r.thread.id, r.draft);
     data.set((s) => ({ threads: { ...s.threads, [r.thread.id]: r.thread } }));
     return r.thread.id;
   } catch (e) {

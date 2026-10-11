@@ -2,8 +2,9 @@ import { AgentAvatar, IconButton, Icons, Skeleton } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { ChatComposer } from "../chat/composer/ChatComposer.tsx";
 import { Transcript } from "../chat/Transcript.tsx";
-import { createThread, loadThread, markRead } from "../data/actions.ts";
+import { loadThread, markRead } from "../data/actions.ts";
 import { blobOf, threadAgent } from "../data/identity.ts";
+import { isNewChat, newChatId, useNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 
@@ -15,23 +16,25 @@ export function QuickChat() {
   const t = useT();
   const ready = useData((s) => s.ready);
   const [threadId, setThreadId] = useState("home");
-  const thread = useData((s) => s.threads[threadId]);
+  const stored = useData((s) => s.threads[threadId]);
+  const fresh = useNewChat(threadId);
+  const thread = stored ?? fresh;
   const load = useData((s) => s.threadLoad[threadId]);
   const agents = useData((s) => s.agents);
   const agent = thread ? threadAgent(thread, agents) : undefined;
 
   useEffect(() => {
-    if (ready && load == null) void loadThread(threadId);
+    if (ready && load == null && !isNewChat(threadId)) void loadThread(threadId);
   }, [ready, load, threadId]);
   const unread = thread?.unread ?? 0;
   useEffect(() => {
     if (unread > 0 && load === "ready") void markRead(threadId);
   }, [threadId, unread, load]);
 
-  const fresh = async () => {
+  // Made with its first message (see newChat.ts).
+  const startNew = () => {
     const secretary = Object.values(agents).find((a) => a.kind === "secretary");
-    if (!secretary) return;
-    setThreadId((await createThread({ agentId: secretary.id })).id);
+    if (secretary) setThreadId(newChatId({ agent: secretary.id }));
   };
 
   return (
@@ -50,7 +53,7 @@ export function QuickChat() {
             onClick={() => setThreadId("home")}
           />
         )}
-        <IconButton size="sm" label={t("chat.new")} icon={<Icons.SquarePen size={14} />} onClick={() => void fresh()} />
+        <IconButton size="sm" label={t("chat.new")} icon={<Icons.SquarePen size={14} />} onClick={startNew} />
         {window.apxDesktop?.openMain && (
           <IconButton
             size="sm"
@@ -61,9 +64,13 @@ export function QuickChat() {
         )}
       </header>
       <div className="quick__body">
-        {thread && load === "ready" ? <Transcript thread={thread} /> : <Skeleton className="quick__skeleton" />}
+        {thread && (fresh || load === "ready") ? (
+          <Transcript thread={thread} />
+        ) : (
+          <Skeleton className="quick__skeleton" />
+        )}
       </div>
-      {thread && <ChatComposer key={thread.id} thread={thread} agent={agent} />}
+      {thread && <ChatComposer key={thread.id} thread={thread} agent={agent} onMade={setThreadId} />}
     </section>
   );
 }

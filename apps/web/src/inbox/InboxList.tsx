@@ -22,7 +22,6 @@ export function InboxList() {
   const offline = useData((s) => s.connection === "offline");
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [creating, setCreating] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const chatAgents = useChatAgents(projectId);
 
@@ -44,12 +43,9 @@ export function InboxList() {
     ? t("inbox.projectChats", { project: findProject(projects, projectId)?.name ?? t("project.fallback") })
     : t("nav.inbox");
 
-  const newChat = async () => {
+  const newChat = () => {
     const first = chatAgents[0];
-    if (!first) return;
-    setCreating(true);
-    await startChat(first, projectId);
-    setCreating(false);
+    if (first) startChat(first, projectId);
   };
 
   return (
@@ -94,7 +90,7 @@ export function InboxList() {
             title={query ? t("inbox.noResults") : t("inbox.empty")}
             action={
               !query && (
-                <Button size="sm" onClick={newChat} loading={creating}>
+                <Button size="sm" onClick={newChat}>
                   {t("chat.new")}
                 </Button>
               )

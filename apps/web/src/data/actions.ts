@@ -2,10 +2,11 @@
 import type { Message, Part, Thread } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
-import type { Attached } from "./composer.ts";
+import { type Attached, setThreadModel } from "./composer.ts";
 import { loadEngines } from "./engines.ts";
 import { loadJobs } from "./jobs.ts";
 import { loadCatalog, loadModelsConfig } from "./models.ts";
+import { parseNewChat, takeNewChatModel } from "./newChat.ts";
 import { notify } from "./notices.ts";
 import { hasNoticesFor } from "./notifications.ts";
 import { data, upsertMessage } from "./state.ts";
@@ -134,19 +135,48 @@ export async function createThread(input: {
   title?: string;
   /** A code thread in the project's folder, with its write policy. */
   code?: { write: "ask" | "auto" | "read-only" };
+  /** A code session with an outside engine itself ("claude", "codex"…). */
+  engine?: string;
 }): Promise<Thread> {
   const thread = await client.call("threads.create", {
-    kind: input.code ? "code" : "loose",
+    kind: input.code || input.engine ? "code" : "loose",
     agent_id: input.agentId,
     project_id: input.projectId,
     title: input.title,
     ...(input.code ? { write: input.code.write } : {}),
+    ...(input.engine ? { engine: input.engine } : {}),
   });
   data.set((s) => ({
     threads: { ...s.threads, [thread.id]: thread },
     messages: { ...s.messages, [thread.id]: s.messages[thread.id] ?? [] },
     threadLoad: { ...s.threadLoad, [thread.id]: "ready" },
   }));
+  return thread;
+}
+
+/** Makes a new chat (see newChat.ts) in the core, with the model picked in it before; says why when it could not. */
+export async function makeChat(id: string): Promise<Thread> {
+  const spec = parseNewChat(id);
+  if (!spec) throw new Error(`not a new chat: ${id}`);
+  const engine = spec.engine ? data.get().engines.find((e) => e.id === spec.engine) : undefined;
+  let thread: Thread;
+  try {
+    thread = await createThread({
+      agentId: spec.agent,
+      ...(spec.project ? { projectId: spec.project } : {}),
+      // A code session is named after its folder by the core.
+      ...(spec.engine
+        ? { engine: spec.engine, title: t("engine.newTitle", { engine: engine?.label ?? spec.engine }) }
+        : spec.code
+          ? { code: { write: "ask" as const } }
+          : { title: t("chat.new") }),
+    });
+  } catch (e) {
+    notify(t("error.createChat", { error: errText(e) }));
+    throw e;
+  }
+  const choice = takeNewChatModel(id);
+  if (choice) await setThreadModel(thread.id, choice);
   return thread;
 }
 

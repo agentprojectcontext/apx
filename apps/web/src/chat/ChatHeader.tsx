@@ -5,6 +5,7 @@ import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { compactThread } from "../data/actions.ts";
 import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
+import { isNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { updateThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
@@ -165,7 +166,8 @@ export function ChatHeader({
           className={tools ? "chat__toolsbtn is-on" : "chat__toolsbtn"}
           onClick={go.toggleTools}
         />
-        {!sub && (
+        {/* A new chat has nothing to rename, archive or compact until its first message makes it. */}
+        {!sub && !isNewChat(thread.id) && (
           <Menu
             align="end"
             trigger={<IconButton size="sm" label={t("chat.more")} icon={<Icons.Ellipsis size={14} />} />}

@@ -1,10 +1,10 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { Icons } from "@apx/ui";
 import { type KeyboardEvent, type ReactNode, useEffect, useId, useMemo, useState } from "react";
-import { cancel, compactThread, createThread } from "../../data/actions.ts";
+import { cancel, compactThread } from "../../data/actions.ts";
 import { setThreadModel } from "../../data/composer.ts";
 import { forAgents, loadCatalog, modelOf, splitRef, useModels, withEffort } from "../../data/models.ts";
-import { notify } from "../../data/notices.ts";
+import { isNewChat, newChatId } from "../../data/newChat.ts";
 import { listSkills } from "../../data/resources.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
@@ -44,6 +44,8 @@ export function useSlashMenu(o: {
   const open = text.startsWith("/") && !text.includes("\n") && closedFor !== text;
   // An engine session (Claude Code, Codex) has its own skills and context: APX's are not offered there.
   const direct = Boolean(thread.engine);
+  // A new chat not made yet has nothing to compact.
+  const fresh = isNewChat(thread.id);
 
   // Read once the menu first opens, not for every chat painted.
   useEffect(() => {
@@ -66,8 +68,10 @@ export function useSlashMenu(o: {
       currentModel: current ? withEffort(current, undefined) : undefined,
       efforts: current ? (modelOf(current, catalog)?.efforts ?? []) : [],
       currentEffort: current ? splitRef(current).effort : undefined,
-    }).filter((i) => !(direct && i.kind === "command" && (i.id === "compact" || i.id === "skills")));
-  }, [open, text, catalog, skills, direct, thread.engine, current, o.busy]);
+    })
+      .filter((i) => !(direct && i.kind === "command" && (i.id === "compact" || i.id === "skills")))
+      .filter((i) => !(fresh && i.kind === "command" && i.id === "compact"));
+  }, [open, text, catalog, skills, direct, fresh, thread.engine, current, o.busy]);
 
   // A new list starts at its first row.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset on every change of the typed text
@@ -88,10 +92,11 @@ export function useSlashMenu(o: {
     setText("");
     switch (item.id) {
       case "new":
-        if (!agent) return;
-        return void createThread({ agentId: agent.id, projectId: thread.project_id, title: t("chat.new") })
-          .then((n) => go.thread(n.id))
-          .catch((e: unknown) => notify(t("error.createChat", { error: e instanceof Error ? e.message : String(e) })));
+        // Made with its first message, like any new chat.
+        return (
+          agent &&
+          go.thread(newChatId({ agent: agent.id, ...(thread.project_id ? { project: thread.project_id } : {}) }))
+        );
       case "compact":
         return void compactThread(thread.id);
       case "stop":
