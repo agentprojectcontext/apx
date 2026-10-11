@@ -196,10 +196,12 @@ export function createExecutor(o: {
       return { ok: false, text: "refused: this code thread is read-only; only actions that read may run here" };
     }
     const decision = authorize(tool, args, agent, untrusted);
+    // A call that always asks takes no standing grant: its "once" is kept and looked up without the tool's target.
+    const target = level === "always" ? undefined : tool.approval;
     if (
       decision.kind === "confirm" &&
-      !(level !== "always" && tool.approval && store.approvals.allows(tool.approval, thread.id, agent.id)) &&
-      !o.inputs.takeGrant(thread.id, agent.id, name, raw, tool.approval?.key)
+      !(target && store.approvals.allows(target, thread.id, agent.id)) &&
+      !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key)
     ) {
       const answer = await o.inputs.ask({
         run,
@@ -209,7 +211,7 @@ export function createExecutor(o: {
         kind: "confirm",
         prompt: confirmPrompt(store, decision.why, agent.name, name),
         tool: name,
-        approval: level === "always" ? undefined : tool.approval,
+        approval: target,
         args: raw,
         detail: describe(args),
         external: o.external(),
