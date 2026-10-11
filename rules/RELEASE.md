@@ -72,3 +72,21 @@ e2e/install/servers.sh clean
 
 On a server: `curl -fsSL http://apx-feed:7480/install.sh | bash -s -- --feed http://apx-feed:7480`; the install
 keeps updating from that feed (`apx upgrade`). The desktop app installs onto one with `APX_RELEASES=<feed>` set.
+
+## Verified before the beta
+
+Tried for real on the network, from a local feed, with builds made the way `release.yml` makes them:
+
+| Path | Linux (Ubuntu 24.04, systemd) | Windows 11 | macOS |
+|---|---|---|---|
+| `install.sh` / `install.ps1`, re-run, `--uninstall` | yes | yes | — |
+| Over a running v1 (daemon stopped, npm package removed) | yes (sudo npm needs sudo) | yes | — |
+| `apx import-v1` / the setup's import from v1's files | yes | yes | — |
+| `apx setup --headless --expose lan`, panel from another browser (pairing screen) | yes | — | — |
+| `apx open`, `apx desktop` (opens, or downloads and installs) | — | yes | UNVERIFIED |
+| Desktop installer, first run as server or client | AppImage builds; UNVERIFIED | yes | builds, ad-hoc signed, launches |
+| First run › Client › SSH › install on a server, linger, continue | yes (server side) | yes | — |
+| Desktop app updates itself (2.2.3 → 2.2.4) | — | yes | UNVERIFIED |
+| Daemon updates itself (`apx upgrade`) | yes | UNVERIFIED | — |
+| Docker image | yes | — | — |
+| Android APK (debug-signed), pair, chat | — | — | Samsung phone: yes |
