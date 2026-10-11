@@ -25,8 +25,11 @@ const ALWAYS = new Set(["read_output", "ask_owner", "load_skill", "recall"]);
 
 /** What an agent's editor offers: each assignable tool with its group, and whether every agent keeps it anyway. */
 export function toolCatalog(tools: readonly Tool[]): Array<{ name: string; group?: string; kept: boolean }> {
-  return tools
-    .filter((t) => !SUPER_AGENT_TOOLS.has(t.name))
+  // MCP's two bridge tools join each turn apart from the built-in ones; a list without them loses every MCP tool.
+  const names = [...new Set([...tools.map((t) => t.name), ...BRIDGE])];
+  return names
+    .filter((n) => !SUPER_AGENT_TOOLS.has(n))
+    .map((name) => ({ name }))
     .map((t) => {
       const group = Object.keys(GROUPS).find((g) => GROUPS[g]?.(t.name));
       return { name: t.name, ...(group ? { group } : {}), kept: ALWAYS.has(t.name) };

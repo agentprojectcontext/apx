@@ -602,6 +602,45 @@
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-sm);
 }
+.agentaccess__group {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.agentaccess__tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 6px 14px;
+  padding-left: 24px;
+}
+.agentaccess__note {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.agentaccess__grants {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.agentaccess__grant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+}
+.agentaccess__server {
+  margin-right: auto;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
 .agentedit__file {
   margin-right: auto;
   font-size: var(--apx-text-xs);

@@ -209,6 +209,7 @@ test("an agent's tools and skills are set from APX: a project agent's file says 
       { name: "shell_output", group: "shell", kept: false },
     );
     assert.equal(tools.find((t) => t.name === "recall")?.kept, true);
+    assert.equal(tools.find((t) => t.name === "mcp_call")?.group, "mcp", "MCP's bridge is offered too");
     assert.ok(!tools.some((t) => t.name === "agent_set"), "the super-agent's own tools are not offered");
 
     await env.client.call("agents.update", {

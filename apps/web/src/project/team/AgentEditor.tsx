@@ -5,6 +5,7 @@ import { blobOf, DEFAULT_PID } from "../../data/identity.ts";
 import { useOrg } from "../../data/org.ts";
 import { getAgent, updateAgent } from "../../data/team.ts";
 import { useT } from "../../i18n/index.ts";
+import { PermissionsTab, SkillsTab, ToolsTab } from "./AgentAccess.tsx";
 
 const NONE = "~none";
 const OTHER = "~other";
@@ -17,12 +18,18 @@ type Draft = {
   personality: string;
   blob: string;
   prompt: string;
+  /** Empty: every tool (or skill), as an agent without a list. */
+  tools: string[];
+  skills: string[];
 };
 
+const same = (a: Draft[keyof Draft], b: Draft[keyof Draft]) =>
+  Array.isArray(a) && Array.isArray(b) ? a.join("\n") === b.join("\n") : a === b;
+
 /**
- * The whole agent in one dialog: who it is (name, role, area, what it does, its personality, avatar) and its system
- * prompt. A project
- * agent's changes are written to its `.apc/agents/<slug>.md`.
+ * The whole agent in one dialog: who it is (name, role, area, what it does, its personality, avatar), its system
+ * prompt, the tools and skills it may use, and the tools the owner approved for it for good. A project agent's
+ * changes are written to its `.apc/agents/<slug>.md`.
  */
 export function AgentEditor({
   agent,
@@ -32,7 +39,7 @@ export function AgentEditor({
   agent: Agent;
   onClose: () => void;
   /** The tab it opens on. */
-  start?: "identity" | "prompt";
+  start?: "identity" | "prompt" | "tools" | "skills" | "permissions";
 }) {
   const t = useT();
   const [base, setBase] = useState<Draft>();
@@ -51,6 +58,8 @@ export function AgentEditor({
         personality: r.agent.personality ?? "",
         blob: blobOf(r.agent) ?? "",
         prompt: r.prompt,
+        tools: r.agent.tools ?? [],
+        skills: r.agent.skills ?? [],
       };
       setBase(start);
       setD(start);
@@ -60,7 +69,7 @@ export function AgentEditor({
     };
   }, [agent.id]);
 
-  const changed = base && d ? (Object.keys(d) as (keyof Draft)[]).filter((k) => d[k] !== base[k]) : [];
+  const changed = base && d ? (Object.keys(d) as (keyof Draft)[]).filter((k) => !same(d[k], base[k])) : [];
   const save = async () => {
     if (!d || !changed.length) return onClose();
     setSaving(true);
@@ -69,6 +78,7 @@ export function AgentEditor({
     if (ok) onClose();
   };
   const set = (k: keyof Draft) => (v: string) => setD((cur) => (cur ? { ...cur, [k]: v } : cur));
+  const setList = (k: "tools" | "skills") => (v: string[]) => setD((cur) => (cur ? { ...cur, [k]: v } : cur));
   // A company project's areas and roles are offered as lists (a global agent: the base project's).
   const org = useOrg(agent.project_id ?? DEFAULT_PID);
   const pickedRole = d && org?.roles.find((r) => r.name === d.role);
@@ -243,6 +253,21 @@ export function AgentEditor({
                   )}
                 </Field>
               ),
+            },
+            {
+              value: "tools",
+              label: t("agent.edit.tools"),
+              content: <ToolsTab value={d.tools} onChange={setList("tools")} />,
+            },
+            {
+              value: "skills",
+              label: t("agent.edit.skills"),
+              content: <SkillsTab agent={agent} value={d.skills} onChange={setList("skills")} />,
+            },
+            {
+              value: "permissions",
+              label: t("agent.edit.permissions"),
+              content: <PermissionsTab agent={agent} />,
             },
           ]}
         />

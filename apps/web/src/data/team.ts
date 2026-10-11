@@ -70,6 +70,16 @@ export async function getAgent(agent: string): Promise<Result<"agents.get"> | un
   }
 }
 
+/** APX's own tools an agent's list may name, with their groups (for the agent's editor). */
+export async function agentToolCatalog(): Promise<Result<"agents.tools">["tools"] | undefined> {
+  try {
+    return (await client.call("agents.tools", {})).tools;
+  } catch (e) {
+    notify(t("error.load", { error: errText(e) }));
+    return undefined;
+  }
+}
+
 /** An agent's runs, newest first; `before` pages back. */
 export async function agentRuns(agent: string, before?: string): Promise<Result<"runs.list">> {
   try {
