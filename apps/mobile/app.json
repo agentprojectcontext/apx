@@ -3,18 +3,18 @@
     "name": "APX",
     "slug": "apx",
     "scheme": "apx",
-    "version": "2.0.8",
+    "version": "2.0.9",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "icon": "../desktop/assets/icon.png",
     "ios": {
       "bundleIdentifier": "dev.apx.mobile",
       "supportsTablet": true,
-      "buildNumber": "10"
+      "buildNumber": "11"
     },
     "android": {
       "package": "dev.apx.mobile",
-      "versionCode": 10
+      "versionCode": 11
     },
     "plugins": [
       [
