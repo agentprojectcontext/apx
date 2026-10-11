@@ -4,10 +4,12 @@ import { AppState, Platform } from "react-native";
 import { APP_CLIENT } from "./appInfo";
 import type { Creds } from "./creds";
 import { t } from "./i18n";
+import { permissionState, shouldAsk } from "./notificationPermission";
 import { ApxClient } from "./protocol";
 
 export type NotificationStatus = {
-  state: "checking" | "denied" | "local" | "push" | "error";
+  /** `off`: not turned on yet, the owner can still be asked; `denied`: only the system settings can turn it on. */
+  state: "checking" | "off" | "denied" | "local" | "push" | "error";
   detail?: string;
   localEnabled?: boolean;
 };
@@ -47,7 +49,7 @@ Notifications.setNotificationHandler({
   },
 });
 
-/** Android needs a channel before requesting permission or a device push token. */
+/** Android needs a channel before requesting permission or a device push token. `request`: the owner tapped to ask. */
 async function permission(request: boolean) {
   if (Platform.OS === "android") {
     await Notifications.setNotificationChannelAsync("default", {
@@ -58,16 +60,22 @@ async function permission(request: boolean) {
       lightColor: "#3ec98b",
     });
   }
-  let result = await Notifications.getPermissionsAsync();
-  if (!result.granted && result.canAskAgain && request) result = await Notifications.requestPermissionsAsync();
-  return result.granted || result.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL;
+  const read = (result: Notifications.NotificationPermissionsStatus) =>
+    permissionState({
+      granted: result.granted,
+      canAskAgain: result.canAskAgain,
+      provisional: result.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL,
+    });
+  const state = read(await Notifications.getPermissionsAsync());
+  return shouldAsk(state, request) ? read(await Notifications.requestPermissionsAsync()) : state;
 }
 
 /** Never report remote delivery as active when only local notification permission is granted. */
-export async function configureNotifications(creds?: Creds, request = true): Promise<NotificationStatus> {
+export async function configureNotifications(creds?: Creds, request = false): Promise<NotificationStatus> {
   let localEnabled = false;
   try {
-    if (!(await permission(request))) return { state: "denied" };
+    const state = await permission(request);
+    if (state !== "granted") return { state };
     localEnabled = true;
     const projectId = Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId;
     if (!creds || !projectId) return { state: "local" };

@@ -21,6 +21,8 @@ export const en = {
   pushActive: "Push service registered for this phone.",
   pushDestination: "Select this device as the notification destination in APX settings on your computer.",
   pushPending: "Delivery with APX closed still needs push service configuration.",
+  notificationsOff: "Notifications are off on this phone. Turn them on so your agents can reach you here.",
+  turnOnNotifications: "Turn on notifications",
   notificationsDenied: "Notifications disabled in system settings.",
   notificationsChecking: "Checking notification permission…",
   notificationsError: "Could not enable push. Check the connection and retry.",

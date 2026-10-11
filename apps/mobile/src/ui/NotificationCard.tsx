@@ -20,11 +20,13 @@ export function NotificationCard({ status, enable }: { status: NotificationStatu
             ? "pushActive"
             : status.state === "local"
               ? "localActive"
-              : status.state === "denied"
-                ? "notificationsDenied"
-                : status.state === "checking"
-                  ? "notificationsChecking"
-                  : "notificationsError",
+              : status.state === "off"
+                ? "notificationsOff"
+                : status.state === "denied"
+                  ? "notificationsDenied"
+                  : status.state === "checking"
+                    ? "notificationsChecking"
+                    : "notificationsError",
         )}
       </Text>
       {status.state === "local" ? <Text style={type.meta}>{translate("pushPending")}</Text> : null}
@@ -44,10 +46,12 @@ export function NotificationCard({ status, enable }: { status: NotificationStatu
             }
           />
         ) : null}
-        {status.state === "denied" || status.state === "error" ? (
+        {status.state === "off" || status.state === "denied" || status.state === "error" ? (
           <Button
             size="md"
-            label={translate(status.state === "denied" ? "openSettings" : "retry")}
+            label={translate(
+              status.state === "off" ? "turnOnNotifications" : status.state === "denied" ? "openSettings" : "retry",
+            )}
             onPress={() => void enable()}
           />
         ) : null}

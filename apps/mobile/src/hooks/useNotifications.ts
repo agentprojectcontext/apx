@@ -14,8 +14,9 @@ export function useNotifications(creds?: Creds) {
     },
     [creds],
   );
+  // Opening a screen only reads the permission; the system prompt waits for the owner's tap (`enable`).
   useEffect(() => {
-    void refresh(true);
+    void refresh();
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") void refresh();
     });

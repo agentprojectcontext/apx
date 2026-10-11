@@ -22,6 +22,8 @@ export const es: Record<Key, string> = {
   pushActive: "Servicio push vinculado a este teléfono.",
   pushDestination: "Elegí este dispositivo como destino de avisos en ajustes de APX desde tu computadora.",
   pushPending: "Avisos con APX cerrada: falta configurar servicio push.",
+  notificationsOff: "Las notificaciones están apagadas en este teléfono. Activalas para que tus agentes te avisen acá.",
+  turnOnNotifications: "Activar notificaciones",
   notificationsDenied: "Notificaciones desactivadas en ajustes del sistema.",
   notificationsChecking: "Comprobando permiso de notificaciones…",
   notificationsError: "No se pudo activar push. Revisá conexión e intentá nuevamente.",
