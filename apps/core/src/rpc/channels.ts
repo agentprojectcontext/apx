@@ -11,7 +11,15 @@ import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
 
+/** How long a send waits for the platform's answer before saying it is still queued (the tools have 15 s). */
+const SETTLE_MS = 8_000;
+
 export function channelHandlers(store: Store, channels: Channels) {
+  /** A message an agent sent, with how it went: an agent must not say it went when the platform refused it. */
+  const withDelivery = async ({ outbox, ...sent }: ReturnType<Channels["postInRoom"]>) => ({
+    ...sent,
+    delivery: await channels.settled(outbox, SETTLE_MS),
+  });
   return {
     "channels.list": () => ({ channels: channels.info() }),
     // Open to agents: what channel_list shows. Disabled channels are not there for them.
@@ -44,20 +52,24 @@ export function channelHandlers(store: Store, channels: Channels) {
       return { ok: true as const };
     },
     // Open to agents (the owner's, never a contact's turn): their way to write to a contact for the owner.
-    "channels.message": ({ person, text, channel, files }, ctx) => {
+    "channels.message": async ({ person, text, channel, files }, ctx) => {
+      let sent: ReturnType<typeof channels.messageContact>;
       try {
-        return channels.messageContact(person, text, { channel, by: ctx.agent?.id, files });
+        sent = channels.messageContact(person, text, { channel, by: ctx.agent?.id, files });
       } catch (err) {
         throw badRequest(errorMessage(err));
       }
+      return withDelivery(sent);
     },
     // Open to agents like channels.message: their way to post in a public room for the owner.
-    "channels.post": ({ room, text, channel, files }, ctx) => {
+    "channels.post": async ({ room, text, channel, files }, ctx) => {
+      let sent: ReturnType<typeof channels.postInRoom>;
       try {
-        return channels.postInRoom(room, text, { channel, by: ctx.agent?.id, files });
+        sent = channels.postInRoom(room, text, { channel, by: ctx.agent?.id, files });
       } catch (err) {
         throw badRequest(errorMessage(err));
       }
+      return withDelivery(sent);
     },
     "channels.open": ({ person, channel }) => {
       if (!store.persons.get(person)) throw notFound(`person ${person}`);
@@ -68,6 +80,14 @@ export function channelHandlers(store: Store, channels: Channels) {
       }
     },
     "channels.presence": ({ channel }) => ({ people: channels.presence(channel) }),
+    "channels.rooms": async ({ channel }) => {
+      if (!channels.info().some((c) => c.id === channel)) throw notFound(`channel ${channel}`);
+      try {
+        return { rooms: await channels.serverRooms(channel) };
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+    },
     "channels.outbox": ({ limit }) => ({
       items: store.channels.outbox.recent(limit).map(publicOutbox),
     }),

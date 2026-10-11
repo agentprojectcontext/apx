@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { OWNER_ID } from "../domain/persons.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { discordAdapter } from "./discord.ts";
+import { canWrite, discordAdapter } from "./discord.ts";
 import { fakeDiscord } from "./fake-discord.test-support.ts";
 import { calledByName, roomDecision } from "./rooms.ts";
 
@@ -14,6 +14,8 @@ const ROOMS = { general: "8001", help: "8002", logs: "8003", ideas: "8004" };
 
 const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 160)}`);
+  if (said.includes("announce the beta"))
+    return callTool("p5", "channel_post", { room: "#ideas", text: "The beta is coming" });
   if (said.includes("post the release note"))
     return callTool("p1", "channel_post", { room: "#logs", text: "v2.1 is out @everyone" });
   if (said.includes("which channels")) return callTool("l1", "channel_list", {});
@@ -276,6 +278,21 @@ test("the owner's agent posts in a room when asked, even a read room, with no pi
   assert.equal(posts(ROOMS.logs)[0]?.content, "v2.1 is out @\u200beveryone");
   assert.ok(kept(ROOMS.logs).includes("v2.1 is out @\u200beveryone"), "kept in the room's chat");
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /sent to #logs on Discord/);
+
+  // A room the bot may not write in: the agent hears Discord's refusal, not that it went.
+  dc.failures.set(`POST /channels/${ROOMS.ideas}/messages`, [
+    { status: 403, body: { message: "Missing Permissions" } },
+  ]);
+  await env.client.call("threads.send", { thread: "home", text: "announce the beta in ideas" });
+  // The room's talk the last post returned is in context: this send asks first.
+  const asked = async () => (await env.client.call("runs.pending", { thread: "home" })).inputs[0];
+  await until(async () => Boolean(await asked()), "asked");
+  await env.client.call("runs.respond", { input: (await asked())?.id ?? "", decision: "approve" });
+  await env.settle("home");
+  assert.match(
+    String(llm.calls.at(-1)?.messages.at(-1)?.content),
+    /NOT sent to #ideas: Discord refused it \(Discord said: Missing Permissions\)/,
+  );
 });
 
 test("from the app the owner tells the agent what to post in a room: it goes out there, pinging only who it names", async () => {
@@ -324,6 +341,43 @@ test("a member's turn in a room pings nobody, even someone who wrote there", asy
   await until(() => posts(ROOMS.help).length === n + 2, "Ben answered");
   assert.equal(posts(ROOMS.help).at(-1)?.content, "Hi @ana!");
   assert.deepEqual(posts(ROOMS.help).at(-1)?.allowed_mentions, { parse: [] });
+});
+
+test("the owner picks rooms from the bot's servers, each saying whether the bot may write there", async () => {
+  const SEND = String(1 << 11);
+  dc.guild.channels = [
+    { id: ROOMS.general, name: "general", type: 0 },
+    { id: "8100", name: "voice", type: 2 },
+    { id: "8101", name: "anuncios", type: 5, permission_overwrites: [{ id: "7001", type: 0, allow: "0", deny: SEND }] },
+  ];
+  const { rooms } = await env.client.call("channels.rooms", { channel: "dc" });
+  assert.deepEqual(rooms, [
+    { id: ROOMS.general, name: "general", server: "Acme", writable: true },
+    { id: "8101", name: "anuncios", server: "Acme", writable: false },
+  ]);
+});
+
+test("writing in a room follows Discord: roles, then @everyone's, the roles' and the member's overwrites", () => {
+  const VIEW = 1n << 10n;
+  const SEND = 1n << 11n;
+  const roles = [
+    { id: "g", permissions: String(VIEW) },
+    { id: "r", permissions: String(VIEW | SEND) },
+    { id: "admin", permissions: String(1n << 3n) },
+  ];
+  const ow = (id: string, type: number, allow: bigint, deny: bigint) => ({
+    id,
+    type,
+    allow: String(allow),
+    deny: String(deny),
+  });
+  const bot = (more: string[] = []) => ({ guild: "g", member: "m", roles: more });
+  assert.equal(canWrite(bot(), roles, []), false, "@everyone only views");
+  assert.equal(canWrite(bot(["r"]), roles, []), true);
+  assert.equal(canWrite(bot(["r"]), roles, [ow("r", 0, 0n, SEND)]), false, "a role's overwrite denies");
+  assert.equal(canWrite(bot(["r"]), roles, [ow("r", 0, 0n, SEND), ow("m", 1, SEND, 0n)]), true, "the member's wins");
+  assert.equal(canWrite(bot(), roles, [ow("g", 0, SEND, 0n)]), true, "@everyone allowed here");
+  assert.equal(canWrite(bot(["admin"]), roles, [ow("g", 0, 0n, VIEW | SEND)]), true, "an administrator always can");
 });
 
 test("names are whole words in any script; the decision follows the room's mode", () => {

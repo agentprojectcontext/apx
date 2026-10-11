@@ -1,6 +1,6 @@
 // What goes out to people and rooms outside a turn's answer: the owner writing to a contact, an agent messaging a
 // contact or posting in a room, and what a channel knows about a person (their picture, whether they are online).
-import type { ChannelInfo } from "@apx/protocol";
+import type { ChannelInfo, OutboxItem } from "@apx/protocol";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
@@ -12,6 +12,7 @@ import { type createRooms, quietMentions, roomMentions } from "./rooms.ts";
 import type { ChannelAdapter, ChannelConfig, Presence } from "./types.ts";
 
 const AVATAR_TTL_MS = 24 * 3600_000;
+const SETTLE_POLL_MS = 100;
 
 export function createOutgoing(deps: {
   store: Store;
@@ -116,8 +117,8 @@ export function createOutgoing(deps: {
     const { pick, owner, thread } = chatWith(personId, o.channel);
     // The chat's agent answers the contact's reply knowing it wrote this first (the owner's own chat logs its turns).
     const recent = recentOf(thread.id);
-    post(thread, pick.cfg.id, pick.conversation, text, { ...o, logged: !owner });
-    return { thread: thread.id, channel: pick.cfg.label, recent };
+    const outbox = post(thread, pick.cfg.id, pick.conversation, text, { ...o, logged: !owner });
+    return { thread: thread.id, channel: pick.cfg.label, recent, outbox };
   }
 
   /**
@@ -154,8 +155,8 @@ export function createOutgoing(deps: {
     const thread = rooms.thread(cfg, r);
     const recent = recentOf(thread.id);
     const named = roomMentions(quietMentions(text), store.channels.inbox.people(cfg.id, r.id));
-    post(thread, cfg.id, r.id, named.text, { ...o, logged: false, mentions: named.mentions });
-    return { thread: thread.id, channel: cfg.label, recent };
+    const outbox = post(thread, cfg.id, r.id, named.text, { ...o, logged: false, mentions: named.mentions });
+    return { thread: thread.id, channel: cfg.label, recent, outbox };
   }
 
   /**
@@ -204,8 +205,24 @@ export function createOutgoing(deps: {
     });
   }
 
+  /**
+   * How a send went, waiting up to `ms` for the platform: sent, refused (failed, with why), uncertain, or still queued
+   * (a channel that is down retries later).
+   */
+  async function settled(outboxId: string, ms: number): Promise<{ state: OutboxItem["state"]; error?: string }> {
+    const end = Date.now() + ms;
+    for (;;) {
+      const o = store.channels.outbox.get(outboxId);
+      const done = o && (o.state === "sent" || o.state === "failed" || o.state === "uncertain");
+      if (!o || done || Date.now() >= end)
+        return { state: o?.state ?? "failed", ...(o?.error && o.state !== "sent" ? { error: o.error } : {}) };
+      await new Promise((r) => setTimeout(r, SETTLE_POLL_MS));
+    }
+  }
+
   return {
     sendAsOwner,
+    settled,
     messageContact,
     postInRoom,
     avatar,

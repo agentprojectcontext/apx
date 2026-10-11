@@ -15,6 +15,21 @@ export async function fakeDiscord(token: string) {
   let seq = 0;
   let nextDm = 5000;
   const dmOf = new Map<string, string>();
+  /** The one server the bot is in: its text channels and roles (the bot has the role "bots", which may write). */
+  const guild = {
+    id: "7000",
+    name: "Acme",
+    channels: [] as Array<{
+      id: string;
+      name: string;
+      type: number;
+      permission_overwrites?: Array<{ id: string; type: number; allow: string; deny: string }>;
+    }>,
+    roles: [
+      { id: "7000", permissions: String(1 << 10) },
+      { id: "7001", permissions: String((1 << 10) | (1 << 11)) },
+    ],
+  };
 
   const server = http.createServer((req, res) => {
     let raw = "";
@@ -36,7 +51,13 @@ export async function fakeDiscord(token: string) {
       const forced = failures.get(`${req.method} ${route}`)?.shift();
       if (forced) return reply(forced.status, forced.body);
       if (req.method === "GET" && route === "/users/@me") return reply(200, { id: "1", username: "apx_test_bot" });
+      if (req.method === "GET" && route === "/users/@me/guilds")
+        return reply(200, [{ id: guild.id, name: guild.name }]);
       if (req.method === "GET" && route.startsWith("/users/")) return reply(200, { id: route.slice(7), avatar: null });
+      if (req.method === "GET" && route === `/guilds/${guild.id}/channels`) return reply(200, guild.channels);
+      if (req.method === "GET" && route === `/guilds/${guild.id}/roles`) return reply(200, guild.roles);
+      if (req.method === "GET" && route.startsWith(`/guilds/${guild.id}/members/`))
+        return reply(200, { roles: ["7001"] });
       const multipart = (req.headers["content-type"] ?? "").startsWith("multipart/");
       const body = (raw && !multipart ? JSON.parse(raw) : multipart ? { bytes: raw.length } : {}) as Record<
         string,
@@ -88,6 +109,7 @@ export async function fakeDiscord(token: string) {
     sent,
     failures,
     identified,
+    guild,
     dm,
     /**
      * A direct message to the bot (or, with `guild`, a message in a server's channel: `room`, else "777"); `mention`

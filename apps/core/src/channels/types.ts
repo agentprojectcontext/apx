@@ -91,7 +91,11 @@ export interface ChannelAdapter {
    * them, so the first answer may be empty.
    */
   presence?(externalIds: string[]): Record<string, Presence>;
+  /** The rooms of the servers the bot is in (to pick from instead of typing ids), and whether it may write in each. */
+  rooms?(): Promise<ServerRoom[]>;
 }
+
+export type ServerRoom = { id: string; name: string; server: string; writable: boolean };
 
 export type Presence = { online: boolean; last_seen?: string };
 

@@ -47,10 +47,18 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   await page.getByRole("button", { name: "Discord", exact: true }).first().click();
   await page.getByRole("button", { name: "Configuración del canal" }).click();
   await expect(page.getByText("Salas del servidor")).toBeVisible();
-  await page.getByRole("textbox", { name: "Nombre de la sala" }).fill("general");
-  await page.getByRole("textbox", { name: "ID de la sala" }).fill("100000000000000001");
-  await page.getByRole("button", { name: "Agregar sala" }).click();
+  // Rooms are picked from the bot's server; one it may not post in says so before anything is sent there.
+  const pick = page.getByRole("combobox", { name: "Agregar una sala del servidor…" });
+  await pick.click();
+  await expect(page.getByRole("option", { name: /#anuncios/ })).toContainText("no publicar");
+  await page.getByRole("option", { name: /#general/ }).click();
   await expect(page.getByText("#general")).toBeVisible();
+  await pick.click();
+  await page.getByRole("option", { name: /#anuncios/ }).click();
+  await expect(page.getByText("No puede escribir")).toBeVisible();
+  // Typing an id stays possible.
+  await page.getByRole("button", { name: "Agregar por ID" }).click();
+  await expect(page.getByRole("textbox", { name: "ID de la sala" })).toBeVisible();
   const names = page.getByRole("textbox", { name: "Cómo lo llaman" });
   await names.fill("roby");
   await names.blur();

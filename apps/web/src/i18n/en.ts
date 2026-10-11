@@ -1230,6 +1230,11 @@ export const en = {
   "rooms.id": "Room id",
   "rooms.idPlaceholder": "Channel id (123456789012345678)",
   "rooms.add": "Add room",
+  "rooms.pick": "Add a room from the server…",
+  "rooms.allListed": "Every room of the server is listed",
+  "rooms.byId": "Add by ID",
+  "rooms.cannotWrite": "Cannot write",
+  "rooms.cannotWriteHint": "The bot may read but not post here: give its role “Send messages” in this room on Discord.",
   "rooms.idHint":
     "In Discord, turn on Developer Mode (Settings › Advanced) and right-click the channel › Copy Channel ID.",
   "rooms.names": "What calls it",

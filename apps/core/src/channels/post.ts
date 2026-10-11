@@ -10,6 +10,8 @@ import type { createDelivery } from "./delivery.ts";
 export type Posted = {
   thread: string;
   channel: string;
+  /** Its outbox item: how the send went. */
+  outbox: string;
   recent: Array<{ from: "them" | "you" | "owner"; text: string }>;
 };
 
@@ -27,7 +29,7 @@ export function createPoster(store: Store, delivery: Pick<ReturnType<typeof crea
     });
   }
 
-  /** Kept in the chat (and, `logged`, in what its agent reads), then sent through the outbox. */
+  /** Kept in the chat (and, `logged`, in what its agent reads), then sent through the outbox; returns its item's id. */
   function post(
     thread: Thread,
     channel: string,
@@ -39,7 +41,7 @@ export function createPoster(store: Store, delivery: Pick<ReturnType<typeof crea
       logged: boolean;
       mentions?: Presentation["mentions"];
     },
-  ): void {
+  ): string {
     const files = (o.files ?? []).map((id) => {
       const m = store.media.get(id);
       if (!m) throw new Error(`no file ${id}`);
@@ -62,7 +64,7 @@ export function createPoster(store: Store, delivery: Pick<ReturnType<typeof crea
       store.threads.patch(thread.id, { preview: previewOf(text) });
       return m;
     });
-    delivery.enqueue({
+    return delivery.enqueue({
       channel,
       conversation,
       thread_id: thread.id,

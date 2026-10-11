@@ -733,6 +733,13 @@
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
 }
+.rooms__mute {
+  margin-right: auto;
+}
+.rooms__pick {
+  flex: 1;
+  min-width: 0;
+}
 .rooms__addname {
   flex: 0 1 160px;
 }

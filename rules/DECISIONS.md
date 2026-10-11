@@ -757,3 +757,12 @@ agent (it would act on authorization passed through the first), so "post this in
 done at all. Those turns now also have `message_contact`, `channel_post`, `channel_list`, `contact_list` and
 `read_chat`; anything else still goes to an agent through `delegate`. A send asks first as on any channel (after
 outside content, unless autonomy is total), and on WhatsApp its confirmation arrives as numbered options in that chat.
+
+<a id="d-065"></a>
+## D-065 — 2026-10-11 — An agent's send waits for the platform's answer; rooms are picked from the bot's servers
+`message_contact` and `channel_post` said "queued for delivery" before anything was sent, so when Discord refused a
+post (the bot had no "Send messages" in that room) the agent told the owner it went. `channels.message` and
+`channels.post` now wait up to 8 seconds for the outbox item to settle and return its `delivery` (sent, refused with
+the platform's reason, uncertain, or still queued when the channel is down), and the tools tell the agent to pass that
+on. Rooms are added by picking them from the servers the bot is in (`channels.rooms`), each marked when the bot may
+not write there, computed from the server's roles and the room's overwrites; typing an id stays as a fallback.

@@ -30,7 +30,13 @@ import { createOutgoing } from "./outgoing.ts";
 import { createPoster } from "./post.ts";
 import { createRooms, quietMentions, roomMentions } from "./rooms.ts";
 import { channelTexts } from "./texts.ts";
-import { type AdapterFactory, type ChannelAdapter, type ChannelConfig, ChannelRefused } from "./types.ts";
+import {
+  type AdapterFactory,
+  type ChannelAdapter,
+  type ChannelConfig,
+  ChannelRefused,
+  type ServerRoom,
+} from "./types.ts";
 
 const TYPING_EVERY_MS = 4500;
 /** Longer than this, what came before the first tool is part of the answer, not an "on it" line. */
@@ -524,8 +530,17 @@ export function createChannels(deps: {
     });
   }
 
+  /** The rooms of a running channel's servers, to pick from; none where the platform has no rooms. */
+  async function serverRooms(id: string): Promise<ServerRoom[]> {
+    const l = live.get(id);
+    if (!l?.adapter.rooms) return [];
+    if (l.status !== "running") throw new Error(`${l.config.label} is not running`);
+    return l.adapter.rooms();
+  }
+
   return {
     info,
+    serverRooms,
     ...outgoing,
     notifyOwner,
     approved: inbound.approved,

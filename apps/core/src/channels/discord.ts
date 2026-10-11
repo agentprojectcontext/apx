@@ -46,6 +46,37 @@ type DcInteraction = {
 };
 type Frame = { op: number; d?: unknown; s?: number | null; t?: string | null };
 
+/** Text and announcement channels: the rooms a bot can read and post in. */
+const ROOM_TYPES = new Set([0, 5]);
+const ADMINISTRATOR = 1n << 3n;
+const VIEW_CHANNEL = 1n << 10n;
+const SEND_MESSAGES = 1n << 11n;
+type DcOverwrite = { id: string; type: number; allow: string; deny: string };
+type DcChannel = { id: string; type: number; name?: string; position?: number; permission_overwrites?: DcOverwrite[] };
+
+/**
+ * Whether a member may see and write in a channel, as Discord computes it: the server's roles, then the channel's
+ * overwrites for @everyone, for the member's roles and for the member.
+ */
+export function canWrite(
+  o: { guild: string; member: string; roles: string[] },
+  roles: Array<{ id: string; permissions: string }>,
+  overwrites: DcOverwrite[],
+): boolean {
+  const mine = new Set([o.guild, ...o.roles]);
+  let p = roles.filter((r) => mine.has(r.id)).reduce((acc, r) => acc | BigInt(r.permissions), 0n);
+  if (p & ADMINISTRATOR) return true;
+  const apply = (ows: DcOverwrite[]) => {
+    const deny = ows.reduce((acc, w) => acc | BigInt(w.deny), 0n);
+    const allow = ows.reduce((acc, w) => acc | BigInt(w.allow), 0n);
+    p = (p & ~deny) | allow;
+  };
+  apply(overwrites.filter((w) => w.id === o.guild));
+  apply(overwrites.filter((w) => w.type === 0 && w.id !== o.guild && mine.has(w.id)));
+  apply(overwrites.filter((w) => w.type === 1 && w.id === o.member));
+  return (p & VIEW_CHANNEL) !== 0n && (p & SEND_MESSAGES) !== 0n;
+}
+
 class DcError extends Error {
   readonly status: number;
   readonly retryAfter: number | undefined;
@@ -314,6 +345,30 @@ export const discordAdapter = ((
     },
     async typing(conversation) {
       await api("POST", `/channels/${conversation}/typing`, undefined, 8000);
+    },
+    async rooms() {
+      const self = me ?? (await api<DcUser>("GET", "/users/@me")).id;
+      const guilds = await api<Array<{ id: string; name: string }>>("GET", "/users/@me/guilds");
+      const found = await Promise.all(
+        guilds.slice(0, 20).map(async (g) => {
+          const [channels, roles, member] = await Promise.all([
+            api<DcChannel[]>("GET", `/guilds/${g.id}/channels`),
+            api<Array<{ id: string; permissions: string }>>("GET", `/guilds/${g.id}/roles`),
+            api<{ roles: string[] }>("GET", `/guilds/${g.id}/members/${self}`),
+          ]);
+          const who = { guild: g.id, member: self, roles: member.roles };
+          return channels
+            .filter((c) => ROOM_TYPES.has(c.type))
+            .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+            .map((c) => ({
+              id: c.id,
+              name: c.name ?? c.id,
+              server: g.name,
+              writable: canWrite(who, roles, c.permission_overwrites ?? []),
+            }));
+        }),
+      );
+      return found.flat();
     },
     async avatar(userId) {
       const u = await api<DcUser>("GET", `/users/${userId}`);

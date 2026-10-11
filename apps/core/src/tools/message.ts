@@ -37,16 +37,31 @@ const MIME: Record<string, string> = {
   mp4: "video/mp4",
 };
 
+/** How the send went, in words the agent must pass on as they are. */
+function outcome(to: string, channel: string, d: { state: string; error?: string | undefined }, with_: string): string {
+  const why = d.error ? ` (${channel} said: ${d.error.slice(0, 200)})` : "";
+  if (d.state === "sent") return `sent to ${to} on ${channel}${with_}.`;
+  if (d.state === "failed")
+    return `NOT sent to ${to}: ${channel} refused it${why}. Tell the owner it did not go out and why; do not retry the same send.`;
+  if (d.state === "uncertain")
+    return `maybe not sent to ${to} on ${channel}${why}: tell the owner to check it; do not send it again.`;
+  return `queued for ${to}: ${channel} has not taken it yet${why}; it goes out when the channel can. Say so, not that it went.`;
+}
+
 /** What a send left, with the end of that chat (outside words, so framed as untrusted). */
 function sentNote(
   to: string,
-  r: { channel: string; recent: Array<{ from: string; text: string }> },
+  r: {
+    channel: string;
+    recent: Array<{ from: string; text: string }>;
+    delivery: { state: string; error?: string | undefined };
+  },
   files: number,
   kind: string,
 ): string {
   const tail = r.recent.map((m) => `${m.from}: ${m.text}`).join("\n");
   const with_ = files ? ` with ${files} file${files > 1 ? "s" : ""}` : "";
-  return `sent to ${to} on ${r.channel}${with_} (queued for delivery).${tail ? `\nThe chat before it:\n${untrusted(kind, { with: to }, tail)}` : ""}`;
+  return `${outcome(to, r.channel, r.delivery, with_)}${tail ? `\nThe chat before it:\n${untrusted(kind, { with: to }, tail)}` : ""}`;
 }
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();

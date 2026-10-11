@@ -32,6 +32,7 @@ import {
   Nudge,
   Organization,
   OutboxItem,
+  OutboxState,
   OwnerIdentity,
   PairingRequest,
   PendingInput,
@@ -77,6 +78,18 @@ const V1Group = z.enum([
   "commitments",
   "routines",
 ]);
+
+/**
+ * What an agent's message on a channel left: its chat, the end of that chat before it (so the agent knows what was
+ * already said), and how the send went after a few seconds (refused: `failed` with the platform's reason; a channel
+ * that is down: still `queued`).
+ */
+const Sent = z.object({
+  thread: Id,
+  channel: z.string(),
+  recent: z.array(z.object({ from: z.enum(["them", "you", "owner"]), text: z.string() })),
+  delivery: z.object({ state: OutboxState, error: z.string().optional() }),
+});
 
 export const appMethods = {
   ...officeMethods,
@@ -826,11 +839,7 @@ export const appMethods = {
         files: z.array(Id).max(5).optional(),
       })
       .strict(),
-    result: z.object({
-      thread: Id,
-      channel: z.string(),
-      recent: z.array(z.object({ from: z.enum(["them", "you", "owner"]), text: z.string() })),
-    }),
+    result: Sent,
     effect: true,
   },
   /**
@@ -849,11 +858,7 @@ export const appMethods = {
         files: z.array(Id).max(5).optional(),
       })
       .strict(),
-    result: z.object({
-      thread: Id,
-      channel: z.string(),
-      recent: z.array(z.object({ from: z.enum(["them", "you", "owner"]), text: z.string() })),
-    }),
+    result: Sent,
     effect: true,
   },
   /** What channels sent lately and how each delivery went (sent, uncertain, failed). */
@@ -871,6 +876,18 @@ export const appMethods = {
     params: z.object({ person: Id, channel: z.string().min(1).max(60) }).strict(),
     result: Thread,
     effect: true,
+    access: "human",
+  },
+  /**
+   * The rooms of the servers a channel's bot is in (Discord's text and announcement channels), to add one by picking
+   * it; `writable`: whether the bot may post there (Discord's permissions for its roles in that room).
+   */
+  "channels.rooms": {
+    params: z.object({ channel: z.string().min(1).max(60) }).strict(),
+    result: z.object({
+      rooms: z.array(z.object({ id: z.string(), name: z.string(), server: z.string(), writable: z.boolean() })),
+    }),
+    effect: false,
     access: "human",
   },
   /**

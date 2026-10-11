@@ -95,10 +95,12 @@ export function createDelivery(deps: {
   }
 
   return {
-    enqueue(o: Parameters<Store["channels"]["outbox"]["add"]>[0]): void {
-      store.channels.outbox.add(o);
+    /** Queues a send; returns its outbox id, to follow how it went. */
+    enqueue(o: Parameters<Store["channels"]["outbox"]["add"]>[0]): string {
+      const row = store.channels.outbox.add(o);
       if (o.message_id) store.messages.setDelivery(o.message_id, "pending");
       kick();
+      return row.id;
     },
     /** The platform says a sent message reached their device or was seen. */
     receipt(channel: string, externalId: string, state: "delivered" | "read"): void {

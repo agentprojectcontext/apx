@@ -1238,6 +1238,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "rooms.id": "ID de la sala",
   "rooms.idPlaceholder": "ID del canal (123456789012345678)",
   "rooms.add": "Agregar sala",
+  "rooms.pick": "Agregar una sala del servidor…",
+  "rooms.allListed": "Todas las salas del servidor ya están",
+  "rooms.byId": "Agregar por ID",
+  "rooms.cannotWrite": "No puede escribir",
+  "rooms.cannotWriteHint":
+    "El bot puede leer pero no publicar acá: dale a su rol “Enviar mensajes” en esta sala de Discord.",
   "rooms.idHint":
     "En Discord, activá Modo desarrollador (Ajustes › Avanzado) y hacé clic derecho en el canal › Copiar ID del canal.",
   "rooms.names": "Cómo lo llaman",

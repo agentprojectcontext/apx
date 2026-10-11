@@ -1,6 +1,7 @@
 import type { ChannelInfo, ChannelRooms, RoomMode } from "@apx/protocol";
-import { Button, Icons, Input, Select, SettingRow, Switch, Textarea } from "@apx/ui";
-import { useState } from "react";
+import { Button, Icons, Input, Select, SettingRow, Switch, Tag, Textarea } from "@apx/ui";
+import { useEffect, useState } from "react";
+import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
 import { SubHead } from "./SectionHead.tsx";
 
@@ -15,15 +16,40 @@ const EMPTY: ChannelRooms = {
   limits: { user_cooldown_s: 20, room_replies_per_hour: 30, checks_per_hour: 120 },
 };
 
+type ServerRoom = { id: string; name: string; server: string; writable: boolean };
+
+/** The rooms of the bot's servers while it runs; none (and the id form) when they cannot be read. */
+function useServerRooms(channel: ChannelInfo): ServerRoom[] | undefined {
+  const [rooms, setRooms] = useState<ServerRoom[]>();
+  const running = channel.status === "running";
+  useEffect(() => {
+    if (!running) return setRooms(undefined);
+    let live = true;
+    client.call("channels.rooms", { channel: channel.id }).then(
+      (r) => live && setRooms(r.rooms),
+      () => live && setRooms(undefined),
+    );
+    return () => {
+      live = false;
+    };
+  }, [channel.id, running]);
+  return rooms;
+}
+
 /**
  * The server rooms a Discord bot reads and may speak in, each with its mode; the words that call it, the owner's notes
- * for that community, its rules and limits. A room not listed does not exist for APX.
+ * for that community, its rules and limits. A room not listed does not exist for APX. Rooms are picked from the bot's
+ * servers (each says whether the bot may write there); typing an id is the fallback.
  */
 export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(rooms: ChannelRooms): Promise<unknown> }) {
   const t = useT();
   const cur = channel.rooms ?? EMPTY;
   const set = (patch: Partial<ChannelRooms>) => void save({ ...cur, ...patch });
   const [adding, setAdding] = useState({ id: "", name: "" });
+  const server = useServerRooms(channel);
+  const [byId, setById] = useState(false);
+  const writable = new Map((server ?? []).map((r) => [r.id, r.writable]));
+  const unlisted = (server ?? []).filter((r) => !cur.rooms.some((x) => x.id === r.id));
   const validId = /^\d{15,21}$/.test(adding.id.trim());
   const add = () => {
     if (!validId || cur.rooms.some((r) => r.id === adding.id.trim())) return;
@@ -50,7 +76,13 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
         {cur.rooms.map((r) => (
           <div key={r.id} className="rooms__row">
             <span className="rooms__name">#{r.name || r.id}</span>
-            <code className="rooms__id">{r.id}</code>
+            {writable.get(r.id) === false ? (
+              <Tag className="rooms__mute" title={t("rooms.cannotWriteHint")}>
+                {t("rooms.cannotWrite")}
+              </Tag>
+            ) : (
+              <code className="rooms__id">{r.id}</code>
+            )}
             <Select
               label={t("rooms.mode", { room: r.name || r.id })}
               value={r.mode}
@@ -72,33 +104,61 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
             />
           </div>
         ))}
-        <div className="rooms__row rooms__add">
-          <Input
-            aria-label={t("rooms.name")}
-            className="rooms__addname"
-            placeholder={t("rooms.namePlaceholder")}
-            value={adding.name}
-            onChange={(e) => setAdding({ ...adding, name: e.currentTarget.value })}
-          />
-          <Input
-            aria-label={t("rooms.id")}
-            className="rooms__addid"
-            placeholder={t("rooms.idPlaceholder")}
-            value={adding.id}
-            onChange={(e) => setAdding({ ...adding, id: e.currentTarget.value })}
-            onKeyDown={(e) => e.key === "Enter" && add()}
-          />
-          <Button
-            size="sm"
-            variant="secondary"
-            leadingIcon={<Icons.Plus size={14} />}
-            disabled={!validId}
-            onClick={add}
-          >
-            {t("rooms.add")}
-          </Button>
-        </div>
-        <p className="pform__hint">{t("rooms.idHint")}</p>
+        {server && (
+          <div className="rooms__row rooms__add">
+            <Select
+              label={t("rooms.pick")}
+              className="rooms__pick"
+              value={null}
+              placeholder={unlisted.length ? t("rooms.pick") : t("rooms.allListed")}
+              disabled={!unlisted.length}
+              onValueChange={(id) => {
+                const r = unlisted.find((x) => x.id === id);
+                if (r) set({ rooms: [...cur.rooms, { id: r.id, name: r.name, mode: "mention" }] });
+              }}
+              options={unlisted.map((r) => ({
+                value: r.id,
+                label: `#${r.name}`,
+                group: r.server,
+                ...(r.writable ? {} : { description: t("rooms.cannotWriteHint") }),
+              }))}
+            />
+            {!byId && (
+              <Button size="sm" variant="ghost" onClick={() => setById(true)}>
+                {t("rooms.byId")}
+              </Button>
+            )}
+          </div>
+        )}
+        {(!server || byId) && (
+          <div className="rooms__row rooms__add">
+            <Input
+              aria-label={t("rooms.name")}
+              className="rooms__addname"
+              placeholder={t("rooms.namePlaceholder")}
+              value={adding.name}
+              onChange={(e) => setAdding({ ...adding, name: e.currentTarget.value })}
+            />
+            <Input
+              aria-label={t("rooms.id")}
+              className="rooms__addid"
+              placeholder={t("rooms.idPlaceholder")}
+              value={adding.id}
+              onChange={(e) => setAdding({ ...adding, id: e.currentTarget.value })}
+              onKeyDown={(e) => e.key === "Enter" && add()}
+            />
+            <Button
+              size="sm"
+              variant="secondary"
+              leadingIcon={<Icons.Plus size={14} />}
+              disabled={!validId}
+              onClick={add}
+            >
+              {t("rooms.add")}
+            </Button>
+          </div>
+        )}
+        {(!server || byId) && <p className="pform__hint">{t("rooms.idHint")}</p>}
       </div>
 
       <SettingRow title={t("rooms.names")} description={t("rooms.namesHint")}>

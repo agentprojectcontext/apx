@@ -34,6 +34,16 @@ const llm = await fakeLlm();
 const fx = writeFixtures(dir, { embedUrl: llm.url.replace(/\/v1$/, "") });
 const tg = await fakeTelegram(E2E.telegramToken);
 const dc = await fakeDiscord(E2E.discordToken);
+// The bot's server: a room it may write in, and an announcements room whose overwrite takes "Send messages" from it.
+dc.guild.channels = [
+  { id: "100000000000000001", name: "general", type: 0 },
+  {
+    id: "100000000000000002",
+    name: "anuncios",
+    type: 5,
+    permission_overwrites: [{ id: "7001", type: 0, allow: "0", deny: String(1 << 11) }],
+  },
+];
 const sl = await fakeSlack(E2E.slackTokens);
 const google = await fakeGoogle();
 
