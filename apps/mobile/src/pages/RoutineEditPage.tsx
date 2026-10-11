@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { dueWhen } from "../format";
+import { dueWhen, sentenceCase } from "../format";
 import type { Routine, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import type { Schedule } from "../protocol";
@@ -119,7 +119,7 @@ export function RoutineEditPage({
           options={assignableAgents(data.agents, routine.project_id).map((item) => ({
             value: item.id,
             label: item.name,
-            sub: item.kind === "secretary" ? t("superAgent") : item.role,
+            sub: item.kind === "secretary" ? t("superAgent") : sentenceCase(item.role),
             leading: <AgentAvatar name={item.name} blob={item.blob} id={item.id} size={28} />,
           }))}
           onPick={setAgentId}

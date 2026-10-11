@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { sentenceCase } from "../format";
 import { chatAgents, isWorking, listedThreads } from "../hooks/chatSelectors";
 import type { Agent, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
@@ -87,7 +88,11 @@ export function ChatPicker({
             <Row
               key={agent.id}
               title={agent.name}
-              sub={agent.kind === "secretary" ? t("superAgent") : agent.role || agent.description || t("agent")}
+              sub={
+                agent.kind === "secretary"
+                  ? t("superAgent")
+                  : sentenceCase(agent.role || agent.description) || t("agent")
+              }
               avatar={<AgentAvatar name={agent.name} blob={agent.blob} id={agent.id} size={36} />}
               trailing={
                 busy === agent.id ? <Spinner size={16} /> : <Icon name="Plus" size={18} color={theme.fgMuted} />

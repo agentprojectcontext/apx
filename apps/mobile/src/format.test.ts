@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ago, ahead, dayLabel, dueWhen, elapsed, listWhen } from "./format.ts";
+import { ago, ahead, dayLabel, dueWhen, elapsed, listWhen, sentenceCase } from "./format.ts";
 
 // A Wednesday afternoon, local time.
 const now = new Date(2026, 9, 7, 14, 39);
@@ -40,4 +40,12 @@ test("a transcript's day reads Today, Yesterday or the date", () => {
   assert.equal(dayLabel(at(0, 9), now, "es"), "Hoy");
   assert.equal(dayLabel(at(-1, 9), now, "en"), "Yesterday");
   assert.match(dayLabel(new Date(2026, 8, 11).toISOString(), now, "es"), /^11 sept?\.?$/);
+});
+
+test("text from the core starts with a capital, the rest as written", () => {
+  assert.equal(sentenceCase("personal secretary"), "Personal secretary");
+  assert.equal(sentenceCase(" écrit en français"), "Écrit en français");
+  assert.equal(sentenceCase("Already fine, with API names"), "Already fine, with API names");
+  assert.equal(sentenceCase(""), "");
+  assert.equal(sentenceCase(undefined), "");
 });

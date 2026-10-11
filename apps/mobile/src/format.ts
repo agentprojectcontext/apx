@@ -93,3 +93,9 @@ export function elapsed(iso?: string, now = new Date(), language: Lang = lang): 
   if (minutes < 60) return tr("minutes", { n: minutes });
   return tr("hoursMinutes", { h: Math.floor(minutes / 60), m: minutes % 60 });
 }
+
+/** Text from the core (an agent's description or role) shown in sentence case; the data itself stays as written. */
+export function sentenceCase(text: string | undefined): string {
+  const trimmed = text?.trim() ?? "";
+  return trimmed ? trimmed.charAt(0).toLocaleUpperCase() + trimmed.slice(1) : "";
+}

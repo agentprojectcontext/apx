@@ -1,4 +1,5 @@
 import { View } from "react-native";
+import { sentenceCase } from "../format";
 import { channelName, listedThreads } from "../hooks/chatSelectors";
 import type { Agent, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
@@ -29,7 +30,7 @@ export function MoreDetailPage({
             <ListRow
               key={agent.id}
               label={agent.name}
-              sub={agent.description || agent.role}
+              sub={sentenceCase(agent.description || agent.role)}
               leading={<AgentAvatar name={agent.name} blob={agent.blob} id={agent.id} size={36} />}
               onPress={() => chatWith(agent)}
             />

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { dueWhen } from "../format";
+import { dueWhen, sentenceCase } from "../format";
 import type { Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { DateSheet } from "../ui/DateSheet";
@@ -142,7 +142,7 @@ export function FieldSheet({
             ...agents.map((item) => ({
               value: item.id,
               label: item.name,
-              sub: item.kind === "secretary" ? t("superAgent") : item.role,
+              sub: item.kind === "secretary" ? t("superAgent") : sentenceCase(item.role),
               leading: <AgentAvatar name={item.name} blob={item.blob} id={item.id} size={28} />,
             })),
           ]}
