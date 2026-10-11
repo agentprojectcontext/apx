@@ -22,7 +22,7 @@ any external process. See [Engines](/apx/docs/engine/engines/) for that path.
 | Runtime ID | Binary | What APX spawns |
 |------------|--------|-----------------|
 | `claude-code` | `claude` | Headless `-p` mode; receives the agent's system prompt via `--append-system-prompt`; returns structured JSON including a `session_id` that links to the Claude Code transcript |
-| `codex` | `codex` | `codex exec --sandbox workspace-write --skip-git-repo-check`; system prompt is prepended to the user prompt (no dedicated `--system` flag in exec mode) |
+| `codex` | `codex` | `codex exec --sandbox workspace-write --skip-git-repo-check`; system prompt is prepended to the user prompt (no dedicated `--system` flag in exec mode). In a linked git worktree it also passes `--add-dir` for that worktree's git dir and the shared `objects`, `refs` and `logs`, so fetch, add, commit and new branches work; the shared `.git` root (config, hooks, `packed-refs`) stays read-only, so setting an upstream or deleting a branch still fails there |
 | `opencode` | `opencode` | `opencode run`; system prompt prepended to prompt body |
 | `aider` | `aider` | `aider --message --yes-always --no-auto-commits`; non-interactive, no auto-commits |
 | `cursor-agent` | `cursor-agent` | `--print --output-format text --trust --force`; headless print mode |
