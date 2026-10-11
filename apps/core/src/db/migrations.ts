@@ -670,4 +670,15 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX aux_calls_at ON aux_calls(at);
   CREATE INDEX aux_calls_thread ON aux_calls(thread_id) WHERE thread_id IS NOT NULL;
   `,
+  `
+  -- In a room's chat the owner's words said in the room are \`direct\`, apart from what they told the agent from the app
+  -- (DECISIONS.md#d-063): the ones the room's channel received are marked.
+  UPDATE messages SET author = json_set(author, '$.direct', json('true'))
+  WHERE json_extract(author, '$.kind') = 'user' AND json_extract(author, '$.direct') IS NULL
+    AND EXISTS (
+      SELECT 1 FROM threads t JOIN channel_inbox i ON i.channel = t.channel AND i.conversation = t.conversation
+      WHERE t.id = messages.thread_id AND json_extract(t.context, '$.room') IS NOT NULL
+        AND json_extract(i.payload, '$.text') = json_extract(messages.parts, '$[0].text')
+    );
+  `,
 ];

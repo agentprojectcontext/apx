@@ -156,10 +156,14 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     store.threads.mergeContext(threadId, {
       reply_to: { channel: ch.id, conversation: ch.conversation, ...(ch.message ? { message: ch.message } : {}) },
     });
+    // In a room the owner's words were said there (`direct`), unlike what they tell the agent from the app.
+    const room = Boolean(store.threads.context(threadId).room);
     return post(
       threadId,
       text,
-      owner ? { kind: "user" } : { kind: "person", id: ch.person_id, name: ch.name, channel: ch.id },
+      owner
+        ? { kind: "user", ...(room ? { direct: true } : {}) }
+        : { kind: "person", id: ch.person_id, name: ch.name, channel: ch.id },
       owner && mode === "steer",
       {
         agent_id: agentId,

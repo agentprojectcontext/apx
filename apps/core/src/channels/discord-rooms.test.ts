@@ -302,6 +302,16 @@ test("from the app the owner tells the agent what to post in a room: it goes out
   await env.client.call("channels.send", { thread: room.id, text: "@ana see you at the release" });
   await until(() => posts(ROOMS.logs).length === n + 2, "posted as is");
   assert.equal(posts(ROOMS.logs).at(-1)?.content, "<@222> see you at the release");
+
+  // The next turn reads the room's talk (the owner's words said there included) apart from their words from the app.
+  await env.client.call("threads.send", { thread: room.id, text: "thank ana for the issues once more" });
+  await env.settle(room.id);
+  const next = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  const talk = /<room_messages[^>]*>([\s\S]*?)<\/room_messages>/.exec(next)?.[1] ?? "";
+  assert.match(talk, /your owner: @ana could you look at the issues\?/);
+  assert.match(talk, /your owner: @ana see you at the release/);
+  assert.doesNotMatch(talk, /thank ana for the issues/);
+  assert.match(next, /earlier words to you from the APX app[^\n]*\n- thank ana for the issues\n/);
 });
 
 test("a member's turn in a room pings nobody, even someone who wrote there", async () => {

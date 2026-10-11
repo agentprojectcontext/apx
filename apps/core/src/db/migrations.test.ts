@@ -180,3 +180,34 @@ test("Codex runs stored with their session's running total get each turn's share
     cleanup();
   }
 });
+
+test("in a room's chat, the owner's words the room received become direct; their words from the app do not", () => {
+  const { db, cleanup } = upgradeFrom("$.direct', json('true')", (db) => {
+    const thread = db.prepare(
+      `INSERT INTO threads (id, kind, title, agent_ids, channel, conversation, context, created_at, updated_at)
+         VALUES (?, 'channel', ?, '[]', 'discord', ?, ?, '2026-10-01', '2026-10-01')`,
+    );
+    thread.run("th_room", "#help", "8002", JSON.stringify({ room: { name: "help" } }));
+    thread.run("th_ana", "Ana", "222", "{}");
+    const inbox = db.prepare(
+      `INSERT INTO channel_inbox (id, channel, external_id, conversation, sender, payload, state, created_at)
+         VALUES (?, 'discord', ?, ?, '111', ?, 'done', '2026-10-01')`,
+    );
+    inbox.run("in_1", "e1", "8002", JSON.stringify({ text: "the beta is out" }));
+    inbox.run("in_2", "e2", "222", JSON.stringify({ text: "see you later" }));
+    const msg = db.prepare(
+      "INSERT INTO messages (id, thread_id, seq, author, parts, created_at) VALUES (?, ?, ?, ?, ?, '2026-10-01')",
+    );
+    const said = (text: string) => JSON.stringify([{ type: "text", text }]);
+    msg.run("m_room", "th_room", 1, '{"kind":"user"}', said("the beta is out"));
+    msg.run("m_app", "th_room", 2, '{"kind":"user"}', said("thank Ana for the issues"));
+    msg.run("m_dm", "th_ana", 1, '{"kind":"user"}', said("see you later"));
+  });
+  const author = (id: string) =>
+    JSON.parse((db.prepare("SELECT author FROM messages WHERE id = ?").get(id) as { author: string }).author);
+  assert.deepEqual(author("m_room"), { kind: "user", direct: true });
+  assert.deepEqual(author("m_app"), { kind: "user" });
+  assert.deepEqual(author("m_dm"), { kind: "user" }, "only rooms");
+  db.close();
+  cleanup();
+});

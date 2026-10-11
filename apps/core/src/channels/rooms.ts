@@ -142,7 +142,10 @@ export function createRooms(deps: {
     store.tx(() => {
       store.messages.add({
         thread_id: thread.id,
-        author: who.owner ? { kind: "user" } : { kind: "person", id: who.id, name: who.name, channel: cfg.id },
+        // The owner's words said in the room are `direct`: their words to the agent from the app are not.
+        author: who.owner
+          ? { kind: "user", direct: true }
+          : { kind: "person", id: who.id, name: who.name, channel: cfg.id },
         parts: [{ type: "text", text: m.text }],
         quiet: true,
       });

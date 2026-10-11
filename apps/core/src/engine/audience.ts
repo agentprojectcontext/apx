@@ -119,6 +119,8 @@ export function roomPrompt(agent: AgentRecord, room: Room, ownerLanguage: string
 const RECENT_MESSAGES = 25;
 const RECENT_CHARS = 6000;
 const LINE_CHARS = 600;
+/** The owner's latest words to the agent from the app shown apart from the room's talk. */
+const APP_WORDS = 5;
 
 const textOf = (m: Message) =>
   m.parts
@@ -128,8 +130,9 @@ const textOf = (m: Message) =>
     .trim();
 
 /**
- * What a room's turn reads: the room's latest messages (as data, oldest first, within a size), then the one it
- * answers, with who wrote it. Its history is this, not the model log: a room's chatter is not a conversation with it.
+ * What a room's turn reads: the room's latest messages (as data, oldest first, within a size), the owner's latest words
+ * to it from the app apart (nobody in the room saw them), then the one it answers, with who wrote it. Its history is
+ * this, not the model log: a room's chatter is not a conversation with it.
  */
 export function roomInput(
   store: Store,
@@ -147,23 +150,33 @@ export function roomInput(
   const all = store.messages.list(o.threadId).filter((m) => m.run_id !== o.runId);
   const before = all.slice(0, -1).slice(-RECENT_MESSAGES);
   const lines: string[] = [];
+  const told: string[] = [];
   let used = 0;
   for (const m of [...before].reverse()) {
+    const t = textOf(m);
+    if (!t) continue;
+    const said = t.length > LINE_CHARS ? `${t.slice(0, LINE_CHARS)}…` : t;
+    // Said in the room is `direct`; the owner's other words came from the app, to the agent alone.
+    if (m.author.kind === "user" && !m.author.direct) {
+      if (told.length < APP_WORDS) told.unshift(`- ${said}`);
+      continue;
+    }
     const who =
       m.author.kind === "agent"
         ? `${o.agentName} (you)`
         : m.author.kind === "person"
           ? inlineName(m.author.name)
           : "your owner";
-    const t = textOf(m);
-    if (!t) continue;
-    const line = `${who}: ${t.length > LINE_CHARS ? `${t.slice(0, LINE_CHARS)}…` : t}`;
+    const line = `${who}: ${said}`;
     if (lines.length && used + line.length > RECENT_CHARS) break;
     lines.unshift(line);
     used += line.length;
   }
   return [
     lines.length ? untrusted("room_messages", { order: "oldest first" }, lines.join("\n")) : "",
+    told.length
+      ? `Your owner's earlier words to you from the APX app, oldest first (nobody in the room saw them):\n${told.join("\n")}`
+      : "",
     o.app
       ? `<owner_instruction>\n${o.text.slice(0, 4000)}\n</owner_instruction>\nYour owner wrote this in the APX app, not in the room: nobody there saw it. Write the message to post in the room as they ask, addressed to the room's people, not a reply to your owner.`
       : untrusted("room_message", { from: o.from, ...(o.owner ? { owner: "yes" } : {}) }, o.text.slice(0, 4000)),
