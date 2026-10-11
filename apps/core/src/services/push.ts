@@ -1,5 +1,6 @@
 // Push notices to a paired device whose app is closed: Expo's push service (an Expo push token) or a UnifiedPush /
-// ntfy address (the body is the text, the title a header). Best effort: a failure is logged, never retried here.
+// ntfy address (the body is the text; the title and the link that opens APX are headers). Best effort: a failure is
+// logged, never retried here.
 import type { PushTarget } from "@apx/protocol";
 
 export function createPush(opts: { expoUrl: string; onError?: (err: string) => void }) {
@@ -24,7 +25,11 @@ export function createPush(opts: { expoUrl: string; onError?: (err: string) => v
             })
           : await fetch(target.endpoint, {
               method: "POST",
-              headers: { "content-type": "text/plain; charset=utf-8", title: encodeURIComponent(n.title) },
+              headers: {
+                "content-type": "text/plain; charset=utf-8",
+                title: encodedWord(n.title),
+                click: openLink(n.data?.thread_id),
+              },
               body: n.body,
               signal: AbortSignal.timeout(10_000),
             });
@@ -35,6 +40,16 @@ export function createPush(opts: { expoUrl: string; onError?: (err: string) => v
       return false;
     }
   };
+}
+
+/** A header carries Latin-1 only; ntfy decodes an RFC 2047 encoded word, so the title shows as typed in any language. */
+function encodedWord(text: string): string {
+  return `=?UTF-8?B?${Buffer.from(text, "utf8").toString("base64")}?=`;
+}
+
+/** Tapping the notice in the ntfy app opens APX on the phone, on its chat when it has one. */
+function openLink(threadId: string | undefined): string {
+  return threadId ? `apx://open?t=${encodeURIComponent(threadId)}` : "apx://open";
 }
 
 export type Push = ReturnType<typeof createPush>;
