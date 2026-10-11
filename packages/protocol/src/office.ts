@@ -223,12 +223,12 @@ export const ActiveProfile = z.object({
 export type ActiveProfile = z.infer<typeof ActiveProfile>;
 
 /** What a notice in the attention tray is about. */
-export const NotificationKind = z.enum(["input", "task", "due", "routine", "channel", "agent"]);
+export const NotificationKind = z.enum(["input", "task", "due", "routine", "channel", "agent", "run"]);
 export type NotificationKind = z.infer<typeof NotificationKind>;
 
 /**
  * Something that wants the owner: an agent waiting for their OK, a task waiting for them, a routine's news, a channel
- * matter. `title` names the subject (an agent, a task, a routine); the screen says what kind of thing it is.
+ * matter, a turn that ended or failed in a chat they were not looking at. `title` names the subject (an agent, a task, a routine); the screen says what kind of thing it is.
  */
 export const Notification = z.object({
   id: Id,

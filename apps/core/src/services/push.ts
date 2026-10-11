@@ -3,14 +3,23 @@
 import type { PushTarget } from "@apx/protocol";
 
 export function createPush(opts: { expoUrl: string; onError?: (err: string) => void }) {
-  return async function push(target: PushTarget, n: { title: string; body: string }): Promise<boolean> {
+  return async function push(
+    target: PushTarget,
+    n: { title: string; body: string; data?: Record<string, string> },
+  ): Promise<boolean> {
     try {
       const res =
         target.kind === "expo"
           ? await fetch(opts.expoUrl, {
               method: "POST",
               headers: { "content-type": "application/json", accept: "application/json" },
-              body: JSON.stringify({ to: target.token, title: n.title, body: n.body, sound: "default" }),
+              body: JSON.stringify({
+                to: target.token,
+                title: n.title,
+                body: n.body,
+                sound: "default",
+                ...(n.data ? { data: n.data } : {}),
+              }),
               signal: AbortSignal.timeout(10_000),
             })
           : await fetch(target.endpoint, {

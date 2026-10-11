@@ -14,6 +14,7 @@ const KIND_ICON: Record<Notification["kind"], typeof Icons.Bell> = {
   routine: Icons.Clock,
   channel: Icons.Send,
   agent: Icons.Bell,
+  run: Icons.Activity,
 };
 
 /** Opens what a notice is about. A question stays in the tray until it is answered. */

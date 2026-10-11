@@ -26,6 +26,7 @@ import { createAttention } from "./engine/attention.ts";
 import { createEngine } from "./engine/engine.ts";
 import type { InputWaits } from "./engine/inputs.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
+import { createNoticePush } from "./engine/notice-push.ts";
 import type { ProfileRoot } from "./engine/profiles.ts";
 import { createSkillPicker } from "./engine/skill-pick.ts";
 import { afterWorkTurn } from "./engine/task-work.ts";
@@ -95,6 +96,8 @@ export type CoreOptions = {
   inputWaits?: InputWaits;
   /** The scheduler's clock; tests move it to make routines due. */
   clock?: () => Date;
+  /** How long a finished turn's chat may stay unread before the tray notices it (tests shorten it). */
+  unseenAfterMs?: number;
   /** Finder and the trash; tests record the calls instead. */
   desktop?: DesktopOps;
   /** Messages on this Mac (by default only on macOS); tests pass their own, null for none. */
@@ -224,7 +227,13 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   });
   const memory = createMemoryIndex({ store, services, log });
   const skills = createSkillPicker({ store, services, log });
-  const attention = createAttention({ store, bus, ...(opts.clock ? { now: opts.clock } : {}) });
+  const attention = createAttention({
+    store,
+    bus,
+    ...(opts.clock ? { now: opts.clock } : {}),
+    ...(opts.unseenAfterMs !== undefined ? { unseenAfterMs: opts.unseenAfterMs } : {}),
+  });
+  const noticePush = createNoticePush({ store, bus, push });
   const channels = createChannels({
     store,
     home: config.home,
@@ -399,6 +408,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       headless?.close();
       scheduler.stop();
       attention.stop();
+      noticePush.stop();
       plugins.close();
       await channels.stop();
       await engine.stop();

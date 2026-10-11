@@ -71,6 +71,9 @@ export async function startCore(opts: {
   /** Messages on a Mac; none by default, so a test never reads the machine's own. */
   imessage?: IMessageOps | null;
   clock?: () => Date;
+  unseenAfterMs?: number;
+  /** Where push notices go (a stand-in Expo push service). */
+  expoPushUrl?: string;
   /** Built-in model APIs beside "fake" (as config.ts gives a real install). */
   providers?: ProviderConfig[];
   /** A stand-in Google (sign-in and REST APIs under one address). */
@@ -88,6 +91,7 @@ export async function startCore(opts: {
       providers,
       ...(opts.port !== undefined ? { port: opts.port } : {}),
       ...(opts.googleApi ? { googleApi: opts.googleApi } : {}),
+      ...(opts.expoPushUrl ? { expoPushUrl: opts.expoPushUrl } : {}),
     }),
     {
       quiet: true,
@@ -101,6 +105,7 @@ export async function startCore(opts: {
       ...(opts.desktop ? { desktop: opts.desktop } : {}),
       imessage: opts.imessage ?? null,
       ...(opts.clock ? { clock: opts.clock } : {}),
+      ...(opts.unseenAfterMs !== undefined ? { unseenAfterMs: opts.unseenAfterMs } : {}),
     },
   );
   // Tests choose their model like an owner would: through the settings, never through code defaults.

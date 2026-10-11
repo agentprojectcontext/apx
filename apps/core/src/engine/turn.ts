@@ -620,7 +620,13 @@ function failRun(
   // APX is stopping, not the turn failing: it stays open, and the next boot closes its log and picks it back up.
   if (t.signal.reason instanceof Shutdown) return store.runs.get(t.run.id) ?? t.run;
   const canceled = t.signal.reason instanceof Canceled;
-  const reason = t.err instanceof Error ? t.err.message : String(t.err);
+  // An engine killed for running out of time reports "aborted": the owner should read why.
+  const reason =
+    t.signal.reason instanceof DeadlineExceeded
+      ? t.signal.reason.message
+      : t.err instanceof Error
+        ? t.err.message
+        : String(t.err);
   const short = reason.split("\n")[0]?.slice(0, 200) ?? reason;
   const message = canceled ? "Canceled." : `Could not finish: ${short}`;
   if (!canceled) deps.log.warn({ thread: t.turn.thread.id, agent: t.turn.agent.id, err: reason }, "run failed");
@@ -634,7 +640,12 @@ function failRun(
     });
   closeTurnLog(store, t.run, canceled ? "The owner canceled this turn." : `This turn failed: ${reason}`);
   const run = store.runs.setState(t.run, canceled ? "canceled" : "failed", message);
-  store.threads.patch(t.turn.thread.id, { state: canceled ? "canceled" : "failed", preview: previewOf(message) });
+  // A failure is news the owner has not seen yet; a cancel is their own doing.
+  store.threads.patch(t.turn.thread.id, {
+    state: canceled ? "canceled" : "failed",
+    preview: previewOf(message),
+    ...(canceled ? {} : { unread: (store.threads.get(t.turn.thread.id)?.unread ?? 0) + 1 }),
+  });
   return run;
 }
 
