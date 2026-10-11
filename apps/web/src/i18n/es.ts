@@ -209,6 +209,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "update.done": "Listo. Reiniciá APX para usar la versión nueva.",
   "update.failed": "La actualización se frenó y lo que corre ahora no cambió. Qué pasó:",
   "update.cardTitle": "Salió APX {v}",
+  "update.cardTitleServer": "Salió APX {v} para tu servidor",
+  "update.cardTitleBoth": "Salió APX {v} para esta app y tu servidor",
+  "update.leadBoth":
+    "Salió APX {v} (esta app es la {current}). Primero se actualiza tu servidor y después esta app, que te pide reiniciar. Qué trae:",
+  "update.updatingBoth": "Actualizando tu servidor y después esta app…",
   "update.cardDesc": "Hay una versión más nueva que la que usás. Mirá qué trae y actualizá cuando quieras.",
   "update.cardCta": "Ver novedades",
   "corner.label": "Novedades e invitaciones",

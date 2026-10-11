@@ -36,7 +36,16 @@ export function CornerCards({ floating = false }: { floating?: boolean }) {
         key="update"
         id="update"
         icon={<ProjectTile tone="brand" size={24} icon={<Icons.ArrowDown size={14} />} />}
-        title={t(ready ? "update.cardReady" : "update.cardTitle", { v: version })}
+        title={t(
+          ready
+            ? "update.cardReady"
+            : update.target === "both"
+              ? "update.cardTitleBoth"
+              : update.target === "core" && window.apxDesktop?.coreLocal === false
+                ? "update.cardTitleServer"
+                : "update.cardTitle",
+          { v: version },
+        )}
         description={t(ready ? "update.cardReadyDesc" : "update.cardDesc")}
         action={t(ready ? "update.restartNow" : "update.cardCta")}
         onAction={() => (ready ? restartApp() : openUpdate(update.target))}

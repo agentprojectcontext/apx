@@ -11,8 +11,8 @@ type State = {
   status: Status | undefined;
   /** The desktop app's own newer version (absent in a browser). */
   app: DesktopUpdate | undefined;
-  /** What the dialog updates: the core this panel talks to, or the desktop app around it. */
-  target: "core" | "app";
+  /** What the dialog updates: the core this panel talks to, the desktop app around it, or both (a core elsewhere). */
+  target: "core" | "app" | "both";
   /** The core serves a newer panel than this page runs. */
   panelStale: boolean;
   /** The dialog is open (from the top bar's pill or the corner card). */
@@ -101,6 +101,7 @@ export async function loadUpdates(check = false): Promise<void> {
 export async function applyUpdate(): Promise<void> {
   store.set({ phase: "updating", log: "" });
   if (store.get().target === "app") return applyAppUpdate();
+  if (store.get().target === "both") return applyBoth();
   try {
     const r = await client.call("system.update", {});
     store.set({ phase: r.ok ? (r.restart ? "restarting" : "done") : "failed", log: r.log });
@@ -120,18 +121,50 @@ async function applyAppUpdate(): Promise<void> {
   else store.set({ phase: r.ready ? "ready" : "done" });
 }
 
+/** The server first, then this app: the app restarts last, and its new panel talks to a core already up to date. */
+async function applyBoth(): Promise<void> {
+  try {
+    const r = await client.call("system.update", {});
+    if (!r.ok) return store.set({ phase: "failed", log: r.log });
+    if (r.restart) await coreBack();
+  } catch (e) {
+    return store.set({ phase: "failed", log: e instanceof Error ? e.message : String(e) });
+  }
+  await applyAppUpdate();
+}
+
+/** Waits for a core that restarts after updating to answer again (two minutes at most). */
+async function coreBack(): Promise<void> {
+  const until = Date.now() + 120_000;
+  await new Promise((r) => setTimeout(r, 1500));
+  while (Date.now() < until) {
+    try {
+      await client.call("system.health", {});
+      return;
+    } catch {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+}
+
 /** The desktop app quits and opens the newer one it has ready. */
 export function restartApp(): void {
   store.set({ phase: "restarting" });
   window.apxDesktop?.restartToUpdate?.();
 }
 
-/** What is newer, if anything: the desktop app first (it carries its own core), then the core. */
+/**
+ * What is newer, if anything: the desktop app first (it carries its own core), then the core. With a core elsewhere
+ * (a server over SSH or at an address) both may be: one card and one update for the two.
+ */
 export function newerOf(
   status: Status | undefined,
   app: DesktopUpdate | undefined,
+  coreElsewhere = window.apxDesktop?.coreLocal === false,
 ): { target: State["target"]; version?: string } | undefined {
-  if (app?.ready || app?.latest) return { target: "app", version: app.ready ?? app.latest };
+  const appVersion = app?.ready ?? app?.latest;
+  if (appVersion && status?.behind && coreElsewhere) return { target: "both", version: appVersion };
+  if (appVersion) return { target: "app", version: appVersion };
   if (status?.behind) return { target: "core", version: status.source === "release" ? status.latest : undefined };
   return undefined;
 }

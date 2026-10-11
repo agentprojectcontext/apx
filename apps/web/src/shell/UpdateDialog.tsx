@@ -16,16 +16,18 @@ export function UpdateDialog() {
   };
   // Started from the app menu, the app may already be downloading it, or have it ready.
   const phase = target === "app" && own === "idle" ? (app?.ready ? "ready" : app?.downloading ? "updating" : own) : own;
-  const changes = (target === "app" ? app?.notes : status?.changes) ?? [];
+  const changes = (target === "core" ? status?.changes : app?.notes) ?? [];
   const drag = target === "app" && app?.install === "drag";
   const lead =
-    target === "app"
-      ? phase === "ready" || phase === "restarting"
-        ? t("update.leadReady", { v: app?.ready ?? app?.latest ?? "" })
-        : t(drag ? "update.leadAppDrag" : "update.leadApp", { v: app?.latest ?? "", current: app?.current ?? "" })
-      : status?.source === "release"
-        ? t("update.leadRelease", { v: status.latest ?? "" })
-        : t("update.lead", { n: status?.behind ?? 0 });
+    target === "both"
+      ? t("update.leadBoth", { v: app?.latest ?? app?.ready ?? "", current: app?.current ?? "" })
+      : target === "app"
+        ? phase === "ready" || phase === "restarting"
+          ? t("update.leadReady", { v: app?.ready ?? app?.latest ?? "" })
+          : t(drag ? "update.leadAppDrag" : "update.leadApp", { v: app?.latest ?? "", current: app?.current ?? "" })
+        : status?.source === "release"
+          ? t("update.leadRelease", { v: status.latest ?? "" })
+          : t("update.lead", { n: status?.behind ?? 0 });
   return (
     <Dialog
       open
@@ -65,7 +67,13 @@ export function UpdateDialog() {
         <div className="update__wait">
           <Spinner size={16} />
           {t(
-            phase === "updating" ? (target === "app" ? "update.downloading" : "update.updating") : "update.restarting",
+            phase === "updating"
+              ? target === "app"
+                ? "update.downloading"
+                : target === "both"
+                  ? "update.updatingBoth"
+                  : "update.updating"
+              : "update.restarting",
           )}
         </div>
       )}

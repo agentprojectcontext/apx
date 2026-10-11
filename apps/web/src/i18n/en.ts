@@ -204,6 +204,11 @@ export const en = {
   "update.done": "Updated. Restart APX to use the new version.",
   "update.failed": "The update stopped and nothing changed in what runs now. What happened:",
   "update.cardTitle": "APX {v} is out",
+  "update.cardTitleServer": "APX {v} is out for your server",
+  "update.cardTitleBoth": "APX {v} is out for this app and your server",
+  "update.leadBoth":
+    "APX {v} is out (this app is {current}). Your server updates first, then this app, which then asks to restart. What it brings:",
+  "update.updatingBoth": "Updating your server, then this app…",
   "update.cardDesc": "A newer version than the one you run. See what it brings and update when you want.",
   "update.cardCta": "See what's new",
   "corner.label": "News and invitations",
