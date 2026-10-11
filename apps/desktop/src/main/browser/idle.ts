@@ -7,7 +7,7 @@ export type IdleCandidate = {
   id: string;
   /** Last time an agent or the owner did something with it, or it was on screen. */
   used: number;
-  /** Not to be closed: an agent call is running on it, or the owner has it (taken over or handed to them). */
+  /** Not to be closed: an agent's turn or call is using it, or the owner has it (taken over or handed to them). */
   locked: boolean;
 };
 

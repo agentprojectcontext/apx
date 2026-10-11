@@ -6,7 +6,14 @@ import { type ChildProcess, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { Readable, Writable } from "node:stream";
-import { type BrowserProfile, browserMethods, type TabControl, type TabInfo } from "@apx/protocol";
+import {
+  BROWSER_HOLD,
+  type BrowserProfile,
+  browserMethods,
+  createTabHolds,
+  type TabControl,
+  type TabInfo,
+} from "@apx/protocol";
 import { assertNavigable, CdpPage } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import { findProgram } from "../programs.ts";
@@ -14,7 +21,7 @@ import { findProgram } from "../programs.ts";
 const MAX_TABS = 6;
 const NAV_TIMEOUT_MS = 10_000;
 const START_TIMEOUT_MS = 20_000;
-/** A tab nobody touched for this long is closed; with no tabs left, Chrome stops after IDLE_MS. */
+/** A tab nobody touched for this long is closed, unless a running turn holds it; with no tabs, Chrome stops after IDLE_MS. */
 const TAB_IDLE_MS = 15 * 60_000;
 const IDLE_MS = 5 * 60_000;
 
@@ -123,6 +130,7 @@ export function createHeadlessBrowser(deps: {
   let starting: Promise<Pipe> | undefined;
   let seq = 0;
   const tabs = new Map<string, Tab>();
+  const holds = createTabHolds();
   const contexts = new Map<string, string>();
   const loads = new Map<string, () => void>();
   let lastUse = Date.now();
@@ -229,7 +237,8 @@ export function createHeadlessBrowser(deps: {
 
   const sweep = setInterval(() => {
     const now = Date.now();
-    for (const t of [...tabs.values()]) if (now - t.used > TAB_IDLE_MS) void close(t.id).catch(() => {});
+    for (const t of [...tabs.values()])
+      if (now - t.used > TAB_IDLE_MS && !holds.held(t.id)) void close(t.id).catch(() => {});
     if (proc && !tabs.size && now - lastUse > IDLE_MS) stop();
   }, 30_000);
   sweep.unref();
@@ -356,6 +365,8 @@ export function createHeadlessBrowser(deps: {
     },
     async handle(method: string, raw: unknown): Promise<unknown> {
       switch (method) {
+        case BROWSER_HOLD:
+          return holds.set(raw);
         case "browser.tabs":
           return { tabs: [...tabs.values()].map(info) };
         case "browser.open": {

@@ -157,3 +157,26 @@ export const browserMethods = {
 
 export type BrowserMethod = keyof typeof browserMethods;
 export const BROWSER_METHODS = Object.keys(browserMethods) as BrowserMethod[];
+
+/**
+ * Core → browser only, never a client method: the tabs a running turn holds. A held tab is not closed for being idle;
+ * an empty list (the turn ended) lets them go.
+ */
+export const BROWSER_HOLD = "browser.hold";
+export const BrowserHold = z.object({ run: z.string().min(1).max(128), tabs: z.array(Tab).max(64) }).strict();
+
+/** The browser's side of browser.hold: which tabs a running turn still holds. */
+export function createTabHolds() {
+  const runs = new Map<string, Set<string>>();
+  return {
+    set(raw: unknown): { ok: true } {
+      const p = BrowserHold.parse(raw);
+      if (p.tabs.length) runs.set(p.run, new Set(p.tabs));
+      else runs.delete(p.run);
+      return { ok: true };
+    },
+    held: (tab: string): boolean => [...runs.values()].some((tabs) => tabs.has(tab)),
+    /** The link to the core dropped: a core that comes back tells its holds again. */
+    clear: (): void => runs.clear(),
+  };
+}

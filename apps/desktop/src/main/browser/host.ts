@@ -1,7 +1,14 @@
 // Owns the tabs. Executes browser.* for the core and for the user's own chrome (URL bar, take control).
 // The node re-checks control on every agent call: it never trusts that the core already did.
 import { EventEmitter } from "node:events";
-import { type BrowserProfile, browserMethods, type TabControl, type TabInfo } from "@apx/protocol";
+import {
+  BROWSER_HOLD,
+  type BrowserProfile,
+  browserMethods,
+  createTabHolds,
+  type TabControl,
+  type TabInfo,
+} from "@apx/protocol";
 import { assertNavigable as checkNavigable } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import { app, type Session, session, WebContentsView } from "electron";
@@ -51,6 +58,8 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   #handoffs = new Map<string, (ok: boolean) => void>();
   /** Calls running on each tab. */
   #busy = new Map<string, number>();
+  /** The tabs the core's running turns hold (browser.hold). */
+  #holds = createTabHolds();
   /** Called when a tab needs the human (handoff): the window should come forward and notify. */
   onAttention: (message: string) => void = () => {};
   /** Called whenever the visible tab changes, so the window can lay it out. */
@@ -71,6 +80,7 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
 
   /** Executes a browser.* request coming from the core. Params are re-validated: the node trusts nobody. */
   async handle(method: string, raw: unknown): Promise<unknown> {
+    if (method === BROWSER_HOLD) return this.#holds.set(raw);
     const id = (raw as { tab?: unknown } | null)?.tab;
     if (typeof id !== "string") return this.#run(method, raw);
     // The tab is locked while the call runs: closing it for being idle would pull the page from under the agent.
@@ -336,7 +346,11 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
         id: t.id,
         used: t.used,
         locked:
-          this.#busy.has(t.id) || t.control.kind === "user" || t.control.kind === "handoff" || this.#handoffs.has(t.id),
+          this.#busy.has(t.id) ||
+          this.#holds.held(t.id) ||
+          t.control.kind === "user" ||
+          t.control.kind === "handoff" ||
+          this.#handoffs.has(t.id),
       })),
       now,
       (id) => {
@@ -346,6 +360,11 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     );
     for (const id of ids) await this.close(id).catch(() => {});
     return ids.length;
+  }
+
+  /** The link to the core dropped: its turns' holds go too (a core that comes back tells them again). */
+  dropHolds(): void {
+    this.#holds.clear();
   }
 
   /** Each tab's renderer process and its site, for the memory report. */

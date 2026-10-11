@@ -13,17 +13,22 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 let env: Awaited<ReturnType<typeof startCore>>;
 let desktop: ApxSocket;
 const snapshots: number[] = [];
+const holds: Array<{ run: string; tabs: string[] }> = [];
 
 before(async () => {
   env = await startCore({ llm });
   desktop = await new ApxClient({ url: env.core.url }).connect("node", ["browser"]);
-  desktop.onRequest(async (method) => {
+  desktop.onRequest(async (method, params) => {
     if (method === "browser.tabs")
       return {
         tabs: [
           { tab: "t1", url: "https://example.com/", title: "Example", profile: "shared", control: { kind: "idle" } },
         ],
       };
+    if (method === "browser.hold") {
+      holds.push(params as { run: string; tabs: string[] });
+      return { ok: true };
+    }
     if (method === "browser.snapshot") {
       snapshots.push(Date.now());
       return { url: "https://example.com/", title: "Example", tree: 'button "Send" [e1]', refs: 1, truncated: false };
@@ -45,6 +50,20 @@ test("browser_snapshot waits the seconds asked before reading the page", async (
   assert.equal(snapshots.length, 1);
   assert.ok((snapshots[0] ?? 0) - sent >= 1000, "read after the wait");
   assert.match(String(llm.calls.at(-1)?.messages.findLast((m) => m.role === "tool")?.content), /Send/);
+});
+
+test("the turn holds the tab it used while it runs and lets it go when it ends", async () => {
+  holds.length = 0;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  await env.client.call("threads.send", { thread, text: "wait and look" });
+  await env.settle(thread);
+  for (let i = 0; i < 50 && holds.length < 2; i++) await new Promise((r) => setTimeout(r, 20));
+  const run = holds[0]?.run ?? "";
+  assert.ok(run);
+  assert.deepEqual(holds, [
+    { run, tabs: ["t1"] },
+    { run, tabs: [] },
+  ]);
 });
 
 test("the agent is told a send the owner asked for stays its own, not a hand-off", async () => {

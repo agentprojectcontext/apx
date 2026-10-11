@@ -342,6 +342,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       identity,
       broker,
       headless,
+      bus,
       llmLabel: () => llm.label(),
       engine,
       upkeep,

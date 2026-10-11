@@ -42,6 +42,7 @@ export function startNodeLink(
       // core not up yet
     }
     socket = undefined;
+    host.dropHolds();
     onStatus("offline");
     setTimeout(() => void loop(Math.min(delay * 2, 10_000)), delay);
   };

@@ -155,6 +155,8 @@ type HandlerDeps = {
   identity: Identity;
   broker: NodeBroker;
   headless: HeadlessBrowser | undefined;
+  /** Turns ending let go of the browser tabs they held. */
+  bus: Bus;
   llmLabel: () => string;
   engine: Parameters<typeof threadHandlers>[1] & Parameters<typeof jobHandlers>[1] & Parameters<typeof taskHandlers>[1];
   upkeep: Parameters<typeof threadHandlers>[2] & Parameters<typeof gitHandlers>[1];
@@ -209,7 +211,7 @@ export function coreHandlers(d: HandlerDeps) {
           : { status: "off", detail: "no desktop node connected" },
       agent: { status: "ok", detail: d.llmLabel() },
     })),
-    ...browserHandlers(d.broker, d.headless),
+    ...browserHandlers(d.broker, d.headless, d.bus),
     ...threadHandlers(d.store, d.engine, d.upkeep),
     ...threadAdminHandlers(d.store, d.app.home),
     ...runHandlers(d.store, d.engine),
