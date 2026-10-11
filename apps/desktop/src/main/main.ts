@@ -357,6 +357,12 @@ app.whenReady().then(() => {
     return check === true ? updater.check() : updater.status();
   });
   ipcMain.handle("desktop:update-install", (e) => (e.sender === panel.webContents ? updater.install() : undefined));
+  // Windows and Linux show no menu bar (frameless): the panel's account menu runs these app menu items instead.
+  ipcMain.on("desktop:menu-action", (e, id: unknown) => {
+    if (e.sender !== panel.webContents || typeof id !== "string" || !MENU_ACTIONS.has(id)) return;
+    const item = Menu.getApplicationMenu()?.getMenuItemById(id);
+    if (item?.enabled) item.click();
+  });
   ipcMain.on("desktop:update-restart", (e) => {
     if (e.sender === panel.webContents) updater.restart();
   });
@@ -424,6 +430,9 @@ function externalLinks(wc: WebContents): void {
     return { action: "deny" };
   });
 }
+
+/** The app menu items the panel may run (by id), for platforms whose window shows no menu bar. */
+const MENU_ACTIONS = new Set(["about", "update", "change-connection"]);
 
 /** The system's own menus, plus "Quick chat" in Window: reachable from the keyboard and by name. */
 function appMenu(

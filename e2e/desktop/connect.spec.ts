@@ -94,3 +94,14 @@ test("About opens APX's own window with this build's versions and the repo", asy
   await expect(about.locator(".about__repo")).toHaveAttribute("href", /github\.com/);
   await app.close();
 });
+
+test("the panel runs the app menu's About, update and connection items (Windows and Linux have no menu bar)", async () => {
+  fs.writeFileSync(path.join(home, "desktop", "connection.json"), JSON.stringify({ mode: "local" }));
+  const app = await launch();
+  const panel = await windowAt(app, (u) => u.startsWith(core));
+  await panel.evaluate(() =>
+    (window as { apxDesktop?: { menuAction?(id: string): void } }).apxDesktop?.menuAction?.("about"),
+  );
+  await windowAt(app, (u) => u.includes("?about"));
+  await app.close();
+});

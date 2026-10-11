@@ -56,6 +56,8 @@ declare global {
       openMain?(threadId?: string): void;
       /** The main window is told to open a chat (asked from the quick window). */
       onOpenThread?(listener: (threadId: string) => void): void;
+      /** Runs one of the app menu's items: Windows and Linux show no menu bar for them. */
+      menuAction?(id: "about" | "update" | "change-connection"): void;
       /** Applies the desktop settings (shortcut, start at login, computer use) in the shell. */
       applyDesktopPrefs?(prefs: { shortcut: string; launchAtLogin: boolean; computerUse?: boolean }): void;
       /** What macOS lets APX do for computer use: see the screen ("granted"…) and drive other apps. */
