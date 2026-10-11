@@ -1,6 +1,7 @@
 {
   "appId": "dev.apx.desktop",
   "productName": "APX",
+  "extraMetadata": { "name": "apx" },
   "artifactName": "APX-${version}-${os}-${arch}.${ext}",
   "directories": {
     "output": "../../out",

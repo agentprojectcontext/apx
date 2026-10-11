@@ -21,7 +21,8 @@ export function desktopCandidates(platform: string, env: NodeJS.ProcessEnv, home
   if (platform === "darwin") return ["/Applications/APX.app", path.join(home, "Applications", "APX.app")];
   if (platform === "win32") {
     const local = env.LOCALAPPDATA ?? path.join(home, "AppData", "Local");
-    return [path.join(local, "Programs", "@apxdesktop", "APX.exe"), path.join(local, "Programs", "APX", "APX.exe")];
+    // Builds before 2.2.7 installed into "@apxdesktop" (the package's name); an update keeps the folder it found.
+    return [path.join(local, "Programs", "apx", "APX.exe"), path.join(local, "Programs", "@apxdesktop", "APX.exe")];
   }
   return [path.join(home, "Applications", "APX.AppImage")];
 }
