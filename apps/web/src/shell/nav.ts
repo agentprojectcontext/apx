@@ -306,6 +306,18 @@ nav.subscribe(() => {
   rememberPlace(placeOf(s));
 });
 
+// The browser belongs to the chat it was open in: another chat opens without it, so the page leaves the screen
+// (a link or Back that names the browser together with the chat still opens it).
+let shownThread = nav.get().threadId;
+let shownPanel = nav.get().panel;
+nav.subscribe(() => {
+  const s = nav.get();
+  const left = s.threadId !== shownThread && s.panel === "browser" && shownPanel === "browser" && !applyingHistory;
+  shownThread = s.threadId;
+  shownPanel = s.panel;
+  if (left) nav.set({ panel: null });
+});
+
 // A deep link followed in place (a link in a message, the address bar); replaceState above never fires this.
 window.addEventListener("hashchange", () => nav.set({ view: "inbox", panel: null, ...fromHash() }));
 

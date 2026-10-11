@@ -93,6 +93,31 @@ test("Atrás y Adelante restauran pantalla y chat; navegar después descarta fut
   await expect(page).toHaveURL(/#view=tasks$/);
 });
 
+test("El navegador se cierra al pasar a otro chat; Atrás lo trae con su chat", async ({ page }) => {
+  const first = await rpc<{ id: string }>("threads.create", {
+    kind: "loose",
+    agent_id: "roby",
+    title: "Chat con navegador",
+  });
+  const second = await rpc<{ id: string }>("threads.create", {
+    kind: "loose",
+    agent_id: "roby",
+    title: "Chat sin navegador",
+  });
+  await open(page, `#thread=${first.id}&panel=browser`);
+  await page.setViewportSize({ width: 1480, height: 800 });
+  const side = page.getByRole("complementary", { name: "Panel lateral" });
+  await expect(side).toBeVisible();
+  await page.getByText("Chat sin navegador", { exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`#thread=${second.id}$`));
+  await expect(side).toBeHidden();
+  await page.getByRole("button", { name: "Atrás", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`#thread=${first.id}&panel=browser$`));
+  await expect(side).toBeVisible();
+  await page.getByRole("button", { name: "Adelante", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`#thread=${second.id}$`));
+});
+
 for (const platform of ["web", "mac", "win", "linux"])
   test(`${platform}: buscador centrado, controles accesibles, breadcrumb largo sin solapar`, async ({ page }) => {
     const chat = await rpc<{ id: string }>("threads.create", {
