@@ -260,7 +260,8 @@ export const enSetup = {
   "connect.sshLabel": "Server (user@server)",
   "connect.urlHint":
     "Its Tailscale one, for example. It asks for a code: get it on that APX in Config › Connections › Devices, or with apx pair.",
-  "connect.sshHint": "Uses your ssh and your keys. The core stays on the server and no port is opened.",
+  "connect.sshHint":
+    "Uses your ssh and your keys, or the server's password. The core stays on the server and no port is opened.",
   "connect.connect": "Connect",
   "connect.connecting": "Connecting…",
   "connect.step.ssh": "Opening the SSH connection…",
@@ -289,4 +290,13 @@ export const enSetup = {
   "connect.error.sshDown": "SSH works, but the APX core does not answer on the server.",
   "connect.error.sshUnsupported": "APX installs itself on Linux and macOS servers. On this one, install it by hand.",
   "connect.error.installFailed": "The install on the server did not finish.",
+  "connect.step.login": "The server asks for a password: with it, this app leaves its own key there.",
+  "connect.term.secretHint": "It goes straight to ssh and is not kept.",
+  "connect.backToHost": "Back",
+  "connect.keyByHand": "This app's key, to add as one line of ~/.ssh/authorized_keys on the server:",
+  "connect.error.sshPasswordManual":
+    "This server asks for a password, and this computer's ssh cannot ask it here (it needs OpenSSH 8.4 or newer). Add an SSH key to the server, then connect again.",
+  "connect.error.sshAuthFailed": "The server did not let you in: a wrong password, or the question was cancelled.",
+  "connect.error.sshKeyRefused":
+    "This app's key is on the server, but it still asks for a password: it may not take keys (PubkeyAuthentication in sshd_config).",
 } as const;

@@ -721,6 +721,97 @@ input.wiz__name {
   font-family: var(--apx-font-mono);
   font-size: 12px;
 }
+/* Connecting over SSH: a terminal of the steps and the server's output, with ssh's question on its last line. */
+.connect__termstep {
+  gap: 12px;
+}
+.connect__term {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  min-height: 0;
+  border: 1px solid var(--apx-border);
+  border-radius: 10px;
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  overflow: hidden;
+}
+.connect__term-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--apx-border);
+  color: var(--apx-fg-muted);
+}
+.connect__term-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: min(52vh, 420px);
+  padding: 10px 12px;
+  overflow-y: auto;
+  font-family: var(--apx-font-sans);
+}
+.connect__term-log {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-family: var(--apx-font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+.connect__term-line.is-step {
+  color: var(--apx-brand-soft-fg);
+}
+.connect__term-line.is-said {
+  color: var(--apx-fg);
+}
+.connect__term-ask {
+  display: flex;
+  align-items: baseline;
+  margin-top: -8px;
+  font-family: var(--apx-font-mono);
+}
+.connect__term-prompt {
+  flex: none;
+  color: var(--apx-fg);
+  white-space: pre;
+}
+.connect__term-input {
+  flex: 1;
+  min-width: 40px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--apx-fg);
+  font: inherit;
+  caret-color: var(--apx-brand);
+}
+.connect__term-cursor {
+  width: 7px;
+  height: 14px;
+  margin-top: -8px;
+  background: var(--apx-fg-muted);
+  animation: connect-blink 1s steps(1) infinite;
+}
+.connect__term-note {
+  color: var(--apx-fg-subtle);
+  font-size: 12px;
+}
+@keyframes connect-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .connect__term-cursor {
+    animation: none;
+  }
+}
 /* Pairing this device: the code and its button on one line. */
 .pair {
   max-width: 640px;

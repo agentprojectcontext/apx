@@ -1,5 +1,10 @@
 // Bridge the desktop app (Electron preload) exposes to the panel. Absent in a plain browser.
-type ConnectAnswer = { ok: true; ready?: true; linger?: string } | { ok: false; reason?: string; error?: string };
+type ConnectAnswer =
+  | { ok: true; ready?: true; linger?: string }
+  | { ok: false; reason?: string; error?: string; key?: string };
+
+/** A question ssh asks while logging in: masked (`secret`) for a password or passphrase, plain for yes/no. */
+export type SshPrompt = { id: string; text: string; secret: boolean };
 
 /** The desktop app's own update (it carries its own core). */
 export type DesktopUpdate = {
@@ -30,6 +35,10 @@ declare global {
       onProgress(listener: (line: string) => void): () => void;
       /** Missing in builds from before the steps were reported. */
       onStep?(listener: (step: string) => void): () => void;
+      /** ssh asks something while logging in with a password; null = nothing waits any more. */
+      onPrompt?(listener: (prompt: SshPrompt | null) => void): () => void;
+      /** The owner's answer to that question, never kept; undefined cancels it. */
+      answer?(id: string, answer: string | undefined): void;
     };
     apxDesktop?: {
       /** Host OS of the desktop shell (`darwin` | `win32` | `linux`). */

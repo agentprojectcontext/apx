@@ -1,17 +1,21 @@
 import "../styles/wizard.css";
 import { Button, Icons, Input, SegmentedControl } from "@apx/ui";
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import type { SshPrompt } from "../apx-desktop.d.ts";
 import logo from "../assets/logo.png";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { BuildVersion } from "./BuildVersion.tsx";
+import { ConnectTerminal, type TermLine } from "./ConnectTerminal.tsx";
 import { CrewHero } from "./CrewHero.tsx";
 import { ServerReady } from "./ServerReady.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
 type Access = "none" | "lan" | "tailscale";
 type Via = "url" | "ssh";
-type Answer = { ok: true; ready?: true; linger?: string } | { ok: false; reason?: string; error?: string };
+type Answer =
+  | { ok: true; ready?: true; linger?: string }
+  | { ok: false; reason?: string; error?: string; key?: string };
 
 /** How long the intro holds the hero alone before the question unrolls under it. */
 const INTRO_MS = 3400;
@@ -32,17 +36,21 @@ const REASONS: Record<string, MessageKey> = {
   sshDown: "connect.error.sshDown",
   sshUnsupported: "connect.error.sshUnsupported",
   installFailed: "connect.error.installFailed",
+  sshPasswordManual: "connect.error.sshPasswordManual",
+  sshAuthFailed: "connect.error.sshAuthFailed",
+  sshKeyRefused: "connect.error.sshKeyRefused",
 };
 /** What the desktop app is doing while the owner waits, as it reports each step. */
 const STEPS: Record<string, MessageKey> = {
   ssh: "connect.step.ssh",
+  login: "connect.step.login",
   probe: "connect.step.probe",
   install: "connect.step.install",
   connect: "connect.step.connect",
 };
 const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-/** How many lines of the server install's output the screen keeps in view. */
-const LOG_LINES = 8;
+/** How many lines of ssh's and the server's output the terminal keeps. */
+const TERM_LINES = 400;
 
 /**
  * The desktop app's first run, before any APX is reached: this computer runs APX (server), or the app connects to one
@@ -60,8 +68,12 @@ export function ConnectScreen() {
   // The server has no APX: it can be installed from here or by hand (then the command shows).
   const [noApx, setNoApx] = useState(false);
   const [byHand, setByHand] = useState(false);
-  const [doing, setDoing] = useState<string>();
-  const [log, setLog] = useState<string[]>();
+  // Over SSH, once connecting starts, the screen is a terminal: steps, the server's output and ssh's questions.
+  const [term, setTerm] = useState(false);
+  const [lines, setLines] = useState<TermLine[]>([]);
+  const [prompt, setPrompt] = useState<SshPrompt>();
+  // This app's public key, when the owner has to add it to the server by hand.
+  const [key, setKey] = useState<string>();
   // Installed on the server and reachable: said first, then Continue opens its setup.
   const [ready, setReady] = useState<{ linger?: string | undefined }>();
   // The website's hero first; then, like a blind, it rises and the question unrolls under it (at once with less motion).
@@ -91,63 +103,88 @@ export function ConnectScreen() {
     };
   }, [revealed]);
 
+  const push = (line: TermLine) => setLines((l) => [...l, line].slice(-TERM_LINES));
   const answer = async (ask: () => Promise<Answer | undefined> | undefined) => {
     setBusy(true);
     setError(undefined);
-    setDoing(undefined);
-    const stop = window.apxConnect?.onStep?.(setDoing);
+    setKey(undefined);
+    const c = window.apxConnect;
+    const stops = [
+      c?.onStep?.((id) => {
+        const text = STEPS[id];
+        if (text) push({ kind: "step", text: t(text) });
+      }),
+      c?.onProgress((text) => push({ kind: "out", text })),
+      c?.onPrompt?.((p) => setPrompt(p ?? undefined)),
+    ];
     let r: Answer | undefined;
     try {
       r = await ask();
     } finally {
-      stop?.();
+      for (const stop of stops) stop?.();
+      setPrompt(undefined);
     }
     if (r?.ok && r.ready) {
       setBusy(false);
-      setDoing(undefined);
       setNoApx(false);
-      setLog(undefined);
       setReady({ linger: r.linger });
       return;
     }
     // Connected: the window leaves this page; until then the button stays busy.
     if (!r || r.ok) return;
     setBusy(false);
-    setDoing(undefined);
     // Not an error: the next step is to install it.
     if (r.reason === "sshNoApx") {
       setNoApx(true);
       return;
     }
     setNoApx(false);
+    // A target that is not user@server is fixed in the field, not in the terminal.
+    if (r.reason === "badSsh") setTerm(false);
+    setKey(r.key);
     const reason = r.reason && REASONS[r.reason] ? t(REASONS[r.reason] as MessageKey) : undefined;
     setError([reason, r.error].filter(Boolean).join(" ") || r.reason);
   };
   const goOn = () => void answer(() => window.apxConnect?.ssh(address));
-  const installThere = () =>
-    void answer(async () => {
-      setLog([]);
-      const stop = window.apxConnect?.onProgress((line) => setLog((l) => [...(l ?? []), line].slice(-LOG_LINES)));
-      try {
-        return await window.apxConnect?.installSsh(address);
-      } finally {
-        stop?.();
-      }
-    });
+  const installThere = () => void answer(() => window.apxConnect?.installSsh(address));
   const startServer = () => void answer(() => window.apxConnect?.local(access));
   const connect = (e: FormEvent) => {
     e.preventDefault();
     if (!address.trim() || busy) return;
     setNoApx(false);
     setByHand(false);
-    setLog(undefined);
+    setReady(undefined);
+    if (via === "ssh") {
+      setLines([]);
+      setTerm(true);
+    }
     void answer(() => (via === "url" ? window.apxConnect?.url(address) : window.apxConnect?.ssh(address)));
+  };
+  /** The owner answered ssh's question (undefined: cancelled). A password never reaches the log, only its question. */
+  const reply = (value: string | undefined) => {
+    if (!prompt) return;
+    const asked = prompt.text.split("\n");
+    const last = asked.pop() ?? "";
+    for (const text of asked) push({ kind: "out", text });
+    push({ kind: "said", text: value === undefined ? `${last}^C` : prompt.secret ? last : `${last}${value}` });
+    window.apxConnect?.answer?.(prompt.id, value);
+    setPrompt(undefined);
   };
   const back = () => {
     setStep("start");
     setError(undefined);
     setNoApx(false);
-    setLog(undefined);
+    setTerm(false);
+  };
+  /** From the terminal back to the server field, to try again or another one. */
+  const backToHost = () => {
+    setTerm(false);
+    setLines([]);
+    setError(undefined);
+    setKey(undefined);
+    setNoApx(false);
+    setByHand(false);
+    setReady(undefined);
   };
 
   return (
@@ -228,7 +265,76 @@ export function ConnectScreen() {
             </div>
           )}
 
-          {step === "client" && (
+          {step === "client" && term && (
+            <div className="wiz__main connect__termstep">
+              <ConnectTerminal target={address.trim()} lines={lines} prompt={prompt} onAnswer={reply} busy={busy}>
+                {noApx && !busy && (
+                  <span id="client-noapx" className="wiz__hintline">
+                    {t("connect.noApx")}
+                  </span>
+                )}
+                {noApx && byHand && (
+                  <>
+                    <span className="wiz__hintline">{t("connect.byHandHint")}</span>
+                    <pre className="connect__install">{INSTALL}</pre>
+                  </>
+                )}
+                {error && (
+                  <span id="client-error" className="wiz__hintline is-error" role="alert">
+                    {error}
+                  </span>
+                )}
+                {key && (
+                  <>
+                    <span className="wiz__hintline">{t("connect.keyByHand")}</span>
+                    <pre id="client-key" className="connect__install">
+                      {key}
+                    </pre>
+                  </>
+                )}
+                {ready && !busy && <ServerReady target={address} linger={ready.linger} />}
+              </ConnectTerminal>
+              <div className="wiz__foot">
+                {prompt ? (
+                  <>
+                    <span className="wiz__spacer" />
+                    <Button id="term-cancel" variant="ghost" size="lg" onClick={() => reply(undefined)}>
+                      {t("common.cancel")}
+                    </Button>
+                  </>
+                ) : (
+                  !busy && (
+                    <>
+                      <button id="term-back" type="button" className="wiz__back" onClick={backToHost}>
+                        {t("connect.backToHost")}
+                      </button>
+                      <span className="wiz__spacer" />
+                      {ready ? (
+                        <Button id="client-continue" size="lg" onClick={goOn}>
+                          {t("connect.continue")}
+                        </Button>
+                      ) : (
+                        noApx && (
+                          <>
+                            {!byHand && (
+                              <Button id="install-hand" variant="ghost" size="lg" onClick={() => setByHand(true)}>
+                                {t("connect.installByHand")}
+                              </Button>
+                            )}
+                            <Button id="install-there" size="lg" onClick={installThere}>
+                              {t("connect.installThere")}
+                            </Button>
+                          </>
+                        )
+                      )}
+                    </>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {step === "client" && !term && (
             <form className="wiz__main" onSubmit={connect}>
               <StepHead
                 kicker="connect.kickerClient"
@@ -248,7 +354,6 @@ export function ConnectScreen() {
                   onValueChange={(v) => {
                     setVia(v as Via);
                     setError(undefined);
-                    setNoApx(false);
                   }}
                 />
               </div>
@@ -266,40 +371,13 @@ export function ConnectScreen() {
                   autoFocus
                   invalid={Boolean(error)}
                   leadingIcon={via === "url" ? <Icons.Link size={16} /> : <Icons.Terminal size={16} />}
-                  onChange={(e) => {
-                    setAddress(e.currentTarget.value);
-                    setNoApx(false);
-                    setByHand(false);
-                    setReady(undefined);
-                  }}
+                  onChange={(e) => setAddress(e.currentTarget.value)}
                 />
                 <span className="wiz__hintline">{t(via === "url" ? "connect.urlHint" : "connect.sshHint")}</span>
-                {busy && doing && STEPS[doing] && (
-                  <span id="client-step" className="wiz__hintline" aria-live="polite">
-                    {t(STEPS[doing] as MessageKey)}
-                  </span>
-                )}
-                {noApx && !busy && (
-                  <span id="client-noapx" className="wiz__hintline">
-                    {t("connect.noApx")}
-                  </span>
-                )}
-                {noApx && byHand && (
-                  <>
-                    <span className="wiz__hintline">{t("connect.byHandHint")}</span>
-                    <pre className="connect__install">{INSTALL}</pre>
-                  </>
-                )}
                 {error && (
                   <span id="client-error" className="wiz__hintline is-error" role="alert">
                     {error}
                   </span>
-                )}
-                {ready && !busy && <ServerReady target={address} linger={ready.linger} />}
-                {log && log.length > 0 && (
-                  <pre id="install-log" className="connect__install" aria-live="polite">
-                    {log.join("\n")}
-                  </pre>
                 )}
               </div>
               <div className="wiz__foot">
@@ -307,32 +385,9 @@ export function ConnectScreen() {
                   {t("setup.back")}
                 </button>
                 <span className="wiz__spacer" />
-                {ready ? (
-                  <Button id="client-continue" size="lg" loading={busy} onClick={goOn}>
-                    {t(busy ? "connect.connecting" : "connect.continue")}
-                  </Button>
-                ) : noApx && via === "ssh" ? (
-                  <>
-                    {!byHand && (
-                      <Button
-                        id="install-hand"
-                        variant="ghost"
-                        size="lg"
-                        disabled={busy}
-                        onClick={() => setByHand(true)}
-                      >
-                        {t("connect.installByHand")}
-                      </Button>
-                    )}
-                    <Button id="install-there" size="lg" loading={busy} onClick={installThere}>
-                      {t("connect.installThere")}
-                    </Button>
-                  </>
-                ) : (
-                  <Button id="client-go" type="submit" size="lg" loading={busy} disabled={!address.trim()}>
-                    {t(busy ? "connect.connecting" : "connect.connect")}
-                  </Button>
-                )}
+                <Button id="client-go" type="submit" size="lg" loading={busy} disabled={!address.trim()}>
+                  {t(busy ? "connect.connecting" : "connect.connect")}
+                </Button>
               </div>
             </form>
           )}

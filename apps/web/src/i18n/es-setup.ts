@@ -262,7 +262,8 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "connect.sshLabel": "Servidor (usuario@servidor)",
   "connect.urlHint":
     "Por ejemplo la de Tailscale. Te va a pedir un código: sacalo en ese APX en Config › Conexiones › Dispositivos, o con apx pair.",
-  "connect.sshHint": "Usa tu ssh y tus claves. El core queda en el servidor y no abre puertos.",
+  "connect.sshHint":
+    "Usa tu ssh y tus claves, o la contraseña del servidor. El core queda en el servidor y no abre puertos.",
   "connect.connect": "Conectar",
   "connect.connecting": "Conectando…",
   "connect.step.ssh": "Abriendo la conexión SSH…",
@@ -291,4 +292,13 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "connect.error.sshDown": "Llegué por SSH, pero el core de APX no responde en el servidor.",
   "connect.error.sshUnsupported": "APX se instala solo en servidores Linux y macOS. En este, instalalo a mano.",
   "connect.error.installFailed": "La instalación en el servidor no terminó.",
+  "connect.step.login": "El servidor pide contraseña: con ella, esta app deja ahí su propia clave.",
+  "connect.term.secretHint": "Va directo a ssh y no se guarda.",
+  "connect.backToHost": "Volver",
+  "connect.keyByHand": "La clave de esta app, para sumar como una línea de ~/.ssh/authorized_keys en el servidor:",
+  "connect.error.sshPasswordManual":
+    "Este servidor pide contraseña, y el ssh de esta computadora no puede preguntarla acá (necesita OpenSSH 8.4 o más nuevo). Agregá una clave SSH al servidor y volvé a conectar.",
+  "connect.error.sshAuthFailed": "El servidor no te dejó entrar: la contraseña no es esa, o se canceló la pregunta.",
+  "connect.error.sshKeyRefused":
+    "La clave de esta app quedó en el servidor, pero sigue pidiendo contraseña: puede que no acepte claves (PubkeyAuthentication en sshd_config).",
 };
