@@ -318,6 +318,8 @@ function Description({ task, save }: { task: Task; save: (text: string) => void 
         )}
       </View>
       <EditableText
+        // A fresh draft each time the pencil opens it.
+        key={editing ? "editing" : "reading"}
         value={task.description ?? ""}
         label={t("tkDescription")}
         placeholder={t("tkAddDescription")}
