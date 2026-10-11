@@ -131,6 +131,23 @@ test("the setup opens again from the account menu and starts from scratch", asyn
   await rpc("projects.update_base", { name: "Default", kind: null });
 });
 
+test("right after the desktop app installs APX, the setup's welcome says so, once", async ({ page }) => {
+  await page.goto("/?welcome=installed");
+  await page.getByRole("button", { name: /^Cuenta/ }).click();
+  await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
+  const wizard = page.locator(".wiz");
+  await expect(wizard.getByText("APX está instalado")).toBeVisible();
+  await expect(wizard.getByText(/APX ya está instalado y listo/)).toBeVisible();
+  // v1 is on this machine: the two ways in stay.
+  await expect(wizard.getByRole("button", { name: /Importar desde APX v1/ })).toBeVisible();
+  expect(new URL(page.url()).searchParams.has("welcome")).toBe(false);
+  await page.reload();
+  await page.getByRole("button", { name: /^Cuenta/ }).click();
+  await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
+  await expect(wizard.getByText("Open source")).toBeVisible();
+  await expect(wizard.getByText("APX está instalado")).toBeHidden();
+});
+
 for (const look of ["minimal", "classic"]) {
   for (const mode of ["light", "dark"]) {
     test(`the wizard and its menus inherit ${look} ${mode}`, async ({ page }) => {

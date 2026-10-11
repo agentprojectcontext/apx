@@ -198,11 +198,6 @@
   font-size: clamp(44px, 6vw, 64px);
   line-height: 1;
 }
-.wiz__heroblob {
-  display: inline-flex;
-  margin: 0 4px;
-  vertical-align: middle;
-}
 .wiz__choices,
 .wiz__options {
   display: grid;
@@ -249,6 +244,24 @@
   align-items: center;
   font-size: 15px;
   font-weight: 600;
+}
+/* The grid already centres the welcome: the hero needs no room of its own above. */
+.wiz__welcome .crew {
+  margin-top: 0;
+}
+/* What comes next eases in once the headline has assembled. */
+.wiz__welcomenext {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+  width: 100%;
+  animation: crew-fade 0.8s ease 1.4s both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wiz__welcomenext {
+    animation: none;
+  }
 }
 .wiz__welcome .wiz__body {
   max-width: 600px;

@@ -4,7 +4,9 @@ import { AgentAvatar, BLOB_NAMES, Button, IconButton, Icons, Input, Skeleton, Sw
 import type { ReactNode } from "react";
 import type { V1Group, V1Groups } from "../data/setup.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { CrewHero } from "./CrewHero.tsx";
 import type { Draft, StepProps } from "./draft.ts";
+import { JUST_INSTALLED } from "./firstRun.ts";
 
 /** A step's kicker, title (with its muted or green end) and text. */
 export function StepHead(props: {
@@ -29,7 +31,10 @@ export function StepHead(props: {
   );
 }
 
-/** Start fresh, or bring v1 when it is on this machine. */
+/**
+ * The first screen: the website's hero, then what comes next (start, or start fresh / bring v1 when it is here).
+ * Right after the desktop app installed APX it says so.
+ */
 export function Welcome({
   v1,
   agent,
@@ -41,38 +46,36 @@ export function Welcome({
   onStart: (mode: Draft["mode"]) => void;
 }) {
   const t = useT();
-  return (
-    <div className="wiz__welcome">
-      <span className="wiz__pill">
-        {t("setup.welcome.pill")} <span className="is-muted">{t("setup.welcome.pillMuted")}</span>
-        <span className="wiz__lock">
-          <Icons.Lock size={12} />
-        </span>
+  const pill = JUST_INSTALLED ? (
+    <span className="wiz__pill crew__pill">
+      {t("setup.welcome.installed")} <span className="is-muted">{t("setup.welcome.installedMuted")}</span>
+      <span className="wiz__lock">
+        <Icons.Check size={12} />
       </span>
-      <h1 className="wiz__hero">
-        {t("setup.welcome.meet")}{" "}
-        <span className="wiz__heroblob">
-          <AgentAvatar name="crew" blob="menta" size={72} />
-        </span>{" "}
-        {t("setup.welcome.your")} <span className="is-green">{t("setup.welcome.crew")}</span>
-      </h1>
-      <p className="wiz__body">{t("setup.welcome.body")}</p>
-      {/* Two ways in only when there is a v1 to bring; otherwise just the way in. */}
-      {!v1 && (
-        <Button id="welcome-start" size="lg" onClick={() => onStart("new")}>
-          {t("setup.welcome.start")}
-        </Button>
-      )}
-      {v1 && (
-        <div className="wiz__choices">
-          <button type="button" className="wiz__choice" onClick={() => onStart("new")}>
-            <span className="wiz__choicetitle">
-              <Icons.Sparkles size={16} />
-              {t("setup.welcome.new")}
-            </span>
-            <span className="wiz__choicebody">{t("setup.welcome.newBody")}</span>
-          </button>
-          {v1 && (
+    </span>
+  ) : (
+    <span className="wiz__pill crew__pill">
+      {t("setup.welcome.pill")} <span className="is-muted">{t("setup.welcome.pillMuted")}</span>
+      <span className="wiz__lock">
+        <Icons.Lock size={12} />
+      </span>
+    </span>
+  );
+  return (
+    <div className="wiz__welcome crew__stage">
+      <CrewHero pill={pill} />
+      <div className="wiz__welcomenext">
+        <p className="wiz__body">{t(JUST_INSTALLED ? "setup.welcome.installedBody" : "setup.welcome.body")}</p>
+        {/* Two ways in only when there is a v1 to bring; otherwise just the way in. */}
+        {v1 ? (
+          <div className="wiz__choices">
+            <button type="button" className="wiz__choice" onClick={() => onStart("new")}>
+              <span className="wiz__choicetitle">
+                <Icons.Sparkles size={16} />
+                {t("setup.welcome.new")}
+              </span>
+              <span className="wiz__choicebody">{t("setup.welcome.newBody")}</span>
+            </button>
             <button type="button" className="wiz__choice is-brand" onClick={() => onStart("import")}>
               <span className="wiz__choicetitle">
                 <Icons.Download size={16} />
@@ -84,20 +87,24 @@ export function Welcome({
                   : t("setup.welcome.importNoVersion", { home: v1.home, projects: v1.projects })}
               </span>
             </button>
-          )}
-        </div>
-      )}
-      <span className="wiz__waiting">
-        <AgentAvatar
-          name={v1?.agent_name ?? agent?.name ?? "crew"}
-          blob={v1?.agent_blob ?? agent?.blob ?? "ovni"}
-          size={24}
-          animated={false}
-        />
-        <b>{v1?.agent_name ?? agent?.name}</b>
-        <span className="is-mono">{t("setup.welcome.waiting")}</span>
-        <span className="wiz__dots">•••</span>
-      </span>
+          </div>
+        ) : (
+          <Button id="welcome-start" size="lg" onClick={() => onStart("new")}>
+            {t(JUST_INSTALLED ? "setup.next" : "setup.welcome.start")}
+          </Button>
+        )}
+        <span className="wiz__waiting">
+          <AgentAvatar
+            name={v1?.agent_name ?? agent?.name ?? "crew"}
+            blob={v1?.agent_blob ?? agent?.blob ?? "ovni"}
+            size={24}
+            animated={false}
+          />
+          <b>{v1?.agent_name ?? agent?.name}</b>
+          <span className="is-mono">{t("setup.welcome.waiting")}</span>
+          <span className="wiz__dots">•••</span>
+        </span>
+      </div>
     </div>
   );
 }

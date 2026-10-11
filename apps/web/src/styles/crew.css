@@ -7,7 +7,8 @@
 .wiz__grid.connect:has(.connect__stage) {
   align-content: start;
 }
-.connect__stage {
+.connect__stage,
+.crew__stage {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -15,7 +16,8 @@
   width: 100%;
   min-height: 100%;
 }
-.connect__stage::before {
+.connect__stage::before,
+.crew__stage::before {
   content: "";
   position: absolute;
   top: 0;

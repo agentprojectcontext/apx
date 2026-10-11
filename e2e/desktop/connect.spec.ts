@@ -46,13 +46,15 @@ test("the first run asks server or client; server opens this computer's APX and 
   await chooser.locator("#pick-server").click();
   await expect(chooser.locator('[data-access="none"]')).toHaveAttribute("aria-pressed", "true");
   await chooser.locator("#server-go").click();
-  await windowAt(first, (u) => u.startsWith(core));
+  // Just installed: the panel's setup opens saying so.
+  await windowAt(first, (u) => u.startsWith(core) && u.includes("welcome=installed"));
   expect(JSON.parse(fs.readFileSync(path.join(home, "desktop", "connection.json"), "utf8"))).toEqual({ mode: "local" });
   await first.close();
 
   const again = await launch();
   await windowAt(again, (u) => u.startsWith(core));
   expect(again.windows().some((p) => p.url().startsWith("apx-app://"))).toBe(false);
+  expect(again.windows().some((p) => p.url().includes("welcome="))).toBe(false);
   await again.close();
 });
 

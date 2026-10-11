@@ -146,7 +146,7 @@ export function createConnector(opts: {
     }
     saveConnection(dataDir, c);
     conn = c;
-    await open();
+    await open(true);
     return { ok: true };
   }
 
@@ -166,7 +166,8 @@ export function createConnector(opts: {
       : { ok: false, error: `${r.stdout ?? ""}${r.stderr ?? ""}`.trim().slice(-600) };
   }
 
-  async function open(): Promise<void> {
+  /** `firstRun`: just chosen on the first-run screen, so the panel's setup opens by saying APX is installed. */
+  async function open(firstRun = false): Promise<void> {
     if (!conn) {
       await opts.panel.loadURL(FIRST_RUN_URL);
       return;
@@ -182,7 +183,7 @@ export function createConnector(opts: {
         await waitUp(opts.coreUrl);
       }
       for (const url of app.isPackaged ? [opts.coreUrl] : [opts.webUrl, opts.coreUrl]) {
-        if (await load(url)) return opts.opened(url, { url: opts.coreUrl, token: localCoreToken() });
+        if (await load(url, firstRun)) return opts.opened(url, { url: opts.coreUrl, token: localCoreToken() });
       }
       return unreachable(
         opts.coreUrl,
@@ -191,18 +192,20 @@ export function createConnector(opts: {
     }
     if (conn.mode === "url") {
       // A remote core gets this computer's browser only once the desktop pairs as a node of its own (not yet).
-      if (await load(conn.url)) return opts.opened(conn.url, undefined);
+      if (await load(conn.url, firstRun)) return opts.opened(conn.url, undefined);
       return unreachable(conn.url, "");
     }
     tunnel ??= startTunnel(conn.target, corePort, () => {});
     await waitUp(tunnel.url, 20_000);
-    if (await load(tunnel.url)) return opts.opened(tunnel.url, { url: tunnel.url, token: undefined });
+    if (await load(tunnel.url, firstRun)) return opts.opened(tunnel.url, { url: tunnel.url, token: undefined });
     return unreachable(`${conn.target} (SSH)`, "");
   }
 
-  async function load(url: string): Promise<boolean> {
+  async function load(url: string, firstRun = false): Promise<boolean> {
+    const page = new URL(url);
+    if (firstRun) page.searchParams.set("welcome", "installed");
     try {
-      await opts.panel.loadURL(url);
+      await opts.panel.loadURL(firstRun ? page.toString() : url);
       return true;
     } catch {
       return false;
