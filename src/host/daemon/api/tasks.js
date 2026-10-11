@@ -32,9 +32,8 @@ import {
   countTasks,
   addDependency,
   removeDependency,
-  withdrawDecision,
 } from "#core/stores/tasks.js";
-import { requestDecision, resolveDecision } from "#core/tasks/decisions.js";
+import { requestDecision, resolveDecision, retractDecision } from "#core/tasks/decisions.js";
 import { summonFromAgentComment } from "#core/tasks/comment-turn.js";
 import { addComment } from "#core/stores/tasks.js";
 import { readConfig, writeConfig } from "#core/config/index.js";
@@ -404,9 +403,9 @@ export function register(api, { project, projects, config, plugins, registries }
     if (!p) return;
     const { reason, by = OWNER_ACTOR_ID } = req.body || {};
     try {
-      const task = withdrawDecision(p.storagePath, req.params.id, req.params.did, { reason, by });
-      if (!task) return res.status(404).json({ error: "task not found" });
-      res.json(task);
+      const out = retractDecision({ storagePath: p.storagePath, taskId: req.params.id, decisionId: req.params.did, reason, by });
+      if (!out) return res.status(404).json({ error: "task not found" });
+      res.json(out.task);
     } catch (e) {
       res.status(400).json({ error: e.message });
     }

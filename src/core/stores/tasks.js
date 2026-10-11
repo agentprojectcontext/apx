@@ -40,6 +40,7 @@ import {
   normalizeTaskPriority,
   normalizeTaskReminderFrequency,
 } from "#core/constants/task-fields.js";
+import { assertDecisionQuestion } from "#core/tasks/decision-question.js";
 
 // Workflow sub-status for an *open* task. Orthogonal to `state`
 // (open/done/dropped): `state` is the storage lifecycle, `status` is how an
@@ -790,8 +791,8 @@ export function askDecision(storagePath, idOrPrefix, {
 } = {}) {
   const existing = getTask(storagePath, idOrPrefix);
   if (!existing) return null;
-  const q = typeof question === "string" ? question.trim() : "";
-  if (!q) throw new Error("askDecision: question required");
+  assertDecisionQuestion(question);
+  const q = question.trim();
   const decision_id = makeShortId("d");
   appendEvent(storagePath, {
     id: existing.id, ts: nowIso(), op: "ask", decision_id, question: q,
@@ -835,12 +836,18 @@ export function answerDecision(storagePath, idOrPrefix, decisionId, { answer, ch
   return { task, decision: task.decisions.find((d) => d.id === decisionId) };
 }
 
-/** The question no longer applies. Reason required, like a lifted dependency. */
+/**
+ * The question no longer applies. Reason required, like a lifted dependency.
+ * Only whoever asked it (or the owner) may take it back.
+ */
 export function withdrawDecision(storagePath, idOrPrefix, decisionId, { reason, by = null } = {}) {
-  const { existing } = openDecision(storagePath, idOrPrefix, decisionId);
+  const { existing, decision } = openDecision(storagePath, idOrPrefix, decisionId);
   if (!existing) return null;
   const why = typeof reason === "string" ? reason.trim() : "";
   if (!why) throw new Error("withdrawDecision: reason required");
+  if (by !== OWNER_ACTOR_ID && by !== decision.asked_by) {
+    throw new Error(`only ${decision.asked_by ? `${decision.asked_by} (or the owner)` : "the owner"} can withdraw decision ${decisionId}`);
+  }
   appendEvent(storagePath, { id: existing.id, ts: nowIso(), op: "withdraw", decision_id: decisionId, reason: why, by });
   return getTask(storagePath, existing.id);
 }

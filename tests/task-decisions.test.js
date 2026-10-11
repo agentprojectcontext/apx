@@ -80,7 +80,7 @@ test("no channel, or a failed send, is recorded as such — never as delivered",
 test("the summary counts an owner decision the same way the list does", async () => {
   const { countTasks, addComment } = await import("#core/stores/tasks.js");
   const t = createTask(STORE, { title: "x" });
-  askDecision(STORE, t.id, { question: "¿A?", by: "pm" });
+  askDecision(STORE, t.id, { question: "¿Publicamos la versión A?", by: "pm" });
   addComment(STORE, t.id, { by: "pm", text: "sigo con lo demás" });
   assert.equal(listTasks(STORE).find((x) => x.id === t.id).awaits_owner, true);
   assert.equal(countTasks(STORE).attention.awaits_owner, 1);
@@ -89,7 +89,7 @@ test("the summary counts an owner decision the same way the list does", async ()
 test("'Owner', 'human' and '@owner' all mean the owner; an unknown agent is refused", async () => {
   for (const spelling of ["Owner", "human", "@owner", " owner "]) {
     const t = createTask(STORE, { title: spelling });
-    const { decision } = askDecision(STORE, t.id, { question: "¿A?", responsible: spelling, by: "pm" });
+    const { decision } = askDecision(STORE, t.id, { question: "¿Publicamos la versión A?", responsible: spelling, by: "pm" });
     assert.equal(decision.responsible, "owner", spelling);
   }
   const t = createTask(STORE, { title: "typo" });
@@ -139,10 +139,10 @@ test("the answer names its decision, goes back to the asker, and approves nothin
 
 test("only the responsible party (or the owner) can answer; withdrawing needs a reason", () => {
   const t = createTask(STORE, { title: "x" });
-  const { decision } = askDecision(STORE, t.id, { question: "¿v2?", responsible: "pm", by: "auditor" });
+  const { decision } = askDecision(STORE, t.id, { question: "¿Seguimos con el plan v2?", responsible: "pm", by: "auditor" });
   assert.throws(() => answerDecision(STORE, t.id, decision.id, { answer: "sí", by: "qa" }), /only pm/);
   answerDecision(STORE, t.id, decision.id, { answer: "sí", by: "pm" });
-  const { decision: d2 } = askDecision(STORE, t.id, { question: "¿otra?", by: "auditor" });
+  const { decision: d2 } = askDecision(STORE, t.id, { question: "¿Sumamos otra región?", by: "auditor" });
   assert.throws(() => withdrawDecision(STORE, t.id, d2.id, { reason: "" }), /reason required/);
   withdrawDecision(STORE, t.id, d2.id, { reason: "ya no aplica", by: "auditor" });
   assert.equal(getTask(STORE, t.id).decisions[1].state, "withdrawn");

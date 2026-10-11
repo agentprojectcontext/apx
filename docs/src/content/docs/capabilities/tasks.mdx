@@ -274,6 +274,11 @@ Your answer goes back to the agent that asked, as a comment naming that decision
 exactly which blocker you resolved and does not ask again. Answering does **not** approve or
 close the task. A correction another agent owes is asked of that agent, not of you.
 
+A card has to carry a real question. APX refuses one that asks nothing — a placeholder like
+`placeholder` or `?`, a status line, or text saying no decision is needed — before it reaches
+the card or your phone. An agent that asked by mistake withdraws its card with a reason; that
+clears **Waiting for your decision** and sends you nothing.
+
 ### Dependencies between tasks
 
 A subtask is part of a bigger task; a **dependency** says one task cannot move until another

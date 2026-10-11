@@ -276,6 +276,11 @@ Tu respuesta vuelve al agente que preguntó, como un comentario que nombra esa d
 exactamente qué bloqueo resolviste y no vuelve a preguntar. Responder **no** aprueba ni cierra la
 tarea. Una corrección que debe otro agente se le pregunta a ese agente, no a vos.
 
+Una tarjeta tiene que traer una pregunta de verdad. APX rechaza la que no pregunta nada —un
+relleno como `placeholder` o `?`, una línea de estado, o un texto que dice que no hace falta
+decidir— antes de que llegue a la tarjeta o a tu teléfono. Un agente que preguntó por error retira
+su tarjeta con un motivo: eso saca **Espera tu decisión** y no te manda nada.
+
 ### Dependencias entre tareas
 
 Una subtarea es parte de una tarea más grande; una **dependencia** dice que una tarea no puede
