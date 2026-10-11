@@ -724,3 +724,15 @@ deadline now moves: the turn ends only after `ENGINE_IDLE_MS` (20 minutes) witho
 rewritten at most once a minute, so the persisted deadline stays honest. While the engine waits for the owner's OK the
 clock is held, as for any turn. The owner can always stop a session; a stopped-for-silence turn fails with that reason
 and reaches the tray like any other failure. Chat turns on our own loop keep their fixed minutes.
+
+<a id="d-062"></a>
+## D-062 — 2026-10-11 — An "always" OK covers APX's own tools too, per agent, and the owner manages it
+Only MCP tools could be approved for good: approving one of APX's own tools (writing a file, messaging a contact, a
+command that changes something) held for that call alone, so an agent on standard or ask autonomy asked again every
+time. Each built-in tool now carries an approval target too (`apx:<tool>`), so its confirmation offers the same three
+answers as an MCP tool's: once, in this chat, or always for this agent. The grant lives with the MCP ones
+(`tools.approvals`, `tools.revoke`) and shows in the agent's editor, where the owner revokes it. A call that always
+asks (a destructive or APX-reaching command, a routine or agent change, iMessage, the owner's browser login) never
+uses a grant, and `grant_tool` still hands on MCP tools only: APX's own are the owner's to allow. An agent's editor
+also sets its `tools:` and `skills:` lists (written to a project agent's file); [] goes back to all of them.
+

@@ -15,6 +15,20 @@ export type ApprovalTarget = {
 };
 export const approvalScopes = (_a: ApprovalTarget): ApprovalScope[] => ["once", "session", "always"];
 
+/** The server name of APX's own tools in grants (an MCP server's is its approval id). */
+export const APX_SERVER = "apx";
+
+/**
+ * One of APX's own tools: one key per tool name, so the owner's "always" for an agent covers that tool's calls that
+ * would ask. Calls that always ask (a destructive command, a routine or agent change) never use a grant.
+ */
+export const nativeApproval = (tool: string): ApprovalTarget => ({
+  key: `${APX_SERVER}:${tool}`,
+  server: APX_SERVER,
+  tool,
+  permanent: false,
+});
+
 export function approvalsRepo(q: Sql) {
   const settings = settingsRepo(q);
   const listeners = new Set<() => void>();

@@ -9,6 +9,7 @@ import path from "node:path";
 import { BROWSER_CAP } from "@apx/protocol";
 import type { Bus } from "./bus.ts";
 import type { CoreConfig } from "./config.ts";
+import { nativeApproval } from "./domain/approvals.ts";
 import type { Store } from "./domain/store.ts";
 import { audienceOf } from "./engine/audience.ts";
 import { createHooks } from "./engine/hooks.ts";
@@ -119,7 +120,7 @@ export function extensionStack(d: { store: Store; secrets: Secrets; bus: Bus; lo
 
 /** Every built-in tool, plus the ones a test adds. `port` is read late: tests listen on 0. */
 export function builtinTools(store: Store, home: string, port: () => number, extra: Tool[] = []): Tool[] {
-  return [
+  const tools = [
     ...agentTools(store),
     ...agentSetTools(store),
     ...chatTools(store),
@@ -143,6 +144,8 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...requestTools(store),
     ...extra,
   ];
+  // The owner may let an agent use one of them without asking again, as with an MCP tool (DECISIONS.md#d-062).
+  return tools.map((t) => (t.approval ? t : { ...t, approval: nativeApproval(t.name) }));
 }
 
 type HandlerDeps = {
@@ -173,6 +176,8 @@ type HandlerDeps = {
   /** Where profiles are found: APX's own, then the owner's installed ones. */
   profileRoots: readonly ProfileRoot[];
   engines: Parameters<typeof agentHandlers>[2];
+  /** Every built-in tool: what an agent's editor offers. */
+  tools: Parameters<typeof agentHandlers>[3];
   desktop: Parameters<typeof fileHandlers>[1];
   /** Where Claude Code and Codex keep the owner's own sessions. */
   native: Parameters<typeof sessionHandlers>[1];
@@ -233,7 +238,7 @@ export function coreHandlers(d: HandlerDeps) {
     }),
     ...providerHandlers(d.providers, d.secrets, d.chatgpt),
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
-    ...agentHandlers(d.store, d.apc, d.engines),
+    ...agentHandlers(d.store, d.apc, d.engines, d.tools),
     ...teamHandlers(d.store, d.apc, d.templateRoots, (s) => d.scheduler.nextFor(s)),
     ...fileHandlers(d.store, d.desktop, d.app.home),
     ...gitHandlers(d.store, d.upkeep),
