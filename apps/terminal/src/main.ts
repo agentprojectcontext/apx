@@ -21,7 +21,7 @@ import { org, owner, profiles } from "./commands/owner.ts";
 import { pair } from "./commands/pair.ts";
 import { routines } from "./commands/routines.ts";
 import { service } from "./commands/service.ts";
-import { bundleAppOf } from "./commands/service-files.ts";
+import { adoptBundleApp } from "./commands/service-files.ts";
 import { importV1, setupHeadless } from "./commands/setup.ts";
 import { tasks } from "./commands/tasks.ts";
 import { agents, jobs, projects, runs, runtimeSkills, secrets, skills, threads, usage } from "./commands/threads.ts";
@@ -142,7 +142,7 @@ Env: APX_URL (default http://127.0.0.1:<APX_PORT or 7440>), APX_TOKEN (default: 
      APX_HOME (default ~/.apx/v2)`;
 
 // Installed from a bundle: the service it writes and the core it starts run through that install's `current`.
-process.env.APX_APP ||= bundleAppOf(import.meta.dirname);
+adoptBundleApp(process.env, import.meta.dirname);
 
 function argumentsOf() {
   return parseArgs({
