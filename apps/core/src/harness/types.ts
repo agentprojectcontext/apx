@@ -27,6 +27,8 @@ export type TurnIO = {
   /** Whether outside content is in this turn so far (or was in this engine session before: it keeps it). */
   outside(): boolean;
   onText(soFar: string): void;
+  /** This turn's tokens so far, reported as they grow: a turn that fails or is canceled still shows what it spent. */
+  onUsage?(soFar: Usage): void;
   /** Any event from an outside engine (a token, a tool's progress, a status): it is still working. */
   alive?(): void;
   /** Runs one APX tool with its card and step record. Every harness calls tools through here. */
@@ -72,6 +74,8 @@ export type TurnOutcome = {
   finish?: Finish;
   sessionId?: string | undefined;
   usage?: Usage | undefined;
+  /** The outside session's running total, from an engine that reports only that (Codex): the engine takes the delta. */
+  sessionUsage?: Usage | undefined;
 };
 
 export type Harness = { id: HarnessId; run(io: TurnIO): Promise<TurnOutcome> };

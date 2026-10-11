@@ -64,7 +64,7 @@ export function codexHarness(opts: {
         );
         let text = "";
         let sessionId = io.sessionId;
-        let usage: TurnOutcome["usage"];
+        let sessionUsage: TurnOutcome["sessionUsage"];
         for await (const ev of events) {
           io.alive?.();
           if (ev.type === "thread.started") sessionId = ev.thread_id;
@@ -95,12 +95,18 @@ export function codexHarness(opts: {
           } else if ((ev.type === "item.updated" || ev.type === "item.completed") && ev.item.type === "agent_message") {
             text = ev.item.text;
             io.onText(text);
-          } else if (ev.type === "turn.completed")
-            usage = { input: ev.usage.input_tokens, output: ev.usage.output_tokens };
-          else if (ev.type === "turn.failed") throw new Error(`codex: ${ev.error.message}`);
+          } else if (ev.type === "turn.completed") {
+            // The whole session's tokens so far, not this turn's; `input_tokens` already counts the cached ones.
+            const u = ev.usage;
+            sessionUsage = {
+              input: u.input_tokens,
+              output: u.output_tokens,
+              ...(u.cached_input_tokens ? { cached: u.cached_input_tokens } : {}),
+            };
+          } else if (ev.type === "turn.failed") throw new Error(`codex: ${ev.error.message}`);
           else if (ev.type === "error") throw new Error(`codex: ${ev.message}`);
         }
-        return { text, model: `codex/${chosen ?? "default"}`, effort, sessionId, usage };
+        return { text, model: `codex/${chosen ?? "default"}`, effort, sessionId, sessionUsage };
       } finally {
         gate.close();
       }

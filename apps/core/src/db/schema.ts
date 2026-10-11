@@ -80,6 +80,7 @@ export interface HarnessSessionsTable {
   harness: string;
   session_id: string;
   updated_at: string;
+  usage: string | null;
 }
 
 export interface IdempotencyTable {

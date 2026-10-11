@@ -2,6 +2,7 @@
 // session resumed when the agent can, APX tools through the per-run MCP proxy, its permission requests through our
 // policy, its own tool calls shown as cards.
 import { engineOf } from "../../domain/refs.ts";
+import type { Usage } from "../../providers/types.ts";
 import type { McpCommand } from "../codex.ts";
 import { type Harness, modelPart, type TurnIO, type TurnOutcome } from "../types.ts";
 import { type AcpAgent, acpEngine, openSession } from "./agents.ts";
@@ -47,6 +48,8 @@ export function acpHarness(opts: {
       // A loaded session replays its history as updates: only what comes after our prompt is this turn.
       let prompting = false;
       const titles = new Map<string, { title: string; kind: string }>();
+      // How full its context is, when the agent says (`usage_update`).
+      let context: { used?: number; size?: number } = {};
       const session = await openSession(agent, {
         binary,
         cwd: opts.cwd(io),
@@ -71,6 +74,8 @@ export function acpHarness(opts: {
               said += c.text;
               io.onText(said);
             }
+          } else if (kind === "usage_update") {
+            context = u as { used?: number; size?: number };
           } else if (kind === "tool_call" || kind === "tool_call_update") {
             if (kind === "tool_call") said = "";
             const t = u as ToolUpdate;
@@ -118,7 +123,7 @@ export function acpHarness(opts: {
         prompting = true;
         try {
           const r = await Promise.race([
-            session.rpc.request<{ stopReason?: string; usage?: { inputTokens?: number; outputTokens?: number } }>(
+            session.rpc.request<{ stopReason?: string; usage?: AcpUsage }>(
               "session/prompt",
               { sessionId: session.sessionId, prompt: [{ type: "text", text: io.input.content }] },
               // The engine's run deadline ends the turn; this only guards a silent process.
@@ -138,7 +143,7 @@ export function acpHarness(opts: {
             model: `${engine}/${model ?? "default"}`,
             sessionId: session.sessionId,
             ...(r.stopReason === "max_tokens" ? { finish: "length" as const } : {}),
-            ...(r.usage ? { usage: { input: r.usage.inputTokens ?? 0, output: r.usage.outputTokens ?? 0 } } : {}),
+            ...(r.usage ? { usage: usageOf(r.usage, context) } : {}),
           };
         } finally {
           io.signal.removeEventListener("abort", onAbort);
@@ -148,5 +153,30 @@ export function acpHarness(opts: {
         gate.close();
       }
     },
+  };
+}
+
+/** A prompt's tokens as ACP reports them; cache reads and writes may be counted apart from `inputTokens`. */
+type AcpUsage = {
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedReadTokens?: number;
+  cachedWriteTokens?: number;
+  totalTokens?: number;
+};
+
+/** `input` counts every prompt token: the cached ones are added when the agent's total says they were left out. */
+export function usageOf(u: AcpUsage, context: { used?: number; size?: number }): Usage {
+  const read = u.cachedReadTokens ?? 0;
+  const cache = read + (u.cachedWriteTokens ?? 0);
+  const input = u.inputTokens ?? 0;
+  const output = u.outputTokens ?? 0;
+  const apart = cache > 0 && (u.totalTokens ?? 0) >= input + output + cache;
+  return {
+    input: apart ? input + cache : input,
+    output,
+    ...(read ? { cached: read } : {}),
+    ...(context.used ? { context: context.used } : {}),
+    ...(context.size ? { window: context.size } : {}),
   };
 }

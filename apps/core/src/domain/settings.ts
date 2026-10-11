@@ -1,4 +1,6 @@
 // Small key/value settings, external harness session ids per thread, and stored idempotent responses.
+import type { RunUsage } from "@apx/protocol";
+import { sql as raw } from "kysely";
 import { type Entry, SETTINGS, type SettingKey, type SettingValue } from "./setting-keys.ts";
 import { now, qb, type Sql } from "./sql.ts";
 
@@ -41,7 +43,7 @@ export function harnessSessionsRepo({ one, all, run }: Sql) {
     one(
       qb
         .selectFrom("harness_sessions")
-        .select(["session_id", "updated_at"])
+        .select(["session_id", "updated_at", "usage"])
         .where("thread_id", "=", threadId)
         .where("harness", "=", harness),
     );
@@ -64,14 +66,25 @@ export function harnessSessionsRepo({ one, all, run }: Sql) {
         ),
       ),
     updatedAt: (threadId: string, harness: string): string | undefined => row(threadId, harness)?.updated_at,
-    set(threadId: string, harness: string, sessionId: string): void {
+    /** The tokens an outside session had spent by its last turn here, for an engine that only reports its total. */
+    total(threadId: string, harness: string, sessionId: string): RunUsage | undefined {
+      const r = row(threadId, harness);
+      return r?.session_id === sessionId && r.usage ? (JSON.parse(r.usage) as RunUsage) : undefined;
+    },
+    /** Another session drops the old one's total; `total` is the new running total, when the engine gave one. */
+    set(threadId: string, harness: string, sessionId: string, total?: RunUsage): void {
       const at = now();
+      const usage = total ? JSON.stringify(total) : null;
       run(
         qb
           .insertInto("harness_sessions")
-          .values({ thread_id: threadId, harness, session_id: sessionId, updated_at: at })
+          .values({ thread_id: threadId, harness, session_id: sessionId, updated_at: at, usage })
           .onConflict((c) =>
-            c.columns(["thread_id", "harness"]).doUpdateSet({ session_id: sessionId, updated_at: at }),
+            c.columns(["thread_id", "harness"]).doUpdateSet({
+              session_id: sessionId,
+              updated_at: at,
+              usage: usage ?? raw<string | null>`CASE WHEN session_id = ${sessionId} THEN usage END`,
+            }),
           ),
       );
     },

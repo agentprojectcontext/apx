@@ -28,17 +28,29 @@ const fake = (id: "claude" | "codex"): Harness => ({
     };
   },
 });
-const broken: Harness = {
+// Like Codex: its session's running total at the end of each turn. Anything else fails after spending a little.
+let codexTotal = 0;
+const codex: Harness = {
   id: "codex",
-  run: async () => {
-    throw new Error("usage limit reached");
+  run: async (io) => {
+    if (!String(io.input.content).includes("count")) {
+      io.onUsage?.({ input: 7, output: 2 });
+      throw new Error("usage limit reached");
+    }
+    codexTotal += 100;
+    return {
+      text: "counted",
+      model: "codex/model",
+      sessionId: "codex-sess",
+      sessionUsage: { input: codexTotal, output: codexTotal / 10, cached: codexTotal / 2 },
+    };
   },
 };
 const native = scriptedLlm(() => say("native answer"));
 
 let env: Awaited<ReturnType<typeof startCore>>;
 before(async () => {
-  env = await startCore({ llm: native, harnesses: { claude: fake("claude"), codex: broken } });
+  env = await startCore({ llm: native, harnesses: { claude: fake("claude"), codex } });
 });
 after(async () => {
   await env.core.close();
@@ -132,6 +144,22 @@ test("a CLI that fails in its session fails the turn: no other engine answers fo
   assert.equal(done.runs[0]?.state, "failed");
   assert.equal(done.runs[0]?.harness, "codex");
   assert.ok(!texts(done.messages).includes("native answer"));
+  // What it spent before failing is kept.
+  assert.deepEqual(done.runs[0]?.usage, { input: 7, output: 2 });
+});
+
+test("an engine that reports its session's running total gets each turn's own share", async () => {
+  const t = await session("codex");
+  await env.client.call("threads.send", { thread: t.id, text: "count" });
+  await env.settle(t.id);
+  await env.client.call("threads.send", { thread: t.id, text: "count again" });
+  const done = await env.settle(t.id);
+  const share = { input: 100, output: 10, cached: 50 };
+  assert.deepEqual(
+    done.runs.map((r) => r.usage),
+    [share, share],
+  );
+  assert.equal(env.core.store.harnessSessions.total(t.id, "codex", "codex-sess")?.input, 200);
 });
 
 test("a model ref nothing can run is refused when it is set", async () => {

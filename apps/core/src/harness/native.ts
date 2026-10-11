@@ -61,6 +61,7 @@ export function nativeHarness(llm: Llm): Harness {
         usage.output += c.usage?.output ?? 0;
         if (c.usage?.cached) usage.cached = (usage.cached ?? 0) + c.usage.cached;
         if (c.usage?.input) usage.context = c.usage.input;
+        io.onUsage?.({ ...usage });
         push(c.message);
         if (c.message.content) text = prefix + c.message.content;
         return c;

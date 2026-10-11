@@ -147,3 +147,36 @@ test("answers sent before outbox items named their message get linked and show s
     cleanup();
   }
 });
+
+test("Codex runs stored with their session's running total get each turn's share back", () => {
+  const { db, cleanup } = upgradeFrom("CREATE TEMP TABLE codex_runs", (db) => {
+    const thread = db.prepare(
+      "INSERT INTO threads (id, kind, title, agent_ids, created_at, updated_at) VALUES (?, 'code', 'Chat', '[]', ?, ?)",
+    );
+    const run = db.prepare(
+      "INSERT INTO runs (id, thread_id, agent_id, state, started_at, created_at, harness, usage) VALUES (?, ?, 'roby', 'completed', ?, ?, ?, ?)",
+    );
+    const at = (n: number) => `2026-10-0${n}T10:00:00Z`;
+    thread.run("th_a", at(1), at(1));
+    run.run("r1", "th_a", at(1), at(1), "codex", JSON.stringify({ input: 500, output: 20 }));
+    run.run("r2", "th_a", at(2), at(2), "codex", JSON.stringify({ input: 560, output: 25 }));
+    run.run("r3", "th_a", at(3), at(3), "native", JSON.stringify({ input: 9, output: 1 }));
+    db.prepare(
+      "INSERT INTO harness_sessions (thread_id, harness, session_id, updated_at) VALUES ('th_a', 'codex', 's1', ?)",
+    ).run(at(2));
+  });
+  try {
+    const usage = (id: string) =>
+      JSON.parse(String(db.prepare("SELECT usage FROM runs WHERE id = ?").get(id)?.usage)) as unknown;
+    // The first run of the chat keeps its figure (nothing before it to subtract), later ones their own share.
+    assert.deepEqual(usage("r1"), { input: 500, output: 20 });
+    assert.deepEqual(usage("r2"), { input: 60, output: 5 });
+    assert.deepEqual(usage("r3"), { input: 9, output: 1 });
+    // The session's total is where the next turn's share is taken from.
+    const total = db.prepare("SELECT usage FROM harness_sessions WHERE thread_id = 'th_a'").get()?.usage;
+    assert.deepEqual(JSON.parse(String(total)), { input: 560, output: 25 });
+  } finally {
+    db.close();
+    cleanup();
+  }
+});

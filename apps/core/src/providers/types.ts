@@ -27,7 +27,8 @@ export type Finish = "stop" | "tool_calls" | "length" | "other";
 
 /** `context`: the input of the last call alone, how much of the window the chat fills now. */
 /** `input` counts every prompt token, `cached` the part a provider read from its prompt cache. */
-export type Usage = { input: number; output: number; context?: number; cached?: number };
+/** `window`: the model's context limit, when the engine says it (else it is looked up by the model's name). */
+export type Usage = { input: number; output: number; context?: number; cached?: number; window?: number };
 
 /**
  * `effort`: the reasoning effort the call asked for, when it asked for one. `failed`: models tried before the one

@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { errorMessage } from "../errors.ts";
+import type { Usage } from "../providers/types.ts";
 import { harnessEnv } from "./env.ts";
 import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 
@@ -61,6 +62,62 @@ export function folderClaudeMd(cwd: string): string {
 }
 
 type Counts = { apx: number; builtins: number; permissions: number };
+
+/** A model call's tokens as the Messages API reports them; cached prompt tokens are counted apart. */
+type CallUsage = {
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  cache_read_input_tokens?: number | null;
+  cache_creation_input_tokens?: number | null;
+};
+
+/**
+ * Adds up a Claude Code turn's model calls, its subagents' included. The SDK repeats a call's usage on each of its
+ * content blocks: each call counts once, its whole prompt (cached or not) as `input`.
+ */
+export function claudeUsage(report: (soFar: Usage) => void) {
+  const calls = new Map<string, Usage>();
+  let context: number | undefined;
+  let window: number | undefined;
+  const total = (): Usage => {
+    const u: Usage = { input: 0, output: 0 };
+    for (const c of calls.values()) {
+      u.input += c.input;
+      u.output += c.output;
+      if (c.cached) u.cached = (u.cached ?? 0) + c.cached;
+    }
+    if (context) u.context = context;
+    if (window) u.window = window;
+    return u;
+  };
+  return {
+    /** A call's tokens so far; `main` is the turn's own loop, whose latest call is how full the chat is. */
+    call(id: string | undefined, u: CallUsage | null | undefined, main: boolean): void {
+      if (!id || !u) return;
+      const cached = u.cache_read_input_tokens ?? 0;
+      const input = (u.input_tokens ?? 0) + cached + (u.cache_creation_input_tokens ?? 0);
+      const prev = calls.get(id);
+      const next: Usage = {
+        input: Math.max(input, prev?.input ?? 0),
+        output: Math.max(u.output_tokens ?? 0, prev?.output ?? 0),
+      };
+      const reused = Math.max(cached, prev?.cached ?? 0);
+      if (reused) next.cached = reused;
+      if (prev && prev.input === next.input && prev.output === next.output) return;
+      calls.set(id, next);
+      if (main && next.input) context = next.input;
+      report(total());
+    },
+    /** The model's context limit, from the SDK's per-model totals when the turn ends. */
+    window(n: number | undefined): void {
+      if (n) window = n;
+    },
+    /** Every call so far, or nothing when none reported tokens. */
+    total: (): Usage | undefined => (calls.size ? total() : undefined),
+  };
+}
+type Tally = ReturnType<typeof claudeUsage>;
+
 type Sdk = typeof import("@anthropic-ai/claude-agent-sdk");
 
 // The SDK is a large module: loaded on the first Claude turn, so a core that never runs one never pays for it.
@@ -116,6 +173,7 @@ async function attempt(
     chosen: string | undefined;
     effort: string | undefined;
     counts: Counts;
+    tally: Tally;
     resume: string | undefined;
   },
 ): Promise<TurnOutcome> {
@@ -125,6 +183,8 @@ async function attempt(
   let text = "";
   let model = o.chosen ?? "default";
   let sessionId = o.resume;
+  // The call each stream is on (the turn's own, keyed "", and each subagent's), for the tokens its deltas add.
+  const current = new Map<string, string>();
   try {
     const sdk = await loadSdk();
     const cwd = o.cwd(io);
@@ -151,14 +211,22 @@ async function attempt(
     });
     for await (const m of q) {
       io.alive?.();
-      if (m.type === "stream_event" && !m.parent_tool_use_id) {
+      if (m.type === "stream_event") {
         const ev = m.event;
+        const main = !m.parent_tool_use_id;
+        if (ev.type === "message_start") {
+          current.set(m.parent_tool_use_id ?? "", ev.message.id);
+          o.tally.call(ev.message.id, ev.message.usage, main);
+        } else if (ev.type === "message_delta") o.tally.call(current.get(m.parent_tool_use_id ?? ""), ev.usage, main);
+        if (!main) continue;
         if (ev.type === "message_start") text = "";
         if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
           text += ev.delta.text;
           io.onText(text);
         }
-      } else if (m.type === "assistant" && !m.parent_tool_use_id) {
+      } else if (m.type === "assistant") {
+        o.tally.call(m.message.id, m.message.usage, !m.parent_tool_use_id);
+        if (m.parent_tool_use_id) continue;
         model = m.message.model || model;
         sessionId = m.session_id;
         // Its own tools are shown as cards and recorded as steps; web tools also tell the policy that outside text
@@ -175,17 +243,19 @@ async function attempt(
           }
       } else if (m.type === "result") {
         sessionId = m.session_id;
+        o.tally.window(m.modelUsage[model]?.contextWindow);
         if (m.subtype !== "success") throw new Error(`claude: ${m.subtype}`);
-        return {
-          text: m.result || text,
-          model: `claude/${model}`,
-          effort: o.effort,
-          sessionId,
-          usage: { input: m.usage.input_tokens ?? 0, output: m.usage.output_tokens ?? 0 },
+        const usage = o.tally.total() ?? {
+          input:
+            (m.usage.input_tokens ?? 0) +
+            (m.usage.cache_read_input_tokens ?? 0) +
+            (m.usage.cache_creation_input_tokens ?? 0),
+          output: m.usage.output_tokens ?? 0,
         };
+        return { text: m.result || text, model: `claude/${model}`, effort: o.effort, sessionId, usage };
       }
     }
-    return { text, model: `claude/${model}`, effort: o.effort, sessionId };
+    return { text, model: `claude/${model}`, effort: o.effort, sessionId, usage: o.tally.total() };
   } finally {
     io.signal.removeEventListener("abort", onAbort);
   }
@@ -202,15 +272,17 @@ export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: (i
         effort: effortPart(io.models[0]),
       };
       const counts: Counts = { apx: 0, builtins: 0, permissions: 0 };
+      // Across a retry too: the first attempt's calls were spent all the same.
+      const tally = claudeUsage((u) => io.onUsage?.(u));
       try {
-        return await attempt(io, { ...base, counts, resume: io.sessionId });
+        return await attempt(io, { ...base, counts, tally, resume: io.sessionId });
       } catch (err) {
         // A stored session can disappear (cleared by the owner): start a fresh one instead of failing the turn,
         // but only for that, and never after any tool ran (ours or Claude's), since a rerun would repeat its effect.
         // See DECISIONS.md#d-007
         const gone = /session|conversation/i.test(errorMessage(err));
         if (io.sessionId && gone && !io.signal.aborted && counts.apx === 0 && counts.builtins === 0)
-          return attempt(io, { ...base, counts, resume: undefined });
+          return attempt(io, { ...base, counts, tally, resume: undefined });
         throw err;
       }
     },

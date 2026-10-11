@@ -13,7 +13,7 @@ import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import { systemNote } from "../harness/native.ts";
 import type { Log } from "../log.ts";
 import { candidates, modelSettings } from "../models/choice.ts";
-import type { ChatItem } from "../providers/types.ts";
+import type { ChatItem, Usage } from "../providers/types.ts";
 import { ProviderError } from "../providers/types.ts";
 import { contextWindow } from "../providers/windows.ts";
 import { askedSkill } from "../skills/picker.ts";
@@ -224,6 +224,10 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     sessionId: undefined,
     outside: () => exec.untrusted,
     onText: display.text,
+    // Kept as it grows: a turn that fails or is canceled still shows what it spent.
+    onUsage: (u) => {
+      run = store.runs.patch(run, { usage: u });
+    },
     execute: exec.execute,
     approve: exec.approve,
     observe: exec.observe,
@@ -546,18 +550,37 @@ async function runEngine(
   const { store } = deps;
   t.onHarness(engine.harness);
   const session = t.thread.engine;
+  const resumed = session ? store.harnessSessions.get(t.thread.id, session) : undefined;
   const outcome = await deps.harnesses.get(engine.harness).run({
     ...t.io(),
     models: engine.refs,
-    sessionId: session ? store.harnessSessions.get(t.thread.id, session) : undefined,
+    sessionId: resumed,
     input: t.input,
   });
+  if (outcome.sessionUsage) {
+    const before =
+      session && outcome.sessionId ? store.harnessSessions.total(t.thread.id, session, outcome.sessionId) : undefined;
+    const share = turnShare(outcome.sessionUsage, before, Boolean(resumed) && resumed === outcome.sessionId);
+    if (share) outcome.usage = share;
+    else deps.log.warn({ run: t.run().id }, "no earlier total for this engine session: the turn's tokens are unknown");
+  }
   if (session) {
-    if (outcome.sessionId) store.harnessSessions.set(t.thread.id, session, outcome.sessionId);
+    if (outcome.sessionId) store.harnessSessions.set(t.thread.id, session, outcome.sessionId, outcome.sessionUsage);
     store.modelLog.append(t.thread.id, t.run().id, [{ role: "assistant", content: outcome.text || null }]);
   }
   t.signal.throwIfAborted();
   return outcome;
+}
+
+/**
+ * This turn's share of an outside session's running total. A session APX goes on with but holds no total for (one
+ * brought in from outside) has spent an unknown part of it before: no figure rather than a wrong one.
+ */
+export function turnShare(total: Usage, before: Usage | undefined, resumed: boolean): Usage | undefined {
+  if (!before) return resumed ? undefined : total;
+  const input = Math.max(0, total.input - before.input);
+  const cached = Math.min(input, Math.max(0, (total.cached ?? 0) - (before.cached ?? 0)));
+  return { input, output: Math.max(0, total.output - before.output), ...(cached ? { cached } : {}) };
 }
 
 /** The answer is in: final text (or an honest notice), the code changes card, usage, and the thread back to idle. */
@@ -597,7 +620,7 @@ async function finishRun(
   const empty = t.exec.toolsRan ? "Finished without a message." : "The model gave no answer.";
   if (text) display.finalText(text);
   else display.notice("info", "run.empty", empty);
-  const window = outcome.usage?.context ? contextWindow(outcome.model) : undefined;
+  const window = outcome.usage?.window ?? (outcome.usage?.context ? contextWindow(outcome.model) : undefined);
   const usage = outcome.usage && { ...outcome.usage, ...(window ? { window } : {}) };
   let run = store.runs.patch(t.run, { model: outcome.model, ...(usage ? { usage } : {}) });
   run = store.runs.setState(run, "completed");

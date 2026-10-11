@@ -641,4 +641,23 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE memories ADD COLUMN pending INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE memories ADD COLUMN forgotten_at TEXT;
   `,
+  `
+  -- Codex reports its session's running total, not the turn's: the total is kept per session, and the runs stored
+  -- with it get the turn's share back (each one minus the run before it in its chat).
+  ALTER TABLE harness_sessions ADD COLUMN usage TEXT;
+  CREATE TEMP TABLE codex_runs AS
+    SELECT id, thread_id, created_at,
+      json_extract(usage, '$.input') AS i, json_extract(usage, '$.output') AS o,
+      lag(json_extract(usage, '$.input')) OVER w AS pi, lag(json_extract(usage, '$.output')) OVER w AS po
+    FROM runs WHERE harness = 'codex' AND usage IS NOT NULL
+    WINDOW w AS (PARTITION BY thread_id ORDER BY created_at);
+  UPDATE harness_sessions SET usage = (
+    SELECT json_object('input', c.i, 'output', c.o) FROM codex_runs c
+    WHERE c.thread_id = harness_sessions.thread_id ORDER BY c.created_at DESC LIMIT 1
+  ) WHERE harness = 'codex';
+  UPDATE runs SET usage = (
+    SELECT json_object('input', c.i - c.pi, 'output', c.o - c.po) FROM codex_runs c WHERE c.id = runs.id
+  ) WHERE id IN (SELECT id FROM codex_runs WHERE pi IS NOT NULL AND i >= pi AND o >= po);
+  DROP TABLE codex_runs;
+  `,
 ];
