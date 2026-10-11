@@ -1,3 +1,15 @@
+## [1.124.1](https://github.com/agentprojectcontext/apx/compare/v1.124.0...v1.124.1) (2026-10-11)
+
+
+### Bug Fixes
+
+* **cli:** si el daemon no responde y no se puede arrancar, el CLI lo dice en vez de un EPERM ([9b5816d](https://github.com/agentprojectcontext/apx/commit/9b5816dafa2bf8f0993ef7a6200b2cd4eb86029f)), closes [#64](https://github.com/agentprojectcontext/apx/issues/64)
+* **runtime:** el resultado de un runtime llega completo a Telegram, partido en varios mensajes si es largo ([cff66f1](https://github.com/agentprojectcontext/apx/commit/cff66f11a723e61bd32d2eae492211c2e2f0acf9)), closes [#65](https://github.com/agentprojectcontext/apx/issues/65)
+* **runtimes:** codex puede hacer fetch, add y commit dentro de un worktree vinculado de git ([7bba1d9](https://github.com/agentprojectcontext/apx/commit/7bba1d9aa6cbabcfcf183cf84bed6358d7d4d70f)), closes [#66](https://github.com/agentprojectcontext/apx/issues/66)
+* **tasks:** la confirmación de mover o editar una tarea dice qué cambia, y una llamada inválida no le pregunta al dueño ([0374d8b](https://github.com/agentprojectcontext/apx/commit/0374d8bbf7638777658da703016dba2196406885))
+* **tasks:** una decisión sin pregunta de verdad no se crea ni avisa al dueño, y el agente puede retirar la que pidió por error ([73ed7b7](https://github.com/agentprojectcontext/apx/commit/73ed7b75e73bbfe067b3e67e627fabff46265395)), closes [#67](https://github.com/agentprojectcontext/apx/issues/67) [#67](https://github.com/agentprojectcontext/apx/issues/67)
+* **tasks:** una pregunta corta de verdad como "Ship it?" vuelve a poder pedirse como decisión ([4567f86](https://github.com/agentprojectcontext/apx/commit/4567f862cd7028b2df8e55025a655d846bf84939))
+
 # [1.124.0](https://github.com/agentprojectcontext/apx/compare/v1.123.1...v1.124.0) (2026-10-07)
 
 
