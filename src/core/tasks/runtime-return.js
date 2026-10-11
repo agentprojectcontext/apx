@@ -17,8 +17,9 @@
 // The coordinator's follow-up turn runs under its own permissions and the
 // thread's hourly cap; the callback authorizes nothing new.
 import { addComment, getTask } from "#core/stores/tasks.js";
+import { clipRuntimeText } from "#core/agent/runtime-thread.js";
 
-/** Longest result a comment carries; the full output stays on the session. */
+/** Longest result a comment carries, cut with a note; the full output stays in the session's room. */
 const RESULT_MAX = 4000;
 
 /** A usable origin, or null. */
@@ -65,7 +66,7 @@ export function postTaskRuntimeResult({ storagePath, origin, runtime, sessionId,
   if (!task) return { posted: false, duplicate: false, missing: true };
   if (hasPhase(task, sessionId, ["done", "failed"])) return { posted: false, duplicate: true, missing: false };
   const who = address && origin.coordinator ? origin.coordinator : null;
-  const body = String(text || "").trim().slice(0, RESULT_MAX);
+  const body = clipRuntimeText(text, RESULT_MAX, sessionId);
   const head = ok
     ? `✅ Terminó la sesión de ${runtime} (\`${sessionId}\`).`
     : `⚠️ La sesión de ${runtime} (\`${sessionId}\`) no terminó bien: ${error || "sin detalle"}.`;

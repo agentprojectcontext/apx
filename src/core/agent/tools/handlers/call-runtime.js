@@ -33,6 +33,8 @@ import { buildAgentSystem, resolveProject } from "../helpers.js";
 import { readJson } from "#core/util/json-file.js";
 import { resolveAgentName } from "#core/identity/self.js";
 import {
+  clipRuntimeText,
+  postRuntimeDeliveryFailure,
   postRuntimeLaunch,
   postRuntimeResult,
   runtimeThreadCanCarry,
@@ -46,6 +48,11 @@ import { CHANNELS } from "#core/constants/channels.js";
 import fs from "node:fs";
 
 const log = loggerFor("call_runtime");
+
+// Longest answer a finished background session hands on: to the super-agent's
+// next turn, or straight to the chat (split there into several messages). Past
+// it the text is cut WITH a note pointing at the session (clipRuntimeText).
+const CALLBACK_TEXT_MAX = 12000;
 
 
 // A runtime that refuses to run is news the user needs BEFORE anything else
@@ -410,6 +417,9 @@ export default {
     // the transcript, shape the result object). NEVER throws — a thrown spawn is
     // caught and returned as an error object, so the background path can deliver
     // it as a callback instead of crashing an un-awaited promise.
+    // Resolves to `{ outcome, answer }`: `outcome` is what the model reads (its
+    // `result` is a one-line status), `answer` the runtime's whole final text,
+    // which is what gets delivered.
     const runToCompletion = async () => {
       try {
         const startedAt = Date.now();
@@ -428,6 +438,7 @@ export default {
         // the deadline. "Did we reach the deadline", not "how long did we wait".
         const timedOut = Date.now() - startedAt >= effectiveTimeoutS * 1000;
         const failure = runtimeLooksLikeFailure(r, { timedOut, timeoutS: effectiveTimeoutS });
+        // A status line for the session record; never the delivered answer.
         const result = extractApfResult(r.output) || (r.output || "").slice(0, 200);
         closeRuntimeSession({
           filePath: session.path,
@@ -458,7 +469,7 @@ export default {
             stderr: String(r.stderr || "").slice(0, 500),
             external_session_path: r.externalSessionPath || null,
           });
-          return {
+          return { answer: "", outcome: {
             error: `runtime "${runtime}" did not complete successfully: ${failure.reason}`,
             runtime,
             model: modelInfo,
@@ -470,7 +481,7 @@ export default {
             external_session_path: r.externalSessionPath || null,
             session_id: r.sessionId || null,
             next_step: runtimeFailureNextStep(runtime, failure.reason),
-          };
+          } };
         }
 
         log.info(`${runtime} run ok`, {
@@ -481,7 +492,7 @@ export default {
           output_bytes: (r.output || "").length,
         });
 
-        return {
+        return { answer: String(r.output || "").trim(), outcome: {
           runtime,
           agent: agent?.slug || null,
           apc_session: session.id,
@@ -493,7 +504,7 @@ export default {
           truncated: (r.output || "").length > 4000,
           external_session_path: r.externalSessionPath || null,
           session_id: r.sessionId || null,
-        };
+        } };
       } catch (e) {
         log.error(`${runtime} run threw: ${e.message}`, { apc_session: session.id });
         // The room hears about it too. A thrown spawn used to write nothing at
@@ -510,7 +521,7 @@ export default {
             result: `error: ${e.message.slice(0, 200)}`,
           });
         } catch {}
-        return { error: `runtime "${runtime}" threw: ${e.message}`, runtime, agent: agent?.slug || null, apc_session: session.id };
+        return { answer: "", outcome: { error: `runtime "${runtime}" threw: ${e.message}`, runtime, agent: agent?.slug || null, apc_session: session.id } };
       }
     };
 
@@ -519,12 +530,14 @@ export default {
     // step — an internal agent-to-agent hand-off. Fallback: a direct channel
     // send of the raw result. Best-effort: never throws (nothing awaits it).
     const who = `${runtime}${agent ? ` (agente ${agent.slug})` : ""}`;
-    const deliverCallback = async (res) => {
+    const deliverCallback = async ({ outcome: res, answer }) => {
       // Take ownership of delivery: drop the durable IOU so the reconciler in
       // another/next daemon can't also deliver this one. Fallbacks below still
       // run in-process, so a delete here doesn't risk losing the callback.
       if (!taskOrigin) deletePendingCallback(session.id);
-      const body = res.error ? "" : String(res.result || res.output || "").trim();
+      // The whole answer, not `res.result`: that is a 200-character status line,
+      // and relayed as the result it reads as a report cut mid-sentence.
+      const body = res.error ? "" : String(answer || res.result || res.output || "").trim();
 
       if (taskOrigin) {
         await deliverToTask(res, body);
@@ -542,6 +555,7 @@ export default {
         ok: !res.error, text: body, error: res.error,
       });
 
+      let sinkError = null;
       if (backgroundResultSink) {
         // A2A report phrased for Roby (not the end user). Roby decides how to
         // relay it and whether a next step is needed.
@@ -549,27 +563,40 @@ export default {
           ? `[callback A2A] La tarea que delegaste a ${who} (sesión ${session.id}) FALLÓ: ${res.error}. ` +
             `Avisale al usuario en tu voz y proponé cómo seguir.`
           : `[callback A2A] Terminó la tarea que delegaste a ${who} (sesión ${session.id}). ` +
-            `Resultado del agente:\n${body.slice(0, 6000)}\n\n` +
+            `Resultado del agente:\n${clipRuntimeText(body, CALLBACK_TEXT_MAX, session.id)}\n\n` +
             `Contale al usuario el resultado en tu voz, breve y claro. No vuelvas a delegar salvo que falte un paso siguiente.`;
         try {
           await backgroundResultSink(report);
           log.info(`${runtime} callback relayed via A2A sink`, { apc_session: session.id });
           return;
         } catch (e) {
+          sinkError = e;
           log.error(`${runtime} A2A sink failed, falling back to direct send: ${e.message}`, { apc_session: session.id });
         }
       }
 
-      if (!telegramPlugin) return;
+      if (!telegramPlugin) {
+        if (sinkError) {
+          postRuntimeDeliveryFailure({
+            channel: threadChannel, project: p, runtime, sessionId: session.id,
+            ok: !res.error, via: "el super-agente", error: sinkError.message,
+          });
+        }
+        return;
+      }
       const head = res.error
         ? `⚠️ La sesión de ${who} terminó con error (sesión \`${session.id}\`): ${res.error}`
         : `✅ Terminó la sesión de ${who} (\`${session.id}\`).`;
-      const text = body ? `${head}\n\n${body.slice(0, 3500)}` : head;
+      const text = body ? `${head}\n\n${clipRuntimeText(body, CALLBACK_TEXT_MAX, session.id)}` : head;
       try {
         await telegramPlugin.send({ channel: tgChannelName, chat_id: chatId, text });
-        log.info(`${runtime} callback delivered (direct)`, { apc_session: session.id, chat_id: chatId });
+        log.info(`${runtime} callback delivered (direct)`, { apc_session: session.id, chat_id: chatId, chars: text.length });
       } catch (e) {
-        log.error(`${runtime} callback send failed: ${e.message}`, { apc_session: session.id });
+        log.error(`${runtime} callback send failed: ${e.message}`, { apc_session: session.id, chars: text.length });
+        postRuntimeDeliveryFailure({
+          channel: threadChannel, project: p, runtime, sessionId: session.id,
+          ok: !res.error, via: "Telegram", error: e.message,
+        });
       }
     };
 
@@ -681,8 +708,8 @@ export default {
       channel: threadChannel, project: p, runtime, sessionId: session.id,
       cwd: runCwd, prompt: effectivePrompt, background: false,
     });
-    const outcome = await runToCompletion();
-    const fgText = outcome.error ? "" : String(outcome.result || outcome.output || "").trim();
+    const { outcome, answer } = await runToCompletion();
+    const fgText = outcome.error ? "" : String(answer || outcome.result || outcome.output || "").trim();
     postRuntimeResult({
       channel: threadChannel, project: p, runtime, sessionId: session.id,
       ok: !outcome.error, text: fgText, error: outcome.error,

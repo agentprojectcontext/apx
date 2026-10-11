@@ -57,9 +57,22 @@ function scopeOf(project) {
 const PROMPT_PREVIEW = 400;
 
 /** The result the row carries. Long enough to be the answer, short enough that
- *  a transcript dump cannot take over the thread — the full text is always on
- *  the session record. */
+ *  a transcript dump cannot take over the thread — the full text is always in
+ *  the session's room. */
 const RESULT_MAX = 6000;
+
+/**
+ * A runtime's answer, cut to `max` only with a note saying so. A silent cut
+ * reads as the whole answer, and whoever relays it reports work as missing that
+ * was done; the note says how much is shown and where the rest is.
+ */
+export function clipRuntimeText(text, max, sessionId) {
+  const s = String(text || "").trim();
+  if (s.length <= max) return s;
+  return `${s.slice(0, max).trimEnd()}\n\n` +
+    `[Recortado: se muestran ${max} de ${s.length} caracteres. ` +
+    `El texto completo está en la sesión \`${sessionId}\` (Sesiones de código, en el panel).]`;
+}
 
 function post(row) {
   try {
@@ -106,7 +119,7 @@ export function postRuntimeResult({ channel, project, runtime, sessionId, ok, te
   const head = ok
     ? `✅ Terminó la sesión de ${runtime} (\`${sessionId}\`)`
     : `⚠️ La sesión de ${runtime} (\`${sessionId}\`) no terminó bien: ${error || "sin detalle"}`;
-  const body = String(text || "").trim().slice(0, RESULT_MAX);
+  const body = clipRuntimeText(text, RESULT_MAX, sessionId);
   return post({
     channel,
     direction: "out",
@@ -121,6 +134,34 @@ export function postRuntimeResult({ channel, project, runtime, sessionId, ok, te
       apc_session: sessionId,
       runtime_phase: ok ? "done" : "failed",
       ...(ok ? {} : { error: String(error || "").slice(0, 500) }),
+    },
+  });
+}
+
+/**
+ * The answer existed and did not reach the person. Its own row and phase, so a
+ * failed send is never read as a failed session, and never goes unseen because
+ * it only reached the daemon log.
+ */
+export function postRuntimeDeliveryFailure({ channel, project, runtime, sessionId, ok = true, via, error }) {
+  if (!runtimeThreadCanCarry(channel)) return false;
+  const reason = String(error || "sin detalle").slice(0, 500);
+  const what = ok ? "terminó bien, pero no se pudo entregar el resultado" : "falló, y tampoco se pudo avisar";
+  return post({
+    channel,
+    direction: "out",
+    type: "agent",
+    actor_id: runtime,
+    actor_kind: "engine",
+    author: runtime,
+    body: `⚠️ La sesión de ${runtime} (\`${sessionId}\`) ${what} por ${via}: ${reason}`,
+    meta: {
+      ...scopeOf(project),
+      runtime,
+      apc_session: sessionId,
+      runtime_phase: "delivery_failed",
+      delivery_via: via,
+      delivery_error: reason,
     },
   });
 }
