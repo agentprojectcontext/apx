@@ -32,6 +32,8 @@ export const es: Record<Key, string> = {
   retry: "Reintentar",
   previewNotification: "Enviar aviso de muestra",
   disconnect: "Desvincular este teléfono",
+  disconnectAsk:
+    "Este teléfono deja de llegar a APX en tu computadora. Para volver a usarlo, vinculalo con un código nuevo.",
   unpairedLocal: "Desvinculado solo en este teléfono",
   unpairedLocalBody:
     "No se pudo llegar a tu computadora, así que todavía acepta la llave de este teléfono. Quitalo en APX desde tu computadora: Config › Conexiones › Dispositivos.",

@@ -156,7 +156,7 @@ export function SettingsPage({
           variant="secondary"
           style={{ alignSelf: "stretch" }}
           onPress={() =>
-            Alert.alert(t("disconnect"), "", [
+            Alert.alert(t("disconnect"), t("disconnectAsk"), [
               { text: t("cancel"), style: "cancel" },
               { text: t("disconnect"), style: "destructive", onPress: disconnect },
             ])

@@ -31,6 +31,7 @@ export const en = {
   retry: "Retry",
   previewNotification: "Send a preview",
   disconnect: "Unpair this phone",
+  disconnectAsk: "This phone stops reaching APX on your computer. To use it again, pair it with a new code.",
   unpairedLocal: "Unpaired on this phone only",
   unpairedLocalBody:
     "Your computer could not be reached, so it still accepts this phone's key. Remove this phone in APX on your computer: Settings › Connections › Devices.",
