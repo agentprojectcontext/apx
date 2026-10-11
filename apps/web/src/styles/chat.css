@@ -205,6 +205,13 @@
   margin-bottom: 8px;
 }
 
+.imagepart {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
 .imagepart img {
   display: block;
   max-width: 100%;
@@ -675,4 +682,28 @@
   .computer-icon .computer-icon__pointer {
     animation: none !important;
   }
+}
+
+/* An image full size over the app: no card around it, it fits the window and keeps its proportions. */
+.apx-dialog.imageviewer {
+  width: auto;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.imageviewer__frame {
+  display: flex;
+}
+.imageviewer__frame img {
+  display: block;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  object-fit: contain;
+  border-radius: var(--apx-radius-lg);
+}
+.imageviewer .apx-dialog__close--float {
+  background: var(--apx-surface-raised);
+  color: var(--apx-fg);
 }

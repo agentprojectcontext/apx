@@ -5,12 +5,12 @@ import { useT } from "../i18n/index.ts";
 import { openOutside, useInstalledBrowsers } from "../panel/browserWindow.ts";
 import { go, nav } from "../shell/nav.ts";
 
-/** A link in a message: a click opens it as usual; a right-click says where (APX's browser, another one) or copies it. */
-function LinkMenu({ href, children }: { href: string; children: React.ReactElement }) {
+/** Where a link can open (APX's browser, another one) and copying it: the right-click items of a link or a web image. */
+export function useLinkItems(href: string): MenuEntry[] {
   const t = useT();
   const browsers = useInstalledBrowsers();
   const web = /^https?:/i.test(href);
-  const items: MenuEntry[] = [
+  return [
     ...(web
       ? [
           {
@@ -41,6 +41,11 @@ function LinkMenu({ href, children }: { href: string; children: React.ReactEleme
         ),
     },
   ];
+}
+
+/** A link in a message: a click opens it as usual; a right-click says where (APX's browser, another one) or copies it. */
+function LinkMenu({ href, children }: { href: string; children: React.ReactElement }) {
+  const items = useLinkItems(href);
   // The trigger renders as the link itself; its text stays its own.
   return (
     <ContextMenu items={items} render={children}>
