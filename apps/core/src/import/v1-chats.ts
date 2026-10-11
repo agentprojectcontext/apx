@@ -22,6 +22,8 @@ const CHANNEL_NAME: Record<string, string> = {
   web_sidebar: "Web",
   discord: "Discord",
 };
+/** The owner's own chats from v1 are history: in v2 their channels write in Home, so the title says where they come from. */
+const FROM_V1 = " (v1)";
 /** v1's sidebar chat is its web chat. */
 const SAME_AS: Record<string, string> = { web_sidebar: "web" };
 const DONE_KEY = "v1_chats_imported";
@@ -100,7 +102,7 @@ function ledgerChats(home: string): V1Chat[] {
             key,
             title: contact
               ? `${CHANNEL_NAME[channel]} · ${row.author ?? contact}`
-              : `${CHANNEL_NAME[base]}${sub ? ` · ${str(String(row.meta.chat_title ?? "")) ?? sub}` : ""}`,
+              : `${CHANNEL_NAME[base]}${sub ? ` · ${str(String(row.meta.chat_title ?? "")) ?? sub}` : FROM_V1}`,
             channel: base,
             ...(contact ? { contact } : {}),
             rows: [],
@@ -115,7 +117,7 @@ function ledgerChats(home: string): V1Chat[] {
   const own = [...telegram].sort((a, b) => b[1] - a[1])[0]?.[0];
   const ownChat = own ? chats.get(own) : undefined;
   if (ownChat) {
-    ownChat.title = CHANNEL_NAME.telegram ?? "Telegram";
+    ownChat.title = `${CHANNEL_NAME.telegram}${FROM_V1}`;
     // Rows v1 restored lost their chat id: they are the owner's own chat.
     const loose = chats.get("chat:telegram");
     if (loose) {

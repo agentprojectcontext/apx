@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { LogEntry } from "../domain/threads.ts";
 import type { ChatItem } from "../providers/types.ts";
-import { frameInput, projectHistory, repair, systemPrompt } from "./context.ts";
+import { frameInput, projectHistory, repair, systemPrompt, turnInput } from "./context.ts";
 
 const call = (id: string, name = "browser_text"): ChatItem => ({
   role: "assistant",
@@ -149,4 +149,20 @@ test("an agent knows which APX it runs on, and a checkout reads as a development
   >[0];
   const prompt = systemPrompt(agent, { kind: "home" }, "es", undefined, "", "", undefined, "2.1.1 (commit 75d71df)");
   assert.match(prompt, /You run on APX 2\.1\.1 \(commit 75d71df\)/);
+});
+
+test("the owner's channel turn says the channel and the app are one chat, and where attachments go", () => {
+  const owner = (channel: string) =>
+    turnInput({
+      origin: { kind: "channel", channel, conversation: "1", person_id: "owner", name: "Owner", role: "owner" },
+      text: "hola",
+      now: new Date(0),
+      channel,
+    });
+  assert.match(owner("telegram"), /telegram and the app are this one chat/);
+  assert.match(owner("telegram"), /send_file reaches them on telegram/);
+  // On WhatsApp the agent hands work off: it has no send_file to talk about.
+  assert.match(owner("whatsapp"), /whatsapp and the app are this one chat/);
+  assert.doesNotMatch(owner("whatsapp"), /send_file/);
+  assert.doesNotMatch(turnInput({ origin: { kind: "user" }, text: "hola", now: new Date(0) }), /this one chat/);
 });

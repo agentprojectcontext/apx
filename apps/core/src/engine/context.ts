@@ -202,8 +202,16 @@ const HANDOFF_NOTE =
 const ACK_NOTE =
   "Before your first tool call, write one short natural line in the owner's language saying you are on it (a few words, never the answer); it reaches them at once, the full answer follows. With no tool call, no such line. They are not looking at the app: look things up with web_search and web_read; open the browser only when a page needs it (JavaScript, a login, clicks).";
 
+/** The owner's channel and the app share one chat: without saying so, the model treats them as two. */
+const SAME_CHAT = (channel: string) =>
+  `Their ${channel} and the app are this one chat: earlier turns here are the same conversation, wherever they wrote from.`;
+const ATTACH_NOTE = (channel: string) => `A file you attach with send_file reaches them on ${channel} too.`;
+
 /** What the owner's turn on a phone chat adds: how to hand work off on WhatsApp, how to say "on it" elsewhere. */
-const ownerChannelNote = (channel: string) => (channel === "whatsapp" ? HANDOFF_NOTE : ACK_NOTE);
+const ownerChannelNote = (channel: string) =>
+  channel === "whatsapp"
+    ? `${SAME_CHAT(channel)} ${HANDOFF_NOTE}`
+    : `${SAME_CHAT(channel)} ${ATTACH_NOTE(channel)} ${ACK_NOTE}`;
 
 const VOICE_STYLE =
   "Your first paragraph is sent as a voice note (about 20 seconds): make it a sayable summary in plain words. Lists, links, code and details go after a blank line, as text.";

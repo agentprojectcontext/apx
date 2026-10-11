@@ -376,7 +376,7 @@ test("importing brings Default's agents with their notes, and the chats: one per
   );
   assert.equal(r.imported.chats, 5);
   const threads = env.core.store.threads.list().filter((t) => /Telegram|WhatsApp|Web|Plan the week/.test(t.title));
-  const tg = threads.find((t) => t.title === "Telegram");
+  const tg = threads.find((t) => t.title === "Telegram (v1)");
   assert.ok(tg, "the owner's Telegram chat is one conversation, whatever the days");
   assert.equal(tg.updated_at, "2026-09-04T09:30:00.000Z", "the chat keeps v1's time");
   const msgs = env.core.store.messages.list(tg.id);
@@ -391,7 +391,7 @@ test("importing brings Default's agents with their notes, and the chats: one per
     threads.some((t) => t.title === "Telegram · Team"),
     "a group is its own conversation",
   );
-  const web = threads.find((t) => t.title === "Web");
+  const web = threads.find((t) => t.title === "Web (v1)");
   assert.deepEqual(
     env.core.store.messages.list(web?.id ?? "").map((m) => m.parts[0]?.type === "text" && m.parts[0].text),
     ["from the sidebar", "from the web"],
