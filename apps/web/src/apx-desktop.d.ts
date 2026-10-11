@@ -1,5 +1,5 @@
 // Bridge the desktop app (Electron preload) exposes to the panel. Absent in a plain browser.
-type ConnectAnswer = { ok: true } | { ok: false; reason?: string; error?: string };
+type ConnectAnswer = { ok: true; ready?: true; linger?: string } | { ok: false; reason?: string; error?: string };
 
 /** The desktop app's own update (it carries its own core). */
 export type DesktopUpdate = {
@@ -25,6 +25,8 @@ declare global {
       ssh(target: string): Promise<ConnectAnswer>;
       /** Installs APX on that server over SSH (this app's version), then connects to it. */
       installSsh(target: string): Promise<ConnectAnswer>;
+      /** Turns on linger for the SSH user with sudo; the password goes to sudo over ssh and is not kept. */
+      lingerSsh(target: string, password: string): Promise<ConnectAnswer>;
       onProgress(listener: (line: string) => void): () => void;
       /** Missing in builds from before the steps were reported. */
       onStep?(listener: (step: string) => void): () => void;

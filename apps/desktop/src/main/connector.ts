@@ -15,9 +15,11 @@ import {
   validSshTarget,
 } from "./connection.ts";
 import { type EmbeddedCore, isUp, startEmbeddedCore, waitUp } from "./core-process.ts";
-import { installArgs, remoteApx, remoteInstall, startTunnel, type Tunnel } from "./ssh-tunnel.ts";
+import { installArgs, remoteApx, remoteInstall, remoteLinger, startTunnel, type Tunnel } from "./ssh-tunnel.ts";
 
-type Answer = { ok: true } | { ok: false; reason?: string; error?: string };
+// ready: installed on a server and reachable, but not opened yet (the screen says so first); linger names the user
+// whose services stop at logout until they linger.
+type Answer = { ok: true; ready?: true; linger?: string } | { ok: false; reason?: string; error?: string };
 
 export function createConnector(opts: {
   panel: WebContents;
@@ -96,9 +98,16 @@ export function createConnector(opts: {
     if (!r.ok) return r;
     step(e.sender, "connect");
     if (!(await sshCoreUp(target, 30_000))) return { ok: false, reason: "sshDown" };
-    // Installed, but it would stop whenever this app disconnects: the owner runs one command as root, then connects.
-    if (!r.lingers) return { ok: false, reason: "sshLinger", error: `sudo loginctl enable-linger ${r.user}` };
-    return choose({ mode: "ssh", target });
+    // Installed: the screen says so before the server's own setup opens (connect:ssh, once the owner goes on).
+    return r.lingers ? { ok: true, ready: true } : { ok: true, ready: true, linger: r.user };
+  });
+
+  // Keeping the server's APX up after this app disconnects takes root: sudo, with the password the owner types now.
+  ipcMain.handle("connect:ssh-linger", async (e, input: unknown, password: unknown): Promise<Answer> => {
+    if (!onChooser(e.sender)) return { ok: false, error: "not allowed" };
+    if (typeof input !== "string" || !validSshTarget(input) || typeof password !== "string")
+      return { ok: false, reason: "badSsh" };
+    return (await remoteLinger(input.trim(), password)) ? { ok: true } : { ok: false, reason: "sudoFailed" };
   });
 
   /** Tells the first-run screen which step it is waiting on. */

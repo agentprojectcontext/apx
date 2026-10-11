@@ -457,6 +457,9 @@ input.wiz__name {
 .wiz__hintline.is-error {
   color: var(--apx-danger);
 }
+.wiz__hintline.is-ok {
+  color: var(--apx-brand-soft-fg);
+}
 .wiz__qr {
   display: flex;
   align-items: center;
@@ -656,6 +659,18 @@ input.wiz__name {
   line-height: 1.5;
 }
 .wiz__takeover pre,
+/* APX just installed on a server: what is left before its setup opens. */
+.connect__ready {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: stretch;
+}
+.connect__ready-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 .connect__install {
   align-self: stretch;
   margin: 0;

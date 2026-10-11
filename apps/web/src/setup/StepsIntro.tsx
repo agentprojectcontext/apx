@@ -1,5 +1,5 @@
 import type { Result } from "@apx/protocol";
-import { AgentAvatar, BLOB_NAMES, Icons, Input, Skeleton, Switch } from "@apx/ui";
+import { AgentAvatar, BLOB_NAMES, Button, Icons, Input, Skeleton, Switch } from "@apx/ui";
 import type { ReactNode } from "react";
 import type { V1Group, V1Groups } from "../data/setup.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -56,28 +56,36 @@ export function Welcome({
         {t("setup.welcome.your")} <span className="is-green">{t("setup.welcome.crew")}</span>
       </h1>
       <p className="wiz__body">{t("setup.welcome.body")}</p>
-      <div className="wiz__choices">
-        <button type="button" className="wiz__choice" onClick={() => onStart("new")}>
-          <span className="wiz__choicetitle">
-            <Icons.Sparkles size={16} />
-            {t("setup.welcome.new")}
-          </span>
-          <span className="wiz__choicebody">{t("setup.welcome.newBody")}</span>
-        </button>
-        {v1 && (
-          <button type="button" className="wiz__choice is-brand" onClick={() => onStart("import")}>
+      {/* Two ways in only when there is a v1 to bring; otherwise just the way in. */}
+      {!v1 && (
+        <Button id="welcome-start" size="lg" onClick={() => onStart("new")}>
+          {t("setup.welcome.start")}
+        </Button>
+      )}
+      {v1 && (
+        <div className="wiz__choices">
+          <button type="button" className="wiz__choice" onClick={() => onStart("new")}>
             <span className="wiz__choicetitle">
-              <Icons.Download size={16} />
-              {t("setup.welcome.import")}
+              <Icons.Sparkles size={16} />
+              {t("setup.welcome.new")}
             </span>
-            <span className="wiz__choicebody">
-              {v1.version
-                ? t("setup.welcome.importBody", { version: v1.version, home: v1.home, projects: v1.projects })
-                : t("setup.welcome.importNoVersion", { home: v1.home, projects: v1.projects })}
-            </span>
+            <span className="wiz__choicebody">{t("setup.welcome.newBody")}</span>
           </button>
-        )}
-      </div>
+          {v1 && (
+            <button type="button" className="wiz__choice is-brand" onClick={() => onStart("import")}>
+              <span className="wiz__choicetitle">
+                <Icons.Download size={16} />
+                {t("setup.welcome.import")}
+              </span>
+              <span className="wiz__choicebody">
+                {v1.version
+                  ? t("setup.welcome.importBody", { version: v1.version, home: v1.home, projects: v1.projects })
+                  : t("setup.welcome.importNoVersion", { home: v1.home, projects: v1.projects })}
+              </span>
+            </button>
+          )}
+        </div>
+      )}
       <span className="wiz__waiting">
         <AgentAvatar
           name={v1?.agent_name ?? agent?.name ?? "crew"}

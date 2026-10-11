@@ -64,13 +64,17 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   coreLocal: ipcRenderer.sendSync("desktop:core-local") === true,
 });
 
-type Answer = { ok: true } | { ok: false; reason?: string; error?: string };
+// ready: installed on a server and reachable, but not opened yet (the screen says so first); linger names the user
+// whose services stop at logout until they linger.
+type Answer = { ok: true; ready?: true; linger?: string } | { ok: false; reason?: string; error?: string };
 // The first-run screen (apx-app://app/?connect): the main process only answers it while the window shows that page.
 contextBridge.exposeInMainWorld("apxConnect", {
   local: (access: string): Promise<Answer> => ipcRenderer.invoke("connect:local", access),
   url: (url: string): Promise<Answer> => ipcRenderer.invoke("connect:url", url),
   ssh: (target: string): Promise<Answer> => ipcRenderer.invoke("connect:ssh", target),
   installSsh: (target: string): Promise<Answer> => ipcRenderer.invoke("connect:ssh-install", target),
+  lingerSsh: (target: string, password: string): Promise<Answer> =>
+    ipcRenderer.invoke("connect:ssh-linger", target, password),
   // Which step the main process is on (ssh, probe, install, connect); returns a function that stops listening.
   onStep: (listener: (step: string) => void): (() => void) => {
     const on = (_e: unknown, step: string) => listener(step);

@@ -6,11 +6,12 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { BuildVersion } from "./BuildVersion.tsx";
 import { CrewHero } from "./CrewHero.tsx";
+import { ServerReady } from "./ServerReady.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
 type Access = "none" | "lan" | "tailscale";
 type Via = "url" | "ssh";
-type Answer = { ok: true } | { ok: false; reason?: string; error?: string };
+type Answer = { ok: true; ready?: true; linger?: string } | { ok: false; reason?: string; error?: string };
 
 /** How long the intro holds the hero alone before the question unrolls under it. */
 const INTRO_MS = 3400;
@@ -32,7 +33,6 @@ const REASONS: Record<string, MessageKey> = {
   sshDown: "connect.error.sshDown",
   sshUnsupported: "connect.error.sshUnsupported",
   installFailed: "connect.error.installFailed",
-  sshLinger: "connect.error.sshLinger",
 };
 /** What the desktop app is doing while the owner waits, as it reports each step. */
 const STEPS: Record<string, MessageKey> = {
@@ -63,7 +63,8 @@ export function ConnectScreen() {
   const [byHand, setByHand] = useState(false);
   const [doing, setDoing] = useState<string>();
   const [log, setLog] = useState<string[]>();
-  const [command, setCommand] = useState<string>();
+  // Installed on the server and reachable: said first, then Continue opens its setup.
+  const [ready, setReady] = useState<{ linger?: string | undefined }>();
   // The website's hero first; then, like a blind, it rises and the question unrolls under it (at once with less motion).
   const [revealed, setRevealed] = useState(reduced);
   // Closing the window only hides it (APX stays in the tray): shown again on the first question, the intro plays again.
@@ -94,7 +95,6 @@ export function ConnectScreen() {
   const answer = async (ask: () => Promise<Answer | undefined> | undefined) => {
     setBusy(true);
     setError(undefined);
-    setCommand(undefined);
     setDoing(undefined);
     const stop = window.apxConnect?.onStep?.(setDoing);
     let r: Answer | undefined;
@@ -102,6 +102,14 @@ export function ConnectScreen() {
       r = await ask();
     } finally {
       stop?.();
+    }
+    if (r?.ok && r.ready) {
+      setBusy(false);
+      setDoing(undefined);
+      setNoApx(false);
+      setLog(undefined);
+      setReady({ linger: r.linger });
+      return;
     }
     // Connected: the window leaves this page; until then the button stays busy.
     if (!r || r.ok) return;
@@ -114,11 +122,9 @@ export function ConnectScreen() {
     }
     setNoApx(false);
     const reason = r.reason && REASONS[r.reason] ? t(REASONS[r.reason] as MessageKey) : undefined;
-    // A command to run on the server shows as one, under the sentence that asks for it.
-    const asks = r.reason === "sshLinger";
-    setError(asks ? reason : [reason, r.error].filter(Boolean).join(" ") || r.reason);
-    setCommand(asks ? r.error : undefined);
+    setError([reason, r.error].filter(Boolean).join(" ") || r.reason);
   };
+  const goOn = () => void answer(() => window.apxConnect?.ssh(address));
   const installThere = () =>
     void answer(async () => {
       setLog([]);
@@ -265,6 +271,7 @@ export function ConnectScreen() {
                     setAddress(e.currentTarget.value);
                     setNoApx(false);
                     setByHand(false);
+                    setReady(undefined);
                   }}
                 />
                 <span className="wiz__hintline">{t(via === "url" ? "connect.urlHint" : "connect.sshHint")}</span>
@@ -289,7 +296,7 @@ export function ConnectScreen() {
                     {error}
                   </span>
                 )}
-                {command && <pre className="connect__install">{command}</pre>}
+                {ready && !busy && <ServerReady target={address} linger={ready.linger} />}
                 {log && log.length > 0 && (
                   <pre id="install-log" className="connect__install" aria-live="polite">
                     {log.join("\n")}
@@ -301,7 +308,11 @@ export function ConnectScreen() {
                   {t("setup.back")}
                 </button>
                 <span className="wiz__spacer" />
-                {noApx && via === "ssh" ? (
+                {ready ? (
+                  <Button id="client-continue" size="lg" loading={busy} onClick={goOn}>
+                    {t(busy ? "connect.connecting" : "connect.continue")}
+                  </Button>
+                ) : noApx && via === "ssh" ? (
                   <>
                     {!byHand && (
                       <Button

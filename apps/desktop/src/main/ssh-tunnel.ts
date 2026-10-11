@@ -100,6 +100,30 @@ const PRECHECK =
 
 const LINGER = 'echo "$(id -un) $(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null || echo n/a)"';
 
+/**
+ * Turns on linger for the SSH user with sudo, the password on sudo's stdin (never on a command line, never kept).
+ * True once the server says the user lingers.
+ */
+export async function remoteLinger(target: string, password: string): Promise<boolean> {
+  const command =
+    'sudo -S -p "" loginctl enable-linger "$(id -un)" >/dev/null 2>&1; loginctl show-user "$(id -un)" -p Linger --value';
+  const out = await new Promise<string>((resolve) => {
+    const child = spawn("ssh", sshCommand(target, command), { stdio: ["pipe", "pipe", "ignore"], windowsHide: true });
+    let text = "";
+    const timer = setTimeout(() => child.kill(), 30_000);
+    child.stdout.on("data", (d: Buffer) => {
+      text += d.toString();
+    });
+    child.on("error", () => resolve(""));
+    child.on("close", () => {
+      clearTimeout(timer);
+      resolve(text);
+    });
+    child.stdin.end(`${password}\n`);
+  });
+  return out.trim() === "yes";
+}
+
 /** install.sh's options for the server: this app's own version when it is a release, from the same feed. */
 export function installArgs(version: string, feed: string | undefined): string[] {
   return [
