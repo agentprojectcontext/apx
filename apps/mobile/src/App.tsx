@@ -1,15 +1,17 @@
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Linking, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Linking, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { APP_CLIENT } from "./appInfo";
 import { type Creds, clearCreds, loadCreds } from "./creds";
+import { t } from "./i18n";
 import { PairScreen } from "./PairScreen";
 import { type PhotoAsk, PhotoModal } from "./PhotoModal";
 import { fromPairedCore, parsePairingLink } from "./pairing";
 import { startPhoneNode } from "./phone";
 import { ApxClient, ApxError } from "./protocol";
 import { theme } from "./ui/theme";
+import { unpairDevice } from "./unpair";
 import { WorkspaceScreen } from "./WorkspaceScreen";
 
 /** Paired: the super-agent's chat. Not yet: the pairing screen (a QR, an apx://pair link, or typed by hand). */
@@ -36,10 +38,23 @@ export function App() {
         ),
     );
   }, [creds]);
+  const unpairing = useRef(false);
   const unpair = useCallback(() => {
-    void clearCreds();
-    setCreds(null);
-  }, []);
+    if (!creds || unpairing.current) return;
+    unpairing.current = true;
+    // The core revokes this phone's key first; out of reach, the phone forgets it anyway and says so.
+    const client = new ApxClient({ url: creds.url, token: creds.token, client: APP_CLIENT, timeoutMs: 8000 });
+    setCreds(undefined);
+    void unpairDevice(() => client.call("devices.revoke", { id: creds.device }), clearCreds)
+      .then((outcome) => {
+        if (outcome === "local") Alert.alert(t("unpairedLocal"), t("unpairedLocalBody"));
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        unpairing.current = false;
+        setCreds(null);
+      });
+  }, [creds]);
   useEffect(() => {
     void loadCreds().then(async (creds) => {
       if (!creds) {

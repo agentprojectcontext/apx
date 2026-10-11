@@ -29,6 +29,9 @@ export const en = {
   retry: "Retry",
   previewNotification: "Send a preview",
   disconnect: "Unpair this phone",
+  unpairedLocal: "Unpaired on this phone only",
+  unpairedLocalBody:
+    "Your computer could not be reached, so it still accepts this phone's key. Remove this phone in APX on your computer: Settings › Connections › Devices.",
   pairTitle: "Pair with your computer",
   pairLead: "In APX on your computer, open Config › Connections › Devices › Pair a device and scan the QR.",
   scan: "Scan the QR",
