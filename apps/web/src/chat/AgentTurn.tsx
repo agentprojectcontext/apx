@@ -23,6 +23,7 @@ import { runnableCode } from "./RunnableCode.tsx";
 
 // A widget's frame loads with the first message that has one, not with the chat.
 const SurfacePart = lazy(() => import("./parts/SurfacePart.tsx").then((m) => ({ default: m.SurfacePart })));
+const ChoicesPart = lazy(() => import("./parts/ChoicesPart.tsx").then((m) => ({ default: m.ChoicesPart })));
 const InputPart = lazy(() => import("./parts/InputPart.tsx").then((m) => ({ default: m.InputPart })));
 
 type ToolPart = Extract<Part, { type: "tool" }>;
@@ -120,7 +121,7 @@ export function AgentTurn({
             {part.type === "text" ? (
               <MarkdownView source={part.text} renderLink={linkMenu} renderCode={runnableCode(thread, message.id)} />
             ) : (
-              renderCard(part, agent)
+              renderCard(part, agent, message)
             )}
           </Message>
         );
@@ -137,7 +138,7 @@ function cardKey(p: Part, i: number): string {
   return `${p.type}:${i}`;
 }
 
-function renderCard(p: Part, agent: Agent | undefined): ReactNode {
+function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode {
   switch (p.type) {
     case "surface":
       return (
@@ -165,6 +166,12 @@ function renderCard(p: Part, agent: Agent | undefined): ReactNode {
       );
     case "changes":
       return <ChangesPart part={p} />;
+    case "choices":
+      return (
+        <Suspense fallback={null}>
+          <ChoicesPart part={p} threadId={message.thread_id} messageId={message.id} agentId={agent?.id} />
+        </Suspense>
+      );
     default:
       return null;
   }

@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import { greetOwner } from "../domain/greeting.ts";
 import { errorMessage } from "../errors.ts";
 import { jsonFile, v1Projects } from "../import/v1-data.ts";
 import { importV1, scanV1, type V1ImportDeps } from "../import/v1-setup.ts";
@@ -72,6 +73,7 @@ export function setupHandlers(deps: V1ImportDeps) {
         return { ok: false, detail: errorMessage(err, 300) };
       }
     },
+    "setup.greet": ({ language }) => greetOwner(store, language),
     "setup.finish": () => {
       store.settings.set(DONE_KEY, "1");
       return { done: true as const };

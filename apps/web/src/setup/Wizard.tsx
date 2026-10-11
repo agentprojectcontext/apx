@@ -13,7 +13,7 @@ import { updateBase } from "../data/projects.ts";
 import { addProject, closeSetup, finishSetup, importV1, scanV1, useSetup, type V1Groups } from "../data/setup.ts";
 import { useData } from "../data/state.ts";
 import { updateAgent } from "../data/team.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
+import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { BuildVersion } from "./BuildVersion.tsx";
@@ -39,6 +39,7 @@ type Step = "welcome" | "import" | "agent" | "engines" | "memory" | "channels" |
  */
 export function Wizard() {
   const t = useT();
+  const lang = useLanguage();
   const mode = useNav((s) => s.mode);
   const desktop = useDesktopClass();
   const status = useSetup((s) => s.status);
@@ -170,10 +171,12 @@ export function Wizard() {
     setBusy(false);
     if (ok) setAt((i) => Math.min(i + 1, steps.length - 1));
   };
+  // The super-agent's chat opens with its first greeting, in the language on screen.
   const finish = async () => {
     await finishSetup();
+    const greeted = await client.call("setup.greet", { language: lang }).catch(() => undefined);
     await bootstrap().catch(() => {});
-    go.inboxThread("home");
+    go.inboxThread(greeted?.thread ?? "home");
   };
 
   const name = d.name.trim() || t("setup.preview.unset");

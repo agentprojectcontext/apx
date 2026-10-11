@@ -145,6 +145,16 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * The super-agent greets the owner in its chat (in `language`), asking who they are and how it should be, with a few
+   * personalities to pick. Once per install, and only into an empty chat; `sent` says whether it greeted now.
+   */
+  "setup.greet": {
+    params: z.object({ language: z.string().regex(/^[a-z]{2}$/) }).strict(),
+    result: z.object({ thread: Id, sent: z.boolean() }),
+    effect: true,
+    access: "human",
+  },
   "setup.finish": {
     params: z.object({}).strict(),
     result: z.object({ done: z.literal(true) }),

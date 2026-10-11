@@ -81,6 +81,16 @@ test("a new install opens the setup and imports APX v1", async ({ page }) => {
   await expect(wizard.getByText("Abriendo tu chat con Robina…")).toBeVisible();
   await expect(wizard).toBeHidden();
   await expect(page).toHaveURL(/thread=home/);
+  // The super-agent greets first, in the language on screen, and its personality can be picked right there.
+  await expect(page.getByText(/Soy Robina, tu super-agente/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Directo y breve" })).toBeVisible();
+  await page.getByRole("button", { name: "Otra", exact: true }).click();
+  await page.getByRole("textbox", { name: /Contame cómo querés que sea/ }).fill("Con calma y paciencia");
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Quiero que seas así: Con calma y paciencia.").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Directo y breve" })).toBeHidden();
+  const boss = await rpc<{ agent: { personality?: string } }>("agents.get", { agent: "roby" });
+  expect(boss.agent.personality).toBe("Con calma y paciencia");
 
   // What came in.
   const projects = (await rpc<{ projects: Array<{ name: string }> }>("projects.list")).projects.map((p) => p.name);

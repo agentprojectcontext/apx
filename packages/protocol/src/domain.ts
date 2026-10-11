@@ -378,6 +378,16 @@ const KnownPart = z.discriminatedUnion("type", [
     hinted: z.array(z.string()),
     scored: z.array(z.object({ name: z.string(), sim: z.number() })),
   }),
+  /**
+   * A few answers the agent offers (and, `custom`, one the owner writes); picking one replies with it. `for` says what
+   * the pick also sets: the agent's personality.
+   */
+  z.object({
+    type: z.literal("choices"),
+    for: z.enum(["personality"]),
+    options: z.array(z.object({ label: z.string(), value: z.string() })),
+    custom: z.boolean().optional(),
+  }),
   /** Something the system says about the turn (interrupted, fallback engine, no answer): never the agent's words. */
   z.object({
     type: z.literal("notice"),

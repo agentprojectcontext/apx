@@ -101,4 +101,7 @@ export const enChat = {
   "msg.noVoice": "Add a voice in Settings › Voices to read aloud",
   "error.fork": "Could not fork the chat: {error}",
   "error.readAloud": "Could not read it aloud: {error}",
+  "choices.personality": "I'd like you to be like this: {choice}.",
+  "choices.own": "Something else",
+  "choices.ownPlaceholder": "Tell me how you'd like me to be and press Enter",
 };

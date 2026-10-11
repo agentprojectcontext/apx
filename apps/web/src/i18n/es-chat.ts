@@ -103,4 +103,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "msg.noVoice": "Sumá una voz en Configuración › Voces para leer en voz alta",
   "error.fork": "No se pudo bifurcar el chat: {error}",
   "error.readAloud": "No se pudo leer en voz alta: {error}",
+  "choices.personality": "Quiero que seas así: {choice}.",
+  "choices.own": "Otra",
+  "choices.ownPlaceholder": "Contame cómo querés que sea y apretá Enter",
 };
