@@ -7,6 +7,7 @@ import { browser } from "./commands/browser.ts";
 import { channels, contacts, pairing } from "./commands/channels.ts";
 import { chat } from "./commands/chat.ts";
 import { clients } from "./commands/clients.ts";
+import { desktop, openPanel } from "./commands/desktop.ts";
 import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
 import { init } from "./commands/init.ts";
@@ -33,6 +34,8 @@ Usage:
   apx --version [-v]      Local CLI version (works without the core)
   apx status (or --status) [--json] [--plain]   Core, crew, projects, MCP, devices and access
   apx wizard              Guided terminal setup and maintenance
+  apx open                The panel in your browser
+  apx desktop             The desktop app (downloads and opens its installer when it is not here)
   apx upgrade [--check] [--json]   Check or apply the core's existing updater
   apx devices [list|pair|revoke <id>] [--json]
   apx tailscale [status|connect|off]   Expose APX through Tailscale (must already be logged in)
@@ -235,6 +238,12 @@ try {
       break;
     case "wizard":
       await wizard(client);
+      break;
+    case "open":
+      await openPanel();
+      break;
+    case "desktop":
+      await desktop();
       break;
     case "ping": {
       const socket = await client.connect();
