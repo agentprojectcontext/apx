@@ -22,7 +22,7 @@ any external process. See [Engines](/apx/docs/engine/engines/) for that path.
 | Runtime ID | Binary | What APX spawns |
 |------------|--------|-----------------|
 | `claude-code` | `claude` | Headless `-p` mode; receives the agent's system prompt via `--append-system-prompt`; returns structured JSON including a `session_id` that links to the Claude Code transcript |
-| `codex` | `codex` | `codex exec --sandbox workspace-write --skip-git-repo-check`; system prompt is prepended to the user prompt (no dedicated `--system` flag in exec mode) |
+| `codex` | `codex` | `codex exec --sandbox workspace-write --skip-git-repo-check`; system prompt is prepended to the user prompt (no dedicated `--system` flag in exec mode). In a linked git worktree it also passes `--add-dir` for that worktree's git dir and the shared `objects`, `refs` and `logs`, so fetch, add, commit and new branches work; the shared `.git` root (config, hooks, `packed-refs`) stays read-only, so setting an upstream or deleting a branch still fails there |
 | `opencode` | `opencode` | `opencode run`; system prompt prepended to prompt body |
 | `aider` | `aider` | `aider --message --yes-always --no-auto-commits`; non-interactive, no auto-commits |
 | `cursor-agent` | `cursor-agent` | `--print --output-format text --trust --force`; headless print mode |
@@ -223,6 +223,13 @@ APX delivers it in one of two ways:
    message to the originating chat instead: a "✅ finished" or "⚠️ failed" line followed by the
    runtime's result, with no super-agent rephrasing.
 
+Both carry the runtime's whole final answer, up to 12,000 characters. Past that the text is cut
+with a note saying how much is shown and which session holds the rest (its room, under Code
+sessions in the panel, keeps the full text). On Telegram, a message longer than the 4,096-character
+limit goes out as several messages, in order, split at paragraph or line breaks. If the direct send
+still fails, the chat's thread gets a "could not deliver" row with Telegram's error, kept apart from
+the session's own outcome — a finished session is never reported as a failed one.
+
 ### Durable delivery across daemon restarts
 
 Launching a background run also writes a small pending-callback record (`~/.apx/pending-callbacks/
@@ -233,6 +240,8 @@ daemon boot and on a 30-second interval, checks each pending callback's session 
 session shows the run completed, delivers the result as a direct channel send and removes the IOU.
 This also covers the case where the external runtime itself proactively closed its APX session
 (e.g. via `apx session close`) rather than APX's own process wait detecting the exit.
+After a restart only the session record's one-line result is left, so that late delivery is a
+summary; the full answer stays in the session's room.
 
 The two delivery paths don't double up: the reconciler gives the live in-process delivery a grace
 window before it will deliver the same callback itself.
@@ -257,3 +266,4 @@ window before it will deliver the same callback itself.
 
 - [Engines](/apx/docs/engine/engines/) — direct LLM calls with `apx exec` and `apx chat`
 - [Configuration](/apx/docs/concepts/configuration/) — `~/.apx/config.json` reference
+- [Troubleshooting](/apx/docs/reference/troubleshooting/#using-apx-from-a-sandboxed-coding-cli) — calling `apx` from inside a sandboxed runtime

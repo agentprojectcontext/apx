@@ -8,7 +8,7 @@ import fs from "node:fs";
 import nodeHttp from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { TOKEN_PATH, LOG_PATH } from "#core/config/paths.js";
+import { TOKEN_PATH, LOG_PATH, PID_PATH, APX_HOME } from "#core/config/paths.js";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -28,15 +28,51 @@ function baseUrl() {
   return `http://${DEFAULT_HOST}:${DEFAULT_PORT}`;
 }
 
-async function ping(timeoutMs = 400) {
+// `code` is the socket error when the health check never got an answer, so a
+// refused connection (nobody listening) can be told apart from a forbidden one.
+async function probe(timeoutMs = 400) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs);
     const res = await fetch(`${baseUrl()}/api/health`, { signal: ctrl.signal });
+    return { ok: res.ok, code: null };
+  } catch (e) {
+    return { ok: false, code: e?.cause?.code || e?.code || null };
+  } finally {
     clearTimeout(t);
-    return res.ok;
+  }
+}
+
+async function ping(timeoutMs = 400) {
+  return (await probe(timeoutMs)).ok;
+}
+
+// What a sandboxed runtime returns instead of ECONNREFUSED: the connection, or
+// the write, was forbidden to this process, not missing.
+const FORBIDDEN_CODES = new Set(["EPERM", "EACCES", "EROFS"]);
+const SANDBOX_DOCS = "https://agentprojectcontext.github.io/apx/docs/reference/troubleshooting/#using-apx-from-a-sandboxed-coding-cli";
+
+function unreachable(what) {
+  const err = new Error(
+    `the APX daemon at ${baseUrl()} did not answer, and ${what}. ` +
+    "This is typical inside a sandboxed runtime (e.g. Codex with --sandbox workspace-write), " +
+    "which blocks loopback network and writes outside the workspace. " +
+    "Run the command outside the sandbox (or ask the owner to), or allow network access for that runtime. " +
+    `See ${SANDBOX_DOCS}`
+  );
+  err.code = "APX_DAEMON_UNREACHABLE";
+  return err;
+}
+
+/** The pid in the daemon's pid file, when that process is alive; else null. */
+function liveDaemonPid() {
+  try {
+    const pid = parseInt(fs.readFileSync(PID_PATH, "utf8"), 10);
+    if (!pid || pid === process.pid) return null;
+    process.kill(pid, 0);
+    return pid;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -53,14 +89,29 @@ async function autoStart({ silent = false } = {}) {
     );
   }
   const logPath = LOG_PATH;
-  fs.mkdirSync(path.dirname(logPath), { recursive: true });
-  const out = fs.openSync(logPath, "a");
-  const child = spawn(process.execPath, [entry], {
-    detached: true,
-    stdio: ["ignore", out, out],
-    env: { ...process.env },
-  });
-  child.unref();
+  let out;
+  try {
+    fs.mkdirSync(path.dirname(logPath), { recursive: true });
+    out = fs.openSync(logPath, "a");
+  } catch (e) {
+    if (!FORBIDDEN_CODES.has(e?.code)) throw e;
+    throw unreachable(`this process cannot start one: ${APX_HOME} is not writable here (${e.code})`);
+  }
+  let spawnError = null;
+  try {
+    const child = spawn(process.execPath, [entry], {
+      detached: true,
+      stdio: ["ignore", out, out],
+      env: { ...process.env },
+    });
+    child.on("error", (e) => { spawnError = e; });
+    child.unref();
+  } catch (e) {
+    spawnError = e;
+  } finally {
+    fs.closeSync(out);
+  }
+  if (spawnError) throw unreachable(`this process cannot start one (${spawnError.code || spawnError.message})`);
   if (!silent) process.stderr.write("apx: starting daemon...\n");
   // Wait for /health. Four seconds was not enough and turned a slow boot into
   // "apx daemon failed to start" on a daemon that then came up fine seconds
@@ -71,6 +122,7 @@ async function autoStart({ silent = false } = {}) {
   const started = Date.now();
   while (Date.now() - started < DEADLINE_MS) {
     await new Promise((r) => setTimeout(r, 200));
+    if (spawnError) throw unreachable(`this process cannot start one (${spawnError.code || spawnError.message})`);
     if (await ping(200)) return true;
   }
   throw new Error(`apx daemon failed to start within ${Math.round(DEADLINE_MS / 1000)}s — check ~/.apx/daemon.log`);
@@ -109,13 +161,34 @@ function ownsDefaultPort() {
   return path.resolve(home) === path.resolve(path.join(os.userInfo().homedir, ".apx"));
 }
 
+// `bootWaitMs` is how long a daemon whose process is alive gets to answer.
 export async function ensureDaemon(opts = {}) {
-  if (await ping()) return;
+  const first = await probe();
+  if (first.ok) return;
   if (!ownsDefaultPort()) {
     throw new Error(
       `apx: no daemon on port ${DEFAULT_PORT}, and APX_HOME is ${process.env.APX_HOME} — ` +
       "refusing to auto-start, because that daemon would answer for the wrong home on the shared port. " +
       "Start it yourself, or set APX_PORT to a port of its own."
+    );
+  }
+  // Starting a second daemon cannot fix a connection this process may not open.
+  if (FORBIDDEN_CODES.has(first.code)) {
+    throw unreachable(`this process is not allowed to connect to it (${first.code})`);
+  }
+  // A live pid means a daemon is booting or wedged; a second one would only lose
+  // the singleton claim, so wait for the first instead of spawning.
+  const pid = liveDaemonPid();
+  if (pid) {
+    if (!opts.silent) process.stderr.write(`apx: waiting for the daemon (pid ${pid}) to answer...\n`);
+    const deadline = Date.now() + (opts.bootWaitMs ?? 20_000);
+    while (Date.now() < deadline) {
+      if (await ping(200)) return;
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    throw unreachable(
+      `a daemon seems to be running (pid ${pid}) but this process cannot reach it ` +
+      "(outside a sandbox that means it is stuck: check `apx daemon logs --tail 30`)"
     );
   }
   await autoStart(opts);

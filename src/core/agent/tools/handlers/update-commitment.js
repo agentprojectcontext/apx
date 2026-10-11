@@ -2,6 +2,64 @@ import { getCommitment, patchCommitment } from "#core/stores/commitments.js";
 import { missingArg, projectMeta } from "../helpers.js";
 import { locateRecord } from "./_locate.js";
 
+/**
+ * Everything checked before a write, run BEFORE anyone is asked to confirm: a
+ * call that would fail must not put a question to the owner, and the one that
+ * goes through is described with the fields it changes and their new values.
+ * @returns {{error: string} | {project: object, current: object, patch: object, confirm: object}}
+ */
+function prepare({ projects }, args = {}) {
+  const { commitment, project } = args;
+  if (!commitment) {
+    return missingArg(
+      "update_commitment",
+      "commitment",
+      { required: ["commitment"], optional: ["project", "body", "counterparty", "due"] },
+      args,
+    );
+  }
+
+  const found = locateRecord(projects, {
+    project,
+    id: commitment,
+    read: getCommitment,
+    kind: "commitment",
+    example: "c_ab12cd",
+    lister: "list_commitments",
+  });
+  if (found.error) return { error: found.error };
+  const { project: p, record: current } = found;
+
+  const patch = {};
+  if (args.body !== undefined) {
+    const body = String(args.body).trim();
+    // The body IS the promise. An empty one would leave a row that says
+    // somebody is waiting for nothing.
+    if (!body) return { error: "body cannot be empty — to retire a commitment use mark_commitment action=drop." };
+    patch.body = body;
+  }
+  if (args.counterparty !== undefined) {
+    const counterparty = String(args.counterparty).trim();
+    // Same argument: the counterparty is what makes this a commitment rather
+    // than a task.
+    if (!counterparty) return { error: "counterparty cannot be empty — a promise with nobody waiting is a task." };
+    patch.counterparty = counterparty;
+  }
+  if (args.due !== undefined) {
+    const due = args.due === null ? null : String(args.due).trim();
+    patch.due = due || null;
+  }
+
+  if (!Object.keys(patch).length) {
+    return { error: "nothing to update. Pass at least one of: body, counterparty, due." };
+  }
+
+  return {
+    project: p, current, patch,
+    confirm: { commitment: current.id, subject: current.body, ...patch },
+  };
+}
+
 // Correct a commitment that was recorded wrong.
 //
 // `mark_commitment` resolves one (kept | missed | drop | renegotiate) and
@@ -38,52 +96,13 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => async (args = {}) => {
-    const { commitment, project } = args;
-    await requirePermission("update_commitment", { dangerous: true, args: { commitment } });
-    if (!commitment) {
-      return missingArg(
-        "update_commitment",
-        "commitment",
-        { required: ["commitment"], optional: ["project", "body", "counterparty", "due"] },
-        args,
-      );
-    }
-
-    const found = locateRecord(projects, {
-      project,
-      id: commitment,
-      read: getCommitment,
-      kind: "commitment",
-      example: "c_ab12cd",
-      lister: "list_commitments",
-    });
-    if (found.error) return { error: found.error };
-    const { project: p, record: current } = found;
-
-    const patch = {};
-    if (args.body !== undefined) {
-      const body = String(args.body).trim();
-      // The body IS the promise. An empty one would leave a row that says
-      // somebody is waiting for nothing.
-      if (!body) return { error: "body cannot be empty — to retire a commitment use mark_commitment action=drop." };
-      patch.body = body;
-    }
-    if (args.counterparty !== undefined) {
-      const counterparty = String(args.counterparty).trim();
-      // Same argument: the counterparty is what makes this a commitment rather
-      // than a task.
-      if (!counterparty) return { error: "counterparty cannot be empty — a promise with nobody waiting is a task." };
-      patch.counterparty = counterparty;
-    }
-    if (args.due !== undefined) {
-      const due = args.due === null ? null : String(args.due).trim();
-      patch.due = due || null;
-    }
-
-    if (!Object.keys(patch).length) {
-      return { error: "nothing to update. Pass at least one of: body, counterparty, due." };
-    }
+  prepare,
+  makeHandler: (ctx) => async (args = {}) => {
+    const plan = prepare(ctx, args);
+    if (plan.error) return plan;
+    await ctx.requirePermission("update_commitment", { dangerous: true, args: plan.confirm });
+    const { project: p, current, patch } = plan;
+    const projects = ctx.projects;
 
     try {
       const updated = patchCommitment(p.storagePath, current.id, patch);

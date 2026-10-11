@@ -27,10 +27,30 @@ export function isConfirmationRequired(error) {
  */
 export function buildConfirmDescription(tool, args) {
   const text = (s, max = 150) => String(s || "").slice(0, max);
-  // Which fields an edit touches. "Edit task t_ab12cd" alone does not tell
-  // anyone what they are approving.
-  const editedFields = (a, addressing) =>
-    Object.keys(a || {}).filter((k) => !addressing.includes(k)).join(", ");
+  // The record being touched: its id, and what it is about when the tool
+  // looked it up first (`subject`), so the owner knows WHICH task this is.
+  const record = (id, subject) => `${id || "?"}${subject ? ` "${text(subject, 60)}"` : ""}`;
+  // What an edit changes, field by field with the new value. "Edit task
+  // t_ab12cd" alone does not tell anyone what they are approving.
+  const changeOf = (k, v) => {
+    if (v === null || v === "") return `${k} cleared`;
+    if (Array.isArray(v)) return `${k} → ${text(v.map((x) => (x && typeof x === "object" ? x.task ?? "?" : x)).join(", "), 80) || "(none)"}`;
+    if (typeof v === "object") return `${k} → ${text(Object.values(v).filter((x) => x != null && x !== "").join(", "), 80)}`;
+    return `${k} → "${text(v, 80)}"`;
+  };
+  const changes = (a, addressing) =>
+    Object.entries(a || {})
+      .filter(([k, v]) => !addressing.includes(k) && v !== undefined)
+      .map(([k, v]) => changeOf(k, v))
+      .join(", ");
+  const move = (a) => {
+    if (a.action !== "status") return a.action === "done" ? "mark done" : a.action || "?";
+    return a.from ? `move from ${a.from} to ${a.status || "?"}` : `move to ${a.status || "?"}`;
+  };
+  const resolve = (a) =>
+    a.action === "renegotiate"
+      ? `renegotiate${a.from ? ` from ${a.from}` : ""} to ${a.due || "?"}`
+      : a.action || "?";
 
   const builders = {
     send_telegram: (a) => `Send Telegram message: "${text(a.text)}"`,
@@ -38,10 +58,11 @@ export function buildConfirmDescription(tool, args) {
     write_file:    (a) => `Write file: ${a.path || a.file || "(no path)"}`,
     edit_file:     (a) => `Edit file: ${a.path || a.file || "(no path)"}`,
     create_task:   (a) => `Create task: "${a.title || a.name || "?"}"`,
-    update_task:   (a) => `Edit task ${a.task || "?"}: ${editedFields(a, ["task", "project"]) || "(nothing)"}`,
-    complete_task: (a) => `Task ${a.task || "?"}: ${a.action === "status" ? `move to ${a.status || "?"}` : a.action || "?"}`,
+    update_task:   (a) => `Edit task ${record(a.task, a.subject)}: ${changes(a, ["task", "project", "subject"]) || "(nothing)"}`,
+    complete_task: (a) => `Task ${record(a.task, a.subject)}: ${move(a)}`,
     comment_task:  (a) => `Comment on task ${a.task || "?"}: "${text(a.text, 80)}"`,
-    update_commitment: (a) => `Edit commitment ${a.commitment || "?"}: ${editedFields(a, ["commitment", "project"]) || "(nothing)"}`,
+    update_commitment: (a) => `Edit commitment ${record(a.commitment, a.subject)}: ${changes(a, ["commitment", "project", "subject"]) || "(nothing)"}`,
+    mark_commitment:   (a) => `Commitment ${record(a.commitment, a.subject)}: ${resolve(a)}`,
     add_project:   (a) => `Add project: ${a.path || a.name || "?"}`,
     set_identity:  (a) => `Change agent identity to: "${a.name || "?"}"`,
     call_runtime:  (a) => `Call runtime: ${a.runtime || a.name || "?"}`,

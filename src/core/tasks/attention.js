@@ -158,7 +158,14 @@ export function commentPreview(task, aliases) {
  */
 export function awaitsOwner(task, aliases) {
   const comments = Array.isArray(task?.comments) ? task.comments : [];
-  return commentAddressesOwner(comments[comments.length - 1], aliases);
+  const last = comments[comments.length - 1];
+  // A decision's own "asked" comment speaks for that decision: answered or
+  // withdrawn, it no longer asks the owner anything.
+  if (last?.meta?.decision_phase === "asked") {
+    const d = (task.decisions || []).find((x) => x.id === last.meta.decision_id);
+    if (d && d.state !== "open") return false;
+  }
+  return commentAddressesOwner(last, aliases);
 }
 
 /**

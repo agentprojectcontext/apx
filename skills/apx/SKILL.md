@@ -14,7 +14,7 @@ This is the **engine-side** skill: a slim reference for runtimes invoked by APX.
 
 ## When you (as an engine) interact with APX
 
-- You were spawned by `apx run`, or the user launched you by hand inside an APX project — either way APX is reachable on `127.0.0.1:7430`.
+- You were spawned by `apx run`, or the user launched you by hand inside an APX project — either way APX is reachable on `127.0.0.1:7430`, unless your sandbox blocks network: then `apx` fails with "the APX daemon … did not answer". Do not try to start the daemon or widen write access to `~/.apx`; ask the user to run the command outside the sandbox or to allow network access for this runtime.
 - The user asks you to call APX from inside your session ("send a telegram via apx", "list apx sessions").
 - The user asks you to reach an APX agent — "hablá con Roby", "preguntale a <agente>", "que <agente> me avise cuando termines" — see **Talking to an APX agent (a2a relay)** below.
 - You're inside an `.apc/` project and want to consult APX-managed state.

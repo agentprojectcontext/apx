@@ -22,7 +22,7 @@ ningún proceso externo. Mirá [Motores](/apx/docs/es/engine/engines/) para ese 
 | ID del runtime | Binario | Qué lanza APX |
 |------------|--------|-----------------|
 | `claude-code` | `claude` | Modo headless `-p`; recibe el system prompt del agente vía `--append-system-prompt`; devuelve JSON estructurado que incluye un `session_id` que enlaza al transcript de Claude Code |
-| `codex` | `codex` | `codex exec --sandbox workspace-write --skip-git-repo-check`; el system prompt se antepone al prompt del usuario (sin flag `--system` dedicado en modo exec) |
+| `codex` | `codex` | `codex exec --sandbox workspace-write --skip-git-repo-check`; el system prompt se antepone al prompt del usuario (sin flag `--system` dedicado en modo exec). En un worktree vinculado de git también pasa `--add-dir` con el git dir de ese worktree y los `objects`, `refs` y `logs` compartidos, así funcionan fetch, add, commit y ramas nuevas; la raíz del `.git` compartido (config, hooks, `packed-refs`) sigue de solo lectura, así que fijar un upstream o borrar una rama ahí todavía falla |
 | `opencode` | `opencode` | `opencode run`; system prompt antepuesto al cuerpo del prompt |
 | `aider` | `aider` | `aider --message --yes-always --no-auto-commits`; no interactivo, sin auto-commits |
 | `cursor-agent` | `cursor-agent` | `--print --output-format text --trust --force`; modo print headless |
@@ -225,6 +225,14 @@ se quede esperándolo. APX lo entrega de una de dos formas:
    un mensaje simple al chat de origen: una línea de "✅ terminó" o "⚠️ falló" seguida del
    resultado del runtime, sin que el super-agente lo reformule.
 
+Las dos llevan la respuesta final completa del runtime, hasta 12.000 caracteres. Pasado ese
+límite el texto se recorta con una nota que dice cuánto se muestra y qué sesión tiene el resto (su
+sala, en Sesiones de código del panel, guarda el texto completo). En Telegram, un mensaje más largo
+que el límite de 4.096 caracteres sale como varios mensajes, en orden, partidos en saltos de
+párrafo o de línea. Si el envío directo igual falla, el hilo del chat recibe una fila de "no se
+pudo entregar" con el error de Telegram, separada del resultado de la sesión: una sesión que
+terminó bien nunca se informa como fallida.
+
 ### Entrega durable a través de reinicios del daemon
 
 Lanzar una corrida en background también escribe un pequeño registro de callback pendiente
@@ -236,6 +244,8 @@ segundos, revisa el registro de sesión de cada callback pendiente, y una vez qu
 que la corrida terminó, entrega el resultado como un envío directo al canal y borra la IOU. Esto
 también cubre el caso en que el propio runtime externo cerró proactivamente su sesión de APX (p.
 ej. vía `apx session close`) en lugar de que la espera del proceso de APX detecte la salida.
+Después de un reinicio sólo queda el resultado de una línea del registro de sesión, así que esa
+entrega tardía es un resumen; la respuesta completa sigue en la sala de la sesión.
 
 Los dos caminos de entrega no se duplican: el reconciliador le da una ventana de gracia a la
 entrega en proceso en vivo antes de entregar él mismo el mismo callback.
@@ -260,3 +270,4 @@ entrega en proceso en vivo antes de entregar él mismo el mismo callback.
 
 - [Motores](/apx/docs/es/engine/engines/) — llamadas LLM directas con `apx exec` y `apx chat`
 - [Configuración](/apx/docs/es/concepts/configuration/) — referencia de `~/.apx/config.json`
+- [Solución de problemas](/apx/docs/es/reference/troubleshooting/#usar-apx-desde-una-cli-de-código-en-sandbox) — llamar a `apx` desde un runtime en sandbox
