@@ -160,7 +160,9 @@ function InputCard({ part, respond }: { part: InputPart; respond: Respond }) {
         <Tag tone={part.kind === "confirm" ? "violet" : "info"}>
           {t(part.kind === "confirm" ? "inboxApproval" : "inboxQuestion")}
         </Tag>
-        <Text style={s.cardState}>{pending ? t("waitsForYou") : (part.answer ?? t("answered"))}</Text>
+        <Text style={s.cardState}>
+          {pending ? t("waitsForYou") : part.state === "withdrawn" ? t("withdrawn") : (part.answer ?? t("answered"))}
+        </Text>
       </View>
       <Text style={s.cardText}>{part.prompt}</Text>
       {part.detail ? (

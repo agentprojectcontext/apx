@@ -138,7 +138,7 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...mediaTools(),
     ...phoneTools(),
     ...computerTools(store),
-    ...taskTools(),
+    ...taskTools(store),
     ...videoTools(findProgram("yt-dlp")),
     ...webTools(),
     ...contactTools(store),

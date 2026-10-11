@@ -54,12 +54,17 @@ export type ToolContext = {
    * continue without it, the question stays open after the turn stops waiting and its answer wakes the agent.
    */
   askOwner(prompt: string, options?: string[], canContinue?: boolean): Promise<InputRecord>;
+  /** Takes back this agent's own open question: it ends `withdrawn` and the owner is not told anything new. */
+  withdrawQuestion(inputId: string): InputRecord;
   /** Runs a shell command as a terminal job of this run: waits for it (up to timeoutMs) unless `background`. */
   runCommand(o: { command: string; cwd: string; background: boolean; timeoutMs: number }): Promise<{
     job: JobRecord;
     output: string;
   }>;
 };
+
+/** What a tool's pre-check may look at: who calls, from which chat. */
+export type CheckContext = Pick<ToolContext, "agent" | "thread">;
 
 export type Tool = {
   approval?: ApprovalTarget;
@@ -81,6 +86,11 @@ export type Tool = {
   needsCap?: string | undefined;
   /** Offered in a thread only when this says so (an account connected and on in the thread's project). */
   when?: ((thread: Thread) => boolean) | undefined;
+  /**
+   * Cheap checks of the parsed arguments against APX's own state (the task exists, the column is real), run before
+   * the owner is asked: nobody approves a call that could only fail. Throws what the call itself would.
+   */
+  check?: ((args: Record<string, unknown>, ctx: CheckContext) => void | Promise<void>) | undefined;
   /** Checks the model's arguments; a failure goes back to the model as the tool's result. */
   parse(raw: Record<string, unknown>): { ok: true; args: Record<string, unknown> } | { ok: false; error: string };
   /** Short human title for the tool card ("Opened github.com"). Gets the raw arguments. */
@@ -101,6 +111,7 @@ export function defineTool<S extends Args>(def: {
   local?: (args: z.output<S>) => boolean;
   needsCap?: string;
   when?: (thread: Thread) => boolean;
+  check?: (args: z.output<S>, ctx: CheckContext) => void | Promise<void>;
   title(args: Partial<z.input<S>>): string;
   run(args: z.output<S>, ctx: ToolContext): Promise<string>;
 }): Tool {
@@ -114,6 +125,9 @@ export function defineTool<S extends Args>(def: {
     deadlineMs: def.deadlineMs,
     ...(def.needsCap ? { needsCap: def.needsCap } : {}),
     ...(def.when ? { when: def.when } : {}),
+    ...(def.check
+      ? { check: (a: Record<string, unknown>, ctx: CheckContext) => def.check?.(a as z.output<S>, ctx) }
+      : {}),
     ...(def.local ? { local: (a: Record<string, unknown>) => def.local?.(a as z.output<S>) === true } : {}),
     parse(raw) {
       const r = def.args.safeParse(raw);

@@ -1,8 +1,11 @@
 // task_*: agents work the office board through the tasks.* methods, like the owner does in the app.
 import { type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
 import { z } from "zod";
+import type { Store } from "../domain/store.ts";
+import { boardScope, checkAssignee, checkColumn, checkSettle, dueOf, personOf, visibleTask } from "../domain/tasks.ts";
+import { CallError } from "../errors.ts";
 import { inlineName, untrusted } from "./result.ts";
-import { defineTool, type Tool } from "./types.ts";
+import { type CheckContext, defineTool, type Tool } from "./types.ts";
 
 const line = (t: Task, project?: string) =>
   `- [${t.id}] ${t.title} (${[
@@ -52,7 +55,31 @@ const shapeArgs = {
   tags: z.array(TaskTag).max(12).optional().describe("short labels (client, area…)"),
 };
 
-export function taskTools(): Tool[] {
+/** One argument's check, as the methods run it; a failure names the argument ("assignee: agent x not found"). */
+function field<T>(name: string, check: () => T): T {
+  try {
+    return check();
+  } catch (err) {
+    if (!(err instanceof CallError) || err.shape.message.startsWith(`${name} `)) throw err;
+    throw new CallError({ ...err.shape, message: `${name}: ${err.shape.message}` });
+  }
+}
+
+export function taskTools(store: Store): Tool[] {
+  const scopeOf = (ctx: CheckContext) => boardScope(store, { id: ctx.agent.id, thread_id: ctx.thread.id });
+  const taskOf = (id: string, ctx: CheckContext) => field("task", () => visibleTask(store, id, scopeOf(ctx)));
+  /** What a new task or a change names besides the task: a real column, assignee and person, a date that reads. */
+  const checkNamed = (
+    a: { status?: string | undefined; assignee?: string | null | undefined; person?: string | undefined },
+    due: string | undefined,
+    project: string | undefined,
+  ) => {
+    field("status", () => checkColumn(store, a.status));
+    field("assignee", () => checkAssignee(store, a.assignee, project));
+    const person = a.person;
+    if (person) field("person", () => personOf(store, person));
+    field("due_at", () => dueOf(due));
+  };
   return [
     defineTool({
       name: "task_list",
@@ -106,6 +133,7 @@ export function taskTools(): Tool[] {
       }),
       effect: "local",
       confirm: handsOff,
+      check: (a, ctx) => checkNamed(a, a.due_at, scopeOf(ctx)?.project),
       deadlineMs: 5_000,
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
@@ -129,6 +157,7 @@ export function taskTools(): Tool[] {
       }),
       effect: "local",
       confirm: handsOff,
+      check: (a, ctx) => checkNamed(a, a.due_at, taskOf(a.task, ctx).project_id),
       deadlineMs: 5_000,
       title: (a) => `Updated the task ${String(a.task ?? "")}`,
       async run({ task, ...c }, ctx) {
@@ -143,6 +172,7 @@ export function taskTools(): Tool[] {
       args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(5000) }),
       effect: "local",
       confirm: handsOff,
+      check: (a, ctx) => void taskOf(a.task, ctx),
       deadlineMs: 5_000,
       title: (a) => `Commented on ${String(a.task ?? "")}`,
       async run(a, ctx) {
@@ -159,6 +189,7 @@ export function taskTools(): Tool[] {
         note: z.string().max(2000).optional(),
       }),
       effect: "local",
+      check: (a, ctx) => void taskOf(a.task, ctx),
       deadlineMs: 5_000,
       title: (a) => `Marked ${String(a.task ?? "")} ${String(a.state ?? "")}`,
       async run(a, ctx) {
@@ -177,6 +208,7 @@ export function taskTools(): Tool[] {
         note: z.string().max(2000).optional(),
       }),
       effect: "local",
+      check: (a, ctx) => checkSettle(taskOf(a.task, ctx), a.outcome, a.due_at),
       deadlineMs: 5_000,
       title: (a) => `Marked ${String(a.task ?? "")} ${String(a.outcome ?? "")}`,
       async run(a, ctx) {

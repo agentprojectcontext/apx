@@ -3,6 +3,7 @@
 import type { Task, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { ownerIdentity } from "../domain/owner.ts";
+import { ownerQuestionProblem } from "../domain/owner-question.ts";
 import type { Store } from "../domain/store.ts";
 import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { previewOf } from "../domain/threads.ts";
@@ -31,13 +32,26 @@ export function mentioned(store: Store, text: string, projectId: string | undefi
   return out;
 }
 
-/** Human mentions ask for attention without starting an agent turn; an owner's reply clears the request. */
-export function taskCommentAttention(store: Store, task: Task, text: string, by: string): void {
-  if (task.state !== "open") return;
+/** Whether a text @mentions the owner: as @owner, @human or by their name. */
+export function mentionsOwner(store: Store, text: string): boolean {
   const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   const name = ownerIdentity(store).name;
   const aliases = new Set(["owner", "human", ...name.split(/\s+/), name.replace(/\s+/g, "")].map(normalize));
-  const asks = by !== "owner" && [...text.matchAll(MENTIONS)].some((m) => aliases.has(normalize(m[1] ?? "")));
+  return [...text.matchAll(MENTIONS)].some((m) => aliases.has(normalize(m[1] ?? "")));
+}
+
+/** Why an agent's text that @mentions the owner is not something they can act on; undefined when it is (or no mention). */
+export function ownerMentionProblem(store: Store, text: string): string | undefined {
+  return mentionsOwner(store, text) ? ownerQuestionProblem(text) : undefined;
+}
+
+/**
+ * Human mentions ask for attention without starting an agent turn; an owner's reply clears the request. An agent's
+ * stand-in or a note about another message (its final answer is posted here too) does not ask.
+ */
+export function taskCommentAttention(store: Store, task: Task, text: string, by: string): void {
+  if (task.state !== "open") return;
+  const asks = by !== "owner" && mentionsOwner(store, text) && !ownerQuestionProblem(text);
   const waiting = by === "owner" ? false : asks || task.awaits_owner;
   if (waiting === task.awaits_owner) return;
   noticeTaskWaiting(store, task, waiting, previewOf(text));

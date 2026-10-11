@@ -21,11 +21,11 @@ import { org, owner, profiles } from "./commands/owner.ts";
 import { pair } from "./commands/pair.ts";
 import { routines } from "./commands/routines.ts";
 import { service } from "./commands/service.ts";
-import { bundleAppOf } from "./commands/service-files.ts";
+import { adoptBundleApp } from "./commands/service-files.ts";
 import { importV1, setupHeadless } from "./commands/setup.ts";
 import { tasks } from "./commands/tasks.ts";
 import { agents, jobs, projects, runs, runtimeSkills, secrets, skills, threads, usage } from "./commands/threads.ts";
-import { themedCard as card, failure } from "./presentation.ts";
+import { themedCard as card, failure, unreachableCore } from "./presentation.ts";
 
 const HELP = `apx — the APX terminal
 
@@ -142,7 +142,7 @@ Env: APX_URL (default http://127.0.0.1:<APX_PORT or 7440>), APX_TOKEN (default: 
      APX_HOME (default ~/.apx/v2)`;
 
 // Installed from a bundle: the service it writes and the core it starts run through that install's `current`.
-process.env.APX_APP ||= bundleAppOf(import.meta.dirname);
+adoptBundleApp(process.env, import.meta.dirname);
 
 function argumentsOf() {
   return parseArgs({
@@ -458,9 +458,9 @@ try {
       process.exitCode = 1;
   }
 } catch (err) {
+  const unreachable = unreachableCore(err);
   if (err instanceof ApxError) console.error(fail(`APX · ${err.code}`, [err.message]));
-  else if (err instanceof TypeError && String(err.cause ?? "").includes("ECONNREFUSED"))
-    console.error("apx: the core is not running (try: apx service install, or pnpm dev)");
+  else if (unreachable) console.error(fail(unreachable.title, unreachable.lines));
   else console.error(fail("APX · Error", [err instanceof Error ? err.message : String(err)]));
   process.exitCode = 1;
 }

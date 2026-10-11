@@ -228,3 +228,13 @@ so queued inputs cannot redirect an earlier answer. Resumed approvals and asynch
 Telegram connection timeouts, including aggregate IPv4/IPv6 connect failures, are retried because nothing was sent.
 Timeouts after connecting remain uncertain and are never resent blindly. Where: `apps/core/src/providers/chatgpt-responses.ts`,
 `tools/agents.ts`, `tools/policy.ts`, `engine/engine.ts`, `channels/manager.ts`, `channels/net.ts`.
+
+<a id="owner-questions"></a>
+### Questions to the owner must be answerable, and an agent can take one back
+In v1 agents sent the owner's phone questions like "placeholder", "x", "?" or "DISREGARD: no decision requested", and
+with no way to withdraw one they sent more to correct it. `ask_owner` and an agent's task comment that @mentions the
+owner are now checked before anything is written or sent (too short, a stand-in, a note about another message), and
+the refusal tells the model what to do instead; an agent's final answer in a task with such a text posts but does not
+raise the owner's attention. `ask_owner withdraw=<id>` ends the agent's own open question as `withdrawn` without
+telling the owner anything new; its card and tray entry close. Where: `apps/core/src/domain/owner-question.ts`,
+`tools/owner.ts`, `engine/inputs.ts`, `engine/office.ts`, `rpc/tasks.ts`.

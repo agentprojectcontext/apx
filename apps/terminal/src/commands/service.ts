@@ -286,6 +286,7 @@ async function supervise(home: string): Promise<void> {
   let child: ChildProcess | undefined;
   let backoff = 1000;
   let stopped = false;
+  let retry: NodeJS.Timeout | undefined;
   const start = () => {
     const startedAt = Date.now();
     child = spawn(s.node, [...NODE_FLAGS, s.main], {
@@ -301,16 +302,48 @@ async function supervise(home: string): Promise<void> {
       log.write(`${new Date().toISOString()} core exited (${code})\n`);
       if (stopped) return;
       if (Date.now() - startedAt > 60_000 || code === RESTART_CODE) backoff = 1000;
-      setTimeout(start, backoff);
+      retry = setTimeout(start, backoff);
       backoff = Math.min(backoff * 2, 30_000);
     });
   };
-  for (const signal of ["SIGINT", "SIGTERM"] as const)
-    process.once(signal, () => {
-      stopped = true;
-      child?.kill();
-      process.exit(0);
-    });
+  const done = new Promise<void>((resolve) => {
+    for (const signal of ["SIGINT", "SIGTERM"] as const)
+      process.once(signal, () => {
+        stopped = true;
+        clearTimeout(retry);
+        // Only if a stop hangs; unref'd, so a clean stop never waits for it.
+        setTimeout(() => process.exit(), 15_000).unref();
+        void stopCore(child, log).then(resolve);
+      });
+  });
   start();
-  await new Promise(() => {});
+  await done;
+}
+
+/**
+ * Stops the core and closes its log so the supervisor can exit on its own: a process.exit with the child's pipes
+ * still open can crash Node on Windows (a libuv assertion). A grandchild may hold the core's pipes open, so after
+ * a short wait for the last output they are destroyed rather than awaited.
+ */
+export async function stopCore(child: ChildProcess | undefined, log: fs.WriteStream, graceMs = 5000): Promise<void> {
+  if (child && child.exitCode === null && child.signalCode === null) {
+    const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+    child.kill();
+    const late = setTimeout(() => child.kill("SIGKILL"), graceMs);
+    await exited;
+    clearTimeout(late);
+  }
+  if (child?.stdout && !child.stdout.destroyed) {
+    let wait: NodeJS.Timeout | undefined;
+    await new Promise<void>((resolve) => {
+      child.once("close", () => resolve());
+      wait = setTimeout(resolve, 1000);
+    });
+    clearTimeout(wait);
+  }
+  for (const out of [child?.stdout, child?.stderr]) {
+    out?.unpipe(log);
+    out?.destroy();
+  }
+  await new Promise<void>((resolve) => log.end(() => resolve()));
 }

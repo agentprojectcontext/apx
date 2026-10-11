@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { once } from "node:events";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
 import { stripVTControlCharacters } from "node:util";
-import { card, cells, failure, portrait, readTheme, rememberTheme } from "./presentation.ts";
+import { card, cells, failure, portrait, readTheme, rememberTheme, unreachableCore } from "./presentation.ts";
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-cli-brand-"));
 after(() => fs.rmSync(home, { recursive: true, force: true }));
@@ -109,4 +111,30 @@ test("daemon explains the service command without acting as an alias", () => {
   assert.equal(r.status, 1);
   assert.match(r.stderr, /apx service status/);
   assert.match(r.stderr, /apx service restart/);
+});
+
+test("a core that cannot be reached is explained: not running, or blocked by a sandbox", async () => {
+  const refused = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:7440"), { code: "ECONNREFUSED" });
+  const blocked = Object.assign(new Error("connect EPERM 127.0.0.1:7440"), { code: "EPERM" });
+  const denied = Object.assign(new Error("connect EACCES 127.0.0.1:7440"), { code: "EACCES" });
+  const fetchFailed = (cause: unknown) => new TypeError("fetch failed", { cause });
+  assert.equal(unreachableCore(fetchFailed(refused))?.title, "Core not running");
+  assert.equal(unreachableCore(fetchFailed(new AggregateError([refused, refused])))?.title, "Core not running");
+  for (const err of [fetchFailed(blocked), fetchFailed(denied), fetchFailed(new AggregateError([refused, blocked]))])
+    assert.match(unreachableCore(err)?.lines.join(" ") ?? "", /sandbox/);
+  assert.equal(unreachableCore(fetchFailed(new Error("bad port"))), undefined);
+  assert.equal(unreachableCore(new Error("boom")), undefined);
+  assert.equal(unreachableCore("boom"), undefined);
+
+  const server = net.createServer().listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const { port } = server.address() as net.AddressInfo;
+  await new Promise((resolve) => server.close(resolve));
+  const r = spawnSync(process.execPath, [new URL("./main.ts", import.meta.url).pathname, "status", "--plain"], {
+    encoding: "utf8",
+    env: { ...process.env, APX_URL: `http://127.0.0.1:${port}`, APX_HOME: home },
+    timeout: 10_000,
+  });
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /Core not running/);
 });

@@ -69,10 +69,16 @@ export type ClientOptions = {
   actor?: Actor;
   /** An outside app's client token (clients.create): it acts as a model, limited to its scopes. */
   clientToken?: string;
+  /** Cancels every call of this client, on top of each call's own deadline. */
+  signal?: AbortSignal;
 };
 
 export class ApxClient {
-  readonly #opts: Required<Omit<ClientOptions, "token" | "clientToken">> & { token?: string; clientToken?: string };
+  readonly #opts: Required<Omit<ClientOptions, "token" | "clientToken" | "signal">> & {
+    token?: string;
+    clientToken?: string;
+    signal?: AbortSignal;
+  };
 
   constructor(opts: ClientOptions) {
     this.#opts = {
@@ -85,6 +91,11 @@ export class ApxClient {
     };
   }
 
+  /** The same client, its calls also cancelled by `signal` (a console aborting the command it is waiting on). */
+  withSignal(signal: AbortSignal): ApxClient {
+    return new ApxClient({ ...this.#opts, signal });
+  }
+
   /** Request/response over HTTP. Same handlers as the socket: POST /rpc/<method>. */
   async call<M extends MethodName>(method: M, params: Params<M>, idem?: string): Promise<Result<M>> {
     const headers: Record<string, string> = { "content-type": "application/json" };
@@ -93,11 +104,12 @@ export class ApxClient {
     if (this.#opts.clientToken) headers["x-apx-client"] = this.#opts.clientToken;
     // Every call carries a key: the core uses it only for methods with effects, so the client needs no registry.
     headers["idempotency-key"] = idem ?? this.#opts.requestKey();
+    const deadline = AbortSignal.timeout(clientDeadline(method, params, this.#opts.timeoutMs));
     const res = await fetch(`${this.#opts.url}/rpc/${method}`, {
       method: "POST",
       headers,
       body: JSON.stringify(params ?? {}),
-      signal: AbortSignal.timeout(clientDeadline(method, params, this.#opts.timeoutMs)),
+      signal: this.#opts.signal ? AbortSignal.any([this.#opts.signal, deadline]) : deadline,
     });
     const body = (await res.json()) as { ok: boolean; result?: unknown; error?: ApxErrorShape };
     if (!body.ok || body.error) {

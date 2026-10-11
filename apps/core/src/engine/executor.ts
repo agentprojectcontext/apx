@@ -14,7 +14,7 @@ import { MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
 import { authorize, decide } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk } from "../tools/shell.ts";
-import type { Confirm, Tool, ToolContext } from "../tools/types.ts";
+import type { CheckContext, Confirm, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
 import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
@@ -41,13 +41,25 @@ async function runTool(
   try {
     return { ok: true, text: await Promise.race([tool.run(args, ctx), limit]) };
   } catch (err) {
-    const shape = (err as { shape?: { code: string; message: string } }).shape;
-    return {
-      ok: false,
-      text: shape ? `${shape.code}: ${shape.message}` : errorMessage(err),
-    };
+    return { ok: false, text: failure(err) };
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/** A tool's failure as the model reads it: a method's own code and message, or the error's. */
+function failure(err: unknown): string {
+  const shape = (err as { shape?: { code: string; message: string } }).shape;
+  return shape ? `${shape.code}: ${shape.message}` : errorMessage(err);
+}
+
+/** The tool's own pre-check (the task exists, the column is real): why the call cannot run, or undefined. */
+async function precheck(tool: Tool, args: Record<string, unknown>, ctx: CheckContext): Promise<string | undefined> {
+  try {
+    await tool.check?.(args, ctx);
+    return undefined;
+  } catch (err) {
+    return failure(err);
   }
 }
 
@@ -188,6 +200,12 @@ export function createExecutor(o: {
       return { ok: false, text: parsed.error };
     }
     const args = parsed.args;
+    // Before anyone is asked: a call that could only fail ends here, and the model learns which argument is wrong.
+    const problem = await precheck(tool, args, { agent, thread });
+    if (problem !== undefined) {
+      card("error", problem.slice(0, CARD_DETAIL_CHARS));
+      return { ok: false, text: `not run, nothing was asked of the owner: ${problem}` };
+    }
 
     // A read-only code thread refuses anything that would need an OK, before anyone is asked.
     const level = tool.confirm(args);
@@ -279,6 +297,7 @@ export function createExecutor(o: {
           stays: !canContinue,
           signal,
         }),
+      withdrawQuestion: (inputId) => o.inputs.withdraw(inputId, agent.id),
     };
     const out = await runTool(tool, args, { ...ctx, runCommand: (c) => runCommand(c, run) });
     const images = out.ok && seen.length ? { images: seen } : {};

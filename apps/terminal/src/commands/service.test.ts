@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
-import { lastLines, logs } from "./service.ts";
+import { lastLines, logs, stopCore } from "./service.ts";
 import { printed } from "./testing.ts";
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-logs-"));
@@ -24,4 +26,38 @@ test("logs prints the last lines of <home>/logs/core.log and refuses a bad -n", 
   fs.writeFileSync(path.join(home, "logs", "core.log"), "a\nb\nc\n");
   assert.equal(await printed(() => logs(home, 2, false)), "b\nc");
   await assert.rejects(logs(home, 0, false), /-n is a number/);
+});
+
+test("stopCore ends the core, keeps its last output and closes the log, even if a grandchild holds its pipes", async () => {
+  const file = path.join(home, "stop.log");
+  const log = fs.createWriteStream(file, { flags: "a" });
+  await once(log, "open");
+  // The core ignores SIGTERM (stopCore must escalate) and leaves a grandchild holding stdout.
+  const script = `
+    const { spawn } = require("node:child_process");
+    process.on("SIGTERM", () => {});
+    const g = spawn(process.execPath, ["-e", "setTimeout(() => {}, 30000)"], { stdio: ["ignore", "inherit", "inherit"] });
+    console.log("grandchild " + g.pid);
+    setInterval(() => {}, 1000);`;
+  const child = spawn(process.execPath, ["-e", script], { stdio: ["ignore", "pipe", "pipe"] });
+  child.stdout.pipe(log, { end: false });
+  child.stderr.pipe(log, { end: false });
+  const [line] = (await once(child.stdout, "data")) as [Buffer];
+  const grandchild = Number(/grandchild (\d+)/.exec(String(line))?.[1]);
+  try {
+    const started = Date.now();
+    await stopCore(child, log, 300);
+    assert.ok(Date.now() - started < 5000);
+    assert.notEqual(child.exitCode ?? child.signalCode, null);
+    assert.ok(log.writableFinished);
+    assert.match(fs.readFileSync(file, "utf8"), /grandchild \d+/);
+  } finally {
+    if (grandchild) process.kill(grandchild);
+  }
+});
+
+test("stopCore with no core running only closes the log", async () => {
+  const log = fs.createWriteStream(path.join(home, "idle.log"), { flags: "a" });
+  await stopCore(undefined, log);
+  assert.ok(log.writableFinished);
 });
