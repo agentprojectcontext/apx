@@ -6,6 +6,7 @@ import {
   ApprovalScope,
   Author,
   Autonomy,
+  AuxPurpose,
   BaseProject,
   CatalogEngine,
   ChannelClosers,
@@ -604,10 +605,11 @@ export const appMethods = {
   },
   /**
    * Tokens and turns by model since a date. `billing`: included = the owner's subscription (Claude Code, Codex, an
-   * ACP agent); metered = a provider's API, paid per token.
+   * ACP agent); metered = a provider's API, paid per token. `aux`: the auxiliary model's calls outside any turn
+   * (always metered). With `thread`, only that chat's, all it kept.
    */
   "usage.summary": {
-    params: z.object({ since: z.string().optional(), project: Id.optional() }).strict(),
+    params: z.object({ since: z.string().optional(), project: Id.optional(), thread: Id.optional() }).strict(),
     result: z.object({
       since: z.string(),
       models: z.array(
@@ -615,6 +617,15 @@ export const appMethods = {
           model: z.string(),
           billing: z.enum(["included", "metered"]),
           runs: z.number().int(),
+          input: z.number().int(),
+          output: z.number().int(),
+        }),
+      ),
+      aux: z.array(
+        z.object({
+          purpose: AuxPurpose,
+          model: z.string(),
+          calls: z.number().int(),
           input: z.number().int(),
           output: z.number().int(),
         }),

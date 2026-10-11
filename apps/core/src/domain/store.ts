@@ -4,6 +4,7 @@ import type { Bus } from "../bus.ts";
 import type { Db } from "../db/db.ts";
 import { agentsRepo } from "./agents.ts";
 import { approvalsRepo } from "./approvals.ts";
+import { auxCallsRepo } from "./aux-calls.ts";
 import { channelsRepo } from "./channels.ts";
 import { clientsRepo } from "./clients.ts";
 import { devicesRepo } from "./devices.ts";
@@ -35,6 +36,7 @@ export function createStore(db: Db, bus: Bus) {
     messages: messagesRepo(q, bus),
     modelLog: modelLogRepo(q),
     runs: runsRepo(q, bus),
+    auxCalls: auxCallsRepo(q),
     inputs: inputsRepo(q),
     approvals,
     jobs: jobsRepo(q, bus),

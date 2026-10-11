@@ -435,6 +435,10 @@ export const RunUsage = z.object({
 });
 export type RunUsage = z.infer<typeof RunUsage>;
 
+/** What an auxiliary model call was for: a chat's title, a long chat's summary, a room's gate, a commit message. */
+export const AuxPurpose = z.enum(["title", "summary", "room", "commit"]);
+export type AuxPurpose = z.infer<typeof AuxPurpose>;
+
 /** What started a run. Everything enters through threads.send; this only says from where. */
 export const RunTrigger = z.enum(["user", "a2a", "a2a_result", "surface", "channel", "routine", "system"]);
 export type RunTrigger = z.infer<typeof RunTrigger>;

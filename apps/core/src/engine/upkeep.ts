@@ -3,6 +3,7 @@
 // the title comes from the first message and a long thread is only trimmed by the history budget.
 // See DECISIONS.md#d-013
 
+import type { AuxAbout } from "../domain/aux-calls.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { harnessOf } from "../domain/refs.ts";
 import type { RunRecord } from "../domain/runs.ts";
@@ -157,7 +158,20 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     return [...new Set(refs.filter((r): r is string => !!r && harnessOf(r) === "native"))];
   }
 
-  async function ask(agentId: string | undefined, system: string, user: string): Promise<string | undefined> {
+  /** A chat's call, under the chat's project too. */
+  const about = (purpose: AuxAbout["purpose"], threadId: string): AuxAbout => ({
+    purpose,
+    thread_id: threadId,
+    project_id: store.threads.get(threadId)?.project_id,
+  });
+
+  /** One call to the auxiliary model; its tokens are kept with what it was for. */
+  async function ask(
+    about: AuxAbout,
+    agentId: string | undefined,
+    system: string,
+    user: string,
+  ): Promise<string | undefined> {
     const models = auxModels(agentId);
     if (!models.length) return undefined;
     const r = await llm.complete({
@@ -169,6 +183,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       tools: [],
       signal: AbortSignal.any([ac.signal, AbortSignal.timeout(AUX_TIMEOUT_MS)]),
     });
+    if (r.usage) store.auxCalls.add(about, r.model, r.usage);
     return typeof r.message.content === "string" ? r.message.content : undefined;
   }
 
@@ -190,7 +205,12 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       : "";
     let next: string | undefined;
     try {
-      const out = await ask(agent.id, TITLE_PROMPT, `Owner: ${said.slice(0, 1500)}\n\nAgent: ${answer.slice(0, 800)}`);
+      const out = await ask(
+        about("title", t.id),
+        agent.id,
+        TITLE_PROMPT,
+        `Owner: ${said.slice(0, 1500)}\n\nAgent: ${answer.slice(0, 800)}`,
+      );
       next = out ? validTitle(out) : undefined;
     } catch (err) {
       log.warn({ thread: t.id, err: String(err) }, "no title from the auxiliary model");
@@ -212,7 +232,12 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     const plan = planCompaction(store.modelLog.list(threadId), epoch, force);
     if (!plan) return { compacted: false, reason: "nothing old enough to summarize" };
     const previous = epoch ? `Previous summary:\n${epoch.summary}\n\n` : "";
-    const out = await ask(runs[0]?.agent_id, SUMMARY_PROMPT, `${previous}Conversation:\n${transcriptOf(plan.items)}`);
+    const out = await ask(
+      about("summary", threadId),
+      runs[0]?.agent_id,
+      SUMMARY_PROMPT,
+      `${previous}Conversation:\n${transcriptOf(plan.items)}`,
+    );
     if (out === undefined) return { compacted: false, reason: "no auxiliary model: set model_aux or add an API model" };
     const summary = validSummary(out);
     if (!summary) {
@@ -273,7 +298,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
   return {
     auxModels,
     /** A one-shot answer from the auxiliary model (a room's "is this worth answering?"); none without one. */
-    judge: (system: string, user: string) => ask(undefined, system, user),
+    judge: (system: string, user: string, about: AuxAbout) => ask(about, undefined, system, user),
     compact: (threadId: string) => once(threadId, true),
     /** After every run: a title for a new chat, and compaction when the thread got long. */
     afterRun(run: RunRecord): void {

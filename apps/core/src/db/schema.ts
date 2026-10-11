@@ -41,6 +41,18 @@ export interface ApiClientsTable {
   revoked_at: string | null;
 }
 
+export interface AuxCallsTable {
+  n: Generated<number>;
+  at: string;
+  purpose: string;
+  model: string;
+  thread_id: string | null;
+  project_id: string | null;
+  input: number;
+  output: number;
+  cached: Generated<number>;
+}
+
 export interface ChannelInboxTable {
   id: string;
   channel: string;
@@ -425,6 +437,7 @@ export interface Database {
   addresses: AddressesTable;
   agents: AgentsTable;
   api_clients: ApiClientsTable;
+  aux_calls: AuxCallsTable;
   channel_inbox: ChannelInboxTable;
   devices: DevicesTable;
   extensions: ExtensionsTable;

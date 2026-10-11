@@ -212,6 +212,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     usage(
       since: string,
       projectId?: string,
+      threadId?: string,
     ): Array<{ model: string; harness: string; runs: number; input: number; output: number }> {
       const rows = all(
         qb
@@ -227,6 +228,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .where("r.model", "is not", null)
           .where("r.started_at", ">=", since)
           .$if(!!projectId, (q) => q.where("t.project_id", "=", projectId as string))
+          .$if(!!threadId, (q) => q.where("r.thread_id", "=", threadId as string))
           .groupBy(["r.model", "r.harness"])
           .orderBy("n", "desc"),
       );

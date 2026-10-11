@@ -33,11 +33,13 @@ export function jobHandlers(store: Store, engine: Engine) {
   };
 
   return {
-    "usage.summary": ({ since, project }) => {
-      const from = since ?? new Date(Date.now() - 30 * 86_400_000).toISOString();
+    "usage.summary": ({ since, project, thread }) => {
+      // A chat's figures are all it kept; otherwise the last 30 days.
+      const from = since ?? (thread ? "" : new Date(Date.now() - 30 * 86_400_000).toISOString());
       return {
         since: from,
-        models: store.runs.usage(from, project).map((u) => ({
+        aux: thread ? store.auxCalls.ofThread(thread) : store.auxCalls.since(from, project),
+        models: store.runs.usage(from, project, thread).map((u) => ({
           model: u.model,
           // Turns run by a CLI on the owner's subscription cost nothing extra; our own loop pays a provider per token.
           billing: u.harness === "native" ? ("metered" as const) : ("included" as const),

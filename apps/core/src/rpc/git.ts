@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { GitCommit, GitFile } from "@apx/protocol";
+import type { AuxAbout } from "../domain/aux-calls.ts";
 import type { Store } from "../domain/store.ts";
 import { git, gitBoth } from "../engine/changes.ts";
 import { badRequest, notFound } from "../errors.ts";
@@ -135,7 +136,10 @@ function nestedRepos(root: string): string[] {
   return found.sort();
 }
 
-export function gitHandlers(store: Store, aux: { judge(system: string, user: string): Promise<string | undefined> }) {
+export function gitHandlers(
+  store: Store,
+  aux: { judge(system: string, user: string, about: AuxAbout): Promise<string | undefined> },
+) {
   const folderOf = (project: string) => {
     const p = store.projects.get(project);
     if (!p) throw notFound(`project ${project}`);
@@ -328,6 +332,7 @@ export function gitHandlers(store: Store, aux: { judge(system: string, user: str
       const answer = await aux.judge(
         SUGGEST_PROMPT,
         `Recent commit subjects:\n${recent.trim() || "(none)"}\n\nDiff:\n${diff.slice(0, SUGGEST_DIFF)}`,
+        { purpose: "commit", project_id: project },
       );
       return { message: answer ? cleanMessage(answer) : "" };
     },

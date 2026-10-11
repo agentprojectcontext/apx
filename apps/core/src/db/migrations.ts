@@ -660,4 +660,14 @@ export const MIGRATIONS: readonly string[] = [
   ) WHERE id IN (SELECT id FROM codex_runs WHERE pi IS NOT NULL AND i >= pi AND o >= po);
   DROP TABLE codex_runs;
   `,
+  `
+  -- The auxiliary model's calls (titles, summaries, a room's gate, commit messages): their tokens, one row per call.
+  CREATE TABLE aux_calls (
+    n INTEGER PRIMARY KEY, at TEXT NOT NULL, purpose TEXT NOT NULL, model TEXT NOT NULL,
+    thread_id TEXT REFERENCES threads(id) ON DELETE SET NULL, project_id TEXT,
+    input INTEGER NOT NULL, output INTEGER NOT NULL, cached INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX aux_calls_at ON aux_calls(at);
+  CREATE INDEX aux_calls_thread ON aux_calls(thread_id) WHERE thread_id IS NOT NULL;
+  `,
 ];

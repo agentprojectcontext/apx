@@ -22,8 +22,10 @@ const SUMMARY = [
 let badSummary = false;
 const llm = scriptedLlm((req) => {
   const system = String(req.messages[0]?.content);
-  if (system.startsWith("You compress")) return say(badSummary ? "Sure! Here is a summary: it went fine." : SUMMARY);
-  if (system.startsWith("Write a title")) return say('"Northwind launch plan."');
+  const usage = { input: 120, output: 6 };
+  if (system.startsWith("You compress"))
+    return { ...say(badSummary ? "Sure! Here is a summary: it went fine." : SUMMARY), usage };
+  if (system.startsWith("Write a title")) return { ...say('"Northwind launch plan."'), usage };
   return say("noted");
 });
 
@@ -82,6 +84,11 @@ test("a new chat gets a title from the auxiliary model; one the owner gave stays
   await env.settle(t.id);
   await until(async () => (await env.client.call("threads.get", { thread: t.id })).thread.title !== "Roby");
   assert.equal((await env.client.call("threads.get", { thread: t.id })).thread.title, "Northwind launch plan");
+  // No run holds that call: its tokens are kept apart, with the chat it was about.
+  const { aux } = await env.client.call("usage.summary", { thread: t.id });
+  assert.deepEqual(aux, [{ purpose: "title", model: "fake/fake-1", calls: 1, input: 120, output: 6 }]);
+  const all = await env.client.call("usage.summary", {});
+  assert.ok(all.aux.some((a) => a.purpose === "title" && a.calls >= 1));
 
   const mine = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Budget" });
   await env.client.call("threads.send", { thread: mine.id, text: "hello" });
@@ -121,4 +128,7 @@ test("threads.compact folds older turns into a summary the next turn starts from
   const { messages } = await env.client.call("threads.get", { thread: t.id });
   const notices = messages.filter((m) => m.parts.some((p) => p.type === "notice" && p.code === "thread.compacted"));
   assert.equal(notices.length, 1);
+  // The rejected summary was spent all the same.
+  const { aux } = await env.client.call("usage.summary", { thread: t.id });
+  assert.ok((aux.find((a) => a.purpose === "summary")?.calls ?? 0) >= 2);
 });

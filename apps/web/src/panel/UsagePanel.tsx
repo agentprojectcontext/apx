@@ -1,8 +1,9 @@
-import type { Message, Run } from "@apx/protocol";
+import type { AuxPurpose, Message, Result, Run } from "@apx/protocol";
 import { Badge, EmptyState, Icons } from "@apx/ui";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { contextOf } from "../chat/composer/context.ts";
 import { formatNumber, formatSeconds, shortWhen } from "../common/format.ts";
+import { client } from "../data/client.ts";
 import { baseRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -17,6 +18,13 @@ const STATE_LABEL: Record<Run["state"], MessageKey> = {
   completed: "usage.state.completed",
   failed: "usage.state.failed",
   canceled: "usage.state.canceled",
+};
+
+const AUX_LABEL: Record<AuxPurpose, MessageKey> = {
+  title: "usage.aux.title",
+  summary: "usage.aux.summary",
+  room: "usage.aux.room",
+  commit: "usage.aux.commit",
 };
 
 function secs(run: Run): number | undefined {
@@ -37,6 +45,21 @@ export function UsagePanel() {
         .sort((a, b) => b.started_at.localeCompare(a.started_at)),
     [runsById, threadId],
   );
+  // The auxiliary model's calls about this chat (its title, summaries, a room's filter): asked again after each run.
+  const [aux, setAux] = useState<Result<"usage.summary">["aux"]>([]);
+  const ended = runs.filter((r) => r.ended_at).length;
+  useEffect(() => {
+    setAux([]);
+    if (!threadId || !ended) return;
+    let live = true;
+    client
+      .call("usage.summary", { thread: threadId })
+      .then((r) => live && setAux(r.aux))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [threadId, ended]);
   if (!threadId || !runs.length) {
     return (
       <div className="sidepanel__body">
@@ -72,6 +95,16 @@ export function UsagePanel() {
         : t("usage.noTokens"),
     ],
   ];
+  const auxIn = aux.reduce((n, a) => n + a.input, 0);
+  const auxOut = aux.reduce((n, a) => n + a.output, 0);
+  if (auxIn + auxOut)
+    rows.push([
+      t("usage.aux"),
+      t("usage.auxValue", {
+        tokens: t("usage.tokensValue", { input: formatNumber(auxIn), output: formatNumber(auxOut) }),
+        purposes: [...new Set(aux.map((a) => t(AUX_LABEL[a.purpose])))].join(", "),
+      }),
+    ]);
   const context = contextOf(runs);
   return (
     <div className="usage">

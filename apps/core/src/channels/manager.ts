@@ -6,6 +6,7 @@
 
 import type { ChannelInfo, CoreEvent, Part } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
+import type { AuxAbout } from "../domain/aux-calls.ts";
 import type { OutboxRow, Presentation } from "../domain/channels.ts";
 import { inQuietHours, noticePrefs } from "../domain/notices.ts";
 import type { NewNotification } from "../domain/notifications.ts";
@@ -69,7 +70,7 @@ export function createChannels(deps: {
   /** A paired device's push, when the owner picked it as where notices go; false when it has none. */
   pushOwner?: (deviceId: string, text: string) => boolean;
   /** A cheap model's one-shot answer: whether an uncalled message in a "useful" room deserves an answer. */
-  judge?: (system: string, user: string) => Promise<string | undefined>;
+  judge?: (system: string, user: string, about: AuxAbout) => Promise<string | undefined>;
   /** How long a room waits for one person's quick messages to settle (tests shorten it). */
   roomBurstMs?: number;
 }) {

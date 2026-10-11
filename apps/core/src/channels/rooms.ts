@@ -3,6 +3,7 @@
 // called it, a cheap model's judgment ("useful" rooms) and the room's limits. Answers are sealed turns, the owner's
 // too: the room is public. See DECISIONS.md#d-041
 import type { ChannelRooms, RoomMode, Thread } from "@apx/protocol";
+import type { AuxAbout } from "../domain/aux-calls.ts";
 import type { Inbound, Presentation } from "../domain/channels.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
@@ -65,7 +66,7 @@ export function createRooms(deps: {
   call: InternalCall;
   notifyOwner(body: Presentation): boolean;
   /** A cheap model's one-shot answer (the auxiliary model); none when there is no such model. */
-  judge?: ((system: string, user: string) => Promise<string | undefined>) | undefined;
+  judge?: ((system: string, user: string, about: AuxAbout) => Promise<string | undefined>) | undefined;
   burstMs?: number;
   now?: () => number;
 }) {
@@ -154,7 +155,11 @@ export function createRooms(deps: {
       "Should the bot reply to the new message? JSON only.",
     ].join("\n");
     try {
-      const out = await deps.judge(GATE_SYSTEM, user);
+      const out = await deps.judge(GATE_SYSTEM, user, {
+        purpose: "room",
+        thread_id: thread.id,
+        project_id: thread.project_id,
+      });
       const json = /\{[\s\S]*\}/.exec(out ?? "")?.[0];
       return json ? (JSON.parse(json) as { reply?: unknown }).reply === true : false;
     } catch {

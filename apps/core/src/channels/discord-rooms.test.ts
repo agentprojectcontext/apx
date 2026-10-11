@@ -24,7 +24,10 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     return callTool("p4", "message_contact", { to: "#logs", text: "hi" });
   // The useful rooms' judge: only a real question is worth an answer.
   if (system.startsWith("You decide whether an assistant bot"))
-    return say(said.includes("how do I install") ? '{"reply": true, "reason": "a question"}' : '{"reply": false}');
+    return {
+      ...say(said.includes("how do I install") ? '{"reply": true, "reason": "a question"}' : '{"reply": false}'),
+      usage: { input: 300, output: 8 },
+    };
   return say(
     `Room answer to: ${
       said
@@ -182,6 +185,10 @@ test("a useful room asks the cheap model about uncalled messages and speaks only
   assert.equal(posts(ROOMS.ideas).length, 0, "the judge said no");
   dc.message(BEN, "how do I install it on a Mac?", { room: ROOMS.ideas });
   await until(() => posts(ROOMS.ideas).length === 1, "the judge said yes");
+  // Both questions to the cheap model are counted, as the room's filter.
+  const { aux } = await env.client.call("usage.summary", {});
+  const room = aux.find((a) => a.purpose === "room");
+  assert.ok(room && room.calls >= 2 && room.input === room.calls * 300);
 });
 
 test("owner only: in rooms only the owner gets answers", async () => {

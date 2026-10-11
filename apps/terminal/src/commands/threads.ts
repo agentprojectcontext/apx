@@ -222,6 +222,11 @@ export async function usage(client: ApxClient, [days]: string[]): Promise<void> 
     console.log(
       `${m.model.padEnd(44)} ${m.billing.padEnd(9)} ${String(m.runs).padStart(5)} runs  ${String(m.input).padStart(10)} in  ${String(m.output).padStart(9)} out`,
     );
+  if (r.aux.length) console.log("auxiliary model (titles, summaries, room filters, commit messages):");
+  for (const a of r.aux)
+    console.log(
+      `${`${a.model} · ${a.purpose}`.padEnd(44)} ${"metered".padEnd(9)} ${String(a.calls).padStart(5)} calls ${String(a.input).padStart(10)} in  ${String(a.output).padStart(9)} out`,
+    );
 }
 
 /** The skills other agent apps get for APX: the core keeps them current at every start; this does it now. */
