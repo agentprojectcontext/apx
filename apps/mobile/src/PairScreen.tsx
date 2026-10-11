@@ -14,6 +14,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Creds } from "./creds";
 import { usePairing } from "./hooks/usePairing";
 import { t } from "./i18n";
@@ -28,6 +29,7 @@ export function PairScreen({ link, onPaired }: { link: string | undefined; onPai
   const [url, setUrl] = useState("");
   const [code, setCode] = useState("");
   const { busy, error, pair } = usePairing(link, onPaired);
+  const insets = useSafeAreaInsets();
   const scan = async () => {
     if (permission?.granted) setScanning(true);
     else if (permission && !permission.canAskAgain) await Linking.openSettings();
@@ -38,7 +40,12 @@ export function PairScreen({ link, onPaired }: { link: string | undefined; onPai
     void pair(parsed?.urls ?? [url.trim()], parsed?.code ?? code);
   };
   return (
-    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView
+      style={s.root}
+      // Android draws edge to edge, so the system no longer shrinks the window for the keyboard: pad on both.
+      behavior="padding"
+      keyboardVerticalOffset={insets.top}
+    >
       <View style={s.brand}>
         <Image source={require("../assets/logo.png")} style={s.logo} />
         <Text style={s.brandName}>APX</Text>
