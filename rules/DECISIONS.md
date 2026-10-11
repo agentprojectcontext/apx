@@ -736,3 +736,14 @@ asks (a destructive or APX-reaching command, a routine or agent change, iMessage
 uses a grant, and `grant_tool` still hands on MCP tools only: APX's own are the owner's to allow. An agent's editor
 also sets its `tools:` and `skills:` lists (written to a project agent's file); [] goes back to all of them.
 
+
+<a id="d-063"></a>
+## D-063 — 2026-10-11 — The owner works a room from the app, and the owner's turns there may mention people
+Asked in a room's chat in the app to thank someone there, the agent answered the owner in the app: nothing reached the
+room, and D-041 forbade mentions anyway. A room's chat now works like a contact's: what the owner writes there in the
+app is an instruction nobody in the room sees (framed as `<owner_instruction>`), and the agent's answer is posted in the
+room; "I'll write" (`channels.send`) posts the owner's words as they are, through the bot's account, the only one APX
+has there. Mentions: an incoming `<@id>` reads as `@username`, and an answer's `@handle` pings that person only when
+they wrote or were mentioned in that room's latest 500 messages and the turn is the owner's (from the app, their
+message in the room, or `channel_post`). A member's turn still pings nobody, so no one can make the bot ping others;
+@everyone and @here never ping. The turn stays sealed (D-041, D-059): it gains no tools.

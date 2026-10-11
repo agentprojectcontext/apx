@@ -83,6 +83,21 @@ test("Discord rooms: the owner lists a server room, and the bot answers there wh
   await page.getByRole("button", { name: /#general/ }).click();
   await expect(page.getByText("roby what is Acme Notes?")).toBeVisible();
   await expect(page.getByText("nice weather today")).toBeVisible();
+
+  // From the app the owner tells the agent what to post there: the answer goes to the room, not back to the app.
+  const ask = page.getByRole("textbox", { name: /^Decile a .+ qué publicar en #general…$/ });
+  await expect(page.getByText(/escribe el mensaje y lo publica en #general/)).toBeVisible();
+  await ask.fill("thank Ben for asking");
+  await ask.press("Enter");
+  await until(async () => (await world.roomPosts("100000000000000001")).length === 2, 20_000);
+  // Or writes it themselves: it goes out as is, through the bot, mentioning who wrote in the room.
+  await page.getByRole("radio", { name: "Escribo yo" }).click();
+  const write = page.getByRole("textbox", { name: "Escribí en #general…" });
+  await write.fill("@ben welcome!");
+  await write.press("Enter");
+  const mine = await until(async () => (await world.roomPosts("100000000000000001"))[2], 20_000);
+  expect(mine.text).toBe("<@6161> welcome!");
+  await expect(page.getByRole("region", { name: "#general" }).getByText("@ben welcome!")).toBeVisible();
 });
 
 test("Slack: the app connects with both tokens, the owner links their account and talks to the super-agent", async ({

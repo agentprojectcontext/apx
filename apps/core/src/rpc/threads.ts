@@ -222,13 +222,14 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
           },
         });
       // The owner writing in the app: answers stay in the app (not on the channel the last message came from), except in
-      // a contact's chat, where the owner is telling the agent what to answer that contact.
+      // a contact's chat or a room's, where the owner is telling the agent what to answer or post there.
       const t = store.threads.get(thread);
-      const contact = t?.channel?.person_id && t.channel.person_id !== OWNER_ID ? t.channel : undefined;
+      const room = t?.channel && store.threads.context(thread).room ? t.channel : undefined;
+      const contact = room ?? (t?.channel?.person_id && t.channel.person_id !== OWNER_ID ? t.channel : undefined);
       store.threads.mergeContext(thread, {
         reply_to: contact ? { channel: contact.id, conversation: contact.conversation } : undefined,
       });
-      // In a contact's chat the words need their own turn to be framed as what to answer: they never steer.
+      // There the words need their own turn to be framed as what to answer: they never steer.
       return post(thread, text, { kind: "user" }, mode === "steer" && !contact, {
         agent_id: agent.id,
         trigger: "user",

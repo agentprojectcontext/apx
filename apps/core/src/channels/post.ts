@@ -1,6 +1,7 @@
 // What an agent (or the owner) writes on a channel outside a turn's answer: kept in the chat, then sent through the
 // outbox. Used for a contact's chat and for a public room.
 import type { Thread } from "@apx/protocol";
+import type { Presentation } from "../domain/channels.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { createDelivery } from "./delivery.ts";
@@ -32,7 +33,12 @@ export function createPoster(store: Store, delivery: Pick<ReturnType<typeof crea
     channel: string,
     conversation: string,
     text: string,
-    o: { by?: string | undefined; files?: string[] | undefined; logged: boolean },
+    o: {
+      by?: string | undefined;
+      files?: string[] | undefined;
+      logged: boolean;
+      mentions?: Presentation["mentions"];
+    },
   ): void {
     const files = (o.files ?? []).map((id) => {
       const m = store.media.get(id);
@@ -64,6 +70,7 @@ export function createPoster(store: Store, delivery: Pick<ReturnType<typeof crea
       kind: "reply",
       body: {
         text,
+        ...(o.mentions?.length ? { mentions: o.mentions } : {}),
         ...(files.length
           ? {
               media: files.map((f) => ({

@@ -140,7 +140,7 @@ export function messageTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "channel_post",
       description:
-        'Post in a room of the owner\'s channels (a Discord #channel) when the owner asks. Rooms are public. room: its name as channel_list shows it; channel: only when two channels have a room of that name; files: paths in your work folder (20 MB at most). Plain text, no Markdown, no @everyone, only what the owner asked for; it goes out at once and cannot be taken back. read_chat("#name") reads a room; message_contact writes to a person.',
+        'Post in a room of the owner\'s channels (a Discord #channel) when the owner asks. Rooms are public. room: its name as channel_list shows it; channel: only when two channels have a room of that name; files: paths in your work folder (20 MB at most). Plain text, no Markdown, no @everyone; to mention someone of the room, write their @handle as read_chat shows it. Only what the owner asked for; it goes out at once and cannot be taken back. read_chat("#name") reads a room; message_contact writes to a person.',
       args: z.object({
         room: z.string().trim().min(1).max(80),
         text: z.string().trim().min(1).max(4000),

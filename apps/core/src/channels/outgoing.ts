@@ -8,7 +8,7 @@ import { audienceOf } from "../engine/audience.ts";
 import type { Services } from "../services/registry.ts";
 import type { createDelivery } from "./delivery.ts";
 import type { createPoster, Posted } from "./post.ts";
-import { type createRooms, quietMentions } from "./rooms.ts";
+import { type createRooms, quietMentions, roomMentions } from "./rooms.ts";
 import type { ChannelAdapter, ChannelConfig, Presence } from "./types.ts";
 
 const AVATAR_TTL_MS = 24 * 3600_000;
@@ -27,12 +27,18 @@ export function createOutgoing(deps: {
   const { post, recentOf } = deps.poster;
 
   /**
-   * The owner writing to a contact themselves ("I'll write"): sent as is on the contact's conversation, kept in the
+   * The owner writing to a contact or a room themselves ("I'll write"): sent as is on its conversation, kept in the
    * chat as the owner's words, and noted for the agent so its next answer knows what was said.
    */
   function sendAsOwner(threadId: string, text: string): void {
     const thread = store.threads.get(threadId);
     const ch = thread?.channel;
+    // In a room the owner's words go out as they are, through the bot's account (it is the only one APX has there).
+    if (thread && ch && store.threads.context(threadId).room) {
+      const named = roomMentions(quietMentions(text), store.channels.inbox.people(ch.id, ch.conversation));
+      post(thread, ch.id, ch.conversation, named.text, { logged: false, mentions: named.mentions });
+      return;
+    }
     if (!thread || !ch?.person_id || audienceOf(store, thread).kind !== "contact")
       throw new Error("only a contact's chat on a channel can be written to directly");
     const name = audienceOf(store, thread).kind === "contact" ? (store.persons.get(ch.person_id)?.name ?? "them") : "";
@@ -116,8 +122,9 @@ export function createOutgoing(deps: {
 
   /**
    * An agent posts in a public room (a Discord server's channel the owner listed) for the owner: kept in the room's
-   * chat, sent with no pings to everyone. `room` is its exact name, with or without "#"; `channel` (an id or type)
-   * tells two rooms of the same name apart. A near name only gets suggestions: a public post cannot be taken back.
+   * chat, sent with no pings to everyone; the room's people it names as @handle are mentioned. `room` is its exact
+   * name, with or without "#"; `channel` (an id or type) tells two rooms of the same name apart. A near name only gets
+   * suggestions: a public post cannot be taken back.
    */
   function postInRoom(
     room: string,
@@ -146,7 +153,8 @@ export function createOutgoing(deps: {
     const { cfg, room: r } = exact[0] as (typeof exact)[number];
     const thread = rooms.thread(cfg, r);
     const recent = recentOf(thread.id);
-    post(thread, cfg.id, r.id, quietMentions(text), { ...o, logged: false });
+    const named = roomMentions(quietMentions(text), store.channels.inbox.people(cfg.id, r.id));
+    post(thread, cfg.id, r.id, named.text, { ...o, logged: false, mentions: named.mentions });
     return { thread: thread.id, channel: cfg.label, recent };
   }
 

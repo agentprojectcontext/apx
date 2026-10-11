@@ -96,7 +96,15 @@ export async function fakeDiscord(token: string) {
     message(
       from: { id: string; name: string },
       content: string,
-      opts: { guild?: boolean; bot?: boolean; room?: string; mention?: boolean; replyToBot?: boolean } = {},
+      opts: {
+        guild?: boolean;
+        bot?: boolean;
+        room?: string;
+        mention?: boolean;
+        replyToBot?: boolean;
+        /** Other people the content names as <@id>. */
+        mentions?: Array<{ id: string; name: string }>;
+      } = {},
     ): string {
       const id = String(nextId++);
       const guild = opts.guild || Boolean(opts.room);
@@ -106,7 +114,10 @@ export async function fakeDiscord(token: string) {
         ...(guild ? { guild_id: "42" } : {}),
         author: { ...author(from), ...(opts.bot ? { bot: true } : {}) },
         content: opts.mention ? `<@1> ${content}` : content,
-        mentions: opts.mention ? [{ id: "1", username: "apx_test_bot" }] : [],
+        mentions: [
+          ...(opts.mention ? [{ id: "1", username: "apx_test_bot" }] : []),
+          ...(opts.mentions ?? []).map(author),
+        ],
         ...(opts.replyToBot ? { referenced_message: { author: { id: "1", username: "apx_test_bot" } } } : {}),
       });
       return id;

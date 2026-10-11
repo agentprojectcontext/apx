@@ -339,9 +339,9 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
           text: turn.input.text.slice(0, 4000),
         })
       : undefined;
-  // In a contact's chat the owner's own words (typed in the app) say what to answer that contact.
+  // In a contact's chat the owner's own words (typed in the app) say what to answer that contact (a room's: roomInput).
   const said =
-    turn.audience.kind === "contact" && o.kind === "user"
+    turn.audience.kind === "contact" && !turn.audience.room && o.kind === "user"
       ? ownerInstruction(turn.audience.name, turn.input.text)
       : turn.input.text;
   const files = attachmentsBlock(store, turn.input.attachments ?? [], sealed ? undefined : { home: deps.home, thread });
@@ -360,6 +360,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
               from: o.kind === "channel" ? o.name : "your owner",
               owner: o.kind !== "channel" || o.role === "owner",
               text: said,
+              app: o.kind === "user",
             })
           : direct
             ? files

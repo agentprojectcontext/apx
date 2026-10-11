@@ -52,6 +52,31 @@ export function roomDecision(o: {
 /** A room message's reply in the outside world: no pings to everyone. */
 export const quietMentions = (text: string) => text.replace(/@(everyone|here)\b/g, "@​$1");
 
+/** An @handle in a text: not inside a word or an address, ending on a letter or digit ("@ana." is "@ana"). */
+export const HANDLE = /(?<![\w.@])@([\w.]*\w)/g;
+
+/**
+ * Who of the room's people an answer names as @handle (a platform's `<@id>` of one of them becomes @handle again): the
+ * ones the channel pings. Nobody else is pinged, @everyone and @here never.
+ */
+export function roomMentions(
+  text: string,
+  people: ReadonlyArray<{ id: string; handle: string }>,
+): { text: string; mentions: Array<{ id: string; handle: string }> } {
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const byHandle = new Map(people.map((p) => [p.handle.toLowerCase(), p]));
+  const named = text.replace(/<@!?(\d+)>/g, (raw, id: string) => {
+    const p = byId.get(id);
+    return p ? `@${p.handle}` : raw;
+  });
+  const mentions = new Map<string, { id: string; handle: string }>();
+  for (const [, handle] of named.matchAll(HANDLE)) {
+    const p = byHandle.get((handle ?? "").toLowerCase());
+    if (p) mentions.set(p.id, p);
+  }
+  return { text: named, mentions: [...mentions.values()] };
+}
+
 type Pending = {
   m: Inbound;
   rowId: string;

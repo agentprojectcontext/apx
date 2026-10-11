@@ -5,6 +5,7 @@
 import type { Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
 import { causeCode, NEVER_SENT, sleep, splitText } from "./net.ts";
+import { HANDLE } from "./rooms.ts";
 import {
   type AdapterFactory,
   type AdapterIO,
@@ -63,6 +64,20 @@ function nameOf(u: DcUser): string {
     .slice(0, 60);
   const handle = u.username ? `@${u.username}` : `id ${u.id}`;
   return name ? `${name} (${handle})` : handle;
+}
+
+/** The people the core resolved, written as @username, become Discord mentions: the only ones the message pings. */
+function pings(text: string, mentions: NonNullable<Presentation["mentions"]>): { text: string; users: string[] } {
+  if (!mentions.length) return { text, users: [] };
+  const byHandle = new Map(mentions.map((p) => [p.handle.toLowerCase(), p.id]));
+  const users = new Set<string>();
+  const out = text.replace(HANDLE, (raw, handle: string) => {
+    const id = byHandle.get(handle.toLowerCase());
+    if (!id) return raw;
+    users.add(id);
+    return `<@${id}>`;
+  });
+  return { text: out, users: [...users] };
 }
 
 export const discordAdapter = ((
@@ -159,12 +174,22 @@ export const discordAdapter = ((
       // Messages from people only, never another bot; in a server, only the rooms the owner listed.
       if (m.author.bot || (m.guild_id && !rooms.has(m.channel_id))) return;
       const called = Boolean(me) && (m.mentions?.some((u) => u.id === me) || m.referenced_message?.author?.id === me);
+      // The @mention of the bot itself says nothing: it is how it was called. Anyone else's reads as their @username.
+      const others = (m.mentions ?? []).filter((u) => u.id !== me && u.username);
+      const handles = new Map(others.map((u) => [u.id, u.username as string]));
+      const text = (m.content ?? "").replace(/<@!?(\d+)>/g, (raw, id: string) =>
+        id === me ? "" : handles.has(id) ? `@${handles.get(id)}` : raw,
+      );
       io.receive({
         external_id: m.id,
         conversation: m.channel_id,
-        sender: { id: m.author.id, name: nameOf(m.author) },
-        // The @mention of the bot itself says nothing: it is how it was called.
-        text: (me ? (m.content ?? "").replace(new RegExp(`<@!?${me}>`, "g"), "") : (m.content ?? "")).trim(),
+        sender: {
+          id: m.author.id,
+          name: nameOf(m.author),
+          ...(m.author.username ? { handle: m.author.username } : {}),
+        },
+        text: text.trim(),
+        ...(others.length ? { mentions: others.map((u) => ({ id: u.id, handle: u.username as string })) } : {}),
         private: !m.guild_id,
         ...(m.guild_id ? { room: { called: Boolean(called) } } : {}),
       });
@@ -207,6 +232,7 @@ export const discordAdapter = ((
     content: string,
     buttons: Presentation["buttons"],
     replyTo?: string,
+    users: string[] = [],
   ): Promise<string> {
     const components = buttons?.length
       ? [
@@ -220,7 +246,7 @@ export const discordAdapter = ((
       : undefined;
     const r = await api<{ id: string }>("POST", `/channels/${channel}/messages`, {
       content,
-      allowed_mentions: { parse: [] },
+      allowed_mentions: { parse: [], ...(users.length ? { users: users.slice(0, 100) } : {}) },
       ...(components ? { components } : {}),
       ...(replyTo ? { message_reference: { message_id: replyTo, fail_if_not_exists: false } } : {}),
     });
@@ -261,11 +287,18 @@ export const discordAdapter = ((
       await loop?.catch(() => {});
     },
     async send(conversation, p, files = []) {
-      const texts = p.text.trim() ? splitText(p.text, MAX_CHARS) : [];
+      const { text, users } = pings(p.text, p.mentions ?? []);
+      const texts = text.trim() ? splitText(text, MAX_CHARS) : [];
       const steps: Array<() => Promise<string>> = [
         ...texts.map(
           (t, i) => () =>
-            sendText(conversation, t, i === texts.length - 1 ? p.buttons : undefined, i === 0 ? p.reply_to : undefined),
+            sendText(
+              conversation,
+              t,
+              i === texts.length - 1 ? p.buttons : undefined,
+              i === 0 ? p.reply_to : undefined,
+              users,
+            ),
         ),
         ...files.map((f) => () => sendFile(conversation, f)),
       ];

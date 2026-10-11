@@ -14,8 +14,11 @@ export type Inbound = {
   external_id: string;
   /** Where to answer (a chat id). */
   conversation: string;
-  sender: { id: string; name: string };
+  /** `handle`: the name others write to mention them (a Discord @username), where the platform has one. */
+  sender: { id: string; name: string; handle?: string | undefined };
   text: string;
+  /** Other people the message @mentions (the bot itself left out), written as @handle in `text`. */
+  mentions?: Array<{ id: string; handle: string }> | undefined;
   /** A one-to-one conversation; anything else reaches the agent only as a listed room (see `room`). */
   private: boolean;
   /** A message in a server's room the owner listed: whether it called the bot (an @mention or a reply to it). */
@@ -56,6 +59,8 @@ export type Presentation = {
   mediaFirst?: boolean;
   /** In a room: the message this answers (shown as a reply to it). */
   reply_to?: string;
+  /** People of the room the text names as @handle: they get pinged where the channel can (never @everyone). */
+  mentions?: Array<{ id: string; handle: string }>;
 };
 
 export type InboxRow = { id: string; channel: string; payload: Inbound; state: string };
@@ -121,6 +126,30 @@ export function channelsRepo({ one, all, run }: Sql) {
           payload: JSON.parse(r.payload) as Inbound,
           state: r.state,
         }));
+      },
+      /**
+       * Who wrote or was mentioned in a conversation's latest messages, by handle (newest first, one per person): those
+       * an answer there may mention.
+       */
+      people(channel: string, conversation: string, limit = 500): Array<{ id: string; handle: string }> {
+        const rows = all(
+          qb
+            .selectFrom("channel_inbox")
+            .select("payload")
+            .where("channel", "=", channel)
+            .where("conversation", "=", conversation)
+            .orderBy("created_at", "desc")
+            .limit(limit),
+        );
+        const seen = new Map<string, { id: string; handle: string }>();
+        for (const r of rows) {
+          const m = JSON.parse(r.payload) as Inbound;
+          // Rows kept before senders had a handle carry it in their name, "Name (@handle)" (see discord.ts nameOf).
+          const handle = m.sender.handle ?? /\(@([^\s()]+)\)$/.exec(m.sender.name)?.[1];
+          for (const p of [...(handle ? [{ id: m.sender.id, handle }] : []), ...(m.mentions ?? [])])
+            if (!seen.has(p.id)) seen.set(p.id, p);
+        }
+        return [...seen.values()];
       },
       /** The last message that came in on a conversation. */
       latest(channel: string, conversation: string): Inbound | undefined {

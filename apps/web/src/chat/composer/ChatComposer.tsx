@@ -1,9 +1,10 @@
 import type { Agent, CatalogEngine, Run, Thread } from "@apx/protocol";
-import { Composer, EngineIcon, IconButton, Icons, Menu, withMentions } from "@apx/ui";
+import { Composer, EngineIcon, IconButton, Icons, Menu, SegmentedControl, withMentions } from "@apx/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useEngineLabel } from "../../common/useEngineLabel.ts";
 import { ModelChoicePicker } from "../../config/models/ModelPickers.tsx";
-import { cancel, makeChat, send } from "../../data/actions.ts";
+import { cancel, loadThread, makeChat, send } from "../../data/actions.ts";
+import { sendDirect } from "../../data/channels.ts";
 import { setThreadModel } from "../../data/composer.ts";
 import { draftOf, keepDraft } from "../../data/drafts.ts";
 import { isWorking } from "../../data/identity.ts";
@@ -30,6 +31,7 @@ const IMAGE_TYPES = "image/png,image/jpeg,image/webp,image/gif";
  * A field starting with "/" opens the command and skill menu.
  * Files also arrive dragged or pasted. What is typed stays as the chat's draft until it is sent.
  * A new chat (see newChat.ts) is made with its first message; `onMade` then opens it (by default, where it was).
+ * In a channel's room the owner picks, as in a contact's chat: tell the agent what to post there, or write it as is.
  */
 export function ChatComposer({
   thread,
@@ -68,6 +70,9 @@ export function ChatComposer({
     if (!micBusy) att.add(files);
   });
   const busy = isWorking(thread.state);
+  const room = thread.channel && !thread.channel.person_id ? thread.title : undefined;
+  const [direct, setDirect] = useState(false);
+  const agentName = agent?.name ?? t("composer.yourAgent");
   const slash = useSlashMenu({ thread, agent, text, setText, busy });
   const runs = useMemo(
     () =>
@@ -85,6 +90,13 @@ export function ChatComposer({
     const attachments = att.take();
     const words = value.trim() || (attachments.length ? t("composer.attachedOnly") : "");
     if (!words) return;
+    if (room && direct) {
+      att.restore(attachments);
+      if (attachments.length) return notify(t("ch.room.noFiles", { agent: agentName }), "info");
+      setText("");
+      void sendDirect(thread.id, words).then((ok) => (ok ? loadThread(thread.id) : setText((cur) => cur || value)));
+      return;
+    }
     setText("");
     // A send that fails gives the words and the files back, so nothing the owner wrote is lost.
     const giveBack = () => {
@@ -138,7 +150,9 @@ export function ChatComposer({
         placeholder={
           offline
             ? t("composer.offline")
-            : t("composer.placeholder", { name: engine ?? agent?.name ?? t("composer.yourAgent") })
+            : room
+              ? t(direct ? "ch.room.writeMe" : "ch.room.writeAgent", { agent: agentName, room })
+              : t("composer.placeholder", { name: engine ?? agentName })
         }
         labels={{ stop: t("composer.stop"), send: t("composer.send") }}
         sendHint={t("composer.sendHint")}
@@ -181,7 +195,19 @@ export function ChatComposer({
               ]}
               trigger={<IconButton size="sm" label={t("composer.attach")} icon={<Icons.Plus size={16} />} />}
             />
-            <ChatModel thread={thread} agent={agent} />
+            {room && (
+              <SegmentedControl
+                size="sm"
+                label={t("ch.room.who")}
+                value={direct ? "me" : "agent"}
+                onValueChange={(v) => setDirect(v === "me")}
+                options={[
+                  { value: "agent", label: t("ch.room.agentPosts", { agent: agentName }) },
+                  { value: "me", label: t("ch.iWrite") },
+                ]}
+              />
+            )}
+            {!direct && <ChatModel thread={thread} agent={agent} />}
             <span className="composer__spacer" />
             <ContextChip context={contextOf(runs)} spent={spentOf(runs)} />
             {mic.state !== "unsupported" && (
@@ -202,6 +228,11 @@ export function ChatComposer({
           </>
         }
       />
+      {room && (
+        <p className="chat__composer-hint">
+          {t(direct ? "ch.room.hint.me" : "ch.room.hint.agent", { agent: agentName, room })}
+        </p>
+      )}
     </div>
   );
 }

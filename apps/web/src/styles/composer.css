@@ -287,3 +287,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.chat__composer-hint {
+  margin: 6px 4px 0;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}

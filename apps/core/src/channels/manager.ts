@@ -28,7 +28,7 @@ import { createInbound } from "./inbound.ts";
 import { inputPresentation } from "./notices.ts";
 import { createOutgoing } from "./outgoing.ts";
 import { createPoster } from "./post.ts";
-import { createRooms, quietMentions } from "./rooms.ts";
+import { createRooms, quietMentions, roomMentions } from "./rooms.ts";
 import { channelTexts } from "./texts.ts";
 import { type AdapterFactory, type ChannelAdapter, type ChannelConfig, ChannelRefused } from "./types.ts";
 
@@ -295,7 +295,17 @@ export function createChannels(deps: {
     }
     if (!out && !attached.length) return;
     if (audience?.kind === "contact") out = guardReply(out);
-    if (room) out = quietMentions(out);
+    let mentions: Pick<Presentation, "mentions"> = {};
+    if (room) {
+      out = quietMentions(out);
+      // Only a turn the owner started pings the room's people: a member cannot make the bot ping others.
+      const o = run.input?.origin;
+      if (o?.kind === "user" || (o?.kind === "channel" && o.role === "owner")) {
+        const named = roomMentions(out, store.channels.inbox.people(to.channel, to.conversation));
+        out = named.text;
+        if (named.mentions.length) mentions = { mentions: named.mentions };
+      }
+    }
     const replyRef = room && to.message ? { reply_to: to.message } : {};
     const send = (body: Presentation) =>
       delivery.enqueue({
@@ -308,11 +318,11 @@ export function createChannels(deps: {
       });
     const voice = out && run.state === "completed" ? await voiceFor(run.thread_id, out) : undefined;
     if (!voice) {
-      send({ text: out, media: attached, ...replyRef });
+      send({ text: out, media: attached, ...replyRef, ...mentions });
       return;
     }
     // A voice note with its transcript (only what it says), then the rest of the answer as its own message.
-    send({ text: voice.spoken, media: [voice.media], mediaFirst: true, ...replyRef });
+    send({ text: voice.spoken, media: [voice.media], mediaFirst: true, ...replyRef, ...mentions });
     if (voice.rest || attached.length) send({ text: voice.rest, media: attached });
   }
 

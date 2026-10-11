@@ -799,8 +799,8 @@ export const appMethods = {
     access: "human",
   },
   /**
-   * The owner writes to a contact themselves, in that contact's chat ("I'll write"): sent as is on the channel and
-   * kept in the chat; the agent reads it with the next message.
+   * The owner writes to a contact or a room themselves, in its chat ("I'll write"): sent as is on the channel (in a
+   * room, through the bot's account, the room's people named as @handle mentioned) and kept in the chat.
    */
   "channels.send": {
     params: z.object({ thread: Id, text: z.string().trim().min(1).max(4000) }).strict(),

@@ -17,6 +17,8 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (said.includes("post the release note"))
     return callTool("p1", "channel_post", { room: "#logs", text: "v2.1 is out @everyone" });
   if (said.includes("which channels")) return callTool("l1", "channel_list", {});
+  if (said.includes("thank ana for the issues")) return say("Thanks @Ana for the issues, and @nobody too!");
+  if (said.includes("greet ana please")) return say("Hi @ana!");
   if (said.includes("post in a room that is not there"))
     return callTool("p2", "channel_post", { room: "nowhere", text: "hi" });
   if (said.includes("post in a near name")) return callTool("p3", "channel_post", { room: "log", text: "hi" });
@@ -274,6 +276,44 @@ test("the owner's agent posts in a room when asked, even a read room, with no pi
   assert.equal(posts(ROOMS.logs)[0]?.content, "v2.1 is out @\u200beveryone");
   assert.ok(kept(ROOMS.logs).includes("v2.1 is out @\u200beveryone"), "kept in the room's chat");
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /sent to #logs on Discord/);
+});
+
+test("from the app the owner tells the agent what to post in a room: it goes out there, pinging only who it names", async () => {
+  // Someone else's @mention reads as their @username, and makes them someone the room's answers can mention.
+  dc.message(OWNER, "<@222> could you look at the issues?", { room: ROOMS.logs, mentions: [ANA] });
+  await until(() => kept(ROOMS.logs).includes("@ana could you look at the issues?"), "kept with the username");
+  const room = roomThread(ROOMS.logs);
+  assert.ok(room);
+  const n = posts(ROOMS.logs).length;
+  await env.client.call("threads.send", { thread: room.id, text: "thank ana for the issues" });
+  await env.settle(room.id);
+  await until(() => posts(ROOMS.logs).length === n + 1, "posted in the room, not answered in the app");
+  const post = posts(ROOMS.logs).at(-1);
+  assert.equal(post?.content, "Thanks <@222> for the issues, and @nobody too!");
+  assert.deepEqual(post?.allowed_mentions, { parse: [], users: ["222"] });
+  const input = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  assert.match(
+    input,
+    /<owner_instruction>\nthank ana for the issues\n<\/owner_instruction>\nYour owner wrote this in the APX app/,
+  );
+  assert.equal(input.match(/<owner_instruction>/g)?.length, 1, "framed once");
+
+  // "I'll write": the owner's words go out as they are, through the bot, with the same mentions.
+  await env.client.call("channels.send", { thread: room.id, text: "@ana see you at the release" });
+  await until(() => posts(ROOMS.logs).length === n + 2, "posted as is");
+  assert.equal(posts(ROOMS.logs).at(-1)?.content, "<@222> see you at the release");
+});
+
+test("a member's turn in a room pings nobody, even someone who wrote there", async () => {
+  await pause(1100);
+  const n = posts(ROOMS.help).length;
+  dc.message(ANA, "hello all", { room: ROOMS.help });
+  await until(() => posts(ROOMS.help).length === n + 1, "Ana answered");
+  await pause(1100);
+  dc.message(BEN, "roby greet ana please", { room: ROOMS.help });
+  await until(() => posts(ROOMS.help).length === n + 2, "Ben answered");
+  assert.equal(posts(ROOMS.help).at(-1)?.content, "Hi @ana!");
+  assert.deepEqual(posts(ROOMS.help).at(-1)?.allowed_mentions, { parse: [] });
 });
 
 test("names are whole words in any script; the decision follows the room's mode", () => {
