@@ -158,6 +158,22 @@ test("right after the desktop app installs APX, the setup's welcome says so, onc
   await expect(wizard.getByText("APX está instalado")).toBeHidden();
 });
 
+test("the setup's header picks the language, kept like the app's own", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /^Cuenta/ }).click();
+  await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
+  const wizard = page.locator(".wiz");
+  await wizard.getByRole("button", { name: "Idioma: Español" }).click();
+  await page.getByRole("menuitem", { name: "English" }).click();
+  await expect(wizard.getByRole("button", { name: /Start from scratch/ })).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: /^Account/ }).click();
+  await page.getByRole("menuitem", { name: /setup/i }).click();
+  await wizard.getByRole("button", { name: "Language: English" }).click();
+  await page.getByRole("menuitem", { name: "Español" }).click();
+  await expect(wizard.getByRole("button", { name: /Empezar de cero/ })).toBeVisible();
+});
+
 for (const look of ["minimal", "classic"]) {
   for (const mode of ["light", "dark"]) {
     test(`the wizard and its menus inherit ${look} ${mode}`, async ({ page }) => {

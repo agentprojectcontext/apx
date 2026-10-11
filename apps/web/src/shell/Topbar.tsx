@@ -5,9 +5,10 @@ import { useChannels } from "../data/channels.ts";
 import { blobOf, findProject, projectName, secretary } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
-import { LANGUAGE_NAMES, LANGUAGES, useLanguage, useT } from "../i18n/index.ts";
+import { useT } from "../i18n/index.ts";
 import { AttentionTray } from "./AttentionTray.tsx";
 import { useDesktopClass } from "./desktop.ts";
+import { LanguageMenu, useLanguageItems } from "./LanguageMenu.tsx";
 import { go, PROJECT_TABS, useNav, useNavHistory } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
 import { UpdatePill } from "./UpdatePill.tsx";
@@ -50,19 +51,11 @@ export function Topbar() {
   const mode = useNav((s) => s.mode);
   const canBack = useNavHistory((s) => s.canBack);
   const canForward = useNavHistory((s) => s.canForward);
-  const lang = useLanguage();
+  const languageItems = useLanguageItems();
   const agents = useData((s) => s.agents);
   const homeId = useData((s) => Object.values(s.threads).find((x) => x.kind === "home")?.id);
   const sec = secretary(agents);
   const folded = usePrefs((s) => s.sidebarCollapsed);
-  const languageItems = [
-    { type: "label" as const, label: t("language.label") },
-    ...LANGUAGES.map((l) => ({
-      label: LANGUAGE_NAMES[l],
-      icon: l === lang ? <Icons.Check /> : <span />,
-      onSelect: () => setPrefs({ language: l }),
-    })),
-  ];
   return (
     <header className={`topbar${desktop}`}>
       <div className="topbar__left">
@@ -116,20 +109,7 @@ export function Topbar() {
             className="topbar__icon"
             onClick={() => go.phone(true)}
           />
-          <Menu
-            align="end"
-            items={languageItems}
-            trigger={
-              <button
-                type="button"
-                className="topbar__lang"
-                aria-label={t("language.current", { language: LANGUAGE_NAMES[lang] })}
-              >
-                <Icons.Languages size={14} />
-                {lang.toUpperCase()}
-              </button>
-            }
-          />
+          <LanguageMenu className="topbar__lang" />
           <IconButton
             size="sm"
             label={mode === "dark" ? t("theme.light") : t("theme.dark")}

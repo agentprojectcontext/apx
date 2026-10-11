@@ -15,6 +15,7 @@ import { useData } from "../data/state.ts";
 import { updateAgent } from "../data/team.ts";
 import { type MessageKey, useLanguage, useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
+import { LanguageMenu } from "../shell/LanguageMenu.tsx";
 import { go, useNav } from "../shell/nav.ts";
 import { BuildVersion } from "./BuildVersion.tsx";
 import { type Draft, defaultDraft } from "./draft.ts";
@@ -212,6 +213,7 @@ export function Wizard() {
             </button>
           ))}
         </nav>
+        <LanguageMenu className="topbar__lang" />
         <IconButton
           size="sm"
           label={mode === "dark" ? t("theme.light") : t("theme.dark")}
