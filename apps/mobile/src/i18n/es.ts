@@ -7,7 +7,7 @@ export const es: Record<Key, string> = {
   actionsWaiting: "Esperando · {n} acciones",
   actionsSummary: "{n} acciones",
   actionsFailed: "· {n} fallaron",
-  pairKicker: "VINCULAR ESTE DISPOSITIVO",
+  pairKicker: "Vincular este dispositivo",
   pairHeading: "Vinculá este",
   pairHeadingEnd: "dispositivo.",
   pairingCode: "Código de vinculación",

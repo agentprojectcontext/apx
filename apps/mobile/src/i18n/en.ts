@@ -6,7 +6,7 @@ export const en = {
   actionsWaiting: "Waiting · {n} actions",
   actionsSummary: "{n} actions",
   actionsFailed: "· {n} failed",
-  pairKicker: "PAIR THIS DEVICE",
+  pairKicker: "Pair this device",
   pairHeading: "Pair this",
   pairHeadingEnd: "device.",
   pairingCode: "Pairing code",

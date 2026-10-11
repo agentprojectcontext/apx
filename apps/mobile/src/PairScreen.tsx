@@ -163,8 +163,8 @@ const s = StyleSheet.create({
   kickerLine: { width: 24, height: 1, backgroundColor: theme.brandSoftFg },
   kicker: {
     color: theme.brandSoftFg,
-    fontSize: 10,
-    letterSpacing: 1.1,
+    fontSize: 11,
+    letterSpacing: 0.3,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   title: { fontSize: 36, lineHeight: 39, color: theme.fg, fontWeight: "600", letterSpacing: -1 },
