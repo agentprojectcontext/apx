@@ -49,6 +49,9 @@ const lastInput = () => String(llm.calls.at(-1)?.messages.at(-1)?.content);
 test("search ignores accents and case, and free text never reaches FTS as syntax", () => {
   assert.equal(ftsQuery("the and of"), undefined);
   assert.match(ftsQuery('café" OR x NEAR(') ?? "", /^"cafe"/);
+  // A preposition is no topic: "under?" alone must not pull every note that happens to use it.
+  assert.equal(ftsQuery("Bajo?"), undefined);
+  assert.equal(ftsQuery("bajo el puente"), '"puente"*');
   assert.ok(looksSecret("token: ghp_abcdefghijklmnopqrstu"));
   assert.ok(looksSecret("key Xk9vQ2mP7rT4wZ8nB3cF6hJ1lD5sG0aE"));
   assert.ok(looksSecret("wifi password: Pancho2024!"));

@@ -34,6 +34,7 @@ const STOP = new Set(
   (
     "the and for are but not you all any can had her was one our out has have this that with what when where which " +
     "who will would there their they them then than from into about your just like also more some such only over " +
+    "under upon onto ante bajo contra desde durante hacia hasta mediante segun tras " +
     "que los las del por con para una uno unos unas como pero sus esta este esto estos estas ese esa eso hay muy " +
     "sin sobre entre cuando donde quien cual todo toda todos todas tambien porque mas ya fue ser son era han hace " +
     "tengo tenes tiene tenemos vos yo mi mis tu tus le les lo al se si no es el la de en un y o a"
