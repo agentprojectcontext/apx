@@ -1,5 +1,5 @@
 import { addComment, getTask } from "#core/stores/tasks.js";
-import { requestDecision, resolveDecision } from "#core/tasks/decisions.js";
+import { requestDecision, resolveDecision, retractDecision } from "#core/tasks/decisions.js";
 import { readAgents } from "#core/apc/parser.js";
 import { mentionedAgents, summonFromAgentComment } from "#core/tasks/comment-turn.js";
 import { missingArg, projectMeta, resolveProject } from "../helpers.js";
@@ -58,6 +58,26 @@ async function askOnTask({ projects, project, task, decision, channelMeta, globa
   }
 }
 
+function withdrawOnTask({ projects, project, task, withdraw, channelMeta }) {
+  let p;
+  try { p = resolveProject(projects, project); } catch (e) { return { error: e.message }; }
+  const by = channelMeta?.agentSlug || SUPERAGENT_ACTOR_ID;
+  try {
+    const out = retractDecision({
+      storagePath: p.storagePath, taskId: task, decisionId: String(withdraw.id || ""), reason: withdraw.reason, by,
+    });
+    if (!out) return { error: `task not found: ${task}` };
+    return {
+      ok: true,
+      project: projectMeta(projects, p),
+      decision: { id: out.decision.id, state: out.decision.state },
+      note: "Withdrawn; nobody was notified. Do not ask a new decision to explain it.",
+    };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
 export default {
   name: "comment_task",
   schema: {
@@ -71,9 +91,11 @@ export default {
         "to the task. Call list_tasks first if you do not have the task id. " +
         "When you NEED A DECISION, pass `decision` instead of writing 'NEEDS USER INPUT' in prose: it " +
         "becomes a question on the card (options, recommendation, who decides, what is blocked, what can " +
-        "go on), the owner is notified once, and the answer comes back to you. Put a correction another " +
-        "agent owes under THAT agent as `responsible`, not the owner. If a decision is addressed to you, " +
-        "answer it with `answers_decision` + `text`.",
+        "go on), the owner is notified once, and the answer comes back to you. Only for a real question: " +
+        "status updates go in `text`. Put a correction another agent owes under THAT agent as " +
+        "`responsible`, not the owner. If a decision is addressed to you, answer it with " +
+        "`answers_decision` + `text`. To take back one you asked by mistake, use `withdraw_decision`, " +
+        "never a new decision.",
       parameters: {
         type: "object",
         required: ["task"],
@@ -95,13 +117,22 @@ export default {
             },
           },
           answers_decision: { type: "string", description: "Id of a decision addressed to YOU; `text` is your answer." },
+          withdraw_decision: {
+            type: "object",
+            description: "Withdraw an open decision you asked. Notifies nobody.",
+            required: ["id", "reason"],
+            properties: { id: { type: "string" }, reason: { type: "string" } },
+          },
         },
       },
     },
   },
   makeHandler: ({ projects, channelMeta, globalConfig, plugins, registries }) => async (args = {}) => {
-    const { task, text, project, decision, answers_decision: answersDecision } = args;
+    const { task, text, project, decision, answers_decision: answersDecision, withdraw_decision: withdraw } = args;
     if (!task) return missingArg("comment_task", "task", { required: ["task", "text"], optional: ["project"] }, args);
+    if (withdraw && typeof withdraw === "object") {
+      return withdrawOnTask({ projects, project, task, withdraw, channelMeta });
+    }
     if (decision && typeof decision === "object") {
       return askOnTask({ projects, project, task, decision, channelMeta, globalConfig, plugins, registries });
     }

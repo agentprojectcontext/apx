@@ -13,10 +13,12 @@
 //                      the owner is not asked to do another agent's job.
 //   · answered       → linked to THIS decision id and handed back to whoever
 //                      asked. The task is not approved, closed or moved.
+//   · withdrawn      → the asker (or the owner) takes it back, with a reason;
+//                      the thread says so and nobody is notified.
 //
 // The notice carries the question and the task title only — no prompt, no
 // thread, nothing from a report body — and is never repeated for a decision.
-import { addComment, answerDecision, askDecision, getTask, recordDecisionNotice } from "#core/stores/tasks.js";
+import { addComment, answerDecision, askDecision, getTask, recordDecisionNotice, withdrawDecision } from "#core/stores/tasks.js";
 import { canNudge, recordNudge } from "#core/nudge/index.js";
 import { OWNER_ACTOR_ID } from "#core/constants/actors.js";
 import { CHANNELS } from "#core/constants/channels.js";
@@ -136,4 +138,20 @@ export function resolveDecision({ storagePath, taskId, decisionId, answer, choic
   });
   if (asker && handBack) handBack(asker, by);
   return { task: getTask(storagePath, out.task.id), decision, handed_back_to: asker };
+}
+
+/**
+ * Take back an open decision: record why and close it on the thread. Nobody is
+ * notified, so correcting a card never costs the owner another interruption.
+ */
+export function retractDecision({ storagePath, taskId, decisionId, reason, by }) {
+  const task = withdrawDecision(storagePath, taskId, decisionId, { reason, by });
+  if (!task) return null;
+  const decision = task.decisions.find((d) => d.id === decisionId);
+  addComment(storagePath, task.id, {
+    by,
+    text: `↩️ Decisión \`${decision.id}\` retirada: ${decision.withdrawn_reason}`,
+    meta: { decision_id: decision.id, decision_phase: "withdrawn" },
+  });
+  return { task: getTask(storagePath, task.id), decision };
 }

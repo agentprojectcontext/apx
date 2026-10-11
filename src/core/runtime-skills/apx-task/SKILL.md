@@ -142,7 +142,11 @@ another agent owes is a decision with `responsible: "<that agent>"`, not one
 for the owner. A decision addressed to you: `comment_task({ task,
 answers_decision: "<id>", text })`. An answer resolves THAT question only — it
 does not approve or close the task; check `decisions` in `get_task` before
-asking the same thing again.
+asking the same thing again. A card is for a real question only: a placeholder,
+a status line or "disregard this" is refused, and a status update is a plain
+comment. To take back a card you asked by mistake:
+`comment_task({ task, withdraw_decision: { id, reason } })` — it notifies nobody;
+never ask a new decision to explain the old one.
 
 **Dependencies are data, not prose.** When you delegate work that unblocks
 another task, record it on the WAITING task:

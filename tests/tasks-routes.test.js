@@ -144,7 +144,7 @@ test("dependency routes: add, refuse a cycle, lift with a reason (#59)", async (
 
 test("decision routes: ask, answer once, refuse a second answer (#58)", async () => {
   const t = await newTask({ title: "decidir" });
-  const ask = await post(`/projects/0/tasks/${t.id}/decisions`, { question: "¿A o B?", options: ["A", "B"], by: "rocky" });
+  const ask = await post(`/projects/0/tasks/${t.id}/decisions`, { question: "¿Vamos con el proveedor A o el B?", options: ["A", "B"], by: "rocky" });
   assert.equal(ask.status, 201);
   const { decision } = await ask.json();
   assert.equal(decision.state, "open");
@@ -158,6 +158,26 @@ test("decision routes: ask, answer once, refuse a second answer (#58)", async ()
   assert.equal(body.task.state, "open", "an answer does not close the task");
   const again = await post(`/projects/0/tasks/${t.id}/decisions/${decision.id}/answer`, { answer: "A" });
   assert.equal(again.status, 400);
+});
+
+test("decision routes: a placeholder is refused, and a withdrawal clears the owner's badge (#67)", async () => {
+  const t = await newTask({ title: "decidir" });
+  const bad = await post(`/projects/0/tasks/${t.id}/decisions`, { question: "placeholder", by: "rocky" });
+  assert.equal(bad.status, 400);
+  assert.match((await bad.json()).error, /not a decision/);
+  const untouched = await (await api(`/projects/0/tasks/${t.id}`)).json();
+  assert.equal(untouched.decisions.length, 0);
+  assert.equal(untouched.comments.length, 0);
+
+  const ask = await post(`/projects/0/tasks/${t.id}/decisions`, { question: "¿Vamos con el proveedor A o el B?", by: "rocky" });
+  const { decision } = await ask.json();
+  const foreign = await post(`/projects/0/tasks/${t.id}/decisions/${decision.id}/withdraw`, { reason: "no aplica", by: "qa" });
+  assert.equal(foreign.status, 400);
+  const gone = await post(`/projects/0/tasks/${t.id}/decisions/${decision.id}/withdraw`, { reason: "se preguntó por error" });
+  assert.equal(gone.status, 200);
+  assert.equal((await gone.json()).decisions[0].state, "withdrawn");
+  const page = await (await api("/projects/0/tasks?state=open")).json();
+  assert.equal(page.data.find((r) => r.id === t.id).awaits_owner, false);
 });
 
 // ── subtasks ────────────────────────────────────────────────────────────────
