@@ -67,6 +67,29 @@ VPN que intercepta el tráfico de loopback.
 **Solución:** Revisá `apx daemon logs --tail 20` para ver la dirección de enlace real. Si la línea dice
 `listening on http://127.0.0.1:7430` el daemon está sano — el problema está en el cliente.
 
+### Usar apx desde una CLI de código en sandbox
+
+**Problema:** Un comando que corre una CLI de código dentro de un sandbox — por ejemplo Codex con
+`--sandbox workspace-write` — falla con `the APX daemon at http://127.0.0.1:7430 did not answer`,
+mientras que el mismo comando funciona en tu terminal y `apx daemon status` muestra el daemon andando.
+
+**Causa:** Todos los comandos de `apx`, salvo algunos offline, hablan con el daemon por HTTP de
+loopback. Un sandbox así suele bloquear la red (loopback incluido) y las escrituras fuera del
+workspace, así que la CLI no puede ni llegar al daemon que está corriendo ni arrancar uno: arrancarlo
+implica escribir `~/.apx/daemon.log`. La CLI dice con cuál de las dos se topó (`not allowed to
+connect`, o `~/.apx is not writable here`) en vez de fallar en el archivo de log.
+
+**Solución:** No amplíes la escritura del sandbox a `~/.apx` — APX no la necesita.
+
+- Corré el comando fuera del sandbox, o dejá que la CLI de código te pida aprobar ese comando puntual
+  (la ejecución escalada/aprobada de Codex).
+- Si el runtime tiene que hablar con APX por su cuenta, dale acceso a la red — en Codex,
+  `sandbox_workspace_write.network_access = true` en su config. El daemon ya está corriendo, así que
+  solo necesita acceso a loopback.
+- Un agente Codex que lanza APX con `apx run` corre en ese mismo sandbox, así que le pasa lo mismo
+  salvo que su config de Codex permita la red. Si no, pasale en el prompt lo que necesita en vez de
+  pedirle que llame a `apx`.
+
 ---
 
 ## Fallos de motor / proveedor
