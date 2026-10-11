@@ -10,6 +10,8 @@ import { ApxClient } from "./protocol";
 export type NotificationStatus = {
   /** `off`: not turned on yet, the owner can still be asked; `denied`: only the system settings can turn it on. */
   state: "checking" | "off" | "denied" | "local" | "push" | "error";
+  /** With `push`: Expo's service, or the ntfy app holding the address the owner gave this phone in the panel. */
+  via?: "expo" | "ntfy";
   detail?: string;
   localEnabled?: boolean;
 };
@@ -78,19 +80,32 @@ export async function configureNotifications(creds?: Creds, request = false): Pr
     if (state !== "granted") return { state };
     localEnabled = true;
     const projectId = Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId;
-    if (!creds || !projectId) return { state: "local" };
-    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+    if (!creds) return { state: "local" };
     const client = new ApxClient({
       url: creds.url,
       token: creds.token,
       client: APP_CLIENT,
     });
+    if (!projectId) return await viaNtfy(client, creds);
+    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
     await client.call("devices.set_push", { push: { kind: "expo", token: data } });
     remoteDevice = creds.device;
-    return { state: "push" };
+    return { state: "push", via: "expo" };
   } catch (error) {
     return { state: "error", localEnabled, detail: error instanceof Error ? error.message : String(error) };
   }
+}
+
+/** A build without Expo push still reaches the owner when the panel gave this phone an ntfy address. */
+async function viaNtfy(client: ApxClient, creds: Creds): Promise<NotificationStatus> {
+  try {
+    const { devices } = await client.call("devices.list", {});
+    if (devices.find((device) => device.id === creds.device)?.push !== "unifiedpush") return { state: "local" };
+  } catch {
+    return { state: "local" };
+  }
+  remoteDevice = creds.device;
+  return { state: "push", via: "ntfy" };
 }
 
 /**

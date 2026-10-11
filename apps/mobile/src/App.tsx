@@ -7,7 +7,7 @@ import { type Creds, clearCreds, loadCreds } from "./creds";
 import { t } from "./i18n";
 import { PairScreen } from "./PairScreen";
 import { type PhotoAsk, PhotoModal } from "./PhotoModal";
-import { fromPairedCore, parsePairingLink } from "./pairing";
+import { fromPairedCore, parseOpenLink, parsePairingLink } from "./pairing";
 import { startPhoneNode } from "./phone";
 import { ApxClient, ApxError } from "./protocol";
 import { theme } from "./ui/theme";
@@ -76,8 +76,13 @@ export function App() {
       }
       setCreds(creds);
     });
-    // Opened from an apx://pair link (the QR scanned with the phone's own camera).
+    // Opened from an apx://pair link (the QR scanned with the phone's own camera), or an apx://open one (a notice).
     const take = (url: string | null) => {
+      const open = url ? parseOpenLink(url) : undefined;
+      if (open) {
+        if (open.thread) setFocus(open.thread);
+        return;
+      }
       const parsed = url ? parsePairingLink(url) : undefined;
       if (!url || !parsed) return;
       setLink(url);

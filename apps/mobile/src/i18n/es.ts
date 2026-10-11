@@ -21,7 +21,9 @@ export const es: Record<Key, string> = {
   localActive: "Avisos en vivo activados en este teléfono.",
   pushActive: "Servicio push vinculado a este teléfono.",
   pushDestination: "Elegí este dispositivo como destino de avisos en ajustes de APX desde tu computadora.",
-  pushPending: "Avisos con APX cerrada: falta configurar servicio push.",
+  pushNtfy: "Push por la app ntfy de este teléfono.",
+  pushPending:
+    "Con APX cerrada, los avisos necesitan push: instalá la app ntfy, suscribite a un tema propio y pegá su dirección para este teléfono en Configuración › Conexiones › Dispositivos en tu computadora.",
   notificationsOff: "Las notificaciones están apagadas en este teléfono. Activalas para que tus agentes te avisen acá.",
   turnOnNotifications: "Activar notificaciones",
   notificationsDenied: "Notificaciones desactivadas en ajustes del sistema.",

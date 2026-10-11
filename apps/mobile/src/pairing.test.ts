@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { firstReachable, fromPairedCore, parsePairingLink } from "./pairing.ts";
+import { firstReachable, fromPairedCore, parseOpenLink, parsePairingLink } from "./pairing.ts";
 
 test("the QR's link gives the code and the addresses; anything else is not a pairing", () => {
   assert.deepEqual(
@@ -27,4 +27,11 @@ test("a link can name the chat to open, and one from the paired core does not pa
   assert.deepEqual(link, { code: "ABCD2345", urls: ["http://192.168.1.20:7440"], thread: "home" });
   assert.ok(link && fromPairedCore(link, "http://192.168.1.20:7440/"));
   assert.ok(link && !fromPairedCore(link, "http://100.64.0.3:7440"));
+});
+
+test("a notice's link opens the app, on its chat when it names one; it never pairs", () => {
+  assert.deepEqual(parseOpenLink("apx://open?t=th%201"), { thread: "th 1" });
+  assert.deepEqual(parseOpenLink("apx://open"), {});
+  assert.equal(parseOpenLink("apx://pair?c=ABCD2345"), undefined);
+  assert.equal(parsePairingLink("apx://open?t=home"), undefined);
 });

@@ -17,7 +17,9 @@ export function NotificationCard({ status, enable }: { status: NotificationStatu
       <Text style={type.muted}>
         {translate(
           status.state === "push"
-            ? "pushActive"
+            ? status.via === "ntfy"
+              ? "pushNtfy"
+              : "pushActive"
             : status.state === "local"
               ? "localActive"
               : status.state === "off"

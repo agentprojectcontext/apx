@@ -19,6 +19,19 @@ export function parsePairingLink(text: string): PairingLink | undefined {
   return thread ? { code, urls, thread } : { code, urls };
 }
 
+/** A link that only opens the app, on a chat when it names one: `apx://open?t=<thread>`, as an ntfy notice carries. */
+export function parseOpenLink(text: string): { thread?: string } | undefined {
+  let url: URL;
+  try {
+    url = new URL(text.trim());
+  } catch {
+    return undefined;
+  }
+  if (url.protocol !== "apx:" || url.hostname !== "open") return undefined;
+  const thread = url.searchParams.get("t")?.trim();
+  return thread ? { thread } : {};
+}
+
 /** Whether a link comes from the core this phone is already paired with: then it only opens its chat. */
 export function fromPairedCore(link: PairingLink, pairedUrl: string): boolean {
   const origin = (u: string) => {

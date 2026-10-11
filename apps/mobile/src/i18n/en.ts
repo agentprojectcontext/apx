@@ -20,7 +20,9 @@ export const en = {
   localActive: "Live notifications enabled on this phone.",
   pushActive: "Push service registered for this phone.",
   pushDestination: "Select this device as the notification destination in APX settings on your computer.",
-  pushPending: "Delivery with APX closed still needs push service configuration.",
+  pushNtfy: "Push through the ntfy app on this phone.",
+  pushPending:
+    "With APX closed, notices need push: install the ntfy app, subscribe to a topic of your own and paste its address for this phone in Settings › Connections › Devices on your computer.",
   notificationsOff: "Notifications are off on this phone. Turn them on so your agents can reach you here.",
   turnOnNotifications: "Turn on notifications",
   notificationsDenied: "Notifications disabled in system settings.",
