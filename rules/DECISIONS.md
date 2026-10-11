@@ -746,4 +746,14 @@ room; "I'll write" (`channels.send`) posts the owner's words as they are, throug
 has there. Mentions: an incoming `<@id>` reads as `@username`, and an answer's `@handle` pings that person only when
 they wrote or were mentioned in that room's latest 500 messages and the turn is the owner's (from the app, their
 message in the room, or `channel_post`). A member's turn still pings nobody, so no one can make the bot ping others;
-@everyone and @here never ping. The turn stays sealed (D-041, D-059): it gains no tools.
+@everyone and @here never ping. The turn stays sealed (D-041, D-059): it gains no tools. The owner's words said in
+the room (on Discord, or "I'll write") are `direct`; their words from the app are not, and a room's turn reads its
+latest five apart from the room's talk, as words nobody there saw (a migration marks the older ones the room received).
+
+<a id="d-064"></a>
+## D-064 — 2026-10-11 — On WhatsApp the owner's agent writes to people and rooms itself
+WhatsApp turns of the owner only kept notes and delegated, but what the owner asks to send cannot be relayed to another
+agent (it would act on authorization passed through the first), so "post this in #help" from WhatsApp could not be
+done at all. Those turns now also have `message_contact`, `channel_post`, `channel_list`, `contact_list` and
+`read_chat`; anything else still goes to an agent through `delegate`. A send asks first as on any channel (after
+outside content, unless autonomy is total), and on WhatsApp its confirmation arrives as numbered options in that chat.

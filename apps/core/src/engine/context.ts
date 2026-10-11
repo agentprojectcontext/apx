@@ -198,7 +198,7 @@ const CHAT_CHANNELS = new Set(["telegram", "whatsapp", "slack", "discord", "imes
 const CHAT_STYLE = `Plain text on a phone: no Markdown tables, headers or bold; short, under about six sentences unless asked for more. Your answer must carry the whole result. When the message needs no answer (a thanks, an ok, a laugh, a goodbye, a request to stop answering), answer only ${SKIP_ANSWER}: nothing is sent, and the chat ends there. To react to their last message with an emoji instead of words (or when asked to react), answer only REACT and the emoji, e.g. "REACT ❤️".`;
 
 const HANDOFF_NOTE =
-  "Here you only keep notes and hand work off. Anything that needs other tools (the web, files, commands, tasks, the browser) goes to an agent with delegate: say in one line that it is on its way; its answer reaches the owner here.";
+  "Here you keep notes, write to people and rooms when asked (message_contact, channel_post) and hand the rest off. Anything that needs other tools (the web, files, commands, tasks, the browser) goes to an agent with delegate: say in one line that it is on its way; its answer reaches the owner here.";
 const ACK_NOTE =
   "Before your first tool call, write one short natural line in the owner's language saying you are on it (a few words, never the answer); it reaches them at once, the full answer follows. With no tool call, no such line. They are not looking at the app: look things up with web_search and web_read; open the browser only when a page needs it (JavaScript, a login, clicks).";
 

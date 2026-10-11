@@ -106,11 +106,23 @@ export type ToolCall = <M extends MethodName>(
 
 const MEMORY_TOOLS = new Set(["remember", "recall", "forget", "search_owner_notes"]);
 /**
- * The owner's turns on WhatsApp keep notes and hand work off, nothing else: a phone chat with no buttons is no place
- * for tool cards and confirmations, so anything that needs tools goes to an agent of its own (delegate).
+ * The owner's turns on WhatsApp keep notes, write to people and rooms, and hand the rest off: a phone chat is no place
+ * for tool cards, so other tool work goes to an agent of its own (delegate). A send stays here, since what the owner
+ * asked to send cannot be relayed to another agent; its confirmation comes as numbered options.
  */
 const HANDOFF_ONLY = new Set(["whatsapp"]);
-const HANDOFF_TOOLS = new Set([...MEMORY_TOOLS, "delegate", "list_agents", "read_output", "load_skill"]);
+const HANDOFF_TOOLS = new Set([
+  ...MEMORY_TOOLS,
+  "delegate",
+  "list_agents",
+  "read_output",
+  "load_skill",
+  "message_contact",
+  "channel_post",
+  "channel_list",
+  "contact_list",
+  "read_chat",
+]);
 
 type Turn = {
   agent: AgentRecord;
