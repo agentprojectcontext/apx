@@ -132,7 +132,7 @@ export function browserTools(): Tool[] {
         const tab = await own(ctx, a.tab);
         const r = await ctx.call("browser.click", { tab, ref: a.ref, by: ctx.agent.id });
         await card(ctx, tab, "agent");
-        return `ok · now at ${r.url}`;
+        return `clicked ${a.ref} · now at ${r.url}. Take a new browser_snapshot to check it did what you meant.`;
       },
     }),
     defineTool({
@@ -160,7 +160,7 @@ export function browserTools(): Tool[] {
           submit: a.submit ?? false,
           by: ctx.agent.id,
         });
-        return `ok · ${r.url}`;
+        return `typed into ${a.ref}${a.submit ? " and pressed Enter" : ""} · ${r.url}. Take a new browser_snapshot to check it worked (a message sent, a form gone) before saying it did.`;
       },
     }),
     defineTool({

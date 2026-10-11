@@ -10,11 +10,15 @@ const MAX_STEPS = 14;
  * is asked whether to go on every 60 computer actions (tools/computer.ts), well before this ends.
  */
 const COMPUTER_STEPS = 150;
+/** A turn in the browser goes the same way (open, look, type, look again), with no owner check on the way. */
+const BROWSER_STEPS = 60;
 const MAX_CONTINUATIONS = 2;
 /** Same tool with the same arguments this many times = stuck. */
 const REPEAT_LIMIT = 3;
 /** Looking at the screen again is how a computer session sees what changed: never "the same call" twice. */
-const LOOKS_AGAIN = new Set(["screen_snapshot"]);
+const LOOKS_AGAIN = new Set(["screen_snapshot", "browser_snapshot"]);
+/** Reading the same page part again is stuck only when it says the same: after a click or a load it may not. */
+const READS_AGAIN = new Set(["browser_text"]);
 
 /**
  * A note from APX to the model mid-turn. Sent as a tagged user item: some providers fold every system item into
@@ -103,8 +107,9 @@ export function nativeHarness(llm: Llm): Harness {
             lookedFrom.add(call.function.name);
           }
           if (call.function.name.startsWith("screen_")) limit = Math.max(limit, COMPUTER_STEPS);
+          if (call.function.name.startsWith("browser_")) limit = Math.max(limit, BROWSER_STEPS);
           if (LOOKS_AGAIN.has(call.function.name)) continue;
-          const sig = `${call.function.name}:${call.function.arguments}`;
+          const sig = `${call.function.name}:${call.function.arguments}${READS_AGAIN.has(call.function.name) ? `:${out.text}` : ""}`;
           seen.set(sig, (seen.get(sig) ?? 0) + 1);
           if ((seen.get(sig) ?? 0) >= REPEAT_LIMIT) stuck = call.function.name;
         }
