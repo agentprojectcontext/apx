@@ -61,8 +61,10 @@ try {
     $Api = if ($UrlFeed) { $Feed.TrimEnd("/") } else { "https://api.github.com/repos/$Feed" }
     if (-not $Version) {
       Say "Looking for the newest APX in $Feed"
-      $releases = Invoke-RestMethod -Headers @{ "accept" = "application/vnd.github+json"; "user-agent" = "apx-install" } `
-        -Uri "$Api/releases?per_page=100"
+      try {
+        $releases = Invoke-RestMethod -Headers @{ "accept" = "application/vnd.github+json"; "user-agent" = "apx-install" } `
+          -Uri "$Api/releases?per_page=100"
+      } catch { Die "could not read the releases of $Feed" }
       # The highest plain vX.Y.Z from 2 up, not the newest by date: a fix to an older line can come after a newer one.
       $tag = $releases | Where-Object { -not $_.draft -and -not $_.prerelease -and $_.tag_name -match '^v([2-9]\d*\.\d+\.\d+)$' } |
         Sort-Object { [version]$_.tag_name.Substring(1) } -Descending | Select-Object -First 1
@@ -73,8 +75,8 @@ try {
     $Name = "apx-core-$Version-win-$Arch.tar.gz"
     $Base = if ($UrlFeed) { "$Api/download/v$Version" } else { "https://github.com/$Feed/releases/download/v$Version" }
     Say "Downloading APX $Version (win-$Arch)"
-    Invoke-WebRequest -Uri "$Base/$Name" -OutFile (Join-Path $Work $Name)
-    Invoke-WebRequest -Uri "$Base/$Name.sha256" -OutFile (Join-Path $Work "$Name.sha256")
+    try { Invoke-WebRequest -Uri "$Base/$Name" -OutFile (Join-Path $Work $Name) } catch { Die "could not download $Base/$Name" }
+    try { Invoke-WebRequest -Uri "$Base/$Name.sha256" -OutFile (Join-Path $Work "$Name.sha256") } catch { Die "could not download $Name.sha256" }
   }
 
   # 2. Checked against its .sha256 when there is one (always, for a download).
