@@ -1,10 +1,21 @@
 name: Deploy site to GitHub Pages
 
-# Publishes TWO things to one GitHub Pages site:
+# Publishes THREE things to one GitHub Pages site:
 #   /apx/        → landing.html (the site's index)
 #   /apx/docs/   → the Astro Starlight docs (built from ./docs)
+#   /apx/v2/     → APX v2's landing + docs (apps/docs on the release/v2 branch),
+#                  with /apx/v2/install.sh and /apx/v2/install.ps1 beside them
 # so the docs live at https://agentprojectcontext.github.io/apx/docs/ and the
 # landing links to them.
+#
+# v2's install scripts are served from here because v2's releases are created
+# "not latest" while v1 shares the repo, so releases/latest/download/... would
+# hand out v1. The scripts themselves find the newest v2.x.y release.
+#
+# Pushes to release/v2 run the workflow file of the pushed commit, not this
+# one, so they cannot trigger it through `on.push` here. release/v2 carries
+# .github/workflows/site.yml, which asks for this workflow on main
+# (workflow_dispatch) when apps/docs/** or scripts/install/** change there.
 #
 # `landing.html` is the ONLY landing page. This comment used to claim the repo
 # root also held an index.html that was "the web-admin SPA, which Vite needs
@@ -22,6 +33,7 @@ on:
       - 'assets/**'
       - 'docs/**'
       - '.github/workflows/pages.yml'
+  # Also run by release/v2's site.yml (see above), or by hand.
   workflow_dispatch:
 
 permissions:
@@ -41,6 +53,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v5
+
+      # APX v2's site lives on another branch, with unrelated history.
+      - uses: actions/checkout@v5
+        with:
+          ref: release/v2
+          path: v2
 
       # pnpm is only used by the docs subproject, so its version lives in
       # docs/package.json's "packageManager" field — read it from there.
@@ -65,6 +83,23 @@ jobs:
           pnpm install --frozen-lockfile --ignore-workspace
           pnpm build
 
+      # v2's docs install on their own (their own pnpm-workspace.yaml and
+      # lockfile) with the pnpm their package.json names, which is not the one
+      # set up above for ./docs, and need Node 24.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Build v2 site (Astro Starlight, base=/apx/v2)
+        working-directory: v2/apps/docs
+        env:
+          DOCS_BASE: /apx/v2
+        run: |
+          PNPM="$(node -p "require('./package.json').packageManager")"
+          npx --yes "$PNPM" install --frozen-lockfile
+          npx --yes "$PNPM" build
+          # The build copies scripts/install/install.{sh,ps1} to the site root.
+          test -f dist/install.sh && test -f dist/install.ps1
+
       - name: Assemble static site
         run: |
           mkdir -p _site/assets
@@ -83,6 +118,10 @@ jobs:
           # Docs build → /apx/docs/ (base path is baked in by Astro).
           mkdir -p _site/docs
           cp -R docs/dist/.             _site/docs/
+          # v2 build → /apx/v2/ (base path baked in by Astro; install.sh,
+          # install.ps1 and the /apx/v2/docs/ redirect come with it).
+          mkdir -p _site/v2
+          cp -R v2/apps/docs/dist/.     _site/v2/
 
       - uses: actions/configure-pages@v6
         with:

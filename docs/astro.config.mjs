@@ -51,6 +51,8 @@ export default defineConfig({
 					'https://github.com/agentprojectcontext/apx/edit/main/docs/',
 			},
 			lastUpdated: true,
+			// Every page carries a note that APX v2 beta is out (/apx/v2/).
+			components: { Banner: './src/components/V2Banner.astro' },
 			sidebar: [
 				{
 					label: 'Start Here',
