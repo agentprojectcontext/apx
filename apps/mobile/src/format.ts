@@ -99,3 +99,13 @@ export function sentenceCase(text: string | undefined): string {
   const trimmed = text?.trim() ?? "";
   return trimmed ? trimmed.charAt(0).toLocaleUpperCase() + trimmed.slice(1) : "";
 }
+
+/** Up to two initials of a name; none for an empty one (the avatar shows a person instead). */
+export function initials(name: string | undefined): string {
+  return (name ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word.charAt(0).toLocaleUpperCase())
+    .join("");
+}

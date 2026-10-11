@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ago, ahead, dayLabel, dueWhen, elapsed, listWhen, sentenceCase } from "./format.ts";
+import { ago, ahead, dayLabel, dueWhen, elapsed, initials, listWhen, sentenceCase } from "./format.ts";
 
 // A Wednesday afternoon, local time.
 const now = new Date(2026, 9, 7, 14, 39);
@@ -48,4 +48,11 @@ test("text from the core starts with a capital, the rest as written", () => {
   assert.equal(sentenceCase("Already fine, with API names"), "Already fine, with API names");
   assert.equal(sentenceCase(""), "");
   assert.equal(sentenceCase(undefined), "");
+});
+
+test("an avatar takes up to two initials, and none from an empty name", () => {
+  assert.equal(initials("ada lovelace byron"), "AL");
+  assert.equal(initials("  Northwind "), "N");
+  assert.equal(initials(""), "");
+  assert.equal(initials("   "), "");
 });

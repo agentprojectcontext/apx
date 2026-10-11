@@ -11,6 +11,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import Svg, { Circle } from "react-native-svg";
+import { initials } from "../../format";
 import { Icon, type IconName } from "../Icon";
 import { type Tone, theme as t, toneColors } from "../theme";
 
@@ -263,18 +264,16 @@ export function IconTile({ icon, tone = "neutral", size = 34 }: { icon: IconName
   );
 }
 
-/** The owner's initials, with the green dot while the phone is connected. */
+/** The owner's initials (a person, while the core has no name), with the green dot while the phone is connected. */
 export function OwnerAvatar({ name, size = 32, online }: { name: string; size?: number; online?: boolean }) {
-  const initials =
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((word) => word[0]?.toUpperCase())
-      .join("") || "·";
+  const letters = initials(name);
   return (
     <View style={[s.owner, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={{ color: t.violetSoftFg, fontSize: Math.round(size * 0.36), fontWeight: "600" }}>{initials}</Text>
+      {letters ? (
+        <Text style={{ color: t.violetSoftFg, fontSize: Math.round(size * 0.36), fontWeight: "600" }}>{letters}</Text>
+      ) : (
+        <Icon name="UserRound" size={Math.round(size * 0.5)} color={t.violetSoftFg} />
+      )}
       {online ? <View style={s.ownerDot} /> : null}
     </View>
   );
