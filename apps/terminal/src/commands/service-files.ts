@@ -23,6 +23,13 @@ export function bundleAppOf(terminalSrc: string): string | undefined {
   return path.basename(versions) === BUNDLE.versions ? path.dirname(versions) : undefined;
 }
 
+/** Sets APX_APP for a terminal that runs from a bundle; a checkout leaves it unset (process.env would store "undefined"). */
+export function adoptBundleApp(env: NodeJS.ProcessEnv, terminalSrc: string): void {
+  if (env.APX_APP) return;
+  const app = bundleAppOf(terminalSrc);
+  if (app) env.APX_APP = app;
+}
+
 /**
  * What runs, for a daemon installed from a bundle (APX_APP): always through `current`, never the version folder it
  * points at today, so an update that moves `current` is what the service starts next.

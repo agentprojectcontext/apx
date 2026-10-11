@@ -167,6 +167,33 @@ export function failure(title: string, lines: string[], plain = false): string {
   return !plain ? themedCard(title, lines) : `apx: ${clean(title)}: ${lines.map(clean).join(" · ")}`;
 }
 
+/** The system error code behind a failed request: fetch wraps it in `cause`, a dual-stack connect in `errors`. */
+function errorCodes(err: unknown, depth = 0): string[] {
+  if (!err || typeof err !== "object" || depth > 5) return [];
+  const e = err as { code?: unknown; cause?: unknown; errors?: unknown };
+  return [
+    ...(typeof e.code === "string" ? [e.code] : []),
+    ...errorCodes(e.cause, depth + 1),
+    ...(Array.isArray(e.errors) ? e.errors.flatMap((x) => errorCodes(x, depth + 1)) : []),
+  ];
+}
+
+/** What to tell the owner when the core could not be reached; undefined for any other error. */
+export function unreachableCore(err: unknown): { title: string; lines: string[] } | undefined {
+  const codes = errorCodes(err);
+  if (codes.includes("EPERM") || codes.includes("EACCES"))
+    return {
+      title: "Core unreachable",
+      lines: [
+        "This process is not allowed to connect to the core, probably a sandbox blocking local network.",
+        "Run apx outside the sandbox, or allow network access for this runtime.",
+      ],
+    };
+  if (codes.includes("ECONNREFUSED"))
+    return { title: "Core not running", lines: ["Start it: apx service install, or pnpm dev"] };
+  return undefined;
+}
+
 export const duration = (seconds: number) => {
   const n = Math.floor(seconds);
   return n < 60
