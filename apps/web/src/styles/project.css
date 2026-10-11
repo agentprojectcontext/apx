@@ -1,22 +1,5 @@
 /* Project screen (header, Overview, Team), placeholder pages. Tokens only; widths from --shell-*. */
 
-.workspace {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-}
-/* The chat list's column: its edge resizes it; folded, a strip that opens it again. */
-.listcol {
-  position: relative;
-  display: flex;
-  flex: none;
-  min-height: 0;
-}
-.apx-resize.listcol__resize {
-  right: -4px;
-}
-
 /* ── Project ───────────────────────────────────────────────────────────────── */
 .project {
   flex: 1;

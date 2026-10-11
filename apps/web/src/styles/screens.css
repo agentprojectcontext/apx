@@ -1,0 +1,11 @@
+/* The screens' sheets, in one file loaded with the first screen that needs them (project, tasks, channels, config,
+   resources…): they share rules, and one file keeps their order. What the first screen uses of them is shared.css. */
+@import "./project.css";
+@import "./team.css";
+@import "./resources.css";
+@import "./tasks.css";
+@import "./channels.css";
+@import "./office.css";
+@import "./files.css";
+@import "./config.css";
+@import "./models.css";

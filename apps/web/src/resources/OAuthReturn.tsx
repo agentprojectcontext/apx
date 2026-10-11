@@ -1,3 +1,4 @@
+import "../styles/screens.css";
 import { Button, EmptyState, Icons, Spinner } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";

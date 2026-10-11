@@ -1,5 +1,6 @@
 // A file's text with line numbers and its language's colors, read-only or edited in place. CodeMirror is loaded only
 // when a text file opens (this module is imported lazily by FilesPane).
+import "../../styles/screens.css";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { css } from "@codemirror/lang-css";
 import { html } from "@codemirror/lang-html";

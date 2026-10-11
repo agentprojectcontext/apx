@@ -1,3 +1,4 @@
+import "../styles/screens.css";
 import "../styles/wizard.css";
 import type { ModelChoice, ProjectKind } from "@apx/protocol";
 import { AgentAvatar, Button, IconButton, Icons } from "@apx/ui";

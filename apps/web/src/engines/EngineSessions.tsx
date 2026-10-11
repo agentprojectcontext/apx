@@ -1,3 +1,4 @@
+import "../styles/screens.css";
 import type { Result, Thread } from "@apx/protocol";
 import { Button, Dialog, EmptyState, EngineIcon, Field, IconButton, Icons, SearchField, Skeleton } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
