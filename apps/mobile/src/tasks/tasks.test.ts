@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Agent } from "../hooks/useWorkspace";
 import { translator } from "../i18n/index.ts";
+import type { Message } from "../protocol.ts";
 import { clockValue, dayValue, monthWeeks, withTime } from "./calendar.ts";
+import { taskComments } from "./comments.ts";
 import { applyPatch, assignableAgents, columnName, taskValues } from "./fields.ts";
 
 const agent = (id: string, extra: Partial<Agent> = {}): Agent => ({ id, name: id, ...extra });
@@ -71,4 +73,28 @@ test("a new task's form takes each change; null clears, absent keeps", () => {
   assert.deepEqual(next, { ...start, priority: "high", assignee: undefined, due: "2026-10-05T18:30" });
   assert.equal(applyPatch(next, { due_at: null }).due, undefined);
   assert.equal(applyPatch(next, { status: "doing" }).project, "p1");
+});
+
+test("a task's comments are the owner's and agents' written words, oldest first", () => {
+  const msg = (id: string, author: Message["author"], parts: Message["parts"]): Message => ({
+    id,
+    thread_id: "th",
+    seq: 0,
+    author,
+    parts,
+    created_at: `2026-10-0${id}T10:00:00Z`,
+  });
+  const comments = taskComments([
+    msg("1", { kind: "user" }, [{ type: "text", text: "  @vera can you look?  " }]),
+    msg("2", { kind: "system" }, [{ type: "text", text: "Moved to Doing" }]),
+    msg("3", { kind: "agent", id: "vera" }, [
+      { type: "text", text: "On it." },
+      { type: "text", text: "Done." },
+    ]),
+    msg("4", { kind: "agent", id: "vera" }, []),
+  ]);
+  assert.deepEqual(comments, [
+    { id: "1", by: "owner", text: "@vera can you look?", at: "2026-10-01T10:00:00Z" },
+    { id: "3", by: "vera", text: "On it.\n\nDone.", at: "2026-10-03T10:00:00Z" },
+  ]);
 });

@@ -4,6 +4,7 @@ import { dueWhen } from "../format";
 import { closedTasks, type TaskFilter, type TaskGroup, taskGroups } from "../hooks/taskGroups";
 import type { Task, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
+import { type TaskActions, TaskMenu } from "../tasks/TaskMenu";
 import { Icon } from "../ui/Icon";
 import { AgentAvatar, EmptyState, Fab, GroupLabel, PageTitle, Screen, Segmented, Tag, type } from "../ui/kit";
 import { theme } from "../ui/theme";
@@ -15,9 +16,26 @@ const COLORS: Record<TaskGroup["id"], string> = {
   blocked: theme.warning,
 };
 
-/** Open tasks by group, then the latest closed ones folded; a task opens its page, the button makes a new one. */
-export function TasksPage({ data, open, create }: { data: Workspace; open: (task: Task) => void; create: () => void }) {
+/**
+ * Open tasks by group, then the latest closed ones folded; a task opens its page, a long press its options, the
+ * button makes a new one.
+ */
+export function TasksPage({
+  data,
+  actions,
+  open,
+  create,
+  openThread,
+}: {
+  data: Workspace;
+  actions: TaskActions;
+  open: (task: Task) => void;
+  create: () => void;
+  openThread: (id: string) => void;
+}) {
   const [filter, setFilter] = useState<TaskFilter>("all");
+  const [menu, setMenu] = useState<string>();
+  const menuTask = data.tasks.find((item) => item.id === menu);
   const [showClosed, setShowClosed] = useState(false);
   const groups = useMemo(() => taskGroups(data.tasks, filter), [data.tasks, filter]);
   const closed = useMemo(() => closedTasks(data.tasks, filter), [data.tasks, filter]);
@@ -47,7 +65,13 @@ export function TasksPage({ data, open, create }: { data: Workspace; open: (task
             <View key={group.id}>
               <GroupLabel label={`${t(group.label)} · ${group.tasks.length}`} color={COLORS[group.id]} />
               {group.tasks.map((task) => (
-                <TaskRow key={task.id} task={task} data={data} onPress={() => open(task)} />
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  data={data}
+                  onPress={() => open(task)}
+                  onMenu={() => setMenu(task.id)}
+                />
               ))}
             </View>
           ))
@@ -66,24 +90,56 @@ export function TasksPage({ data, open, create }: { data: Workspace; open: (task
               <Icon name={showClosed ? "ChevronDown" : "ChevronRight"} size={14} color={theme.fgSubtle} />
             </Pressable>
             {showClosed
-              ? closed.map((task) => <TaskRow key={task.id} task={task} data={data} onPress={() => open(task)} />)
+              ? closed.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    data={data}
+                    onPress={() => open(task)}
+                    onMenu={() => setMenu(task.id)}
+                  />
+                ))
               : null}
           </View>
         ) : null}
       </Screen>
       <Fab icon="Plus" label={t("tkNew")} onPress={create} />
+      {menuTask ? (
+        <TaskMenu
+          task={menuTask}
+          data={data}
+          actions={actions}
+          onClose={() => setMenu(undefined)}
+          onOpen={() => open(menuTask)}
+          onConversation={() => openThread(menuTask.thread_id)}
+        />
+      ) : null}
     </View>
   );
 }
 
-function TaskRow({ task, data, onPress }: { task: Task; data: Workspace; onPress: () => void }) {
+function TaskRow({
+  task,
+  data,
+  onPress,
+  onMenu,
+}: {
+  task: Task;
+  data: Workspace;
+  onPress: () => void;
+  onMenu: () => void;
+}) {
   const agent = data.agents.find((item) => item.id === task.assignee);
   const project = data.projects.find((item) => item.id === task.project_id)?.name ?? t("defaultProject");
   const who = agent?.name ?? task.assignee ?? "APX";
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityActions={[{ name: "longpress", label: t("tkMore") }]}
+      onAccessibilityAction={(event) => event.nativeEvent.actionName === "longpress" && onMenu()}
       onPress={onPress}
+      onLongPress={onMenu}
+      delayLongPress={350}
       style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.fill }]}
     >
       <AgentAvatar name={who} blob={agent?.blob} id={agent?.id ?? task.assignee} size={36} />

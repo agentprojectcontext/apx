@@ -19,7 +19,7 @@ import {
 } from "./fields";
 import { momentOf } from "./when";
 
-type Sheet = "status" | "kind" | "priority" | "project" | "assignee" | "due";
+export type TaskField = "status" | "kind" | "priority" | "project" | "assignee" | "due";
 
 /**
  * A task's column, priority, who does it, due date, project and type, one row each; a row opens its sheet and the
@@ -34,13 +34,11 @@ export function TaskFields({
   value: TaskValues;
   onChange: (patch: TaskPatch) => void;
 }) {
-  const [sheet, setSheet] = useState<Sheet>();
+  const [sheet, setSheet] = useState<TaskField>();
   const close = () => setSheet(undefined);
   const column = data.columns.find((item) => item.id === value.status);
   const agent = data.agents.find((item) => item.id === value.assignee);
   const project = data.projects.find((item) => item.id === value.project);
-  const agents = assignableAgents(data.agents, value.project);
-  const projects = data.projects.filter((item) => item.registered !== false);
   const lead = (name: IconName) => <Icon name={name} size={18} color={theme.fgMuted} />;
   return (
     <>
@@ -85,7 +83,30 @@ export function TaskFields({
           onPress={() => setSheet("kind")}
         />
       </ListGroup>
-      {sheet === "status" ? (
+      {sheet ? <FieldSheet field={sheet} data={data} value={value} onChange={onChange} onClose={close} /> : null}
+    </>
+  );
+}
+
+/** One property's sheet: a pick reaches `onChange` as tasks.update takes it (`null` clears). */
+export function FieldSheet({
+  field,
+  data,
+  value,
+  onChange,
+  onClose: close,
+}: {
+  field: TaskField;
+  data: Workspace;
+  value: TaskValues;
+  onChange: (patch: TaskPatch) => void;
+  onClose: () => void;
+}) {
+  const agents = assignableAgents(data.agents, value.project);
+  const projects = data.projects.filter((item) => item.registered !== false);
+  return (
+    <>
+      {field === "status" ? (
         <OptionSheet
           title={t("tkColumn")}
           value={value.status}
@@ -94,7 +115,7 @@ export function TaskFields({
           onClose={close}
         />
       ) : null}
-      {sheet === "priority" ? (
+      {field === "priority" ? (
         <OptionSheet
           title={t("tkPriority")}
           value={value.priority}
@@ -103,7 +124,7 @@ export function TaskFields({
           onClose={close}
         />
       ) : null}
-      {sheet === "kind" ? (
+      {field === "kind" ? (
         <OptionSheet
           title={t("tkType")}
           value={value.kind}
@@ -112,7 +133,7 @@ export function TaskFields({
           onClose={close}
         />
       ) : null}
-      {sheet === "assignee" ? (
+      {field === "assignee" ? (
         <OptionSheet
           title={t("tkAssignee")}
           value={value.assignee ?? ""}
@@ -129,7 +150,7 @@ export function TaskFields({
           onClose={close}
         />
       ) : null}
-      {sheet === "project" ? (
+      {field === "project" ? (
         <OptionSheet
           title={t("tkProject")}
           value={value.project ?? ""}
@@ -146,7 +167,7 @@ export function TaskFields({
           onClose={close}
         />
       ) : null}
-      {sheet === "due" ? (
+      {field === "due" ? (
         <DateSheet
           title={t("tkDue")}
           value={value.due}

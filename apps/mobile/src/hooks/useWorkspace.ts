@@ -8,11 +8,13 @@ import {
   ApxClient,
   type ApxSocket,
   type CoreEvent,
+  type Message,
   type NoticePrefs,
   type RoutineRun,
   type Schedule,
   type TaskEvent,
 } from "../protocol";
+import { taskComments } from "../tasks/comments";
 import { DEFAULT_COLUMNS, type TaskColumn, type TaskPatch } from "../tasks/fields";
 
 export type Agent = {
@@ -444,13 +446,25 @@ export function useWorkspace(creds: Creds) {
     setData((d) => ({ ...d, tasks: [task, ...d.tasks.filter((item) => item.id !== task.id)] }));
     return task;
   }, []);
+  /** Its history and its comments (read without marking the conversation seen). */
   const taskDetail = useCallback(
     async (taskId: string) => {
       const result = await rpc<{ task: Task; events: TaskEvent[] }>(client, "tasks.get", { task: taskId });
       putTask(result.task);
-      return result.events;
+      const conversation = await rpc<{ messages: Message[] }>(client, "threads.get", {
+        thread: result.task.thread_id,
+      }).catch(() => undefined);
+      return { events: result.events, comments: taskComments(conversation?.messages ?? []) };
     },
     [client, putTask],
+  );
+  /** Deletes it for good, with its history and conversation. */
+  const deleteTask = useCallback(
+    async (taskId: string) => {
+      await rpc(client, "tasks.delete", { task: taskId });
+      setData((d) => ({ ...d, tasks: d.tasks.filter((item) => item.id !== taskId) }));
+    },
+    [client],
   );
   const createTask = useCallback(
     async (task: NewTask) => putTask(await rpc<Task>(client, "tasks.create", task)),
@@ -614,6 +628,7 @@ export function useWorkspace(creds: Creds) {
     createTask,
     updateTask,
     closeTask,
+    deleteTask,
     memories,
     addMemory,
     removeMemory,

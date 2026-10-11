@@ -86,8 +86,13 @@ export function WorkspaceScreen({
     [workspace.toggleRoutine, workspace.runRoutine, workspace.routineRuns],
   );
   const taskActions = useMemo(
-    () => ({ detail: workspace.taskDetail, update: workspace.updateTask, close: workspace.closeTask }),
-    [workspace.taskDetail, workspace.updateTask, workspace.closeTask],
+    () => ({
+      detail: workspace.taskDetail,
+      update: workspace.updateTask,
+      close: workspace.closeTask,
+      remove: workspace.deleteTask,
+    }),
+    [workspace.taskDetail, workspace.updateTask, workspace.closeTask, workspace.deleteTask],
   );
   const [surfaces, setSurfaces] = useState(false);
   const [picker, setPicker] = useState<"switch" | "new">();
@@ -289,7 +294,15 @@ export function WorkspaceScreen({
           />
         );
       case "tasks":
-        return <TasksPage data={workspace.data} open={(item) => setTask(item.id)} create={() => setTask("new")} />;
+        return (
+          <TasksPage
+            data={workspace.data}
+            actions={taskActions}
+            open={(item) => setTask(item.id)}
+            create={() => setTask("new")}
+            openThread={openById}
+          />
+        );
       case "sessions":
         return (
           <SessionsPage
