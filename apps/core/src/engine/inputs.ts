@@ -50,6 +50,8 @@ export function createInputs(deps: {
 
   /** Rewrites the input's card in the message that asked, for answers that arrive with no turn listening. */
   function settleCard(r: InputRecord): void {
+    // The live card's own update clears the tray; with no turn listening, it is cleared here.
+    store.notifications.resolve("input", r.id);
     const msg = r.message_id ? store.messages.get(r.message_id) : undefined;
     if (!msg) return;
     store.messages.update({
@@ -80,6 +82,13 @@ export function createInputs(deps: {
       parent_run_id: previous?.parent_run_id,
       depth: previous?.depth ?? 0,
     });
+  }
+
+  /** A chat that only waited on the owner goes back to idle once nothing is left to wait on. */
+  function idleIfDone(threadId: string): void {
+    const th = store.threads.get(threadId);
+    if (th?.state === "input-required" && !store.inputs.pending(th.id).length && !store.threads.busy([th.id]))
+      store.threads.patch(th.id, { state: "idle" });
   }
 
   store.approvals.subscribe(() => {
@@ -204,6 +213,24 @@ export function createInputs(deps: {
       return settled;
     },
 
+    /**
+     * An agent takes back its own open question: it ends `withdrawn`, the turn waiting on it (if any) goes on, and
+     * nothing new reaches the owner.
+     */
+    withdraw(id: string, agentId: string): InputRecord {
+      const rec = store.inputs.get(id);
+      if (!rec || rec.kind !== "question" || rec.agent_id !== agentId) throw notFound(`question ${id} of yours`);
+      const settled = store.inputs.settle(id, "withdrawn");
+      if (!settled) throw conflict(`question ${id} is already ${store.inputs.get(id)?.state ?? "closed"}`);
+      const listener = waiting.get(id);
+      if (listener) listener(settled);
+      else {
+        settleCard(settled);
+        idleIfDone(settled.thread_id);
+      }
+      return settled;
+    },
+
     /** True once for a call the owner approved after its turn had ended. */
     takeGrant(thread: string, agent: string, tool: string, args: Record<string, unknown>, binding?: string): boolean {
       return store.approvals.takeOnce(thread, agent, tool, args, binding);
@@ -218,9 +245,7 @@ export function createInputs(deps: {
         const settled = store.inputs.settle(id, "expired");
         if (!settled) return;
         settleCard(settled);
-        const th = store.threads.get(settled.thread_id);
-        if (th?.state === "input-required" && !store.inputs.pending(th.id).length && !store.threads.busy([th.id]))
-          store.threads.patch(th.id, { state: "idle" });
+        idleIfDone(settled.thread_id);
       };
       const watch = (r: InputRecord) => {
         const left = Date.parse(r.expires_at) - Date.now();

@@ -253,8 +253,11 @@ export type ToolApproval = z.infer<typeof ToolApproval>;
 
 export const InputKind = z.enum(["confirm", "question"]);
 export type InputKind = z.infer<typeof InputKind>;
-/** `expired` = nobody answered in time or the run ended first; for a confirmation it counts as a no. */
-export const InputState = z.enum(["pending", "approved", "denied", "answered", "expired"]);
+/**
+ * `expired` = nobody answered in time or the run ended first; for a confirmation it counts as a no. `withdrawn` = the
+ * agent took its question back before the owner answered.
+ */
+export const InputState = z.enum(["pending", "approved", "denied", "answered", "expired", "withdrawn"]);
 export type InputState = z.infer<typeof InputState>;
 
 /** Something an agent waits on from the owner. Durable: it outlives a restart of the core. */

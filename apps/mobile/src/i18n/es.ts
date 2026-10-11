@@ -154,6 +154,7 @@ export const es: Record<Key, string> = {
   filesChanged: "{n} archivos cambiados",
   couldNotAnswer: "No se pudo responder",
   answered: "Respondida",
+  withdrawn: "Retirada",
   deny: "Rechazar",
   router: "Auto",
   routerSub: "APX elige según la tarea",

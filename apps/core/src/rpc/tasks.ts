@@ -18,6 +18,7 @@ import {
   visibleTask,
 } from "../domain/tasks.ts";
 import type { Engine } from "../engine/engine.ts";
+import { ownerMentionProblem } from "../engine/office.ts";
 import { type Asker, addComment, askMentioned, startTaskWork } from "../engine/task-work.ts";
 import { conflict, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
@@ -166,6 +167,11 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
     },
     "tasks.comment": ({ task, text }, ctx) => {
       const t = visible(task, ctx);
+      const why = ctx.agent ? ownerMentionProblem(store, text) : undefined;
+      if (why)
+        throw badRequest(
+          `not posted: ${why}. Mention @owner only with one specific question or decision and what they need to know; to stop waiting for them, use task_update awaits_owner:false.`,
+        );
       const author: Author = ctx.agent ? { kind: "agent", id: ctx.agent.id } : { kind: "user" };
       return store.tx(() => {
         const message = addComment(store, t, author, text, by(ctx));

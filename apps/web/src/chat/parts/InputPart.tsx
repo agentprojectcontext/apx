@@ -9,11 +9,18 @@ const DONE: Record<Exclude<Extract<Part, { type: "input" }>["state"], "pending">
   denied: "input.denied",
   answered: "input.answered",
   expired: "input.expired",
+  withdrawn: "input.withdrawn",
 };
 
 type InputPartData = Extract<Part, { type: "input" }>;
 
-const DONE_ICON = { approved: Icons.Check, answered: Icons.Check, denied: Icons.X, expired: Icons.Clock } as const;
+const DONE_ICON = {
+  approved: Icons.Check,
+  answered: Icons.Check,
+  denied: Icons.X,
+  expired: Icons.Clock,
+  withdrawn: Icons.RotateCcw,
+} as const;
 
 /** An agent waiting for the owner: approve or decline an action, or answer a question. Once settled, one line. */
 export function InputPart({ part }: { part: InputPartData }) {

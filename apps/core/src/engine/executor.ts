@@ -297,6 +297,7 @@ export function createExecutor(o: {
           stays: !canContinue,
           signal,
         }),
+      withdrawQuestion: (inputId) => o.inputs.withdraw(inputId, agent.id),
     };
     const out = await runTool(tool, args, { ...ctx, runCommand: (c) => runCommand(c, run) });
     const images = out.ok && seen.length ? { images: seen } : {};
