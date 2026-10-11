@@ -24,10 +24,18 @@ import type { SkillPicker } from "./skill-pick.ts";
 import { runTurn, type ToolCall } from "./turn.ts";
 
 export const RUN_DEADLINE_MS = 6 * 60_000;
+/** A coding session with an outside engine (Claude Code, Codex) works for long stretches on its own. */
+export const CODE_DEADLINE_MS = 60 * 60_000;
 /** Time a turn gets back after the owner answers, even if its clock had almost run out. */
 const AFTER_ANSWER_MS = 60_000;
 
 type Clock = { pause(): void; resume(): void; stop(): void };
+
+function runDeadline(store: Store, threadId: string, trigger: string | undefined): number {
+  if (trigger === "a2a") return A2A_DEADLINE_MS;
+  const thread = store.threads.get(threadId);
+  return thread?.kind === "code" && thread.engine ? CODE_DEADLINE_MS : RUN_DEADLINE_MS;
+}
 
 /** A deadline that can be held (nested holds count): used while a turn waits for the owner. */
 function pausableClock(ms: number, fire: () => void): Clock {
@@ -188,7 +196,7 @@ export function createEngine(deps: {
       },
       depth: a.depth ?? 0,
       parent_run_id: a.parent_run_id,
-      deadline_at: new Date(Date.now() + RUN_DEADLINE_MS).toISOString(),
+      deadline_at: new Date(Date.now() + runDeadline(store, a.thread_id, a.trigger)).toISOString(),
     });
     if (store.threads.get(a.thread_id)?.state !== "working") store.threads.patch(a.thread_id, { state: "submitted" });
     // After the caller's transaction commits: the turn must never run on a row that could still roll back.
@@ -215,7 +223,7 @@ export function createEngine(deps: {
   async function execute(run: RunRecord): Promise<void> {
     const ac = new AbortController();
     // A restart re-runs queued work with a fresh deadline: the clock starts when the run can actually work.
-    const clock = pausableClock(run.trigger === "a2a" ? A2A_DEADLINE_MS : RUN_DEADLINE_MS, () =>
+    const clock = pausableClock(runDeadline(deps.store, run.thread_id, run.trigger), () =>
       ac.abort(new DeadlineExceeded()),
     );
     active.set(run.id, { ac, thread: run.thread_id, clock });
