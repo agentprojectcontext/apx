@@ -5,7 +5,7 @@
 // line or "disregard this card" turns that into a blocker nobody can resolve,
 // so the store refuses it before anything is written or sent.
 
-const MIN_MEANINGFUL_CHARS = 8;
+const MIN_MEANINGFUL_CHARS = 4;
 
 const fold = (s) => s.normalize("NFD").replace(/\p{M}+/gu, "").toLowerCase();
 

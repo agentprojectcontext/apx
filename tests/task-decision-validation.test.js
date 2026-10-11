@@ -63,12 +63,14 @@ test("text that asks nothing creates no decision, no comment and no notice", asy
 test("the store itself refuses them, so every surface that asks gets the same rule", () => {
   const t = createTask(STORE, { title: "x" });
   assert.throws(() => askDecision(STORE, t.id, { question: "placeholder", by: "pm" }), /not a decision \(placeholder\)/);
+  for (const q of ["¿A?", "¿v2?"]) assert.throws(() => askDecision(STORE, t.id, { question: q, by: "pm" }), /too_short/, q);
   assert.throws(() => askDecision(STORE, t.id, { question: "  ", by: "pm" }), /question required/);
   assert.equal(getTask(STORE, t.id).decisions.length, 0);
 });
 
 test("real questions still pass, in English and Spanish, with or without options", async () => {
   const ok = [
+    "Ship it?",
     "Ship on Friday, or wait for the audit?",
     "¿Garantizamos alertas en menos de 5 minutos?",
     "Which region should host the staging database",
