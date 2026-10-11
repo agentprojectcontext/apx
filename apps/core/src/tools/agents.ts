@@ -1,7 +1,9 @@
 // Finding and asking other agents. `delegate` is the only way an agent talks to another one.
+import path from "node:path";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import { APX_SERVER } from "../domain/approvals.ts";
+import type { ProjectRecord } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { cap, untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
@@ -99,6 +101,11 @@ export function agentTools(store: Store): Tool[] {
             .optional()
             .describe("to start a worker instead of asking an agent"),
           session: z.string().max(60).optional().describe("session name: continues it, or names the new one"),
+          project: z
+            .string()
+            .max(500)
+            .optional()
+            .describe("the project the task is about (name, id, or a path inside it): the agent works in its folder"),
           task: z.string().min(1).describe("clear, self-contained task with everything the other agent needs"),
           wait_s: z.number().int().min(0).max(120).optional().describe("seconds to wait inside this turn (default 60)"),
         })
@@ -114,7 +121,13 @@ export function agentTools(store: Store): Tool[] {
           if ("error" in found) return found.error;
           agent = found.agent;
         }
-        return ctx.delegate({ agent, session: a.session, worker: a.worker }, a.task, (a.wait_s ?? 60) * 1000);
+        const project = a.project ? projectOf(store, a.project, ctx.agent) : undefined;
+        if (typeof project === "string") return project;
+        return ctx.delegate(
+          { agent, session: a.session, worker: a.worker, project: project?.id },
+          a.task,
+          (a.wait_s ?? 60) * 1000,
+        );
       },
     }),
     defineTool({
@@ -133,6 +146,30 @@ export function agentTools(store: Store): Tool[] {
       },
     }),
   ];
+}
+
+/**
+ * A project by id, name or a path inside its folder (the deepest one holding it); a project's own agent reaches only its
+ * project. A string: why none.
+ */
+function projectOf(store: Store, ref: string, agent: AgentRecord): ProjectRecord | string {
+  const all = store.projects.list().filter((p) => !agent.project_id || p.id === agent.project_id);
+  const q = ref.trim();
+  const found =
+    all.find((p) => p.id === q) ??
+    all.find((p) => p.name.toLowerCase() === q.toLowerCase()) ??
+    all
+      .filter((p) => p.path && path.isAbsolute(q) && (q === p.path || q.startsWith(`${p.path}${path.sep}`)))
+      .sort((x, y) => (y.path?.length ?? 0) - (x.path?.length ?? 0))[0];
+  return (
+    found ??
+    `no project "${q}". Projects: ${
+      all
+        .slice(0, 30)
+        .map((p) => p.name)
+        .join(", ") || "none"
+    }`
+  );
 }
 
 /** How a delegated answer enters the caller's context: as data from another agent, with how its run ended. */

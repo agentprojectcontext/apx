@@ -766,3 +766,11 @@ post (the bot had no "Send messages" in that room) the agent told the owner it w
 the platform's reason, uncertain, or still queued when the channel is down), and the tools tell the agent to pass that
 on. Rooms are added by picking them from the servers the bot is in (`channels.rooms`), each marked when the bot may
 not write there, computed from the server's roles and the room's overwrites; typing an id stays as a fallback.
+
+<a id="d-066"></a>
+## D-066 — 2026-10-11 — A delegation names its project
+A session another agent started from Home had no project, so the agent asked worked in APX's work folder and could not
+read the repository the task was about. `delegate` takes `project` (an id, a name, or a path inside the project's
+folder, the deepest project holding it): the session is created in that project and works in its folder. Without it,
+the session takes the caller's chat's project, else the asked agent's own. A project's own agent can only name its
+project; a session already in another project is not moved.

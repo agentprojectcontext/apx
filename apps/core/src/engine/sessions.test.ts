@@ -24,6 +24,10 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (said.includes("start named"))
     return callTool("n1", "delegate", { agent: "scout", session: "Market Q3", task: "look" });
   if (said.includes("continue named")) return callTool("n2", "delegate", { session: "Market Q3", task: "more" });
+  if (said.includes("research the repo"))
+    return callTool("p1", "delegate", { agent: "scout", task: "read the repo", project: "/srv/acme/apps/web" });
+  if (said.includes("research elsewhere"))
+    return callTool("p2", "delegate", { agent: "scout", task: "read it", project: "Northwind" });
   if (said.includes("ghost session")) return callTool("d3", "delegate", { session: "ghost", task: "anything" });
   return say("ok");
 });
@@ -134,4 +138,18 @@ test("a session named with spaces and capitals is found again by the same name",
   await env.settle(t.id);
   assert.match(lastToolResult(), /earlier turns in this session: 1/);
   assert.equal(env.core.store.threads.sessions(t.id).length, 1);
+});
+
+test("a delegation names its project: the session works in that project's folder, found by a path inside it too", async () => {
+  env.core.store.projects.upsert({ id: "p_acme", name: "Acme", path: "/srv/acme" });
+  env.core.store.projects.upsert({ id: "p_acme_web", name: "Acme web", path: "/srv/acme/apps" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "repo" });
+  await env.client.call("threads.send", { thread: t.id, text: "research the repo" });
+  await env.settle(t.id);
+  // The deepest project holding the path.
+  assert.equal(env.core.store.threads.sessions(t.id)[0]?.project_id, "p_acme_web");
+
+  await env.client.call("threads.send", { thread: t.id, text: "research elsewhere" });
+  await env.settle(t.id);
+  assert.match(lastToolResult(), /no project "Northwind"\. Projects: .*Acme/);
 });

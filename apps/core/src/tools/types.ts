@@ -45,7 +45,12 @@ export type ToolContext = {
   callAsOwner?<M extends MethodName>(method: M, params: Params<M>): Promise<Result<M>>;
   /** Hands a task to another agent or a worker (a new session, or one to continue): the one a2a path. */
   delegate(
-    to: { agent?: AgentRecord | undefined; session?: string | undefined; worker?: Worker | undefined },
+    to: {
+      agent?: AgentRecord | undefined;
+      session?: string | undefined;
+      worker?: Worker | undefined;
+      project?: string | undefined;
+    },
     task: string,
     waitMs: number,
   ): Promise<string>;

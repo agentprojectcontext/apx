@@ -18,7 +18,13 @@ export type Caller = { run: RunRecord; agent: AgentRecord; display: Display };
  * Whom to ask: an agent (a new session), a session by name or id (the same agent, with its context), or both. A
  * worker instead of an agent is the caller itself under instructions it writes for the task.
  */
-export type DelegateTo = { agent?: AgentRecord | undefined; session?: string | undefined; worker?: Worker | undefined };
+export type DelegateTo = {
+  agent?: AgentRecord | undefined;
+  session?: string | undefined;
+  worker?: Worker | undefined;
+  /** The project the task is about: the session works in its folder. */
+  project?: string | undefined;
+};
 
 /** How much of an answer its card keeps: the whole report, short of a runaway one. */
 const REPORT_CHARS = 6000;
@@ -122,6 +128,8 @@ export function createDelegations(deps: {
       if (worker && req.agent) return "refused: give an agent or a worker, not both.";
       // A worker is the caller itself, under the worker's instructions: no self or cycle check applies.
       const toId = worker ? from.agent.id : (existing?.agent_ids[0] ?? req.agent?.id);
+      if (existing && req.project && existing.project_id !== req.project)
+        return `refused: session "${existing.session ?? existing.id}" works in another project; name a new session.`;
       if (existing && req.agent && req.agent.id !== toId)
         return `refused: session "${existing.session ?? existing.id}" is with another agent; leave agent out to continue it, or name a new session.`;
       const to = toId ? store.agents.get(toId) : undefined;
@@ -146,7 +154,8 @@ export function createDelegations(deps: {
           kind: "a2a",
           title: `${from.agent.name} → ${who}: ${task.slice(0, 60)}`,
           agent_ids: worker ? [to.id] : [to.id, from.agent.id],
-          project_id: parentThread.project_id,
+          // The project named, else this chat's, else the agent's own: its folder is where the session reads and works.
+          project_id: req.project ?? parentThread.project_id ?? (worker ? undefined : to.project_id),
           parent_id: parentThread.id,
           session: name,
         });
