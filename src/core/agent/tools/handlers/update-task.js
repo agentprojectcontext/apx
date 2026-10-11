@@ -49,6 +49,129 @@ const EDITABLE = [
   "priority", "reminder_frequency", "category", "location", "parent",
 ];
 
+/**
+ * Everything checked before a write, run BEFORE anyone is asked to confirm: a
+ * call that would fail must not put a question to the owner, and the one that
+ * goes through is described with the fields it changes and their new values.
+ * @returns {{error: string} | {project: object, current: object, patch: object, notes: string[], depAdds: object[], depRemoves: object[], confirm: object}}
+ */
+function prepare({ projects }, args = {}) {
+  const { task, project } = args;
+  const depAdds = Array.isArray(args.depends_on_add) ? args.depends_on_add : [];
+  const depRemoves = Array.isArray(args.depends_on_remove) ? args.depends_on_remove : [];
+  if (!task) {
+    return missingArg("update_task", "task", { required: ["task"], optional: ["project", ...EDITABLE] }, args);
+  }
+
+  // Said plainly rather than patched silently: a model that thinks it moved a
+  // card and got an "ok" would report the move as done.
+  for (const blocked of ["status", "state"]) {
+    if (args[blocked] !== undefined) {
+      return {
+        error:
+          `update_task does not set ${blocked}. Use complete_task: ` +
+          `action="status" to move it between board columns, or action="done"|"drop"|"reopen".`,
+      };
+    }
+  }
+
+  const found = locateTask(projects, { project, task });
+  if (found.error) return { error: found.error };
+  const { project: p, task: current } = found;
+
+  const patch = {};
+  const notes = [];
+
+  if (args.title !== undefined) {
+    const title = String(args.title).trim();
+    if (!title) return { error: "title cannot be empty — to retire a task use complete_task action=drop." };
+    patch.title = title;
+  }
+  if (args.description !== undefined) patch.description = clearable(args.description);
+  if (args.body !== undefined) patch.body = clearable(args.body);
+  if (args.due !== undefined) patch.due = clearable(args.due);
+  if (args.agent !== undefined) patch.agent = clearable(args.agent);
+  // Checked here rather than left to the store: patchTask normalizes an
+  // unrecognised value to the default, so "muy urgente" would come back as an
+  // ok that quietly set priority to normal.
+  if (args.priority !== undefined) {
+    const priority = String(args.priority).trim().toLowerCase();
+    if (!TASK_PRIORITIES.includes(priority)) {
+      return { error: `unknown priority "${args.priority}" (use ${TASK_PRIORITIES.join(" | ")})` };
+    }
+    patch.priority = priority;
+  }
+  if (args.reminder_frequency !== undefined) {
+    const frequency = String(args.reminder_frequency).trim().toLowerCase();
+    if (!TASK_REMINDER_FREQUENCIES.includes(frequency)) {
+      return { error: `unknown reminder_frequency "${args.reminder_frequency}" (use ${TASK_REMINDER_FREQUENCIES.join(" | ")})` };
+    }
+    patch.reminder_frequency = frequency;
+  }
+
+  if (args.tags !== undefined) {
+    if (!Array.isArray(args.tags)) return { error: "tags must be an array of strings (it REPLACES the whole list)." };
+    patch.tags = args.tags.map((t) => String(t).trim()).filter(Boolean);
+  }
+
+  if (args.category !== undefined) {
+    const category = String(args.category).trim().toLowerCase();
+    if (!TASK_CATEGORY_IDS.includes(category)) {
+      return { error: `unknown category "${args.category}" (use ${TASK_CATEGORY_IDS.join(" | ")})` };
+    }
+    patch.category = category;
+  }
+
+  if (args.location !== undefined) {
+    if (args.location === null || args.location === "") {
+      patch.location = null;
+    } else {
+      const location = normalizeTaskLocation(args.location);
+      if (!location) {
+        return { error: "location needs at least a place, an address, or a latitude+longitude pair." };
+      }
+      patch.location = location;
+      // A place on a `general` task is inert — the mobility geofence only
+      // looks at locatable categories — so say so instead of storing
+      // something that will never fire.
+      const category = patch.category || current.category;
+      if (!categoryIsLocatable(category)) {
+        notes.push(`the place is stored but category "${category}" is not locatable — pass category:"trip" for it to be used as an errand.`);
+      }
+    }
+  }
+
+  if (args.parent !== undefined) {
+    const parent = clearable(args.parent);
+    if (parent === null) {
+      patch.parent = null;
+    } else {
+      const target = getTask(p.storagePath, parent);
+      if (!target) return { error: `parent task not found in this project: ${parent}` };
+      if (target.id === current.id) return { error: "a task cannot be its own parent." };
+      if (ancestors(p.storagePath, target.id).includes(current.id)) {
+        return { error: `that would make a loop — ${target.id} is already below ${current.id}.` };
+      }
+      patch.parent = target.id;
+    }
+  }
+
+  if (!Object.keys(patch).length && !depAdds.length && !depRemoves.length) {
+    return { error: `nothing to update. Pass at least one of: ${EDITABLE.join(", ")}, depends_on_add, depends_on_remove.` };
+  }
+
+  return {
+    project: p, current, patch, notes, depAdds, depRemoves,
+    confirm: {
+      task: current.id,
+      subject: current.title,
+      ...patch,
+      ...(depAdds.length ? { depends_on_add: depAdds } : {}),
+      ...(depRemoves.length ? { depends_on_remove: depRemoves } : {}),
+    },
+  };
+}
+
 export default {
   name: "update_task",
   schema: {
@@ -118,112 +241,14 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission, channelMeta = null }) => async (args = {}) => {
-    const { task, project } = args;
-    await requirePermission("update_task", { dangerous: true, args: { task } });
-    const by = channelMeta?.agentSlug || SUPERAGENT_ACTOR_ID;
-    const depAdds = Array.isArray(args.depends_on_add) ? args.depends_on_add : [];
-    const depRemoves = Array.isArray(args.depends_on_remove) ? args.depends_on_remove : [];
-    if (!task) {
-      return missingArg("update_task", "task", { required: ["task"], optional: ["project", ...EDITABLE] }, args);
-    }
-
-    // Said plainly rather than patched silently: a model that thinks it moved a
-    // card and got an "ok" would report the move as done.
-    for (const blocked of ["status", "state"]) {
-      if (args[blocked] !== undefined) {
-        return {
-          error:
-            `update_task does not set ${blocked}. Use complete_task: ` +
-            `action="status" to move it between board columns, or action="done"|"drop"|"reopen".`,
-        };
-      }
-    }
-
-    const found = locateTask(projects, { project, task });
-    if (found.error) return { error: found.error };
-    const { project: p, task: current } = found;
-
-    const patch = {};
-    const notes = [];
-
-    if (args.title !== undefined) {
-      const title = String(args.title).trim();
-      if (!title) return { error: "title cannot be empty — to retire a task use complete_task action=drop." };
-      patch.title = title;
-    }
-    if (args.description !== undefined) patch.description = clearable(args.description);
-    if (args.body !== undefined) patch.body = clearable(args.body);
-    if (args.due !== undefined) patch.due = clearable(args.due);
-    if (args.agent !== undefined) patch.agent = clearable(args.agent);
-    // Checked here rather than left to the store: patchTask normalizes an
-    // unrecognised value to the default, so "muy urgente" would come back as an
-    // ok that quietly set priority to normal.
-    if (args.priority !== undefined) {
-      const priority = String(args.priority).trim().toLowerCase();
-      if (!TASK_PRIORITIES.includes(priority)) {
-        return { error: `unknown priority "${args.priority}" (use ${TASK_PRIORITIES.join(" | ")})` };
-      }
-      patch.priority = priority;
-    }
-    if (args.reminder_frequency !== undefined) {
-      const frequency = String(args.reminder_frequency).trim().toLowerCase();
-      if (!TASK_REMINDER_FREQUENCIES.includes(frequency)) {
-        return { error: `unknown reminder_frequency "${args.reminder_frequency}" (use ${TASK_REMINDER_FREQUENCIES.join(" | ")})` };
-      }
-      patch.reminder_frequency = frequency;
-    }
-
-    if (args.tags !== undefined) {
-      if (!Array.isArray(args.tags)) return { error: "tags must be an array of strings (it REPLACES the whole list)." };
-      patch.tags = args.tags.map((t) => String(t).trim()).filter(Boolean);
-    }
-
-    if (args.category !== undefined) {
-      const category = String(args.category).trim().toLowerCase();
-      if (!TASK_CATEGORY_IDS.includes(category)) {
-        return { error: `unknown category "${args.category}" (use ${TASK_CATEGORY_IDS.join(" | ")})` };
-      }
-      patch.category = category;
-    }
-
-    if (args.location !== undefined) {
-      if (args.location === null || args.location === "") {
-        patch.location = null;
-      } else {
-        const location = normalizeTaskLocation(args.location);
-        if (!location) {
-          return { error: "location needs at least a place, an address, or a latitude+longitude pair." };
-        }
-        patch.location = location;
-        // A place on a `general` task is inert — the mobility geofence only
-        // looks at locatable categories — so say so instead of storing
-        // something that will never fire.
-        const category = patch.category || current.category;
-        if (!categoryIsLocatable(category)) {
-          notes.push(`the place is stored but category "${category}" is not locatable — pass category:"trip" for it to be used as an errand.`);
-        }
-      }
-    }
-
-    if (args.parent !== undefined) {
-      const parent = clearable(args.parent);
-      if (parent === null) {
-        patch.parent = null;
-      } else {
-        const target = getTask(p.storagePath, parent);
-        if (!target) return { error: `parent task not found in this project: ${parent}` };
-        if (target.id === current.id) return { error: "a task cannot be its own parent." };
-        if (ancestors(p.storagePath, target.id).includes(current.id)) {
-          return { error: `that would make a loop — ${target.id} is already below ${current.id}.` };
-        }
-        patch.parent = target.id;
-      }
-    }
-
-    if (!Object.keys(patch).length && !depAdds.length && !depRemoves.length) {
-      return { error: `nothing to update. Pass at least one of: ${EDITABLE.join(", ")}, depends_on_add, depends_on_remove.` };
-    }
+  prepare,
+  makeHandler: (ctx) => async (args = {}) => {
+    const plan = prepare(ctx, args);
+    if (plan.error) return plan;
+    await ctx.requirePermission("update_task", { dangerous: true, args: plan.confirm });
+    const by = ctx.channelMeta?.agentSlug || SUPERAGENT_ACTOR_ID;
+    const { project: p, current, patch, notes, depAdds, depRemoves } = plan;
+    const projects = ctx.projects;
 
     try {
       // Dependencies first and all-or-nothing per item: one refused (a cycle,
