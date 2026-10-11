@@ -20,7 +20,7 @@ import { type MessageKey, type T, useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { CommitmentMeta } from "./Commitments.tsx";
 import { kindLabel, PriorityDot } from "./TaskFields.tsx";
-import { NewTask } from "./TaskForms.tsx";
+import { DeleteTask, NewTask } from "./TaskForms.tsx";
 import { TaskPanel } from "./TaskPanel.tsx";
 import { dropOn, taskMenu } from "./taskActions.tsx";
 import { GROUP_ORDER, type GroupId, groupTasks } from "./taskGroups.ts";
@@ -88,6 +88,7 @@ export function TasksList({
   const setOpen = (taskId: string | undefined) => nav.set({ taskId });
   const [more, setMore] = useState<Set<GroupId>>(new Set());
   const [closedOpen, setClosedOpen] = useState(false);
+  const [deleting, setDeleting] = useState<Task>();
   useEffect(() => {
     void loadTasks();
   }, []);
@@ -196,6 +197,7 @@ export function TasksList({
                       dragging={drag?.item.id === task.id}
                       drag={bind(task, task.title)}
                       onOpen={() => setOpen(task.id === open ? undefined : task.id)}
+                      onDelete={() => setDeleting(task)}
                     />
                   ))}
                 </ul>
@@ -217,6 +219,7 @@ export function TasksList({
       )}
       {current && <TaskPanel key={current.id} task={current} onClose={() => setOpen(undefined)} />}
       {creating && <NewTask projectId={projectId} onClose={() => setCreating(false)} />}
+      {deleting && <DeleteTask task={deleting} onClose={() => setDeleting(undefined)} />}
     </div>
   );
 }
@@ -230,6 +233,7 @@ function TaskRow(props: {
   dragging: boolean;
   drag: ReturnType<ReturnType<typeof useLongPressDrag<Task>>["bind"]>;
   onOpen(): void;
+  onDelete(): void;
 }) {
   const t = useT();
   const { task } = props;
@@ -241,7 +245,15 @@ function TaskRow(props: {
   const pid = task.project_id ?? DEFAULT_PID;
   return (
     <li>
-      <ContextMenu items={taskMenu(task, { t, columns, agents: Object.values(agents), onOpen: props.onOpen })}>
+      <ContextMenu
+        items={taskMenu(task, {
+          t,
+          columns,
+          agents: Object.values(agents),
+          onOpen: props.onOpen,
+          onDelete: props.onDelete,
+        })}
+      >
         <button
           type="button"
           className={`taskrow${props.showProject ? "" : " taskrow--local"}${props.selected ? " is-selected" : ""}${props.dragging ? " is-dragging" : ""}${task.state === "dropped" ? " is-dropped" : ""}`}

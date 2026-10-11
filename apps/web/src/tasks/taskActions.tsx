@@ -23,10 +23,10 @@ export async function dropOn(task: Task, group: GroupId, columns: readonly TaskC
   } else if (!task.awaits_owner) await updateTask(task.id, move);
 }
 
-/** The right-click menu of a task: open it, move, prioritize, assign, wait for the owner, close. */
+/** The right-click menu of a task: open it, move, prioritize, assign, wait for the owner, close, delete (it asks). */
 export function taskMenu(
   task: Task,
-  o: { t: T; columns: readonly TaskColumn[]; agents: Agent[]; onOpen: () => void },
+  o: { t: T; columns: readonly TaskColumn[]; agents: Agent[]; onOpen: () => void; onDelete: () => void },
 ): MenuEntry[] {
   const { t } = o;
   const open = task.state === "open";
@@ -95,5 +95,7 @@ export function taskMenu(
           },
         ]
       : []),
+    { type: "separator" },
+    { label: t("tasks.delete"), icon: <Icons.Trash2 />, danger: true, onSelect: o.onDelete },
   ];
 }

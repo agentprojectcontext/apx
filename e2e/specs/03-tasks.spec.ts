@@ -50,3 +50,18 @@ test("a commitment: a new date agreed keeps it open, then it is marked kept", as
   await expect.poll(async () => (await task()).outcome).toBe("kept");
   await expect(page.getByText("Cumplido", { exact: true })).toBeVisible();
 });
+
+test("a task's right-click menu deletes it, after asking", async ({ page }) => {
+  const doomed = await rpc<{ id: string }>("tasks.create", { title: "Old Northwind draft" });
+  await open(page);
+  await page.getByRole("button", { name: "Tareas", exact: true }).first().click();
+  const view = page.getByRole("region", { name: "Tareas" });
+  await view.getByText("Old Northwind draft").click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Borrar", exact: true }).click();
+  const confirm = page.getByRole("dialog", { name: "Borrar tarea" });
+  await expect(confirm).toContainText("Old Northwind draft");
+  await confirm.getByRole("button", { name: "Borrar", exact: true }).click();
+  await expect(confirm).toBeHidden();
+  await expect(view.getByText("Old Northwind draft")).toBeHidden();
+  await expect(rpc("tasks.get", { task: doomed.id })).rejects.toThrow(/not found/);
+});

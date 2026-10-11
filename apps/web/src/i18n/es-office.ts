@@ -375,6 +375,10 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "clients.revoke": "Revocar",
   "tasks.globalLead": "De todos los proyectos. Un compromiso es una tarea con fecha que alguien prometió cumplir.",
   "tasks.kind.errands": "Recados",
+  "tasks.delete": "Borrar",
+  "tasks.delete.title": "Borrar tarea",
+  "tasks.delete.what":
+    "Se borran “{title}”, su historial y su conversación. Los chats de los agentes sobre ella quedan.",
   "tasks.menu.open": "Abrir",
   "tasks.menu.move": "Mover a",
   "tasks.menu.block": "Espera tu respuesta",

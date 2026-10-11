@@ -80,6 +80,18 @@ export async function settleTask(task: string, outcome: Params<"tasks.settle">["
   }
 }
 
+/** Deletes a task for good, with its history and conversation. */
+export async function deleteTask(task: string): Promise<boolean> {
+  try {
+    await client.call("tasks.delete", { task });
+    taskDeleted(task);
+    return true;
+  } catch (e) {
+    fail(e);
+    return false;
+  }
+}
+
 export async function commentTask(task: string, text: string): Promise<boolean> {
   try {
     await client.call("tasks.comment", { task, text });

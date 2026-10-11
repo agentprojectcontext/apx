@@ -1,11 +1,11 @@
-import type { TaskColumn, TaskKind, TaskPriority } from "@apx/protocol";
+import type { Task, TaskColumn, TaskKind, TaskPriority } from "@apx/protocol";
 import { Button, Dialog, Field, Help, Input, TagInput, Textarea } from "@apx/ui";
 import { useState } from "react";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
 import { realProjectId } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
-import { createTask, useTasks } from "../data/tasks.ts";
+import { createTask, deleteTask, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
 import { DueField, KindControl, OwedByControl, PersonSelect, PrioritySelect, ReminderField } from "./TaskFields.tsx";
 import { type Reminder, remindAt } from "./when.ts";
@@ -223,6 +223,41 @@ export function NewTask({ projectId, onClose }: { projectId?: string | undefined
           </Field>
         </div>
       </div>
+    </Dialog>
+  );
+}
+
+/** Asks before deleting a task for good: it, its history and its conversation go. */
+export function DeleteTask({ task, onClose }: { task: Task; onClose: () => void }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  const remove = async () => {
+    if (busy) return;
+    setBusy(true);
+    const ok = await deleteTask(task.id);
+    setBusy(false);
+    if (ok) onClose();
+  };
+  return (
+    <Dialog
+      open
+      size="sm"
+      onOpenChange={(o) => !o && onClose()}
+      title={t("tasks.delete.title")}
+      description={t("thread.delete.body")}
+      closeLabel={t("common.close")}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="danger" loading={busy} onClick={() => void remove()}>
+            {t("tasks.delete")}
+          </Button>
+        </>
+      }
+    >
+      {t("tasks.delete.what", { title: task.title })}
     </Dialog>
   );
 }
