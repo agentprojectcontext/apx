@@ -121,6 +121,21 @@ function summarizeForTrace(r) {
   return clip(r, 0);
 }
 
+/**
+ * A tool's own checks for one call, without running it (`prepare` in
+ * tools/registry.js): `{error}` for a call it would refuse, `{confirm}` for the
+ * arguments that describe the change. null when the tool has none or they throw
+ * — the handler then answers for itself.
+ */
+function prepareToolCall(handler, args) {
+  if (typeof handler?.prepare !== "function") return null;
+  try {
+    return handler.prepare(args) || null;
+  } catch {
+    return null;
+  }
+}
+
 function fallbackFinalText(trace, error) {
   const lines = [
     "Tool execution completed, but the model failed while composing the final answer.",
@@ -1048,10 +1063,18 @@ export async function runAgent({
               " Use the native tool for it (add_mcp, `apx config set`) or ask the owner to make the change.";
           }
         }
+        // A call the tool itself would refuse is answered with that refusal,
+        // and nobody is asked to approve it.
+        let refused = null;
         if (!riskDenied && riskGateOn && shouldConfirmRisk(securityRisk, effectiveRiskCfg)) {
-          const description = buildConfirmDescription(name, args);
+          const prepared = prepareToolCall(handlers[name], args);
+          // The tool's own view of the change (the task's title, the column it
+          // moves from) when it has one; the raw arguments otherwise.
+          const description = buildConfirmDescription(name, prepared?.confirm || args);
           const requestConfirmation = toolHandlerCtx?.requestConfirmation;
-          if (typeof requestConfirmation !== "function") {
+          if (prepared?.error) {
+            refused = prepared;
+          } else if (typeof requestConfirmation !== "function") {
             riskDenied = `Action requires user confirmation (security risk ${securityRisk}): ${description}`;
           } else {
             await emitProgress(onEvent, {
@@ -1071,7 +1094,10 @@ export async function runAgent({
             }
           }
         }
-        if (riskDenied) {
+        if (refused) {
+          toolResult = refused;
+          ranForReal = false;
+        } else if (riskDenied) {
           toolResult = { error: riskDenied };
           ranForReal = false;
         } else {

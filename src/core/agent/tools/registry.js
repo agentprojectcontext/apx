@@ -650,6 +650,9 @@ export function makeToolHandlers(ctx) {
     // function because that is all the loop ever holds — the alternative was a
     // second name→deadline map, i.e. a place for the two to disagree.
     if (tool.deadlineMs !== undefined) handler.deadlineMs = tool.deadlineMs;
+    // A tool's own checks, run without writing: lets the risk gate refuse a call
+    // the tool would refuse and describe the one it would make, before it asks.
+    if (typeof tool.prepare === "function") handler.prepare = (args) => tool.prepare(toolCtx, args);
     return [tool.name, handler];
   }));
 }
