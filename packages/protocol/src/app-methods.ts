@@ -21,6 +21,7 @@ import {
   Id,
   ImageDefaults,
   Job,
+  LocalEmbedding,
   LocalTranscription,
   Memory,
   MemoryScope,
@@ -947,6 +948,23 @@ export const appMethods = {
   "transcription.install": {
     params: z.object({ model: z.string().max(60) }).strict(),
     result: LocalTranscription,
+    effect: true,
+    access: "human",
+  },
+  /** Embeddings on this machine through Ollama: whether it runs here, its models, the one that fits, a pull. */
+  "embeddings.local": {
+    params: z.object({}).strict(),
+    result: LocalEmbedding,
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Sets memory's embedding engine to Ollama here with `model`, first in the order; a model Ollama does not have yet is
+   * pulled first, in the background.
+   */
+  "embeddings.install": {
+    params: z.object({ model: z.string().regex(/^[\w.:/-]{1,80}$/) }).strict(),
+    result: LocalEmbedding,
     effect: true,
     access: "human",
   },

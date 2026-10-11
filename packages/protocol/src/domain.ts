@@ -825,6 +825,27 @@ export const LocalTranscription = z.object({
   active: z.string().optional(),
 });
 export type LocalTranscription = z.infer<typeof LocalTranscription>;
+
+/** Memory by meaning on this machine: Ollama here (or not), its embedding models, the one that fits, a pull going on. */
+export const LocalEmbedding = z.object({
+  memory_gb: z.number(),
+  ollama: z.object({
+    url: z.string(),
+    running: z.boolean(),
+    version: z.string().optional(),
+    /** The embedding models it has pulled. */
+    models: z.array(z.object({ name: z.string(), mb: z.number() })),
+  }),
+  /** Ollama's library models to pick from, with their download size. */
+  library: z.array(z.object({ id: z.string(), mb: z.number(), quality: z.enum(["basic", "good", "great"]) })),
+  recommended: z.string(),
+  pull: z
+    .object({ model: z.string(), completed: z.number(), total: z.number(), error: z.string().optional() })
+    .optional(),
+  /** The embedding engine in use now ("Ollama · bge-m3"). */
+  active: z.string().optional(),
+});
+export type LocalEmbedding = z.infer<typeof LocalEmbedding>;
 export const ImageDefaults = z.object({
   width: z.number().int().min(64).max(4096),
   height: z.number().int().min(64).max(4096),

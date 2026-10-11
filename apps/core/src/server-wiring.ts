@@ -35,6 +35,7 @@ import { clientHandlers } from "./rpc/clients.ts";
 import { composerHandlers } from "./rpc/composer.ts";
 import { computerHandlers } from "./rpc/computer.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
+import { embeddingHandlers } from "./rpc/embeddings.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
 import { gitHandlers } from "./rpc/git.ts";
@@ -170,6 +171,7 @@ type HandlerDeps = {
   secrets: Parameters<typeof providerHandlers>[1];
   chatgpt: Parameters<typeof providerHandlers>[2];
   localModels: Parameters<typeof transcriptionHandlers>[1];
+  localEmbeds: Parameters<typeof embeddingHandlers>[0];
   app: Omit<Parameters<typeof appHandlers>[0], "store" | "secrets" | "services">;
   apc: Parameters<typeof agentHandlers>[1];
   templateRoots: Parameters<typeof teamHandlers>[2];
@@ -216,6 +218,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...channelHandlers(d.store, d.channels),
     ...mediaHandlers(d.services),
     ...transcriptionHandlers(d.services, d.localModels),
+    ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),
     ...taskHandlers(d.store, d.engine, d.app.home),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
     ...noticeHandlers(d.store, d.nudges),

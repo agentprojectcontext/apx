@@ -521,6 +521,23 @@ input.wiz__name {
 .wiz__default {
   color: var(--apx-fg-subtle);
 }
+/* Memory's embedding engine: Ollama's models, the one that fits, or another engine. */
+.wiz__embed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+}
+.wiz__embedmodels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.wiz__embedpick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 /* Footer */
 .wiz__foot {
   display: flex;

@@ -124,7 +124,18 @@ test("the setup opens again from the account menu and starts from scratch", asyn
   await wizard.getByRole("button", { name: "Otro nombre" }).click();
   await expect(name).toHaveValue(new RegExp(`^(${AGENT_NAMES.join("|")})$`));
   await name.fill("Robina");
-  for (let i = 0; i < 4; i++) await wizard.getByRole("button", { name: "Continuar" }).click();
+  for (let i = 0; i < 2; i++) await wizard.getByRole("button", { name: "Continuar" }).click();
+  // Memory by meaning: no Ollama on this machine, so a link to get it, or the owner's own engine.
+  await wizard.getByRole("button", { name: /Buscar por significado/ }).click();
+  await expect(wizard.getByText(/Ollama no está corriendo en esta máquina/)).toBeVisible();
+  await expect(wizard.getByRole("button", { name: "Descargar Ollama" })).toBeVisible();
+  await wizard.getByRole("button", { name: "Usar otro motor" }).click();
+  await expect(page.getByRole("dialog").getByRole("textbox", { name: "URL base" })).toHaveValue(
+    "http://127.0.0.1:11434",
+  );
+  await page.keyboard.press("Escape");
+  await wizard.getByRole("button", { name: /Buscar por palabras/ }).click();
+  for (let i = 0; i < 2; i++) await wizard.getByRole("button", { name: "Continuar" }).click();
   // The base project gets a name (it could stay Default) and a kind before any folder.
   const baseName = wizard.getByRole("textbox", { name: "Nombre del proyecto base" });
   await expect(baseName).toHaveValue("Default");

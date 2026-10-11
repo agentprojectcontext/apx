@@ -65,6 +65,8 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_GOOGLE_API: google.url,
     // Never the owner's own Messages, even when the sandbox runs on their Mac.
     APX_IMESSAGE: "off",
+    // Never the machine's own Ollama: memory's local embedding models are looked for where nothing answers.
+    APX_OLLAMA_URL: "http://127.0.0.1:9",
     E2E_WA_PORT: String(E2E.whatsapp),
   },
 });

@@ -72,6 +72,8 @@ export type CoreConfig = {
    * test core never starts one), a path picks the browser (APX_CHROME), true finds one.
    */
   headless: boolean | string;
+  /** Ollama on this machine, for memory's embedding models (APX_OLLAMA_URL; a test points it elsewhere). */
+  ollamaUrl: string;
   providers: ProviderConfig[];
   secrets: SecretsBackend;
   /** Silence before the first byte of a model answer. */
@@ -195,6 +197,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
       // A scratch core (its own APX_HOME) must not rewrite the owner's apps with its checkout's text.
       auto: env.APX_RUNTIME_SKILLS === "on" || (!env.APX_HOME && env.APX_RUNTIME_SKILLS !== "off"),
     },
+    ollamaUrl: env.APX_OLLAMA_URL || "http://127.0.0.1:11434",
     providers: [...custom, ...DEFAULT_PROVIDERS],
     secrets: env.APX_SECRETS === "file" || process.platform !== "darwin" ? "file" : "keychain",
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),

@@ -50,6 +50,7 @@ import { officeScheduler } from "./office-wiring.ts";
 import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
+import { useLocalEmbedder } from "./rpc/embeddings.ts";
 import { internalCaller } from "./rpc/internal.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
 import { useLocalModel } from "./rpc/transcription.ts";
@@ -64,6 +65,7 @@ import {
   reachableAt,
   servedPanel,
 } from "./server-wiring.ts";
+import { createLocalEmbeddings } from "./services/local-embed.ts";
 import { createModelInstaller } from "./services/local-whisper.ts";
 import { createPush } from "./services/push.ts";
 import { createServices } from "./services/registry.ts";
@@ -227,6 +229,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     dir: path.join(config.home, "models"),
     onReady: (_id, file) => useLocalModel(services, file, store.settings.get("owner_language") || "es"),
   });
+  const localEmbeds = createLocalEmbeddings({
+    url: config.ollamaUrl,
+    onReady: (model) => useLocalEmbedder(services, config.ollamaUrl, model),
+  });
   const memory = createMemoryIndex({ store, services, log });
   const skills = createSkillPicker({ store, services, log });
   const attention = createAttention({
@@ -351,6 +357,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       secrets,
       chatgpt: { login: chatgpt, v1Home: config.v1.home },
       localModels,
+      localEmbeds,
       app: {
         harnesses,
         v1: config.v1,

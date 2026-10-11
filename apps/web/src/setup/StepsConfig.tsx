@@ -15,6 +15,7 @@ import { type DataState, useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { kindOptions, NO_KIND } from "../project/ProjectSettings.tsx";
 import { type Draft, type StepProps, withStarters } from "./draft.ts";
+import { EmbedderCard } from "./EmbedderCard.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
 /** Provider management is shared with settings; the wizard saves its router on Continue. */
@@ -96,10 +97,10 @@ export function MemoryStep({ draft: d, set }: StepProps) {
           </button>
         ))}
       </div>
-      {embedder !== undefined && (d.memory === "semantic" || embedder) && (
-        <p className="wiz__hintline">
-          {embedder ? t("setup.memory.engine", { engine: embedder }) : t("setup.memory.noEngine")}
-        </p>
+      {d.memory === "semantic" ? (
+        <EmbedderCard />
+      ) : (
+        embedder && <p className="wiz__hintline">{t("setup.memory.engine", { engine: embedder })}</p>
       )}
       <div className="wiz__card wiz__toggle">
         <span className="wiz__rowmain">

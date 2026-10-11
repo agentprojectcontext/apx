@@ -126,8 +126,20 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.memory.off": "Sin memoria",
   "setup.memory.offBody": "Los agentes no guardan ni recuerdan nada entre chats.",
   "setup.memory.engine": "Motor de embeddings: {engine}.",
-  "setup.memory.noEngine":
-    "Falta un motor de embeddings: agregalo después en Config › Memoria (Ollama corre en tu máquina).",
+  "setup.embed.title": "Motor de embeddings",
+  "setup.embed.none": "Todavía no hay uno: hasta entonces, las notas se buscan por sus palabras.",
+  "setup.embed.looking": "Buscando Ollama en esta máquina…",
+  "setup.embed.ollama": "Ollama {version} corre en esta máquina.",
+  "setup.embed.noModels": "Todavía no tiene un modelo de embeddings.",
+  "setup.embed.recommended": "Para esta máquina ({gb} GB de memoria): {model}, unos {mb} MB.",
+  "setup.embed.fits": "Recomendado",
+  "setup.embed.pull": "Descargar {model}",
+  "setup.embed.pulling": "Descargando {model}… {pct}%",
+  "setup.embed.noOllama":
+    "Ollama no está corriendo en esta máquina. Instalalo desde ollama.com para buscar por significado sin salir de tu máquina y probá de nuevo, o usá otro motor.",
+  "setup.embed.getOllama": "Descargar Ollama",
+  "setup.embed.retry": "Probar de nuevo",
+  "setup.embed.own": "Usar otro motor",
   "setup.memory.skills": "Elegir skills por significado",
   "setup.memory.skillsBody":
     "En cada mensaje entran al contexto las skills que encajan, y se ven como chips sobre la respuesta. Usa el motor de embeddings.",
