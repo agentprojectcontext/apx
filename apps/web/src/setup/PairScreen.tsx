@@ -4,6 +4,7 @@ import { type FormEvent, useState } from "react";
 import logo from "../assets/logo.png";
 import { pairWith, thisDevice } from "../data/pairing.ts";
 import { useT } from "../i18n/index.ts";
+import { BuildVersion } from "./BuildVersion.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
 /** The whole window while the core asks this panel for a token: a one-time code from the owner pairs it. */
@@ -70,7 +71,7 @@ export function PairScreen() {
           </form>
         </div>
       </div>
-      <footer className="wiz__version">APX v{import.meta.env.VITE_APX_VERSION}</footer>
+      <BuildVersion />
     </div>
   );
 }

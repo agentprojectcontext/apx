@@ -4,6 +4,7 @@ import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import logo from "../assets/logo.png";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
+import { BuildVersion } from "./BuildVersion.tsx";
 import { CrewHero } from "./CrewHero.tsx";
 import { StepHead } from "./StepsIntro.tsx";
 
@@ -34,6 +35,7 @@ const REASONS: Record<string, MessageKey> = {
   installFailed: "connect.error.installFailed",
   sshLinger: "connect.error.sshLinger",
 };
+const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 /** How many lines of the server install's output the screen keeps in view. */
 const LOG_LINES = 8;
 
@@ -54,9 +56,19 @@ export function ConnectScreen() {
   const [log, setLog] = useState<string[]>();
   const [command, setCommand] = useState<string>();
   // The website's hero first; then, like a blind, it rises and the question unrolls under it (at once with less motion).
-  const [revealed, setRevealed] = useState(
-    () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false,
-  );
+  const [revealed, setRevealed] = useState(reduced);
+  // Closing the window only hides it (APX stays in the tray): shown again on the first question, the intro plays again.
+  const [intro, setIntro] = useState(0);
+  useEffect(() => {
+    if (step !== "start") return;
+    const replay = () => {
+      if (document.hidden || reduced()) return;
+      setRevealed(false);
+      setIntro((n) => n + 1);
+    };
+    document.addEventListener("visibilitychange", replay);
+    return () => document.removeEventListener("visibilitychange", replay);
+  }, [step]);
   useEffect(() => {
     if (revealed) return;
     const reveal = () => setRevealed(true);
@@ -120,7 +132,7 @@ export function ConnectScreen() {
       <div className="wiz__scroll">
         <div className="wiz__grid is-single connect">
           {step === "start" && (
-            <div className={`connect__stage${revealed ? " is-ready" : ""}`}>
+            <div key={intro} className={`connect__stage${revealed ? " is-ready" : ""}`}>
               <CrewHero compact={revealed} />
               <div className="connect__blind" inert={!revealed}>
                 <div className="wiz__main">
@@ -262,7 +274,7 @@ export function ConnectScreen() {
           )}
         </div>
       </div>
-      <footer className="wiz__version">APX v{import.meta.env.VITE_APX_VERSION}</footer>
+      <BuildVersion />
     </div>
   );
 }

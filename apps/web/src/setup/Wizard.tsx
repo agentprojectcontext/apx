@@ -16,6 +16,7 @@ import { updateAgent } from "../data/team.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { useDesktopClass } from "../shell/desktop.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { BuildVersion } from "./BuildVersion.tsx";
 import { type Draft, defaultDraft } from "./draft.ts";
 import { ChannelsStep, DoneStep, EnginesStep, MemoryStep, ProjectStep } from "./StepsConfig.tsx";
 import { AgentStep, GROUP, ImportStep, Welcome } from "./StepsIntro.tsx";
@@ -246,9 +247,7 @@ export function Wizard() {
           {step !== "welcome" && <Preview draft={d} imports={scan} />}
         </div>
       </div>
-      <footer className={`wiz__version${step === "welcome" ? "" : " is-side"}`}>
-        APX v{import.meta.env.VITE_APX_VERSION}
-      </footer>
+      <BuildVersion className={step === "welcome" ? "" : " is-side"} />
     </div>
   );
 }

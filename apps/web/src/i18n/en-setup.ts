@@ -2,6 +2,7 @@
 export const enSetup = {
   "setup.exit": "Exit",
   "setup.back": "Back",
+  "setup.beta": "Beta",
   "setup.next": "Continue",
   "setup.create": "Create crew",
   "setup.open": "Open APX",

@@ -53,9 +53,17 @@ function useScramble(words: readonly string[], start: boolean): string {
       };
       frame = requestAnimationFrame(step);
     }, EVERY_MS);
+    // A hidden window runs no animation frames: one hidden mid-change would come back stuck on random glyphs.
+    const settle = () => {
+      if (document.hidden) return;
+      cancelAnimationFrame(frame);
+      setShown(words[index.current % words.length] ?? "");
+    };
+    document.addEventListener("visibilitychange", settle);
     return () => {
       window.clearInterval(timer);
       cancelAnimationFrame(frame);
+      document.removeEventListener("visibilitychange", settle);
     };
   }, [start, words]);
   return shown;

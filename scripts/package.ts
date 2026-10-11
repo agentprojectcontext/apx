@@ -46,7 +46,7 @@ const version =
 const env = { ...process.env, APX_VERSION: version };
 
 const before = new Set(fs.existsSync(out) ? fs.readdirSync(out) : []);
-step("pnpm", ["build:web"]);
+step("pnpm", ["build:web"], repo, env);
 step("pnpm", ["--filter", "@apx/desktop", "build"]);
 step("node", ["apps/desktop/scripts/stage.ts"], repo, { ...env, APX_TARGET: `${os}-${arch}` });
 // npx with a cache of its own: sharing npm's with stage.ts's install compromised its lock on Windows runners.

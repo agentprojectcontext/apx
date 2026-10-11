@@ -4,6 +4,7 @@ import type { MessageKey } from "./en.ts";
 export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.exit": "Salir",
   "setup.back": "Atrás",
+  "setup.beta": "Beta",
   "setup.next": "Continuar",
   "setup.create": "Crear crew",
   "setup.open": "Abrir APX",

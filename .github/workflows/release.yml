@@ -52,6 +52,8 @@ jobs:
       TAG: ${{ inputs.tag || github.ref_name }}
       # No signing certificates yet: the builder must not look for one.
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      # The panel says "Beta" beside its version until v2 is the repo's Latest.
+      APX_CHANNEL: ${{ vars.APX_V2_LATEST != 'true' && 'beta' || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
