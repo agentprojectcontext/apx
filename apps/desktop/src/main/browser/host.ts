@@ -49,6 +49,8 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   #seq = 0;
   #configured = new WeakSet<Session>();
   #handoffs = new Map<string, (ok: boolean) => void>();
+  /** Calls running on each tab. */
+  #busy = new Map<string, number>();
   /** Called when a tab needs the human (handoff): the window should come forward and notify. */
   onAttention: (message: string) => void = () => {};
   /** Called whenever the visible tab changes, so the window can lay it out. */
@@ -69,6 +71,22 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
 
   /** Executes a browser.* request coming from the core. Params are re-validated: the node trusts nobody. */
   async handle(method: string, raw: unknown): Promise<unknown> {
+    const id = (raw as { tab?: unknown } | null)?.tab;
+    if (typeof id !== "string") return this.#run(method, raw);
+    // The tab is locked while the call runs: closing it for being idle would pull the page from under the agent.
+    this.#busy.set(id, (this.#busy.get(id) ?? 0) + 1);
+    try {
+      return await this.#run(method, raw);
+    } finally {
+      const left = (this.#busy.get(id) ?? 1) - 1;
+      if (left > 0) this.#busy.set(id, left);
+      else this.#busy.delete(id);
+      const tab = this.#tabs.get(id);
+      if (tab) tab.used = Date.now();
+    }
+  }
+
+  async #run(method: string, raw: unknown): Promise<unknown> {
     switch (method) {
       case "browser.tabs":
         return { tabs: this.list() };
@@ -309,13 +327,16 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     return tab;
   }
 
-  /** Closes the tabs nobody used for a while that are not on screen nor the owner's; returns how many. */
+  /** Closes the tabs off screen that nobody used for a while and that are not locked; returns how many. */
   async closeIdle(onScreen: (view: WebContentsView) => boolean, now = Date.now()): Promise<number> {
+    // The time off screen counts from when the page left it.
+    for (const t of this.#tabs.values()) if (onScreen(t.view)) t.used = now;
     const ids = idleTabs(
       [...this.#tabs.values()].map((t) => ({
         id: t.id,
         used: t.used,
-        owner: t.control.kind === "user" || t.control.kind === "handoff" || this.#handoffs.has(t.id),
+        locked:
+          this.#busy.has(t.id) || t.control.kind === "user" || t.control.kind === "handoff" || this.#handoffs.has(t.id),
       })),
       now,
       (id) => {
