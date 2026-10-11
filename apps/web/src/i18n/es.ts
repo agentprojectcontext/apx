@@ -331,6 +331,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "input.denied": "Rechazado",
   "input.answered": "Respondida",
   "input.expired": "Venció",
+  "input.withdrawn": "Retirada",
   "input.asked": "Pidió permiso para usar {tool}",
   "input.askedQuestion": "Te hizo una pregunta",
   "input.anAction": "una acción",

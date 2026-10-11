@@ -151,6 +151,7 @@ export const en = {
   filesChanged: "{n} files changed",
   couldNotAnswer: "Could not answer",
   answered: "Answered",
+  withdrawn: "Withdrawn",
   deny: "Deny",
   router: "Auto",
   routerSub: "APX picks per task",

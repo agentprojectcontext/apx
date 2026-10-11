@@ -1,5 +1,6 @@
 // Tools that talk to the owner or page through what the turn already produced.
 import { z } from "zod";
+import { ownerQuestionProblem } from "../domain/owner-question.ts";
 import type { Store } from "../domain/store.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
@@ -21,23 +22,43 @@ export function ownerTools(store: Store): Tool[] {
       name: "ask_owner",
       description:
         "Ask the owner something only they can answer, and wait (they see it in the chat). options: short choices to tap; they may still write their own answer. If they answer late, the answer reaches you in a new turn.",
-      args: z.object({
-        question: z.string().min(1).max(1000),
-        options: z.array(z.string().min(1).max(80)).max(6).optional(),
-        can_continue: z
-          .boolean()
-          .optional()
-          .describe("true only if you can reasonably go on without the answer: then a late answer is not waited for."),
-      }),
+      args: z
+        .object({
+          question: z.string().min(1).max(1000).optional(),
+          options: z.array(z.string().min(1).max(80)).max(6).optional(),
+          can_continue: z
+            .boolean()
+            .optional()
+            .describe(
+              "true only if you can reasonably go on without the answer: then a late answer is not waited for.",
+            ),
+          withdraw: z.string().min(1).max(64).optional().describe("Instead: id of your open question to take back"),
+        })
+        // Checked before anything is written or sent: a stand-in question would reach the owner's phone.
+        .superRefine((a, c) => {
+          if (a.withdraw) return;
+          const why = a.question ? ownerQuestionProblem(a.question) : "give a question, or withdraw";
+          if (why)
+            c.addIssue({
+              code: "custom",
+              path: ["question"],
+              message: `not sent: ${why}. Ask one specific question with what the owner needs to decide, or do not ask.`,
+            });
+        }),
       effect: "none",
       // The wait is bounded by the input's own deadline; this only covers a stuck write.
       deadlineMs: 16 * 60_000,
-      title: (a) => `Asked you: ${String(a.question ?? "").slice(0, 60)}`,
+      title: (a) => (a.withdraw ? "Took back a question" : `Asked you: ${String(a.question ?? "").slice(0, 60)}`),
       async run(a, ctx) {
-        const r = await ctx.askOwner(a.question, a.options, a.can_continue);
+        if (a.withdraw) {
+          const r = ctx.withdrawQuestion(a.withdraw);
+          return `Question ${r.id} withdrawn; the owner is not asked again.`;
+        }
+        const r = await ctx.askOwner(a.question ?? "", a.options, a.can_continue);
         if (r.state === "answered") return `The owner answered: ${r.answer ?? ""}`;
         if (r.state === "pending")
-          return "The owner has not answered yet. The question stays open in the chat and their answer will reach you in a new turn. End this turn now: say briefly what you are waiting for and do not go on with work that depends on it.";
+          return `The owner has not answered yet. The question stays open in the chat (id ${r.id}) and their answer will reach you in a new turn; if it is no longer needed, take it back with ask_owner withdraw=${r.id}. End this turn now: say briefly what you are waiting for and do not go on with work that depends on it.`;
+        if (r.state === "withdrawn") return "The question was withdrawn. Continue without it.";
         return "The owner did not answer in time. Continue without it.";
       },
     }),

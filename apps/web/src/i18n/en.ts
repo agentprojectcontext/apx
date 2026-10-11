@@ -324,6 +324,7 @@ export const en = {
   "input.denied": "Declined",
   "input.answered": "Answered",
   "input.expired": "Expired",
+  "input.withdrawn": "Withdrawn",
   "input.asked": "Asked to use {tool}",
   "input.askedQuestion": "Asked you a question",
   "input.anAction": "an action",
