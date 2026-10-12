@@ -1,3 +1,10 @@
+# [1.125.0](https://github.com/agentprojectcontext/apx/compare/v1.124.1...v1.125.0) (2026-10-12)
+
+
+### Features
+
+* **site:** publish the APX v2 beta site at /apx/v2/ and point v1's landing and docs at it ([033a516](https://github.com/agentprojectcontext/apx/commit/033a51692846c5f0a949ffbbc94664af4a44e9b3))
+
 ## [1.124.1](https://github.com/agentprojectcontext/apx/compare/v1.124.0...v1.124.1) (2026-10-11)
 
 
