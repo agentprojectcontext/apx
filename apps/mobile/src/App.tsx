@@ -2,6 +2,7 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Linking, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { loadAppearance } from "./appearance";
 import { APP_CLIENT } from "./appInfo";
 import { type Creds, clearCreds, loadCreds } from "./creds";
 import { t } from "./i18n";
@@ -10,9 +11,12 @@ import { type PhotoAsk, PhotoModal } from "./PhotoModal";
 import { fromPairedCore, parseOpenLink, parsePairingLink } from "./pairing";
 import { startPhoneNode } from "./phone";
 import { ApxClient, ApxError } from "./protocol";
-import { theme } from "./ui/theme";
+import { type Scheme, ThemeProvider, themes, useSystemScheme } from "./ui/theme";
 import { unpairDevice } from "./unpair";
 import { WorkspaceScreen } from "./WorkspaceScreen";
+
+/** Until every screen reads the theme through useTheme, the app stays dark. */
+const PINNED: Scheme | undefined = "dark";
 
 /** Paired: the super-agent's chat. Not yet: the pairing screen (a QR, an apx://pair link, or typed by hand). */
 export function App() {
@@ -55,7 +59,9 @@ export function App() {
         setCreds(null);
       });
   }, [creds]);
+  const system = useSystemScheme();
   useEffect(() => {
+    void loadAppearance();
     void loadCreds().then(async (creds) => {
       if (!creds) {
         setCreds(null);
@@ -99,29 +105,34 @@ export function App() {
     if (known) setLink(undefined);
   }, [known]);
   const focused = useCallback(() => setFocus(undefined), []);
+  const paired = creds && (!link || known);
+  // Pairing stays dark, as the panel's setup screens do; the rest follows the phone (or Settings).
+  const scheme: Scheme = creds === null || (creds && !paired) ? "dark" : (PINNED ?? system);
   return (
     <SafeAreaProvider>
-      <SafeAreaView edges={["top", "left", "right"]} style={{ flex: 1, backgroundColor: theme.bg }}>
-        <StatusBar style="light" />
-        <PhotoModal ask={photo} />
-        {creds === undefined ? (
-          <View style={{ flex: 1, justifyContent: "center" }}>
-            <ActivityIndicator />
-          </View>
-        ) : creds && (!link || known) ? (
-          <WorkspaceScreen creds={creds} onUnpair={unpair} focus={focus} onFocused={focused} />
-        ) : (
-          <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
-            <PairScreen
-              link={link}
-              onPaired={(c) => {
-                setLink(undefined);
-                setCreds(c);
-              }}
-            />
-          </SafeAreaView>
-        )}
-      </SafeAreaView>
+      <ThemeProvider scheme={scheme}>
+        <SafeAreaView edges={["top", "left", "right"]} style={{ flex: 1, backgroundColor: themes[scheme].bg }}>
+          <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+          <PhotoModal ask={photo} />
+          {creds === undefined ? (
+            <View style={{ flex: 1, justifyContent: "center" }}>
+              <ActivityIndicator />
+            </View>
+          ) : paired ? (
+            <WorkspaceScreen creds={creds} onUnpair={unpair} focus={focus} onFocused={focused} />
+          ) : (
+            <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
+              <PairScreen
+                link={link}
+                onPaired={(c) => {
+                  setLink(undefined);
+                  setCreds(c);
+                }}
+              />
+            </SafeAreaView>
+          )}
+        </SafeAreaView>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
