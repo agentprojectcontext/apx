@@ -64,6 +64,18 @@ test("a pending confirmation is an approval card that approves in place, ahead o
   assert.equal(approval?.notice?.id, "n-input");
 });
 
+test("a confirmation that can last longer offers approving for the session and always", () => {
+  const [item] = inboxItems(data({ inputs: [input("c", { approval_scopes: ["once", "session", "always"] })] }));
+  assert.equal(item?.primary.label, "approveOnce");
+  assert.deepEqual(
+    item?.more?.map((m) => m.action),
+    [
+      { kind: "approve", input: "c", scope: "session" },
+      { kind: "approve", input: "c", scope: "always" },
+    ],
+  );
+});
+
 test("a question opens its chat to answer and shows its options", () => {
   const [item] = inboxItems(data({ inputs: [input("q", { kind: "question", options: ["Yes", "No"] })] }));
   assert.equal(item?.label, "inboxQuestion");

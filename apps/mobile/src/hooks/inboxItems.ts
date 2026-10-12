@@ -5,7 +5,7 @@ import type { Notice, Workspace } from "./useWorkspace";
 
 /** What the card's main button does. */
 export type InboxAction =
-  | { kind: "approve"; input: string }
+  | { kind: "approve"; input: string; scope?: "session" | "always" }
   | { kind: "open"; thread?: string }
   | { kind: "rerun"; routine: string }
   | { kind: "dismiss" };
@@ -25,6 +25,8 @@ export type InboxItem = {
   icon?: IconName;
   primary: { label: Key; action: InboxAction };
   secondary: { label: Key; action: InboxAction };
+  /** Approvals that last longer than once (this session, always for this agent), when the core offers them. */
+  more?: Array<{ label: Key; action: InboxAction }>;
   /** The notice behind it, marked read when the owner acts on the card. */
   notice?: Notice;
 };
@@ -45,6 +47,25 @@ export function inboxItems(data: Data): InboxItem[] {
       const { thread, name } = projectOf(input.thread_id);
       const notice = data.notices.find((item) => item.kind === "input" && item.ref === input.id);
       const confirm = input.kind === "confirm";
+      const scopes = confirm ? (input.approval_scopes ?? []) : [];
+      const more = [
+        ...(scopes.includes("session")
+          ? [
+              {
+                label: "approveSession" as const,
+                action: { kind: "approve" as const, input: input.id, scope: "session" as const },
+              },
+            ]
+          : []),
+        ...(scopes.includes("always")
+          ? [
+              {
+                label: "approveAlways" as const,
+                action: { kind: "approve" as const, input: input.id, scope: "always" as const },
+              },
+            ]
+          : []),
+      ];
       return {
         id: `input:${input.id}`,
         label: confirm ? "inboxApproval" : "inboxQuestion",
@@ -56,9 +77,10 @@ export function inboxItems(data: Data): InboxItem[] {
         quote: input.options?.length ? input.options.join(" · ") : undefined,
         agentId: input.agent_id,
         primary: confirm
-          ? { label: "approve", action: { kind: "approve", input: input.id } }
+          ? { label: more.length ? "approveOnce" : "approve", action: { kind: "approve", input: input.id } }
           : { label: "reply", action: { kind: "open", thread: input.thread_id } },
         secondary: { label: "view", action: { kind: "open", thread: input.thread_id } },
+        ...(more.length ? { more } : {}),
         notice,
       };
     });

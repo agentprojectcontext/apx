@@ -99,6 +99,8 @@ export type PendingInput = {
   prompt: string;
   detail?: string;
   options?: string[];
+  /** How long an approval may last, when the core offers more than once. */
+  approval_scopes?: Array<"once" | "session" | "always">;
   state: string;
 };
 export type Routine = {

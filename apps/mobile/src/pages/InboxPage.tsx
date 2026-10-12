@@ -3,6 +3,7 @@ import { Alert, StyleSheet, Text, View } from "react-native";
 import { listWhen } from "../format";
 import type { InboxAction, InboxItem } from "../hooks/inboxItems";
 import type { Notice, Workspace } from "../hooks/useWorkspace";
+import type { Answer } from "../protocol";
 import { t } from "../i18n";
 import { Icon } from "../ui/Icon";
 import { AgentAvatar, Button, Card, EmptyState, PageTitle, Screen, Tag, type } from "../ui/kit";
@@ -20,11 +21,12 @@ export function InboxPage({
   items: InboxItem[];
   open: (threadId: string) => void;
   read: (notice: Notice) => Promise<void>;
-  respond: (input: string, response: { decision?: "approve" | "deny" }) => Promise<void>;
+  respond: (input: string, response: Answer) => Promise<void>;
   rerun: (routine: string) => Promise<void>;
 }) {
   const act = async (item: InboxItem, action: InboxAction) => {
-    if (action.kind === "approve") await respond(action.input, { decision: "approve" });
+    if (action.kind === "approve")
+      await respond(action.input, { decision: "approve", ...(action.scope ? { scope: action.scope } : {}) });
     if (action.kind === "rerun") await rerun(action.routine);
     if (item.notice) await read(item.notice);
     if (action.kind === "open" && action.thread) open(action.thread);
@@ -55,11 +57,11 @@ function InboxCard({
   data: Workspace;
   act: (item: InboxItem, action: InboxAction) => Promise<void>;
 }) {
-  const [busy, setBusy] = useState<"primary" | "secondary">();
+  const [busy, setBusy] = useState<string>();
   const agent = data.agents.find((a) => a.id === item.agentId);
-  const press = (which: "primary" | "secondary") => {
+  const press = (which: string, action: InboxAction) => {
     setBusy(which);
-    act(item, item[which].action)
+    act(item, action)
       .catch((error) => Alert.alert(t(item.label), error instanceof Error ? error.message : String(error)))
       .finally(() => setBusy(undefined));
   };
@@ -94,15 +96,25 @@ function InboxCard({
         <Button
           label={t(item.primary.label)}
           busy={busy === "primary"}
-          disabled={busy === "secondary"}
-          onPress={() => press("primary")}
+          disabled={Boolean(busy)}
+          onPress={() => press("primary", item.primary.action)}
         />
+        {(item.more ?? []).map((m) => (
+          <Button
+            key={m.label}
+            label={t(m.label)}
+            variant="secondary"
+            busy={busy === m.label}
+            disabled={Boolean(busy)}
+            onPress={() => press(m.label, m.action)}
+          />
+        ))}
         <Button
           label={t(item.secondary.label)}
           variant="secondary"
           busy={busy === "secondary"}
-          disabled={busy === "primary"}
-          onPress={() => press("secondary")}
+          disabled={Boolean(busy)}
+          onPress={() => press("secondary", item.secondary.action)}
         />
       </View>
     </Card>
@@ -131,5 +143,5 @@ const s = StyleSheet.create({
     fontSize: 14,
     overflow: "hidden",
   },
-  actions: { flexDirection: "row", gap: 8 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
 });
