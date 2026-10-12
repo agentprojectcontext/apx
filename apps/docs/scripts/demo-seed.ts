@@ -395,6 +395,8 @@ export async function seed(rpc: Rpc, world: { repo: string; extension: string },
       name: "btc-market",
       title: "BTC market panel",
       html: WIDGET_BTC,
+      // Live from Binance's public market data; without the network the widget shows sample figures.
+      connect: ["https://api.binance.com"],
       app: true,
       thread: "home",
     });

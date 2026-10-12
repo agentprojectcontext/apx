@@ -227,6 +227,8 @@ const SHOTS: Shot[] = [
     go: async (p) => {
       await at("thread=home")(p);
       await p.getByRole("complementary").getByRole("button", { name: "BTC market panel" }).first().click();
+      // The widget fetches Binance's live figures (or falls back to sample ones) before it draws.
+      await p.frameLocator("iframe").first().locator("body[data-state]").waitFor({ timeout: 20_000 });
     },
   },
   {

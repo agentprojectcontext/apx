@@ -36,13 +36,13 @@ svg text{font-size:11px;fill:var(--apx-fg-subtle)}
     <div>
       <div class="k">Bitcoin · BTC/USDT</div>
       <div class="px" id="price">$82,732.19</div>
-      <div class="sub">Updated 12:34:41</div>
+      <div class="sub" id="updated">Loading…</div>
     </div>
-    <div class="pill"><span class="dot"></span><span id="feed">Live · 1m candles</span></div>
+    <div class="pill"><span class="dot"></span><span id="feed">Connecting…</span></div>
   </div>
 
   <div class="card range">
-    <div class="row sub"><span>Price range · 24 h</span><span>$82,410.86 to $84,352.00</span></div>
+    <div class="row sub"><span>Price range · 24 h</span><span id="range"></span></div>
     <div class="bar"><i id="fill"></i><b id="mark"></b></div>
   </div>
 
@@ -58,37 +58,48 @@ svg text{font-size:11px;fill:var(--apx-fg-subtle)}
   <div class="card"><svg id="rsi" viewBox="0 0 880 72"></svg></div>
 
   <div class="stats">
-    <div class="card"><span class="sub">Change · 24 h</span><b style="color:var(--down)">-0.62%</b></div>
-    <div class="card"><span class="sub">High · 24 h</span><b>$84,352.00</b></div>
-    <div class="card"><span class="sub">Low · 24 h</span><b>$82,410.86</b></div>
-    <div class="card"><span class="sub">Volume · 24 h</span><b>12,969 BTC</b></div>
-    <div class="card"><span class="sub">Quote volume</span><b>$1.08B</b></div>
-    <div class="card"><span class="sub">Trades · 24 h</span><b>2,301,416</b></div>
+    <div class="card"><span class="sub">Change · 24 h</span><b id="change"></b></div>
+    <div class="card"><span class="sub">High · 24 h</span><b id="high"></b></div>
+    <div class="card"><span class="sub">Low · 24 h</span><b id="low"></b></div>
+    <div class="card"><span class="sub">Volume · 24 h</span><b id="volume"></b></div>
+    <div class="card"><span class="sub">Quote volume</span><b id="quote"></b></div>
+    <div class="card"><span class="sub">Trades · 24 h</span><b id="trades"></b></div>
   </div>
-  <p class="note">Sample figures. RSI describes past prices; it is not a trading signal or financial advice.</p>
+  <p class="note" id="note"></p>
 </div>
 <script>
 (function () {
-  var LOW = 82410.86, HIGH = 84352.0, N = 60, P = 14;
-  var NS = "http://www.w3.org/2000/svg";
-  function rng(seed) { return function () { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; var t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  // Binance's public market data (no key): the 24 h ticker and the candles. Without the network, sample figures.
+  var API = "https://api.binance.com/api/v3/";
+  var N = 60, P = 14, NS = "http://www.w3.org/2000/svg";
+  var INTERVALS = ["1m", "5m", "15m", "1h"];
+  var interval = "1m", timer;
+  function $(id) { return document.getElementById(id); }
   function el(svg, name, attrs) { var e = document.createElementNS(NS, name); for (var k in attrs) e.setAttribute(k, attrs[k]); svg.appendChild(e); return e; }
-  function money(v) { return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function money(v, d) { return "$" + Number(v).toLocaleString("en-US", { minimumFractionDigits: d == null ? 2 : d, maximumFractionDigits: d == null ? 2 : d }); }
+  function compact(v) { var n = Number(v); return n >= 1e9 ? (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n.toLocaleString("en-US"); }
+  function clock(t) { return new Date(t).toLocaleTimeString("en-US", { hour12: false }); }
 
-  function series(seed, vol) {
-    var r = rng(seed), c = [], p = 100, drift = 0;
+  function sample() {
+    var seed = 7, r = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    var c = [], p = 82600, now = Date.now();
     for (var i = 0; i < N + P; i++) {
-      drift = drift * 0.9 + (r() - 0.5) * 0.7 + (i > 30 && i < 50 ? -0.12 : 0.03);
-      var o = p, cl = o + drift * vol + (r() - 0.5) * vol * 1.8;
-      var hi = Math.max(o, cl) + r() * vol * 0.6, lo = Math.min(o, cl) - r() * vol * 0.6;
-      c.push({ o: o, c: cl, h: hi, l: lo, v: Math.pow(r(), 3) });
+      var o = p, cl = o + (r() - 0.48) * 60, hi = Math.max(o, cl) + r() * 25, lo = Math.min(o, cl) - r() * 25;
+      c.push({ o: o, c: cl, h: hi, l: lo, v: 5 + r() * 40, t: now - (N + P - i) * 60000 });
       p = cl;
     }
-    var shown = c.slice(P), min = Infinity, max = -Infinity;
-    shown.forEach(function (k) { min = Math.min(min, k.l); max = Math.max(max, k.h); });
-    var a = 82420, b = 82960, s = function (x) { return a + ((x - min) / (max - min)) * (b - a); };
-    c.forEach(function (k) { k.o = s(k.o); k.c = s(k.c); k.h = s(k.h); k.l = s(k.l); });
-    return c;
+    var last = c[c.length - 1].c;
+    return { candles: c, ticker: { lastPrice: last, priceChangePercent: -0.62, highPrice: 84352, lowPrice: 82410.86, volume: 12969.29, quoteVolume: 1083619382, count: 2301416, closeTime: now }, live: false };
+  }
+
+  function load() {
+    var ask = function (path) { return fetch(API + path).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
+    return Promise.all([ask("ticker/24hr?symbol=BTCUSDT"), ask("klines?symbol=BTCUSDT&interval=" + interval + "&limit=" + (N + P))])
+      .then(function (res) {
+        var candles = res[1].map(function (k) { return { t: k[0], o: +k[1], h: +k[2], l: +k[3], c: +k[4], v: +k[5] }; });
+        return { ticker: res[0], candles: candles, live: true };
+      })
+      .catch(sample);
   }
 
   function rsi(c) {
@@ -101,57 +112,84 @@ svg text{font-size:11px;fill:var(--apx-fg-subtle)}
     return out.slice(-N);
   }
 
-  function draw(seed, vol) {
-    var all = series(seed, vol), c = all.slice(P), svg = document.getElementById("candles");
+  function draw(data) {
+    var t = data.ticker, all = data.candles, c = all.slice(-N), svg = $("candles");
+    var last = Number(t.lastPrice), low = Number(t.lowPrice), high = Number(t.highPrice), change = Number(t.priceChangePercent);
+    $("price").textContent = money(last);
+    $("updated").textContent = (data.live ? "Updated " : "Sample from ") + clock(t.closeTime || Date.now());
+    $("feed").textContent = (data.live ? "Live · " : "Sample · ") + interval + " candles";
+    document.querySelector(".dot").style.background = data.live ? "var(--up)" : "var(--apx-fg-subtle)";
+    $("range").textContent = money(low) + " to " + money(high);
+    var pos = Math.max(0, Math.min(100, ((last - low) / (high - low || 1)) * 100));
+    $("fill").style.width = pos + "%";
+    $("mark").style.left = "calc(" + pos + "% - 1px)";
+    $("change").textContent = (change > 0 ? "+" : "") + change.toFixed(2) + "%";
+    $("change").style.color = change < 0 ? "var(--down)" : "var(--up)";
+    $("high").textContent = money(high);
+    $("low").textContent = money(low);
+    $("volume").textContent = Math.round(Number(t.volume)).toLocaleString("en-US") + " BTC";
+    $("quote").textContent = "$" + compact(t.quoteVolume);
+    $("trades").textContent = Number(t.count).toLocaleString("en-US");
+    $("note").textContent = (data.live ? "Live from Binance's public BTC/USDT market data. " : "Sample figures: Binance could not be reached. ") +
+      "RSI describes past prices; it is not a trading signal or financial advice.";
+
     svg.textContent = "";
-    var W = 820, top = 8, H = 138, vTop = 150, vH = 30, lo = 82380, hi = 82990;
+    var lo = Infinity, hi = -Infinity;
+    c.forEach(function (k) { lo = Math.min(lo, k.l); hi = Math.max(hi, k.h); });
+    var pad = (hi - lo) * 0.06 || 1; lo -= pad; hi += pad;
+    var vmax = Math.max.apply(null, c.map(function (k) { return k.v; })) || 1;
+    var W = 820, top = 8, H = 138, vTop = 150, vH = 30;
     var y = function (v) { return top + ((hi - v) / (hi - lo)) * H; };
     for (var g = 0; g < 5; g++) {
       var v = lo + ((hi - lo) * (4 - g)) / 4, gy = y(v);
       el(svg, "line", { x1: 0, x2: W, y1: gy, y2: gy, class: "grid", "stroke-dasharray": "2 4" });
       el(svg, "text", { x: W + 6, y: gy + 4 }).textContent = v.toLocaleString("en-US", { maximumFractionDigits: 0 });
     }
-    var step = W / N;
+    var step = W / c.length;
     c.forEach(function (k, i) {
       var x = i * step + step / 2, color = k.c >= k.o ? "var(--up)" : "var(--down)";
       el(svg, "line", { x1: x, x2: x, y1: y(k.h), y2: y(k.l), stroke: color, "stroke-width": 1.2 });
       var bt = y(Math.max(k.o, k.c)), bh = Math.max(1.5, Math.abs(y(k.o) - y(k.c)));
       el(svg, "rect", { x: x - step * 0.32, y: bt, width: step * 0.64, height: bh, fill: color, rx: 1 });
-      var vh = 4 + k.v * vH;
+      var vh = 3 + (k.v / vmax) * vH;
       el(svg, "rect", { x: x - step * 0.32, y: vTop + vH - vh + 4, width: step * 0.64, height: vh, fill: color, opacity: 0.35 });
     });
-    el(svg, "text", { x: 0, y: 198, style: "fill:var(--up)" }).textContent = "60 candles";
+    el(svg, "text", { x: 0, y: 198, style: "fill:var(--up)" }).textContent = c.length + " candles · " + interval;
     el(svg, "text", { x: W - 26, y: 198, style: "fill:var(--up)" }).textContent = "now";
 
-    var last = c[c.length - 1].c;
-    document.getElementById("price").textContent = money(last);
-    var pos = ((last - LOW) / (HIGH - LOW)) * 100;
-    document.getElementById("fill").style.width = pos + "%";
-    document.getElementById("mark").style.left = "calc(" + pos + "% - 1px)";
-
-    var r = rsi(all), rs = document.getElementById("rsi");
+    var r = rsi(all), rs = $("rsi");
     rs.textContent = "";
     var ry = function (v) { return 4 + ((100 - v) / 100) * 64; };
     [70, 50, 30].forEach(function (v) {
       el(rs, "line", { x1: 0, x2: W, y1: ry(v), y2: ry(v), stroke: v === 50 ? "var(--apx-border)" : "var(--down)", "stroke-dasharray": "4 4", opacity: v === 50 ? 1 : 0.6 });
       el(rs, "text", { x: W + 6, y: ry(v) + 4 }).textContent = String(v);
     });
-    var pts = r.map(function (v, i) { return (i * step + step / 2).toFixed(1) + "," + ry(v).toFixed(1); }).join(" ");
+    var rstep = W / r.length;
+    var pts = r.map(function (v, i) { return (i * rstep + rstep / 2).toFixed(1) + "," + ry(v).toFixed(1); }).join(" ");
     el(rs, "polyline", { points: pts, fill: "none", stroke: "#7c8cff", "stroke-width": 2 });
     var lv = r[r.length - 1], lp = pts.split(" ").pop().split(",");
     el(rs, "circle", { cx: lp[0], cy: lp[1], r: 3.5, fill: "#7c8cff" });
-    document.getElementById("rsiv").textContent = lv.toFixed(1) + " · " + (lv > 70 ? "Overbought" : lv < 30 ? "Oversold" : "Neutral");
+    $("rsiv").textContent = lv.toFixed(1) + " · " + (lv > 70 ? "Overbought" : lv < 30 ? "Oversold" : "Neutral");
+    document.body.dataset.state = data.live ? "live" : "sample";
   }
 
-  var buttons = document.querySelectorAll(".chips button"), vols = [22, 34, 48, 70];
+  function refresh() {
+    clearTimeout(timer);
+    load().then(function (data) {
+      draw(data);
+      if (data.live) timer = setTimeout(refresh, 15000);
+    });
+  }
+
+  var buttons = document.querySelectorAll(".chips button");
   buttons.forEach(function (b, i) {
     b.addEventListener("click", function () {
       buttons.forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
-      document.getElementById("feed").textContent = "Live · " + b.textContent + " candles";
-      draw(7 + i * 13, vols[i]);
+      interval = INTERVALS[i];
+      refresh();
     });
   });
-  draw(7, vols[0]);
+  refresh();
 })();
 </script>
 </body>
