@@ -110,7 +110,7 @@ writeFileSync(
   `// Synced from packages/ui/src/engine-marks.ts by scripts/sync-design-assets.mjs.\n${readFileSync(resolve(shared, "src/engine-marks.ts"), "utf8")}`,
 );
 
-// The panel's minimal look, dark mode (shared values from its light block), as plain native colors and numbers.
+// The panel's minimal look, light and dark (dark overrides the light block), as plain native colors and numbers.
 const css = readFileSync(resolve(shared, "src/styles/tokens.css"), "utf8");
 const block = (selector) => {
   const start = css.indexOf(`${selector} {`);
@@ -118,23 +118,27 @@ const block = (selector) => {
   const body = css.slice(start, css.indexOf("}", start));
   return Object.fromEntries([...body.matchAll(/--apx-([\w-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
 };
-const vars = {
-  ...block('.apx,\n[data-apx-look="minimal"]'),
-  ...block('[data-apx-look="minimal"][data-apx-mode="dark"]'),
-};
+const light = block('.apx,\n[data-apx-look="minimal"]');
 // Hermes reads rgba(), not the CSS4 space syntax the stylesheet uses.
 const native = (value) =>
   value.replace(/rgb\((\d+) (\d+) (\d+) \/ ([\d.]+)\)/, (_, r, g, b, a) => `rgba(${r}, ${g}, ${b}, ${a})`);
-const tokens = {};
-for (const [name, value] of Object.entries(vars)) {
-  // Colors and sizes only: the rest are web-only choices (fonts, text transforms, shadows).
-  if (!/^(#|rgb|\d+px$)/.test(value)) continue;
-  const key = name.replace(/-(\w)/g, (_, c) => c.toUpperCase());
-  tokens[key] = /^\d+px$/.test(value) ? Number.parseInt(value, 10) : native(value);
-}
+const nativeTokens = (vars) => {
+  const tokens = {};
+  for (const [name, value] of Object.entries(vars)) {
+    // Colors and sizes only: the rest are web-only choices (fonts, text transforms, shadows).
+    if (!/^(#|rgb|\d+px$)/.test(value)) continue;
+    const key = name.replace(/-(\w)/g, (_, c) => c.toUpperCase());
+    tokens[key] = /^\d+px$/.test(value) ? Number.parseInt(value, 10) : native(value);
+  }
+  return tokens;
+};
+const palettes = {
+  light: nativeTokens(light),
+  dark: nativeTokens({ ...light, ...block('[data-apx-look="minimal"][data-apx-mode="dark"]') }),
+};
 writeFileSync(
   resolve(target, "tokens.ts"),
-  `// Generated from packages/ui/src/styles/tokens.css (minimal look, dark mode) by scripts/sync-design-assets.mjs.\nexport const tokens = ${JSON.stringify(tokens, null, 2)} as const;\n`,
+  `// Generated from packages/ui/src/styles/tokens.css (minimal look) by scripts/sync-design-assets.mjs.\nexport const palettes = ${JSON.stringify(palettes, null, 2)} as const;\n`,
 );
 
 mkdirSync(resolve(mobile, "assets"), { recursive: true });

@@ -1,6 +1,8 @@
 import { Platform } from "react-native";
-import { tokens } from "./tokens";
+import { palettes } from "./tokens";
 import type { Tone } from "./tone";
+
+const tokens = palettes.dark;
 
 export type { Tone };
 
