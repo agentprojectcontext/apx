@@ -1126,7 +1126,9 @@ a.card:hover,
   color: inherit;
   opacity: 0.55;
   cursor: pointer;
-  transition: opacity 0.15s, border-color 0.15s;
+  transition:
+    opacity 0.15s,
+    border-color 0.15s;
 }
 .os button:hover {
   opacity: 0.85;
