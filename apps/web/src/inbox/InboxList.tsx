@@ -10,7 +10,16 @@ import {
   Skeleton,
 } from "@apx/ui";
 import { useMemo, useState } from "react";
-import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } from "../data/identity.ts";
+import { markAllRead } from "../data/actions.ts";
+import {
+  DEFAULT_PID,
+  findProject,
+  inInbox,
+  inProject,
+  projectInitial,
+  projectTone,
+  threadAgent,
+} from "../data/identity.ts";
 import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -50,6 +59,14 @@ export function InboxList() {
     [view, threads, projectId, query, routines],
   );
   const archived = useMemo(() => archivedThreads(threads, { projectId, query }), [threads, projectId, query]);
+  // The chats the Inbox counts as unread, in this project when one is open.
+  const unreadIds = useMemo(
+    () =>
+      Object.values(threads)
+        .filter((th) => th.unread > 0 && inInbox(th, routines) && (!projectId || inProject(th, projectId)))
+        .map((th) => th.id),
+    [threads, routines, projectId],
+  );
   const title = projectId
     ? t("inbox.projectChats", { project: findProject(projects, projectId)?.name ?? t("project.fallback") })
     : t("nav.inbox");
@@ -64,6 +81,12 @@ export function InboxList() {
       <div className="inbox__head">
         <div className="inbox__titlerow">
           <h1 className="inbox__title">{title}</h1>
+          <IconButton
+            label={t("inbox.markAllRead")}
+            icon={<Icons.CheckCheck size={16} />}
+            disabled={unreadIds.length === 0}
+            onClick={() => void markAllRead(unreadIds)}
+          />
           <Menu
             align="end"
             trigger={<IconButton label={t("inbox.filter")} icon={<Icons.Filter size={16} />} active={!routines} />}

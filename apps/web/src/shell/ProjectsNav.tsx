@@ -61,9 +61,12 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
         if ((lastActive.get(p.id) ?? "") < th.updated_at) lastActive.set(p.id, th.updated_at);
       }
     // What the Inbox would count as unread, a routine's news included when it lists them.
-    const unread = new Set<string>();
-    for (const th of Object.values(threads))
-      if (th.unread > 0 && inInbox(th, routines)) unread.add(entries.find((p) => inProject(th, p.id))?.id ?? "");
+    const unread = new Map<string, string[]>();
+    for (const th of Object.values(threads)) {
+      if (th.unread === 0 || !inInbox(th, routines)) continue;
+      const pid = entries.find((p) => inProject(th, p.id))?.id ?? "";
+      unread.set(pid, [...(unread.get(pid) ?? []), th.id]);
+    }
     const rank = new Map(saved.map((id, index) => [id, index]));
     const ordered = [...entries].sort(
       (a, b) =>
@@ -111,6 +114,7 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
         () => setSettings(p),
         () => setRemoving(p),
         () => setMoreOpen(false),
+        unread.get(p.id),
       )}
       key={p.id}
       rail={rail && !onPick}

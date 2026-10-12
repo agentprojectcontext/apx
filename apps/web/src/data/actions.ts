@@ -207,6 +207,11 @@ export async function cancel(threadId: string): Promise<void> {
   }
 }
 
+/** Marks every one of these chats read (the Inbox's or a project's "Mark all as read"). */
+export async function markAllRead(threadIds: readonly string[]): Promise<void> {
+  await Promise.all(threadIds.map((id) => markRead(id)));
+}
+
 export async function markRead(threadId: string): Promise<void> {
   const t = data.get().threads[threadId];
   if (!t || (t.unread === 0 && !hasNoticesFor(threadId))) return;

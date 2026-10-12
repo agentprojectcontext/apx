@@ -1,4 +1,5 @@
 import { Icons, type MenuEntry } from "@apx/ui";
+import { markAllRead } from "../data/actions.ts";
 import type { ProjectEntry } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import type { T } from "../i18n/index.ts";
@@ -20,6 +21,8 @@ export function projectNavMenu(
   onSettings: () => void,
   onRemove: () => void,
   onClose: () => void,
+  /** Its unread chats, for "Mark all as read". */
+  unread: readonly string[] = [],
 ): MenuEntry[] {
   return [
     {
@@ -36,6 +39,15 @@ export function projectNavMenu(
       onSelect: () => {
         onClose();
         onSettings();
+      },
+    },
+    {
+      label: t("inbox.markAllRead"),
+      icon: <Icons.CheckCheck />,
+      disabled: unread.length === 0,
+      onSelect: () => {
+        onClose();
+        void markAllRead(unread);
       },
     },
     {

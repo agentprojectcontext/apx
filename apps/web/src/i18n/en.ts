@@ -385,6 +385,7 @@ export const en = {
   "inbox.filter": "Filter chats",
   "inbox.filter.show": "Show",
   "inbox.filter.routines": "Routine news",
+  "inbox.markAllRead": "Mark all as read",
   "inbox.unread": "Unread",
   "inbox.offline.title": "Offline",
   "inbox.offline.body": "Chats show up when the core is back.",
