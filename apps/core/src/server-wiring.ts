@@ -2,7 +2,6 @@
 // Still wiring only: no logic beyond passing dependencies along.
 
 import fs from "node:fs";
-import http from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
@@ -88,6 +87,10 @@ import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
 import { attachWs } from "./transport/ws.ts";
 import type { Updates } from "./updates.ts";
+
+// Not `import http from "node:http"`: that loads Node's fetch client (undici), which an idle core never uses.
+// See HISTORY.md#esm-node-http.
+const http = process.getBuiltinModule("node:http");
 
 /** Engine ids a thread or agent may name: the CLI harnesses, every ACP agent, every configured provider. */
 export function knownEngines(store: Store, providers: { has: (id: string) => boolean }) {

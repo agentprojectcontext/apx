@@ -22,6 +22,28 @@ their uncertainty policy and are never retried blindly.
 first.
 **Where:** `packages/protocol/package.json` (`exports`), `apps/*/package.json` (`workspace:*`).
 
+<a id="idle-memory"></a>
+### An idle core gives its young generation back
+**Rule:** keep `createIdleTrim` running in the core; do not drop it for "V8 manages memory on its own".
+**Why:** V8 grows the young generation to its maximum (32 MB) while the core loads, and shrinks it only inside a GC
+that sees a low allocation rate. An idle core allocates too little to trigger any GC, and V8's memory reducer keeps
+reading the startup burst as "high allocation", so the 32 MB stayed resident for good: about 30 MB of the idle RSS
+`pnpm perf` measures. A second after the core is up, and later whenever the young generation is grown and barely
+moved for one 5 s look, the core runs one memory-reducing GC (`gc` with `flavor: "last-resort"`, reached through a
+fresh `vm` context, as V8 offers it to no other caller; `gc` stays hidden from later contexts). It costs ~50 ms of
+CPU, and V8 follows any full GC with two cleanup GCs ~8 s later (~30 ms each). The first trim runs at startup rather
+than after a quiet look so those cleanups end before the core is idle: started at 5 s they landed in the window
+where `pnpm perf` measures idle CPU (1.4% instead of 0). A minor GC does not shrink the young generation.
+**Where:** `apps/core/src/idle-memory.ts`, started in `apps/core/src/server.ts`.
+
+<a id="esm-node-http"></a>
+### The core takes `node:http` with `process.getBuiltinModule`
+**Rule:** core code that runs at startup does not `import` from `"node:http"` (a type-only import is fine).
+**Why:** an ES `import` of a builtin reads every export to build its namespace, and `node:http` exports the
+`WebSocket`, `CloseEvent` and `MessageEvent` getters that load Node's fetch client (undici). That cost an idle core
+about 4 MB it never used. `process.getBuiltinModule("node:http")` returns the same module without reading them.
+**Where:** `apps/core/src/server-wiring.ts`.
+
 ## Repo hygiene
 
 <a id="private-terms"></a>
