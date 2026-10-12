@@ -38,6 +38,17 @@ export function isListed(t: Pick<Thread, "parent_id" | "kind" | "archived">): bo
   return !t.archived && isTopLevel(t);
 }
 
+/**
+ * What the Inbox lists: the chats, and with `routines` the routine runs that told something (a quiet run is archived;
+ * one still running waits until it has said it).
+ */
+export function inInbox(t: Pick<Thread, "parent_id" | "kind" | "archived" | "state">, routines: boolean): boolean {
+  return isListed(t) || (routines && t.kind === "routine" && !t.parent_id && !t.archived && !isWorking(t.state));
+}
+
+/** A routine run's chat is titled "<routine> · <when>". */
+export const routineName = (t: Pick<Thread, "title">): string => t.title.split(" · ")[0] ?? t.title;
+
 /** A chat of its own (not a sub-thread, a task's or a routine's), archived or not. */
 export function isTopLevel(t: Pick<Thread, "parent_id" | "kind">): boolean {
   return !t.parent_id && t.kind !== "a2a" && t.kind !== "task" && t.kind !== "routine";

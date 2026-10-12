@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { ReactionList } from "../channels/MessageMarks.tsx";
 import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
-import { blobOf, isWorking, threadAgent } from "../data/identity.ts";
+import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
@@ -119,7 +119,9 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
         {rows.map(({ key, day, msg }) => (
           <div key={key} className="transcript__row" data-msg={key}>
             {day && <DayDivider label={day} />}
-            {msg.author.kind === "user" ? (
+            {thread.kind === "routine" && msg.author.kind === "user" && key === rows[0]?.key ? (
+              <RoutinePrompt name={routineName(thread)} text={textOf(msg)} />
+            ) : msg.author.kind === "user" ? (
               <UserMessage
                 thread={thread}
                 message={msg}
@@ -200,6 +202,21 @@ function SystemMessage({ message }: { message: Msg }) {
         <NoticePart key={i} part={p} />
       ))}
     </>
+  );
+}
+
+/** A routine run opens with the routine's instructions: folded, so what the agent told stands out. */
+function RoutinePrompt({ name, text }: { name: string; text: string }) {
+  const t = useT();
+  return (
+    <details className="transcript__routine">
+      <summary>
+        <Icons.Clock size={13} />
+        <span>{t("thread.routinePrompt", { name })}</span>
+        <Icons.ChevronRight size={13} className="transcript__routinechev" />
+      </summary>
+      <p className="transcript__routinetext">{text}</p>
+    </details>
   );
 }
 

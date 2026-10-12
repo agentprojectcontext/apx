@@ -97,6 +97,36 @@
 .transcript__usertext {
   white-space: pre-wrap;
 }
+/* A routine run's instructions, folded above what it told. */
+.transcript__routine {
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-sm);
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
+.transcript__routine summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+.transcript__routine summary::-webkit-details-marker {
+  display: none;
+}
+.transcript__routinechev {
+  margin-left: auto;
+  transition: transform 0.15s;
+}
+.transcript__routine[open] .transcript__routinechev {
+  transform: rotate(90deg);
+}
+.transcript__routinetext {
+  margin: 0;
+  padding: 0 10px 10px;
+  white-space: pre-wrap;
+}
 /* What a reply answers: a card above its words with who said it; it leads back to that message. */
 .transcript__quote {
   display: flex;

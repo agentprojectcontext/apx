@@ -1,6 +1,7 @@
 import { IconButton, Icons, ProjectTile } from "@apx/ui";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
+  inInbox,
   inProject,
   isListed,
   isWorking,
@@ -47,7 +48,8 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
   const [removing, setRemoving] = useState<ProjectEntry>();
   // The rail has no section header to unfold with, so it always lists them.
   const hidden = folded && !rail;
-  const { shown, rest, running, ordered } = useMemo(() => {
+  const routines = usePrefs((s) => s.inboxRoutines);
+  const { shown, rest, running, unread, ordered } = useMemo(() => {
     const entries = projectEntries(projects);
     const live = Object.values(threads).filter(isListed);
     const lastActive = new Map<string, string>();
@@ -58,6 +60,10 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
         if (isWorking(th.state)) running.add(p.id);
         if ((lastActive.get(p.id) ?? "") < th.updated_at) lastActive.set(p.id, th.updated_at);
       }
+    // What the Inbox would count as unread, a routine's news included when it lists them.
+    const unread = new Set<string>();
+    for (const th of Object.values(threads))
+      if (th.unread > 0 && inInbox(th, routines)) unread.add(entries.find((p) => inProject(th, p.id))?.id ?? "");
     const rank = new Map(saved.map((id, index) => [id, index]));
     const ordered = [...entries].sort(
       (a, b) =>
@@ -72,8 +78,9 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
       rest: ordered.slice(cut),
       ordered: ordered.map((p) => p.id),
       running,
+      unread,
     };
-  }, [projects, threads, saved]);
+  }, [projects, threads, saved, routines]);
   // Read when a project opens, not when the list reorders after it. The page coming back on a project (a reload)
   // is not opening it.
   const inView = useRef<string[]>([]);
@@ -112,7 +119,11 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
       trailing={
         <>
           {p.isDefault && <Icons.Lock size={12} aria-label={t("nav.baseProject")} />}
-          {running.has(p.id) && <span className="sidebar__running" title={t("common.running")} />}
+          {running.has(p.id) ? (
+            <span className="sidebar__running" title={t("common.running")} />
+          ) : (
+            unread.has(p.id) && <span className="sidebar__unread" title={t("inbox.unread")} />
+          )}
         </>
       }
       active={view === "project" && projectId === p.id}

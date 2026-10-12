@@ -78,3 +78,25 @@ test("Activity puts pinned chats on top; archived chats leave every view and lis
     ["ccc"],
   );
 });
+
+test("routine runs that told something show only when the owner lists them; quiet or running ones never", () => {
+  const all = {
+    a: thread("a"),
+    bb: thread("bb", { kind: "routine", title: "golf · 10/12/26" }),
+    ccc: thread("ccc", { kind: "routine", archived: true }),
+    dddd: thread("dddd", { kind: "routine", state: "working" }),
+    eeeee: thread("eeeee", { kind: "routine", state: "input-required" }),
+  };
+  const ids = (routines: boolean) =>
+    groupByTime(all, { routines })
+      .flatMap((g) => g.threads.map((t) => t.id))
+      .sort();
+  assert.deepEqual(ids(false), ["a"]);
+  assert.deepEqual(ids(true), ["a", "bb", "eeeee"]);
+  assert.deepEqual(
+    groupByProject(all, [], { routines: true })[0]
+      ?.threads.map((t) => t.id)
+      .sort(),
+    ["a", "bb", "eeeee"],
+  );
+});

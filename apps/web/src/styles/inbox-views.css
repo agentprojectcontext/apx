@@ -39,7 +39,8 @@
 .tree__agenthead:hover {
   background: var(--apx-fill);
 }
-.tree__code {
+.tree__code,
+.tree__routine {
   display: inline-grid;
   place-items: center;
   flex: none;
@@ -178,4 +179,10 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
+}
+/* Unread: bold, after the plain rules it overrides. */
+.tree__session.is-unread .tree__sessiontitle,
+.activity__row.is-unread .activity__text {
+  font-weight: var(--apx-weight-semibold);
+  color: var(--apx-fg);
 }

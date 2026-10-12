@@ -2,7 +2,7 @@ import type { Agent, Thread } from "@apx/protocol";
 import { AgentAvatar, ContextMenu, ConversationRow, EngineIcon, Icons, Spinner, Tag } from "@apx/ui";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { shortWhen } from "../common/format.ts";
-import { blobOf, isWorking } from "../data/identity.ts";
+import { blobOf, isWorking, routineName } from "../data/identity.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { threadMenu } from "./threadActions.tsx";
 
@@ -33,7 +33,7 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
         title={
           <>
             {thread.pinned && <PinMark />}
-            {thread.title}
+            {thread.kind === "routine" ? routineName(thread) : thread.title}
           </>
         }
         titleTag={!thread.engine && agent?.kind === "secretary" ? <Tag kind="role">{t("agent.super")}</Tag> : undefined}
@@ -67,6 +67,7 @@ function metaLine(thread: Thread, agent: Agent | undefined, t: T): string {
   if (thread.engine) return `${t("engine.direct")} · ${thread.cwd?.split("/").filter(Boolean).at(-1) ?? ""}`;
   if (thread.kind === "a2a") return t("thread.a2a");
   if (thread.kind === "group") return t("thread.group", { n: thread.agent_ids.length });
+  if (thread.kind === "routine") return t("thread.routineOf", { name: routineName(thread) });
   const via = thread.channel?.id ?? "";
   if (isChannelKind(via)) return t("chat.viaChannel", { channel: t(CHANNEL_KINDS[via].name) });
   const kind = thread.kind === "home" ? t("thread.home") : t("thread.chat");

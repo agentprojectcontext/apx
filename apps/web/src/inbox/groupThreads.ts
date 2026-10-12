@@ -1,10 +1,15 @@
 import type { Project, Thread } from "@apx/protocol";
-import { baseName, inProject, isListed, isTopLevel, isWorking } from "../data/identity.ts";
+import { baseName, inInbox, inProject, isTopLevel, isWorking } from "../data/identity.ts";
 
-type Filter = { projectId?: string; query?: string };
+/** `routines`: routine runs that told something are listed too. */
+type Filter = { projectId?: string; query?: string; routines?: boolean };
 
 /** Top-level chats the Inbox shows (sub-threads between agents live inside their caller's chat). */
-function visible(threads: Record<string, Thread>, opts: Filter, keep: (t: Thread) => boolean = isListed): Thread[] {
+function visible(
+  threads: Record<string, Thread>,
+  opts: Filter,
+  keep: (t: Thread) => boolean = (t) => inInbox(t, !!opts.routines),
+): Thread[] {
   const q = opts.query?.trim().toLowerCase();
   return Object.values(threads).filter(
     (t) =>
@@ -36,13 +41,9 @@ const NO_PROJECT = "__none__";
 
 /** Inbox organisation "a" (by chat): top-level threads grouped by project, most recent group first. */
 export function groupByProject(threads: Record<string, Thread>, projects: Project[], opts: Filter): ThreadGroup[] {
-  const q = opts.query?.trim().toLowerCase();
   const byId = new Map(projects.map((p) => [p.id, p]));
   const groups = new Map<string, ThreadGroup>();
-  for (const t of Object.values(threads)) {
-    if (!isListed(t)) continue;
-    if (opts.projectId && !inProject(t, opts.projectId)) continue;
-    if (q && !`${t.title} ${t.preview}`.toLowerCase().includes(q)) continue;
+  for (const t of visible(threads, opts)) {
     const key = t.project_id ?? NO_PROJECT;
     let g = groups.get(key);
     if (!g) {

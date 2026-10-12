@@ -1,8 +1,8 @@
 import { Icons, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
 import { lazy, Suspense, useEffect, useMemo } from "react";
 import { loadChannels } from "../data/channels.ts";
-import { isListed } from "../data/identity.ts";
-import { setPrefs } from "../data/prefs.ts";
+import { inInbox } from "../data/identity.ts";
+import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { AccountRow } from "./AccountRow.tsx";
@@ -28,11 +28,12 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
     void loadChannels();
   }, []);
 
+  const routines = usePrefs((s) => s.inboxRoutines);
   const unread = useMemo(() => {
     let n = 0;
-    for (const t of Object.values(threads)) if (isListed(t)) n += t.unread;
+    for (const t of Object.values(threads)) if (inInbox(t, routines)) n += t.unread;
     return n;
-  }, [threads]);
+  }, [threads, routines]);
   const apps = useMemo(() => Object.values(surfaces).filter((s) => s.app), [surfaces]);
 
   return (

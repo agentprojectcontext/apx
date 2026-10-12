@@ -1,4 +1,14 @@
-import { Button, EmptyState, IconButton, Icons, ProjectTile, SearchField, SegmentedControl, Skeleton } from "@apx/ui";
+import {
+  Button,
+  EmptyState,
+  IconButton,
+  Icons,
+  Menu,
+  ProjectTile,
+  SearchField,
+  SegmentedControl,
+  Skeleton,
+} from "@apx/ui";
 import { useMemo, useState } from "react";
 import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } from "../data/identity.ts";
 import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
@@ -26,17 +36,18 @@ export function InboxList() {
   const chatAgents = useChatAgents(projectId);
 
   const view = usePrefs((s) => s.inboxView);
+  const routines = usePrefs((s) => s.inboxRoutines);
   const groups = useMemo(
-    () => groupByProject(threads, projects, { projectId, query }),
-    [threads, projects, projectId, query],
+    () => groupByProject(threads, projects, { projectId, query, routines }),
+    [threads, projects, projectId, query, routines],
   );
   const trees = useMemo(
-    () => (view === "tree" ? groupByAgent(threads, projects, { projectId, query }) : []),
-    [view, threads, projects, projectId, query],
+    () => (view === "tree" ? groupByAgent(threads, projects, { projectId, query, routines }) : []),
+    [view, threads, projects, projectId, query, routines],
   );
   const activity = useMemo(
-    () => (view === "activity" ? groupByTime(threads, { projectId, query }) : []),
-    [view, threads, projectId, query],
+    () => (view === "activity" ? groupByTime(threads, { projectId, query, routines }) : []),
+    [view, threads, projectId, query, routines],
   );
   const archived = useMemo(() => archivedThreads(threads, { projectId, query }), [threads, projectId, query]);
   const title = projectId
@@ -53,6 +64,19 @@ export function InboxList() {
       <div className="inbox__head">
         <div className="inbox__titlerow">
           <h1 className="inbox__title">{title}</h1>
+          <Menu
+            align="end"
+            trigger={<IconButton label={t("inbox.filter")} icon={<Icons.Filter size={16} />} active={!routines} />}
+            items={[
+              { type: "label", label: t("inbox.filter.show") },
+              {
+                label: t("inbox.filter.routines"),
+                icon: <Icons.Clock size={14} />,
+                checked: routines,
+                onSelect: () => setPrefs({ inboxRoutines: !routines }),
+              },
+            ]}
+          />
           <NewChatMenu
             projectId={projectId}
             trigger={<IconButton label={t("chat.new")} icon={<Icons.SquarePen size={16} />} disabled={!ready} />}

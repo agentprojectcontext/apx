@@ -5,7 +5,15 @@ import { KindIcon } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
-import { blobOf, DEFAULT_PID, isWorking, projectInitial, projectName, projectTone } from "../data/identity.ts";
+import {
+  blobOf,
+  DEFAULT_PID,
+  isWorking,
+  projectInitial,
+  projectName,
+  projectTone,
+  routineName,
+} from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
@@ -13,12 +21,17 @@ import type { ActivityGroup, ProjectTree, TimeBucket } from "./groupThreads.ts";
 import { PinMark } from "./ThreadRow.tsx";
 import { threadMenu } from "./threadActions.tsx";
 
-/** A chat's name for a list: its title, or what was said last when the title only repeats the agent's name. */
+/**
+ * A chat's name for a list: its title, or what was said last when the title only repeats the agent's name. A routine
+ * run's is what it told (its routine shows by its mark).
+ */
 export function chatLabel(thread: Thread, agent: Agent | undefined, generic: string): string {
-  const plain = !thread.title || thread.title === agent?.name || thread.title === generic;
+  const plain = !thread.title || thread.title === agent?.name || thread.title === generic || thread.kind === "routine";
   const said = thread.preview.split("\n").find((l) => l.trim()) ?? "";
   return plain && said ? said.replace(/\*\*|`|^\s*(#+|>|[-*])\s+/g, "") : thread.title;
 }
+
+const cx = (...c: Array<string | false>) => c.filter(Boolean).join(" ");
 
 /** Chats shown per agent before "N more". */
 const PER_AGENT = 3;
@@ -110,13 +123,14 @@ function SessionRow({ thread, agent, selected }: { thread: Thread; agent: Agent 
     <ContextMenu items={threadMenu(thread, { t, agent })}>
       <button
         type="button"
-        className={selected ? "tree__session is-selected" : "tree__session"}
+        className={cx("tree__session", selected && "is-selected", thread.unread > 0 && "is-unread")}
         onClick={() => go.thread(thread.id)}
       >
         {isWorking(thread.state) && <Spinner size={12} />}
         {thread.state === "input-required" && <Icons.Hand size={12} className="tree__waiting" />}
         {thread.pinned && <PinMark />}
         <ChannelMark thread={thread} />
+        <RoutineMark thread={thread} />
         <span className="tree__sessiontitle">{chatLabel(thread, agent, t("chat.new"))}</span>
         <CodeMark thread={thread} />
         {thread.unread > 0 && <span className="tree__unread">{thread.unread}</span>}
@@ -142,7 +156,7 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
               <ContextMenu key={th.id} items={threadMenu(th, { t, agent })}>
                 <button
                   type="button"
-                  className={th.id === selected ? "activity__row is-selected" : "activity__row"}
+                  className={cx("activity__row", th.id === selected && "is-selected", th.unread > 0 && "is-unread")}
                   onClick={() => go.thread(th.id)}
                 >
                   {th.engine ? (
@@ -155,6 +169,7 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
                       {isWorking(th.state) && <Spinner size={12} />}
                       {th.state === "input-required" && <Icons.Hand size={12} className="tree__waiting" />}
                       {th.pinned && <PinMark />}
+                      <RoutineMark thread={th} />
                       <span className="activity__text">{chatLabel(th, agent, t("chat.new"))}</span>
                     </span>
                     <span className="activity__meta">
@@ -183,11 +198,26 @@ function ChannelMark({ thread }: { thread: Thread }) {
   return isChannelKind(via) ? <KindIcon kind={via} size={12} /> : null;
 }
 
+/** A routine's run: a clock, and the routine's name on hover. */
+export function RoutineMark({ thread }: { thread: Thread }) {
+  const t = useT();
+  if (thread.kind !== "routine") return null;
+  const name = routineName(thread);
+  return (
+    <Tooltip content={t("thread.routineHint", { name })}>
+      <span className="tree__routine" role="img" aria-label={t("thread.routine")}>
+        <Icons.Clock size={12} />
+      </span>
+    </Tooltip>
+  );
+}
+
 /** Who a chat is with, for its context line: the channel it runs on, the engine, or the agent. */
 function Where({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
   const t = useT();
   const engine = useEngineLabel(thread.engine);
   const via = thread.channel?.id ?? "";
+  if (thread.kind === "routine") return <>{t("thread.routineOf", { name: routineName(thread) })}</>;
   if (isChannelKind(via))
     return (
       <span className="activity__via">

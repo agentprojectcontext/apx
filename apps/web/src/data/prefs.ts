@@ -27,6 +27,8 @@ export type Prefs = {
   engineOrder: string[];
   /** How the Inbox lists chats: project → agent → chats, by time, or by project. */
   inboxView: InboxView;
+  /** The Inbox lists routine runs that told something, besides the chats. */
+  inboxRoutines: boolean;
   /** Columns the owner resized (px; 0 = the default) or folded away. */
   sidebarW: number;
   sidebarCollapsed: boolean;
@@ -65,6 +67,7 @@ const DEFAULTS: Prefs = {
   projectOrder: [],
   engineOrder: [],
   inboxView: "tree",
+  inboxRoutines: true,
   sidebarW: 0,
   sidebarCollapsed: false,
   listW: 0,
@@ -96,6 +99,7 @@ function load(): Prefs {
         ? [...new Set(raw.engineOrder.filter((id): id is string => typeof id === "string"))]
         : [],
       inboxView: raw.inboxView === "activity" || raw.inboxView === "chats" ? raw.inboxView : "tree",
+      inboxRoutines: raw.inboxRoutines !== false,
       sidebarW: typeof raw.sidebarW === "number" ? raw.sidebarW : 0,
       sidebarCollapsed: raw.sidebarCollapsed === true,
       listW: typeof raw.listW === "number" ? raw.listW : 0,

@@ -269,6 +269,13 @@
   border-radius: 50%;
   background: var(--apx-brand);
 }
+.sidebar__unread {
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--apx-fg);
+}
 .sidebar__soon {
   font-size: var(--apx-text-2xs);
   color: var(--apx-fg-subtle);
