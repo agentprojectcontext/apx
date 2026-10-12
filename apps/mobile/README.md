@@ -99,7 +99,8 @@ Owner steps, once:
    `google-services.json`, and save `base64 -i google-services.json` as the repo secret
    `ANDROID_GOOGLE_SERVICES_JSON_BASE64`.
 3. FCM for Expo: Firebase › Project settings › Service accounts › Generate new private key; upload that JSON with
-   `npx eas-cli@latest credentials` › Android › `dev.apx.mobile` › Google Service Account › FCM V1 (or on expo.dev ›
+   `APX_EAS_PROJECT_ID=<id> npx eas-cli@latest credentials -p android` from `apps/mobile` (the id is not in app.json;
+   `eas.json` is there only for this command) › Google Service Account › FCM V1 (or on expo.dev ›
    the project › Credentials). Keep Expo's "enhanced push security" off: the core sends without an access token.
 4. iOS later: an APNs key through `eas credentials` (needs the Apple Developer account).
 5. The next tag builds an APK that registers for push; Settings on the phone says "Push service registered".

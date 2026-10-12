@@ -1,0 +1,4 @@
+{
+  "cli": { "appVersionSource": "local" },
+  "build": { "production": { "android": { "buildType": "apk" } } }
+}
