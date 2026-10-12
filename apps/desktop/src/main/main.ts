@@ -13,6 +13,7 @@ import {
   Menu,
   type MenuItemConstructorOptions,
   Notification,
+  powerMonitor,
   shell,
   type WebContents,
   WebContentsView,
@@ -30,6 +31,7 @@ import { editMenu } from "./edit-menu.ts";
 import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
+import { confirmQuit } from "./quit-confirm.ts";
 import { updateRemoteCore } from "./remote-core.ts";
 import { createUpdateMenu } from "./update-menu.ts";
 import { createDesktopUpdater, type DesktopUpdate } from "./updater.ts";
@@ -58,7 +60,13 @@ const single = app.requestSingleInstanceLock();
 if (!single) app.quit();
 
 let quitting = false;
-app.on("before-quit", () => {
+// Quitting asks first (closing the window only hides it). Set by the updater, a shutdown or a confirmed answer.
+let askBeforeQuit: (() => boolean) | undefined;
+app.on("before-quit", (e) => {
+  if (!quitting && askBeforeQuit && !askBeforeQuit()) {
+    e.preventDefault();
+    return;
+  }
   quitting = true;
 });
 
@@ -289,6 +297,15 @@ app.whenReady().then(() => {
     },
   });
   app.on("will-quit", () => connector.stop());
+  // Tests quit the app themselves (APX_QUIT_CONFIRM=off); a shutdown or a logout never waits on a question.
+  if (process.env.APX_QUIT_CONFIRM !== "off")
+    askBeforeQuit = () => confirmQuit(win, { es: app.getLocale().startsWith("es"), runsCore: connector.runsCore() });
+  powerMonitor.on("shutdown", () => {
+    quitting = true;
+  });
+  win.on("session-end", () => {
+    quitting = true;
+  });
 
   // A newer APX: the panel and the app menu show it; the app downloads it and it goes in at the next restart.
   const updater = createDesktopUpdater({

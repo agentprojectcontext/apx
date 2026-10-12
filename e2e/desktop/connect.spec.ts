@@ -16,6 +16,7 @@ const launch = (env: Record<string, string> = {}) =>
       HOME: home,
       XDG_CONFIG_HOME: path.join(home, ".config"),
       APX_DESKTOP_DATA: path.join(home, "desktop"),
+      APX_QUIT_CONFIRM: "off",
       APX_URL: core,
       APX_WEB_URL: "http://127.0.0.1:9",
       ...env,

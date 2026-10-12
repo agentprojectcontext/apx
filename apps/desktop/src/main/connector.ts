@@ -306,5 +306,9 @@ export function createConnector(opts: {
       core?.stop();
       tunnel?.stop();
     },
+    /** This app runs the core itself: quitting stops the crew's routines and channels too. */
+    runsCore(): boolean {
+      return core !== undefined;
+    },
   };
 }

@@ -53,6 +53,7 @@ test.beforeAll(async () => {
       HOME: home,
       XDG_CONFIG_HOME: path.join(home, ".config"),
       APX_DESKTOP_DATA: path.join(home, "desktop"),
+      APX_QUIT_CONFIRM: "off",
       APX_CONNECTION: "local",
       APX_URL: core,
       // No dev server: the window falls back to the panel the core serves.
