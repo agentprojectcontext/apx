@@ -145,7 +145,7 @@ export function fakeWhatsApp() {
       });
     },
     /** Someone writes; `lid` makes it arrive under their private id with the phone as the alternative. */
-    message(from: Person, text: string, opts: { group?: string; voice?: Buffer } = {}) {
+    message(from: Person, text: string, opts: { group?: string; voice?: Buffer; content?: WaContent } = {}) {
       const jid = opts.group ?? (from.lid ? from.lid : from.phone);
       const id = `IN-${++seq}`;
       deliver({
@@ -156,7 +156,7 @@ export function fakeWhatsApp() {
               audioMessage: { ptt: true, mimetype: "audio/ogg; codecs=opus" },
               bytes: opts.voice.toString("base64"),
             } as WaContent)
-          : { conversation: text },
+          : (opts.content ?? { conversation: text }),
       });
       return id;
     },

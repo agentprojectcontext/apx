@@ -52,7 +52,19 @@ export type WaContent = {
   ephemeralMessage?: { message?: WaContent | null } | null;
   viewOnceMessage?: { message?: WaContent | null } | null;
   viewOnceMessageV2?: { message?: WaContent | null } | null;
+  documentWithCaptionMessage?: { message?: WaContent | null } | null;
+  // What businesses send (verification codes with a copy button, payment notices): a title and a body.
+  templateMessage?: {
+    hydratedTemplate?: WaTemplate | null;
+    hydratedFourRowTemplate?: WaTemplate | null;
+    interactiveMessageTemplate?: WaInteractive | null;
+  } | null;
+  interactiveMessage?: WaInteractive | null;
+  buttonsMessage?: { text?: string | null; contentText?: string | null } | null;
+  listMessage?: { title?: string | null; description?: string | null } | null;
 };
+type WaTemplate = { hydratedTitleText?: string | null; hydratedContentText?: string | null };
+type WaInteractive = { header?: { title?: string | null } | null; body?: { text?: string | null } | null };
 export type WaMessage = { key: WaKey; pushName?: string | null; message?: WaContent | null };
 /** A send of ours moving on: 3 on their device, 4 read, 5 a voice note played. */
 type WaUpdate = { key: WaKey; update: { status?: number | null } };
@@ -97,11 +109,27 @@ const ignorable = (jid: string) =>
 function unwrap(c: WaContent | null | undefined): WaContent | undefined {
   let cur = c ?? undefined;
   for (let i = 0; i < 3 && cur; i++) {
-    const inner = cur.ephemeralMessage?.message ?? cur.viewOnceMessage?.message ?? cur.viewOnceMessageV2?.message;
+    const inner =
+      cur.ephemeralMessage?.message ??
+      cur.viewOnceMessage?.message ??
+      cur.viewOnceMessageV2?.message ??
+      cur.documentWithCaptionMessage?.message;
     if (!inner) break;
     cur = inner;
   }
   return cur;
+}
+/** Title and body on their own lines, the empty ones left out. */
+const lines = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join("\n") || undefined;
+function businessText(c: WaContent): string | undefined {
+  const tpl = c.templateMessage?.hydratedTemplate ?? c.templateMessage?.hydratedFourRowTemplate;
+  const ia = c.interactiveMessage ?? c.templateMessage?.interactiveMessageTemplate;
+  return (
+    lines(tpl?.hydratedTitleText, tpl?.hydratedContentText) ??
+    lines(ia?.header?.title, ia?.body?.text) ??
+    lines(c.buttonsMessage?.text, c.buttonsMessage?.contentText) ??
+    lines(c.listMessage?.title, c.listMessage?.description)
+  );
 }
 function textOf(c: WaContent): string | undefined {
   const t =
@@ -109,7 +137,8 @@ function textOf(c: WaContent): string | undefined {
     c.extendedTextMessage?.text ??
     c.imageMessage?.caption ??
     c.videoMessage?.caption ??
-    c.documentMessage?.caption;
+    c.documentMessage?.caption ??
+    businessText(c);
   if (t) return t;
   const kind = c.imageMessage
     ? "photo"

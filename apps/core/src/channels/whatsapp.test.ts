@@ -201,6 +201,26 @@ test("a saved contact with no chat yet gets an empty one, and the agent writes t
   );
 });
 
+test("a business's verification code (a template with a copy button) is read, not dropped", async () => {
+  const auth = { phone: "5491100000010@s.whatsapp.net", name: "Northwind Auth" };
+  const pay = { phone: "5491100000011@s.whatsapp.net", name: "Acme Pay" };
+  wa.message(auth, "", {
+    content: { templateMessage: { hydratedTemplate: { hydratedContentText: "*482913* is your verification code." } } },
+  });
+  wa.message(pay, "", {
+    content: {
+      viewOnceMessage: {
+        message: { interactiveMessage: { header: { title: "Acme Pay" }, body: { text: "Your code: 771204" } } },
+      },
+    },
+  });
+  const listed = async (name: string) =>
+    (await env.client.call("pairing.list", {})).requests.find((r) => r.name === name)?.text;
+  await until(async () => Boolean((await listed("Northwind Auth")) && (await listed("Acme Pay"))), "both listed");
+  assert.equal(await listed("Northwind Auth"), "*482913* is your verification code.");
+  assert.equal(await listed("Acme Pay"), "Acme Pay\nYour code: 771204");
+});
+
 test("someone under their private id is the same person as their number", async () => {
   wa.message(BOB, "hello");
   await until(async () => (await env.client.call("pairing.list", {})).requests.some((r) => r.name === "Bob"), "listed");
