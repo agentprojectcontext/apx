@@ -28,6 +28,50 @@ export function chatAgents(agents: Agent[], projectId?: string): Agent[] {
   return [...secretary, ...own];
 }
 
+/** Agents the owner talked to lately, shown first in "New chat". */
+const RECENT = 5;
+
+/** Lowercase without accents, so "sao" finds "São". */
+const fold = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+
+/**
+ * "New chat"'s agents, like the web's: in a project, its own and the super-agent; otherwise every project's (base
+ * ones first). Every word of the query is in the name, role or project; with no query the recent ones come apart.
+ */
+export function pickAgents(
+  agents: Agent[],
+  threads: Thread[],
+  o: { projectId?: string | undefined; query: string; projectName: (id: string) => string },
+): { recent: Agent[]; rest: Agent[] } {
+  const where = (a: Agent) => (a.project_id ? o.projectName(a.project_id) : "");
+  const pool = o.projectId
+    ? chatAgents(agents, o.projectId)
+    : [...agents].sort(
+        (a, b) =>
+          Number(b.kind === "secretary") - Number(a.kind === "secretary") ||
+          where(a).localeCompare(where(b)) ||
+          a.name.localeCompare(b.name),
+      );
+  const words = fold(o.query).split(/\s+/).filter(Boolean);
+  if (words.length) {
+    const hay = (a: Agent) => fold(`${a.name} ${a.role ?? ""} ${a.description ?? ""} ${where(a)}`);
+    return { recent: [], rest: pool.filter((a) => words.every((w) => hay(a).includes(w))) };
+  }
+  const offered = new Map(pool.map((a) => [a.id, a]));
+  const recent: Agent[] = [];
+  for (const thread of listedThreads(threads)) {
+    if (thread.engine || (o.projectId && thread.project_id !== o.projectId)) continue;
+    const agent = offered.get(thread.agent_ids[0] ?? "");
+    if (agent && !recent.includes(agent)) recent.push(agent);
+    if (recent.length === RECENT) break;
+  }
+  return { recent, rest: pool.filter((a) => !recent.includes(a)) };
+}
+
 const CHANNEL_NAMES: Record<string, string> = {
   telegram: "Telegram",
   whatsapp: "WhatsApp",

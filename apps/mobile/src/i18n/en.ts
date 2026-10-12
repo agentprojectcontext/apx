@@ -264,6 +264,8 @@ export const en = {
   searchAgents: "Search agents",
   superAgent: "Super-agent",
   noAgentsHere: "No agents in this project.",
+  noAgentsMatch: "No agent matches.",
+  recentAgents: "Recent",
   noAgentForSession: "No agent can start a session.",
   yourAnswer: "Your answer…",
   rtCron: "cron {cron}",

@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { sentenceCase } from "../format";
-import { chatAgents, isWorking, listedThreads } from "../hooks/chatSelectors";
+import { isWorking, listedThreads, pickAgents } from "../hooks/chatSelectors";
 import type { Agent, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { Icon } from "./Icon";
-import { AgentAvatar, BottomSheet, Chip, Spinner, type } from "./kit";
+import { AgentAvatar, BottomSheet, Chip, GroupLabel, Spinner, type } from "./kit";
 import { theme } from "./theme";
 
 /** Starts a chat with an agent of a project, or jumps to another chat. */
@@ -27,13 +27,15 @@ export function ChatPicker({
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState("");
   const words = query.trim().toLowerCase();
-  const agents = useMemo(
-    () =>
-      chatAgents(data.agents, project).filter((agent) =>
-        `${agent.name} ${agent.description ?? ""}`.toLowerCase().includes(words),
-      ),
-    [data.agents, project, words],
-  );
+  const projectName = (id: string) => data.projects.find((item) => item.id === id)?.name ?? t("defaultProject");
+  const agents = useMemo(() => {
+    const names = new Map(data.projects.map((item) => [item.id, item.name]));
+    return pickAgents(data.agents, data.threads, {
+      projectId: project,
+      query,
+      projectName: (id) => names.get(id) ?? t("defaultProject"),
+    });
+  }, [data.agents, data.threads, data.projects, project, query]);
   const threads = useMemo(
     () =>
       listedThreads(data.threads)
@@ -49,13 +51,29 @@ export function ChatPicker({
     setBusy(agent.id);
     setError("");
     try {
-      await onCreate(agent, project);
+      // With no project picked, the chat goes to the agent's own project.
+      await onCreate(agent, project ?? agent.project_id);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(undefined);
     }
+  };
+  const agentRow = (agent: Agent) => {
+    const role =
+      agent.kind === "secretary" ? t("superAgent") : sentenceCase(agent.role || agent.description) || t("agent");
+    return (
+      <Row
+        key={agent.id}
+        title={agent.name}
+        sub={!project && agent.project_id ? `${projectName(agent.project_id)} · ${role}` : role}
+        avatar={<AgentAvatar name={agent.name} blob={agent.blob} id={agent.id} size={36} />}
+        trailing={busy === agent.id ? <Spinner size={16} /> : <Icon name="Plus" size={18} color={theme.fgMuted} />}
+        disabled={Boolean(busy)}
+        onPress={() => void create(agent)}
+      />
+    );
   };
   return (
     <BottomSheet title={t(mode === "new" ? "newChat" : "switchChat")} onClose={onClose}>
@@ -70,11 +88,7 @@ export function ChatPicker({
         />
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
-        <Chip
-          label={t(mode === "new" ? "defaultProject" : "all")}
-          selected={!project}
-          onPress={() => setProject(undefined)}
-        />
+        <Chip label={t("all")} selected={!project} onPress={() => setProject(undefined)} />
         {data.projects
           .filter((item) => item.registered !== false)
           .map((item) => (
@@ -83,26 +97,15 @@ export function ChatPicker({
       </ScrollView>
       {error ? <Text style={s.error}>{error}</Text> : null}
       {mode === "new" ? (
-        agents.length ? (
-          agents.map((agent) => (
-            <Row
-              key={agent.id}
-              title={agent.name}
-              sub={
-                agent.kind === "secretary"
-                  ? t("superAgent")
-                  : sentenceCase(agent.role || agent.description) || t("agent")
-              }
-              avatar={<AgentAvatar name={agent.name} blob={agent.blob} id={agent.id} size={36} />}
-              trailing={
-                busy === agent.id ? <Spinner size={16} /> : <Icon name="Plus" size={18} color={theme.fgMuted} />
-              }
-              disabled={Boolean(busy)}
-              onPress={() => void create(agent)}
-            />
-          ))
+        agents.recent.length || agents.rest.length ? (
+          <>
+            {agents.recent.length ? <GroupLabel label={t("recentAgents")} inset={12} /> : null}
+            {agents.recent.map(agentRow)}
+            {agents.recent.length && agents.rest.length ? <GroupLabel label={t("agents")} inset={12} /> : null}
+            {agents.rest.map(agentRow)}
+          </>
         ) : (
-          <Text style={[type.muted, s.empty]}>{t("noAgentsHere")}</Text>
+          <Text style={[type.muted, s.empty]}>{t(words ? "noAgentsMatch" : "noAgentsHere")}</Text>
         )
       ) : (
         threads.map((thread) => {

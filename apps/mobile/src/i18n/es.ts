@@ -269,6 +269,8 @@ export const es: Record<Key, string> = {
   searchAgents: "Buscar agentes",
   superAgent: "Superagente",
   noAgentsHere: "No hay agentes en este proyecto.",
+  noAgentsMatch: "Ningún agente coincide.",
+  recentAgents: "Recientes",
   noAgentForSession: "No hay agente que pueda iniciar la sesión.",
   yourAnswer: "Tu respuesta…",
   rtCron: "cron {cron}",
