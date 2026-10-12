@@ -1,4 +1,4 @@
-import { AgentAvatar, Icons, Popover, SegmentedControl, Spinner } from "@apx/ui";
+import { AgentAvatar, EngineIcon, Icons, Popover, SegmentedControl, Spinner } from "@apx/ui";
 import { lazy, Suspense, useMemo, useState } from "react";
 import { elapsed } from "../common/format.ts";
 import { useNow } from "../common/useNow.ts";
@@ -20,6 +20,7 @@ export function RunningIndicator() {
   const projects = useData((s) => s.projects);
   const runs = useData((s) => s.runs);
   const jobs = useData((s) => s.jobs);
+  const engines = useData((s) => s.engines);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState("agents");
   const active = useMemo(
@@ -116,11 +117,18 @@ export function RunningIndicator() {
                     go.inboxThread(th.id);
                   }}
                 >
-                  <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={false} />
+                  {th.engine ? (
+                    <EngineIcon engine={th.engine} tile size={28} />
+                  ) : (
+                    <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={false} />
+                  )}
                   <span className="running__item">
                     <span className="running__title">{th.title}</span>
                     <span className="running__sub">
-                      {projectName(projects, th.project_id)} · {agent?.name ?? t("common.agent")}
+                      {projectName(projects, th.project_id)} ·{" "}
+                      {th.engine
+                        ? (engines.find((e) => e.id === th.engine)?.label ?? th.engine)
+                        : (agent?.name ?? t("common.agent"))}
                     </span>
                   </span>
                   {th.state === "input-required" ? (
