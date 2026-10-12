@@ -70,6 +70,14 @@
   </tr>
 </table>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="apps/docs/src/assets/shots/crew-demo-dark.webp">
+    <img src="apps/docs/src/assets/shots/crew-demo.webp" alt="One chat, the whole crew: the super-agent hands research to another agent, opens the source page in the browser and builds an interactive launch board" width="900">
+  </picture><br>
+  <sub>One ask: Roby hands the research to Scout, opens the source page in the browser beside the chat and builds a launch board.</sub>
+</p>
+
 ## Install
 
 **Desktop app** (macOS, Windows, Linux): download it from the

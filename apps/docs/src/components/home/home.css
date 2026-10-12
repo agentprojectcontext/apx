@@ -1098,3 +1098,7 @@ a.card:hover,
     display: none;
   }
 }
+
+.crew-shot {
+  margin-top: 44px;
+}

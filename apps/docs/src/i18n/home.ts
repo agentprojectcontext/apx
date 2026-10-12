@@ -118,6 +118,12 @@ const en = {
   ],
   shotAlt: "The APX panel in the light theme: the Home chat with the crew",
   real: { light: "Light", dark: "Dark", body: "Every screenshot is the real app, in the theme you are reading in." },
+  crew: {
+    eyebrow: "One chat, the whole crew",
+    title: "From a brief to a launch board.",
+    lead: "You ask once. Roby, the super-agent, hands the research to Scout, opens the source page in the browser beside the chat and builds an interactive board you can pin.",
+    alt: "A chat with the super-agent: a task handed to another agent, the browser open on the source page and an interactive launch board widget",
+  },
   steps: {
     eyebrow: "Three steps",
     title: "From zero to your first agent.",
@@ -381,6 +387,12 @@ const es: HomeText = {
   ],
   shotAlt: "El panel de APX en tema claro: el chat de Home con el crew",
   real: { light: "Claro", dark: "Oscuro", body: "Cada captura es la app de verdad, en el tema en que estás leyendo." },
+  crew: {
+    eyebrow: "Un chat, todo el crew",
+    title: "De un brief a un tablero de lanzamiento.",
+    lead: "Pedís una vez. Roby, el super-agente, le pasa la investigación a Scout, abre la página de origen en el navegador al lado del chat y arma un tablero interactivo que podés fijar.",
+    alt: "Un chat con el super-agente: una tarea pasada a otro agente, el navegador abierto en la página de origen y un widget interactivo con el tablero de lanzamiento",
+  },
   steps: {
     eyebrow: "Tres pasos",
     title: "De cero a tu primer agente.",

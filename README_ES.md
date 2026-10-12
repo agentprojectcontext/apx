@@ -71,6 +71,14 @@
   </tr>
 </table>
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="apps/docs/src/assets/shots/crew-demo-dark.webp">
+    <img src="apps/docs/src/assets/shots/crew-demo.webp" alt="Un chat, todo el crew: el super-agente le pasa la investigación a otro agente, abre la página de origen en el navegador y arma un tablero de lanzamiento interactivo" width="900">
+  </picture><br>
+  <sub>Un solo pedido: Roby le pasa la investigación a Scout, abre la página de origen en el navegador al lado del chat y arma un tablero de lanzamiento.</sub>
+</p>
+
 ## Instalar
 
 **App de escritorio** (macOS, Windows, Linux): bajala del
