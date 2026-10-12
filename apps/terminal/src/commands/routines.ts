@@ -5,7 +5,7 @@ import type { ApxClient } from "@apx/protocol/client";
 
 const USAGE = `apx routines                                   Routines and when they run next
 apx routines add <name> <prompt…> --agent a [--project p] (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
-                 [--pre "<command>"] [--call always|output|fails|never] [--post "<command>"]
+                 [--pre "<command>"] [--call always|output|succeeds|fails|never] [--post "<command>"]
                                                 The pre-command's output reaches the prompt at {{pre_output}}
 apx routines show <routine>                    Its schedule, commands and full prompt
 apx routines edit <routine> [<prompt…> | --prompt-file f] [--name n] [--cron …|--every …|--at …]

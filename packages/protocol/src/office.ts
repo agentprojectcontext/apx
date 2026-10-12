@@ -95,7 +95,7 @@ export const RoutineRun = z.object({
 export type RoutineRun = z.infer<typeof RoutineRun>;
 
 /** When a routine with a pre-command calls its model: always, only if it printed something, only if it failed, never. */
-export const CallModel = z.enum(["always", "output", "fails", "never"]);
+export const CallModel = z.enum(["always", "output", "succeeds", "fails", "never"]);
 export type CallModel = z.infer<typeof CallModel>;
 
 /**

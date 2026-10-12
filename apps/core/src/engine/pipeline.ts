@@ -82,6 +82,7 @@ export function runStep(
 export function callsModel(mode: CallModel, pre: StepResult): boolean {
   if (mode === "never") return false;
   if (mode === "output") return pre.output.trim() !== "";
+  if (mode === "succeeds") return pre.exit === 0;
   if (mode === "fails") return pre.exit !== 0;
   return true;
 }

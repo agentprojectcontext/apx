@@ -194,6 +194,8 @@ export type V1Routine = {
   command?: string;
   pre?: string;
   post?: string;
+  /** v1's skip_prompt_on: when the model is left out after the pre-commands ("pre_failure", "pre_success"…). */
+  skip?: string;
   /** v1's "anchor": its news always arrives (the day's open and close). */
   anchor?: boolean;
   /** The v1 profile that installed it ("secretary"): v2's own profile brings that routine instead. */
@@ -223,6 +225,7 @@ export function v1Routines(storage: string): V1Routine[] {
         ...(str(spec.command ?? spec.cmd) ? { command: String(spec.command ?? spec.cmd) } : {}),
         ...(join(o.pre_commands) ? { pre: join(o.pre_commands) } : {}),
         ...(join(o.post_commands) ? { post: join(o.post_commands) } : {}),
+        ...(str(o.skip_prompt_on) ? { skip: String(o.skip_prompt_on) } : {}),
         ...(spec.anchor === true ? { anchor: true } : {}),
         ...(str(o.origin)?.startsWith("profile:") ? { profile: String(o.origin).slice(8) } : {}),
         enabled: o.enabled !== false,

@@ -214,6 +214,8 @@ before(async () => {
         kind: "exec_agent",
         schedule: "30 8 * * 1-5",
         spec: { agent: "dev", prompt: "Brief me" },
+        pre_commands: ["acme check"],
+        skip_prompt_on: "pre_failure",
         enabled: true,
       },
       {
@@ -308,6 +310,7 @@ test("importing brings projects, notes, open tasks and commitments, variables an
   const brief = routines.find((x) => x.name === "Morning brief");
   assert.equal(brief?.enabled, false, "v1 may still run it");
   assert.equal(brief?.action, "agent");
+  assert.equal(brief?.call_model, "succeeds", "v1 left the model out when the pre-command failed");
   assert.equal(env.core.store.agents.get(brief?.agent_id ?? "")?.slug, "dev");
   const backup = routines.find((x) => x.name === "Backup");
   assert.equal(backup?.action, "shell");

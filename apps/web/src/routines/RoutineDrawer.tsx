@@ -13,6 +13,7 @@ import { scheduleText } from "./Schedule.tsx";
 const CALL_KEY: Record<Routine["call_model"], MessageKey> = {
   always: "routines.call.always",
   output: "routines.call.output",
+  succeeds: "routines.call.succeeds",
   fails: "routines.call.fails",
   never: "routines.call.never",
 };

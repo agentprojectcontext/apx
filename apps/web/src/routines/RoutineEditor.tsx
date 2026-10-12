@@ -17,10 +17,11 @@ const ACTIONS: Array<{ value: RoutineAction; key: MessageKey; hint: MessageKey; 
   { value: "relay", key: "routines.action.relay", hint: "routines.action.relayHint", icon: Icons.Inbox },
 ];
 
-/** "Go on" after the pre-command: always, only if it printed something, only if it failed, never. */
+/** "Go on" after the pre-command: always, only if it printed something, only if it succeeded or failed, never. */
 const CONDITIONS: Array<{ value: CallModel; key: MessageKey }> = [
   { value: "always", key: "routines.call.always" },
   { value: "output", key: "routines.call.output" },
+  { value: "succeeds", key: "routines.call.succeeds" },
   { value: "fails", key: "routines.call.fails" },
   { value: "never", key: "routines.call.never" },
 ];
@@ -214,6 +215,7 @@ const STEP_KEY: Record<RoutineAction, { title: MessageKey; hint: MessageKey }> =
 const SUM_COND: Record<CallModel, MessageKey> = {
   always: "routines.sum.cond.always",
   output: "routines.sum.cond.output",
+  succeeds: "routines.sum.cond.succeeds",
   fails: "routines.sum.cond.fails",
   never: "routines.sum.cond.never",
 };

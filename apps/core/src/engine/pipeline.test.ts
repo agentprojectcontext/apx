@@ -97,6 +97,8 @@ test("steps: calling rules, defused envelopes, a timeout stops the command", asy
   const ok = { output: "x", exit: 0, timedOut: false };
   assert.equal(callsModel("always", { ...ok, output: "" }), true);
   assert.equal(callsModel("output", { ...ok, output: " \n" }), false);
+  assert.equal(callsModel("succeeds", ok), true);
+  assert.equal(callsModel("succeeds", { ...ok, exit: 1 }), false);
   assert.equal(callsModel("fails", ok), false);
   assert.equal(callsModel("fails", { ...ok, exit: 2 }), true);
   assert.equal(callsModel("never", ok), false);

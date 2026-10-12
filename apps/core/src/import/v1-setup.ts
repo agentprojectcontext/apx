@@ -2,7 +2,7 @@
 // read. Routines come in turned off (v1 may still run them) and a Telegram bot v2 already has is kept.
 import fs from "node:fs";
 import path from "node:path";
-import type { RoutineAction, Schedule, TaskPriority } from "@apx/protocol";
+import type { CallModel, RoutineAction, Schedule, TaskPriority } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
 import type { Channels } from "../channels/manager.ts";
 import { memorySettings, saveMemorySettings } from "../domain/memory-settings.ts";
@@ -159,6 +159,8 @@ const ACTION: Record<string, RoutineAction> = {
   shell: "shell",
   watch: "watch",
 };
+/** v1's skip_prompt_on says when the model is left out; v2's call_model says when it is called. */
+const CALL_MODEL: Record<string, CallModel> = { pre_failure: "succeeds", pre_success: "fails", always: "never" };
 
 /** v1's schedule text ("manual", "every:30m", "once:<iso>", a cron) as v2's. */
 export function v1Schedule(text: string): Schedule {
@@ -429,7 +431,7 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
           prompt: r.prompt || r.name,
           pre_command: pre,
           post_command: r.post,
-          call_model: "always",
+          call_model: CALL_MODEL[r.skip ?? ""] ?? "always",
           anchor: r.anchor ?? false,
           // v1 may still be running them: they wait, off, until the owner turns them on.
           enabled: false,
