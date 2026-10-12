@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { elapsed, listWhen } from "../format";
-import { chatTitle, inboxThreads, isWorking, threadContext, workingNow } from "../hooks/chatSelectors";
+import { chatPreview, chatTitle, inboxThreads, isWorking, threadContext, workingNow } from "../hooks/chatSelectors";
 import type { Agent, Job, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { EngineIcon } from "../ui/EngineIcon";
@@ -211,7 +211,7 @@ function ChatRow({ thread, data, onPress }: { thread: Thread; data: Workspace; o
         </View>
         <View style={s.line}>
           <Text numberOfLines={1} style={[s.preview, unread && { color: theme.fg }]}>
-            {thread.preview || t("noMessagesYet")}
+            {chatPreview(thread) || t("noMessagesYet")}
           </Text>
           {unread ? <CountBadge count={thread.unread} /> : null}
         </View>

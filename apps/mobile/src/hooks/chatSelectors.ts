@@ -37,11 +37,30 @@ export function inboxThreads(threads: Thread[], routines: boolean): Thread[] {
 /** A routine run's chat is titled "<routine> · <when>". */
 export const routineName = (thread: Pick<Thread, "title">): string => thread.title.split(" · ")[0] ?? thread.title;
 
-/** A chat's name in a list: a routine run's is what it told (its routine shows under it). */
+const plain = (line: string) => line.replace(/\*\*|`|^\s*(#+|>|[-*])\s+/g, "").trim();
+
+/** A routine run's words as a title (its first line, or that line's first sentence) and what follows it. */
+function splitTold(preview: string): [string, string] {
+  const lines = preview.split("\n").map(plain).filter(Boolean);
+  const [first = "", ...rest] = lines;
+  const cut = first.search(/[.!?](\s|$)/);
+  if (cut > 0 && cut < first.length - 1)
+    return [first.slice(0, cut + 1), [first.slice(cut + 1).trim(), ...rest].join(" ")];
+  return [first, rest.join(" ")];
+}
+
+/** A chat's name in a list: a routine run's is the first thing it told, or its routine's name when it told one thing. */
 export function chatTitle(thread: Thread): string {
   if (thread.kind !== "routine") return thread.title;
-  const said = thread.preview.split("\n").find((line) => line.trim()) ?? "";
-  return said.replace(/\*\*|`|^\s*(#+|>|[-*])\s+/g, "") || routineName(thread);
+  const [title, rest] = splitTold(thread.preview);
+  return rest ? title : routineName(thread);
+}
+
+/** A chat's second line: what was said last; a routine run's goes on after its title (all of it when it is short). */
+export function chatPreview(thread: Thread): string {
+  if (thread.kind !== "routine") return thread.preview;
+  const [title, rest] = splitTold(thread.preview);
+  return rest || title;
 }
 
 export function chatAgents(agents: Agent[], projectId?: string): Agent[] {

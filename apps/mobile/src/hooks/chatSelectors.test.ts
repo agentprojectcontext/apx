@@ -5,6 +5,7 @@ import { blobEyes } from "../ui/blobEyes.ts";
 import {
   activeThreads,
   chatAgents,
+  chatPreview,
   chatTitle,
   inboxThreads,
   isWorking,
@@ -175,7 +176,7 @@ test("routine runs that told something are listed when the owner wants them; qui
     thread("told", {
       kind: "routine",
       title: "Morning tip · 10/12/26",
-      preview: "**Grip**: hold it light",
+      preview: "**Grip**: hold it light. Then swing.\nSee you tomorrow",
       updated_at: "2026-10-12T10:00:00Z",
     }),
     thread("quiet", { kind: "routine", archived: true }),
@@ -190,7 +191,11 @@ test("routine runs that told something are listed when the owner wants them; qui
     ["told", "a"],
   );
   const told = threads[1] as Thread;
-  assert.equal(chatTitle(told), "Grip: hold it light");
+  assert.equal(chatTitle(told), "Grip: hold it light.");
+  assert.equal(chatPreview(told), "Then swing. See you tomorrow");
+  const short = thread("short", { kind: "routine", title: "Watch · 10/12/26", preview: "Nothing **new**" });
+  assert.equal(chatTitle(short), "Watch");
+  assert.equal(chatPreview(short), "Nothing new");
   const tr = translator("en");
   assert.equal(threadContext(told, { projects: [], channels: [] }, tr), "Default · Routine · Morning tip");
 });
