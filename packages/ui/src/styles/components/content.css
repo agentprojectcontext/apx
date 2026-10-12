@@ -322,6 +322,11 @@
 .apx-md a:hover {
   color: var(--apx-brand);
 }
+/* A button the host put in place of a link (a place in the app): it sits in the line. */
+.apx-md .apx-btn {
+  vertical-align: middle;
+  margin-block: 2px;
+}
 
 .apx-md__table {
   overflow-x: auto;

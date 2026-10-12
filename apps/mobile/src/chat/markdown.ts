@@ -19,9 +19,12 @@ const NUMBERED = /^\s*(\d+)[.)]\s+(.*)$/;
 const HEADING = /^(#{1,6})\s+(.*)$/;
 const QUOTE = /^\s*>\s?(.*)$/;
 
+/** A link into the desktop panel ([Config › Desktop](apx:settings/desktop)): the phone keeps its label. */
+const APP_LINK = /\[([^\]\n]+)\]\(apx:[^)\s]*\)/gi;
+
 /** The common markdown agents write, as blocks; anything else stays plain text. */
 export function parseMarkdown(source: string): Block[] {
-  const lines = source.replace(/\r\n/g, "\n").split("\n");
+  const lines = source.replace(/\r\n/g, "\n").replace(APP_LINK, "$1").split("\n");
   const blocks: Block[] = [];
   let paragraph: string[] = [];
   const flush = () => {

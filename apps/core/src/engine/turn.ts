@@ -1,5 +1,13 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
-import type { HarnessId, MethodName, Params, Result, Routine, Thread } from "@apx/protocol";
+import {
+  COMPUTER_CAP,
+  type HarnessId,
+  type MethodName,
+  type Params,
+  type Result,
+  type Routine,
+  type Thread,
+} from "@apx/protocol";
 import { readOrganization } from "../apc/org.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
@@ -88,6 +96,8 @@ export type TurnDeps = {
   mcpServers?: ((thread: Thread) => string[]) | undefined;
   /** Whether a connected node lends a capability: tools that need one are offered only then. */
   hasCap?: ((cap: string) => boolean) | undefined;
+  /** Whether a desktop app is linked as a node (lending its browser), whatever else it lends. */
+  desktopLinked?: (() => boolean) | undefined;
   /** Owner text steered into this turn since the last call. */
   takeSteered(): string[];
   /** The engine showed a sign of life: an outside engine's idle deadline starts over. */
@@ -227,7 +237,15 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     run,
     system: thread.engine
       ? DIRECT_NOTE
-      : systemFor(store, turn, skills, deps.profileRoots ?? [], deps.build, scratchDir(store, deps.home, thread)),
+      : systemFor(
+          store,
+          turn,
+          skills,
+          deps.profileRoots ?? [],
+          deps.build,
+          scratchDir(store, deps.home, thread),
+          Boolean(deps.desktopLinked?.()) && !deps.hasCap?.(COMPUTER_CAP),
+        ),
     history,
     input,
     tools: tools.map(toSpec),
@@ -485,6 +503,7 @@ function systemFor(
   roots: readonly ProfileRoot[],
   build?: { version: string; code_sha: string },
   scratch = "",
+  computerOff = false,
 ): string {
   const lang = store.settings.get("owner_language") || "es";
   if (turn.audience.kind === "contact")
@@ -513,6 +532,7 @@ function systemFor(
     ownerIdentity(store),
     build ? apxBuild(build) : "",
     scratch,
+    computerOff,
   );
 }
 

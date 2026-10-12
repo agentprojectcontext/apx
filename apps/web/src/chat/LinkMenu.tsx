@@ -1,9 +1,10 @@
-import { ContextMenu, Icons, type LinkRenderer, type MenuEntry } from "@apx/ui";
+import { Button, ContextMenu, Icons, type LinkRenderer, type MenuEntry } from "@apx/ui";
 import { browserOpen } from "../data/actions.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { openOutside, useInstalledBrowsers } from "../panel/browserWindow.ts";
 import { go, nav } from "../shell/nav.ts";
+import { appPlace } from "./appLinks.ts";
 
 /** Where a link can open (APX's browser, another one) and copying it: the right-click items of a link or a web image. */
 export function useLinkItems(href: string): MenuEntry[] {
@@ -54,4 +55,26 @@ function LinkMenu({ href, children }: { href: string; children: React.ReactEleme
   );
 }
 
-export const linkMenu: LinkRenderer = (href, link) => <LinkMenu href={href}>{link}</LinkMenu>;
+/** A link an agent wrote into the app: a button that goes there, or its label when it names no place. */
+function AppLink({ href, label }: { href: string; label: React.ReactNode }) {
+  const open = appPlace(href);
+  if (!open) return <>{label}</>;
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      className="applink"
+      trailingIcon={<Icons.ArrowRight size={13} />}
+      onClick={open}
+    >
+      {label}
+    </Button>
+  );
+}
+
+export const linkMenu: LinkRenderer = (href, link) =>
+  /^apx:/i.test(href) ? (
+    <AppLink href={href} label={(link.props as { children?: React.ReactNode }).children} />
+  ) : (
+    <LinkMenu href={href}>{link}</LinkMenu>
+  );

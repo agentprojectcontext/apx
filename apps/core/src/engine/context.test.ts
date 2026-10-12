@@ -151,6 +151,17 @@ test("an agent knows which APX it runs on, and a checkout reads as a development
   assert.match(prompt, /You run on APX 2\.1\.1 \(commit 75d71df\)/);
 });
 
+test("an agent can link places in the app, and hears that computer use is off only when a desktop app has it off", () => {
+  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+    typeof systemPrompt
+  >[0];
+  const off = systemPrompt(agent, { kind: "home" }, "es", undefined, "", "", undefined, "", "", true);
+  const plain = systemPrompt(agent, { kind: "home" }, "es");
+  assert.match(plain, /\(apx:settings\/desktop\)/);
+  assert.match(off, /computer use, in the Mac and Windows app\) is off/);
+  assert.doesNotMatch(plain, /is off\. If they ask for it/);
+});
+
 test("the owner's channel turn says the channel and the app are one chat, and where attachments go", () => {
   const owner = (channel: string) =>
     turnInput({

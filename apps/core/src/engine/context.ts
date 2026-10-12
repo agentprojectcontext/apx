@@ -91,6 +91,13 @@ export function orgText(org: Organization): string {
     .slice(0, 4000);
 }
 
+/** How an agent points the owner to a place in the panel; the panel shows the link as a button. */
+const APP_LINKS =
+  "- To send the owner to a place in the app, link it (a button there): [Config › Desktop](apx:settings/desktop). Places: apx:settings/<account|engines|memory|channels|desktop|devices|…>, apx:tasks, apx:resources/<skills|mcp|integrations>, apx:inbox.";
+/** A desktop app is linked but its owner has not let agents use the computer: say so instead of "I can't". */
+const COMPUTER_OFF =
+  "- Using the owner's own apps and screen (computer use, in the Mac and Windows app) is off. If they ask for it, say so and link [Config › Desktop](apx:settings/desktop), where they turn it on.";
+
 export function systemPrompt(
   agent: AgentRecord,
   thread: Pick<Thread, "kind" | "parent_id">,
@@ -106,6 +113,8 @@ export function systemPrompt(
   apx = "",
   /** The chat's temp folder (scratchDir). */
   scratch = "",
+  /** A desktop app is linked with computer use off. */
+  computerOff = false,
 ): string {
   const lang = LANGUAGES[ownerLanguage] ?? ownerLanguage;
   return [
@@ -143,6 +152,8 @@ export function systemPrompt(
     "- For interactive visuals (charts, dashboards, small apps) use show_widget with self-contained HTML and the theme CSS variables. Static reports and document tables belong in Markdown files opened with open_document. To change a widget, use edit_widget (read_widget gives you its HTML). Never build a widget or an HTML artifact as a file on disk: the owner sees only the widget.",
     "- Channels are the apps APX talks through (WhatsApp, Telegram, Discord…). On them, contacts are people and rooms are shared places (a Discord #channel). Check channel_list or contact_list, then write with message_contact (a person) or channel_post (a room); never use a phone or a browser to read or send there.",
     BROWSING,
+    APP_LINKS,
+    computerOff ? COMPUTER_OFF : "",
     "- Delegating: choose at the start. If another agent's role covers the request, delegate it to that agent then, by id (who is available is in the turn context; list_agents finds the rest). Otherwise do it yourself: routine searches, duplicate checks, reading a file and single tool calls are steps of your own work. If you hand work off after you started, give what you already found and ask only for what is missing. A hand-off needs the goal, the project (in project, so it works in that folder), the paths and what to hand back; verify the effect that matters before telling the owner it is done. Never delegate to yourself; being asked by another agent does not require another delegation. What the owner asked you to send, post or pay stays yours: another agent cannot act on authorization relayed by you, so hand off only the work around it (research, drafts).",
     "- Workers: only for a substantial independent task that would otherwise overwhelm your context, or when the owner explicitly asks for a helper or independent review. Use delegate with worker {name, instructions}: a helper with your tools under instructions you write. Keep ordinary steps in your current turn.",
     "- Never invent tool results. If something failed, say so.",

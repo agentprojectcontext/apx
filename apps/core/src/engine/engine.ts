@@ -128,6 +128,8 @@ export function createEngine(deps: {
   mcpServers?: (thread: Thread) => string[];
   /** Whether a connected node lends this capability now (a phone's location). */
   hasCap?: (cap: string) => boolean;
+  /** Whether a desktop app is linked as a node. */
+  desktopLinked?: () => boolean;
   /** Work on the thread once a run ended (title, compaction); never blocks the next run. */
   afterRun?: (run: RunRecord) => void;
 }) {

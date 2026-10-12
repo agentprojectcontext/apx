@@ -33,6 +33,8 @@ function tableCells(line: string): string[] {
 }
 
 const SAFE_HREF = /^(https?:|mailto:)/i;
+/** A link into the host app (apx:settings/desktop): only a renderLink can follow it; without one, its label stays. */
+const APP_HREF = /^apx:[a-z]/i;
 const MAX_TABLE_COLUMNS = 64;
 const MAX_TABLE_CELLS = 10_000;
 const INLINE = new RegExp(
@@ -134,9 +136,12 @@ function inline(text: string, keyBase: string, wrap?: LinkRenderer): ReactNode[]
     else if (m[3]) {
       const lm = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(tok);
       const href = lm?.[2] ?? "";
+      const body = inline(lm?.[1] ?? "", key, wrap);
       out.push(
         SAFE_HREF.test(href) ? (
-          link(href, key, inline(lm?.[1] ?? "", key, wrap))
+          link(href, key, body)
+        ) : APP_HREF.test(href) && wrap ? (
+          <Fragment key={key}>{wrap(href, <a href={href}>{body}</a>, key)}</Fragment>
         ) : (
           <Fragment key={key}>{lm?.[1] ?? tok}</Fragment>
         ),

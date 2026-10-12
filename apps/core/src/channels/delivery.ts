@@ -1,6 +1,7 @@
 // Sending through the outbox: one worker drains due items in order; a send that surely did not go out is retried with
 // backoff (from the part where it stopped, for long replies); one that may have gone out is marked uncertain and
 // never repeated.
+import { withoutAppLinks } from "@apx/protocol";
 import type { OutboxRow, Presentation } from "../domain/channels.ts";
 import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
@@ -97,7 +98,8 @@ export function createDelivery(deps: {
   return {
     /** Queues a send; returns its outbox id, to follow how it went. */
     enqueue(o: Parameters<Store["channels"]["outbox"]["add"]>[0]): string {
-      const row = store.channels.outbox.add(o);
+      // A link into the app means nothing on a channel: its label goes.
+      const row = store.channels.outbox.add({ ...o, body: { ...o.body, text: withoutAppLinks(o.body.text) } });
       if (o.message_id) store.messages.setDelivery(o.message_id, "pending");
       kick();
       return row.id;

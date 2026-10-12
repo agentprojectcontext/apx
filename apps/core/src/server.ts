@@ -298,6 +298,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     mcpTools: mcp.toolsFor,
     mcpServers: mcp.serversFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),
+    desktopLinked: () => Boolean(broker.withCap(BROWSER_CAP)),
     afterRun: (run) => {
       upkeep.afterRun(run);
       channels.afterRun(run);
