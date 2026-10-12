@@ -2,7 +2,18 @@
 // `insideReal` resolves symlinks first, so a link inside the folder cannot point the check somewhere else.
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+
+/** A path under the user's home as "~/…", the way the panel shows it; any other path as it is. */
+export function tildeHome(p: string, home = os.homedir()): string {
+  return p === home || p.startsWith(`${home}${path.sep}`) ? `~${p.slice(home.length)}` : p;
+}
+
+/** "~/…" back to the user's home; any other path as it is. */
+export function expandHome(p: string, home = os.homedir()): string {
+  return /^~(?=$|[/\\])/.test(p) ? path.join(home, p.slice(1)) : p;
+}
 
 export function isInside(root: string, p: string): boolean {
   const r = path.resolve(root);

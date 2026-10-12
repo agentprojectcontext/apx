@@ -28,7 +28,10 @@ if (!fs.existsSync(path.join(root, "apps/web/dist/index.html"))) {
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-shots-"));
 // A HOME of its own: no browser profiles, Claude or Codex sessions, v1 or Tailscale of the owner's show up.
 const fakeHome = path.join(dir, "home");
-const world = { ...writeDemoWorld(fakeHome), extension: path.join(root, "examples/extensions/daily-brief") };
+// The example extension is copied into that HOME, so the screen shows "~/work/…" and not this checkout's path.
+const extension = path.join(fakeHome, "work", "extensions", "daily-brief");
+fs.cpSync(path.join(root, "examples/extensions/daily-brief"), extension, { recursive: true });
+const world = { ...writeDemoWorld(fakeHome), extension };
 writeHomeSkills(path.join(dir, "apx"));
 // A tailscale that is not logged in, ahead of the real one in PATH (the core would show this machine's tailnet name).
 const bin = path.join(dir, "bin");

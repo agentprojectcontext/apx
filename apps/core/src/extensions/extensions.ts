@@ -8,7 +8,7 @@ import { type ExtensionInfo, ExtensionManifest } from "@apx/protocol";
 import type { ExtensionRecord } from "../domain/extensions.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
-import { isInside } from "../paths.ts";
+import { expandHome, isInside, tildeHome } from "../paths.ts";
 import type { Secrets } from "../secrets.ts";
 import type { Plugins } from "./plugins.ts";
 
@@ -113,7 +113,8 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
     description: e.manifest.description,
     enabled: e.enabled,
     hash: e.hash,
-    source: e.source,
+    // Shown with "~" for the home; install reads it back.
+    source: tildeHome(e.source),
     skills: skillNames(e.dir, e.manifest),
     mcp: Object.keys(e.manifest.mcp).map((n) => `${e.id}-${n}`),
     routines: e.manifest.routines,
@@ -139,7 +140,7 @@ export function createExtensions(deps: { store: Store; secrets: Secrets; home: s
   });
 
   const source = (p: string) => {
-    const dir = path.resolve(p);
+    const dir = path.resolve(expandHome(p));
     if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) throw notFound(`folder ${p}`);
     if (isInside(root, dir)) throw badRequest("that folder is an installed copy already");
     return fs.realpathSync(dir);

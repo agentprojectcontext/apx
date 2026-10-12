@@ -1,17 +1,11 @@
 // Reading and writing a skill's SKILL.md for the Resources screen. The owner's skills live in APX's home; a project's
 // in `.apc/skills/`, written without following a symlink out of the repo. Extensions' skills are read-only.
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import type { SkillInfo } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
-import { writeAtomic } from "../paths.ts";
+import { tildeHome, writeAtomic } from "../paths.ts";
 import { NO_GLOBALS, type Skill, skillOn, skillsOff } from "./skills.ts";
-
-const tilde = (p: string) => {
-  const home = os.homedir();
-  return p === home || p.startsWith(`${home}${path.sep}`) ? `~${p.slice(home.length)}` : p;
-};
 
 /** What the panel shows about a skill, in the context it was asked from. */
 export function skillInfo(store: Store, s: Skill, projectId: string | undefined): SkillInfo {
@@ -30,7 +24,7 @@ export function skillInfo(store: Store, s: Skill, projectId: string | undefined)
     off_in: offIn,
     off_everywhere: Boolean(off["*"]?.includes(s.name)),
     editable: s.source !== "extension",
-    path: tilde(path.join(s.dir, "SKILL.md")),
+    path: tildeHome(path.join(s.dir, "SKILL.md")),
   };
 }
 
