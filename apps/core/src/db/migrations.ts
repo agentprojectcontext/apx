@@ -681,4 +681,9 @@ export const MIGRATIONS: readonly string[] = [
         AND json_extract(i.payload, '$.text') = json_extract(messages.parts, '$[0].text')
     );
   `,
+  `
+  -- A routine run that told the owner nothing is archived and read (engine/routines.ts): the ones from before, too.
+  UPDATE threads SET archived = 1, unread = 0
+  WHERE kind = 'routine' AND id IN (SELECT thread_id FROM routine_runs WHERE delivered = 0);
+  `,
 ];

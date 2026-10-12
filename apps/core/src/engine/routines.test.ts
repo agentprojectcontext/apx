@@ -73,6 +73,7 @@ test("a daily routine runs at its time once, in its own chat, and the owner hear
   assert.equal(run?.delivered, true);
   const { thread } = await env.client.call("threads.get", { thread: run?.thread_id ?? "" });
   assert.equal(thread.kind, "routine");
+  assert.equal(thread.archived, undefined, "a run that told something stays in the lists");
   const input = String(llm.calls.at(-1)?.messages.at(-1)?.content);
   assert.match(input, /routine "Invoices" the owner scheduled/);
   await until(() => tg.messagesTo(OWNER_CHAT).some((m) => /Two new invoices/.test(String(m.body.text))), "delivered");
@@ -92,9 +93,16 @@ test("nothing to say: the run is kept but the owner is not bothered", async () =
   clock = new Date(clock.getTime() + 31 * 60_000);
   env.core.scheduler.tick();
   await ended(r.id, 1);
-  assert.equal((await runsOf(r.id))[0]?.delivered, false);
+  const [quiet] = await runsOf(r.id);
+  assert.equal(quiet?.delivered, false);
   await new Promise((res) => setTimeout(res, 150));
   assert.equal(tg.messagesTo(OWNER_CHAT).length - before, 0);
+  // Reached from its routine, but out of the chat list and its unread count.
+  const { thread } = await env.client.call("threads.get", { thread: quiet?.thread_id ?? "" });
+  assert.equal(thread.archived, true);
+  assert.equal(thread.unread, 0);
+  const { threads } = await env.client.call("threads.list", { include_archived: true });
+  assert.ok(!threads.some((t) => t.id === quiet?.thread_id), "a quiet run is not listed");
 });
 
 test("run now, a failed run is reported, and bad schedules are refused", async () => {

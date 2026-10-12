@@ -1,6 +1,7 @@
 // The scheduler. Every tick it reserves each due routine (next time and a lease) before starting it, so a crash or a
 // slow run never makes a routine run twice; a missed time (the core was off) runs once when it comes back. Each run
-// gets a conversation of its own. The owner hears back only when the agent has something to say.
+// gets a conversation of its own. The owner hears back only when the agent has something to say; a quiet run's
+// conversation is archived.
 import type { Routine, RoutineRun } from "@apx/protocol";
 import { type RunRecord, TERMINAL } from "../domain/runs.ts";
 import { MIN_GAP_MIN, nextRun } from "../domain/schedule.ts";
@@ -130,7 +131,12 @@ export function createScheduler(deps: {
       const failed = run.state === "failed";
       const quiet = run.state === "canceled" || (!failed && (!text || isSkip(text)));
       store.routines.delivered(run.id, !quiet);
-      if (quiet) return;
+      if (quiet) {
+        // Nothing said: the run stays reachable from its routine, out of the Inbox and its unread count.
+        store.threads.patch(run.thread_id, { unread: 0 }, false);
+        store.threads.arrange(run.thread_id, { archived: true });
+        return;
+      }
       deps.deliver({ routine, run, text: failed ? (run.error ?? "") : text, failed });
     },
   };

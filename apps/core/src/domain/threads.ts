@@ -128,6 +128,8 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
           .selectAll()
           .$if(!opts.include_subthreads, (q) => q.where("parent_id", "is", null))
           .$if(!opts.include_archived, (q) => q.where("archived", "=", 0))
+          // A routine's quiet runs are reached from the routine: they would crowd every other chat out of the cap.
+          .where((eb) => eb.or([eb("kind", "!=", "routine"), eb("archived", "=", 0)]))
           .$if(!!project_id, (q) => q.where("project_id", "=", project_id as string))
           // An engine's sessions: the engine itself, never an agent's chat that happens to run on its model.
           .$if(!!engine, (q) => q.where("engine", "=", engine as string))
