@@ -104,7 +104,14 @@ const en = {
   copy: "Copy",
   copied: "Copied",
   getStarted: "Get started",
-  os: { label: "Your system", unix: "macOS and Linux", win: "Windows (PowerShell)", download: "Download the app" },
+  os: {
+    label: "Your system",
+    unix: "macOS and Linux",
+    win: "Windows (PowerShell)",
+    download: "Download the app",
+    where: "It installs on this computer. For a server, run it there over SSH, or let the desktop app install it.",
+    whereLink: "APX on a server",
+  },
   browse: "Browse the docs",
   status: [
     ["Home", "is sorting your inbox"],
@@ -374,7 +381,15 @@ const es: HomeText = {
   copy: "Copiar",
   copied: "Copiado",
   getStarted: "Empezar",
-  os: { label: "Tu sistema", unix: "macOS y Linux", win: "Windows (PowerShell)", download: "Bajar la app" },
+  os: {
+    label: "Tu sistema",
+    unix: "macOS y Linux",
+    win: "Windows (PowerShell)",
+    download: "Bajar la app",
+    where:
+      "Se instala en esta computadora. Para un servidor, corrélo ahí por SSH o dejá que lo instale la app de escritorio.",
+    whereLink: "APX en un servidor",
+  },
   browse: "Ver la doc",
   status: [
     ["Home", "está ordenando tu bandeja"],

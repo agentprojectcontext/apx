@@ -18,8 +18,16 @@ Nothing here needs root, and the server doesn't need Node installed: the bundle 
 <Tabs>
 <TabItem label="Linux and macOS">
 
+Run it on the server itself (it installs where it runs), over SSH:
+
 ```bash
 curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
+```
+
+Or from your own computer in one line, PowerShell on Windows included:
+
+```bash
+ssh user@server 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash'
 ```
 
 Options: `--file <bundle>` (a bundle you already have, no download), `--version <x.y.z>`, `--feed <owner/repo>`,

@@ -134,6 +134,9 @@ const discord = "https://discord.gg/vxdZuT5WuE";
             </button>
             <span class="os__for" data-unix={t.os.unix} data-win={t.os.win}>{t.os.unix}</span>
           </div>
+          <p class="hero__where">
+            {t.os.where} <a href={href(`${pre}/devices/server/`)}>{t.os.whereLink} →</a>
+          </p>
         </div>
         <div class="hero__actions">
           <a class="btn btn-accent" href="#download">{t.os.download}</a>

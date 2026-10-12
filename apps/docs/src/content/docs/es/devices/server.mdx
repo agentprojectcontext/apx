@@ -18,8 +18,16 @@ Nada de esto necesita root, y el servidor no necesita tener Node instalado: el p
 <Tabs>
 <TabItem label="Linux y macOS">
 
+Corrélo en el servidor (se instala donde se corre), por SSH:
+
 ```bash
 curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
+```
+
+O desde tu propia computadora en una sola línea, también desde PowerShell en Windows:
+
+```bash
+ssh usuario@servidor 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash'
 ```
 
 Opciones: `--file <paquete>` (un paquete que ya tenés, sin descargar), `--version <x.y.z>`, `--feed <owner/repo>`,
