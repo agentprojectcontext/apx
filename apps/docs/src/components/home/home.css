@@ -1102,3 +1102,40 @@ a.card:hover,
 .crew-shot {
   margin-top: 44px;
 }
+.hero__install {
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.os {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted, #9aa0a6);
+  font-size: 13px;
+}
+.os button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+.os button:hover {
+  opacity: 0.85;
+}
+.os button[aria-pressed="true"] {
+  opacity: 1;
+  color: var(--fg, #fff);
+  border-color: var(--ghost-2, rgba(255, 255, 255, 0.16));
+}
+.os__for {
+  margin-left: 4px;
+}

@@ -6,6 +6,7 @@ sidebar:
 ---
 
 import { Aside, FileTree, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import InstallCommand from "../../../components/InstallCommand.astro";
 import Terminal from "../../../components/Terminal.astro";
 
 APX is one background process, the **core**, plus the apps that talk to it. Pick how you want to run it: the desktop
@@ -79,13 +80,7 @@ xattr -dr com.apple.quarantine /Applications/APX.app
 On a machine with no desktop, one script installs the core, the `apx` command and the Node that runs them. Nothing
 needs root and you don't need Node installed.
 
-<Terminal command="curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash" />
-
-On Windows, in PowerShell:
-
-```powershell
-irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
-```
+<InstallCommand />
 
 The script accepts a few options:
 

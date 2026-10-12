@@ -3,6 +3,7 @@
 import logo from "../../assets/logo.png";
 import { HOME, type Lang } from "../../i18n/home";
 import Blob from "../Blob.astro";
+import OsIcon from "../OsIcon.astro";
 import BlobEyes from "../BlobEyes.astro";
 import Shot from "../Shot.astro";
 import Terminal from "../Terminal.astro";
@@ -120,15 +121,23 @@ const discord = "https://discord.gg/vxdZuT5WuE";
           <span class="row"><span class="word" id="word" data-words={JSON.stringify(t.words)}>{t.words[0]}</span></span>
         </h1>
         <p class="hero__sub"><b>{t.sub.strong}</b> {t.sub.rest}</p>
-        <div class="hero__actions">
+        <div class="hero__actions hero__install" id="heroInstall" data-unix={install} data-win={installWin}>
           <button class="install" type="button" data-copy={install} data-done={t.copied}>
             <span class="dollar">$</span><span class="cmd">{install}</span><span class="copy">{t.copy}</span>
           </button>
+          <div class="os" role="group" aria-label={t.os.label}>
+            <button type="button" data-os="unix" aria-pressed="true" title={t.os.unix}>
+              <OsIcon name="mac" /><OsIcon name="linux" />
+            </button>
+            <button type="button" data-os="win" aria-pressed="false" title={t.os.win}>
+              <OsIcon name="windows" />
+            </button>
+            <span class="os__for" data-unix={t.os.unix} data-win={t.os.win}>{t.os.unix}</span>
+          </div>
         </div>
         <div class="hero__actions">
-          <a class="btn btn-accent" href={href(`${pre}/start/introduction/`)}>{t.getStarted} →</a>
-          <a class="btn btn-ghost" href="#download">{lang === "es" ? "Descargar" : "Download"}</a>
-          <a class="btn btn-ghost" href={href(`${pre}/start/install/`)}>{lang === "es" ? "Instalación" : "Install guide"}</a>
+          <a class="btn btn-accent" href="#download">{t.os.download}</a>
+          <a class="btn btn-ghost" href={href(`${pre}/start/introduction/`)}>{t.getStarted} →</a>
         </div>
         <div class="status" id="status" data-lines={JSON.stringify(t.status)}>
           <Blob name="menta" size={26} />
@@ -384,6 +393,23 @@ You have three open things in Acme Store:
           }, 1400);
         });
       }
+
+      // The hero's install line follows the reader's system; the icons switch it.
+      const hero = document.getElementById("heroInstall");
+      const setOs = (os: "unix" | "win") => {
+        if (!hero) return;
+        const cmd = hero.dataset[os] ?? "";
+        const btn = hero.querySelector<HTMLButtonElement>("[data-copy]");
+        if (btn) btn.dataset.copy = cmd;
+        hero.querySelector(".cmd")!.textContent = cmd;
+        hero.querySelector(".dollar")!.textContent = os === "win" ? ">" : "$";
+        for (const b of hero.querySelectorAll<HTMLElement>("[data-os]")) b.setAttribute("aria-pressed", String(b.dataset.os === os));
+        const label = hero.querySelector<HTMLElement>(".os__for");
+        if (label) label.textContent = label.dataset[os] ?? "";
+      };
+      for (const b of hero?.querySelectorAll<HTMLElement>("[data-os]") ?? [])
+        b.addEventListener("click", () => setOs(b.dataset.os === "win" ? "win" : "unix"));
+      if (/win/i.test((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform)) setOs("win");
 
       // The hero's last word and its blobo change together.
       const still = matchMedia("(prefers-reduced-motion: reduce)").matches;

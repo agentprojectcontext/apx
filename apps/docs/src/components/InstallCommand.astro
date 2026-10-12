@@ -1,0 +1,77 @@
+---
+// The one-line install, with a switch between macOS/Linux (curl) and Windows (PowerShell). It opens on the
+// reader's system, and every copy on the page follows the same choice.
+import OsIcon from "./OsIcon.astro";
+import Terminal from "./Terminal.astro";
+
+interface Props {
+  /** Labels of the two choices (Spanish pages pass their own). */
+  labels?: [string, string];
+}
+const { labels = ["macOS and Linux", "Windows"] } = Astro.props;
+const site = "https://agentprojectcontext.github.io/apx/v2";
+---
+
+<div class="apx-oscmd not-content" data-os="unix">
+  <div class="apx-oscmd__tabs" role="group">
+    <button type="button" data-pick="unix" aria-pressed="true"><OsIcon name="mac" /><OsIcon name="linux" />{labels[0]}</button>
+    <button type="button" data-pick="win" aria-pressed="false"><OsIcon name="windows" />{labels[1]}</button>
+  </div>
+  <div class="apx-oscmd__pane" data-pane="unix"><Terminal command={`curl -fsSL ${site}/install.sh | bash`} /></div>
+  <div class="apx-oscmd__pane" data-pane="win"><Terminal command={`irm ${site}/install.ps1 | iex`} title="PowerShell" /></div>
+</div>
+
+<script>
+  const all = () => document.querySelectorAll<HTMLElement>(".apx-oscmd");
+  const pick = (os: string) => {
+    for (const box of all()) {
+      box.dataset.os = os;
+      for (const b of box.querySelectorAll<HTMLElement>("[data-pick]"))
+        b.setAttribute("aria-pressed", String(b.dataset.pick === os));
+    }
+  };
+  for (const box of all())
+    for (const b of box.querySelectorAll<HTMLElement>("[data-pick]"))
+      b.addEventListener("click", () => pick(b.dataset.pick ?? "unix"));
+  const platform =
+    (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform;
+  if (/win/i.test(platform)) pick("win");
+</script>
+
+<style>
+  .apx-oscmd {
+    margin: 1.5rem 0;
+  }
+  .apx-oscmd__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .apx-oscmd__tabs button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--sl-color-gray-3);
+    font: 500 13px/1 var(--sl-font);
+    cursor: pointer;
+  }
+  .apx-oscmd__tabs button:hover {
+    color: var(--sl-color-white);
+  }
+  .apx-oscmd__tabs button[aria-pressed="true"] {
+    color: var(--sl-color-white);
+    border-color: var(--sl-color-gray-5);
+  }
+  .apx-oscmd__pane :global(.apx-term) {
+    margin-top: 0.6rem;
+  }
+  .apx-oscmd[data-os="unix"] [data-pane="win"],
+  .apx-oscmd[data-os="win"] [data-pane="unix"] {
+    display: none;
+  }
+</style>
