@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, ScrollView, Text, View } from "react-native";
 import type { FileEntry, Project, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { Icon } from "../ui/Icon";
-import { EmptyState, IconTile, ListGroup, ListRow, Screen, Spinner, SubHeader, type } from "../ui/kit";
+import { EmptyState, IconTile, ListGroup, ListRow, Screen, Spinner, SubHeader, useType } from "../ui/kit";
 import { Markdown } from "../ui/Markdown";
-import { theme } from "../ui/theme";
+import { makeStyles, useTheme } from "../ui/theme";
 
 export type FileActions = {
   tree: (project: string, dir: string) => Promise<{ entries: FileEntry[]; truncated: boolean }>;
@@ -29,6 +29,8 @@ const size = (bytes?: number) =>
 
 /** A project's files, read only: folders to walk into, and text, markdown or images to look at. */
 export function FilesPage({ data, back, actions }: { data: Workspace; back: () => void; actions: FileActions }) {
+  const type = useType();
+  const theme = useTheme();
   const [project, setProject] = useState<Project>();
   // The open folders, deepest last; a file is open when `file` is set.
   const [dirs, setDirs] = useState<string[]>([]);
@@ -91,6 +93,9 @@ function Folder({
   actions: FileActions;
   open: (entry: FileEntry) => void;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const [listing, setListing] = useState<{ entries: FileEntry[]; truncated: boolean }>();
   const [error, setError] = useState("");
   useEffect(() => {
@@ -148,6 +153,8 @@ function Folder({
 }
 
 function FileView({ project, file, actions }: { project: string; file: FileEntry; actions: FileActions }) {
+  const type = useType();
+  const s = useStyles();
   const [text, setText] = useState<{ text?: string; binary: boolean; truncated: boolean }>();
   const [image, setImage] = useState<string>();
   const [error, setError] = useState("");
@@ -199,10 +206,10 @@ function FileView({ project, file, actions }: { project: string; file: FileEntry
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   loading: { padding: 40, alignItems: "center" },
   file: { padding: 16, paddingBottom: 40, gap: 10 },
   code: { color: theme.fg, fontFamily: theme.mono, fontSize: 12, lineHeight: 18 },
   imageWrap: { flex: 1, padding: 16 },
   image: { flex: 1, width: "100%" },
-});
+}));

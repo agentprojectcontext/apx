@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, type IconName } from "../Icon";
-import { theme as t } from "../theme";
+import { makeStyles, useTheme } from "../theme";
 import { CountBadge } from "./primitives";
 
 export type NavItem<T extends string> = { id: T; label: string; icon: IconName; badge?: number };
@@ -16,6 +16,8 @@ export function BottomNav<T extends string>({
   value: T;
   onChange: (id: T) => void;
 }) {
+  const t = useTheme();
+  const s = useStyles();
   const insets = useSafeAreaInsets();
   return (
     <View accessibilityRole="tablist" style={[s.bar, { paddingBottom: insets.bottom }]}>
@@ -48,7 +50,7 @@ export function BottomNav<T extends string>({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   bar: { flexDirection: "row", backgroundColor: t.sidebar, borderTopWidth: 1, borderColor: t.border },
   tab: { flex: 1, height: 76, alignItems: "center", justifyContent: "center", gap: 4 },
   pill: { width: 60, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
@@ -64,4 +66,4 @@ const s = StyleSheet.create({
   badge: { position: "absolute", top: 1, right: 10 },
   label: { color: t.fgMuted, fontSize: 12 },
   labelOn: { color: t.fg, fontWeight: "600" },
-});
+}));

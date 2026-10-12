@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { Alert, Text, View } from "react-native";
 import { listWhen } from "../format";
 import type { InboxAction, InboxItem } from "../hooks/inboxItems";
 import type { Notice, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import type { Answer } from "../protocol";
 import { Icon } from "../ui/Icon";
-import { AgentAvatar, Button, Card, EmptyState, PageTitle, Screen, Tag, type } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { AgentAvatar, Button, Card, EmptyState, PageTitle, Screen, Tag, useType } from "../ui/kit";
+import { makeStyles, useTheme } from "../ui/theme";
 
 export function InboxPage({
   data,
@@ -57,6 +57,9 @@ function InboxCard({
   data: Workspace;
   act: (item: InboxItem, action: InboxAction) => Promise<void>;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const [busy, setBusy] = useState<string>();
   const agent = data.agents.find((a) => a.id === item.agentId);
   const press = (which: string, action: InboxAction) => {
@@ -121,7 +124,7 @@ function InboxCard({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   card: { gap: 10 },
   top: { flexDirection: "row", alignItems: "center", gap: 8 },
   body: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
@@ -144,4 +147,4 @@ const s = StyleSheet.create({
     overflow: "hidden",
   },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-});
+}));

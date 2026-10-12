@@ -4,7 +4,7 @@ import { channelName, listedThreads } from "../hooks/chatSelectors";
 import type { Agent, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { AgentAvatar, Dot, EmptyState, IconTile, ListGroup, ListRow, Screen, SubHeader } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { useTheme } from "../ui/theme";
 import type { MoreId } from "./MorePage";
 
 /** The plain lists behind More: agents (tap to chat), projects and channels. */
@@ -21,6 +21,7 @@ export function MoreDetailPage({
   chatWith: (agent: Agent) => void;
   openProject: (id: string) => void;
 }) {
+  const theme = useTheme();
   const agentName = (agentId: string) => data.agents.find((agent) => agent.id === agentId)?.name ?? agentId;
   const body = () => {
     if (id === "agents")

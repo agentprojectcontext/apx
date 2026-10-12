@@ -37,6 +37,8 @@ function build(scheme: Scheme) {
 }
 
 export type Theme = ReturnType<typeof build>;
+/** A token naming a color, for tables that pick one per state. */
+export type ColorKey = { [K in keyof Theme]: Theme[K] extends string ? K : never }[keyof Theme];
 export const themes: Record<Scheme, Theme> = { light: build("light"), dark: build("dark") };
 
 const ThemeContext = createContext<Theme>(themes.dark);
@@ -82,7 +84,3 @@ export function useSystemScheme(): Scheme {
   }, []);
   return scheme;
 }
-
-/** Until every screen reads the theme through useTheme: the dark one. */
-export const theme = themes.dark;
-export const toneColors = theme.tones;

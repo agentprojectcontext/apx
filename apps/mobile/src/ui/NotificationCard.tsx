@@ -1,11 +1,14 @@
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { Alert, Text, View } from "react-native";
 import { t as translate } from "../i18n";
 import { type NotificationStatus, notificationPreview } from "../notifications";
 import { Icon } from "./Icon";
-import { Button, Card, type } from "./kit";
-import { theme as t } from "./theme";
+import { Button, Card, useType } from "./kit";
+import { makeStyles, useTheme } from "./theme";
 
 export function NotificationCard({ status, enable }: { status: NotificationStatus; enable: () => Promise<void> }) {
+  const type = useType();
+  const t = useTheme();
+  const s = useStyles();
   const enabled = status.state === "local" || status.state === "push" || Boolean(status.localEnabled);
   return (
     <Card style={s.card}>
@@ -62,10 +65,10 @@ export function NotificationCard({ status, enable }: { status: NotificationStatu
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   card: { gap: 8 },
   heading: { flexDirection: "row", alignItems: "center", gap: 10 },
   title: { color: t.fg, fontSize: 15, fontWeight: "600", flex: 1 },
   error: { color: t.warning, fontSize: 12 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingTop: 2 },
-});
+}));

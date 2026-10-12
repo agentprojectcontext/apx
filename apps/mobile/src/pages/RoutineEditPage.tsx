@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, ScrollView, Text, TextInput, View } from "react-native";
 import { dueWhen, sentenceCase } from "../format";
 import type { Routine, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
@@ -11,9 +11,9 @@ import { assignableAgents } from "../tasks/fields";
 import { momentOf, pickerValue } from "../tasks/when";
 import { DateSheet } from "../ui/DateSheet";
 import { Icon } from "../ui/Icon";
-import { AgentAvatar, Button, Card, Chip, ListGroup, ListRow, Screen, Segmented, SubHeader, type } from "../ui/kit";
+import { AgentAvatar, Button, Card, Chip, ListGroup, ListRow, Screen, Segmented, SubHeader, useType } from "../ui/kit";
 import { OptionSheet } from "../ui/OptionSheet";
-import { theme } from "../ui/theme";
+import { makeStyles, useTheme } from "../ui/theme";
 
 const DAY_KEYS: Key[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 const UNIT_KEY: Record<EveryUnit, Key> = { minutes: "rtUnitMinutes", hours: "rtUnitHours", days: "rtUnitDays" };
@@ -31,6 +31,8 @@ export function RoutineEditPage({
   back: () => void;
   save: (routine: Routine, patch: Partial<Routine>) => Promise<void>;
 }) {
+  const type = useType();
+  const s = useStyles();
   const [name, setName] = useState(routine.name);
   const [prompt, setPrompt] = useState(routine.prompt);
   const [agentId, setAgentId] = useState(routine.agent_id);
@@ -131,6 +133,8 @@ export function RoutineEditPage({
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const type = useType();
+  const s = useStyles();
   return (
     <Card style={s.field}>
       <Text style={type.meta}>{label}</Text>
@@ -141,6 +145,9 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 /** By kind: days and a time (or a cron expression), every N units, one moment, or by hand only. */
 function ScheduleEditor({ value, onChange }: { value: Schedule; onChange: (s: Schedule) => void }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const [advanced, setAdvanced] = useState(() => value.kind === "cron" && !weeklyOf(value.cron));
   const [dating, setDating] = useState(false);
   const weekly = value.kind === "cron" ? weeklyOf(value.cron) : undefined;
@@ -234,6 +241,8 @@ function ScheduleEditor({ value, onChange }: { value: Schedule; onChange: (s: Sc
 
 /** "HH:MM", taken once it reads as a time; what is typed meanwhile stays in the field. */
 function ClockInput({ value, onChange }: { value: string; onChange: (time: string) => void }) {
+  const type = useType();
+  const s = useStyles();
   const [typed, setTyped] = useState(value);
   return (
     <View style={s.inline}>
@@ -256,6 +265,9 @@ function ClockInput({ value, onChange }: { value: string; onChange: (time: strin
 }
 
 function EveryInput({ minutes, onChange }: { minutes: number; onChange: (s: Schedule) => void }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const { n, unit } = everyParts(minutes);
   const [typed, setTyped] = useState(String(n));
   const set = (count: number, next: EveryUnit) => onChange({ kind: "every", minutes: everyMinutes(count, next) });
@@ -288,7 +300,7 @@ function EveryInput({ minutes, onChange }: { minutes: number; onChange: (s: Sche
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   page: { flex: 1, backgroundColor: theme.bg },
   field: { gap: 8 },
   input: {
@@ -304,4 +316,4 @@ const s = StyleSheet.create({
   small: { width: 84, textAlign: "center" },
   inline: { flexDirection: "row", alignItems: "center", gap: 10 },
   chips: { gap: 6 },
-});
+}));

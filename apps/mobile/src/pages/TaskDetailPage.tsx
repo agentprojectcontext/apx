@@ -1,14 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Pressable,
-  type StyleProp,
-  StyleSheet,
-  Text,
-  TextInput,
-  type TextStyle,
-  View,
-} from "react-native";
+import { KeyboardAvoidingView, Pressable, type StyleProp, Text, TextInput, type TextStyle, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ago, dueWhen } from "../format";
 import type { Task, Thread, Workspace } from "../hooks/useWorkspace";
@@ -37,10 +28,10 @@ import {
   SubHeader,
   Tag,
   Toggle,
-  type,
+  useType,
 } from "../ui/kit";
 import { Markdown } from "../ui/Markdown";
-import { theme } from "../ui/theme";
+import { makeStyles, useTheme } from "../ui/theme";
 
 const EVENT_KEY: Record<HistoryKey, Key> = {
   create: "tkEvCreate",
@@ -84,6 +75,9 @@ export function TaskDetailPage({
   actions: TaskActions;
   openThread: (id: string) => void;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const [detail, setDetail] = useState<{ events: TaskEvent[]; comments: TaskComment[]; sessions: Thread[] }>();
   const [work, setWork] = useState(false);
   const insets = useSafeAreaInsets();
@@ -288,6 +282,8 @@ function EditableText({
   /** What shows at rest instead of the plain text (the description's markdown). */
   children?: React.ReactNode;
 }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [own, setOwn] = useState(false);
   const [draft, setDraft] = useState(value);
   const editing = own || Boolean(forced);
@@ -349,6 +345,9 @@ function EditableText({
 
 /** The description as markdown, with a pencil; empty, a tap adds one. */
 function Description({ task, save }: { task: Task; save: (text: string) => void }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const [editing, setEditing] = useState(false);
   const text = task.description?.trim() ?? "";
   return (
@@ -388,6 +387,8 @@ function Description({ task, save }: { task: Task; save: (text: string) => void 
 }
 
 function History({ events, data }: { events?: TaskEvent[]; data: Workspace }) {
+  const type = useType();
+  const s = useStyles();
   const lines = useMemo(
     () =>
       events
@@ -433,7 +434,7 @@ function History({ events, data }: { events?: TaskEvent[]; data: Workspace }) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   page: { flex: 1, backgroundColor: theme.bg },
   inset: { paddingHorizontal: 4 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 2 },
@@ -459,4 +460,4 @@ const s = StyleSheet.create({
   toggleRow: { minHeight: 56, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 14 },
   event: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 14 },
   loading: { padding: 24, alignItems: "center" },
-});
+}));

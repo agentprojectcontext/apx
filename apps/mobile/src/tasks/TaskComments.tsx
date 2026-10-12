@@ -1,16 +1,19 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { ago } from "../format";
 import type { Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { Icon } from "../ui/Icon";
-import { AgentAvatar, ListGroup, OwnerAvatar, Spinner, type } from "../ui/kit";
+import { AgentAvatar, ListGroup, OwnerAvatar, Spinner, useType } from "../ui/kit";
 import { Markdown } from "../ui/Markdown";
-import { theme } from "../ui/theme";
+import { makeStyles, useTheme } from "../ui/theme";
 import type { TaskComment } from "./comments";
 
 /** What the owner and the agents wrote on the task, oldest first; none yet says how to start. */
 export function Comments({ comments, data }: { comments?: TaskComment[]; data: Workspace }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   if (!comments)
     return (
       <View style={s.loading}>
@@ -53,6 +56,8 @@ export function Comments({ comments, data }: { comments?: TaskComment[]; data: W
 
 /** The box under the task to write a comment; an @agent in it asks that agent. Clears once it went out. */
 export function CommentBox({ send }: { send: (text: string) => Promise<void> }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const ready = Boolean(text.trim()) && !busy;
@@ -96,7 +101,7 @@ export function CommentBox({ send }: { send: (text: string) => Promise<void> }) 
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   loading: { padding: 24, alignItems: "center" },
   empty: { alignItems: "center", gap: 6, paddingVertical: 20, paddingHorizontal: 24 },
   center: { textAlign: "center" },
@@ -125,4 +130,4 @@ const s = StyleSheet.create({
     fontSize: 15,
   },
   send: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-});
+}));

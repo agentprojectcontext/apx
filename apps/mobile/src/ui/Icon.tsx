@@ -1,6 +1,6 @@
 import Svg, { Circle, Ellipse, Line, Path, Polygon, Polyline, Rect } from "react-native-svg";
 import { iconNodes } from "./iconNodes";
-import { theme } from "./theme";
+import { useTheme } from "./theme";
 
 export type IconName = keyof typeof iconNodes;
 
@@ -8,7 +8,7 @@ export type IconName = keyof typeof iconNodes;
 export function Icon({
   name,
   size = 20,
-  color = theme.muted,
+  color: tint,
   strokeWidth = 1.8,
 }: {
   name: IconName;
@@ -16,6 +16,8 @@ export function Icon({
   color?: string;
   strokeWidth?: number;
 }) {
+  const theme = useTheme();
+  const color = tint ?? theme.muted;
   const nodes: readonly (readonly [string, Readonly<Record<string, string>>])[] = iconNodes[name];
   return (
     <Svg

@@ -1,6 +1,6 @@
 import * as Notifications from "expo-notifications";
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, BackHandler, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, BackHandler, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChatScreen } from "./ChatScreen";
 import { newChatThread } from "./chat/newChat";
@@ -30,7 +30,7 @@ import { TasksPage } from "./pages/TasksPage";
 import { SurfacesScreen } from "./SurfacesScreen";
 import { ChatPicker } from "./ui/ChatPicker";
 import { BottomNav, type NavItem } from "./ui/kit/BottomNav";
-import { theme } from "./ui/theme";
+import { makeStyles, useTheme } from "./ui/theme";
 import { useShowRoutines } from "./viewPrefs";
 
 type Tab = "chats" | "inbox" | "tasks" | "sessions" | "more";
@@ -54,6 +54,8 @@ export function WorkspaceScreen({
   focus?: string;
   onFocused?: () => void;
 }) {
+  const theme = useTheme();
+  const s = useStyles();
   const workspace = useWorkspace(creds);
   const insets = useSafeAreaInsets();
   const host = useMemo(() => {
@@ -377,9 +379,9 @@ export function WorkspaceScreen({
     </View>
   );
 }
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   root: { flex: 1, backgroundColor: theme.bg },
   content: { flex: 1 },
   loading: { flex: 1, gap: 12, alignItems: "center", justifyContent: "center", backgroundColor: theme.bg },
   error: { color: theme.danger, paddingHorizontal: 24, textAlign: "center" },
-});
+}));

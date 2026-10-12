@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { lang, t } from "../i18n";
 import { clockValue, dayValue, monthWeeks, withTime } from "../tasks/calendar";
 import { duePresets, momentOf } from "../tasks/when";
-import { BottomSheet, Button, Chip, IconButton, type } from "./kit";
-import { theme } from "./theme";
+import { BottomSheet, Button, Chip, IconButton, useType } from "./kit";
+import { makeStyles, useTheme } from "./theme";
 
 const TIMES = ["08:00", "10:00", "12:00", "15:00", "18:00", "20:00"];
 const locale = lang === "es" ? "es" : "en";
@@ -28,6 +28,9 @@ export function DateSheet({
   onPick: (value: string | undefined) => void;
   onClose: () => void;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const start = value ? momentOf(value) : new Date();
   const [day, setDay] = useState(value?.split("T")[0]);
   const [time, setTime] = useState(value?.split("T")[1] ?? (timeMode === "required" ? "09:00" : undefined));
@@ -152,7 +155,7 @@ export function DateSheet({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   chips: { gap: 8, paddingHorizontal: 8, paddingVertical: 4 },
   month: { flexDirection: "row", alignItems: "center", paddingTop: 6 },
   monthTitle: { flex: 1, textAlign: "center", fontWeight: "600" },
@@ -178,4 +181,4 @@ const s = StyleSheet.create({
   },
   timeInputOn: { borderColor: theme.accent },
   actions: { flexDirection: "row", gap: 8, padding: 8, paddingTop: 14 },
-});
+}));

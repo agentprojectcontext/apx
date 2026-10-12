@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { Linking, StyleSheet, Text, View } from "react-native";
+import { Linking, Text, View } from "react-native";
 import { type Block, type Inline, parseMarkdown } from "../chat/markdown";
-import { theme } from "./theme";
+import { makeStyles, useTheme } from "./theme";
 
 function Runs({ runs }: { runs: Inline[] }) {
+  const s = useStyles();
   return runs.map((run, i) => {
     // Runs are positions in one line; they never reorder.
     const key = `${run.kind}:${i}`;
@@ -39,6 +40,8 @@ function Runs({ runs }: { runs: Inline[] }) {
 }
 
 function Blocks({ blocks, color }: { blocks: Block[]; color: string }) {
+  const theme = useTheme();
+  const s = useStyles();
   return blocks.map((block, i) => {
     const key = `${block.kind}:${i}`;
     switch (block.kind) {
@@ -85,7 +88,10 @@ function Blocks({ blocks, color }: { blocks: Block[]; color: string }) {
 }
 
 /** An agent's answer: the markdown it writes (headings, lists, quotes, code, bold, links) in native text. */
-export function Markdown({ text, color = theme.fg }: { text: string; color?: string }) {
+export function Markdown({ text, color: tint }: { text: string; color?: string }) {
+  const theme = useTheme();
+  const color = tint ?? theme.fg;
+  const s = useStyles();
   const blocks = useMemo(() => parseMarkdown(text), [text]);
   return (
     <View style={s.root}>
@@ -94,7 +100,7 @@ export function Markdown({ text, color = theme.fg }: { text: string; color?: str
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   root: { gap: 8 },
   text: { fontSize: 15, lineHeight: 21 },
   heading: { fontWeight: "600", fontSize: 16 },
@@ -116,4 +122,4 @@ const s = StyleSheet.create({
     borderRadius: 10,
     overflow: "hidden",
   },
-});
+}));

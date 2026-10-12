@@ -1,4 +1,4 @@
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { channelName } from "../hooks/chatSelectors";
 import type { Workspace } from "../hooks/useWorkspace";
@@ -6,8 +6,8 @@ import { type Key, t } from "../i18n";
 import { CHANNEL_MARKS } from "../ui/channelMarks";
 import type { IconName } from "../ui/Icon";
 import { Icon } from "../ui/Icon";
-import { Dot, IconTile, ListGroup, ListRow, OwnerAvatar, PageTitle, Screen, type } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { Dot, IconTile, ListGroup, ListRow, OwnerAvatar, PageTitle, Screen, useType } from "../ui/kit";
+import { makeStyles, useTheme } from "../ui/theme";
 import type { Tone } from "../ui/tone";
 
 const DISCORD = "https://discord.gg/vxdZuT5WuE";
@@ -72,6 +72,9 @@ export function MorePage({
   online: boolean;
   onSelect: (id: MoreId) => void;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   return (
     <Screen
       gap={16}
@@ -141,7 +144,7 @@ function DiscordMark() {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   discord: {
     height: 32,
     paddingHorizontal: 12,
@@ -164,4 +167,4 @@ const s = StyleSheet.create({
   },
   owner: { color: theme.fg, fontSize: 15, fontWeight: "600" },
   status: { flexDirection: "row", alignItems: "center", gap: 6 },
-});
+}));

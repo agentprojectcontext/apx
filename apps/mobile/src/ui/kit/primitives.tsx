@@ -1,19 +1,9 @@
 import { useEffect, useRef } from "react";
-import {
-  Animated,
-  Easing,
-  Pressable,
-  type StyleProp,
-  StyleSheet,
-  Text,
-  type TextStyle,
-  View,
-  type ViewStyle,
-} from "react-native";
+import { Animated, Easing, Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from "react-native";
 import Svg, { Circle } from "react-native-svg";
 import { initials } from "../../format";
 import { Icon, type IconName } from "../Icon";
-import { type Tone, theme as t, toneColors } from "../theme";
+import { makeStyles, type Tone, useTheme } from "../theme";
 
 type Size = "lg" | "md" | "sm";
 const BUTTON: Record<Size, { height: number; px: number; font: number; icon: number }> = {
@@ -42,6 +32,8 @@ export function Button({
   busy?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const t = useTheme();
+  const s = useStyles();
   const m = BUTTON[size];
   const fg = variant === "primary" ? t.accentFg : t.fg;
   return (
@@ -75,7 +67,7 @@ export function IconButton({
   label,
   onPress,
   size = 20,
-  color = t.fg,
+  color,
   style,
 }: {
   icon: IconName;
@@ -85,6 +77,8 @@ export function IconButton({
   color?: string;
   style?: StyleProp<ViewStyle>;
 }) {
+  const t = useTheme();
+  const s = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -93,13 +87,15 @@ export function IconButton({
       onPress={onPress}
       style={({ pressed }) => [s.iconButton, pressed && { backgroundColor: t.fill }, style]}
     >
-      <Icon name={icon} size={size} color={color} />
+      <Icon name={icon} size={size} color={color ?? t.fg} />
     </Pressable>
   );
 }
 
 /** A filter pill: outlined at rest, filled with the accent when picked. */
 export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  const t = useTheme();
+  const s = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -116,7 +112,9 @@ export function Chip({ label, selected, onPress }: { label: string; selected: bo
 
 /** A small tinted label ("Approval", "Commitment"). */
 export function Tag({ children, tone = "neutral", style }: { children: string; tone?: Tone; style?: object }) {
-  const c = toneColors[tone];
+  const t = useTheme();
+  const s = useStyles();
+  const c = t.tones[tone];
   return (
     <View style={[s.tag, { backgroundColor: c.bg }, style]}>
       <Text numberOfLines={1} style={[s.tagText, { color: c.fg }]}>
@@ -127,6 +125,7 @@ export function Tag({ children, tone = "neutral", style }: { children: string; t
 }
 
 export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const s = useStyles();
   return <View style={[s.card, style]}>{children}</View>;
 }
 
@@ -142,6 +141,8 @@ export function Segmented<T extends string>({
   onChange: (value: T) => void;
   style?: StyleProp<ViewStyle>;
 }) {
+  const t = useTheme();
+  const s = useStyles();
   return (
     <View accessibilityRole="tablist" style={[s.segment, style]}>
       {options.map((option) => {
@@ -176,6 +177,8 @@ export function Toggle({
   label: string;
   disabled?: boolean;
 }) {
+  const t = useTheme();
+  const s = useStyles();
   return (
     <Pressable
       accessibilityRole="switch"
@@ -196,7 +199,9 @@ export function Toggle({
 }
 
 /** A turning arc, the same size on both platforms (ActivityIndicator only has two on iOS). */
-export function Spinner({ size = 14, color = t.fgMuted }: { size?: number; color?: string }) {
+export function Spinner({ size = 14, color: tint }: { size?: number; color?: string }) {
+  const t = useTheme();
+  const color = tint ?? t.fgMuted;
   const spin = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -235,12 +240,14 @@ export function Spinner({ size = 14, color = t.fgMuted }: { size?: number; color
 
 /** A filled round count: brand for unread chats, danger for the nav's waiting items. */
 export function CountBadge({ count, tone = "brand", small }: { count: number; tone?: Tone; small?: boolean }) {
+  const t = useTheme();
+  const s = useStyles();
   const h = small ? 16 : 20;
   return (
     <View
       style={[
         s.count,
-        { minWidth: h, height: h, paddingHorizontal: small ? 4 : 6, backgroundColor: toneColors[tone].solid },
+        { minWidth: h, height: h, paddingHorizontal: small ? 4 : 6, backgroundColor: t.tones[tone].solid },
       ]}
     >
       <Text style={{ color: t.bg, fontSize: small ? 10 : 11, fontWeight: "600" }}>
@@ -250,13 +257,17 @@ export function CountBadge({ count, tone = "brand", small }: { count: number; to
   );
 }
 
-export function Dot({ color = t.brand, size = 7, style }: { color?: string; size?: number; style?: object }) {
+export function Dot({ color: tint, size = 7, style }: { color?: string; size?: number; style?: object }) {
+  const t = useTheme();
+  const color = tint ?? t.brand;
   return <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }, style]} />;
 }
 
 /** A rounded square tinted with a tone, holding a row's icon. */
 export function IconTile({ icon, tone = "neutral", size = 34 }: { icon: IconName; tone?: Tone; size?: number }) {
-  const c = toneColors[tone];
+  const t = useTheme();
+  const s = useStyles();
+  const c = t.tones[tone];
   return (
     <View style={[s.tile, { width: size, height: size, backgroundColor: c.bg }]}>
       <Icon name={icon} size={Math.round(size * 0.53)} color={c.fg} />
@@ -266,6 +277,8 @@ export function IconTile({ icon, tone = "neutral", size = 34 }: { icon: IconName
 
 /** The owner's initials (a person, while the core has no name), with the green dot while the phone is connected. */
 export function OwnerAvatar({ name, size = 32, online }: { name: string; size?: number; online?: boolean }) {
+  const t = useTheme();
+  const s = useStyles();
   const letters = initials(name);
   return (
     <View style={[s.owner, { width: size, height: size, borderRadius: size / 2 }]}>
@@ -280,6 +293,8 @@ export function OwnerAvatar({ name, size = 32, online }: { name: string; size?: 
 }
 
 export function EmptyState({ title, body, icon = "Check" }: { title: string; body: string; icon?: IconName }) {
+  const t = useTheme();
+  const s = useStyles();
   return (
     <View style={s.empty}>
       <View style={s.emptyIcon}>
@@ -292,18 +307,21 @@ export function EmptyState({ title, body, icon = "Check" }: { title: string; bod
 }
 
 /** Shared text styles of the design: titles, row copy and metadata. */
-export const type = StyleSheet.create({
-  largeTitle: { color: t.fg, fontSize: 24, fontWeight: "600" },
-  title: { color: t.fg, fontSize: 20, fontWeight: "600" },
-  rowTitle: { color: t.fg, fontSize: 15 },
-  body: { color: t.fg, fontSize: 14 },
-  muted: { color: t.fgMuted, fontSize: 13 },
-  meta: { color: t.fgSubtle, fontSize: 12 },
-  small: { color: t.fgSubtle, fontSize: 11 },
-  mono: { fontFamily: t.mono },
-}) satisfies Record<string, TextStyle>;
+export const useType = makeStyles(
+  (t) =>
+    ({
+      largeTitle: { color: t.fg, fontSize: 24, fontWeight: "600" },
+      title: { color: t.fg, fontSize: 20, fontWeight: "600" },
+      rowTitle: { color: t.fg, fontSize: 15 },
+      body: { color: t.fg, fontSize: 14 },
+      muted: { color: t.fgMuted, fontSize: 13 },
+      meta: { color: t.fgSubtle, fontSize: 12 },
+      small: { color: t.fgSubtle, fontSize: 11 },
+      mono: { fontFamily: t.mono },
+    }) satisfies Record<string, TextStyle>,
+);
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   button: {
     flexDirection: "row",
     gap: 6,
@@ -357,4 +375,4 @@ const s = StyleSheet.create({
   },
   emptyTitle: { color: t.fg, fontSize: 16, fontWeight: "500", textAlign: "center" },
   emptyBody: { color: t.fgMuted, fontSize: 13, textAlign: "center" },
-});
+}));

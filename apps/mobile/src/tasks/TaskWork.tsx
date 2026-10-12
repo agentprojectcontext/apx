@@ -4,7 +4,7 @@ import { ago } from "../format";
 import { isWorking } from "../hooks/chatSelectors";
 import type { Task, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
-import { AgentAvatar, BottomSheet, ListRow, Spinner, type } from "../ui/kit";
+import { AgentAvatar, BottomSheet, ListRow, Spinner, useType } from "../ui/kit";
 
 /**
  * A task's work: the chats its agents worked it in, one per agent that took it (a new assignee or an @mention adds
@@ -25,6 +25,7 @@ export function WorkSheet({
   openThread: (id: string) => void;
   onClose: () => void;
 }) {
+  const type = useType();
   const [read, setRead] = useState<Thread[]>();
   const sessions = given ?? read;
   useEffect(() => {
@@ -59,6 +60,7 @@ export function WorkSheet({
 }
 
 function WorkRow({ session, data, onPress }: { session: Thread; data: Workspace; onPress: () => void }) {
+  const type = useType();
   // The live list knows if it is working now; the task's copy is from when the page was read.
   const chat = data.threads.find((item) => item.id === session.id) ?? session;
   const agent = data.agents.find((item) => item.id === session.agent_ids[0]);

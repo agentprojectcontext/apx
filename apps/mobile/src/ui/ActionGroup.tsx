@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { t as translate } from "../i18n";
 import type { Message } from "../protocol";
 import { Icon } from "./Icon";
 import { Spinner } from "./kit";
-import { theme as t } from "./theme";
+import { makeStyles, useTheme } from "./theme";
 
 type ToolPart = Extract<Message["parts"][number], { type: "tool" }>;
 
 /** Native version of the desktop's collapsible tool action group. */
 export function ActionGroup({ parts, waiting = false }: { parts: ToolPart[]; waiting?: boolean }) {
+  const t = useTheme();
+  const s = useStyles();
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<string>();
   const running = parts.some((part) => part.status === "running");
@@ -83,7 +85,7 @@ export function ActionGroup({ parts, waiting = false }: { parts: ToolPart[]; wai
     </View>
   );
 }
-const s = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   group: { alignSelf: "stretch", gap: 6 },
   heading: {
     minHeight: 36,
@@ -105,4 +107,4 @@ const s = StyleSheet.create({
   name: { color: t.fg, fontFamily: t.mono, fontSize: 11, maxWidth: "42%" },
   summary: { color: t.fgMuted, fontSize: 12, flex: 1 },
   detail: { color: t.fgMuted, fontSize: 11, lineHeight: 17, marginLeft: 20, paddingVertical: 6, fontFamily: t.mono },
-});
+}));

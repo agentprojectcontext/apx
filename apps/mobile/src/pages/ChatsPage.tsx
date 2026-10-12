@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { elapsed, listWhen } from "../format";
 import { chatPreview, chatTitle, inboxThreads, isWorking, threadContext, workingNow } from "../hooks/chatSelectors";
 import type { Agent, Job, Thread, Workspace } from "../hooks/useWorkspace";
@@ -16,9 +16,9 @@ import {
   IconButton,
   OwnerAvatar,
   Spinner,
-  type,
+  useType,
 } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { makeStyles, useTheme } from "../ui/theme";
 
 export function ChatsPage({
   data,
@@ -45,6 +45,9 @@ export function ChatsPage({
   routines: boolean;
   setRoutines: (on: boolean) => void;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const [query, setQuery] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
   const working = useMemo(() => workingNow(data.threads, data.jobs.running), [data.threads, data.jobs.running]);
@@ -163,6 +166,9 @@ function WorkChip({
   agents: Agent[];
   onPress: () => void;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const who = agentOf(job?.agent_id ?? thread.agent_ids[0], agents)?.name ?? thread.title;
   const waiting = thread.state === "input-required";
   return (
@@ -186,6 +192,9 @@ function WorkChip({
 }
 
 function ChatRow({ thread, data, onPress }: { thread: Thread; data: Workspace; onPress: () => void }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const unread = thread.unread > 0;
   const busy = isWorking(thread.state);
   const waiting = thread.state === "input-required";
@@ -223,7 +232,7 @@ function ChatRow({ thread, data, onPress }: { thread: Thread; data: Workspace; o
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   root: { flex: 1, backgroundColor: theme.bg },
   header: { height: 60, flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 20, paddingRight: 8 },
   account: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
@@ -259,4 +268,4 @@ const s = StyleSheet.create({
   line: { flexDirection: "row", alignItems: "center", gap: 8 },
   title: { flex: 1, color: theme.fg, fontSize: 15, fontWeight: "500" },
   preview: { flex: 1, color: theme.fgMuted, fontSize: 13 },
-});
+}));

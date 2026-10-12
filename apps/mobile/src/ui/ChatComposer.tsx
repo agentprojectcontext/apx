@@ -3,7 +3,7 @@ import type { Attachment } from "../chat/useAttachments";
 import { t } from "../i18n";
 import { Icon, type IconName } from "./Icon";
 import { Spinner } from "./kit";
-import { theme } from "./theme";
+import { makeStyles, useTheme } from "./theme";
 
 export function ChatComposer({
   text,
@@ -38,6 +38,8 @@ export function ChatComposer({
   model: string;
   usage?: string;
 }) {
+  const theme = useTheme();
+  const s = useStyles();
   const uploading = attachments.some((item) => !item.id);
   const typed = Boolean(text.trim()) || (attachments.length > 0 && !uploading);
   const recording = voice.state === "recording";
@@ -164,6 +166,8 @@ const fileIcon = (mime: string): IconName =>
 
 /** A photo as its thumbnail; any other file as its kind's icon over a name cut short. */
 function AttachmentTile({ item, onRemove }: { item: Attachment; onRemove: () => void }) {
+  const theme = useTheme();
+  const s = useStyles();
   return (
     <View style={s.tile}>
       {item.kind === "image" ? (
@@ -194,7 +198,7 @@ function AttachmentTile({ item, onRemove }: { item: Attachment; onRemove: () => 
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginLeft: -4, marginBottom: 4 },
   tile: { width: 64, height: 64, marginTop: 4, marginRight: 4 },
   thumb: { width: 64, height: 64, borderRadius: 12, backgroundColor: theme.fill },
@@ -263,4 +267,4 @@ const s = StyleSheet.create({
   modelText: { color: theme.fgMuted, fontSize: 12, flexShrink: 1 },
   usage: { flexDirection: "row", alignItems: "center", gap: 4, marginRight: 4 },
   usageText: { color: theme.fgSubtle, fontSize: 12 },
-});
+}));

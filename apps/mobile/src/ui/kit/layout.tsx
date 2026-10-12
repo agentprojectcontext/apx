@@ -14,8 +14,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { t as tr } from "../../i18n";
 import { Icon, type IconName } from "../Icon";
-import { theme as t } from "../theme";
-import { IconButton, type } from "./primitives";
+import { makeStyles, useTheme } from "../theme";
+import { IconButton, useType } from "./primitives";
 
 /**
  * A tab's body: a fixed `header` (title, filters) and the content that scrolls under it — only the list moves.
@@ -36,6 +36,7 @@ export function Screen({
   bottom?: number;
   refreshControl?: React.ReactElement<RefreshControlProps>;
 }) {
+  const s = useStyles();
   const body = (
     <ScrollView
       style={s.screen}
@@ -74,6 +75,8 @@ export function PageTitle({
   /** Inside an edge-to-edge list: pad like the rows (20). */
   inset?: boolean;
 }) {
+  const type = useType();
+  const s = useStyles();
   return (
     <View style={[s.pageTitle, { paddingHorizontal: inset ? 20 : 4 }]}>
       <View style={{ flex: 1 }}>
@@ -89,6 +92,8 @@ export function PageTitle({
 
 /** A pushed page's header: back, a 20pt title and a short summary on the right. */
 export function SubHeader({ title, back, right }: { title: string; back: () => void; right?: React.ReactNode }) {
+  const type = useType();
+  const s = useStyles();
   return (
     <View style={s.subHeader}>
       <IconButton icon="ChevronLeft" label={tr("back")} size={22} onPress={back} />
@@ -106,6 +111,7 @@ export function SubHeader({ title, back, right }: { title: string; back: () => v
 
 /** Rows on one card, split by hairlines. */
 export function ListGroup({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
+  const s = useStyles();
   const rows = Children.toArray(children).filter(isValidElement);
   return (
     <View style={[s.group, style]}>
@@ -123,7 +129,7 @@ export function ListGroup({ children, style }: { children: React.ReactNode; styl
 export function ListRow({
   label,
   detail,
-  detailColor = t.fgSubtle,
+  detailColor,
   leading,
   onPress,
   chevron = true,
@@ -139,6 +145,9 @@ export function ListRow({
   trailing?: React.ReactNode;
   sub?: string;
 }) {
+  const type = useType();
+  const t = useTheme();
+  const s = useStyles();
   return (
     <Pressable
       accessibilityRole={onPress ? "button" : undefined}
@@ -158,7 +167,7 @@ export function ListRow({
         ) : null}
       </View>
       {detail ? (
-        <Text numberOfLines={1} style={[s.detail, { color: detailColor }]}>
+        <Text numberOfLines={1} style={[s.detail, { color: detailColor ?? t.fgSubtle }]}>
           {detail}
         </Text>
       ) : null}
@@ -170,6 +179,8 @@ export function ListRow({
 
 /** A group's label in a list: a colored dot, the name and how many. */
 export function GroupLabel({ label, color, inset = 20 }: { label: string; color?: string; inset?: number }) {
+  const type = useType();
+  const s = useStyles();
   return (
     <View style={[s.groupLabel, { paddingHorizontal: inset }]}>
       {color ? <View style={[s.groupDot, { backgroundColor: color }]} /> : null}
@@ -180,6 +191,8 @@ export function GroupLabel({ label, color, inset = 20 }: { label: string; color?
 
 /** The floating "new" action at the bottom right of a tab. */
 export function Fab({ label, icon, onPress }: { label: string; icon: IconName; onPress: () => void }) {
+  const t = useTheme();
+  const s = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -202,6 +215,7 @@ export function BottomSheet({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const s = useStyles();
   const insets = useSafeAreaInsets();
   return (
     <Modal transparent statusBarTranslucent navigationBarTranslucent animationType="fade" onRequestClose={onClose}>
@@ -219,7 +233,7 @@ export function BottomSheet({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   screen: { flex: 1, backgroundColor: t.bg },
   pageTitle: { flexDirection: "row", alignItems: "center", paddingTop: 12, paddingBottom: 4 },
   subHeader: { height: 56, flexDirection: "row", alignItems: "center", gap: 6, paddingLeft: 4 },
@@ -280,4 +294,4 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   sheetTitle: { color: t.fg, fontSize: 16, fontWeight: "600", paddingHorizontal: 12, paddingBottom: 8 },
-});
+}));

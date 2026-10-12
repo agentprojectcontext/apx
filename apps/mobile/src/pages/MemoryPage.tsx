@@ -1,11 +1,11 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { listWhen } from "../format";
 import type { Memory, MemoryQuery, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { Icon } from "../ui/Icon";
-import { BottomSheet, Button, Chip, EmptyState, Fab, Screen, Spinner, SubHeader, Tag, type } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { BottomSheet, Button, Chip, EmptyState, Fab, Screen, Spinner, SubHeader, Tag, useType } from "../ui/kit";
+import { makeStyles, useTheme } from "../ui/theme";
 
 export type MemoryActions = {
   list: (params: MemoryQuery) => Promise<Memory[]>;
@@ -15,6 +15,8 @@ export type MemoryActions = {
 
 /** What the office remembers: everyone's notes, or one project's; searchable, and the owner adds or removes them. */
 export function MemoryPage({ data, back, actions }: { data: Workspace; back: () => void; actions: MemoryActions }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [scope, setScope] = useState<"all" | "global" | string>("all");
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<Memory[]>();
@@ -168,6 +170,9 @@ const MemoryCard = memo(function MemoryCard({
   author: string;
   onRemove: (memory: Memory) => void;
 }) {
+  const theme = useTheme();
+  const type = useType();
+  const s = useStyles();
   const [open, setOpen] = useState(false);
   return (
     <Pressable
@@ -208,6 +213,8 @@ function NewMemory({
   onClose: () => void;
   onSave: (text: string) => Promise<void>;
 }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   return (
@@ -240,7 +247,7 @@ function NewMemory({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   search: {
     height: 40,
     marginHorizontal: 16,
@@ -276,4 +283,4 @@ const s = StyleSheet.create({
     textAlignVertical: "top",
   },
   actions: { flexDirection: "row", justifyContent: "flex-end", gap: 8, padding: 8 },
-});
+}));

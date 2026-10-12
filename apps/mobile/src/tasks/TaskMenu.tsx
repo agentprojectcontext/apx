@@ -5,7 +5,7 @@ import { type Key, t } from "../i18n";
 import type { TaskEvent } from "../protocol";
 import { Icon, type IconName } from "../ui/Icon";
 import { BottomSheet, ListRow, Toggle } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { useTheme } from "../ui/theme";
 import type { TaskComment } from "./comments";
 import { columnName, PRIORITY_KEY, type TaskPatch, taskValues } from "./fields";
 import { FieldSheet, type TaskField } from "./TaskFields";
@@ -78,6 +78,7 @@ export function TaskMenu({
   openThread: (id: string) => void;
   onDeleted?: () => void;
 }) {
+  const theme = useTheme();
   const [field, setField] = useState<TaskField | "work">();
   const fail = failAlert(task.title);
   const open = task.state === "open";

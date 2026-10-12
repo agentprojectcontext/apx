@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { WebView } from "react-native-webview";
 import { APP_CLIENT } from "./appInfo";
 import type { Creds } from "./creds";
@@ -7,7 +7,7 @@ import { t } from "./i18n";
 import { ApxClient, type Surface } from "./protocol";
 import { readSurfaceMessage, surfaceDoc } from "./surfaceDoc";
 import { EmptyState, IconTile, ListGroup, ListRow, Screen, Spinner, SubHeader } from "./ui/kit";
-import { theme } from "./ui/theme";
+import { makeStyles, useTheme } from "./ui/theme";
 
 /** Least time between two prompts from one widget, as in the panel. */
 const PROMPT_GAP_MS = 1500;
@@ -16,6 +16,7 @@ type Summary = Omit<Surface, "html">;
 
 /** The owner's pinned widgets and apps; one opens full screen, live from the core. */
 export function SurfacesScreen({ creds, onBack }: { creds: Creds; onBack: () => void }) {
+  const styles = useStyles();
   const client = useMemo(() => new ApxClient({ url: creds.url, token: creds.token, client: APP_CLIENT }), [creds]);
   const [list, setList] = useState<Summary[]>();
   const [open, setOpen] = useState<Surface>();
@@ -56,9 +57,14 @@ export function SurfacesScreen({ creds, onBack }: { creds: Creds; onBack: () => 
 }
 
 function SurfaceView({ surface, client, onBack }: { surface: Surface; client: ApxClient; onBack: () => void }) {
-  // The app is dark, so a widget is drawn dark too.
+  const theme = useTheme();
+  const styles = useStyles();
+  // A widget is drawn in the app's scheme.
   const nonce = useMemo(() => Math.random().toString(36).slice(2) + Date.now().toString(36), []);
-  const html = useMemo(() => surfaceDoc(surface.html, { mode: "dark", nonce }), [surface.html, nonce]);
+  const html = useMemo(
+    () => surfaceDoc(surface.html, { mode: theme.scheme, nonce }),
+    [surface.html, nonce, theme.scheme],
+  );
   const last = useRef(0);
   return (
     <View style={styles.root}>
@@ -82,7 +88,7 @@ function SurfaceView({ surface, client, onBack }: { surface: Surface; client: Ap
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   root: { flex: 1, backgroundColor: theme.bg },
   loading: { padding: 40, alignItems: "center" },
-});
+}));

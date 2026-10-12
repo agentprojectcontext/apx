@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import { listWhen } from "../format";
 import { engineName, isWorking } from "../hooks/chatSelectors";
 import type { Engine, NativeSession, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { EngineIcon } from "../ui/EngineIcon";
 import { Icon } from "../ui/Icon";
-import { BottomSheet, Button, Dot, EmptyState, ListRow, PageTitle, Screen, Spinner, type } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { BottomSheet, Button, Dot, EmptyState, ListRow, PageTitle, Screen, Spinner, useType } from "../ui/kit";
+import { makeStyles, useTheme } from "../ui/theme";
 
 type EngineId = "claude" | "codex";
 const ENGINES: EngineId[] = ["claude", "codex"];
@@ -25,6 +25,9 @@ export function SessionsPage({
   create: (engine: string, project: string) => Promise<Thread>;
   resume: (engine: string, id: string) => Promise<Thread>;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const [picking, setPicking] = useState<EngineId>();
   const engines = data.engines.filter((engine): engine is Engine & { id: EngineId } =>
     ENGINES.includes(engine.id as EngineId),
@@ -94,6 +97,9 @@ function EngineCard({
   create: () => void;
   resume: (id: string) => void;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const threads = data.threads
     .filter((thread) => thread.engine === engine.id && !thread.archived)
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
@@ -135,6 +141,9 @@ function EngineCard({
 }
 
 function SessionRow({ thread, data, onPress }: { thread: Thread; data: Workspace; onPress: () => void }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const failed = thread.state === "failed";
   const project = data.projects.find((item) => item.id === thread.project_id)?.name;
   return (
@@ -164,6 +173,9 @@ function SessionRow({ thread, data, onPress }: { thread: Thread; data: Workspace
 }
 
 function NativeRow({ session, onPress }: { session: NativeSession; onPress: () => void }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -187,7 +199,7 @@ function NativeRow({ session, onPress }: { session: NativeSession; onPress: () =
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   card: {
     borderRadius: theme.radiusLg,
     backgroundColor: theme.surface,
@@ -223,4 +235,4 @@ const s = StyleSheet.create({
     gap: 8,
   },
   connectText: { color: theme.fgMuted, fontSize: 14 },
-});
+}));

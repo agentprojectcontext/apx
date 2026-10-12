@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { sentenceCase } from "../format";
 import { isWorking, listedThreads, pickAgents } from "../hooks/chatSelectors";
 import type { Agent, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { Icon } from "./Icon";
-import { AgentAvatar, BottomSheet, Chip, GroupLabel, Spinner, type } from "./kit";
-import { theme } from "./theme";
+import { AgentAvatar, BottomSheet, Chip, GroupLabel, Spinner, useType } from "./kit";
+import { makeStyles, useTheme } from "./theme";
 
 /** Starts a chat with an agent of a project, or jumps to another chat. */
 export function ChatPicker({
@@ -22,6 +22,9 @@ export function ChatPicker({
   onOpen: (thread: Thread) => void;
   onCreate: (agent: Agent, projectId?: string) => Promise<void>;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const [query, setQuery] = useState("");
   const [project, setProject] = useState<string>();
   const [busy, setBusy] = useState<string>();
@@ -150,6 +153,9 @@ function Row({
   disabled?: boolean;
   onPress: () => void;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -173,7 +179,7 @@ function Row({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   search: {
     height: 40,
     marginHorizontal: 4,
@@ -190,4 +196,4 @@ const s = StyleSheet.create({
   rowTitle: { color: theme.fg, fontSize: 15, fontWeight: "500" },
   empty: { padding: 24, textAlign: "center" },
   error: { color: theme.danger, fontSize: 13, paddingHorizontal: 12, paddingBottom: 8 },
-});
+}));

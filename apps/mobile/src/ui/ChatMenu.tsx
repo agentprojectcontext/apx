@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Alert, StyleSheet, TextInput, View } from "react-native";
+import { Alert, TextInput, View } from "react-native";
 import type { Thread } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { Icon, type IconName } from "./Icon";
 import { BottomSheet, Button, ListRow } from "./kit";
-import { theme } from "./theme";
+import { makeStyles, useTheme } from "./theme";
 
 export type ThreadPatch = { title?: string | null; pinned?: boolean; archived?: boolean };
 
@@ -25,6 +25,8 @@ export function ChatMenu({
   /** Deletes the chat; the screen leaves it. */
   remove: () => Promise<void>;
 }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [renaming, setRenaming] = useState(false);
   const [title, setTitle] = useState(thread.title);
   const [busy, setBusy] = useState(false);
@@ -110,7 +112,7 @@ export function ChatMenu({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   input: {
     height: 48,
     margin: 4,
@@ -121,4 +123,4 @@ const s = StyleSheet.create({
     fontSize: 16,
   },
   actions: { flexDirection: "row", justifyContent: "flex-end", gap: 8, padding: 8 },
-});
+}));

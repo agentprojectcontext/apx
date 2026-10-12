@@ -21,7 +21,7 @@ import { EngineIcon } from "./ui/EngineIcon";
 import { Icon } from "./ui/Icon";
 import { AgentAvatar, BottomSheet, EmptyState, IconButton, ListRow, Spinner } from "./ui/kit";
 import { ModelSheet } from "./ui/ModelSheet";
-import { theme } from "./ui/theme";
+import { makeStyles, useTheme } from "./ui/theme";
 
 export function ChatScreen({
   creds,
@@ -49,6 +49,8 @@ export function ChatScreen({
   /** Opens the chat a new one became. */
   onMade: (thread: Thread) => void;
 }) {
+  const theme = useTheme();
+  const s = useStyles();
   const live = useThread(creds, base.id, onUnpair);
   const insets = useSafeAreaInsets();
   const thread = (live.thread as Thread | undefined) ?? base;
@@ -272,6 +274,8 @@ export function ChatScreen({
 
 /** A routine run opens with the routine's instructions: folded, so what the agent told stands out. */
 function RoutinePrompt({ name, message }: { name: string; message: Message }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [open, setOpen] = useState(false);
   const text = message.parts.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n\n");
   return (
@@ -293,7 +297,7 @@ function RoutinePrompt({ name, message }: { name: string; message: Message }) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   root: { flex: 1, backgroundColor: theme.bg },
   header: {
     height: 60,
@@ -328,4 +332,4 @@ const s = StyleSheet.create({
   routineLabel: { flex: 1, color: theme.fgMuted, fontSize: 13 },
   routineText: { color: theme.fgMuted, fontSize: 13, lineHeight: 19, paddingHorizontal: 12, paddingBottom: 12 },
   error: { color: theme.danger, paddingHorizontal: 16, paddingVertical: 4, fontSize: 12 },
-});
+}));

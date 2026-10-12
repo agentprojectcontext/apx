@@ -1,19 +1,19 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { ago, clock, listWhen } from "../format";
 import type { Routine, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import { flowText, routineStatus, runOutcome, scheduleText } from "../routines/view";
 import { Icon } from "../ui/Icon";
-import { Card, IconButton, ListGroup, Screen, Spinner, SubHeader, type } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { Card, IconButton, ListGroup, Screen, Spinner, SubHeader, useType } from "../ui/kit";
+import { type ColorKey, makeStyles, useTheme } from "../ui/theme";
 import { Bars, type RoutineActions, RoutineToggle, RunNow, useRoutineRuns } from "./RoutinesPage";
 
-const OUTCOME: Record<ReturnType<typeof runOutcome>, { label: Key; color: string }> = {
-  told: { label: "rtTold", color: theme.brand },
-  ran: { label: "rtRan", color: theme.brand },
-  skipped: { label: "rtSkipped", color: theme.fgSubtle },
-  failed: { label: "rtFailed", color: theme.danger },
-  live: { label: "rtRunning", color: theme.info },
+const OUTCOME: Record<ReturnType<typeof runOutcome>, { label: Key; color: ColorKey }> = {
+  told: { label: "rtTold", color: "brand" },
+  ran: { label: "rtRan", color: "brand" },
+  skipped: { label: "rtSkipped", color: "fgSubtle" },
+  failed: { label: "rtFailed", color: "danger" },
+  live: { label: "rtRunning", color: "info" },
 };
 
 /** One routine: when and how it runs, what it does, and its last runs (each opens its conversation). */
@@ -32,6 +32,9 @@ export function RoutineDetailPage({
   openThread: (id: string) => void;
   edit: () => void;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const runs = useRoutineRuns(routine, actions.runs, 20);
   const agent = data.agents.find((item) => item.id === routine.agent_id);
   const project = data.projects.find((item) => item.id === routine.project_id)?.name ?? t("defaultProject");
@@ -84,12 +87,12 @@ export function RoutineDetailPage({
                 >
                   <View style={s.mark}>
                     {outcome.label === "rtRunning" ? (
-                      <Spinner size={14} color={outcome.color} />
+                      <Spinner size={14} color={theme[outcome.color]} />
                     ) : (
                       <Icon
                         name={outcome.label === "rtFailed" ? "TriangleAlert" : "Check"}
                         size={16}
-                        color={outcome.color}
+                        color={theme[outcome.color]}
                       />
                     )}
                   </View>
@@ -114,10 +117,10 @@ export function RoutineDetailPage({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   card: { gap: 10 },
   flow: { color: theme.fgMuted, fontSize: 13, fontFamily: theme.mono },
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
   run: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingHorizontal: 14 },
   mark: { width: 20, alignItems: "center" },
-});
+}));

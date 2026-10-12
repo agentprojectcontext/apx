@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Alert, StyleSheet, TextInput, View } from "react-native";
+import { Alert, TextInput, View } from "react-native";
 import type { NewTask, Task, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { applyPatch, type TaskPatch, type TaskValues } from "../tasks/fields";
 import { TaskFields } from "../tasks/TaskFields";
 import { momentOf } from "../tasks/when";
 import { Button, Card, Screen, SubHeader } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { makeStyles, useTheme } from "../ui/theme";
 
 /** A task the owner writes on the phone: title, description and the same rows as a task's page. */
 export function NewTaskPage({
@@ -21,6 +21,8 @@ export function NewTaskPage({
   /** The new task, to show its page. */
   created: (task: Task) => void;
 }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [values, setValues] = useState<TaskValues>({
@@ -88,9 +90,9 @@ export function NewTaskPage({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   page: { flex: 1, backgroundColor: theme.bg },
   textCard: { gap: 6, paddingVertical: 10 },
   title: { color: theme.fg, fontSize: 18, fontWeight: "600", paddingVertical: 4 },
   description: { color: theme.fg, fontSize: 14, minHeight: 60, textAlignVertical: "top", paddingVertical: 4 },
-});
+}));

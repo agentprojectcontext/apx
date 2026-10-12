@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Image, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Image, Text, TextInput, View } from "react-native";
 import { clock } from "../format";
 import { isWorking } from "../hooks/chatSelectors";
 import type { Agent } from "../hooks/useWorkspace";
@@ -9,7 +9,7 @@ import { ActionGroup } from "./ActionGroup";
 import { Icon } from "./Icon";
 import { Button, Spinner, Tag } from "./kit";
 import { Markdown } from "./Markdown";
-import { theme } from "./theme";
+import { makeStyles, useTheme } from "./theme";
 
 type Part = Message["parts"][number];
 type InputPart = Extract<Part, { type: "input" }>;
@@ -26,6 +26,8 @@ export function ChatMessage({
   waiting?: boolean;
   respond: Respond;
 }) {
+  const theme = useTheme();
+  const s = useStyles();
   const author = message.author;
   const mine = author.kind === "user";
   const tools = message.parts.filter((part) => part.type === "tool");
@@ -145,6 +147,8 @@ export function ChatMessage({
 
 /** A confirmation or a question waiting in the chat, answered right here. */
 function InputCard({ part, respond }: { part: InputPart; respond: Respond }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [busy, setBusy] = useState<string>();
   const [reply, setReply] = useState("");
   const pending = part.state === "pending";
@@ -251,7 +255,7 @@ function InputCard({ part, respond }: { part: InputPart; respond: Respond }) {
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   wrap: { gap: 4, marginVertical: 5 },
   mineWrap: { alignSelf: "flex-end", alignItems: "flex-end", maxWidth: "82%" },
   theirsWrap: { alignSelf: "stretch", alignItems: "flex-start" },
@@ -326,4 +330,4 @@ const s = StyleSheet.create({
   },
   cardActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   cardHelp: { color: theme.fgMuted, fontSize: 12, lineHeight: 16 },
-});
+}));

@@ -14,5 +14,5 @@ export {
   Spinner,
   Tag,
   Toggle,
-  type,
+  useType,
 } from "./primitives";

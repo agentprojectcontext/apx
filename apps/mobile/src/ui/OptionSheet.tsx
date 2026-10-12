@@ -1,6 +1,6 @@
 import { Icon } from "./Icon";
 import { BottomSheet, ListRow } from "./kit";
-import { theme } from "./theme";
+import { useTheme } from "./theme";
 
 export type Option<T extends string> = { value: T; label: string; sub?: string; leading?: React.ReactNode };
 
@@ -18,6 +18,7 @@ export function OptionSheet<T extends string>({
   onPick: (value: T) => void;
   onClose: () => void;
 }) {
+  const theme = useTheme();
   return (
     <BottomSheet title={title} onClose={onClose}>
       {options.map((option) => (

@@ -1,6 +1,6 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { Image, Text, View } from "react-native";
 import { blobEyes } from "../blobEyes";
-import { theme as t } from "../theme";
+import { makeStyles, useTheme } from "../theme";
 
 const BLOBS: Record<string, number> = {
   menta: require("../../../../../packages/ui/src/blobs/bodies/menta.webp"),
@@ -40,6 +40,12 @@ const BLOBS: Record<string, number> = {
   carbon: require("../../../../../packages/ui/src/blobs/bodies/carbon.webp"),
 };
 
+/** Muted hues behind an agent's initials, one set per scheme so the text keeps its contrast. */
+const INITIALS_BG = {
+  dark: ["#23453b", "#392b51", "#26384d", "#493128", "#492d3c", "#274147", "#47402a", "#3e2e48"],
+  light: ["#d6eee2", "#e5ddf7", "#dbe5f6", "#f5e1d5", "#f3dae5", "#d7ebee", "#eee7cf", "#e8def1"],
+};
+
 export function AgentAvatar({
   name,
   blob,
@@ -53,6 +59,8 @@ export function AgentAvatar({
   size?: number;
   online?: boolean;
 }) {
+  const t = useTheme();
+  const s = useStyles();
   const initials =
     name
       .split(/\s+/)
@@ -65,7 +73,7 @@ export function AgentAvatar({
   const hash = [...seed].reduce((value, char) => (value * 31 + char.charCodeAt(0)) >>> 0, 0);
   const blobName = blob || Object.keys(BLOBS)[hash % Object.keys(BLOBS).length];
   const hue = hash % 8;
-  const colors = ["#23453b", "#392b51", "#26384d", "#493128", "#492d3c", "#274147", "#47402a", "#3e2e48"];
+  const colors = INITIALS_BG[t.scheme];
   return (
     <View style={{ width: size, height: size, flexShrink: 0 }}>
       {blobName && BLOBS[blobName] ? (
@@ -97,7 +105,10 @@ export function AgentAvatar({
   );
 }
 
-export function ProjectAvatar({ name, color = t.brand, size = 22 }: { name: string; color?: string; size?: number }) {
+export function ProjectAvatar({ name, color: tint, size = 22 }: { name: string; color?: string; size?: number }) {
+  const t = useTheme();
+  const color = tint ?? t.brand;
+  const s = useStyles();
   return (
     <View
       style={[
@@ -120,6 +131,7 @@ export function AgentPair({
   second: { name: string; blob?: string; id?: string };
   size?: number;
 }) {
+  const s = useStyles();
   const each = Math.round(size * 0.58);
   return (
     <View style={{ width: size, height: size }}>
@@ -133,7 +145,7 @@ export function AgentPair({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((t) => ({
   avatar: { alignItems: "center", justifyContent: "center" },
   onlineDot: {
     position: "absolute",
@@ -148,4 +160,4 @@ const s = StyleSheet.create({
   },
   projectAvatar: { alignItems: "center", justifyContent: "center" },
   pairBack: { position: "absolute", backgroundColor: t.bg, padding: 2, margin: -2 },
-});
+}));

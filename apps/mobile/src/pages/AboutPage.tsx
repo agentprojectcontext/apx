@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Platform, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Animated, Platform, Text, useWindowDimensions, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { faces } from "../about/faces";
 import { glyphHtml } from "../about/glyphHtml";
@@ -9,14 +9,14 @@ import { elapsed } from "../format";
 import type { Health, Workspace } from "../hooks/useWorkspace";
 import { type Key, lang, t } from "../i18n";
 import { blobEyes } from "../ui/blobEyes";
-import { Dot, ListGroup, ListRow, Spinner, SubHeader, type } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { Dot, ListGroup, ListRow, Spinner, SubHeader, useType } from "../ui/kit";
+import { type ColorKey, makeStyles, useTheme } from "../ui/theme";
 
-const STATUS: Record<Health["subsystems"][string]["status"], { label: Key; color: string }> = {
-  ok: { label: "statusOk", color: theme.brand },
-  degraded: { label: "statusDegraded", color: theme.warning },
-  down: { label: "statusDown", color: theme.danger },
-  off: { label: "statusOff", color: theme.fgSubtle },
+const STATUS: Record<Health["subsystems"][string]["status"], { label: Key; color: ColorKey }> = {
+  ok: { label: "statusOk", color: "brand" },
+  degraded: { label: "statusDegraded", color: "warning" },
+  down: { label: "statusDown", color: "danger" },
+  off: { label: "statusOff", color: "fgSubtle" },
 };
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 /** The portrait's height, the version badge under it, the title bar's height, and the portrait's size up there. */
@@ -37,6 +37,9 @@ export function AboutPage({
   back: () => void;
   load: () => Promise<{ health: Health; devices?: number }>;
 }) {
+  const theme = useTheme();
+  const type = useType();
+  const s = useStyles();
   const [server, setServer] = useState<{ health: Health; devices?: number } | null>();
   useEffect(() => {
     void load()
@@ -135,7 +138,7 @@ export function AboutPage({
                     label={capital(name)}
                     sub={sub.detail}
                     detail={t(STATUS[sub.status].label)}
-                    leading={<Dot color={STATUS[sub.status].color} />}
+                    leading={<Dot color={theme[STATUS[sub.status].color]} />}
                     chevron={false}
                   />
                 ))}
@@ -182,7 +185,7 @@ export function AboutPage({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   root: { flex: 1, backgroundColor: theme.bg },
   body: { flex: 1, overflow: "hidden" },
   content: { paddingTop: PORTRAIT, paddingHorizontal: 16, paddingBottom: 32, gap: 12 },
@@ -202,4 +205,4 @@ const s = StyleSheet.create({
   label: { color: theme.fgSubtle, fontSize: 12, paddingHorizontal: 4, paddingTop: 8 },
   loading: { padding: 20, alignItems: "center" },
   code: { color: theme.fgMuted, fontFamily: theme.mono, fontSize: 12, maxWidth: 200 },
-});
+}));

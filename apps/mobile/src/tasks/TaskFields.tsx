@@ -6,7 +6,7 @@ import { DateSheet } from "../ui/DateSheet";
 import { Icon, type IconName } from "../ui/Icon";
 import { AgentAvatar, ListGroup, ListRow } from "../ui/kit";
 import { OptionSheet } from "../ui/OptionSheet";
-import { theme } from "../ui/theme";
+import { useTheme } from "../ui/theme";
 import {
   assignableAgents,
   columnName,
@@ -34,6 +34,7 @@ export function TaskFields({
   value: TaskValues;
   onChange: (patch: TaskPatch) => void;
 }) {
+  const theme = useTheme();
   const [sheet, setSheet] = useState<TaskField>();
   const close = () => setSheet(undefined);
   const column = data.columns.find((item) => item.id === value.status);

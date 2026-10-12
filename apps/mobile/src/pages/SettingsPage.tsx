@@ -1,6 +1,6 @@
 import Constants from "expo-constants";
 import { useEffect, useRef, useState } from "react";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, Text, View } from "react-native";
 import type { Creds } from "../creds";
 import { channelName } from "../hooks/chatSelectors";
 import { useNotifications } from "../hooks/useNotifications";
@@ -8,9 +8,9 @@ import type { Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import type { NoticePrefs } from "../protocol";
 import { Icon } from "../ui/Icon";
-import { Button, Chip, IconTile, ListGroup, ListRow, OwnerAvatar, Screen, SubHeader, type } from "../ui/kit";
+import { Button, Chip, IconTile, ListGroup, ListRow, OwnerAvatar, Screen, SubHeader, useType } from "../ui/kit";
 import { NotificationCard } from "../ui/NotificationCard";
-import { theme } from "../ui/theme";
+import { makeStyles, useTheme } from "../ui/theme";
 
 const QUIET: Array<[string, string]> = [
   ["22:00", "07:00"],
@@ -37,6 +37,9 @@ export function SettingsPage({
   load: () => Promise<NoticePrefs>;
   save: (prefs: NoticePrefs) => Promise<NoticePrefs>;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const notifications = useNotifications(creds);
   const [prefs, setPrefs] = useState<NoticePrefs>();
   const saved = useRef<NoticePrefs>(undefined);
@@ -170,7 +173,7 @@ export function SettingsPage({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   label: { color: theme.fgSubtle, fontSize: 12, paddingHorizontal: 4, paddingTop: 8 },
   chips: { gap: 8 },
-});
+}));

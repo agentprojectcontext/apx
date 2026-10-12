@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, Text, View } from "react-native";
 import type { Routine, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import type { RoutineRun } from "../protocol";
 import { activationSlots } from "../routines/slots";
 import { flowText, routineStatus, runOutcome, scheduleText } from "../routines/view";
 import { Icon } from "../ui/Icon";
-import { AgentAvatar, EmptyState, Screen, Spinner, SubHeader, Toggle, type } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { AgentAvatar, EmptyState, Screen, Spinner, SubHeader, Toggle, useType } from "../ui/kit";
+import { type ColorKey, makeStyles, useTheme } from "../ui/theme";
 
 export type RoutineActions = {
   toggle: (routine: Routine, enabled: boolean) => Promise<void>;
@@ -15,13 +15,13 @@ export type RoutineActions = {
   runs: (id: string, limit?: number) => Promise<RoutineRun[]>;
 };
 
-const BAR: Record<ReturnType<typeof runOutcome> | "none", { color: string; height: number }> = {
-  told: { color: theme.brand, height: 18 },
-  ran: { color: theme.brand, height: 13 },
-  live: { color: theme.info, height: 13 },
-  skipped: { color: theme.fillStrong, height: 8 },
-  none: { color: theme.fillStrong, height: 8 },
-  failed: { color: theme.danger, height: 18 },
+const BAR: Record<ReturnType<typeof runOutcome> | "none", { color: ColorKey; height: number }> = {
+  told: { color: "brand", height: 18 },
+  ran: { color: "brand", height: 13 },
+  live: { color: "info", height: 13 },
+  skipped: { color: "fillStrong", height: 8 },
+  none: { color: "fillStrong", height: 8 },
+  failed: { color: "danger", height: 18 },
 };
 
 /** A routine's recent runs, read again when its latest run starts or ends. */
@@ -49,6 +49,7 @@ export function RoutinesPage({
   open: (routine: Routine) => void;
   actions: RoutineActions;
 }) {
+  const theme = useTheme();
   const active = data.routines.filter((routine) => routine.enabled).length;
   const routines = [...data.routines].sort(
     (a, b) => Number(b.enabled) - Number(a.enabled) || a.name.localeCompare(b.name),
@@ -86,6 +87,9 @@ function RoutineCard({
   actions: RoutineActions;
   onPress: () => void;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const runs = useRoutineRuns(routine, actions.runs);
   const agent = data.agents.find((item) => item.id === routine.agent_id);
   const project = data.projects.find((item) => item.id === routine.project_id)?.name ?? t("defaultProject");
@@ -131,6 +135,8 @@ function RoutineCard({
 
 /** One bar per expected activation: green when it ran (taller when it told you), grey when skipped, red when failed. */
 export function Bars({ routine, runs, count = 12 }: { routine: Routine; runs: RoutineRun[]; count?: number }) {
+  const theme = useTheme();
+  const s = useStyles();
   const slots = useMemo(
     () => activationSlots(routine.schedule, runs, new Date(), routine.next_run_at, count),
     [routine.schedule, routine.next_run_at, runs, count],
@@ -141,7 +147,7 @@ export function Bars({ routine, runs, count = 12 }: { routine: Routine; runs: Ro
         const bar = BAR[slot.run ? runOutcome(slot.run, routine.action) : "none"];
         // Slots are fixed positions in the row.
         // biome-ignore lint/suspicious/noArrayIndexKey: positional
-        return <View key={i} style={[s.bar, { height: bar.height, backgroundColor: bar.color }]} />;
+        return <View key={i} style={[s.bar, { height: bar.height, backgroundColor: theme[bar.color] }]} />;
       })}
     </View>
   );
@@ -171,6 +177,8 @@ export function RoutineToggle({ routine, toggle }: { routine: Routine; toggle: R
 }
 
 export function RunNow({ routine, run }: { routine: Routine; run: RoutineActions["run"] }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [busy, setBusy] = useState(false);
   return (
     <Pressable
@@ -190,7 +198,7 @@ export function RunNow({ routine, run }: { routine: Routine; run: RoutineActions
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   card: {
     padding: 14,
     gap: 10,
@@ -214,4 +222,4 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-});
+}));

@@ -1,19 +1,19 @@
 import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { dueWhen } from "../format";
 import { closedTasks, type TaskFilter, type TaskGroup, taskGroups } from "../hooks/taskGroups";
 import type { Task, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { type TaskActions, TaskMenu } from "../tasks/TaskMenu";
 import { Icon } from "../ui/Icon";
-import { AgentAvatar, EmptyState, Fab, GroupLabel, PageTitle, Screen, Segmented, Tag, type } from "../ui/kit";
-import { theme } from "../ui/theme";
+import { AgentAvatar, EmptyState, Fab, GroupLabel, PageTitle, Screen, Segmented, Tag, useType } from "../ui/kit";
+import { type ColorKey, makeStyles, useTheme } from "../ui/theme";
 
-const COLORS: Record<TaskGroup["id"], string> = {
-  doing: theme.brand,
-  pending: theme.fgSubtle,
-  review: theme.info,
-  blocked: theme.warning,
+const COLORS: Record<TaskGroup["id"], ColorKey> = {
+  doing: "brand",
+  pending: "fgSubtle",
+  review: "info",
+  blocked: "warning",
 };
 
 /**
@@ -33,6 +33,8 @@ export function TasksPage({
   create: () => void;
   openThread: (id: string) => void;
 }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [filter, setFilter] = useState<TaskFilter>("all");
   const [menu, setMenu] = useState<string>();
   const menuTask = data.tasks.find((item) => item.id === menu);
@@ -63,7 +65,7 @@ export function TasksPage({
         {groups.length ? (
           groups.map((group) => (
             <View key={group.id}>
-              <GroupLabel label={`${t(group.label)} · ${group.tasks.length}`} color={COLORS[group.id]} />
+              <GroupLabel label={`${t(group.label)} · ${group.tasks.length}`} color={theme[COLORS[group.id]]} />
               {group.tasks.map((task) => (
                 <TaskRow
                   key={task.id}
@@ -129,6 +131,9 @@ function TaskRow({
   onPress: () => void;
   onMenu: () => void;
 }) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
   const agent = data.agents.find((item) => item.id === task.assignee);
   const project = data.projects.find((item) => item.id === task.project_id)?.name ?? t("defaultProject");
   const who = agent?.name ?? task.assignee ?? "APX";
@@ -155,9 +160,9 @@ function TaskRow({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   closedLabel: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 20, paddingBottom: 72 },
   closedTitle: { color: theme.fgMuted, textDecorationLine: "line-through" },
   row: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 10, paddingHorizontal: 20 },
   note: { color: theme.warning, fontSize: 12 },
-});
+}));

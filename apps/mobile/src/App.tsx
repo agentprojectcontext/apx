@@ -15,9 +15,6 @@ import { type Scheme, ThemeProvider, themes, useSystemScheme } from "./ui/theme"
 import { unpairDevice } from "./unpair";
 import { WorkspaceScreen } from "./WorkspaceScreen";
 
-/** Until every screen reads the theme through useTheme, the app stays dark. */
-const PINNED: Scheme | undefined = "dark";
-
 /** Paired: the super-agent's chat. Not yet: the pairing screen (a QR, an apx://pair link, or typed by hand). */
 export function App() {
   const [creds, setCreds] = useState<Creds | null>();
@@ -107,7 +104,7 @@ export function App() {
   const focused = useCallback(() => setFocus(undefined), []);
   const paired = creds && (!link || known);
   // Pairing stays dark, as the panel's setup screens do; the rest follows the phone (or Settings).
-  const scheme: Scheme = creds === null || (creds && !paired) ? "dark" : (PINNED ?? system);
+  const scheme: Scheme = creds === null || (creds && !paired) ? "dark" : system;
   return (
     <SafeAreaProvider>
       <ThemeProvider scheme={scheme}>

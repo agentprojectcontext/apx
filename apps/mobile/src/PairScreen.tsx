@@ -9,7 +9,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -20,10 +19,12 @@ import { usePairing } from "./hooks/usePairing";
 import { t } from "./i18n";
 import { parsePairingLink } from "./pairing";
 import { Icon } from "./ui/Icon";
-import { theme } from "./ui/theme";
+import { makeStyles, useTheme } from "./ui/theme";
 
 /** Native counterpart of the web's pairing gate, with QR and manual network address entry. */
 export function PairScreen({ link, onPaired }: { link: string | undefined; onPaired: (creds: Creds) => void }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [permission, askCamera] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
   const [url, setUrl] = useState("");
@@ -145,7 +146,7 @@ export function PairScreen({ link, onPaired }: { link: string | undefined; onPai
     </KeyboardAvoidingView>
   );
 }
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   root: { flex: 1, backgroundColor: theme.bg },
   brand: { height: 60, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
   logo: { width: 28, height: 28 },
@@ -215,4 +216,4 @@ const s = StyleSheet.create({
   scanBox: { gap: 12 },
   camera: { height: 240, borderRadius: 18, overflow: "hidden" },
   version: { color: theme.subtle, fontSize: 11, paddingVertical: 12, textAlign: "center" },
-});
+}));

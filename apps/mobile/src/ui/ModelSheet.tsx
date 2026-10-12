@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, Text, TextInput, View } from "react-native";
 import { type CatalogEngine, type ModelChoice, modelOptions } from "../chat/models";
 import { t } from "../i18n";
 import { Icon } from "./Icon";
 import { BottomSheet, Spinner } from "./kit";
-import { theme } from "./theme";
+import { makeStyles, useTheme } from "./theme";
 
 /** Picks the chat's own model: the agent's, the router, or one model the office can run now. */
 export function ModelSheet({
@@ -23,6 +23,8 @@ export function ModelSheet({
   onPick: (choice: ModelChoice | null) => void;
   onClose: () => void;
 }) {
+  const theme = useTheme();
+  const s = useStyles();
   const [catalog, setCatalog] = useState<CatalogEngine[]>();
   const [query, setQuery] = useState("");
   useEffect(() => {
@@ -100,6 +102,8 @@ function Option({
   onPress: () => void;
   sans?: boolean;
 }) {
+  const theme = useTheme();
+  const s = useStyles();
   return (
     <Pressable
       accessibilityRole="radio"
@@ -120,7 +124,7 @@ function Option({
   );
 }
 
-const s = StyleSheet.create({
+const useStyles = makeStyles((theme) => ({
   search: {
     height: 40,
     marginHorizontal: 4,
@@ -146,4 +150,4 @@ const s = StyleSheet.create({
   group: { color: theme.fgSubtle, fontSize: 12, paddingHorizontal: 12, paddingTop: 12, paddingBottom: 4 },
   loading: { padding: 20, alignItems: "center" },
   none: { color: theme.fgMuted, fontSize: 13, padding: 12 },
-});
+}));
