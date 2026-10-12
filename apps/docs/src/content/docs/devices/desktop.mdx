@@ -45,17 +45,18 @@ These settings live in the core but only apply inside the desktop app (in a plai
 |---|---|
 | **Shortcut** | The global shortcut for the quick chat. Click, then press the keys. **Remove** leaves it without one. If another app already uses those keys, APX tells you. |
 | **Start with the computer** | APX opens when you log in. On by default. |
-| **Let agents use this computer** | Computer use, macOS only and off until you turn it on. See below. |
+| **Let agents use this computer** | Computer use, on macOS and Windows, off until you turn it on. See below. |
 
-### Computer use (macOS)
+### Computer use
 
-With computer use on, agents can look at the window in front and, with your OK, click and type in it. It needs two
-macOS permissions, shown right there with their state and an **Open System Settings** button: **Screen Recording**
-(to see the window) and **Accessibility** (to read its buttons and fields, click and type).
+With computer use on, agents can look at the window in front and, with your OK, click and type in it. On macOS it
+needs two permissions, shown right there with their state and an **Open System Settings** button: **Screen Recording**
+(to see the window) and **Accessibility** (to read its buttons and fields, click and type). Windows asks for none; there
+an agent opens only web addresses and apps by name, never a command prompt or a script host.
 
 Some things hold in every autonomy level, even total:
 
-- `⌘⇧Esc` is the emergency stop, from any app. It ends every run using the computer.
+- `⌘⇧Esc` (`Ctrl+Alt+Esc` on Windows) is the emergency stop, from any app. It ends every run using the computer.
 - Every 60 actions in one turn the agent asks you before going on.
 - Password fields are refused.
 

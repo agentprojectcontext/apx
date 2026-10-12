@@ -23,7 +23,7 @@ import { runAskpass } from "./askpass.ts";
 import { installedBrowsers, isWebUrl, openExternal } from "./browser/external.ts";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { type Bounds, createPopout } from "./browser/popout.ts";
-import { computerPermissions, createComputer, openPrivacy } from "./computer.ts";
+import { COMPUTER_PLATFORMS, computerPermissions, createComputer, openPrivacy } from "./computer.ts";
 import { createConnector } from "./connector.ts";
 import { createCursor } from "./cursor.ts";
 import { editMenu } from "./edit-menu.ts";
@@ -238,7 +238,7 @@ app.whenReady().then(() => {
   });
 
   let linked = false;
-  // Computer use: off until the panel applies the owner's choice (Config › Desktop); macOS only for now.
+  // Computer use: off until the panel applies the owner's choice (Config › Desktop); macOS and Windows.
   let computerOn = false;
   const computer = createComputer({
     cursor: createCursor(),
@@ -254,7 +254,8 @@ app.whenReady().then(() => {
     },
   });
   // The emergency stop, from any app, while computer use is on.
-  const STOP_KEYS = "CommandOrControl+Shift+Escape";
+  // Ctrl+Shift+Esc is Windows' own Task Manager: there it is Ctrl+Alt+Esc.
+  const STOP_KEYS = process.platform === "win32" ? "Control+Alt+Escape" : "CommandOrControl+Shift+Escape";
   const armStop = () => {
     const armed = globalShortcut.isRegistered(STOP_KEYS);
     if (computerOn && !armed) globalShortcut.register(STOP_KEYS, () => computer.stop());
@@ -273,7 +274,7 @@ app.whenReady().then(() => {
       if (linked || !node) return;
       linked = true;
       link = startNodeLink(host, node.url, () => {}, node.token, {
-        on: () => computerOn && process.platform === "darwin",
+        on: () => computerOn && COMPUTER_PLATFORMS.includes(process.platform),
         handle: computer.handle,
       });
     },

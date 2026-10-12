@@ -1,5 +1,5 @@
-// Keys an agent may press on the owner's computer: macOS virtual key codes (ANSI layout) and modifier flags, posted as
-// real keyboard events (CoreGraphics), like a person pressing them.
+// Keys an agent may press on the owner's computer, posted as real keyboard events like a person pressing them: macOS
+// virtual key codes (ANSI layout) and modifier flags, or Windows virtual-key codes, where cmd means ctrl.
 
 const NAMED: Record<string, number> = {
   enter: 36,
@@ -82,9 +82,8 @@ export const REFUSED_KEYS = new Set([
   "cmd+shift+w",
 ]);
 
-/** "cmd+shift+t" → its key code and modifier flags; undefined for something it cannot press. */
-export function parseKeys(keys: string): { code: number; flags: number } | undefined {
-  const parts = keys
+const splitKeys = (keys: string) =>
+  keys
     .toLowerCase()
     .replaceAll("command", "cmd")
     .replaceAll("control", "ctrl")
@@ -92,9 +91,82 @@ export function parseKeys(keys: string): { code: number; flags: number } | undef
     .split("+")
     .map((k) => k.trim())
     .filter(Boolean);
+
+/** "cmd+shift+t" → its key code and modifier flags; undefined for something it cannot press. */
+export function parseKeys(keys: string): { code: number; flags: number } | undefined {
+  const parts = splitKeys(keys);
   const key = parts.pop();
   if (!key || parts.some((m) => FLAGS[m] === undefined)) return undefined;
   const code = NAMED[key] ?? CHARS[key];
   if (code === undefined) return undefined;
   return { code, flags: parts.reduce((f, m) => f | (FLAGS[m] ?? 0), 0) };
+}
+
+const WIN_NAMED: Record<string, number> = {
+  enter: 0x0d,
+  return: 0x0d,
+  tab: 0x09,
+  esc: 0x1b,
+  escape: 0x1b,
+  space: 0x20,
+  delete: 0x08,
+  backspace: 0x08,
+  up: 0x26,
+  down: 0x28,
+  left: 0x25,
+  right: 0x27,
+  pageup: 0x21,
+  pagedown: 0x22,
+  home: 0x24,
+  end: 0x23,
+};
+/** Punctuation by its US-layout key (VK_OEM_*); letters and digits are their own codes. */
+const WIN_CHARS: Record<string, number> = {
+  "=": 0xbb,
+  "-": 0xbd,
+  ",": 0xbc,
+  ".": 0xbe,
+  "/": 0xbf,
+  ";": 0xba,
+  "'": 0xde,
+  "[": 0xdb,
+  "]": 0xdd,
+  "\\": 0xdc,
+  "`": 0xc0,
+};
+/** Modifiers' virtual keys; cmd is the Mac name for what ctrl does in Windows shortcuts. */
+const WIN_MODS: Record<string, number> = { cmd: 0x11, ctrl: 0x11, shift: 0x10, option: 0x12 };
+/** Keys Windows sends as extended (the arrows and the navigation block): without the flag some apps read the keypad. */
+const WIN_EXTENDED = new Set([0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28]);
+
+/** "cmd+l" on Windows → ctrl's and L's virtual keys; undefined for something it cannot press. */
+export function parseWinKeys(keys: string): { vk: number; mods: number[]; extended: boolean } | undefined {
+  const parts = splitKeys(keys);
+  const key = parts.pop();
+  if (!key || parts.some((m) => WIN_MODS[m] === undefined)) return undefined;
+  const vk = WIN_NAMED[key] ?? WIN_CHARS[key] ?? (/^[a-z0-9]$/.test(key) ? key.toUpperCase().charCodeAt(0) : undefined);
+  if (vk === undefined) return undefined;
+  const mods = [...new Set(parts.map((m) => WIN_MODS[m] as number))];
+  return { vk, mods, extended: WIN_EXTENDED.has(vk) };
+}
+
+/** Windows' shortcuts that close or quit things, in either name for ctrl. */
+const WIN_REFUSED = new Set([
+  "ctrl+w",
+  "ctrl+q",
+  "ctrl+shift+w",
+  "ctrl+shift+q",
+  "ctrl+f4",
+  "option+f4",
+  "ctrl+shift+esc",
+]);
+
+/** Whether `keys` closes or quits something on this platform: an agent never presses those. */
+export function refusedKeys(keys: string, platform: string): boolean {
+  const k = keys.toLowerCase().replace(/\s+/g, "");
+  if (platform !== "win32") return REFUSED_KEYS.has(k);
+  const norm = splitKeys(k)
+    .map((m) => (m === "cmd" ? "ctrl" : m === "escape" ? "esc" : m))
+    .join("+");
+  return WIN_REFUSED.has(norm);
 }

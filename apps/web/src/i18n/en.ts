@@ -1102,7 +1102,7 @@ export const en = {
   "desktop.cu": "Computer use",
   "desktop.cu.switch": "Let agents use this computer",
   "desktop.cu.switchHint":
-    "They can look at the window in front and, with your OK for each one, click and type in it. Never passwords. ⌘⇧Esc stops it from any app.",
+    "They can look at the window in front and, with your OK for each one, click and type in it. Never passwords. {keys} stops it from any app.",
   "desktop.cu.screen": "Screen Recording",
   "desktop.cu.screenHint": "To see the window an agent works on.",
   "desktop.cu.accessibility": "Accessibility",
@@ -1117,7 +1117,7 @@ export const en = {
   "live.hide": "Hide",
   "live.stop": "Stop",
   "live.stopHint":
-    "Emergency stop: ends what the agent is doing on the computer, this time only. Also ⌘⇧Esc from any app.",
+    "Emergency stop: ends what the agent is doing on the computer, this time only. Also {keys} from any app.",
   "live.stopped": "Stopped. The turns using the computer were ended; ask again whenever you want.",
   "live.wait": "Waiting for the screen…",
   "error.desktop": "Desktop: {error}",

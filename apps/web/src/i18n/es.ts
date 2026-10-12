@@ -1105,7 +1105,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "desktop.cu": "Uso de la computadora",
   "desktop.cu.switch": "Dejar que los agentes usen esta computadora",
   "desktop.cu.switchHint":
-    "Pueden mirar la ventana que está al frente y, con tu OK para cada una, hacer clic y escribir en ella. Nunca contraseñas. ⌘⇧Esc lo detiene desde cualquier app.",
+    "Pueden mirar la ventana que está al frente y, con tu OK para cada una, hacer clic y escribir en ella. Nunca contraseñas. {keys} lo detiene desde cualquier app.",
   "desktop.cu.screen": "Grabación de pantalla",
   "desktop.cu.screenHint": "Para ver la ventana en la que trabaja un agente.",
   "desktop.cu.accessibility": "Accesibilidad",
@@ -1120,7 +1120,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "live.hide": "Ocultar",
   "live.stop": "Detener",
   "live.stopHint":
-    "Parada de emergencia: corta lo que el agente está haciendo en la computadora, solo esta vez. También con ⌘⇧Esc desde cualquier app.",
+    "Parada de emergencia: corta lo que el agente está haciendo en la computadora, solo esta vez. También con {keys} desde cualquier app.",
   "live.stopped": "Detenido. Se cortó lo que el agente estaba haciendo; pedíselo de nuevo cuando quieras.",
   "live.wait": "Esperando la pantalla…",
   "error.desktop": "Escritorio: {error}",

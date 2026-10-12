@@ -12,3 +12,9 @@ export async function applyDesktopPrefs(): Promise<void> {
     });
   } catch {}
 }
+
+/** Computer use runs in the desktop app on macOS and Windows. */
+export const computerUseHere = () => ["darwin", "win32"].includes(window.apxDesktop?.platform ?? "");
+
+/** The emergency stop's keys on this computer (Ctrl+Shift+Esc is Windows' Task Manager). */
+export const stopKeys = () => (window.apxDesktop?.platform === "win32" ? "Ctrl+Alt+Esc" : "⌘⇧Esc");

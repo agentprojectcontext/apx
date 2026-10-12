@@ -1,5 +1,6 @@
 import { IconButton, Icons } from "@apx/ui";
 import { type PointerEvent, useEffect, useRef, useState } from "react";
+import { stopKeys } from "../config/desktopPrefs.ts";
 import { useT } from "../i18n/index.ts";
 import { ComputerIcon } from "./parts/ComputerIcon.tsx";
 
@@ -49,7 +50,7 @@ export function ScreenLive() {
     [],
   );
 
-  // The emergency stop, pulled here or with ⌘⇧Esc from any app.
+  // The emergency stop, pulled here or with its keys (stopKeys) from any app.
   useEffect(() => window.apxDesktop?.onComputerStopped?.(setStopped), []);
 
   // Computer use is over after a while with no action: close, forget where it was moved.
@@ -134,7 +135,7 @@ export function ScreenLive() {
           <button
             type="button"
             className="screenlive__stop"
-            aria-label={t("live.stopHint")}
+            aria-label={t("live.stopHint", { keys: stopKeys() })}
             onClick={() => void window.apxDesktop?.stopComputer?.()}
           >
             <Icons.Square size={10} />

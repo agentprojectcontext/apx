@@ -3,6 +3,7 @@ import { type KeyboardEvent, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
+import { computerUseHere, stopKeys } from "./desktopPrefs.ts";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
 type Prefs = { shortcut: string; launch_at_login: boolean; computer_use: boolean };
@@ -96,7 +97,7 @@ export function DesktopSection() {
           aria-label={t("desktop.login")}
         />
       </SettingRow>
-      {window.apxDesktop?.platform === "darwin" && (
+      {computerUseHere() && (
         <ComputerUse on={prefs.computer_use} onChange={(on) => void save({ ...prefs, computer_use: on })} />
       )}
     </>
@@ -105,9 +106,10 @@ export function DesktopSection() {
 
 type Permissions = { screen: string; accessibility: boolean };
 
-/** Computer use on this Mac: the switch, and the two permissions macOS asks for, each with a way to grant it. */
+/** Computer use on this computer: the switch, and on a Mac the two permissions macOS asks for, each with a way to grant it. */
 function ComputerUse({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
   const t = useT();
+  const mac = window.apxDesktop?.platform === "darwin";
   const [perms, setPerms] = useState<Permissions>();
   useEffect(() => {
     const read = () => void window.apxDesktop?.computerPermissions?.().then(setPerms, () => {});
@@ -133,11 +135,12 @@ function ComputerUse({ on, onChange }: { on: boolean; onChange: (on: boolean) =>
   return (
     <>
       <SubHead>{t("desktop.cu")}</SubHead>
-      <SettingRow title={t("desktop.cu.switch")} description={t("desktop.cu.switchHint")}>
+      <SettingRow title={t("desktop.cu.switch")} description={t("desktop.cu.switchHint", { keys: stopKeys() })}>
         <Switch size="sm" checked={on} onCheckedChange={onChange} aria-label={t("desktop.cu.switch")} />
       </SettingRow>
-      {on && perms && row("screen", perms.screen === "granted")}
-      {on && perms && row("accessibility", perms.accessibility)}
+      {/* Windows asks for neither permission. */}
+      {on && perms && mac && row("screen", perms.screen === "granted")}
+      {on && perms && mac && row("accessibility", perms.accessibility)}
     </>
   );
 }
