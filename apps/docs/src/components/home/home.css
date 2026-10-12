@@ -542,13 +542,14 @@ body.h {
   box-shadow: 0 14px 30px -14px var(--shadow);
   white-space: nowrap;
 }
+/* Over the window's title bar, which holds nothing: they never cover the app. */
 .f1 {
-  top: 26%;
-  left: -40px;
+  top: -34px;
+  left: 16%;
 }
 .f2 {
-  top: 50%;
-  right: -40px;
+  top: -34px;
+  right: 6%;
 }
 .stage__note {
   margin: 34px 0 0;
