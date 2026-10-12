@@ -33,7 +33,9 @@ test("ssh's question goes over the socket and the owner's answer comes back on s
     exe: process.execPath,
   });
   try {
-    assert.equal(pass.env.SSH_ASKPASS, process.execPath);
+    // On Linux ssh runs the Node helper instead (see the last test).
+    if (process.platform === "linux") assert.match(pass.env.SSH_ASKPASS ?? "", /askpass\.sh$/);
+    else assert.equal(pass.env.SSH_ASKPASS, process.execPath);
     assert.equal(pass.env.SSH_ASKPASS_REQUIRE, "force");
     const out = new PassThrough();
     let printed = "";
@@ -73,16 +75,20 @@ test("a cancelled question exits 1 and prints nothing; a wrong key gets no answe
   }
 });
 
-test("from a checkout, ssh runs a wrapper that hands Electron the app's folder; it goes away with the login", async () => {
-  if (process.platform === "win32") return;
+test("from a checkout, ssh runs a wrapper that hands Electron the app's folder; it goes away with the login", async (t) => {
+  if (process.platform === "win32") return t.skip("the wrapper is a shell script");
+  if (process.platform === "linux") return t.skip("Linux uses the Node helper, checkout or not");
   const pass = await openAskpass({ ask: async () => "x", exe: "/opt/Acme Apps/electron", appDir: "/work/it's/apx" });
   const wrapper = pass.env.SSH_ASKPASS ?? "";
-  assert.match(
-    fs.readFileSync(wrapper, "utf8"),
-    /^#!\/bin\/sh\nexec '\/opt\/Acme Apps\/electron' '\/work\/it'\\''s\/apx' "\$@"\n$/,
-  );
-  assert.equal(fs.statSync(wrapper).mode & 0o777, 0o700);
-  pass.close();
+  try {
+    assert.match(
+      fs.readFileSync(wrapper, "utf8"),
+      /^#!\/bin\/sh\nexec '\/opt\/Acme Apps\/electron' '\/work\/it'\\''s\/apx' "\$@"\n$/,
+    );
+    assert.equal(fs.statSync(wrapper).mode & 0o777, 0o700);
+  } finally {
+    pass.close();
+  }
   assert.equal(fs.existsSync(wrapper), false);
   assert.equal(fs.existsSync(pass.env.APX_ASKPASS ?? ""), false);
 });
