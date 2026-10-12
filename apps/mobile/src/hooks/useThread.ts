@@ -2,7 +2,15 @@ import { randomUUID } from "expo-crypto";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ModelChoice } from "../chat/models";
 import type { Creds } from "../creds";
-import { ApxClient, ApxError, type ApxSocket, type CoreEvent, type Message, type Thread } from "../protocol";
+import {
+  type Answer,
+  ApxClient,
+  ApxError,
+  type ApxSocket,
+  type CoreEvent,
+  type Message,
+  type Thread,
+} from "../protocol";
 
 type Usage = { context?: number; window?: number };
 /** The newest run that reported how full the chat is. */
@@ -222,7 +230,7 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
     }
   }, [client, threadId, reload, setError]);
   const respond = useCallback(
-    async (input: string, answer: { decision?: "approve" | "deny"; text?: string }) => {
+    async (input: string, answer: Answer) => {
       await client.call("runs.respond", { input, ...answer });
       await reload.current();
     },

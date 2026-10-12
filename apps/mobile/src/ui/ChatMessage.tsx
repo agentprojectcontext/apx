@@ -4,7 +4,7 @@ import { clock } from "../format";
 import { isWorking } from "../hooks/chatSelectors";
 import type { Agent } from "../hooks/useWorkspace";
 import { t } from "../i18n";
-import type { Message } from "../protocol";
+import type { Answer, Message } from "../protocol";
 import { ActionGroup } from "./ActionGroup";
 import { Icon } from "./Icon";
 import { Button, Spinner, Tag } from "./kit";
@@ -13,7 +13,7 @@ import { theme } from "./theme";
 
 type Part = Message["parts"][number];
 type InputPart = Extract<Part, { type: "input" }>;
-export type Respond = (input: string, answer: { decision?: "approve" | "deny"; text?: string }) => Promise<void>;
+export type Respond = (input: string, answer: Answer) => Promise<void>;
 
 export function ChatMessage({
   message,
@@ -148,7 +148,7 @@ function InputCard({ part, respond }: { part: InputPart; respond: Respond }) {
   const [busy, setBusy] = useState<string>();
   const [reply, setReply] = useState("");
   const pending = part.state === "pending";
-  const answer = (key: string, value: { decision?: "approve" | "deny"; text?: string }) => {
+  const answer = (key: string, value: Answer) => {
     setBusy(key);
     respond(part.input_id, value)
       .catch((error) => Alert.alert(t("couldNotAnswer"), error instanceof Error ? error.message : String(error)))
@@ -170,17 +170,40 @@ function InputCard({ part, respond }: { part: InputPart; respond: Respond }) {
           {part.detail}
         </Text>
       ) : null}
+      {pending && part.kind === "confirm" && part.approval_scopes ? (
+        <Text style={s.cardHelp}>{t("scopeHelp")}</Text>
+      ) : null}
       {pending ? (
         <View style={s.cardActions}>
           {part.kind === "confirm" ? (
             <>
               <Button
                 size="md"
-                label={t("approve")}
+                label={t(part.approval_scopes ? "approveOnce" : "approve")}
                 busy={busy === "approve"}
                 disabled={Boolean(busy)}
                 onPress={() => answer("approve", { decision: "approve" })}
               />
+              {part.approval_scopes?.includes("session") ? (
+                <Button
+                  size="md"
+                  variant="secondary"
+                  label={t("approveSession")}
+                  busy={busy === "session"}
+                  disabled={Boolean(busy)}
+                  onPress={() => answer("session", { decision: "approve", scope: "session" })}
+                />
+              ) : null}
+              {part.approval_scopes?.includes("always") ? (
+                <Button
+                  size="md"
+                  variant="secondary"
+                  label={t("approveAlways")}
+                  busy={busy === "always"}
+                  disabled={Boolean(busy)}
+                  onPress={() => answer("always", { decision: "approve", scope: "always" })}
+                />
+              ) : null}
               <Button
                 size="md"
                 variant="secondary"
@@ -302,4 +325,5 @@ const s = StyleSheet.create({
     fontSize: 14,
   },
   cardActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  cardHelp: { color: theme.fgMuted, fontSize: 12, lineHeight: 16 },
 });

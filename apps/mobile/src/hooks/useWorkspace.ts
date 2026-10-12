@@ -5,6 +5,7 @@ import type { Creds } from "../creds";
 import { t } from "../i18n";
 import { showLiveNotice } from "../notifications";
 import {
+  type Answer,
   ApxClient,
   type ApxSocket,
   type CoreEvent,
@@ -392,7 +393,7 @@ export function useWorkspace(creds: Creds) {
   );
 
   const respond = useCallback(
-    async (input: string, response: { decision?: "approve" | "deny"; text?: string }) => {
+    async (input: string, response: Answer) => {
       await rpc(client, "runs.respond", { input, ...response });
       await loadSecondary();
     },
