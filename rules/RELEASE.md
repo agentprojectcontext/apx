@@ -1,7 +1,7 @@
 # Releasing APX v2
 
-How v2 leaves the private working repo and reaches people. The product plan for updates is
-[`plan/00-plan-maestro.md`](../plan/00-plan-maestro.md) §12; what was built is [D-044](DECISIONS.md#d-044).
+How v2 leaves the private working repo and reaches people. What was built for updates is
+[D-044](DECISIONS.md#d-044).
 
 ## History
 

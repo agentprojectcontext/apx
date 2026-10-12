@@ -1,4 +1,4 @@
-// Every layout number of the shell lives here so a re-skin touches one file. See plan/design/SPEC.md §1.3.
+// Every layout number of the shell lives here so a re-skin touches one file.
 
 export const LAYOUT = {
   topbarH: 46,

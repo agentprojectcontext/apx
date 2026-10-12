@@ -15,9 +15,6 @@ over at any moment. v2 is a ground-up rewrite of APX with one rule: **one way to
 | Places where a conversation lives | 10 | **1** — thread + run + steps |
 | API surface | ~378 endpoints | **~90** typed methods; the CLI only speaks the protocol |
 
-The full survey and the staged plan are in [`plan/archivo/03-relevo-y-plan-motor.md`](plan/archivo/03-relevo-y-plan-motor.md)
-(Spanish).
-
 ## What every model call carries
 
 <p align="center"><img src="assets/prompt-size.svg" alt="Tokens per model call on a fresh install: APX v2 8.1k, Hermes 13.0k, APX v1 13.2k (Telegram) and 23.6k (web chat), OpenClaw 13.2k" width="760"></p>

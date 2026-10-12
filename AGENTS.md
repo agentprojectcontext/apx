@@ -2,7 +2,8 @@
 
 > Hand-maintained guide for working **on** APX v2 (read by Claude Code, Codex and any AGENTS.md-aware tool).
 > This file is the hub: glossary, dev loop and numbered rules live here. Everything else is read on demand
-> under [`rules/`](rules/). Product plan and research (Spanish) live in [`plan/`](plan/).
+> under [`rules/`](rules/). Product plan and research (Spanish) live in `plan/`, in the maintainers' checkout only
+> (it is not published).
 
 New here or reviewing? Read [`rules/HUMAN_MODEL.md`](rules/HUMAN_MODEL.md) first, then
 [`rules/GUARDRAILS_PROFILE.md`](rules/GUARDRAILS_PROFILE.md) for which rules are enforced by a gate.
@@ -53,7 +54,7 @@ packages/protocol  zod frames + method registry + isomorphic client
 packages/ui        design system, synced with Claude Design (see packages/ui/.design-sync/NOTES.md)
 packages/surfaces  widgets/apps/artifacts runtime (placeholder; the MVP host lives in apps/web/src/surfaces)
 packages/config    shared tsconfig
-plan/            plan + research (Spanish). rules/  engineering docs. scripts/  repo gates.
+plan/            plan + research (Spanish, maintainers only). rules/  engineering docs. scripts/  repo gates.
 ```
 
 ## Project rules
@@ -138,5 +139,5 @@ expected `code_sha`) and the changed path is exercised for real; anything not ex
 | Why something is the way it is | [`rules/DECISIONS.md`](rules/DECISIONS.md), [`rules/HISTORY.md`](rules/HISTORY.md) |
 | How to verify | [`rules/TESTING.md`](rules/TESTING.md) |
 | Adding to the prompt or a tool | [`rules/PROMPT_SIZE.md`](rules/PROMPT_SIZE.md) |
-| Product direction | [`plan/01-arquitectura-v2.md`](plan/01-arquitectura-v2.md), [`plan/00-plan-maestro.md`](plan/00-plan-maestro.md) |
+| Product direction | `plan/01-arquitectura-v2.md`, `plan/00-plan-maestro.md` (maintainers' checkout) |
 | Design system | [`packages/ui/.design-sync/NOTES.md`](packages/ui/.design-sync/NOTES.md), `packages/ui/src/components/*.md` |
