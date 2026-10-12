@@ -1,6 +1,7 @@
 import Constants from "expo-constants";
 import { useEffect, useRef, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
+import { type AppearancePref, currentAppearance, saveAppearance } from "../appearance";
 import type { Creds } from "../creds";
 import { channelName } from "../hooks/chatSelectors";
 import { useNotifications } from "../hooks/useNotifications";
@@ -18,6 +19,11 @@ const QUIET: Array<[string, string]> = [
   ["00:00", "09:00"],
 ];
 const BUDGETS = [1, 3, 5, 10, 0];
+const LOOKS: Array<[AppearancePref, "setLookSystem" | "setLookLight" | "setLookDark"]> = [
+  ["system", "setLookSystem"],
+  ["light", "setLookLight"],
+  ["dark", "setLookDark"],
+];
 
 /** The few settings worth changing from a phone; the rest stay in the panel. */
 export function SettingsPage({
@@ -42,6 +48,11 @@ export function SettingsPage({
   const s = useStyles();
   const notifications = useNotifications(creds);
   const [prefs, setPrefs] = useState<NoticePrefs>();
+  const [look, setLook] = useState(currentAppearance);
+  const pickLook = (pref: AppearancePref) => {
+    setLook(pref);
+    saveAppearance(pref).catch(() => undefined);
+  };
   const saved = useRef<NoticePrefs>(undefined);
   const request = useRef(0);
   useEffect(() => {
@@ -144,6 +155,12 @@ export function SettingsPage({
             </ScrollView>
           </>
         ) : null}
+        <Text style={s.label}>{t("setLook")}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
+          {LOOKS.map(([pref, label]) => (
+            <Chip key={pref} label={t(label)} selected={look === pref} onPress={() => pickLook(pref)} />
+          ))}
+        </ScrollView>
         <Text style={s.label}>{t("setConnection")}</Text>
         <ListGroup>
           <ListRow

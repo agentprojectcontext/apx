@@ -5,8 +5,15 @@ import { Appearance } from "react-native";
 export type AppearancePref = "system" | "light" | "dark";
 
 const KEY = "apx.appearance";
+let current: AppearancePref = "system";
 
-const apply = (pref: AppearancePref) => Appearance.setColorScheme(pref === "system" ? "unspecified" : pref);
+const apply = (pref: AppearancePref) => {
+  current = pref;
+  Appearance.setColorScheme(pref === "system" ? "unspecified" : pref);
+};
+
+/** The look applied last (loaded at start, or just picked). */
+export const currentAppearance = () => current;
 
 export async function loadAppearance(): Promise<AppearancePref> {
   const raw = await SecureStore.getItemAsync(KEY).catch(() => null);
