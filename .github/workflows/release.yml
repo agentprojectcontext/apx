@@ -44,7 +44,7 @@ jobs:
         # Servers are often arm64 (Raspberry Pi, ARM VPS) and some Macs are still Intel: those cross-build (native
         # modules and Node come prebuilt for the target).
         include:
-          - { os: ubuntu-latest, target: linux --x64 }
+          - { os: ubuntu-latest, target: linux --x64, scripts: true }
           - { os: ubuntu-latest, target: linux --arm64 }
           - { os: windows-latest, target: win --x64 }
           - { os: macos-latest, target: mac --arm64 }
@@ -79,7 +79,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           shopt -s nullglob
-          gh release upload "$TAG" out/*.{AppImage,exe,dmg,zip,tar.gz,sha256,sh,ps1} --clobber
+          files=(out/*.{AppImage,exe,dmg,zip,tar.gz,sha256})
+          # Every build makes the same install scripts: one job attaches them (two uploads of one name collide).
+          if [ "${{ matrix.scripts }}" = "true" ]; then files+=(out/*.{sh,ps1}); fi
+          gh release upload "$TAG" "${files[@]}" --clobber
 
   # The phone app as an installable APK (Expo prebuild + Gradle). Signed with the repo's release key (the same secrets as
   # v1's APK) so every later APK installs over it; without them (a fork) the template's debug key, enough to sideload.
