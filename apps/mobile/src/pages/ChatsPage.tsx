@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { elapsed, listWhen } from "../format";
-import { isWorking, listedThreads, threadContext, workingNow } from "../hooks/chatSelectors";
+import { chatTitle, inboxThreads, isWorking, threadContext, workingNow } from "../hooks/chatSelectors";
 import type { Agent, Job, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { EngineIcon } from "../ui/EngineIcon";
@@ -29,6 +29,8 @@ export function ChatsPage({
   refresh,
   project,
   setProject,
+  routines,
+  setRoutines,
 }: {
   data: Workspace;
   online: boolean;
@@ -39,11 +41,14 @@ export function ChatsPage({
   /** The project filter ("all", "default" or a project id), kept by the workspace so other pages can set it. */
   project: string;
   setProject: (project: string) => void;
+  /** Routine runs that told something are listed too; the clock in the header turns them off. */
+  routines: boolean;
+  setRoutines: (on: boolean) => void;
 }) {
   const [query, setQuery] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
   const working = useMemo(() => workingNow(data.threads, data.jobs.running), [data.threads, data.jobs.running]);
-  const rows = listedThreads(data.threads).filter((thread) => {
+  const rows = inboxThreads(data.threads, routines).filter((thread) => {
     const inProject = project === "all" || (project === "default" ? !thread.project_id : thread.project_id === project);
     const words = query?.trim().toLowerCase();
     return inProject && (!words || `${thread.title} ${thread.preview}`.toLowerCase().includes(words));
@@ -56,6 +61,13 @@ export function ChatsPage({
         <Text accessibilityRole="header" style={[type.largeTitle, { flex: 1 }]}>
           {t("navChats")}
         </Text>
+        <IconButton
+          icon="Clock"
+          label={t(routines ? "hideRoutines" : "showRoutines")}
+          color={routines ? theme.fg : theme.fgSubtle}
+          style={routines ? { backgroundColor: theme.fill } : undefined}
+          onPress={() => setRoutines(!routines)}
+        />
         <IconButton
           icon="Search"
           label={t("searchChats")}
@@ -188,8 +200,9 @@ function ChatRow({ thread, data, onPress }: { thread: Thread; data: Workspace; o
       </View>
       <View style={s.copy}>
         <View style={s.line}>
+          {thread.kind === "routine" ? <Icon name="Clock" size={13} color={theme.fgSubtle} /> : null}
           <Text numberOfLines={1} style={[s.title, unread && { fontWeight: "600" }]}>
-            {thread.title}
+            {chatTitle(thread)}
           </Text>
           {busy ? <Spinner size={12} /> : null}
           <Text style={[type.meta, unread && { color: theme.brand }, waiting && { color: theme.warning }]}>

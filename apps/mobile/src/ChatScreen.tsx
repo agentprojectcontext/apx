@@ -9,10 +9,11 @@ import { useAttachments } from "./chat/useAttachments";
 import { useVoiceNote } from "./chat/useVoiceNote";
 import type { Creds } from "./creds";
 import { dayLabel } from "./format";
-import { engineName, isWorking, threadContext } from "./hooks/chatSelectors";
+import { engineName, isWorking, routineName, threadContext } from "./hooks/chatSelectors";
 import { useThread } from "./hooks/useThread";
 import type { Thread, Workspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
+import type { Message } from "./protocol";
 import { ChatComposer } from "./ui/ChatComposer";
 import { ChatMenu } from "./ui/ChatMenu";
 import { ChatMessage } from "./ui/ChatMessage";
@@ -177,6 +178,10 @@ export function ChatScreen({
           renderItem={({ item }) =>
             item.kind === "day" ? (
               <Text style={s.day}>{dayLabel(item.at)}</Text>
+            ) : thread.kind === "routine" &&
+              item.message.author.kind === "user" &&
+              item.message.id === live.messages[0]?.id ? (
+              <RoutinePrompt name={routineName(thread)} message={item.message} />
             ) : (
               <ChatMessage
                 message={item.message}
@@ -265,6 +270,29 @@ export function ChatScreen({
   );
 }
 
+/** A routine run opens with the routine's instructions: folded, so what the agent told stands out. */
+function RoutinePrompt({ name, message }: { name: string; message: Message }) {
+  const [open, setOpen] = useState(false);
+  const text = message.parts.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n\n");
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      onPress={() => setOpen((v) => !v)}
+      style={s.routine}
+    >
+      <View style={s.routineHead}>
+        <Icon name="Clock" size={14} color={theme.fgMuted} />
+        <Text numberOfLines={1} style={s.routineLabel}>
+          {t("routineInstructions", { name })}
+        </Text>
+        <Icon name={open ? "ChevronDown" : "ChevronRight"} size={14} color={theme.fgSubtle} />
+      </View>
+      {open ? <Text style={s.routineText}>{text}</Text> : null}
+    </Pressable>
+  );
+}
+
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.bg },
   header: {
@@ -295,5 +323,9 @@ const s = StyleSheet.create({
   transcript: { paddingHorizontal: 16, paddingVertical: 12 },
   empty: { flex: 1, justifyContent: "center" },
   day: { alignSelf: "center", color: theme.fgSubtle, fontSize: 12, paddingVertical: 8 },
+  routine: { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border, borderRadius: 12, marginVertical: 6 },
+  routineHead: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  routineLabel: { flex: 1, color: theme.fgMuted, fontSize: 13 },
+  routineText: { color: theme.fgMuted, fontSize: 13, lineHeight: 19, paddingHorizontal: 12, paddingBottom: 12 },
   error: { color: theme.danger, paddingHorizontal: 16, paddingVertical: 4, fontSize: 12 },
 });

@@ -5,6 +5,8 @@ import { blobEyes } from "../ui/blobEyes.ts";
 import {
   activeThreads,
   chatAgents,
+  chatTitle,
+  inboxThreads,
   isWorking,
   listedThreads,
   pickAgents,
@@ -165,4 +167,30 @@ test("new chat offers every project's agents, the recent ones apart, and searche
     [...inProject.recent, ...inProject.rest].map((a) => a.id),
     ["roby", "ansel"],
   );
+});
+
+test("routine runs that told something are listed when the owner wants them; quiet or running ones never", () => {
+  const threads = [
+    thread("a", { updated_at: "2026-10-12T08:00:00Z" }),
+    thread("told", {
+      kind: "routine",
+      title: "Morning tip · 10/12/26",
+      preview: "**Grip**: hold it light",
+      updated_at: "2026-10-12T10:00:00Z",
+    }),
+    thread("quiet", { kind: "routine", archived: true }),
+    thread("running", { kind: "routine", state: "working" }),
+  ];
+  assert.deepEqual(
+    inboxThreads(threads, false).map((t) => t.id),
+    ["a"],
+  );
+  assert.deepEqual(
+    inboxThreads(threads, true).map((t) => t.id),
+    ["told", "a"],
+  );
+  const told = threads[1] as Thread;
+  assert.equal(chatTitle(told), "Grip: hold it light");
+  const tr = translator("en");
+  assert.equal(threadContext(told, { projects: [], channels: [] }, tr), "Default · Routine · Morning tip");
 });

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChatScreen } from "./ChatScreen";
 import { newChatThread } from "./chat/newChat";
 import type { Creds } from "./creds";
+import { inboxThreads } from "./hooks/chatSelectors";
 import { inboxItems } from "./hooks/inboxItems";
 import { useNotifications } from "./hooks/useNotifications";
 import type { Routine, Thread } from "./hooks/useWorkspace";
@@ -30,6 +31,7 @@ import { SurfacesScreen } from "./SurfacesScreen";
 import { ChatPicker } from "./ui/ChatPicker";
 import { BottomNav, type NavItem } from "./ui/kit/BottomNav";
 import { theme } from "./ui/theme";
+import { useShowRoutines } from "./viewPrefs";
 
 type Tab = "chats" | "inbox" | "tasks" | "sessions" | "more";
 const TABS: Array<NavItem<Tab>> = [
@@ -69,6 +71,11 @@ export function WorkspaceScreen({
   const [thread, setThread] = useState<Thread>();
   const [subpage, setSubpage] = useState<MoreId>();
   const [chatProject, setChatProject] = useState("all");
+  const [showRoutines, setShowRoutines] = useShowRoutines();
+  const unreadChats = useMemo(
+    () => inboxThreads(workspace.data.threads, showRoutines).reduce((n, thread) => n + thread.unread, 0),
+    [workspace.data.threads, showRoutines],
+  );
   const [routine, setRoutine] = useState<Routine>();
   const [editingRoutine, setEditingRoutine] = useState(false);
   /** The task whose page is open, or "new" while the owner writes one. */
@@ -281,6 +288,8 @@ export function WorkspaceScreen({
             refresh={workspace.refresh}
             project={chatProject}
             setProject={setChatProject}
+            routines={showRoutines}
+            setRoutines={setShowRoutines}
           />
         );
       case "inbox":
@@ -336,7 +345,13 @@ export function WorkspaceScreen({
       <View style={[s.content, (thread || surfaces) && { paddingBottom: insets.bottom }]}>{content()}</View>
       {!thread && !surfaces ? (
         <BottomNav
-          items={TABS.map((item) => (item.id === "inbox" ? { ...item, badge: inbox.length } : item))}
+          items={TABS.map((item) =>
+            item.id === "inbox"
+              ? { ...item, badge: inbox.length }
+              : item.id === "chats"
+                ? { ...item, badge: unreadChats }
+                : item,
+          )}
           value={tab}
           onChange={(id) => {
             setTab(id);

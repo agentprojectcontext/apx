@@ -20,6 +20,30 @@ export function listedThreads(threads: Thread[]): Thread[] {
     .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.updated_at.localeCompare(a.updated_at));
 }
 
+/**
+ * What Chats lists: the chats, and with `routines` the routine runs that told something, like the web's Inbox (a quiet
+ * run is archived; one still running waits until it has said it).
+ */
+export function inboxThreads(threads: Thread[], routines: boolean): Thread[] {
+  if (!routines) return listedThreads(threads);
+  const runs = threads.filter(
+    (thread) => thread.kind === "routine" && !thread.archived && !thread.parent_id && !isWorking(thread.state),
+  );
+  return [...listedThreads(threads), ...runs].sort(
+    (a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || b.updated_at.localeCompare(a.updated_at),
+  );
+}
+
+/** A routine run's chat is titled "<routine> · <when>". */
+export const routineName = (thread: Pick<Thread, "title">): string => thread.title.split(" · ")[0] ?? thread.title;
+
+/** A chat's name in a list: a routine run's is what it told (its routine shows under it). */
+export function chatTitle(thread: Thread): string {
+  if (thread.kind !== "routine") return thread.title;
+  const said = thread.preview.split("\n").find((line) => line.trim()) ?? "";
+  return said.replace(/\*\*|`|^\s*(#+|>|[-*])\s+/g, "") || routineName(thread);
+}
+
 export function chatAgents(agents: Agent[], projectId?: string): Agent[] {
   const secretary = agents.filter((agent) => agent.kind === "secretary");
   const own = agents
@@ -98,6 +122,7 @@ export function threadContext(
 ): string {
   const project = data.projects.find((item) => item.id === thread.project_id)?.name ?? tr("defaultProject");
   const channel = thread.channel && data.channels.find((item) => item.id === thread.channel?.id);
+  if (thread.kind === "routine") return `${project} · ${tr("routineOf", { name: routineName(thread) })}`;
   const where = thread.channel
     ? (CHANNEL_NAMES[channel?.type ?? ""] ?? channel?.label ?? thread.channel.id)
     : thread.engine
