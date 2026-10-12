@@ -9,6 +9,7 @@ import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { chunks } from "./telegram-format.ts";
 import { type AdapterIO, type ChannelAdapter, ChannelRefused, fileName, type OutFile, SendError } from "./types.ts";
+import { menuText, WA_CONTAINERS } from "./whatsapp-menus.ts";
 
 /** The part of the library APX uses, so a test can hand in its own. */
 export type WaLib = {
@@ -52,20 +53,14 @@ export type WaContent = {
   ephemeralMessage?: { message?: WaContent | null } | null;
   viewOnceMessage?: { message?: WaContent | null } | null;
   viewOnceMessageV2?: { message?: WaContent | null } | null;
-  documentWithCaptionMessage?: { message?: WaContent | null } | null;
-  // What businesses send (verification codes with a copy button, payment notices): a title and a body.
-  templateMessage?: {
-    hydratedTemplate?: WaTemplate | null;
-    hydratedFourRowTemplate?: WaTemplate | null;
-    interactiveMessageTemplate?: WaInteractive | null;
-  } | null;
-  interactiveMessage?: WaInteractive | null;
-  buttonsMessage?: { text?: string | null; contentText?: string | null } | null;
-  listMessage?: { title?: string | null; description?: string | null } | null;
 };
-type WaTemplate = { hydratedTitleText?: string | null; hydratedContentText?: string | null };
-type WaInteractive = { header?: { title?: string | null } | null; body?: { text?: string | null } | null };
-export type WaMessage = { key: WaKey; pushName?: string | null; message?: WaContent | null };
+export type WaMessage = {
+  key: WaKey;
+  pushName?: string | null;
+  /** A verified business's name: such accounts send it instead of `pushName`. */
+  verifiedBizName?: string | null;
+  message?: WaContent | null;
+};
 /** A send of ours moving on: 3 on their device, 4 read, 5 a voice note played. */
 type WaUpdate = { key: WaKey; update: { status?: number | null } };
 type WaPresence = { id: string; presences: Record<string, { lastKnownPresence?: string; lastSeen?: number }> };
@@ -108,28 +103,13 @@ const ignorable = (jid: string) =>
 /** The words of a message, its wrappers (disappearing, view once) opened. */
 function unwrap(c: WaContent | null | undefined): WaContent | undefined {
   let cur = c ?? undefined;
-  for (let i = 0; i < 3 && cur; i++) {
-    const inner =
-      cur.ephemeralMessage?.message ??
-      cur.viewOnceMessage?.message ??
-      cur.viewOnceMessageV2?.message ??
-      cur.documentWithCaptionMessage?.message;
+  for (let i = 0; i < 6 && cur; i++) {
+    const wrappers = cur as Record<string, { message?: WaContent | null } | null | undefined>;
+    const inner = WA_CONTAINERS.map((k) => wrappers[k]?.message).find(Boolean);
     if (!inner) break;
     cur = inner;
   }
   return cur;
-}
-/** Title and body on their own lines, the empty ones left out. */
-const lines = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join("\n") || undefined;
-function businessText(c: WaContent): string | undefined {
-  const tpl = c.templateMessage?.hydratedTemplate ?? c.templateMessage?.hydratedFourRowTemplate;
-  const ia = c.interactiveMessage ?? c.templateMessage?.interactiveMessageTemplate;
-  return (
-    lines(tpl?.hydratedTitleText, tpl?.hydratedContentText) ??
-    lines(ia?.header?.title, ia?.body?.text) ??
-    lines(c.buttonsMessage?.text, c.buttonsMessage?.contentText) ??
-    lines(c.listMessage?.title, c.listMessage?.description)
-  );
 }
 function textOf(c: WaContent): string | undefined {
   const t =
@@ -138,7 +118,7 @@ function textOf(c: WaContent): string | undefined {
     c.imageMessage?.caption ??
     c.videoMessage?.caption ??
     c.documentMessage?.caption ??
-    businessText(c);
+    menuText(c);
   if (t) return t;
   const kind = c.imageMessage
     ? "photo"
@@ -337,7 +317,7 @@ export function whatsappAdapter(opts: {
     const alt = normalJid(m.key.remoteJidAlt);
     // One person, one address: their phone number when WhatsApp tells it, their private id otherwise.
     const who = m.key.fromMe ? me.pn : isPhone(jid) ? jid : alt && isPhone(alt) ? alt : jid;
-    const name = m.key.fromMe ? "Owner" : m.pushName?.trim() || `+${digitsOf(who)}`;
+    const name = m.key.fromMe ? "Owner" : m.verifiedBizName?.trim() || m.pushName?.trim() || `+${digitsOf(who)}`;
     const reacted = content.reactionMessage;
     if (reacted) {
       // Our own reactions come back as ours; only the other side's are news.
