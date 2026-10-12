@@ -3,6 +3,7 @@
 // the demo office from demo-seed.ts, and the panel in English in both themes, saved as src/assets/shots/*.webp.
 // Nothing here touches ~/.apx, the Keychain or a real service. Needs `pnpm build:web` at the repo root first.
 //   node --no-warnings scripts/shots.ts [name…]     (no names: every shot)
+//   SHOTS_SERVE=1 node --no-warnings scripts/shots.ts  (only the demo core, to pair the phone app with)
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -107,6 +108,14 @@ try {
   log(`  ✗ telegram: ${(e as Error).message}`);
 }
 await new Promise((r) => setTimeout(r, 1500));
+// SHOTS_SERVE=1 keeps the demo office running for a device to pair with (the phone app's own screenshots).
+if (process.env.SHOTS_SERVE) {
+  const { code } = await rpc<{ code: string }>("devices.pair_start");
+  log(`demo core on ${core}; pair with apx://pair?c=${code}&u=${encodeURIComponent(core)}  (Ctrl+C stops it)`);
+  process.on("SIGINT", () => void stop());
+  process.on("SIGTERM", () => void stop());
+  await new Promise(() => {});
+}
 
 type Shot = { name: string; go: (p: Page) => Promise<void>; phone?: boolean; clip?: "dialog" };
 const at = (hash: string) => async (p: Page) => {
