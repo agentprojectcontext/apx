@@ -159,6 +159,7 @@ const WIDGET_SALES = `<!doctype html><html><body style="margin:0;font:14px syste
 <div style="font-size:30px;font-weight:600;margin:6px 0 10px">$12,480</div>
 <svg viewBox="0 0 280 80" width="100%" height="80"><polyline fill="none" stroke="#16a34a" stroke-width="3" points="0,62 40,58 80,50 120,54 160,36 200,30 240,22 280,12"/></svg>
 </body></html>`;
+const WIDGET_BTC = fs.readFileSync(path.join(import.meta.dirname, "demo-widgets", "btc.html"), "utf8");
 const WIDGET_LAUNCH = `<!doctype html><html><body style="margin:0;font:14px system-ui;color:#111;padding:14px">
 <b>Q4 launch</b><ul style="padding-left:18px;line-height:1.9;margin:8px 0 0">
 <li>✅ Freeze the catalog</li><li>✅ Fix the checkout</li><li>⏳ Landing page and emails</li><li>⬜ Black Friday campaign</li></ul>
@@ -388,8 +389,14 @@ export async function seed(rpc: Rpc, world: { repo: string; extension: string },
       title: "Sales this week",
       html: WIDGET_SALES,
       pinned: true,
-      app: true,
       thread,
+    });
+    await rpc("surfaces.show", {
+      name: "btc-market",
+      title: "BTC market panel",
+      html: WIDGET_BTC,
+      app: true,
+      thread: "home",
     });
     await rpc("surfaces.show", { name: "q4-launch", title: "Q4 launch", html: WIDGET_LAUNCH, pinned: true, thread });
   });

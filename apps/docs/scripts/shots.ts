@@ -217,7 +217,7 @@ const SHOTS: Shot[] = [
     name: "app-widget",
     go: async (p) => {
       await at("thread=home")(p);
-      await p.getByRole("complementary").getByRole("button", { name: "Sales this week" }).first().click();
+      await p.getByRole("complementary").getByRole("button", { name: "BTC market panel" }).first().click();
     },
   },
   {

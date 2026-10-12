@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+<head>
+<style>
+:root{--up:#1fb866;--down:#e5534b}
+.w{max-width:860px;margin:0 auto;padding:16px 24px 14px;font-variant-numeric:tabular-nums}
+.k{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--apx-fg-muted)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.px{font-size:32px;font-weight:700;letter-spacing:-.01em;margin:4px 0 2px}
+.sub{font-size:12px;color:var(--apx-fg-muted)}
+.pill{border:1px solid var(--apx-border);border-radius:999px;padding:6px 12px;font-size:12px;display:flex;gap:7px;align-items:center;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--up)}
+.card{border:1px solid var(--apx-border);border-radius:12px;background:var(--apx-surface);padding:12px 14px}
+.range{margin:12px 0 10px;padding:10px 14px}
+.bar{position:relative;height:6px;border-radius:3px;background:var(--apx-fill);margin-top:10px}
+.bar i{position:absolute;inset:0 auto 0 0;border-radius:3px;background:linear-gradient(90deg,var(--down),#e3a33b,var(--up))}
+.bar b{position:absolute;top:-3px;width:3px;height:12px;border-radius:2px;background:var(--apx-fg)}
+.chips{display:flex;gap:6px;align-items:center}
+.chips button{font:inherit;font-size:13px;font-weight:600;border:1px solid var(--apx-border);background:transparent;color:var(--apx-fg);border-radius:8px;padding:5px 11px;cursor:pointer}
+.chips button[aria-pressed=true]{background:var(--up);border-color:var(--up);color:#06210f}
+svg{display:block;width:100%;height:auto}
+svg text{font-size:11px;fill:var(--apx-fg-subtle)}
+.grid{stroke:var(--apx-border)}
+.rsi{display:flex;gap:10px;align-items:center;margin:10px 0 6px}
+.tag{border:1px solid var(--apx-border);border-radius:8px;padding:2px 8px;font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:10px}
+.stats .card{padding:8px 12px}
+.stats b{display:block;font-size:16px;margin-top:2px}
+.note{font-size:12px;color:var(--apx-fg-muted);margin:8px 0 0}
+@media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="row" style="align-items:flex-start">
+    <div>
+      <div class="k">Bitcoin · BTC/USDT</div>
+      <div class="px" id="price">$82,732.19</div>
+      <div class="sub">Updated 12:34:41</div>
+    </div>
+    <div class="pill"><span class="dot"></span><span id="feed">Live · 1m candles</span></div>
+  </div>
+
+  <div class="card range">
+    <div class="row sub"><span>Price range · 24 h</span><span>$82,410.86 to $84,352.00</span></div>
+    <div class="bar"><i id="fill"></i><b id="mark"></b></div>
+  </div>
+
+  <div class="row" style="margin-bottom:8px">
+    <div class="chips"><span class="k" style="margin-right:4px">Candles</span>
+      <button aria-pressed="true">1m</button><button>5m</button><button>15m</button><button>1h</button>
+      <span class="sub" style="margin-left:6px">60 candles · volume below</span></div>
+  </div>
+  <div class="card"><svg id="candles" viewBox="0 0 880 200"></svg></div>
+
+  <div class="rsi"><b>RSI · 14 periods</b><span class="tag" id="rsiv"></span>
+    <span class="sub" style="margin-left:auto">Over 70 overbought · under 30 oversold</span></div>
+  <div class="card"><svg id="rsi" viewBox="0 0 880 72"></svg></div>
+
+  <div class="stats">
+    <div class="card"><span class="sub">Change · 24 h</span><b style="color:var(--down)">-0.62%</b></div>
+    <div class="card"><span class="sub">High · 24 h</span><b>$84,352.00</b></div>
+    <div class="card"><span class="sub">Low · 24 h</span><b>$82,410.86</b></div>
+    <div class="card"><span class="sub">Volume · 24 h</span><b>12,969 BTC</b></div>
+    <div class="card"><span class="sub">Quote volume</span><b>$1.08B</b></div>
+    <div class="card"><span class="sub">Trades · 24 h</span><b>2,301,416</b></div>
+  </div>
+  <p class="note">Sample figures. RSI describes past prices; it is not a trading signal or financial advice.</p>
+</div>
+<script>
+(function () {
+  var LOW = 82410.86, HIGH = 84352.0, N = 60, P = 14;
+  var NS = "http://www.w3.org/2000/svg";
+  function rng(seed) { return function () { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; var t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function el(svg, name, attrs) { var e = document.createElementNS(NS, name); for (var k in attrs) e.setAttribute(k, attrs[k]); svg.appendChild(e); return e; }
+  function money(v) { return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+  function series(seed, vol) {
+    var r = rng(seed), c = [], p = 100, drift = 0;
+    for (var i = 0; i < N + P; i++) {
+      drift = drift * 0.9 + (r() - 0.5) * 0.7 + (i > 30 && i < 50 ? -0.12 : 0.03);
+      var o = p, cl = o + drift * vol + (r() - 0.5) * vol * 1.8;
+      var hi = Math.max(o, cl) + r() * vol * 0.6, lo = Math.min(o, cl) - r() * vol * 0.6;
+      c.push({ o: o, c: cl, h: hi, l: lo, v: Math.pow(r(), 3) });
+      p = cl;
+    }
+    var shown = c.slice(P), min = Infinity, max = -Infinity;
+    shown.forEach(function (k) { min = Math.min(min, k.l); max = Math.max(max, k.h); });
+    var a = 82420, b = 82960, s = function (x) { return a + ((x - min) / (max - min)) * (b - a); };
+    c.forEach(function (k) { k.o = s(k.o); k.c = s(k.c); k.h = s(k.h); k.l = s(k.l); });
+    return c;
+  }
+
+  function rsi(c) {
+    var out = [], g = 0, l = 0;
+    for (var i = 1; i < c.length; i++) {
+      var d = c[i].c - c[i - 1].c, up = Math.max(d, 0), dn = Math.max(-d, 0);
+      if (i <= P) { g += up / P; l += dn / P; } else { g = (g * (P - 1) + up) / P; l = (l * (P - 1) + dn) / P; }
+      if (i >= P) out.push(l === 0 ? 100 : 100 - 100 / (1 + g / l));
+    }
+    return out.slice(-N);
+  }
+
+  function draw(seed, vol) {
+    var all = series(seed, vol), c = all.slice(P), svg = document.getElementById("candles");
+    svg.textContent = "";
+    var W = 820, top = 8, H = 138, vTop = 150, vH = 30, lo = 82380, hi = 82990;
+    var y = function (v) { return top + ((hi - v) / (hi - lo)) * H; };
+    for (var g = 0; g < 5; g++) {
+      var v = lo + ((hi - lo) * (4 - g)) / 4, gy = y(v);
+      el(svg, "line", { x1: 0, x2: W, y1: gy, y2: gy, class: "grid", "stroke-dasharray": "2 4" });
+      el(svg, "text", { x: W + 6, y: gy + 4 }).textContent = v.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    }
+    var step = W / N;
+    c.forEach(function (k, i) {
+      var x = i * step + step / 2, color = k.c >= k.o ? "var(--up)" : "var(--down)";
+      el(svg, "line", { x1: x, x2: x, y1: y(k.h), y2: y(k.l), stroke: color, "stroke-width": 1.2 });
+      var bt = y(Math.max(k.o, k.c)), bh = Math.max(1.5, Math.abs(y(k.o) - y(k.c)));
+      el(svg, "rect", { x: x - step * 0.32, y: bt, width: step * 0.64, height: bh, fill: color, rx: 1 });
+      var vh = 4 + k.v * vH;
+      el(svg, "rect", { x: x - step * 0.32, y: vTop + vH - vh + 4, width: step * 0.64, height: vh, fill: color, opacity: 0.35 });
+    });
+    el(svg, "text", { x: 0, y: 198, style: "fill:var(--up)" }).textContent = "60 candles";
+    el(svg, "text", { x: W - 26, y: 198, style: "fill:var(--up)" }).textContent = "now";
+
+    var last = c[c.length - 1].c;
+    document.getElementById("price").textContent = money(last);
+    var pos = ((last - LOW) / (HIGH - LOW)) * 100;
+    document.getElementById("fill").style.width = pos + "%";
+    document.getElementById("mark").style.left = "calc(" + pos + "% - 1px)";
+
+    var r = rsi(all), rs = document.getElementById("rsi");
+    rs.textContent = "";
+    var ry = function (v) { return 4 + ((100 - v) / 100) * 64; };
+    [70, 50, 30].forEach(function (v) {
+      el(rs, "line", { x1: 0, x2: W, y1: ry(v), y2: ry(v), stroke: v === 50 ? "var(--apx-border)" : "var(--down)", "stroke-dasharray": "4 4", opacity: v === 50 ? 1 : 0.6 });
+      el(rs, "text", { x: W + 6, y: ry(v) + 4 }).textContent = String(v);
+    });
+    var pts = r.map(function (v, i) { return (i * step + step / 2).toFixed(1) + "," + ry(v).toFixed(1); }).join(" ");
+    el(rs, "polyline", { points: pts, fill: "none", stroke: "#7c8cff", "stroke-width": 2 });
+    var lv = r[r.length - 1], lp = pts.split(" ").pop().split(",");
+    el(rs, "circle", { cx: lp[0], cy: lp[1], r: 3.5, fill: "#7c8cff" });
+    document.getElementById("rsiv").textContent = lv.toFixed(1) + " · " + (lv > 70 ? "Overbought" : lv < 30 ? "Oversold" : "Neutral");
+  }
+
+  var buttons = document.querySelectorAll(".chips button"), vols = [22, 34, 48, 70];
+  buttons.forEach(function (b, i) {
+    b.addEventListener("click", function () {
+      buttons.forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+      document.getElementById("feed").textContent = "Live · " + b.textContent + " candles";
+      draw(7 + i * 13, vols[i]);
+    });
+  });
+  draw(7, vols[0]);
+})();
+</script>
+</body>
+</html>
