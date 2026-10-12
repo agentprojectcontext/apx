@@ -1,5 +1,5 @@
 // The corner cards: a newer release, the Discord and a star on GitHub, one at a time, each said once per device (the
-// update card once per version). The core's update answer is stood in for (the sandbox never asks the release feed).
+// update card again each time APX opens, until it is updated). The core's update answer is stood in for (the sandbox never asks the release feed).
 import type { Route } from "@playwright/test";
 import { expect, open, test } from "./kit.ts";
 
@@ -32,7 +32,7 @@ test("one card at a time: closing one brings the next, and closed stays closed",
   await expect(corner).toBeHidden();
 });
 
-test("a newer release goes first, opens the update dialog, and once closed waits for the next version", async ({
+test("a newer release goes first, opens the update dialog, and once closed comes back when APX opens again", async ({
   page,
 }) => {
   let latest = "9.1.0";
@@ -53,11 +53,13 @@ test("a newer release goes first, opens the update dialog, and once closed waits
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
 
+  // Closed, it leaves for now: the next card comes forward.
   await card.getByRole("button", { name: "Cerrar" }).click();
   await expect(card).toBeHidden();
-  await page.reload();
   await expect(page.getByText("Sumate a la comunidad")).toBeVisible();
-  await expect(card).toBeHidden();
+  // An update left for later is said again the next time APX opens.
+  await page.reload();
+  await expect(card.getByText("Salió APX 9.1.0")).toBeVisible();
 
   latest = "9.2.0";
   await page.reload();

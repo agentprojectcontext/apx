@@ -1,11 +1,12 @@
 // What the corner cards have already said on this device. Its own key, apart from the prefs: closing a card is not a
-// preference anyone edits, and nothing else resets it.
+// preference anyone edits, and nothing else resets it. A closed update card is kept for this session only: an update
+// left for later must show again when APX opens, or it is never seen.
 import { createStore, useSlice } from "./createStore.ts";
 
 type Closed = {
   discord: boolean;
   star: boolean;
-  /** The version whose card was closed: skipping one release is not a decision about the next. */
+  /** The version whose card was closed in this session: skipping one release is not a decision about the next. */
   update: string;
 };
 
@@ -17,7 +18,7 @@ function load(): Closed {
     return {
       discord: raw.discord === true,
       star: raw.star === true,
-      update: typeof raw.update === "string" ? raw.update : "",
+      update: "",
     };
   } catch {
     return { discord: false, star: false, update: "" };
@@ -31,7 +32,8 @@ export const useClosedCards = <T>(select: (s: Closed) => T): T => useSlice(store
 export function closeCard(patch: Partial<Closed>): void {
   store.set(patch);
   try {
-    localStorage.setItem(KEY, JSON.stringify(store.get()));
+    const { discord, star } = store.get();
+    localStorage.setItem(KEY, JSON.stringify({ discord, star }));
   } catch {
     // Storage blocked: closed for this session only.
   }
