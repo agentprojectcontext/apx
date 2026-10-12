@@ -46,7 +46,13 @@ export async function openAskpass(opts: { ask: Ask; exe: string; appDir?: string
     server.once("error", reject);
     server.listen(endpoint, () => resolve());
   });
-  const program = opts.appDir ? wrapper(dir, opts.exe, opts.appDir) : opts.exe;
+  // On Linux the app itself cannot be ssh's askpass: Chromium's sandbox starts before any of our code and may abort.
+  const program =
+    process.platform === "linux"
+      ? nodeHelper(dir, opts.exe)
+      : opts.appDir
+        ? wrapper(dir, opts.exe, opts.appDir)
+        : opts.exe;
   return {
     env: {
       SSH_ASKPASS: program,
@@ -135,6 +141,39 @@ export async function runAskpass(
   if (answer === undefined) return 1;
   await new Promise<void>((resolve) => out.write(`${answer}\n`, () => resolve()));
   return 0;
+}
+
+/**
+ * The askpass side as plain Node, for an Electron run as Node (ELECTRON_RUN_AS_NODE): the same frame as requestAnswer,
+ * with nothing to import, so it runs from the login's private folder.
+ */
+const HELPER_JS = `const net = require("node:net");
+const { APX_ASKPASS: endpoint, APX_ASKPASS_KEY: key } = process.env;
+if (!endpoint || !key) process.exit(1);
+const socket = net.connect(endpoint);
+let buf = "";
+const timer = setTimeout(() => socket.destroy(), 10 * 60_000);
+socket.setEncoding("utf8");
+socket.on("connect", () => socket.write(JSON.stringify({ key, prompt: process.argv.length > 2 ? process.argv.at(-1) : "" }) + "\\n"));
+socket.on("data", (chunk) => { buf += chunk; if (buf.length > ${MAX_FRAME}) socket.destroy(); });
+socket.on("error", () => {});
+socket.on("close", () => {
+  clearTimeout(timer);
+  let answer;
+  try { answer = JSON.parse(buf.split("\\n")[0] || "").answer; } catch {}
+  if (typeof answer !== "string") process.exit(1);
+  process.stdout.write(answer + "\\n", () => process.exit(0));
+});
+`;
+
+/** ssh's askpass on Linux: the app's executable run as Node over HELPER_JS, never as the app. */
+export function nodeHelper(dir: string, exe: string): string {
+  const quote = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
+  const js = path.join(dir, "askpass.cjs");
+  fs.writeFileSync(js, HELPER_JS, { mode: 0o600 });
+  const file = path.join(dir, "askpass.sh");
+  fs.writeFileSync(file, `#!/bin/sh\nELECTRON_RUN_AS_NODE=1 exec ${quote(exe)} ${quote(js)} "$@"\n`, { mode: 0o700 });
+  return file;
 }
 
 /** A checkout's ssh cannot pass Electron the app's folder: a script in the login's private folder does. */

@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { PassThrough } from "node:stream";
 import { test } from "node:test";
-import { classifyPrompt, openAskpass, type Prompt, requestAnswer, runAskpass } from "./askpass.ts";
+import { classifyPrompt, nodeHelper, openAskpass, type Prompt, requestAnswer, runAskpass } from "./askpass.ts";
 
 test("a password or passphrase is masked; the host key's yes/no is typed in the clear", () => {
   assert.equal(classifyPrompt("ops@box's password: ").secret, true);
@@ -82,4 +85,33 @@ test("from a checkout, ssh runs a wrapper that hands Electron the app's folder; 
   pass.close();
   assert.equal(fs.existsSync(wrapper), false);
   assert.equal(fs.existsSync(pass.env.APX_ASKPASS ?? ""), false);
+});
+
+test("on Linux ssh runs the app as Node over a small helper: the question and the answer make the same round trip", async (t) => {
+  if (process.platform === "win32") return t.skip("the helper is a shell script");
+  const asked: string[] = [];
+  const pass = await openAskpass({
+    ask: async (p) => {
+      asked.push(p.text);
+      return "s3cret";
+    },
+    exe: process.execPath,
+  });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-helper-"));
+  try {
+    const helper = nodeHelper(dir, process.execPath);
+    const run = (env: Record<string, string>) =>
+      new Promise<{ code: number; out: string }>((resolve) =>
+        execFile(helper, ["ops@box's password: "], { env: { ...process.env, ...env } }, (err, out) =>
+          resolve({ code: err ? Number(err.code ?? 1) : 0, out }),
+        ),
+      );
+    assert.deepEqual(await run(pass.env), { code: 0, out: "s3cret\n" });
+    assert.deepEqual(asked, ["ops@box's password: "]);
+    // A wrong key gets nothing: ssh hears there is no answer.
+    assert.equal((await run({ ...pass.env, APX_ASKPASS_KEY: "0".repeat(48) })).code, 1);
+  } finally {
+    pass.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
