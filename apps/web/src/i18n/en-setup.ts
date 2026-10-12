@@ -18,13 +18,13 @@ export const enSetup = {
   "setup.welcome.installed": "APX is installed",
   "setup.welcome.installedMuted": "· and running",
   "setup.welcome.installedBody":
-    "Welcome. APX is installed and ready; next we set up your crew: your super-agent, the models you already pay for, memory and, if you want, your channels.",
+    "Welcome. APX is installed; now we set up your crew: your super-agent, your models, memory, your projects and, if you want, your channels.",
   "setup.welcome.pill": "Open source",
   "setup.welcome.pillMuted": "· runs on your machine",
   "setup.welcome.meet": "Meet",
   "setup.welcome.your": "your",
   "setup.welcome.body":
-    "Let's create your super-agent, connect the models you already pay for, turn on memory and, if you want, your channels. Everything stays in text files on your machine.",
+    "First you create your super-agent, the one that coordinates your agents. Then you connect your models (a subscription or an API key), turn on memory, and add your projects and, if you want, your channels. Everything is saved on your machine.",
   "setup.welcome.new": "Start from scratch",
   "setup.welcome.newBody": "You build your crew from the first blob.",
   "setup.welcome.import": "Import from APX v1",
@@ -93,7 +93,7 @@ export const enSetup = {
   "setup.agent.needName": "Give it a name",
   "setup.engines.kicker": "ENGINES",
   "setup.engines.title": "With the models",
-  "setup.engines.titleGreen": "you already pay for.",
+  "setup.engines.titleGreen": "you already use.",
   "setup.engines.body":
     "Sign in with your subscription or paste an API key. The first in the chain is the default; if it fails, the next one takes over.",
   "setup.engines.addKey": "Add API key",

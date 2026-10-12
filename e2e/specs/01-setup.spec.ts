@@ -168,7 +168,7 @@ test("right after the desktop app installs APX, the setup's welcome says so, onc
   await page.getByRole("menuitem", { name: "Configuración inicial" }).click();
   const wizard = page.locator(".wiz");
   await expect(wizard.getByText("APX está instalado")).toBeVisible();
-  await expect(wizard.getByText(/APX ya está instalado y listo/)).toBeVisible();
+  await expect(wizard.getByText(/APX ya está instalado; ahora armamos tu crew/)).toBeVisible();
   // v1 is on this machine: the two ways in stay.
   await expect(wizard.getByRole("button", { name: /Importar desde APX v1/ })).toBeVisible();
   expect(new URL(page.url()).searchParams.has("welcome")).toBe(false);

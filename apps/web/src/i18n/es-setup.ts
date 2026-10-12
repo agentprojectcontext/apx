@@ -20,13 +20,13 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.welcome.installed": "APX está instalado",
   "setup.welcome.installedMuted": "· y andando",
   "setup.welcome.installedBody":
-    "Te damos la bienvenida. APX ya está instalado y listo; ahora armamos tu crew: tu super-agente, los modelos que ya pagás, la memoria y, si querés, tus canales.",
+    "Te damos la bienvenida. APX ya está instalado; ahora armamos tu crew: tu super-agente, tus modelos, la memoria, tus proyectos y, si querés, tus canales.",
   "setup.welcome.pill": "Open source",
   "setup.welcome.pillMuted": "· corre en tu máquina",
   "setup.welcome.meet": "Conocé",
   "setup.welcome.your": "a tu",
   "setup.welcome.body":
-    "Vamos a crear tu super-agente, conectar los modelos que ya pagás, prender la memoria y, si querés, tus canales. Todo queda en archivos de texto en tu máquina.",
+    "Primero creás tu super-agente, el que coordina a tus agentes. Después conectás tus modelos (tu suscripción o una API key), prendés la memoria y sumás tus proyectos y, si querés, tus canales. Todo se guarda en tu máquina.",
   "setup.welcome.new": "Empezar de cero",
   "setup.welcome.newBody": "Armás tu crew desde el primer blob.",
   "setup.welcome.import": "Importar desde APX v1",
@@ -94,7 +94,7 @@ export const esSetup: Partial<Record<MessageKey, string>> = {
   "setup.agent.needName": "Poné un nombre",
   "setup.engines.kicker": "MOTORES",
   "setup.engines.title": "Con los modelos",
-  "setup.engines.titleGreen": "que ya pagás.",
+  "setup.engines.titleGreen": "que ya usás.",
   "setup.engines.body":
     "Iniciá sesión con tu suscripción o pegá una API key. El primero de la cadena es el default; si falla, sigue el próximo.",
   "setup.engines.addKey": "Agregar API key",
