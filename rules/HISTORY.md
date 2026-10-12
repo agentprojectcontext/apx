@@ -33,6 +33,14 @@ memory-reducing GC (`gc` with `flavor: "last-resort"`, reached through a fresh `
 other caller). It costs ~20 ms once per quiet stretch and leaves `gc` hidden from later contexts.
 **Where:** `apps/core/src/idle-memory.ts`, started in `apps/core/src/server.ts`.
 
+<a id="esm-node-http"></a>
+### The core takes `node:http` with `process.getBuiltinModule`
+**Rule:** core code that runs at startup does not `import` from `"node:http"` (a type-only import is fine).
+**Why:** an ES `import` of a builtin reads every export to build its namespace, and `node:http` exports the
+`WebSocket`, `CloseEvent` and `MessageEvent` getters that load Node's fetch client (undici). That cost an idle core
+about 4 MB it never used. `process.getBuiltinModule("node:http")` returns the same module without reading them.
+**Where:** `apps/core/src/server-wiring.ts`.
+
 ## Repo hygiene
 
 <a id="private-terms"></a>
