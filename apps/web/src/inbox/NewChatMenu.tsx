@@ -1,11 +1,16 @@
 import type { Agent } from "@apx/protocol";
-import { AgentAvatar, Icons, Menu, type MenuEntry } from "@apx/ui";
+import { Icons, type SelectOption } from "@apx/ui";
 import { type ReactElement, useMemo } from "react";
-import { blobOf, inProject, realProjectId } from "../data/identity.ts";
+import { useAgentOptions } from "../common/pickers/AgentSelect.tsx";
+import { SearchSelect } from "../common/pickers/SearchSelect.tsx";
+import { inProject, isListed, realProjectId } from "../data/identity.ts";
 import { newChatId } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+
+/** Agents the owner talked to lately, shown first. */
+const RECENT = 5;
 
 /** Who can start a chat in a project: the super-agent first, then the project's own agents. */
 export function useChatAgents(projectId: string | undefined): Agent[] {
@@ -28,38 +33,68 @@ export function startChat(agent: Agent, projectId: string | undefined, code = fa
   else go.thread(id);
 }
 
-/** "New chat with <agent>" picker around any trigger. */
+/**
+ * "New chat with <agent>" picker around any trigger, with a search box: the agents used lately first, then all of
+ * them by project. From the Inbox every project's agents are there (the chat goes to the agent's project); in a
+ * project, its own and the super-agent, plus code sessions when the project has its folder on disk.
+ */
 export function NewChatMenu({ projectId, trigger }: { projectId: string | undefined; trigger: ReactElement }) {
   const t = useT();
-  const list = useChatAgents(projectId);
+  const agents = useData((s) => s.agents);
+  const threads = useData((s) => s.threads);
   const projects = useData((s) => s.projects);
   const pid = realProjectId(projectId);
+  const all = useAgentOptions(projectId, !projectId, projectId ? "secretary" : "all");
   // A code session needs the project's folder on disk.
   const onDisk = projects.some((p) => p.id === pid && p.path && p.present);
-  const items: MenuEntry[] = list.length
-    ? [
-        { type: "label", label: t("chat.newWith") },
-        ...list.slice(0, 20).map(
-          (a): MenuEntry => ({
-            label: a.name,
-            icon: <AgentAvatar name={a.name} blob={blobOf(a)} size={18} animated={false} />,
-            shortcut: a.kind === "secretary" ? t("agent.super") : undefined,
-            onSelect: () => startChat(a, projectId),
-          }),
-        ),
-        ...(onDisk
-          ? [
-              { type: "label", label: t("chat.newCodeWith") } as MenuEntry,
-              ...list.slice(0, 8).map(
-                (a): MenuEntry => ({
-                  label: a.name,
-                  icon: <Icons.Code size={16} />,
-                  onSelect: () => startChat(a, projectId, true),
-                }),
-              ),
-            ]
-          : []),
-      ]
-    : [{ type: "label", label: t("chat.noAgents") }];
-  return <Menu align="end" items={items} trigger={trigger} />;
+
+  const options = useMemo<SelectOption[]>(() => {
+    const offered = new Set(all.map((o) => o.value));
+    const recent: string[] = [];
+    for (const th of Object.values(threads)
+      .filter((th) => isListed(th) && !th.engine && (!projectId || inProject(th, projectId)))
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))) {
+      const id = th.agent_ids[0];
+      if (id && offered.has(id) && !recent.includes(id)) recent.push(id);
+      if (recent.length === RECENT) break;
+    }
+    const byId = new Map(all.map((o) => [o.value, o]));
+    return [
+      ...recent.flatMap((id) => {
+        const o = byId.get(id);
+        return o ? [{ ...o, value: `recent:${id}`, group: t("chat.recentAgents") }] : [];
+      }),
+      ...all,
+      ...(onDisk
+        ? all.map((o) => ({
+            value: `code:${o.value}`,
+            label: o.label,
+            icon: <Icons.Code size={16} />,
+            group: t("chat.newCodeWith"),
+          }))
+        : []),
+    ];
+  }, [all, threads, projectId, onDisk, t]);
+
+  const pick = (value: string | null) => {
+    if (!value) return;
+    const [kind, id] = value.includes(":") ? value.split(":") : ["", value];
+    const agent = agents[id ?? ""];
+    if (!agent) return;
+    if (projectId) return startChat(agent, projectId, kind === "code");
+    // From the Inbox: the chat belongs to the agent's project, and opens here.
+    go.thread(newChatId({ agent: agent.id, ...(agent.project_id ? { project: agent.project_id } : {}) }));
+  };
+
+  return (
+    <SearchSelect
+      trigger={trigger}
+      label={t("chat.newWith")}
+      searchPlaceholder={t("pickers.searchAgent")}
+      emptyLabel={t("pickers.noMatch")}
+      value={null}
+      options={options}
+      onValueChange={pick}
+    />
+  );
 }

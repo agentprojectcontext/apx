@@ -422,6 +422,7 @@ export const en = {
   "changes.more": "And {n} more",
   "chat.new": "New chat",
   "chat.newWith": "New chat with…",
+  "chat.recentAgents": "Recent",
   "chat.noAgents": "No agents for this project.",
   "chat.back": "Back to the chat",
   "chat.toList": "Back to the chats",

@@ -1,6 +1,6 @@
 import { Icons, type SelectOption, useApx } from "@apx/ui";
 import { Combobox } from "@base-ui/react/combobox";
-import { useMemo } from "react";
+import { type ReactElement, useMemo } from "react";
 
 export interface SearchSelectProps {
   value: string | null;
@@ -16,6 +16,8 @@ export interface SearchSelectProps {
   size?: "sm" | "md";
   disabled?: boolean;
   className?: string;
+  /** Opens the list from this element (a button) instead of the field: a picker that acts, holding no value. */
+  trigger?: ReactElement;
 }
 
 type Group = { value: string; items: SelectOption[] };
@@ -48,6 +50,7 @@ export function SearchSelect({
   size = "md",
   disabled,
   className,
+  trigger,
 }: SearchSelectProps) {
   const { portalRef } = useApx();
   const current = options.find((o) => o.value === value) ?? null;
@@ -82,20 +85,24 @@ export function SearchSelect({
       autoHighlight
       disabled={disabled}
     >
-      <Combobox.Trigger
-        aria-label={label}
-        className={["apx-field", `apx-field--${size}`, "apx-select", disabled && "is-disabled", className]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        {current?.icon && <span className="apx-select__icon">{current.icon}</span>}
-        <span className={current ? "apx-select__value" : "apx-select__value is-placeholder"}>
-          {current?.label ?? placeholder}
-        </span>
-        <Combobox.Icon className="apx-select__chevron">
-          <Icons.ChevronDown size={14} />
-        </Combobox.Icon>
-      </Combobox.Trigger>
+      {trigger ? (
+        <Combobox.Trigger render={trigger} />
+      ) : (
+        <Combobox.Trigger
+          aria-label={label}
+          className={["apx-field", `apx-field--${size}`, "apx-select", disabled && "is-disabled", className]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          {current?.icon && <span className="apx-select__icon">{current.icon}</span>}
+          <span className={current ? "apx-select__value" : "apx-select__value is-placeholder"}>
+            {current?.label ?? placeholder}
+          </span>
+          <Combobox.Icon className="apx-select__chevron">
+            <Icons.ChevronDown size={14} />
+          </Combobox.Icon>
+        </Combobox.Trigger>
+      )}
       <Combobox.Portal container={portalRef}>
         <Combobox.Positioner sideOffset={6} align="end" className="apx-select__positioner">
           <Combobox.Popup className="apx-menu apx-searchselect__popup" aria-label={label}>

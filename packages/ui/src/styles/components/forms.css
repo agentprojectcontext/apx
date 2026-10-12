@@ -102,7 +102,19 @@
   line-height: 1.35;
   white-space: normal;
 }
+/* One line each: the name keeps its room, a long hint (an agent's role) ends in "…". */
+.apx-select__item > .apx-menu__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .apx-select__hint {
+  flex: 0 1 auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
 }

@@ -430,6 +430,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "changes.more": "Y {n} más",
   "chat.new": "Nuevo chat",
   "chat.newWith": "Nuevo chat con…",
+  "chat.recentAgents": "Recientes",
   "chat.noAgents": "No hay agentes para este proyecto.",
   "chat.back": "Volver al chat",
   "chat.toList": "Volver a los chats",
