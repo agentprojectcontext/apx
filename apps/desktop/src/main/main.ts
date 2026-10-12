@@ -80,6 +80,8 @@ app.whenReady().then(() => {
           titleBarStyle: "hidden" as const,
           titleBarOverlay: { color: "#1a1a19", symbolColor: "#c8c8c8", height: 46 },
         }),
+    // Behind the panel, the theme's own color: a pixel the panel does not cover never shows white.
+    backgroundColor: "#1a1a19",
   });
   const openMain = () => {
     if (win.isMinimized()) win.restore();
@@ -189,6 +191,13 @@ app.whenReady().then(() => {
     if (Notification.isSupported()) new Notification({ title: "APX", body: message }).show();
   };
   win.on("resize", layout);
+  // Windows sends resize before a maximize settles: lay out again once the final size is in.
+  const settled = () => setImmediate(layout);
+  win.on("maximize", settled);
+  win.on("unmaximize", settled);
+  win.on("restore", settled);
+  win.on("enter-full-screen", settled);
+  win.on("leave-full-screen", settled);
   layout();
 
   ipcMain.on("panel:browser-bounds", (e, b: Bounds | null) => {
@@ -354,6 +363,7 @@ app.whenReady().then(() => {
   ipcMain.on("desktop:titlebar", (e, mode: unknown) => {
     if (e.sender !== panel.webContents || process.platform === "darwin") return;
     if (mode !== "light" && mode !== "dark") return;
+    win.setBackgroundColor(mode === "light" ? "#f4f3f0" : "#1a1a19");
     win.setTitleBarOverlay(
       mode === "light"
         ? { color: "#f4f3f0", symbolColor: "#444444", height: 46 }
