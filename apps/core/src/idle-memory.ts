@@ -9,6 +9,8 @@ export type YoungGen = { size: number; used: number };
 export type IdleTrimOptions = {
   /** How often the heap is looked at. */
   everyMs?: number;
+  /** After start, when what loading grew is given back without waiting for a quiet look. */
+  settleMs?: number;
   /** Below this much new allocation between two looks the core counts as idle. */
   quietBytes?: number;
   /** A young generation this small is left alone (V8 starts at about 1 MB). */
@@ -22,13 +24,22 @@ const MB = 1024 * 1024;
 
 export function createIdleTrim(opts: IdleTrimOptions = {}) {
   const everyMs = opts.everyMs ?? 5000;
+  const settleMs = opts.settleMs ?? 1000;
   const quiet = opts.quietBytes ?? MB;
   const minSize = opts.minSize ?? 8 * MB;
   const youngGen = opts.youngGen ?? v8YoungGen;
   const collect = opts.collect ?? reducingGc;
   let last: YoungGen | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
+  let settle: ReturnType<typeof setTimeout> | undefined;
   let trims = 0;
+
+  function trim(): boolean {
+    collect();
+    trims++;
+    last = youngGen();
+    return true;
+  }
 
   /** One look: true when it gave memory back. */
   function check(): boolean {
@@ -37,10 +48,7 @@ export function createIdleTrim(opts: IdleTrimOptions = {}) {
     last = now;
     // A drop in use means a collection ran since the last look: the core was allocating, so not idle.
     if (!prev || now.size < minSize || now.used < prev.used || now.used - prev.used >= quiet) return false;
-    collect();
-    trims++;
-    last = youngGen();
-    return true;
+    return trim();
   }
 
   return {
@@ -48,12 +56,17 @@ export function createIdleTrim(opts: IdleTrimOptions = {}) {
     start() {
       if (timer) return;
       last = youngGen();
+      // Loading is over once the core is up: give back what it grew now, so V8's own cleanup GCs (about 8 s
+      // after any full GC) end while the core is still starting rather than when it is idle.
+      settle = setTimeout(() => youngGen().size >= minSize && trim(), settleMs);
+      settle.unref();
       timer = setInterval(check, everyMs);
       timer.unref();
     },
     stop() {
+      if (settle) clearTimeout(settle);
       if (timer) clearInterval(timer);
-      timer = undefined;
+      timer = settle = undefined;
     },
     trims: () => trims,
   };

@@ -62,6 +62,23 @@ test("a small young generation is never collected for", () => {
   assert.equal(h.collected(), 0);
 });
 
+test("once the core is up, what loading grew goes back without waiting for a quiet look", async () => {
+  let heap: YoungGen = { size: 32 * MB, used: 9 * MB };
+  let collected = 0;
+  const trim = createIdleTrim({
+    settleMs: 1,
+    youngGen: () => heap,
+    collect: () => {
+      collected++;
+      heap = { size: 1 * MB, used: 0 };
+    },
+  });
+  trim.start();
+  await new Promise((r) => setTimeout(r, 20));
+  trim.stop();
+  assert.equal(collected, 1);
+});
+
 test("the real collector shrinks V8's young generation", () => {
   const young = () => v8.getHeapSpaceStatistics().find((s) => s.space_name === "new_space")?.space_size ?? 0;
   // Objects that survive a few scavenges make V8 grow its young generation, as loading the core does.

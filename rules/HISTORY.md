@@ -28,9 +28,12 @@ first.
 **Why:** V8 grows the young generation to its maximum (32 MB) while the core loads, and shrinks it only inside a GC
 that sees a low allocation rate. An idle core allocates too little to trigger any GC, and V8's memory reducer keeps
 reading the startup burst as "high allocation", so the 32 MB stayed resident for good: about 30 MB of the idle RSS
-`pnpm perf` measures. When the young generation is grown and barely moved for one 5 s look, the core runs one
-memory-reducing GC (`gc` with `flavor: "last-resort"`, reached through a fresh `vm` context, as V8 offers it to no
-other caller). It costs ~20 ms once per quiet stretch and leaves `gc` hidden from later contexts.
+`pnpm perf` measures. A second after the core is up, and later whenever the young generation is grown and barely
+moved for one 5 s look, the core runs one memory-reducing GC (`gc` with `flavor: "last-resort"`, reached through a
+fresh `vm` context, as V8 offers it to no other caller; `gc` stays hidden from later contexts). It costs ~50 ms of
+CPU, and V8 follows any full GC with two cleanup GCs ~8 s later (~30 ms each). The first trim runs at startup rather
+than after a quiet look so those cleanups end before the core is idle: started at 5 s they landed in the window
+where `pnpm perf` measures idle CPU (1.4% instead of 0). A minor GC does not shrink the young generation.
 **Where:** `apps/core/src/idle-memory.ts`, started in `apps/core/src/server.ts`.
 
 <a id="esm-node-http"></a>
