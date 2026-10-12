@@ -180,7 +180,7 @@ export const en = {
   "update.pillVersion": "APX {v} · Update",
   "update.reload": "New panel · Reload",
   "update.title": "A newer APX is out",
-  "update.lead": "{n} changes on main that this APX does not have yet:",
+  "update.lead": "{n} changes on release/v2 that this APX does not have yet:",
   "update.leadRelease": "APX {v} is out. What it brings:",
   "update.leadApp": "APX {v} is out (this app is {current}). It downloads now and goes in when APX restarts.",
   "update.leadAppDrag":

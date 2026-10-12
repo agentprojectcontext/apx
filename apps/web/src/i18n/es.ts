@@ -185,7 +185,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "update.pillVersion": "APX {v} · Actualizar",
   "update.reload": "Panel nuevo · Recargar",
   "update.title": "Hay una versión nueva de APX",
-  "update.lead": "{n} cambios en main que este APX todavía no tiene:",
+  "update.lead": "{n} cambios en release/v2 que este APX todavía no tiene:",
   "update.leadRelease": "Salió APX {v}. Qué trae:",
   "update.leadApp": "Salió APX {v} (esta app es la {current}). Se descarga ahora y se instala cuando reinicies APX.",
   "update.leadAppDrag":
