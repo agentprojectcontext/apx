@@ -45,7 +45,7 @@ const en = {
       },
       {
         blob: "aqua",
-        shot: "phone-home",
+        shot: "phone-app",
         title: "On your phone",
         body: "Pair your phone with a code and talk to Home from anywhere. The Android app is in the releases; it installs beside v1's.",
         href: "/devices/phone/",
@@ -315,7 +315,7 @@ const es: HomeText = {
       },
       {
         blob: "aqua",
-        shot: "phone-home",
+        shot: "phone-app",
         title: "En tu celular",
         body: "Vinculá el celular con un código y hablale a Home desde donde estés. La app de Android está en los releases; se instala al lado de la de v1.",
         href: "/es/devices/phone/",
