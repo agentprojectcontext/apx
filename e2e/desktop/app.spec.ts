@@ -67,6 +67,13 @@ test.afterAll(async () => {
   fs.rmSync(home, { recursive: true, force: true });
 });
 
+/** The menu-bar icon, which the app makes with the quick chat once it is up (the entry script keeps it for tests). */
+async function trayReady(): Promise<void> {
+  await expect
+    .poll(() => app.evaluate(() => Boolean((globalThis as unknown as { apxTestTray?: unknown }).apxTestTray)))
+    .toBe(true);
+}
+
 /** The window's panel or the quick chat, by the page each one loads. */
 async function page(which: "main" | "quick"): Promise<Page> {
   return until(async () =>
@@ -153,6 +160,7 @@ test("closing the window hides it: APX keeps running, and Dock/activate brings i
 });
 
 test("tray clicks keep their display even if the pointer moves during the double-click delay", async () => {
+  await trayReady();
   await page("quick");
   const displays = await app.evaluate(({ screen }) =>
     screen.getAllDisplays().map((d) => ({ id: d.id, area: d.workArea })),
@@ -195,6 +203,7 @@ test("tray clicks keep their display even if the pointer moves during the double
 });
 
 test("one tray click closes a visible quick chat even when the native click blurs it first", async () => {
+  await trayReady();
   await page("quick");
   const visible = () =>
     app.evaluate(({ BrowserWindow }) =>
@@ -225,6 +234,7 @@ test("one tray click closes a visible quick chat even when the native click blur
 });
 
 test("a held tray click closes the popup with stale bounds; clicking outside still dismisses it", async () => {
+  await trayReady();
   const result = await app.evaluate(async ({ BaseWindow, BrowserWindow, screen }) => {
     const quick = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes("quick=1"));
     const main = BaseWindow.getAllWindows().find((w) => !(w instanceof BrowserWindow));
@@ -264,6 +274,7 @@ test("a held tray click closes the popup with stale bounds; clicking outside sti
 });
 
 test("notifications add and clear the integrated tray indicator, menu-bar count and Dock count", async () => {
+  await trayReady();
   const main = await page("main");
   const badge = async (count: number) => {
     await main.evaluate(
@@ -360,6 +371,7 @@ test("notifications add and clear the integrated tray indicator, menu-bar count 
 });
 
 test("double-click opens the existing main window in front and cancels the quick popup", async () => {
+  await trayReady();
   const state = await app.evaluate(async ({ BaseWindow, BrowserWindow }) => {
     const main = BaseWindow.getAllWindows().find((w) => !(w instanceof BrowserWindow));
     const id = main?.id;
