@@ -36,6 +36,7 @@ import { createUpkeep } from "./engine/upkeep.ts";
 import { errorMessage } from "./errors.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
+import { createIdleTrim } from "./idle-memory.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
 import { createGoogle } from "./integrations/google.ts";
 import { GOOGLE, googleAt } from "./integrations/google-oauth.ts";
@@ -395,6 +396,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   await channels.start();
   scheduler.start();
   updates.start();
+  const idleTrim = createIdleTrim();
+  idleTrim.start();
   // The owner's skills get their vectors now, so the first message does not wait for them.
   skills.warm(skillsFor(store, config.home, undefined));
   if (config.runtimeSkills.auto) keepRuntimeSkills(config.runtimeSkills.homes, log);
@@ -413,6 +416,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     channels,
     scheduler,
     async close() {
+      idleTrim.stop();
       terminals.closeAll();
       updates.stop();
       chatgpt.stop();

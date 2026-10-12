@@ -22,6 +22,17 @@ their uncertainty policy and are never retried blindly.
 first.
 **Where:** `packages/protocol/package.json` (`exports`), `apps/*/package.json` (`workspace:*`).
 
+<a id="idle-memory"></a>
+### An idle core gives its young generation back
+**Rule:** keep `createIdleTrim` running in the core; do not drop it for "V8 manages memory on its own".
+**Why:** V8 grows the young generation to its maximum (32 MB) while the core loads, and shrinks it only inside a GC
+that sees a low allocation rate. An idle core allocates too little to trigger any GC, and V8's memory reducer keeps
+reading the startup burst as "high allocation", so the 32 MB stayed resident for good: about 30 MB of the idle RSS
+`pnpm perf` measures. When the young generation is grown and barely moved for one 5 s look, the core runs one
+memory-reducing GC (`gc` with `flavor: "last-resort"`, reached through a fresh `vm` context, as V8 offers it to no
+other caller). It costs ~20 ms once per quiet stretch and leaves `gc` hidden from later contexts.
+**Where:** `apps/core/src/idle-memory.ts`, started in `apps/core/src/server.ts`.
+
 ## Repo hygiene
 
 <a id="private-terms"></a>
