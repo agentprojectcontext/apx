@@ -5,7 +5,15 @@ import os from "node:os";
 import path from "node:path";
 import { PassThrough } from "node:stream";
 import { test } from "node:test";
-import { classifyPrompt, nodeHelper, openAskpass, type Prompt, requestAnswer, runAskpass } from "./askpass.ts";
+import {
+  classifyPrompt,
+  nodeHelper,
+  openAskpass,
+  type Prompt,
+  requestAnswer,
+  runAskpass,
+  windowsHelper,
+} from "./askpass.ts";
 
 test("a password or passphrase is masked; the host key's yes/no is typed in the clear", () => {
   assert.equal(classifyPrompt("ops@box's password: ").secret, true);
@@ -116,6 +124,36 @@ test("on Linux ssh runs the app as Node over a small helper: the question and th
     assert.deepEqual(asked, ["ops@box's password: "]);
     // A wrong key gets nothing: ssh hears there is no answer.
     assert.equal((await run({ ...pass.env, APX_ASKPASS_KEY: "0".repeat(48) })).code, 1);
+  } finally {
+    pass.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("on Windows ssh runs the app itself as Node with a preload: the question arrives whole and only the answer is printed", async () => {
+  const asked: string[] = [];
+  const pass = await openAskpass({
+    ask: async (p) => {
+      asked.push(p.text);
+      return /yes\/no/.test(p.text) ? "no" : "s3cret";
+    },
+    exe: process.execPath,
+  });
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-helper-"));
+  try {
+    const env = { ...process.env, ...pass.env, ...windowsHelper(dir, process.execPath) };
+    // ssh hands the question as the only argument; Node takes it for a script that is never run.
+    const run = (question: string) =>
+      new Promise<{ code: number; out: string }>((resolve) =>
+        execFile(process.execPath, [question], { env, cwd: dir }, (err, out) =>
+          resolve({ code: err ? Number(err.code ?? 1) : 0, out }),
+        ),
+      );
+    assert.deepEqual(await run("ops@box's password: "), { code: 0, out: "s3cret\n" });
+    const hostKey =
+      "ED25519 key fingerprint is SHA256:Qe+jc/MPj.\nAre you sure you want to continue connecting (yes/no)? ";
+    assert.deepEqual(await run(hostKey), { code: 0, out: "no\n" });
+    assert.deepEqual(asked, ["ops@box's password: ", hostKey.replace(/\s+\n/g, "\n")]);
   } finally {
     pass.close();
     fs.rmSync(dir, { recursive: true, force: true });

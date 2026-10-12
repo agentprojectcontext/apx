@@ -1,6 +1,7 @@
 // ssh asks for a password, a passphrase or a host-key answer through SSH_ASKPASS. That program is this app's own
-// executable in askpass mode: it hands the question to the running app over a local socket made for one login, prints
-// the owner's answer for ssh and exits. No Electron here, so the round trip is tested on plain Node.
+// executable (in askpass mode on macOS, run as Node on Linux and Windows): it hands the question to the running app over
+// a local socket made for one login, prints the owner's answer for ssh and exits. No Electron here, so the round trip
+// is tested on plain Node.
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import fs from "node:fs";
 import net from "node:net";
@@ -47,14 +48,16 @@ export async function openAskpass(opts: { ask: Ask; exe: string; appDir?: string
     server.listen(endpoint, () => resolve());
   });
   // On Linux the app itself cannot be ssh's askpass: Chromium's sandbox starts before any of our code and may abort.
+  // On Windows it prints a blank line before our code runs, and ssh takes that first line as the answer.
   const program =
     process.platform === "linux"
       ? nodeHelper(dir, opts.exe)
-      : opts.appDir
+      : process.platform !== "win32" && opts.appDir
         ? wrapper(dir, opts.exe, opts.appDir)
         : opts.exe;
   return {
     env: {
+      ...(process.platform === "win32" ? windowsHelper(dir, opts.exe) : {}),
       SSH_ASKPASS: program,
       SSH_ASKPASS_REQUIRE: "force",
       APX_ASKPASS: endpoint,
@@ -154,7 +157,8 @@ const socket = net.connect(endpoint);
 let buf = "";
 const timer = setTimeout(() => socket.destroy(), 10 * 60_000);
 socket.setEncoding("utf8");
-socket.on("connect", () => socket.write(JSON.stringify({ key, prompt: process.argv.length > 2 ? process.argv.at(-1) : "" }) + "\\n"));
+const prompt = process.env.APX_ASKPASS_PROMPT ?? (process.argv.length > 2 ? process.argv.at(-1) : "");
+socket.on("connect", () => socket.write(JSON.stringify({ key, prompt }) + "\\n"));
 socket.on("data", (chunk) => { buf += chunk; if (buf.length > ${MAX_FRAME}) socket.destroy(); });
 socket.on("error", () => {});
 socket.on("close", () => {
@@ -176,13 +180,45 @@ export function nodeHelper(dir: string, exe: string): string {
   return file;
 }
 
+/**
+ * Preloaded (NODE_OPTIONS) into the app's executable run as Node, which ssh starts with its question as the only
+ * argument. Node already took that argument for a script path; this undoes it, runs HELPER_JS with the question in the
+ * environment and exits before Node looks for that script. Only the app's own executable acts on it.
+ */
+const WINDOWS_PRELOAD_JS = `const { APX_ASKPASS, APX_ASKPASS_EXE, APX_ASKPASS_JS } = process.env;
+if (APX_ASKPASS && APX_ASKPASS_JS && process.execPath.toLowerCase() === String(APX_ASKPASS_EXE).toLowerCase()) {
+  const path = require("node:path");
+  const arg = process.argv[1] ? path.relative(process.cwd(), process.argv[1]).replaceAll("\\\\", "/") : "";
+  const env = { ...process.env, APX_ASKPASS_PROMPT: arg };
+  delete env.NODE_OPTIONS;
+  const run = require("node:child_process").spawnSync(process.execPath, [APX_ASKPASS_JS], {
+    env, stdio: ["ignore", "pipe", "ignore"], windowsHide: true, timeout: 11 * 60_000,
+  });
+  if (run.stdout && run.stdout.length) require("node:fs").writeSync(1, run.stdout);
+  process.exit(run.status === 0 ? 0 : 1);
+}
+`;
+
+/**
+ * ssh's askpass on Windows: the app's executable itself (a .cmd would let cmd.exe parse the server's question), run as
+ * Node over WINDOWS_PRELOAD_JS. Returns what ssh's environment adds; ssh's askpass inherits it.
+ */
+export function windowsHelper(dir: string, exe: string): Record<string, string> {
+  const js = path.join(dir, "askpass.cjs");
+  fs.writeFileSync(js, HELPER_JS, { mode: 0o600 });
+  const preload = path.join(dir, "preload.cjs");
+  fs.writeFileSync(preload, WINDOWS_PRELOAD_JS, { mode: 0o600 });
+  // NODE_OPTIONS reads a backslash as an escape: forward slashes name the same file.
+  return {
+    ELECTRON_RUN_AS_NODE: "1",
+    NODE_OPTIONS: `--require "${preload.replaceAll("\\", "/")}"`,
+    APX_ASKPASS_EXE: exe,
+    APX_ASKPASS_JS: js,
+  };
+}
+
 /** A checkout's ssh cannot pass Electron the app's folder: a script in the login's private folder does. */
 function wrapper(dir: string, exe: string, appDir: string): string {
-  if (process.platform === "win32") {
-    const file = path.join(dir, "askpass.cmd");
-    fs.writeFileSync(file, `@"${exe}" "${appDir}" %*\r\n`);
-    return file;
-  }
   const quote = (s: string) => `'${s.replaceAll("'", `'\\''`)}'`;
   const file = path.join(dir, "askpass.sh");
   fs.writeFileSync(file, `#!/bin/sh\nexec ${quote(exe)} ${quote(appDir)} "$@"\n`, { mode: 0o700 });
