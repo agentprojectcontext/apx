@@ -86,9 +86,32 @@ apx devices revoke <id>     # revoca un dispositivo
 
 ## La app de APX para teléfonos
 
-<Aside type="note" title="Parcial">
-La app de APX (Expo, para iOS y Android) funciona, pero todavía no está en la App Store ni en Google Play y no se probó
-en un teléfono real. Para usarla hoy, la compilás desde el repositorio (`apps/mobile`).
+### Instalarla en Android
+
+La app de Android viene en cada versión v2. Todavía no está en Google Play, así que el archivo lo instalás vos:
+
+<Steps>
+
+1. En el teléfono, abrí las [versiones v2](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true) y, en la más nueva, bajá `APX-<versión>-android.apk`.
+
+2. Abrí el archivo que bajaste. La primera vez, Android te pide permiso para instalar apps desde el navegador (o
+   desde Archivos): permitilo, volvé y tocá **Instalar**. Si Play Protect avisa que no conoce la app, tocá **Instalar
+   de todas formas**.
+
+3. Abrí APX y vinculalo, como en [Abrir en el teléfono](#abrir-en-el-teléfono).
+
+</Steps>
+
+Se instala al lado de la app de APX v1; una no toca a la otra.
+
+**Actualizar.** La app todavía no se actualiza sola. Cuando sale una versión nueva, bajá su APK de la misma forma e
+instalalo encima del que tenés: la vinculación y la configuración quedan. Si Android dice que la app entra en
+conflicto con una ya instalada, esa es una versión que compilaste vos o una de prueba: desinstalala, instalá el APK de
+la versión y vinculá de nuevo. Desde ahí, cada versión se instala encima de la anterior.
+
+<Aside type="note" title="iPhone">
+La app de iOS todavía no está en la App Store. Para probarla la compilás desde el repositorio (`apps/mobile`), como
+se cuenta abajo.
 </Aside>
 
 Lo que hace una vez vinculada:

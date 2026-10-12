@@ -85,9 +85,31 @@ apx devices revoke <id>     # revoke one device
 
 ## The APX app for phones
 
-<Aside type="note" title="Partial">
-The APX app (Expo, for iOS and Android) works, but it isn't in the App Store or Google Play yet and hasn't been
-tested on a real phone. To try it today you build it from the repository (`apps/mobile`).
+### Install it on Android
+
+The Android app comes with every v2 release. It isn't in Google Play yet, so you install the file yourself:
+
+<Steps>
+
+1. On the phone, open the [v2 releases](https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true) and, in the newest one, download `APX-<version>-android.apk`.
+
+2. Open the downloaded file. The first time, Android asks you to allow installing apps from your browser (or from
+   Files): allow it, go back and tap **Install**. If Play Protect warns that it doesn't know the app, tap **Install
+   anyway**.
+
+3. Open APX and pair it, as in [Open on your phone](#open-on-your-phone).
+
+</Steps>
+
+It installs beside APX v1's phone app; the two don't touch each other.
+
+**Updating.** The app doesn't update itself yet. When a new version is out, download its APK the same way and install
+it over the one you have: your pairing and settings stay. If Android says the app conflicts with one already
+installed, that one is a build you made yourself or a test build: uninstall it, install the release's APK and pair
+again. From then on each release installs over the last one.
+
+<Aside type="note" title="iPhone">
+The iOS app isn't in the App Store yet. To try it you build it from the repository (`apps/mobile`), as below.
 </Aside>
 
 What it does once paired:
