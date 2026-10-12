@@ -1,3 +1,8 @@
+> [!TIP]
+> 🎉 **Salió APX v2 en beta. ¡Probala!** Una app de escritorio nueva, una app para el teléfono y una instalación de
+> una línea para tu servidor, hecha de cero. Trae tus proyectos, agentes y chats de v1.
+> **[Conocé APX v2 →](https://agentprojectcontext.github.io/apx/v2/es/)** · `curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash`
+
 <p align="center">
   <img src="assets/banner.webp" alt="APX — Conocé a tu crew" width="820">
 </p>
@@ -86,10 +91,12 @@ También existe una **app Android**, con notificaciones, mascota flotante y Andr
 Se instala desde archivo, fuera de Google Play. En iPhone usá el panel web.
 El acceso USB depende del cable; LAN funciona dentro de tu red; Tailscale conecta dispositivos de tu tailnet.
 
-## Lo próximo: APX V2
+## APX V2 está en beta
 
-**V2 está en desarrollo.** Lleva APX más lejos como aplicación independiente para tu equipo.
-Los comandos anteriores instalan la versión actual, no V2.
+**V2 salió en beta.** Lleva APX más lejos como aplicación independiente para tu equipo: instalala desde
+[su sitio](https://agentprojectcontext.github.io/apx/v2/es/) o la
+[rama `release/v2`](https://github.com/agentprojectcontext/apx/tree/release/v2).
+Los comandos anteriores instalan v1, no V2.
 
 <p align="center">
   <img src="assets/apx-v2-preview.png" alt="Demo V2 en modo oscuro: agente principal delega a Scout, crea un widget interactivo y abre la página fuente en el navegador lateral" width="1100"><br>
