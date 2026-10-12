@@ -19,8 +19,9 @@ test("the owner writes to the super-agent and the answer streams in", async ({ p
 test("a new chat starts empty and keeps its own conversation", async ({ page }) => {
   await open(page);
   const count = (await rpc<{ threads: unknown[] }>("threads.list")).threads.length;
-  await page.getByRole("button", { name: "Nuevo chat" }).first().click();
-  await page.getByRole("menuitem", { name: /Scout/ }).click();
+  // A picker with a search box: the trigger is a combobox, each agent an option (once more under Recent).
+  await page.getByRole("combobox", { name: "Nuevo chat" }).first().click();
+  await page.getByRole("option", { name: /Scout/ }).first().click();
   await expect(page.getByRole("textbox", { name: "Escribile a Scout…" })).toBeVisible();
   expect((await rpc<{ threads: unknown[] }>("threads.list")).threads.length).toBe(count);
   const box = page.getByRole("textbox", { name: /^Escribile a/ });

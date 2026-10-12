@@ -39,7 +39,8 @@ test("a routine that sends a message is created and runs now", async ({ page }) 
   const activations = drawer.getByRole("region", { name: "Activaciones" });
   await expect(activations.getByRole("img", { name: "Últimas activaciones" }).locator(".rtbar")).toHaveCount(14);
   await activations.getByRole("button").first().click();
-  await expect(drawer.getByText("Ping from the routine").first()).toBeVisible();
+  // The run opens with its instructions folded (the same words, hidden), then what it sent.
+  await expect(drawer.getByRole("paragraph").filter({ hasText: "Ping from the routine" })).toBeVisible();
   await drawer.getByRole("button", { name: "Volver a la rutina" }).click();
   await expect(activations).toBeVisible();
   // Escape steps back out of a run first, then closes the drawer.

@@ -39,8 +39,9 @@ test("a new chat is made only when its first message goes, and keeps its words u
   await open(page);
   const before = await chatCount();
   const startWithScout = async () => {
-    await page.getByRole("button", { name: "Nuevo chat" }).first().click();
-    await page.getByRole("menuitem", { name: /Scout/ }).click();
+    // A picker with a search box: the trigger is a combobox, each agent an option (once more under Recent).
+    await page.getByRole("combobox", { name: "Nuevo chat" }).first().click();
+    await page.getByRole("option", { name: /Scout/ }).first().click();
   };
   const box = page.getByRole("textbox", { name: "Escribile a Scout…" });
 
