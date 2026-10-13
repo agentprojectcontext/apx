@@ -99,6 +99,8 @@ Memory is for durable, curated facts, not transcripts.
 
 ```bash
 apx projects | projects register <folder> | projects sync [project]
+apx projects create "<Name>" [--path <folder>] [--kind company|software|…] [--desc "…"]   # no --path: a folder in APX's home
+apx projects set <project> [--name "…"] [--kind …] [--desc "…"]
 apx agents new <slug> "<Name>" [--project <id>] [--role "<role>"]
 apx agents set <agent> name=… role=…          # project agents are written to .apc/agents/<slug>.md
 apx agents archive <agent> | archived | restore <agent>   # off the team, listed, back (deleting for good: the app)
