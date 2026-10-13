@@ -9,6 +9,8 @@ type Options = {
   scope?: string | undefined;
   json?: boolean | undefined;
   lines?: string | undefined;
+  env?: string[] | undefined;
+  header?: string[] | undefined;
 };
 
 export const MCPS_USAGE = `apx mcps [list [project]]                      MCP servers agents may use, and their state
@@ -16,7 +18,12 @@ apx mcps tools|run|check <server> …            Its tools, run one, or test tha
 apx mcps logs <server> [--project p] [-n 100]  What it printed on stderr since the core started (secrets masked)
 apx mcps trust|untrust <project> <server>      Approve a project's server as its .apc/mcps.json defines it
 apx mcps on|off <server> --project p           Turn one of your servers on or off inside a project
-apx mcps add <name> <command…|url>             Add one of your own; apx mcps rm <name> removes it`;
+apx mcps show <name> [--project p]             Its definition (secrets show as secret://NAME)
+apx mcps add <name> [--env K=V…] -- <command…|url>   Add one of your own (--header K=V for a url)
+apx mcps copy <from> <to> [--env K=V…]         A copy of one under a new name, with the variables you change
+apx mcps set <name> --env K=V…                 Change variables (or --header) of one, keeping the rest
+apx mcps rm <name>                             Remove one of your own
+  Live from the next message: nothing restarts. --project p works on that project's .apc/mcps.json instead.`;
 
 export async function mcpCommand(client: ApxClient, args: string[], o: Options): Promise<void> {
   const [sub, server, tool, raw] = args;

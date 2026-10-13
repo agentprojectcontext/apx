@@ -169,11 +169,66 @@ export async function jobs(client: ApxClient, [sub, id]: string[]): Promise<void
 }
 
 /** apx mcps: MCP servers agents may use (list, approve a project's, add or remove the owner's own). */
+/** `K=V` pairs from repeated --env / --header options. */
+function pairs(list: string[] | undefined, flag: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const item of list ?? []) {
+    const at = item.indexOf("=");
+    if (at < 1) throw new Error(`--${flag} takes NAME=value, got "${item}"`);
+    out[item.slice(0, at)] = item.slice(at + 1);
+  }
+  return out;
+}
+
 export async function mcps(
   client: ApxClient,
   [sub, a, b, ...rest]: string[],
-  o: { project?: string | undefined } = {},
+  o: { project?: string | undefined; env?: string[] | undefined; header?: string[] | undefined } = {},
 ): Promise<void> {
+  const where = o.project ? { project: o.project } : {};
+  /** One server's definition, the owner's own or (with --project) that project's file's. */
+  const definition = async (name: string) => {
+    const { servers } = await client.call("mcp.list", where);
+    const s = servers.find((x) => x.name === name && (o.project ? x.scope === "project" : x.scope === "global"));
+    if (!s) throw new Error(`no MCP server ${name}${o.project ? ` in ${o.project}` : ""}`);
+    if (!s.definition) throw new Error(`${name} comes with an extension: it is changed there`);
+    return { status: s, def: s.definition };
+  };
+  const save = async (name: string, server: Record<string, unknown>) => {
+    const r = await client.call("mcp.set", { name, ...where, server: server as never });
+    const s = r.servers.find((x) => x.name === name);
+    console.log(`${name}: ${s?.status ?? "saved"} · live from the next message`);
+  };
+  if (sub === "show") {
+    if (!a) throw new Error("usage: apx mcps show <name> [--project p]");
+    const { status, def } = await definition(a);
+    console.log(JSON.stringify({ name: a, status: status.status, enabled: status.enabled, ...def }, null, 2));
+    return;
+  }
+  if (sub === "copy") {
+    if (!a || !b) throw new Error("usage: apx mcps copy <from> <to> [--env K=V…] [--header K=V…]");
+    const { def } = await definition(a);
+    await save(b, {
+      ...(def.url
+        ? { url: def.url, headers: { ...def.headers, ...pairs(o.header, "header") } }
+        : { command: def.command, args: def.args }),
+      env: { ...def.env, ...pairs(o.env, "env") },
+    });
+    return;
+  }
+  if (sub === "set") {
+    if (!a || (!o.env?.length && !o.header?.length))
+      throw new Error("usage: apx mcps set <name> --env K=V… [--header K=V…]");
+    const { status, def } = await definition(a);
+    await save(a, {
+      ...(def.url
+        ? { url: def.url, headers: { ...def.headers, ...pairs(o.header, "header") } }
+        : { command: def.command, args: def.args }),
+      env: { ...def.env, ...pairs(o.env, "env") },
+      enabled: status.enabled,
+    });
+    return;
+  }
   if (!sub || sub === "list") {
     const { servers } = await client.call("mcp.list", a ? { project: a } : {});
     for (const s of servers)
@@ -200,14 +255,16 @@ export async function mcps(
   if (sub === "add") {
     // apx mcps add <name> <command> [args…]   or   apx mcps add <name> https://…
     if (!a || !b) throw new Error("usage: apx mcps add <name> <command> [args…] | <url>");
-    const server = /^https?:\/\//.test(b) ? { url: b } : { command: b, args: rest };
-    await client.call("mcp.set", { name: a, server });
-    console.log(`added ${a}`);
+    const env = pairs(o.env, "env");
+    const server = /^https?:\/\//.test(b)
+      ? { url: b, headers: pairs(o.header, "header"), env }
+      : { command: b, args: rest, env };
+    await save(a, server);
     return;
   }
   if (sub === "rm") {
     if (!a) throw new Error("usage: apx mcps rm <name>");
-    await client.call("mcp.set", { name: a, server: null });
+    await client.call("mcp.set", { name: a, ...where, server: null });
     console.log(`removed ${a}`);
     return;
   }

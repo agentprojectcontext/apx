@@ -27,3 +27,60 @@ test("apx mcps logs says when a server printed nothing, and checks -n and the se
   await assert.rejects(mcpCommand(client, ["logs"], {}), /usage: apx mcps logs <server>/);
   await assert.rejects(mcpCommand(client, ["logs", "nobody"], {}), /MCP server nobody not found/);
 });
+
+test("apx mcps copy makes a server from another with the variables changed; set changes one in place", async () => {
+  const cloud = {
+    name: "cloudflare-acme",
+    scope: "global",
+    enabled: true,
+    status: "ready",
+    definition: {
+      command: "npx",
+      args: ["-y", "cloudflare-mcp"],
+      env: { CLOUDFLARE_TOKEN: "secret://CF_TOKEN", CLOUDFLARE_ZONE_ID: "old" },
+      headers: {},
+    },
+  };
+  const { client, calls } = recordingClient({
+    "mcp.list": { servers: [cloud] },
+    "mcp.set": { servers: [{ name: "cloudflare-web", status: "starting" }] },
+  });
+  const out = await printed(() =>
+    mcpCommand(client, ["copy", "cloudflare-acme", "cloudflare-web"], { env: ["CLOUDFLARE_ZONE_ID=new"] }),
+  );
+  assert.deepEqual(calls.at(-1), [
+    "mcp.set",
+    {
+      name: "cloudflare-web",
+      server: {
+        command: "npx",
+        args: ["-y", "cloudflare-mcp"],
+        env: { CLOUDFLARE_TOKEN: "secret://CF_TOKEN", CLOUDFLARE_ZONE_ID: "new" },
+      },
+    },
+  ]);
+  assert.match(out, /cloudflare-web: starting · live from the next message/);
+
+  await printed(() => mcpCommand(client, ["set", "cloudflare-acme"], { env: ["CLOUDFLARE_ZONE_ID=other"] }));
+  assert.deepEqual(calls.at(-1)?.[1], {
+    name: "cloudflare-acme",
+    server: {
+      command: "npx",
+      args: ["-y", "cloudflare-mcp"],
+      env: { CLOUDFLARE_TOKEN: "secret://CF_TOKEN", CLOUDFLARE_ZONE_ID: "other" },
+      enabled: true,
+    },
+  });
+  assert.match(await printed(() => mcpCommand(client, ["show", "cloudflare-acme"], {})), /"CLOUDFLARE_ZONE_ID": "old"/);
+  await assert.rejects(mcpCommand(client, ["copy", "nobody", "x"], {}), /no MCP server nobody/);
+  await assert.rejects(mcpCommand(client, ["set", "cloudflare-acme"], { env: ["NOEQUALS"] }), /NAME=value/);
+});
+
+test("apx mcps add takes its variables with --env", async () => {
+  const { client, calls } = recordingClient({ "mcp.set": { servers: [{ name: "notes", status: "starting" }] } });
+  await printed(() => mcpCommand(client, ["add", "notes", "notes-mcp", "--stdio"], { env: ["TOKEN=secret://NOTES"] }));
+  assert.deepEqual(calls.at(-1), [
+    "mcp.set",
+    { name: "notes", server: { command: "notes-mcp", args: ["--stdio"], env: { TOKEN: "secret://NOTES" } } },
+  ]);
+});

@@ -173,6 +173,8 @@ function argumentsOf() {
       services: { type: "boolean" },
       refresh: { type: "boolean" },
       project: { type: "string" },
+      env: { type: "string", multiple: true },
+      header: { type: "string", multiple: true },
       cron: { type: "string" },
       clear: { type: "boolean" },
       scopes: { type: "string" },
