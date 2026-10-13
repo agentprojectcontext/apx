@@ -1,6 +1,6 @@
 import type { Message as Msg, Thread } from "@apx/protocol";
 import { ActivityPill, AgentAvatar, DayDivider, EmptyState, Icons, Message, SystemNote, withMentions } from "@apx/ui";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { ReactionList } from "../channels/MessageMarks.tsx";
 import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
@@ -10,12 +10,15 @@ import { useLanguage, useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
 import { MessageActions } from "./MessageActions.tsx";
-import { AudioPart } from "./parts/AudioPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
-import { ImagePart } from "./parts/ImagePart.tsx";
+import { AudioPart } from "./parts/lazyAudio.tsx";
+import { mediaBlocks } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
+
+// Pictures and videos load with the first message that has them, not with the chat.
+const MediaGroup = lazy(() => import("./parts/MediaGroup.tsx"));
 
 const EMPTY: Msg[] = [];
 /** Distance from the bottom (px) under which new content keeps the view pinned to the end. */
@@ -122,38 +125,44 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
             {thread.kind === "routine" && msg.author.kind === "user" && key === rows[0]?.key ? (
               <RoutinePrompt name={routineName(thread)} text={textOf(msg)} />
             ) : msg.author.kind === "user" ? (
-              <UserMessage
-                thread={thread}
-                message={msg}
-                messages={messages}
-                text={textOf(msg)}
-                reactions={
-                  msg.reactions?.length ? (
-                    <ReactionList list={msg.reactions} agentName={agent?.name ?? ""} />
-                  ) : undefined
-                }
-              >
-                <UserFiles message={msg} />
-                <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
-              </UserMessage>
+              <>
+                <UserMedia message={msg} from="user" />
+                <UserMessage
+                  thread={thread}
+                  message={msg}
+                  messages={messages}
+                  text={textOf(msg)}
+                  reactions={
+                    msg.reactions?.length ? (
+                      <ReactionList list={msg.reactions} agentName={agent?.name ?? ""} />
+                    ) : undefined
+                  }
+                >
+                  <UserFiles message={msg} />
+                  <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
+                </UserMessage>
+              </>
             ) : msg.author.kind === "system" ? (
               <SystemMessage message={msg} />
             ) : msg.author.kind === "person" ? (
-              <Message
-                from="agent"
-                variant="bubble"
-                avatar={<AgentAvatar name={msg.author.name} size={24} />}
-                meta={<span className="transcript__person">{msg.author.name}</span>}
-                reactions={
-                  msg.reactions?.length ? (
-                    <ReactionList list={msg.reactions} agentName={agent?.name ?? ""} />
-                  ) : undefined
-                }
-                actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
-              >
-                <UserFiles message={msg} />
-                <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
-              </Message>
+              <>
+                <UserMedia message={msg} from="agent" />
+                <Message
+                  from="agent"
+                  variant="bubble"
+                  avatar={<AgentAvatar name={msg.author.name} size={24} />}
+                  meta={<span className="transcript__person">{msg.author.name}</span>}
+                  reactions={
+                    msg.reactions?.length ? (
+                      <ReactionList list={msg.reactions} agentName={agent?.name ?? ""} />
+                    ) : undefined
+                  }
+                  actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
+                >
+                  <UserFiles message={msg} />
+                  <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
+                </Message>
+              </>
             ) : msg.author.kind === "surface" ? (
               <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">
                 {t("chat.fromWidget")} <b>{msg.author.title}</b>: {textOf(msg)}
@@ -220,16 +229,32 @@ function RoutinePrompt({ name, text }: { name: string; text: string }) {
   );
 }
 
-/** What the owner attached to a message: images as thumbnails, other files as named chips. */
+/** A message's pictures and videos, as blocks of their own beside its bubble: a grid, a carousel. */
+function UserMedia({ message, from }: { message: Msg; from: "user" | "agent" }) {
+  const groups = mediaBlocks(message.parts).filter((b) => b.kind !== "part");
+  if (!groups.length) return null;
+  return (
+    <Message from={from} variant="bare" className="transcript__media">
+      <Suspense fallback={null}>
+        {groups.map((g) => (
+          <MediaGroup key={g.key} block={g} />
+        ))}
+      </Suspense>
+    </Message>
+  );
+}
+
+/** What else the owner attached to a message (voice notes, other files), inside its bubble. */
 function UserFiles({ message }: { message: Msg }) {
-  const files = message.parts.filter((p) => p.type === "image" || p.type === "file" || p.type === "audio");
+  // Pictures and videos are in UserMedia.
+  const files = message.parts.filter(
+    (p) => p.type === "audio" || (p.type === "file" && (p.document || !/^(image|video)\//.test(p.mime))),
+  );
   if (!files.length) return null;
   return (
     <div className="transcript__files">
       {files.map((p) =>
-        p.type === "image" ? (
-          <ImagePart key={p.media_id ?? p.url} part={p} />
-        ) : p.type === "file" ? (
+        p.type === "file" ? (
           <FilePart key={p.media_id} part={p} />
         ) : p.type === "audio" ? (
           <AudioPart key={p.media_id} part={p} />

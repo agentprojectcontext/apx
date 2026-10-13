@@ -84,7 +84,8 @@ export function MessageActions({
   );
 }
 
-export function CopyButton({ text }: { text: string }) {
+/** `text` can be read at the moment of the click (what a block shows on screen then). */
+export function CopyButton({ text }: { text: string | (() => string) }) {
   const t = useT();
   const [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -98,7 +99,7 @@ export function CopyButton({ text }: { text: string }) {
       label={copied ? t("msg.copied") : t("msg.copy")}
       icon={copied ? <Icons.Check size={13} /> : <Icons.Copy size={13} />}
       onClick={() =>
-        navigator.clipboard.writeText(text).then(
+        navigator.clipboard.writeText(typeof text === "function" ? text() : text).then(
           () => setCopied(true),
           (e) => notify(errText(e)),
         )

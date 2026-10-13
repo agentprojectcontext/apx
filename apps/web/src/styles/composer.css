@@ -217,10 +217,6 @@
   gap: 6px;
   margin-top: 6px;
 }
-.transcript__files .imagepart img {
-  max-width: 220px;
-  max-height: 160px;
-}
 .transcript__files .audiopart {
   flex-basis: 100%;
   margin-bottom: 8px;

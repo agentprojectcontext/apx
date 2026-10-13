@@ -11,13 +11,13 @@ export interface MarkdownViewProps {
   renderLink?: LinkRenderer;
   /** Wraps each fenced code block (a run button, for instance); `lang` is the fence's word, lowercased. */
   renderCode?: CodeRenderer;
-  /** Wraps each quote (a copy button, for instance); `text` is its words as they read, without the marks. */
+  /** Wraps each quote (a copy button, for instance: the quote's `innerText` is its words without the marks). */
   renderQuote?: QuoteRenderer;
 }
 
 export type LinkRenderer = (href: string, link: ReactElement, key: string) => ReactNode;
 export type CodeRenderer = (code: string, lang: string | undefined, pre: ReactElement, key: string) => ReactNode;
-export type QuoteRenderer = (text: string, quote: ReactElement, key: string) => ReactNode;
+export type QuoteRenderer = (quote: ReactElement, key: string) => ReactNode;
 
 type Block =
   | { kind: "p"; text: string }
@@ -190,25 +190,6 @@ function breaks(text: string, key: string): ReactNode {
   );
 }
 
-const INLINE_MARKS =
-  /`([^`\n]+)`|\*\*([^*\n]+)\*\*|\[([^\]\n]+)\]\([^)\s]+\)|\*([^*\s][^*\n]*)\*|\b_([^_\s][^_\n]*)_\b/g;
-const plainInline = (text: string): string =>
-  text.replace(INLINE_MARKS, (_, code, bold, label, em, em2) => code ?? bold ?? label ?? em ?? em2 ?? "");
-
-/** The words of some blocks as they read: no marks, a link keeps its label, list items their bullet. */
-function plainText(blocks: Block[]): string {
-  return blocks
-    .map((b) => {
-      if (b.kind === "code") return b.text;
-      if (b.kind === "quote") return plainText(b.blocks);
-      if ("items" in b)
-        return b.items.map((it, j) => `${b.kind === "ol" ? `${j + 1}.` : "•"} ${plainInline(it)}`).join("\n");
-      if (b.kind === "table") return [b.headers, ...b.rows].map((row) => row.map(plainInline).join("\t")).join("\n");
-      return plainInline(b.text);
-    })
-    .join("\n\n");
-}
-
 /** Small, safe Markdown renderer for agent text (no raw HTML, http/mailto links only, new tab). */
 export function MarkdownView({
   source,
@@ -239,7 +220,7 @@ function renderBlocks(blocks: Block[], prefix: string, r: Renderers): ReactNode[
           {renderBlocks(b.blocks, `${k}q`, r)}
         </blockquote>
       );
-      return r.renderQuote ? <Fragment key={k}>{r.renderQuote(plainText(b.blocks), quote, k)}</Fragment> : quote;
+      return r.renderQuote ? <Fragment key={k}>{r.renderQuote(quote, k)}</Fragment> : quote;
     }
     if (b.kind === "code") {
       const pre = (

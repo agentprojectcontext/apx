@@ -48,7 +48,11 @@ test("agente adjunta JPG, MP4 y audio: visibles, reproducibles y descargables tr
     await expect(video).toBeVisible();
     await expect(audio).toBeVisible();
     const download = page.waitForEvent("download");
-    await page.getByRole("button", { name: /^preview.mp4/ }).click();
+    // A video's card has its own download button, beside its name.
+    await page
+      .locator(".mediacarousel__card", { hasText: "preview.mp4" })
+      .getByRole("button", { name: "Descargar" })
+      .click();
     const file = await download;
     expect(file.suggestedFilename()).toBe("preview.mp4");
     const downloaded = await file.path();

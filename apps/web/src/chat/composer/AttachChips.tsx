@@ -1,6 +1,6 @@
 import { IconButton, Icons } from "@apx/ui";
 import { useT } from "../../i18n/index.ts";
-import { AudioPart } from "../parts/AudioPart.tsx";
+import { AudioPart } from "../parts/lazyAudio.tsx";
 import type { Chip } from "./useAttachments.ts";
 
 /** The files waiting to go: a thumbnail or the file's name, a spinner while uploading, the reason when refused. */

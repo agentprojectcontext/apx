@@ -226,29 +226,6 @@
 }
 
 /* Parts */
-.videopart video {
-  display: block;
-  width: 100%;
-  max-width: 640px;
-  max-height: 420px;
-  border-radius: var(--apx-radius-md);
-  margin-bottom: 8px;
-}
-
-.imagepart {
-  display: block;
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: zoom-in;
-}
-.imagepart img {
-  display: block;
-  max-width: 100%;
-  max-height: 420px;
-  border-radius: var(--apx-radius-lg);
-  border: 1px solid var(--apx-border);
-}
 .surfacecard {
   display: flex;
   flex-direction: column;
@@ -738,12 +715,10 @@
   color: var(--apx-fg);
 }
 
-/* A quote an agent drafted, with its copy button in the corner (always there on touch, on hover with a mouse). */
+/* A quote an agent drafted, with its copy button in the corner (on hover with a mouse). */
 .quotecopy {
   position: relative;
-}
-.quotecopy > .apx-md__quote {
-  padding-right: 36px;
+  padding-right: 32px;
 }
 .quotecopy__button {
   position: absolute;
@@ -751,12 +726,7 @@
   right: 0;
 }
 @media (hover: hover) {
-  .quotecopy__button {
+  .quotecopy:not(:hover) .quotecopy__button:not(:focus-within) {
     opacity: 0;
-    transition: opacity 120ms;
-  }
-  .quotecopy:hover .quotecopy__button,
-  .quotecopy__button:focus-within {
-    opacity: 1;
   }
 }

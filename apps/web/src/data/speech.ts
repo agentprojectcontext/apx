@@ -1,8 +1,9 @@
 // Reading a message aloud with the owner's voice service: whether one is set up, and the one message playing now.
+
+import { audioEnded } from "./audioEnd.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
 import { mediaUrl } from "./media.ts";
-import { audioEnded } from "./sounds.ts";
 
 /** media.speak takes at most this many characters. */
 const SPEAK_CHARS = 4000;

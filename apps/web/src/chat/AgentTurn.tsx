@@ -11,11 +11,11 @@ import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
 import { linkMenu } from "./LinkMenu.tsx";
 import { MessageActions } from "./MessageActions.tsx";
-import { AudioPart } from "./parts/AudioPart.tsx";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
 import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
-import { ImagePart } from "./parts/ImagePart.tsx";
+import { AudioPart } from "./parts/lazyAudio.tsx";
+import { type MediaBlock, mediaBlocks } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { SubthreadPart } from "./parts/SubthreadPart.tsx";
@@ -25,6 +25,7 @@ import { runnableCode } from "./RunnableCode.tsx";
 // A widget's frame loads with the first message that has one, not with the chat.
 const SurfacePart = lazy(() => import("./parts/SurfacePart.tsx").then((m) => ({ default: m.SurfacePart })));
 const ChoicesPart = lazy(() => import("./parts/ChoicesPart.tsx").then((m) => ({ default: m.ChoicesPart })));
+const MediaGroup = lazy(() => import("./parts/MediaGroup.tsx"));
 const InputPart = lazy(() => import("./parts/InputPart.tsx").then((m) => ({ default: m.InputPart })));
 
 type ToolPart = Extract<Part, { type: "tool" }>;
@@ -62,10 +63,14 @@ export function AgentTurn({
   const waiting = useData((s) => (message.run_id ? s.runs[message.run_id]?.state === "input-required" : false));
   const skills = showSkills ? message.parts.find((p): p is SkillsPick => p.type === "skills") : undefined;
   const projectId = useData((s) => s.threads[message.thread_id]?.project_id);
-  const blocks: { key: string; part: Part }[] = message.parts.flatMap((p, i) =>
-    p.type === "tool" || p.type === "skills" || (p.type === "text" && (!p.text.trim() || isSignal(p.text)))
-      ? []
-      : [{ key: p.type === "text" ? `x:${i}` : cardKey(p, i), part: p }],
+  // Pictures and videos side by side become one grid or one carousel; everything else is a block of its own.
+  const blocks: { key: string; part: Part; media?: Exclude<MediaBlock, { kind: "part" }> }[] = mediaBlocks(
+    message.parts,
+    (p) => p.type === "tool" || p.type === "skills" || (p.type === "text" && (!p.text.trim() || isSignal(p.text))),
+  ).map((b) =>
+    b.kind === "part"
+      ? { key: b.part.type === "text" ? `x:${b.index}` : cardKey(b.part, b.index), part: b.part }
+      : { key: b.key, part: b.parts[0] as Part, media: b },
   );
   const avatar = !showAvatar ? undefined : engine ? (
     <EngineIcon engine={engine.id} size={24} />
@@ -94,7 +99,7 @@ export function AgentTurn({
     <div className="turn">
       {skills && <SkillsPart part={skills} projectId={projectId} />}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
-      {blocks.map(({ key, part }, i) => {
+      {blocks.map(({ key, part, media }, i) => {
         const last = i === blocks.length - 1;
         return (
           <Message
@@ -119,7 +124,11 @@ export function AgentTurn({
               ) : undefined
             }
           >
-            {part.type === "text" ? (
+            {media ? (
+              <Suspense fallback={null}>
+                <MediaGroup block={media} />
+              </Suspense>
+            ) : part.type === "text" ? (
               <MarkdownView
                 source={part.text}
                 renderLink={linkMenu}
@@ -157,7 +166,8 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
     case "browser":
       return <BrowserPart part={p} agent={agent} />;
     case "image":
-      return <ImagePart part={p} />;
+      // One with a source is in its message's picture grid; one without has nothing to show.
+      return null;
     case "file":
       return <FilePart part={p} />;
     case "audio":

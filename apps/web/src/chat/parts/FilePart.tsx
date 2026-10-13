@@ -2,19 +2,18 @@ import type { Part } from "@apx/protocol";
 import { Icons } from "@apx/ui";
 import { useState } from "react";
 import { formatBytes } from "../../common/format.ts";
+import { audioEnded } from "../../data/audioEnd.ts";
 import { mediaUrl } from "../../data/media.ts";
-import { audioEnded } from "../../data/sounds.ts";
 import { useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
 import { useMediaUrl } from "./useMediaUrl.ts";
 
-/** An attachment from either participant, with inline video playback and a named download. */
+/** An attachment from either participant, with inline audio playback and a named download (videos have their own carousel). */
 export function FilePart({ part }: { part: Extract<Part, { type: "file" }> }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
-  const video = part.mime.startsWith("video/");
   const audio = part.mime.startsWith("audio/");
-  const src = useMediaUrl(video || audio ? part.media_id : undefined);
+  const src = useMediaUrl(audio ? part.media_id : undefined);
   const open = async () => {
     setBusy(true);
     try {
@@ -41,11 +40,7 @@ export function FilePart({ part }: { part: Extract<Part, { type: "file" }> }) {
       </button>
     );
   return (
-    <div className={video ? "videopart" : undefined}>
-      {video && src && (
-        // biome-ignore lint/a11y/useMediaCaption: project videos are shared as supplied, without a separate caption track.
-        <video src={src} controls preload="metadata" aria-label={part.name} />
-      )}
+    <div>
       {audio && src && (
         // biome-ignore lint/a11y/useMediaCaption: audio files are shared as supplied, without a separate caption track.
         <audio src={src} controls preload="metadata" aria-label={part.name} onEnded={audioEnded} />

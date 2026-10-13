@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { MarkdownView } from "@apx/ui";
-import { createElement, Fragment } from "react";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const draft = "Te dejo esto:\n\n> Hi **team**!\n>\n> Docs: [site](https://example.com)\n\nLo dejaría así.";
@@ -16,16 +16,17 @@ test("quoted lines render as one quote with its own paragraphs, not as raw > mar
   assert.match(html, /<p>Lo dejaría así\.<\/p><\/div>$/);
 });
 
-test("a quote's renderer gets its words without the marks, to copy", () => {
-  const copied: string[] = [];
-  renderToStaticMarkup(
+test("a quote's renderer wraps the quote, as many times as there are quotes", () => {
+  let wrapped = 0;
+  const html = renderToStaticMarkup(
     createElement(MarkdownView, {
-      source: draft,
-      renderQuote: (text, quote) => {
-        copied.push(text);
-        return createElement(Fragment, null, quote);
+      source: `${draft}\n\n> Another`,
+      renderQuote: (quote) => {
+        wrapped++;
+        return createElement("div", { className: "wrap" }, quote);
       },
     }),
   );
-  assert.deepEqual(copied, ["Hi team!\n\nDocs: site"]);
+  assert.equal(wrapped, 2);
+  assert.match(html, /<div class="wrap"><blockquote class="apx-md__quote">/);
 });

@@ -1,10 +1,10 @@
-// The panel's own sounds (this device only): a short chime when a voice note or read-aloud ends, and a sound when a
-// notice arrives. Each can be muted in Config › Appearance.
+// The panel's own sounds (this device only): a chime when an audio ends, a sound when a notice arrives; each can be
+// muted in Config › Sounds. Loaded with the first one played (data/ would put it in the panel's first script).
 import type { NotificationKind } from "@apx/protocol";
 import audioEndUrl from "../assets/sounds/audio-end.mp3";
 import messageUrl from "../assets/sounds/message.mp3";
-import { soundsFor } from "./noticeSound.ts";
-import { prefs } from "./prefs.ts";
+import { soundsFor } from "../data/noticeSound.ts";
+import { prefs } from "../data/prefs.ts";
 
 function play(url: string): void {
   // A browser that has not seen a click yet refuses to play: that one sound is lost, nothing else.

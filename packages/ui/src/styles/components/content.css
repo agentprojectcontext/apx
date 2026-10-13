@@ -271,13 +271,15 @@
 .apx-md--sm {
   font-size: var(--apx-text-sm);
 }
-.apx-md > * {
+.apx-md > *,
+.apx-md__quote > * {
   margin: 0 0 8px;
 }
 .apx-md > :first-child {
   margin-top: 0;
 }
-.apx-md > :last-child {
+.apx-md > :last-child,
+.apx-md__quote > :last-child {
   margin-bottom: 0;
 }
 .apx-md ul,
@@ -332,12 +334,6 @@
   padding-left: 12px;
   border-left: 3px solid var(--apx-border-strong);
   color: var(--apx-fg-muted);
-}
-.apx-md__quote > * {
-  margin: 0 0 8px;
-}
-.apx-md__quote > :last-child {
-  margin-bottom: 0;
 }
 
 .apx-md__table {

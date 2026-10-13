@@ -3,8 +3,8 @@
 // owner's first click, as browsers require.
 import type { Notification as Notice } from "@apx/protocol";
 import { onNewNotice, readNotifications } from "../data/notifications.ts";
-import { noticeArrived } from "../data/sounds.ts";
 import { go } from "./nav.ts";
+import { noticeArrived } from "./sounds.ts";
 
 const looking = () => document.visibilityState === "visible" && document.hasFocus();
 

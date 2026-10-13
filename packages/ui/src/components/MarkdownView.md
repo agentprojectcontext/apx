@@ -9,7 +9,7 @@ Renders the Markdown agents write: paragraphs and line breaks, `#` headings, `-`
 - Tables allow up to 64 columns and 10,000 rendered cells across one document; additional content remains visible as text.
 - `renderLink(href, link, key)`: wraps each ready `<a>` (a right-click menu with where to open it, for instance).
 - `renderCode(code, lang, pre, key)`: wraps each fenced block; `lang` is the fence's word (```` ```bash ```` → `bash`), so an app can add a run button to shell blocks.
-- `renderQuote(text, quote, key)`: wraps each quote; `text` is its words without the marks, so an app can add a copy button to a draft the agent wrote.
+- `renderQuote(quote, key)`: wraps each quote, so an app can add a copy button to a draft the agent wrote (the rendered quote's `innerText` is its words without the marks).
 - Put it inside a `Message` bubble for agent text, or alone for files and memory. `size="sm"` for compact panels.
 
 ```tsx

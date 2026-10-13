@@ -1,0 +1,141 @@
+/* Loaded with chat/parts/MediaGroup.tsx, the first time a message has pictures or videos. */
+/* A message's pictures as one grid, beside its bubble rather than inside it. */
+.mediagrid {
+  display: grid;
+  gap: 3px;
+  width: min(420px, 100%);
+  border-radius: var(--apx-radius-lg);
+  overflow: hidden;
+}
+.mediagrid__row {
+  display: grid;
+  gap: 3px;
+}
+.mediagrid__tile {
+  position: relative;
+  display: block;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  background: var(--apx-fill);
+  cursor: zoom-in;
+  overflow: hidden;
+}
+.mediagrid__tile.is-wide {
+  aspect-ratio: 2;
+}
+.mediagrid__tile img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mediagrid.is-single {
+  width: auto;
+  max-width: min(420px, 100%);
+}
+.mediagrid.is-single .mediagrid__tile {
+  aspect-ratio: auto;
+}
+.mediagrid.is-single .mediagrid__tile img {
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+}
+.mediagrid__more {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 0.45);
+  color: #fff;
+  font-size: var(--apx-text-xl, 22px);
+  font-weight: var(--apx-weight-semibold);
+}
+.imageviewer__frame {
+  position: relative;
+}
+.mediagallery__bar {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: var(--apx-surface-raised);
+  box-shadow: var(--apx-shadow-md, 0 4px 16px rgb(0 0 0 / 0.2));
+}
+.mediagallery__count,
+.mediacarousel__count {
+  min-width: 48px;
+  text-align: center;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A message's videos: one card, or a row to scroll through. */
+.mediacarousel {
+  width: min(640px, 100%);
+}
+.mediacarousel__track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.mediacarousel__track::-webkit-scrollbar {
+  display: none;
+}
+.mediacarousel__card {
+  flex: 0 0 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scroll-snap-align: start;
+}
+.mediacarousel:not(.is-many) .mediacarousel__card {
+  flex-basis: min(320px, 100%);
+}
+.mediacarousel__card video,
+.mediacarousel__poster {
+  display: block;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  max-height: 430px;
+  border-radius: var(--apx-radius-lg);
+  background: #000;
+  object-fit: contain;
+}
+.mediacarousel__info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 2px;
+  font-size: var(--apx-text-xs);
+}
+.mediacarousel__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mediacarousel__size {
+  color: var(--apx-fg-subtle);
+}
+.mediacarousel__bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.mediagallery__image {
+  display: contents;
+}
