@@ -108,39 +108,42 @@ export function SettingsPage({
       <SubHeader title={t("settings")} back={back} />
       <Screen gap={12}>
         <NotificationCard status={notifications.status} enable={notifications.enable} />
+        <Text style={s.label}>{t("setSounds")}</Text>
+        <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setNoticeSound")}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
+          {SOUND_MODES.map(([mode, label]) => (
+            <Chip
+              key={mode}
+              label={t(label)}
+              selected={sounds.notice === mode}
+              onPress={() => {
+                setSoundPrefs({ notice: mode });
+                if (mode !== "off") previewSound("notice");
+              }}
+            />
+          ))}
+        </ScrollView>
+        <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setNoticeSoundHelp")}</Text>
+        <ListGroup>
+          <ListRow
+            label={t("setAudioEnd")}
+            sub={t("setAudioEndHelp")}
+            leading={<IconTile icon="Music" />}
+            trailing={
+              <Toggle
+                value={sounds.audioEnd}
+                label={t("setAudioEnd")}
+                onChange={(on) => {
+                  setSoundPrefs({ audioEnd: on });
+                  if (on) previewSound("audioEnd");
+                }}
+              />
+            }
+            chevron={false}
+          />
+        </ListGroup>
         {prefs ? (
           <>
-            <Text style={s.label}>{t("setWhere")}</Text>
-            <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setWhereHelp")}</Text>
-            <ListGroup>
-              <ListRow
-                label={t("setThisPhone")}
-                sub={t(phoneSub(notifications.status.state))}
-                leading={<IconTile icon="Smartphone" tone="brand" />}
-                trailing={radio(prefs.channel === device)}
-                chevron={false}
-                onPress={() => change({ channel: device })}
-              />
-              {channels.map((channel) => (
-                <ListRow
-                  key={channel.id}
-                  label={channel.label || channelName(channel.type)}
-                  sub={`${channelName(channel.type)} · ${data.agents.find((a) => a.id === channel.agent_id)?.name ?? channel.agent_id}`}
-                  leading={<IconTile icon="Send" tone="info" />}
-                  trailing={radio(prefs.channel === channel.id)}
-                  chevron={false}
-                  onPress={() => change({ channel: channel.id })}
-                />
-              ))}
-              <ListRow
-                label={t("setAuto")}
-                sub={t("setAutoSub")}
-                leading={<IconTile icon="Zap" />}
-                trailing={radio(!prefs.channel)}
-                chevron={false}
-                onPress={() => change({ channel: undefined })}
-              />
-            </ListGroup>
             <Text style={s.label}>{t("setQuiet")}</Text>
             <ListGroup>
               <ListRow
@@ -179,6 +182,37 @@ export function SettingsPage({
               </View>
             ) : null}
             <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setQuietHelp")}</Text>
+            <Text style={s.label}>{t("setWhere")}</Text>
+            <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setWhereHelp")}</Text>
+            <ListGroup>
+              <ListRow
+                label={t("setThisPhone")}
+                sub={t(phoneSub(notifications.status.state))}
+                leading={<IconTile icon="Smartphone" tone="brand" />}
+                trailing={radio(prefs.channel === device)}
+                chevron={false}
+                onPress={() => change({ channel: device })}
+              />
+              {channels.map((channel) => (
+                <ListRow
+                  key={channel.id}
+                  label={channel.label || channelName(channel.type)}
+                  sub={`${channelName(channel.type)} · ${data.agents.find((a) => a.id === channel.agent_id)?.name ?? channel.agent_id}`}
+                  leading={<IconTile icon="Send" tone="info" />}
+                  trailing={radio(prefs.channel === channel.id)}
+                  chevron={false}
+                  onPress={() => change({ channel: channel.id })}
+                />
+              ))}
+              <ListRow
+                label={t("setAuto")}
+                sub={t("setAutoSub")}
+                leading={<IconTile icon="Zap" />}
+                trailing={radio(!prefs.channel)}
+                chevron={false}
+                onPress={() => change({ channel: undefined })}
+              />
+            </ListGroup>
             <Text style={s.label}>{t("setBudget")}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
               {BUDGETS.map((n) => (
@@ -192,40 +226,6 @@ export function SettingsPage({
             </ScrollView>
           </>
         ) : null}
-        <Text style={s.label}>{t("setSounds")}</Text>
-        <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setNoticeSound")}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
-          {SOUND_MODES.map(([mode, label]) => (
-            <Chip
-              key={mode}
-              label={t(label)}
-              selected={sounds.notice === mode}
-              onPress={() => {
-                setSoundPrefs({ notice: mode });
-                if (mode !== "off") previewSound("notice");
-              }}
-            />
-          ))}
-        </ScrollView>
-        <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setNoticeSoundHelp")}</Text>
-        <ListGroup>
-          <ListRow
-            label={t("setAudioEnd")}
-            sub={t("setAudioEndHelp")}
-            leading={<IconTile icon="Music" />}
-            trailing={
-              <Toggle
-                value={sounds.audioEnd}
-                label={t("setAudioEnd")}
-                onChange={(on) => {
-                  setSoundPrefs({ audioEnd: on });
-                  if (on) previewSound("audioEnd");
-                }}
-              />
-            }
-            chevron={false}
-          />
-        </ListGroup>
         <Text style={s.label}>{t("setLook")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
           {LOOKS.map(([pref, label]) => (
