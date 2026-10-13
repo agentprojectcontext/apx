@@ -164,10 +164,18 @@ export const officeMethods = {
     effect: true,
     access: "human",
   },
-  /** The profiles APX knows (its own and the owner's), the one the super-agent runs, and the routines it keeps. */
+  /**
+   * The profiles APX knows (its own and the owner's), the one the super-agent runs, and the routines it keeps;
+   * `changed` names those whose prompt is no longer the one the profile ships (Restore puts it back).
+   */
   "profiles.list": {
     params: z.object({}).strict(),
-    result: z.object({ profiles: z.array(ProfileInfo), active: ActiveProfile, routines: z.array(Routine) }),
+    result: z.object({
+      profiles: z.array(ProfileInfo),
+      active: ActiveProfile,
+      routines: z.array(Routine),
+      changed: z.array(Id).default([]),
+    }),
     effect: false,
     access: "human",
   },
@@ -182,7 +190,7 @@ export const officeMethods = {
         values: z.record(z.string(), z.union([z.string(), z.number()])).default({}),
       })
       .strict(),
-    result: z.object({ active: ActiveProfile, routines: z.array(Routine) }),
+    result: z.object({ active: ActiveProfile, routines: z.array(Routine), changed: z.array(Id).default([]) }),
     effect: true,
     access: "human",
   },

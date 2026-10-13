@@ -4,6 +4,7 @@ import type { Store } from "../domain/store.ts";
 import {
   activeProfile,
   applyProfile,
+  changedRoutines,
   installProfile,
   listProfiles,
   type ProfileRoot,
@@ -20,13 +21,14 @@ const PROFILE_HINT = "it needs an apx-profile.json";
 
 export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots: readonly ProfileRoot[] = []) {
   const lang = () => store.settings.get("owner_language") ?? "es";
+  /** The running profile's routines, and which of them Restore would change. */
+  const kept = (id: string | null) => {
+    const routines = id ? profileRoutines(store, id) : [];
+    return { routines, changed: changedRoutines(store, profileRoots, routines) };
+  };
   const listed = () => {
     const active = activeProfile(store);
-    return {
-      profiles: listProfiles(profileRoots),
-      active,
-      routines: active.id ? profileRoutines(store, active.id) : [],
-    };
+    return { profiles: listProfiles(profileRoots), active, ...kept(active.id) };
   };
   return {
     "routines.list": ({ project }) => ({ routines: store.routines.list(project) }),
@@ -90,7 +92,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
         throw badRequest(errorMessage(err));
       }
       const active = applyProfile(store, { manifest, values, lang: lang(), nextFor: (s) => scheduler.nextFor(s) });
-      return { active, routines: active.id ? profileRoutines(store, active.id) : [] };
+      return { active, ...kept(active.id) };
     },
     "profiles.restore": ({ routine }) => {
       const r = restoreProfileRoutine(store, profileRoots, routine);

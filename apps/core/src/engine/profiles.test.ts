@@ -69,6 +69,7 @@ test("a new schedule moves its routine; a prompt the owner edited stays, and Res
     prompt: "My own morning brief",
     enabled: true,
   });
+  assert.deepEqual((await get()).changed, [open.id], "only the edited one can be restored");
   const { routines } = await set({ day_open: "0 7 * * *", calendar_command: "echo agenda" });
   const moved = routines.find((r) => r.origin === "secretary:day-open");
   assert.deepEqual(moved?.schedule, { kind: "cron", cron: "0 7 * * *" });
@@ -77,6 +78,7 @@ test("a new schedule moves its routine; a prompt the owner edited stays, and Res
   const restored = await env.client.call("profiles.restore", { routine: open.id });
   assert.match(restored.prompt, /^Open the owner's day in ONE message, across every project/);
   assert.doesNotMatch(restored.prompt, /\{\{/, "restored with the profile's values filled in");
+  assert.deepEqual((await get()).changed, [], "nothing left to restore");
   await assert.rejects(set({ day_open: "whenever" }));
 });
 

@@ -152,15 +152,30 @@ export function applyProfile(
   return active;
 }
 
+/** The prompt a profile routine ships with, its settings filled in as the profile runs now (stale days, hours). */
+function shippedPrompt(store: Store, profiles: readonly ProfileManifest[], r: Routine): string | undefined {
+  const [profile, key] = r.origin?.split(":") ?? [];
+  const m = profiles.find((p) => p.id === profile);
+  const spec = m?.routines.find((x) => x.key === key);
+  return m && spec ? fill(spec.prompt, m, valuesFor(m, activeProfile(store).values)) : undefined;
+}
+
+/** The profile routines whose prompt is no longer the one shipped: the owner edited it, or a setting changed since. */
+export function changedRoutines(store: Store, roots: readonly ProfileRoot[], routines: readonly Routine[]): string[] {
+  const profiles = listProfiles(roots);
+  return routines
+    .filter((r) => {
+      const shipped = shippedPrompt(store, profiles, r);
+      return shipped !== undefined && shipped.trim() !== r.prompt.trim();
+    })
+    .map((r) => r.id);
+}
+
 /** A profile routine back to the prompt its profile ships. */
 export function restoreProfileRoutine(store: Store, roots: readonly ProfileRoot[], id: string): Routine | undefined {
   const r = store.routines.get(id);
-  const [profile, key] = r?.origin?.split(":") ?? [];
-  const m = listProfiles(roots).find((p) => p.id === profile);
-  const spec = m?.routines.find((x) => x.key === key);
-  if (!r || !m || !spec) return undefined;
-  // Its settings filled in, as the profile runs them now (stale days, waiting hours).
-  const prompt = fill(spec.prompt, m, valuesFor(m, activeProfile(store).values));
+  const prompt = r && shippedPrompt(store, listProfiles(roots), r);
+  if (!r || prompt === undefined) return undefined;
   return store.routines.update(id, { ...r, next_run_at: r.next_run_at, prompt });
 }
 
