@@ -60,6 +60,7 @@ if [ "$UNINSTALL" = 1 ]; then
   fi
   rm -rf "$APP"
   if [ -f "$BIN/apx" ] && grep -q 'written by install.sh' "$BIN/apx"; then rm -f "$BIN/apx"; fi
+  if [ -L "$BIN/apx2" ]; then rm -f "$BIN/apx2"; fi
   say "APX is uninstalled. Your data is still in ${APX_HOME:-$HOME/.apx/v2}"
   exit 0
 fi
@@ -167,6 +168,8 @@ export APX_APP
 exec "\$APX_APP/current/node/bin/node" --disable-warning=ExperimentalWarning "\$APX_APP/current/apps/terminal/src/main.ts" "\$@"
 EOF
 chmod 755 "$BIN/apx"
+# The same command as apx2: it reaches this APX even where another apx (v1's) comes first on the PATH.
+ln -sf apx "$BIN/apx2"
 case ":$PATH:" in
   *":$BIN:"*) ;;
   *)
@@ -202,4 +205,8 @@ if [ "$OS" = linux ] && [ "$SERVICE" = 1 ] && command -v loginctl >/dev/null 2>&
 fi
 
 say "APX $VERSION is installed. Try: apx status"
+found="$(command -v apx 2>/dev/null || true)"
+if [ -n "$found" ] && [ "$found" != "$BIN/apx" ]; then
+  warn "apx here is still $found (APX v1's?). This APX also answers to apx2: apx2 v1 off turns v1 off and makes apx this one"
+fi
 echo "    To use it from another computer: apx expose tailscale (or lan), then apx pair"

@@ -96,10 +96,9 @@ async function linkV2(d: TakeoverDeps): Promise<{ ok: boolean; detail: string }>
   if (d.platform === "win32") {
     const bin = path.join(d.home, ".apx", "v2", "app", "bin");
     fs.mkdirSync(bin, { recursive: true });
-    fs.writeFileSync(
-      path.join(bin, "apx.cmd"),
-      `@echo off\r\n${t.electron ? "set ELECTRON_RUN_AS_NODE=1\r\n" : ""}"${t.exe}" --disable-warning=ExperimentalWarning "${t.main}" %*\r\n`,
-    );
+    const cmd = `@echo off\r\n${t.electron ? "set ELECTRON_RUN_AS_NODE=1\r\n" : ""}"${t.exe}" --disable-warning=ExperimentalWarning "${t.main}" %*\r\n`;
+    // apx2 too: it reaches this APX even where another apx comes first on the PATH.
+    for (const name of ["apx.cmd", "apx2.cmd"]) fs.writeFileSync(path.join(bin, name), cmd);
     await d.run("powershell", [
       "-NoProfile",
       "-Command",
@@ -109,15 +108,23 @@ async function linkV2(d: TakeoverDeps): Promise<{ ok: boolean; detail: string }>
   }
   const bin = path.join(d.home, ".local", "bin");
   const file = path.join(bin, "apx");
+  const alias = () => {
+    // apx2 too: it reaches this APX even where another apx (v1's) comes first on the PATH.
+    fs.rmSync(path.join(bin, "apx2"), { force: true });
+    fs.symlinkSync("apx", path.join(bin, "apx2"));
+  };
   // install.sh's own launcher already runs v2.
-  if (fs.existsSync(file) && fs.readFileSync(file, "utf8").includes("written by install.sh"))
+  if (fs.existsSync(file) && fs.readFileSync(file, "utf8").includes("written by install.sh")) {
+    alias();
     return { ok: true, detail: "apx runs this APX" };
+  }
   fs.mkdirSync(bin, { recursive: true });
   fs.writeFileSync(
     file,
     `#!/bin/sh\n# The APX command, written by the APX app.\n${node}exec ${quoteSh(t.exe)} --disable-warning=ExperimentalWarning ${quoteSh(t.main)} "$@"\n`,
     { mode: 0o755 },
   );
+  alias();
   // Like install.sh: ~/.local/bin goes on the PATH of the shells that do not have it yet.
   for (const rc of [".zshrc", ".bashrc", ".profile"]) {
     const f = path.join(d.home, rc);

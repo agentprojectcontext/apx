@@ -134,6 +134,8 @@ rem The APX command, written by install.ps1.
 if not defined APX_APP set "APX_APP=$App"
 "%APX_APP%\current\node\node.exe" --disable-warning=ExperimentalWarning "%APX_APP%\current\apps\terminal\src\main.ts" %*
 "@ | Set-Content -Encoding ASCII (Join-Path $bin "apx.cmd")
+  # The same command as apx2: it reaches this APX even where another apx (v1's) comes first on the PATH.
+  Copy-Item -Force (Join-Path $bin "apx.cmd") (Join-Path $bin "apx2.cmd")
   $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
   if (($userPath -split ";") -notcontains $bin) {
     [Environment]::SetEnvironmentVariable("Path", (($userPath, $bin) | Where-Object { $_ }) -join ";", "User")

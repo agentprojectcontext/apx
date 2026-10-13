@@ -66,6 +66,9 @@ password; otherwise it warns that v1's `apx` is still there. Remove it yourself,
 ```bash
 sudo npm uninstall -g @agentprojectcontext/apx
 ```
+
+Until then, v2 also answers to `apx2`, which no other program uses: `apx2 v1` says whether v1 still runs, and
+`apx2 v1 off` turns its daemon off for good and makes `apx` v2's.
 </Aside>
 
 </TabItem>
@@ -182,4 +185,5 @@ retired.
 
 The server installer stops v1's daemon and removes v1's `apx` command (`npm uninstall -g`), leaving its files in
 `~/.apx` so you can import them later. In the desktop app, the wizard's **Make apx this version** does the same switch
-for the command.
+for the command. If v1 still runs beside v2 (its routines and bots would run twice), the panel says so with a card that
+turns it off, and so do `apx v1` and `apx v1 off` in a terminal (`apx2` where `apx` is still v1's).

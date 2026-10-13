@@ -66,6 +66,9 @@ contraseña; si no, te avisa que el `apx` de v1 sigue ahí. Sacalo vos y abrí u
 ```bash
 sudo npm uninstall -g @agentprojectcontext/apx
 ```
+
+Mientras tanto, v2 también responde a `apx2`, que ningún otro programa usa: `apx2 v1` dice si v1 sigue corriendo, y
+`apx2 v1 off` apaga su daemon para siempre y deja `apx` en v2.
 </Aside>
 
 </TabItem>
@@ -185,4 +188,6 @@ que jubiles v1.
 
 El instalador de servidor frena el daemon de v1 y saca su comando `apx` (`npm uninstall -g`), pero deja sus archivos
 en `~/.apx` para que los importes después. En la app de escritorio, **Que apx sea esta versión** del asistente hace el
-mismo cambio para el comando.
+mismo cambio para el comando. Si v1 sigue corriendo al lado de v2 (sus rutinas y bots correrían dos veces), el panel lo
+avisa con una tarjeta que lo apaga, y en una terminal también `apx v1` y `apx v1 off` (`apx2` si `apx` sigue siendo el de
+v1).

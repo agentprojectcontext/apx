@@ -17,7 +17,7 @@ export async function v1(client: ApxClient, [sub]: string[]): Promise<void> {
   console.log(`APX v1${s.v1.version ? ` ${s.v1.version}` : ""} in ${s.v1.home} · ${s.v1.projects} projects`);
   console.log(
     s.v1_running
-      ? "⚠ its daemon is running: routines and bots may run twice. Turn it off: apx v1 off"
+      ? "⚠ its daemon is running: routines and bots may run twice. Turn it off: apx v1 off (apx2 v1 off where apx is still v1's)"
       : "✓ its daemon is off",
   );
 }

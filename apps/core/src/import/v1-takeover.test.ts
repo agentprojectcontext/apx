@@ -49,6 +49,8 @@ test("on a Mac v1's daemon and desktop are booted out and disabled, so login doe
   assert.ok(launcher.includes(`ELECTRON_RUN_AS_NODE=1 exec '${deps.terminal.exe}'`));
   assert.ok(launcher.includes(`'${deps.terminal.main}' "$@"`));
   assert.equal(fs.statSync(path.join(home, ".local", "bin", "apx")).mode & 0o777, 0o755);
+  // apx2 reaches it even where v1's apx still comes first on the PATH.
+  assert.equal(fs.readlinkSync(path.join(home, ".local", "bin", "apx2")), "apx");
 });
 
 test("on Linux the systemd unit is disabled and the desktop's autostart entry put aside", async () => {
@@ -80,6 +82,7 @@ test("install.sh's launcher is left alone; an AppImage points at the install lin
   fs.writeFileSync(path.join(a.home, ".local", "bin", "apx"), mine);
   assert.equal((await takeOverV1(a.deps)).ok, true);
   assert.equal(fs.readFileSync(path.join(a.home, ".local", "bin", "apx"), "utf8"), mine);
+  assert.equal(fs.readlinkSync(path.join(a.home, ".local", "bin", "apx2")), "apx");
   const b = world("linux");
   const res = await takeOverV1({ ...b.deps, terminal: { ...b.deps.terminal, appImage: true } });
   assert.equal(res.ok, false);
