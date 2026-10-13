@@ -108,6 +108,7 @@ Usage:
   apx agents set <agent> name=… role=… slug=… parent=… blob=…
   apx agents set <agent> --prompt-file <file | ->   Its prompt from a file, or stdin with -
   apx agents archive <agent>         Project agents: changes are written to .apc/agents/<slug>.md
+  apx agents archived | restore <agent>   Archived agents, and bringing one back (deleting for good is in the app)
   apx agents model <agent> <engine/model | engine | router | default> [--router]
                            An agent's model; --router keeps the router as its fallback
 

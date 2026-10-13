@@ -22,6 +22,7 @@ apx mcps show <name> [--project p]             Its definition (secrets show as s
 apx mcps add <name> [--env K=V…] -- <command…|url>   Add one of your own (--header K=V for a url)
 apx mcps copy <from> <to> [--env K=V…]         A copy of one under a new name, with the variables you change
 apx mcps set <name> --env K=V…                 Change variables (or --header) of one, keeping the rest
+apx mcps rename <name> <new-name>              The same server under another name
 apx mcps rm <name>                             Remove one of your own
   Live from the next message: nothing restarts. --project p works on that project's .apc/mcps.json instead.`;
 

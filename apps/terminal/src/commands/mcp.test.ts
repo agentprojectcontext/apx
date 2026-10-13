@@ -84,3 +84,17 @@ test("apx mcps add takes its variables with --env", async () => {
     { name: "notes", server: { command: "notes-mcp", args: ["--stdio"], env: { TOKEN: "secret://NOTES" } } },
   ]);
 });
+
+test("apx mcps rename saves the server under the new name before removing the old one", async () => {
+  const def = { command: "npx", args: ["x"], env: { TOKEN: "secret://T" }, headers: {} };
+  const { client, calls } = recordingClient({
+    "mcp.list": { servers: [{ name: "clodflare", scope: "global", enabled: true, status: "off", definition: def }] },
+    "mcp.set": { servers: [] },
+  });
+  await printed(() => mcpCommand(client, ["rename", "clodflare", "cloudflare"], {}));
+  const sets = calls.filter(([m]) => m === "mcp.set").map(([, p]) => p);
+  assert.deepEqual(sets, [
+    { name: "cloudflare", server: { command: "npx", args: ["x"], env: { TOKEN: "secret://T" }, enabled: true } },
+    { name: "clodflare", server: null },
+  ]);
+});

@@ -216,6 +216,19 @@ export async function mcps(
     });
     return;
   }
+  if (sub === "rename") {
+    if (!a || !b) throw new Error("usage: apx mcps rename <name> <new-name>");
+    const { status, def } = await definition(a);
+    // The new one is saved before the old one goes: nothing is lost if either step fails.
+    await save(b, {
+      ...(def.url ? { url: def.url, headers: def.headers } : { command: def.command, args: def.args }),
+      env: def.env,
+      enabled: status.enabled,
+    });
+    await client.call("mcp.set", { name: a, ...where, server: null });
+    console.log(`renamed ${a} to ${b}`);
+    return;
+  }
   if (sub === "set") {
     if (!a || (!o.env?.length && !o.header?.length))
       throw new Error("usage: apx mcps set <name> --env K=V… [--header K=V…]");

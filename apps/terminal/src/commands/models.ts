@@ -141,5 +141,17 @@ export async function agentEdit(
     console.log(r.moved_to ? `archived; file moved to ${r.moved_to}` : "archived");
     return;
   }
+  if (sub === "archived") {
+    const { agents } = await client.call("agents.archived", {});
+    for (const a of agents) console.log(`${a.id}  ${a.name}${a.role ? ` · ${a.role}` : ""}`);
+    if (!agents.length) console.log("(no archived agents)");
+    return;
+  }
+  if (sub === "restore") {
+    if (!args[0]) throw new Error("usage: apx agents restore <agent>");
+    const a = await client.call("agents.restore", { agent: args[0] });
+    console.log(`${a.name} (${a.id}) is back on its team`);
+    return;
+  }
   throw new Error(`unknown agents command: ${sub}`);
 }
