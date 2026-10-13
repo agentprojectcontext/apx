@@ -111,10 +111,13 @@ export const enTeam = {
   "limits.lead":
     "Agents that delegate and answer each other without you pause after this much, counted since you last wrote in that chat. Write and they go on.",
   "limits.runs": "Turns without you",
-  "limits.runsHint": "Turns agents start on their own in one chat before they wait for you. Off: no limit.",
+  "limits.runsHint": "Turns agents start on their own in one chat before they wait for you. Empty: no limit.",
   "limits.tokens": "Tokens without you",
-  "limits.tokensHint": "What those turns may spend before they wait for you. Off: no limit.",
+  "limits.tokensHint": "What those turns may spend before they wait for you. Empty: no limit.",
   "limits.thousands": "thousand",
+  "limits.none": "No limit",
+  "limits.off": "Remove the limits",
+  "limits.offHint": "Agents keep going on their own until they finish, however long it takes and whatever it costs.",
   "notice.breaker.paused.runs":
     "Paused: agents started {spent} turns on their own since you last wrote here. {who} finished; write to continue.",
   "notice.breaker.paused.tokens":

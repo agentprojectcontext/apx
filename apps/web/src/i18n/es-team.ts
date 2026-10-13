@@ -113,10 +113,13 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "limits.lead":
     "Los agentes que delegan y se responden entre ellos sin vos se pausan al llegar a esto, contado desde tu último mensaje en ese chat. Escribís y siguen.",
   "limits.runs": "Turnos sin vos",
-  "limits.runsHint": "Turnos que los agentes empiezan solos en un chat antes de esperarte. Apagado: sin límite.",
+  "limits.runsHint": "Turnos que los agentes empiezan solos en un chat antes de esperarte. Vacío: sin límite.",
   "limits.tokens": "Tokens sin vos",
-  "limits.tokensHint": "Lo que pueden gastar esos turnos antes de esperarte. Apagado: sin límite.",
+  "limits.tokensHint": "Lo que pueden gastar esos turnos antes de esperarte. Vacío: sin límite.",
   "limits.thousands": "mil",
+  "limits.none": "Sin límite",
+  "limits.off": "Quitar los límites",
+  "limits.offHint": "Los agentes siguen solos hasta terminar, tarden lo que tarden y cueste lo que cueste.",
   "notice.breaker.paused.runs":
     "En pausa: los agentes hicieron {spent} turnos solos desde tu último mensaje acá. {who} terminó; escribí para seguir.",
   "notice.breaker.paused.tokens":

@@ -12,7 +12,7 @@ const MAX: Record<Key, number> = { runs: 10_000, tokens: 1_000_000 };
 
 /**
  * How far agents go on their own (delegating, waking each other with results) before they wait for the owner to
- * write: a number of turns and of tokens, each one on or off.
+ * write: one switch removes both limits; otherwise a number of turns and of tokens (left empty: that one has none).
  */
 export function AgentLimitsBlock() {
   const t = useT();
@@ -29,49 +29,42 @@ export function AgentLimitsBlock() {
       .catch(() => setLimits(undefined));
   }, []);
   if (!limits) return null;
-  const save = (patch: Partial<AgentLimits>) => {
-    const next = { ...limits, ...patch };
+  const save = (next: AgentLimits) => {
     setLimits(next);
     void client
       .call("agents.set_limits", next)
       .then(setLimits)
       .catch(() => setLimits(limits));
   };
+  const none = !limits.runs && !limits.tokens;
   const row = (key: Key) => {
-    const on = limits[key] > 0;
-    const shown = draft[key] ?? String(Math.round((on ? limits[key] : defaults[key]) / SCALE[key]));
+    const shown = draft[key] ?? (limits[key] ? String(Math.round(limits[key] / SCALE[key])) : "");
     const commit = () => {
       const typed = draft[key];
       setDraft((d) => ({ ...d, [key]: undefined }));
       if (typed === undefined) return;
-      const v = Math.max(1, Math.min(MAX[key], Math.round(Number(typed) || 0)));
-      save({ [key]: v * SCALE[key] });
+      const n = Math.round(Number(typed) || 0);
+      save({ ...limits, [key]: n > 0 ? Math.min(MAX[key], n) * SCALE[key] : 0 });
     };
     return (
       <SettingRow title={t(`limits.${key}`)} description={t(`limits.${key}Hint`)}>
         <div className="tgquiet">
-          <Switch
-            size="sm"
-            checked={on}
-            onCheckedChange={(v) => save({ [key]: v ? defaults[key] : 0 })}
+          <Input
             aria-label={t(`limits.${key}`)}
+            type="number"
+            min={0}
+            max={MAX[key]}
+            className="nudge__num"
+            placeholder={t("limits.none")}
+            value={shown}
+            onChange={(e) => {
+              const typed = e.currentTarget.value;
+              setDraft((d) => ({ ...d, [key]: typed }));
+            }}
+            onBlur={commit}
+            onKeyDown={(e) => e.key === "Enter" && commit()}
           />
-          {on && (
-            <>
-              <Input
-                aria-label={t(`limits.${key}`)}
-                type="number"
-                min={1}
-                max={MAX[key]}
-                className="nudge__num"
-                value={shown}
-                onChange={(e) => setDraft((d) => ({ ...d, [key]: e.currentTarget.value }))}
-                onBlur={commit}
-                onKeyDown={(e) => e.key === "Enter" && commit()}
-              />
-              {key === "tokens" && <span className="tgquiet__word">{t("limits.thousands")}</span>}
-            </>
-          )}
+          {key === "tokens" && <span className="tgquiet__word">{t("limits.thousands")}</span>}
         </div>
       </SettingRow>
     );
@@ -80,8 +73,16 @@ export function AgentLimitsBlock() {
     <>
       <SubHead>{t("limits.title")}</SubHead>
       <p className="config__lead">{t("limits.lead")}</p>
-      {row("runs")}
-      {row("tokens")}
+      <SettingRow title={t("limits.off")} description={t("limits.offHint")}>
+        <Switch
+          size="sm"
+          checked={none}
+          onCheckedChange={(off) => save(off ? { runs: 0, tokens: 0 } : defaults)}
+          aria-label={t("limits.off")}
+        />
+      </SettingRow>
+      {!none && row("runs")}
+      {!none && row("tokens")}
     </>
   );
 }
