@@ -2,6 +2,11 @@
 // its profile and what it knows about the owner (Account), which the agents read too.
 import { expect, open, rpc, test } from "./kit.ts";
 
+// Done with the setup wizard: this spec must not depend on an earlier one having finished it.
+test.beforeAll(async () => {
+  await rpc("setup.finish");
+});
+
 test("the super-agent's face opens its block beside the chat; its prompt and profile are one click away", async ({
   page,
 }) => {

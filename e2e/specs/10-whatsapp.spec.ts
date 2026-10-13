@@ -2,6 +2,11 @@
 // about on the owner's phone, and the line turned into the owner's own phone ("Message yourself").
 import { expect, open, rpc, test, until, world } from "./kit.ts";
 
+// Done with the setup wizard: this spec must not depend on an earlier one having finished it.
+test.beforeAll(async () => {
+  await rpc("setup.finish");
+});
+
 const LINE = "5491100000001@s.whatsapp.net";
 const ME = { phone: "5491100000007@s.whatsapp.net", name: "Mi teléfono" };
 const FRIEND = { phone: "5491100000009@s.whatsapp.net", name: "Lucía" };
@@ -49,7 +54,7 @@ test("the owner links a line with the QR, then their own phone by writing to it"
   );
 });
 
-test("strangers 'ask me': the owner hears where their notices go who wrote and what; once let in, that message is answered", async ({
+test("strangers 'ask me': whoever writes is an unreviewed contact, the owner hears who and what; unsilenced, they get answers", async ({
   page,
 }) => {
   await open(page);
@@ -75,9 +80,12 @@ test("strangers 'ask me': the owner hears where their notices go who wrote and w
   expect(notice.text).toContain("¿vamos el sábado?");
   expect(await world.whatsapp.sentTo(FRIEND.phone)).toEqual([]);
 
+  // In the panel they are a contact not reviewed yet: their message is in their chat, unanswered.
   await page.keyboard.press("Escape");
-  await expect(page.getByText("“hola, ¿vamos el sábado?”")).toBeVisible();
-  await page.getByRole("button", { name: "Aceptar como contacto" }).click();
+  await page.getByRole("button", { name: /Lucía.*Sin revisar/ }).click();
+  await expect(page.getByText("hola, ¿vamos el sábado?").last()).toBeVisible();
+  await page.getByRole("button", { name: "Quitar silencio" }).click();
+  await world.whatsapp.message(FRIEND, "¿y a qué hora?");
   await until(async () => (await world.whatsapp.sentTo(FRIEND.phone)).some((t) => t.startsWith("Got it:")));
 });
 

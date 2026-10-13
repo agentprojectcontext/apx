@@ -3,6 +3,11 @@
 import type { Page } from "@playwright/test";
 import { expect, open, rpc, test } from "./kit.ts";
 
+// Done with the setup wizard: this spec must not depend on an earlier one having finished it.
+test.beforeAll(async () => {
+  await rpc("setup.finish");
+});
+
 test("the chat list resizes from its edge and never folds away; an icon button says what it does", async ({ page }) => {
   await open(page);
   await expect(page.getByRole("button", { name: "Plegar la lista" })).toHaveCount(0);
