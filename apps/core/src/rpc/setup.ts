@@ -8,12 +8,24 @@ import { greetOwner } from "../domain/greeting.ts";
 import { errorMessage } from "../errors.ts";
 import { jsonFile, v1Projects } from "../import/v1-data.ts";
 import { importV1, scanV1, type V1ImportDeps } from "../import/v1-setup.ts";
+import { type Run, takeOverV1, v1Answers } from "../import/v1-takeover.ts";
 import type { Handlers } from "./router.ts";
 
 const DONE_KEY = "setup_done";
-/** The global npm package v1's `apx` comes from. */
-const V1_PACKAGE = "@agentprojectcontext/apx";
-const run = promisify(execFile);
+const exec = promisify(execFile);
+/** A program that is missing or fails is an answer, not an error: the take-over goes on and says what is left. */
+const run: Run = async (cmd, args) => {
+  try {
+    const { stdout, stderr } = await exec(cmd, args, { timeout: 60_000, windowsHide: true });
+    return { code: 0, out: `${stdout}${stderr}` };
+  } catch (err) {
+    const e = err as { code?: unknown; stdout?: string; stderr?: string };
+    return {
+      code: typeof e.code === "number" ? e.code : -1,
+      out: `${e.stdout ?? ""}${e.stderr ?? errorMessage(err, 200)}`,
+    };
+  }
+};
 /** This checkout's command (apps/terminal): where `pnpm link --global` makes `apx` this APX. */
 const TERMINAL = path.resolve(import.meta.dirname, "../../../terminal");
 
@@ -50,13 +62,15 @@ export function findV1(home: string) {
   };
 }
 
-export function setupHandlers(deps: V1ImportDeps) {
+export function setupHandlers(deps: V1ImportDeps & { v1Url?: string }) {
   const { store, v1Home } = deps;
+  const v1Running = () => (deps.v1Url ? v1Answers(deps.v1Url) : Promise.resolve(false));
   return {
     "setup.v1_scan": () => ({ groups: scanV1(v1Home) }),
     "setup.import_v1": ({ groups }) => importV1(deps, groups),
-    "setup.status": () => ({
+    "setup.status": async () => ({
       done: store.settings.get(DONE_KEY) === "1",
+      v1_running: await v1Running(),
       // Anything the owner already said means this install is in use: the setup does not open on its own then.
       fresh: !store.messages.anyFromOwner(),
       v1: findV1(v1Home),
@@ -64,14 +78,21 @@ export function setupHandlers(deps: V1ImportDeps) {
     }),
     "setup.take_over_cli": async () => {
       if (!fs.existsSync(TERMINAL)) return { ok: false, detail: "this APX has no terminal to link" };
-      // v1's package may already be gone: only the link has to work.
-      await run("pnpm", ["remove", "-g", V1_PACKAGE]).catch(() => undefined);
-      try {
-        await run("pnpm", ["--dir", TERMINAL, "link", "--global"]);
-        return { ok: true, detail: "apx now runs this APX" };
-      } catch (err) {
-        return { ok: false, detail: errorMessage(err, 300) };
-      }
+      const electron = Boolean(process.versions.electron);
+      return takeOverV1({
+        platform: process.platform,
+        home: os.homedir(),
+        uid: process.getuid?.() ?? 0,
+        run,
+        v1Running,
+        terminal: {
+          main: path.join(TERMINAL, "src", "main.ts"),
+          exe: process.execPath,
+          electron,
+          appImage: Boolean(process.env.APPIMAGE),
+          checkout: !electron && fs.existsSync(path.resolve(TERMINAL, "../../.git")),
+        },
+      });
     },
     "setup.greet": ({ language }) => greetOwner(store, language),
     "setup.finish": () => {

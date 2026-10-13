@@ -125,6 +125,8 @@ export const appMethods = {
         .nullable(),
       /** The folder of this APX's command (apps/terminal), to put `apx` on the PATH from there. */
       terminal: z.string().optional(),
+      /** APX v1's daemon still answers beside this one: routines and bots would run twice. */
+      v1_running: z.boolean().optional(),
     }),
     effect: false,
     access: "human",

@@ -270,6 +270,7 @@ export function coreHandlers(d: HandlerDeps) {
         void d.memory.index().catch((err) => d.log.warn({ err: errorMessage(err, 200) }, "memory indexing failed"));
       },
       v1Home: d.app.v1.home,
+      v1Url: d.app.v1.url,
       v2Home: d.app.home,
     }),
     ...composerHandlers({
