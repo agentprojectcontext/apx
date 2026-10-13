@@ -328,6 +328,18 @@
   margin-block: 2px;
 }
 
+.apx-md__quote {
+  padding-left: 12px;
+  border-left: 3px solid var(--apx-border-strong);
+  color: var(--apx-fg-muted);
+}
+.apx-md__quote > * {
+  margin: 0 0 8px;
+}
+.apx-md__quote > :last-child {
+  margin-bottom: 0;
+}
+
 .apx-md__table {
   overflow-x: auto;
 }

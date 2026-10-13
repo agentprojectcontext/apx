@@ -737,3 +737,26 @@
   background: var(--apx-surface-raised);
   color: var(--apx-fg);
 }
+
+/* A quote an agent drafted, with its copy button in the corner (always there on touch, on hover with a mouse). */
+.quotecopy {
+  position: relative;
+}
+.quotecopy > .apx-md__quote {
+  padding-right: 36px;
+}
+.quotecopy__button {
+  position: absolute;
+  top: -2px;
+  right: 0;
+}
+@media (hover: hover) {
+  .quotecopy__button {
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+  .quotecopy:hover .quotecopy__button,
+  .quotecopy__button:focus-within {
+    opacity: 1;
+  }
+}

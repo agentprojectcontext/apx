@@ -8,6 +8,7 @@ import { baseRef, effortLabel, splitRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { copyableQuote } from "./CopyableQuote.tsx";
 import { linkMenu } from "./LinkMenu.tsx";
 import { MessageActions } from "./MessageActions.tsx";
 import { AudioPart } from "./parts/AudioPart.tsx";
@@ -119,7 +120,12 @@ export function AgentTurn({
             }
           >
             {part.type === "text" ? (
-              <MarkdownView source={part.text} renderLink={linkMenu} renderCode={runnableCode(thread, message.id)} />
+              <MarkdownView
+                source={part.text}
+                renderLink={linkMenu}
+                renderCode={runnableCode(thread, message.id)}
+                renderQuote={copyableQuote}
+              />
             ) : (
               renderCard(part, agent, message)
             )}
