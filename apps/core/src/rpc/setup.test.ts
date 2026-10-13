@@ -215,6 +215,7 @@ before(async () => {
         schedule: "30 8 * * 1-5",
         spec: { agent: "dev", prompt: "Brief me" },
         pre_commands: ["acme check"],
+        post_commands: ['apx telegram send "$APX_LLM_OUTPUT"', "acme log done"],
         skip_prompt_on: "pre_failure",
         enabled: true,
       },
@@ -312,6 +313,7 @@ test("importing brings projects, notes, open tasks and commitments, variables an
   assert.equal(brief?.action, "agent");
   assert.equal(brief?.call_model, "succeeds", "v1 left the model out when the pre-command failed");
   assert.equal(env.core.store.agents.get(brief?.agent_id ?? "")?.slug, "dev");
+  assert.equal(brief?.post_command, "acme log done", "v1's own send to a channel goes: v2 delivers the news itself");
   const backup = routines.find((x) => x.name === "Backup");
   assert.equal(backup?.action, "shell");
   assert.equal(backup?.pre_command, "tar czf b.tgz notes");

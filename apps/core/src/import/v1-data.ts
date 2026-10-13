@@ -203,6 +203,9 @@ export type V1Routine = {
   enabled: boolean;
 };
 
+/** v1 sent a routine's news itself with these; v2 delivers it to the owner's channel, and has no such command. */
+const V1_SEND = /^apx\s+(telegram|whatsapp|discord)\s+send\b/;
+
 /** A project's routines (routines.json). */
 export function v1Routines(storage: string): V1Routine[] {
   return list(obj(readJson(path.join(storage, "routines.json"))).routines).flatMap((r) => {
@@ -213,7 +216,7 @@ export function v1Routines(storage: string): V1Routine[] {
     const join = (v: unknown) =>
       list(v)
         .map((c) => (typeof c === "string" ? c : str(obj(c).command ?? obj(c).cmd)))
-        .filter(Boolean)
+        .filter((c) => c && !V1_SEND.test(c.trim()))
         .join(" && ");
     return [
       {
