@@ -1,6 +1,6 @@
-import type { ImageDefaults, ServiceInfo, ServiceKind } from "@apx/protocol";
+import type { ImageDefaults, ServiceInfo, ServiceKind, ServiceTest } from "@apx/protocol";
 import { Badge, Button, EmptyState, IconButton, Icons, Input, SettingRow, Switch, Textarea } from "@apx/ui";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { mediaUrl } from "../data/media.ts";
 import { notify } from "../data/notices.ts";
@@ -9,30 +9,55 @@ import { useT } from "../i18n/index.ts";
 import { LocalTranscription } from "./LocalTranscription.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 import { ServiceDialog } from "./ServiceDialog.tsx";
+import { checkText, settingsOf, testService } from "./serviceCheck.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** Images or Voices: the owner's services in the order they are tried, a test, and (images) the shared defaults. */
-export function ServicesSection({ kind, embedded = false }: { kind: ServiceKind; embedded?: boolean }) {
+/**
+ * Images or Voices: the owner's services in the order they are tried, a test, and (images) the shared defaults. One
+ * that does not answer says why. `onChange` hears the list each time it is read again (after an edit, too).
+ */
+export function ServicesSection({
+  kind,
+  embedded = false,
+  onChange,
+}: {
+  kind: ServiceKind;
+  embedded?: boolean;
+  onChange?: (services: ServiceInfo[]) => void;
+}) {
   const t = useT();
   const [services, setServices] = useState<ServiceInfo[]>();
+  // Why each one that does not answer does not (asked again with "Test connection").
+  const [why, setWhy] = useState<Record<string, ServiceTest>>({});
   const [defaults, setDefaults] = useState<ImageDefaults>();
   const [editing, setEditing] = useState<ServiceInfo | "new">();
   const [transcriptionKey, setTranscriptionKey] = useState(0);
   const refreshTranscription = useCallback(() => setTranscriptionKey((k) => k + 1), []);
+  const changed = useRef(onChange);
+  changed.current = onChange;
+
+  /** Asks one service now: why it does not answer, or that it does again. */
+  const retest = useCallback(async (s: ServiceInfo) => {
+    const r = await testService(settingsOf(s), s.id);
+    setWhy((w) => ({ ...w, [s.id]: r }));
+    setServices((list) => list?.map((x) => (x.id === s.id ? { ...x, status: r.ok ? "reachable" : "unreachable" } : x)));
+  }, []);
 
   const load = useCallback(async () => {
     try {
       const r = await client.call("services.list", { kind });
       setServices(r.services);
       setDefaults(r.image_defaults);
+      changed.current?.(r.services);
+      for (const s of r.services) if (s.status === "unreachable") void retest(s);
       // The chat's read-aloud buttons follow whether a voice is set up.
       if (kind === "speech") void refreshSpeech();
     } catch (e) {
       setServices([]);
       notify(t("error.services", { error: errText(e) }));
     }
-  }, [kind, t]);
+  }, [kind, t, retest]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -108,12 +133,27 @@ export function ServicesSection({ kind, embedded = false }: { kind: ServiceKind;
                 <div className="res__name">
                   {s.label} <span className="svc__dialect">{s.dialect}</span>
                 </div>
-                <div className="res__desc res__mono">{s.base_url}</div>
+                <div className="res__desc res__mono">
+                  {s.base_url}
+                  {s.model ? ` · ${s.model}` : ""}
+                </div>
+                {s.status === "unreachable" && why[s.id] && !why[s.id]?.ok && (
+                  <div className="res__desc svc__why" role="status">
+                    {checkText(t, why[s.id] as ServiceTest)}
+                  </div>
+                )}
               </div>
               <Badge tone={s.status === "reachable" ? "brand" : s.status === "unreachable" ? "danger" : "neutral"} dot>
                 {t(`svc.status.${s.status}`)}
               </Badge>
               <Switch size="sm" checked={s.enabled} onCheckedChange={(on) => toggle(s, on)} label={t("providers.on")} />
+              <IconButton
+                size="sm"
+                label={t("svc.check")}
+                icon={<Icons.RefreshCw size={14} />}
+                disabled={!s.enabled}
+                onClick={() => void retest(s)}
+              />
               <IconButton
                 size="sm"
                 label={t("providers.edit")}

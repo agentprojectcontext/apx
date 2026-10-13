@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { after, before, test } from "node:test";
-import { generateImage, IMAGE_PROBE, probe } from "./images.ts";
+import { generateImage, IMAGE_PROBE } from "./images.ts";
+import { reach } from "./reach.ts";
 import { speak } from "./speech.ts";
 import type { ServiceConfig } from "./types.ts";
 import { joinUrl } from "./types.ts";
@@ -110,8 +111,8 @@ test("A1111: one call, the model by checkpoint, seeds and model read back", asyn
   const body = seen.findLast((s) => s.path === "/sdapi/v1/txt2img")?.body;
   assert.deepEqual(body?.override_settings, { sd_model_checkpoint: "turbo.safetensors" });
   assert.equal(body?.negative_prompt, "blurry");
-  assert.equal(await probe(svc({}), IMAGE_PROBE.a1111 ?? "", undefined), true);
-  assert.equal(await probe(svc({ dialect: "sdcpp" }), "/nothing", undefined), false);
+  assert.equal((await reach(svc({}), IMAGE_PROBE.a1111 ?? "", undefined)).ok, true);
+  assert.equal((await reach(svc({ dialect: "sdcpp" }), "/nothing", undefined)).ok, false);
 });
 
 test("stable-diffusion.cpp: queued job polled until done; an abandoned job is canceled", async () => {

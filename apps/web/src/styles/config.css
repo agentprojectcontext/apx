@@ -420,6 +420,28 @@
 .pform__hint.is-error {
   color: var(--apx-danger-soft-fg);
 }
+.res__desc.svc__why {
+  color: var(--apx-danger-soft-fg);
+  white-space: normal;
+  overflow: visible;
+}
+.pform__hint.is-ok {
+  color: var(--apx-fg-muted);
+}
+/* The models the server listed, to pick from */
+.pform__models {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+/* "Test connection" and what it found */
+.pform__check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
 
 /* ── Telegram ───────────────────────────────────────────────────────────── */
 .tgsetup {

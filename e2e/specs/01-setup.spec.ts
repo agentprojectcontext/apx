@@ -135,14 +135,28 @@ test("the setup opens again from the account menu and starts from scratch", asyn
   await expect(name).toHaveValue(new RegExp(`^(${AGENT_NAMES.join("|")})$`));
   await name.fill("Robina");
   for (let i = 0; i < 2; i++) await wizard.getByRole("button", { name: "Continuar" }).click();
-  // Memory by meaning: no Ollama on this machine, so a link to get it, or the owner's own engine.
+  // Memory by meaning: v1's engine is listed with whether it answers (not "no Ollama on this machine").
   await wizard.getByRole("button", { name: /Buscar por significado/ }).click();
-  await expect(wizard.getByText(/Ollama no está corriendo en esta máquina/)).toBeVisible();
-  await expect(wizard.getByRole("button", { name: "Descargar Ollama" })).toBeVisible();
-  await wizard.getByRole("button", { name: "Usar otro motor" }).click();
-  await expect(page.getByRole("dialog").getByRole("textbox", { name: "URL base" })).toHaveValue(
-    "http://127.0.0.1:11434",
-  );
+  const engine = wizard.locator(".res__row").filter({ hasText: "Ollama" });
+  await expect(engine.getByText("Responde")).toBeVisible();
+  await expect(wizard.getByText(/Ollama no está corriendo en esta máquina/)).toBeHidden();
+  // Another engine: "Test connection" says why an address does not answer, and lists the models of one that does.
+  await wizard.getByRole("button", { name: "Agregar", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  const url = dialog.getByRole("textbox", { name: "URL base" });
+  await expect(url).toHaveValue("http://127.0.0.1:11434");
+  await url.fill("http://127.0.0.1:65530");
+  await dialog.getByRole("button", { name: "Probar conexión" }).click();
+  await expect(dialog.getByText(/No hay nada escuchando en esa dirección y puerto/)).toBeVisible();
+  const { services } = await rpc<{ services: Array<{ base_url: string }> }>("services.list", { kind: "embedding" });
+  await url.fill(services[0]?.base_url ?? "");
+  await dialog.getByRole("button", { name: "Probar conexión" }).click();
+  await expect(dialog.getByText(/Ese servidor no tiene bge-m3/)).toBeVisible();
+  await dialog.getByRole("button", { name: "embeddinggemma:300m" }).click();
+  await expect(dialog.getByRole("textbox", { name: "Modelo" })).toHaveValue("embeddinggemma:300m");
+  await dialog.getByRole("button", { name: "Probar conexión" }).click();
+  await expect(dialog.getByText("Responde, con 2 modelos: elegí uno.")).toBeVisible();
+  await page.screenshot({ path: "/tmp/apx-embed-test.png" });
   await page.keyboard.press("Escape");
   await wizard.getByRole("button", { name: /Buscar por palabras/ }).click();
   for (let i = 0; i < 2; i++) await wizard.getByRole("button", { name: "Continuar" }).click();

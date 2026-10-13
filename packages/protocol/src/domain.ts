@@ -886,6 +886,17 @@ export const ServiceInfo = ServiceSettings.extend({
   status: z.enum(["reachable", "unreachable", "unknown"]),
 });
 export type ServiceInfo = z.infer<typeof ServiceInfo>;
+/**
+ * A service asked now: it answers (with the models it offers, when it lists them), or why not: no answer in time,
+ * nothing listening there, an unknown name, a refused key, another HTTP error.
+ */
+export const ServiceTest = z.object({
+  ok: z.boolean(),
+  problem: z.enum(["timeout", "refused", "name", "key", "http", "other"]).optional(),
+  detail: z.string().optional(),
+  models: z.array(z.string()).optional(),
+});
+export type ServiceTest = z.infer<typeof ServiceTest>;
 
 /**
  * How memory works: notes searched by their words (default), also by meaning (an embedding model indexes them), or

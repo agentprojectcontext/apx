@@ -71,7 +71,8 @@ export async function fakeLlm() {
       }
       if (req.url === "/api/tags" || req.url === "/api/embed") {
         res.writeHead(200, { "content-type": "application/json" });
-        if (req.url === "/api/tags") return res.end(JSON.stringify({ models: [] }));
+        if (req.url === "/api/tags")
+          return res.end(JSON.stringify({ models: [{ name: "qwen3:4b" }, { name: "embeddinggemma:300m" }] }));
         const { input } = JSON.parse(raw) as { input: string[] };
         return res.end(JSON.stringify({ embeddings: input.map(vectorOf) }));
       }

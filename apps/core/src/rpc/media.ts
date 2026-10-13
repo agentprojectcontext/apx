@@ -21,6 +21,7 @@ export function mediaHandlers(services: Services) {
       services.set(id, service, api_key);
       return { services: await services.info() };
     },
+    "services.test": ({ service, id, api_key }) => services.test(service, id, api_key),
     "services.order": async ({ kind, ids }) => {
       services.order(kind, ids);
       return { services: await services.info(kind) };

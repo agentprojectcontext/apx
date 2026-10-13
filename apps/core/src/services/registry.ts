@@ -4,7 +4,7 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import type { ImageDefaults, ServiceInfo, ServiceKind, ServiceSettings } from "@apx/protocol";
+import type { ImageDefaults, ServiceInfo, ServiceKind, ServiceSettings, ServiceTest } from "@apx/protocol";
 import type { MediaRecord } from "../domain/media.ts";
 import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
@@ -12,10 +12,11 @@ import type { Log } from "../log.ts";
 import type { Secrets } from "../secrets.ts";
 import { toOggOpus } from "./audio.ts";
 import { EMBED_PROBE, embed } from "./embeddings.ts";
-import { generateImage, IMAGE_PROBE, probe } from "./images.ts";
+import { generateImage, IMAGE_PROBE } from "./images.ts";
+import { reach } from "./reach.ts";
 import { SPEECH_PROBE, speak } from "./speech.ts";
 import { TRANSCRIBE_PROBE, transcribe } from "./transcription.ts";
-import type { ServiceConfig } from "./types.ts";
+import { PROBE_TIMEOUT_MS, type ServiceConfig } from "./types.ts";
 import { createWhisperCpp, type WhisperCpp } from "./whisper-cpp.ts";
 
 /** The bottom layer under every image: a service's own defaults and the call's arguments go on top. */
@@ -26,6 +27,14 @@ const BASE_DEFAULTS: ImageDefaults = {
   cfg_scale: 7,
   negative_prompt: "",
   count: 1,
+};
+
+/** The path each dialect is asked on to see whether it answers (and what it lists). */
+const PROBES: Record<ServiceKind, Record<string, string>> = {
+  image: IMAGE_PROBE,
+  speech: SPEECH_PROBE,
+  embedding: EMBED_PROBE,
+  transcription: TRANSCRIBE_PROBE,
 };
 
 /** How long a check (or a failure) is trusted before asking the service again. */
@@ -69,15 +78,12 @@ export function createServices(deps: {
   async function check(s: ServiceConfig): Promise<boolean> {
     const cached = status.get(s.id);
     if (cached && Date.now() - cached.at < STATUS_TTL_MS) return cached.ok;
-    const probes = {
-      image: IMAGE_PROBE,
-      speech: SPEECH_PROBE,
-      embedding: EMBED_PROBE,
-      transcription: TRANSCRIBE_PROBE,
-    };
-    const path = probes[s.kind][s.dialect] ?? "/";
+    const path = PROBES[s.kind][s.dialect] ?? "/";
     // APX's own whisper.cpp is not started just to be checked.
-    const ok = s.dialect === "whisper-cpp" ? whisperCpp.available(s.model) : await probe(s, path, keyOf(s), f);
+    const ok =
+      s.dialect === "whisper-cpp"
+        ? whisperCpp.available(s.model)
+        : (await reach(s, path, keyOf(s), f, PROBE_TIMEOUT_MS)).ok;
     status.set(s.id, { ok, at: Date.now() });
     return ok;
   }
@@ -229,6 +235,19 @@ export function createServices(deps: {
         transcribe(s, { path: media.path, bytes: a.bytes, mime: a.mime }, keyOf(s), signal, f, whisperCpp),
       );
       return { text: out, media };
+    },
+    /** Asks a service now (saved as `id`, or still a draft): whether it answers, why not, and its models. */
+    async test(s: ServiceSettings, id?: string, apiKey?: string): Promise<ServiceTest> {
+      const saved = id ? all().find((x) => x.id === id) : undefined;
+      const cfg: ServiceConfig = { ...s, id: saved?.id ?? "" };
+      const r =
+        s.dialect === "whisper-cpp"
+          ? whisperCpp.available(s.model)
+            ? { ok: true }
+            : { ok: false, problem: "other" as const, detail: "whisper-server or the model file is missing" }
+          : await reach(cfg, PROBES[s.kind][s.dialect] ?? "/", apiKey ?? (saved ? keyOf(cfg) : undefined), f);
+      if (saved) status.set(saved.id, { ok: r.ok, at: Date.now() });
+      return r;
     },
     /** Words heard so far, from whisper.cpp on this machine only (free, in memory); undefined without it. */
     async listen(bytes: Buffer, mime: string, signal: AbortSignal): Promise<string | undefined> {

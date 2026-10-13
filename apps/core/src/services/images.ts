@@ -7,7 +7,6 @@ import {
   type ImageOptions,
   type ImageResult,
   joinUrl,
-  PROBE_TIMEOUT_MS,
   type ServiceConfig,
   ServiceError,
   sniffImage,
@@ -183,21 +182,3 @@ export const IMAGE_PROBE: Record<string, string> = {
   sdcpp: "/sdcpp/v1/capabilities",
   "openai-images": "/v1/models",
 };
-
-export async function probe(
-  s: ServiceConfig,
-  path: string,
-  key: string | undefined,
-  f: Fetch = fetch,
-): Promise<boolean> {
-  try {
-    const res = await f(joinUrl(s.base_url, path), {
-      headers: auth(key),
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-    });
-    await res.body?.cancel();
-    return res.ok;
-  } catch {
-    return false;
-  }
-}

@@ -1,9 +1,10 @@
-import type { ServiceDialect, ServiceInfo, ServiceKind, ServiceSettings } from "@apx/protocol";
-import { Button, Dialog, Input, Switch, Textarea } from "@apx/ui";
-import { useState } from "react";
+import type { ServiceDialect, ServiceInfo, ServiceKind, ServiceSettings, ServiceTest } from "@apx/protocol";
+import { Button, Dialog, Icons, Input, Switch, Textarea } from "@apx/ui";
+import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
+import { checkText, missingModel, settingsOf, testService } from "./serviceCheck.ts";
 
 type Preset = { id: string; label: string; dialect: ServiceDialect; base_url: string; needs_key: boolean } & Partial<
   Pick<ServiceSettings, "model" | "voice" | "language">
@@ -165,18 +166,33 @@ export function ServiceDialog(props: {
   const { kind, initial } = props;
   const first = PRESETS[kind][0] as Preset;
   const [draft, setDraft] = useState<ServiceSettings>(() => {
-    if (initial) {
-      const { id: _i, key_set: _k, status: _s, ...rest } = initial;
-      return rest;
-    }
+    if (initial) return settingsOf(initial);
     const { id: _p, ...p } = first;
     return { kind, enabled: true, ...p };
   });
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
+  // What "Test connection" found for the address as it is now (cleared when the address or the key change).
+  const [check, setCheck] = useState<ServiceTest>();
+  const [checking, setChecking] = useState(false);
   const id = initial?.id ?? slug(draft.label);
   const clash = !initial && props.taken.includes(id);
-  const set = (patch: Partial<ServiceSettings>) => setDraft((d) => ({ ...d, ...patch }));
+  const set = (patch: Partial<ServiceSettings>) => {
+    if ("base_url" in patch || "dialect" in patch || "needs_key" in patch) setCheck(undefined);
+    setDraft((d) => ({ ...d, ...patch }));
+  };
+  const validUrl = /^https?:\/\/.+/.test(draft.base_url);
+  const runCheck = async () => {
+    setChecking(true);
+    setCheck(await testService(draft, initial?.id, key || undefined));
+    setChecking(false);
+  };
+  // A saved service is tried as soon as it opens: the owner sees at once whether it answers and what it offers.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only on open
+  useEffect(() => {
+    if (initial && draft.dialect !== "whisper-cpp") void runCheck();
+  }, []);
+  const noModel = check && missingModel(t, check, draft);
   const save = async () => {
     setBusy(true);
     try {
@@ -201,7 +217,7 @@ export function ServiceDialog(props: {
           <Button variant="secondary" onClick={props.onClose}>
             {t("common.cancel")}
           </Button>
-          <Button disabled={clash || !/^https?:\/\/.+/.test(draft.base_url)} loading={busy} onClick={() => void save()}>
+          <Button disabled={clash || !validUrl} loading={busy} onClick={() => void save()}>
             {t("common.save")}
           </Button>
         </>
@@ -258,6 +274,21 @@ export function ServiceDialog(props: {
             onChange={(e) => set({ model: e.currentTarget.value })}
           />
         </Field>
+        {check?.models && check.models.length > 0 && (
+          <fieldset className="pform__presets pform__models" aria-label={t("svc.model")}>
+            {check.models.slice(0, 24).map((m) => (
+              <button
+                key={m}
+                type="button"
+                className={draft.model === m ? "pform__preset is-on" : "pform__preset"}
+                aria-pressed={draft.model === m}
+                onClick={() => set({ model: m })}
+              >
+                {m}
+              </button>
+            ))}
+          </fieldset>
+        )}
         {kind === "speech" && <SpeechFields draft={draft} set={set} />}
         <Switch
           checked={draft.needs_key}
@@ -276,6 +307,26 @@ export function ServiceDialog(props: {
               onChange={(e) => setKey(e.currentTarget.value)}
             />
           </Field>
+        )}
+        {draft.dialect !== "whisper-cpp" && (
+          <div className="pform__check">
+            <Button
+              size="sm"
+              variant="secondary"
+              leadingIcon={<Icons.RefreshCw size={14} />}
+              loading={checking}
+              disabled={!validUrl || (draft.needs_key && !key && !initial?.key_set)}
+              onClick={() => void runCheck()}
+            >
+              {t("svc.check")}
+            </Button>
+            {check && !checking && (
+              <span role="status" className={check.ok && !noModel ? "pform__hint is-ok" : "pform__hint is-error"}>
+                {checkText(t, check)}
+                {noModel ? ` ${noModel}` : ""}
+              </span>
+            )}
+          </div>
         )}
       </div>
     </Dialog>

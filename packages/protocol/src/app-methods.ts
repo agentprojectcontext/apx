@@ -49,6 +49,7 @@ import {
   ServiceInfo,
   ServiceKind,
   ServiceSettings,
+  ServiceTest,
   Surface,
   SurfaceOrigin,
   SurfaceSummary,
@@ -972,6 +973,22 @@ export const appMethods = {
       .strict(),
     result: z.object({ services: z.array(ServiceInfo) }),
     effect: true,
+    access: "human",
+  },
+  /**
+   * Asks a service now, saved or not yet (`service` as the form has it): whether it answers and the models it offers.
+   * `id` names a saved one, whose key is used when `api_key` is not given and whose status is updated.
+   */
+  "services.test": {
+    params: z
+      .object({
+        service: ServiceSettings,
+        id: z.string().max(32).optional(),
+        api_key: z.string().min(1).max(4000).optional(),
+      })
+      .strict(),
+    result: ServiceTest,
+    effect: false,
     access: "human",
   },
   /** Local transcription: this machine, the model that fits it, the models on disk and a download in progress. */

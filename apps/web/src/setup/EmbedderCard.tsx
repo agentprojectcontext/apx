@@ -1,7 +1,8 @@
-import type { LocalEmbedding } from "@apx/protocol";
+import type { LocalEmbedding, ServiceInfo } from "@apx/protocol";
 import { Badge, Button, Icons, Spinner } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { ServiceDialog } from "../config/ServiceDialog.tsx";
+import { ServicesSection } from "../config/ServicesSection.tsx";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
@@ -11,7 +12,8 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
  * Memory by meaning needs an embedding engine: Ollama on the core's machine when it is there (its models, the one that
- * fits, pulled from here), a link to get it when it is not, or any engine of the owner's own.
+ * fits, pulled from here), a link to get it when it is not, or any engine of the owner's own. Once there is one, the
+ * engines are listed as in Settings › Memory: whether each answers, and why not.
  */
 export function EmbedderCard() {
   const t = useT();
@@ -19,6 +21,7 @@ export function EmbedderCard() {
   // The engines there are (their ids), once the owner opens "use another engine".
   const [own, setOwn] = useState<string[]>();
   const [asked, setAsked] = useState(false);
+  const [engines, setEngines] = useState<ServiceInfo[]>();
   const load = useCallback(async () => {
     try {
       setS(await client.call("embeddings.local", {}));
@@ -26,6 +29,14 @@ export function EmbedderCard() {
       setS(undefined);
     }
   }, []);
+  const loadEngines = useCallback(async () => {
+    const r = await client.call("services.list", { kind: "embedding" }).catch(() => undefined);
+    setEngines(r?.services ?? []);
+  }, []);
+  useEffect(() => {
+    void loadEngines();
+  }, [loadEngines]);
+  const inUse = engines?.find((e) => e.enabled);
   useEffect(() => {
     void load();
   }, [load]);
@@ -64,6 +75,14 @@ export function EmbedderCard() {
         <span className="wiz__rowname">{t("setup.embed.title")}</span>
         <span className="wiz__rowbody">
           {s?.active ? t("setup.memory.engine", { engine: s.active }) : t("setup.embed.none")}
+          {s?.active && inUse?.status === "unreachable" && (
+            <>
+              {" "}
+              <Badge tone="danger" dot>
+                {t("svc.status.unreachable")}
+              </Badge>
+            </>
+          )}
         </span>
       </span>
       {!s ? (
@@ -122,7 +141,7 @@ export function EmbedderCard() {
           )}
           {pull?.error && <span className="wiz__hintline is-error">{pull.error}</span>}
         </>
-      ) : (
+      ) : engines?.length ? null : (
         <>
           <span className="wiz__hintline">{t("setup.embed.noOllama")}</span>
           <div className="wiz__inline">
@@ -135,11 +154,22 @@ export function EmbedderCard() {
           </div>
         </>
       )}
-      <div>
-        <Button size="sm" variant="ghost" leadingIcon={<Icons.Plus size={14} />} onClick={() => void openOwn()}>
-          {t("setup.embed.own")}
-        </Button>
-      </div>
+      {engines?.length ? (
+        <ServicesSection
+          kind="embedding"
+          embedded
+          onChange={(list) => {
+            setEngines(list);
+            void load();
+          }}
+        />
+      ) : (
+        <div>
+          <Button size="sm" variant="ghost" leadingIcon={<Icons.Plus size={14} />} onClick={() => void openOwn()}>
+            {t("setup.embed.own")}
+          </Button>
+        </div>
+      )}
       {own && (
         <ServiceDialog
           kind="embedding"
@@ -149,6 +179,7 @@ export function EmbedderCard() {
           onSaved={() => {
             setOwn(undefined);
             void load();
+            void loadEngines();
           }}
         />
       )}
