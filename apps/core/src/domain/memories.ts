@@ -258,6 +258,10 @@ export function memoriesRepo({ one, all, run }: Sql) {
     remove(id: string): boolean {
       return run(qb.deleteFrom("memories").where("id", "=", id)) > 0;
     },
+    /** An agent's own notes, when the agent is deleted for good. */
+    removeAgentNotes(agentId: string): number {
+      return run(qb.deleteFrom("memories").where("scope", "=", "agent").where("agent_id", "=", agentId));
+    },
     setEmbedding(id: string, vector: Float32Array, model: string): void {
       run(
         qb

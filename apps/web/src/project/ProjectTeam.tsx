@@ -3,7 +3,7 @@ import { AgentAvatar, Button, ContextMenu, EmptyState, IconButton, Icons, Menu, 
 import { type ReactNode, useMemo, useState } from "react";
 import { AgentModelPicker } from "../config/models/AgentModelPicker.tsx";
 import { PROFILE_KEY } from "../data/engines.ts";
-import { blobOf, type ProjectEntry, teamOf } from "../data/identity.ts";
+import { blobOf, type ProjectEntry, realProjectId, teamOf } from "../data/identity.ts";
 import { useOrg } from "../data/org.ts";
 import { useData } from "../data/state.ts";
 import { type T, useT } from "../i18n/index.ts";
@@ -13,6 +13,7 @@ import { ProjectOrg } from "./ProjectOrg.tsx";
 import { AgentDetail } from "./team/AgentDetail.tsx";
 import { DeleteAgentDialog, NewAgentDialog } from "./team/AgentDialogs.tsx";
 import { AgentEditor } from "./team/AgentEditor.tsx";
+import { ArchivedAgents } from "./team/ArchivedAgents.tsx";
 import { type AgentActions, agentMenu } from "./team/agentMenu.tsx";
 import { ImportDialog } from "./team/ImportDialog.tsx";
 import { TeamCanvas } from "./team/TeamCanvas.tsx";
@@ -160,6 +161,7 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
           )}
         </div>
       )}
+      <ArchivedAgents project={realProjectId(project.id) ?? ""} />
       {creating && (
         <NewAgentDialog
           project={project}

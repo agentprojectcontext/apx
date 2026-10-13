@@ -145,6 +145,51 @@ test("editing from APX writes the agent's file: create, edit, rename (same id) a
   }
 });
 
+test("an archived agent is listed apart, comes back with its file, or is deleted for good keeping its name in old chats", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apca-"));
+  try {
+    makeProject(root);
+    await env.client.call("projects.register", { path: root });
+    const id = "abc123def456-arch";
+    const chat = await env.client.call("threads.create", { kind: "agent", agent_id: id });
+    await env.client.call("memory.add", { scope: "agent", agent: id, text: "Prefers short specs" });
+    assert.equal((await env.client.call("memory.list", { scope: "agent", agent: id })).memories.length, 1);
+    await assert.rejects(env.client.call("agents.restore", { agent: id }), /not archived/);
+
+    await env.client.call("agents.archive", { agent: id });
+    const listed = await env.client.call("agents.archived", { project_id: "p_abc123def456" });
+    assert.deepEqual(
+      listed.agents.map((a) => a.id),
+      [id],
+    );
+    assert.equal((await env.client.call("agents.archived", {})).agents.length, 1, "every project's, without a filter");
+
+    // Back: its file returns, it is active again, with what the owner set in APX.
+    const back = await env.client.call("agents.restore", { agent: id });
+    assert.equal(back.name, "Arch");
+    assert.ok(fs.existsSync(path.join(root, ".apc", "agents", "arch.md")));
+    assert.ok((await env.client.call("agents.list", {})).agents.some((a) => a.id === id));
+    assert.equal((await env.client.call("agents.archived", {})).agents.length, 0);
+
+    // For good: only an archived one; its file and its own notes go, the chat still names it.
+    await assert.rejects(env.client.call("agents.delete", { agent: id }), /not archived/);
+    await env.client.call("agents.archive", { agent: id });
+    await env.client.call("agents.delete", { agent: id });
+    assert.deepEqual(fs.readdirSync(path.join(root, ".apc", "agents", ".archived")), []);
+    assert.equal((await env.client.call("agents.archived", {})).agents.length, 0);
+    assert.ok(!(await env.client.call("agents.list", {})).agents.some((a) => a.id === id));
+    const notes = await env.client.call("memory.list", { scope: "agent", agent: id });
+    assert.equal(notes.memories.length, 0);
+    assert.equal((await env.client.call("threads.get", { thread: chat.id })).thread.agent_ids[0], id);
+    assert.equal((await env.client.call("projects.sync", { project: "p_abc123def456" })).agents, 1);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("review fixes: an old slug can be reused after a rename; a clone with the same apx_id is its own project; symlinks are refused", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcr-"));

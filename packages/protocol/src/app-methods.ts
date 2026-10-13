@@ -275,6 +275,27 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /** Archived agents (every project's, or one's): the owner brings one back or deletes it for good. */
+  "agents.archived": {
+    params: z.object({ project_id: Id.optional() }).strict(),
+    result: z.object({ agents: z.array(Agent) }),
+    effect: false,
+    access: "human",
+  },
+  /** Brings an archived agent back: a project agent's file returns to .apc/agents/ and it shows again. */
+  "agents.restore": {
+    params: z.object({ agent: Id }).strict(),
+    result: Agent,
+    effect: true,
+    access: "human",
+  },
+  /** Deletes an archived agent for good: its file and its own notes go; the chats it was in keep its name. */
+  "agents.delete": {
+    params: z.object({ agent: Id }).strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   /**
    * APX's own tools an agent's list may name, with the group each belongs to; `kept` ones every agent keeps. MCP
    * tools are named as `mcp_<server>_*` or one by one.

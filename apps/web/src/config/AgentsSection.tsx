@@ -7,6 +7,7 @@ import { blobOf, DEFAULT_PID, projectInitial, projectTone } from "../data/identi
 import { loadCatalog, loadModelsConfig } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { ArchivedAgents } from "../project/team/ArchivedAgents.tsx";
 import { AgentModelPicker } from "./models/AgentModelPicker.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 
@@ -70,6 +71,7 @@ export function AgentsSection() {
           );
         })}
       </ul>
+      <ArchivedAgents />
     </>
   );
 }

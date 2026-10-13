@@ -44,9 +44,17 @@ export const enTeam = {
   "team.menu.superLocked": "The super-agent cannot be deleted",
   "team.menu.options": "Options for {name}",
   "team.delete.title": "Delete {name}?",
-  "team.delete.body": "Its chats stay. Agents that reported to it move up to its own manager.",
+  "team.delete.body":
+    "It leaves the team and every list; its chats stay and agents that reported to it move up to its manager. You can bring it back or delete it for good in Config › Agents.",
   "team.delete.bodyFile":
-    "Its file {file} moves to .apc/agents/.archived/ (not erased) and its chats stay. Agents that reported to it move up to its own manager.",
+    "It leaves the team and every list; its file {file} is kept in .apc/agents/.archived/ and its chats stay. You can bring it back or delete it for good in Config › Agents.",
+  "archived.title": "Archived",
+  "archived.note": "Agents you took off the team. Restore one to bring it back, or delete it for good.",
+  "archived.restore": "Restore",
+  "archived.delete": "Delete for good",
+  "archived.deleteTitle": "Delete {name} for good?",
+  "archived.deleteBody":
+    "Its file, its instructions and its notes are deleted. The chats it took part in stay, with its name. This cannot be undone.",
   "team.view.open": "View",
   "team.waiting": "Waiting for you",
   "team.zoom": "Zoom",

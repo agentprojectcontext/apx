@@ -3,7 +3,14 @@
 // database. Global agents (no project) live in the database.
 import type { Agent, ModelChoice } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
-import { archiveAgentFile, renameAgentFile, updateAgentFile, writeNewAgent } from "../apc/write.ts";
+import {
+  archiveAgentFile,
+  deleteArchivedAgentFiles,
+  renameAgentFile,
+  restoreAgentFile,
+  updateAgentFile,
+  writeNewAgent,
+} from "../apc/write.ts";
 import { type AgentRecord, publicAgent } from "../domain/agents.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
@@ -29,6 +36,12 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
     return p.path;
   };
   /** Runs a file operation, turning file errors into a typed refusal. */
+  /** Restoring or deleting is only for an archived agent: an active one is archived first. */
+  const archivedOne = (id: string): AgentRecord => {
+    const cur = store.agents.archived().find((a) => a.id === id);
+    if (!cur) throw store.agents.get(id) ? badRequest(`agent ${id} is not archived`) : notFound(`agent ${id}`);
+    return cur;
+  };
   const onDisk = <T>(fn: () => T): T => {
     try {
       return fn();
@@ -189,6 +202,32 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
       }
       store.agents.archive(cur.id);
       return { ok: true as const, ...(moved ? { moved_to: moved } : {}) };
+    },
+    "agents.archived": ({ project_id }) => ({ agents: store.agents.archived(project_id).map(publicAgent) }),
+    "agents.restore": ({ agent }) => {
+      const cur = archivedOne(agent);
+      if (cur.source === "apc" && cur.project_id && cur.slug) {
+        const root = rootOf(cur.project_id);
+        const slug = cur.slug;
+        onDisk(() => restoreAgentFile(root, slug));
+        // The sync finds the file again and lists the agent as active, with what the owner set in APX.
+        apc.sync(cur.project_id);
+      }
+      store.agents.unarchive(cur.id);
+      const back = store.agents.get(cur.id);
+      if (!back) throw notFound(`agent ${agent}`);
+      return publicAgent(back);
+    },
+    "agents.delete": ({ agent }) => {
+      const cur = archivedOne(agent);
+      if (cur.source === "apc" && cur.project_id && cur.slug) {
+        const root = rootOf(cur.project_id);
+        const slug = cur.slug;
+        onDisk(() => deleteArchivedAgentFiles(root, slug));
+      }
+      store.memories.removeAgentNotes(cur.id);
+      store.agents.purge(cur.id);
+      return { ok: true as const };
     },
   } satisfies Partial<Handlers>;
 }

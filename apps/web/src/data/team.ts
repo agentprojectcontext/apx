@@ -126,6 +126,44 @@ export async function createAgent(
   }
 }
 
+/** Archived agents, every project's: the owner brings one back or deletes it for good. */
+export async function loadArchivedAgents(): Promise<Agent[]> {
+  try {
+    return (await client.call("agents.archived", {})).agents;
+  } catch (e) {
+    notify(t("error.load", { error: errText(e) }));
+    return [];
+  }
+}
+
+async function reloadAgents(): Promise<void> {
+  const { agents } = await client.call("agents.list", {});
+  data.set({ agents: Object.fromEntries(agents.map((a) => [a.id, a])) });
+}
+
+/** An archived agent back on its team (a project agent's file returns to .apc/agents/). */
+export async function restoreAgent(agent: Agent): Promise<boolean> {
+  try {
+    await client.call("agents.restore", { agent: agent.id });
+    await reloadAgents();
+    return true;
+  } catch (e) {
+    notify(t("error.save", { error: errText(e) }));
+    return false;
+  }
+}
+
+/** An archived agent deleted for good: its file and its own notes go; its chats keep its name. */
+export async function deleteAgentForGood(agent: Agent): Promise<boolean> {
+  try {
+    await client.call("agents.delete", { agent: agent.id });
+    return true;
+  } catch (e) {
+    notify(t("error.save", { error: errText(e) }));
+    return false;
+  }
+}
+
 /** Removes an agent (its file is archived, its chats stay); its reports move up to its own parent. */
 export async function archiveAgent(agent: Agent): Promise<boolean> {
   try {

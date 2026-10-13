@@ -77,6 +77,6 @@ test("an agent is created, changed and archived only once the owner says yes", a
   assert.equal(writer.agent.role, "Writes copy", "what was not given stays");
   assert.equal(writer.prompt, "Write short.");
 
-  assert.match(await ask("let the writer go", "roby", "approve"), /archived Northwind Writer/);
+  assert.match(await ask("let the writer go", "roby", "approve"), /removed Northwind Writer: .*apx:settings\/agents/);
   assert.equal(await agent("acme-writer"), undefined);
 });

@@ -46,9 +46,17 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.menu.superLocked": "El super-agente no se puede borrar",
   "team.menu.options": "Opciones de {name}",
   "team.delete.title": "¿Borrar a {name}?",
-  "team.delete.body": "Sus chats quedan. Quienes le reportaban pasan a reportarle a su jefe.",
+  "team.delete.body":
+    "Sale del equipo y de todas las listas; sus chats quedan y quienes le reportaban pasan a su jefe. Lo podés recuperar o borrar para siempre en Config › Agentes.",
   "team.delete.bodyFile":
-    "Su archivo {file} pasa a .apc/agents/.archived/ (no se borra) y sus chats quedan. Quienes le reportaban pasan a reportarle a su jefe.",
+    "Sale del equipo y de todas las listas; su archivo {file} queda guardado en .apc/agents/.archived/ y sus chats quedan. Lo podés recuperar o borrar para siempre en Config › Agentes.",
+  "archived.title": "Archivados",
+  "archived.note": "Agentes que sacaste del equipo. Restaurá uno para que vuelva, o borralo para siempre.",
+  "archived.restore": "Restaurar",
+  "archived.delete": "Borrar para siempre",
+  "archived.deleteTitle": "¿Borrar a {name} para siempre?",
+  "archived.deleteBody":
+    "Se borran su archivo, sus instrucciones y sus notas. Los chats donde participó quedan, con su nombre. No se puede deshacer.",
   "team.view.open": "Ver",
   "team.waiting": "Espera tu respuesta",
   "team.zoom": "Zoom",

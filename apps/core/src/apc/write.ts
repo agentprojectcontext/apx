@@ -152,6 +152,43 @@ export function archiveAgentFile(root: string, slug: string): string {
   return path.relative(root, dest);
 }
 
+/** The archived copies of an agent's file, newest first (archiveAgentFile names them `<slug>-<time>.md`). */
+function archivedFiles(root: string, slug: string): string[] {
+  const dir = path.join(agentsDir(root), ".archived");
+  const mine = new RegExp(`^${slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}-\\d{4}-\\d{2}-\\d{2}T[\\d-]+Z\\.md$`);
+  try {
+    return fs
+      .readdirSync(dir)
+      .filter((f) => mine.test(f))
+      .sort()
+      .reverse()
+      .map((f) => path.join(dir, f));
+  } catch {
+    return [];
+  }
+}
+
+/** Brings an archived agent's newest file back to .apc/agents/; refuses when that slug is taken again. */
+export function restoreAgentFile(root: string, slug: string): string {
+  const from = archivedFiles(root, slug)[0];
+  if (!from) throw new Error(`no archived file for ${slug}`);
+  const to = agentFile(root, slug);
+  guard(root, to);
+  if (fs.existsSync(to)) throw new Error(`.apc/agents/${slug}.md exists: another agent took that slug`);
+  fs.renameSync(from, to);
+  return path.relative(root, to);
+}
+
+/** Deletes every archived copy of an agent's file. */
+export function deleteArchivedAgentFiles(root: string, slug: string): number {
+  const files = archivedFiles(root, slug);
+  for (const f of files) {
+    guard(root, f);
+    fs.rmSync(f);
+  }
+  return files.length;
+}
+
 export type ProjectMeta = { name?: string | undefined; description?: string | null; kind?: string | null };
 
 /**

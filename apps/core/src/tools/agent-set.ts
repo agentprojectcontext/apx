@@ -81,7 +81,8 @@ export function agentSetTools(store: Store): Tool[] {
         }
         if (a.archive) {
           const r = await ctx.callAsOwner("agents.archive", { agent: cur.id });
-          return `archived ${cur.name}${r.moved_to ? `; its file is now ${r.moved_to}` : ""}`;
+          // What the agent tells the owner: it is gone from the team, and where to bring it back or delete it.
+          return `removed ${cur.name}: it is off the team and out of every list${r.moved_to ? ` (its file is kept in ${r.moved_to})` : ""}. Tell the owner they can bring it back whenever they want, or delete it for good, in [Config › Agents](apx:settings/agents).`;
         }
         const { agent: _a, archive: _x, ...fields } = a;
         const now = await ctx.callAsOwner("agents.update", { agent: cur.id, ...fields });

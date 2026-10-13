@@ -163,6 +163,27 @@ export function agentsRepo({ one, all, run }: Sql) {
     archive(id: string): void {
       run(qb.updateTable("agents").set({ archived: 1 }).where("id", "=", id));
     },
+    /** Archived agents (all, or one project's): the owner can bring each back or delete it for good. */
+    archived(projectId?: string): AgentRecord[] {
+      let q = qb.selectFrom("agents").selectAll().where("archived", "=", 1);
+      if (projectId) q = q.where("project_id", "=", projectId);
+      return all(q.orderBy("name")).map(toAgent);
+    },
+    unarchive(id: string): void {
+      run(qb.updateTable("agents").set({ archived: 0 }).where("id", "=", id));
+    },
+    /**
+     * Deleted for good: its instructions go, and only its name, face and project stay (archived = 2, listed nowhere)
+     * so the chats and runs it took part in still say who it was.
+     */
+    purge(id: string): void {
+      run(
+        qb
+          .updateTable("agents")
+          .set({ archived: 2, prompt: "", description: null, extra: "{}", model_choice: null })
+          .where("id", "=", id),
+      );
+    },
     /** Archives the project's file-defined agents that are not in `keep` (their files are gone). */
     archiveMissing(projectId: string, keep: string[]): number {
       const ids = all(
