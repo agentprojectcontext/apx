@@ -6,12 +6,12 @@ import { useT } from "../i18n/index.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { go, nav, useNav } from "../shell/nav.ts";
 import { useShellLayout } from "../shell/useShellLayout.ts";
-import { BrowserPanel } from "./BrowserPanel.tsx";
-import { coverNativeViews } from "./BrowserViewport.tsx";
+import { coverNativeViews } from "./nativeCover.ts";
 import { panelDef } from "./panels.tsx";
 import { useWorkspace } from "./workspace.ts";
 
-// The folder's panels load when first opened, not with the chat.
+// The folder's panels and the browser load when first opened, not with the chat.
+const BrowserPanel = lazy(() => import("./BrowserPanel.tsx").then((m) => ({ default: m.BrowserPanel })));
 const ChatFiles = lazy(() => import("./ChatFiles.tsx").then((m) => ({ default: m.ChatFiles })));
 const UsagePanel = lazy(() => import("./UsagePanel.tsx").then((m) => ({ default: m.UsagePanel })));
 const ChangesPanel = lazy(() => import("./ChangesPanel.tsx").then((m) => ({ default: m.ChangesPanel })));
@@ -51,7 +51,9 @@ export function SidePanel() {
         />
       )}
       {panel === "browser" ? (
-        <BrowserPanel />
+        <Suspense fallback={null}>
+          <BrowserPanel />
+        </Suspense>
       ) : panel === "processes" ? (
         <Suspense fallback={null}>
           <ProcessesPanel key={threadId} />

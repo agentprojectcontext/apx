@@ -2,15 +2,12 @@ import { Button, EmptyState, Icons, Skeleton, useApx } from "@apx/ui";
 import { type RefObject, useEffect, useRef, useState } from "react";
 import { usePageVisible } from "../common/useInView.ts";
 import { useScreenshot } from "../common/useScreenshot.ts";
-import { createStore, useSlice } from "../data/createStore.ts";
+import { useSlice } from "../data/createStore.ts";
 import { useT } from "../i18n/index.ts";
 import { popOutBrowser, useBrowserPoppedOut } from "./browserWindow.ts";
+import { nativeCover } from "./nativeCover.ts";
 
 const POLL_MS = 1500;
-
-/** While a column edge is dragged the native page steps behind the panel: over it, the pointer never reaches us. */
-const cover = createStore({ on: false });
-export const coverNativeViews = (on: boolean) => cover.set({ on });
 
 /** The page area: the desktop app's real browser view when embedded, else a polled screenshot. */
 export function BrowserViewport({ tab }: { tab: string }) {
@@ -42,7 +39,7 @@ function PoppedOut() {
 
 function DesktopSlot({ desktop }: { desktop: NonNullable<Window["apxDesktop"]> }) {
   const ref = useRef<HTMLDivElement>(null);
-  const dragging = useSlice(cover, (s) => s.on);
+  const dragging = useSlice(nativeCover, (s) => s.on);
   const overlaid = usePopupOver(ref);
   const covered = dragging || overlaid;
   useEffect(() => {
