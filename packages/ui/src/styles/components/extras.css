@@ -200,6 +200,19 @@
   gap: 8px;
   flex: none;
 }
+/* Stacked: a control that needs the width (a paragraph to write) goes under the text. */
+.apx-setting--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.apx-setting--stacked > .apx-setting__control {
+  flex: auto;
+}
+.apx-setting--stacked > .apx-setting__control > * {
+  flex: 1;
+  min-width: 0;
+}
 
 /* ── ChannelIcon ──────────────────────────────────────────────────────────── */
 .apx-chanicon {

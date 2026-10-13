@@ -61,7 +61,7 @@ export function AccountSection() {
       </SettingRow>
       {owner && (
         <>
-          <SettingRow title={t("account.about")} description={t("account.aboutHint")}>
+          <SettingRow stacked title={t("account.about")} description={t("account.aboutHint")}>
             <Textarea
               className="config__input account__about"
               rows={3}
