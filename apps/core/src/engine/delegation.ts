@@ -38,6 +38,24 @@ export function reportCard(p: Extract<Part, { type: "subthread" }>, child: RunRe
   return { ...p, state: child.state, summary: answer.slice(0, REPORT_CHARS), ...(ms !== undefined ? { ms } : {}) };
 }
 
+/** The calls with an effect APX recorded in a run, and how each ended ("show_widget ok", "message_contact error ×2"). */
+export function actionsOf(store: Store, run: RunRecord): string[] {
+  const counts = new Map<string, number>();
+  for (const s of store.runs.steps(run.id)) {
+    if (s.effect === "none" || !["ok", "error", "unknown"].includes(s.state)) continue;
+    // A tool name can come from an MCP server: kept to a plain identifier.
+    const key = `${s.tool.replace(/[^\w.-]/g, "").slice(0, 60)} ${s.state}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return [...counts].map(([k, n]) => (n > 1 ? `${k} ×${n}` : k));
+}
+
+/** APX's own account of what a delegated run did, beside the agent's words, so the caller need not check it again. */
+export const actionsNote = (actions: readonly string[]) =>
+  actions.length
+    ? `APX recorded these actions in its run: ${actions.join(", ")}. The ok ones are done; do not check them again.`
+    : "APX recorded no action with an effect in its run.";
+
 const slug = (s: string) =>
   s
     .toLowerCase()
@@ -206,7 +224,8 @@ export function createDelegations(deps: {
       clearTimeout(timer);
       inline.delete(child.id);
       const resume = `(session "${name}": delegate with session="${name}" to continue it with ${who}, who keeps the context)`;
-      if (quick && TERMINAL.has(quick.state)) return `${agentReply(who, answerOf(quick), quick.state)}\n${resume}`;
+      if (quick && TERMINAL.has(quick.state))
+        return `${agentReply(who, answerOf(quick), quick.state)}\n${actionsNote(actionsOf(store, quick))}\n${resume}`;
       return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.`;
     },
 

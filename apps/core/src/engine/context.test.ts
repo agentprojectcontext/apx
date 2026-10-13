@@ -29,7 +29,11 @@ test("the system prompt has no clock and no roster: same agent and thread, same 
   assert.match(a, /Never delegate to yourself/);
   // One rule says when to delegate, and a late hand-off carries what was found.
   assert.equal(a.match(/^- Delegating:/gm)?.length, 1);
-  assert.match(a, /give what you already found and ask only for what is missing/);
+  // Who delegates is about what the other agent has, never about the answer's form; work started is finished.
+  assert.match(a, /The answer's form \(a widget, a document, a chart\) is never a reason/);
+  assert.match(a, /once you started \(a skill loaded, the data found\), finish it/);
+  // A chat's storage kind is never shown raw: it read as a project's name.
+  assert.match(systemPrompt(agent, { kind: "loose" }, "es"), /^Thread: chat\.$/m);
   assert.doesNotMatch(a, /^- Other agents:|^- Do your own assigned task|^- Work you hand/m);
   // A claim without a tool is false; a turn that needs no tool (a greeting, a known fact) is not.
   assert.match(a, /An answer that says something was done when no tool did it is false/);

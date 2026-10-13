@@ -7,12 +7,16 @@ import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (system.startsWith("You are Scout")) return say("Found 3 sources about A2A.");
   if (system.startsWith("You are Vera")) {
+    if (said.includes("chart widget") && !afterTool)
+      return callTool("v1", "show_widget", { name: "vera-chart", title: "Chart", html: "<b>1</b>" });
     await new Promise((r) => setTimeout(r, 300));
     return say("Design ready.");
   }
   if (said.includes("<delegation_result")) return say("Vera finished: design ready.");
   if (said.includes("delegate slowly") && !afterTool)
     return callTool("c3", "delegate", { agent: "vera", task: "design something", wait_s: 0 });
+  if (said.includes("ask vera for a chart") && !afterTool)
+    return callTool("c4", "delegate", { agent: "vera", task: "make a chart widget" });
   if (said.includes("widget") && !afterTool)
     return callTool("c1", "show_widget", { name: "monthly-sales", title: "Sales", html: "<b>42</b>", pin: true });
   if (said.includes("research") && !afterTool)
@@ -220,8 +224,24 @@ test("a delegation that outlives the wait comes back as a durable input and wake
     "woken turn answered",
   );
   assert.deepEqual(got.runs.map((r) => r.trigger).sort(), ["a2a_result", "user"]);
+  // The late result says, outside Vera's words, what APX saw her do: here, nothing with an effect.
+  const woken = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("<delegation_result"));
+  assert.match(String(woken?.messages.at(-1)?.content), /<\/delegation_result>\nAPX recorded no action with an effect/);
   const card = got.messages.flatMap((m) => m.parts).find((p) => p.type === "subthread");
   assert.ok(card && card.type === "subthread" && card.state === "completed");
+});
+
+test("a delegation's answer carries what APX saw the other agent do, outside its words", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "chart" });
+  await env.client.call("threads.send", { thread: t.id, text: "ask vera for a chart" });
+  await env.settle(t.id);
+  const reply = llm.calls
+    .flatMap((c) => c.messages)
+    .find((m) => m.role === "tool" && String(m.content).includes('<agent_reply from="Vera"'));
+  assert.match(
+    String(reply?.content),
+    /<\/agent_reply>\nAPX recorded these actions in its run: show_widget ok\. The ok ones are done/,
+  );
 });
 
 test("a retried send with the same idempotency key posts once, even when the retries race", async () => {

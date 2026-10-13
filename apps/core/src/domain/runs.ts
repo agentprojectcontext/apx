@@ -36,6 +36,8 @@ export type Origin =
       thread_id: string;
       run_id: string;
       state: RunState;
+      /** Its calls with an effect as APX recorded them (`actionsOf`), absent on runs older than the field. */
+      actions?: string[];
     };
 
 /** A file or image the owner attached to the message that started the run. */

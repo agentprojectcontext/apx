@@ -10,7 +10,7 @@ Measured on a fresh install: the secretary, a new chat, default settings, no ski
 
 | Part | Budget | Now (2026-10-13) |
 |---|---|---|
-| System prompt | 6,500 chars (about 1,450 tokens) | 6,463 chars, 1,463 tokens |
+| System prompt | 6,500 chars (about 1,450 tokens) | 6,500 chars, about 1,470 tokens |
 | Tool definitions (44, without the browser) | 28,000 chars (about 6,700 tokens) | 27,974 chars, 6,699 tokens |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
 

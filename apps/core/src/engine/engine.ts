@@ -11,7 +11,7 @@ import type { Log } from "../log.ts";
 import { untrusted } from "../tools/result.ts";
 import type { Tool } from "../tools/types.ts";
 import { tripped } from "./breaker.ts";
-import { createDelegations } from "./delegation.ts";
+import { actionsNote, actionsOf, createDelegations } from "./delegation.ts";
 import type { Display } from "./display.ts";
 import type { Hooks } from "./hooks.ts";
 import { createInputs, type InputWaits } from "./inputs.ts";
@@ -165,7 +165,7 @@ export function createEngine(deps: {
         // The result is kept for the caller's next turn (when the owner writes), and the owner sees why it stopped.
         store.modelLog.append(parent.thread_id, child.id, [
           systemNote(
-            `A task you delegated to ${name} ended (${child.state}) while agents were paused:\n${untrusted("delegation_result", { from: name }, answer.slice(0, 4000))}`,
+            `A task you delegated to ${name} ended (${child.state}) while agents were paused:\n${untrusted("delegation_result", { from: name }, answer.slice(0, 4000))}\n${actionsNote(actionsOf(store, child))}`,
           ),
         ]);
         store.messages.add({
@@ -193,6 +193,7 @@ export function createEngine(deps: {
           thread_id: child.thread_id,
           run_id: child.id,
           state: child.state,
+          actions: actionsOf(store, child),
         },
         text: answer,
         depth: parent.depth,

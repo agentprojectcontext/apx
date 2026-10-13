@@ -25,7 +25,7 @@ export function seed(store: Store, agentName?: string): void {
     store.agents.upsert({
       id: "vera",
       name: "Vera",
-      role: "design and visual widgets",
+      role: "visual design: brand, layouts, design reviews and multi-screen apps",
       kind: "agent",
       blob: "coral",
       browser_profile: "isolated",

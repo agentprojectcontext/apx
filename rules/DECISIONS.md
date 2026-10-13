@@ -782,3 +782,15 @@ steps, and six minutes cut it mid-way with "the turn ran out of time" while it w
 like an outside engine's: each token and each tool result restarts the six minutes, and a turn that goes six minutes
 without either is stopped with that reason. Its step limit still bounds it, each tool keeps its own deadline, waits for
 the owner hold the clock, and a turn delegated by another agent keeps its fixed ten minutes (its caller waits on them).
+
+<a id="d-068"></a>
+## D-068 — 2026-10-13 — An agent delegates for what the other one has, and APX tells the caller what the delegate did
+The delegation rule said "if another agent's role covers the request, delegate it", and the seeded designer's role
+named widgets: the secretary loaded the widgets skill, gathered the data, then handed the widget off, and the designer
+loaded the same skill again. A widget, a document or a chart is the answer's form, and every agent has those tools. The
+rule now delegates only when the other agent has what the caller lacks (its own project, tools or knowledge, a session
+with context) or the task is big and separate, and work already started is finished by whoever started it. The
+designer's seeded role is visual design (brand, layouts, design reviews, multi-screen apps). A delegated run's result,
+inline or in a later turn, now carries APX's own list of its calls with an effect and how each ended, outside the
+agent's words, so the caller does not read a widget or a file back to check it. A chat's storage kind shows as "chat"
+in the system prompt: shown as "loose", a model passed it to `delegate` as a project's name.
