@@ -177,9 +177,10 @@ jobs:
       ROLE_ID: ${{ vars.DISCORD_RELEASE_ROLE_ID }}
       BETA: ${{ vars.APX_V2_LATEST != 'true' && '1' || '' }}
     steps:
+      # The branch's script (an older tag may not have it), with every tag to read the release's commits from.
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ github.ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
