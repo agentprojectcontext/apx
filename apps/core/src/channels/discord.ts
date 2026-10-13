@@ -80,12 +80,17 @@ export function canWrite(
 class DcError extends Error {
   readonly status: number;
   readonly retryAfter: number | undefined;
-  constructor(status: number, message: string, retryAfter?: number) {
+  /** Discord's own error code (10003: Unknown Channel). */
+  readonly code: number | undefined;
+  constructor(status: number, message: string, retryAfter?: number, code?: number) {
     super(message);
     this.status = status;
     this.retryAfter = retryAfter;
+    this.code = code;
   }
 }
+
+const UNKNOWN_CHANNEL = 10003;
 
 /** A sender's name as the owner sees it: their display name and @username, short and on one line. */
 function nameOf(u: DcUser): string {
@@ -127,6 +132,15 @@ export const discordAdapter = ((
   /** The bot's own user id, to know when a room message calls it. */
   let me: string | undefined;
   const rooms = new Set((config.rooms?.rooms ?? []).map((r) => r.id));
+  /** Someone's direct channel with the bot, by their user id: a person's address is their id, never that channel's. */
+  const dms = new Map<string, string>();
+
+  /** The direct channel with a user, opened once (Discord gives back the same one every time). */
+  async function openDm(userId: string): Promise<string | undefined> {
+    const c = await api<{ id: string }>("POST", "/users/@me/channels", { recipient_id: userId }).catch(() => undefined);
+    if (c?.id) dms.set(userId, c.id);
+    return c?.id;
+  }
 
   async function api<T>(method: string, route: string, body?: object, timeoutMs = CALL_MS): Promise<T> {
     if (!token) throw new DcError(401, "no bot token");
@@ -141,8 +155,8 @@ export const discordAdapter = ((
 
   async function reply<T>(res: Response): Promise<T> {
     if (res.status === 204) return undefined as T;
-    const j = (await res.json().catch(() => ({}))) as { message?: string; retry_after?: number } & T;
-    if (!res.ok) throw new DcError(res.status, j.message ?? `HTTP ${res.status}`, j.retry_after);
+    const j = (await res.json().catch(() => ({}))) as { message?: string; retry_after?: number; code?: number } & T;
+    if (!res.ok) throw new DcError(res.status, j.message ?? `HTTP ${res.status}`, j.retry_after, j.code);
     return j as T;
   }
 
@@ -204,6 +218,7 @@ export const discordAdapter = ((
       const m = f.d as DcMessage;
       // Messages from people only, never another bot; in a server, only the rooms the owner listed.
       if (m.author.bot || (m.guild_id && !rooms.has(m.channel_id))) return;
+      if (!m.guild_id) dms.set(m.author.id, m.channel_id);
       const called = Boolean(me) && (m.mentions?.some((u) => u.id === me) || m.referenced_message?.author?.id === me);
       // The @mention of the bot itself says nothing: it is how it was called. Anyone else's reads as their @username.
       const others = (m.mentions ?? []).filter((u) => u.id !== me && u.username);
@@ -320,31 +335,41 @@ export const discordAdapter = ((
     async send(conversation, p, files = []) {
       const { text, users } = pings(p.text, p.mentions ?? []);
       const texts = text.trim() ? splitText(text, MAX_CHARS) : [];
+      let channel = dms.get(conversation) ?? conversation;
       const steps: Array<() => Promise<string>> = [
         ...texts.map(
           (t, i) => () =>
             sendText(
-              conversation,
+              channel,
               t,
               i === texts.length - 1 ? p.buttons : undefined,
               i === 0 ? p.reply_to : undefined,
               users,
             ),
         ),
-        ...files.map((f) => () => sendFile(conversation, f)),
+        ...files.map((f) => () => sendFile(channel, f)),
       ];
+      const first = p.skip ?? 0;
       let last: string | undefined;
-      for (let i = p.skip ?? 0; i < steps.length; i++) {
+      for (let i = first; i < steps.length; i++) {
         try {
           last = await (steps[i] as () => Promise<string>)();
         } catch (err) {
-          throw toSendError(err, i - (p.skip ?? 0));
+          // Not a channel: a person's user id (a notice to the owner), written to in their direct channel.
+          const unknown = err instanceof DcError && err.code === UNKNOWN_CHANNEL;
+          const dm = i === first && unknown && channel === conversation ? await openDm(conversation) : undefined;
+          if (dm) {
+            channel = dm;
+            i--;
+            continue;
+          }
+          throw toSendError(err, i - first);
         }
       }
       return last === undefined ? {} : { external_id: last };
     },
     async typing(conversation) {
-      await api("POST", `/channels/${conversation}/typing`, undefined, 8000);
+      await api("POST", `/channels/${dms.get(conversation) ?? conversation}/typing`, undefined, 8000);
     },
     async rooms() {
       const self = me ?? (await api<DcUser>("GET", "/users/@me")).id;

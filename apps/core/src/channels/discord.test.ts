@@ -124,3 +124,39 @@ test("a stranger gets a code, never the agent", async () => {
   assert.match(texts(ANA)[0] ?? "", /\d{6}/);
   assert.equal(llm.calls.length, calls);
 });
+
+test("a notice to someone by their user id opens their direct channel once, also after a restart", async () => {
+  // A fresh adapter knows no direct channel yet, as after the core starts again.
+  const cold = discordAdapter(
+    {
+      id: "dc",
+      type: "discord",
+      label: "Discord",
+      enabled: true,
+      agent_id: "roby",
+      strangers: "pair",
+      concurrency: "steer",
+      owner_thread: "home",
+    },
+    TOKEN,
+    dc.urls,
+  );
+  await cold.send(OWNER.id, { text: "morning brief" });
+  await cold.send(OWNER.id, { text: "evening brief" });
+  assert.deepEqual(texts(OWNER).slice(-2), ["morning brief", "evening brief"]);
+  assert.equal(dc.sent.filter((s) => s.route === "/users/@me/channels").length, 1, "opened once");
+});
+
+test("a routine's news reaches the owner in their direct messages", async () => {
+  await env.client.call("notices.set", { channel: "dc" });
+  const r = await env.client.call("routines.set", {
+    name: "dc-brief",
+    agent: "roby",
+    schedule: { kind: "manual" },
+    action: "message",
+    prompt: "Brief on Discord",
+    enabled: true,
+  });
+  await env.client.call("routines.run", { routine: r.id });
+  await until(() => texts(OWNER).includes("Brief on Discord"), "routine notice in the DM");
+});

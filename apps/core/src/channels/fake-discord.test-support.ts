@@ -63,6 +63,13 @@ export async function fakeDiscord(token: string) {
         string,
         unknown
       >;
+      if (req.method === "POST" && route === "/users/@me/channels") {
+        sent.push({ method: req.method, route, body });
+        return reply(200, { id: dm(String(body.recipient_id)), type: 1 });
+      }
+      // A user's id is not a channel: Discord answers Unknown Channel.
+      const channel = /^\/channels\/([^/]+)\//.exec(route)?.[1];
+      if (channel && dmOf.has(channel)) return reply(404, { message: "Unknown Channel", code: 10003 });
       sent.push({ method: req.method ?? "", route, body });
       if (route.endsWith("/typing")) return reply(204);
       return reply(200, { id: String(nextId++) });
