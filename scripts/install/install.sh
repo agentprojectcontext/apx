@@ -140,10 +140,15 @@ if [ -f "$HOME/.config/systemd/user/apx-daemon.service" ]; then
   say "Stopping APX v1's daemon"
   systemctl --user disable --now apx-daemon.service >/dev/null 2>&1 || true
 fi
-if [ -f "$HOME/Library/LaunchAgents/dev.apx.daemon.plist" ]; then
-  say "Stopping APX v1's daemon"
-  launchctl bootout "gui/$(id -u)/dev.apx.daemon" >/dev/null 2>&1 || true
-fi
+for label in dev.apx.daemon dev.apx.desktop; do
+  [ -f "$HOME/Library/LaunchAgents/$label.plist" ] || continue
+  [ "$label" = dev.apx.daemon ] && say "Stopping APX v1's daemon"
+  launchctl bootout "gui/$(id -u)/$label" >/dev/null 2>&1 || true
+  # A plist left in LaunchAgents loads again at login unless launchd is told it is off.
+  launchctl disable "gui/$(id -u)/$label" >/dev/null 2>&1 || true
+done
+# One started by hand (`apx daemon start`) has no service to stop.
+pkill -f "apx/src/host/daemon" >/dev/null 2>&1 || true
 if command -v npm >/dev/null 2>&1 && npm ls -g --depth=0 @agentprojectcontext/apx >/dev/null 2>&1; then
   say "Removing APX v1's apx command (its files in ~/.apx stay, to import them)"
   # A global installed with sudo needs sudo to go: tried only when it asks for no password.
