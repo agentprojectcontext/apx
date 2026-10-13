@@ -10,9 +10,9 @@ import { useT } from "../i18n/index.ts";
 import { ArchivedAgents } from "../project/team/ArchivedAgents.tsx";
 import { AgentLimitsBlock } from "./AgentLimitsBlock.tsx";
 import { AgentModelPicker } from "./models/AgentModelPicker.tsx";
-import { SectionHead } from "./SectionHead.tsx";
+import { SectionHead, SubHead } from "./SectionHead.tsx";
 
-/** Agents: which model each agent runs on, which browser profile it uses, and how far they go on their own. */
+/** Agents: how far they go on their own and the archived ones first, then which model and browser profile each uses. */
 export function AgentsSection() {
   const t = useT();
   const agents = useData((s) => s.agents);
@@ -37,7 +37,11 @@ export function AgentsSection() {
   );
   return (
     <>
-      <SectionHead title={t("config.agents")} lead={t("agents.lead")} />
+      <SectionHead title={t("config.agents")} />
+      <AgentLimitsBlock />
+      <ArchivedAgents />
+      <SubHead>{t("agents.each")}</SubHead>
+      <p className="config__lead">{t("agents.lead")}</p>
       <SearchField placeholder={t("agents.search")} value={q} onChange={(e) => setQ(e.currentTarget.value)} />
       <ul className="agentcfg">
         {list.map((a) => {
@@ -72,8 +76,6 @@ export function AgentsSection() {
           );
         })}
       </ul>
-      <ArchivedAgents />
-      <AgentLimitsBlock />
     </>
   );
 }

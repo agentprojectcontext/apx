@@ -121,6 +121,7 @@ export const enTeam = {
   "team.clone.copy": "Copy {n}",
   "team.clone.done": "Copied {n} agents.",
   "team.clone.doneSkipped": "Copied {n} agents; left out: {skipped}.",
+  "agents.each": "Model and browser of each agent",
   "limits.title": "When agents work on their own",
   "limits.lead":
     "Agents that delegate and answer each other without you pause after this much, counted since you last wrote in that chat. Write and they go on.",

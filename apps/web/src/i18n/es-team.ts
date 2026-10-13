@@ -123,6 +123,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.clone.copy": "Copiar {n}",
   "team.clone.done": "Se copiaron {n} agentes.",
   "team.clone.doneSkipped": "Se copiaron {n} agentes; quedaron afuera: {skipped}.",
+  "agents.each": "Modelo y navegador de cada agente",
   "limits.title": "Cuando los agentes trabajan solos",
   "limits.lead":
     "Los agentes que delegan y se responden entre ellos sin vos se pausan al llegar a esto, contado desde tu último mensaje en ese chat. Escribís y siguen.",
