@@ -14,6 +14,10 @@ on:
       android_abis:
         description: "Android ABIs in the APK, comma-separated (default arm64-v8a; e.g. armeabi-v7a,arm64-v8a,x86_64)"
         required: false
+      announce_only:
+        description: "Only announce the existing release on Discord, without building"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,6 +29,7 @@ concurrency:
 jobs:
   # One job opens the release so the three builds only upload to it.
   open:
+    if: ${{ !inputs.announce_only }}
     runs-on: ubuntu-latest
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
@@ -160,3 +165,23 @@ jobs:
           cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk "$apk"
           sha256sum "$apk" > "$apk.sha256"
           gh release upload "$TAG" "$apk" "$apk.sha256" --clobber
+
+  # Once every file is attached, the release is announced on Discord with the webhook v1's releases use.
+  announce:
+    needs: [installers, android]
+    if: ${{ always() && (inputs.announce_only || (needs.installers.result == 'success' && needs.android.result == 'success')) }}
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      ROLE_ID: ${{ vars.DISCORD_RELEASE_ROLE_ID }}
+      BETA: ${{ vars.APX_V2_LATEST != 'true' && '1' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11"
+      - run: node --no-warnings scripts/discord-release.ts
