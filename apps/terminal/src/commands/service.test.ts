@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
-import { lastLines, logs, stopCore } from "./service.ts";
+import { lastLines, logs, stopCore, windowsStopScript } from "./service.ts";
 import { printed } from "./testing.ts";
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-logs-"));
@@ -60,4 +60,13 @@ test("stopCore with no core running only closes the log", async () => {
   const log = fs.createWriteStream(path.join(home, "idle.log"), { flags: "a" });
   await stopCore(undefined, log);
   assert.ok(log.writableFinished);
+});
+
+test("on Windows a core with no pid file is still stopped: found by its command line, and waited for", () => {
+  const script = windowsStopScript("C:\\Users\\O'Neil\\.apx\\v2");
+  assert.ok(script.includes("Contains('C:\\Users\\O''Neil\\.apx\\v2')"), "the home, its quote doubled for PowerShell");
+  assert.ok(script.includes("Contains('service run')"), "the supervisor");
+  assert.ok(script.includes("Contains('apps\\core\\src\\main.ts')"), "the core it started");
+  assert.ok(!script.includes("service install"), "never the command that is running this");
+  assert.match(script, /Wait-Process -Id \$ids -Timeout 10/);
 });

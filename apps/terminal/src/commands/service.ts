@@ -258,6 +258,20 @@ function stopWindows(home: string) {
   const pids = readPids(home);
   for (const pid of [pids?.supervisor, pids?.core]) if (pid && alive(pid)) process.kill(pid);
   fs.rmSync(pidFile(home), { force: true });
+  // A supervisor and core with no pid file (an older install wrote none, or it went stale) are found by their command
+  // line, which names this home; until they are gone the new core cannot take the port, so it waits for them.
+  sh("powershell", ["-NoProfile", "-NonInteractive", "-Command", windowsStopScript(home)]);
+}
+
+/** Stops this home's `apx service run` and the core it started, and waits up to 10 s for them to exit. */
+export function windowsStopScript(home: string): string {
+  const at = home.replaceAll("'", "''");
+  return [
+    `$ids = @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object {`,
+    `$_.CommandLine -and $_.CommandLine.Contains('${at}') -and ($_.CommandLine.Contains('service run') -or $_.CommandLine.Contains('apps\\core\\src\\main.ts'))`,
+    `} | ForEach-Object { $_.ProcessId })`,
+    `; if ($ids.Count) { Stop-Process -Id $ids -Force -ErrorAction SilentlyContinue; Wait-Process -Id $ids -Timeout 10 -ErrorAction SilentlyContinue }`,
+  ].join(" ");
 }
 
 function readPids(home: string): { supervisor?: number; core?: number } | undefined {
