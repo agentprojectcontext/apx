@@ -116,7 +116,12 @@ export function createWhisperCpp(deps: { log: Log; command?: string; idleMs?: nu
       const res = await fetch(`${url}/inference`, { method: "POST", body: form, signal });
       const j = (await res.json()) as { text?: string; error?: string };
       if (!res.ok || j.error) throw new Error(j.error ?? `HTTP ${res.status}`);
-      return (j.text ?? "").trim();
+      // whisper-server puts each speech segment on its own line: one voice note reads as one paragraph.
+      return (j.text ?? "")
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join(" ");
     },
     close(): void {
       clearInterval(idle);
