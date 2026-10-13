@@ -68,3 +68,24 @@ test("skills list is not a project id; on|off toggles a skill everywhere or in o
     ["skills.toggle", { name: "deploy", on: true, project: "p_acme" }],
   ]);
 });
+
+test("projects create and set send only what was given, and a wrong kind never reaches the core", async () => {
+  const project = { id: "p_nw", name: "Northwind", kind: "company", path: "/work/northwind", present: true };
+  const { client, calls } = recordingClient({
+    "projects.create": { project, agents: 0 },
+    "projects.update": { project },
+  });
+  const out = await printed(() =>
+    projects(client, ["create", "Northwind"], { kind: "company", desc: "Wholesale client" }),
+  );
+  assert.match(out, /Northwind \(p_nw\)/);
+  await printed(() => projects(client, ["create", "Acme", "site"], { path: "/work/acme" }));
+  await printed(() => projects(client, ["set", "p_nw"], { desc: "" }));
+  await assert.rejects(projects(client, ["create", "X"], { kind: "shop" }), /--kind is one of/);
+  await assert.rejects(projects(client, ["set", "p_nw"], {}), /usage: apx projects set/);
+  assert.deepEqual(calls, [
+    ["projects.create", { name: "Northwind", kind: "company", description: "Wholesale client" }],
+    ["projects.create", { name: "Acme site", path: "/work/acme" }],
+    ["projects.update", { project: "p_nw", description: "" }],
+  ]);
+});

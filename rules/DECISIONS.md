@@ -794,3 +794,13 @@ designer's seeded role is visual design (brand, layouts, design reviews, multi-s
 inline or in a later turn, now carries APX's own list of its calls with an effect and how each ended, outside the
 agent's words, so the caller does not read a widget or a file back to check it. A chat's storage kind shows as "chat"
 in the system prompt: shown as "loose", a model passed it to `delegate` as a project's name.
+
+<a id="d-069"></a>
+## D-069 — 2026-10-13 — The owner sets how far agents go on their own; agents make projects through `apx projects`
+The breaker's 16 turns and 600k tokens (counted since the owner last wrote in a conversation tree) were constants: an
+owner whose agents research for a while hit "Paused" with no way to move it. They are now the owner's, in Config ›
+Agents (`agents.limits` / `agents.set_limits`, setting `agent_limits`), each one on or off (0 = no limit), and the
+paused notice links there. Unset, the defaults in `engine/limits.ts` hold. Agents had no way to make a project:
+`projects.create` is owner-only and no tool covered it. Following the footprint ladder (rule 15) it is not a new tool
+but `apx projects create|set` plus the `apx-projects` guide: `shell` running `apx` always waits for the owner's OK
+(total autonomy, their explicit choice, asks for nothing), the same door as `apx mcps` and `apx secrets`.

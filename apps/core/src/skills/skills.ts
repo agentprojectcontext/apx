@@ -150,7 +150,7 @@ export function agentSkills(agent: AgentRecord, all: Skill[]): Skill[] {
 export function skillCatalog(skills: Skill[]): string {
   const apx = skills.filter(isApx).map((s) => s.name);
   const guides = apx.length
-    ? `APX's guides (${apx.join(", ")}): load the task's one with load_skill first. Change APX only with its tools or \`apx\`, never editing files.`
+    ? `APX guides (${apx.join(", ")}): load_skill the right one first. Change APX via its tools or \`apx\`, never by editing files.`
     : "";
   const own = skills.filter((s) => !isApx(s));
   if (!own.length) return guides ? `## Skills\n${guides}` : "";

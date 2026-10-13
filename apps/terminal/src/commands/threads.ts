@@ -1,5 +1,5 @@
 // apx threads / runs / agents / secrets: reading and steering what the core holds.
-import { ApprovalScope, type Author, type Message } from "@apx/protocol";
+import { ApprovalScope, type Author, type Message, ProjectKind } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
 /** Who wrote a message, in one word: the agent's id, or the author's kind. */
@@ -116,7 +116,21 @@ function choiceLabel(c: { model?: string | undefined; router: boolean } | undefi
   return c.router ? `${c.model} → router` : c.model;
 }
 
-export async function projects(client: ApxClient, [sub, arg]: string[]): Promise<void> {
+type ProjectFlags = {
+  path?: string | undefined;
+  kind?: string | undefined;
+  desc?: string | undefined;
+  name?: string | undefined;
+};
+
+function kindOf(kind: string | undefined): ProjectKind | undefined {
+  if (kind === undefined) return undefined;
+  const k = ProjectKind.safeParse(kind);
+  if (!k.success) throw new Error(`--kind is one of ${ProjectKind.options.join(", ")}`);
+  return k.data;
+}
+
+export async function projects(client: ApxClient, [sub, arg, ...more]: string[], o: ProjectFlags = {}): Promise<void> {
   if (!sub || sub === "list") {
     const { projects } = await client.call("projects.list", {});
     for (const p of projects)
@@ -128,6 +142,35 @@ export async function projects(client: ApxClient, [sub, arg]: string[]): Promise
     const { resolve } = await import("node:path");
     const r = await client.call("projects.register", { path: resolve(arg) });
     console.log(`${r.project.name} (${r.project.id}): ${r.agents} agents`);
+    return;
+  }
+  if (sub === "create") {
+    const name = [arg, ...more].filter(Boolean).join(" ") || undefined;
+    if (!name && !o.path)
+      throw new Error('usage: apx projects create "<Name>" [--path <folder>] [--kind <kind>] [--desc "…"]');
+    const kind = kindOf(o.kind);
+    const { resolve } = await import("node:path");
+    const { homedir } = await import("node:os");
+    const r = await client.call("projects.create", {
+      ...(name ? { name } : {}),
+      ...(o.path ? { path: resolve(o.path.replace(/^~(?=$|[/\\])/, homedir())) } : {}),
+      ...(kind ? { kind } : {}),
+      ...(o.desc ? { description: o.desc } : {}),
+    });
+    console.log(`${r.project.name} (${r.project.id}) · ${r.project.path ?? ""}`);
+    return;
+  }
+  if (sub === "set") {
+    if (!arg || (o.name === undefined && o.kind === undefined && o.desc === undefined))
+      throw new Error('usage: apx projects set <project> [--name "…"] [--kind <kind>] [--desc "…"]');
+    const kind = kindOf(o.kind);
+    const r = await client.call("projects.update", {
+      project: arg,
+      ...(o.name !== undefined ? { name: o.name } : {}),
+      ...(kind ? { kind } : {}),
+      ...(o.desc !== undefined ? { description: o.desc } : {}),
+    });
+    console.log(`${r.project.name} (${r.project.id})${r.project.kind ? ` · ${r.project.kind}` : ""}`);
     return;
   }
   if (sub === "sync") {
