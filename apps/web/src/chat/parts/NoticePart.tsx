@@ -1,6 +1,7 @@
 import type { Part } from "@apx/protocol";
-import { ActionGroup, Icons } from "@apx/ui";
+import { ActionGroup, Button, Icons } from "@apx/ui";
 import { isKey, useT } from "../../i18n/index.ts";
+import { appPlace } from "../appLinks.ts";
 
 type NoticeData = Extract<Part, { type: "notice" }>;
 
@@ -11,9 +12,19 @@ type NoticeData = Extract<Part, { type: "notice" }>;
  */
 export function NoticePart({ part }: { part: NoticeData }) {
   const t = useT();
-  const key = `notice.${part.code}`;
+  // A `variant` picks one wording of the code (`notice.<code>.<variant>`).
+  const key = `notice.${part.code}${part.vars?.variant ? `.${part.vars.variant}` : ""}`;
   // The core's English text carries details (e.g. the error); the translation is used when it is the plain case.
   const text = isKey(key) && (part.vars || !part.text.includes(":")) ? t(key, part.vars) : part.text;
+  // A `link` (apx:settings/…) is where the owner changes what the notice is about, labelled `notice.<code>.link`.
+  const linkKey = `notice.${part.code}.link`;
+  const linkLabel = isKey(linkKey) ? t(linkKey) : undefined;
+  const open = typeof part.vars?.link === "string" && linkLabel ? appPlace(part.vars.link) : undefined;
+  const link = open && (
+    <Button size="sm" variant="ghost" className="noticeline__link" onClick={open}>
+      {linkLabel}
+    </Button>
+  );
   if (part.level === "error")
     return (
       <div className="notice notice--error" role="alert">
@@ -28,6 +39,7 @@ export function NoticePart({ part }: { part: NoticeData }) {
       <div className={`noticeline is-${part.level}`} role="status">
         <Icon size={14} />
         <span>{text}</span>
+        {link}
       </div>
     );
   const to = part.vars?.to;
@@ -45,6 +57,7 @@ export function NoticePart({ part }: { part: NoticeData }) {
       <div className="turn__notice-body">
         {text}
         {part.detail && <pre className="notice__detail">{part.detail}</pre>}
+        {link}
       </div>
     </ActionGroup>
   );

@@ -297,6 +297,10 @@
 .noticeline > svg {
   flex: none;
 }
+.noticeline__link {
+  flex: none;
+  margin-left: auto;
+}
 .noticeline.is-warn,
 .turn__notice.is-warn .apx-actions__icon,
 .turn__notice.is-warn .apx-actions__title {

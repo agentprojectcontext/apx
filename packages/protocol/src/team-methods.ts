@@ -48,6 +48,16 @@ export const TeamTemplate = z.object({
 });
 export type TeamTemplate = z.infer<typeof TeamTemplate>;
 
+/**
+ * How far agents may go on their own (delegating, waking each other with results) in one conversation before they
+ * wait for the owner, counted since the owner last wrote there. 0 = no limit.
+ */
+export const AgentLimits = z.object({
+  runs: z.number().int().min(0).max(10_000),
+  tokens: z.number().int().min(0).max(1_000_000_000),
+});
+export type AgentLimits = z.infer<typeof AgentLimits>;
+
 export const teamMethods = {
   /** Teams and single agents that can be added to a project. Every team member is also offered on its own. */
   "agents.templates": {
@@ -80,6 +90,18 @@ export const teamMethods = {
       organization: Organization.optional(),
       skipped: z.array(z.object({ template: z.string(), reason: z.string() })),
     }),
+    effect: true,
+    access: "human",
+  },
+  "agents.limits": {
+    params: z.object({}).strict(),
+    result: AgentLimits.extend({ defaults: AgentLimits }),
+    effect: false,
+    access: "human",
+  },
+  "agents.set_limits": {
+    params: AgentLimits.strict(),
+    result: AgentLimits,
     effect: true,
     access: "human",
   },

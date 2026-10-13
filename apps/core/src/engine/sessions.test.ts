@@ -7,7 +7,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { inherit } from "../tools/policy.ts";
 import { defineTool } from "../tools/types.ts";
 import { tripped } from "./breaker.ts";
-import { MAX_UNATTENDED_RUNS } from "./limits.ts";
+import { MAX_UNATTENDED_RUNS, MAX_UNATTENDED_TOKENS } from "./limits.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const llm = scriptedLlm((req, { system, said, afterTool }) => {
@@ -115,6 +115,34 @@ test("the breaker stops unattended chains and an owner's message resets it", asy
   assert.match(tripped(store, sub.id) ?? "", /turns on their own/);
   await add(root.id, "user");
   assert.equal(tripped(store, sub.id), undefined);
+});
+
+test("the owner sets the breaker's limits, and 0 turns a limit off", async () => {
+  const { store } = env.core;
+  const root = store.threads.create({ kind: "loose", title: "limits", agent_ids: ["roby"] });
+  const deadline = new Date(Date.now() + 60_000).toISOString();
+  const add = async (trigger: "a2a" | "user") => {
+    await new Promise((r) => setTimeout(r, 2));
+    const r = store.runs.create({
+      thread_id: root.id,
+      agent_id: "roby",
+      trigger,
+      input: { origin: { kind: "user" }, text: "x" },
+      deadline_at: deadline,
+    });
+    store.runs.setState(r, "completed");
+  };
+  await add("user");
+  await add("a2a");
+  await add("a2a");
+  assert.equal(tripped(store, root.id), undefined);
+  assert.deepEqual(await env.client.call("agents.set_limits", { runs: 2, tokens: 0 }), { runs: 2, tokens: 0 });
+  assert.match(tripped(store, root.id) ?? "", /started 2 turns/);
+  await env.client.call("agents.set_limits", { runs: 0, tokens: 0 });
+  assert.equal(tripped(store, root.id), undefined);
+  const { defaults } = await env.client.call("agents.limits", {});
+  assert.deepEqual(defaults, { runs: MAX_UNATTENDED_RUNS, tokens: MAX_UNATTENDED_TOKENS });
+  store.settings.write("agent_limits", {});
 });
 
 test("policy follows the thread: every turn in a sub-thread works under the agents above it", async () => {

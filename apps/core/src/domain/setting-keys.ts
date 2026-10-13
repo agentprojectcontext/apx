@@ -2,6 +2,7 @@
 // only through `store.settings.read`, so a bad stored value falls back here instead of reaching the code using it.
 import {
   ActiveProfile,
+  AgentLimits,
   BaseProject,
   ChannelInfo,
   ImageDefaults,
@@ -61,6 +62,8 @@ const Channel = ChannelInfo.omit({ token_set: true, token_hint: true, status: tr
 export const SETTINGS = {
   task_columns: entry(z.array(TaskColumn).min(1), DEFAULT_COLUMNS),
   notices: entry(NoticePrefs, NoticePrefs.parse({})),
+  /** The owner's limits on agents acting on their own; a field unset keeps engine/limits.ts's default. */
+  agent_limits: entry(AgentLimits.partial(), {}),
   /**
    * The quick chat's shortcut, start at login (on: APX is meant to be always there) and whether agents may use this
    * computer's screen (off until the owner turns it on); each field falls back alone.

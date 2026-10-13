@@ -109,4 +109,17 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.import.done": "Se instalaron {n} agentes.",
   "team.import.doneSkipped": "Se instalaron {n} agentes; {skipped} quedaron afuera (ya estaban en el proyecto).",
   "team.import.error": "No se pudo importar: {error}",
+  "limits.title": "Cuando los agentes trabajan solos",
+  "limits.lead":
+    "Los agentes que delegan y se responden entre ellos sin vos se pausan al llegar a esto, contado desde tu último mensaje en ese chat. Escribís y siguen.",
+  "limits.runs": "Turnos sin vos",
+  "limits.runsHint": "Turnos que los agentes empiezan solos en un chat antes de esperarte. Apagado: sin límite.",
+  "limits.tokens": "Tokens sin vos",
+  "limits.tokensHint": "Lo que pueden gastar esos turnos antes de esperarte. Apagado: sin límite.",
+  "limits.thousands": "mil",
+  "notice.breaker.paused.runs":
+    "En pausa: los agentes hicieron {spent} turnos solos desde tu último mensaje acá. {who} terminó; escribí para seguir.",
+  "notice.breaker.paused.tokens":
+    "En pausa: los agentes gastaron {spent} tokens solos desde tu último mensaje acá. {who} terminó; escribí para seguir.",
+  "notice.breaker.paused.link": "Cambiar el límite",
 };

@@ -1,5 +1,5 @@
-// Team screen: agent templates and installing them into a project. Templates are read on each call (they are a
-// handful of small files) so a folder edited by hand shows up without a restart.
+// Team screen: agent templates and installing them into a project, and how far agents go on their own. Templates
+// are read on each call (they are a handful of small files) so a folder edited by hand shows up without a restart.
 
 import type { Organization, Routine, Schedule } from "@apx/protocol";
 import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
@@ -9,6 +9,7 @@ import { readTemplates, singlesOf, type TemplateFile, type TemplateRoot } from "
 import { writeAgentFromTemplate, writeProjectMeta } from "../apc/write.ts";
 import { publicAgent } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
+import { MAX_UNATTENDED_RUNS, MAX_UNATTENDED_TOKENS, unattendedLimits } from "../engine/limits.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
 
@@ -19,6 +20,15 @@ export function teamHandlers(
   nextFor: (s: Schedule) => string | undefined,
 ) {
   return {
+    "agents.limits": () => ({
+      ...unattendedLimits(store),
+      defaults: { runs: MAX_UNATTENDED_RUNS, tokens: MAX_UNATTENDED_TOKENS },
+    }),
+    "agents.set_limits": (limits) => {
+      store.settings.write("agent_limits", limits);
+      return unattendedLimits(store);
+    },
+
     "agents.templates": () => {
       const { teams, files } = readTemplates(roots);
       return { teams, singles: singlesOf(files) };

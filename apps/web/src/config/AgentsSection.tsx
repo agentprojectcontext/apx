@@ -8,10 +8,11 @@ import { loadCatalog, loadModelsConfig } from "../data/models.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { ArchivedAgents } from "../project/team/ArchivedAgents.tsx";
+import { AgentLimitsBlock } from "./AgentLimitsBlock.tsx";
 import { AgentModelPicker } from "./models/AgentModelPicker.tsx";
 import { SectionHead } from "./SectionHead.tsx";
 
-/** Agents: which model each agent runs on and which browser profile it uses. */
+/** Agents: which model each agent runs on, which browser profile it uses, and how far they go on their own. */
 export function AgentsSection() {
   const t = useT();
   const agents = useData((s) => s.agents);
@@ -72,6 +73,7 @@ export function AgentsSection() {
         })}
       </ul>
       <ArchivedAgents />
+      <AgentLimitsBlock />
     </>
   );
 }

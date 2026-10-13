@@ -107,4 +107,17 @@ export const enTeam = {
   "team.import.done": "Installed {n} agents.",
   "team.import.doneSkipped": "Installed {n} agents; {skipped} skipped (already in the project).",
   "team.import.error": "Could not import: {error}",
+  "limits.title": "When agents work on their own",
+  "limits.lead":
+    "Agents that delegate and answer each other without you pause after this much, counted since you last wrote in that chat. Write and they go on.",
+  "limits.runs": "Turns without you",
+  "limits.runsHint": "Turns agents start on their own in one chat before they wait for you. Off: no limit.",
+  "limits.tokens": "Tokens without you",
+  "limits.tokensHint": "What those turns may spend before they wait for you. Off: no limit.",
+  "limits.thousands": "thousand",
+  "notice.breaker.paused.runs":
+    "Paused: agents started {spent} turns on their own since you last wrote here. {who} finished; write to continue.",
+  "notice.breaker.paused.tokens":
+    "Paused: agents spent {spent} tokens on their own since you last wrote here. {who} finished; write to continue.",
+  "notice.breaker.paused.link": "Change the limit",
 } as const;

@@ -7,7 +7,7 @@ import type { JobRecord } from "../domain/jobs.ts";
 import type { Store } from "../domain/store.ts";
 import { commandEnv } from "../harness/env.ts";
 import type { Log } from "../log.ts";
-import { tripped } from "./breaker.ts";
+import { pausedNotice } from "./breaker.ts";
 import type { AdmitFn } from "./engine.ts";
 
 /** A job's output file stops growing here; the rest is dropped with a note. */
@@ -66,20 +66,13 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
   /** A background job ended: the agent that started it gets the end of the output in a new turn. */
   function wake(job: JobRecord): void {
     if (!job.background || !job.agent_id || job.state === "canceled") return;
-    const paused = tripped(store, job.thread_id);
+    const paused = pausedNotice(store, job.thread_id, `"${job.title.slice(0, 80)}"`);
     if (paused) {
       log.warn({ job: job.id, thread: job.thread_id }, "background job ended while agents are paused");
       store.messages.add({
         thread_id: job.thread_id,
         author: { kind: "system" },
-        parts: [
-          {
-            type: "notice",
-            level: "warn",
-            code: "breaker.paused",
-            text: `Paused: ${paused}. The command "${job.title.slice(0, 80)}" ended (${job.state}); write to continue.`,
-          },
-        ],
+        parts: [paused],
       });
       return;
     }

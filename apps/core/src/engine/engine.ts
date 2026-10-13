@@ -10,7 +10,7 @@ import { systemNote } from "../harness/native.ts";
 import type { Log } from "../log.ts";
 import { untrusted } from "../tools/result.ts";
 import type { Tool } from "../tools/types.ts";
-import { tripped } from "./breaker.ts";
+import { pausedNotice } from "./breaker.ts";
 import { actionsNote, actionsOf, createDelegations } from "./delegation.ts";
 import type { Display } from "./display.ts";
 import type { Hooks } from "./hooks.ts";
@@ -160,7 +160,7 @@ export function createEngine(deps: {
     deliver: (parent, child, answer) => {
       const agent = store.agents.get(child.agent_id);
       const name = store.threads.context(child.thread_id).worker?.name ?? agent?.name ?? child.agent_id;
-      const paused = tripped(store, parent.thread_id);
+      const paused = pausedNotice(store, parent.thread_id, name);
       if (paused) {
         // The result is kept for the caller's next turn (when the owner writes), and the owner sees why it stopped.
         store.modelLog.append(parent.thread_id, child.id, [
@@ -171,14 +171,7 @@ export function createEngine(deps: {
         store.messages.add({
           thread_id: parent.thread_id,
           author: { kind: "system" },
-          parts: [
-            {
-              type: "notice",
-              level: "warn",
-              code: "breaker.paused",
-              text: `Paused: ${paused}. ${name} finished; write to continue.`,
-            },
-          ],
+          parts: [paused],
         });
         return;
       }
