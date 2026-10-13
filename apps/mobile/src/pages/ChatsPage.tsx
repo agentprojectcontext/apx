@@ -1,7 +1,15 @@
 import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { elapsed, listWhen } from "../format";
-import { chatPreview, chatTitle, inboxThreads, isWorking, threadContext, workingNow } from "../hooks/chatSelectors";
+import {
+  chatPreview,
+  chatTitle,
+  inboxThreads,
+  isWorking,
+  threadContext,
+  workingNow,
+  workSubject,
+} from "../hooks/chatSelectors";
 import type { Agent, Job, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { EngineIcon } from "../ui/EngineIcon";
@@ -129,7 +137,7 @@ export function ChatsPage({
             <Text style={[type.meta, s.workingLabel]}>{t("workingNow", { n: working.length })}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}>
               {working.map(({ thread, job }) => (
-                <WorkChip key={thread.id} thread={thread} job={job} agents={data.agents} onPress={() => open(thread)} />
+                <WorkChip key={thread.id} thread={thread} job={job} data={data} onPress={() => open(thread)} />
               ))}
             </ScrollView>
           </>
@@ -155,17 +163,8 @@ function ThreadAvatar({ thread, agents, size }: { thread: Thread; agents: Agent[
   return <AgentAvatar name={a?.name ?? thread.title} blob={a?.blob} id={a?.id} size={size} />;
 }
 
-function WorkChip({
-  thread,
-  job,
-  agents,
-  onPress,
-}: {
-  thread: Thread;
-  job?: Job;
-  agents: Agent[];
-  onPress: () => void;
-}) {
+function WorkChip({ thread, job, data, onPress }: { thread: Thread; job?: Job; data: Workspace; onPress: () => void }) {
+  const agents = data.agents;
   const type = useType();
   const theme = useTheme();
   const s = useStyles();
@@ -180,10 +179,11 @@ function WorkChip({
       <ThreadAvatar thread={thread} agents={agents} size={32} />
       <View style={{ maxWidth: 160 }}>
         <Text numberOfLines={1} style={s.workTitle}>
-          {job?.title || thread.title}
+          {who}
         </Text>
         <Text numberOfLines={1} style={type.small}>
-          {who} · {waiting ? t("waitsForYou") : elapsed(job?.started_at ?? thread.updated_at)}
+          {workSubject(thread, who, data)} ·{" "}
+          {waiting ? t("waitsForYou") : (job?.activity ?? elapsed(job?.started_at ?? thread.updated_at))}
         </Text>
       </View>
       {waiting ? <Icon name="Bell" size={14} color={theme.warning} /> : <Spinner size={14} />}

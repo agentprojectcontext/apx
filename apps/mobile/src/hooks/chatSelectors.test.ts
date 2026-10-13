@@ -13,6 +13,7 @@ import {
   pickAgents,
   threadContext,
   workingNow,
+  workSubject,
 } from "./chatSelectors.ts";
 import type { Agent, Thread } from "./useWorkspace";
 
@@ -198,4 +199,12 @@ test("routine runs that told something are listed when the owner wants them; qui
   assert.equal(chatPreview(short), "Nothing new");
   const tr = translator("en");
   assert.equal(threadContext(told, { projects: [], channels: [] }, tr), "Default · Routine · Morning tip");
+});
+
+test("a working chat says what it is about under its agent's name, never that name twice", () => {
+  const data = { projects: [{ id: "p1", name: "Acme" }], channels: [] };
+  const tr = translator("es");
+  assert.equal(workSubject(thread("a", { title: "Open source launch" }), "Abril", data, tr), "Open source launch");
+  assert.equal(workSubject(thread("b", { title: "Abril", project_id: "p1" }), "Abril", data, tr), "Acme · Web");
+  assert.equal(workSubject(thread("c", { title: "" }), "Abril", data, tr), "Default · Web");
 });

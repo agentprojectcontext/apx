@@ -152,6 +152,20 @@ export function threadContext(
   return `${project} · ${where}`;
 }
 
+/**
+ * A working chat's second line under its agent's name: what the chat is about, or where it is when its title is
+ * only that name again.
+ */
+export function workSubject(
+  thread: Thread,
+  who: string,
+  data: Pick<Workspace, "projects" | "channels">,
+  tr: Translate = t,
+): string {
+  const about = chatTitle(thread).trim();
+  return about && about.toLowerCase() !== who.trim().toLowerCase() ? about : threadContext(thread, data, tr);
+}
+
 /** What is going on right now: each active conversation with the job doing it, if one is running. */
 export function workingNow(threads: Thread[], jobs: Job[]): Array<{ thread: Thread; job?: Job }> {
   return activeThreads(threads).map((thread) => ({

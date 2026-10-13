@@ -131,6 +131,8 @@ export type Job = {
   thread_id: string;
   parent_thread_id?: string;
   agent_id?: string;
+  /** What it is doing right now ("Opened github.com"). */
+  activity?: string;
   started_at: string;
   ended_at?: string;
 };
