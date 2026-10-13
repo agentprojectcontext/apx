@@ -103,6 +103,7 @@ export function createChannels(deps: {
     },
     configured: (id) => configs().some((c) => c.id === id),
     media: (id) => deps.services.read(id),
+    failed: (o) => ownerFallback(o),
   });
 
   /**
@@ -111,13 +112,17 @@ export function createChannels(deps: {
    */
   function notifyOwner(body: Presentation, kind: OutboxRow["kind"] = "notice", threadId?: string): boolean {
     const prefs = noticePrefs(store);
+    const refused = new Set(body.refused_by);
     // The owner's phone, when they picked it: a push instead of a channel message (a channel if it has no push).
-    if (prefs.channel?.startsWith("device:") && deps.pushOwner?.(prefs.channel.slice(7), body.text)) return true;
-    const order = [...live.values()].sort(
-      (a, b) =>
-        Number(b.config.id === prefs.channel) - Number(a.config.id === prefs.channel) ||
-        Number(b.status === "running") - Number(a.status === "running"),
-    );
+    if (!refused.size && prefs.channel?.startsWith("device:") && deps.pushOwner?.(prefs.channel.slice(7), body.text))
+      return true;
+    const order = [...live.values()]
+      .filter((l) => !refused.has(l.config.id))
+      .sort(
+        (a, b) =>
+          Number(b.config.id === prefs.channel) - Number(a.config.id === prefs.channel) ||
+          Number(b.status === "running") - Number(a.status === "running"),
+      );
     for (const l of order) {
       const addr = store.persons.ownerAddress(l.config.id);
       if (!addr) continue;
@@ -134,6 +139,24 @@ export function createChannels(deps: {
       return true;
     }
     return false;
+  }
+
+  /**
+   * A notice, confirmation or pairing request for the owner that their channel refused goes to the next channel that
+   * knows them; with none left, the app's tray says it never arrived.
+   */
+  function ownerFallback(o: OutboxRow): void {
+    if (o.kind === "reply" || store.persons.byAddress(o.channel, o.conversation)?.id !== OWNER_ID) return;
+    const { skip: _skip, refused_by = [], ...body } = o.body;
+    if (notifyOwner({ ...body, refused_by: [...refused_by, o.channel] }, o.kind, o.thread_id)) return;
+    const texts = channelTexts(store);
+    deps.attention({
+      kind: "channel",
+      level: "error",
+      title: texts.noticeLostTitle,
+      body: texts.noticeLost([...refused_by, o.channel].join(", "), o.error ?? "", o.text.slice(0, 200)),
+      thread_id: o.thread_id,
+    });
   }
 
   const rooms = createRooms({

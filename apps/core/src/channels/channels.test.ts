@@ -4,12 +4,14 @@ import type { AddressInfo } from "node:net";
 import { after, before, test } from "node:test";
 import { z } from "zod";
 import { inQuietHours } from "../domain/notices.ts";
+import { OWNER_ID } from "../domain/persons.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { guardReply } from "./guard.ts";
 import { telegramAdapter } from "./telegram.ts";
 import { chunks, toTelegramHtml } from "./telegram-format.ts";
+import { type ChannelAdapter, SendError } from "./types.ts";
 
 const TOKEN = "123456:TEST-token";
 const OWNER = { id: 1001, name: "Owner" };
@@ -59,6 +61,16 @@ const slowpoke = defineTool({
     }),
 });
 
+/** A channel that runs but refuses every message, as Discord does for a channel id it does not know. */
+const refusing: ChannelAdapter = {
+  caps: { typing: false, buttons: false },
+  start: async () => ({ account: "@refusing" }),
+  stop: async () => {},
+  send: async () => {
+    throw new SendError("fatal", "Unknown Channel");
+  },
+};
+
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 
@@ -76,7 +88,7 @@ before(async () => {
   env = await startCore({
     llm,
     extraTools: [probe, slowpoke],
-    channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url) },
+    channelAdapters: { telegram: (c, t) => telegramAdapter(c, t, tg.url), discord: () => refusing },
   });
   await env.client.call("channels.set", {
     id: "tg",
@@ -403,4 +415,31 @@ test("a routine's news reaches the owner without buttons; the owner's 👍/👎 
   await new Promise((r) => setTimeout(r, 150));
   assert.equal(env.core.store.nudges.get(id)?.feedback, undefined);
   assert.equal(tg.messagesTo(OWNER.id).length, before);
+});
+
+test("a notice the owner's chosen channel refuses goes to the next channel that knows them", async () => {
+  await env.client.call("channels.set", { id: "dc", channel: { type: "discord", agent_id: "roby" }, token: TOKEN });
+  env.core.store.persons.link(OWNER_ID, { channel: "dc", external_id: "424242", label: "Discord" });
+  const prefs = await env.client.call("notices.get", {});
+  await env.client.call("notices.set", { ...prefs, channel: "dc" });
+  try {
+    const r = await env.client.call("routines.set", {
+      name: "fallback-probe",
+      agent: "roby",
+      schedule: { kind: "manual" },
+      action: "message",
+      prompt: "Evening brief",
+      enabled: true,
+    });
+    await env.client.call("routines.run", { routine: r.id });
+    await until(() => tg.messagesTo(OWNER.id).some((m) => m.body.text === "Evening brief"), "notice on Telegram");
+    const outbox = env.core.store.channels.outbox.recent(20).filter((o) => o.text === "Evening brief");
+    assert.deepEqual(outbox.map((o) => [o.channel, o.state]).sort(), [
+      ["dc", "failed"],
+      ["tg", "sent"],
+    ]);
+  } finally {
+    await env.client.call("notices.set", prefs);
+    await env.client.call("channels.set", { id: "dc", channel: null });
+  }
 });

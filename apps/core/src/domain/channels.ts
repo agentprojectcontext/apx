@@ -61,6 +61,8 @@ export type Presentation = {
   reply_to?: string;
   /** People of the room the text names as @handle: they get pinged where the channel can (never @everyone). */
   mentions?: Array<{ id: string; handle: string }>;
+  /** A notice for the owner: the channels that already refused it, so the next try goes elsewhere. */
+  refused_by?: string[];
 };
 
 export type InboxRow = { id: string; channel: string; payload: Inbound; state: string };

@@ -22,6 +22,8 @@ export function createDelivery(deps: {
   configured(channel: string): boolean;
   /** A media file's bytes, by id. */
   media(id: string): { mime: string; data: Buffer } | undefined;
+  /** An item that surely did not go out and will not be tried again on its channel. */
+  failed?(o: OutboxRow): void;
 }) {
   const { store, log } = deps;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -60,6 +62,7 @@ export function createDelivery(deps: {
       if (!deps.configured(o.channel)) {
         store.channels.outbox.fail(o.id, "failed", "channel removed");
         if (o.message_id) store.messages.setDelivery(o.message_id, "failed");
+        deps.failed?.(o);
       } else store.channels.outbox.retry(o.id, new Date(Date.now() + NOT_RUNNING_RETRY_MS), "channel is not running");
       return;
     }
@@ -93,6 +96,7 @@ export function createDelivery(deps: {
     store.channels.outbox.fail(o.id, state, msg);
     if (o.message_id) store.messages.setDelivery(o.message_id, "failed");
     log.warn({ channel: o.channel, outbox: o.id, err: msg, state }, "channel send did not go through");
+    if (state === "failed") deps.failed?.({ ...o, error: msg });
   }
 
   return {

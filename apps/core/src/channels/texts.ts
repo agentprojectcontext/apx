@@ -43,6 +43,9 @@ const es = {
         : `Vence: ${title}. Se lo debés a ${person}.`
       : `Vence: ${title}.`,
   routineFailed: (name: string, why: string) => `La rutina «${name}» no pudo terminar: ${why}`,
+  noticeLostTitle: "Un aviso no te llegó",
+  noticeLost: (channels: string, why: string, text: string) =>
+    `Ningún canal pudo entregarlo (${channels}${why ? `: ${why}` : ""}). Decía: «${text}»`,
   reminders: (lines: string[]) => `Recordatorios:\n${lines.map((l) => `• ${l}`).join("\n")}`,
   digest: (texts: string[]) => `Mientras estabas en silencio:\n\n${texts.join("\n\n—\n\n")}`,
 };
@@ -87,6 +90,9 @@ const en: typeof es = {
         : `Due: ${title}. You owe it to ${person}.`
       : `Due: ${title}.`,
   routineFailed: (name, why) => `The routine "${name}" couldn't finish: ${why}`,
+  noticeLostTitle: "A notice didn't reach you",
+  noticeLost: (channels, why, text) =>
+    `No channel could deliver it (${channels}${why ? `: ${why}` : ""}). It said: "${text}"`,
   reminders: (lines) => `Reminders:\n${lines.map((l) => `• ${l}`).join("\n")}`,
   digest: (texts) => `While your quiet hours lasted:\n\n${texts.join("\n\n—\n\n")}`,
 };
