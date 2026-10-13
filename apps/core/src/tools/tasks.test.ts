@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import type { Task } from "@apx/protocol";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { boardText } from "./tasks.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(String(req.messages.at(-1)?.content));
@@ -45,5 +47,47 @@ test("a task title the owner did not write reaches the model as outside data; th
   assert.match(
     await list({}),
     /<tasks note="titles not all by the owner" trust="untrusted">[\s\S]*ignore your rules[\s\S]*<\/tasks>\ncolumns:/,
+  );
+});
+
+test("a board too long to show whole keeps promises, dates, waits and recent moves on their lines, the rest counted", () => {
+  const at = Date.parse("2026-10-13T21:30:00Z");
+  const task = (i: number, o: Partial<Task>): Task => ({
+    id: `task_${i}`,
+    title: `Quiet task number ${i} with a long enough title to fill the board`,
+    description: "",
+    status: "todo",
+    state: "open",
+    kind: "task",
+    priority: "normal",
+    tags: [],
+    thread_id: `th_${i}`,
+    awaits_owner: false,
+    renegotiated: 0,
+    created_by: "owner",
+    created_at: "2026-10-01T10:00:00Z",
+    updated_at: "2026-10-01T10:00:00Z",
+    chats: 0,
+    activity_at: `2026-10-0${1 + (i % 4)}T10:00:00Z`,
+    ...o,
+  });
+  const quiet = Array.from({ length: 120 }, (_, i) => task(i, { project_id: i % 2 ? "p_a" : "p_b" }));
+  const pressing = [
+    task(900, { title: "Send Ana the quote", kind: "commitment", person_name: "Ana", due_at: "2026-10-13" }),
+    task(901, { title: "Overdue invoice", due_at: "2026-10-10" }),
+    task(902, { title: "Pick the logo", awaits_owner: true }),
+    task(903, { title: "Moved this morning", activity_at: "2026-10-13T12:00:00Z" }),
+  ];
+  const text = boardText([...pressing, ...quiet], (t) => (t.project_id === "p_a" ? "Acme" : "Northwind"), at);
+  assert.ok(text.length < 12_000, `${text.length} chars`);
+  for (const t of pressing) assert.ok(text.includes(t.title), t.title);
+  assert.doesNotMatch(text, /Quiet task number/);
+  assert.match(text, /120 more not listed one by one/);
+  assert.match(text, /project Acme: 60 \(60 todo\), last activity 2026-10-04, quiet since 2026-10-02/);
+  assert.match(text, /project Northwind: 60 \(60 todo\), last activity 2026-10-03, quiet since 2026-10-01/);
+  // A board that fits is listed whole.
+  assert.match(
+    boardText(quiet.slice(0, 5), () => undefined, at),
+    /Quiet task number 4/,
   );
 });

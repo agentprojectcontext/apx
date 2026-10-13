@@ -34,6 +34,39 @@ function taskLines(tasks: Task[], lineOf: (t: Task) => string): string {
   return untrusted("tasks", { note: "titles not all by the owner" }, text);
 }
 
+/** Past this the result cap would cut the list in the middle: the tasks that matter stay whole, the rest is counted. */
+const LIST_CHARS = 10_000;
+const RECENT_MS = 48 * 3600_000;
+
+/** What a brief reads line by line: a promise, a date due within a day or past, a wait on the owner, a recent move. */
+const pressing = (t: Task, at: number) =>
+  t.kind === "commitment" ||
+  Boolean(t.person_id) ||
+  t.awaits_owner ||
+  (t.due_at !== undefined && Date.parse(t.due_at) - at < 86_400_000) ||
+  at - Date.parse(t.activity_at) < RECENT_MS;
+
+/** The tasks a list cannot show whole, per project: how many, in which columns, and since when they are quiet. */
+function folded(tasks: Task[], where: (t: Task) => string | undefined): string {
+  const lines = [...Map.groupBy(tasks, (t) => where(t) ?? "")].map(([project, ts]) => {
+    const columns = [...Map.groupBy(ts, (t) => t.status)].map(([c, n]) => `${n.length} ${c}`).join(", ");
+    const last = ts.map((t) => t.activity_at).sort();
+    const day = (iso: string | undefined) => (iso ?? "").slice(0, 10);
+    return `- ${project ? `project ${project}` : "this project"}: ${ts.length} (${columns}), last activity ${day(last.at(-1))}, quiet since ${day(last[0])}`;
+  });
+  return `${tasks.length} more not listed one by one (no promise, no date due within a day, not waiting for the owner, no move in 48 hours):\n${lines.join("\n")}`;
+}
+
+/** A task list for the model: every task on its line while it fits, else the pressing ones and the rest counted. */
+export function boardText(tasks: Task[], where: (t: Task) => string | undefined, at = Date.now()): string {
+  const lineOf = (t: Task) => line(t, where(t));
+  const whole = taskLines(tasks, lineOf);
+  const rest = tasks.filter((t) => !pressing(t, at));
+  if (whole.length <= LIST_CHARS || !rest.length) return whole;
+  const keep = tasks.filter((t) => pressing(t, at));
+  return `${keep.length ? `${taskLines(keep, lineOf)}\n` : ""}${folded(rest, where)}`;
+}
+
 /**
  * Writing on the board is the owner's own record and runs even with outside content in the turn; handing the work to
  * an agent (an assignee, an @mention) starts that agent's turn, so then it waits for the owner like any other action.
@@ -108,7 +141,7 @@ export function taskTools(store: Store): Tool[] {
         const names = new Map(listed?.projects.map((p) => [p.id, p.name]));
         const where = (t: Task) =>
           listed ? (t.project_id ? (names.get(t.project_id) ?? t.project_id) : listed.base.name) : undefined;
-        if (r.tasks.length) return `${taskLines(r.tasks, (t) => line(t, where(t)))}\n${cols}`;
+        if (r.tasks.length) return `${boardText(r.tasks, where)}\n${cols}`;
         // An empty filtered list is not an empty board: say what was asked and what else is open.
         const scope = [a.state ?? "open", a.mine ? "assigned to you" : "", a.commitments ? "commitments" : ""];
         const empty = `no tasks (${scope.filter(Boolean).join(", ")}).`;
