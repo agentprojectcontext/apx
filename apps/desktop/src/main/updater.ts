@@ -24,6 +24,7 @@ import {
 } from "@apx/protocol";
 import { app, shell } from "electron";
 import { replaceableBundle } from "./app-bundle.ts";
+import { removeOldInstallers } from "./installer-files.ts";
 
 export type DesktopUpdate = {
   current: string;
@@ -238,6 +239,7 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
 
   async function stageWindows(release: Release, asset: ReleaseAsset): Promise<Staged> {
     const file = path.join(os.tmpdir(), asset.name);
+    removeOldInstallers(os.tmpdir(), asset.name);
     await fetchChecked(release, asset, file);
     return {
       version: release.version,
@@ -266,6 +268,8 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
     /** `found(status)`: a background check found a newer APX (auto mode then downloads it on its own). */
     start(found: (s: DesktopUpdate) => void) {
       if (!enabled) return;
+      // Running means the last installer is done: it and any before it go.
+      if (process.platform === "win32") removeOldInstallers(os.tmpdir());
       if (bundle)
         for (const f of fs.readdirSync(path.dirname(bundle)))
           if (/^\.APX-.+\.update$/.test(f))
