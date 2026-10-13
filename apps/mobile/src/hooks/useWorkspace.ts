@@ -485,6 +485,15 @@ export function useWorkspace(creds: Creds) {
     },
     [client],
   );
+  /** A new project in a folder of its own inside APX's, on the computer (the phone picks no folder). */
+  const createProject = useCallback(
+    async (p: { name: string; kind?: string; description?: string }) => {
+      const { project } = await rpc<{ project: Project }>(client, "projects.create", p);
+      setData((d) => ({ ...d, projects: [...d.projects.filter((item) => item.id !== project.id), project] }));
+      return project;
+    },
+    [client],
+  );
   const createTask = useCallback(
     async (task: NewTask) => putTask(await rpc<Task>(client, "tasks.create", task)),
     [client, putTask],
@@ -645,6 +654,7 @@ export function useWorkspace(creds: Creds) {
     routineRuns,
     taskDetail,
     createTask,
+    createProject,
     updateTask,
     closeTask,
     deleteTask,

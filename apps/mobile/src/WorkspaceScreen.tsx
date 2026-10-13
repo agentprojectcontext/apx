@@ -19,6 +19,7 @@ import { InboxPage } from "./pages/InboxPage";
 import { MemoryPage } from "./pages/MemoryPage";
 import { MoreDetailPage } from "./pages/MoreDetailPage";
 import { type MoreId, MorePage } from "./pages/MorePage";
+import { NewProjectPage } from "./pages/NewProjectPage";
 import { NewTaskPage } from "./pages/NewTaskPage";
 import { RoutineDetailPage } from "./pages/RoutineDetailPage";
 import { RoutineEditPage } from "./pages/RoutineEditPage";
@@ -82,6 +83,7 @@ export function WorkspaceScreen({
   const [editingRoutine, setEditingRoutine] = useState(false);
   /** The task whose page is open, or "new" while the owner writes one. */
   const [task, setTask] = useState<string>();
+  const [newProject, setNewProject] = useState(false);
   const fileActions = useMemo(
     () => ({ tree: workspace.fileTree, read: workspace.readFile, media: workspace.fileMedia }),
     [workspace.fileTree, workspace.readFile, workspace.fileMedia],
@@ -152,13 +154,14 @@ export function WorkspaceScreen({
       else if (editingRoutine) setEditingRoutine(false);
       else if (routine) setRoutine(undefined);
       else if (task) setTask(undefined);
+      else if (newProject) setNewProject(false);
       else if (subpage) setSubpage(undefined);
       else if (tab !== "chats") setTab("chats");
       else return false;
       return true;
     });
     return () => sub.remove();
-  }, [picker, surfaces, thread, editingRoutine, routine, task, subpage, tab]);
+  }, [picker, surfaces, thread, editingRoutine, routine, task, newProject, subpage, tab]);
   const openThread = async (item: Thread) => {
     setThread(item);
     void workspace.openThread(item.id).catch(() => undefined);
@@ -230,6 +233,20 @@ export function WorkspaceScreen({
           openThread={openById}
         />
       );
+    if (newProject)
+      return (
+        <NewProjectPage
+          host={host}
+          back={() => setNewProject(false)}
+          create={workspace.createProject}
+          created={(project) => {
+            setNewProject(false);
+            setChatProject(project.id);
+            setSubpage(undefined);
+            setTab("chats");
+          }}
+        />
+      );
     if (subpage === "routines")
       return (
         <RoutinesPage
@@ -276,6 +293,7 @@ export function WorkspaceScreen({
             setTab("chats");
           }}
           chatWith={(agent) => setThread(newChatThread({ agent: agent.id }, t("newChat")))}
+          newProject={() => setNewProject(true)}
         />
       );
     switch (tab) {
@@ -361,6 +379,7 @@ export function WorkspaceScreen({
             setRoutine(undefined);
             setEditingRoutine(false);
             setTask(undefined);
+            setNewProject(false);
           }}
         />
       ) : null}

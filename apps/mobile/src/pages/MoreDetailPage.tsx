@@ -3,23 +3,25 @@ import { sentenceCase } from "../format";
 import { channelName, listedThreads } from "../hooks/chatSelectors";
 import type { Agent, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
-import { AgentAvatar, Dot, EmptyState, IconTile, ListGroup, ListRow, Screen, SubHeader } from "../ui/kit";
+import { AgentAvatar, Button, Dot, EmptyState, IconTile, ListGroup, ListRow, Screen, SubHeader } from "../ui/kit";
 import { useTheme } from "../ui/theme";
 import type { MoreId } from "./MorePage";
 
-/** The plain lists behind More: agents (tap to chat), projects and channels. */
+/** The plain lists behind More: agents (tap to chat), projects (and a new one) and channels. */
 export function MoreDetailPage({
   id,
   data,
   back,
   chatWith,
   openProject,
+  newProject,
 }: {
   id: Exclude<MoreId, "routines" | "settings" | "apps" | "memory" | "files" | "about">;
   data: Workspace;
   back: () => void;
   chatWith: (agent: Agent) => void;
   openProject: (id: string) => void;
+  newProject: () => void;
 }) {
   const theme = useTheme();
   const agentName = (agentId: string) => data.agents.find((agent) => agent.id === agentId)?.name ?? agentId;
@@ -77,7 +79,11 @@ export function MoreDetailPage({
   };
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
-      <SubHeader title={t(id)} back={back} />
+      <SubHeader
+        title={t(id)}
+        back={back}
+        right={id === "projects" ? <Button label={t("pjNewShort")} size="sm" onPress={newProject} /> : undefined}
+      />
       <Screen>{body()}</Screen>
     </View>
   );
