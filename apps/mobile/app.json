@@ -28,7 +28,12 @@
           "locationWhenInUsePermission": "APX tells your agents where you are when they ask (only while the app is open)."
         }
       ],
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/sounds/message.wav"]
+        }
+      ],
       "./plugins/with-ios-scenes.js",
       "./plugins/with-android-cleartext.js",
       [

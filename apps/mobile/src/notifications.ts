@@ -4,8 +4,15 @@ import { AppState, Platform } from "react-native";
 import { APP_CLIENT } from "./appInfo";
 import type { Creds } from "./creds";
 import { t } from "./i18n";
+import { soundsFor } from "./noticeSound";
 import { permissionState, shouldAsk } from "./notificationPermission";
 import { ApxClient } from "./protocol";
+import { soundPrefs } from "./sounds";
+
+/** Android fixes a channel's sound when it is made: one with APX's sound, one quiet, picked per notice. */
+const SOUND_CHANNEL = "apx-sound";
+const QUIET_CHANNEL = "apx-quiet";
+const SOUND_FILE = "message.wav";
 
 export type NotificationStatus = {
   /** `off`: not turned on yet, the owner can still be asked; `denied`: only the system settings can turn it on. */
@@ -47,7 +54,8 @@ Notifications.setNotificationHandler({
     // In the app, a remote push repeats the live notice; about the chat on screen, neither sounds.
     const thread = typeof data?.thread_id === "string" ? data.thread_id : undefined;
     const show = !(remoteDevice && AppState.currentState === "active" && !local) && !onScreen(thread);
-    return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show, shouldSetBadge: show };
+    const sound = show && data?.sound !== false;
+    return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: sound, shouldSetBadge: show };
   },
 });
 
@@ -59,6 +67,20 @@ async function permission(request: boolean) {
       // No `sound`: a name here means a bundled file; leaving it out keeps the system's notification sound.
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 150, 250],
+      lightColor: "#3ec98b",
+    });
+    await Notifications.setNotificationChannelAsync(SOUND_CHANNEL, {
+      name: "APX",
+      sound: SOUND_FILE,
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 150, 250],
+      lightColor: "#3ec98b",
+    });
+    await Notifications.setNotificationChannelAsync(QUIET_CHANNEL, {
+      name: t("quietNotices"),
+      sound: null,
+      enableVibrate: false,
+      importance: Notifications.AndroidImportance.HIGH,
       lightColor: "#3ec98b",
     });
   }
@@ -113,7 +135,7 @@ async function viaNtfy(client: ApxClient, creds: Creds): Promise<NotificationSta
  * is away on a device the core reaches by push (that push already sounds). A notice read elsewhere leaves the tray.
  */
 export async function showLiveNotice(
-  notice: { id: string; title: string; body: string; read_at?: string; thread_id?: string },
+  notice: { id: string; kind?: string; title: string; body: string; read_at?: string; thread_id?: string },
   device: string,
 ): Promise<void> {
   const key = `${device}:${notice.id}`;
@@ -128,16 +150,18 @@ export async function showLiveNotice(
   if (delivered.has(key)) return;
   delivered.add(key);
   if (delivered.size > 500) delivered.delete(delivered.values().next().value ?? "");
+  // Which notices sound is the owner's choice on this phone (Settings › Sounds); the rest arrive quiet.
+  const sound = soundsFor(notice.kind, soundPrefs().notice);
   try {
     await Notifications.scheduleNotificationAsync({
       identifier: `apx-${notice.id}`,
       content: {
         title: notice.title,
         body: notice.body,
-        sound: true,
-        data: { thread_id: notice.thread_id, source: "apx-live" },
+        sound: sound ? SOUND_FILE : false,
+        data: { thread_id: notice.thread_id, source: "apx-live", sound },
       },
-      trigger: Platform.OS === "android" ? { channelId: "default" } : null,
+      trigger: Platform.OS === "android" ? { channelId: sound ? SOUND_CHANNEL : QUIET_CHANNEL } : null,
     });
   } catch (error) {
     delivered.delete(key);
@@ -146,8 +170,14 @@ export async function showLiveNotice(
 }
 
 export function notificationPreview() {
+  const sound = soundPrefs().notice !== "off";
   return Notifications.scheduleNotificationAsync({
-    content: { title: "APX", body: t("notificationPreview"), sound: true, data: { source: "apx-live" } },
-    trigger: Platform.OS === "android" ? { channelId: "default" } : null,
+    content: {
+      title: "APX",
+      body: t("notificationPreview"),
+      sound: sound ? SOUND_FILE : false,
+      data: { source: "apx-live", sound },
+    },
+    trigger: Platform.OS === "android" ? { channelId: sound ? SOUND_CHANNEL : QUIET_CHANNEL } : null,
   });
 }

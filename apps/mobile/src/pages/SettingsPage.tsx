@@ -7,9 +7,11 @@ import { channelName } from "../hooks/chatSelectors";
 import { useNotifications } from "../hooks/useNotifications";
 import type { Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
+import type { NoticeSound } from "../noticeSound";
 import type { NoticePrefs } from "../protocol";
+import { previewSound, setSoundPrefs, useSoundPrefs } from "../sounds";
 import { Icon } from "../ui/Icon";
-import { Button, Chip, IconTile, ListGroup, ListRow, OwnerAvatar, Screen, SubHeader, useType } from "../ui/kit";
+import { Button, Chip, IconTile, ListGroup, ListRow, OwnerAvatar, Screen, SubHeader, Toggle, useType } from "../ui/kit";
 import { NotificationCard } from "../ui/NotificationCard";
 import { makeStyles, useTheme } from "../ui/theme";
 
@@ -19,6 +21,12 @@ const QUIET: Array<[string, string]> = [
   ["00:00", "09:00"],
 ];
 const BUDGETS = [1, 3, 5, 10, 0];
+const SOUND_MODES: Array<[NoticeSound, "soundAll" | "soundMessages" | "soundRequests" | "soundOff"]> = [
+  ["all", "soundAll"],
+  ["messages", "soundMessages"],
+  ["requests", "soundRequests"],
+  ["off", "soundOff"],
+];
 const LOOKS: Array<[AppearancePref, "setLookSystem" | "setLookLight" | "setLookDark"]> = [
   ["system", "setLookSystem"],
   ["light", "setLookLight"],
@@ -49,6 +57,7 @@ export function SettingsPage({
   const notifications = useNotifications(creds);
   const [prefs, setPrefs] = useState<NoticePrefs>();
   const [look, setLook] = useState(currentAppearance);
+  const sounds = useSoundPrefs();
   const pickLook = (pref: AppearancePref) => {
     setLook(pref);
     saveAppearance(pref).catch(() => undefined);
@@ -155,6 +164,40 @@ export function SettingsPage({
             </ScrollView>
           </>
         ) : null}
+        <Text style={s.label}>{t("setSounds")}</Text>
+        <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setNoticeSound")}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
+          {SOUND_MODES.map(([mode, label]) => (
+            <Chip
+              key={mode}
+              label={t(label)}
+              selected={sounds.notice === mode}
+              onPress={() => {
+                setSoundPrefs({ notice: mode });
+                if (mode !== "off") previewSound("notice");
+              }}
+            />
+          ))}
+        </ScrollView>
+        <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setNoticeSoundHelp")}</Text>
+        <ListGroup>
+          <ListRow
+            label={t("setAudioEnd")}
+            sub={t("setAudioEndHelp")}
+            leading={<IconTile icon="Music" />}
+            trailing={
+              <Toggle
+                value={sounds.audioEnd}
+                label={t("setAudioEnd")}
+                onChange={(on) => {
+                  setSoundPrefs({ audioEnd: on });
+                  if (on) previewSound("audioEnd");
+                }}
+              />
+            }
+            chevron={false}
+          />
+        </ListGroup>
         <Text style={s.label}>{t("setLook")}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
           {LOOKS.map(([pref, label]) => (

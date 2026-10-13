@@ -4,6 +4,7 @@ import { Pressable, Text, View } from "react-native";
 import { type MediaItem, sizeText } from "../../chat/media";
 import { shareMedia } from "../../chat/mediaFiles";
 import { t } from "../../i18n";
+import { audioEnded } from "../../sounds";
 import { Icon } from "../Icon";
 import { Spinner } from "../kit";
 import { makeStyles, useTheme } from "../theme";
@@ -91,6 +92,7 @@ function AudioControls({ uri, item, onMenu }: { uri: string; item: MediaItem; on
     if (!status.didJustFinish) return;
     player.pause();
     void player.seekTo(0);
+    audioEnded();
   }, [status.didJustFinish, player]);
   const progress = status.duration > 0 ? Math.min(1, status.currentTime / status.duration) : 0;
   return (
