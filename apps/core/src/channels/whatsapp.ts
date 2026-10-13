@@ -9,7 +9,7 @@ import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { chunks } from "./telegram-format.ts";
 import { type AdapterIO, type ChannelAdapter, ChannelRefused, fileName, type OutFile, SendError } from "./types.ts";
-import { menuText, WA_CONTAINERS } from "./whatsapp-menus.ts";
+import { type Menu, menuText, optionNamed, readMenu, tapFor, WA_CONTAINERS } from "./whatsapp-menus.ts";
 
 /** The part of the library APX uses, so a test can hand in its own. */
 export type WaLib = {
@@ -192,6 +192,8 @@ export function whatsappAdapter(opts: {
   const watching = new Set<string>();
   /** The chat each recent message came in on (WhatsApp's own id for it), to react to it exactly there. */
   const chats = new Map<string, string>();
+  /** The menu each chat's other side offered last (a business's buttons), so an answer naming an option taps it. */
+  const menus = new Map<string, Menu>();
 
   const hasCreds = () => fs.existsSync(path.join(dir, "creds.json"));
   const remember = (id: string | null | undefined) => {
@@ -350,6 +352,12 @@ export function whatsappAdapter(opts: {
       if (!voice) text = "[voice note: it could not be downloaded]";
     }
     if (!text && !voice) return;
+    if (!group) {
+      const menu = readMenu(content);
+      menus.delete(who);
+      if (menu?.options.length) menus.set(who, menu);
+      if (menus.size > CHATS_KEPT) menus.delete(menus.keys().next().value ?? "");
+    }
     // A number answering the options offered here is that option, pressed.
     const choice = /^\s*(\d{1,2})\s*$/.exec(text)?.[1];
     const options = offered.get(who);
@@ -421,6 +429,14 @@ export function whatsappAdapter(opts: {
     },
     async send(conversation, p: Presentation, files = []) {
       const options = p.buttons?.length ? p.buttons : undefined;
+      // Answering a business's menu with one of its options: that button, pressed.
+      const menu = menus.get(conversation);
+      const picked = menu && !options && !files.length && !p.skip ? optionNamed(menu, p.text) : undefined;
+      if (menu && picked) {
+        const id = await sendOne(conversation, tapFor(menu, picked));
+        menus.delete(conversation);
+        return id ? { external_id: id } : {};
+      }
       const body = [
         p.text.trim() ? toWhatsApp(p.text) : "",
         options ? options.map((b, i) => `*${i + 1}* — ${b.label}`).join("\n") : "",

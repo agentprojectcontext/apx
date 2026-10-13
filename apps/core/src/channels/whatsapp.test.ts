@@ -9,7 +9,10 @@ import { toWhatsApp, whatsappAdapter } from "./whatsapp.ts";
 const ANA = { phone: "5491100000002@s.whatsapp.net", name: "Ana" };
 const BOB = { phone: "5491100000003@s.whatsapp.net", name: "Bob", lid: "200000000000003@lid" };
 
-const llm = scriptedLlm((_req, { said }) => say(`Got it: ${said}`));
+// A business's menu is answered with one of its options; anything else is echoed.
+const llm = scriptedLlm((_req, { said }) =>
+  said.includes("[Options:") ? say(said.includes("Claims") ? "2" : "Home") : say(`Got it: ${said}`),
+);
 let env: Awaited<ReturnType<typeof startCore>>;
 let wa: ReturnType<typeof fakeWhatsApp>;
 
@@ -219,6 +222,52 @@ test("a business's verification code (a template with a copy button) is read, no
   await until(async () => Boolean((await listed("Northwind Auth")) && (await listed("Acme Pay"))), "both listed");
   assert.equal(await listed("Northwind Auth"), "*482913* is your verification code.");
   assert.equal(await listed("Acme Pay"), "Acme Pay\nYour code: 771204");
+});
+
+test("a business's menu, answered with one of its options, goes back as that button pressed", async () => {
+  const bot = { phone: "5491100000012@s.whatsapp.net", name: "Northwind Insurance" };
+  const person = await env.client.call("contacts.set", { name: "Northwind Insurance" });
+  await env.client.call("contacts.address", { channel: "whatsapp", address: "+54 9 11 0000-0012", person: person.id });
+  const taps = () => wa.sent.filter((x) => x.jid === bot.phone).map((x) => x.content);
+
+  wa.message(bot, "", {
+    content: {
+      buttonsMessage: {
+        contentText: "How can we help?",
+        buttons: [
+          { buttonId: "car", buttonText: { displayText: "Car" } },
+          { buttonId: "home", buttonText: { displayText: "Home" } },
+        ],
+      },
+    },
+  });
+  await until(() => taps().length === 1, "the agent answers the buttons");
+  assert.deepEqual(taps()[0], { buttonReply: { displayText: "Home", id: "home", index: 1 }, type: "plain" });
+
+  wa.message(bot, "", {
+    content: {
+      listMessage: {
+        description: "Home: what about it?",
+        buttonText: "See options",
+        sections: [
+          {
+            rows: [
+              { rowId: "quote", title: "Quote" },
+              { rowId: "claim", title: "Claims" },
+            ],
+          },
+        ],
+      },
+    },
+  });
+  await until(() => taps().length === 2, "the agent answers the list");
+  assert.deepEqual(taps()[1], {
+    listReply: { title: "Claims", listType: 1, singleSelectReply: { selectedRowId: "claim" } },
+  });
+
+  wa.message(bot, "Type your policy number");
+  await until(() => taps().length === 3, "words are answered in words");
+  assert.match(String(taps()[2]?.text), /^Got it: .*Type your policy number/s, "no menu left to tap");
 });
 
 test("someone under their private id is the same person as their number", async () => {

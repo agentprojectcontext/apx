@@ -201,3 +201,39 @@ export function menuText(c: unknown): string | undefined {
   const opts = menu.options.map((o) => `${o.n}. ${o.title}`).join(" | ");
   return [head, opts ? `[Options: ${opts}]` : ""].filter(Boolean).join("\n") || undefined;
 }
+
+const fold = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[\s.!*]+$/u, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/**
+ * The option a whole reply names: its number, its exact label or id. Anything looser stays words, never a guessed
+ * tap on someone's behalf.
+ */
+export function optionNamed(menu: Menu, reply: string): MenuOption | undefined {
+  const key = fold(reply);
+  if (!key) return undefined;
+  if (/^\d{1,2}$/.test(key)) return menu.options.find((o) => o.n === Number(key));
+  return menu.options.find((o) => fold(o.title) === key) ?? menu.options.find((o) => fold(o.id) === key);
+}
+
+/**
+ * The tap that answers a menu, as Baileys builds it, so a bot sees its button pressed rather than words typed. A
+ * nativeFlow menu and a poll have no reply the library can build: those are answered with the option's label.
+ */
+export function tapFor(menu: Menu, o: MenuOption): Record<string, unknown> {
+  if (menu.kind === "list")
+    // listType 1 is SINGLE_SELECT: without it the receiving client ignores the reply.
+    return { listReply: { title: o.title, listType: 1, singleSelectReply: { selectedRowId: o.id } } };
+  if (menu.kind === "buttons" || menu.kind === "template")
+    return {
+      buttonReply: { displayText: o.title, id: o.id, index: o.n - 1 },
+      type: menu.kind === "template" ? "template" : "plain",
+    };
+  return { text: o.title };
+}

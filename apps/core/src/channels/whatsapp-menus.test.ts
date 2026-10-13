@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { menuText, readMenu, readPick } from "./whatsapp-menus.ts";
+import { menuText, optionNamed, readMenu, readPick, tapFor } from "./whatsapp-menus.ts";
 
 test("quick-reply buttons read as a numbered menu, the footer left out", () => {
   const text = menuText({
@@ -151,4 +151,29 @@ test("a tap on a menu reads as the choice, with its id", () => {
     { kind: "interactive", id: "claim", title: "Report a claim" },
   );
   assert.equal(menuText({ conversation: "plain" }), undefined, "plain text is not a menu");
+});
+
+test("only a whole answer naming one option is a tap; nativeFlow and polls are answered with the label", () => {
+  const menu = readMenu({
+    buttonsMessage: {
+      contentText: "Pick",
+      buttons: [
+        { buttonId: "car", buttonText: { displayText: "Car" } },
+        { buttonId: "home", buttonText: { displayText: "Hogar Plus" } },
+      ],
+    },
+  });
+  assert.ok(menu);
+  assert.equal(optionNamed(menu, "2")?.id, "home");
+  assert.equal(optionNamed(menu, " hogar plus. ")?.id, "home");
+  assert.equal(optionNamed(menu, "car")?.id, "car");
+  assert.equal(optionNamed(menu, "3"), undefined);
+  assert.equal(optionNamed(menu, "I want the car one"), undefined, "a sentence stays words");
+  const flow = readMenu({
+    interactiveMessage: {
+      nativeFlowMessage: { buttons: [{ name: "quick_reply", buttonParamsJson: '{"display_text":"Claims","id":"c"}' }] },
+    },
+  });
+  assert.ok(flow?.options[0]);
+  assert.deepEqual(tapFor(flow, flow.options[0]), { text: "Claims" });
 });
