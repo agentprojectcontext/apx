@@ -8,6 +8,8 @@ type Closed = {
   star: boolean;
   /** The version whose card was closed in this session: skipping one release is not a decision about the next. */
   update: string;
+  /** "v1 is still running", closed for this session only. */
+  v1: boolean;
 };
 
 const KEY = "apx.corner";
@@ -19,9 +21,10 @@ function load(): Closed {
       discord: raw.discord === true,
       star: raw.star === true,
       update: "",
+      v1: false,
     };
   } catch {
-    return { discord: false, star: false, update: "" };
+    return { discord: false, star: false, update: "", v1: false };
   }
 }
 

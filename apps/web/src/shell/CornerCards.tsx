@@ -3,6 +3,7 @@ import { Button, ChannelIcon, IconButton, Icons, ProjectTile } from "@apx/ui";
 import type { CSSProperties, ReactNode } from "react";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
 import { newerOf, openUpdate, restartApp, useUpdates } from "../data/updates.ts";
+import { useV1Running } from "../data/v1Running.ts";
 import { useT } from "../i18n/index.ts";
 
 const LINKS = {
@@ -25,8 +26,24 @@ export function CornerCards({ floating = false }: { floating?: boolean }) {
   const newer = newerOf(status, app);
   // A checkout behind main has no version to name: the top bar's pill says it.
   const update = newer?.version && closed.update !== newer.version ? newer : undefined;
+  const v1 = useV1Running();
 
   const cards: ReactNode[] = [];
+  // First: two APX daemons run the same routines and answer the same bots. Closed, it shows again next time.
+  if (v1.running && !closed.v1)
+    cards.push(
+      <CornerCard
+        key="v1"
+        id="v1"
+        icon={<ProjectTile tone="warning" size={24} icon={<Icons.TriangleAlert size={14} />} />}
+        title={t("v1.cardTitle")}
+        description={t("v1.cardDesc")}
+        action={t("v1.cardCta")}
+        busy={v1.busy}
+        onAction={() => void v1.turnOff()}
+        onClose={() => closeCard({ v1: true })}
+      />,
+    );
   if (update?.version) {
     const version = update.version;
     // Downloaded already (the desktop app does it on its own): only the restart is left.
@@ -98,6 +115,7 @@ function CornerCard(props: {
   title: string;
   description: string;
   action: string;
+  busy?: boolean;
   onAction(): void;
   onClose(): void;
 }) {
@@ -113,10 +131,11 @@ function CornerCard(props: {
       <Button
         size="sm"
         fullWidth
+        loading={props.busy}
         onClick={() => {
           props.onAction();
-          // Done with it once acted on; the update card stays until it is updated or closed.
-          if (props.id !== "update") props.onClose();
+          // Done with it once acted on; the update and v1 cards stay until what they say is no longer true.
+          if (props.id !== "update" && props.id !== "v1") props.onClose();
         }}
       >
         {props.action}

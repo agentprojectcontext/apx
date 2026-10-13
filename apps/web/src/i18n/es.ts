@@ -218,6 +218,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "update.cardCta": "Ver novedades",
   "corner.label": "Novedades e invitaciones",
   "community.title": "Sumate a la comunidad",
+  "v1.cardTitle": "APX v1 sigue prendido",
+  "v1.cardDesc":
+    "Tus rutinas y bots pueden correr dos veces. Apagá v1 y que apx sea esta versión; los archivos de v1 quedan.",
+  "v1.cardCta": "Apagar v1",
   "community.desc": "Hay más gente usando APX. Preguntá, mostrá lo que armaste y enterate de lo que viene en Discord.",
   "community.cta": "Entrar a Discord",
   "star.title": "¿Te gusta APX?",
