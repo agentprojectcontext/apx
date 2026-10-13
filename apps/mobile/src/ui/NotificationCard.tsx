@@ -1,21 +1,26 @@
 import { Alert, Text, View } from "react-native";
 import { t as translate } from "../i18n";
-import { type NotificationStatus, notificationPreview } from "../notifications";
+import { type NotificationStatus, notificationPreview, pushBuild } from "../notifications";
 import { Icon } from "./Icon";
-import { Button, Card, useType } from "./kit";
+import { Button, Card, Spinner, useType } from "./kit";
 import { makeStyles, useTheme } from "./theme";
 
 export function NotificationCard({ status, enable }: { status: NotificationStatus; enable: () => Promise<void> }) {
   const type = useType();
   const t = useTheme();
   const s = useStyles();
-  const enabled = status.state === "local" || status.state === "push" || Boolean(status.localEnabled);
+  const enabled =
+    status.state === "local" ||
+    status.state === "push" ||
+    status.state === "registering" ||
+    Boolean(status.localEnabled);
+  const busy = status.state === "checking" || status.state === "registering";
   return (
     <Card style={s.card}>
       <View style={s.heading}>
         <Icon name="Bell" size={18} color={enabled ? t.brand : t.fgMuted} />
         <Text style={s.title}>{translate("notifications")}</Text>
-        {enabled ? <Icon name="Check" size={16} color={t.brand} /> : null}
+        {busy ? <Spinner size={14} /> : enabled ? <Icon name="Check" size={16} color={t.brand} /> : null}
       </View>
       <Text style={type.muted}>
         {translate(
@@ -23,18 +28,21 @@ export function NotificationCard({ status, enable }: { status: NotificationStatu
             ? status.via === "ntfy"
               ? "pushNtfy"
               : "pushActive"
-            : status.state === "local"
-              ? "localActive"
-              : status.state === "off"
-                ? "notificationsOff"
-                : status.state === "denied"
-                  ? "notificationsDenied"
-                  : status.state === "checking"
-                    ? "notificationsChecking"
-                    : "notificationsError",
+            : status.state === "registering"
+              ? "pushRegistering"
+              : status.state === "local"
+                ? "localActive"
+                : status.state === "off"
+                  ? "notificationsOff"
+                  : status.state === "denied"
+                    ? "notificationsDenied"
+                    : status.state === "checking"
+                      ? "notificationsChecking"
+                      : "notificationsError",
         )}
       </Text>
-      {status.state === "local" ? <Text style={type.meta}>{translate("pushPending")}</Text> : null}
+      {/* Only a build without Firebase needs the ntfy route to reach the phone with APX closed. */}
+      {status.state === "local" && !pushBuild() ? <Text style={type.meta}>{translate("pushPending")}</Text> : null}
       {status.state === "error" && status.detail ? (
         <Text selectable style={s.error}>
           {status.detail}

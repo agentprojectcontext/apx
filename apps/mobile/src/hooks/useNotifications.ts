@@ -1,33 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { AppState, Linking } from "react-native";
 import type { Creds } from "../creds";
-import { configureNotifications, type NotificationStatus } from "../notifications";
+import { notificationStatus, onNotificationStatus, refreshNotifications } from "../notifications";
 
+/** The app's one notification status; coming back to the app reads the permission again (it may have changed). */
 export function useNotifications(creds?: Creds) {
-  const [status, setStatus] = useState<NotificationStatus>({ state: "checking" });
-  const generation = useRef(0);
-  const refresh = useCallback(
-    async (request = false) => {
-      const current = ++generation.current;
-      const result = await configureNotifications(creds, request);
-      if (generation.current === current) setStatus(result);
-    },
-    [creds],
-  );
-  // Opening a screen only reads the permission; the system prompt waits for the owner's tap (`enable`).
+  const [status, setStatus] = useState(notificationStatus);
   useEffect(() => {
-    void refresh();
+    const off = onNotificationStatus(setStatus);
+    setStatus(notificationStatus());
+    // Opening a screen only reads the permission; the system prompt waits for the owner's tap (`enable`).
+    void refreshNotifications(creds);
     const subscription = AppState.addEventListener("change", (state) => {
-      if (state === "active") void refresh();
+      if (state === "active") void refreshNotifications(creds);
     });
     return () => {
-      generation.current++;
+      off();
       subscription.remove();
     };
-  }, [refresh]);
+  }, [creds]);
   const enable = async () => {
     if (status.state === "denied") await Linking.openSettings();
-    else await refresh(true);
+    else await refreshNotifications(creds, true);
   };
   return { status, enable };
 }

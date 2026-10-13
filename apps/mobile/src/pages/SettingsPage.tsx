@@ -8,18 +8,15 @@ import { useNotifications } from "../hooks/useNotifications";
 import type { Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import type { NoticeSound } from "../noticeSound";
+import { type NotificationStatus, pushBuild } from "../notifications";
 import type { NoticePrefs } from "../protocol";
 import { previewSound, setSoundPrefs, useSoundPrefs } from "../sounds";
 import { Icon } from "../ui/Icon";
 import { Button, Chip, IconTile, ListGroup, ListRow, OwnerAvatar, Screen, SubHeader, Toggle, useType } from "../ui/kit";
 import { NotificationCard } from "../ui/NotificationCard";
+import { TimeButton } from "../ui/TimeButton";
 import { makeStyles, useTheme } from "../ui/theme";
 
-const QUIET: Array<[string, string]> = [
-  ["22:00", "07:00"],
-  ["23:00", "08:00"],
-  ["00:00", "09:00"],
-];
 const BUDGETS = [1, 3, 5, 10, 0];
 const SOUND_MODES: Array<[NoticeSound, "soundAll" | "soundMessages" | "soundRequests" | "soundOff"]> = [
   ["all", "soundAll"],
@@ -32,6 +29,15 @@ const LOOKS: Array<[AppearancePref, "setLookSystem" | "setLookLight" | "setLookD
   ["light", "setLookLight"],
   ["dark", "setLookDark"],
 ];
+
+/** What "This phone" says under it: reached with the app closed, still connecting, or why not. */
+function phoneSub(state: NotificationStatus["state"]) {
+  if (state === "push") return "setThisPhoneSub";
+  if (state === "registering" || state === "checking") return "setThisPhoneWaiting";
+  if (state === "off" || state === "denied") return "setThisPhoneOff";
+  if (state === "error") return "setThisPhoneBroken";
+  return pushBuild() ? "setThisPhoneWaiting" : "setThisPhoneOpen";
+}
 
 /** The few settings worth changing from a phone; the rest stay in the panel. */
 export function SettingsPage({
@@ -92,6 +98,9 @@ export function SettingsPage({
   const device = `device:${creds.device}`;
   const channels = data.channels.filter((channel) => channel.enabled);
   const quiet = prefs?.quiet_from && prefs.quiet_to ? `${prefs.quiet_from}–${prefs.quiet_to}` : undefined;
+  // Turned off and on again, quiet hours come back as they were.
+  const lastQuiet = useRef<[string, string]>(["22:00", "07:00"]);
+  if (prefs?.quiet_from && prefs.quiet_to) lastQuiet.current = [prefs.quiet_from, prefs.quiet_to];
   const radio = (on: boolean) =>
     on ? <Icon name="Check" size={18} color={theme.fg} /> : <View style={{ width: 18 }} />;
   return (
@@ -102,10 +111,11 @@ export function SettingsPage({
         {prefs ? (
           <>
             <Text style={s.label}>{t("setWhere")}</Text>
+            <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setWhereHelp")}</Text>
             <ListGroup>
               <ListRow
                 label={t("setThisPhone")}
-                sub={t(notifications.status.state === "push" ? "setThisPhoneSub" : "setThisPhoneOpen")}
+                sub={t(phoneSub(notifications.status.state))}
                 leading={<IconTile icon="Smartphone" tone="brand" />}
                 trailing={radio(prefs.channel === device)}
                 chevron={false}
@@ -132,24 +142,42 @@ export function SettingsPage({
               />
             </ListGroup>
             <Text style={s.label}>{t("setQuiet")}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
-              {quiet && !QUIET.some(([from, to]) => quiet === `${from}–${to}`) ? (
-                <Chip label={quiet} selected onPress={() => undefined} />
-              ) : null}
-              <Chip
-                label={t("setQuietOff")}
-                selected={!quiet}
-                onPress={() => change({ quiet_from: undefined, quiet_to: undefined })}
+            <ListGroup>
+              <ListRow
+                label={t("setQuietOn")}
+                leading={<IconTile icon="Moon" />}
+                trailing={
+                  <Toggle
+                    value={Boolean(quiet)}
+                    label={t("setQuietOn")}
+                    onChange={(on) =>
+                      change(
+                        on
+                          ? { quiet_from: lastQuiet.current[0], quiet_to: lastQuiet.current[1] }
+                          : { quiet_from: undefined, quiet_to: undefined },
+                      )
+                    }
+                  />
+                }
+                chevron={false}
               />
-              {QUIET.map(([from, to]) => (
-                <Chip
-                  key={from}
-                  label={`${from}–${to}`}
-                  selected={quiet === `${from}–${to}`}
-                  onPress={() => change({ quiet_from: from, quiet_to: to })}
+            </ListGroup>
+            {quiet && prefs.quiet_from && prefs.quiet_to ? (
+              <View style={s.range}>
+                <TimeButton
+                  label={t("setQuietFrom")}
+                  value={prefs.quiet_from}
+                  fallback="22:00"
+                  onPick={(from) => change({ quiet_from: from })}
                 />
-              ))}
-            </ScrollView>
+                <TimeButton
+                  label={t("setQuietTo")}
+                  value={prefs.quiet_to}
+                  fallback="07:00"
+                  onPick={(to) => change({ quiet_to: to })}
+                />
+              </View>
+            ) : null}
             <Text style={[type.meta, { paddingHorizontal: 4 }]}>{t("setQuietHelp")}</Text>
             <Text style={s.label}>{t("setBudget")}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}>
@@ -236,4 +264,5 @@ export function SettingsPage({
 const useStyles = makeStyles((theme) => ({
   label: { color: theme.fgSubtle, fontSize: 12, paddingHorizontal: 4, paddingTop: 8 },
   chips: { gap: 8 },
+  range: { flexDirection: "row", gap: 8 },
 }));

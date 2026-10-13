@@ -15,13 +15,25 @@ const QUIET_CHANNEL = "apx-quiet";
 const SOUND_FILE = "message.wav";
 
 export type NotificationStatus = {
-  /** `off`: not turned on yet, the owner can still be asked; `denied`: only the system settings can turn it on. */
-  state: "checking" | "off" | "denied" | "local" | "push" | "error";
+  /**
+   * `off`: not turned on yet, the owner can still be asked; `denied`: only the system settings can turn it on;
+   * `registering`: allowed, and this phone's push address is on its way to the core.
+   */
+  state: "checking" | "off" | "denied" | "local" | "registering" | "push" | "error";
   /** With `push`: Expo's service, or the ntfy app holding the address the owner gave this phone in the panel. */
   via?: "expo" | "ntfy";
   detail?: string;
   localEnabled?: boolean;
 };
+
+const projectId = (): string | undefined =>
+  Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId;
+
+/** A build with Firebase and an EAS project reaches the phone by push on its own; one without needs ntfy. */
+export const pushBuild = (): boolean => Boolean(projectId());
+
+/** Getting a push token can hang (no Play services, no network): past this the card says so instead of waiting. */
+const PUSH_DEADLINE_MS = 20_000;
 const delivered = new Set<string>();
 let remoteDevice: string | undefined;
 /** The chat on screen: news about it is already in front of the owner. */
@@ -94,39 +106,83 @@ async function permission(request: boolean) {
   return shouldAsk(state, request) ? read(await Notifications.requestPermissionsAsync()) : state;
 }
 
-/** Never report remote delivery as active when only local notification permission is granted. */
-export async function configureNotifications(creds?: Creds, request = false): Promise<NotificationStatus> {
-  let localEnabled = false;
+// One status for the whole app: the home screen and Settings read the same one, and push registers once.
+let status: NotificationStatus = { state: "checking" };
+const listeners = new Set<(next: NotificationStatus) => void>();
+let pushedFor: string | undefined;
+let running: Promise<void> | undefined;
+
+const publish = (next: NotificationStatus) => {
+  status = next;
+  for (const listen of listeners) listen(next);
+};
+
+export const notificationStatus = (): NotificationStatus => status;
+
+export function onNotificationStatus(listen: (next: NotificationStatus) => void): () => void {
+  listeners.add(listen);
+  return () => listeners.delete(listen);
+}
+
+/**
+ * Reads the permission (asking it when `request`, the owner's tap) and shows it at once; then, allowed, registers
+ * this phone's push with the core once per session. Never reports push while only local notifications work.
+ */
+export function refreshNotifications(creds?: Creds, request = false): Promise<void> {
+  if (running && !request) return running;
+  const run = (async () => {
+    let state: Awaited<ReturnType<typeof permission>>;
+    try {
+      state = await permission(request);
+    } catch (error) {
+      return publish({ state: "error", detail: error instanceof Error ? error.message : String(error) });
+    }
+    if (state !== "granted") return publish({ state });
+    if (!creds) return publish({ state: "local" });
+    if (pushedFor === creds.device && status.state === "push") return;
+    publish({ state: pushBuild() ? "registering" : "local", localEnabled: true });
+    publish(await registerPush(creds));
+  })().finally(() => {
+    if (running === run) running = undefined;
+  });
+  running = run;
+  return run;
+}
+
+async function registerPush(creds: Creds): Promise<NotificationStatus> {
+  const client = new ApxClient({ url: creds.url, token: creds.token, client: APP_CLIENT });
+  const id = projectId();
+  if (!id) return viaNtfy(client, creds);
   try {
-    const state = await permission(request);
-    if (state !== "granted") return { state };
-    localEnabled = true;
-    const projectId = Constants.easConfig?.projectId ?? Constants.expoConfig?.extra?.eas?.projectId;
-    if (!creds) return { state: "local" };
-    const client = new ApxClient({
-      url: creds.url,
-      token: creds.token,
-      client: APP_CLIENT,
-    });
-    if (!projectId) return await viaNtfy(client, creds);
-    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
-    await client.call("devices.set_push", { push: { kind: "expo", token: data } });
+    const { data } = await withDeadline(Notifications.getExpoPushTokenAsync({ projectId: id }), t("pushSlow"));
+    await withDeadline(client.call("devices.set_push", { push: { kind: "expo", token: data } }), t("pushSlow"));
     remoteDevice = creds.device;
+    pushedFor = creds.device;
     return { state: "push", via: "expo" };
   } catch (error) {
-    return { state: "error", localEnabled, detail: error instanceof Error ? error.message : String(error) };
+    return { state: "error", localEnabled: true, detail: error instanceof Error ? error.message : String(error) };
   }
+}
+
+function withDeadline<T>(work: Promise<T>, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), PUSH_DEADLINE_MS);
+  });
+  return Promise.race([work, late]).finally(() => clearTimeout(timer));
 }
 
 /** A build without Expo push still reaches the owner when the panel gave this phone an ntfy address. */
 async function viaNtfy(client: ApxClient, creds: Creds): Promise<NotificationStatus> {
   try {
     const { devices } = await client.call("devices.list", {});
-    if (devices.find((device) => device.id === creds.device)?.push !== "unifiedpush") return { state: "local" };
+    if (devices.find((device) => device.id === creds.device)?.push !== "unifiedpush")
+      return { state: "local", localEnabled: true };
   } catch {
-    return { state: "local" };
+    return { state: "local", localEnabled: true };
   }
   remoteDevice = creds.device;
+  pushedFor = creds.device;
   return { state: "push", via: "ntfy" };
 }
 

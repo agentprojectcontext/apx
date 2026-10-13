@@ -13,6 +13,7 @@
     "test": "node --test 'src/**/*.test.ts'"
   },
   "dependencies": {
+    "@react-native-community/datetimepicker": "9.1.0",
     "expo": "~57.0.26",
     "expo-audio": "~57.0.5",
     "expo-camera": "~57.0.6",
