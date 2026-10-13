@@ -18,6 +18,7 @@ import { badRequest, errorMessage, notFound } from "../errors.ts";
 import { refProblem } from "../models/choice.ts";
 import { toolCatalog } from "../tools/policy.ts";
 import type { Tool } from "../tools/types.ts";
+import { cloneAgents } from "./agent-clone.ts";
 import type { Handlers } from "./router.ts";
 
 /** Engines a model ref may name. Harness engines are asked live: ACP agents come from settings. */
@@ -125,6 +126,8 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
       if (p.model_choice) setLocal(created, { model_choice: p.model_choice });
       return fresh(created.id);
     },
+
+    "agents.clone": (p) => cloneAgents(store, apc, p),
 
     "agents.update": (p) => {
       const cur = store.agents.get(p.agent);

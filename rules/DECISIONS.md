@@ -804,3 +804,13 @@ paused notice links there. Unset, the defaults in `engine/limits.ts` hold. Agent
 `projects.create` is owner-only and no tool covered it. Following the footprint ladder (rule 15) it is not a new tool
 but `apx projects create|set` plus the `apx-projects` guide: `shell` running `apx` always waits for the owner's OK
 (total autonomy, their explicit choice, asks for nothing), the same door as `apx mcps` and `apx secrets`.
+
+<a id="d-070"></a>
+## D-070 — 2026-10-13 — A team is copied into another project, never shared, and the copies may take new names
+An owner wanted a second project with the same team. An agent belongs to one project (its file is in that project's
+`.apc/agents/`, its memory and chats are its own), so one agent in two projects is not offered: `agents.clone` copies
+the whole definition (role, prompt, tools, skills, area, personality, autonomy, model) as new agents, keeps reports
+under their cloned boss and never copies the super-agent, routines or memory. Two agents with one name read as a bug,
+so the copies take new free names by default (`rename`, from `AGENT_NAMES`, now about 200 names); the owner can keep
+the names. The owner does it from Team › Import › Another project; agents through `apx agents clone` (the shell asks
+the owner), taught by the `apx-projects` guide, instead of recreating each agent with `agent_set`.

@@ -33,8 +33,18 @@ apx projects set <project-id> --desc ""        # an empty value removes the desc
 
 ## After creating one
 
-Tell the owner its name and id, and link it: `[Northwind](apx:project/<project-id>)`. A new project has no agents:
-offer to add them with `agent_set` (if you have it) or point the owner to the project's Team screen.
+Tell the owner its name and id, and link it: `[Northwind](apx:project/<project-id>)`. A new project has no agents.
+To bring the team of another project, clone it (never recreate agents one by one with `agent_set`):
+
+```bash
+apx agents                                             # ids, to pick the agents to copy
+apx agents clone <agent-id>… --project <new-project-id> --rename [--under <slug of its boss there>]
+```
+
+An agent belongs to one project, so a copy is a new agent with the whole definition (role, prompt, tools, skills,
+model). `--rename` gives each copy a new free name, so the two teams read apart; ask the owner if they want that.
+Reports stay under their cloned boss; routines and memory are not copied. The owner can do the same from the
+project's Team › Import › From another project.
 
 ## Removing
 

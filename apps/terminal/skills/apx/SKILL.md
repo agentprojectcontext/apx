@@ -103,6 +103,7 @@ apx projects create "<Name>" [--path <folder>] [--kind company|software|…] [--
 apx projects set <project> [--name "…"] [--kind …] [--desc "…"]
 apx agents new <slug> "<Name>" [--project <id>] [--role "<role>"]
 apx agents set <agent> name=… role=…          # project agents are written to .apc/agents/<slug>.md
+apx agents clone <agent>… --project <id> [--rename]   # copy agents into a project; --rename: new free names
 apx agents archive <agent> | archived | restore <agent>   # off the team, listed, back (deleting for good: the app)
 apx agents model <agent> <engine/model | engine | router | default>
 apx models                                    # engines and their models

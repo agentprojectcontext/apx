@@ -93,6 +93,27 @@ export const teamMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * Copies agents into a project (none: among the global ones) with their whole definition; reports stay under their
+   * cloned boss, the rest hang under `hang_under`. An agent is one project's, so each copy is a new agent: `rename`
+   * gives it a name nobody on the install uses. The super-agent is never copied. Routines and memory stay behind.
+   */
+  "agents.clone": {
+    params: z
+      .object({
+        agents: z.array(Id).min(1).max(50),
+        project_id: Id.optional(),
+        rename: z.boolean().default(false),
+        hang_under: z.string().max(64).optional(),
+      })
+      .strict(),
+    result: z.object({
+      cloned: z.array(Agent),
+      skipped: z.array(z.object({ agent: z.string(), reason: z.string() })),
+    }),
+    effect: true,
+    access: "human",
+  },
   "agents.limits": {
     params: z.object({}).strict(),
     result: AgentLimits.extend({ defaults: AgentLimits }),

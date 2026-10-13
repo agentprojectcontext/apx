@@ -111,6 +111,8 @@ Usage:
   apx agents new <slug> "<Name>" [--project <id>] [--role "<role>"]
   apx agents set <agent> name=… role=… slug=… parent=… blob=…
   apx agents set <agent> --prompt-file <file | ->   Its prompt from a file, or stdin with -
+  apx agents clone <agent…> [--project <id>] [--rename] [--under <slug>]
+                           Copy agents (whole definition) into a project; --rename gives each a new free name
   apx agents archive <agent>         Project agents: changes are written to .apc/agents/<slug>.md
   apx agents archived | restore <agent>   Archived agents, and bringing one back (deleting for good is in the app)
   apx agents model <agent> <engine/model | engine | router | default> [--router]
@@ -201,6 +203,8 @@ function argumentsOf() {
       role: { type: "string" },
       kind: { type: "string" },
       path: { type: "string" },
+      rename: { type: "boolean" },
+      under: { type: "string" },
       router: { type: "boolean" },
       timeout: { type: "string" },
       run: { type: "boolean" },

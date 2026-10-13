@@ -109,6 +109,20 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.import.done": "Se instalaron {n} agentes.",
   "team.import.doneSkipped": "Se instalaron {n} agentes; {skipped} quedaron afuera (ya estaban en el proyecto).",
   "team.import.error": "No se pudo importar: {error}",
+  "team.import.from": "Importar desde",
+  "team.import.fromTemplates": "Plantillas",
+  "team.import.fromProjects": "Otro proyecto",
+  "team.clone.lead":
+    "Copias de los agentes de tus otros proyectos, con todo su rol y prompt. Se escriben en .apc/agents/ de este proyecto.",
+  "team.clone.global": "Agentes globales",
+  "team.clone.empty": "No hay agentes en otros proyectos para copiar.",
+  "team.clone.rename": "Ponerles nombres nuevos",
+  "team.clone.renameOn":
+    "Cada copia recibe un nombre libre, así los dos equipos no se confunden. Rol, prompt, herramientas y skills quedan iguales.",
+  "team.clone.renameOff": "Las copias mantienen el nombre: vas a ver dos agentes con cada nombre, uno por proyecto.",
+  "team.clone.copy": "Copiar {n}",
+  "team.clone.done": "Se copiaron {n} agentes.",
+  "team.clone.doneSkipped": "Se copiaron {n} agentes; quedaron afuera: {skipped}.",
   "limits.title": "Cuando los agentes trabajan solos",
   "limits.lead":
     "Los agentes que delegan y se responden entre ellos sin vos se pausan al llegar a esto, contado desde tu último mensaje en ese chat. Escribís y siguen.",

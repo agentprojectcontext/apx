@@ -107,6 +107,20 @@ export const enTeam = {
   "team.import.done": "Installed {n} agents.",
   "team.import.doneSkipped": "Installed {n} agents; {skipped} skipped (already in the project).",
   "team.import.error": "Could not import: {error}",
+  "team.import.from": "Import from",
+  "team.import.fromTemplates": "Templates",
+  "team.import.fromProjects": "Another project",
+  "team.clone.lead":
+    "Copies of your other projects' agents, with their whole role and prompt. They are written to this project's .apc/agents/.",
+  "team.clone.global": "Global agents",
+  "team.clone.empty": "There are no agents in other projects to copy.",
+  "team.clone.rename": "Give the copies new names",
+  "team.clone.renameOn":
+    "Each copy gets a free name, so the two teams read apart. Role, prompt, tools and skills stay the same.",
+  "team.clone.renameOff": "The copies keep their names: you will see two agents with each name, one per project.",
+  "team.clone.copy": "Copy {n}",
+  "team.clone.done": "Copied {n} agents.",
+  "team.clone.doneSkipped": "Copied {n} agents; left out: {skipped}.",
   "limits.title": "When agents work on their own",
   "limits.lead":
     "Agents that delegate and answer each other without you pause after this much, counted since you last wrote in that chat. Write and they go on.",

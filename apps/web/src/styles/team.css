@@ -258,6 +258,14 @@
 }
 
 /* ── Import dialog ─────────────────────────────────────────────────────────── */
+.teamimport__from {
+  margin-bottom: 14px;
+}
+.teamimport__rename {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .teamimport {
   display: flex;
   flex-direction: column;

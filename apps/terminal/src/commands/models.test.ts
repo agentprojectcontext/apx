@@ -37,3 +37,20 @@ test("agents show prints its fields and full prompt", async () => {
   assert.match(out, /^april {2}April\nRole: +Sales at Acme\nModel: +router\nAutonomy: +ask/);
   assert.match(out, /\n\nAnswer every Northwind lead\.\nKeep it short\.$/);
 });
+
+test("agents clone sends the agents, the target project and --rename", async () => {
+  const { client, calls } = recordingClient({
+    "agents.clone": {
+      cloned: [{ id: "nw:nova", name: "Nova", parent: "boss" }],
+      skipped: [{ agent: "Roby", reason: "the super-agent is one for the whole install" }],
+    },
+  });
+  const out = await printed(() =>
+    agentEdit(client, ["clone", "acme:lead", "roby"], { project: "p_nw", rename: true, under: "boss" }),
+  );
+  assert.match(out, /Nova \(nw:nova\) · reports to boss/);
+  assert.match(out, /skipped Roby: the super-agent/);
+  assert.deepEqual(calls, [
+    ["agents.clone", { agents: ["acme:lead", "roby"], rename: true, project_id: "p_nw", hang_under: "boss" }],
+  ]);
+});

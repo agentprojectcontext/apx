@@ -1,16 +1,18 @@
 import type { Agent, AgentTemplate, TeamTemplate } from "@apx/protocol";
-import { Badge, Button, Checkbox, Dialog, EmptyState, Icons, Skeleton, Switch } from "@apx/ui";
+import { Badge, Button, Checkbox, Dialog, EmptyState, Icons, SegmentedControl, Skeleton, Switch } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { notify } from "../../data/notices.ts";
-import { installTemplates, loadTemplates } from "../../data/team.ts";
+import { cloneAgents, installTemplates, loadTemplates } from "../../data/team.ts";
 import { useT } from "../../i18n/index.ts";
 import { scheduleText } from "../../routines/Schedule.tsx";
+import { CloneFromProject } from "./CloneFromProject.tsx";
 
 type Templates = { teams: TeamTemplate[]; singles: AgentTemplate[] };
 
 /**
- * Import teams or single agents into a project. When the project already has a top agent and the pick brings a lead
- * of its own, the new lead hangs under the current one by default, so the project keeps one tree.
+ * Import into a project: APX's templates (teams or single agents), or copies of the agents of another project. When
+ * the project already has a top agent and the pick brings a lead of its own, the new lead hangs under the current one
+ * by default, so the project keeps one tree.
  */
 export function ImportDialog({
   projectId,
@@ -33,6 +35,9 @@ export function ImportDialog({
   const [open, setOpen] = useState<string>();
   const [hang, setHang] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [from, setFrom] = useState<"templates" | "projects">("templates");
+  const [copies, setCopies] = useState<Set<string>>(new Set());
+  const [rename, setRename] = useState(true);
   // A global agent (the base project's) has no slug: its id is what a template's slug would take.
   const taken = useMemo(() => new Set(team.map((a) => a.slug ?? a.id)), [team]);
 
@@ -54,6 +59,28 @@ export function ImportDialog({
       return next;
     });
 
+  const toggleCopies = (ids: string[], on: boolean) =>
+    setCopies((s) => {
+      const next = new Set(s);
+      for (const id of ids) on ? next.add(id) : next.delete(id);
+      return next;
+    });
+  const clone = async () => {
+    setBusy(true);
+    const r = await cloneAgents(projectId, [...copies], rename, hang ? top?.slug : undefined);
+    setBusy(false);
+    if (!r) return;
+    notify(
+      r.skipped.length
+        ? t("team.clone.doneSkipped", { n: r.cloned, skipped: r.skipped.map((x) => x.agent).join(", ") })
+        : t("team.clone.done", { n: r.cloned }),
+      "info",
+    );
+    onClose();
+  };
+  const cloning = from === "projects";
+  const count = cloning ? copies.size : picked.size;
+
   const install = async () => {
     setBusy(true);
     const r = await installTemplates(projectId, [...picked], hang && bringsLead ? top?.slug : undefined);
@@ -74,10 +101,10 @@ export function ImportDialog({
       size="xl"
       onOpenChange={(o) => !o && onClose()}
       title={t("team.import.title")}
-      description={t("team.import.lead")}
+      description={from === "projects" ? t("team.clone.lead") : t("team.import.lead")}
       footer={
         <>
-          {top?.slug && bringsLead && chosen.length > 0 && (
+          {top?.slug && (cloning ? copies.size > 0 : bringsLead && chosen.length > 0) && (
             <div className="teamimport__hang">
               <Switch
                 size="sm"
@@ -90,13 +117,31 @@ export function ImportDialog({
           <Button variant="secondary" onClick={onClose}>
             {t("common.cancel")}
           </Button>
-          <Button disabled={!picked.size} loading={busy} onClick={() => void install()}>
-            {t("team.import.install", { n: picked.size })}
+          <Button disabled={!count} loading={busy} onClick={() => void (cloning ? clone() : install())}>
+            {cloning ? t("team.clone.copy", { n: count }) : t("team.import.install", { n: count })}
           </Button>
         </>
       }
     >
-      {!data ? (
+      <SegmentedControl
+        className="teamimport__from"
+        label={t("team.import.from")}
+        value={from}
+        onValueChange={(v) => setFrom(v as typeof from)}
+        options={[
+          { value: "templates", label: t("team.import.fromTemplates") },
+          { value: "projects", label: t("team.import.fromProjects") },
+        ]}
+      />
+      {cloning ? (
+        <CloneFromProject
+          projectId={projectId}
+          picked={copies}
+          onToggle={toggleCopies}
+          rename={rename}
+          onRename={setRename}
+        />
+      ) : !data ? (
         <div className="teamimport__loading">
           <Skeleton height={72} />
           <Skeleton height={72} />

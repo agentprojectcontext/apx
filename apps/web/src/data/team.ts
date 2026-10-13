@@ -33,6 +33,29 @@ export async function loadTemplates(): Promise<{ teams: TeamTemplate[]; singles:
 }
 
 /** Installs and adds the new agents to the panel; returns how many were installed and skipped. */
+/** Copies agents of other projects into this one; with `rename`, each copy gets a new free name. */
+export async function cloneAgents(
+  projectId: string,
+  agents: string[],
+  rename: boolean,
+  hangUnder: string | undefined,
+): Promise<{ cloned: number; skipped: Array<{ agent: string; reason: string }> } | undefined> {
+  try {
+    const project = realProjectId(projectId);
+    const r = await client.call("agents.clone", {
+      agents,
+      rename,
+      ...(project ? { project_id: project } : {}),
+      ...(hangUnder ? { hang_under: hangUnder } : {}),
+    });
+    data.set((s) => ({ agents: { ...s.agents, ...Object.fromEntries(r.cloned.map((a) => [a.id, a])) } }));
+    return { cloned: r.cloned.length, skipped: r.skipped };
+  } catch (e) {
+    notify(t("team.import.error", { error: errText(e) }));
+    return undefined;
+  }
+}
+
 export async function installTemplates(
   projectId: string,
   templates: string[],

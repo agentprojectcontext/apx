@@ -92,7 +92,13 @@ export function agentSetOf(
 export async function agentEdit(
   client: ApxClient,
   [sub, ...args]: string[],
-  o: { project?: string | undefined; role?: string | undefined; "prompt-file"?: string | undefined },
+  o: {
+    project?: string | undefined;
+    role?: string | undefined;
+    "prompt-file"?: string | undefined;
+    rename?: boolean | undefined;
+    under?: string | undefined;
+  },
 ) {
   if (sub === "show") {
     if (!args[0]) throw new Error("usage: apx agents show <agent>");
@@ -133,6 +139,18 @@ export async function agentEdit(
     const [agent, ...pairs] = args;
     const a = await client.call("agents.update", agentSetOf(agent, pairs, o["prompt-file"]));
     console.log(`${a.name} (${a.id})${a.slug ? ` · ${a.slug}` : ""} · ${a.role}`);
+    return;
+  }
+  if (sub === "clone") {
+    if (!args.length) throw new Error("usage: apx agents clone <agent…> [--project <id>] [--rename] [--under <slug>]");
+    const r = await client.call("agents.clone", {
+      agents: args,
+      rename: o.rename ?? false,
+      ...(o.project ? { project_id: o.project } : {}),
+      ...(o.under ? { hang_under: o.under } : {}),
+    });
+    for (const a of r.cloned) console.log(`${a.name} (${a.id})${a.parent ? ` · reports to ${a.parent}` : ""}`);
+    for (const s of r.skipped) console.log(`skipped ${s.agent}: ${s.reason}`);
     return;
   }
   if (sub === "archive") {
