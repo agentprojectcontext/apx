@@ -70,7 +70,7 @@ test("APX's own skills: named in one sentence, loaded on demand, always on, read
   await env.client.call("threads.send", { thread: t.id, text: "how do I add an MCP" });
   await env.settle(t.id);
   const system = String(llm.calls.at(-1)?.messages[0]?.content);
-  assert.match(system, /To change APX itself, load its guide first with load_skill \(apx-[^)]*apx-mcps/);
+  assert.match(system, /APX's guides \(apx-[^)]*apx-mcps[^)]*\): load the task's one with load_skill/);
   assert.doesNotMatch(system, /- apx-mcps:/, "not one catalog line each");
   const loaded = String(llm.calls.at(-1)?.messages.at(-1)?.content);
   assert.match(loaded, /apx mcps add/);

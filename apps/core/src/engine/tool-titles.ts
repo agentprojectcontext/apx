@@ -1,5 +1,6 @@
 // An action card's title in the owner's language. Tools write theirs in English; these are the Spanish ones.
 import type { Store } from "../domain/store.ts";
+import { stepsText } from "../tools/computer.ts";
 import type { Tool } from "../tools/types.ts";
 
 type Args = Record<string, unknown>;
@@ -81,6 +82,10 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   screen_click: (a) => `Hizo clic en ${str(a.app) || "una app"}`,
   screen_type: (a) => `Escribió en ${str(a.app) || "una app"}`,
   screen_key: (a) => `Apretó ${str(a.keys)} en ${str(a.app) || "una app"}`,
+  screen_do: (a) =>
+    `En ${str(a.app) || "una app"}: ${stepsText(a.steps)
+      .replace(/\bclick\b/g, "clic")
+      .replace(/\btype\b/g, "escribir")}`.slice(0, 160),
   screen_open: (a) => `Abrió ${str(a.url ?? a.app)}${a.url && a.app ? ` en ${str(a.app)}` : ""}`,
   task_list: () => "Revisó las tareas",
   task_create: (a) => `Creó la tarea ${str(a.title, 60)}`,
