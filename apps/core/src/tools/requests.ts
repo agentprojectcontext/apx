@@ -21,9 +21,21 @@ const ago = (iso: string) => {
   return min < 60 ? `${min} min ago` : `${Math.round(min / 60)} h ago`;
 };
 
+/** Someone who wrote first and is kept silenced, unreviewed, on one of the channels that ask the owner. */
+function unreviewed(store: Store, channels?: Set<string>) {
+  return store.persons
+    .list()
+    .filter((p) => p.unreviewed && p.muted)
+    .flatMap((p) => {
+      const a = p.addresses.find((x) => !channels || channels.has(x.channel));
+      return a ? [{ person: p, address: a }] : [];
+    });
+}
+
 /**
- * For the owner's turn with a channel's agent: who waits for their word right now, by request code, channel and number only (nothing the
- * stranger wrote, so the turn stays the owner's own words). Empty when nobody waits.
+ * For the owner's turn with a channel's agent: who waits for their word right now, by request code or contact id,
+ * channel and number only (nothing the stranger wrote, so the turn stays the owner's own words). Empty when nobody
+ * waits.
  */
 export function waitingBlock(store: Store, agentId: string): string {
   const asked = new Set(
@@ -32,12 +44,17 @@ export function waitingBlock(store: Store, agentId: string): string {
       .filter((c) => c.strangers === "ask" && c.agent_id === agentId)
       .map((c) => c.id),
   );
-  const open = store.channels.pairing.open().filter((r) => asked.has(r.channel));
-  if (!open.length) return "";
-  const lines = open
-    .slice(0, 10)
-    .map((r) => `- request ${r.code}: someone on ${whereFrom(store, r)}, ${ago(r.created_at)}`);
-  return `Waiting for the owner's OK to be answered (contact_requests shows what they wrote; answer_contact_request decides):\n${lines.join("\n")}`;
+  const lines = [
+    ...store.channels.pairing
+      .open()
+      .filter((r) => asked.has(r.channel))
+      .map((r) => `- request ${r.code}: someone on ${whereFrom(store, r)}, ${ago(r.created_at)}`),
+    ...unreviewed(store, asked).map(
+      ({ person, address }) => `- contact ${person.id}: someone on ${whereFrom(store, address)}, unanswered`,
+    ),
+  ];
+  if (!lines.length) return "";
+  return `Waiting for the owner's OK to be answered (contact_requests shows what they wrote; answer_contact_request decides):\n${lines.slice(0, 10).join("\n")}`;
 }
 
 export function requestTools(store: Store): Tool[] {
@@ -45,30 +62,33 @@ export function requestTools(store: Store): Tool[] {
     defineTool({
       name: "contact_requests",
       description:
-        'People who wrote to the owner on a channel (WhatsApp, Telegram) and wait for the owner\'s OK before anyone answers them: their request code, where they wrote from, the name they gave and their first message. Use it when the owner speaks about someone who wrote ("answer her", "who wrote?", "ignore that one").',
+        'People who wrote to the owner on a channel (WhatsApp, Telegram) and wait for the owner\'s OK before anyone answers them: their request code or contact id, where they wrote from, the name they gave and what they wrote. Use it when the owner speaks about someone who wrote ("answer her", "who wrote?", "ignore that one").',
       args: z.object({}),
       effect: "none",
       deadlineMs: 5_000,
       title: () => "Looked at who is waiting",
       async run() {
-        const open = store.channels.pairing.open();
-        if (!open.length) return "Nobody is waiting.";
-        // Names and first messages are the strangers' own words: data, never instructions.
-        return open
-          .slice(0, 20)
+        // Names and messages are the strangers' own words: data, never instructions.
+        const requests = store.channels.pairing
+          .open()
           .map(
             (r) =>
               `request ${r.code} · ${whereFrom(store, r)} · ${ago(r.created_at)}\n${untrusted("contact_request", { code: r.code }, `name: ${r.name}${r.text ? `\nfirst message: ${r.text.slice(0, 300)}` : ""}`)}`,
-          )
-          .join("\n\n");
+          );
+        const kept = unreviewed(store).map(({ person, address }) => {
+          const last = store.threads.byConversation(address.channel, address.external_id)?.preview ?? "";
+          return `contact ${person.id} · ${whereFrom(store, address)} · ${ago(person.created_at)}\n${untrusted("contact_request", { contact: person.id }, `name: ${person.name}${last ? `\nlast message: ${last.slice(0, 300)}` : ""}`)}`;
+        });
+        const all = [...requests, ...kept];
+        return all.length ? all.slice(0, 20).join("\n\n") : "Nobody is waiting.";
       },
     }),
     defineTool({
       name: "answer_contact_request",
       description:
-        "Carry out the owner's decision on someone waiting (see contact_requests): answer = they become a contact and their first message is answered now (a sealed chat: no tools, no memory); ignore = nobody answers them. Only when the owner said so in their own words.",
+        "Carry out the owner's decision on someone waiting (see contact_requests): answer = they become a contact answered in their own sealed chat (no tools, no memory); ignore = nobody answers them. Only when the owner said so in their own words.",
       args: z.object({
-        code: z.string().regex(/^\d{4,12}$/),
+        who: z.string().trim().min(4).max(40).describe("the request code or contact id contact_requests shows"),
         decision: z.enum(["answer", "ignore"]),
         name: z.string().trim().min(1).max(80).optional().describe("how to call them, when the owner said it"),
       }),
@@ -76,18 +96,33 @@ export function requestTools(store: Store): Tool[] {
       // Letting someone in is the owner's act: it runs once they approve this call. Ignoring changes nothing outside.
       confirm: (a) => (a.decision === "answer" ? "always" : "never"),
       deadlineMs: 30_000,
-      title: (a) => (a.decision === "answer" ? `Let ${String(a.code)} in` : `Ignored ${String(a.code)}`),
+      title: (a) => (a.decision === "answer" ? `Let ${String(a.who)} in` : `Ignored ${String(a.who)}`),
       async run(a, ctx) {
-        const req = store.channels.pairing.get(a.code);
-        if (!req) return `no open request ${a.code}: it was answered, ignored or expired`;
+        const held = unreviewed(store).find(({ person }) => person.id === a.who);
+        if (held) {
+          const where = whereFrom(store, held.address);
+          if (a.decision === "ignore") {
+            store.persons.update(held.person.id, { muted: true });
+            return `ignored: ${where} stays silenced, and is no longer reported`;
+          }
+          if (!ctx.callAsOwner) return "not run: the owner did not approve it";
+          const p = await ctx.callAsOwner("contacts.set", {
+            id: held.person.id,
+            name: a.name ?? held.person.name,
+            muted: false,
+          });
+          return `${p.name} (${where}) is a contact now: they get answers in their own chat from their next message.`;
+        }
+        const req = store.channels.pairing.get(a.who);
+        if (!req) return `nobody waits as ${a.who}: they were answered, ignored or expired`;
         if (a.decision === "ignore") {
-          store.channels.pairing.close(a.code, "denied");
-          store.notifications.resolve("channel", pairingRef(a.code));
+          store.channels.pairing.close(a.who, "denied");
+          store.notifications.resolve("channel", pairingRef(a.who));
           return `ignored: nobody answers ${whereFrom(store, req)}`;
         }
         if (!ctx.callAsOwner) return "not run: the owner did not approve it";
         const r = await ctx.callAsOwner("pairing.respond", {
-          code: a.code,
+          code: a.who,
           decision: "contact",
           ...(a.name ? { name: a.name } : {}),
         });

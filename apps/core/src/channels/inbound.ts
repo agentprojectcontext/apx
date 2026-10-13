@@ -27,6 +27,8 @@ const CONTACT_PER_HOUR = 20;
 const HOUR_MS = 3600_000;
 /** Pairing codes a channel sends to strangers per hour; past it, requests are only listed for the owner. */
 const CODES_PER_HOUR = 10;
+/** Reports of one unreviewed contact's messages per hour; past it their messages are only kept. */
+const REPORTS_PER_HOUR = 10;
 const LIVE = new Set(["submitted", "working", "input-required"]);
 
 export function createInbound(deps: {
@@ -51,6 +53,7 @@ export function createInbound(deps: {
   const recent = new Map<string, number[]>();
   const paused = new Set<string>();
   const codesSent = new Map<string, number[]>();
+  const reports = new Map<string, number[]>();
 
   /** Stores a one-to-one message (or one in a listed room) and handles it; other groups are never stored nor answered. */
   function receive(channel: string, m: Inbound): void {
@@ -115,7 +118,9 @@ export function createInbound(deps: {
     }
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.
     if (!owner && person.muted) {
-      keepQuiet(thread.id, cfg.id, person, m.voice ? `${text ? `${text}\n` : ""}[voice note]` : text, attachments);
+      const said = m.voice ? `${text ? `${text}\n` : ""}[voice note]` : text;
+      keepQuiet(thread.id, cfg.id, person, said, attachments);
+      if (person.unreviewed) report(cfg, person, m.sender.id, said, thread.id);
       return "done";
     }
     if (!attachments.length && closesChat(thread.id, text)) {
@@ -168,6 +173,28 @@ export function createInbound(deps: {
     );
     theirLast(thread.id, cfg.id, m, sent.message.id);
     return "done";
+  }
+
+  /** Tells the owner what an unreviewed contact wrote, with the choice to answer them or stop the reports. */
+  function report(
+    cfg: ChannelConfig,
+    person: { id: string; name: string },
+    senderId: string,
+    said: string,
+    threadId: string,
+  ): void {
+    const at = Date.now();
+    const times = (reports.get(person.id) ?? []).filter((x) => at - x < HOUR_MS);
+    if (times.length >= REPORTS_PER_HOUR) return;
+    reports.set(person.id, [...times, at]);
+    const t = channelTexts(store);
+    const text = t.wroteFirst(shown(cfg, person.name, senderId), cfg.label, said.slice(0, 300));
+    const buttons = [
+      { id: buttonId.review(person.id, "answer"), label: t.answer },
+      { id: buttonId.review(person.id, "ignore"), label: t.ignore },
+    ];
+    deps.notifyOwner({ text, buttons }, "pairing", threadId);
+    deps.attention({ kind: "channel", title: person.name, body: text, thread_id: threadId });
   }
 
   /** Remembers the other side's last message, so the agent can answer it with a reaction (REACT in manager.ts). */
@@ -248,6 +275,15 @@ export function createInbound(deps: {
     if (cfg.strangers === "ignore") return "ignored";
     const t = channelTexts(store);
     const name = m.sender.name.slice(0, 80);
+    // Asked: kept as a silenced contact the owner has not reviewed. Their words show in their chat, unanswered, and
+    // each message is reported to the owner, who can turn on answers.
+    if (cfg.strangers === "ask") {
+      store.tx(() => {
+        const p = store.persons.create({ name, role: "contact", unreviewed: true });
+        store.persons.link(p.id, { channel: cfg.id, external_id: m.sender.id, label: name });
+      });
+      return route(cfg.id, rowId, m);
+    }
     if (cfg.strangers === "answer") {
       store.tx(() => {
         const p = store.persons.create({ name, role: "contact" });
@@ -269,12 +305,6 @@ export function createInbound(deps: {
       { id: buttonId.pairing(request.code, "contact"), label },
       { id: buttonId.pairing(request.code, "deny"), label: t.ignore },
     ];
-    if (cfg.strangers === "ask") {
-      const text = t.askOwner(shown(cfg, request.name, m.sender.id), cfg.label, (m.text || "").slice(0, 300));
-      deps.notifyOwner({ text, buttons: decide(t.answer) }, "pairing");
-      deps.attention({ kind: "channel", title: request.name, body: text, ref: pairingRef(request.code) });
-      return "ignored";
-    }
     // On the owner's own number the request is only listed: the owner's friends must not get a code from it. Past
     // the hourly cap of codes (a wave of spam mail) the rest are only listed too: no reply goes to forged senders.
     if (deps.ownAccount(cfg.id) || codesOver(cfg.id)) return "ignored";
@@ -414,6 +444,14 @@ export function createInbound(deps: {
     const button = parseButton(a.data);
     if (!button) return;
     try {
+      if (button.kind === "review") {
+        const person = store.persons.get(button.person);
+        if (!person) return;
+        const answer = button.decision === "answer";
+        await call("contacts.set", { id: person.id, name: person.name, muted: !answer }, { actor: "human" });
+        reply(answer ? t.willAnswer(person.name) : t.keptQuiet(person.name));
+        return;
+      }
       if (button.kind === "pairing") {
         await call("pairing.respond", { code: button.code, decision: button.decision }, { actor: "human" });
         reply(button.decision === "contact" ? t.approved : t.denied);

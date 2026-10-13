@@ -11,12 +11,15 @@ export const buttonId = {
   deny: (inputId: string) => `i:${inputId}:d`,
   option: (inputId: string, n: number) => `i:${inputId}:o${n}`,
   pairing: (code: string, decision: "contact" | "deny") => `p:${code}:${decision}`,
+  /** Someone kept unreviewed: answer them from now on, or keep them silenced without reports. */
+  review: (personId: string, decision: "answer" | "ignore") => `r:${personId}:${decision}`,
 };
 
 export type Button =
   | { kind: "input"; inputId: string; answer: "approve" | "deny" }
   | { kind: "option"; inputId: string; index: number }
-  | { kind: "pairing"; code: string; decision: "contact" | "deny" };
+  | { kind: "pairing"; code: string; decision: "contact" | "deny" }
+  | { kind: "review"; person: string; decision: "answer" | "ignore" };
 
 export function parseButton(data: string): Button | undefined {
   const [kind, ref, what] = data.split(":");
@@ -25,6 +28,7 @@ export function parseButton(data: string): Button | undefined {
     return { kind: "input", inputId: ref, answer: what === "a" ? "approve" : "deny" };
   if (kind === "i" && /^o\d+$/.test(what)) return { kind: "option", inputId: ref, index: Number(what.slice(1)) };
   if (kind === "p" && (what === "contact" || what === "deny")) return { kind: "pairing", code: ref, decision: what };
+  if (kind === "r" && (what === "answer" || what === "ignore")) return { kind: "review", person: ref, decision: what };
   return undefined;
 }
 

@@ -88,6 +88,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.room.hint.me": "Sale en {room} tal cual lo escribís, desde la cuenta de {agent}.",
   "ch.room.noFiles": "Para publicar archivos, pedíselo a {agent}.",
   "ch.muted": "Silenciado",
+  "ch.unreviewed": "Sin revisar: no se le contesta",
   "ch.noChat": "Sin conversación todavía",
   "ch.online": "En línea",
   "ch.lastSeen": "Últ. vez {when}",

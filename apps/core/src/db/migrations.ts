@@ -686,4 +686,9 @@ export const MIGRATIONS: readonly string[] = [
   UPDATE threads SET archived = 1, unread = 0
   WHERE kind = 'routine' AND id IN (SELECT thread_id FROM routine_runs WHERE delivered = 0);
   `,
+  `
+  -- Someone who wrote first on a channel that asks the owner is kept as a silenced contact until the owner decides
+  -- (channels/inbound.ts): each of their messages is reported meanwhile.
+  ALTER TABLE persons ADD COLUMN unreviewed INTEGER NOT NULL DEFAULT 0;
+  `,
 ];

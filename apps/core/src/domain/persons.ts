@@ -48,6 +48,7 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       ...(relation.success ? { relation: relation.data } : {}),
       ...opt("rules", r.rules),
       muted: r.muted === 1,
+      unreviewed: r.unreviewed === 1,
       perms: permsOf(r.perms),
       addresses: addressesOf(r.id),
       created_at: r.created_at,
@@ -75,13 +76,27 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       }
       return repo.get(OWNER_ID) as Person;
     },
-    create(p: { name: string; role: Exclude<PersonRole, "owner">; note?: string | undefined }): Person {
+    /** `unreviewed`: someone who wrote first, kept silenced until the owner decides. */
+    create(p: {
+      name: string;
+      role: Exclude<PersonRole, "owner">;
+      note?: string | undefined;
+      unreviewed?: boolean | undefined;
+    }): Person {
       const id = newId("per");
       const at = now();
+      const held = p.unreviewed ? 1 : 0;
       run(
-        qb
-          .insertInto("persons")
-          .values({ id, name: p.name, role: p.role, note: p.note ?? null, created_at: at, updated_at: at }),
+        qb.insertInto("persons").values({
+          id,
+          name: p.name,
+          role: p.role,
+          note: p.note ?? null,
+          muted: held,
+          unreviewed: held,
+          created_at: at,
+          updated_at: at,
+        }),
       );
       return repo.get(id) as Person;
     },
@@ -104,6 +119,8 @@ export function personsRepo({ one, all, run, tx }: Sql) {
             relation: p.relation === undefined ? (cur.relation ?? null) : p.relation,
             rules: text(p.rules, cur.rules),
             muted: (p.muted ?? cur.muted) ? 1 : 0,
+            // Deciding whether they are answered (or who they are) is the owner's review.
+            unreviewed: cur.unreviewed && p.muted === undefined && p.role === undefined ? 1 : 0,
             perms: JSON.stringify({ ...cur.perms, ...(p.perms ?? {}) }),
             updated_at: now(),
           })

@@ -85,6 +85,7 @@ export const enChannels = {
   "ch.room.hint.me": "Posted in {room} as you wrote it, from {agent}'s account.",
   "ch.room.noFiles": "To post files, ask {agent} to do it.",
   "ch.muted": "Silenced",
+  "ch.unreviewed": "Not reviewed: not answered",
   "ch.noChat": "No chat yet",
   "ch.online": "Online",
   "ch.lastSeen": "Last seen {when}",

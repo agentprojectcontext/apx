@@ -272,6 +272,7 @@ export interface PersonsTable {
   rules: string | null;
   muted: Generated<number>;
   perms: string | null;
+  unreviewed: Generated<number>;
 }
 
 export interface ProjectsTable {

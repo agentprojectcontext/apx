@@ -10,8 +10,12 @@ const es = {
     `${name} quiere hablar por ${label} (código ${code}). Aprobalo en la lista de ${label}.`,
   askOwner: (name: string, label: string, text: string) =>
     `${name} te escribió por ${label}${text ? `: «${text}»` : "."} ¿Le contesto?`,
+  wroteFirst: (name: string, label: string, text: string) =>
+    `${name} te escribió por ${label}${text ? `: «${text}»` : "."} No le contesto: quedó como contacto sin revisar.`,
   answering: (name: string, label: string) => `${name} te escribió por ${label}: le contesto como contacto nuevo.`,
   answer: "Contestarle",
+  willAnswer: (name: string) => `Listo: a partir de ahora le contesto a ${name}.`,
+  keptQuiet: (name: string) => `Listo: ${name} queda silenciado y no te aviso más de sus mensajes.`,
   approved: "Aprobado.",
   denied: "Rechazado.",
   answered: (a: string) => `Respondido: ${a}`,
@@ -52,7 +56,11 @@ const en: typeof es = {
     `${name} wants to talk on ${label} (code ${code}). Approve it in the ${label} list.`,
   askOwner: (name, label, text) => `${name} wrote to you on ${label}${text ? `: "${text}"` : "."} Shall I answer?`,
   answering: (name, label) => `${name} wrote to you on ${label}: I'm answering them as a new contact.`,
+  wroteFirst: (name, label, text) =>
+    `${name} wrote to you on ${label}${text ? `: "${text}"` : "."} I'm not answering: they're kept as an unreviewed contact.`,
   answer: "Answer them",
+  willAnswer: (name) => `Done: from now on I answer ${name}.`,
+  keptQuiet: (name) => `Done: ${name} stays silenced and I won't report their messages anymore.`,
   approved: "Approved.",
   denied: "Denied.",
   answered: (a) => `Answered: ${a}`,

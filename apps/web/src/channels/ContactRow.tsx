@@ -55,7 +55,16 @@ export function ContactFlags({ person }: { person: Person | undefined }) {
   const t = useT();
   if (!person || !hasFlags(person)) return null;
   const flags = [
-    ...(person.muted ? [{ key: "muted", icon: <Icons.BellOff size={12} />, label: t("ch.muted") }] : []),
+    // Someone who wrote first stays silenced until the owner reviews them.
+    ...(person.muted
+      ? [
+          {
+            key: "muted",
+            icon: <Icons.BellOff size={12} />,
+            label: t(person.unreviewed ? "ch.unreviewed" : "ch.muted"),
+          },
+        ]
+      : []),
     ...(person.rules?.trim() ? [{ key: "rules", icon: <Icons.FileText size={12} />, label: t("ch.flag.rules") }] : []),
     ...PERM_FLAGS.filter((f) => person.perms[f.key]).map((f) => ({ key: f.key, icon: f.icon, label: t(f.label) })),
   ];

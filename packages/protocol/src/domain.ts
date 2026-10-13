@@ -617,6 +617,8 @@ export const Person = z.object({
   rules: z.string().optional(),
   /** Silenced: their messages are kept, never answered. */
   muted: z.boolean().default(false),
+  /** Wrote first and was kept silenced for the owner to decide: each message of theirs is reported meanwhile. */
+  unreviewed: z.boolean().default(false),
   perms: PersonPerms.default({ appointments: false, requests: false, notes: false }),
   addresses: z.array(Address),
   created_at: z.string(),
