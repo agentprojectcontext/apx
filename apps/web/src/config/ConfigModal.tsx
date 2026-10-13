@@ -47,7 +47,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     label: "config.group.agents",
     items: [
       { id: "agents", label: "config.agents", icon: <Icons.Bot /> },
-      { id: "profile", label: "config.profile", icon: <Icons.Calendar /> },
+      { id: "profile", label: "config.superagent", icon: <Icons.Crown /> },
       { id: "channels", label: "config.channels", icon: <Icons.MessageCircle /> },
       { id: "interruptions", label: "config.interruptions", icon: <Icons.BellOff /> },
     ],

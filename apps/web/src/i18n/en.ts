@@ -1434,6 +1434,13 @@ export const en = {
     "Receive alerts through ntfy or UnifiedPush. Paste the HTTPS address provided by that service. This is not required to pair or use APX; the mobile app registers its notifications automatically when available.",
   "devices.pushSave": "Use for push",
   "config.profile": "Profile",
+  "config.superagent": "Super-agent",
+  "super.lead": "{name} is the one who writes to you on your channels, runs the day's routines and hands out the work.",
+  "super.edit": "Edit {name}",
+  "super.talk": "How it reaches you",
+  "super.where": "Where it writes to you",
+  "super.whereHint":
+    "Its routines, the OKs it needs and reminders arrive there. If that channel can't deliver one, it tries the next one that knows you.",
   "prof.lead":
     "What your super-agent is for. A profile gives it a role, routines on their own schedule and the settings they read; switch it any time. Its routines live in Routines too.",
   "prof.none": "None",
@@ -1457,6 +1464,8 @@ export const en = {
   "prof.routines": "Its routines",
   "prof.restore": "Restore the default prompt of {name}",
   "prof.restoreShort": "Restore",
+  "prof.restoreAsk": "Back to the original prompt?",
+  "prof.edited": "edited",
   "prof.remove": "Remove {name}",
   "error.profile": "Could not change the profile: {error}",
   "thread.menu.pin": "Pin to top",

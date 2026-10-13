@@ -1,9 +1,10 @@
-import type { Device, NoticePrefs, Nudge } from "@apx/protocol";
-import { Badge, Button, EmptyState, Icons, Input, Select, SettingRow, Switch } from "@apx/ui";
+import type { NoticePrefs, Nudge } from "@apx/protocol";
+import { Badge, Button, EmptyState, Icons, Input, SettingRow, Switch } from "@apx/ui";
 import { useCallback, useEffect, useState } from "react";
 import { loadChannels, saveNotices, useChannels } from "../data/channels.ts";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
+import { NoticeChannelSelect } from "./NoticeChannel.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
 const STATE_TONE: Record<Nudge["state"], "brand" | "neutral" | "warning" | "danger"> = {
@@ -26,8 +27,6 @@ const rateable = (n: Nudge) =>
 export function InterruptionsSection() {
   const t = useT();
   const prefs = useChannels((s) => s.notices);
-  const channels = useChannels((s) => s.channels);
-  const [devices, setDevices] = useState<Device[]>([]);
   const [log, setLog] = useState<{ items: Nudge[]; today: { sent: number; cap: number } }>();
   const loadLog = useCallback(async () => {
     try {
@@ -46,10 +45,6 @@ export function InterruptionsSection() {
   useEffect(() => {
     void loadChannels();
     void loadLog();
-    void client
-      .call("devices.list", {})
-      .then((r) => setDevices(r.devices))
-      .catch(() => setDevices([]));
   }, [loadLog]);
   if (!prefs) return null;
   const save = (patch: Partial<NoticePrefs>) => void saveNotices({ ...prefs, ...patch });
@@ -79,18 +74,7 @@ export function InterruptionsSection() {
         </p>
       )}
       <SettingRow title={t("nudge.where")} description={t("nudge.whereHint")}>
-        <Select
-          label={t("nudge.where")}
-          value={prefs.channel ?? "auto"}
-          onValueChange={(v) => save({ channel: v && v !== "auto" ? v : undefined })}
-          options={[
-            { value: "auto", label: t("nudge.whereAuto") },
-            ...channels.map((c) => ({ value: c.id, label: c.account ?? c.label })),
-            ...devices
-              .filter((d) => d.push)
-              .map((d) => ({ value: `device:${d.id}`, label: t("nudge.wherePhone", { name: d.name }) })),
-          ]}
-        />
+        <NoticeChannelSelect label={t("nudge.where")} />
       </SettingRow>
       <SettingRow title={t("nudge.budget_per_day")} description={t("nudge.budgetHint")}>
         {num("budget_per_day", 50)}

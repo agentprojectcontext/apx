@@ -696,7 +696,6 @@
 }
 .account__about {
   width: 100%;
-  min-width: 260px;
 }
 
 /* Discord's server rooms: one line each (name, id, mode, remove), then the line that adds one. */
@@ -1093,4 +1092,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A profile routine's Restore, confirmed in place: the question and its two buttons on the same line. */
+.prof__ask {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }

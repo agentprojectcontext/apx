@@ -1453,6 +1453,13 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Recibí avisos mediante ntfy o UnifiedPush. Pegá la dirección HTTPS que te dio ese servicio. No hace falta para vincular ni usar APX; la app móvil registra sus notificaciones automáticamente cuando puede.",
   "devices.pushSave": "Usar para push",
   "config.profile": "Perfil",
+  "config.superagent": "Super-agente",
+  "super.lead": "{name} es quien te escribe por tus canales, corre las rutinas del día y reparte el trabajo.",
+  "super.edit": "Editar a {name}",
+  "super.talk": "Cómo te habla",
+  "super.where": "Por dónde te habla",
+  "super.whereHint":
+    "Ahí te llegan sus rutinas, los OK que necesita y los recordatorios. Si ese canal no puede entregar uno, prueba con el siguiente que te conoce.",
   "prof.lead":
     "Para qué está tu super-agente. Un perfil le da un rol, rutinas con su horario y los ajustes que leen; lo cambiás cuando quieras. Sus rutinas también están en Rutinas.",
   "prof.none": "Ninguno",
@@ -1477,6 +1484,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "prof.routines": "Sus rutinas",
   "prof.restore": "Restaurar el prompt por defecto de {name}",
   "prof.restoreShort": "Restaurar",
+  "prof.restoreAsk": "¿Volver al prompt original?",
+  "prof.edited": "editada",
   "prof.remove": "Quitar {name}",
   "error.profile": "No se pudo cambiar el perfil: {error}",
   "thread.menu.pin": "Fijar arriba",

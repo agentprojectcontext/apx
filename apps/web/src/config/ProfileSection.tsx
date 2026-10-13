@@ -3,11 +3,13 @@ import { Button, Dialog, Icons, Input, SegmentedControl, Select, SettingRow, Tag
 import { useCallback, useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
+import { useData } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { NoticeChannelSelect } from "./NoticeChannel.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 
-type State = { profiles: ProfileInfo[]; active: ActiveProfile; routines: Routine[] };
+type State = { profiles: ProfileInfo[]; active: ActiveProfile; routines: Routine[]; changed: string[] };
 type Value = string | number;
 
 type Days = "1-5" | "*" | "0,6";
@@ -25,12 +27,13 @@ const toCron = (time: string, days: Days) => {
 };
 
 /**
- * What the super-agent is for. A profile gives it a role in its prompt, routines on its own schedule and the settings
- * both read; APX ships some, more install from a folder. None: it only answers.
+ * The super-agent: where it writes to the owner, and what it is for. A profile gives it a role in its prompt, routines
+ * on its own schedule and the settings both read; APX ships some, more install from a folder. None: it only answers.
  */
 export function ProfileSection() {
   const t = useT();
   const lang = useLanguage();
+  const superAgent = useData((s) => Object.values(s.agents).find((a) => a.kind === "secretary"));
   const text = useCallback((l: Localized | undefined) => (l ? (l[lang] ?? l.en) : ""), [lang]);
   const [state, setState] = useState<State>();
   const [installing, setInstalling] = useState(false);
@@ -42,7 +45,28 @@ export function ProfileSection() {
   useEffect(() => {
     void load();
   }, [load]);
-  if (!state) return <SectionHead title={t("config.profile")} lead={t("prof.lead")} />;
+  const head = (
+    <SectionHead
+      title={t("config.superagent")}
+      lead={t("super.lead", { name: superAgent?.name ?? t("config.superagent") })}
+      actions={
+        superAgent && (
+          <Button
+            size="sm"
+            variant="secondary"
+            leadingIcon={<Icons.Bot size={14} />}
+            onClick={() => {
+              go.config(null);
+              go.agent(superAgent.id);
+            }}
+          >
+            {t("super.edit", { name: superAgent.name })}
+          </Button>
+        )
+      }
+    />
+  );
+  if (!state) return head;
   const current = state.profiles.find((p) => p.id === state.active.id);
   const run = (id: string | null, values: Record<string, Value>) =>
     void client
@@ -55,20 +79,19 @@ export function ProfileSection() {
 
   return (
     <>
-      <SectionHead
-        title={t("config.profile")}
-        lead={t("prof.lead")}
-        actions={
-          <Button
-            size="sm"
-            variant="secondary"
-            leadingIcon={<Icons.Plus size={14} />}
-            onClick={() => setInstalling(true)}
-          >
-            {t("prof.install")}
-          </Button>
-        }
-      />
+      {head}
+      <SubHead>{t("super.talk")}</SubHead>
+      <SettingRow title={t("super.where")} description={t("super.whereHint")}>
+        <NoticeChannelSelect label={t("super.where")} />
+      </SettingRow>
+      <SettingRow title={t("prof.budget")} description={t("prof.budgetHint")}>
+        <Button size="sm" variant="secondary" onClick={() => go.config("interruptions")}>
+          {t("nudge.open")}
+        </Button>
+      </SettingRow>
+
+      <SubHead>{t("config.profile")}</SubHead>
+      <p className="config__lead">{t("prof.lead")}</p>
       <fieldset className="radiocards">
         <legend className="sr-only">{t("config.profile")}</legend>
         <label className={!current ? "radiocard is-on" : "radiocard"}>
@@ -102,7 +125,12 @@ export function ProfileSection() {
           </label>
         ))}
       </fieldset>
-      <p className="pform__hint">{t("prof.storeSoon")}</p>
+      <div className="tgtoken">
+        <span className="pform__hint">{t("prof.storeSoon")}</span>
+        <Button size="sm" variant="ghost" leadingIcon={<Icons.Plus size={14} />} onClick={() => setInstalling(true)}>
+          {t("prof.install")}
+        </Button>
+      </div>
 
       {current && (
         <>
@@ -117,27 +145,15 @@ export function ProfileSection() {
               />
             </SettingRow>
           ))}
-          <SettingRow title={t("prof.budget")} description={t("prof.budgetHint")}>
-            <Button size="sm" variant="secondary" onClick={() => go.config("interruptions")}>
-              {t("nudge.open")}
-            </Button>
-          </SettingRow>
 
           {current.routines.length > 0 && <SubHead>{t("prof.routines")}</SubHead>}
           {state.routines.map((r) => (
-            <div key={r.id} className="tgtoken">
-              <span className="res__name">{r.name}</span>
-              <span className="pform__hint">{r.enabled ? t("routines.on") : t("routines.off")}</span>
-              <Button
-                size="sm"
-                variant="ghost"
-                leadingIcon={<Icons.RotateCcw size={14} />}
-                onClick={() => restore(r.id)}
-                aria-label={t("prof.restore", { name: r.name })}
-              >
-                {t("prof.restoreShort")}
-              </Button>
-            </div>
+            <RoutineLine
+              key={r.id}
+              routine={r}
+              changed={state.changed.includes(r.id)}
+              onRestore={() => restore(r.id)}
+            />
           ))}
           {current.source === "owner" && (
             <div className="tgtoken">
@@ -163,6 +179,49 @@ export function ProfileSection() {
         />
       )}
     </>
+  );
+}
+
+/** A profile routine: on or off, and Restore only when its prompt is no longer the shipped one, confirmed in place. */
+function RoutineLine({ routine: r, changed, onRestore }: { routine: Routine; changed: boolean; onRestore(): void }) {
+  const t = useT();
+  const [asking, setAsking] = useState(false);
+  return (
+    <div className="tgtoken">
+      <span className="res__name">{r.name}</span>
+      <span className="pform__hint">
+        {r.enabled ? t("routines.on") : t("routines.off")}
+        {changed && ` · ${t("prof.edited")}`}
+      </span>
+      {changed &&
+        (asking ? (
+          <span className="prof__ask">
+            <span className="pform__hint">{t("prof.restoreAsk")}</span>
+            <Button
+              size="sm"
+              onClick={() => {
+                setAsking(false);
+                onRestore();
+              }}
+            >
+              {t("prof.restoreShort")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setAsking(false)}>
+              {t("common.cancel")}
+            </Button>
+          </span>
+        ) : (
+          <Button
+            size="sm"
+            variant="ghost"
+            leadingIcon={<Icons.RotateCcw size={14} />}
+            onClick={() => setAsking(true)}
+            aria-label={t("prof.restore", { name: r.name })}
+          >
+            {t("prof.restoreShort")}
+          </Button>
+        ))}
+    </div>
   );
 }
 
