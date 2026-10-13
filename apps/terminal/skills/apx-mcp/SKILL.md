@@ -83,6 +83,7 @@ apx mcps add <name> --env K=V -- <command> [args…]   # one of the owner's own 
 apx mcps add <name> https://…/mcp --header K=V       # a remote (streamable HTTP) server
 apx mcps copy <from> <to> --env K=V        # a second one like it, only the variables you give change
 apx mcps set <name> --env K=V              # change variables of one, keeping the rest
+apx mcps rename <name> <new-name>          # the same server under another name
 apx mcps rm <name>
 apx mcps trust|untrust <project> <server>  # approve a project's server as its file defines it now
 ```
