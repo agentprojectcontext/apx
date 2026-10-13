@@ -9,6 +9,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("use the skill")) return callTool("k1", "load_skill", { name: "brief-writer" });
   if (said.includes("empty file")) return callTool("k3", "load_skill", { name: "brief-writer", file: "" });
   if (said.includes("folder")) return callTool("k4", "load_skill", { name: "brief-writer", file: "refs" });
+  if (said.includes("how do I add an MCP")) return callTool("k5", "load_skill", { name: "apx-mcps" });
   if (said.includes("escape"))
     return callTool("k2", "load_skill", { name: "brief-writer", file: "../../secrets.index.json" });
   return say("ok");
@@ -34,7 +35,7 @@ after(async () => {
 test("agents see a one-line catalog and load the body on demand; files outside the skill are refused", async () => {
   const { skills } = await env.client.call("skills.list", {});
   assert.deepEqual(
-    skills.map((s) => s.name),
+    skills.filter((s) => s.source !== "apx").map((s) => s.name),
     ["brief-writer"],
   );
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "skills" });
@@ -47,6 +48,34 @@ test("agents see a one-line catalog and load the body on demand; files outside t
   await env.client.call("threads.send", { thread: t.id, text: "escape" });
   await env.settle(t.id);
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /outside the skill/);
+});
+
+test("APX's own skills: named in one sentence, loaded on demand, always on, read-only, and they keep their names", async () => {
+  // The owner's skill with the same name as one of APX's does not replace it.
+  const dir = path.join(env.home, "skills", "apx-mcps");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "SKILL.md"), "---\nname: apx-mcps\ndescription: Edit ~/.apx/mcps.json.\n---\n");
+  const { skills } = await env.client.call("skills.list", {});
+  const apx = skills.filter((s) => s.source === "apx");
+  assert.ok(apx.some((s) => s.name === "apx-mcps") && apx.some((s) => s.name === "apx-variables"));
+  assert.ok(apx.every((s) => s.on && !s.editable));
+  assert.equal(skills.filter((s) => s.name === "apx-mcps").length, 1);
+  await assert.rejects(env.client.call("skills.toggle", { name: "apx-mcps", on: false }), /always on/);
+  await assert.rejects(
+    env.client.call("skills.save", { name: "apx-mcps", target: "global", content: "---\nname: apx-mcps\n---\n" }),
+    /comes with APX/,
+  );
+
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "apx skills" });
+  await env.client.call("threads.send", { thread: t.id, text: "how do I add an MCP" });
+  await env.settle(t.id);
+  const system = String(llm.calls.at(-1)?.messages[0]?.content);
+  assert.match(system, /To change APX itself, load its guide first with load_skill \(apx-[^)]*apx-mcps/);
+  assert.doesNotMatch(system, /- apx-mcps:/, "not one catalog line each");
+  const loaded = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  assert.match(loaded, /apx mcps add/);
+  assert.doesNotMatch(loaded, /Edit ~\/\.apx\/mcps\.json/);
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test("an empty file argument loads SKILL.md, and a folder lists its files instead of failing", async () => {

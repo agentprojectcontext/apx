@@ -318,6 +318,21 @@ export async function skills(
   [sub, name]: string[],
   o: { project?: string | undefined } = {},
 ): Promise<void> {
+  if (sub === "save") {
+    if (!name) throw new Error("usage: apx skills save <skill> [--project <project>] < SKILL.md");
+    // The whole SKILL.md (frontmatter and body) on stdin: a body would not survive as an argument.
+    let content = "";
+    for await (const chunk of process.stdin) content += String(chunk);
+    if (!content.trim()) throw new Error("pipe the SKILL.md in: … | apx skills save <skill>");
+    const r = await client.call("skills.save", {
+      name,
+      target: o.project ? "project" : "global",
+      content,
+      ...(o.project ? { project: o.project } : {}),
+    });
+    console.log(`saved ${r.skill.name} · ${r.skill.path}`);
+    return;
+  }
   if (sub === "on" || sub === "off") {
     if (!name) throw new Error(`usage: apx skills ${sub} <skill> [--project <project>]`);
     await client.call("skills.toggle", { name, on: sub === "on", ...(o.project ? { project: o.project } : {}) });
@@ -328,6 +343,8 @@ export async function skills(
   const project = (sub === "list" ? name : sub) ?? o.project;
   const r = await client.call("skills.list", project ? { project } : {});
   for (const s of r.skills)
-    console.log(`${s.name.padEnd(32)} ${s.scope.padEnd(8)} ${s.on ? "   " : "off"} ${s.description.slice(0, 90)}`);
+    console.log(
+      `${s.name.padEnd(32)} ${(s.source === "apx" ? "apx" : s.scope).padEnd(8)} ${s.on ? "   " : "off"} ${s.description.slice(0, 90)}`,
+    );
   if (!r.skills.length) console.log("(no skills: add folders with a SKILL.md under ~/.apx/v2/skills or .apc/skills)");
 }

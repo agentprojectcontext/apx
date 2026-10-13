@@ -1,5 +1,6 @@
-// Skills: folders with a SKILL.md (frontmatter `name`, `description`; the body is the know-how). The owner's live in
-// APX's home (`skills/`), a project's in `.apc/skills/`. Agents see a one-line catalog; the body loads on demand.
+// Skills: folders with a SKILL.md (frontmatter `name`, `description`; the body is the know-how). APX's own come with the
+// core (`skills/apx/`), the owner's live in APX's home (`skills/`), a project's in `.apc/skills/`. Agents see a short
+// catalog; the body loads on demand.
 import fs from "node:fs";
 import path from "node:path";
 import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
@@ -13,8 +14,12 @@ export type Skill = {
   scope: "global" | "project";
   project_id?: string | undefined;
   dir: string;
-  source: "owner" | "claude" | "project" | "extension";
+  source: "apx" | "owner" | "claude" | "project" | "extension";
 };
+
+/** APX's own guides to changing APX itself: shipped with the core, always on, read-only, and they keep their names. */
+export const APX_SKILLS_DIR = path.join(import.meta.dirname, "apx");
+const isApx = (s: Skill) => s.source === "apx";
 
 /** Skills the owner turned off: "*" everywhere, or per project id. Kept in settings, never in the skill's folder. */
 type OffList = Record<string, string[]>;
@@ -93,11 +98,14 @@ const isLink = (p: string) => {
 /** Skills an agent of this project may load: everything found, minus what the owner turned off. */
 export function skillsFor(store: Store, home: string, projectId: string | undefined): Skill[] {
   const off = skillsOff(store);
-  return allSkills(store, home, projectId).filter((s) => skillOn(off, s.name, projectId, s.scope));
+  return allSkills(store, home, projectId).filter((s) => isApx(s) || skillOn(off, s.name, projectId, s.scope));
 }
 
-/** Every skill visible from a project (or globally): a project's own, then the owner's, then extensions'. */
+/** Every skill visible from a project (or globally): APX's, a project's own, then the owner's, then extensions'. */
 export function allSkills(store: Store, home: string, projectId: string | undefined): Skill[] {
+  const apx = scan(APX_SKILLS_DIR, false, { scope: "global", source: "apx" });
+  // A skill elsewhere named like one of APX's would replace how agents learn to change APX: APX's wins.
+  const reserved = new Set(apx.map((s) => s.name));
   const project = projectId ? store.projects.get(projectId) : undefined;
   const own = scan(path.join(home, "skills"), true, { scope: "global", source: "owner" });
   const theirs =
@@ -118,30 +126,44 @@ export function allSkills(store: Store, home: string, projectId: string | undefi
     );
   // A project's skill with the same name as one of the owner's takes its place inside that project.
   const names = new Set(theirs.map((s) => s.name));
-  const picked = [...theirs, ...own.filter((s) => !names.has(s.name))];
+  const picked = [...apx, ...theirs, ...own.filter((s) => !names.has(s.name))];
   const taken = new Set(picked.map((s) => s.name));
-  return [...picked, ...extensions.filter((s) => !taken.has(s.name))].sort((a, b) => a.name.localeCompare(b.name));
+  return [...picked, ...extensions.filter((s) => !taken.has(s.name))]
+    .filter((s) => isApx(s) || !reserved.has(s.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** The agent's `skills:` list narrows the catalog; an empty list (or one naming nothing found) means all. */
+/**
+ * The agent's `skills:` list narrows the catalog (APX's own always stay); an empty list (or one naming nothing found)
+ * means all.
+ */
 export function agentSkills(agent: AgentRecord, all: Skill[]): Skill[] {
   const wanted = new Set((agent.skills ?? []).map((s) => s.toLowerCase()));
-  const picked = all.filter((s) => wanted.has(s.name.toLowerCase()));
-  return wanted.size && picked.length ? picked : all;
+  const named = (s: Skill) => wanted.has(s.name.toLowerCase());
+  return all.some(named) ? all.filter((s) => isApx(s) || named(s)) : all;
 }
 
-/** One line per skill for the system prompt (first sentence of the description, capped). */
+/**
+ * For the system prompt: APX's own guides by name in one sentence (they are always there, so they must cost little),
+ * then one line per other skill (first sentence of the description, capped).
+ */
 export function skillCatalog(skills: Skill[]): string {
-  if (!skills.length) return "";
+  const apx = skills.filter(isApx).map((s) => s.name);
+  const guides = apx.length
+    ? `To change APX itself, load its guide first with load_skill (${apx.join(", ")}) and follow it: APX's tools or the \`apx\` command, never editing files.`
+    : "";
+  const own = skills.filter((s) => !isApx(s));
+  if (!own.length) return guides ? `## Skills\n${guides}` : "";
   const line = (s: Skill) => {
     const first = s.description.split(/(?<=[.!?])\s/)[0] ?? "";
     return `- ${s.name}: ${first.length > 180 ? `${first.slice(0, 177)}…` : first}`;
   };
-  const more = skills.length - CATALOG_MAX;
+  const more = own.length - CATALOG_MAX;
   return [
     "## Skills",
+    ...(guides ? [guides] : []),
     "Know-how you can load when a task matches one: call load_skill with its name before doing the task.",
-    ...skills.slice(0, CATALOG_MAX).map(line),
+    ...own.slice(0, CATALOG_MAX).map(line),
     ...(more > 0 ? [`(${more} more not listed; load_skill works with any skill's name)`] : []),
   ].join("\n");
 }

@@ -55,6 +55,7 @@ export function SkillDetail({
     await onChanged(next);
   };
   const tag = sourceTag(skill, t);
+  const apx = skill.source === "apx";
 
   return (
     <article className="resd">
@@ -64,15 +65,17 @@ export function SkillDetail({
         {inherited && <Badge>{t("res.inherited")}</Badge>}
         {tag && <Tag>{tag}</Tag>}
         <span className="resd__spacer" />
-        <Switch
-          checked={skill.on}
-          label={t("res.active")}
-          // Off everywhere wins: a project cannot turn it back on for itself (the global view can).
-          disabled={Boolean(projectId) && skill.off_everywhere}
-          onCheckedChange={(on) =>
-            void toggleSkill(skill.name, on, projectId ?? skill.project_id).then(() => onChanged())
-          }
-        />
+        {!apx && (
+          <Switch
+            checked={skill.on}
+            label={t("res.active")}
+            // Off everywhere wins: a project cannot turn it back on for itself (the global view can).
+            disabled={Boolean(projectId) && skill.off_everywhere}
+            onCheckedChange={(on) =>
+              void toggleSkill(skill.name, on, projectId ?? skill.project_id).then(() => onChanged())
+            }
+          />
+        )}
       </header>
       {skill.description && <p className="resd__desc">{skill.description}</p>}
       {projectId && skill.off_everywhere && <p className="resd__note">{t("res.skillOffEverywhere")}</p>}
@@ -91,7 +94,7 @@ export function SkillDetail({
         <dd className="resd__mono">{skill.path}</dd>
       </dl>
 
-      {!projectId && skill.scope === "global" && projects.some((p) => p.path) && (
+      {!apx && !projectId && skill.scope === "global" && projects.some((p) => p.path) && (
         <section className="resd__section">
           <h3 className="resd__h3">{t("res.availableIn")}</h3>
           <ul className="resd__toggles">
@@ -151,7 +154,7 @@ export function SkillDetail({
           onChange={(e) => setDraft(e.currentTarget.value)}
         />
       )}
-      {!skill.editable && <p className="resd__note">{t("res.extensionReadOnly")}</p>}
+      {!skill.editable && <p className="resd__note">{t(apx ? "res.apxSkillNote" : "res.extensionReadOnly")}</p>}
 
       {asking && (
         <Dialog

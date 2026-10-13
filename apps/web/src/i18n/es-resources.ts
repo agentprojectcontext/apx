@@ -62,6 +62,8 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.source": "Fuente",
   "res.discard": "Descartar",
   "res.extensionReadOnly": "Viene de una extensión: solo lectura. Guardá una copia en un proyecto para cambiarla ahí.",
+  "res.apxSkillNote":
+    "Viene con APX y les enseña a los agentes a cambiar APX: siempre activa, solo lectura y se actualiza con APX.",
   "res.saveWhere": "¿Dónde va el cambio?",
   "res.saveWhereBody":
     "Es una skill global. Cambiá la original (la ven todos los proyectos) o dale a {name} su propia copia, que la reemplaza ahí.",

@@ -63,6 +63,7 @@ Usage:
   apx jobs [list] | get <job> | cancel <job>   Background work: agents' runs and terminal commands
   apx skills [list] [project]   Skills agents can load ("off" marks one turned off there)
   apx skills on|off <skill> [--project p]   Turn a skill on or off everywhere, or only in one project
+  apx skills save <skill> [--project p]     Create or replace a skill: its SKILL.md on stdin
   apx skills install-runtimes [--dry-run]
                            Refresh now the skills that teach Claude Code, Codex, Cursor and ~/.agents how to use APX
                            (the core does it at every start); removes ones APX no longer ships, never anyone else's

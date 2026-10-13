@@ -1,5 +1,5 @@
 // Reading and writing a skill's SKILL.md for the Resources screen. The owner's skills live in APX's home; a project's
-// in `.apc/skills/`, written without following a symlink out of the repo. Extensions' skills are read-only.
+// in `.apc/skills/`, written without following a symlink out of the repo. APX's and extensions' skills are read-only.
 import fs from "node:fs";
 import path from "node:path";
 import type { SkillInfo } from "@apx/protocol";
@@ -20,10 +20,10 @@ export function skillInfo(store: Store, s: Skill, projectId: string | undefined)
     scope: s.scope,
     ...(s.project_id ? { project_id: s.project_id } : {}),
     source: s.source,
-    on: skillOn(off, s.name, projectId, s.scope),
-    off_in: offIn,
-    off_everywhere: Boolean(off["*"]?.includes(s.name)),
-    editable: s.source !== "extension",
+    on: s.source === "apx" || skillOn(off, s.name, projectId, s.scope),
+    off_in: s.source === "apx" ? [] : offIn,
+    off_everywhere: s.source !== "apx" && Boolean(off["*"]?.includes(s.name)),
+    editable: s.source !== "extension" && s.source !== "apx",
     path: tildeHome(path.join(s.dir, "SKILL.md")),
   };
 }

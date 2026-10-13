@@ -64,12 +64,18 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res }: T
           ...(s.editable
             ? [{ label: t("res.edit"), icon: <Icons.Pencil size={14} />, onSelect: () => open(true) }]
             : []),
-          {
-            label: s.on ? t("res.turnOff") : t("res.turnOn"),
-            icon: <Icons.Power size={14} />,
-            disabled: Boolean(projectId) && s.off_everywhere,
-            onSelect: () => void toggleSkill(s.name, !s.on, projectId ?? s.project_id).then(() => res.loadSkills()),
-          },
+          // APX's own skills are always on.
+          ...(s.source === "apx"
+            ? []
+            : [
+                {
+                  label: s.on ? t("res.turnOff") : t("res.turnOn"),
+                  icon: <Icons.Power size={14} />,
+                  disabled: Boolean(projectId) && s.off_everywhere,
+                  onSelect: () =>
+                    void toggleSkill(s.name, !s.on, projectId ?? s.project_id).then(() => res.loadSkills()),
+                },
+              ]),
         ]}
       >
         <PickRow

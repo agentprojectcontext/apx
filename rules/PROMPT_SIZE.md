@@ -8,10 +8,10 @@ it that way.
 
 Measured on a fresh install: the secretary, a new chat, default settings, no skills or MCP servers added.
 
-| Part | Budget | Now (2026-10-10) |
+| Part | Budget | Now (2026-10-13) |
 |---|---|---|
-| System prompt | 6,500 chars (about 1,450 tokens) | 5,694 chars, 1,260 tokens |
-| Tool definitions (44, without the browser) | 28,000 chars (about 6,700 tokens) | 27,587 chars, 6,580 tokens |
+| System prompt | 6,500 chars (about 1,450 tokens) | 6,463 chars, 1,463 tokens |
+| Tool definitions (44, without the browser) | 28,000 chars (about 6,700 tokens) | 27,974 chars, 6,699 tokens |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
 
 `apps/core/src/engine/prompt-budget.test.ts` fails past the budget. Raising it is allowed with a reason in the commit
@@ -24,6 +24,8 @@ How to stay within it:
 - Argument descriptions do not list an enum's values: the schema already does.
 - Tools that come and go (MCP servers', extensions') are reached through `mcp_search` and `mcp_call`, never added one
   schema each ([D-053](DECISIONS.md#d-053)).
+- APX's own skills (`apps/core/src/skills/apx/`, how to change APX itself) are always there, so the catalog names
+  them in one sentence (about 50 tokens) instead of a line each; their bodies load only with `load_skill`.
 - What changes per turn (time, roster, memory, matched skills) goes in the turn's input, never in the system prompt:
   the system prompt stays byte-stable so the provider's prompt cache keeps it.
 - `pnpm tools:review` checks that a model still picks the right tool after a description changes, and prints the

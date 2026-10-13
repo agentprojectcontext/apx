@@ -153,3 +153,16 @@ test("an extension's routine says what and when, waits to be added, and once in 
   await page.getByRole("button", { name: "Abrir en Rutinas" }).click();
   await expect(page.getByText("Morning brief").first()).toBeVisible();
 });
+
+test("APX's own skills are listed with an APX tag, always on and read-only", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
+  await page.getByRole("radio", { name: /^Skills/ }).click();
+  await page.getByRole("button", { name: /^apx-mcps/ }).click();
+  const detail = page.getByRole("article");
+  await expect(detail.getByRole("heading", { name: "apx-mcps" })).toBeVisible();
+  await expect(detail.getByText("APX", { exact: true })).toBeVisible();
+  await expect(detail.getByRole("switch")).toHaveCount(0);
+  await expect(detail.getByText(/^Viene con APX y les enseña a los agentes a cambiar APX/)).toBeVisible();
+  await expect(detail.getByText(/apx mcps add/).first()).toBeVisible();
+});

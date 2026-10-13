@@ -59,6 +59,8 @@ export const enResources = {
   "res.source": "Source",
   "res.discard": "Discard",
   "res.extensionReadOnly": "It comes from an extension: read only. Save a copy in a project to change it there.",
+  "res.apxSkillNote":
+    "It comes with APX and teaches agents how to change APX itself: always on, read only, and updated with APX.",
   "res.saveWhere": "Where does the change go?",
   "res.saveWhereBody":
     "This is a global skill. Change the original (every project sees it) or give {name} its own copy, which takes its place there.",

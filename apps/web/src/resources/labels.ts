@@ -4,6 +4,7 @@ import type { MessageKey, T } from "../i18n/index.ts";
 
 /** Where a skill comes from, when it is not the owner's or the project's own. */
 export function sourceTag(s: SkillInfo, t: T): string | undefined {
+  if (s.source === "apx") return "APX";
   if (s.source === "extension") return t("res.source.extension");
   if (s.source === "claude") return "Claude";
   return undefined;

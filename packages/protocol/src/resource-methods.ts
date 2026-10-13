@@ -14,8 +14,11 @@ export const SkillInfo = z.object({
   description: z.string(),
   scope: z.enum(["global", "project"]),
   project_id: Id.optional(),
-  /** owner: APX home `skills/`; claude: linked there from Claude's skills; project: `.apc/skills/`; extension. */
-  source: z.enum(["owner", "claude", "project", "extension"]),
+  /**
+   * apx: comes with APX (how to change APX itself; always on, read-only); owner: APX home `skills/`; claude: linked
+   * there from Claude's skills; project: `.apc/skills/`; extension.
+   */
+  source: z.enum(["apx", "owner", "claude", "project", "extension"]),
   /** On where it was asked about (the project, or everywhere). */
   on: z.boolean(),
   /** Projects where the owner turned this global skill off. */
@@ -59,7 +62,7 @@ export const resourceMethods = {
     access: "human",
   },
   /**
-   * Skills agents can load: the owner's (APX home `skills/`), a project's `.apc/skills/` with `project`, and enabled
+   * Skills agents can load: APX's own, the owner's (APX home `skills/`), a project's `.apc/skills/` with `project`, and enabled
    * extensions'. Skills the owner turned off are listed with `on: false`; agents do not see them.
    */
   "skills.list": {
