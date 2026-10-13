@@ -269,6 +269,28 @@ app.whenReady().then(() => {
           body: language === "es" ? "Uso de la computadora detenido." : "Computer use stopped.",
         }).show();
     },
+    // macOS refused it: System Settings opens where to allow it, and a notification says what to turn on.
+    onPermission: (kind) => {
+      openPrivacy(kind);
+      if (!Notification.isSupported()) return;
+      const es = language === "es";
+      const what =
+        kind === "screen"
+          ? es
+            ? "Grabación de pantalla"
+            : "Screen Recording"
+          : es
+            ? "Accesibilidad"
+            : "Accessibility";
+      const n = new Notification({
+        title: es ? `APX necesita el permiso de ${what}` : `APX needs the ${what} permission`,
+        body: es
+          ? "Activá APX en Configuración del Sistema. Si ya está activado, quitalo con − y agregalo de nuevo."
+          : "Turn APX on in System Settings. If it is already on, remove it with − and add it again.",
+      });
+      n.on("click", () => openPrivacy(kind));
+      n.show();
+    },
   });
   // The emergency stop, from any app, while computer use is on.
   // Ctrl+Shift+Esc is Windows' own Task Manager: there it is Ctrl+Alt+Esc.

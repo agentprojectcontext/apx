@@ -12,6 +12,8 @@ import type { Handlers } from "./router.ts";
 /** Reading the accessibility tree of a busy window takes a few seconds. */
 const SNAPSHOT_MS = 20_000;
 const ACT_MS = 10_000;
+/** A real click may wait up to 20 s for the owner's mouse to rest (the desktop gives up at 25 s). */
+const CLICK_MS = 30_000;
 
 /** A turn that used the computer this recently counts as using it when the owner pulls the stop. */
 const ACTIVE_MS = 10 * 60_000;
@@ -77,7 +79,7 @@ export function computerHandlers(
     },
     "computer.click": async (p, ctx) => {
       enter(ctx);
-      return (await broker.invoke(COMPUTER_CAP, "computer.click", p, ACT_MS)) as { app: string; how?: string };
+      return (await broker.invoke(COMPUTER_CAP, "computer.click", p, CLICK_MS)) as { app: string; how?: string };
     },
     "computer.type": async (p, ctx) => {
       enter(ctx);

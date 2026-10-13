@@ -60,6 +60,20 @@ const BROWSERS =
 const STOPPED = "the owner pulled the emergency stop: this action was dropped; end the turn";
 /** Long enough for an action already on its way to be dropped; the core ends the turns themselves. */
 const STOP_HOLD_MS = 3_000;
+/** System Settings opens for a missing permission at most this often, however many actions hit it. */
+const PERMISSION_EVERY_MS = 60_000;
+
+export type ComputerPermission = "screen" | "accessibility";
+
+/** What the agent hears when macOS has not allowed APX something: System Settings is already open for the owner. */
+const MISSING: Record<ComputerPermission, string> = {
+  accessibility:
+    "not done: macOS has not given APX the Accessibility permission, so it cannot control apps. System Settings › Privacy & Security › Accessibility was just opened on the owner's Mac: tell them to turn APX on there (if it is already on, remove it with − and add it again: a reinstall leaves the old entry stale), then wait for them to say it is done before trying again",
+  screen:
+    "not done: macOS has not given APX the Screen Recording permission, so it cannot see the screen. System Settings › Privacy & Security › Screen Recording was just opened on the owner's Mac: tell them to turn APX on there (macOS may ask to reopen APX), then wait for them to say it is done before trying again",
+};
+/** osascript's words when the app that started it is not allowed to drive others (in the Mac's own language). */
+const ASSISTIVE = /assistive access|acceso de ayuda|-1719|-25211/i;
 
 /** The owner's screens, numbered as they are now (main first), and which one holds `bounds`. */
 function screensText(bounds?: Bounds): string {
@@ -80,6 +94,8 @@ export function createComputer(o: {
   driver?: ComputerDriver;
   onActivity(a: ComputerActivity): void;
   onStopped(stopped: boolean): void;
+  /** macOS refused something computer use needs: show the owner where to allow it. */
+  onPermission?(kind: ComputerPermission): void;
 }) {
   const d = o.driver ?? (process.platform === "win32" ? windowsDriver : macDriver);
   const front = d.front;
@@ -89,6 +105,23 @@ export function createComputer(o: {
   let stopped = false;
   const go = () => {
     if (stopped) throw new Error(STOPPED);
+  };
+  const asked = new Map<ComputerPermission, number>();
+  /** Shows the owner where to allow it (not again within a minute) and returns what the agent hears. */
+  const missing = (kind: ComputerPermission): Error => {
+    const now = Date.now();
+    if (now - (asked.get(kind) ?? 0) > PERMISSION_EVERY_MS) {
+      asked.set(kind, now);
+      o.onPermission?.(kind);
+    }
+    return new Error(MISSING[kind]);
+  };
+  /** On a Mac, every action drives other apps through accessibility, and a look also needs to see the screen. */
+  const allowed = (method: string) => {
+    if (process.platform !== "darwin") return;
+    if (!systemPreferences.isTrustedAccessibilityClient(false)) throw missing("accessibility");
+    if (method === "computer.snapshot" && systemPreferences.getMediaAccessStatus("screen") !== "granted")
+      throw missing("screen");
   };
 
   async function look(app?: string, note?: string) {
@@ -132,90 +165,102 @@ export function createComputer(o: {
     };
   }
 
+  async function act(method: string, params: unknown): Promise<unknown> {
+    const p = (params ?? {}) as {
+      x?: number;
+      y?: number;
+      app?: string;
+      text?: string;
+      keys?: string;
+      url?: string;
+      note?: string;
+    };
+    if (method === "computer.snapshot") return look(p.app, p.note);
+    if (method === "computer.open") {
+      o.cursor.say(p.note || (p.url ? new URL(p.url).host : (p.app ?? "")));
+      await d.open(p.app, p.url);
+      const app = p.app ?? "the default browser";
+      // Closed before, it takes a moment to start: wait for its window to come up, and say on which screen.
+      let where: string | undefined;
+      if (p.app) {
+        const wanted = p.app.toLowerCase();
+        for (let i = 0; i < 24 && !where; i++) {
+          const f = await front(false).catch(() => undefined);
+          const shown = f?.app.toLowerCase() ?? "";
+          if (f?.bounds && shown && (shown === wanted || wanted.includes(shown) || shown.includes(wanted))) {
+            target = { app: f.app, window: f.window, bounds: f.bounds };
+            where = `${screensText(f.bounds)}; its window "${f.window}" is at ${f.bounds.x},${f.bounds.y} ${f.bounds.width}x${f.bounds.height}`;
+          } else await new Promise((r) => setTimeout(r, 250));
+        }
+      }
+      o.onActivity({ kind: "look", app, window: p.url ?? "" });
+      return where ? { app, where } : { app };
+    }
+    if (method === "computer.key") {
+      const keys = String(p.keys ?? "")
+        .toLowerCase()
+        .replace(/\s+/g, "");
+      if (refusedKeys(keys, process.platform))
+        throw new Error(`${p.keys} closes or quits things: ask the owner to do it`);
+      if (!d.canPress(keys)) throw new Error(`cannot press "${p.keys}": use names like enter, tab, esc, cmd+l, arrows`);
+      go();
+      o.cursor.say(p.note || `⌨ ${p.keys}`);
+      // Keys go to the app in front: browsers ignore keys sent to them in the background.
+      await d.activate(String(p.app ?? "")).catch(() => {});
+      const app = await d.key(String(p.app ?? ""), keys);
+      o.onActivity({ kind: "type", app, window: target?.window ?? "" });
+      return { app };
+    }
+    if (method === "computer.click") {
+      const x = Number(p.x);
+      const y = Number(p.y);
+      await o.cursor.moveTo(x, y, p.note || p.app || "");
+      // The stop may come while the pointer glides there: then no click.
+      go();
+      const name = String(p.app ?? "");
+      // Pressed through accessibility when it can (the owner's pointer stays where it is); else a real click that
+      // puts their pointer straight back.
+      const done = await d.press(name, x, y).catch((e: unknown) => `none: ${errorText(e)}`);
+      // Refused for want of the permission, a real click would be refused too (after waiting on the owner's mouse).
+      if (ASSISTIVE.test(done)) throw missing("accessibility");
+      let how = done;
+      if (done.startsWith("none")) {
+        await d.activate(name).catch(() => {});
+        await d.click(name, x, y);
+        how = `a real click (nothing there takes a press: ${done.replace(/^none:? ?/, "")})`;
+      }
+      const app = String(p.app ?? "");
+      o.cursor.pulse();
+      o.onActivity({ kind: "click", app, window: target?.window ?? "", x, y });
+      return { app, how };
+    }
+    if (method === "computer.type") {
+      go();
+      o.cursor.say(p.note || "⌨");
+      const name = String(p.app ?? "");
+      const text = String(p.text ?? "");
+      if (!(await d.insert(name, text))) {
+        await d.activate(name).catch(() => {});
+        await d.paste(name, text);
+      }
+      const app = String(p.app ?? "");
+      o.onActivity({ kind: "type", app, window: target?.window ?? "" });
+      return { app };
+    }
+    throw new Error(`unknown method ${method}`);
+  }
+
   return {
     async handle(method: string, params: unknown): Promise<unknown> {
       go();
-      const p = (params ?? {}) as {
-        x?: number;
-        y?: number;
-        app?: string;
-        text?: string;
-        keys?: string;
-        url?: string;
-        note?: string;
-      };
-      if (method === "computer.snapshot") return look(p.app, p.note);
-      if (method === "computer.open") {
-        o.cursor.say(p.note || (p.url ? new URL(p.url).host : (p.app ?? "")));
-        await d.open(p.app, p.url);
-        const app = p.app ?? "the default browser";
-        // Closed before, it takes a moment to start: wait for its window to come up, and say on which screen.
-        let where: string | undefined;
-        if (p.app) {
-          const wanted = p.app.toLowerCase();
-          for (let i = 0; i < 24 && !where; i++) {
-            const f = await front(false).catch(() => undefined);
-            const shown = f?.app.toLowerCase() ?? "";
-            if (f?.bounds && shown && (shown === wanted || wanted.includes(shown) || shown.includes(wanted))) {
-              target = { app: f.app, window: f.window, bounds: f.bounds };
-              where = `${screensText(f.bounds)}; its window "${f.window}" is at ${f.bounds.x},${f.bounds.y} ${f.bounds.width}x${f.bounds.height}`;
-            } else await new Promise((r) => setTimeout(r, 250));
-          }
-        }
-        o.onActivity({ kind: "look", app, window: p.url ?? "" });
-        return where ? { app, where } : { app };
+      allowed(method);
+      try {
+        return await act(method, params);
+      } catch (e) {
+        // Allowed as macOS reports it, yet refused when used: an entry left behind by a reinstall.
+        if (ASSISTIVE.test(errorText(e))) throw missing("accessibility");
+        throw e;
       }
-      if (method === "computer.key") {
-        const keys = String(p.keys ?? "")
-          .toLowerCase()
-          .replace(/\s+/g, "");
-        if (refusedKeys(keys, process.platform))
-          throw new Error(`${p.keys} closes or quits things: ask the owner to do it`);
-        if (!d.canPress(keys))
-          throw new Error(`cannot press "${p.keys}": use names like enter, tab, esc, cmd+l, arrows`);
-        go();
-        o.cursor.say(p.note || `⌨ ${p.keys}`);
-        // Keys go to the app in front: browsers ignore keys sent to them in the background.
-        await d.activate(String(p.app ?? "")).catch(() => {});
-        const app = await d.key(String(p.app ?? ""), keys);
-        o.onActivity({ kind: "type", app, window: target?.window ?? "" });
-        return { app };
-      }
-      if (method === "computer.click") {
-        const x = Number(p.x);
-        const y = Number(p.y);
-        await o.cursor.moveTo(x, y, p.note || p.app || "");
-        // The stop may come while the pointer glides there: then no click.
-        go();
-        const name = String(p.app ?? "");
-        // Pressed through accessibility when it can (the owner's pointer stays where it is); else a real click that
-        // puts their pointer straight back.
-        const done = await d.press(name, x, y).catch((e: unknown) => `none: ${errorText(e)}`);
-        let how = done;
-        if (done.startsWith("none")) {
-          await d.activate(name).catch(() => {});
-          await d.click(name, x, y);
-          how = `a real click (nothing there takes a press: ${done.replace(/^none:? ?/, "")})`;
-        }
-        const app = String(p.app ?? "");
-        o.cursor.pulse();
-        o.onActivity({ kind: "click", app, window: target?.window ?? "", x, y });
-        return { app, how };
-      }
-      if (method === "computer.type") {
-        go();
-        o.cursor.say(p.note || "⌨");
-        const name = String(p.app ?? "");
-        const text = String(p.text ?? "");
-        if (!(await d.insert(name, text))) {
-          await d.activate(name).catch(() => {});
-          await d.paste(name, text);
-        }
-        const app = String(p.app ?? "");
-        o.onActivity({ kind: "type", app, window: target?.window ?? "" });
-        return { app };
-      }
-      throw new Error(`unknown method ${method}`);
     },
     /**
      * The emergency stop, for this time only: drops what is on its way, takes the pointer off the screen and tells the

@@ -7,9 +7,13 @@ import { parseKeys } from "./keys.ts";
 const OSA_MS = 15_000;
 /** Reading every element of a window, within the core's deadline for a look (the picture still has to follow). */
 const ELEMENTS_MS = 4_000;
-/** A real click waits for the owner's mouse to rest this long, and gives up after the wait (well inside OSA_MS). */
+/**
+ * A real click waits for the owner's mouse to rest this long, and gives up after the wait: long enough for them to
+ * approve the click and let go (inside CLICK_MS, itself inside the core's deadline for a click).
+ */
 const MOUSE_IDLE_S = 0.5;
-const MOUSE_WAIT_MS = 5_000;
+const MOUSE_WAIT_MS = 20_000;
+const CLICK_MS = 25_000;
 
 function osa(script: string, args: string[] = [], language = "AppleScript", timeout = OSA_MS): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -212,7 +216,7 @@ function run(argv) {
   ObjC.import("Foundation");
   const until = Date.now() + ${MOUSE_WAIT_MS};
   while (idle() < ${MOUSE_IDLE_S}) {
-    if (Date.now() > until) throw new Error("the owner is using the mouse right now: nothing was clicked, try again in a moment");
+    if (Date.now() > until) throw new Error("the owner kept using their mouse for ${MOUSE_WAIT_MS / 1000} seconds, so nothing was clicked: ask them to leave it still for a moment, then try again");
     delay(0.1);
   }
   const procs = Application("System Events").processes.whose({ name: argv[0] });
@@ -374,7 +378,7 @@ export const macDriver: ComputerDriver = {
     return osa(KEY, [app, String(k.code), String(k.flags)], "JavaScript");
   },
   press: (app, x, y) => osa(AX_PRESS, [app, String(x), String(y)], "JavaScript"),
-  click: (app, x, y) => osa(CLICK, [app, String(x), String(y)], "JavaScript").then(() => {}),
+  click: (app, x, y) => osa(CLICK, [app, String(x), String(y)], "JavaScript", CLICK_MS).then(() => {}),
   insert: (app, text) => osa(AX_TYPE, [app, text], "JavaScript").then((r) => r === "typed"),
   paste: (app, text) => osa(TYPE, [app, text], "JavaScript").then(() => {}),
 };
