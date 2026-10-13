@@ -76,6 +76,7 @@ const names = [
   "Video",
   "TextSelect",
   "Music",
+  "Maximize",
 ];
 const icons = {};
 for (const name of names) {

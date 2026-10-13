@@ -1,5 +1,5 @@
 import { useVideoPlayer, VideoView } from "expo-video";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { type MediaItem, sizeText } from "../../chat/media";
 import { t } from "../../i18n";
@@ -67,11 +67,13 @@ function VideoSlide({
 }) {
   const s = useStyles();
   const [want, setWant] = useState(false);
+  // Each press asks for full screen once more; one made before the video is here waits for its first frame.
+  const [full, setFull] = useState(0);
   const { uri, error } = useMediaUri(item, want);
   return (
     <View style={[s.slide, { width, height }]}>
       {uri ? (
-        <Player uri={uri} active={active} width={width} height={height} />
+        <Player uri={uri} active={active} width={width} height={height} full={full} />
       ) : (
         <Pressable
           accessibilityRole="button"
@@ -91,14 +93,27 @@ function VideoSlide({
           </View>
         </Pressable>
       )}
-      <IconButton
-        icon="MoreHorizontal"
-        label={t("mediaOptions")}
-        size={18}
-        color="#fff"
-        onPress={onMenu}
-        style={s.menu}
-      />
+      <View style={s.tools}>
+        <IconButton
+          icon="Maximize"
+          label={t("fullScreen")}
+          size={17}
+          color="#fff"
+          onPress={() => {
+            setWant(true);
+            setFull((n) => n + 1);
+          }}
+          style={s.tool}
+        />
+        <IconButton
+          icon="MoreHorizontal"
+          label={t("mediaOptions")}
+          size={18}
+          color="#fff"
+          onPress={onMenu}
+          style={s.tool}
+        />
+      </View>
     </View>
   );
 }
@@ -112,15 +127,34 @@ function PlayBadge() {
   );
 }
 
-function Player({ uri, active, width, height }: { uri: string; active: boolean; width: number; height: number }) {
+function Player({
+  uri,
+  active,
+  width,
+  height,
+  full,
+}: {
+  uri: string;
+  active: boolean;
+  width: number;
+  height: number;
+  full: number;
+}) {
   const player = useVideoPlayer(uri, (p) => p.play());
+  const view = useRef<VideoView>(null);
+  const [ready, setReady] = useState(false);
   useEffect(() => {
     if (!active) player.pause();
   }, [active, player]);
+  useEffect(() => {
+    if (full > 0 && ready) void view.current?.enterFullscreen();
+  }, [full, ready]);
   // A TextureView scrolls and clips with the chat; a SurfaceView would draw over the messages around it.
   return (
     <VideoView
+      ref={view}
       player={player}
+      onFirstFrameRender={() => setReady(true)}
       nativeControls
       contentFit="contain"
       surfaceType="textureView"
@@ -153,7 +187,8 @@ const useStyles = makeStyles((theme) => ({
   },
   posterName: { color: "#fff", fontSize: 13, fontWeight: "500", flexShrink: 1 },
   posterSize: { color: "rgba(255, 255, 255, 0.7)", fontSize: 12 },
-  menu: { position: "absolute", top: 6, right: 6, backgroundColor: "rgba(0, 0, 0, 0.35)" },
+  tools: { position: "absolute", top: 6, right: 6, flexDirection: "row", gap: 6 },
+  tool: { backgroundColor: "rgba(0, 0, 0, 0.35)" },
   error: { color: theme.danger, fontSize: 12, paddingHorizontal: 12, textAlign: "center" },
   caption: { color: theme.fgSubtle, fontSize: 12, marginLeft: 6 },
 }));

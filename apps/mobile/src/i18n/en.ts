@@ -324,6 +324,7 @@ export const en = {
   shareText: "Share",
   messageMenuHint: "Long press to copy or share",
   mediaOptions: "Options",
+  fullScreen: "Full screen",
   saveToGallery: "Save to gallery",
   shareOrOpen: "Share or open with…",
   openInBrowser: "Open in the browser",

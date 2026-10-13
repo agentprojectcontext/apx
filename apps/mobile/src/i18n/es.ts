@@ -329,6 +329,7 @@ export const es: Record<Key, string> = {
   shareText: "Compartir",
   messageMenuHint: "Mantené apretado para copiar o compartir",
   mediaOptions: "Opciones",
+  fullScreen: "Pantalla completa",
   saveToGallery: "Guardar en la galería",
   shareOrOpen: "Compartir o abrir con…",
   openInBrowser: "Abrir en el navegador",
