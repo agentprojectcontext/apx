@@ -25,6 +25,7 @@ import { adoptBundleApp } from "./commands/service-files.ts";
 import { importV1, setupHeadless } from "./commands/setup.ts";
 import { tasks } from "./commands/tasks.ts";
 import { agents, jobs, projects, runs, runtimeSkills, secrets, skills, threads, usage } from "./commands/threads.ts";
+import { v1 } from "./commands/v1.ts";
 import { themedCard as card, failure, unreachableCore } from "./presentation.ts";
 
 const HELP = `apx — the APX terminal
@@ -117,6 +118,7 @@ Usage:
   apx models rules < rules.json        The router's rules (JSON on stdin)
 
   apx secrets [list] | set <name> (value on stdin) | rm <name>
+  apx v1 [off]            Is APX v1 still here and running? off stops its daemon for good and makes apx this one
   apx import-v1 [--keys] [--skills] [--services]
                            Import what a local APX v1 holds, from its files (read-only, v1 may be stopped):
                            projects, agents, memory, chats, channels, tasks, routines (off)… --keys also copies
@@ -307,6 +309,9 @@ try {
       break;
     case "notifications":
       await notifications(client, rest);
+      break;
+    case "v1":
+      await v1(client, rest);
       break;
     case "routines":
       await routines(client, rest, {
