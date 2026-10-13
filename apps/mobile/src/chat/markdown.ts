@@ -100,3 +100,24 @@ export function parseInline(text: string): Inline[] {
   }
   return out;
 }
+
+const runsText = (runs: Inline[]): string =>
+  runs.map((run) => ("children" in run ? runsText(run.children) : run.text)).join("");
+
+/** What a copy carries: the words as they read on screen, without the marks (a link keeps its label). */
+export function plainText(blocks: Block[]): string {
+  return blocks
+    .map((block) => {
+      switch (block.kind) {
+        case "list":
+          return block.items.map((item) => `${item.marker} ${runsText(item.inline)}`).join("\n");
+        case "code":
+          return block.text;
+        case "quote":
+          return plainText(block.blocks);
+        default:
+          return runsText(block.inline);
+      }
+    })
+    .join("\n\n");
+}

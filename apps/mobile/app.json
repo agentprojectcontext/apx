@@ -37,6 +37,16 @@
           "microphonePermission": "APX records a voice note when you tap the mic in a chat, and turns it into text."
         }
       ],
+      "expo-video",
+      "expo-sharing",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "APX saves the pictures and videos you keep from a chat to your photos.",
+          "savePhotosPermission": "APX saves the pictures and videos you keep from a chat to your photos.",
+          "granularPermissions": ["photo", "video"]
+        }
+      ],
       [
         "expo-image-picker",
         {

@@ -21,6 +21,7 @@ import { EngineIcon } from "./ui/EngineIcon";
 import { Icon } from "./ui/Icon";
 import { AgentAvatar, BottomSheet, EmptyState, IconButton, ListRow, Spinner } from "./ui/kit";
 import { ModelSheet } from "./ui/ModelSheet";
+import { MediaClient } from "./ui/media/context";
 import { makeStyles, useTheme } from "./ui/theme";
 
 export function ChatScreen({
@@ -169,31 +170,33 @@ export function ChatScreen({
           <EmptyState icon="MessageCircle" title={t("chatWith", { name })} body={t("chatStartHint")} />
         </View>
       ) : (
-        <FlatList
-          ref={list}
-          inverted
-          data={rows}
-          keyExtractor={(row) => (row.kind === "day" ? row.key : row.message.id)}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={s.transcript}
-          renderItem={({ item }) =>
-            item.kind === "day" ? (
-              <Text style={s.day}>{dayLabel(item.at)}</Text>
-            ) : thread.kind === "routine" &&
-              item.message.author.kind === "user" &&
-              item.message.id === live.messages[0]?.id ? (
-              <RoutinePrompt name={routineName(thread)} message={item.message} />
-            ) : (
-              <ChatMessage
-                message={item.message}
-                agents={data.agents}
-                waiting={live.state === "input-required"}
-                respond={live.respond}
-              />
-            )
-          }
-        />
+        <MediaClient.Provider value={live.client}>
+          <FlatList
+            ref={list}
+            inverted
+            data={rows}
+            keyExtractor={(row) => (row.kind === "day" ? row.key : row.message.id)}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={s.transcript}
+            renderItem={({ item }) =>
+              item.kind === "day" ? (
+                <Text style={s.day}>{dayLabel(item.at)}</Text>
+              ) : thread.kind === "routine" &&
+                item.message.author.kind === "user" &&
+                item.message.id === live.messages[0]?.id ? (
+                <RoutinePrompt name={routineName(thread)} message={item.message} />
+              ) : (
+                <ChatMessage
+                  message={item.message}
+                  agents={data.agents}
+                  waiting={live.state === "input-required"}
+                  respond={live.respond}
+                />
+              )
+            }
+          />
+        </MediaClient.Provider>
       )}
       {live.error ? <Text style={s.error}>{live.error}</Text> : null}
       <ChatComposer

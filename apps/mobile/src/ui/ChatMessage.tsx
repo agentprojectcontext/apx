@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { Alert, Image, Text, TextInput, View } from "react-native";
+import { useMemo, useState } from "react";
+import { Alert, Pressable, Text, TextInput, View } from "react-native";
+import { parseMarkdown, plainText } from "../chat/markdown";
+import { type MediaItem, mediaRows } from "../chat/media";
 import { clock } from "../format";
 import { isWorking } from "../hooks/chatSelectors";
 import type { Agent } from "../hooks/useWorkspace";
@@ -9,11 +11,21 @@ import { ActionGroup } from "./ActionGroup";
 import { Icon } from "./Icon";
 import { Button, Spinner, Tag } from "./kit";
 import { Markdown } from "./Markdown";
+import { MessageSheet } from "./MessageSheet";
+import { ImageGrid } from "./media/ImageGrid";
+import { MediaRow } from "./media/MediaRow";
+import { MediaSheet } from "./media/MediaSheet";
+import { MediaViewer } from "./media/MediaViewer";
+import { VideoCarousel } from "./media/VideoCarousel";
 import { makeStyles, useTheme } from "./theme";
 
 type Part = Message["parts"][number];
 type InputPart = Extract<Part, { type: "input" }>;
 export type Respond = (input: string, answer: Answer) => Promise<void>;
+type Open =
+  | { kind: "text" }
+  | { kind: "media"; item: MediaItem }
+  | { kind: "viewer"; items: MediaItem[]; start: number };
 
 export function ChatMessage({
   message,
@@ -40,29 +52,44 @@ export function ChatMessage({
           ? author.title
           : "APX";
   const hasText = message.parts.some((part) => part.type === "text" && part.text.trim());
-  const keys = new Map<string, number>();
-  const keyOf = (part: Part) => {
-    const base = part.type === "tool" ? part.call_id : part.type === "input" ? part.input_id : part.type;
-    const n = keys.get(base) ?? 0;
-    keys.set(base, n + 1);
-    return `${base}:${n}`;
+  const rows = useMemo(() => mediaRows(message.parts), [message.parts]);
+  const [open, setOpen] = useState<Open>();
+  // A copy is the message's words as they read: the owner's as typed, an agent's without the markdown marks.
+  const words = () => {
+    const text = message.parts.flatMap((part) => (part.type === "text" && part.text.trim() ? [part.text] : []));
+    return mine ? text.join("\n\n") : text.map((one) => plainText(parseMarkdown(one))).join("\n\n");
   };
+  const menu = (item: MediaItem) => setOpen({ kind: "media", item });
   return (
     <View style={[s.wrap, mine ? s.mineWrap : s.theirsWrap]}>
       {tools.length > 0 ? <ActionGroup parts={tools} waiting={waiting} /> : null}
-      {message.parts.map((part) => {
-        const key = keyOf(part);
+      {rows.map((row) => {
+        const key = row.key;
+        if (row.kind === "images")
+          return (
+            <ImageGrid
+              key={key}
+              items={row.items}
+              onOpen={(start) => setOpen({ kind: "viewer", items: row.items, start })}
+              onMenu={menu}
+            />
+          );
+        if (row.kind === "videos") return <VideoCarousel key={key} items={row.items} onMenu={menu} />;
+        if (row.kind === "media") return <MediaRow key={key} item={row.item} onMenu={menu} />;
+        const part = row.part;
         switch (part.type) {
           case "text":
             if (!part.text.trim()) return null;
-            return mine ? (
-              <Text key={key} selectable style={[s.bubble, s.mine]}>
-                {part.text}
-              </Text>
-            ) : (
-              <View key={key} style={[s.bubble, s.theirs]}>
-                <Markdown text={part.text} />
-              </View>
+            return (
+              <Pressable
+                key={key}
+                accessibilityHint={t("messageMenuHint")}
+                onLongPress={() => setOpen({ kind: "text" })}
+                delayLongPress={350}
+                style={({ pressed }) => [s.bubble, mine ? s.mineBox : s.theirs, pressed && { opacity: 0.85 }]}
+              >
+                {mine ? <Text style={s.mineText}>{part.text}</Text> : <Markdown text={part.text} selectable={false} />}
+              </Pressable>
             );
           case "input":
             return <InputCard key={key} part={part} respond={respond} />;
@@ -103,6 +130,7 @@ export function ChatMessage({
               </View>
             );
           case "file":
+            // Only a document snapshot gets here; other files are media rows.
             return (
               <View key={key} style={s.line}>
                 <Icon name="FileText" size={14} color={theme.fgMuted} />
@@ -120,16 +148,6 @@ export function ChatMessage({
                 </Text>
               </View>
             );
-          case "image":
-            return part.url ? (
-              <Image
-                key={key}
-                accessibilityLabel={part.alt}
-                source={{ uri: part.url }}
-                resizeMode="cover"
-                style={s.image}
-              />
-            ) : null;
           default:
             return null;
         }
@@ -140,6 +158,11 @@ export function ChatMessage({
         <Text numberOfLines={1} style={[s.meta, { marginLeft: 6 }]}>
           {[name, message.model, clock(message.created_at)].filter(Boolean).join(" · ")}
         </Text>
+      ) : null}
+      {open?.kind === "text" ? <MessageSheet text={words()} onClose={() => setOpen(undefined)} /> : null}
+      {open?.kind === "media" ? <MediaSheet item={open.item} onClose={() => setOpen(undefined)} /> : null}
+      {open?.kind === "viewer" ? (
+        <MediaViewer items={open.items} start={open.start} onClose={() => setOpen(undefined)} />
       ) : null}
     </View>
   );
@@ -259,10 +282,9 @@ const useStyles = makeStyles((theme) => ({
   wrap: { gap: 4, marginVertical: 5 },
   mineWrap: { alignSelf: "flex-end", alignItems: "flex-end", maxWidth: "82%" },
   theirsWrap: { alignSelf: "stretch", alignItems: "flex-start" },
-  bubble: { paddingVertical: 11, paddingHorizontal: 14, fontSize: 15, lineHeight: 21, overflow: "hidden" },
-  mine: {
+  bubble: { paddingVertical: 11, paddingHorizontal: 14, overflow: "hidden" },
+  mineBox: {
     backgroundColor: theme.accent,
-    color: theme.accentFg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderBottomLeftRadius: 20,
@@ -271,12 +293,12 @@ const useStyles = makeStyles((theme) => ({
   theirs: {
     maxWidth: "88%",
     backgroundColor: theme.fill,
-    color: theme.fg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderBottomRightRadius: 20,
     borderBottomLeftRadius: 6,
   },
+  mineText: { color: theme.accentFg, fontSize: 15, lineHeight: 21 },
   meta: { color: theme.fgSubtle, fontSize: 11, fontFamily: theme.mono },
   notice: {
     flexDirection: "row",
@@ -303,7 +325,6 @@ const useStyles = makeStyles((theme) => ({
     maxWidth: "88%",
   },
   lineText: { color: theme.fgMuted, fontSize: 13, flexShrink: 1 },
-  image: { width: 240, height: 180, borderRadius: 14, backgroundColor: theme.fill },
   card: {
     alignSelf: "stretch",
     padding: 14,

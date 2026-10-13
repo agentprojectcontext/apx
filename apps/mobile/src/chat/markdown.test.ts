@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseInline, parseMarkdown } from "./markdown.ts";
+import { parseInline, parseMarkdown, plainText } from "./markdown.ts";
 
 test("bold, italic, code and links become runs; stray marks stay text", () => {
   assert.deepEqual(parseInline("**Hoy:** ver `reel-26` y [docs](https://example.com) *ya*"), [
@@ -47,4 +47,13 @@ test("quoted lines become one quote holding their own blocks, with blank quoted 
 test("a link into the desktop panel shows as its label on the phone", () => {
   const blocks = parseMarkdown("Prendelo en [Config › Escritorio](apx:settings/desktop).");
   assert.deepEqual(blocks, parseMarkdown("Prendelo en Config › Escritorio."));
+});
+
+test("a copy is the text as it reads: no marks, list markers kept, a quote's own words", () => {
+  const blocks = parseMarkdown(
+    "Te dejo esto:\n\n> Hi **team**!\n>\n> Docs: [site](https://example.com)\n\n- one\n- `two`",
+  );
+  assert.equal(plainText(blocks), "Te dejo esto:\n\nHi team!\n\nDocs: site\n\n• one\n• two");
+  const quote = blocks[1];
+  assert.equal(quote?.kind === "quote" && plainText(quote.blocks), "Hi team!\n\nDocs: site");
 });

@@ -11,6 +11,7 @@ import { type PhotoAsk, PhotoModal } from "./PhotoModal";
 import { fromPairedCore, parseOpenLink, parsePairingLink } from "./pairing";
 import { startPhoneNode } from "./phone";
 import { ApxClient, ApxError } from "./protocol";
+import { Flasher } from "./ui/Flash";
 import { type Scheme, ThemeProvider, themes, useSystemScheme } from "./ui/theme";
 import { unpairDevice } from "./unpair";
 import { WorkspaceScreen } from "./WorkspaceScreen";
@@ -128,6 +129,7 @@ export function App() {
               />
             </SafeAreaView>
           )}
+          <Flasher />
         </SafeAreaView>
       </ThemeProvider>
     </SafeAreaProvider>

@@ -69,6 +69,13 @@ const names = [
   "Hand",
   "Flag",
   "UserRound",
+  "Pause",
+  "Copy",
+  "Share2",
+  "Download",
+  "Video",
+  "TextSelect",
+  "Music",
 ];
 const icons = {};
 for (const name of names) {
