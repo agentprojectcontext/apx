@@ -78,19 +78,29 @@ too.
 ```bash
 apx mcps                                   # every server: project, name, status, tool count, error or target
 apx mcps list <project>                    # as seen from one project
-apx mcps add <name> <command> [args…]      # one of the owner's own (global) stdio servers
-apx mcps add <name> https://…/mcp          # a remote (streamable HTTP) server
+apx mcps show <name>                       # its definition (stored secrets show as secret://NAME)
+apx mcps add <name> --env K=V -- <command> [args…]   # one of the owner's own (global) stdio servers
+apx mcps add <name> https://…/mcp --header K=V       # a remote (streamable HTTP) server
+apx mcps copy <from> <to> --env K=V        # a second one like it, only the variables you give change
+apx mcps set <name> --env K=V              # change variables of one, keeping the rest
 apx mcps rm <name>
 apx mcps trust|untrust <project> <server>  # approve a project's server as its file defines it now
 ```
+
+- **Changes are live from the next message: nothing needs a restart.** The core reads the servers on every turn and
+  reconnects one whose definition changed. Use `apx mcps show` / `apx mcps check <name>` to confirm.
+- **Change servers only through `apx mcps` (or the app), never by editing files by hand.** The owner's servers live
+  in APX v2's database, not in a file. `~/.apx/projects/…/mcps.json` and `~/.apx/config.json` are APX v1's: v2 never
+  reads them, so an edit there changes nothing.
+- Put `--` before a command whose own flags start with `-` (`apx mcps add notes -- npx -y notes-mcp`).
 
 - A project declares servers in `.apc/mcps.json` (`{"mcpServers": {"name": {"command": …, "args": […]}}}` or
   `{"url": …}`). A repo can name any command, so **a project server starts only after the owner approves that exact
   definition**; any change to it needs approving again. Approving is the owner's decision — tell the user what the
   server runs and let them run `apx mcps trust`.
 - `.apc/mcps.json` is committed: it never holds tokens. A definition that mentions `secret://` is ignored there.
-- The owner's own servers may use `secret://<name>` in env and header values (set with `apx secrets set`); env
-  and headers are edited in the app's MCP settings.
+- The owner's own servers may use `secret://<name>` in env and header values (set with `apx secrets set`); keep the
+  reference as it is when copying a server, never the value.
 - A project can opt out of the owner's global servers; then only its own count there.
 
 ## Don't

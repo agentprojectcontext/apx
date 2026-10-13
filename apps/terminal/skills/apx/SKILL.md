@@ -105,6 +105,7 @@ apx agents model <agent> <engine/model | engine | router | default>
 apx models                                    # engines and their models
 apx skills [project]                          # skills APX's own agents can load
 apx mcps [list [project]]                     # MCP servers APX's agents use (see [[apx-mcp]])
+apx mcps copy|set|add <name> --env K=V        # add, copy or change one; live next message, no restart
 apx extensions                                # skills + MCP servers + routines as one folder ([[apx-extensions]] builds one)
 ```
 
