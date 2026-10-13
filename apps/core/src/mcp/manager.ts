@@ -32,8 +32,11 @@ type Conn = {
   ready?: Promise<void>;
 };
 
-/** A server that failed is tried again only after this, not on every turn. */
-const RETRY_MS = 5 * 60_000;
+/**
+ * A server that failed is tried again after this, not on every turn: soon enough that fixing it outside its definition
+ * (a secret set, a program installed) shows on the next message, never a restart.
+ */
+const RETRY_MS = 30_000;
 
 export type McpStatus = {
   name: string;
