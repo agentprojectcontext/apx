@@ -774,3 +774,11 @@ read the repository the task was about. `delegate` takes `project` (an id, a nam
 folder, the deepest project holding it): the session is created in that project and works in its folder. Without it,
 the session takes the caller's chat's project, else the asked agent's own. A project's own agent can only name its
 project; a session already in another project is not moved.
+
+<a id="d-067"></a>
+## D-067 — 2026-10-13 — A turn on our own loop also ends for lack of progress, not at a fixed minute
+D-061 kept six fixed minutes for turns on our own loop. A turn in the browser or on the owner's computer gets 60 or 150
+steps, and six minutes cut it mid-way with "the turn ran out of time" while it was still working. Its deadline now moves
+like an outside engine's: each token and each tool result restarts the six minutes, and a turn that goes six minutes
+without either is stopped with that reason. Its step limit still bounds it, each tool keeps its own deadline, waits for
+the owner hold the clock, and a turn delegated by another agent keeps its fixed ten minutes (its caller waits on them).

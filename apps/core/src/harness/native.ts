@@ -55,9 +55,13 @@ export function nativeHarness(llm: Llm): Harness {
           tools: tools && !toolsOff ? io.tools : [],
           signal: io.signal,
           cacheKey: io.thread.id,
-          onText: (s) => io.onText(prefix + s),
+          onText: (s) => {
+            io.alive?.();
+            io.onText(prefix + s);
+          },
         });
         io.signal.throwIfAborted();
+        io.alive?.();
         model = c.model;
         effort = c.effort;
         for (const f of c.failed ?? []) if (!failed.has(f.model)) failed.set(f.model, f);
@@ -101,6 +105,7 @@ export function nativeHarness(llm: Llm): Harness {
             args = JSON.parse(call.function.arguments || "{}") as Record<string, unknown>;
           } catch {}
           const out = await io.execute(call.id, call.function.name, args);
+          io.alive?.();
           push({ role: "tool", tool_call_id: call.id, content: out.text });
           if (out.images?.length) {
             looked.push(...out.images);

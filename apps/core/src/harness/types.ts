@@ -29,7 +29,7 @@ export type TurnIO = {
   onText(soFar: string): void;
   /** This turn's tokens so far, reported as they grow: a turn that fails or is canceled still shows what it spent. */
   onUsage?(soFar: Usage): void;
-  /** Any event from an outside engine (a token, a tool's progress, a status): it is still working. */
+  /** Any sign of progress (a token, a tool's result or progress, a status): the turn is still working. */
   alive?(): void;
   /** Runs one APX tool with its card and step record. Every harness calls tools through here. */
   /** `images`: what the tool showed the model to look at with its result (a picture of the screen). */

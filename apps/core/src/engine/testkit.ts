@@ -68,6 +68,7 @@ export async function startCore(opts: {
   roomBurstMs?: number;
   inputWaits?: InputWaits;
   engineIdleMs?: number;
+  turnIdleMs?: number;
   desktop?: DesktopOps;
   /** Messages on a Mac; none by default, so a test never reads the machine's own. */
   imessage?: IMessageOps | null;
@@ -104,6 +105,7 @@ export async function startCore(opts: {
       ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),
       ...(opts.inputWaits ? { inputWaits: opts.inputWaits } : {}),
       ...(opts.engineIdleMs ? { engineIdleMs: opts.engineIdleMs } : {}),
+      ...(opts.turnIdleMs ? { turnIdleMs: opts.turnIdleMs } : {}),
       ...(opts.desktop ? { desktop: opts.desktop } : {}),
       imessage: opts.imessage ?? null,
       ...(opts.clock ? { clock: opts.clock } : {}),

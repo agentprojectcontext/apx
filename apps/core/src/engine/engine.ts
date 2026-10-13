@@ -23,6 +23,10 @@ import { recoverInterrupted } from "./recovery.ts";
 import type { SkillPicker } from "./skill-pick.ts";
 import { runTurn, type ToolCall } from "./turn.ts";
 
+/**
+ * A turn on our own loop ends after this long without progress (a token, a tool's result): a long browser or
+ * computer session keeps going while it works, and its step limit bounds it. See DECISIONS.md#d-067
+ */
 export const RUN_DEADLINE_MS = 6 * 60_000;
 /**
  * A session with an outside engine (Claude Code, Codex, an ACP agent) has no time limit while it works: it ends
@@ -35,11 +39,14 @@ const AFTER_ANSWER_MS = 60_000;
 const DEADLINE_WRITE_MS = 60_000;
 
 type Clock = { pause(): void; resume(): void; stop(): void; touch(): void };
-type Limit = { ms: number; idle: boolean };
+type Limit = { ms: number; idle: boolean; engine: boolean };
+type IdleWindows = { engineIdleMs?: number | undefined; turnIdleMs?: number | undefined };
 
-function runLimit(store: Store, threadId: string, trigger: string | undefined, idleMs = ENGINE_IDLE_MS): Limit {
-  if (trigger === "a2a") return { ms: A2A_DEADLINE_MS, idle: false };
-  return store.threads.get(threadId)?.engine ? { ms: idleMs, idle: true } : { ms: RUN_DEADLINE_MS, idle: false };
+function runLimit(store: Store, threadId: string, trigger: string | undefined, w: IdleWindows): Limit {
+  if (trigger === "a2a") return { ms: A2A_DEADLINE_MS, idle: false, engine: false };
+  return store.threads.get(threadId)?.engine
+    ? { ms: w.engineIdleMs ?? ENGINE_IDLE_MS, idle: true, engine: true }
+    : { ms: w.turnIdleMs ?? RUN_DEADLINE_MS, idle: true, engine: false };
 }
 
 /**
@@ -122,6 +129,8 @@ export function createEngine(deps: {
   inputWaits?: InputWaits;
   /** How long an outside engine may go without an event (tests shorten it). */
   engineIdleMs?: number;
+  /** How long a turn on our own loop may go without progress (tests shorten it). */
+  turnIdleMs?: number;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
   mcpTools?: (thread: Thread) => Promise<Tool[]>;
   /** The MCP servers a thread may reach, by name, without starting them. */
@@ -220,7 +229,7 @@ export function createEngine(deps: {
       },
       depth: a.depth ?? 0,
       parent_run_id: a.parent_run_id,
-      deadline_at: new Date(Date.now() + runLimit(store, a.thread_id, a.trigger, deps.engineIdleMs).ms).toISOString(),
+      deadline_at: new Date(Date.now() + runLimit(store, a.thread_id, a.trigger, deps).ms).toISOString(),
     });
     if (store.threads.get(a.thread_id)?.state !== "working") store.threads.patch(a.thread_id, { state: "submitted" });
     // After the caller's transaction commits: the turn must never run on a row that could still roll back.
@@ -247,15 +256,17 @@ export function createEngine(deps: {
   async function execute(run: RunRecord): Promise<void> {
     const ac = new AbortController();
     // A restart re-runs queued work with a fresh deadline: the clock starts when the run can actually work.
-    const limit = runLimit(deps.store, run.thread_id, run.trigger, deps.engineIdleMs);
+    const limit = runLimit(deps.store, run.thread_id, run.trigger, deps);
     const clock = pausableClock(
       limit,
       () =>
         ac.abort(
           new DeadlineExceeded(
-            limit.idle
+            limit.engine
               ? `the engine sent nothing for ${Math.round(limit.ms / 60_000)} minutes and was stopped`
-              : "the turn ran out of time",
+              : limit.idle
+                ? `the turn made no progress for ${Math.round(limit.ms / 60_000)} minutes and was stopped`
+                : "the turn ran out of time",
           ),
         ),
       (at) => deps.store.runs.setDeadline(run.id, new Date(at).toISOString()),

@@ -99,6 +99,8 @@ export type CoreOptions = {
   inputWaits?: InputWaits;
   /** How long an outside engine may go without an event before its turn ends (tests shorten it). */
   engineIdleMs?: number;
+  /** How long a turn on our own loop may go without progress before it ends (tests shorten it). */
+  turnIdleMs?: number;
   /** The scheduler's clock; tests move it to make routines due. */
   clock?: () => Date;
   /** How long a finished turn's chat may stay unread before the tray notices it (tests shorten it). */
@@ -295,6 +297,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     hooks,
     ...(opts.inputWaits ? { inputWaits: opts.inputWaits } : {}),
     ...(opts.engineIdleMs ? { engineIdleMs: opts.engineIdleMs } : {}),
+    ...(opts.turnIdleMs ? { turnIdleMs: opts.turnIdleMs } : {}),
     mcpTools: mcp.toolsFor,
     mcpServers: mcp.serversFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),
