@@ -59,6 +59,8 @@ export type WaMessage = {
   pushName?: string | null;
   /** A verified business's name: such accounts send it instead of `pushName`. */
   verifiedBizName?: string | null;
+  /** Set when the message arrived without content (it could not be decrypted). */
+  messageStubType?: number | null;
   message?: WaContent | null;
 };
 /** A send of ours moving on: 3 on their device, 4 read, 5 a voice note played. */
@@ -230,7 +232,8 @@ export function whatsappAdapter(opts: {
     s.ev.on("connection.update", ((u: ConnectionUpdate) => onConnection(s, u)) as (arg: never) => void);
     s.ev.on("messages.upsert", ((up: { type: string; messages: WaMessage[] }) => {
       if (up.type !== "notify" || s !== sock) return;
-      for (const m of up.messages) void onMessage(m).catch(() => {});
+      for (const m of up.messages)
+        void onMessage(m).catch((err) => log?.warn({ err: errorMessage(err, 200) }, "whatsapp message not handled"));
     }) as (arg: never) => void);
     s.ev.on("messages.update", ((ups: WaUpdate[]) => {
       if (s !== sock) return;
@@ -309,7 +312,13 @@ export function whatsappAdapter(opts: {
     if (!io || !me) return;
     const content = unwrap(m.message);
     const jid = normalJid(m.key.remoteJid);
-    if (!content || ignorable(jid) || !m.key.id) return;
+    if (ignorable(jid) || !m.key.id) return;
+    // What is dropped unread is logged by its shape (never its words), so a message that never showed can be traced.
+    const server = jid.split("@")[1] ?? "";
+    if (!content) {
+      if (m.messageStubType) log?.warn({ server, stub: m.messageStubType }, "whatsapp message could not be decrypted");
+      return;
+    }
     const group = jid.endsWith("@g.us");
     if (m.key.fromMe) {
       // Our own send coming back, or someone typing on the linked phone to another chat: neither is for the agent.
@@ -351,7 +360,10 @@ export function whatsappAdapter(opts: {
       }
       if (!voice) text = "[voice note: it could not be downloaded]";
     }
-    if (!text && !voice) return;
+    if (!text && !voice) {
+      if (!m.key.fromMe) log?.warn({ server, kinds: Object.keys(content).slice(0, 8) }, "whatsapp message not read");
+      return;
+    }
     if (!group) {
       const menu = readMenu(content);
       menus.delete(who);
