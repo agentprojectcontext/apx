@@ -44,7 +44,7 @@ apx agents clone <agent-id>… --project <new-project-id> --rename [--under <slu
 An agent belongs to one project, so a copy is a new agent with the whole definition (role, prompt, tools, skills,
 model). `--rename` gives each copy a new free name, so the two teams read apart; ask the owner if they want that.
 Reports stay under their cloned boss; routines and memory are not copied. The owner can do the same from the
-project's Team › Import › From another project.
+project's Agents › Import › Another project.
 
 ## Removing
 
