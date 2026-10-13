@@ -1,15 +1,17 @@
-// The tray's new notices as the system's own notifications (with its sound) when the owner is not looking at APX:
-// the window hidden, minimized or behind another app. The desktop app allows them already; a browser asks on the
+// The tray's new notices as the system's own notifications when the owner is not looking at APX (the window hidden,
+// minimized or behind another app), and APX's own sound for each as it arrives. The desktop app allows them already; a browser asks on the
 // owner's first click, as browsers require.
 import type { Notification as Notice } from "@apx/protocol";
 import { onNewNotice, readNotifications } from "../data/notifications.ts";
+import { noticeArrived } from "../data/sounds.ts";
 import { go } from "./nav.ts";
 
 const looking = () => document.visibilityState === "visible" && document.hasFocus();
 
 function show(n: Notice): void {
+  noticeArrived(n.kind);
   if (typeof Notification === "undefined" || Notification.permission !== "granted" || looking()) return;
-  const os = new Notification(n.title, { body: n.body, tag: `${n.id}:${n.created_at}`, silent: false });
+  const os = new Notification(n.title, { body: n.body, tag: `${n.id}:${n.created_at}`, silent: true });
   os.onclick = () => {
     window.focus();
     if (n.kind !== "input") void readNotifications([n.id]);

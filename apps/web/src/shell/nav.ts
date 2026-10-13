@@ -33,6 +33,7 @@ export type ProjectTab = (typeof PROJECT_TABS)[number]["id"];
 export const CONFIG_SECTIONS = [
   "account",
   "appearance",
+  "sounds",
   "engines",
   "external",
   "router",

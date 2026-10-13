@@ -12,6 +12,7 @@ type Item = { key: string; group: MessageKey; title: string; detail?: string; ic
 const SECTIONS: Partial<Record<ConfigSection, MessageKey>> = {
   account: "config.account",
   appearance: "config.appearance",
+  sounds: "config.sounds",
   engines: "config.engines",
   agents: "config.agents",
   memory: "config.memory",

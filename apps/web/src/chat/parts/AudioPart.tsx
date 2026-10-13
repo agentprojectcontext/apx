@@ -1,6 +1,7 @@
 import type { Part } from "@apx/protocol";
 import { Icons } from "@apx/ui";
 import { useRef, useState } from "react";
+import { audioEnded } from "../../data/sounds.ts";
 import { useT } from "../../i18n/index.ts";
 import { useMediaUrl } from "./useMediaUrl.ts";
 
@@ -44,7 +45,10 @@ export function AudioPart({ part }: { part: Extract<Part, { type: "audio" }> }) 
           onDurationChange={readDuration}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
-          onEnded={() => setPlaying(false)}
+          onEnded={() => {
+            setPlaying(false);
+            audioEnded();
+          }}
           onTimeUpdate={() => setPosition(audio.current?.currentTime ?? 0)}
           onError={() => setFailed(true)}
         />

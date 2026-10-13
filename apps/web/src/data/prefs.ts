@@ -1,7 +1,8 @@
-// Per-device preferences (this browser only): display name and appearance. Nothing here reaches the core.
+// Per-device preferences (this browser only): display name, appearance and sounds. Nothing here reaches the core.
 import type { ApxLook } from "@apx/ui";
 import { defaultLanguage, isLanguage, type Language } from "../i18n/messages.ts";
 import { createStore, useSlice } from "./createStore.ts";
+import type { NoticeSound } from "./noticeSound.ts";
 
 export type TranscriptWidth = "narrow" | "medium" | "wide";
 export type UiFont = "system" | "mono";
@@ -39,6 +40,10 @@ export type Prefs = {
    * the owner dragged each tile to.
    */
   boards: Record<string, BoardPrefs>;
+  /** A short chime when a voice note or read-aloud ends. */
+  audioEndSound: boolean;
+  /** Which notices make a sound as they arrive. */
+  noticeSound: NoticeSound;
 };
 
 /** `widths` are how many of the board's columns a tile spans (1 when absent). */
@@ -73,6 +78,8 @@ const DEFAULTS: Prefs = {
   listW: 0,
   panelW: 0,
   boards: {},
+  audioEndSound: true,
+  noticeSound: "all",
 };
 
 function load(): Prefs {
@@ -105,6 +112,11 @@ function load(): Prefs {
       listW: typeof raw.listW === "number" ? raw.listW : 0,
       panelW: typeof raw.panelW === "number" ? raw.panelW : 0,
       boards: boardsOf(raw.boards),
+      audioEndSound: raw.audioEndSound !== false,
+      noticeSound:
+        raw.noticeSound === "requests" || raw.noticeSound === "messages" || raw.noticeSound === "off"
+          ? raw.noticeSound
+          : "all",
     };
   } catch {
     return DEFAULTS;

@@ -2,6 +2,7 @@
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
 import { mediaUrl } from "./media.ts";
+import { audioEnded } from "./sounds.ts";
 
 /** media.speak takes at most this many characters. */
 const SPEAK_CHARS = 4000;
@@ -52,7 +53,11 @@ export async function speak(key: string, text: string): Promise<void> {
     if (speech.get().playing !== key) return;
     const player = new Audio(await mediaUrl(r.media.id));
     audio = player;
-    player.onended = () => audio === player && stopSpeaking();
+    player.onended = () => {
+      if (audio !== player) return;
+      stopSpeaking();
+      audioEnded();
+    };
     speech.set({ loading: false });
     await player.play();
   } catch (e) {

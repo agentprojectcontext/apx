@@ -19,6 +19,7 @@ import { AccountSection, AppearanceSection } from "./OtherSections.tsx";
 import { ProfileSection } from "./ProfileSection.tsx";
 import { RouterSection } from "./RouterSection.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
+import { SoundsSection } from "./SoundsSection.tsx";
 
 type NavEntry = { id: ConfigSection; label: MessageKey; icon: ReactNode; soon?: boolean };
 
@@ -28,6 +29,7 @@ const GROUPS: { label: MessageKey; items: NavEntry[] }[] = [
     items: [
       { id: "account", label: "config.account", icon: <Icons.User /> },
       { id: "appearance", label: "config.appearance", icon: <Icons.Sun /> },
+      { id: "sounds", label: "config.sounds", icon: <Icons.Volume2 /> },
     ],
   },
   {
@@ -135,6 +137,8 @@ function Body({ section }: { section: ConfigSection }) {
       return <AccountSection />;
     case "appearance":
       return <AppearanceSection />;
+    case "sounds":
+      return <SoundsSection />;
     case "engines":
       return <EnginesSection />;
     case "external":
