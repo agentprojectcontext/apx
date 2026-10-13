@@ -16,11 +16,9 @@ import { AgentEditor } from "./team/AgentEditor.tsx";
 import { ArchivedAgents } from "./team/ArchivedAgents.tsx";
 import { type AgentActions, agentMenu } from "./team/agentMenu.tsx";
 import { ImportDialog } from "./team/ImportDialog.tsx";
+import { teamLead } from "./team/lead.ts";
 import { TeamCanvas } from "./team/TeamCanvas.tsx";
 import { useTeamInfo } from "./team/useTeamInfo.tsx";
-
-// Who sits on top of the hierarchy, in order: an orchestrator, then a CEO, then any "lead".
-const LEADS = [/orchestr|orquest/i, /\bceo\b|chief executive/i, /\blead\b/i];
 
 /** The Agents tab: the agents, and beside them the areas and roles (a company's; other kinds are asked to convert). */
 export function ProjectAgents({ project }: { project: ProjectEntry }) {
@@ -59,10 +57,7 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
   const [editing, setEditing] = useState<Agent>();
   const [deleting, setDeleting] = useState<Agent>();
   const team = useMemo(() => teamOf(agents, project.id), [agents, project.id]);
-  const lead =
-    team.find((a) => a.kind === "secretary") ??
-    team.find((a) => !a.parent && LEADS.some((re) => re.test(`${a.role} ${a.id}`))) ??
-    LEADS.map((re) => team.find((a) => re.test(`${a.role} ${a.id}`))).find(Boolean);
+  const lead = teamLead(team);
   const { info, live } = useTeamInfo(lead?.id, lead ? leadLabel(lead, t) : "");
   const current = team.find((a) => a.id === selected);
   const org = useOrg(project.id);

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { blobOf, DEFAULT_PID, projectInitial, projectTone, realProjectId } from "../../data/identity.ts";
 import { useData } from "../../data/state.ts";
 import { useT } from "../../i18n/index.ts";
+import { teamLead } from "./lead.ts";
 
 /**
  * The other projects' teams, to copy agents from into this one. An agent belongs to one project, so each pick becomes
@@ -34,11 +35,16 @@ export function CloneFromProject({
       byProject.set(key, [...(byProject.get(key) ?? []), a]);
     }
     return [...byProject.entries()]
-      .map(([id, list]) => ({
-        id,
-        name: id === DEFAULT_PID ? t("team.clone.global") : (projects.find((p) => p.id === id)?.name ?? id),
-        list: list.sort((a, b) => a.name.localeCompare(b.name)),
-      }))
+      .map(([id, list]) => {
+        const lead = teamLead(list);
+        return {
+          id,
+          name: id === DEFAULT_PID ? t("team.clone.global") : (projects.find((p) => p.id === id)?.name ?? id),
+          lead: lead?.id,
+          // The orchestrator first, as on the team's page.
+          list: list.sort((a, b) => Number(b === lead) - Number(a === lead) || a.name.localeCompare(b.name)),
+        };
+      })
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [agents, projects, here, t]);
 
@@ -74,6 +80,12 @@ export function CloneFromProject({
                   <Checkbox checked={picked.has(a.id)} onCheckedChange={(v) => onToggle([a.id], v)} />
                   <AgentAvatar name={a.name} blob={blobOf(a)} size={20} animated={false} />
                   <span className="teamimport__membername">{a.name}</span>
+                  {a.id === g.lead && (
+                    <span className="teamimport__leadtag">
+                      <Icons.Crown size={12} />
+                      {t("team.orchestrator")}
+                    </span>
+                  )}
                   <span className="teamimport__muted">{a.role}</span>
                 </li>
               ))}
