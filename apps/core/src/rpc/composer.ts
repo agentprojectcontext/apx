@@ -66,6 +66,14 @@ export function composerHandlers(deps: {
         throw unavailable(errorMessage(err, 500));
       }
     },
+    "media.listen": async ({ data, mime }) => {
+      try {
+        const text = await deps.services.listen(Buffer.from(data, "base64"), mime, AbortSignal.timeout(20_000));
+        return { text: text ?? "", live: text !== undefined };
+      } catch (err) {
+        throw unavailable(errorMessage(err, 300));
+      }
+    },
     "threads.model": ({ thread, model_choice }) => {
       const t = store.threads.get(thread);
       if (!t) throw notFound(`thread ${thread}`);

@@ -132,3 +132,11 @@ test("transcription failure preserves the uploaded recording, while oversized an
     /over 10 MB/,
   );
 });
+
+test("the live words while recording come only from whisper.cpp on this machine, and nothing is kept", async () => {
+  const before = { calls, files: fs.readdirSync(path.join(env.home, "media"), { recursive: true }) };
+  const heard = await env.client.call("media.listen", { data: bytes.toString("base64"), mime: "audio/webm" });
+  assert.deepEqual(heard, { text: "", live: false });
+  assert.equal(calls, before.calls);
+  assert.deepEqual(fs.readdirSync(path.join(env.home, "media"), { recursive: true }), before.files);
+});

@@ -93,6 +93,18 @@ export async function transcribe(mediaId: string, thread: string | undefined): P
   }
 }
 
+/**
+ * What the microphone has heard so far, while it still records. undefined when it cannot be heard live (no engine on
+ * this machine, or it failed): the words still come when it stops.
+ */
+export async function listen(audio: Blob): Promise<{ text: string; live: boolean } | undefined> {
+  try {
+    return await client.call("media.listen", { data: await base64(audio), mime: audio.type });
+  } catch {
+    return undefined;
+  }
+}
+
 /** The chat's own model; null goes back to the agent's. A new chat keeps it until it is made. */
 export async function setThreadModel(thread: string, choice: ModelChoice | null): Promise<void> {
   if (isNewChat(thread)) return chooseNewChatModel(thread, choice);

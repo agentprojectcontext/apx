@@ -64,6 +64,16 @@ export const composerMethods = {
     result: z.object({ text: z.string(), service: z.string() }),
     effect: false,
   },
+  /**
+   * What the composer's microphone has heard so far, shown while it records. Only a transcription engine on this
+   * machine answers (nothing is stored and nothing leaves it); `live` is false when there is none.
+   */
+  "media.listen": {
+    params: z.object({ data: z.string().max(14_000_000), mime: z.string().max(100) }).strict(),
+    result: z.object({ text: z.string(), live: z.boolean() }),
+    effect: false,
+    access: "human",
+  },
   /** The chat's own model: tried before the agent's. null goes back to the agent's choice. */
   "threads.model": {
     params: z.object({ thread: Id, model_choice: ModelChoice.nullable() }).strict(),

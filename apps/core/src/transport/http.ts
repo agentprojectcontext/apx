@@ -9,7 +9,7 @@ import { type Gate, refuse } from "./guard.ts";
 
 const MAX_BODY = 1024 * 1024;
 /** Methods that carry a file (base64): their own params cap the size, this only bounds the read. */
-const FILE_METHODS: ReadonlySet<string> = new Set(["media.upload", "media.transcribe"]);
+const FILE_METHODS: ReadonlySet<string> = new Set(["media.upload", "media.transcribe", "media.listen"]);
 const MAX_FILE_BODY = 16 * 1024 * 1024;
 
 const MIME: Record<string, string> = {

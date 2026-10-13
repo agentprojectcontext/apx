@@ -230,6 +230,12 @@ export function createServices(deps: {
       );
       return { text: out, media };
     },
+    /** Words heard so far, from whisper.cpp on this machine only (free, in memory); undefined without it. */
+    async listen(bytes: Buffer, mime: string, signal: AbortSignal): Promise<string | undefined> {
+      const s = ofKind("transcription").find((x) => x.enabled);
+      if (s?.dialect !== "whisper-cpp" || !whisperCpp.available(s.model)) return undefined;
+      return transcribe(s, { path: "", bytes, mime }, undefined, signal, f, whisperCpp);
+    },
     /**
      * Speech for a channel: synthesized, then as OGG/Opus (what Telegram plays as a voice note) when ffmpeg is here;
      * otherwise the original audio.

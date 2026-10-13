@@ -166,7 +166,7 @@ export function ChatComposer({
         header={
           micBusy || att.chips.length ? (
             <>
-              <VoiceRecording state={mic.state} levels={mic.levels} seconds={mic.seconds} />
+              <VoiceRecording state={mic.state} levels={mic.levels} seconds={mic.seconds} heard={mic.heard} />
               {att.chips.length > 0 && <AttachChips chips={att.chips} onRemove={att.remove} />}
             </>
           ) : undefined

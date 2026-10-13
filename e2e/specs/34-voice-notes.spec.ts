@@ -36,6 +36,10 @@ test("nota voz muestra volumen real, conserva audio y texto, reproduce después 
       },
     });
     await context.grantPermissions(["microphone"], { origin: env.core.url });
+    // Live words need whisper.cpp on the machine running the test: the core's answer is stood in for.
+    await page.route("**/rpc/media.listen", (route) =>
+      route.fulfill({ json: { ok: true, result: { text: "Revisá publicaciones", live: true } } }),
+    );
     await page.goto(env.core.url);
     const input = page.getByRole("textbox", { name: /^Escribile a/ });
     await expect(input).toBeVisible();
@@ -53,9 +57,12 @@ test("nota voz muestra volumen real, conserva audio y texto, reproduce después 
       )
       .toBe(true);
     await expect(page.locator(".voice-recording__time")).not.toHaveText("0:00");
+    await expect(page.locator(".voice-recording__heard")).toHaveText("Revisá publicaciones");
+    await expect(input).toHaveValue("");
     await page.screenshot({ path: "/tmp/apx-voice-recording.png" });
     await page.getByRole("button", { name: "Terminar de dictar", exact: true }).click();
     await expect(input).toHaveValue("Revisá publicaciones duplicadas");
+    await expect(page.locator(".voice-recording__heard")).toHaveCount(0);
     await expect(page.locator(".attchip.is-audio")).toBeVisible();
     await expect(page.locator(".transcript__row")).toHaveCount(0);
     await page.getByRole("button", { name: "Enviar", exact: true }).click();

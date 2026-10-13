@@ -47,6 +47,7 @@
 }
 .voice-recording {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   min-height: 36px;
@@ -59,6 +60,18 @@
 }
 .voice-recording.is-recording {
   color: var(--apx-danger);
+}
+/* The words heard so far: read-only, they give way to the final transcript */
+.voice-recording__heard {
+  flex-basis: 100%;
+  margin: 0;
+  max-height: 7.5em;
+  overflow-y: auto;
+  font-size: var(--apx-text-sm);
+  line-height: 1.5;
+  color: var(--apx-fg-muted);
+  font-style: italic;
+  user-select: none;
 }
 .voice-recording__status {
   display: inline-flex;

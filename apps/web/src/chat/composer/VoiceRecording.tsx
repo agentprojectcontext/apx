@@ -6,10 +6,13 @@ export function VoiceRecording({
   state,
   levels,
   seconds,
+  heard,
 }: {
   state: DictationState;
   levels: number[];
   seconds: number;
+  /** The words heard so far: shown, not editable; the final transcript goes into the field. */
+  heard: string;
 }) {
   const t = useT();
   if (state === "idle" || state === "unsupported") return null;
@@ -32,6 +35,11 @@ export function VoiceRecording({
             {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
           </time>
         </>
+      )}
+      {heard && (
+        <p className="voice-recording__heard" aria-live="polite">
+          {heard}
+        </p>
       )}
     </div>
   );
