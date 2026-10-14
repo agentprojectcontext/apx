@@ -13,6 +13,8 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
     return say("Design ready.");
   }
   if (said.includes("<delegation_result")) return say("Vera finished: design ready.");
+  if (said.includes("delegate and wait") && !afterTool)
+    return callTool("c5", "delegate", { agent: "vera", task: "design the panel", wait_s: 30 });
   if (said.includes("delegate slowly") && !afterTool)
     return callTool("c3", "delegate", { agent: "vera", task: "design something", wait_s: 0 });
   if (said.includes("ask vera for a chart") && !afterTool)
@@ -302,6 +304,53 @@ test("interrupt mode cancels the turn in progress and runs the new message", asy
   const seen = JSON.stringify(llm.calls.at(-1)?.messages);
   assert.ok(seen.includes("still unanswered"));
   assert.ok(!seen.includes("The owner canceled this turn."));
+});
+
+/** The sub-thread a chat's delegation opened, from its card. */
+async function subthreadOf(thread: string): Promise<string> {
+  const got = await env.client.call("threads.get", { thread });
+  const card = got.messages.flatMap((m) => m.parts).find((p) => p.type === "subthread");
+  assert.ok(card && card.type === "subthread", "the delegation opened a sub-thread");
+  return card.thread_id;
+}
+
+test("a new message that cuts the turn leaves what it delegated working, and its result comes back", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "keep delegated" });
+  await env.client.call("threads.send", { thread: t.id, text: "delegate and wait" });
+  await new Promise((r) => setTimeout(r, 100));
+  await env.client.call("threads.send", { thread: t.id, text: "and one more thing", mode: "interrupt" });
+  const until = Date.now() + 5000;
+  let got = await env.client.call("threads.get", { thread: t.id });
+  while (
+    Date.now() < until &&
+    !(got.runs.some((r) => r.trigger === "a2a_result") && got.runs.every((r) => r.ended_at))
+  ) {
+    await new Promise((r) => setTimeout(r, 40));
+    got = await env.client.call("threads.get", { thread: t.id });
+  }
+  const child = await env.client.call("threads.get", { thread: await subthreadOf(t.id) });
+  assert.deepEqual(
+    child.runs.map((r) => r.state),
+    ["completed"],
+    "the delegated work was not canceled",
+  );
+  assert.ok(
+    texts(got.messages).some((x) => x.includes("Vera finished")),
+    "its result woke the chat",
+  );
+});
+
+test("stopping a turn on purpose cancels what it delegated too", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "stop delegated" });
+  await env.client.call("threads.send", { thread: t.id, text: "delegate and wait" });
+  await new Promise((r) => setTimeout(r, 100));
+  await env.client.call("threads.cancel", { thread: t.id });
+  await env.settle(t.id);
+  const child = await env.settle(await subthreadOf(t.id));
+  assert.deepEqual(
+    child.runs.map((r) => r.state),
+    ["canceled"],
+  );
 });
 
 test("an empty answer is shown as a notice, never as a made-up 'done'", async () => {

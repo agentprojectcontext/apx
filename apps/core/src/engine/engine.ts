@@ -298,13 +298,17 @@ export function createEngine(deps: {
     delegations.childEnded(run);
   }
 
-  /** Aborts the thread's running turn and cancels the sub-threads that turn opened. */
+  /**
+   * Aborts the thread's running turn and cancels the sub-threads that turn opened, unless a new message from the owner
+   * cut it: then what it delegated keeps working and reports back to the chat.
+   */
   function stopRunning(threadId: string, why: Canceled = new Canceled()): number {
     let n = 0;
     for (const [runId, a] of active) {
       if (a.thread !== threadId || a.ac.signal.aborted) continue;
       a.ac.abort(why);
       n++;
+      if (why instanceof Superseded) continue;
       for (const child of store.runs.children(runId)) n += cancel(child.thread_id);
     }
     return n;
@@ -344,7 +348,7 @@ export function createEngine(deps: {
     respond: inputs.respond,
     pending: inputs.pending,
     jobs,
-    /** Stops only the turn in progress (and what it delegated) for the owner's new message; queued inputs still run. */
+    /** Stops only the turn in progress for the owner's new message; queued inputs and what it delegated still run. */
     interrupt: (threadId: string) => stopRunning(threadId, new Superseded()),
     /** Resolves when the run ends, or after `timeoutMs` with the run as it is then. */
     wait(runId: string, timeoutMs: number): Promise<RunRecord | undefined> {
