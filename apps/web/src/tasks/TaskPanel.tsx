@@ -264,11 +264,11 @@ function Properties({ task, detail }: { task: Task; detail: TaskDetail | undefin
           onChange={(id) => id !== task.assignee && void updateTask(task.id, { assignee: id ?? null })}
         />
       </Prop>
-      <Prop label={t("tasks.work")}>
+      <Prop label={t("tasks.work")} top>
         <TaskWork task={task} sessions={detail?.sessions} consults={detail?.consults} />
       </Prop>
       {detail && detail.usage.length > 0 && (
-        <Prop label={t("tasks.usage")}>
+        <Prop label={t("tasks.usage")} top>
           <TaskUsage usage={detail.usage} />
         </Prop>
       )}
@@ -302,10 +302,11 @@ function Properties({ task, detail }: { task: Task; detail: TaskDetail | undefin
   );
 }
 
-function Prop({ label, help, children }: { label: string; help?: ReactNode; children: ReactNode }) {
+/** One property; `top` keeps its label at the first line of a value that runs several lines (a list). */
+function Prop({ label, help, top, children }: { label: string; help?: ReactNode; top?: boolean; children: ReactNode }) {
   return (
     <>
-      <dt className="taskprops__label">
+      <dt className={top ? "taskprops__label taskprops__label--top" : "taskprops__label"}>
         {label}
         {help}
       </dt>

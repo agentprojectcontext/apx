@@ -74,7 +74,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "tasks.tab.chat": "Conversación",
   "tasks.tab.history": "Historial",
   "tasks.column": "Columna",
-  "tasks.work": "Trabajo",
+  "tasks.work": "Sesiones de esta tarea",
   "tasks.chats": "Trabajada en {n} chats",
   "tasks.work.none": "Asigná un agente y empieza a trabajarla",
   "tasks.work.notYet": "Todavía no empezó",

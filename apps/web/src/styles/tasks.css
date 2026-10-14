@@ -421,6 +421,10 @@
   font-size: var(--apx-text-sm);
   color: var(--apx-fg-muted);
 }
+.taskprops__label--top {
+  align-self: start;
+  padding-top: 5px;
+}
 .taskprops__value {
   margin: 0;
   min-width: 0;
