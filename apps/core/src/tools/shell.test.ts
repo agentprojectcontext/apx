@@ -4,7 +4,14 @@ import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { broadScan, commandRisk } from "./shell.ts";
 
 test("command risk: reading runs, changing asks, destroying always asks", () => {
-  for (const c of ["ls -la", "git status", "cat a.txt | grep x | wc -l", "find . -name x.ts -type f", "pwd && date"])
+  for (const c of [
+    "ls -la",
+    "git status",
+    "cat a.txt | grep x | wc -l",
+    "find . -name x.ts -type f",
+    "pwd && date",
+    "pwd; ls -la",
+  ])
     assert.equal(commandRisk(c), "never", c);
   // Quoted globs and find's grouping are how these commands are normally written.
   for (const c of [

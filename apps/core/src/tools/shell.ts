@@ -91,8 +91,8 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
     return "always";
   // So does APX's own CLI, which finds the port by itself.
   if (/(^|[\s;&|(`])([\w./~-]*\/)?(apx|[\w./-]*apps\/terminal\/src\/main\.ts)(\s|$)/.test(c)) return "always";
-  // Pipes and && between simple commands are fine; any other shell syntax is not judged, it is asked.
-  const segments = c.split(/&&|\|\||\|/).map((x) => x.trim());
+  // Pipes, && and ; between simple commands are fine; any other shell syntax is not judged, it is asked.
+  const segments = c.split(/&&|\|\||\||;/).map((x) => x.trim());
   const simple = (raw: string): boolean => {
     // Quoted plain text ('*.png', "two words") is an argument like any other; `\(` `\)` only group find's tests.
     let seg = raw.replace(/'([^'"]*)'|"([^'"$`\\]*)"/g, (_m, s?: string, d?: string) => s ?? d ?? "");
