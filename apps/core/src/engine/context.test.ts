@@ -78,7 +78,7 @@ test("repair starts at a user item, drops orphan results and closes unanswered c
   ]);
 });
 
-test("only the owner speaks plainly; agents, widgets and results arrive as untrusted data", () => {
+test("the owner speaks plainly, their agents as the team; outside apps, widgets and contacts arrive as untrusted", () => {
   assert.equal(frameInput({ kind: "user" }, "hola"), "hola");
   assert.match(
     frameInput({ kind: "surface", id: "s", title: 'Sales "Q3"' }, "buy"),
@@ -89,12 +89,19 @@ test("only the owner speaks plainly; agents, widgets and results arrive as untru
       { kind: "delegation_result", agent_id: "scout", name: "Scout", thread_id: "th", run_id: "r", state: "failed" },
       "x",
     ),
-    /<delegation_result from="Scout" sub_thread="th" state="failed" trust="untrusted">/,
+    /<delegation_result from="Scout" sub_thread="th" state="failed" trust="team">/,
   );
   // An agent asked by another answers in place: its answer returns by itself, so it never delegates back.
   const asked = frameInput({ kind: "agent", id: "roby", name: "Roby", thread_id: "home", run_id: "r" }, "check #54");
-  assert.match(asked, /<agent_message from="Roby" trust="untrusted">/);
+  assert.match(asked, /<agent_message from="Roby" trust="team">/);
+  assert.doesNotMatch(asked, /trust="untrusted"/);
   assert.match(asked, /goes back to Roby on its own: answer here, never delegate back/);
+  // An outside app's agent is not one of the owner's.
+  for (const id of ["external", "client:c1"])
+    assert.match(
+      frameInput({ kind: "agent", id, name: "Claude Code", thread_id: "home", run_id: "" }, "x"),
+      /<agent_message from="Claude Code" trust="untrusted">/,
+    );
 });
 
 test("a contact's name stays one plain line inside APX's own sentences", async () => {

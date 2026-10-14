@@ -7,7 +7,8 @@ import { ownerQuestionProblem } from "../domain/owner-question.ts";
 import type { Store } from "../domain/store.ts";
 import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { previewOf } from "../domain/threads.ts";
-import { inlineName, untrusted } from "../tools/result.ts";
+import { inlineName } from "../tools/result.ts";
+import { taskWords } from "../tools/tasks.ts";
 
 /** A mention starts a turn; a turn's mention another, but only this deep, so agents cannot ping-pong forever. */
 export const MAX_MENTION_DEPTH = 2;
@@ -76,7 +77,7 @@ export function taskBlock(store: Store, thread: Pick<Thread, "id" | "task_id">):
     .map((c) => name(c.agent_ids[0] ?? ""));
   return [
     `Task ${t.id}:`,
-    t.created_by === "owner" ? words : untrusted("task", { created_by: t.created_by }, words),
+    taskWords(t, words),
     state,
     others.length ? `Worked on before in their own chats by: ${[...new Set(others)].join(", ")}.` : "",
     "This is your chat for this task. Your final answer is posted to the task as your comment: say in a few lines what you did, what is left or what blocks you.",

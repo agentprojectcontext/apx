@@ -41,12 +41,24 @@ export function inlineName(name: string, max = 60): string {
 // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what is stripped.
 const oneLine = (text: string) => text.replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ");
 
-/** Marks text that came from outside (web, other agents, widgets) as data, not instructions. */
+/** Marks text that came from outside (web, contacts, outside apps, widgets) as data, not instructions. */
 export function untrusted(source: string, attrs: Record<string, string>, body: string): string {
+  return envelope(source, attrs, body, UNTRUSTED_MARK);
+}
+
+/**
+ * Text one of the owner's own agents wrote (a request, a delegated answer, a task it made): the owner's side, so it
+ * does not count as outside content (DECISIONS.md#d-071). Still enveloped, so it cannot pose as APX or the owner.
+ */
+export function fromTeam(source: string, attrs: Record<string, string>, body: string): string {
+  return envelope(source, attrs, body, 'trust="team"');
+}
+
+function envelope(source: string, attrs: Record<string, string>, body: string, mark: string): string {
   const a = Object.entries(attrs)
     .map(([k, v]) => ` ${k}="${oneLine(v).replace(/["<>]/g, "'")}"`)
     .join("");
   // The body cannot close its own envelope or pose as APX or the owner.
   const safe = body.replace(new RegExp(`<(/?)(${source}|${RESERVED_TAGS})\\b`, "gi"), "&lt;$1$2");
-  return `<${source}${a} ${UNTRUSTED_MARK}>\n${safe}\n</${source}>`;
+  return `<${source}${a} ${mark}>\n${safe}\n</${source}>`;
 }

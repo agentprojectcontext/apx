@@ -180,7 +180,7 @@ test("show_widget creates a pinned surface and a surface card in the answer", as
   assert.equal(surface.pinned, true);
 });
 
-test("delegate runs the other agent in a sub-thread; its answer comes back framed as untrusted", async () => {
+test("delegate runs the other agent in a sub-thread; its answer comes back as the team's, not outside content", async () => {
   await env.client.call("threads.send", { thread: "home", text: "research A2A" });
   const { messages } = await env.settle("home");
   const card = messages.at(-1)?.parts.find((p) => p.type === "subthread");
@@ -194,9 +194,9 @@ test("delegate runs the other agent in a sub-thread; its answer comes back frame
   assert.equal(sub.runs[0]?.depth, 1);
   const top = await env.client.call("threads.list", {});
   assert.ok(!top.threads.some((t) => t.id === card.thread_id));
-  // Scout saw the task as another agent's request, not as the owner's words.
+  // Scout saw the task as another of the owner's agents' request: enveloped, but not outside content.
   assert.ok(
-    llm.calls.some((c) => String(c.messages.at(-1)?.content).includes('<agent_message from="Roby" trust="untrusted">')),
+    llm.calls.some((c) => String(c.messages.at(-1)?.content).includes('<agent_message from="Roby" trust="team">')),
   );
   assert.ok(
     llm.calls.some((c) =>

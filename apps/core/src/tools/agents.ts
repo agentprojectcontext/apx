@@ -5,7 +5,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { APX_SERVER } from "../domain/approvals.ts";
 import type { ProjectRecord } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
-import { cap, untrusted } from "./result.ts";
+import { cap, fromTeam } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 export function agentTools(store: Store): Tool[] {
@@ -142,7 +142,7 @@ export function agentTools(store: Store): Tool[] {
           const who = store.agents.get(t.agent_ids[0] ?? "")?.name ?? t.agent_ids[0];
           return `- ${t.session ?? t.id} · ${who} · ${t.state}${t.preview ? ` · ${t.preview.slice(0, 120)}` : ""}`;
         });
-        return rows.length ? untrusted("sessions", {}, rows.join("\n")) : "no sessions yet";
+        return rows.length ? fromTeam("sessions", {}, rows.join("\n")) : "no sessions yet";
       },
     }),
   ];
@@ -172,6 +172,6 @@ function projectOf(store: Store, ref: string, agent: AgentRecord): ProjectRecord
   );
 }
 
-/** How a delegated answer enters the caller's context: as data from another agent, with how its run ended. */
+/** How a delegated answer enters the caller's context: one of the owner's agents' report, with how its run ended. */
 export const agentReply = (name: string, text: string, state: string) =>
-  untrusted("agent_reply", { from: name, state }, cap(text));
+  fromTeam("agent_reply", { from: name, state }, cap(text));

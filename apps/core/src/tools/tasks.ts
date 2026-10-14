@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { boardScope, checkAssignee, checkColumn, checkSettle, dueOf, personOf, visibleTask } from "../domain/tasks.ts";
 import { CallError } from "../errors.ts";
-import { inlineName, untrusted } from "./result.ts";
+import { fromTeam, inlineName, untrusted } from "./result.ts";
 import { type CheckContext, defineTool, type Tool } from "./types.ts";
 
 const line = (t: Task, project?: string) =>
@@ -27,11 +27,27 @@ const line = (t: Task, project?: string) =>
     .filter(Boolean)
     .join(", ")})`;
 
-/** Titles the owner did not write (an agent's, a contact's request) are outside data, as in a task's own chat. */
+/**
+ * Whose words a task's title and description are: the owner's, one of the owner's agents' (the owner's side,
+ * DECISIONS.md#d-071), or outside text (an agent passing on a contact's request: it has a person).
+ */
+export function taskSide(t: Pick<Task, "created_by" | "person_id">): "owner" | "team" | "outside" {
+  if (t.created_by === "owner") return "owner";
+  return t.person_id ? "outside" : "team";
+}
+
+/** A task's words as the model reads them, enveloped by whose they are. */
+export function taskWords(t: Pick<Task, "created_by" | "person_id">, words: string): string {
+  const side = taskSide(t);
+  if (side === "owner") return words;
+  return (side === "team" ? fromTeam : untrusted)("task", { created_by: t.created_by }, words);
+}
+
+/** Titles a contact's request brought are outside data, as in a task's own chat; the owner's and agents' are not. */
 function taskLines(tasks: Task[], lineOf: (t: Task) => string): string {
   const text = tasks.map(lineOf).join("\n");
-  if (tasks.every((t) => t.created_by === "owner")) return text;
-  return untrusted("tasks", { note: "titles not all by the owner" }, text);
+  if (tasks.every((t) => taskSide(t) !== "outside")) return text;
+  return untrusted("tasks", { note: "some titles come from contacts" }, text);
 }
 
 /** Past this the result cap would cut the list in the middle: the tasks that matter stay whole, the rest is counted. */

@@ -196,7 +196,7 @@ test("outside any project the super-agent sees every project's board, each task 
   assert.match(seen, /Renew the base insurance \(project Default, /);
 });
 
-test("what an agent wrote in a task reaches other turns as outside data", async () => {
+test("what an agent wrote in a task reaches other turns as the team's words, not outside data", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
   await env.client.call("threads.send", { thread: t.id, text: "make a task" });
   await env.settle(t.id);
@@ -207,10 +207,7 @@ test("what an agent wrote in a task reaches other turns as outside data", async 
   await env.client.call("tasks.comment", { task: made.id, text: "@vera please look" });
   await settleTask(made.id);
   const input = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("@vera please look"));
-  assert.match(
-    String(input?.messages.at(-1)?.content),
-    /<task created_by="roby" trust="untrusted">\nDraft the launch post/,
-  );
+  assert.match(String(input?.messages.at(-1)?.content), /<task created_by="roby" trust="team">\nDraft the launch post/);
 });
 
 test("an agent of one project is not assigned another project's task", async () => {

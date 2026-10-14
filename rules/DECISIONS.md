@@ -814,3 +814,16 @@ under their cloned boss and never copies the super-agent, routines or memory. Tw
 so the copies take new free names by default (`rename`, from `AGENT_NAMES`, now about 200 names); the owner can keep
 the names. The owner does it from Team › Import › Another project; agents through `apx agents clone` (the shell asks
 the owner), taught by the `apx-projects` guide, instead of recreating each agent with `agent_set`.
+
+<a id="d-071"></a>
+## D-071 — 2026-10-14 — The owner's own agents are the owner's side, not outside content
+A team working a task stopped at every file it wrote: what one agent asked another (a delegation, a task it made, an
+@mention) arrived wrapped as untrusted, so the next agent's whole turn counted as "outside content" and every write
+waited for the owner, who had asked for the work in the first place. Text written by one of the owner's agents (a
+request, a delegated answer, a task with no contact on it, a session list) is now enveloped as `trust="team"`: still
+marked as another agent's words, but not outside content. What an outside app's agent sends (`external`, `client:…`),
+a contact's words (a task with a person, a channel message), web pages, files, command output and widgets stay
+untrusted. The trade: an agent that read a hostile page can now pass its words on to a teammate as the team's. What
+limits it is unchanged: `always` actions still ask outside total autonomy, a delegated run works under the strictest
+autonomy up its chain, and each agent's own reading still taints its own turn.
+

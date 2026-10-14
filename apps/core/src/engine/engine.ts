@@ -8,7 +8,7 @@ import { Canceled, DeadlineExceeded, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
 import { systemNote } from "../harness/native.ts";
 import type { Log } from "../log.ts";
-import { untrusted } from "../tools/result.ts";
+import { fromTeam } from "../tools/result.ts";
 import type { Tool } from "../tools/types.ts";
 import { pausedNotice } from "./breaker.ts";
 import { actionsNote, actionsOf, createDelegations } from "./delegation.ts";
@@ -165,7 +165,7 @@ export function createEngine(deps: {
         // The result is kept for the caller's next turn (when the owner writes), and the owner sees why it stopped.
         store.modelLog.append(parent.thread_id, child.id, [
           systemNote(
-            `A task you delegated to ${name} ended (${child.state}) while agents were paused:\n${untrusted("delegation_result", { from: name }, answer.slice(0, 4000))}\n${actionsNote(actionsOf(store, child))}`,
+            `A task you delegated to ${name} ended (${child.state}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${actionsNote(actionsOf(store, child))}`,
           ),
         ]);
         store.messages.add({

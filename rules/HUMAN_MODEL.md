@@ -132,8 +132,8 @@ jobs are closed, and queued runs are picked up.
 
 - Loopback bind needs no token; any other bind **requires** `APX_TOKEN` (enforced at startup).
 - `/rpc/*` checks `Authorization: Bearer` when a token is set. WS auth + device pairing arrive with nodes.
-- Trust boundaries to remember: web page content (embedded browser), channel messages, other agents' text,
-  tool output → all untrusted data.
+- Trust boundaries to remember: web page content (embedded browser), channel messages, outside apps' agents,
+  tool output → all untrusted data. The owner's own agents speak for the owner (DECISIONS.md#d-071).
 
 ## 6. External integrations
 
