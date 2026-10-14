@@ -2,6 +2,7 @@ import "../styles/screens.css";
 import { Badge, Button, EmptyState, IconButton, Icons, ProjectTile, Tabs } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { findProject, inProject, isListed, type ProjectEntry, projectInitial, projectTone } from "../data/identity.ts";
+import { parseNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { NewChatMenu } from "../inbox/NewChatMenu.tsx";
@@ -146,6 +147,9 @@ function useKeepThreadInProject(pid: string | undefined, tab: ProjectTab) {
     if (!pid || tab !== "chats") return;
     const current = threadId ? threads[threadId] : undefined;
     if (current && (inProject(current, pid) || current.parent_id)) return;
+    // A new chat is not a thread yet: it stays while it is this project's.
+    const draft = parseNewChat(threadId);
+    if (draft && inProject({ project_id: draft.project }, pid)) return;
     const latest = Object.values(threads)
       .filter((t) => isListed(t) && inProject(t, pid))
       .sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
