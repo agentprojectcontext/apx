@@ -853,4 +853,7 @@ question and the answer, like a delegation, shown in the conversation as a card 
 (`asked_by` on the sub-thread part) and fills in with the answer. Nothing is copied: the question is the comment
 above the card. The answer's own @mentions cascade the same way, two hops deep. Whoever spoke on a task joins its
 conversation's `agent_ids`, so the list shows a group, and the phone shows a card's answer, not only its title.
+An agent assigning a task or @mentioning a teammate no longer waits for the owner while outside content is in its
+turn (command output always is, for a developer), as `delegate` never did: the teammate's turn runs under its own
+autonomy, gated where it acts.
 

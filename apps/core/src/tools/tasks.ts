@@ -84,11 +84,11 @@ export function boardText(tasks: Task[], where: (t: Task) => string | undefined,
 }
 
 /**
- * Writing on the board is the owner's own record and runs even with outside content in the turn; handing the work to
- * an agent (an assignee, an @mention) starts that agent's turn, so then it waits for the owner like any other action.
+ * Writing on the board is the owner's own record and runs even with outside content in the turn. Handing work to a
+ * teammate (an assignee, an @mention) does too, like `delegate`: the turn it starts works under that agent's own
+ * autonomy and the strictest one asking for it (DECISIONS.md#d-073).
  */
-const handsOff = (a: { assignee?: string | null | undefined; text?: string | undefined }) =>
-  (a.assignee ? "untrusted" : a.text && /(^|\s)@[\w-]/.test(a.text) ? "untrusted" : "never") as "untrusted" | "never";
+const handsOff = "never" as const;
 
 const commitmentArgs = {
   person: z.string().max(80).optional().describe("a commitment's contact (name or id)"),

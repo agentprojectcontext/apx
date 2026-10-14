@@ -59,6 +59,11 @@ const PLANS: Record<string, Plan[]> = {
     () => ({ name: "shell", args: { command: "touch built.txt" } }),
     () => ({ name: "shell", args: { command: "rm -rf scratch" } }),
   ],
+  "hand it on": [
+    () => ({ name: "read_page", args: {} }),
+    () => ({ name: "task_create", args: { title: "Check the page", assignee: agents.Free ?? "" } }),
+    (last) => ({ name: "task_comment", args: { task: /created (\S+) in/.exec(last)?.[1] ?? "", text: "@free look" } }),
+  ],
   "clean up": [() => ({ name: "read_page", args: {} }), () => ({ name: "shell", args: { command: "rm -rf scratch" } })],
 };
 
@@ -236,4 +241,12 @@ test("edits on the project: an agent with none of its own writes and builds with
   assert.equal(back.autonomy, undefined);
   assert.doesNotMatch(fs.readFileSync(file, "utf8"), /autonomy/);
   await env.client.call("projects.update", { project, autonomy: null });
+});
+
+test("standard: with a page in the turn, giving a teammate a task or @mentioning it does not wait, like delegate", async () => {
+  const t = await chat("Steady");
+  const sent = await env.client.call("threads.send", { thread: t.id, text: "hand it on" });
+  const { messages } = await env.settle(t.id);
+  assert.deepEqual(asked(messages), []);
+  assert.deepEqual(ran(sent.run.id), ["read_page", "task_create", "task_comment"]);
 });
