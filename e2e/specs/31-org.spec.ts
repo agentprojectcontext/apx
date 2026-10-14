@@ -66,8 +66,12 @@ test("importing the executive team into the base project sets the company up in 
   await dialog.getByRole("button", { name: /^Instalar/ }).click();
   await expect(dialog).toHaveCount(0);
 
-  // The CEO leads its team under the super-agent; the project is a company with the team's areas.
-  await expect(page.locator('.apx-agentnode__name:text-is("Chief Financial Officer")')).toBeVisible();
+  // The CEO leads its team under the super-agent; the project is a company with the team's areas. Each member has
+  // a person's name, and the template's job is its role.
+  const cfo = (await rpc<{ agent: { name: string; role: string } }>("agents.get", { agent: "cfo" })).agent;
+  expect(cfo.role).toBe("Chief Financial Officer");
+  expect(cfo.name).not.toBe("Chief Financial Officer");
+  await expect(page.locator(`.apx-agentnode__name:text-is("${cfo.name}")`)).toBeVisible();
   const tab = page.locator(".team__tabs").getByRole("tab", { name: "Áreas y roles" });
   await tab.click();
   await expect(page.locator(".org__area", { hasText: "Finance" })).toContainText("Chief Financial Officer");

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { AGENT_NAMES } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -66,7 +67,15 @@ test("install: the team keeps its shape, its lead hangs under the orchestrator, 
   assert.equal(bySlug["qa-engineer"]?.parent, "orchestrator", "its team parent came along");
   assert.equal(bySlug.security?.parent, "qa-engineer", "the team's own shape is kept");
   assert.equal(bySlug.security?.area, "quality", "area comes from the file");
+  assert.equal(bySlug.orchestrator?.role, "Lead Orchestrator", "the template's job becomes the role");
+  const names = r.installed.map((a) => a.name);
+  assert.ok(
+    names.every((n) => (AGENT_NAMES as readonly string[]).includes(n)),
+    `each member gets a person's name: ${names.join(", ")}`,
+  );
+  assert.equal(new Set(names).size, names.length, "no two members share a name");
   const file = fs.readFileSync(path.join(repo, ".apc", "agents", "security.md"), "utf8");
+  assert.match(file, new RegExp(`^name: ${bySlug.security?.name}$`, "m"), "the name is in the agent's file");
   assert.match(file, /area: quality/, "the template's other fields are kept");
   assert.equal(fs.readFileSync(path.join(repo, ".apc", "agents", "boss.md"), "utf8"), before, "nothing else changes");
 

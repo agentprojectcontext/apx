@@ -101,16 +101,21 @@ export function writeNewAgent(root: string, slug: string, fields: AgentFileField
 }
 
 /**
- * A new agent file from a template's text, with `parent` set (or removed with ""). The rest of the template's
- * frontmatter (area, tools, skills…) and its body are kept as written.
+ * A new agent file from a template's text, with `parent` set (or removed with "") and, when given, its own `name`
+ * and `role`. The rest of the template's frontmatter (area, tools, skills…) and its body are kept as written.
  */
-export function writeAgentFromTemplate(root: string, slug: string, text: string, parent: string): void {
+export function writeAgentFromTemplate(
+  root: string,
+  slug: string,
+  text: string,
+  fields: { parent: string; name?: string; role?: string },
+): void {
   if (!SLUG_RE.test(slug)) throw new Error(`invalid slug "${slug}" (lowercase letters, digits, - and _)`);
   const file = agentFile(root, slug);
   guard(root, file);
   if (fs.existsSync(file)) throw new Error(`an agent file already exists: .apc/agents/${slug}.md`);
   const { front, body } = split(text);
-  writeAtomic(file, join(setFields(front, { parent }), body));
+  writeAtomic(file, join(setFields(front, fields), body));
 }
 
 export function updateAgentFile(root: string, slug: string, fields: AgentFileFields, prompt?: string): void {

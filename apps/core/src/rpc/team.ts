@@ -11,6 +11,7 @@ import { publicAgent } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { MAX_UNATTENDED_RUNS, MAX_UNATTENDED_TOKENS, unattendedLimits } from "../engine/limits.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
+import { freeName } from "./agent-clone.ts";
 import type { Handlers } from "./router.ts";
 
 export function teamHandlers(
@@ -62,11 +63,16 @@ export function teamHandlers(
       // or never picked) hangs under `hang_under`, never under an unrelated agent that happens to share the slug.
       const written: TemplateFile[] = [];
       const coming = new Set(toWrite.map((f) => f.slug));
+      const used = new Set(store.agents.list().map((a) => a.name.toLowerCase()));
       for (const file of toWrite) {
         const parent = file.parent && coming.has(file.parent) ? file.parent : (hang_under ?? "");
+        // APX's own templates are named by their job ("Senior Developer"): each member gets a person's name and
+        // the job becomes its role. The owner's v1 agents already have names and keep them.
+        const named = file.source === "apx" ? { name: freeName(used, file.name), role: file.name } : {};
+        if (named.name) used.add(named.name.toLowerCase());
         try {
-          if (root) writeAgentFromTemplate(root, file.slug, file.text, parent);
-          else writeGlobalAgent(store, file, parent);
+          if (root) writeAgentFromTemplate(root, file.slug, file.text, { parent, ...named });
+          else writeGlobalAgent(store, { ...file, ...named }, parent);
           written.push(file);
         } catch (err) {
           skipped.push({ template: file.id, reason: errorMessage(err) });

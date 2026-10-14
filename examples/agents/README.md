@@ -11,5 +11,7 @@ What the Team screen's "Import" dialog offers, beside the owner's v1 vault (`~/.
   or `{ "kind": "every", "minutes" }`, `prompt`, optional `action` `agent` or `watch`). Installing the agent adds them
   to the project, on; the executive team ships its weekly rituals this way. Templates are written in English only.
 
-Installing copies the file into the project's `.apc/agents/` as written; only `parent` changes (to hang the team under
-the project's orchestrator when the owner asks).
+Installing copies the file into the project's `.apc/agents/` as written, with two changes: `parent` (to hang the team
+under the project's orchestrator when the owner asks), and the name. A template's `name` is a job ("Senior
+Developer"): the installed agent gets a person's name nobody else uses and that job as its `role`. Agents from the v1
+vault keep their own names.

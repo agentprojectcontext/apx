@@ -20,7 +20,7 @@ const slugOf = (name: string) =>
     .slice(0, 60) || "agent";
 
 /** A name from the list nobody on the install uses yet, else the name with a number. */
-function freeName(used: Set<string>, fallback: string): string {
+export function freeName(used: Set<string>, fallback: string): string {
   const pool = AGENT_NAMES.filter((n) => !used.has(n.toLowerCase()));
   if (pool.length) return pool[Math.floor(Math.random() * pool.length)] as string;
   for (let i = 2; ; i++) if (!used.has(`${fallback} ${i}`.toLowerCase())) return `${fallback} ${i}`;
