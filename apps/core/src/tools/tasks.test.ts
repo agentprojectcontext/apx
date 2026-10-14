@@ -50,6 +50,11 @@ test("a task title the owner did not write reaches the model as outside data; th
   );
 });
 
+test("a task an agent leaves with nobody on it says it will not start, so the agent assigns it or asks", async () => {
+  const said = await list("create: Fix the new chat picker");
+  assert.match(said, /created task_\w+ in backlog, with nobody on it: it will not start\. Assign it/);
+});
+
 test("a board too long to show whole keeps promises, dates, waits and recent moves on their lines, the rest counted", () => {
   const at = Date.parse("2026-10-13T21:30:00Z");
   const task = (i: number, o: Partial<Task>): Task => ({

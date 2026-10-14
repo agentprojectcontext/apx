@@ -155,7 +155,7 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "Create a task on this project's board: a clear title, what done looks like (description) and who does it (assignee: an agent id). A promise between the owner and a contact is a commitment: give the person, who owes it and the due date; the owner is reminded that day.",
+        "Create a task on this project's board: a clear title, what done looks like (description) and who does it (assignee: an agent id, who starts at once). A promise between the owner and a contact is a commitment: give the person, who owes it and the due date; the owner is reminded that day.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
@@ -171,7 +171,10 @@ export function taskTools(store: Store): Tool[] {
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
         const t = await ctx.call("tasks.create", a);
-        return `created ${t.id} in ${t.status}.`;
+        // A task with nobody on it never starts: say so while the agent can still fix it.
+        if (!t.assignee && t.kind === "task")
+          return `created ${t.id} in ${t.status}, with nobody on it: it will not start. Assign it with task_update (the agent who does it, or yourself), or ask the owner who should.`;
+        return `created ${t.id} in ${t.status}.${t.assignee ? ` ${t.assignee} starts on it now.` : ""}`;
       },
     }),
     defineTool({
