@@ -87,6 +87,11 @@ export type Tool = {
    * does not count as outside content for confirmations.
    */
   local?: ((args: Record<string, unknown>) => boolean) | undefined;
+  /**
+   * It writes files or runs commands in the folder the agent works in: what `edits` autonomy lets run without asking,
+   * short of what always asks.
+   */
+  workspace?: true | undefined;
   /** A node capability it needs ("location"): offered only while a node lending it is connected. */
   needsCap?: string | undefined;
   /** Offered in a thread only when this says so (an account connected and on in the thread's project). */
@@ -114,6 +119,7 @@ export function defineTool<S extends Args>(def: {
   confirm?: Confirm | ((args: z.output<S>) => Confirm);
   deadlineMs: number;
   local?: (args: z.output<S>) => boolean;
+  workspace?: true;
   needsCap?: string;
   when?: (thread: Thread) => boolean;
   check?: (args: z.output<S>, ctx: CheckContext) => void | Promise<void>;
@@ -128,6 +134,7 @@ export function defineTool<S extends Args>(def: {
     effect: def.effect,
     confirm: (a) => (typeof def.confirm === "function" ? def.confirm(a as z.output<S>) : (def.confirm ?? "never")),
     deadlineMs: def.deadlineMs,
+    ...(def.workspace ? { workspace: true as const } : {}),
     ...(def.needsCap ? { needsCap: def.needsCap } : {}),
     ...(def.when ? { when: def.when } : {}),
     ...(def.check

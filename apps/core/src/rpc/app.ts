@@ -94,14 +94,16 @@ export function appHandlers(deps: {
       projects: store.projects.list(include_unregistered).map(publicProject),
       base: store.settings.read("base_project"),
     }),
-    "projects.update_base": ({ name, description, kind }) => {
+    "projects.update_base": ({ name, description, kind, autonomy }) => {
       const cur = store.settings.read("base_project");
       const desc = description === undefined ? cur.description : description || undefined;
       const k = kind === undefined ? cur.kind : (kind ?? undefined);
+      const auto = autonomy === undefined ? cur.autonomy : (autonomy ?? undefined);
       store.settings.write("base_project", {
         name: name ?? cur.name,
         ...(desc ? { description: desc } : {}),
         ...(k ? { kind: k } : {}),
+        ...(auto ? { autonomy: auto } : {}),
       });
       return { base: store.settings.read("base_project") };
     },
@@ -152,17 +154,22 @@ export function appHandlers(deps: {
       if (!project) throw notFound(`project ${r.project}`);
       return { project: publicProject(project), agents: r.agents };
     },
-    "projects.update": ({ project: id, name, description, kind }) => {
+    "projects.update": ({ project: id, name, description, kind, autonomy }) => {
       const project = store.projects.get(id);
       if (!project) throw notFound(`project ${id}`);
-      if (!project.path) throw badRequest(`${project.name} has no folder to keep its settings in`);
-      if (!project.present) throw badRequest(`the folder of ${project.name} is not on disk right now`);
-      try {
-        writeProjectMeta(project.path, { name, description, kind });
-      } catch (err) {
-        throw badRequest(errorMessage(err));
+      // Autonomy is APX's, not the folder's: it changes even with the folder away.
+      if (autonomy !== undefined) store.projects.setAutonomy(id, autonomy ?? undefined);
+      const meta = name !== undefined || description !== undefined || kind !== undefined;
+      if (meta && !project.path) throw badRequest(`${project.name} has no folder to keep its settings in`);
+      if (meta && !project.present) throw badRequest(`the folder of ${project.name} is not on disk right now`);
+      if (meta && project.path) {
+        try {
+          writeProjectMeta(project.path, { name, description, kind });
+        } catch (err) {
+          throw badRequest(errorMessage(err));
+        }
+        deps.apc.sync(id);
       }
-      deps.apc.sync(id);
       const now = store.projects.get(id);
       if (!now) throw notFound(`project ${id}`);
       return { project: publicProject(now) };

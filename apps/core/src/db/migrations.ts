@@ -691,4 +691,9 @@ export const MIGRATIONS: readonly string[] = [
   -- (channels/inbound.ts): each of their messages is reported meanwhile.
   ALTER TABLE persons ADD COLUMN unreviewed INTEGER NOT NULL DEFAULT 0;
   `,
+  `
+  -- How far a project's agents go on their own when they set nothing (DECISIONS.md#d-072): kept by APX, so a folder
+  -- someone else wrote cannot raise it.
+  ALTER TABLE projects ADD COLUMN autonomy TEXT;
+  `,
 ];

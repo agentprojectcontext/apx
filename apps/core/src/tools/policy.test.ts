@@ -5,17 +5,17 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { allowedTools, authorize, inherit } from "./policy.ts";
 import { type Confirm, defineTool, type Effect } from "./types.ts";
 
-const tool = (name: string, effect: Effect = "none", confirm: Confirm = "never") =>
-  defineTool({
-    name,
-    description: name,
-    args: z.object({}),
-    effect,
-    confirm,
-    deadlineMs: 1000,
-    title: () => name,
-    run: async () => "",
-  });
+const base = (name: string, effect: Effect = "none", confirm: Confirm = "never") => ({
+  name,
+  description: name,
+  args: z.object({}),
+  effect,
+  confirm,
+  deadlineMs: 1000,
+  title: () => name,
+  run: async () => "",
+});
+const tool = (...a: Parameters<typeof base>) => defineTool(base(...a));
 
 const agent = (over: Partial<AgentRecord> = {}): AgentRecord => ({
   id: "a1",
@@ -94,6 +94,28 @@ test("ask-level calls wait unless the agent's autonomy is total", () => {
   assert.equal(authorize(cmd, {}, agent({ autonomy: "total" }), false).kind, "allow");
   assert.equal(authorize(cmd, {}, agent({ autonomy: "total" }), true).kind, "allow");
   assert.equal(authorize(cmd, {}, agent(), true).kind, "confirm");
+});
+
+test("edits: writing and commands in its folder run with outside content in the turn; sends and 'always' still wait", () => {
+  const edits = agent({ autonomy: "edits" });
+  const write = defineTool({ ...base("file_write", "local", "untrusted"), workspace: true });
+  const command = defineTool({ ...base("shell", "local", "ask"), workspace: true });
+  const destroy = defineTool({ ...base("shell", "local", "always"), workspace: true });
+  const send = tool("message_contact", "message", "untrusted");
+  assert.equal(authorize(write, {}, edits, true).kind, "allow");
+  assert.equal(authorize(command, {}, edits, true).kind, "allow");
+  assert.equal(authorize(destroy, {}, edits, false).kind, "confirm");
+  assert.equal(authorize(send, {}, edits, true).kind, "confirm");
+  // Standard still asks for both.
+  assert.equal(authorize(write, {}, agent(), true).kind, "confirm");
+  assert.equal(authorize(command, {}, agent(), false).kind, "confirm");
+});
+
+test("a delegated run takes the strictest autonomy up its chain, edits between standard and total", () => {
+  const all = [tool("x")];
+  assert.equal(inherit(agent({ autonomy: "total" }), [agent({ autonomy: "edits" })], all).agent.autonomy, "edits");
+  assert.equal(inherit(agent({ autonomy: "edits" }), [agent()], all).agent.autonomy, "standard");
+  assert.equal(inherit(agent({ autonomy: "edits" }), [agent({ autonomy: "total" })], all).agent.autonomy, "edits");
 });
 
 test("standard autonomy: high-impact calls wait only while untrusted content is in context", () => {

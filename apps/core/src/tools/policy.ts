@@ -1,5 +1,6 @@
 // The one place that decides whether an agent's tool call runs, waits for the owner, or is refused.
 import type { AgentRecord } from "../domain/agents.ts";
+import type { Store } from "../domain/store.ts";
 import { SUPER_AGENT_TOOLS } from "./agent-set.ts";
 import type { Confirm, Effect, Tool } from "./types.ts";
 
@@ -71,17 +72,28 @@ const BRIDGE = new Set(["mcp_search", "mcp_call"]);
  * then a model may be acting on someone else's instructions, so high-impact calls wait for the owner.
  */
 export function authorize(tool: Tool, args: Record<string, unknown>, agent: AgentRecord, untrusted: boolean): Decision {
-  return decide(tool.confirm(args), tool.effect, agent, untrusted);
+  return decide(tool.confirm(args), tool.effect, agent, untrusted, tool.workspace);
 }
 
 const OUTSIDE = "content from outside (web, another agent or a message) is in this turn";
 
-/** The rule itself, for APX's tools and for what external agents ask to do with theirs. */
-export function decide(level: Confirm, effect: Effect, agent: AgentRecord, untrusted: boolean): Decision {
+/**
+ * The rule itself, for APX's tools and for what external agents ask to do with theirs. `workspace`: the call writes
+ * files or runs a command in the folder the agent works in.
+ */
+export function decide(
+  level: Confirm,
+  effect: Effect,
+  agent: AgentRecord,
+  untrusted: boolean,
+  workspace = false,
+): Decision {
   const autonomy = agent.autonomy ?? "standard";
   // Total autonomy is the owner's explicit choice: nothing waits for them, not even `always` (DECISIONS.md#d-047).
   if (autonomy === "total") return { kind: "allow" };
   if (level === "always") return { kind: "confirm", why: "always", reason: "this action always needs your OK" };
+  // Accepting edits: the agent's own work in its folder goes on, outside content or not (DECISIONS.md#d-072).
+  if (autonomy === "edits" && workspace) return { kind: "allow" };
   if (level === "ask")
     return untrusted
       ? { kind: "confirm", why: "untrusted", reason: OUTSIDE }
@@ -96,7 +108,16 @@ export function decide(level: Confirm, effect: Effect, agent: AgentRecord, untru
   return { kind: "allow" };
 }
 
-const STRICTNESS = { ask: 0, standard: 1, total: 2 } as const;
+const STRICTNESS = { ask: 0, standard: 1, edits: 2, total: 3 } as const;
+
+/** An agent with no autonomy of its own goes as far as its project says (the base project's, for a global one). */
+export function withProjectAutonomy(store: Store, agent: AgentRecord): AgentRecord {
+  if (agent.autonomy) return agent;
+  const of = agent.project_id
+    ? store.projects.get(agent.project_id)?.autonomy
+    : store.settings.read("base_project").autonomy;
+  return of ? { ...agent, autonomy: of } : agent;
+}
 
 /**
  * A delegated run works with no more than whoever asked for it: only the tools every agent up the chain may use,

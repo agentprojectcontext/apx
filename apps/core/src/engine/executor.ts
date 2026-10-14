@@ -342,7 +342,8 @@ export function createExecutor(o: {
       const editable = paths.length > 0 && inside && !paths.some((p) => guarded(base, p));
       if (thread.write === "auto" && req.kind === "edit" && editable) return true;
     }
-    const decision = decide(level, reading ? "none" : "external", agent, untrusted);
+    const workspace = inside && (req.kind === "edit" || req.kind === "execute") && !paths.some((p) => guarded(base, p));
+    const decision = decide(level, reading ? "none" : "external", agent, untrusted, workspace);
     if (decision.kind === "allow") return true;
     const answer = await o.inputs.ask({
       run: o.run(),

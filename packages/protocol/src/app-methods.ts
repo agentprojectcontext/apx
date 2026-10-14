@@ -332,8 +332,8 @@ export const appMethods = {
         prompt: z.string().max(100_000).optional(),
         /** How it comes across, apart from its instructions ("" clears it). */
         personality: z.string().max(1000).optional(),
-        /** How often it stops for the owner's yes. Only the owner sets it (this method is human-only). */
-        autonomy: Autonomy.optional(),
+        /** How often it stops for the owner's yes; null: none of its own, as far as its project says. Owner only. */
+        autonomy: Autonomy.nullable().optional(),
         parent: z.string().max(64).optional(),
         blob: z.string().max(40).optional(),
         /** The tools (or groups) it may use, and the skills it works with; [] goes back to all of them. */
@@ -403,6 +403,8 @@ export const appMethods = {
         name: z.string().trim().min(1).max(80).optional(),
         description: z.string().trim().max(500).nullable().optional(),
         kind: ProjectKind.nullable().optional(),
+        /** How far agents without one of their own go here; null = standard. */
+        autonomy: Autonomy.nullable().optional(),
       })
       .strict(),
     result: z.object({ base: BaseProject }),
@@ -465,6 +467,8 @@ export const appMethods = {
         name: z.string().trim().min(1).max(80).optional(),
         description: z.string().trim().max(500).nullable().optional(),
         kind: ProjectKind.nullable().optional(),
+        /** How far agents without one of their own go here; null = standard. Kept by APX, not in the folder. */
+        autonomy: Autonomy.nullable().optional(),
       })
       .strict(),
     result: z.object({ project: Project }),

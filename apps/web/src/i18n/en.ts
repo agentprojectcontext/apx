@@ -632,6 +632,14 @@ export const en = {
   "project.settings.descriptionPlaceholder": "What this project is about, in a line or two",
   "project.settings.kind": "Kind",
   "project.settings.kindHint": "Tells agents what kind of project this is.",
+  "project.settings.autonomy": "Agents' autonomy",
+  "project.settings.autonomyHint":
+    "How far agents with none of their own go without asking you. APX keeps it, not the folder.",
+  "project.autonomy.ask.hint": "Asks your OK for everything that changes something.",
+  "project.autonomy.standard.hint": "Asks about what matters once it read something from outside (web, contacts).",
+  "project.autonomy.edits.hint":
+    "Writes files and runs commands in the folder without asking; destructive and outgoing actions still ask.",
+  "project.autonomy.total.hint": "Asks you nothing. Only for projects you fully trust.",
   "project.settings.folder": "Folder",
   "project.settings.folderHint": "Chats that work in the folder use it, and its .apc/ holds the agents and settings.",
   "project.settings.folderMissing": "The folder is not on disk right now (moved, or a drive that is not mounted).",

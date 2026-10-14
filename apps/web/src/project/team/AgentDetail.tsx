@@ -19,8 +19,9 @@ import { AgentEditor } from "./AgentEditor.tsx";
 import { AgentRoutines } from "./AgentRoutines.tsx";
 import { engineOf } from "./useTeamInfo.tsx";
 
-/** How often it stops for the owner's yes, strictest first. */
-const AUTONOMY = ["ask", "standard", "total"] as const;
+/** How often it stops for the owner's yes, strictest first; "project" is none of its own (DECISIONS.md#d-072). */
+const AUTONOMY = ["ask", "standard", "edits", "total"] as const;
+const FROM_PROJECT = "project";
 
 const PROFILES = ["shared", "isolated", "incognito"] as const;
 
@@ -83,6 +84,10 @@ export function AgentDetail({
   // With no parent a global agent hangs under the super-agent; a project agent sits on top of its team.
   const noParent = !fromFile && top ? t("team.parent.toSuper", { name: top.name }) : t("team.parent.none");
   const nameOf = (key: string | undefined) => team.find((a) => key && keyOf(a) === key)?.name ?? noParent;
+  const inherited = useData((s) =>
+    agent.project_id ? s.projects.find((p) => p.id === agent.project_id)?.autonomy : s.base.autonomy,
+  );
+  const fromProject = t("team.autonomy.project", { level: t(`team.autonomy.${inherited ?? "standard"}`) });
 
   const facts = (
     <dl className="teamdetail__facts">
@@ -128,10 +133,15 @@ export function AgentDetail({
       <dd>
         <Pick
           label={t("team.autonomy")}
-          text={t(`team.autonomy.${agent.autonomy ?? "standard"}`)}
-          options={AUTONOMY.map((a) => ({ value: a, text: t(`team.autonomy.${a}`) }))}
-          value={agent.autonomy ?? "standard"}
-          onPick={(v) => void updateAgent(agent.id, { autonomy: v as (typeof AUTONOMY)[number] })}
+          text={agent.autonomy ? t(`team.autonomy.${agent.autonomy}`) : fromProject}
+          options={[
+            { value: FROM_PROJECT, text: fromProject },
+            ...AUTONOMY.map((a) => ({ value: a, text: t(`team.autonomy.${a}`) })),
+          ]}
+          value={agent.autonomy ?? FROM_PROJECT}
+          onPick={(v) =>
+            void updateAgent(agent.id, { autonomy: v === FROM_PROJECT ? null : (v as (typeof AUTONOMY)[number]) })
+          }
         />
       </dd>
       {fromFile && (

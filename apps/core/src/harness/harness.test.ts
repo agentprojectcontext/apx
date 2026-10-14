@@ -268,5 +268,6 @@ test("Codex writes in an auto code chat only when the agent may act and nothing 
   assert.equal(codexWrites(io("standard", true)), false);
   assert.equal(codexWrites(io("ask", false)), false);
   assert.equal(codexWrites(io("total", true)), true);
+  assert.equal(codexWrites(io("edits", true)), true, "accepting edits writes whatever the session read");
   assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "ask" } } as TurnIO), false);
 });

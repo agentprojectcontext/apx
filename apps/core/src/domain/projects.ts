@@ -1,4 +1,4 @@
-import type { Project } from "@apx/protocol";
+import { Autonomy, type Project } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { ProjectsTable } from "../db/schema.ts";
 import { now, opt, qb, type Sql } from "./sql.ts";
@@ -17,7 +17,14 @@ const toProject = (r: Selectable<ProjectsTable>): ProjectRecord => ({
   ...(r.registered ? {} : { registered: false }),
   ...opt("context", r.context),
   ...opt("memory", r.memory_md),
+  ...autonomyOf(r.autonomy),
 });
+
+/** A stored autonomy APX knows; anything else reads as none. */
+function autonomyOf(v: string | null): { autonomy?: Autonomy } {
+  const a = Autonomy.safeParse(v);
+  return a.success ? { autonomy: a.data } : {};
+}
 
 /** What clients see: AGENTS.md and memory.md stay in the core (they go to the agents' context). */
 export const publicProject = ({ context: _c, memory: _m, ...p }: ProjectRecord): Project => p;
@@ -99,6 +106,15 @@ export function projectsRepo({ one, all, run }: Sql) {
         qb
           .updateTable("projects")
           .set({ present: present ? 1 : 0 })
+          .where("id", "=", id),
+      );
+    },
+    /** How far its agents go on their own when they set nothing; undefined = standard. */
+    setAutonomy(id: string, autonomy: Autonomy | undefined): void {
+      run(
+        qb
+          .updateTable("projects")
+          .set({ autonomy: autonomy ?? null })
           .where("id", "=", id),
       );
     },

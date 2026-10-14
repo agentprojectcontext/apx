@@ -143,7 +143,8 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
         icon: p.blob,
         area: p.area,
         personality: p.personality,
-        autonomy: p.autonomy,
+        // null: back to its project's, so the key leaves the file.
+        autonomy: p.autonomy === null ? "" : p.autonomy,
         tools: p.tools,
         skills: p.skills,
       };
@@ -173,7 +174,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
           ...(p.description !== undefined ? { description: p.description } : {}),
           ...(p.area !== undefined ? { area: p.area || undefined } : {}),
           ...(p.parent !== undefined ? { parent: p.parent || undefined } : {}),
-          ...(p.autonomy ? { autonomy: p.autonomy } : {}),
+          ...(p.autonomy !== undefined ? { autonomy: p.autonomy ?? undefined } : {}),
           ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
           ...(p.personality !== undefined ? { personality: p.personality || undefined } : {}),
           ...(p.tools !== undefined ? { tools: p.tools.length ? p.tools : undefined } : {}),

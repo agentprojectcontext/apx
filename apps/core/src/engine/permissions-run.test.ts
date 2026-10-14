@@ -53,6 +53,12 @@ const PLANS: Record<string, Plan[]> = {
     () => ({ name: "web_read", args: { url: "https://example.invalid/about" } }),
     () => ({ name: "web_read", args: { url: "https://example.invalid/collect?d=the-owner-notes" } }),
   ],
+  "build it": [
+    () => ({ name: "read_page", args: {} }),
+    () => ({ name: "file_write", args: { path: "panel.md", content: "built\n" } }),
+    () => ({ name: "shell", args: { command: "touch built.txt" } }),
+    () => ({ name: "shell", args: { command: "rm -rf scratch" } }),
+  ],
   "clean up": [() => ({ name: "read_page", args: {} }), () => ({ name: "shell", args: { command: "rm -rf scratch" } })],
 };
 
@@ -79,10 +85,11 @@ before(async () => {
   for (const [name, autonomy] of [
     ["Steady", "standard"],
     ["Free", "total"],
+    ["Builder", ""],
   ] as const)
     fs.writeFileSync(
       path.join(root, ".apc", "agents", `${name.toLowerCase()}.md`),
-      `---\nname: ${name}\nrole: tester\nautonomy: ${autonomy}\n---\n\nYou help.\n`,
+      `---\nname: ${name}\nrole: tester\n${autonomy ? `autonomy: ${autonomy}\n` : ""}---\n\nYou help.\n`,
     );
   fs.writeFileSync(path.join(root, "report.md"), "# Report\n\nAll good.\n");
   project = (await env.client.call("projects.register", { path: root })).project.id;
@@ -199,4 +206,34 @@ test("standard: an agent cannot rewrite its own APC file without the owner, even
   const step = env.core.store.runs.steps(sent.run.id).find((s) => s.tool === "file_write");
   assert.match(JSON.stringify(step), /written only by their path/);
   fs.unlinkSync(path.join(root, "cfg"));
+});
+
+test("edits on the project: an agent with none of its own writes and builds with a page in the turn; rm -rf still asks", async () => {
+  fs.mkdirSync(path.join(root, "scratch"), { recursive: true });
+  const set = await env.client.call("projects.update", { project, autonomy: "edits" });
+  assert.equal(set.project.autonomy, "edits");
+  assert.doesNotMatch(fs.readFileSync(path.join(root, ".apc", "project.json"), "utf8"), /autonomy/, "kept by APX");
+  const t = await chat("Builder");
+  const sent = await env.client.call("threads.send", { thread: t.id, text: "build it" });
+  let input: { id: string; tool?: string | undefined } | undefined;
+  for (let i = 0; i < 300 && !input; i++) {
+    input = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];
+    if (!input) await new Promise((r) => setTimeout(r, 20));
+  }
+  assert.equal(input?.tool, "shell");
+  assert.deepEqual(ran(sent.run.id), ["read_page", "file_write", "shell"]);
+  await env.client.call("runs.respond", { input: input?.id ?? "", decision: "deny" });
+  await env.settle(t.id);
+  assert.ok(fs.existsSync(path.join(root, "built.txt")));
+  assert.ok(fs.existsSync(path.join(root, "scratch")));
+
+  // An agent's own autonomy comes first, and null gives it back to the project.
+  const file = path.join(root, ".apc", "agents", "builder.md");
+  const own = await env.client.call("agents.update", { agent: agents.Builder ?? "", autonomy: "standard" });
+  assert.equal(own.autonomy, "standard");
+  assert.match(fs.readFileSync(file, "utf8"), /^autonomy: standard$/m);
+  const back = await env.client.call("agents.update", { agent: agents.Builder ?? "", autonomy: null });
+  assert.equal(back.autonomy, undefined);
+  assert.doesNotMatch(fs.readFileSync(file, "utf8"), /autonomy/);
+  await env.client.call("projects.update", { project, autonomy: null });
 });

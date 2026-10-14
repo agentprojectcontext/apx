@@ -7,13 +7,14 @@ import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } fr
 import { linkedWorktreeWritableDirs } from "./worktree.ts";
 
 const READ_ONLY_NOTE =
-  "[APX: this turn is read-only: outside content is in this session, or this agent asks before acting. Say so if a change is needed: the owner can make it, start a new chat, or give the agent total autonomy.]";
+  "[APX: this turn is read-only: outside content is in this session, or this agent asks before acting. Say so if a change is needed: the owner can make it, start a new chat, or let the agent accept edits.]";
 
 /** Whether Codex may edit and run commands in the folder this turn. See DECISIONS.md#d-057 */
 export function codexWrites(io: Pick<TurnIO, "thread" | "agent" | "outside">): boolean {
   if (!worksInFolder(io.thread) || io.thread.write !== "auto") return false;
   const autonomy = io.agent.autonomy ?? "standard";
-  if (autonomy === "total") return true;
+  // Accepting edits is what Codex's workspace-write sandbox does: its folder, whatever the session read.
+  if (autonomy === "total" || autonomy === "edits") return true;
   return autonomy !== "ask" && !io.outside();
 }
 

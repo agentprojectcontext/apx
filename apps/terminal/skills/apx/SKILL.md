@@ -100,7 +100,7 @@ Memory is for durable, curated facts, not transcripts.
 ```bash
 apx projects | projects register <folder> | projects sync [project]
 apx projects create "<Name>" [--path <folder>] [--kind company|software|…] [--desc "…"]   # no --path: a folder in APX's home
-apx projects set <project> [--name "…"] [--kind …] [--desc "…"]
+apx projects set <project> [--name "…"] [--kind …] [--desc "…"] [--autonomy ask|standard|edits|total]
 apx agents new <slug> "<Name>" [--project <id>] [--role "<role>"]
 apx agents set <agent> name=… role=…          # project agents are written to .apc/agents/<slug>.md
 apx agents clone <agent>… --project <id> [--rename]   # copy agents into a project; --rename: new free names

@@ -108,7 +108,8 @@ export function fileTools(store: Store, home: string): Tool[] {
   };
   /**
    * Writing in the chat's temp folder changes nothing of the owner's: it never waits for them. APC files and
-   * AGENTS.md define agents and their autonomy: unless the agent is on total autonomy, the owner says yes first.
+   * AGENTS.md define agents and their autonomy: unless the agent is on total autonomy, the owner says yes first,
+   * also when it accepts edits.
    */
   const confirm = (a: { path?: unknown }) =>
     typeof a.path !== "string"
@@ -116,7 +117,7 @@ export function fileTools(store: Store, home: string): Tool[] {
       : path.isAbsolute(a.path) && insideReal(scratchRoot(home), a.path)
         ? ("never" as const)
         : namesGuarded(a.path)
-          ? ("ask" as const)
+          ? ("always" as const)
           : ("untrusted" as const);
   return [
     defineTool({
@@ -176,6 +177,7 @@ export function fileTools(store: Store, home: string): Tool[] {
       }),
       effect: "local",
       confirm,
+      workspace: true,
       deadlineMs: 10_000,
       title: (a) => `Wrote ${String(a.path ?? "a file")}`,
       async run(a, ctx) {
@@ -218,6 +220,7 @@ export function fileTools(store: Store, home: string): Tool[] {
       }),
       effect: "local",
       confirm,
+      workspace: true,
       deadlineMs: 10_000,
       title: (a) => `Edited ${String(a.path ?? "a file")}`,
       async run(a, ctx) {

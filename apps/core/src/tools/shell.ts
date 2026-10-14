@@ -220,6 +220,7 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
       }),
       effect: "external",
       confirm: (a) => commandRisk(a.command, apxPort()),
+      workspace: true,
       local: (a) => !a.background && commandRisk(a.command, apxPort()) === "never",
       // Covers the longest foreground wait plus the time to stop the process.
       deadlineMs: 615_000,

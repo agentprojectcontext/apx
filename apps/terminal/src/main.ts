@@ -102,7 +102,8 @@ Usage:
                            Projects are folders with AGENTS.md / .apc/; their agents come from those files
   apx projects create "<Name>" [--path <folder>] [--kind personal|app|company|software|other] [--desc "…"]
                            A new project: in that folder (made if missing), else in a folder of its own in APX's home
-  apx projects set <project> [--name "…"] [--kind …] [--desc "…"]   Rename it or change its kind or description
+  apx projects set <project> [--name "…"] [--kind …] [--desc "…"] [--autonomy ask|standard|edits|total]
+                           Rename it, change its kind or description, or how far its agents go without asking
   apx projects rm <project>   Forget a project in APX; its folder and files are never deleted
   apx init [folder]       Make a folder (default: this one) an APC project and register it; writes only what is
                            missing (AGENTS.md, .apc/), never over an existing file
@@ -202,6 +203,7 @@ function argumentsOf() {
       tags: { type: "string" },
       role: { type: "string" },
       kind: { type: "string" },
+      autonomy: { type: "string" },
       path: { type: "string" },
       rename: { type: "boolean" },
       under: { type: "string" },

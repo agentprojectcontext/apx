@@ -827,3 +827,18 @@ untrusted. The trade: an agent that read a hostile page can now pass its words o
 limits it is unchanged: `always` actions still ask outside total autonomy, a delegated run works under the strictest
 autonomy up its chain, and each agent's own reading still taints its own turn.
 
+<a id="d-072"></a>
+## D-072 — 2026-10-14 — Autonomy is set per project, agents inherit it, and "accept edits" sits between standard and total
+A team building something in a project stopped at every file and command: standard autonomy asks for anything that
+writes once a command's output or a page is in the turn, and a developer reads command output all the time. The only
+way out was total, set agent by agent. Following Claude Code's modes, autonomy has a fourth level, `edits`: as
+standard, but the tools that work in the agent's folder (`file_write`, `file_edit`, `shell`, an outside harness's edit
+or command inside its folder) run without asking whatever the turn read; what always asks still does (destructive
+commands, commands that reach APX's API, APC files and AGENTS.md, now `always`), and so does what leaves the machine
+(messages, the browser, URLs with values). Codex writes in its sandbox under `edits`. A project has an autonomy
+(Project settings, `projects.update`, `apx projects set --autonomy`), the base project too for global agents, and an
+agent with none of its own takes its project's ("The project's: …" in its detail; `agents.update` with `autonomy:
+null` gives it back). The project's is kept in APX's database, not in `.apc/project.json`: a folder someone else
+wrote cannot raise it. A delegated run still works under the strictest autonomy up its chain. Claude Code's `auto`
+mode (a model judging each risky call) is not copied yet.
+

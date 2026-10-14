@@ -642,6 +642,14 @@ export const es: Partial<Record<MessageKey, string>> = {
   "project.settings.descriptionPlaceholder": "De qué se trata el proyecto, en una o dos líneas",
   "project.settings.kind": "Tipo",
   "project.settings.kindHint": "Les dice a los agentes qué clase de proyecto es.",
+  "project.settings.autonomy": "Autonomía de los agentes",
+  "project.settings.autonomyHint":
+    "Hasta dónde llegan sin preguntarte los agentes que no tienen una propia. La guarda APX, no la carpeta.",
+  "project.autonomy.ask.hint": "Te pide el OK para cada cosa que cambia algo.",
+  "project.autonomy.standard.hint": "Te pregunta lo importante cuando leyó algo de afuera (web, contactos).",
+  "project.autonomy.edits.hint":
+    "Escribe archivos y corre comandos en la carpeta sin preguntar; lo destructivo y lo que sale afuera sí pregunta.",
+  "project.autonomy.total.hint": "No te pregunta nada. Solo para proyectos en los que confiás del todo.",
   "project.settings.folder": "Carpeta",
   "project.settings.folderHint":
     "La usan los chats que trabajan en la carpeta, y su .apc/ guarda los agentes y la configuración.",

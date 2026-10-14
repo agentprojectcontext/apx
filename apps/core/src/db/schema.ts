@@ -287,6 +287,7 @@ export interface ProjectsTable {
   present: Generated<number>;
   memory_md: string | null;
   registered: Generated<number>;
+  autonomy: string | null;
 }
 
 export interface RoutineRunsTable {

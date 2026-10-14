@@ -7,11 +7,21 @@ export const Id = z.string().min(1).max(128);
 /** What a project is, as the owner picks it in its settings. A project's file may still name another kind. */
 export const ProjectKind = z.enum(["personal", "app", "company", "software", "other"]);
 
+/**
+ * `ask`: every call that changes something waits for the owner. `standard`: high-impact calls wait while untrusted
+ * content is in context. `edits`: as standard, but writing files and running commands in the folder it works in never
+ * wait, unless they always do (destructive ones, APC files). `total`: nothing waits (DECISIONS.md#d-047, #d-072).
+ */
+export const Autonomy = z.enum(["ask", "standard", "edits", "total"]);
+export type Autonomy = z.infer<typeof Autonomy>;
+
 /** The base project (no folder): the owner may name it, describe it and give it a kind, like any other. */
 export const BaseProject = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().max(500).optional(),
   kind: ProjectKind.optional(),
+  /** How far its agents go on their own when they set nothing themselves. Absent = standard. */
+  autonomy: Autonomy.optional(),
 });
 export type BaseProject = z.infer<typeof BaseProject>;
 
@@ -50,6 +60,8 @@ export const Project = z.object({
   /** Blob name from the design system catalog, used as the project's avatar. */
   blob: z.string().optional(),
   path: z.string().optional(),
+  /** How far its agents go on their own when they set nothing themselves; kept by APX, never in the folder. */
+  autonomy: Autonomy.optional(),
 });
 export type Project = z.infer<typeof Project>;
 
@@ -120,13 +132,6 @@ export const CatalogEngine = z.object({
 });
 export type CatalogEngine = z.infer<typeof CatalogEngine>;
 
-/**
- * `ask`: every call that changes something waits for the owner. `standard`: high-impact calls wait while untrusted
- * content is in context. `total`: only calls marked "always" wait.
- */
-export const Autonomy = z.enum(["ask", "standard", "total"]);
-export type Autonomy = z.infer<typeof Autonomy>;
-
 export const Agent = z.object({
   id: Id,
   name: z.string(),
@@ -151,7 +156,7 @@ export const Agent = z.object({
   harness: HarnessId.optional(),
   /** Tools (or groups: browser, widgets, agents, shell) it may use; absent = the default set. From `tools:`. */
   tools: z.array(z.string()).optional(),
-  /** How often it stops for the owner's yes. From `autonomy:`; absent = standard. */
+  /** How often it stops for the owner's yes. From `autonomy:`; absent = its project's (DECISIONS.md#d-072). */
   autonomy: Autonomy.optional(),
   /** Skills it works with (its catalog is narrowed to these). From `skills:`; absent = every skill it can see. */
   skills: z.array(z.string()).optional(),

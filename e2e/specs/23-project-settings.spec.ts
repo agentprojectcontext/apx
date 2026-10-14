@@ -24,10 +24,16 @@ test("a project's tabs count its agents and chats, and its settings rename it an
   await dialog.getByLabel("Nombre").fill("Northwind");
   await dialog.getByRole("combobox", { name: "Tipo" }).click();
   await page.getByRole("option", { name: /Empresa/ }).click();
+  // How far its agents go on their own: APX keeps it, the folder never does.
+  await dialog.getByRole("combobox", { name: "Autonomía de los agentes" }).click();
+  await page.getByRole("option", { name: /Acepta ediciones/ }).click();
   await dialog.getByRole("button", { name: "Guardar" }).click();
   await expect(page.getByRole("heading", { name: "Northwind", level: 1 })).toBeVisible();
   const saved = JSON.parse(fs.readFileSync(path.join(repo, ".apc", "project.json"), "utf8"));
   expect(saved).toMatchObject({ name: "Northwind", kind: "company" });
+  expect(saved.autonomy).toBeUndefined();
+  const listed = await rpc<{ projects: Array<{ id: string; autonomy?: string }> }>("projects.list");
+  expect(listed.projects.find((p) => p.id === project)?.autonomy).toBe("edits");
 
   // The base space has no folder: its settings point at making a project from one.
   await page.goto("/#project=~default&tab=overview");

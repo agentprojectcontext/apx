@@ -29,7 +29,7 @@ import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
 import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
-import { inherit } from "../tools/policy.ts";
+import { inherit, withProjectAutonomy } from "../tools/policy.ts";
 import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { harnessDir, scratchDir } from "../tools/shell.ts";
@@ -465,9 +465,10 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
     turn.audience.kind === "contact"
       ? new Set([...contactToolNames(turn.audience.person?.perms), ...(turn.web ? WEB_TOOLS : [])])
       : new Set<string>();
+  const ownAutonomy = (a: AgentRecord) => withProjectAutonomy(deps.store, a);
   const policy = inherit(
-    turn.agent,
-    callers,
+    ownAutonomy(turn.agent),
+    callers.map(ownAutonomy),
     sealed
       ? offered.filter((t) => forContact.has(t.name))
       : [...offered.filter((t) => !CONTACT_TOOLS.has(t.name)), ...bridge],

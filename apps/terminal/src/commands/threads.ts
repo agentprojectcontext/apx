@@ -1,5 +1,5 @@
 // apx threads / runs / agents / secrets: reading and steering what the core holds.
-import { ApprovalScope, type Author, type Message, ProjectKind } from "@apx/protocol";
+import { ApprovalScope, type Author, Autonomy, type Message, ProjectKind } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
 /** Who wrote a message, in one word: the agent's id, or the author's kind. */
@@ -117,11 +117,19 @@ function choiceLabel(c: { model?: string | undefined; router: boolean } | undefi
 }
 
 type ProjectFlags = {
+  autonomy?: string | undefined;
   path?: string | undefined;
   kind?: string | undefined;
   desc?: string | undefined;
   name?: string | undefined;
 };
+
+function autonomyOf(level: string | undefined): Autonomy | undefined {
+  if (level === undefined) return undefined;
+  const a = Autonomy.safeParse(level);
+  if (!a.success) throw new Error(`--autonomy is one of ${Autonomy.options.join(", ")}`);
+  return a.data;
+}
 
 function kindOf(kind: string | undefined): ProjectKind | undefined {
   if (kind === undefined) return undefined;
@@ -161,16 +169,22 @@ export async function projects(client: ApxClient, [sub, arg, ...more]: string[],
     return;
   }
   if (sub === "set") {
-    if (!arg || (o.name === undefined && o.kind === undefined && o.desc === undefined))
-      throw new Error('usage: apx projects set <project> [--name "…"] [--kind <kind>] [--desc "…"]');
+    if (!arg || (o.name === undefined && o.kind === undefined && o.desc === undefined && o.autonomy === undefined))
+      throw new Error(
+        'usage: apx projects set <project> [--name "…"] [--kind <kind>] [--desc "…"] [--autonomy <level>]',
+      );
     const kind = kindOf(o.kind);
+    const autonomy = autonomyOf(o.autonomy);
     const r = await client.call("projects.update", {
       project: arg,
       ...(o.name !== undefined ? { name: o.name } : {}),
       ...(kind ? { kind } : {}),
       ...(o.desc !== undefined ? { description: o.desc } : {}),
+      ...(autonomy ? { autonomy } : {}),
     });
-    console.log(`${r.project.name} (${r.project.id})${r.project.kind ? ` · ${r.project.kind}` : ""}`);
+    console.log(
+      `${r.project.name} (${r.project.id})${r.project.kind ? ` · ${r.project.kind}` : ""} · autonomy ${r.project.autonomy ?? "standard"}`,
+    );
     return;
   }
   if (sub === "sync") {
