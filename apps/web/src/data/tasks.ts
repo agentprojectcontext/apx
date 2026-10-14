@@ -109,7 +109,8 @@ export type TaskDetail = Omit<Result<"tasks.get">, "task">;
 export async function taskDetail(task: string): Promise<TaskDetail> {
   try {
     const { task: _t, ...detail } = await client.call("tasks.get", { task });
-    return detail;
+    // A core older than this panel sends neither: its task still opens, without them.
+    return { ...detail, consults: detail.consults ?? [], usage: detail.usage ?? [] };
   } catch {
     return { events: [], sessions: [], consults: [], usage: [] };
   }
