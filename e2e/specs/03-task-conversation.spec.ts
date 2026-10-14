@@ -125,6 +125,9 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
       .poll(async () => (await env.client.call("tasks.get", { task: task.id })).sessions.map((s) => s.agent_ids[0]))
       .toEqual([builder.id]);
     await expect(drawer.getByRole("button", { name: "Abrir conversación con Roby" })).toBeVisible();
+    // Its Work lists Roby's consult beside Builder's chat, and what every turn on it took.
+    await expect(drawer.locator(".taskwork__chat", { hasText: "Consulta" })).toContainText("Roby");
+    await expect(drawer.locator(".taskusage__total")).toContainText(/tokens de entrada · .* turnos/);
     expect((await env.client.call("threads.get", { thread: task.thread_id })).runs).toHaveLength(0);
     await expect(drawer.getByText("On it.", { exact: true })).toBeVisible();
     await expect(drawer.getByRole("button", { name: "Ver a Builder" }).first()).toBeVisible();

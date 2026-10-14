@@ -339,6 +339,23 @@
   flex: none;
   color: var(--apx-fg-subtle);
 }
+.taskwork__kind {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-2xs);
+}
+.taskusage {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--apx-text-sm);
+}
+.taskusage__model {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
 .taskwork__none {
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-sm);

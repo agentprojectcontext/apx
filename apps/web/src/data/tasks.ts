@@ -1,5 +1,5 @@
 // The office board: tasks (tasks.*), kept current by task.updated events.
-import type { Params, Task, TaskColumn, TaskEvent, TaskState, Thread } from "@apx/protocol";
+import type { Params, Result, Task, TaskColumn, TaskState } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
@@ -103,11 +103,14 @@ export async function commentTask(task: string, text: string): Promise<boolean> 
 }
 
 /** A task's history and the chats its agents worked it in. */
-export async function taskDetail(task: string): Promise<{ events: TaskEvent[]; sessions: Thread[] }> {
+/** A task's history, the chats and consults it was worked in, and the tokens they took. */
+export type TaskDetail = Omit<Result<"tasks.get">, "task">;
+
+export async function taskDetail(task: string): Promise<TaskDetail> {
   try {
-    const { events, sessions } = await client.call("tasks.get", { task });
-    return { events, sessions };
+    const { task: _t, ...detail } = await client.call("tasks.get", { task });
+    return detail;
   } catch {
-    return { events: [], sessions: [] };
+    return { events: [], sessions: [], consults: [], usage: [] };
   }
 }

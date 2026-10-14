@@ -1,4 +1,4 @@
-import type { Message, Task, TaskEvent, Thread } from "@apx/protocol";
+import type { Message, Task, TaskEvent } from "@apx/protocol";
 import { AgentAvatar, Badge, Button, Icons, Select, Skeleton, Tabs, TagInput, Textarea } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { QuoteContext, quoteBlock } from "../chat/quote.ts";
@@ -11,7 +11,7 @@ import { loadThread } from "../data/actions.ts";
 import { baseName, blobOf } from "../data/identity.ts";
 import { useOwnerName } from "../data/owner.ts";
 import { useData } from "../data/state.ts";
-import { closeTask, settleTask, taskDetail, updateTask, useTasks } from "../data/tasks.ts";
+import { closeTask, settleTask, type TaskDetail, taskDetail, updateTask, useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { historyLines } from "./history.ts";
 import { mentionToken } from "./mentions.ts";
@@ -26,7 +26,7 @@ import {
   ReminderField,
 } from "./TaskFields.tsx";
 import { ColumnDot, ColumnHelp, columnLabel, KindHelp } from "./TaskForms.tsx";
-import { TaskWork } from "./TaskWork.tsx";
+import { TaskUsage, TaskWork } from "./TaskWork.tsx";
 import { pickerValue, type Reminder, remindAt, reminderOf } from "./when.ts";
 
 /**
@@ -38,9 +38,9 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
   const thread = useData((s) => s.threads[task.thread_id]);
   const load = useData((s) => s.threadLoad[task.thread_id]);
   // Another task's history never shows while this one's is read.
-  const [read, setRead] = useState<{ task: string; events: TaskEvent[]; sessions: Thread[] }>();
+  const [read, setRead] = useState<TaskDetail & { task: string }>();
   const events = read?.task === task.id ? read.events : undefined;
-  const sessions = read?.task === task.id ? read.sessions : undefined;
+  const detail = read?.task === task.id ? read : undefined;
   const [tab, setTab] = useState("chat");
   const [text, setText] = useState("");
   const [focus, setFocus] = useState(0);
@@ -92,7 +92,7 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
     <Drawer className="taskpanel" label={task.title} title={task.title} onClose={onClose}>
       <div className="taskpanel__body" ref={body}>
         <StateBar task={task} />
-        <Properties task={task} sessions={sessions} />
+        <Properties task={task} detail={detail} />
         <Description task={task} />
         <Tabs
           variant="pill"
@@ -216,7 +216,7 @@ function CommitmentActions({ task }: { task: Task }) {
 }
 
 /** Every property, editable where it is shown; changes save at once. */
-function Properties({ task, sessions }: { task: Task; sessions: Thread[] | undefined }) {
+function Properties({ task, detail }: { task: Task; detail: TaskDetail | undefined }) {
   const t = useT();
   const due = pickerValue(task.due_at);
   const remind = pickerValue(task.remind_at);
@@ -265,8 +265,13 @@ function Properties({ task, sessions }: { task: Task; sessions: Thread[] | undef
         />
       </Prop>
       <Prop label={t("tasks.work")}>
-        <TaskWork task={task} sessions={sessions} />
+        <TaskWork task={task} sessions={detail?.sessions} consults={detail?.consults} />
       </Prop>
+      {detail && detail.usage.length > 0 && (
+        <Prop label={t("tasks.usage")}>
+          <TaskUsage usage={detail.usage} />
+        </Prop>
+      )}
       <Prop label={t("commitments.due")}>
         <DueField
           size="sm"

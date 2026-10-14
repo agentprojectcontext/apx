@@ -55,7 +55,20 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
     },
     "tasks.get": ({ task }, ctx) => {
       const t = visible(task, ctx);
-      return { task: t, events: store.tasks.events(t.id), sessions: store.threads.byTask(t.id) };
+      const sessions = store.threads.byTask(t.id);
+      const consults = store.threads
+        .children(t.thread_id)
+        .flatMap((id) => store.threads.get(id) ?? [])
+        .filter((c) => store.threads.context(c.id).consult);
+      const all = [t.thread_id, ...sessions.map((s) => s.id), ...consults.map((c) => c.id)];
+      // One line per model, whichever loop ran it.
+      const usage = [...Map.groupBy(store.runs.usage("", undefined, all), (u) => u.model)].map(([model, rows]) => ({
+        model,
+        runs: rows.reduce((n, r) => n + r.runs, 0),
+        input: rows.reduce((n, r) => n + r.input, 0),
+        output: rows.reduce((n, r) => n + r.output, 0),
+      }));
+      return { task: t, events: store.tasks.events(t.id), sessions, consults, usage };
     },
     "tasks.create": (p, ctx) => {
       checkColumn(store, p.status);

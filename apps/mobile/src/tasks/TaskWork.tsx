@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ago } from "../format";
 import { isWorking } from "../hooks/chatSelectors";
-import type { Task, Thread, Workspace } from "../hooks/useWorkspace";
+import type { Task, TaskUsage, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { AgentAvatar, BottomSheet, ListRow, Spinner, useType } from "../ui/kit";
 
@@ -14,6 +14,7 @@ export function WorkSheet({
   task,
   data,
   sessions: given,
+  usage: givenUsage,
   load,
   openThread,
   onClose,
@@ -21,19 +22,29 @@ export function WorkSheet({
   task: Task;
   data: Workspace;
   sessions?: Thread[];
-  load: (taskId: string) => Promise<{ sessions: Thread[] }>;
+  usage?: TaskUsage[];
+  load: (taskId: string) => Promise<{ sessions: Thread[]; usage?: TaskUsage[] }>;
   openThread: (id: string) => void;
   onClose: () => void;
 }) {
   const type = useType();
   const [read, setRead] = useState<Thread[]>();
+  const [readUsage, setReadUsage] = useState<TaskUsage[]>();
   const sessions = given ?? read;
+  const usage = givenUsage ?? readUsage ?? [];
   useEffect(() => {
     if (given) return;
     void load(task.id)
-      .then((detail) => setRead(detail.sessions))
+      .then((detail) => {
+        setRead(detail.sessions);
+        setReadUsage(detail.usage);
+      })
       .catch(() => setRead([]));
   }, [given, load, task.id]);
+  const tokens = usage.reduce((a, u) => ({ input: a.input + u.input, output: a.output + u.output }), {
+    input: 0,
+    output: 0,
+  });
   return (
     <BottomSheet title={t("tkWork")} onClose={onClose}>
       {!sessions ? (
@@ -55,6 +66,11 @@ export function WorkSheet({
       ) : (
         <Text style={[type.muted, s.none]}>{t(task.assignee ? "tkWorkNotYet" : "tkWorkNone")}</Text>
       )}
+      {tokens.input + tokens.output ? (
+        <Text style={[type.meta, s.none]}>
+          {t("tkUsage", { input: tokens.input.toLocaleString(), output: tokens.output.toLocaleString() })}
+        </Text>
+      ) : null}
     </BottomSheet>
   );
 }
@@ -68,7 +84,7 @@ function WorkRow({ session, data, onPress }: { session: Thread; data: Workspace;
   const working = isWorking(chat.state);
   return (
     <ListRow
-      label={name}
+      label={session.kind === "a2a" ? `${name} · ${t("tkConsult")}` : name}
       sub={chat.preview || chat.title}
       leading={<AgentAvatar name={name} blob={agent?.blob} id={agent?.id ?? name} size={32} />}
       trailing={

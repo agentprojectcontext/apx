@@ -91,6 +91,8 @@ export const en = {
   defaultProject: "Default",
   groupOf: "Group · {n} agents",
   taskChats: "Task · {n} chats",
+  tkConsult: "consult",
+  tkUsage: "Usage: {input} tokens in · {output} out",
   openSubthread: "Open the conversation with {name}",
   inApp: "Web",
   searchChats: "Search chats",

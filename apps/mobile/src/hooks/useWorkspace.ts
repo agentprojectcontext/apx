@@ -54,6 +54,8 @@ export type Thread = {
   unread: number;
   updated_at: string;
 };
+/** The tokens a task's turns took with one model. */
+export type TaskUsage = { model: string; runs: number; input: number; output: number };
 export type Task = {
   id: string;
   title: string;
@@ -459,9 +461,13 @@ export function useWorkspace(creds: Creds) {
    */
   const taskDetail = useCallback(
     async (taskId: string) => {
-      const result = await rpc<{ task: Task; events: TaskEvent[]; sessions: Thread[] }>(client, "tasks.get", {
-        task: taskId,
-      });
+      const result = await rpc<{
+        task: Task;
+        events: TaskEvent[];
+        sessions: Thread[];
+        consults?: Thread[];
+        usage?: TaskUsage[];
+      }>(client, "tasks.get", { task: taskId });
       putTask(result.task);
       const conversation = await rpc<{ messages: Message[] }>(client, "threads.get", {
         thread: result.task.thread_id,
@@ -469,7 +475,11 @@ export function useWorkspace(creds: Creds) {
       return {
         events: result.events,
         comments: taskComments(conversation?.messages ?? []),
-        sessions: result.sessions,
+        // The teammates asked on it are part of its work too, in the order they happened.
+        sessions: [...result.sessions, ...(result.consults ?? [])].sort((a, b) =>
+          a.updated_at.localeCompare(b.updated_at),
+        ),
+        usage: result.usage ?? [],
       };
     },
     [client, putTask],

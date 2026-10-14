@@ -211,11 +211,14 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       return { runs: Number(r?.n ?? 0), tokens: Number(r?.t ?? 0) };
     },
     /** Turns and tokens by model since `since` (optionally in one project's threads). */
+    /** Tokens and turns by model since `since`: of a project, of one chat, or of several chats (a task's). */
     usage(
       since: string,
       projectId?: string,
-      threadId?: string,
+      threadId?: string | string[],
     ): Array<{ model: string; harness: string; runs: number; input: number; output: number }> {
+      const threads = threadId === undefined ? undefined : [threadId].flat();
+      if (threads && !threads.length) return [];
       const rows = all(
         qb
           .selectFrom("runs as r")
@@ -230,7 +233,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .where("r.model", "is not", null)
           .where("r.started_at", ">=", since)
           .$if(!!projectId, (q) => q.where("t.project_id", "=", projectId as string))
-          .$if(!!threadId, (q) => q.where("r.thread_id", "=", threadId as string))
+          .$if(!!threads, (q) => q.where("r.thread_id", "in", threads as string[]))
           .groupBy(["r.model", "r.harness"])
           .orderBy("n", "desc"),
       );

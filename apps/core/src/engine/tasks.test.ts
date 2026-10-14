@@ -112,6 +112,14 @@ test("an @mention of a teammate is a consult shown as a card on the task, never 
       ["completed", "Done my part, @roby your turn."],
     ],
   );
+  // The task lists its consults and adds up what every turn on it took.
+  const detail = await env.client.call("tasks.get", { task: t.id });
+  assert.equal(detail.consults.length, 3);
+  assert.equal(
+    detail.usage.reduce((n, u) => n + u.runs, 0),
+    3,
+    `every consult's turn counts: ${JSON.stringify(detail.usage)}`,
+  );
   const input = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("@vera can you start this?"));
   assert.match(
     String(input?.messages.at(-1)?.content),

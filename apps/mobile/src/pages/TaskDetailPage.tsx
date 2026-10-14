@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { KeyboardAvoidingView, Pressable, type StyleProp, Text, TextInput, type TextStyle, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ago, dueWhen } from "../format";
-import type { Task, Thread, Workspace } from "../hooks/useWorkspace";
+import type { Task, TaskUsage, Thread, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import type { TaskEvent } from "../protocol";
 import type { TaskComment } from "../tasks/comments";
@@ -78,7 +78,12 @@ export function TaskDetailPage({
   const type = useType();
   const theme = useTheme();
   const s = useStyles();
-  const [detail, setDetail] = useState<{ events: TaskEvent[]; comments: TaskComment[]; sessions: Thread[] }>();
+  const [detail, setDetail] = useState<{
+    events: TaskEvent[];
+    comments: TaskComment[];
+    sessions: Thread[];
+    usage?: TaskUsage[];
+  }>();
   const [work, setWork] = useState(false);
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState<string>();
@@ -236,6 +241,7 @@ export function TaskDetailPage({
           task={task}
           data={data}
           sessions={sessions}
+          {...(detail?.usage ? { usage: detail.usage } : {})}
           load={actions.detail}
           openThread={openThread}
           onClose={() => setWork(false)}

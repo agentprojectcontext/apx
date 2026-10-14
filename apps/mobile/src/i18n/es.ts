@@ -94,6 +94,8 @@ export const es: Record<Key, string> = {
   defaultProject: "Default",
   groupOf: "Grupo · {n} agentes",
   taskChats: "Tarea · {n} chats",
+  tkConsult: "consulta",
+  tkUsage: "Consumo: {input} tokens de entrada · {output} de salida",
   openSubthread: "Abrir la conversación con {name}",
   inApp: "Web",
   searchChats: "Buscar chats",
