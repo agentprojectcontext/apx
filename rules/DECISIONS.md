@@ -868,3 +868,12 @@ comments summon no one, and a consult's answer asks nobody (this replaces D-073'
 open: it may still create and assign tasks, which start their agent's own work, bounded by the turn's depth
 (`MAX_MENTION_DEPTH`). The owner's agent, and an agent working its own task, can still delegate and consult.
 
+<a id="d-075"></a>
+## D-075 — 2026-10-14 — The core gives agents their own `apx`
+APX's guides teach agents to use the `apx` command (projects, agents, tasks), but it only existed after the owner
+ran "use v2 as apx" or install.sh, and an agent's shell does not read the owner's profile, so on a desktop install
+agents got `apx: command not found` and stopped. At start the core writes `<home>/bin/apx` (`apx.cmd` on Windows): a
+launcher of its own terminal with this core's home and port (never its token, which the CLI reads from the home as
+for the owner) and puts that folder first on the PATH of everything agents run (shell commands, MCP servers,
+Claude Code, Codex, ACP agents). Running `apx` from a shell still asks the owner as before (D-069).
+

@@ -34,6 +34,8 @@ import { wakeAfterCommand } from "./engine/terminal-wake.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
 import { errorMessage } from "./errors.ts";
+import { thisRunner, writeApxCommand } from "./harness/apx-command.ts";
+import { useApxCommand } from "./harness/env.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { createIdleTrim } from "./idle-memory.ts";
@@ -394,6 +396,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const transport = await listen(config, { dispatch, store, log, identity, broker, bus });
   listening = transport.port;
+  // Agents' shells and harnesses reach this core with `apx`, whatever the owner's PATH holds.
+  try {
+    useApxCommand(writeApxCommand(config.home, listening, thisRunner()));
+  } catch (err) {
+    log.warn({ err: errorMessage(err) }, "apx command not written");
+  }
   const url = transport.url;
   selfUrl = url;
   engine.start();
@@ -420,6 +428,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     channels,
     scheduler,
     async close() {
+      useApxCommand(undefined);
       idleTrim.stop();
       terminals.closeAll();
       updates.stop();
