@@ -3,7 +3,7 @@ import { AgentAvatar, IconButton, Icons, Spinner } from "@apx/ui";
 import { useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { blobOf, isWorking } from "../data/identity.ts";
-import { useData } from "../data/state.ts";
+import { useShownAgents } from "../data/state.ts";
 import { useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
@@ -18,7 +18,7 @@ const cx = (...c: Array<string | false>) => c.filter(Boolean).join(" ");
 export function TaskBundle({ taskId, threads, selected }: { taskId: string; threads: Thread[]; selected?: string }) {
   const t = useT();
   const task = useTasks((s) => s.tasks[taskId]);
-  const agents = useData((s) => s.agents);
+  const agents = useShownAgents();
   const [open, setOpen] = useState(() => threads.some((th) => th.id === selected));
   const running = threads.some((th) => isWorking(th.state));
   const waiting = threads.some((th) => th.state === "input-required");

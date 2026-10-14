@@ -164,6 +164,10 @@ export function agentsRepo({ one, all, run }: Sql) {
       run(qb.updateTable("agents").set({ archived: 1 }).where("id", "=", id));
     },
     /** Archived agents (all, or one project's): the owner can bring each back or delete it for good. */
+    /** Agents archived or deleted for good: kept only for the name and face their chats show. */
+    former(): AgentRecord[] {
+      return all(qb.selectFrom("agents").selectAll().where("archived", "!=", 0).orderBy("name")).map(toAgent);
+    },
     archived(projectId?: string): AgentRecord[] {
       let q = qb.selectFrom("agents").selectAll().where("archived", "=", 1);
       if (projectId) q = q.where("project_id", "=", projectId);

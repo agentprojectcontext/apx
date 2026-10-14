@@ -241,7 +241,8 @@ export const appMethods = {
   },
   "agents.list": {
     params: z.object({}).strict(),
-    result: z.object({ agents: z.array(Agent) }),
+    /** `former`: agents archived or deleted, so the chats they spoke in still show their name and face. */
+    result: z.object({ agents: z.array(Agent), former: z.array(Agent).default([]) }),
     effect: false,
   },
   /**

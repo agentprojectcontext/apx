@@ -14,7 +14,7 @@ import {
   projectTone,
   routineName,
 } from "../data/identity.ts";
-import { useData } from "../data/state.ts";
+import { useData, useShownAgents } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { type ActivityGroup, bundleTasks, type ProjectTree, type TimeBucket } from "./groupThreads.ts";
@@ -49,7 +49,7 @@ const BUCKET: Record<TimeBucket, MessageKey> = {
 /** 1b · Tree: project → agent → chats. Everything explicit, one click away. */
 export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: string | undefined }) {
   const t = useT();
-  const agents = useData((s) => s.agents);
+  const agents = useShownAgents();
   const threads = useData((s) => s.threads);
   const engines = useData((s) => s.engines);
   const engineLabel = (id: string) => engines.find((e) => e.id === id)?.label ?? id;
@@ -162,7 +162,7 @@ export function SessionRow({
 /** 1c · Activity: chats by time, with what runs now on top; project and agent as each row's context. */
 export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; selected: string | undefined }) {
   const t = useT();
-  const agents = useData((s) => s.agents);
+  const agents = useShownAgents();
   const projects = useData((s) => s.projects);
   return (
     <>

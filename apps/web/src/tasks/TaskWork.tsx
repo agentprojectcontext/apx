@@ -2,7 +2,7 @@ import type { Result, Task, Thread } from "@apx/protocol";
 import { AgentAvatar, Icons, Skeleton, Spinner } from "@apx/ui";
 import { formatNumber, shortWhen } from "../common/format.ts";
 import { blobOf, isWorking } from "../data/identity.ts";
-import { useData } from "../data/state.ts";
+import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 
@@ -20,7 +20,7 @@ export function TaskWork({
   consults?: Thread[] | undefined;
 }) {
   const t = useT();
-  const agents = useData((s) => s.agents);
+  const agents = useShownAgents();
   const live = useData((s) => s.threads);
   if (!sessions) return <Skeleton width={180} />;
   if (!sessions.length && !consults.length)

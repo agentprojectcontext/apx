@@ -19,8 +19,8 @@ const STATE: Record<RunState, { status: NonNullable<SubthreadCardProps["status"]
 /** Another agent's (or a worker's) part in this answer: what it was asked, its state and the report it gave back. */
 export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "subthread" }>; from?: Agent }) {
   const t = useT();
-  const target = useData((s) => s.agents[part.agent_id]);
-  const asker = useData((s) => (part.asked_by ? s.agents[part.asked_by] : undefined));
+  const target = useData((s) => s.agents[part.agent_id] ?? s.former[part.agent_id]);
+  const asker = useData((s) => (part.asked_by ? (s.agents[part.asked_by] ?? s.former[part.asked_by]) : undefined));
   const ownerName = useOwnerName();
   const st = STATE[part.state];
   const name = part.worker ?? target?.name ?? part.agent_id;

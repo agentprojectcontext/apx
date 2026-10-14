@@ -5,7 +5,7 @@ import { ReactionList } from "../channels/MessageMarks.tsx";
 import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { blobOf, isWorking, routineName, threadAgent } from "../data/identity.ts";
-import { useData } from "../data/state.ts";
+import { useData, useShownAgents } from "../data/state.ts";
 import { useLanguage, useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AgentTurn } from "./AgentTurn.tsx";
@@ -29,7 +29,7 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
   const t = useT();
   const lang = useLanguage();
   const messages = useData((s) => s.messages[thread.id] ?? EMPTY);
-  const agents = useData((s) => s.agents);
+  const agents = useShownAgents();
   const engineLabel = useEngineLabel(thread.engine);
   const engine = thread.engine && engineLabel ? { id: thread.engine, label: engineLabel } : undefined;
   const showTools = useNav((s) => s.tools);
@@ -37,7 +37,16 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
-  const multiAgent = thread.kind === "a2a" || thread.kind === "task" || thread.agent_ids.length > 1;
+  // Each answer says who gave it when more than one agent speaks here: a group, a sub-thread, a task, or a chat where
+  // another agent's answer arrived (a delegation's result).
+  const multiAgent = useMemo(
+    () =>
+      thread.kind === "a2a" ||
+      thread.kind === "task" ||
+      thread.agent_ids.length > 1 ||
+      new Set(messages.flatMap((m) => (m.author.kind === "agent" ? [m.author.id] : []))).size > 1,
+    [thread.kind, thread.agent_ids.length, messages],
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: day labels are re-made when the language changes
   const rows = useMemo(() => {

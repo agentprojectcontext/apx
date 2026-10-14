@@ -86,7 +86,11 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
   };
 
   return {
-    "agents.list": () => ({ agents: store.agents.list().map(publicAgent) }),
+    "agents.list": () => ({
+      agents: store.agents.list().map(publicAgent),
+      // A deleted agent's prompt and settings are gone already; what is left is who it was.
+      former: store.agents.former().map(publicAgent),
+    }),
     "agents.tools": () => ({ tools: toolCatalog(tools) }),
     "agents.get": ({ agent }) => {
       const a = store.agents.get(agent);

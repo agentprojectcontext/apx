@@ -21,7 +21,7 @@ import {
   threadAgent,
 } from "../data/identity.ts";
 import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
-import { useData } from "../data/state.ts";
+import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { archivedThreads, bundleTasks, groupByAgent, groupByProject, groupByTime } from "./groupThreads.ts";
@@ -36,7 +36,7 @@ export function InboxList() {
   const projectId = useNav((s) => (s.view === "project" ? s.projectId : undefined));
   const threadId = useNav((s) => s.threadId);
   const threads = useData((s) => s.threads);
-  const agents = useData((s) => s.agents);
+  const agents = useShownAgents();
   const projects = useData((s) => s.projects);
   const ready = useData((s) => s.ready);
   const offline = useData((s) => s.connection === "offline");

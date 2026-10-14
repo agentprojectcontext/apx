@@ -23,6 +23,7 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
   const thread = stored ?? fresh;
   const load = useData((s) => (threadId ? s.threadLoad[threadId] : undefined));
   const agents = useData((s) => s.agents);
+  const former = useData((s) => s.former);
   const visible = usePageVisible();
   const offline = useData((s) => s.connection === "offline");
 
@@ -86,10 +87,12 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
     );
   }
   const agent = threadAgent(thread, agents);
+  // An archived or deleted agent's old chat still shows who it was.
+  const shown = agent ?? threadAgent(thread, former);
   const readOnly = thread.kind === "a2a" || thread.parent_id != null;
   return (
     <section className="chat" aria-label={thread.title}>
-      <ChatHeader thread={thread} agent={agent} wide={wideHeader} compact={compact} />
+      <ChatHeader thread={thread} agent={shown} wide={wideHeader} compact={compact} />
       <Transcript thread={thread} />
       {readOnly ? (
         <div className="chat__readonly">

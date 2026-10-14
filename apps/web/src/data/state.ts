@@ -12,6 +12,7 @@ import type {
   TabInfo,
   Thread,
 } from "@apx/protocol";
+import { useMemo } from "react";
 import { createStore, useSlice } from "./createStore.ts";
 
 export type Connection = "connecting" | "online" | "offline";
@@ -26,6 +27,8 @@ export type DataState = {
   /** First bootstrap finished (agents, projects, threads, surfaces). */
   ready: boolean;
   agents: Record<string, Agent>;
+  /** Agents archived or deleted: only so the chats they spoke in show their name and face. */
+  former: Record<string, Agent>;
   projects: Project[];
   /** The base project's name, description and kind, as the owner set them. */
   base: BaseProject;
@@ -52,6 +55,7 @@ export const data = createStore<DataState>({
   error: undefined,
   ready: false,
   agents: {},
+  former: {},
   projects: [],
   base: { name: "Default" },
   threads: {},
@@ -69,6 +73,16 @@ export const data = createStore<DataState>({
 
 export function useData<T>(select: (s: DataState) => T): T {
   return useSlice(data, select);
+}
+
+/**
+ * Agents to name and show in chats and lists: today's, plus the archived or deleted ones their old chats still
+ * speak with. Never for pickers or sending: a former agent cannot be asked anything.
+ */
+export function useShownAgents(): Record<string, Agent> {
+  const agents = useData((s) => s.agents);
+  const former = useData((s) => s.former);
+  return useMemo(() => ({ ...former, ...agents }), [agents, former]);
 }
 
 /** Insert or replace a message, keeping seq order and dropping optimistic placeholders it supersedes. */
