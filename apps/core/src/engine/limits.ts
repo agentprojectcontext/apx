@@ -1,8 +1,11 @@
 // Every limit on agents acting on their own, in one place.
 import type { Store } from "../domain/store.ts";
 
-/** How deep delegations nest: the owner's agent → a helper → the helper's helper. */
-export const MAX_DEPTH = 2;
+/**
+ * How deep delegations nest: the owner's agent → a helper, and no further. An agent answering another one (a
+ * delegation, a consult) does the work itself and asks nobody else (DECISIONS.md#d-074).
+ */
+export const MAX_DEPTH = 1;
 /** Delegations running at once from one thread. */
 export const MAX_ACTIVE_DELEGATIONS = 3;
 /** How long a delegated run may work. */

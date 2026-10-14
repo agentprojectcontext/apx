@@ -205,6 +205,20 @@ test("delegate runs the other agent in a sub-thread; its answer comes back as th
   );
 });
 
+test("an agent answering another one is not offered delegate: it does the work itself and asks no one else", async () => {
+  await env.client.call("threads.send", { thread: "home", text: "research A2A again" });
+  await env.settle("home");
+  const scout = llm.calls.findLast((c) => String(c.messages[0]?.content).startsWith("You are Scout"));
+  assert.ok(scout, "Scout ran");
+  const names = scout.tools.map((tool) => tool.function.name);
+  assert.ok(!names.includes("delegate"), `delegate offered to a delegated run: ${names.join(", ")}`);
+  const roby = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).includes("research A2A again"));
+  assert.ok(
+    roby?.tools.some((tool) => tool.function.name === "delegate"),
+    "the owner's own chat may delegate",
+  );
+});
+
 test("a delegation that outlives the wait comes back as a durable input and wakes the caller", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "async" });
   await env.client.call("threads.send", { thread: t.id, text: "delegate slowly" });

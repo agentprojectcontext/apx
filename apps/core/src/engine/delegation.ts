@@ -132,8 +132,8 @@ export function createDelegations(deps: {
     async delegate(from: Caller, req: DelegateTo, task: string, waitMs: number): Promise<string> {
       const parentThread = store.threads.get(from.run.thread_id);
       if (!parentThread) return "refused: the thread is gone";
-      if (ancestors(store, parentThread.id).length >= MAX_DEPTH)
-        return "refused: delegation depth limit reached; do it yourself.";
+      if (parentThread.kind === "a2a" || ancestors(store, parentThread.id).length >= MAX_DEPTH)
+        return "refused: you are answering another agent, so you do it yourself and ask no one else.";
       // Sessions are stored under a slug of the name the caller gave: look them up the same way (or by id).
       const existing = req.session
         ? (store.threads.session(parentThread.id, slug(req.session)) ??

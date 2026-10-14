@@ -151,8 +151,8 @@ function consult(
   });
 }
 
-/** A consult ended: its card in the task's conversation shows the answer, and whoever the answer @mentions is asked. */
-function afterConsult(store: Store, admit: AdmitFn, run: RunRecord, consulted: { task: string; card: string }): void {
+/** A consult ended: its card in the task's conversation shows the answer; it asks no one else. */
+function afterConsult(store: Store, run: RunRecord, consulted: { task: string; card: string }): void {
   const task = store.tasks.get(consulted.task);
   const card = store.messages.get(consulted.card);
   const answer = textOf(store, run);
@@ -166,16 +166,8 @@ function afterConsult(store: Store, admit: AdmitFn, run: RunRecord, consulted: {
   if (!task) return;
   store.tasks.touched(task.id, run.agent_id, "update");
   if (run.state !== "completed" || !answer) return;
+  // A consult answers and stops: whoever it @mentions is not asked (DECISIONS.md#d-074).
   taskCommentAttention(store, task, answer, run.agent_id);
-  const author = store.agents.get(run.agent_id);
-  askMentioned(store, admit, store.tasks.get(task.id) ?? task, answer, {
-    kind: "agent",
-    id: run.agent_id,
-    name: author?.name ?? run.agent_id,
-    thread_id: run.thread_id,
-    run_id: run.id,
-    depth: run.depth + 1,
-  });
 }
 
 /** The final answer of a run, as text. */
@@ -205,7 +197,7 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): voi
   const thread = store.threads.get(run.thread_id);
   const consulted = thread?.kind === "a2a" ? store.threads.context(thread.id).consult : undefined;
   if (consulted) {
-    afterConsult(store, admit, run, consulted);
+    afterConsult(store, run, consulted);
     return;
   }
   const task = thread?.task_id ? store.tasks.get(thread.task_id) : undefined;

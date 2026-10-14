@@ -80,44 +80,35 @@ test("a task keeps its history: created, moved, assigned, done, reopened", async
   );
 });
 
-test("an @mention of a teammate is a consult shown as a card on the task, never a chat of its own; the cascade stops", async () => {
+test("an @mention of a teammate is a consult shown as a card on the task; the consulted agent asks no one else", async () => {
   const t = await env.client.call("tasks.create", { title: "Plan the launch", project });
   const r = await env.client.call("tasks.comment", { task: t.id, text: "@vera can you start this?" });
   assert.equal(r.runs.length, 1);
   const { sessions, runs } = await settleTask(t.id);
-  // Owner → Vera (0) → Roby (1) → Vera (2), then no more: three consults under the task, no work chat for anyone.
+  // Owner → Vera, and there it stops: her answer mentions Roby, but a consult answers and asks nobody (D-074).
   assert.deepEqual(sessions, []);
-  assert.equal(runs.length, 3);
+  assert.equal(runs.length, 1);
   const consults = env.core.store.threads.children(t.thread_id).map((id) => env.core.store.threads.get(id));
   assert.deepEqual(
     consults.map((c) => [c?.kind, c?.agent_ids[0]]),
-    [
-      ["a2a", "vera"],
-      ["a2a", "roby"],
-      ["a2a", "vera"],
-    ],
+    [["a2a", "vera"]],
   );
   const conversation = await env.client.call("threads.get", { thread: t.thread_id });
   assert.equal(conversation.runs.length, 0);
   assert.deepEqual(conversation.thread.agent_ids, ["roby", "vera"], "whoever spoke is listed on the conversation");
-  // The task shows the owner's comment and one card per consult, with the answer: nothing copied twice.
-  const { messages } = await env.client.call("threads.get", { thread: t.thread_id });
-  assert.deepEqual(await commentsOf(t.thread_id), ["user", "vera", "roby", "vera"]);
-  const cards = messages.flatMap((m) => m.parts.filter((p) => p.type === "subthread"));
+  // The task shows the owner's comment and the consult's card with its answer: nothing copied twice.
+  assert.deepEqual(await commentsOf(t.thread_id), ["user", "vera"]);
+  const cards = conversation.messages.flatMap((m) => m.parts.filter((p) => p.type === "subthread"));
   assert.deepEqual(
     cards.map((c) => c.type === "subthread" && [c.state, c.summary]),
-    [
-      ["completed", "Done my part, @roby your turn."],
-      ["completed", "Thanks, back to you @vera."],
-      ["completed", "Done my part, @roby your turn."],
-    ],
+    [["completed", "Done my part, @roby your turn."]],
   );
   // The task lists its consults and adds up what every turn on it took.
   const detail = await env.client.call("tasks.get", { task: t.id });
-  assert.equal(detail.consults.length, 3);
+  assert.equal(detail.consults.length, 1);
   assert.equal(
     detail.usage.reduce((n, u) => n + u.runs, 0),
-    3,
+    1,
     `every consult's turn counts: ${JSON.stringify(detail.usage)}`,
   );
   const input = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("@vera can you start this?"));

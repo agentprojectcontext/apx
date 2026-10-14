@@ -857,3 +857,14 @@ An agent assigning a task or @mentioning a teammate no longer waits for the owne
 turn (command output always is, for a developer), as `delegate` never did: the teammate's turn runs under its own
 autonomy, gated where it acts.
 
+<a id="d-074"></a>
+## D-074 — 2026-10-14 — An agent answering another one asks no one else
+Delegations were capped at two levels counted by sub-threads, but a task's work chat has no parent thread, so every
+hop through the board started the count again (owner's agent → orchestrator → a task → its agent delegating → …);
+real runs reached depth 3, and a consult's answer @mentioning someone asked them too, two hops deep. Now the rule is
+one hop: an agent working for another one (a delegation's sub-thread, a consult on a task) does the work itself and
+calls nobody. It is not offered `delegate` (`MAX_DEPTH` 1), `delegate` refuses from an `a2a` thread, its task
+comments summon no one, and a consult's answer asks nobody (this replaces D-073's two-hop cascade). The board stays
+open: it may still create and assign tasks, which start their agent's own work, bounded by the turn's depth
+(`MAX_MENTION_DEPTH`). The owner's agent, and an agent working its own task, can still delegate and consult.
+
