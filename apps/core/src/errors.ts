@@ -34,6 +34,14 @@ export class Canceled extends Error {
   }
 }
 
+/** The owner wrote again while the turn ran and a client asked to cut it: what it was asked is still unanswered. */
+export class Superseded extends Canceled {
+  constructor() {
+    super("cut off by a new message from the owner");
+    this.name = "Superseded";
+  }
+}
+
 export class DeadlineExceeded extends Error {
   constructor(message = "the turn ran out of time") {
     super(message);

@@ -109,7 +109,8 @@ export async function send(
     const r = await client.call("threads.send", {
       thread: threadId,
       text,
-      mode: busy && !opts.queue ? "interrupt" : "queue",
+      // Written while the agent works, it joins that turn instead of cutting it (the core queues it when it can't).
+      mode: busy && !opts.queue ? "steer" : "queue",
       ...(files.length ? { attachments: files.map((f) => f.id) } : {}),
     });
     data.set((s) => {

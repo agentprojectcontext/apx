@@ -298,6 +298,10 @@ test("interrupt mode cancels the turn in progress and runs the new message", asy
   await env.client.call("threads.send", { thread: t.id, text: "hello again", mode: "interrupt" });
   const got = await env.settle(t.id);
   assert.deepEqual(got.runs.map((r) => r.state).sort(), ["canceled", "completed"]);
+  // The cut question is still owed: the next turn must not read it as dropped by the owner.
+  const seen = JSON.stringify(llm.calls.at(-1)?.messages);
+  assert.ok(seen.includes("still unanswered"));
+  assert.ok(!seen.includes("The owner canceled this turn."));
 });
 
 test("an empty answer is shown as a notice, never as a made-up 'done'", async () => {

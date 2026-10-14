@@ -195,7 +195,8 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
         const result = await client.call("threads.send", {
           thread: threadId,
           text,
-          mode: isWorking(state) ? "interrupt" : "queue",
+          // Written while the agent works, it joins that turn instead of cutting it (the core queues it when it can't).
+          mode: isWorking(state) ? "steer" : "queue",
           ...(attachments.length ? { attachments } : {}),
         });
         setMessages((current) =>

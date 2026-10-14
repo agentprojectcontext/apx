@@ -16,7 +16,7 @@ import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
-import { Canceled, DeadlineExceeded, errorMessage, Shutdown } from "../errors.ts";
+import { Canceled, DeadlineExceeded, errorMessage, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import { systemNote } from "../harness/native.ts";
 import type { Log } from "../log.ts";
@@ -697,7 +697,14 @@ function failRun(
       vars: {},
       detail: reason.slice(0, 2000),
     });
-  closeTurnLog(store, t.run, canceled ? "The owner canceled this turn." : `This turn failed: ${reason}`);
+  // Cut by the owner's next message is not dropped: the model must not read it as "the owner no longer wants this".
+  const why =
+    t.signal.reason instanceof Superseded
+      ? "A new message from the owner cut this turn off before you answered. What was asked here is still unanswered: answer it too in your next reply, unless the new message replaces it."
+      : canceled
+        ? "The owner canceled this turn."
+        : `This turn failed: ${reason}`;
+  closeTurnLog(store, t.run, why);
   const run = store.runs.setState(t.run, canceled ? "canceled" : "failed", message);
   // A failure is news the owner has not seen yet; a cancel is their own doing.
   store.threads.patch(t.turn.thread.id, {

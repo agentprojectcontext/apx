@@ -4,7 +4,7 @@
 import type { RunTrigger, Thread } from "@apx/protocol";
 import { type Attachment, type Origin, type RunInput, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { Canceled, DeadlineExceeded, Shutdown } from "../errors.ts";
+import { Canceled, DeadlineExceeded, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
 import { systemNote } from "../harness/native.ts";
 import type { Log } from "../log.ts";
@@ -299,11 +299,11 @@ export function createEngine(deps: {
   }
 
   /** Aborts the thread's running turn and cancels the sub-threads that turn opened. */
-  function stopRunning(threadId: string): number {
+  function stopRunning(threadId: string, why: Canceled = new Canceled()): number {
     let n = 0;
     for (const [runId, a] of active) {
       if (a.thread !== threadId || a.ac.signal.aborted) continue;
-      a.ac.abort(new Canceled());
+      a.ac.abort(why);
       n++;
       for (const child of store.runs.children(runId)) n += cancel(child.thread_id);
     }
@@ -344,8 +344,8 @@ export function createEngine(deps: {
     respond: inputs.respond,
     pending: inputs.pending,
     jobs,
-    /** Stops only the turn in progress (and what it delegated); queued inputs still run. */
-    interrupt: stopRunning,
+    /** Stops only the turn in progress (and what it delegated) for the owner's new message; queued inputs still run. */
+    interrupt: (threadId: string) => stopRunning(threadId, new Superseded()),
     /** Resolves when the run ends, or after `timeoutMs` with the run as it is then. */
     wait(runId: string, timeoutMs: number): Promise<RunRecord | undefined> {
       const cur = store.runs.get(runId);
