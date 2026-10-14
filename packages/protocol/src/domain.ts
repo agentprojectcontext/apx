@@ -310,6 +310,8 @@ const KnownPart = z.discriminatedUnion("type", [
     worker: z.string().optional(),
     /** How long it worked, once it ended. */
     ms: z.number().int().nonnegative().optional(),
+    /** Who asked, when it is not the message's author (a consult on a task): an agent's id, or "owner". */
+    asked_by: z.string().optional(),
   }),
   z.object({
     type: z.literal("browser"),

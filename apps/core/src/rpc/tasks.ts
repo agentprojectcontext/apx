@@ -1,6 +1,7 @@
 // Tasks. The owner sees and changes every one; an agent only those of its thread's project and the global ones, and
 // what it creates goes to its thread's project. Giving a task to an agent starts its work in that agent's chat for the
-// task, and a comment that @mentions an agent asks it there; their answers come back as comments (task-work.ts).
+// task, and a comment that @mentions its agent asks it there (its answer comes back as a comment) and anyone else in
+// a consult shown on the task as a card (task-work.ts).
 import type { Author, Task } from "@apx/protocol";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
@@ -175,8 +176,8 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       const author: Author = ctx.agent ? { kind: "agent", id: ctx.agent.id } : { kind: "user" };
       return store.tx(() => {
         const message = addComment(store, t, author, text, by(ctx));
-        // An agent's comment arrives as another agent's words (untrusted); the owner's as the owner's. Turns started by
-        // an agent's mention count as hops, a few at most.
+        // An agent's comment arrives as the team's words, the owner's as the owner's. Turns started by an agent's
+        // mention count as hops, a few at most.
         const runs = askMentioned(store, engine.admit, store.tasks.get(t.id) ?? t, text, askerOf(ctx));
         return { message, runs: runs.map(publicRun) };
       });

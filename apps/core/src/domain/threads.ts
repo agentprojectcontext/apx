@@ -93,6 +93,8 @@ export type ThreadContext = {
   model_choice?: ModelChoice;
   /** A worker's session: the caller's own agent, run under instructions the caller wrote for one task. */
   worker?: Worker;
+  /** A consult an @mention in a task opened: the task, and the card in its conversation that shows the answer. */
+  consult?: { task: string; card: string };
 };
 
 /** A throwaway helper an agent starts for one task: a name, its instructions and (optionally) fewer tools. */
@@ -258,6 +260,13 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       if (patch.title !== undefined) set.title = patch.title;
       if (touch) set.updated_at = now();
       return repo.write(id, set);
+    },
+    /** An agent took part (a task's conversation): listed after the ones already there, so the first one stays. */
+    join(id: string, agentId: string): Thread {
+      const t = repo.get(id);
+      if (!t) throw new Error(`unknown thread ${id}`);
+      if (t.agent_ids.includes(agentId)) return t;
+      return repo.write(id, { agent_ids: JSON.stringify([...t.agent_ids, agentId]) });
     },
     /** The owner's arrangement: their own name (null = the automatic title), pinned, archived. Not activity. */
     arrange(id: string, a: { custom_title?: string | null; pinned?: boolean; archived?: boolean }): Thread {

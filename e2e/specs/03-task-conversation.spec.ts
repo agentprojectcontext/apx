@@ -120,10 +120,11 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await expect(drawer.locator(".apx-msg--agent .apx-mention", { hasText: "@roby" }).first()).toBeVisible();
     await expect(drawer.getByText("@owner please approve the review.", { exact: true })).toBeVisible();
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.status).toBe("review");
-    // Each agent worked in its own chat for the task; the task itself only got their answers as comments.
+    // Builder, the task's agent, worked in its chat for it; Roby, mentioned, answered in a consult shown as a card.
     await expect
       .poll(async () => (await env.client.call("tasks.get", { task: task.id })).sessions.map((s) => s.agent_ids[0]))
-      .toEqual([builder.id, "roby"]);
+      .toEqual([builder.id]);
+    await expect(drawer.getByRole("button", { name: "Abrir conversación con Roby" })).toBeVisible();
     expect((await env.client.call("threads.get", { thread: task.thread_id })).runs).toHaveLength(0);
     await expect(drawer.getByText("On it.", { exact: true })).toBeVisible();
     await expect(drawer.getByRole("button", { name: "Ver a Builder" }).first()).toBeVisible();

@@ -110,16 +110,25 @@ export function ChatMessage({
               </View>
             );
           case "subthread":
+            // Another agent's part (a delegation, a consult on a task): who, and what it answered.
             return (
-              <View key={key} style={s.line}>
-                {isWorking(part.state) ? (
-                  <Spinner size={14} />
-                ) : (
-                  <Icon name={part.state === "failed" ? "X" : "Check"} size={14} color={theme.fgSubtle} />
-                )}
-                <Text numberOfLines={1} style={s.lineText}>
-                  {agents.find((agent) => agent.id === part.agent_id)?.name ?? part.worker ?? t("agent")} · {part.title}
-                </Text>
+              <View key={key} style={s.subthread}>
+                <View style={s.subthreadHead}>
+                  {isWorking(part.state) ? (
+                    <Spinner size={14} />
+                  ) : (
+                    <Icon name={part.state === "failed" ? "X" : "Check"} size={14} color={theme.fgSubtle} />
+                  )}
+                  <Text numberOfLines={1} style={s.lineText}>
+                    {agents.find((agent) => agent.id === part.agent_id)?.name ?? part.worker ?? t("agent")} ·{" "}
+                    {part.title}
+                  </Text>
+                </View>
+                {part.summary ? (
+                  <Text numberOfLines={8} style={s.subthreadText}>
+                    {plainText(parseMarkdown(part.summary))}
+                  </Text>
+                ) : null}
               </View>
             );
           case "changes":
@@ -325,6 +334,17 @@ const useStyles = makeStyles((theme) => ({
     maxWidth: "88%",
   },
   lineText: { color: theme.fgMuted, fontSize: 13, flexShrink: 1 },
+  subthread: {
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderWidth: 1,
+    borderColor: theme.border,
+    borderRadius: 12,
+    maxWidth: "88%",
+  },
+  subthreadHead: { flexDirection: "row", alignItems: "center", gap: 8 },
+  subthreadText: { color: theme.fg, fontSize: 14, lineHeight: 20 },
   card: {
     alignSelf: "stretch",
     padding: 14,

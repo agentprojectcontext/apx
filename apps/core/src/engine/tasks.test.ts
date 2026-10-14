@@ -6,7 +6,7 @@ import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { mentioned } from "./office.ts";
 import { pickUpTasks } from "./task-work.ts";
-import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
+import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 // Vera and Roby keep mentioning each other: the cascade must stop by itself.
 const llm = scriptedLlm((req, { said, afterTool }) => {
@@ -22,15 +22,18 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 
 let env: Awaited<ReturnType<typeof startCore>>;
 
-/** Waits until every chat a task is worked in has finished, cascades included. */
+/** Waits until every chat a task is worked in, and every consult on it, has finished, cascades included. */
 async function settleTask(task: string, ms = 8000) {
   const until = Date.now() + ms;
   let last = "";
   while (Date.now() < until) {
-    const { sessions } = await env.client.call("tasks.get", { task });
-    const runs = (await Promise.all(sessions.map((s) => env.client.call("threads.get", { thread: s.id })))).flatMap(
-      (t) => t.runs,
-    );
+    const { task: t, sessions } = await env.client.call("tasks.get", { task });
+    const consults = env.core.store.threads.children(t.thread_id);
+    const runs = (
+      await Promise.all(
+        [...sessions.map((s) => s.id), ...consults].map((id) => env.client.call("threads.get", { thread: id })),
+      )
+    ).flatMap((x) => x.runs);
     const now = `${sessions.length}:${runs.length}:${runs.every((r) => r.ended_at)}`;
     if (runs.length && runs.every((r) => r.ended_at) && now === last) return { sessions, runs };
     last = now;
@@ -77,28 +80,61 @@ test("a task keeps its history: created, moved, assigned, done, reopened", async
   );
 });
 
-test("an @mention asks the agent in its own chat for the task; answers come back as comments, and the cascade stops", async () => {
+test("an @mention of a teammate is a consult shown as a card on the task, never a chat of its own; the cascade stops", async () => {
   const t = await env.client.call("tasks.create", { title: "Plan the launch", project });
   const r = await env.client.call("tasks.comment", { task: t.id, text: "@vera can you start this?" });
   assert.equal(r.runs.length, 1);
   const { sessions, runs } = await settleTask(t.id);
-  // Owner → Vera (0) → Roby (1) → Vera (2), then no more; each in its own chat for the task, none in the task.
+  // Owner → Vera (0) → Roby (1) → Vera (2), then no more: three consults under the task, no work chat for anyone.
+  assert.deepEqual(sessions, []);
+  assert.equal(runs.length, 3);
+  const consults = env.core.store.threads.children(t.thread_id).map((id) => env.core.store.threads.get(id));
   assert.deepEqual(
-    sessions.map((s) => [s.agent_ids[0], s.kind, s.task_id]),
+    consults.map((c) => [c?.kind, c?.agent_ids[0]]),
     [
-      ["vera", "loose", t.id],
-      ["roby", "loose", t.id],
+      ["a2a", "vera"],
+      ["a2a", "roby"],
+      ["a2a", "vera"],
     ],
   );
-  assert.equal(runs.length, 3);
-  assert.equal((await env.client.call("threads.get", { thread: t.thread_id })).runs.length, 0);
+  const conversation = await env.client.call("threads.get", { thread: t.thread_id });
+  assert.equal(conversation.runs.length, 0);
+  assert.deepEqual(conversation.thread.agent_ids, ["roby", "vera"], "whoever spoke is listed on the conversation");
+  // The task shows the owner's comment and one card per consult, with the answer: nothing copied twice.
+  const { messages } = await env.client.call("threads.get", { thread: t.thread_id });
   assert.deepEqual(await commentsOf(t.thread_id), ["user", "vera", "roby", "vera"]);
+  const cards = messages.flatMap((m) => m.parts.filter((p) => p.type === "subthread"));
+  assert.deepEqual(
+    cards.map((c) => c.type === "subthread" && [c.state, c.summary]),
+    [
+      ["completed", "Done my part, @roby your turn."],
+      ["completed", "Thanks, back to you @vera."],
+      ["completed", "Done my part, @roby your turn."],
+    ],
+  );
   const input = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("@vera can you start this?"));
   assert.match(
     String(input?.messages.at(-1)?.content),
-    /\[task\]\nTask task_\w+:\nPlan the launch\nbacklog · assigned to nobody\n/,
+    /Asked on task task_\w+, assigned to nobody\.[^\n]*\]\nPlan the launch$/,
   );
-  assert.match(String(input?.messages.at(-1)?.content), /Your final answer is posted to the task as your comment/);
+});
+
+test("an @mention of the task's own agent asks it in its chat for the task, and its answer is a comment", async () => {
+  const t = await env.client.call("tasks.create", { title: "Pick the colors", project, assignee: "vera" });
+  await settleTask(t.id);
+  const before = (await env.client.call("threads.get", { thread: (await settleTask(t.id)).sessions[0]?.id ?? "" })).runs
+    .length;
+  await env.client.call("tasks.comment", { task: t.id, text: "@vera also the dark mode" });
+  const { sessions } = await settleTask(t.id);
+  // Vera works in her one chat; Roby, whom her answers mention, is consulted without a chat of his own.
+  assert.deepEqual(
+    sessions.map((s) => s.agent_ids[0]),
+    ["vera"],
+  );
+  const vera = await env.client.call("threads.get", { thread: sessions[0]?.id ?? "" });
+  assert.ok(vera.runs.length > before, "the mention ran in her chat for the task");
+  assert.ok(texts(vera.messages).includes("@vera also the dark mode"));
+  assert.ok(env.core.store.threads.children(t.thread_id).length > 0, "Roby answered in a consult");
 });
 
 test("giving a task to an agent starts it in its chat; another agent gets a new chat that knows who worked it", async () => {

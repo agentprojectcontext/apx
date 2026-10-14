@@ -842,3 +842,15 @@ null` gives it back). The project's is kept in APX's database, not in `.apc/proj
 wrote cannot raise it. A delegated run still works under the strictest autonomy up its chain. Claude Code's `auto`
 mode (a model judging each risky call) is not copied yet.
 
+<a id="d-073"></a>
+## D-073 — 2026-10-14 — An @mention of a teammate on a task is a consult, not a chat of its own
+D-048 gave every agent @mentioned on a task its own chat for that task and posted each answer back as a comment.
+A real run with three tasks and three agents who mentioned each other ended with eight chats on three tasks, every
+answer twice (in the chat and as a comment), and agents treating a question as their whole task. Now only the task's
+own agent works in its chat for the task (an @mention of it still asks it there). Anyone else @mentioned, by the
+owner or by an agent's answer, answers in a consult: an `a2a` sub-thread of the task's conversation holding the
+question and the answer, like a delegation, shown in the conversation as a card that names the task and who asked
+(`asked_by` on the sub-thread part) and fills in with the answer. Nothing is copied: the question is the comment
+above the card. The answer's own @mentions cascade the same way, two hops deep. Whoever spoke on a task joins its
+conversation's `agent_ids`, so the list shows a group, and the phone shows a card's answer, not only its title.
+

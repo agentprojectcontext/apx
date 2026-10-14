@@ -1,11 +1,15 @@
 // A task is worked in its agent's own chat for it (listed in the inbox like any chat), never in the task's
 // conversation: that one keeps only comments, the owner's and each work turn's final answer posted back by its agent.
-// Assigning starts the work; an @mention in a comment asks that agent in its chat for the task; an hourly pickup
-// starts what was assigned and never began.
+// Assigning starts the work; an @mention of its agent asks it there, and of anyone else opens a short consult (the
+// question and its answer, under the task's conversation, shown there as a card); an hourly pickup starts what was
+// assigned and never began.
 import type { Author, Task, Thread } from "@apx/protocol";
+import { ownerIdentity } from "../domain/owner.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
+import { taskWords } from "../tools/tasks.ts";
+import { reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
 import { MAX_MENTION_DEPTH, mentioned, taskCommentAttention } from "./office.ts";
 
@@ -77,17 +81,116 @@ export function startTaskWork(
   return ask(store, admit, task, agentId, text, asker, author);
 }
 
-/** A comment's @mentions: each agent named answers in its chat for the task, and its answer comes back as a comment. */
+/**
+ * A comment's @mentions. The task's own agent answers in its chat for the task (its answer comes back as a comment);
+ * anyone else answers in a consult of its own, so a teammate asked once does not get a whole chat on the task.
+ */
 export function askMentioned(store: Store, admit: AdmitFn, task: Task, text: string, asker: Asker): RunRecord[] {
   if (depthOf(asker) > MAX_MENTION_DEPTH) return [];
   const except = asker.kind === "agent" ? asker.id : undefined;
   const author: Author = asker.kind === "agent" ? { kind: "agent", id: asker.id } : { kind: "user" };
-  return mentioned(store, text, task.project_id, except).map((a) => ask(store, admit, task, a.id, text, asker, author));
+  return mentioned(store, text, task.project_id, except).flatMap((a) => {
+    const run =
+      a.id === task.assignee
+        ? ask(store, admit, task, a.id, text, asker, author)
+        : consult(store, admit, task, a, text, asker, author);
+    return run ? [run] : [];
+  });
+}
+
+/**
+ * A teammate asked on a task: a sub-thread of the task's conversation with the question, and a card there (the
+ * teammate's) that its answer fills in. Like a delegation, it holds only the question and the answer.
+ */
+function consult(
+  store: Store,
+  admit: AdmitFn,
+  task: Task,
+  agent: { id: string; name: string },
+  text: string,
+  asker: Asker,
+  author: Author,
+): RunRecord | undefined {
+  const from = asker.kind === "agent" ? asker.name : ownerIdentity(store).name || "The owner";
+  const sub = store.threads.create({
+    kind: "a2a",
+    title: `${from} → ${agent.name}: ${previewOf(text).slice(0, 60)}`,
+    agent_ids: asker.kind === "agent" ? [agent.id, asker.id] : [agent.id],
+    project_id: task.project_id,
+    parent_id: task.thread_id,
+    session: `${task.id}-${agent.id}-${Date.now().toString(36)}`.slice(0, 60),
+  });
+  const who = task.assignee ? (store.agents.get(task.assignee)?.name ?? task.assignee) : "nobody";
+  const question = `${text}\n\n[Asked on task ${task.id}, assigned to ${who}. Answer the question; the task's work is not yours unless it says so.]\n${taskWords(task, task.title.slice(0, 200))}`;
+  store.messages.add({ thread_id: sub.id, author, parts: [{ type: "text", text }] });
+  const card = store.messages.add({
+    thread_id: task.thread_id,
+    author: { kind: "agent", id: agent.id },
+    // The question is the comment right above: the card names the task instead of repeating it.
+    parts: [
+      {
+        type: "subthread",
+        thread_id: sub.id,
+        agent_id: agent.id,
+        title: task.title.slice(0, 120),
+        state: "working",
+        asked_by: asker.kind === "agent" ? asker.id : "owner",
+      },
+    ],
+  });
+  store.threads.mergeContext(sub.id, { consult: { task: task.id, card: card.id } });
+  // Who spoke on the task shows on its conversation, not only its first agent.
+  store.threads.join(task.thread_id, agent.id);
+  return admit({
+    thread_id: sub.id,
+    agent_id: agent.id,
+    trigger: asker.kind === "owner" ? "user" : "a2a",
+    origin: originOf(asker),
+    text: question,
+    depth: depthOf(asker),
+  });
+}
+
+/** A consult ended: its card in the task's conversation shows the answer, and whoever the answer @mentions is asked. */
+function afterConsult(store: Store, admit: AdmitFn, run: RunRecord, consulted: { task: string; card: string }): void {
+  const task = store.tasks.get(consulted.task);
+  const card = store.messages.get(consulted.card);
+  const answer = textOf(store, run);
+  const index = card?.parts.findIndex((p) => p.type === "subthread") ?? -1;
+  const part = card?.parts[index];
+  if (card && part?.type === "subthread") {
+    const parts = [...card.parts];
+    parts[index] = reportCard(part, run, answer || run.error || `(${run.state}, no answer)`);
+    store.messages.setPart({ ...card, parts }, index);
+  }
+  if (!task) return;
+  store.tasks.touched(task.id, run.agent_id, "update");
+  if (run.state !== "completed" || !answer) return;
+  taskCommentAttention(store, task, answer, run.agent_id);
+  const author = store.agents.get(run.agent_id);
+  askMentioned(store, admit, store.tasks.get(task.id) ?? task, answer, {
+    kind: "agent",
+    id: run.agent_id,
+    name: author?.name ?? run.agent_id,
+    thread_id: run.thread_id,
+    run_id: run.id,
+    depth: run.depth + 1,
+  });
+}
+
+/** The final answer of a run, as text. */
+function textOf(store: Store, run: RunRecord): string {
+  const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
+  return (msg?.parts ?? [])
+    .map((p) => (p.type === "text" ? p.text : ""))
+    .join("\n")
+    .trim();
 }
 
 /** A comment on the task, by the owner or an agent: the task moved, and an @owner asks for the owner's attention. */
 export function addComment(store: Store, task: Task, author: Author, text: string, by: string) {
   const message = store.messages.add({ thread_id: task.thread_id, author, parts: [{ type: "text", text }] });
+  if (author.kind === "agent") store.threads.join(task.thread_id, author.id);
   store.threads.patch(task.thread_id, { preview: previewOf(text) });
   taskCommentAttention(store, task, text, by);
   store.tasks.touched(task.id, by);
@@ -100,17 +203,18 @@ export function addComment(store: Store, task: Task, author: Author, text: strin
  */
 export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): void {
   const thread = store.threads.get(run.thread_id);
+  const consulted = thread?.kind === "a2a" ? store.threads.context(thread.id).consult : undefined;
+  if (consulted) {
+    afterConsult(store, admit, run, consulted);
+    return;
+  }
   const task = thread?.task_id ? store.tasks.get(thread.task_id) : undefined;
   if (!task) return;
   if (run.state !== "completed") {
     store.tasks.touched(task.id, run.agent_id, "update");
     return;
   }
-  const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
-  const text = (msg?.parts ?? [])
-    .map((p) => (p.type === "text" ? p.text : ""))
-    .join("\n")
-    .trim();
+  const text = textOf(store, run);
   if (!text) return;
   addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id);
   const fresh = store.tasks.get(task.id) ?? task;
