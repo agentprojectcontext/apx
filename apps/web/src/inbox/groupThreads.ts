@@ -61,11 +61,42 @@ export function groupByProject(threads: Record<string, Thread>, projects: Projec
   return out;
 }
 
-/** One branch of the tree: an agent's chats, or (`engine`) an engine's own sessions, wherever they were started. */
-export type AgentBranch = { agentId: string; engine?: string | undefined; threads: Thread[] };
+/** A row of a chat list: a chat, or (`task`) every chat the agents keep for one task, together. */
+export type ListEntry = { kind: "thread"; thread: Thread } | { kind: "task"; taskId: string; threads: Thread[] };
+
+/** Chats agents keep for a task go together, where the task's most recent one would be; the rest stay as they are. */
+export function bundleTasks(list: Thread[]): ListEntry[] {
+  const out: ListEntry[] = [];
+  const tasks = new Map<string, Extract<ListEntry, { kind: "task" }>>();
+  for (const thread of list) {
+    if (!thread.task_id) {
+      out.push({ kind: "thread", thread });
+      continue;
+    }
+    const bundle = tasks.get(thread.task_id);
+    if (bundle) bundle.threads.push(thread);
+    else {
+      const entry = { kind: "task" as const, taskId: thread.task_id, threads: [thread] };
+      tasks.set(thread.task_id, entry);
+      out.push(entry);
+    }
+  }
+  return out;
+}
+
+/**
+ * One branch of the tree: an agent's chats, (`engine`) an engine's own sessions wherever they were started, or
+ * (`task`) the chats of every agent working one task.
+ */
+export type AgentBranch = {
+  agentId: string;
+  engine?: string | undefined;
+  task?: string | undefined;
+  threads: Thread[];
+};
 export type ProjectTree = { key: string; project: Project | undefined; name: string; agents: AgentBranch[] };
 
-/** Inbox organisation "b" (tree): project → agent → chats; busiest-recent first at every level. */
+/** Inbox organisation "b" (tree): project → agent (or task) → chats; busiest-recent first at every level. */
 export function groupByAgent(threads: Record<string, Thread>, projects: Project[], opts: Filter): ProjectTree[] {
   const byId = new Map(projects.map((p) => [p.id, p]));
   const trees = new Map<string, ProjectTree>();
@@ -77,11 +108,15 @@ export function groupByAgent(threads: Record<string, Thread>, projects: Project[
       tree = { key, project, name: project?.name ?? baseName(), agents: [] };
       trees.set(key, tree);
     }
-    // A Claude Code or Codex session belongs to that engine, not to the agent that holds the thread.
-    const agentId = t.engine ? `engine:${t.engine}` : (t.agent_ids[0] ?? "");
+    // A Claude Code or Codex session belongs to that engine, and a task's chat to the task, not to the agent.
+    const agentId = t.engine ? `engine:${t.engine}` : t.task_id ? `task:${t.task_id}` : (t.agent_ids[0] ?? "");
     let branch = tree.agents.find((a) => a.agentId === agentId);
     if (!branch) {
-      branch = { agentId, ...(t.engine ? { engine: t.engine } : {}), threads: [] };
+      branch = {
+        agentId,
+        ...(t.engine ? { engine: t.engine } : t.task_id ? { task: t.task_id } : {}),
+        threads: [],
+      };
       tree.agents.push(branch);
     }
     branch.threads.push(t);

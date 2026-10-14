@@ -380,6 +380,9 @@ export const en = {
   "inbox.when.earlier": "Earlier",
   "inbox.showMore": "Show {n} more",
   "inbox.showLess": "Show less",
+  "inbox.taskBundle.chats": "{n} chats",
+  "inbox.taskBundle.open": "Show the task's chats",
+  "inbox.taskBundle.close": "Hide the task's chats",
   "thread.codeHint":
     "Coding session: the agent works inside the folder {folder} (reads, edits files and runs commands there)",
   "nav.externalSession": "External session",

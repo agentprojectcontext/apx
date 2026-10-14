@@ -17,7 +17,8 @@ import {
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import type { ActivityGroup, ProjectTree, TimeBucket } from "./groupThreads.ts";
+import { type ActivityGroup, bundleTasks, type ProjectTree, type TimeBucket } from "./groupThreads.ts";
+import { TaskBundle } from "./TaskBundle.tsx";
 import { PinMark } from "./ThreadRow.tsx";
 import { threadMenu } from "./threadActions.tsx";
 
@@ -66,6 +67,10 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
             <span>{tree.name}</span>
           </div>
           {tree.agents.map((b) => {
+            if (b.task)
+              return (
+                <TaskBundle key={`${tree.key}:${b.agentId}`} taskId={b.task} threads={b.threads} selected={selected} />
+              );
             const agent = b.engine ? undefined : agents[b.agentId];
             const key = `${tree.key}:${b.agentId}`;
             const all = open[key] ?? false;
@@ -117,7 +122,18 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
   );
 }
 
-function SessionRow({ thread, agent, selected }: { thread: Thread; agent: Agent | undefined; selected: boolean }) {
+/** A chat in a branch; `withAgent` names its agent first (a task's chats are several agents'). */
+export function SessionRow({
+  thread,
+  agent,
+  selected,
+  withAgent = false,
+}: {
+  thread: Thread;
+  agent: Agent | undefined;
+  selected: boolean;
+  withAgent?: boolean;
+}) {
   const t = useT();
   return (
     <ContextMenu items={threadMenu(thread, { t, agent })}>
@@ -131,7 +147,10 @@ function SessionRow({ thread, agent, selected }: { thread: Thread; agent: Agent 
         {thread.pinned && <PinMark />}
         <ChannelMark thread={thread} />
         <RoutineMark thread={thread} />
-        <span className="tree__sessiontitle">{chatLabel(thread, agent, t("chat.new"))}</span>
+        {withAgent && <AgentAvatar name={agent?.name ?? ""} blob={blobOf(agent)} size={16} animated={false} />}
+        {withAgent && <span className="tree__sessionwho">{agent?.name ?? thread.agent_ids[0]}</span>}
+        {/* Under its task, a chat's title only repeats the task's: what was said last tells them apart. */}
+        <span className="tree__sessiontitle">{chatLabel(thread, agent, withAgent ? thread.title : t("chat.new"))}</span>
         <CodeMark thread={thread} />
         {thread.unread > 0 && <span className="tree__unread">{thread.unread}</span>}
         <span className="tree__when">{shortWhen(thread.updated_at)}</span>
@@ -150,7 +169,12 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
       {groups.map((g) => (
         <div key={g.bucket} className="activity__group">
           <div className="activity__label">{t(BUCKET[g.bucket])}</div>
-          {g.threads.map((th) => {
+          {bundleTasks(g.threads).map((entry) => {
+            if (entry.kind === "task")
+              return (
+                <TaskBundle key={entry.taskId} taskId={entry.taskId} threads={entry.threads} selected={selected} />
+              );
+            const th = entry.thread;
             const agent: Agent | undefined = agents[th.agent_ids[0] ?? ""];
             return (
               <ContextMenu key={th.id} items={threadMenu(th, { t, agent })}>

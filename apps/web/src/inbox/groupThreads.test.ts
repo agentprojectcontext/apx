@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Thread } from "@apx/protocol";
-import { archivedThreads, groupByAgent, groupByProject, groupByTime, pinnedFirst } from "./groupThreads.ts";
+import {
+  archivedThreads,
+  bundleTasks,
+  groupByAgent,
+  groupByProject,
+  groupByTime,
+  pinnedFirst,
+} from "./groupThreads.ts";
 
 const thread = (id: string, extra: Partial<Thread> = {}): Thread =>
   ({
@@ -98,5 +105,34 @@ test("routine runs that told something show only when the owner lists them; quie
       ?.threads.map((t) => t.id)
       .sort(),
     ["a", "bb", "eeeee"],
+  );
+});
+
+test("a task's chats hang under the task in the tree, whoever works them, and are one row in a list", () => {
+  const trees = groupByAgent(
+    {
+      a: thread("a", { task_id: "task_1" }),
+      bb: thread("bb", { agent_ids: ["vera"], task_id: "task_1" }),
+      ccc: thread("ccc"),
+    },
+    [],
+    {},
+  );
+  assert.deepEqual(
+    trees[0]?.agents.map((b) => [b.agentId, b.task, b.threads.map((t) => t.id)]),
+    [
+      ["roby", undefined, ["ccc"]],
+      ["task:task_1", "task_1", ["bb", "a"]],
+    ],
+  );
+  const entries = bundleTasks([
+    thread("ccc"),
+    thread("bb", { task_id: "task_1" }),
+    thread("x"),
+    thread("a", { task_id: "task_1" }),
+  ]);
+  assert.deepEqual(
+    entries.map((e) => (e.kind === "thread" ? e.thread.id : `${e.taskId}:${e.threads.map((t) => t.id).join(",")}`)),
+    ["ccc", "task_1:bb,a", "x"],
   );
 });

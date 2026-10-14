@@ -32,11 +32,14 @@ export function ChatMessage({
   agents,
   waiting = false,
   respond,
+  openThread,
 }: {
   message: Message;
   agents: Agent[];
   waiting?: boolean;
   respond: Respond;
+  /** Opens another chat: the one a sub-thread card stands for. */
+  openThread?: (id: string) => void;
 }) {
   const theme = useTheme();
   const s = useStyles();
@@ -112,7 +115,16 @@ export function ChatMessage({
           case "subthread":
             // Another agent's part (a delegation, a consult on a task): who, and what it answered.
             return (
-              <View key={key} style={s.subthread}>
+              <Pressable
+                key={key}
+                accessibilityRole="button"
+                accessibilityLabel={t("openSubthread", {
+                  name: agents.find((agent) => agent.id === part.agent_id)?.name ?? part.worker ?? t("agent"),
+                })}
+                disabled={!openThread}
+                onPress={() => openThread?.(part.thread_id)}
+                style={({ pressed }) => [s.subthread, pressed && { backgroundColor: theme.fill }]}
+              >
                 <View style={s.subthreadHead}>
                   {isWorking(part.state) ? (
                     <Spinner size={14} />
@@ -129,7 +141,7 @@ export function ChatMessage({
                     {plainText(parseMarkdown(part.summary))}
                   </Text>
                 ) : null}
-              </View>
+              </Pressable>
             );
           case "changes":
             return (

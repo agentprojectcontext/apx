@@ -89,6 +89,60 @@
   background: var(--apx-row-selected-bg);
   box-shadow: inset 0 0 0 1px var(--apx-row-selected-border);
 }
+.tree__sessionwho {
+  flex: none;
+  font-weight: var(--apx-weight-medium);
+}
+.taskbundle {
+  padding: 2px 0 6px;
+}
+.taskbundle__head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.taskbundle__task {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px 0 4px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.taskbundle__task:hover {
+  background: var(--apx-fill-hover);
+}
+.taskbundle__icon {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.taskbundle__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: var(--apx-weight-semibold);
+}
+.taskbundle__head.is-unread .taskbundle__title {
+  color: var(--apx-fg);
+}
+.taskbundle__faces {
+  display: inline-flex;
+  flex: none;
+}
+.taskbundle__faces > * + * {
+  margin-left: -5px;
+}
 .tree__sessiontitle {
   flex: 1;
   min-width: 0;

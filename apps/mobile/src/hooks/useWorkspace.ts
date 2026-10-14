@@ -43,6 +43,8 @@ export type Thread = {
   agent_ids: string[];
   project_id?: string;
   parent_id?: string;
+  /** The task an agent works in this chat. */
+  task_id?: string;
   archived?: boolean;
   pinned?: boolean;
   engine?: string;

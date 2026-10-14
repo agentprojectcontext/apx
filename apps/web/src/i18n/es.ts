@@ -389,6 +389,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.when.earlier": "Antes",
   "inbox.showMore": "Ver {n} más",
   "inbox.showLess": "Ver menos",
+  "inbox.taskBundle.chats": "{n} chats",
+  "inbox.taskBundle.open": "Ver los chats de la tarea",
+  "inbox.taskBundle.close": "Ocultar los chats de la tarea",
   "thread.codeHint":
     "Sesión de código: el agente trabaja dentro de la carpeta {folder} (lee, edita archivos y corre comandos ahí)",
   "nav.externalSession": "Sesión externa",

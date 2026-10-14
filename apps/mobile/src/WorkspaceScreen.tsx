@@ -190,7 +190,9 @@ export function WorkspaceScreen({
           onNewChat={newChat}
           make={workspace.makeChat}
           onMade={setThread}
-          onBack={() => setThread(undefined)}
+          onOpenThread={openById}
+          // From a sub-thread (a delegation, a consult) back is the chat it came from.
+          onBack={() => (thread.parent_id ? openById(thread.parent_id) : setThread(undefined))}
         />
       );
     const shownRoutine = routine && (workspace.data.routines.find((item) => item.id === routine.id) ?? routine);

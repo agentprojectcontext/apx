@@ -4,6 +4,7 @@ import { translator } from "../i18n/index.ts";
 import { blobEyes } from "../ui/blobEyes.ts";
 import {
   activeThreads,
+  bundleTasks,
   chatAgents,
   chatPreview,
   chatTitle,
@@ -207,4 +208,17 @@ test("a working chat says what it is about under its agent's name, never that na
   assert.equal(workSubject(thread("a", { title: "Open source launch" }), "Abril", data, tr), "Open source launch");
   assert.equal(workSubject(thread("b", { title: "Abril", project_id: "p1" }), "Abril", data, tr), "Acme · Web");
   assert.equal(workSubject(thread("c", { title: "" }), "Abril", data, tr), "Default · Web");
+});
+
+test("a task's chats are one row of the list, where its most recent one is", () => {
+  const entries = bundleTasks([
+    thread("a"),
+    thread("b", { task_id: "task_1" }),
+    thread("c"),
+    thread("d", { task_id: "task_1", agent_ids: ["vera"] }),
+  ]);
+  assert.deepEqual(
+    entries.map((e) => (e.kind === "thread" ? e.thread.id : `${e.taskId}:${e.threads.map((t) => t.id).join(",")}`)),
+    ["a", "task_1:b,d", "c"],
+  );
 });

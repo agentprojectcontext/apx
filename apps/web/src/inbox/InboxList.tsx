@@ -24,9 +24,10 @@ import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
-import { archivedThreads, groupByAgent, groupByProject, groupByTime } from "./groupThreads.ts";
+import { archivedThreads, bundleTasks, groupByAgent, groupByProject, groupByTime } from "./groupThreads.ts";
 import { ActivityView, TreeView } from "./InboxViews.tsx";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
+import { TaskBundle } from "./TaskBundle.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
 
 /** Chat list: every chat grouped by project (Inbox), or one project's chats (project › Chats). */
@@ -174,15 +175,24 @@ export function InboxList() {
                   {isCollapsed ? <Icons.ChevronRight size={14} /> : <Icons.ChevronDown size={14} />}
                 </button>
                 {!isCollapsed &&
-                  g.threads.map((t) => (
-                    <ThreadRow
-                      key={t.id}
-                      thread={t}
-                      agent={threadAgent(t, agents)}
-                      selected={t.id === threadId}
-                      onOpen={() => go.thread(t.id)}
-                    />
-                  ))}
+                  bundleTasks(g.threads).map((entry) =>
+                    entry.kind === "task" ? (
+                      <TaskBundle
+                        key={entry.taskId}
+                        taskId={entry.taskId}
+                        threads={entry.threads}
+                        selected={threadId}
+                      />
+                    ) : (
+                      <ThreadRow
+                        key={entry.thread.id}
+                        thread={entry.thread}
+                        agent={threadAgent(entry.thread, agents)}
+                        selected={entry.thread.id === threadId}
+                        onOpen={() => go.thread(entry.thread.id)}
+                      />
+                    ),
+                  )}
               </div>
             );
           })

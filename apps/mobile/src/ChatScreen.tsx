@@ -35,6 +35,7 @@ export function ChatScreen({
   onNewChat,
   make,
   onMade,
+  onOpenThread,
 }: {
   creds: Creds;
   onUnpair: () => void;
@@ -49,6 +50,8 @@ export function ChatScreen({
   make: (base: Thread) => Promise<Thread>;
   /** Opens the chat a new one became. */
   onMade: (thread: Thread) => void;
+  /** Opens another chat by id: a delegation's or a consult's, from its card. */
+  onOpenThread?: (id: string) => void;
 }) {
   const theme = useTheme();
   const s = useStyles();
@@ -192,6 +195,7 @@ export function ChatScreen({
                   agents={data.agents}
                   waiting={live.state === "input-required"}
                   respond={live.respond}
+                  {...(onOpenThread ? { openThread: onOpenThread } : {})}
                 />
               )
             }

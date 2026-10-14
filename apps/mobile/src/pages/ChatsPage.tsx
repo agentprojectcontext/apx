@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, TextInput, View } from "react-native";
 import { elapsed, listWhen } from "../format";
 import {
+  bundleTasks,
   chatPreview,
   chatTitle,
   inboxThreads,
@@ -143,7 +144,13 @@ export function ChatsPage({
           </>
         ) : null}
         {rows.length ? (
-          rows.map((thread) => <ChatRow key={thread.id} thread={thread} data={data} onPress={() => open(thread)} />)
+          bundleTasks(rows).map((entry) =>
+            entry.kind === "task" ? (
+              <TaskRow key={entry.taskId} taskId={entry.taskId} threads={entry.threads} data={data} open={open} />
+            ) : (
+              <ChatRow key={entry.thread.id} thread={entry.thread} data={data} onPress={() => open(entry.thread)} />
+            ),
+          )
         ) : (
           <EmptyState title={t("noChats")} body={t("noChatsBody")} icon="MessageCircle" />
         )}
@@ -188,6 +195,78 @@ function WorkChip({ thread, job, data, onPress }: { thread: Thread; job?: Job; d
       </View>
       {waiting ? <Icon name="Bell" size={14} color={theme.warning} /> : <Spinner size={14} />}
     </Pressable>
+  );
+}
+
+/** Every chat the agents keep for one task: the task, who works it; tapped, each agent's chat under it. */
+function TaskRow({
+  taskId,
+  threads,
+  data,
+  open,
+}: {
+  taskId: string;
+  threads: Thread[];
+  data: Workspace;
+  open: (thread: Thread) => void;
+}) {
+  const type = useType();
+  const theme = useTheme();
+  const s = useStyles();
+  const [shown, setShown] = useState(false);
+  const task = data.tasks.find((item) => item.id === taskId);
+  const ids = [...new Set(threads.map((thread) => thread.agent_ids[0] ?? ""))];
+  const [a, b] = ids.map((id) => agentOf(id, data.agents) ?? { id, name: id });
+  const unread = threads.reduce((n, thread) => n + thread.unread, 0);
+  const busy = threads.some((thread) => isWorking(thread.state));
+  const waiting = threads.some((thread) => thread.state === "input-required");
+  const latest = threads[0];
+  return (
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: shown }}
+        onPress={() => setShown((v) => !v)}
+        style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.fill }]}
+      >
+        <View style={s.avatar}>
+          {a && b ? (
+            <AgentPair first={a} second={b} size={48} />
+          ) : (
+            <AgentAvatar name={a?.name ?? ""} blob={a?.blob} id={a?.id} size={44} />
+          )}
+        </View>
+        <View style={s.copy}>
+          <View style={s.line}>
+            <Icon name="ListChecks" size={13} color={theme.fgSubtle} />
+            <Text numberOfLines={1} style={[s.title, unread > 0 && { fontWeight: "600" }]}>
+              {task?.title ?? latest?.title ?? taskId}
+            </Text>
+            {busy ? <Spinner size={12} /> : null}
+            <Text style={[type.meta, unread > 0 && { color: theme.brand }, waiting && { color: theme.warning }]}>
+              {busy ? t("working") : waiting ? t("waitsForYou") : listWhen(latest?.updated_at ?? "")}
+            </Text>
+          </View>
+          <View style={s.line}>
+            <Text numberOfLines={1} style={[s.preview, unread > 0 && { color: theme.fg }]}>
+              {ids.map((id) => agentOf(id, data.agents)?.name ?? id).join(", ")}
+            </Text>
+            {unread ? <CountBadge count={unread} /> : null}
+          </View>
+          <Text numberOfLines={1} style={type.small}>
+            {t("taskChats", { n: threads.length })}
+          </Text>
+        </View>
+        <Icon name={shown ? "ChevronDown" : "ChevronRight"} size={16} color={theme.fgSubtle} />
+      </Pressable>
+      {shown ? (
+        <View style={s.nested}>
+          {threads.map((thread) => (
+            <ChatRow key={thread.id} thread={thread} data={data} onPress={() => open(thread)} />
+          ))}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -268,4 +347,5 @@ const useStyles = makeStyles((theme) => ({
   line: { flexDirection: "row", alignItems: "center", gap: 8 },
   title: { flex: 1, color: theme.fg, fontSize: 15, fontWeight: "500" },
   preview: { flex: 1, color: theme.fgMuted, fontSize: 13 },
+  nested: { marginLeft: 36, borderLeftWidth: 1, borderLeftColor: theme.border },
 }));

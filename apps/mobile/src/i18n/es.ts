@@ -93,6 +93,8 @@ export const es: Record<Key, string> = {
   navMore: "Más",
   defaultProject: "Default",
   groupOf: "Grupo · {n} agentes",
+  taskChats: "Tarea · {n} chats",
+  openSubthread: "Abrir la conversación con {name}",
   inApp: "Web",
   searchChats: "Buscar chats",
   workingNow: "Trabajando ahora · {n}",

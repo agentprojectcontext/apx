@@ -173,3 +173,26 @@ export function workingNow(threads: Thread[], jobs: Job[]): Array<{ thread: Thre
     job: jobs.find((job) => job.thread_id === thread.id && job.kind === "agent"),
   }));
 }
+
+/** A row of the chat list: a chat, or (`task`) every chat the agents keep for one task, together. */
+export type ChatEntry = { kind: "thread"; thread: Thread } | { kind: "task"; taskId: string; threads: Thread[] };
+
+/** Chats agents keep for a task go together, where the task's most recent one would be; the rest stay as they are. */
+export function bundleTasks(list: Thread[]): ChatEntry[] {
+  const out: ChatEntry[] = [];
+  const tasks = new Map<string, Extract<ChatEntry, { kind: "task" }>>();
+  for (const thread of list) {
+    if (!thread.task_id) {
+      out.push({ kind: "thread", thread });
+      continue;
+    }
+    const bundle = tasks.get(thread.task_id);
+    if (bundle) bundle.threads.push(thread);
+    else {
+      const entry = { kind: "task" as const, taskId: thread.task_id, threads: [thread] };
+      tasks.set(thread.task_id, entry);
+      out.push(entry);
+    }
+  }
+  return out;
+}
