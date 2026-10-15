@@ -432,12 +432,19 @@ test("a notice the owner's chosen channel refuses goes to the next channel that 
       enabled: true,
     });
     await env.client.call("routines.run", { routine: r.id });
-    await until(() => tg.messagesTo(OWNER.id).some((m) => m.body.text === "Evening brief"), "notice on Telegram");
-    const outbox = env.core.store.channels.outbox.recent(20).filter((o) => o.text === "Evening brief");
-    assert.deepEqual(outbox.map((o) => [o.channel, o.state]).sort(), [
-      ["dc", "failed"],
-      ["tg", "sent"],
-    ]);
+    const outbox = () => env.core.store.channels.outbox.recent(20).filter((o) => o.text === "Evening brief");
+    // Telegram has the message a moment before its row is marked sent: wait for the row, not the message.
+    await until(() => outbox().some((o) => o.channel === "tg" && o.state === "sent"), "notice sent on Telegram");
+    assert.ok(tg.messagesTo(OWNER.id).some((m) => m.body.text === "Evening brief"));
+    assert.deepEqual(
+      outbox()
+        .map((o) => [o.channel, o.state])
+        .sort(),
+      [
+        ["dc", "failed"],
+        ["tg", "sent"],
+      ],
+    );
   } finally {
     await env.client.call("notices.set", prefs);
     await env.client.call("channels.set", { id: "dc", channel: null });
