@@ -13,6 +13,8 @@
 <p align="center">
   <a href="https://agentprojectcontext.github.io/apx/v2/es/"><img src="https://img.shields.io/badge/Sitio-APX_v2-3fb950?style=flat-square" alt="Sitio de APX v2"></a>
   <a href="https://github.com/agentprojectcontext/apx/releases?q=v2&expanded=true"><img src="https://img.shields.io/badge/Release-v2_beta-3fb950?style=flat-square" alt="Versiones beta de APX v2"></a>
+  <a href="https://github.com/agentprojectcontext/apx/releases"><img src="https://img.shields.io/github/downloads/agentprojectcontext/apx/total?style=flat-square&label=Descargas&color=3fb950" alt="Descargas desde las releases de GitHub"></a>
+  <a href="https://www.npmjs.com/package/@agentprojectcontext/apx"><img src="https://img.shields.io/npm/dm/%40agentprojectcontext%2Fapx?style=flat-square&label=v1%20en%20npm&color=3fb950" alt="Descargas de APX v1 en npm"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/Licencia-MIT-3fb950?style=flat-square" alt="Licencia: MIT"></a>
   <a href="https://discord.gg/vxdZuT5WuE"><img src="https://img.shields.io/badge/Discord-sumate-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Sumate a la comunidad"></a>
 </p>
