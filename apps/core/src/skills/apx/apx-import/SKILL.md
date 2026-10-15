@@ -40,10 +40,18 @@ Decide which chats are **roles** and which were **one-off tasks**:
 - A one-off task (fix a bug, investigate an error): no agent. Its lasting facts go to memory; its chat stays as history
   of the project (adopt it to the agent whose area it was, if there is one).
 
+First look at the team the project already has (`apx agents`, its `[project]` ones): an agent that already covers a
+role takes that chat (adopt it) and gets what the digest adds to its prompt; never make a second agent for it.
+
+**Every project team has one orchestrator**: the lead the owner talks to about the whole project, who splits goals into
+tasks for the others and checks their work. If the project has none, make it first (role `Orchestrator`, a prompt
+that names each teammate and what to hand them); every other agent reports to it (`parent: <its slug>`), directly or
+through a lead the chats show (a CMO over the Reels writer). An existing orchestrator stays the head.
+
 Tell the owner the plan in one short list (agent · role · from which chats · reports to) before making anything.
 Then for each agent call `agent_set` with `project: "<project-id>"`:
 
-- `name` and `role` from the digest; `parent` for the hierarchy the chats show (a CMO over the Reels writer).
+- `name` and `role` from the digest; `parent` as above.
 - `prompt`: short (at most ~25 lines). The Framing's intent in your own words, then the conventions that matter:
   formats it must keep, what the owner approved or rejected, tone, what to hand to which teammate. A long template goes
   to a project skill instead (see `apx-skills`), named in the prompt.
