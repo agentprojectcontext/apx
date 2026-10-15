@@ -56,6 +56,10 @@ export const actionsNote = (actions: readonly string[]) =>
     ? `APX recorded these actions in its run: ${actions.join(", ")}. The ok ones are done; do not check them again.`
     : "APX recorded no action with an effect in its run.";
 
+/** A delegate does its own part and names who owns the rest (it cannot ask them): the caller asks. See DECISIONS.md#d-074 */
+export const REDIRECT_NOTE =
+  "If it names another agent for what is left, ask that agent yourself: delegate only the remaining part to them.";
+
 const slug = (s: string) =>
   s
     .toLowerCase()
@@ -225,7 +229,7 @@ export function createDelegations(deps: {
       inline.delete(child.id);
       const resume = `(session "${name}": delegate with session="${name}" to continue it with ${who}, who keeps the context)`;
       if (quick && TERMINAL.has(quick.state))
-        return `${agentReply(who, answerOf(quick), quick.state)}\n${actionsNote(actionsOf(store, quick))}\n${resume}`;
+        return `${agentReply(who, answerOf(quick), quick.state)}\n${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}`;
       return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.`;
     },
 

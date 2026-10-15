@@ -866,7 +866,8 @@ one hop: an agent working for another one (a delegation's sub-thread, a consult 
 calls nobody. It is not offered `delegate` (`MAX_DEPTH` 1), `delegate` refuses from an `a2a` thread, its task
 comments summon no one, and a consult's answer asks nobody (this replaces D-073's two-hop cascade). The board stays
 open: it may still create and assign tasks, which start their agent's own work, bounded by the turn's depth
-(`MAX_MENTION_DEPTH`). The owner's agent, and an agent working its own task, can still delegate and consult.
+(`MAX_MENTION_DEPTH`). The owner's agent, and an agent working its own task, can still delegate and consult. Amended by
+[D-077](#d-077): the delegate names who owns the rest and the caller asks them.
 
 <a id="d-075"></a>
 ## D-075 — 2026-10-14 — The core gives agents their own `apx`
@@ -892,3 +893,15 @@ its creator closed it, or when it was created from a chat answering another agen
 moved on). Each close reports once (`close_reported` on the task's conversation); reopened and closed again, it
 reports again. The wake counts against the unattended limits of the creator's conversation: past them the report
 is kept for its next turn and the owner sees the paused notice, as for a delegation's result.
+
+<a id="d-077"></a>
+## D-077 — 2026-10-14 — A delegate names who owns the rest; the caller asks them
+Amends D-074. With one hop, a delegate asked for something that is another agent's work could not ask them, so it
+guessed: told to "ask Roby for the latest version", it looked it up on the web itself, got it wrong and never said it
+was Roby's; the caller never asked Roby either. The agent that owns the session coordinates; helpers answer and point.
+A delegated or consulted run's input (origin `agent`, the owner's own agents) now says to do its own part and name
+the agent that owns the rest, by id, instead of guessing it, and its roster in a sub-thread lists the other agents
+as ones to name, not to delegate to. The caller's side, both the inline `agent_reply` when it waited and a later
+`delegation_result`, says that if the answer names another agent for what is left, it asks that agent itself with a
+new delegation of only that part (never the same task again). The delegate still has no `delegate` tool; this lives
+in per-turn inputs, not the system prompt (PROMPT_SIZE.md).

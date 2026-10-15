@@ -7,12 +7,21 @@ import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (system.startsWith("You are Scout")) return say("Found 3 sources about A2A.");
   if (system.startsWith("You are Vera")) {
+    if (said.includes("latest version")) return say("Notes drafted. The latest version is Scout's work: ask scout.");
     if (said.includes("chart widget") && !afterTool)
       return callTool("v1", "show_widget", { name: "vera-chart", title: "Chart", html: "<b>1</b>" });
     await new Promise((r) => setTimeout(r, 300));
     return say("Design ready.");
   }
   if (said.includes("<delegation_result")) return say("Vera finished: design ready.");
+  if (said.includes("notes and version")) {
+    const last = String(req.messages.at(-1)?.content);
+    if (!afterTool)
+      return callTool("c6", "delegate", { agent: "vera", task: "draft the notes and find the latest version" });
+    if (last.includes('from="Vera"'))
+      return callTool("c7", "delegate", { agent: "scout", task: "find the latest version" });
+    return say("Both answered.");
+  }
   if (said.includes("delegate and wait") && !afterTool)
     return callTool("c5", "delegate", { agent: "vera", task: "design the panel", wait_s: 30 });
   if (said.includes("delegate slowly") && !afterTool)
@@ -219,6 +228,32 @@ test("an agent answering another one is not offered delegate: it does the work i
   );
 });
 
+test("a delegate names who owns the rest instead of guessing it, and the caller asks that agent itself", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "redirect" });
+  await env.client.call("threads.send", { thread: t.id, text: "notes and version" });
+  const { messages } = await env.settle(t.id);
+  // Vera was told to name the owner of what is not hers, and shown whom she may name (she cannot delegate).
+  const vera = llm.calls.findLast((c) => String(c.messages[0]?.content).startsWith("You are Vera"));
+  const asked = String(vera?.messages.at(-1)?.content);
+  assert.match(asked, /name that agent \(by id\) for the rest instead of guessing it: Roby asks them/);
+  assert.match(asked, /Other agents \(name one by id for work that is theirs\):\n[\s\S]*\(id: scout\)/);
+  assert.ok(!vera?.tools.some((tool) => tool.function.name === "delegate"), "still one hop");
+  // Roby got Vera's answer with the cue to ask whoever she named, and did: a second sub-thread, with Scout.
+  const reply = llm.calls
+    .flatMap((c) => c.messages)
+    .find((m) => m.role === "tool" && String(m.content).includes('<agent_reply from="Vera"'));
+  assert.match(String(reply?.content), /If it names another agent for what is left, ask that agent yourself/);
+  const cards = messages.flatMap((m) => m.parts).filter((p) => p.type === "subthread");
+  assert.deepEqual(
+    cards.map((c) => [c.agent_id, c.state]),
+    [
+      ["vera", "completed"],
+      ["scout", "completed"],
+    ],
+  );
+  assert.equal(texts(messages).at(-1), "Both answered.");
+});
+
 test("a delegation that outlives the wait comes back as a durable input and wakes the caller", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "async" });
   await env.client.call("threads.send", { thread: t.id, text: "delegate slowly" });
@@ -253,7 +288,7 @@ test("a delegation's answer carries what APX saw the other agent do, outside its
   await env.settle(t.id);
   const reply = llm.calls
     .flatMap((c) => c.messages)
-    .find((m) => m.role === "tool" && String(m.content).includes('<agent_reply from="Vera"'));
+    .findLast((m) => m.role === "tool" && String(m.content).includes('<agent_reply from="Vera"'));
   assert.match(
     String(reply?.content),
     /<\/agent_reply>\nAPX recorded these actions in its run: show_widget ok\. The ok ones are done/,
