@@ -1,6 +1,6 @@
 import type { Person } from "@apx/protocol";
 import { PERSON_RELATIONS } from "@apx/protocol/client";
-import { Button, IconButton, Icons, Input, Select, Switch, Textarea } from "@apx/ui";
+import { Button, IconButton, Icons, Input, Select, Switch, Textarea, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { claimAddress, saveContact } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
@@ -126,6 +126,16 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
         >
           {person.muted ? t("ch.unmute") : t("ch.mute")}
         </Button>
+        <Tooltip content={t("ch.superviseHint")}>
+          <Button
+            size="sm"
+            variant="ghost"
+            leadingIcon={<Icons.Eye size={14} />}
+            onClick={() => void saveContact(person.id, { name: person.name, supervised: !person.supervised })}
+          >
+            {person.supervised ? t("ch.unsupervise") : t("ch.supervise")}
+          </Button>
+        </Tooltip>
         <span className="chan__spacer" />
         <Button size="sm" disabled={!dirty || !d.name.trim()} loading={busy} onClick={() => void save()}>
           {t("common.save")}

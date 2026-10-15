@@ -86,6 +86,7 @@ export const enChannels = {
   "ch.room.noFiles": "To post files, ask {agent} to do it.",
   "ch.muted": "Silenced",
   "ch.unreviewed": "Not reviewed: not answered",
+  "ch.supervised": "Supervised: you approve each answer",
   "ch.noChat": "No chat yet",
   "ch.online": "Online",
   "ch.lastSeen": "Last seen {when}",
@@ -143,6 +144,10 @@ export const enChannels = {
   "ch.perm.notesHint": "Only your general notes, read only.",
   "ch.mute": "Silence",
   "ch.unmute": "Unsilence",
+  "ch.supervise": "Supervise",
+  "ch.unsupervise": "Stop supervising",
+  "ch.superviseHint":
+    "Their messages aren't answered on their own: you get the suggested answer, to send it, edit it or drop it.",
   "ch.saved": "Contact saved.",
   "ch.youToAgent": "You → {agent}",
   "em.lead": "A mailbox for the agent: it reads the mail that arrives and answers in the same thread.",

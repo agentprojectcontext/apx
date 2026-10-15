@@ -89,6 +89,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.room.noFiles": "Para publicar archivos, pedíselo a {agent}.",
   "ch.muted": "Silenciado",
   "ch.unreviewed": "Sin revisar: no se le contesta",
+  "ch.supervised": "Supervisado: aprobás cada respuesta",
   "ch.noChat": "Sin conversación todavía",
   "ch.online": "En línea",
   "ch.lastSeen": "Últ. vez {when}",
@@ -145,6 +146,9 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.perm.notesHint": "Solo tus notas generales, de lectura.",
   "ch.mute": "Silenciar",
   "ch.unmute": "Quitar silencio",
+  "ch.supervise": "Supervisar",
+  "ch.unsupervise": "Dejar de supervisar",
+  "ch.superviseHint": "No se le contesta solo: te llega la respuesta sugerida para mandarla, editarla o descartarla.",
   "ch.saved": "Contacto guardado.",
   "ch.youToAgent": "Vos → {agent}",
   // Brand names read the same in every language.
