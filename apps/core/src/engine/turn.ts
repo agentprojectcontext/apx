@@ -662,10 +662,13 @@ async function finishRun(
     // A question or confirmation the turn stopped waiting for is still the owner's to answer.
     state: store.inputs.pending(thread.id).length ? "input-required" : "idle",
     preview: previewOf(text || (t.exec.toolsRan ? "Finished without a message." : "No answer.")),
-    unread: (store.threads.get(thread.id)?.unread ?? 0) + 1,
+    unread: (store.threads.get(thread.id)?.unread ?? 0) + news(t.run),
   });
   return run;
 }
+
+/** A delegated turn's answer is read in its caller's card, not in the delegated chat: it marks nothing unread there. */
+const news = (run: RunRecord) => (run.trigger === "a2a" ? 0 : 1);
 
 /**
  * Canceled or failed: a notice saying why, the model log closed honestly, the run and thread marked. Cut off by
@@ -711,7 +714,7 @@ function failRun(
   store.threads.patch(t.turn.thread.id, {
     state: canceled ? "canceled" : "failed",
     preview: previewOf(message),
-    ...(canceled ? {} : { unread: (store.threads.get(t.turn.thread.id)?.unread ?? 0) + 1 }),
+    ...(canceled ? {} : { unread: (store.threads.get(t.turn.thread.id)?.unread ?? 0) + news(t.run) }),
   });
   return run;
 }

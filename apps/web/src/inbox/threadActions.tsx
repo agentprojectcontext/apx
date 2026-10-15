@@ -51,6 +51,15 @@ export function threadMenu(thread: Thread, o: { t: T; agent: Agent | undefined; 
     ...(agent && !thread.engine
       ? [{ label: t("thread.menu.viewAgent"), icon: <Icons.Bot />, onSelect: () => go.agent(agent.id) }]
       : []),
+    ...(thread.kind === "a2a" && thread.parent_id
+      ? [
+          {
+            label: t("thread.menu.openParent"),
+            icon: <Icons.Reply />,
+            onSelect: () => go.thread(thread.parent_id as string),
+          },
+        ]
+      : []),
     ...(o.extra ?? []),
     { type: "separator" },
     {

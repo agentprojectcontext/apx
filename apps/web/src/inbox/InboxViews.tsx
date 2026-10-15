@@ -17,6 +17,7 @@ import {
 import { useData, useShownAgents } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { ListedChat } from "./Delegated.tsx";
 import { type ActivityGroup, bundleTasks, type ProjectTree, type TimeBucket } from "./groupThreads.ts";
 import { TaskBundle } from "./TaskBundle.tsx";
 import { PinMark } from "./ThreadRow.tsx";
@@ -101,7 +102,9 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
                 </button>
                 <div className="tree__sessions">
                   {shown.map((th) => (
-                    <SessionRow key={th.id} thread={th} agent={agent} selected={th.id === selected} />
+                    <ListedChat key={th.id} thread={th} selected={selected}>
+                      <SessionRow thread={th} agent={agent} selected={th.id === selected} />
+                    </ListedChat>
                   ))}
                   {b.threads.length > PER_AGENT && (
                     <button
@@ -122,17 +125,22 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
   );
 }
 
-/** A chat in a branch; `withAgent` names its agent first (a task's chats are several agents'). */
+/**
+ * A chat in a branch; `withAgent` names its agent first (a task's chats are several agents'), `label` replaces its
+ * name.
+ */
 export function SessionRow({
   thread,
   agent,
   selected,
   withAgent = false,
+  label,
 }: {
   thread: Thread;
   agent: Agent | undefined;
   selected: boolean;
   withAgent?: boolean;
+  label?: string | undefined;
 }) {
   const t = useT();
   return (
@@ -150,7 +158,9 @@ export function SessionRow({
         {withAgent && <AgentAvatar name={agent?.name ?? ""} blob={blobOf(agent)} size={16} animated={false} />}
         {withAgent && <span className="tree__sessionwho">{agent?.name ?? thread.agent_ids[0]}</span>}
         {/* Under its task, a chat's title only repeats the task's: what was said last tells them apart. */}
-        <span className="tree__sessiontitle">{chatLabel(thread, agent, withAgent ? thread.title : t("chat.new"))}</span>
+        <span className="tree__sessiontitle">
+          {label ?? chatLabel(thread, agent, withAgent ? thread.title : t("chat.new"))}
+        </span>
         <CodeMark thread={thread} />
         {thread.unread > 0 && <span className="tree__unread">{thread.unread}</span>}
         <span className="tree__when">{shortWhen(thread.updated_at)}</span>
@@ -177,37 +187,39 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
             const th = entry.thread;
             const agent: Agent | undefined = agents[th.agent_ids[0] ?? ""];
             return (
-              <ContextMenu key={th.id} items={threadMenu(th, { t, agent })}>
-                <button
-                  type="button"
-                  className={cx("activity__row", th.id === selected && "is-selected", th.unread > 0 && "is-unread")}
-                  onClick={() => go.thread(th.id)}
-                >
-                  {th.engine ? (
-                    <EngineIcon engine={th.engine} tile size={28} />
-                  ) : (
-                    <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={false} />
-                  )}
-                  <span className="activity__body">
-                    <span className="activity__title">
-                      {isWorking(th.state) && <Spinner size={12} />}
-                      {th.state === "input-required" && <Icons.Hand size={12} className="tree__waiting" />}
-                      {th.pinned && <PinMark />}
-                      <RoutineMark thread={th} />
-                      <span className="activity__text">{chatLabel(th, agent, t("chat.new"))}</span>
+              <ListedChat key={th.id} thread={th} selected={selected}>
+                <ContextMenu items={threadMenu(th, { t, agent })}>
+                  <button
+                    type="button"
+                    className={cx("activity__row", th.id === selected && "is-selected", th.unread > 0 && "is-unread")}
+                    onClick={() => go.thread(th.id)}
+                  >
+                    {th.engine ? (
+                      <EngineIcon engine={th.engine} tile size={28} />
+                    ) : (
+                      <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={false} />
+                    )}
+                    <span className="activity__body">
+                      <span className="activity__title">
+                        {isWorking(th.state) && <Spinner size={12} />}
+                        {th.state === "input-required" && <Icons.Hand size={12} className="tree__waiting" />}
+                        {th.pinned && <PinMark />}
+                        <RoutineMark thread={th} />
+                        <span className="activity__text">{chatLabel(th, agent, t("chat.new"))}</span>
+                      </span>
+                      <span className="activity__meta">
+                        <ProjectTile tone={projectTone(th.project_id ?? DEFAULT_PID)} size={10} />
+                        {projectName(projects, th.project_id)} · <Where thread={th} agent={agent} />
+                        <CodeMark thread={th} />
+                      </span>
                     </span>
-                    <span className="activity__meta">
-                      <ProjectTile tone={projectTone(th.project_id ?? DEFAULT_PID)} size={10} />
-                      {projectName(projects, th.project_id)} · <Where thread={th} agent={agent} />
-                      <CodeMark thread={th} />
+                    <span className="activity__side">
+                      <span className="tree__when">{shortWhen(th.updated_at)}</span>
+                      {th.unread > 0 && <span className="tree__unread">{th.unread}</span>}
                     </span>
-                  </span>
-                  <span className="activity__side">
-                    <span className="tree__when">{shortWhen(th.updated_at)}</span>
-                    {th.unread > 0 && <span className="tree__unread">{th.unread}</span>}
-                  </span>
-                </button>
-              </ContextMenu>
+                  </button>
+                </ContextMenu>
+              </ListedChat>
             );
           })}
         </div>

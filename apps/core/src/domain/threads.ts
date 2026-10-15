@@ -180,6 +180,54 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
           .orderBy("updated_at", "desc"),
       ).map(toThread);
     },
+    /** Up to `perChat` of the chats each of `parents` delegated (not archived), newest first. */
+    delegatedFrom(parents: string[], perChat: number): Thread[] {
+      if (!parents.length || perChat <= 0) return [];
+      return all(
+        qb
+          .selectFrom((db) =>
+            db
+              .selectFrom("threads")
+              .selectAll()
+              .select(sql<number>`row_number() over (partition by parent_id order by updated_at desc)`.as("rank"))
+              // One statement whatever the number of parents: a JSON array, not a list of placeholders.
+              .where(sql<boolean>`parent_id in (select value from json_each(${JSON.stringify(parents)}))`)
+              .where("archived", "=", 0)
+              .as("d"),
+          )
+          .selectAll()
+          .where("rank", "<=", perChat)
+          .orderBy("updated_at", "desc"),
+      ).map(toThread);
+    },
+    /** How many chats (not archived) each of `parents` delegated, for the ones that did. */
+    delegatedCounts(parents: string[]): Record<string, number> {
+      if (!parents.length) return {};
+      const rows = all(
+        qb
+          .selectFrom("threads")
+          .select(["parent_id", (eb) => eb.fn.countAll<number>().as("n")])
+          .where(sql<boolean>`parent_id in (select value from json_each(${JSON.stringify(parents)}))`)
+          .where("archived", "=", 0)
+          .groupBy("parent_id"),
+      );
+      return Object.fromEntries(rows.map((r) => [String(r.parent_id), Number(r.n)]));
+    },
+    /** Delegated chats linked to another project than the chat they came from (in `project_id` when given). */
+    delegatedAcross(project_id: string | undefined, limit = 100): Thread[] {
+      return all(
+        qb
+          .selectFrom("threads as c")
+          .innerJoin("threads as p", "p.id", "c.parent_id")
+          .selectAll("c")
+          .where("c.archived", "=", 0)
+          .where("c.project_id", "is not", null)
+          .where((eb) => eb.or([eb("p.project_id", "is", null), eb("p.project_id", "!=", eb.ref("c.project_id"))]))
+          .$if(!!project_id, (q) => q.where("c.project_id", "=", project_id as string))
+          .orderBy("c.updated_at", "desc")
+          .limit(limit),
+      ).map(toThread);
+    },
     children(parentId: string): string[] {
       return all(qb.selectFrom("threads").select("id").where("parent_id", "=", parentId)).map((r) => r.id);
     },

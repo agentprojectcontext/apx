@@ -6,6 +6,7 @@ import { blobOf, isWorking } from "../data/identity.ts";
 import { useShownAgents } from "../data/state.ts";
 import { useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
+import { ListedChat } from "./Delegated.tsx";
 import { SessionRow } from "./InboxViews.tsx";
 
 const cx = (...c: Array<string | false>) => c.filter(Boolean).join(" ");
@@ -64,13 +65,9 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
       {open && (
         <div className="tree__sessions">
           {threads.map((th) => (
-            <SessionRow
-              key={th.id}
-              thread={th}
-              agent={agents[th.agent_ids[0] ?? ""]}
-              selected={th.id === selected}
-              withAgent
-            />
+            <ListedChat key={th.id} thread={th} selected={selected}>
+              <SessionRow thread={th} agent={agents[th.agent_ids[0] ?? ""]} selected={th.id === selected} withAgent />
+            </ListedChat>
           ))}
         </div>
       )}

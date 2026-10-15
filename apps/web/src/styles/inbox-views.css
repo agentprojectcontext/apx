@@ -129,6 +129,64 @@
 .taskbundle .tree__sessions {
   margin-left: 11px;
 }
+/* A chat's delegated chats: a chevron before its row folds them; they hang from a guide line under it. */
+.delegated__head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.delegated__fold {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: none;
+  color: var(--apx-fg-subtle);
+  cursor: pointer;
+}
+.delegated__fold:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.delegated__row {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.delegated .delegated__list {
+  margin-left: 8px;
+  padding-bottom: 4px;
+}
+.delegated__from {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin: -2px 0 4px 12px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: none;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+  cursor: pointer;
+}
+.delegated__from:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.delegated__fromtext {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .taskbundle__icon {
   flex: none;
   color: var(--apx-fg-subtle);

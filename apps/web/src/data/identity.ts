@@ -33,6 +33,9 @@ export function projectName(projects: Project[], id: string | undefined): string
 /** The base project's name as the owner set it ("Default" until then): the label of what has no project. */
 export const baseName = (): string => data.get().base.name;
 
+/** Delegated chats shown under their caller before "N more" (and how many the list loads per chat). */
+export const DELEGATED_SHOWN = 5;
+
 /** Threads the chat lists show: not archived, a sub-thread between agents, nor a task's or a routine's conversation. */
 export function isListed(t: Pick<Thread, "parent_id" | "kind" | "archived">): boolean {
   return !t.archived && isTopLevel(t);

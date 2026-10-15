@@ -33,6 +33,8 @@ export type DataState = {
   /** The base project's name, description and kind, as the owner set them. */
   base: BaseProject;
   threads: Record<string, Thread>;
+  /** How many chats each chat delegated, as the core counted them when the list loaded. */
+  delegated: Record<string, number>;
   /** Messages per thread, ordered by seq. Only threads opened in this session are present. */
   messages: Record<string, Message[]>;
   threadLoad: Record<string, LoadState>;
@@ -59,6 +61,7 @@ export const data = createStore<DataState>({
   projects: [],
   base: { name: "Default" },
   threads: {},
+  delegated: {},
   messages: {},
   threadLoad: {},
   runs: {},
