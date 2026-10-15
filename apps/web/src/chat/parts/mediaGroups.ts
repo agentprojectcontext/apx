@@ -29,3 +29,17 @@ export function mediaBlocks(parts: readonly Part[], skip: (p: Part) => boolean =
   });
   return out;
 }
+
+/** Voice notes and the files that are not pictures or videos (those show as media blocks), shown in a bubble. */
+export function bubbleFiles(parts: readonly Part[]): Array<Extract<Part, { type: "file" | "audio" }>> {
+  return parts.filter(
+    (p): p is Extract<Part, { type: "file" | "audio" }> =>
+      p.type === "audio" || (p.type === "file" && (Boolean(p.document) || !/^(image|video)\//.test(p.mime))),
+  );
+}
+
+/** A channel message that was only files says so in words for the agent; where the files show, those words go. */
+export function withoutFilesNote(parts: readonly Part[], text: string): string {
+  const attached = parts.some((p) => p.type === "file" || p.type === "image" || p.type === "audio");
+  return attached && text.trim() === "[attached files]" ? "" : text;
+}

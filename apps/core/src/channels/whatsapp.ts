@@ -4,7 +4,8 @@
 // See DECISIONS.md#d-025
 import fs from "node:fs";
 import path from "node:path";
-import type { Presentation } from "../domain/channels.ts";
+import { UPLOAD_LIMITS } from "@apx/protocol";
+import type { Inbound, Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { chunks } from "./telegram-format.ts";
@@ -15,7 +16,12 @@ import { type Menu, menuText, optionNamed, readMenu, tapFor, WA_CONTAINERS } fro
 export type WaLib = {
   makeWASocket(opts: Record<string, unknown>): WaSocket;
   useMultiFileAuthState(dir: string): Promise<{ state: unknown; saveCreds: () => Promise<void> | void }>;
-  downloadMediaMessage(msg: WaMessage, type: "buffer", opts: Record<string, unknown>): Promise<Buffer>;
+  downloadMediaMessage(
+    msg: WaMessage,
+    type: "buffer",
+    opts: Record<string, unknown>,
+    ctx?: { logger: unknown; reuploadRequest: (m: WaMessage) => Promise<WaMessage> },
+  ): Promise<Buffer>;
   fetchLatestBaileysVersion?(): Promise<{ version: number[] }>;
   Browsers?: { macOS(name: string): [string, string, string] };
   DisconnectReason: { loggedOut: number; restartRequired: number; timedOut: number };
@@ -31,6 +37,8 @@ export type WaSocket = {
   profilePictureUrl?(jid: string, type: "image" | "preview"): Promise<string | undefined>;
   /** Asks to hear when someone comes online or leaves (until the connection closes). */
   presenceSubscribe?(jid: string): Promise<void>;
+  /** Asks the sender's phone to upload an expired file again (its download link is old). */
+  updateMediaMessage?(m: WaMessage): Promise<WaMessage>;
   /** A private id's phone number, when WhatsApp told it. */
   signalRepository?: { lidMapping?: { getPNForLID?(lid: string): Promise<string | null | undefined> } };
 };
@@ -40,14 +48,19 @@ export type WaKey = {
   remoteJidAlt?: string | null;
   fromMe?: boolean | null;
 };
+/** A file's size as the library hands it: a number, or a protobuf Long. */
+type WaLength = number | { toNumber(): number } | null | undefined;
+type WaFile = { mimetype?: string | null; fileLength?: WaLength };
 export type WaContent = {
   conversation?: string | null;
   extendedTextMessage?: { text?: string | null } | null;
-  imageMessage?: { caption?: string | null } | null;
-  videoMessage?: { caption?: string | null } | null;
-  documentMessage?: { caption?: string | null; fileName?: string | null } | null;
+  imageMessage?: (WaFile & { caption?: string | null }) | null;
+  videoMessage?: (WaFile & { caption?: string | null }) | null;
+  /** A round video note. */
+  ptvMessage?: WaFile | null;
+  documentMessage?: (WaFile & { caption?: string | null; fileName?: string | null }) | null;
   audioMessage?: { ptt?: boolean | null; mimetype?: string | null } | null;
-  stickerMessage?: unknown;
+  stickerMessage?: WaFile | null;
   /** An emoji on a message (`key.id`); empty text when it was taken off. */
   reactionMessage?: { key?: WaKey | null; text?: string | null } | null;
   ephemeralMessage?: { message?: WaContent | null } | null;
@@ -114,24 +127,36 @@ function unwrap(c: WaContent | null | undefined): WaContent | undefined {
   return cur;
 }
 function textOf(c: WaContent): string | undefined {
-  const t =
+  return (
     c.conversation ??
     c.extendedTextMessage?.text ??
     c.imageMessage?.caption ??
     c.videoMessage?.caption ??
     c.documentMessage?.caption ??
-    menuText(c);
-  if (t) return t;
-  const kind = c.imageMessage
-    ? "photo"
-    : c.videoMessage
-      ? "video"
-      : c.documentMessage
-        ? "file"
-        : c.stickerMessage
-          ? "sticker"
-          : undefined;
-  return kind ? `[${kind} — APX cannot read this kind of message yet]` : undefined;
+    menuText(c)
+  );
+}
+
+/** A message's picture, video, sticker or document: what it is, the name it is kept under and its declared size. */
+type WaMedia = { kind: "photo" | "video" | "sticker" | "file"; name: string; mime: string; size: number };
+const sizeOf = (n: WaLength) => (typeof n === "number" ? n : n ? n.toNumber() : 0);
+const extOf = (mime: string, fallback: string) =>
+  ({ "video/quicktime": "mov", "video/3gpp": "3gp", "image/jpeg": "jpg" })[mime] ??
+  (/^[a-z]+\/([a-z0-9]{2,5})$/.exec(mime)?.[1] || fallback);
+function mediaOf(c: WaContent): WaMedia | undefined {
+  const typed = (f: WaFile, fallback: string) => (f.mimetype ?? fallback).split(";")[0]?.trim() || fallback;
+  const made = (kind: WaMedia["kind"], f: WaFile, fallback: string, base: string): WaMedia => {
+    const mime = typed(f, fallback);
+    return { kind, mime, name: `${base}.${extOf(mime, fallback.split("/")[1] ?? "bin")}`, size: sizeOf(f.fileLength) };
+  };
+  if (c.imageMessage) return made("photo", c.imageMessage, "image/jpeg", "photo");
+  if (c.videoMessage) return made("video", c.videoMessage, "video/mp4", "video");
+  if (c.ptvMessage) return made("video", c.ptvMessage, "video/mp4", "video");
+  if (c.stickerMessage) return made("sticker", c.stickerMessage, "image/webp", "sticker");
+  const d = c.documentMessage;
+  if (!d) return undefined;
+  const name = path.basename(String(d.fileName ?? "").replaceAll("\\", "/")).slice(0, 200) || "document";
+  return { kind: "file", name, mime: typed(d, "application/octet-stream"), size: sizeOf(d.fileLength) };
 }
 
 /** Markdown as WhatsApp writes it: *bold*, _italic_, ~strike~, links as "text (url)". */
@@ -360,7 +385,15 @@ export function whatsappAdapter(opts: {
       }
       if (!voice) text = "[voice note: it could not be downloaded]";
     }
-    if (!text && !voice) {
+    const media = mediaOf(content);
+    let files: Inbound["files"];
+    if (media && group) text ||= `[${media.kind}]`;
+    else if (media) {
+      const got = await fileOf(m, media);
+      if (got.file) files = [got.file];
+      else text = `${text}\n[attachment could not be downloaded: ${got.failure}]`.trim();
+    }
+    if (!text && !voice && !files) {
       if (!m.key.fromMe) log?.warn({ server, kinds: Object.keys(content).slice(0, 8) }, "whatsapp message not read");
       return;
     }
@@ -386,7 +419,35 @@ export function whatsappAdapter(opts: {
       text,
       private: !group,
       ...(voice ? { voice } : {}),
+      ...(files ? { files } : {}),
     });
+  }
+
+  /** A message's file, downloaded whole before it is stored (an expired link is asked of the sender's phone again). */
+  async function fileOf(
+    m: WaMessage,
+    media: WaMedia,
+  ): Promise<
+    { file: { name: string; mime: string; data: string }; failure?: undefined } | { file?: undefined; failure: string }
+  > {
+    const limit = media.mime.startsWith("image/") ? UPLOAD_LIMITS.imageBytes : UPLOAD_LIMITS.channelBytes;
+    const over = `${media.name} is over ${Math.round(limit / 1024 / 1024)} MB`;
+    if (media.size > limit) return { failure: over };
+    const s = sock;
+    try {
+      const bytes = await lib?.downloadMediaMessage(
+        m,
+        "buffer",
+        {},
+        s?.updateMediaMessage ? { logger: quiet(log), reuploadRequest: s.updateMediaMessage } : undefined,
+      );
+      if (!bytes?.length) return { failure: "WhatsApp sent no file" };
+      if (bytes.length > limit) return { failure: over };
+      return { file: { name: media.name, mime: media.mime, data: bytes.toString("base64") } };
+    } catch (err) {
+      log?.warn({ err: errorMessage(err, 200), kind: media.kind }, "whatsapp file not downloaded");
+      return { failure: "WhatsApp did not hand over the file" };
+    }
   }
 
   async function sendOne(jid: string, content: Record<string, unknown>): Promise<string | undefined> {

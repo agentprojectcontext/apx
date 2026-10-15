@@ -166,11 +166,22 @@ export function channelsRepo({ one, all, run }: Sql) {
         );
         return r ? (JSON.parse(r.payload) as Inbound) : undefined;
       },
+      /** Handled: its files' bytes leave the row (they are in media by now), so reading the inbox stays cheap. */
       done(id: string, state: "done" | "ignored" | "failed", error?: string): void {
+        const row = one(qb.selectFrom("channel_inbox").select("payload").where("id", "=", id));
+        const m = row ? (JSON.parse(row.payload) as Inbound) : undefined;
+        const light =
+          m && (m.files?.length || m.voice)
+            ? JSON.stringify({
+                ...m,
+                ...(m.files ? { files: m.files.map((f) => ({ ...f, data: "" })) } : {}),
+                ...(m.voice ? { voice: { ...m.voice, data: "" } } : {}),
+              })
+            : undefined;
         run(
           qb
             .updateTable("channel_inbox")
-            .set({ state, error: error ?? null })
+            .set({ state, error: error ?? null, ...(light ? { payload: light } : {}) })
             .where("id", "=", id),
         );
       },

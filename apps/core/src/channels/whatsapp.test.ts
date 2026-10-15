@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { after, before, test } from "node:test";
+import { UPLOAD_LIMITS } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { fakeWhatsApp } from "./fake-whatsapp.test-support.ts";
 import type { AdapterIO } from "./types.ts";
@@ -275,6 +276,60 @@ test("someone under their private id is the same person as their number", async 
   await until(async () => (await env.client.call("pairing.list", {})).requests.some((r) => r.name === "Bob"), "listed");
   const req = (await env.client.call("pairing.list", {})).requests.find((r) => r.name === "Bob");
   assert.equal(req?.external_id, BOB.phone);
+});
+
+test("a contact's video, a document of any type and a too-big file: kept to play or download, or explained", async () => {
+  const MP4 = Buffer.concat([Buffer.from("000000186674797069736f6d", "hex"), Buffer.alloc(3 * 1024 * 1024, 1)]);
+  const APK = Buffer.from("PK\u0003\u0004 an app");
+  wa.message(ANA, "", {
+    content: {
+      videoMessage: { caption: "Me waiting to be added", mimetype: "video/mp4", fileLength: MP4.length },
+      bytes: MP4.toString("base64"),
+    },
+  });
+  wa.message(ANA, "", {
+    content: {
+      documentWithCaptionMessage: {
+        message: {
+          documentMessage: {
+            caption: "The app",
+            fileName: "../tool.apk",
+            mimetype: "application/vnd.android.package-archive",
+          },
+        },
+      },
+      bytes: APK.toString("base64"),
+    },
+  });
+  wa.message(ANA, "", {
+    content: { videoMessage: { mimetype: "video/mp4", fileLength: UPLOAD_LIMITS.channelBytes + 1 } },
+  });
+  const thread = () => env.core.store.threads.byConversation("whatsapp", ANA.phone);
+  const theirs = async () =>
+    (await env.client.call("threads.get", { thread: thread()?.id ?? "" })).messages.filter(
+      (m) => m.author.kind === "person",
+    );
+  await until(
+    async () => (await theirs()).some((m) => m.parts.some((p) => p.type === "text" && /over 50 MB/.test(p.text))),
+    "all three",
+    8000,
+  );
+  const parts = (await theirs()).flatMap((m) => m.parts);
+  const video = parts.find((p) => p.type === "file" && p.mime === "video/mp4");
+  assert.ok(video?.type === "file");
+  assert.equal(video.name, "video.mp4");
+  assert.deepEqual(Buffer.from((await env.client.call("media.get", { id: video.media_id })).data, "base64"), MP4);
+  const apk = parts.find((p) => p.type === "file" && p.name === "tool.apk");
+  assert.ok(apk?.type === "file", "any type is kept, its name without a path");
+  assert.equal(apk.mime, "application/vnd.android.package-archive");
+  const texts = parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n");
+  assert.match(texts, /Me waiting to be added/);
+  assert.match(texts, /The app/);
+  assert.doesNotMatch(texts, /cannot read this kind/);
+  await until(
+    () => llm.calls.some((c) => /\[file attached: video\.mp4 \(video\/mp4\)/.test(String(c.messages.at(-1)?.content))),
+    "the agent told a video came",
+  );
 });
 
 test("groups, and the owner writing to a friend on their phone, never reach the agent", async () => {

@@ -69,12 +69,30 @@ test("Telegram PDF without caption reaches the chat's temp folder and appears as
   assert.ok(chat.messages.some((m) => m.parts.some((p) => p.type === "file" && p.name === "receipt.pdf")));
 });
 
+test("a Telegram video is kept whole and shows as a video the chat plays", async (t) => {
+  const env = await setup(t);
+  const MP4 = Buffer.concat([Buffer.from("000000186674797069736f6d", "hex"), Buffer.alloc(3 * 1024 * 1024, 1)]);
+  env.tg.attachment(OWNER, { bytes: MP4, mime: "video/mp4", video: true, caption: "Look at this" });
+  await wait(() => env.llm.calls.length > 0);
+  await env.settle("home");
+  const input = String(env.llm.calls[0]?.messages.at(-1)?.content);
+  assert.match(input, /Look at this[\s\S]*\[file attached: video\.mp4 \(video\/mp4\)/);
+  const chat = await env.client.call("threads.get", { thread: "home" });
+  const part = chat.messages.flatMap((m) => m.parts).find((p) => p.type === "file" && p.mime === "video/mp4");
+  assert.ok(part?.type === "file");
+  assert.equal(part.bytes, MP4.length, "over the composer's 2 MB, kept all the same");
+  assert.deepEqual(Buffer.from((await env.client.call("media.get", { id: part.media_id })).data, "base64"), MP4);
+  const kept = env.core.store.channels.inbox.latest("tg", String(OWNER.id));
+  assert.equal(kept?.files?.[0]?.data, "", "once handled, the inbox keeps no copy of the bytes");
+  assert.equal(kept?.files?.[0]?.name, "video.mp4");
+});
+
 test("Telegram oversized and failed downloads preserve captions and explain missing attachments", async (t) => {
   const env = await setup(t);
   env.tg.attachment(OWNER, {
     bytes: PDF,
     mime: "application/pdf",
-    declaredSize: UPLOAD_LIMITS.fileBytes + 1,
+    declaredSize: UPLOAD_LIMITS.channelBytes + 1,
     caption: "Large receipt",
   });
   await wait(() => env.llm.calls.length === 1);
@@ -85,7 +103,7 @@ test("Telegram oversized and failed downloads preserve captions and explain miss
   );
   assert.equal(env.tg.downloads.length, 0);
   env.tg.attachment(OWNER, {
-    bytes: Buffer.alloc(UPLOAD_LIMITS.fileBytes + 1),
+    bytes: Buffer.alloc(UPLOAD_LIMITS.channelBytes + 1),
     mime: "application/pdf",
     declaredSize: 1,
   });

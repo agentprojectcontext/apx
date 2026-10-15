@@ -30,12 +30,16 @@ if (port)
           status?: number;
           online?: boolean;
           emoji?: string;
+          /** A message's content as the library hands it (a video, a document), its file's bytes in `bytes`. */
+          content?: object;
         };
         const url = new URL(req.url ?? "/", "http://x");
         let out: unknown = { ok: true };
         if (url.pathname === "/scan") wa.scan();
         else if (url.pathname === "/owner") wa.fromOwner(String(body.text ?? ""));
         else if (url.pathname === "/message" && body.from) wa.message(body.from, String(body.text ?? ""));
+        else if (url.pathname === "/media" && body.from && body.content)
+          wa.message(body.from, "", { content: body.content });
         else if (url.pathname === "/receipt") {
           const last = wa.sent.filter((x) => x.jid === body.jid).at(-1);
           if (last) wa.receipt(last.id, Number(body.status ?? 3));

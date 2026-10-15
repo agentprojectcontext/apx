@@ -1,6 +1,9 @@
 import type { ChannelInfo, Message, Person, Thread } from "@apx/protocol";
 import { Button, EmptyState, IconButton, Icons, SegmentedControl, Skeleton, Textarea } from "@apx/ui";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { FilePart } from "../chat/parts/FilePart.tsx";
+import { AudioPart } from "../chat/parts/lazyAudio.tsx";
+import { bubbleFiles, mediaBlocks, withoutFilesNote } from "../chat/parts/mediaGroups.ts";
 import { shortWhen } from "../common/format.ts";
 import { loadThread, markRead, send } from "../data/actions.ts";
 import { openContactChat, type PresenceState, sendDirect } from "../data/channels.ts";
@@ -11,6 +14,9 @@ import { RELATION_KEY } from "./ChannelScreen.tsx";
 import { addressText, ContactFace } from "./ContactRow.tsx";
 import { DeliveryTicks, ReactionList } from "./MessageMarks.tsx";
 import { isSignal } from "./signal.ts";
+
+// Pictures and videos load with the first message that has them, as in the chat.
+const MediaGroup = lazy(() => import("../chat/parts/MediaGroup.tsx"));
 
 /**
  * The chat with one contact. Their words on the left; what was sent to them (by the agent or by the owner) on the
@@ -182,7 +188,9 @@ function Bubble({ m, agentName }: { m: Message; agentName: string }) {
     .flatMap((p) => (p.type === "text" ? [p.text] : []))
     .join("\n")
     .trim();
-  const words = m.author.kind === "agent" && isSignal(said) ? "" : said;
+  const words = m.author.kind === "agent" && isSignal(said) ? "" : withoutFilesNote(m.parts, said);
+  const media = mediaBlocks(m.parts).filter((b) => b.kind !== "part");
+  const files = bubbleFiles(m.parts);
   const actions = m.parts.flatMap((p) => (p.type === "tool" && p.status !== "error" ? [p.title] : []));
   const out = m.author.kind === "agent" || m.author.kind === "user";
   // The owner's words to the agent (what to answer) read apart from what was sent to the contact.
@@ -202,9 +210,19 @@ function Bubble({ m, agentName }: { m: Message; agentName: string }) {
           <Icons.Bot size={12} /> {t("ch.agentDid", { agent: agentName, what: a })}
         </p>
       ))}
-      {words && (
+      {(words || media.length > 0 || files.length > 0) && (
         <div className={`chan__bubble${out ? " is-out" : ""}${instruction ? " is-instruction" : ""}`}>
-          <p className="chan__text">{words}</p>
+          {media.length > 0 && (
+            <Suspense fallback={<Skeleton height={160} />}>
+              {media.map((b) => (
+                <MediaGroup key={b.key} block={b} />
+              ))}
+            </Suspense>
+          )}
+          {files.map((p) =>
+            p.type === "file" ? <FilePart key={p.media_id} part={p} /> : <AudioPart key={p.media_id} part={p} />,
+          )}
+          {words && <p className="chan__text">{words}</p>}
           {m.reactions?.length ? (
             <span className="chan__reactions">
               <ReactionList list={m.reactions} agentName={agentName} />

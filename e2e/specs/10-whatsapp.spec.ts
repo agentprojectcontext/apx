@@ -89,6 +89,26 @@ test("strangers 'ask me': whoever writes is an unreviewed contact, the owner hea
   await until(async () => (await world.whatsapp.sentTo(FRIEND.phone)).some((t) => t.startsWith("Got it:")));
 });
 
+test("a contact's video plays in the chat's own player, and a document of any type downloads", async ({ page }) => {
+  const mp4 = Buffer.concat([Buffer.from("000000186674797069736f6d", "hex"), Buffer.alloc(64 * 1024, 1)]);
+  await world.whatsapp.media(FRIEND, {
+    videoMessage: { caption: "Mirá cómo quedó", mimetype: "video/mp4", fileLength: mp4.length },
+    bytes: mp4.toString("base64"),
+  });
+  await world.whatsapp.media(FRIEND, {
+    documentMessage: { fileName: "planilla.ods", mimetype: "application/vnd.oasis.opendocument.spreadsheet" },
+    bytes: Buffer.from("PK\u0003\u0004 hoja").toString("base64"),
+  });
+  await open(page);
+  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.getByRole("button", { name: /Lucía/ }).first().click();
+  await expect(page.locator('video[aria-label="video.mp4"]')).toBeVisible();
+  await expect(page.getByText("Mirá cómo quedó")).toBeVisible();
+  await expect(page.getByRole("button", { name: /planilla\.ods/ })).toBeVisible();
+  await expect(page.getByText("[attached files]")).toHaveCount(0);
+  await expect(page.getByText(/cannot read this kind/)).toHaveCount(0);
+});
+
 test("the line turned into the owner's own phone: 'Message yourself' is the owner", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: "WhatsApp", exact: true }).click();

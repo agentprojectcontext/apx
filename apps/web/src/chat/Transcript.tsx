@@ -12,7 +12,7 @@ import { AgentTurn } from "./AgentTurn.tsx";
 import { MessageActions } from "./MessageActions.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { AudioPart } from "./parts/lazyAudio.tsx";
-import { mediaBlocks } from "./parts/mediaGroups.ts";
+import { bubbleFiles, mediaBlocks, withoutFilesNote } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
 import { quotedIndex, quoteParts, splitQuote } from "./quote.ts";
 import { Regenerate, UserMessage } from "./Rewind.tsx";
@@ -156,21 +156,23 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
             ) : msg.author.kind === "person" ? (
               <>
                 <UserMedia message={msg} from="agent" />
-                <Message
-                  from="agent"
-                  variant="bubble"
-                  avatar={<AgentAvatar name={msg.author.name} size={24} />}
-                  meta={<span className="transcript__person">{msg.author.name}</span>}
-                  reactions={
-                    msg.reactions?.length ? (
-                      <ReactionList list={msg.reactions} agentName={agent?.name ?? ""} />
-                    ) : undefined
-                  }
-                  actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
-                >
-                  <UserFiles message={msg} />
-                  <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
-                </Message>
+                {(textOf(msg) || bubbleFiles(msg.parts).length > 0) && (
+                  <Message
+                    from="agent"
+                    variant="bubble"
+                    avatar={<AgentAvatar name={msg.author.name} size={24} />}
+                    meta={<span className="transcript__person">{msg.author.name}</span>}
+                    reactions={
+                      msg.reactions?.length ? (
+                        <ReactionList list={msg.reactions} agentName={agent?.name ?? ""} />
+                      ) : undefined
+                    }
+                    actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
+                  >
+                    <UserFiles message={msg} />
+                    <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
+                  </Message>
+                )}
               </>
             ) : msg.author.kind === "surface" ? (
               <SystemNote icon={<Icons.LayoutGrid size={12} />} className="transcript__fromsurface">
@@ -255,10 +257,7 @@ function UserMedia({ message, from }: { message: Msg; from: "user" | "agent" }) 
 
 /** What else the owner attached to a message (voice notes, other files), inside its bubble. */
 function UserFiles({ message }: { message: Msg }) {
-  // Pictures and videos are in UserMedia.
-  const files = message.parts.filter(
-    (p) => p.type === "audio" || (p.type === "file" && (p.document || !/^(image|video)\//.test(p.mime))),
-  );
+  const files = bubbleFiles(message.parts);
   if (!files.length) return null;
   return (
     <div className="transcript__files">
@@ -275,7 +274,8 @@ function UserFiles({ message }: { message: Msg }) {
 
 function textOf(m: Msg): string {
   const text = m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n\n");
-  return m.parts.some((p) => p.type === "audio") ? text.replace(/\[voice note\]\s*/g, "") : text;
+  const said = m.parts.some((p) => p.type === "audio") ? text.replace(/\[voice note\]\s*/g, "") : text;
+  return withoutFilesNote(m.parts, said);
 }
 
 /**

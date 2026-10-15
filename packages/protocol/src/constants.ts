@@ -26,6 +26,8 @@ export const UPLOAD_LIMITS = {
   imageBytes: 5 * 1024 * 1024,
   fileBytes: 2 * 1024 * 1024,
   audioBytes: 10 * 1024 * 1024,
+  /** What someone sends on a channel (a video, a document) is kept up to this size, to play or download. */
+  channelBytes: 50 * 1024 * 1024,
 } as const;
 
 /** Maximum UTF-8 document snapshot rendered in the side panel. */

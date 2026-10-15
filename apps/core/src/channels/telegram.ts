@@ -35,8 +35,12 @@ type TgMessage = {
   voice?: TgFile;
   audio?: TgFile;
   document?: TgFile & { file_name?: string };
-  video?: unknown;
-  sticker?: unknown;
+  video?: TgFile & { file_name?: string };
+  /** A GIF, which Telegram turns into a silent MP4. */
+  animation?: TgFile & { file_name?: string };
+  /** A round video message. */
+  video_note?: TgFile;
+  sticker?: TgFile & { is_animated?: boolean; is_video?: boolean };
 };
 type TgFile = { file_id: string; mime_type?: string; file_size?: number };
 type TgUpdate = {
@@ -103,6 +107,24 @@ function mediaNote(m: TgMessage): string | undefined {
   return kind ? `[${kind} — APX cannot read this kind of message yet]` : undefined;
 }
 
+/** The name and type a message's file is kept under (Telegram names few of them, and types not all). */
+function fileKind(m: TgMessage, f: TgFile & { file_name?: string }): { name: string; mime: string } {
+  if (m.photo?.length) return { name: "photo.jpg", mime: "image/jpeg" };
+  if (m.sticker) {
+    const [ext, type] = m.sticker.is_video
+      ? ["webm", "video/webm"]
+      : m.sticker.is_animated
+        ? ["tgs", "application/x-tgsticker"]
+        : ["webp", "image/webp"];
+    return { name: `sticker.${ext}`, mime: type };
+  }
+  const video = m.video ?? m.animation ?? m.video_note;
+  const fallback = video
+    ? { name: "video.mp4", mime: "video/mp4" }
+    : { name: "document", mime: "application/octet-stream" };
+  return { name: f.file_name ?? fallback.name, mime: f.mime_type ?? fallback.mime };
+}
+
 export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.org"): ChannelAdapter => {
   const ac = new AbortController();
   let loop: Promise<void> | undefined;
@@ -139,9 +161,10 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     signal = ac.signal,
   ): Promise<Array<{ name: string; mime: string; data: string }>> {
     const photo = [...(m.photo ?? [])].sort((a, b) => b.width * b.height - a.width * a.height)[0];
-    const f = photo ?? m.document;
+    const f = photo ?? m.document ?? m.video ?? m.animation ?? m.video_note ?? m.sticker;
     if (!f) return [];
-    const limit = photo || f.mime_type?.startsWith("image/") ? UPLOAD_LIMITS.imageBytes : UPLOAD_LIMITS.fileBytes;
+    const { name, mime } = fileKind(m, f);
+    const limit = mime.startsWith("image/") ? UPLOAD_LIMITS.imageBytes : UPLOAD_LIMITS.channelBytes;
     if ((f.file_size ?? 0) > limit) throw new Error("Attachment exceeds the upload size limit");
     const info = await api<{ file_path?: string }>("getFile", { file_id: f.file_id }, CALL_MS, signal);
     if (!info.file_path) throw new Error("Attachment is unavailable");
@@ -163,13 +186,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     } finally {
       await reader.cancel().catch(() => {});
     }
-    return [
-      {
-        name: photo ? "photo.jpg" : (m.document?.file_name ?? "document"),
-        mime: photo ? "image/jpeg" : (f.mime_type ?? "application/octet-stream"),
-        data: Buffer.concat(chunks).toString("base64"),
-      },
-    ];
+    return [{ name, mime, data: Buffer.concat(chunks).toString("base64") }];
   }
 
   async function readFiles(m: TgMessage): ReturnType<typeof filesOf> {
@@ -207,7 +224,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
       const voice = private_ ? await voiceOf(m).catch(() => undefined) : undefined;
       let files: Array<{ name: string; mime: string; data: string }> = [];
       let failure = "";
-      if (private_ && (m.photo?.length || m.document)) {
+      if (private_ && (m.photo?.length || m.document || m.video || m.animation || m.video_note || m.sticker)) {
         try {
           files = await readFiles(m);
         } catch (err) {

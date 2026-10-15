@@ -1,5 +1,6 @@
-// Files the owner attaches in the composer. Images are kept for models that can look at them; text files are read
-// into the turn (capped, as outside content); other files can be copied into the turn work folder.
+// Files the owner attaches in the composer, or someone sends on a channel. Images are kept for models that can look at
+// them; text files are read into the turn (capped, as outside content); any other type is kept to play or download,
+// and can be copied into the turn work folder.
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -27,7 +28,7 @@ const AUDIO: Record<string, string> = {
 };
 /** Text the agent can read as is. */
 const TEXT = /^(text\/[a-z0-9.+-]+|application\/(json|xml|x-yaml|yaml|csv|x-ndjson|javascript|typescript|x-sh))$/;
-/** Binary documents kept for download and inspection with tools in the work folder. */
+/** Known binary types and their extension on disk; any other type is kept as `.bin`. */
 const OTHER: Record<string, string> = {
   "application/pdf": "pdf",
   "application/octet-stream": "bin",
@@ -40,6 +41,13 @@ const OTHER: Record<string, string> = {
   "video/mp4": "mp4",
   "video/webm": "webm",
   "video/quicktime": "mov",
+  "video/3gpp": "3gp",
+  "video/x-matroska": "mkv",
+};
+/** A type as the platform or browser named it, or a plain binary one when it named none (or nonsense). */
+const typeOf = (mime: string) => {
+  const m = mime.trim().toLowerCase();
+  return /^[a-z0-9.+-]+\/[a-z0-9.+-]+$/.test(m) ? m : "application/octet-stream";
 };
 
 /** The first bytes of each image type. */
@@ -66,26 +74,25 @@ export function saveUpload(
   a: { name: string; mime: string; bytes: Buffer; thread?: string | undefined },
   maxBytes?: number,
 ): MediaRecord & { name: string } {
-  const image = IMAGES[a.mime];
-  const audio = AUDIO[a.mime.split(";")[0]?.trim() ?? ""];
-  const readable = isReadable(a.mime);
-  if (!image && !audio && !readable && !OTHER[a.mime])
-    throw new Error(`${a.name}: ${a.mime || "this type"} cannot be attached`);
+  const mime = typeOf(a.mime.split(";")[0] ?? "");
+  const image = IMAGES[mime];
+  const audio = AUDIO[mime];
+  const readable = isReadable(mime);
   const limit =
     maxBytes ?? (image ? UPLOAD_LIMITS.imageBytes : audio ? UPLOAD_LIMITS.audioBytes : UPLOAD_LIMITS.fileBytes);
   if (a.bytes.length > limit) throw new Error(`${a.name} is over ${Math.round(limit / 1024 / 1024)} MB`);
   if (!a.bytes.length) throw new Error(`${a.name} is empty`);
   // A model refuses an image whose bytes are not what its type says: catch it here, with a reason the owner reads.
-  if (image && !looksLike(a.mime, a.bytes)) throw new Error(`${a.name} is not a ${image.toUpperCase()} image`);
+  if (image && !looksLike(mime, a.bytes)) throw new Error(`${a.name} is not a ${image.toUpperCase()} image`);
   // A "text" file with NUL bytes is binary in disguise: it would reach the model as noise.
   if (readable && a.bytes.includes(0)) throw new Error(`${a.name} is not a text file`);
   const dir = path.join(home, "media", "uploads", new Date().toISOString().slice(0, 10));
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `${randomUUID()}.${image ?? audio ?? OTHER[a.mime] ?? "txt"}`);
+  const file = path.join(dir, `${randomUUID()}.${image ?? audio ?? (readable ? "txt" : (OTHER[mime] ?? "bin"))}`);
   fs.writeFileSync(file, a.bytes, { flag: "wx" });
   const media = store.media.add({
     kind: image ? "image" : audio ? "audio" : "file",
-    mime: a.mime,
+    mime: audio ? a.mime : mime,
     bytes: a.bytes.length,
     path: file,
     thread_id: a.thread,

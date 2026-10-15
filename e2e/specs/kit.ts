@@ -63,6 +63,8 @@ export const world = {
     scan: () => post(`${phone}/scan`),
     fromOwner: (text: string) => post(`${phone}/owner`, { text }),
     message: (from: { phone: string; name: string }, text: string) => post(`${phone}/message`, { from, text }),
+    /** Someone sends a file: `content` as WhatsApp shapes it (videoMessage, documentMessage…), `bytes` base64. */
+    media: (from: { phone: string; name: string }, content: object) => post(`${phone}/media`, { from, content }),
     /** The last message sent to `jid` reaches their phone (3) or is read (4). */
     receipt: (jid: string, status: 3 | 4) => post(`${phone}/receipt`, { jid, status }),
     presence: (jid: string, online: boolean) => post(`${phone}/presence`, { jid, online }),

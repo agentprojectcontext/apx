@@ -1,7 +1,7 @@
 // What arrives on a channel. Who wrote (an exact address match) decides where the words go: the owner's thread, a
 // contact's sealed thread, or a pairing code for a stranger. Button presses decide only when the owner presses them.
 
-import type { Thread } from "@apx/protocol";
+import { type Thread, UPLOAD_LIMITS } from "@apx/protocol";
 import type { Inbound, InboundAction, InboundReaction, OutboxRow, Presentation } from "../domain/channels.ts";
 import type { MediaRecord } from "../domain/media.ts";
 import type { NewNotification } from "../domain/notifications.ts";
@@ -105,15 +105,16 @@ export function createInbound(deps: {
     for (const file of m.files ?? []) {
       try {
         attachments.push(
-          saveUpload(deps.home, store, {
-            name: file.name,
-            mime: file.mime,
-            bytes: Buffer.from(file.data, "base64"),
-            thread: thread.id,
-          }).id,
+          saveUpload(
+            deps.home,
+            store,
+            { name: file.name, mime: file.mime, bytes: Buffer.from(file.data, "base64"), thread: thread.id },
+            // Videos and documents are kept to play or download; a picture stays small enough for a model to see.
+            file.mime.startsWith("image/") ? undefined : UPLOAD_LIMITS.channelBytes,
+          ).id,
         );
-      } catch {
-        text += "\n[attachment could not be accepted: invalid type, contents or size]";
+      } catch (err) {
+        text += `\n[attachment could not be accepted: ${errorMessage(err, 200)}]`;
       }
     }
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.

@@ -53,15 +53,18 @@ test("an image goes to the model as a reference, and routes as an image turn", a
   assert.match(item.content, /\[image attached: cat\.png/);
 });
 
-test("uploads refuse what a model cannot use: binary as text, unknown types, an empty file", async () => {
+test("uploads refuse binary as text and an empty file; any other type is kept as a file", async () => {
   await assert.rejects(
     env.client.call("media.upload", { name: "a.txt", mime: "text/plain", data: b64(Buffer.from([0x61, 0, 0x62])) }),
     /not a text file/,
   );
-  await assert.rejects(
-    env.client.call("media.upload", { name: "a.exe", mime: "application/x-msdownload", data: b64("MZ") }),
-    /cannot be attached/,
-  );
+  const { media: exe } = await env.client.call("media.upload", {
+    name: "a.exe",
+    mime: "application/x-msdownload",
+    data: b64("MZ"),
+  });
+  assert.equal(exe.kind, "file");
+  assert.equal((await env.client.call("media.get", { id: exe.id })).mime, "application/x-msdownload");
   await assert.rejects(env.client.call("media.upload", { name: "e.txt", mime: "text/plain", data: "" }), /empty/);
   await assert.rejects(
     env.client.call("threads.send", { thread: "home", text: "x", attachments: ["med_nope"] }),
