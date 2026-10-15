@@ -1,7 +1,8 @@
 // Tasks. The owner sees and changes every one; an agent only those of its thread's project and the global ones, and
 // what it creates goes to its thread's project. Giving a task to an agent starts its work in that agent's chat for the
-// task, and a comment that @mentions its agent asks it there (its answer comes back as a comment) and anyone else in
-// a consult shown on the task as a card (task-work.ts).
+// task, and the owner's comment that @mentions its agent asks it there (its answer comes back as a comment) and anyone
+// else in a consult shown on the task as a card (task-work.ts). A task an agent creates from a chat about a task is its
+// subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079).
 import type { Author, Task } from "@apx/protocol";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
@@ -18,6 +19,7 @@ import {
   tagsOf,
   visibleTask,
 } from "../domain/tasks.ts";
+import { ancestors } from "../engine/ancestry.ts";
 import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
 import { reportClose } from "../engine/task-report.ts";
@@ -44,6 +46,35 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       : { kind: "owner" };
 
   const visible = (id: string, ctx: CallContext): Task => visibleTask(store, id, agentScope(ctx));
+  /** The agent that asked, when this call comes from an agent answering another one (a delegation, a consult). */
+  const answering = (ctx: CallContext): string | undefined => {
+    const thread = ctx.agent && store.threads.get(ctx.agent.thread_id);
+    if (thread?.kind !== "a2a") return undefined;
+    const caller = thread.agent_ids.find((id) => id !== ctx.agent?.id);
+    return (caller && store.agents.get(caller)?.name) || "the agent that asked you";
+  };
+  /** The task the agent's chat is about (its own task chat, a consult on a task, or a session under one). */
+  const chatTask = (ctx: CallContext): string | undefined => {
+    const here = ctx.agent && store.threads.get(ctx.agent.thread_id);
+    if (!here) return undefined;
+    for (const t of [here, ...ancestors(store, here.id)]) {
+      const id = t.task_id ?? store.tasks.byThread(t.id)?.id;
+      if (!id) continue;
+      try {
+        return visible(id, ctx).id;
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  };
+  const refuseHandOn = (ctx: CallContext) => {
+    const caller = answering(ctx);
+    if (caller)
+      throw badRequest(
+        `assignee: you are answering ${caller}, so you give nobody work; leave the task unassigned and name the agent for it in your answer: ${caller} assigns it`,
+      );
+  };
   /** A close reports to the agent that created the task; from the closer's own chat for it, once that turn ends. */
   const reported = (t: Task, ctx: CallContext): Task => {
     const working = ctx.agent && store.threads.get(ctx.agent.thread_id)?.task_id === t.id;
@@ -75,15 +106,18 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
         input: rows.reduce((n, r) => n + r.input, 0),
         output: rows.reduce((n, r) => n + r.output, 0),
       }));
-      return { task: t, events: store.tasks.events(t.id), sessions, consults, usage };
+      const subtasks = store.tasks.list({ parent: t.id, limit: 200 }).reverse();
+      return { task: t, events: store.tasks.events(t.id), sessions, consults, subtasks, usage };
     },
     "tasks.create": (p, ctx) => {
       checkColumn(store, p.status);
       const scope = agentScope(ctx);
       const project = scope ? scope.project : p.project;
       checkAssignee(store, p.assignee, project);
+      if (p.assignee) refuseHandOn(ctx);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       if (p.parent) visible(p.parent, ctx);
+      const parent = p.parent ?? chatTask(ctx);
       const person = p.person ? personOf(store, p.person) : undefined;
       const due = dueOf(p.due_at);
       const remind = dueOf(p.remind_at);
@@ -98,7 +132,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
           project_id: project,
           assignee: p.assignee,
           status: p.status ?? columnsOf(store)[0]?.id ?? "todo",
-          parent_id: p.parent,
+          parent_id: parent,
           due_at: due ?? undefined,
           remind_at: remind ?? undefined,
           kind: p.kind,
@@ -124,6 +158,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       const moving = project !== undefined && (project ?? undefined) !== cur.project_id;
       const target = moving ? (project ?? undefined) : cur.project_id;
       checkAssignee(store, c.assignee, target);
+      if (c.assignee && c.assignee !== cur.assignee) refuseHandOn(ctx);
       // Its agent stays only if it can work there.
       const keeper = c.assignee !== undefined ? c.assignee : cur.assignee;
       const unassign =

@@ -914,3 +914,14 @@ asked never got that answer, yet each casual @name started a paid turn. Now an a
 @mentions (in `task_comment` or in its answer posted to a task) summon nobody, and its task block and the
 `task_comment` tool say so. The owner's @mentions on a task work as before (D-073): the task's agent in its chat for
 the task, anyone else in a consult. An agent's @owner still asks for the owner's attention.
+
+<a id="d-079"></a>
+## D-079 — 2026-10-15 — A task made while working a task is its subtask; an agent answering another gives nobody work
+Since D-074 an agent answering another one could not delegate, but it could still create a task with an assignee,
+whose work started at once, and that agent could delegate again: a chain through the board. Now an agent answering
+another one (a delegation's sub-thread, a consult) may create a task but not give it to anyone (`tasks.create` and
+`tasks.update` refuse an assignee from an `a2a` chat; `task_create` drops it and says to name the agent in its
+answer, so its caller assigns it, as D-077 has it name who owns the rest). A task an agent creates from a chat about a
+task (its own task chat, a consult on it, a session under one) is that task's subtask (`parent_id`) unless it names
+another parent, so the work an orchestrator splits stays under the task it was given. `tasks.get` lists a task's
+`subtasks`, and the task panel shows them and the task a subtask is part of.

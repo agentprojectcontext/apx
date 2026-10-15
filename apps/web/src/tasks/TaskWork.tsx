@@ -3,6 +3,7 @@ import { AgentAvatar, Icons, Skeleton, Spinner } from "@apx/ui";
 import { formatNumber, shortWhen } from "../common/format.ts";
 import { blobOf, isWorking } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
+import { useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 
@@ -89,5 +90,62 @@ export function TaskUsage({ usage }: { usage: Result<"tasks.get">["usage"] }) {
         </span>
       ))}
     </div>
+  );
+}
+
+/** The tasks under this one (an agent working it made them), each opening as a task. */
+export function TaskSubtasks({ subtasks }: { subtasks: Task[] }) {
+  const t = useT();
+  const agents = useShownAgents();
+  const live = useTasks((s) => s.tasks);
+  return (
+    <div className="taskwork">
+      {subtasks.map((st) => {
+        const task = live[st.id] ?? st;
+        const agent = agents[task.assignee ?? ""];
+        const name = agent?.name ?? task.assignee ?? t("tasks.nobody");
+        return (
+          <button
+            key={task.id}
+            type="button"
+            className="taskwork__chat"
+            title={t("tasks.subtask.open", { title: task.title })}
+            onClick={() => go.task(task.id)}
+          >
+            {task.state === "done" ? (
+              <Icons.Check size={13} className="taskwork__go" />
+            ) : task.state === "dropped" ? (
+              <Icons.X size={13} className="taskwork__go" />
+            ) : (
+              <AgentAvatar name={name} blob={blobOf(agent)} size={18} animated={false} />
+            )}
+            <span className={`taskwork__title${task.state === "dropped" ? " is-dropped" : ""}`}>{task.title}</span>
+            <span className="taskwork__state">
+              {task.state === "open" ? name : t(task.state === "done" ? "tasks.markDone" : "tasks.dropped")}
+            </span>
+            <Icons.ChevronRight size={13} className="taskwork__go" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The task this one is a subtask of, opening it. */
+export function TaskParent({ id }: { id: string }) {
+  const t = useT();
+  const parent = useTasks((s) => s.tasks[id]);
+  const title = parent?.title ?? id;
+  return (
+    <button
+      type="button"
+      className="taskwork__chat"
+      title={t("tasks.subtask.open", { title })}
+      onClick={() => go.task(id)}
+    >
+      <Icons.ListChecks size={13} className="taskwork__go" />
+      <span className="taskwork__title">{title}</span>
+      <Icons.ChevronRight size={13} className="taskwork__go" />
+    </button>
   );
 }

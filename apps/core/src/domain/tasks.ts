@@ -202,6 +202,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       assignee?: string;
       commitments?: boolean;
       person?: string;
+      parent?: string;
       limit: number;
     }): Task[] {
       let q = tasksQuery();
@@ -220,6 +221,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       if (o.assignee) q = q.where("tasks.assignee", "=", o.assignee);
       if (o.commitments) q = q.where("tasks.person_id", "is not", null);
       if (o.person) q = q.where("tasks.person_id", "=", o.person);
+      if (o.parent) q = q.where("tasks.parent_id", "=", o.parent);
       return all(q.orderBy("tasks.activity_at", "desc").limit(o.limit)).map(toTask);
     },
     create(t: {

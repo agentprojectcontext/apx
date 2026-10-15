@@ -44,13 +44,14 @@ export const officeMethods = {
     /**
      * `sessions`: the chats its agents worked it in, oldest first (one per agent that took it). `consults`: the
      * teammates @mentioned on it, each asked apart (DECISIONS.md#d-073). `usage`: the tokens every turn on the task
-     * took (its sessions, consults and conversation), by model.
+     * took (its sessions, consults and conversation), by model. `subtasks`: the tasks under it, oldest activity first.
      */
     result: z.object({
       task: Task,
       events: z.array(TaskEvent),
       sessions: z.array(Thread),
       consults: z.array(Thread).default([]),
+      subtasks: z.array(Task).default([]),
       usage: z
         .array(
           z.object({ model: z.string(), runs: z.number().int(), input: z.number().int(), output: z.number().int() }),

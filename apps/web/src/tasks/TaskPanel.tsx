@@ -26,7 +26,7 @@ import {
   ReminderField,
 } from "./TaskFields.tsx";
 import { ColumnDot, ColumnHelp, columnLabel, KindHelp } from "./TaskForms.tsx";
-import { TaskUsage, TaskWork } from "./TaskWork.tsx";
+import { TaskParent, TaskSubtasks, TaskUsage, TaskWork } from "./TaskWork.tsx";
 import { pickerValue, type Reminder, remindAt, reminderOf } from "./when.ts";
 
 /**
@@ -264,9 +264,19 @@ function Properties({ task, detail }: { task: Task; detail: TaskDetail | undefin
           onChange={(id) => id !== task.assignee && void updateTask(task.id, { assignee: id ?? null })}
         />
       </Prop>
+      {task.parent_id && (
+        <Prop label={t("tasks.parent")}>
+          <TaskParent id={task.parent_id} />
+        </Prop>
+      )}
       <Prop label={t("tasks.work")} top>
         <TaskWork task={task} sessions={detail?.sessions} consults={detail?.consults} />
       </Prop>
+      {detail && detail.subtasks.length > 0 && (
+        <Prop label={t("tasks.subtasks")} top>
+          <TaskSubtasks subtasks={detail.subtasks} />
+        </Prop>
+      )}
       {detail && detail.usage.length > 0 && (
         <Prop label={t("tasks.usage")} top>
           <TaskUsage usage={detail.usage} />

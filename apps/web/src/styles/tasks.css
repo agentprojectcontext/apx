@@ -327,6 +327,16 @@
 .taskwork__name {
   font-weight: var(--apx-weight-medium);
 }
+.taskwork__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.taskwork__title.is-dropped {
+  color: var(--apx-fg-muted);
+  text-decoration: line-through;
+}
 .taskwork__state {
   display: inline-flex;
   align-items: center;

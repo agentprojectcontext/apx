@@ -186,16 +186,21 @@ export function taskTools(store: Store): Tool[] {
       deadlineMs: 5_000,
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
-        const t = await ctx.call("tasks.create", a);
+        // An agent answering another one gives nobody work: it names who should, and its caller assigns it (D-079).
+        const answering = ctx.thread.kind === "a2a" && a.assignee;
+        const t = await ctx.call("tasks.create", answering ? { ...a, assignee: undefined } : a);
+        const under = t.parent_id ? `, a subtask of ${t.parent_id}` : "";
+        if (answering)
+          return `created ${t.id} in ${t.status}${under}, with nobody on it: you are answering another agent, so you give nobody work. Name ${a.assignee} for ${t.id} in your answer: the agent that asked you assigns it.`;
         // A task with nobody on it never starts: say so while the agent can still fix it.
         if (!t.assignee && t.kind === "task")
-          return `created ${t.id} in ${t.status}, with nobody on it: it will not start. Assign it with task_update (the agent who does it, or yourself), or ask the owner who should.`;
+          return `created ${t.id} in ${t.status}${under}, with nobody on it: it will not start. Assign it with task_update (the agent who does it, or yourself), or ask the owner who should.`;
         // Its close reports back to this chat (DECISIONS.md#d-076): no need to watch the board for it.
         const back =
           t.assignee !== ctx.agent.id && ctx.thread.kind !== "a2a"
             ? " When they close it, their report comes here."
             : "";
-        return `created ${t.id} in ${t.status}.${t.assignee ? ` ${t.assignee} starts on it now.${back}` : ""}`;
+        return `created ${t.id} in ${t.status}${under}.${t.assignee ? ` ${t.assignee} starts on it now.${back}` : ""}`;
       },
     }),
     defineTool({

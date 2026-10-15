@@ -15,6 +15,10 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("make a task")) return callTool("t1", "task_create", { title: "Draft the launch post" });
   if (said.includes("peek at the other")) return callTool("t2", "task_list", {});
   if (said.includes("ask the owner")) return say("@JULIAN please confirm the launch date.");
+  if (said.includes("hand over subtask"))
+    return callTool("t4", "delegate", { agent: "vera", task: "assign a subtask to roby" });
+  if (said.includes("assign a subtask to roby"))
+    return callTool("t5", "task_create", { title: "Proofread the post", assignee: "roby" });
   const ping = /ping roby on (task_\w+)/.exec(said);
   if (ping) return callTool("t3", "task_comment", { task: ping[1], text: "@roby what do you think?" });
   if (system.startsWith("You are Vera")) return say("Done my part, @roby your turn.");
@@ -146,6 +150,31 @@ test("an agent's @mention in a task comment summons nobody", async () => {
   assert.deepEqual(await commentsOf(t.thread_id), ["vera"]);
   assert.deepEqual(env.core.store.threads.children(t.thread_id), []);
   assert.deepEqual(await env.client.call("tasks.get", { task: t.id }).then((d) => d.sessions), []);
+});
+
+test("a task an agent makes while working a task is its subtask, listed on it", async () => {
+  const t = await env.client.call("tasks.create", { title: "Launch: make a task for it", project, assignee: "vera" });
+  await settleTask(t.id);
+  const { subtasks } = await env.client.call("tasks.get", { task: t.id });
+  assert.deepEqual(
+    subtasks.map((s) => [s.title, s.parent_id, s.created_by]),
+    [["Draft the launch post", t.id, "vera"]],
+  );
+});
+
+test("an agent answering another one makes a task but gives it to nobody: it names who, and its caller assigns", async () => {
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  await env.client.call("threads.send", { thread: chat.id, text: "hand over subtask" });
+  await env.settle(chat.id);
+  const { tasks } = await env.client.call("tasks.list", { project });
+  const made = tasks.find((x) => x.title === "Proofread the post");
+  assert.equal(made?.created_by, "vera");
+  assert.equal(made?.assignee, undefined);
+  assert.deepEqual((await env.client.call("tasks.get", { task: made?.id ?? "" })).sessions, []);
+  const told = llm.calls
+    .flatMap((c) => c.messages)
+    .find((m) => m.role === "tool" && /give nobody work/.test(String(m.content)));
+  assert.match(String(told?.content), /Name roby for task_\w+ in your answer: the agent that asked you assigns it\./);
 });
 
 test("giving a task to an agent starts it in its chat; another agent gets a new chat that knows who worked it", async () => {
