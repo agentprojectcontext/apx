@@ -1,4 +1,5 @@
 import path from "node:path";
+import { withUsualDirs } from "../programs.ts";
 
 /** The folder of the core's own `apx` launcher (harness/apx-command.ts), set once the core listens. */
 let commandBin: string | undefined;
@@ -8,14 +9,15 @@ export function useApxCommand(bin: string | undefined): void {
   commandBin = bin;
 }
 
-/** An agent CLI (Claude Code, Codex, an ACP agent) gets the environment minus APX's own secrets. */
+/**
+ * An agent CLI (Claude Code, Codex, an ACP agent) gets the environment minus APX's own secrets, with this core's `apx`
+ * first on its PATH and the usual program folders (Homebrew, ~/.local/bin) the core's own PATH lacks at its end.
+ */
 export function childEnv(): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !k.startsWith("APX_")) env[k] = v;
-  if (commandBin) {
-    const key = Object.keys(env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
-    env[key] = [commandBin, env[key]].filter(Boolean).join(path.delimiter);
-  }
+  const key = Object.keys(env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
+  env[key] = [commandBin, withUsualDirs(env[key] ?? "")].filter(Boolean).join(path.delimiter);
   return env;
 }
 
