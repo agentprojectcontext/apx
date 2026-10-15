@@ -960,3 +960,13 @@ fixed depth goes: the breaker, as the owner set it (0 = no limit), decides. A st
 (`task_create` and `task_update` say it has not started and why, and not to assign it again), the hourly pickup
 leaves held tasks alone, and they start when the chain may go on: the owner writing in that conversation tree, or
 either button of D-081.
+
+<a id="d-083"></a>
+## D-083 — 2026-10-15 — The owner writing on a channel renews the budget; a refused delegation shows the way on
+The breaker's window started at the owner's last run with trigger `user`, so an owner who talks to the agents over
+Telegram (trigger `channel`) never renewed it: every delegation stayed refused with the same spent total, and the
+refusal was a tool result only, with no notice and no buttons. Now a `channel` run whose origin role is `owner` counts
+as the owner writing; a contact's message on a channel still never does, since a third party must not reset the owner's
+limit. A delegation the breaker refuses posts the same `breaker.held` notice as a held task (D-080), once until the
+chain goes on, and marks the caller's chat `kept`, so either button of D-081 gives the caller a turn to ask again. The
+two buttons stay distinct and the limits are never lifted without the owner choosing one.

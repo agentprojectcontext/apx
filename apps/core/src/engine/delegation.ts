@@ -8,7 +8,7 @@ import type { Store } from "../domain/store.ts";
 import type { Worker } from "../domain/threads.ts";
 import { agentReply } from "../tools/agents.ts";
 import { ancestors } from "./ancestry.ts";
-import { tripped } from "./breaker.ts";
+import { heldNotice, tripped } from "./breaker.ts";
 import type { Display } from "./display.ts";
 import { A2A_DEADLINE_MS, MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
 
@@ -132,6 +132,17 @@ export function createDelegations(deps: {
     return [...(here?.agent_ids ?? []), ...ancestors(store, threadId).flatMap((t) => t.agent_ids)];
   }
 
+  /**
+   * A delegation the breaker refused: the owner sees why with the ways to go on (a fresh budget or this round
+   * released), and going on wakes the caller to ask again. One notice until then, however often it retries.
+   */
+  function holdDelegation(threadId: string, callerId: string, who: string, task: string): void {
+    if (store.threads.context(threadId).kept === callerId) return;
+    store.threads.mergeContext(threadId, { kept: callerId });
+    const notice = heldNotice(store, threadId, who, task.slice(0, 120));
+    if (notice) store.messages.add({ thread_id: threadId, author: { kind: "system" }, parts: [notice] });
+  }
+
   return {
     async delegate(from: Caller, req: DelegateTo, task: string, waitMs: number): Promise<string> {
       const parentThread = store.threads.get(from.run.thread_id);
@@ -164,7 +175,10 @@ export function createDelegations(deps: {
       if (!worker && chainAgents(parentThread.id).includes(to.id))
         return `refused: ${to.name} is already part of this delegation chain (cycle).`;
       const paused = tripped(store, parentThread.id);
-      if (paused) return `refused: ${paused}. Tell the owner what you were about to delegate.`;
+      if (paused) {
+        holdDelegation(parentThread.id, from.agent.id, worker?.name ?? to.name, task);
+        return `refused: ${paused}. Tell the owner what you were about to delegate; if they let agents go on you get a new turn, and you delegate it again then.`;
+      }
       if (store.runs.activeDelegations(parentThread.id) >= MAX_ACTIVE_DELEGATIONS)
         return `refused: ${MAX_ACTIVE_DELEGATIONS} delegations are already running from this thread; wait for their results.`;
       deps.live.set(from.run.id, from.display);

@@ -195,8 +195,8 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       return all(qb.selectFrom("runs").selectAll().where("parent_run_id", "=", runId)).map(toRun);
     },
     /**
-     * Turns agents started on their own (delegations, results waking callers) in these threads since the owner's last
-     * (`since`), or since `after` when that is later.
+     * Turns agents started on their own (delegations, results waking callers) in these threads since the owner last
+     * wrote (`since`: in the app, or on a channel as the owner, never as a contact), or since `after` when later.
      */
     unattended(threadIds: string[], after?: string): { runs: number; tokens: number; since: string } {
       if (!threadIds.length) return { runs: 0, tokens: 0, since: "" };
@@ -205,7 +205,12 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .selectFrom("runs")
           .select((eb) => eb.fn.max("created_at").as("at"))
           .where("thread_id", "in", threadIds)
-          .where("trigger", "=", "user"),
+          .where((eb) =>
+            eb.or([
+              eb("trigger", "=", "user"),
+              eb.and([eb("trigger", "=", "channel"), eb(raw`json_extract(input, '$.origin.role')`, "=", "owner")]),
+            ]),
+          ),
       );
       const r = one(
         qb

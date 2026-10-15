@@ -28,6 +28,8 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     return callTool("p1", "delegate", { agent: "scout", task: "read the repo", project: "/srv/acme/apps/web" });
   if (said.includes("research elsewhere"))
     return callTool("p2", "delegate", { agent: "scout", task: "read it", project: "Northwind" });
+  if (said.includes("delegate while paused"))
+    return callTool("b1", "delegate", { agent: "scout", task: "check the invoices" });
   if (said.includes("ghost session")) return callTool("d3", "delegate", { session: "ghost", task: "anything" });
   return say("ok");
 });
@@ -115,6 +117,84 @@ test("the breaker stops unattended chains and an owner's message resets it", asy
   assert.match(tripped(store, sub.id) ?? "", /turns on their own/);
   await add(root.id, "user");
   assert.equal(tripped(store, sub.id), undefined);
+});
+
+test("the owner writing on a channel renews the unattended window; a contact writing there does not", async () => {
+  const { store } = env.core;
+  const root = store.threads.create({ kind: "loose", title: "channel chain", agent_ids: ["roby"] });
+  const add = async (trigger: "a2a" | "channel", role?: "owner" | "contact") => {
+    await new Promise((r) => setTimeout(r, 2));
+    const r = store.runs.create({
+      thread_id: root.id,
+      agent_id: "roby",
+      trigger,
+      input: {
+        origin: role
+          ? { kind: "channel", channel: "telegram", conversation: "1234567890", person_id: "p1", name: "Pat", role }
+          : { kind: "user" },
+        text: "x",
+      },
+      deadline_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+    store.runs.setState(r, "completed");
+  };
+  await env.client.call("agents.set_limits", { runs: 2, tokens: 0 });
+  try {
+    await add("channel", "owner");
+    await add("a2a");
+    await add("a2a");
+    assert.match(tripped(store, root.id) ?? "", /started 2 turns/);
+    await add("channel", "contact");
+    assert.match(tripped(store, root.id) ?? "", /started 2 turns/);
+    await add("channel", "owner");
+    assert.equal(tripped(store, root.id), undefined);
+  } finally {
+    store.settings.write("agent_limits", {});
+  }
+});
+
+test("a delegation the breaker refuses shows the owner a notice with the ways to go on, and going on wakes the caller", async () => {
+  const { store, engine } = env.core;
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "paused" });
+  await env.client.call("agents.set_limits", { runs: 1, tokens: 0 });
+  try {
+    // A turn an agent started (a result waking its caller) is itself unattended: one is the limit.
+    const wake = {
+      thread_id: t.id,
+      agent_id: "roby",
+      trigger: "a2a_result" as const,
+      origin: { kind: "user" as const },
+    };
+    engine.admit({ ...wake, text: "delegate while paused" });
+    await env.settle(t.id);
+    assert.match(lastToolResult(), /refused: agents started 1 turns on their own/);
+    engine.admit({ ...wake, text: "delegate while paused" });
+    await env.settle(t.id);
+    assert.equal(store.threads.sessions(t.id).length, 0);
+    const notices = store.messages
+      .list(t.id)
+      .flatMap((m) => m.parts)
+      .filter((p) => p.type === "notice" && p.code.startsWith("breaker."));
+    // One notice however often the agent retries, carrying the thread its Go-on actions act on.
+    assert.equal(notices.length, 1);
+    const [notice] = notices;
+    assert.equal(notice?.type === "notice" && notice.code, "breaker.held");
+    assert.deepEqual(notice?.type === "notice" && notice.vars, {
+      variant: "runs",
+      spent: "1",
+      who: "Scout",
+      task: "check the invoices",
+      thread: t.id,
+      link: "apx:settings/agents",
+    });
+    const runs = store.runs.list(t.id).length;
+    assert.deepEqual(await env.client.call("threads.go_on", { thread: t.id, mode: "reset" }), { started: 1 });
+    await env.settle(t.id);
+    assert.equal(store.runs.list(t.id).length, runs + 1);
+    assert.equal(store.threads.context(t.id).kept, undefined);
+  } finally {
+    store.settings.write("agent_limits", {});
+  }
 });
 
 test("going on: a fresh budget counts from now; a release lifts the limit until the owner writes again", async () => {
