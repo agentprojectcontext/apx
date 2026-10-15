@@ -24,15 +24,15 @@ export function NoticePart({ part }: { part: NoticeData }) {
   const linkLabel = isKey(linkKey) ? t(linkKey) : undefined;
   const open = typeof part.vars?.link === "string" && linkLabel ? appPlace(part.vars.link) : undefined;
   const thread = part.code.startsWith("breaker.") && typeof part.vars?.thread === "string" ? part.vars.thread : "";
-  const link = (
-    <>
+  const link = (thread || open) && (
+    <span className="noticeline__actions">
       {thread && <GoOn thread={thread} />}
       {open && (
         <Button size="sm" variant="ghost" className="noticeline__link" onClick={open}>
           {linkLabel}
         </Button>
       )}
-    </>
+    </span>
   );
   if (part.level === "error")
     return (
@@ -47,7 +47,7 @@ export function NoticePart({ part }: { part: NoticeData }) {
     return (
       <div className={`noticeline is-${part.level}`} role="status">
         <Icon size={14} />
-        <span>{text}</span>
+        <span className="noticeline__text">{text}</span>
         {link}
       </div>
     );

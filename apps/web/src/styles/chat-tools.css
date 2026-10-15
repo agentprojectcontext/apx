@@ -298,16 +298,22 @@
 .noticeline > svg {
   flex: none;
 }
-.noticeline__link {
-  flex: none;
-  margin-left: auto;
+/* The words keep the icon beside them; the buttons drop below, to the right, when the line is full. */
+.noticeline__text {
+  flex: 1 1 260px;
+  min-width: 0;
 }
-.noticeline__link + .noticeline__link {
-  margin-left: 0;
+.noticeline__actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  margin-left: auto;
 }
 .noticeline__done {
-  flex: none;
-  margin-left: auto;
+  padding: 0 8px;
   color: var(--apx-fg-subtle);
   font-size: var(--apx-text-xs);
 }

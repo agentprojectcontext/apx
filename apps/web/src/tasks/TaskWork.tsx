@@ -116,8 +116,10 @@ export function TaskSubtasks({ subtasks }: { subtasks: Task[] }) {
               <Icons.Check size={13} className="taskwork__go" />
             ) : task.state === "dropped" ? (
               <Icons.X size={13} className="taskwork__go" />
-            ) : (
+            ) : task.assignee ? (
               <AgentAvatar name={name} blob={blobOf(agent)} size={18} animated={false} />
+            ) : (
+              <Icons.CircleDashed size={13} className="taskwork__go" />
             )}
             <span className={`taskwork__title${task.state === "dropped" ? " is-dropped" : ""}`}>{task.title}</span>
             <span className="taskwork__state">
