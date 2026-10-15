@@ -7,6 +7,8 @@ const CALLS: Record<string, [string, object]> = {
   "show me Acme Writer": ["agent_set", { agent: "Acme Writer" }],
   "hire a researcher": ["agent_set", { slug: "researcher", name: "Researcher", role: "Finds sources" }],
   "hire a sentry": ["agent_set", { slug: "sentry", name: "Sentry" }],
+  "hire a tester for northwind": ["agent_set", { slug: "tester", name: "Tester", project: "northwind" }],
+  "hire one for nowhere": ["agent_set", { slug: "lost", name: "Lost", project: "Nowhere" }],
   "rename the writer": ["agent_set", { agent: "acme-writer", name: "Northwind Writer", prompt: "Write short." }],
   "let the writer go": ["agent_set", { agent: "acme-writer", archive: true }],
 };
@@ -31,7 +33,11 @@ after(async () => {
 });
 
 async function ask(text: string, agent = "roby", decision?: "approve" | "deny"): Promise<string> {
-  const thread = await env.client.call("threads.create", { kind: "loose", agent_id: agent, title: "Team" });
+  const thread = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: agent,
+    title: "Team",
+  });
   await env.client.call("threads.send", { thread: thread.id, text });
   if (decision) {
     let pending: Array<{ id: string; tool?: string | undefined }> = [];
@@ -40,7 +46,10 @@ async function ask(text: string, agent = "roby", decision?: "approve" | "deny"):
       if (!pending.length) await new Promise((r) => setTimeout(r, 20));
     }
     assert.equal(pending[0]?.tool, "agent_set");
-    await env.client.call("runs.respond", { input: pending[0]?.id ?? "", decision });
+    await env.client.call("runs.respond", {
+      input: pending[0]?.id ?? "",
+      decision,
+    });
   }
   await env.settle(thread.id);
   return String(llm.calls.at(-1)?.messages.at(-1)?.content);
@@ -68,7 +77,10 @@ test("an agent is created, changed and archived only once the owner says yes", a
   assert.match(await ask("hire a sentry", "roby", "deny"), /not run: the owner declined/);
   assert.equal(await agent("sentry"), undefined);
 
-  assert.match(await ask("hire a researcher", "roby", "approve"), /created: Researcher \(id: researcher\)/);
+  assert.match(
+    await ask("hire a researcher", "roby", "approve"),
+    /created: Researcher \(id: researcher\) as a global agent \(no project\)/,
+  );
   assert.equal((await agent("researcher"))?.role, "Finds sources");
 
   assert.match(await ask("rename the writer", "roby", "approve"), /saved: Northwind Writer \(id: acme-writer/);
@@ -79,4 +91,22 @@ test("an agent is created, changed and archived only once the owner says yes", a
 
   assert.match(await ask("let the writer go", "roby", "approve"), /removed Northwind Writer: .*apx:settings\/agents/);
   assert.equal(await agent("acme-writer"), undefined);
+});
+
+test("a new agent goes to the project it names, from any chat, and the answer says where", async () => {
+  const { project } = await env.client.call("projects.create", {
+    name: "Northwind",
+  });
+  assert.match(
+    await ask("hire a tester for northwind", "roby", "approve"),
+    /created: Tester \(id: .+\) in the project Northwind$/,
+  );
+  const tester = (await env.client.call("agents.list", {})).agents.find((a) => a.name === "Tester");
+  assert.equal(tester?.project_id, project.id);
+
+  assert.match(await ask("hire one for nowhere", "roby", "approve"), /unknown project "Nowhere"/);
+  assert.equal(
+    (await env.client.call("agents.list", {})).agents.find((a) => a.name === "Lost"),
+    undefined,
+  );
 });

@@ -39,7 +39,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   list_agents: () => "Buscó agentes",
   agent_set: (a) =>
     !a.agent
-      ? `Creó el agente ${str(a.name ?? a.slug)}`
+      ? `Creó el agente ${str(a.name ?? a.slug)}${a.project ? ` en ${str(a.project)}` : ""}`
       : a.archive
         ? `Archivó a ${str(a.agent)}`
         : [a.slug, a.name, a.role, a.description, a.prompt, a.personality, a.parent].some((v) => v !== undefined)

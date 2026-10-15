@@ -28,6 +28,16 @@ function card(store: Store, a: AgentRecord): string {
     .join("\n");
 }
 
+/** A registered project by id or by its name (any case); a name two projects share is an error, never a guess. */
+function projectOf(store: Store, ref: string): { id: string; name: string } | string {
+  const list = store.projects.list();
+  const hits = list.filter((p) => p.id === ref);
+  const named = hits.length ? hits : list.filter((p) => p.name.toLowerCase() === ref.toLowerCase());
+  if (named.length === 1 && named[0]) return named[0];
+  if (named.length > 1) return `"${ref}" matches ${named.map((p) => p.id).join(", ")}; use the id`;
+  return `unknown project "${ref}"; run \`apx projects\` for the ids`;
+}
+
 export function agentSetTools(store: Store): Tool[] {
   const args = z.object({
     agent: z.string().trim().min(1).max(120).optional().describe("id or name; omit to create one"),
@@ -38,6 +48,7 @@ export function agentSetTools(store: Store): Tool[] {
     prompt: z.string().max(100_000).optional(),
     personality: z.string().max(1000).optional(),
     parent: z.string().max(64).optional().describe("who it reports to"),
+    project: z.string().optional(),
     archive: z.boolean().optional(),
   });
   type Args = z.output<typeof args>;
@@ -48,7 +59,7 @@ export function agentSetTools(store: Store): Tool[] {
     defineTool({
       name: "agent_set",
       description:
-        "Run the team: with only agent, read its definition and whole prompt; create one (slug and name), change one (only what you give; prompt replaces the whole prompt) or archive it. The owner approves each change.",
+        "Run the team: with only agent, read its definition and whole prompt; create one (slug, name; project: id/name, default this chat's), change one (only what you give; prompt replaces it whole) or archive it. The owner approves each change.",
       args,
       effect: "local",
       confirm: (a) => (changes(a) ? "always" : "never"),
@@ -64,12 +75,17 @@ export function agentSetTools(store: Store): Tool[] {
           if ("error" in found) return found.error;
           cur = found.agent;
         }
+        if (cur && a.project)
+          return `${cur.name} stays in its project; to copy it into another, run \`apx agents clone ${cur.id} --project <project-id>\``;
         if (cur && !changes(a)) return card(store, cur);
         if (!ctx.callAsOwner) return "not run: the owner did not approve it";
         if (!cur) {
           if (!a.slug || !a.name) return "a new agent needs slug and name";
+          const project = a.project ? projectOf(store, a.project) : undefined;
+          if (typeof project === "string") return project;
+          const projectId = project?.id ?? ctx.thread.project_id;
           const made = await ctx.callAsOwner("agents.create", {
-            ...(ctx.thread.project_id ? { project_id: ctx.thread.project_id } : {}),
+            ...(projectId ? { project_id: projectId } : {}),
             slug: a.slug,
             name: a.name,
             role: a.role ?? "",
@@ -77,7 +93,9 @@ export function agentSetTools(store: Store): Tool[] {
             prompt: a.prompt ?? "",
             ...(a.parent ? { parent: a.parent } : {}),
           });
-          return `created: ${made.name} (id: ${made.id})`;
+          // Where it landed, so the agent never tells the owner it is in a project it is not.
+          const home = made.project_id ? (store.projects.get(made.project_id)?.name ?? made.project_id) : "";
+          return `created: ${made.name} (id: ${made.id}) ${home ? `in the project ${home}` : "as a global agent (no project)"}`;
         }
         if (a.archive) {
           const r = await ctx.callAsOwner("agents.archive", { agent: cur.id });
@@ -85,7 +103,10 @@ export function agentSetTools(store: Store): Tool[] {
           return `removed ${cur.name}: it is off the team and out of every list${r.moved_to ? ` (its file is kept in ${r.moved_to})` : ""}. Tell the owner they can bring it back whenever they want, or delete it for good, in [Config › Agents](apx:settings/agents).`;
         }
         const { agent: _a, archive: _x, ...fields } = a;
-        const now = await ctx.callAsOwner("agents.update", { agent: cur.id, ...fields });
+        const now = await ctx.callAsOwner("agents.update", {
+          agent: cur.id,
+          ...fields,
+        });
         return `saved: ${now.name} (id: ${now.id}${now.slug ? `, slug: ${now.slug}` : ""})`;
       },
     }),

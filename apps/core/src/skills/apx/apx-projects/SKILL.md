@@ -38,6 +38,8 @@ apx projects set <project-id> --autonomy edits # how far its agents go without a
 ## After creating one
 
 Tell the owner its name and id, and link it: `[Northwind](apx:project/<project-id>)`. A new project has no agents.
+To make new ones there, call `agent_set` with `project: "<project-id>"`: without it an agent goes to this chat's
+project, or is global when the chat has none. Its answer says where it landed; tell the owner exactly that.
 To bring the team of another project, clone it (never recreate agents one by one with `agent_set`):
 
 ```bash
