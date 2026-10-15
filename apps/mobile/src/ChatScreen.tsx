@@ -19,7 +19,7 @@ import { ChatMenu } from "./ui/ChatMenu";
 import { ChatMessage } from "./ui/ChatMessage";
 import { EngineIcon } from "./ui/EngineIcon";
 import { Icon } from "./ui/Icon";
-import { AgentAvatar, BottomSheet, EmptyState, IconButton, ListRow, Spinner } from "./ui/kit";
+import { ActivityPill, AgentAvatar, BottomSheet, EmptyState, IconButton, ListRow, Spinner } from "./ui/kit";
 import { ModelSheet } from "./ui/ModelSheet";
 import { MediaClient } from "./ui/media/context";
 import { makeStyles, useTheme } from "./ui/theme";
@@ -118,13 +118,19 @@ export function ChatScreen({
     async () => (await live.client.call("models.list", {})).engines as CatalogEngine[],
     [live.client],
   );
+  const doing = t(live.messages.at(-1)?.author.kind === "user" ? "isWorking" : "isAnswering", { name });
   const status = !live.online
     ? t("reconnecting")
     : working
-      ? t(live.messages.at(-1)?.author.kind === "user" ? "isWorking" : "isAnswering", { name })
+      ? doing
       : live.state === "input-required"
         ? t("waitsForYourAnswer")
         : threadContext(thread, data);
+  const avatar = engine ? (
+    <EngineIcon engine={engine} size={22} />
+  ) : (
+    <AgentAvatar name={name} blob={agent?.blob} id={agent?.id} size={22} />
+  );
   return (
     <KeyboardAvoidingView
       style={s.root}
@@ -182,6 +188,15 @@ export function ChatScreen({
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             contentContainerStyle={s.transcript}
+            // The list is inverted: its header sits below the newest message, where the panel shows activity.
+            ListHeaderComponent={
+              working ? (
+                <ActivityPill tone="brand" label={doing} from={avatar} />
+              ) : live.state === "input-required" ? (
+                <ActivityPill tone="danger" label={t("isWaitingForYou", { name })} />
+              ) : null
+            }
+            ListHeaderComponentStyle={s.activity}
             renderItem={({ item }) =>
               item.kind === "day" ? (
                 <Text style={s.day}>{dayLabel(item.at)}</Text>
@@ -333,6 +348,7 @@ const useStyles = makeStyles((theme) => ({
   statusText: { color: theme.fgSubtle, fontSize: 12, flexShrink: 1 },
   transcript: { paddingHorizontal: 16, paddingVertical: 12 },
   empty: { flex: 1, justifyContent: "center" },
+  activity: { paddingTop: 6 },
   day: { alignSelf: "center", color: theme.fgSubtle, fontSize: 12, paddingVertical: 8 },
   routine: { borderWidth: StyleSheet.hairlineWidth, borderColor: theme.border, borderRadius: 12, marginVertical: 6 },
   routineHead: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingVertical: 10 },

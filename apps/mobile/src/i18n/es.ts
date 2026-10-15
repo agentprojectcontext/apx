@@ -190,6 +190,7 @@ export const es: Record<Key, string> = {
   reconnecting: "Reconectando…",
   isWorking: "{name} está trabajando…",
   isAnswering: "{name} está respondiendo…",
+  isWaitingForYou: "{name} te espera",
   switchChat: "Cambiar de chat",
   rtEvery: "Cada {n} {unit}",
   rtEveryOne: "Cada {unit}",

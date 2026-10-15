@@ -186,6 +186,7 @@ export const en = {
   reconnecting: "Reconnecting…",
   isWorking: "{name} is working…",
   isAnswering: "{name} is answering…",
+  isWaitingForYou: "{name} is waiting for you",
   switchChat: "Switch chat",
   rtEvery: "Every {n} {unit}",
   rtEveryOne: "Every {unit}",

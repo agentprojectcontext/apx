@@ -238,6 +238,68 @@ export function Spinner({ size = 14, color: tint }: { size?: number; color?: str
   );
 }
 
+/** Live activity in a chat, as the panel's ActivityPill: three pulsing dots and what is happening. */
+export function ActivityPill({
+  label,
+  tone = "neutral",
+  from,
+}: {
+  label: string;
+  tone?: Tone;
+  from?: React.ReactNode;
+}) {
+  const t = useTheme();
+  const s = useStyles();
+  const c = t.tones[tone];
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(pulse, { toValue: 1, duration: 1200, easing: Easing.linear, useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  return (
+    <View style={s.activity} accessibilityRole="text" accessibilityLiveRegion="polite" accessibilityLabel={label}>
+      {from}
+      <View style={[s.activityPill, { borderColor: tone === "neutral" ? t.border : c.bg }]}>
+        <View style={s.activityDots}>
+          {[0, 1, 2].map((i) => {
+            // Each dot peaks a little after the one before it, as the panel's staggered animation does.
+            const at = i * 0.125;
+            return (
+              <Animated.View
+                key={i}
+                style={[
+                  s.activityDot,
+                  {
+                    backgroundColor: c.solid,
+                    opacity: pulse.interpolate({
+                      inputRange: [0, at, at + 0.25, at + 0.5, 1],
+                      outputRange: [0.3, 0.3, 1, 0.3, 0.3],
+                    }),
+                    transform: [
+                      {
+                        translateY: pulse.interpolate({
+                          inputRange: [0, at, at + 0.25, at + 0.5, 1],
+                          outputRange: [0, 0, -2, 0, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              />
+            );
+          })}
+        </View>
+        <Text numberOfLines={1} style={[s.activityLabel, { color: tone === "neutral" ? t.fgMuted : c.fg }]}>
+          {label}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 /** A filled round count: brand for unread chats, danger for the nav's waiting items. */
 export function CountBadge({ count, tone = "brand", small }: { count: number; tone?: Tone; small?: boolean }) {
   const t = useTheme();
@@ -375,4 +437,20 @@ const useStyles = makeStyles((t) => ({
   },
   emptyTitle: { color: t.fg, fontSize: 16, fontWeight: "500", textAlign: "center" },
   emptyBody: { color: t.fgMuted, fontSize: 13, textAlign: "center" },
+  activity: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", maxWidth: "100%" },
+  activityPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    height: 30,
+    paddingLeft: 12,
+    paddingRight: 14,
+    borderRadius: 15,
+    borderWidth: 1,
+    backgroundColor: t.surface,
+    flexShrink: 1,
+  },
+  activityDots: { flexDirection: "row", gap: 3 },
+  activityDot: { width: 5, height: 5, borderRadius: 2.5 },
+  activityLabel: { fontSize: 13, flexShrink: 1 },
 }));
