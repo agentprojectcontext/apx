@@ -29,7 +29,11 @@ function autonomyOf(v: string | null): { autonomy?: Autonomy } {
 /** What clients see: AGENTS.md and memory.md stay in the core (they go to the agents' context). */
 export const publicProject = ({ context: _c, memory: _m, ...p }: ProjectRecord): Project => p;
 
-export function projectsRepo({ one, all, run }: Sql) {
+/** `changed` is called after a write that changed a row (the store turns it into one `team.updated`). */
+export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
+  const write = (q: Parameters<Sql["run"]>[0]) => {
+    if (run(q)) changed();
+  };
   return {
     list(includeUnregistered = false): ProjectRecord[] {
       let query = qb.selectFrom("projects").selectAll().orderBy("name");
@@ -70,7 +74,7 @@ export function projectsRepo({ one, all, run }: Sql) {
       return r ? toProject(r) : undefined;
     },
     upsert(p: Omit<ProjectRecord, "present"> & { present?: boolean }): void {
-      run(
+      write(
         qb
           .insertInto("projects")
           .values({
@@ -87,31 +91,48 @@ export function projectsRepo({ one, all, run }: Sql) {
             created_at: now(),
           })
           .onConflict((c) =>
-            c.column("id").doUpdateSet((eb) => ({
-              name: eb.ref("excluded.name"),
-              blob: eb.fn.coalesce(eb.ref("excluded.blob"), eb.ref("projects.blob")),
-              path: eb.ref("excluded.path"),
-              description: eb.ref("excluded.description"),
-              kind: eb.ref("excluded.kind"),
-              context: eb.ref("excluded.context"),
-              memory_md: eb.ref("excluded.memory_md"),
-              present: eb.ref("excluded.present"),
-              registered: 1,
-            })),
+            c
+              .column("id")
+              .doUpdateSet((eb) => ({
+                name: eb.ref("excluded.name"),
+                blob: eb.fn.coalesce(eb.ref("excluded.blob"), eb.ref("projects.blob")),
+                path: eb.ref("excluded.path"),
+                description: eb.ref("excluded.description"),
+                kind: eb.ref("excluded.kind"),
+                context: eb.ref("excluded.context"),
+                memory_md: eb.ref("excluded.memory_md"),
+                present: eb.ref("excluded.present"),
+                registered: 1,
+              }))
+              // A reindex of unchanged files writes nothing, so it tells no client to reload.
+              .where((eb) =>
+                eb.or([
+                  ...(["name", "path", "description", "kind", "context", "memory_md", "present"] as const).map((c) =>
+                    eb(eb.ref(`projects.${c}`), "is not", eb.ref(`excluded.${c}`)),
+                  ),
+                  eb(
+                    eb.fn.coalesce(eb.ref("excluded.blob"), eb.ref("projects.blob")),
+                    "is not",
+                    eb.ref("projects.blob"),
+                  ),
+                  eb("projects.registered", "!=", 1),
+                ]),
+              ),
           ),
       );
     },
     setPresent(id: string, present: boolean): void {
-      run(
+      write(
         qb
           .updateTable("projects")
           .set({ present: present ? 1 : 0 })
-          .where("id", "=", id),
+          .where("id", "=", id)
+          .where("present", "!=", present ? 1 : 0),
       );
     },
     /** How far its agents go on their own when they set nothing; undefined = standard. */
     setAutonomy(id: string, autonomy: Autonomy | undefined): void {
-      run(
+      write(
         qb
           .updateTable("projects")
           .set({ autonomy: autonomy ?? null })
@@ -120,7 +141,7 @@ export function projectsRepo({ one, all, run }: Sql) {
     },
     /** Retain the indexed record for existing chats and tasks, without listing or watching it. */
     unregister(id: string): void {
-      run(qb.updateTable("projects").set({ registered: 0 }).where("id", "=", id));
+      write(qb.updateTable("projects").set({ registered: 0 }).where("id", "=", id));
     },
   };
 }

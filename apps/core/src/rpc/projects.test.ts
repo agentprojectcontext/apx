@@ -112,3 +112,37 @@ test("register with init writes only what is missing, never over a file, and aga
     fs.rmSync(outside, { recursive: true, force: true });
   }
 });
+
+test("clients hear once when a project or an agent changes, and nothing from a reindex that changed nothing", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const heard: string[] = [];
+  env.core.bus.on((e) => void (e.type === "team.updated" && heard.push(e.type)));
+  const tick = () => new Promise((r) => setTimeout(r, 10));
+  try {
+    const { project } = await env.client.call("projects.create", { name: "Northwind" });
+    await tick();
+    assert.equal(heard.length, 1, "a new project, indexed in one burst");
+
+    await env.client.call("agents.create", {
+      project_id: project.id,
+      slug: "scout",
+      name: "Scout",
+      role: "",
+      prompt: "",
+    });
+    await new Promise((r) => setTimeout(r, 600)); // the agent's file wakes the watcher too
+    assert.ok(heard.length >= 2, "a new agent");
+
+    heard.length = 0;
+    await env.client.call("projects.sync", { project: project.id });
+    await tick();
+    assert.equal(heard.length, 0, "the files are as they were");
+
+    await env.client.call("projects.update", { project: project.id, description: "Wholesale client" });
+    await tick();
+    assert.equal(heard.length, 1, "a description");
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});

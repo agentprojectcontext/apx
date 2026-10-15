@@ -28,10 +28,20 @@ import { messagesRepo, modelLogRepo, threadsRepo } from "./threads.ts";
 export function createStore(db: Db, bus: Bus) {
   const q = sql(db);
   const approvals = approvalsRepo(q);
+  // Agents and projects change in bursts (a project's reindex writes each agent): one event per burst.
+  let teamPending = false;
+  const teamChanged = () => {
+    if (teamPending) return;
+    teamPending = true;
+    queueMicrotask(() => {
+      teamPending = false;
+      bus.emit({ type: "team.updated" });
+    });
+  };
   return {
     tx: q.tx,
-    projects: projectsRepo(q),
-    agents: agentsRepo(q),
+    projects: projectsRepo(q, teamChanged),
+    agents: agentsRepo(q, teamChanged),
     threads: threadsRepo(q, bus, approvals.endSession),
     messages: messagesRepo(q, bus),
     modelLog: modelLogRepo(q),

@@ -50,7 +50,11 @@ const withChoice = (c: ModelChoice | undefined): Pick<Agent, "model_choice" | "h
 
 export type Resolved = { agent: AgentRecord } | { error: string };
 
-export function agentsRepo({ one, all, run }: Sql) {
+/** `changed` is called after a write that changed a row (the store turns it into one `team.updated`). */
+export function agentsRepo({ one, all, run }: Sql, changed: () => void) {
+  const write = (q: Parameters<Sql["run"]>[0]) => {
+    if (run(q)) changed();
+  };
   const repo = {
     /** Active agents (an agent whose file was removed from its project is archived and not listed). */
     list(): AgentRecord[] {
@@ -101,7 +105,7 @@ export function agentsRepo({ one, all, run }: Sql) {
       model_choice?: ModelChoice | undefined;
       extra: unknown;
     }): void {
-      run(
+      write(
         qb
           .insertInto("agents")
           .values({
@@ -123,19 +127,32 @@ export function agentsRepo({ one, all, run }: Sql) {
             archived: 0,
           })
           .onConflict((c) =>
-            c.column("id").doUpdateSet((eb) => ({
-              name: eb.ref("excluded.name"),
-              role: eb.ref("excluded.role"),
-              blob: eb.fn.coalesce(eb.ref("excluded.blob"), eb.ref("agents.blob")),
-              project_id: eb.ref("excluded.project_id"),
-              prompt: eb.ref("excluded.prompt"),
-              slug: eb.ref("excluded.slug"),
-              source: "apc",
-              parent: eb.ref("excluded.parent"),
-              description: eb.ref("excluded.description"),
-              extra: eb.ref("excluded.extra"),
-              archived: 0,
-            })),
+            c
+              .column("id")
+              .doUpdateSet((eb) => ({
+                name: eb.ref("excluded.name"),
+                role: eb.ref("excluded.role"),
+                blob: eb.fn.coalesce(eb.ref("excluded.blob"), eb.ref("agents.blob")),
+                project_id: eb.ref("excluded.project_id"),
+                prompt: eb.ref("excluded.prompt"),
+                slug: eb.ref("excluded.slug"),
+                source: "apc",
+                parent: eb.ref("excluded.parent"),
+                description: eb.ref("excluded.description"),
+                extra: eb.ref("excluded.extra"),
+                archived: 0,
+              }))
+              // A reindex of unchanged files writes nothing, so it tells no client to reload.
+              .where((eb) =>
+                eb.or([
+                  ...(["name", "role", "project_id", "prompt", "slug", "parent", "description", "extra"] as const).map(
+                    (c) => eb(eb.ref(`agents.${c}`), "is not", eb.ref(`excluded.${c}`)),
+                  ),
+                  eb(eb.fn.coalesce(eb.ref("excluded.blob"), eb.ref("agents.blob")), "is not", eb.ref("agents.blob")),
+                  eb("agents.source", "!=", "apc"),
+                  eb("agents.archived", "!=", 0),
+                ]),
+              ),
           ),
       );
     },
@@ -161,7 +178,7 @@ export function agentsRepo({ one, all, run }: Sql) {
       return hit ? toAgent(hit) : undefined;
     },
     archive(id: string): void {
-      run(qb.updateTable("agents").set({ archived: 1 }).where("id", "=", id));
+      write(qb.updateTable("agents").set({ archived: 1 }).where("id", "=", id));
     },
     /** Archived agents (all, or one project's): the owner can bring each back or delete it for good. */
     /** Agents archived or deleted for good: kept only for the name and face their chats show. */
@@ -174,14 +191,14 @@ export function agentsRepo({ one, all, run }: Sql) {
       return all(q.orderBy("name")).map(toAgent);
     },
     unarchive(id: string): void {
-      run(qb.updateTable("agents").set({ archived: 0 }).where("id", "=", id));
+      write(qb.updateTable("agents").set({ archived: 0 }).where("id", "=", id));
     },
     /**
      * Deleted for good: its instructions go, and only its name, face and project stay (archived = 2, listed nowhere)
      * so the chats and runs it took part in still say who it was.
      */
     purge(id: string): void {
-      run(
+      write(
         qb
           .updateTable("agents")
           .set({ archived: 2, prompt: "", description: null, extra: "{}", model_choice: null })
@@ -204,7 +221,7 @@ export function agentsRepo({ one, all, run }: Sql) {
       return ids.length;
     },
     upsert(a: Omit<Agent, "source"> & { source?: Agent["source"]; prompt?: string }): void {
-      run(
+      write(
         qb
           .insertInto("agents")
           .values({

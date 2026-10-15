@@ -12,6 +12,7 @@ import { denied } from "./pairing.ts";
 import { routineRunChanged } from "./routines.ts";
 import { data, upsertMessage } from "./state.ts";
 import { loadTasks, taskChanged, taskDeleted, tasksLoaded } from "./tasks.ts";
+import { teamChanged } from "./team.ts";
 import { forgetThreads } from "./threadAdmin.ts";
 import { needsPairing } from "./token.ts";
 import { loadUpdates, notePanel } from "./updates.ts";
@@ -30,7 +31,7 @@ export function startLive(): void {
   if (started) return;
   started = true;
   void connect();
-  // Agents and projects have no change event: coming back to the window (e.g. from the terminal) reloads them.
+  // Coming back to the window (e.g. from the terminal) reloads everything, in case an event was missed.
   window.addEventListener("focus", () => {
     if (data.get().connection === "online") scheduleRefetch();
   });
@@ -201,6 +202,9 @@ function apply(ev: CoreEvent): void {
       return;
     case "surface.updated":
       data.set((s) => ({ surfaces: { ...s.surfaces, [ev.surface.id]: ev.surface } }));
+      return;
+    case "team.updated":
+      teamChanged();
       return;
     case "browser.tabs":
       // The core checks a node's tabs before pushing them.

@@ -159,6 +159,26 @@ export async function loadArchivedAgents(): Promise<Agent[]> {
   }
 }
 
+let teamTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** The core said agents or projects changed (an agent made one, a project's files moved): reload both lists. */
+export function teamChanged(): void {
+  if (teamTimer) return;
+  teamTimer = setTimeout(() => {
+    teamTimer = undefined;
+    void Promise.all([client.call("agents.list", {}), client.call("projects.list", { include_unregistered: true })])
+      .then(([agents, projects]) =>
+        data.set({
+          agents: Object.fromEntries(agents.agents.map((a) => [a.id, a])),
+          former: Object.fromEntries((agents.former ?? []).map((a) => [a.id, a])),
+          projects: projects.projects,
+          base: projects.base,
+        }),
+      )
+      .catch(() => {});
+  }, 200);
+}
+
 async function reloadAgents(): Promise<void> {
   const { agents } = await client.call("agents.list", {});
   data.set({ agents: Object.fromEntries(agents.map((a) => [a.id, a])) });
