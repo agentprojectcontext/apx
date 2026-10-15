@@ -1,5 +1,8 @@
 import type { Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons } from "@apx/ui";
+import { useState } from "react";
+import { client } from "../../data/client.ts";
+import { notify } from "../../data/notices.ts";
 import { isKey, useT } from "../../i18n/index.ts";
 import { appPlace } from "../appLinks.ts";
 
@@ -20,10 +23,16 @@ export function NoticePart({ part }: { part: NoticeData }) {
   const linkKey = `notice.${part.code}.link`;
   const linkLabel = isKey(linkKey) ? t(linkKey) : undefined;
   const open = typeof part.vars?.link === "string" && linkLabel ? appPlace(part.vars.link) : undefined;
-  const link = open && (
-    <Button size="sm" variant="ghost" className="noticeline__link" onClick={open}>
-      {linkLabel}
-    </Button>
+  const thread = part.code.startsWith("breaker.") && typeof part.vars?.thread === "string" ? part.vars.thread : "";
+  const link = (
+    <>
+      {thread && <GoOn thread={thread} />}
+      {open && (
+        <Button size="sm" variant="ghost" className="noticeline__link" onClick={open}>
+          {linkLabel}
+        </Button>
+      )}
+    </>
   );
   if (part.level === "error")
     return (
@@ -60,5 +69,27 @@ export function NoticePart({ part }: { part: NoticeData }) {
         {link}
       </div>
     </ActionGroup>
+  );
+}
+
+/** A paused chain's way on: a fresh budget, or no limit until the owner writes there again (DECISIONS.md#d-081). */
+function GoOn({ thread }: { thread: string }) {
+  const t = useT();
+  const [done, setDone] = useState(false);
+  if (done) return <span className="noticeline__done">{t("notice.breaker.wentOn")}</span>;
+  const go = (mode: "reset" | "release") =>
+    void client
+      .call("threads.go_on", { thread, mode })
+      .then(() => setDone(true))
+      .catch((e: unknown) => notify(e instanceof Error ? e.message : String(e)));
+  return (
+    <>
+      <Button size="sm" variant="ghost" className="noticeline__link" onClick={() => go("reset")}>
+        {t("notice.breaker.reset")}
+      </Button>
+      <Button size="sm" variant="ghost" className="noticeline__link" onClick={() => go("release")}>
+        {t("notice.breaker.release")}
+      </Button>
+    </>
   );
 }

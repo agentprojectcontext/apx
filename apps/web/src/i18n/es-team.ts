@@ -147,4 +147,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "notice.breaker.held.tokens":
     "En pausa: los agentes gastaron {spent} tokens solos desde tu último mensaje acá. {who} empieza «{task}» cuando los dejes seguir.",
   "notice.breaker.held.link": "Cambiar el límite",
+  "notice.breaker.reset": "Reiniciar presupuesto",
+  "notice.breaker.release": "Liberar en esta ronda",
+  "notice.breaker.wentOn": "Los agentes siguieron",
 };

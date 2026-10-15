@@ -936,3 +936,14 @@ and descends through that link as through sub-threads, so a superagent's chat, t
 tasks it gives and their delegations share one budget, reset when the owner writes anywhere in it. An agent giving a
 task while that tree is paused does not start it: the start is kept in the giving chat (`held`) and the owner sees a
 `breaker.held` notice there naming who starts what once they let agents go on.
+
+<a id="d-081"></a>
+## D-081 — 2026-10-15 — A paused chain goes on with a fresh budget or with no limit this round
+With task chats in one tree (D-080), 16 turns or 600k tokens can stop a long orchestrated task halfway, and "write to
+continue" meant typing something to let it go on. A paused notice (`breaker.paused`, `breaker.held`) now names its
+chat (`vars.thread`) and offers two buttons over `threads.go_on`: **Restart the budget** (`reset`: the count starts
+again from now, on the tree's top chat as `budget_from`, so the agents get another full budget) and **Let them finish
+this round** (`release`: no limit in that tree until the owner next writes there, `released_at`). Either one starts
+the tasks given while paused (`held`) and gives a turn (origin `go_on`, trigger `system`) to each chat that kept a
+result or report while paused (`kept`), so the chain goes on without the owner typing. Limits set to 0 in settings
+still mean no limit at all, and the owner writing still resets the count as before.

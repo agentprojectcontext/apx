@@ -136,6 +136,16 @@ test("a task chat counts against the chat that gave it; past the limits a task g
       ["breaker.held", "breaker.paused"],
     );
     assert.match(JSON.stringify(notices[0]), /Vera starts \\"Paused goal 2\\" once you let them go on/);
+
+    // A fresh budget: the second goal starts, and Roby goes on with the report it kept.
+    assert.deepEqual(await env.client.call("threads.go_on", { thread: chat.id, mode: "reset" }), { started: 2 });
+    assert.equal(store.threads.context(chat.id).held, undefined);
+    const [vera2] = store.threads.byTask(second?.id ?? "");
+    assert.equal(store.threads.context(vera2?.id ?? "").asked_from, chat.id);
+    await runsOf(vera2?.id ?? "", 1);
+    const after = await runsOf(chat.id, 2);
+    assert.deepEqual(after.runs.map((r) => r.trigger).sort(), ["system", "user"]);
+    assert.ok(llm.calls.some((c) => String(c.messages.at(-1)?.content).includes("The owner let agents go on")));
   } finally {
     await env.client.call("agents.set_limits", { runs: 0, tokens: 0 });
     store.settings.write("agent_limits", {});

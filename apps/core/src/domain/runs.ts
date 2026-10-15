@@ -29,6 +29,8 @@ export type Origin =
   | { kind: "job"; job_id: string; command: string; state: RunState; exit_code: number | null }
   /** A command the agent suggested, which the owner ran in a terminal, has ended. */
   | { kind: "terminal"; terminal_id: string; command: string; exit_code: number | null }
+  /** The owner let agents go on after a pause: with a fresh budget, or with no limit this round (DECISIONS.md#d-081). */
+  | { kind: "go_on"; mode: "reset" | "release" }
   /** A task an agent created and gave to another one was closed by that one (DECISIONS.md#d-076). */
   | { kind: "task_result"; task_id: string; title: string; state: "done" | "dropped"; agent_id: string; name: string }
   | {
@@ -192,9 +194,12 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     children(runId: string): RunRecord[] {
       return all(qb.selectFrom("runs").selectAll().where("parent_run_id", "=", runId)).map(toRun);
     },
-    /** Turns agents started on their own (delegations, results waking callers) in these threads since the owner's last. */
-    unattended(threadIds: string[]): { runs: number; tokens: number } {
-      if (!threadIds.length) return { runs: 0, tokens: 0 };
+    /**
+     * Turns agents started on their own (delegations, results waking callers) in these threads since the owner's last
+     * (`since`), or since `after` when that is later.
+     */
+    unattended(threadIds: string[], after?: string): { runs: number; tokens: number; since: string } {
+      if (!threadIds.length) return { runs: 0, tokens: 0, since: "" };
       const last = one(
         qb
           .selectFrom("runs")
@@ -208,9 +213,9 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .select((eb) => [eb.fn.countAll<number>().as("n"), raw<number>`coalesce(sum(${runTokens}), 0)`.as("t")])
           .where("thread_id", "in", threadIds)
           .where("trigger", "in", ["a2a", "a2a_result", "system"])
-          .where("created_at", ">", String(last?.at ?? "")),
+          .where("created_at", ">", [String(last?.at ?? ""), after ?? ""].sort().at(-1) ?? ""),
       );
-      return { runs: Number(r?.n ?? 0), tokens: Number(r?.t ?? 0) };
+      return { runs: Number(r?.n ?? 0), tokens: Number(r?.t ?? 0), since: String(last?.at ?? "") };
     },
     /** Turns and tokens by model since `since` (optionally in one project's threads). */
     /** Tokens and turns by model since `since`: of a project, of one chat, or of several chats (a task's). */

@@ -283,6 +283,7 @@
 /* A settled note or warning, and a settled OK or question: the actions' line (ActionGroup), its text in the tone. */
 .noticeline {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   min-height: 34px;
@@ -300,6 +301,15 @@
 .noticeline__link {
   flex: none;
   margin-left: auto;
+}
+.noticeline__link + .noticeline__link {
+  margin-left: 0;
+}
+.noticeline__done {
+  flex: none;
+  margin-left: auto;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
 }
 .noticeline.is-warn,
 .turn__notice.is-warn .apx-actions__icon,

@@ -74,6 +74,7 @@ export function reportClose(store: Store, admit: AdmitFn, taskId: string): RunRe
       systemNote(`A task you created was closed while agents were paused:\n${frameInput(origin, text)}`),
     ]);
     store.messages.add({ thread_id: thread.id, author: { kind: "system" }, parts: [paused] });
+    store.threads.mergeContext(thread.id, { kept: creator.id });
     return undefined;
   }
   const created = typeof from.from_run === "string" ? store.runs.get(from.from_run) : undefined;

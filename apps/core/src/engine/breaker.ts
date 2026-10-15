@@ -27,7 +27,11 @@ export function tree(store: Store, threadId: string): string[] {
 export function trip(store: Store, threadId: string): { limit: "runs" | "tokens"; spent: string } | undefined {
   const max = unattendedLimits(store);
   if (!max.runs && !max.tokens) return undefined;
-  const u = store.runs.unattended(tree(store, threadId));
+  const ids = tree(store, threadId);
+  const top = store.threads.context(ids[0] ?? threadId);
+  const u = store.runs.unattended(ids, top.budget_from);
+  // Let go for this round: until the owner writes in the tree again (DECISIONS.md#d-081).
+  if (top.released_at && top.released_at > u.since) return undefined;
   if (max.runs && u.runs >= max.runs) return { limit: "runs", spent: String(u.runs) };
   if (max.tokens && u.tokens >= max.tokens) return { limit: "tokens", spent: `${Math.round(u.tokens / 1000)}k` };
   return undefined;
@@ -49,7 +53,7 @@ export function heldNotice(store: Store, threadId: string, who: string, task: st
     level: "warn" as const,
     code: "breaker.held",
     text: `Paused: ${tripped(store, threadId)}. ${who} starts "${task}" once you let them go on.`,
-    vars: { variant: t.limit, spent: t.spent, who, task, link: "apx:settings/agents" },
+    vars: { variant: t.limit, spent: t.spent, who, task, thread: threadId, link: "apx:settings/agents" },
   };
 }
 
@@ -62,6 +66,6 @@ export function pausedNotice(store: Store, threadId: string, who: string) {
     level: "warn" as const,
     code: "breaker.paused",
     text: `Paused: ${tripped(store, threadId)}. ${who} finished; write to continue.`,
-    vars: { variant: t.limit, spent: t.spent, who, link: "apx:settings/agents" },
+    vars: { variant: t.limit, spent: t.spent, who, thread: threadId, link: "apx:settings/agents" },
   };
 }

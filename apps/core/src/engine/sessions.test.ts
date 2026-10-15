@@ -117,6 +117,44 @@ test("the breaker stops unattended chains and an owner's message resets it", asy
   assert.equal(tripped(store, sub.id), undefined);
 });
 
+test("going on: a fresh budget counts from now; a release lifts the limit until the owner writes again", async () => {
+  const { store } = env.core;
+  const root = store.threads.create({ kind: "loose", title: "go on", agent_ids: ["roby"] });
+  const add = async (trigger: "a2a" | "user") => {
+    await new Promise((r) => setTimeout(r, 2));
+    const r = store.runs.create({
+      thread_id: root.id,
+      agent_id: "roby",
+      trigger,
+      input: { origin: { kind: "user" }, text: "x" },
+      deadline_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+    store.runs.setState(r, "completed");
+  };
+  await env.client.call("agents.set_limits", { runs: 2, tokens: 0 });
+  try {
+    await add("user");
+    await add("a2a");
+    await add("a2a");
+    assert.match(tripped(store, root.id) ?? "", /started 2 turns/);
+    await env.client.call("threads.go_on", { thread: root.id, mode: "reset" });
+    assert.equal(tripped(store, root.id), undefined);
+    await add("a2a");
+    await add("a2a");
+    assert.match(tripped(store, root.id) ?? "", /started 2 turns/);
+    await env.client.call("threads.go_on", { thread: root.id, mode: "release" });
+    for (let i = 0; i < 4; i++) await add("a2a");
+    assert.equal(tripped(store, root.id), undefined);
+    // The owner writes: a new round, with the limits again.
+    await add("user");
+    await add("a2a");
+    await add("a2a");
+    assert.match(tripped(store, root.id) ?? "", /started 2 turns/);
+  } finally {
+    store.settings.write("agent_limits", {});
+  }
+});
+
 test("the owner sets the breaker's limits, and 0 turns a limit off", async () => {
   const { store } = env.core;
   const root = store.threads.create({ kind: "loose", title: "limits", agent_ids: ["roby"] });

@@ -173,6 +173,7 @@ export function createEngine(deps: {
           author: { kind: "system" },
           parts: [paused],
         });
+        store.threads.mergeContext(parent.thread_id, { kept: parent.agent_id });
         return;
       }
       admit({

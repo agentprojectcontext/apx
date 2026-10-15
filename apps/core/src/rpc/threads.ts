@@ -6,6 +6,7 @@ import { type Attachment, publicRun } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
+import { goOn } from "../engine/go-on.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import { isInside } from "../paths.ts";
@@ -266,6 +267,10 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       });
     },
     "threads.cancel": ({ thread }) => ({ canceled: engine.cancel(thread) }),
+    "threads.go_on": ({ thread, mode }) => {
+      if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
+      return { started: goOn(store, engine.admit, thread, mode) };
+    },
     "threads.voice": ({ thread, on }, ctx) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
       if (ctx.agent && ctx.agent.thread_id !== thread) throw unauthorized("an agent changes only its own chat");

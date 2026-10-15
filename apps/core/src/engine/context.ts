@@ -210,6 +210,8 @@ export function frameInput(origin: Origin, text: string): string {
       return `${untrusted("job_output", { job: origin.job_id, state: origin.state, exit_code: String(origin.exit_code ?? "none") }, text)}\nA background command you started (${origin.command.slice(0, 120)}) has ended; this is the end of its output. Tell the owner what matters.`;
     case "terminal":
       return `${untrusted("terminal_output", { terminal: origin.terminal_id, exit_code: String(origin.exit_code ?? "none") }, text)}\nThe owner ran the command you suggested (${origin.command.slice(0, 120)}) in their terminal and it has ended; this is the end of what it printed. Go on from there: say whether it worked and what comes next.`;
+    case "go_on":
+      return `The owner let agents go on after a pause (${origin.mode === "reset" ? "a fresh budget" : "no limit until they write here again"}). What reached you while paused is above as system notes: carry on with it, then tell the owner what happened.`;
     case "task_result":
       return `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nA task you created and gave to ${inlineName(origin.name)} is closed (${origin.state}); this is their report. Tell the owner what matters.`;
     case "delegation_result":

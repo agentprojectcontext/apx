@@ -145,4 +145,7 @@ export const enTeam = {
   "notice.breaker.held.tokens":
     "Paused: agents spent {spent} tokens on their own since you last wrote here. {who} starts “{task}” once you let them go on.",
   "notice.breaker.held.link": "Change the limit",
+  "notice.breaker.reset": "Restart the budget",
+  "notice.breaker.release": "Let them finish this round",
+  "notice.breaker.wentOn": "Agents went on",
 } as const;

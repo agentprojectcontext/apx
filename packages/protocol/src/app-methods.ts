@@ -1271,6 +1271,17 @@ export const appMethods = {
     effect: true,
   },
   /**
+   * Lets agents go on in the conversation tree `thread` is in, after the breaker paused it: `reset` gives them a fresh
+   * budget from now, `release` no limit until the owner writes there again. Tasks given while paused start, and chats
+   * that kept a result go on. `started`: the turns that began.
+   */
+  "threads.go_on": {
+    params: z.object({ thread: Id, mode: z.enum(["reset", "release"]) }).strict(),
+    result: z.object({ started: z.number().int() }),
+    effect: true,
+    access: "human",
+  },
+  /**
    * Summarizes the thread's older turns now (APX's own loop sees the summary plus the newest turns verbatim). Claude
    * Code and Codex keep and compact their own transcript.
    */
