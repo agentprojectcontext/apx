@@ -12,6 +12,7 @@ import { taskWords } from "../tools/tasks.ts";
 import { reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
 import { MAX_MENTION_DEPTH, mentioned, taskCommentAttention } from "./office.ts";
+import { closedIn, reportClose } from "./task-report.ts";
 
 /** How often assigned tasks that never started are looked at, and how many start each time. */
 export const PICKUP_EVERY_MS = 3600_000;
@@ -190,8 +191,8 @@ export function addComment(store: Store, task: Task, author: Author, text: strin
 }
 
 /**
- * After a turn in a task's chat: the task moved, the turn's answer is posted to the task as its agent's comment, and
- * the agents that answer @mentions are asked next (a few hops at most).
+ * After a turn in a task's chat: the task moved, the turn's answer is posted to the task as its agent's comment, the
+ * agents that answer @mentions are asked next (a few hops at most), and a close in this turn reports to the creator.
  */
 export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): void {
   const thread = store.threads.get(run.thread_id);
@@ -202,23 +203,24 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): voi
   }
   const task = thread?.task_id ? store.tasks.get(thread.task_id) : undefined;
   if (!task) return;
-  if (run.state !== "completed") {
-    store.tasks.touched(task.id, run.agent_id, "update");
-    return;
+  const text = run.state === "completed" ? textOf(store, run) : "";
+  if (run.state !== "completed") store.tasks.touched(task.id, run.agent_id, "update");
+  if (text) {
+    addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id);
+    const fresh = store.tasks.get(task.id) ?? task;
+    const author = store.agents.get(run.agent_id);
+    askMentioned(store, admit, fresh, text, {
+      kind: "agent",
+      id: run.agent_id,
+      name: author?.name ?? run.agent_id,
+      thread_id: run.thread_id,
+      run_id: run.id,
+      depth: run.depth + 1,
+    });
   }
-  const text = textOf(store, run);
-  if (!text) return;
-  addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id);
-  const fresh = store.tasks.get(task.id) ?? task;
-  const author = store.agents.get(run.agent_id);
-  askMentioned(store, admit, fresh, text, {
-    kind: "agent",
-    id: run.agent_id,
-    name: author?.name ?? run.agent_id,
-    thread_id: run.thread_id,
-    run_id: run.id,
-    depth: run.depth + 1,
-  });
+  // Closed in this turn: whoever created the task hears now, with the answer just posted as its report.
+  const now = store.tasks.get(task.id);
+  if (now && closedIn(store, now, run)) reportClose(store, admit, now.id);
 }
 
 /** When a task was last given to its agent (its creation with one, or the last assignment). */

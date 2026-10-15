@@ -190,7 +190,12 @@ export function taskTools(store: Store): Tool[] {
         // A task with nobody on it never starts: say so while the agent can still fix it.
         if (!t.assignee && t.kind === "task")
           return `created ${t.id} in ${t.status}, with nobody on it: it will not start. Assign it with task_update (the agent who does it, or yourself), or ask the owner who should.`;
-        return `created ${t.id} in ${t.status}.${t.assignee ? ` ${t.assignee} starts on it now.` : ""}`;
+        // Its close reports back to this chat (DECISIONS.md#d-076): no need to watch the board for it.
+        const back =
+          t.assignee !== ctx.agent.id && ctx.thread.kind !== "a2a"
+            ? " When they close it, their report comes here."
+            : "";
+        return `created ${t.id} in ${t.status}.${t.assignee ? ` ${t.assignee} starts on it now.${back}` : ""}`;
       },
     }),
     defineTool({

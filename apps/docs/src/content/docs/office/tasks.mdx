@@ -71,6 +71,14 @@ answer comes back as a comment. Ask Vera from Lucía's task:
 Agents can mention each other the same way (two hops deep at most), and an agent can mention you to get your
 attention.
 
+### When an agent's task closes
+
+A task one agent created and gave to another reports back when it closes. Your main agent can hand a whole goal to a
+project's orchestrator as a task; when the orchestrator closes it, hours and restarts later, your main agent gets
+its report in the chat where it created the task and tells you what matters. Closing a task yourself, or an agent
+closing its own, wakes nobody. That turn counts toward the [turns agents start on their own without
+you](/concepts/agents/): past the limit, the report waits until you write in that chat.
+
 ## Sub-tasks
 
 A task can name a parent task, so "Spring launch" can hold the photos for Vera and the rates page for Tomás.

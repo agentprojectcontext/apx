@@ -81,7 +81,7 @@ export function taskBlock(store: Store, thread: Pick<Thread, "id" | "task_id">):
     state,
     others.length ? `Worked on before in their own chats by: ${[...new Set(others)].join(", ")}.` : "",
     "This is your chat for this task. Your final answer is posted to the task as your comment: say in a few lines what you did, what is left or what blocks you.",
-    "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked) and task_close when it is done. Do not use task_comment on this task; it is for other tasks.",
+    "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked) and task_close when it is done: the answer of the turn that closes it is your report to whoever created the task. Do not use task_comment on this task; it is for other tasks.",
     "Mention @owner in your answer when you need the owner; mention @agent to ask a teammate (it answers in a short consult shown on the task).",
   ]
     .filter(Boolean)

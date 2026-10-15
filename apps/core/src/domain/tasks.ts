@@ -240,6 +240,8 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       owed_by?: "owner" | "person" | undefined;
       thread_id: string;
       by: string;
+      /** An agent's chat and turn it was created in: its close reports back there. */
+      from?: { thread: string; run: string } | undefined;
     }): Task {
       const id = newId("task");
       const at = now();
@@ -267,7 +269,12 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           activity_at: at,
         }),
       );
-      event(id, "create", t.by, { title: t.title, status: t.status, ...(t.assignee ? { assignee: t.assignee } : {}) });
+      event(id, "create", t.by, {
+        title: t.title,
+        status: t.status,
+        ...(t.assignee ? { assignee: t.assignee } : {}),
+        ...(t.from ? { from_thread: t.from.thread, from_run: t.from.run } : {}),
+      });
       const task = repo.get(id) as Task;
       emit(task);
       return task;

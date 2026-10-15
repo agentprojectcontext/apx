@@ -877,3 +877,18 @@ launcher of its own terminal with this core's home and port (never its token, wh
 for the owner) and puts that folder first on the PATH of everything agents run (shell commands, MCP servers,
 Claude Code, Codex, ACP agents). Running `apx` from a shell still asks the owner as before (D-069).
 
+<a id="d-076"></a>
+## D-076 — 2026-10-14 — A task an agent gave to another reports back to it when it closes
+Since D-074 an agent working for another one cannot delegate, so handing a whole goal to an orchestrator that runs
+its own team goes through the board: the owner's agent creates a task assigned to the orchestrator, which works it
+in its own durable task chat and may delegate from there. But a close woke nobody: the creator learned of it only by
+reading the board. Now the task's create event records the chat and turn an agent created it from (`from_thread`,
+`from_run`), and when another of the owner's agents closes it (`task_close` done or dropped, or a settled
+commitment) its creator gets a turn there, like a delegation's result: trigger `a2a_result`, origin `task_result`
+(task, title, state, closer), and as input the closer's last comment on the task plus its closing note, enveloped as
+the team's words (D-071). A close made from the closer's own chat for the task reports when that turn ends, so its
+final answer (posted as its comment) is the report. Nobody is woken when the owner created or closed the task, when
+its creator closed it, or when it was created from a chat answering another agent (D-074: that chat's caller has
+moved on). Each close reports once (`close_reported` on the task's conversation); reopened and closed again, it
+reports again. The wake counts against the unattended limits of the creator's conversation: past them the report
+is kept for its next turn and the owner sees the paused notice, as for a delegation's result.

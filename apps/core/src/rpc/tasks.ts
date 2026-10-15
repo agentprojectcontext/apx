@@ -20,6 +20,7 @@ import {
 } from "../domain/tasks.ts";
 import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
+import { reportClose } from "../engine/task-report.ts";
 import { type Asker, addComment, askMentioned, startTaskWork } from "../engine/task-work.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
@@ -43,6 +44,12 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       : { kind: "owner" };
 
   const visible = (id: string, ctx: CallContext): Task => visibleTask(store, id, agentScope(ctx));
+  /** A close reports to the agent that created the task; from the closer's own chat for it, once that turn ends. */
+  const reported = (t: Task, ctx: CallContext): Task => {
+    const working = ctx.agent && store.threads.get(ctx.agent.thread_id)?.task_id === t.id;
+    if (t.state !== "open" && !working) reportClose(store, engine.admit, t.id);
+    return t;
+  };
 
   return {
     "tasks.list": ({ project, state, assignee, commitments, person, limit }, ctx) => {
@@ -101,6 +108,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
           owed_by: p.owed_by,
           thread_id: thread.id,
           by: by(ctx),
+          from: ctx.agent ? { thread: ctx.agent.thread_id, run: ctx.agent.run_id } : undefined,
         });
       });
       if (created.assignee) startTaskWork(store, engine.admit, created, created.assignee, askerOf(ctx));
@@ -146,23 +154,25 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
     },
     "tasks.close": ({ task, state, note }, ctx) => {
       visible(task, ctx);
-      return store.tasks.change(
+      const t = store.tasks.change(
         task,
         { state, ...(state !== "open" ? { awaits_owner: false } : {}) },
         by(ctx),
         note,
       ) as Task;
+      return reported(t, ctx);
     },
     "tasks.settle": ({ task, outcome, due_at, note }, ctx) => {
       const t = visible(task, ctx);
       checkSettle(t, outcome, due_at);
       if (outcome === "renegotiated") return store.tasks.renegotiate(task, dueOf(due_at) ?? "", by(ctx), note) as Task;
-      return store.tasks.change(
+      const closed = store.tasks.change(
         task,
         { state: outcome === "kept" ? "done" : "dropped", outcome, awaits_owner: false },
         by(ctx),
         note,
       ) as Task;
+      return reported(closed, ctx);
     },
     "tasks.delete": ({ task }, ctx) => {
       const t = visible(task, ctx);

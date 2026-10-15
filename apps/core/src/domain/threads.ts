@@ -95,6 +95,8 @@ export type ThreadContext = {
   worker?: Worker;
   /** A consult an @mention in a task opened: the task, and the card in its conversation that shows the answer. */
   consult?: { task: string; card: string };
+  /** On a task's conversation: the close (its place in the task's history) already reported to whoever created it. */
+  close_reported?: number;
 };
 
 /** A throwaway helper an agent starts for one task: a name, its instructions and (optionally) fewer tools. */

@@ -29,6 +29,8 @@ export type Origin =
   | { kind: "job"; job_id: string; command: string; state: RunState; exit_code: number | null }
   /** A command the agent suggested, which the owner ran in a terminal, has ended. */
   | { kind: "terminal"; terminal_id: string; command: string; exit_code: number | null }
+  /** A task an agent created and gave to another one was closed by that one (DECISIONS.md#d-076). */
+  | { kind: "task_result"; task_id: string; title: string; state: "done" | "dropped"; agent_id: string; name: string }
   | {
       kind: "delegation_result";
       agent_id: string;

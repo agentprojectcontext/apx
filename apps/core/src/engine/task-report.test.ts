@@ -1,0 +1,119 @@
+import assert from "node:assert/strict";
+import { after, before, test } from "node:test";
+import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
+
+// Roby hands work to Vera through the board; Vera closes each task she is given inside her turn on it.
+let idea = "";
+const llm = scriptedLlm((req, { system, said, afterTool }) => {
+  const tools = req.messages.filter((m) => m.role === "tool").length;
+  const last = String(req.messages.at(-1)?.content);
+  if (system.startsWith("You are Vera")) {
+    if (afterTool) return say("Shipped: three PRs merged.");
+    const task = /Task (task_\w+):/.exec(JSON.stringify(req.messages))?.[1] ?? "";
+    return callTool("v1", "task_close", { task, state: "done", note: "all checks green" });
+  }
+  if (said.includes("<task_result")) return say("Vera finished it.");
+  if (said.includes("hand the goal")) {
+    if (!afterTool) return callTool("r1", "task_create", { title: "Ship the goal", assignee: "vera" });
+    return say(last);
+  }
+  if (said.includes("hand two goals")) {
+    if (tools < 2) return callTool(`r${tools}`, "task_create", { title: `Goal ${tools + 1}`, assignee: "vera" });
+    return say("Both handed off.");
+  }
+  if (said.includes("note an idea")) {
+    if (!afterTool) return callTool("r3", "task_create", { title: "Someday idea" });
+    idea = /created (task_\w+)/.exec(last)?.[1] ?? "";
+    return say("Noted.");
+  }
+  if (said.includes("close the idea")) {
+    if (!afterTool) return callTool("r4", "task_close", { task: idea, state: "done" });
+    return say("Closed.");
+  }
+  return say("ok");
+});
+
+let env: Awaited<ReturnType<typeof startCore>>;
+before(async () => {
+  env = await startCore({ llm });
+});
+after(async () => {
+  await env.core.close();
+  env.cleanup();
+});
+
+/** Waits until the thread has `n` runs, all ended, and nothing more arrives for a moment. */
+async function runsOf(thread: string, n: number, ms = 8000) {
+  const until = Date.now() + ms;
+  while (Date.now() < until) {
+    const t = await env.client.call("threads.get", { thread });
+    if (t.runs.length >= n && t.runs.every((r) => r.ended_at)) {
+      await new Promise((r) => setTimeout(r, 300));
+      const again = await env.client.call("threads.get", { thread });
+      if (again.runs.length === t.runs.length && again.runs.every((r) => r.ended_at)) return again;
+    }
+    await new Promise((r) => setTimeout(r, 40));
+  }
+  throw new Error(`thread ${thread} never got ${n} runs`);
+}
+
+const allTasks = async () =>
+  (await Promise.all((["open", "done"] as const).map((state) => env.client.call("tasks.list", { state })))).flatMap(
+    (r) => r.tasks,
+  );
+
+test("a task an agent gave to another wakes its creator where it created it, with the closer's report", async () => {
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "goal" });
+  await env.client.call("threads.send", { thread: chat.id, text: "hand the goal to Vera" });
+  const { runs, messages } = await runsOf(chat.id, 2);
+  assert.deepEqual(
+    runs.map((r) => r.trigger),
+    ["a2a_result", "user"],
+  );
+  assert.match(texts(messages).join("\n"), /When they close it, their report comes here\./);
+  assert.equal(texts(messages).at(-1), "Vera finished it.");
+
+  const task = (await allTasks()).find((t) => t.title === "Ship the goal");
+  assert.equal(task?.state, "done");
+  assert.equal(task?.created_by, "roby");
+  const input = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("<task_result"));
+  assert.match(
+    String(input?.messages.at(-1)?.content),
+    new RegExp(
+      `<task_result task="${task?.id}" title="Ship the goal" from="Vera" state="done" trust="team">\\nShipped: three PRs merged\\.\\n\\nClosing note: all checks green\\n</task_result>\\nA task you created and gave to Vera is closed \\(done\\)`,
+    ),
+  );
+});
+
+test("nobody is woken when the owner closes a task or its creator closes it itself", async () => {
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "ideas" });
+  await env.client.call("threads.send", { thread: chat.id, text: "note an idea" });
+  await runsOf(chat.id, 1);
+  await env.client.call("threads.send", { thread: chat.id, text: "close the idea" });
+  await runsOf(chat.id, 2);
+  await env.client.call("tasks.close", { task: idea, state: "open" });
+  await env.client.call("tasks.close", { task: idea, state: "done" });
+  const { runs } = await runsOf(chat.id, 2);
+  assert.deepEqual(
+    runs.map((r) => r.trigger),
+    ["user", "user"],
+  );
+});
+
+test("past the unattended limits a close waits for the owner, shown as a paused notice", async () => {
+  await env.client.call("agents.set_limits", { runs: 1, tokens: 0 });
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "two goals" });
+  await env.client.call("threads.send", { thread: chat.id, text: "hand two goals to Vera" });
+  const { runs, messages } = await runsOf(chat.id, 2);
+  env.core.store.settings.write("agent_limits", {});
+  // The first close wakes Roby; that turn reaches the limit, so the second waits for the owner.
+  assert.deepEqual(
+    runs.map((r) => r.trigger),
+    ["a2a_result", "user"],
+  );
+  const notices = messages.flatMap((m) => m.parts.filter((p) => p.type === "notice"));
+  assert.deepEqual(
+    notices.map((p) => p.type === "notice" && p.code),
+    ["breaker.paused"],
+  );
+});
