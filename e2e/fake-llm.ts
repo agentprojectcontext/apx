@@ -1,6 +1,7 @@
 // An OpenAI-compatible model on localhost: it answers at once and always the same way, so a test can read the reply
 // ("Got it: <the last line you wrote>"). Streams like a real one when asked. It calls two tools: "start a worker"
-// delegates to a worker, which answers with a long report; "make a note file" runs a command that needs the owner's OK. It also embeds texts (Ollama's /api/embed) for the skills
+// delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn); "make a
+// note file" runs a command that needs the owner's OK. It also embeds texts (Ollama's /api/embed) for the skills
 // picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -48,13 +49,18 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
       return { name: "mcp_notes_echo", arguments: JSON.stringify({ text: "second" }) };
     return undefined;
   }
+  const worker = { name: "Researcher", instructions: "Check every source and list it." };
+  const delegate = { name: "delegate", arguments: JSON.stringify({ worker, task: "check the sources" }) };
+  // Two delegations in one turn, the second after the first's result: past a one-turn limit the breaker refuses it.
+  if (/^start two workers/i.test(said)) {
+    const sinceOwner = messages.slice(messages.findLastIndex((m) => m.role === "user"));
+    return sinceOwner.filter((m) => m.role === "tool").length < 2 ? delegate : undefined;
+  }
   if (messages.at(-1)?.role === "tool") return undefined;
   // A command that writes: the owner is asked first.
   if (/^make a note file/i.test(said))
     return { name: "shell", arguments: JSON.stringify({ command: "touch e2e-note.txt" }) };
-  if (!/^start a worker/i.test(said)) return undefined;
-  const worker = { name: "Researcher", instructions: "Check every source and list it." };
-  return { name: "delegate", arguments: JSON.stringify({ worker, task: "check the sources" }) };
+  return /^start a worker/i.test(said) ? delegate : undefined;
 }
 
 export async function fakeLlm() {
