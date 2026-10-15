@@ -34,6 +34,7 @@ export const test = base.extend<{ errors: string[] }>({
         // would have them: through the same keys the panel writes.
         localStorage.setItem("apx.discord.dismissed", "1");
         localStorage.setItem("apx.star.dismissed", "1");
+        localStorage.setItem("apx.v2.dismissed", "1");
         localStorage.setItem("apx.notify.nudge.dismissed", "1");
         localStorage.setItem("apx.install.dismissed", "1");
         localStorage.setItem("apx.mobilehint.dismissed", "1");

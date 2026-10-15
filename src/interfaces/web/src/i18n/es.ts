@@ -146,8 +146,6 @@ export const es = {
     light:               "Cambiar a claro",
     dark:                "Cambiar a oscuro",
     lang_toggle:         "Idioma",
-    try_v2:              "Probá APX v2 beta",
-    try_v2_tip:          "El próximo APX ya está en beta. Trae tus proyectos, agentes y chats de v1 cuando se lo pedís.",
   },
   admin: {
     title:             "APX",
@@ -2494,6 +2492,14 @@ export const es = {
     download:            "Bajarla",
     cta:                 "Pedirle a {name}",
     draft:               "Instalame la app de APX Android en el teléfono, por favor. Decime primero qué tengo que hacer yo en el celular.",
+  },
+
+  try_v2: {
+    chip:                "Probá APX v2 beta",
+    chip_short:          "APX v2",
+    title:               "APX v2 ya está en beta",
+    desc:                "El próximo APX: app de escritorio, app para el celular y un panel nuevo. Trae tus proyectos, agentes y chats de v1 cuando se lo pedís.",
+    cta:                 "Ver APX v2",
   },
 
   community: {

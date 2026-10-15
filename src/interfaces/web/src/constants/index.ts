@@ -29,6 +29,7 @@ export const STORAGE = {
   // not a decision about the next one.
   updateDismissed: "apx.update.dismissed",
   starDismissed: "apx.star.dismissed",
+  v2Dismissed: "apx.v2.dismissed",
 } as const;
 
 /** Links that live outside the daemon. */

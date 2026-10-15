@@ -142,8 +142,6 @@ export const en = {
     light:               "Switch to light",
     dark:                "Switch to dark",
     lang_toggle:         "Language",
-    try_v2:              "Try APX v2 beta",
-    try_v2_tip:          "The next APX is out in beta. It brings your v1 projects, agents and chats in when you ask.",
   },
   admin: {
     title:             "APX",
@@ -2485,6 +2483,14 @@ export const en = {
     download:            "Download",
     cta:                 "Ask {name}",
     draft:               "Install the APX Android app on my phone, please. Tell me first what I have to do on the phone.",
+  },
+
+  try_v2: {
+    chip:                "Try APX v2 beta",
+    chip_short:          "APX v2",
+    title:               "APX v2 is out in beta",
+    desc:                "The next APX: a desktop app, a phone app and a new panel. It brings your v1 projects, agents and chats in when you ask.",
+    cta:                 "See APX v2",
   },
 
   community: {

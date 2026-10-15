@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Languages, Moon, Smartphone, Sparkles, Sun } from "lucide-react";
+import { Languages, Moon, Smartphone, Sun } from "lucide-react";
 import { ProjectSidebar, projectKindLabel } from "./components/layout/ProjectSidebar";
 import { ApxAdminScreen } from "./screens/ApxAdminScreen";
 import { InboxScreen } from "./screens/InboxScreen";
@@ -17,6 +17,7 @@ import { fromLegacyMobilePath } from "./screens/mobile/routes";
 import { RobyBubble } from "./components/RobyBubble";
 import { MobileHint } from "./components/MobileHint";
 import { CornerCards } from "./components/common/CornerCards";
+import { TryV2Chip } from "./components/common/TryV2";
 import { MobileLinkDialog } from "./components/MobileLinkDialog";
 import { Roby, RobyEmpty, type RobyMood } from "./components/Roby";
 import { ToastProvider } from "./components/Toast";
@@ -37,7 +38,6 @@ import {
   DropdownMenuTrigger,
 } from "./components/ui/dropdown-menu";
 import { t, getLocale, setLocale, LOCALES, type Locale } from "./i18n";
-import { LINKS } from "./constants";
 import { usePersonaName } from "./hooks/usePersonaName";
 
 export function App() {
@@ -276,24 +276,6 @@ function TopBar({
         </button>
       </Tip>
     </header>
-  );
-}
-
-/** Points v1 users at the v2 beta site, in their language. Hidden on narrow screens, where the bar is full. */
-function TryV2Chip() {
-  return (
-    <Tip content={t("topbar.try_v2_tip")}>
-      <a
-        href={getLocale() === "es" ? LINKS.v2SiteEs : LINKS.v2Site}
-        target="_blank"
-        rel="noopener noreferrer"
-        data-testid="try-v2"
-        className="hidden shrink-0 items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20 sm:inline-flex"
-      >
-        <Sparkles size={12} />
-        {t("topbar.try_v2")}
-      </a>
-    </Tip>
   );
 }
 

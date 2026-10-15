@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Star, X } from "lucide-react";
 import { CommunityCard } from "./CommunityCard";
 import { UpdateBanner } from "./UpdateBanner";
+import { TryV2Card } from "./TryV2";
 import { NotifyNudge } from "../settings/PanelPrefs";
 import { LINKS, STORAGE } from "../../constants";
 import { t } from "../../i18n";
@@ -9,9 +10,9 @@ import { t } from "../../i18n";
 /**
  * One corner, a deck of cards.
  *
- * Four things want to be said to someone opening the panel — turn notifications
- * on, there is a Discord, there is a newer APX, the repo takes stars — and all
- * four at once is a wall you close four times before you can read the screen
+ * Five things want to be said to someone opening the panel — turn notifications
+ * on, APX v2 is in beta, there is a Discord, there is a newer APX, the repo takes
+ * stars — and all five at once is a wall you close five times before you can read the screen
  * behind it. They queue instead: the first one that applies is the only one
  * visible, and closing it brings the next.
  *
@@ -60,6 +61,7 @@ export function CornerCards() {
       ].join(" ")}
     >
       <NotifyNudge floating className="static w-full max-w-none" />
+      <TryV2Card />
       <CommunityCard />
       <UpdateBanner />
       <StarCard />

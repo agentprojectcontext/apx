@@ -5,6 +5,7 @@ import { installStance, onInstallStateChange, promptInstall } from "../../lib/pw
 import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { InboxRowItem } from "../../components/inbox/InboxRowItem";
 import { CommunityCard } from "../../components/common/CommunityCard";
+import { TryV2Card } from "../../components/common/TryV2";
 import { AGENTS_ROOT, RUNTIMES_ROOT, chatPath, keyFor, pidOf } from "./routes";
 import { LINKS } from "../../constants";
 import { inboxRowKey } from "../../lib/chat-read";
@@ -170,6 +171,7 @@ export function MobileChatList({
       {/* Only outside the app: inside it the app IS installed, and this would
           be an offer to do something already done. */}
       <AskToInstallRow rows={rows} />
+      <TryV2Card variant="inline" />
       <CommunityCard variant="inline" />
 
       <div className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+5rem)]">
