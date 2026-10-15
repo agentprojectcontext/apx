@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { tree } from "./breaker.ts";
+import { pickUpTasks, startTaskWork } from "./task-work.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 // Roby hands work to Vera through the board; Vera closes each task she is given inside her turn on it.
@@ -17,6 +18,11 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
   if (said.includes("hand the goal")) {
     if (!afterTool) return callTool("r1", "task_create", { title: "Ship the goal", assignee: "vera" });
     return say(last);
+  }
+  if (said.includes("hand waiting goals")) {
+    if (tools < 2)
+      return callTool(`w${tools}`, "task_create", { title: `Waiting goal ${tools + 1}`, assignee: "vera" });
+    return say("Both handed off.");
   }
   if (said.includes("hand paused goals")) {
     if (tools < 2) return callTool(`p${tools}`, "task_create", { title: `Paused goal ${tools + 1}`, assignee: "vera" });
@@ -136,6 +142,20 @@ test("a task chat counts against the chat that gave it; past the limits a task g
       ["breaker.held", "breaker.paused"],
     );
     assert.match(JSON.stringify(notices[0]), /Vera starts \\"Paused goal 2\\" once you let them go on/);
+    // Roby was told it waits, not that it started; and the hourly pickup leaves it for the owner.
+    const told = llm.calls
+      .flatMap((c) => c.messages)
+      .filter((m) => m.role === "tool" && /Paused goal 2|created/.test(String(m.content)));
+    assert.ok(told.some((m) => /It has not started: agents here reached the owner's limit/.test(String(m.content))));
+    const picked: string[] = [];
+    const fake = ((a: { thread_id: string }) => {
+      picked.push(store.threads.get(a.thread_id)?.task_id ?? "");
+      return { id: `run_fake_${picked.length}` };
+    }) as unknown as Parameters<typeof pickUpTasks>[1];
+    store.settings.set("task_work_since", new Date(Date.now() - 3600_000).toISOString());
+    pickUpTasks(store, fake);
+    assert.ok(!picked.includes(second?.id ?? ""));
+    assert.deepEqual(store.threads.byTask(second?.id ?? ""), []);
 
     // A fresh budget: the second goal starts, and Roby goes on with the report it kept.
     assert.deepEqual(await env.client.call("threads.go_on", { thread: chat.id, mode: "reset" }), { started: 2 });
@@ -150,4 +170,43 @@ test("a task chat counts against the chat that gave it; past the limits a task g
     await env.client.call("agents.set_limits", { runs: 0, tokens: 0 });
     store.settings.write("agent_limits", {});
   }
+});
+
+test("the owner writing in a paused chat starts the tasks agents gave meanwhile", async () => {
+  const { store } = env.core;
+  await env.client.call("agents.set_limits", { runs: 1, tokens: 0 });
+  try {
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "waiting" });
+    await env.client.call("threads.send", { thread: chat.id, text: "hand waiting goals to Vera" });
+    await runsOf(chat.id, 1);
+    const second = (await allTasks()).find((t) => t.title === "Waiting goal 2");
+    assert.deepEqual(store.threads.byTask(second?.id ?? ""), []);
+    await env.client.call("threads.send", { thread: chat.id, text: "ok, go on" });
+    assert.equal(store.threads.byTask(second?.id ?? "").length, 1);
+    assert.equal(store.threads.context(chat.id).held, undefined);
+    await runsOf(chat.id, 2);
+  } finally {
+    await env.client.call("agents.set_limits", { runs: 0, tokens: 0 });
+    store.settings.write("agent_limits", {});
+  }
+});
+
+test("how deep agents hand tasks on is the breaker's: no fixed depth stops a start", async () => {
+  const { store } = env.core;
+  const from = store.threads.create({ kind: "loose", title: "deep", agent_ids: ["roby"] });
+  const task = store.tasks.create({
+    title: "Deep work",
+    assignee: "vera",
+    status: "todo",
+    thread_id: store.threads.create({ kind: "task", title: "Deep work", agent_ids: ["vera"] }).id,
+    by: "roby",
+  });
+  const admitted: string[] = [];
+  const fake = ((a: { thread_id: string }) => {
+    admitted.push(a.thread_id);
+    return { id: "run_deep" };
+  }) as unknown as Parameters<typeof startTaskWork>[1];
+  const asker = { kind: "agent" as const, id: "roby", name: "Roby", thread_id: from.id, run_id: "run_x", depth: 9 };
+  assert.ok(startTaskWork(store, fake, task, "vera", asker));
+  assert.equal(admitted.length, 1);
 });

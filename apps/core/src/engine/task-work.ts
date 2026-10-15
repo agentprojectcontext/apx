@@ -12,7 +12,7 @@ import { taskWords } from "../tools/tasks.ts";
 import { heldNotice, trip } from "./breaker.ts";
 import { reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
-import { MAX_MENTION_DEPTH, mentioned, taskCommentAttention } from "./office.ts";
+import { mentioned, taskCommentAttention } from "./office.ts";
 import { closedIn, reportClose } from "./task-report.ts";
 
 /** How often assigned tasks that never started are looked at, and how many start each time. */
@@ -20,7 +20,7 @@ export const PICKUP_EVERY_MS = 3600_000;
 const PICKUP_AT_ONCE = 3;
 const PRIORITY_RANK: Record<Task["priority"], number> = { urgent: 0, high: 1, normal: 2, low: 3 };
 
-/** Who asked for the work: the owner (assigning, commenting) or another agent, a few hops deep at most. */
+/** Who asked for the work: the owner (assigning, commenting) or another agent, at some depth of hand-offs. */
 export type Asker =
   | { kind: "owner" }
   | { kind: "agent"; id: string; name: string; thread_id: string; run_id: string; depth: number };
@@ -68,6 +68,29 @@ function ask(store: Store, admit: AdmitFn, task: Task, agentId: string, text: st
   });
 }
 
+/**
+ * Starts the tasks agents gave from these chats while they were paused, in each chat whose chain may go on now (the
+ * owner wrote there or let agents go on); returns how many started.
+ */
+export function startHeld(store: Store, admit: AdmitFn, threadIds: readonly string[]): number {
+  let started = 0;
+  for (const id of threadIds) {
+    const { held } = store.threads.context(id);
+    if (!held?.length || trip(store, id)) continue;
+    store.threads.mergeContext(id, { held: undefined });
+    for (const h of held) {
+      const task = store.tasks.get(h.task);
+      const asker = store.runs.get(h.run);
+      // Reassigned or begun meanwhile: whoever has it now goes on as it is.
+      if (!task || !asker || task.assignee !== h.agent || store.threads.byTask(task.id).length) continue;
+      const name = store.agents.get(asker.agent_id)?.name ?? asker.agent_id;
+      const by = { kind: "agent" as const, id: asker.agent_id, name, thread_id: id, run_id: h.run, depth: h.depth };
+      if (startTaskWork(store, admit, task, h.agent, by)) started++;
+    }
+  }
+  return started;
+}
+
 /** Keeps a task an agent gave while its chat's chain is paused, and tells the owner there. */
 function hold(store: Store, task: Task, agentId: string, asker: Extract<Asker, { kind: "agent" }>): void {
   const held = (store.threads.context(asker.thread_id).held ?? []).filter((h) => h.task !== task.id);
@@ -89,7 +112,8 @@ export function startTaskWork(
   agentId: string,
   asker: Asker,
 ): RunRecord | undefined {
-  if (task.state !== "open" || !store.agents.get(agentId) || depthOf(asker) > MAX_MENTION_DEPTH) return undefined;
+  // How far agents hand work on is the breaker's, as the owner set it (DECISIONS.md#d-082).
+  if (task.state !== "open" || !store.agents.get(agentId)) return undefined;
   if (asker.kind === "agent" && trip(store, asker.thread_id)) {
     hold(store, task, agentId, asker);
     return undefined;
@@ -241,11 +265,16 @@ function assignedAt(store: Store, task: Task): string | undefined {
 export function pickUpTasks(store: Store, admit: AdmitFn): RunRecord[] {
   const since = store.settings.get("task_work_since");
   if (!since) return [];
+  // A task an agent gave while paused waits for its chain to go on, never for the clock (DECISIONS.md#d-082).
+  const holders = store.threads.holding();
+  startHeld(store, admit, holders);
+  const held = new Set(holders.flatMap((id) => store.threads.context(id).held ?? []).map((h) => h.task));
   const waiting = store.tasks
     .list({ state: "open", limit: 500 })
     .filter(
       (t) =>
         t.assignee &&
+        !held.has(t.id) &&
         t.status !== "review" &&
         store.agents.get(t.assignee) &&
         store.threads.byTask(t.id).length === 0 &&

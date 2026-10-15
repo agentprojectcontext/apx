@@ -114,7 +114,14 @@ function field<T>(name: string, check: () => T): T {
   }
 }
 
+/** What an agent is told when the task it gave waits for the owner: this chat's chain is paused (DECISIONS.md#d-082). */
+const PAUSED = (who: string) =>
+  `It has not started: agents here reached the owner's limit for working on their own, so ${who} starts on it once the owner lets them go on (they were told). Do not assign it again.`;
+
 export function taskTools(store: Store): Tool[] {
+  /** Whether this chat keeps the task's start until the owner lets agents go on. */
+  const waits = (task: string, ctx: CheckContext) =>
+    Boolean(store.threads.context(ctx.thread.id).held?.some((h) => h.task === task));
   const scopeOf = (ctx: CheckContext) => boardScope(store, { id: ctx.agent.id, thread_id: ctx.thread.id });
   const taskOf = (id: string, ctx: CheckContext) => field("task", () => visibleTask(store, id, scopeOf(ctx)));
   /** What a new task or a change names besides the task: a real column, assignee and person, a date that reads. */
@@ -200,6 +207,7 @@ export function taskTools(store: Store): Tool[] {
           t.assignee !== ctx.agent.id && ctx.thread.kind !== "a2a"
             ? " When they close it, their report comes here."
             : "";
+        if (t.assignee && waits(t.id, ctx)) return `created ${t.id} in ${t.status}${under}. ${PAUSED(t.assignee)}`;
         return `created ${t.id} in ${t.status}${under}.${t.assignee ? ` ${t.assignee} starts on it now.${back}` : ""}`;
       },
     }),
@@ -224,7 +232,8 @@ export function taskTools(store: Store): Tool[] {
       title: (a) => `Updated the task ${String(a.task ?? "")}`,
       async run({ task, ...c }, ctx) {
         const t = await ctx.call("tasks.update", { task, ...c });
-        return `updated: ${taskLines([t], (x) => line(x))}`;
+        const paused = c.assignee && t.assignee && waits(t.id, ctx) ? ` ${PAUSED(t.assignee)}` : "";
+        return `updated: ${taskLines([t], (x) => line(x))}${paused}`;
       },
     }),
     defineTool({

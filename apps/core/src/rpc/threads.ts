@@ -5,8 +5,10 @@ import { OWNER_ID } from "../domain/persons.ts";
 import { type Attachment, publicRun } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
+import { tree } from "../engine/breaker.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
 import { goOn } from "../engine/go-on.ts";
+import { startHeld } from "../engine/task-work.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import { isInside } from "../paths.ts";
@@ -235,12 +237,15 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         reply_to: contact ? { channel: contact.id, conversation: contact.conversation } : undefined,
       });
       // There the words need their own turn to be framed as what to answer: they never steer.
-      return post(thread, text, { kind: "user" }, mode === "steer" && !contact, {
+      const sent = post(thread, text, { kind: "user" }, mode === "steer" && !contact, {
         agent_id: agent.id,
         trigger: "user",
         origin: { kind: "user" },
         ...(attachments?.length ? { attachments: attachedFiles(store, thread, attachments) } : {}),
       });
+      // The owner writing lets a paused chain go on: tasks agents gave meanwhile start (DECISIONS.md#d-082).
+      startHeld(store, engine.admit, tree(store, thread));
+      return sent;
     },
     "threads.rewind": ({ thread, message, text }) => {
       const { thread: t, agent } = threadAgent(thread);

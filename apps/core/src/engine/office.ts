@@ -10,8 +10,6 @@ import { previewOf } from "../domain/threads.ts";
 import { inlineName } from "../tools/result.ts";
 import { taskWords } from "../tools/tasks.ts";
 
-/** How deep a task's work started by agents nests (an agent gives a task, its agent gives another…). */
-export const MAX_MENTION_DEPTH = 2;
 const MAX_MENTIONS = 3;
 const MENTIONS = /(?<![\p{L}\p{N}_@])@([\p{L}\p{N}][\p{L}\p{N}_-]*)/gu;
 

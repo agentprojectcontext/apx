@@ -947,3 +947,13 @@ this round** (`release`: no limit in that tree until the owner next writes there
 the tasks given while paused (`held`) and gives a turn (origin `go_on`, trigger `system`) to each chat that kept a
 result or report while paused (`kept`), so the chain goes on without the owner typing. Limits set to 0 in settings
 still mean no limit at all, and the owner writing still resets the count as before.
+
+<a id="d-082"></a>
+## D-082 — 2026-10-15 — How far agents hand work on through the board is the owner's limit, never a silent cut
+A task's work started by an agent was dropped past two hand-offs (`MAX_MENTION_DEPTH`) without a word: `task_create`
+still answered "starts on it now", and an hour later the pickup started it as if the owner had asked, with no limit
+at all. With an answering agent giving nobody work (D-079) and every task chat inside its giver's budget (D-080), the
+fixed depth goes: the breaker, as the owner set it (0 = no limit), decides. A start it holds is reported truthfully
+(`task_create` and `task_update` say it has not started and why, and not to assign it again), the hourly pickup
+leaves held tasks alone, and they start when the chain may go on: the owner writing in that conversation tree, or
+either button of D-081.

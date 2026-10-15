@@ -183,6 +183,12 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
     children(parentId: string): string[] {
       return all(qb.selectFrom("threads").select("id").where("parent_id", "=", parentId)).map((r) => r.id);
     },
+    /** The chats keeping tasks agents gave while paused (`held`). */
+    holding(): string[] {
+      return all(qb.selectFrom("threads").select("id").where(sql`json_array_length(context, '$.held')`, ">", 0)).map(
+        (r) => r.id,
+      );
+    },
     /** The task chats an agent's turn in `threadId` started (`asked_from`). */
     askedFrom(threadId: string): string[] {
       return all(
