@@ -1339,6 +1339,17 @@ export const appMethods = {
     effect: false,
   },
   /**
+   * A media file a widget shows (an image, video or audio, up to 15 MB), read-only and scoped to the widget's project:
+   * `ref` is a path in the project's folder (the base project's for a global widget) or `media:<id>` for a file APX
+   * stored in one of that project's chats. Only refs written in the widget's own HTML resolve.
+   */
+  "surfaces.media": {
+    params: z.object({ surface: Id, ref: z.string().trim().min(1).max(1000) }).strict(),
+    result: z.object({ mime: z.string(), data: z.string(), bytes: z.number().int() }),
+    effect: false,
+    access: "human",
+  },
+  /**
    * Creates or updates a widget by its stable name (per project). Called by an agent, it lands in the agent's thread;
    * `thread` places it elsewhere.
    */

@@ -993,3 +993,18 @@ caller picks someone else or tells the owner; a task given to it is held with a 
 `agentRuns`/`agentTokens` and starts when the owner lets agents go on. `list_agents` reports what the chain and each
 agent with a budget have used, in the tool result (not the prompt). A delegated turn's run row is created in the same
 synchronous step as the check, so delegations racing in one turn count each other's turns; tokens count once spent.
+
+<a id="d-086"></a>
+## D-086 — 2026-10-15 — A widget shows its project's media as bytes the panel hands it, never by URL
+A widget could only show media inlined as data: (under the 400 KB HTML cap), so a reel preview could not play the
+project's own MP4. The widget now names the file (`data-apx-src="clips/reel.mp4"`, `media:<id>` for a file APX stored,
+or `apx.media(ref)` from script); its frame asks the panel over postMessage, the panel calls `surfaces.media` (human
+only) and moves the bytes into the frame, which loads them from its own `blob:` URL. The CSP is unchanged: no media
+URL, no route outside the protocol and no origin the frame could reach, which a scoped URL in `media-src` would have
+needed (and a token in it, since the opaque-origin frame carries no credentials). The core decides scope: a path in
+the widget's project folder (the base project's for a global widget), never outside it or into `.git`; a stored file
+only from one of that project's chats; images, video and audio only, up to 15 MB; and only refs written in the
+widget's HTML, so what a widget can load is fixed when it is written and visible in `read_widget`. The trade-off: a
+widget with `connect` origins could send those files out, as it could anything else it shows; that is why a widget
+with `connect` already asks the owner while outside content is in play. A published artifact (`/a/<token>`) does not
+resolve these refs.

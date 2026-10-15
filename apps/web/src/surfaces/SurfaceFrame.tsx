@@ -1,6 +1,7 @@
 import { EmptyState, Icons, Skeleton, useApx } from "@apx/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadSurfaceDoc, surfacePrompt } from "../data/actions.ts";
+import { widgetMedia } from "../data/media.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { LAYOUT } from "../shell/layout.ts";
@@ -8,6 +9,8 @@ import { buildSrcdoc, themeCss } from "./srcdoc.ts";
 
 /** Minimum gap between two sendPrompt() calls from one widget. */
 const PROMPT_GAP_MS = 1500;
+/** Distinct media files one widget may ask for while it is open. */
+const MEDIA_MAX = 40;
 
 export type SurfaceFrameProps = {
   surfaceId: string;
@@ -31,6 +34,8 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
   const [height, setHeight] = useState(120);
   const nonce = useMemo(() => crypto.randomUUID(), []);
   const lastPrompt = useRef(0);
+  const asked = useRef(new Set<string>());
+  const version = doc?.version;
 
   const stale = !doc || (summary != null && summary.version > doc.version);
   // biome-ignore lint/correctness/useExhaustiveDependencies: refetch when the summary version moves
@@ -47,8 +52,28 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.source !== frame.current?.contentWindow || e.origin !== "null") return;
-      const m = e.data as { apx?: unknown; kind?: unknown; height?: unknown; text?: unknown; gesture?: unknown };
+      const m = e.data as {
+        apx?: unknown;
+        kind?: unknown;
+        height?: unknown;
+        text?: unknown;
+        gesture?: unknown;
+        id?: unknown;
+        ref?: unknown;
+      };
       if (!m || m.apx !== nonce) return;
+      if (m.kind === "media" && typeof m.id === "number" && typeof m.ref === "string" && version !== undefined) {
+        const target = e.source as Window;
+        const reply = (r: { data: ArrayBuffer; mime: string } | { error: string }) =>
+          target.postMessage({ apx: nonce, kind: "media", id: m.id, ...r }, "*", "data" in r ? [r.data] : []);
+        asked.current.add(m.ref);
+        if (asked.current.size > MEDIA_MAX) return reply({ error: "too many media files" });
+        // Each frame gets its own copy: the bytes are moved into it, never shared.
+        void widgetMedia(surfaceId, version, m.ref)
+          .then(async (b) => reply({ data: await b.arrayBuffer(), mime: b.type }))
+          .catch((err: unknown) => reply({ error: err instanceof Error ? err.message : "media unavailable" }));
+        return;
+      }
       if (m.kind === "height" && typeof m.height === "number" && Number.isFinite(m.height)) {
         setHeight(Math.max(40, Math.min(maxHeight, Math.round(m.height))));
       } else if (m.kind === "prompt" && typeof m.text === "string" && m.text.trim()) {
@@ -62,7 +87,7 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [nonce, maxHeight, surfaceId]);
+  }, [nonce, maxHeight, surfaceId, version]);
 
   const srcdoc = useMemo(
     () => (doc && theme ? buildSrcdoc(doc.html, { theme, mode, nonce, connect: doc.connect }) : undefined),

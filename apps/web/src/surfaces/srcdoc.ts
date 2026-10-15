@@ -2,7 +2,8 @@
 
 /**
  * Widgets are self-contained (show_widget contract): inline code only, and no network but the origins they declared
- * for live data (checked again here: a bare https/wss origin, nothing that could add a directive).
+ * for live data (checked again here: a bare https/wss origin, nothing that could add a directive). A project's media
+ * reaches them as bytes the host hands over (data-apx-src, apx.media), loaded from the frame's own blob: URLs.
  */
 const ORIGIN = /^(https|wss):\/\/[a-z0-9.-]+(:\d{1,5})?$/;
 const csp = (connect: readonly string[] = []) => {
@@ -51,8 +52,18 @@ function bridge(nonce: string): string {
 var N=${JSON.stringify(nonce)};
 function post(m){m.apx=N;parent.postMessage(m,"*");}
 function sendPrompt(t){var a=navigator.userActivation;post({kind:"prompt",text:String(t),gesture:!!(a&&a.isActive)});}
-window.apx=Object.freeze({sendPrompt:sendPrompt});
+var seq=0,wait={},urls={};
+function media(ref){ref=String(ref);if(!urls[ref])urls[ref]=new Promise(function(ok,no){var id=++seq;wait[id]={ok:ok,no:no};post({kind:"media",id:id,ref:ref});});return urls[ref];}
+addEventListener("message",function(e){var m=e.data;if(e.source!==parent||!m||m.apx!==N||m.kind!=="media")return;var w=wait[m.id];if(!w)return;delete wait[m.id];
+if(m.data instanceof ArrayBuffer)w.ok(URL.createObjectURL(new Blob([m.data],{type:String(m.mime)})));else w.no(new Error(String(m.error||"media unavailable")));});
+function attach(el,attr,prop){var ref=el.getAttribute(attr);if(!ref||el["__apx"+prop]===ref)return;el["__apx"+prop]=ref;
+media(ref).then(function(u){el.setAttribute(prop,u);var p=el.parentElement;if(el.tagName==="SOURCE"&&p&&p.load)p.load();},function(){el.setAttribute("data-apx-error","");});}
+function scan(root){if(!root.querySelectorAll)return;[["data-apx-src","src"],["data-apx-poster","poster"]].forEach(function(a){
+if(root.hasAttribute&&root.hasAttribute(a[0]))attach(root,a[0],a[1]);root.querySelectorAll("["+a[0]+"]").forEach(function(el){attach(el,a[0],a[1]);});});}
+window.apx=Object.freeze({sendPrompt:sendPrompt,media:media});
 window.sendPrompt=sendPrompt;
+document.addEventListener("DOMContentLoaded",function(){scan(document);new MutationObserver(function(rs){rs.forEach(function(r){
+if(r.type==="attributes")scan(r.target);else r.addedNodes.forEach(scan);});}).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:["data-apx-src","data-apx-poster"]});});
 var last=0;
 function size(){var b=document.body;if(!b)return;var h=Math.ceil(b.scrollHeight);if(h!==last){last=h;post({kind:"height",height:h});}}
 addEventListener("load",size);

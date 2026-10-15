@@ -21,3 +21,10 @@ test("a widget reaches no network unless it declared origins, and then only thos
   assert.match(csp, /; connect-src https:\/\/api\.binance\.com wss:\/\/stream\.binance\.com:9443$/);
   assert.doesNotMatch(csp, /script-src \*|http:\/\/a\.com/);
 });
+
+test("project media reaches a widget as its own blob: URLs, so its CSP names no server", () => {
+  const csp = cspOf(buildSrcdoc('<video data-apx-src="clips/reel.mp4"></video>', opts));
+  assert.match(csp, /img-src data: blob:;/);
+  assert.match(csp, /media-src data: blob:$/);
+  assert.doesNotMatch(csp, /https?:|'self'|\*/);
+});

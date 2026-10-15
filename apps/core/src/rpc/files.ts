@@ -42,6 +42,8 @@ const MEDIA: Record<string, string> = {
   m4a: "audio/mp4",
   pdf: "application/pdf",
 };
+/** What a widget may show of a project: never a PDF or a file it could run as a page. */
+const WIDGET_MEDIA = /^(image|video|audio)\//;
 export const mediaType = (name: string) => MEDIA[name.split(".").pop()?.toLowerCase() ?? ""];
 
 /** The folder a chat works in: a code session's own, its project's, or else APX's work folder. */
@@ -181,6 +183,27 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
       const mime = mediaType(clean);
       if (!mime) throw badRequest(`${rel} is not an image, video, audio or PDF`);
       const buf = readWhole(abs, rel, FILE_MEDIA_LIMIT, "too big to preview; open it from Finder");
+      return { mime, data: buf.toString("base64"), bytes: buf.length };
+    },
+    "surfaces.media": ({ surface: id, ref }) => {
+      const surface = store.surfaces.get(id);
+      if (!surface) throw notFound(`surface ${id}`);
+      // What a widget may load is fixed when it is written, and read_widget shows it: never a ref its script made up.
+      if (!surface.html.includes(ref)) throw badRequest(`${ref} is not in the widget`);
+      const stored = /^media:(\S+)$/.exec(ref)?.[1];
+      let file: { abs: string; mime: string | undefined };
+      if (stored) {
+        const m = store.media.get(stored);
+        const thread = m?.thread_id ? store.threads.get(m.thread_id) : undefined;
+        if (!m || !thread || thread.project_id !== surface.project_id) throw notFound(`media ${stored}`);
+        file = { abs: m.path, mime: m.mime };
+      } else {
+        const { abs, rel } = locate(surface.project_id ? { project: surface.project_id } : { base: true }, ref);
+        file = { abs, mime: mediaType(rel) };
+      }
+      const { abs, mime } = file;
+      if (!mime || !WIDGET_MEDIA.test(mime)) throw badRequest(`${ref} is not an image, video or audio`);
+      const buf = readWhole(abs, ref, FILE_MEDIA_LIMIT, "too big for a widget");
       return { mime, data: buf.toString("base64"), bytes: buf.length };
     },
     "files.download": ({ path: rel, ...where }) => {

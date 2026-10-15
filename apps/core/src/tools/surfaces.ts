@@ -30,7 +30,7 @@ export function surfaceTools(store: Store): Tool[] {
     defineTool({
       name: "show_widget",
       description:
-        "Show a widget in the chat: self-contained HTML (inline CSS/JS/SVG), themed with the CSS vars --apx-bg, --apx-surface, --apx-fg, --apx-fg-muted, --apx-border, --apx-brand. It reaches no network except the origins in connect (https or wss), for live data. Update a widget by showing its name again (the owner sees the new version wherever it is open) or in part with edit_widget; never a second widget for the same thing. pin puts it on the project's board, app lists it as a fullscreen app. A page to share (an artifact) is a widget too, never an HTML file on disk. window.apx.sendPrompt(text) writes to this chat.",
+        "Show a widget in the chat: self-contained HTML (inline CSS/JS/SVG), themed with the CSS vars --apx-bg, --apx-surface, --apx-fg, --apx-fg-muted, --apx-border, --apx-brand. It reaches no network except the origins in connect (https or wss). Project media loads by reference, not inlined: data-apx-src='clip.mp4' or 'media:ID' on img/video, or apx.media(ref). Update a widget by showing its name again or in part with edit_widget; never a second widget for the same thing. pin puts it on the project's board, app lists it as a fullscreen app. A page to share (an artifact) is a widget too, never an HTML file on disk. window.apx.sendPrompt(text) writes to this chat.",
       args: z.object({
         name: z.string().describe("stable kebab-case name, e.g. monthly-sales"),
         title: z.string().describe("human title"),
@@ -41,7 +41,7 @@ export function surfaceTools(store: Store): Tool[] {
           .array(SurfaceOrigin)
           .max(5)
           .optional()
-          .describe('origins it may reach for live data, e.g. ["https://api.example.com", "wss://stream.example.com"]'),
+          .describe('origins it may reach, e.g. ["https://api.example.com"]'),
       }),
       effect: "local",
       // A widget that reaches out could carry what is in the chat to that origin: asked while outside content is in play.
