@@ -18,6 +18,8 @@
 <p align="center">
   <a href="https://agentprojectcontext.github.io/apx/"><img src="https://img.shields.io/badge/Website-meet_your_crew-3fb950?style=flat-square" alt="Visit the APX website"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-3fb950?style=flat-square" alt="License: MIT"></a>
+  <a href="https://www.npmjs.com/package/@agentprojectcontext/apx"><img src="https://img.shields.io/npm/dm/%40agentprojectcontext%2Fapx?style=flat-square&label=npm&color=3fb950" alt="APX v1 downloads on npm"></a>
+  <a href="https://github.com/agentprojectcontext/apx/releases"><img src="https://img.shields.io/github/downloads/agentprojectcontext/apx/total?style=flat-square&label=Downloads&color=3fb950" alt="Downloads from GitHub releases"></a>
   <img src="https://img.shields.io/badge/Node.js-22%2B-3fb950?style=flat-square&logo=nodedotjs&logoColor=white" alt="APX v1 requires Node.js 22+">
   <a href="https://discord.gg/vxdZuT5WuE"><img src="https://img.shields.io/badge/Discord-join-5865F2?style=flat-square&logo=discord&logoColor=white" alt="Join the community"></a>
 </p>
