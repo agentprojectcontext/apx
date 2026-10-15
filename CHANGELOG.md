@@ -1,3 +1,11 @@
+# [1.126.0](https://github.com/agentprojectcontext/apx/compare/v1.125.0...v1.126.0) (2026-10-15)
+
+
+### Features
+
+* **web:** a chip in the top bar invites v1 users to try the APX v2 beta, linking to its site ([8aef347](https://github.com/agentprojectcontext/apx/commit/8aef347c39d944e0307aa4bc95e5d493325a2239))
+* **web:** the v2 beta invitation also shows as a corner card, a strip on the phone and a short chip on narrow screens ([3f58470](https://github.com/agentprojectcontext/apx/commit/3f584704b922fe6a8ae82a7f495e62e3ed8c7235))
+
 # [1.125.0](https://github.com/agentprojectcontext/apx/compare/v1.124.1...v1.125.0) (2026-10-12)
 
 
