@@ -1,5 +1,5 @@
-import { Icons } from "@apx/ui";
-import { lazy, Suspense } from "react";
+import { Button, Dialog, Icons } from "@apx/ui";
+import { lazy, Suspense, useState } from "react";
 import { newerOf, openUpdate, useUpdates } from "../data/updates.ts";
 import { useT } from "../i18n/index.ts";
 
@@ -15,6 +15,8 @@ export function UpdatePill() {
   const status = useUpdates((s) => s.status);
   const app = useUpdates((s) => s.app);
   const stale = useUpdates((s) => s.panelStale);
+  const coreBehind = useUpdates((s) => s.coreBehind);
+  if (coreBehind) return <CoreBehind version={coreBehind} />;
   if (stale)
     return (
       <button
@@ -40,6 +42,36 @@ export function UpdatePill() {
       <Icons.ArrowDown size={12} />
       <span className="updatepill__label">{label}</span>
     </button>
+  );
+}
+
+/**
+ * The core answering this panel still runs an older release: one a service or another app started before APX updated,
+ * which keeps the old code until it starts again. Methods the panel uses may be missing until then.
+ */
+function CoreBehind({ version }: { version: string }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const app = import.meta.env.VITE_APX_VERSION;
+  return (
+    <>
+      <button type="button" className="updatepill" aria-label={t("update.coreBehind")} onClick={() => setOpen(true)}>
+        <Icons.TriangleAlert size={12} />
+        <span className="updatepill__label">{t("update.coreBehind")}</span>
+      </button>
+      {open && (
+        <Dialog
+          open
+          onOpenChange={setOpen}
+          title={t("update.coreBehindTitle")}
+          footer={<Button onClick={() => setOpen(false)}>{t("common.close")}</Button>}
+        >
+          <p>{t("update.coreBehindBody", { core: version, app })}</p>
+          <pre className="updatepill__cmd">apx service restart</pre>
+          <p>{t("update.coreBehindHint")}</p>
+        </Dialog>
+      )}
+    </>
   );
 }
 

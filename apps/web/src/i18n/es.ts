@@ -183,6 +183,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "topbar.search": "Buscar o saltar a…",
   "update.pill": "Actualización · {n}",
   "update.pillVersion": "APX {v} · Actualizar",
+  "update.coreBehind": "Core desactualizado · Reiniciar",
+  "update.coreBehindTitle": "Hay que reiniciar el core",
+  "update.coreBehindBody":
+    "Esta app es APX {app}, pero el core que le responde sigue en {core}: arrancó antes de la actualización (casi siempre el servicio) y sigue con el código viejo hasta que vuelva a arrancar. Mientras tanto fallan algunas pantallas, como Registros.",
+  "update.coreBehindHint":
+    "Correlo en una terminal, o salí de APX y volvé a abrirlo. Un core que arrancó la propia app se reinicia con ella.",
   "update.reload": "Panel nuevo · Recargar",
   "update.title": "Hay una versión nueva de APX",
   "update.lead": "{n} cambios en release/v2 que este APX todavía no tiene:",

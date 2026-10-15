@@ -5,6 +5,7 @@ import type { Health, Result } from "@apx/protocol";
 import type { DesktopUpdate } from "../apx-desktop.d.ts";
 import { client } from "./client.ts";
 import { createStore, useSlice } from "./createStore.ts";
+import { releaseBefore } from "./release.ts";
 
 type Status = Result<"system.updates">;
 type State = {
@@ -15,6 +16,8 @@ type State = {
   target: "core" | "app" | "both";
   /** The core serves a newer panel than this page runs. */
   panelStale: boolean;
+  /** The release the core still runs when this panel is a newer one: started before an update, it needs a restart. */
+  coreBehind: string | undefined;
   /** The dialog is open (from the top bar's pill or the corner card). */
   open: boolean;
   /** ready: the desktop app downloaded the newer one, which goes in when it restarts (now or later). */
@@ -26,6 +29,7 @@ const store = createStore<State>({
   app: undefined,
   target: "core",
   panelStale: false,
+  coreBehind: undefined,
   open: false,
   phase: "idle",
   log: "",
@@ -44,6 +48,8 @@ function ownEntry(): string | undefined {
 
 /** Called with each health answer: a different entry means the panel on disk changed. */
 export function notePanel(health: Health): void {
+  const behind = releaseBefore(health.version, import.meta.env.VITE_APX_VERSION) ? health.version : undefined;
+  if (behind !== store.get().coreBehind) store.set({ coreBehind: behind });
   const own = ownEntry();
   if (!own || !health.panel) return;
   if (store.get().phase === "restarting") {

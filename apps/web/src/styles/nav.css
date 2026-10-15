@@ -667,6 +667,15 @@
 }
 
 /* A newer APX or panel: a small pill in the top bar, only while there is one. */
+/* The command a core out of date needs, ready to copy. */
+.updatepill__cmd {
+  padding: 6px 10px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill-hover);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-sm);
+  user-select: all;
+}
 .updatepill {
   display: inline-flex;
   flex: none;
