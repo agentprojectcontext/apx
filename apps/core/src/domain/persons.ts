@@ -31,6 +31,7 @@ export type PersonDetails = {
   relation?: PersonRelation | null | undefined;
   rules?: string | undefined;
   muted?: boolean | undefined;
+  supervised?: boolean | undefined;
   perms?: Partial<PersonPerms> | undefined;
 };
 
@@ -49,6 +50,7 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       ...opt("rules", r.rules),
       muted: r.muted === 1,
       unreviewed: r.unreviewed === 1,
+      supervised: r.supervised === 1,
       perms: permsOf(r.perms),
       addresses: addressesOf(r.id),
       created_at: r.created_at,
@@ -108,6 +110,9 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       // undefined keeps a field; "" (or null for the relation) clears it.
       const text = (next: string | undefined, prev: string | undefined) =>
         next === undefined ? (prev ?? null) : next || null;
+      // Silenced and supervised are two ways of not answering on their own: turning one on turns the other off.
+      const muted = p.muted ?? (p.supervised ? false : cur.muted);
+      const supervised = p.supervised ?? (p.muted ? false : cur.supervised);
       run(
         qb
           .updateTable("persons")
@@ -118,9 +123,11 @@ export function personsRepo({ one, all, run, tx }: Sql) {
             nickname: text(p.nickname, cur.nickname),
             relation: p.relation === undefined ? (cur.relation ?? null) : p.relation,
             rules: text(p.rules, cur.rules),
-            muted: (p.muted ?? cur.muted) ? 1 : 0,
+            muted: muted ? 1 : 0,
+            supervised: supervised ? 1 : 0,
             // Deciding whether they are answered (or who they are) is the owner's review.
-            unreviewed: cur.unreviewed && p.muted === undefined && p.role === undefined ? 1 : 0,
+            unreviewed:
+              cur.unreviewed && p.muted === undefined && p.supervised === undefined && p.role === undefined ? 1 : 0,
             perms: JSON.stringify({ ...cur.perms, ...(p.perms ?? {}) }),
             updated_at: now(),
           })

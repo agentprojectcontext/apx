@@ -17,6 +17,7 @@ import {
   ChannelStrangers,
   ChannelType,
   ChatgptStatus,
+  ContactSuggestion,
   EngineStatus,
   Id,
   ImageDefaults,
@@ -1146,6 +1147,7 @@ export const appMethods = {
         relation: PersonRelation.nullable().optional(),
         rules: z.string().max(1000).optional(),
         muted: z.boolean().optional(),
+        supervised: z.boolean().optional(),
         // Only the flags sent change (PersonPerms' defaults would reset the others).
         perms: z
           .object({ appointments: z.boolean(), requests: z.boolean(), notes: z.boolean() })
@@ -1155,6 +1157,45 @@ export const appMethods = {
       })
       .strict(),
     result: Person,
+    effect: true,
+    access: "human",
+  },
+  /** Replies drafted for supervised contacts, newest first: the pending ones by default. */
+  "contacts.suggestions.list": {
+    params: z
+      .object({
+        state: z.enum(["pending", "sent", "discarded", "superseded", "all"]).default("pending"),
+        person: Id.optional(),
+        limit: z.number().int().min(1).max(200).default(50),
+      })
+      .strict(),
+    result: z.object({ suggestions: z.array(ContactSuggestion) }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Sends a pending suggestion to the contact in their chat, as the agent's reply; `text` sends that instead (edited).
+   * `author: "owner"` sends `text` as the owner's own words. `delivery`: how the send went, as channels.message says.
+   */
+  "contacts.suggestions.send": {
+    params: z
+      .object({
+        id: Id,
+        text: z.string().trim().min(1).max(4000).optional(),
+        author: z.enum(["agent", "owner"]).default("agent"),
+      })
+      .strict(),
+    result: z.object({
+      suggestion: ContactSuggestion,
+      delivery: z.object({ state: OutboxState, error: z.string().optional() }),
+    }),
+    effect: true,
+    access: "human",
+  },
+  /** Drops a pending suggestion: nothing is sent, the contact stays supervised. */
+  "contacts.suggestions.discard": {
+    params: z.object({ id: Id }).strict(),
+    result: z.object({ suggestion: ContactSuggestion }),
     effect: true,
     access: "human",
   },

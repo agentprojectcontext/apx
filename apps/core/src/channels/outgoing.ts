@@ -29,16 +29,17 @@ export function createOutgoing(deps: {
 
   /**
    * The owner writing to a contact or a room themselves ("I'll write"): sent as is on its conversation, kept in the
-   * chat as the owner's words, and noted for the agent so its next answer knows what was said.
+   * chat as the owner's words, and noted for the agent so its next answer knows what was said. In a room nothing
+   * comes back: the post is not kept as one message.
    */
-  function sendAsOwner(threadId: string, text: string): void {
+  function sendAsOwner(threadId: string, text: string): { outbox: string; message_id: string } | undefined {
     const thread = store.threads.get(threadId);
     const ch = thread?.channel;
     // In a room the owner's words go out as they are, through the bot's account (it is the only one APX has there).
     if (thread && ch && store.threads.context(threadId).room) {
       const named = roomMentions(quietMentions(text), store.channels.inbox.people(ch.id, ch.conversation));
       post(thread, ch.id, ch.conversation, named.text, { logged: false, mentions: named.mentions });
-      return;
+      return undefined;
     }
     if (!thread || !ch?.person_id || audienceOf(store, thread).kind !== "contact")
       throw new Error("only a contact's chat on a channel can be written to directly");
@@ -55,7 +56,7 @@ export function createOutgoing(deps: {
       store.threads.patch(threadId, { preview: previewOf(text) });
       return m;
     });
-    delivery.enqueue({
+    const outbox = delivery.enqueue({
       channel: ch.id,
       conversation: ch.conversation,
       thread_id: threadId,
@@ -63,6 +64,7 @@ export function createOutgoing(deps: {
       kind: "reply",
       body: { text },
     });
+    return { outbox, message_id: sent.id };
   }
 
   /**

@@ -15,6 +15,7 @@ import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
 import { isSkip } from "../engine/routines.ts";
+import type { Draft } from "../engine/suggest.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
@@ -29,6 +30,7 @@ import { inputPresentation } from "./notices.ts";
 import { createOutgoing } from "./outgoing.ts";
 import { createPoster } from "./post.ts";
 import { createRooms, quietMentions, roomMentions } from "./rooms.ts";
+import { createSuggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
 import {
   type AdapterFactory,
@@ -79,6 +81,10 @@ export function createChannels(deps: {
   judge?: (system: string, user: string, about: AuxAbout) => Promise<string | undefined>;
   /** How long a room waits for one person's quick messages to settle (tests shorten it). */
   roomBurstMs?: number;
+  /** The reply a supervised contact would get, drafted with the agent's model and not sent. */
+  draft?: (threadId: string, agentId: string, signal?: AbortSignal) => Promise<Draft>;
+  /** How long a supervised contact's quick messages may keep coming before one draft answers them (tests shorten it). */
+  suggestBurstMs?: number;
 }) {
   const retryMs = deps.retryMs ?? RETRY_MS;
   const { store, secrets, log } = deps;
@@ -167,14 +173,25 @@ export function createChannels(deps: {
     judge: deps.judge,
     ...(deps.roomBurstMs !== undefined ? { burstMs: deps.roomBurstMs } : {}),
   });
+  const poster = createPoster(store, delivery);
   const outgoing = createOutgoing({
     store,
     configs,
     live: (id) => live.get(id),
     delivery,
-    poster: createPoster(store, delivery),
+    poster,
     rooms,
     services: deps.services,
+  });
+  const suggestions = createSuggestions({
+    store,
+    log,
+    notifyOwner,
+    attention: deps.attention,
+    draft: deps.draft,
+    post: poster.post,
+    sendAsOwner: outgoing.sendAsOwner,
+    burstMs: deps.suggestBurstMs,
   });
   const inbound = createInbound({
     store,
@@ -188,6 +205,7 @@ export function createChannels(deps: {
     attention: deps.attention,
     ownAccount: (id) => Boolean(live.get(id)?.adapter.caps.ownAccount),
     rooms,
+    suggestions,
     react: reactOn,
   });
 
@@ -568,6 +586,8 @@ export function createChannels(deps: {
     notifyOwner,
     approved: inbound.approved,
     afterRun,
+    /** A supervised contact's drafts: the owner sends one (as is or edited) or drops it. */
+    suggestions: { send: suggestions.send, discard: suggestions.discard },
     /** Adds, changes or removes a channel and (re)starts it. */
     async set(id: string, config: Omit<ChannelConfig, "id"> | null, token?: string): Promise<ChannelInfo[]> {
       await serially(id, async () => {
@@ -607,6 +627,7 @@ export function createChannels(deps: {
     },
     async stop(): Promise<void> {
       rooms.stop();
+      suggestions.stop();
       stopped = true;
       delivery.stop();
       for (const iv of typing.values()) clearInterval(iv);

@@ -696,4 +696,17 @@ export const MIGRATIONS: readonly string[] = [
   -- someone else wrote cannot raise it.
   ALTER TABLE projects ADD COLUMN autonomy TEXT;
   `,
+  `
+  -- A supervised contact is not answered on its own: the agent drafts the reply and the owner sends it, edits it or
+  -- drops it (channels/suggestions.ts). One row per draft, with what became of it.
+  ALTER TABLE persons ADD COLUMN supervised INTEGER NOT NULL DEFAULT 0;
+  CREATE TABLE suggestions (
+    id TEXT PRIMARY KEY, person_id TEXT NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+    thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE, channel TEXT NOT NULL,
+    agent_id TEXT NOT NULL, said TEXT NOT NULL, text TEXT NOT NULL DEFAULT '', error TEXT, model TEXT,
+    state TEXT NOT NULL, created_at TEXT NOT NULL, decided_at TEXT, message_id TEXT
+  );
+  CREATE INDEX suggestions_state ON suggestions(state, created_at);
+  CREATE INDEX suggestions_thread ON suggestions(thread_id);
+  `,
 ];

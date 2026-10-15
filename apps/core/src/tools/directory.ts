@@ -57,7 +57,12 @@ export function directoryTools(store: Store): Tool[] {
           .map((p) => {
             const on = [...new Set(p.addresses.map((x) => x.channel))].join(", ") || "no channel";
             const nick = p.nickname ? inlineName(p.nickname) : "";
-            const bits = [nick ? `"${nick}"` : "", p.relation ?? "", `on ${on}`, p.muted ? "silenced" : ""];
+            const bits = [
+              nick ? `"${nick}"` : "",
+              p.relation ?? "",
+              `on ${on}`,
+              p.muted ? "silenced" : p.supervised ? "supervised: the owner approves each answer" : "",
+            ];
             // A contact's name is the one they gave on their app: one plain line, so it cannot add contacts or orders.
             return `- ${inlineName(p.name) || "someone"} [${p.id}] (${bits.filter(Boolean).join(", ")})${p.note ? `: ${p.note.slice(0, 200)}` : ""}`;
           })

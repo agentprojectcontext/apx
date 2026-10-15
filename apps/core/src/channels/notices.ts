@@ -1,6 +1,7 @@
 // How a confirmation or question is shown on a channel.
 import type { Part } from "@apx/protocol";
 import type { Presentation } from "../domain/channels.ts";
+import type { ChannelConfig } from "./types.ts";
 
 /**
  * Button ids on a channel (Telegram allows 64 bytes): an input's approve/deny/option or a pairing decision. Built and
@@ -13,13 +14,18 @@ export const buttonId = {
   pairing: (code: string, decision: "contact" | "deny") => `p:${code}:${decision}`,
   /** Someone kept unreviewed: answer them from now on, or keep them silenced without reports. */
   review: (personId: string, decision: "answer" | "ignore") => `r:${personId}:${decision}`,
+  /** A reply drafted for a supervised contact: send it, answer them yourself, or drop it. */
+  suggestion: (id: string, decision: SuggestionDecision) => `s:${id}:${decision}`,
 };
+
+export type SuggestionDecision = "send" | "write" | "ignore";
 
 export type Button =
   | { kind: "input"; inputId: string; answer: "approve" | "deny" }
   | { kind: "option"; inputId: string; index: number }
   | { kind: "pairing"; code: string; decision: "contact" | "deny" }
-  | { kind: "review"; person: string; decision: "answer" | "ignore" };
+  | { kind: "review"; person: string; decision: "answer" | "ignore" }
+  | { kind: "suggestion"; id: string; decision: SuggestionDecision };
 
 export function parseButton(data: string): Button | undefined {
   const [kind, ref, what] = data.split(":");
@@ -29,6 +35,8 @@ export function parseButton(data: string): Button | undefined {
   if (kind === "i" && /^o\d+$/.test(what)) return { kind: "option", inputId: ref, index: Number(what.slice(1)) };
   if (kind === "p" && (what === "contact" || what === "deny")) return { kind: "pairing", code: ref, decision: what };
   if (kind === "r" && (what === "answer" || what === "ignore")) return { kind: "review", person: ref, decision: what };
+  if (kind === "s" && (what === "send" || what === "write" || what === "ignore"))
+    return { kind: "suggestion", id: ref, decision: what };
   return undefined;
 }
 
@@ -73,4 +81,10 @@ const DOWN = new Set(["👎", "💩", "🤮", "😴", "🥱", "🤬", "😡", "�
 export function ratingOf(emoji: string): "up" | "down" | null | undefined {
   if (!emoji) return null;
   return UP.has(emoji) ? "up" : DOWN.has(emoji) ? "down" : undefined;
+}
+
+/** A name with its phone number when the channel has one (a stranger picks their own name; the number is theirs). */
+export function shown(cfg: Pick<ChannelConfig, "type">, name: string, externalId: string): string {
+  const phone = cfg.type === "whatsapp" ? /^(\d{6,})@s\.whatsapp\.net$/.exec(externalId)?.[1] : undefined;
+  return phone ? `${name} (+${phone})` : name;
 }

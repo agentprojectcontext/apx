@@ -273,6 +273,7 @@ export interface PersonsTable {
   muted: Generated<number>;
   perms: string | null;
   unreviewed: Generated<number>;
+  supervised: Generated<number>;
 }
 
 export interface ProjectsTable {
@@ -355,6 +356,22 @@ export interface StepsTable {
   started_at: string;
   ended_at: string | null;
   output: string | null;
+}
+
+export interface SuggestionsTable {
+  id: string;
+  person_id: string;
+  thread_id: string;
+  channel: string;
+  agent_id: string;
+  said: string;
+  text: Generated<string>;
+  error: string | null;
+  model: string | null;
+  state: string;
+  created_at: string;
+  decided_at: string | null;
+  message_id: string | null;
 }
 
 export interface SurfacesTable {
@@ -463,6 +480,7 @@ export interface Database {
   routines: RoutinesTable;
   runs: RunsTable;
   steps: StepsTable;
+  suggestions: SuggestionsTable;
   surfaces: SurfacesTable;
   task_events: TaskEventsTable;
   tasks: TasksTable;

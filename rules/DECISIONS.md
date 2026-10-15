@@ -1008,3 +1008,19 @@ widget's HTML, so what a widget can load is fixed when it is written and visible
 widget with `connect` origins could send those files out, as it could anything else it shows; that is why a widget
 with `connect` already asks the owner while outside content is in play. A published artifact (`/a/<token>`) does not
 resolve these refs.
+
+<a id="d-088"></a>
+## D-088 — 2026-10-15 — A supervised contact gets drafts, never answers on its own
+Between answering a contact on its own and silencing them there was nothing: the owner who wants to see what the agent
+would say before it goes out had to read the chat and write it themselves. A contact can now be **supervised**
+(`persons.supervised`, set by `contacts.set`; silenced and supervised exclude each other, setting one clears the
+other, and silenced wins if both were ever stored). Their messages are kept as a silenced contact's are (voice notes
+transcribed, since the draft needs the words); once a burst settles (15 s), one model call with the same sealed
+contact prompt over their chat and no tools drafts the reply (`engine/suggest.ts`, the agent's own API models, its
+tokens kept as an auxiliary call of purpose `suggestion`). The owner gets who wrote, everything they said since they
+were last answered and the draft, on their channel and in the tray, with "Send this", "I'll answer" (their next words
+on that chat go to the contact as theirs, for 10 minutes) and "Ignore". Drafts are rows of `suggestions`, pending
+until sent, discarded or replaced by a newer draft of the same chat; `contacts.suggestions.list|send|discard` are the
+same choices for any client (owner only). A sent draft goes out as the agent's message, through the outbox, and
+enters what the agent reads next. At most 10 drafts per contact per hour; past it their messages are only kept and
+the owner is told once. A burst cut by a restart gets no draft until their next message.
