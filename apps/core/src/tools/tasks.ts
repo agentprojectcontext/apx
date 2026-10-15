@@ -225,7 +225,7 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_comment",
       description:
-        "Comment on a task's conversation. Mention an agent with @name to ask it something there: it answers in that conversation. Mention @owner to request the owner's attention; their reply clears the request.",
+        "Comment on a task's conversation. Mention @owner to request the owner's attention; their reply clears the request. To ask an agent, use delegate.",
       args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(5000) }),
       effect: "local",
       confirm: handsOff,

@@ -199,11 +199,8 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       const author: Author = ctx.agent ? { kind: "agent", id: ctx.agent.id } : { kind: "user" };
       return store.tx(() => {
         const message = addComment(store, t, author, text, by(ctx));
-        // An agent's comment arrives as the team's words, the owner's as the owner's. Turns started by an agent's
-        // mention count as hops, a few at most.
-        // An agent answering another one (a delegation, a consult) comments but summons nobody (DECISIONS.md#d-074).
-        const answering = ctx.agent && store.threads.get(ctx.agent.thread_id)?.kind === "a2a";
-        const runs = answering ? [] : askMentioned(store, engine.admit, store.tasks.get(t.id) ?? t, text, askerOf(ctx));
+        // Only the owner's @mentions ask an agent; an agent asks with `delegate` (DECISIONS.md#d-078).
+        const runs = ctx.agent ? [] : askMentioned(store, engine.admit, store.tasks.get(t.id) ?? t, text);
         return { message, runs: runs.map(publicRun) };
       });
     },

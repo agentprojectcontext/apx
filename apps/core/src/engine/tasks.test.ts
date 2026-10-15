@@ -8,13 +8,15 @@ import { mentioned } from "./office.ts";
 import { pickUpTasks } from "./task-work.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
-// Vera and Roby keep mentioning each other: the cascade must stop by itself.
+// Vera and Roby keep mentioning each other: only the owner's @mentions ask anyone (DECISIONS.md#d-078).
 const llm = scriptedLlm((req, { said, afterTool }) => {
   const system = String(req.messages[0]?.content);
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 120)}`);
   if (said.includes("make a task")) return callTool("t1", "task_create", { title: "Draft the launch post" });
   if (said.includes("peek at the other")) return callTool("t2", "task_list", {});
   if (said.includes("ask the owner")) return say("@JULIAN please confirm the launch date.");
+  const ping = /ping roby on (task_\w+)/.exec(said);
+  if (ping) return callTool("t3", "task_comment", { task: ping[1], text: "@roby what do you think?" });
   if (system.startsWith("You are Vera")) return say("Done my part, @roby your turn.");
   if (system.startsWith("You are Roby")) return say("Thanks, back to you @vera.");
   return say("ok");
@@ -125,7 +127,7 @@ test("an @mention of the task's own agent asks it in its chat for the task, and 
     .length;
   await env.client.call("tasks.comment", { task: t.id, text: "@vera also the dark mode" });
   const { sessions } = await settleTask(t.id);
-  // Vera works in her one chat; Roby, whom her answers mention, is consulted without a chat of his own.
+  // Vera works in her one chat; Roby, whom her answers mention, is not asked: an agent asks with delegate.
   assert.deepEqual(
     sessions.map((s) => s.agent_ids[0]),
     ["vera"],
@@ -133,7 +135,17 @@ test("an @mention of the task's own agent asks it in its chat for the task, and 
   const vera = await env.client.call("threads.get", { thread: sessions[0]?.id ?? "" });
   assert.ok(vera.runs.length > before, "the mention ran in her chat for the task");
   assert.ok(texts(vera.messages).includes("@vera also the dark mode"));
-  assert.ok(env.core.store.threads.children(t.thread_id).length > 0, "Roby answered in a consult");
+  assert.deepEqual(env.core.store.threads.children(t.thread_id), [], "nobody was consulted");
+});
+
+test("an agent's @mention in a task comment summons nobody", async () => {
+  const t = await env.client.call("tasks.create", { title: "Name the release", project });
+  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "vera", project_id: project });
+  await env.client.call("threads.send", { thread: chat.id, text: `ping roby on ${t.id}` });
+  await env.settle(chat.id);
+  assert.deepEqual(await commentsOf(t.thread_id), ["vera"]);
+  assert.deepEqual(env.core.store.threads.children(t.thread_id), []);
+  assert.deepEqual(await env.client.call("tasks.get", { task: t.id }).then((d) => d.sessions), []);
 });
 
 test("giving a task to an agent starts it in its chat; another agent gets a new chat that knows who worked it", async () => {

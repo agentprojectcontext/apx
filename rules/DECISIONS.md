@@ -905,3 +905,12 @@ as ones to name, not to delegate to. The caller's side, both the inline `agent_r
 `delegation_result`, says that if the answer names another agent for what is left, it asks that agent itself with a
 new delegation of only that part (never the same task again). The delegate still has no `delegate` tool; this lives
 in per-turn inputs, not the system prompt (PROMPT_SIZE.md).
+
+<a id="d-078"></a>
+## D-078 — 2026-10-14 — An agent asks a teammate only with `delegate`; only the owner's @mentions summon
+Agents had two ways to ask each other: `delegate`, whose answer comes back to the caller, and an @mention in a task
+comment or a task chat's answer, which opened a consult whose answer only filled a card on the task. The agent that
+asked never got that answer, yet each casual @name started a paid turn. Now an agent asks with `delegate` only: its
+@mentions (in `task_comment` or in its answer posted to a task) summon nobody, and its task block and the
+`task_comment` tool say so. The owner's @mentions on a task work as before (D-073): the task's agent in its chat for
+the task, anyone else in a consult. An agent's @owner still asks for the owner's attention.

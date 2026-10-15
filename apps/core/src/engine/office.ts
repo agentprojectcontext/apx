@@ -1,5 +1,5 @@
-// The office's moving parts that live in the engine: @mentions (an @agent named in a task is asked there, a few hops
-// at most; see task-work.ts) and the task a turn works on, shown at the top of its input.
+// The office's moving parts that live in the engine: @mentions (an @agent the owner names in a task is asked there; see
+// task-work.ts) and the task a turn works on, shown at the top of its input.
 import type { Task, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { ownerIdentity } from "../domain/owner.ts";
@@ -10,7 +10,7 @@ import { previewOf } from "../domain/threads.ts";
 import { inlineName } from "../tools/result.ts";
 import { taskWords } from "../tools/tasks.ts";
 
-/** A mention starts a turn; a turn's mention another, but only this deep, so agents cannot ping-pong forever. */
+/** How deep a task's work started by agents nests (an agent gives a task, its agent gives another…). */
 export const MAX_MENTION_DEPTH = 2;
 const MAX_MENTIONS = 3;
 const MENTIONS = /(?<![\p{L}\p{N}_@])@([\p{L}\p{N}][\p{L}\p{N}_-]*)/gu;
@@ -82,7 +82,7 @@ export function taskBlock(store: Store, thread: Pick<Thread, "id" | "task_id">):
     others.length ? `Worked on before in their own chats by: ${[...new Set(others)].join(", ")}.` : "",
     "This is your chat for this task. Your final answer is posted to the task as your comment: say in a few lines what you did, what is left or what blocks you.",
     "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked) and task_close when it is done: the answer of the turn that closes it is your report to whoever created the task. Do not use task_comment on this task; it is for other tasks.",
-    "Mention @owner in your answer when you need the owner; mention @agent to ask a teammate (it answers in a short consult shown on the task).",
+    "Mention @owner in your answer when you need the owner. To ask a teammate, use delegate: its answer comes back to you (an @mention of an agent asks no one).",
   ]
     .filter(Boolean)
     .join("\n");
