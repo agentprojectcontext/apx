@@ -1,6 +1,6 @@
 import type { ModelRef } from "@apx/protocol";
 import { Badge, IconButton, Icons } from "@apx/ui";
-import { inCatalog, useModels } from "../../data/models.ts";
+import { forAgents, inCatalog, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
 import { ModelRefPicker } from "./ModelPickers.tsx";
 import { RefSelect } from "./RefSelect.tsx";
@@ -24,7 +24,8 @@ export function RouterChain({ chain, onChange }: { chain: ModelRef[]; onChange: 
         <span className="router__blockhint">{t("router.chainHint")}</span>
       </div>
       {chain.length === 0 ? (
-        <p className="router__empty">{t("router.noChain")}</p>
+        // With no engine on, say what fills the chain instead of only that it is empty.
+        <p className="router__empty">{t(catalog.some(forAgents) ? "router.noChain" : "router.noEngine")}</p>
       ) : (
         <ol className="chain">
           {chain.map((ref, i) => (

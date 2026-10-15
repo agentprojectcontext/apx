@@ -958,6 +958,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "models.search": "Buscar modelos",
   "models.showAll": "Mostrar también los de voz, imagen y embeddings",
   "models.noMatch": "Ningún modelo coincide.",
+  "models.noEngine":
+    "Todavía no hay ningún motor conectado. Iniciá sesión en uno o pegá su API key y sus modelos aparecen acá.",
   "models.catalog": "Modelos",
   "models.catalogLead": "Lo que ofrece cada motor, preguntado al motor mismo y guardado por un día.",
   "models.catalogUnavailable": "Este core todavía no informa modelos. Actualizalo y reinicialo.",
@@ -1007,6 +1009,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "router.alwaysUse": "Sin condiciones: cada turno usa",
   "router.ruleModel": "Modelo de esta regla",
   "router.noChain": "La cadena está vacía.",
+  "router.noEngine":
+    "La cadena está vacía porque todavía no hay ningún motor conectado. Iniciá sesión en uno o pegá su API key y su modelo de uso diario se suma a la cadena.",
   "router.addToChain": "Agregar un modelo",
   "router.removeFromChain": "Quitar de la cadena",
   "router.unknownRefs": "{count} fuera del catálogo",

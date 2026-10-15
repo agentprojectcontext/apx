@@ -955,6 +955,7 @@ export const en = {
   "models.search": "Search models",
   "models.showAll": "Also show voice, image and embedding models",
   "models.noMatch": "No model matches.",
+  "models.noEngine": "No engine is connected yet. Sign in to one or paste its API key, and its models show up here.",
   "models.catalog": "Models",
   "models.catalogLead": "What each engine offers, asked to the engine itself and cached for a day.",
   "models.catalogUnavailable": "This core does not report models yet. Update and restart it.",
@@ -1004,6 +1005,8 @@ export const en = {
   "router.alwaysUse": "No conditions: every turn uses",
   "router.ruleModel": "Model for this rule",
   "router.noChain": "The chain is empty.",
+  "router.noEngine":
+    "The chain is empty because no engine is connected yet. Sign in to one or paste its API key, and its everyday model joins the chain.",
   "router.addToChain": "Add a model",
   "router.removeFromChain": "Remove from the chain",
   "router.unknownRefs": "{count} not in the catalog",

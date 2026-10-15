@@ -59,7 +59,11 @@ export function ModelList({
       <div className="mlist__scroll" role="listbox" aria-label={t("models.catalog")}>
         {groups.length === 0 && (
           <p className="mlist__empty">
-            {load === "unavailable" ? t("models.catalogUnavailable") : t("models.noMatch")}
+            {load === "unavailable"
+              ? t("models.catalogUnavailable")
+              : !q.trim() && !catalog.some(only)
+                ? t("models.noEngine")
+                : t("models.noMatch")}
           </p>
         )}
         {groups.map(({ engine: e, showDefault, models }) => (
