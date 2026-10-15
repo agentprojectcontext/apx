@@ -10,7 +10,7 @@ import {
   SegmentedControl,
   Spinner,
 } from "@apx/ui";
-import { useEffect, useMemo, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
 import { dueLabel, shortWhen } from "../common/format.ts";
 import { useLongPressDrag } from "../common/useLongPressDrag.ts";
 import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
@@ -23,11 +23,13 @@ import { kindLabel, PriorityDot } from "./TaskFields.tsx";
 import { DeleteTask, NewTask } from "./TaskForms.tsx";
 import { TaskPanel } from "./TaskPanel.tsx";
 import { dropOn, taskMenu } from "./taskActions.tsx";
-import { GROUP_ORDER, type GroupId, groupTasks } from "./taskGroups.ts";
+import { GROUP_ORDER, type GroupId, groupOf, groupTasks, nestTasks } from "./taskGroups.ts";
 
 const LIVE: ReadonlySet<Run["state"]> = new Set(["submitted", "working"]);
 /** How many tasks each group shows globally before "See n more". */
 const GLOBAL_PEEK = 5;
+/** How deep subtasks indent; deeper ones line up with the last level. */
+const MAX_DEPTH = 3;
 
 const GROUP_LABEL: Record<GroupId, MessageKey> = {
   doing: "tasks.group.doing",
@@ -89,6 +91,7 @@ export function TasksList({
   const [more, setMore] = useState<Set<GroupId>>(new Set());
   const [closedOpen, setClosedOpen] = useState(false);
   const [deleting, setDeleting] = useState<Task>();
+  const [folded, setFolded] = useState<ReadonlySet<string>>(new Set());
   useEffect(() => {
     void loadTasks();
   }, []);
@@ -117,11 +120,45 @@ export function TasksList({
   }, [runs, threads, all]);
   const columns = useTasks((s) => s.columns);
   const { drag, bind } = useLongPressDrag<Task>((task, target) => void dropOn(task, target as GroupId, columns));
-  const filled = groupTasks(shown, running);
+  // Subtasks sit under their parent, whatever group they are in; only the tasks at the top are grouped.
+  const { top, children } = useMemo(() => nestTasks(shown), [shown]);
+  const filled = groupTasks(top, running);
   // While dragging every group is a place to drop, empty ones too.
   const groups = drag ? GROUP_ORDER.map((id) => filled.find((g) => g.id === id) ?? { id, items: [] }) : filled;
   // Only a task of this list opens beside it (a project's tab never shows another project's task).
   const current = open ? scoped.find((x) => x.id === open) : undefined;
+  /** A task's row, then its subtasks' rows under it (while unfolded), indented a level each. */
+  const branch = (task: Task, group: GroupId, depth: number): ReactNode[] => {
+    const subs = children.get(task.id) ?? [];
+    const shut = folded.has(task.id);
+    const toggle = () =>
+      setFolded((f) => {
+        const next = new Set(f);
+        if (!next.delete(task.id)) next.add(task.id);
+        return next;
+      });
+    return [
+      <TaskRow
+        key={task.id}
+        task={task}
+        group={group}
+        depth={Math.min(depth, MAX_DEPTH)}
+        subtasks={
+          subs.length
+            ? { done: subs.filter((s) => s.state !== "open").length, total: subs.length, shut, toggle }
+            : undefined
+        }
+        running={running.has(task.thread_id)}
+        showProject={global}
+        selected={task.id === open}
+        dragging={drag?.item.id === task.id}
+        drag={bind(task, task.title)}
+        onOpen={() => setOpen(task.id === open ? undefined : task.id)}
+        onDelete={() => setDeleting(task)}
+      />,
+      ...(shut ? [] : subs.flatMap((s) => branch(s, groupOf(s, running), depth + 1))),
+    ];
+  };
 
   return (
     <div className={current ? "tasks has-panel" : "tasks"}>
@@ -185,22 +222,7 @@ export function TasksList({
                   )}
                   <span className="tasks__groupcount">{g.items.length}</span>
                 </header>
-                <ul className="tasks__rows">
-                  {items.map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      group={g.id}
-                      running={running.has(task.thread_id)}
-                      showProject={global}
-                      selected={task.id === open}
-                      dragging={drag?.item.id === task.id}
-                      drag={bind(task, task.title)}
-                      onOpen={() => setOpen(task.id === open ? undefined : task.id)}
-                      onDelete={() => setDeleting(task)}
-                    />
-                  ))}
-                </ul>
+                <ul className="tasks__rows">{items.flatMap((task) => branch(task, g.id, 0))}</ul>
                 {hidden > 0 && (
                   <button type="button" className="tasks__more" onClick={() => setMore((m) => new Set([...m, g.id]))}>
                     {t("tasks.seeMore", { n: hidden })}
@@ -227,6 +249,10 @@ export function TasksList({
 function TaskRow(props: {
   task: Task;
   group: GroupId;
+  /** 0 at the top; a subtask is one more than its parent. */
+  depth: number;
+  /** Its subtasks: how many are closed, and folding them away. */
+  subtasks: { done: number; total: number; shut: boolean; toggle(): void } | undefined;
   running: boolean;
   showProject: boolean;
   selected: boolean;
@@ -243,8 +269,20 @@ function TaskRow(props: {
   const who = task.assignee ? agents[task.assignee] : undefined;
   const due = task.due_at ? dueLabel(task.due_at) : undefined;
   const pid = task.project_id ?? DEFAULT_PID;
+  const subs = props.subtasks;
   return (
-    <li>
+    <li className="tasks__item" style={{ "--depth": props.depth } as CSSProperties}>
+      {subs && (
+        <button
+          type="button"
+          className="tasks__subfold"
+          aria-expanded={!subs.shut}
+          aria-label={t(subs.shut ? "tasks.subtasks.show" : "tasks.subtasks.hide", { title: task.title })}
+          onClick={subs.toggle}
+        >
+          <Icons.ChevronRight size={12} className={subs.shut ? undefined : "is-open"} />
+        </button>
+      )}
       <ContextMenu
         items={taskMenu(task, {
           t,
@@ -256,7 +294,7 @@ function TaskRow(props: {
       >
         <button
           type="button"
-          className={`taskrow${props.showProject ? "" : " taskrow--local"}${props.selected ? " is-selected" : ""}${props.dragging ? " is-dragging" : ""}${task.state === "dropped" ? " is-dropped" : ""}`}
+          className={`taskrow${props.showProject ? "" : " taskrow--local"}${props.selected ? " is-selected" : ""}${props.dragging ? " is-dragging" : ""}${task.state === "dropped" ? " is-dropped" : ""}${props.depth && task.state !== "open" ? " is-subclosed" : ""}`}
           aria-current={props.selected || undefined}
           onClick={props.onOpen}
           {...props.drag}
@@ -279,6 +317,12 @@ function TaskRow(props: {
             <span className="taskrow__title">
               {task.priority !== "normal" && task.state === "open" && <PriorityDot priority={task.priority} />}
               <span className="taskrow__name">{task.title}</span>
+              {subs && (
+                <span className="taskrow__subs" title={t("tasks.subtasks.count", { done: subs.done, n: subs.total })}>
+                  <Icons.ListChecks size={11} />
+                  {subs.done}/{subs.total}
+                </span>
+              )}
               {task.state !== "open" && closedLabel(task, t) && (
                 <span className={`taskrow__closed is-${task.state}`}>{closedLabel(task, t)}</span>
               )}

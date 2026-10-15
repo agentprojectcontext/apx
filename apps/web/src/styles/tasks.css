@@ -48,16 +48,21 @@
   color: var(--apx-fg-subtle);
   font-weight: var(--apx-weight-regular);
 }
-.tasks__group.is-doing {
+/* A subtask's glyph keeps its own group's tone under a parent of another group. */
+.tasks__group.is-doing,
+.taskrow__glyph.is-doing {
   --group-tone: var(--apx-brand);
 }
-.tasks__group.is-pending {
+.tasks__group.is-pending,
+.taskrow__glyph.is-pending {
   --group-tone: var(--apx-warning);
 }
-.tasks__group.is-review {
+.tasks__group.is-review,
+.taskrow__glyph.is-review {
   --group-tone: var(--apx-violet);
 }
-.tasks__group.is-blocked {
+.tasks__group.is-blocked,
+.taskrow__glyph.is-blocked {
   --group-tone: var(--apx-danger);
 }
 .tasks__fold {
@@ -79,6 +84,52 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+/* A subtask indents a level under its parent; the fold arrow sits in the gutter left of the parent's glyph. */
+.tasks__item {
+  position: relative;
+}
+.tasks__item .taskrow {
+  padding-left: calc(8px + var(--depth, 0) * 22px);
+}
+.tasks__subfold {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--depth, 0) * 22px - 12px);
+  z-index: 1;
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  color: var(--apx-fg-subtle);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+.tasks__subfold:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
+.tasks__subfold svg {
+  transition: transform var(--apx-duration) var(--apx-ease);
+}
+.tasks__subfold svg.is-open {
+  transform: rotate(90deg);
+}
+.taskrow__subs {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.taskrow.is-subclosed {
+  opacity: 0.6;
 }
 .tasks__more {
   margin-top: 6px;

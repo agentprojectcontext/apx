@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Task } from "@apx/protocol";
-import { groupOf, groupTasks, moveTo } from "./taskGroups.ts";
+import { groupOf, groupTasks, moveTo, nestTasks } from "./taskGroups.ts";
 
 const task = (over: Partial<Task>): Task => ({
   id: "t1",
@@ -58,4 +58,27 @@ test("dropping on a group: its column, waiting for the owner, or done", () => {
   assert.deepEqual(moveTo("blocked", cols), { awaits_owner: true });
   assert.deepEqual(moveTo("closed", cols), { done: true });
   assert.deepEqual(moveTo("pending", [{ id: "inbox" }, { id: "doing" }]), { status: "inbox", awaits_owner: false });
+});
+
+test("subtasks nest under their parent, oldest first; an orphan or a loop of parents stays at the top", () => {
+  const parent = task({ id: "p" });
+  const later = task({ id: "s2", parent_id: "p", created_at: "2026-10-03T10:00:00Z" });
+  const first = task({ id: "s1", parent_id: "p", created_at: "2026-10-02T10:00:00Z" });
+  const deeper = task({ id: "s3", parent_id: "s1" });
+  const orphan = task({ id: "o", parent_id: "gone" });
+  const loopA = task({ id: "a", parent_id: "b" });
+  const loopB = task({ id: "b", parent_id: "a" });
+  const { top, children } = nestTasks([parent, later, first, deeper, orphan, loopA, loopB]);
+  assert.deepEqual(
+    top.map((t) => t.id),
+    ["p", "o", "a", "b"],
+  );
+  assert.deepEqual(
+    children.get("p")?.map((t) => t.id),
+    ["s1", "s2"],
+  );
+  assert.deepEqual(
+    children.get("s1")?.map((t) => t.id),
+    ["s3"],
+  );
 });

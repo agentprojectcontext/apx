@@ -27,6 +27,30 @@ export function groupTasks(tasks: Task[], running: ReadonlySet<string>): Array<{
   return GROUP_ORDER.flatMap((id) => (by.get(id)?.length ? [{ id, items: by.get(id) ?? [] }] : []));
 }
 
+/**
+ * Subtasks under their parent, as in Asana or Jira: `top` are the tasks whose parent is not among these (or that sit
+ * in a loop of parents), `children` each parent's subtasks, oldest first (the order they were split in).
+ */
+export function nestTasks(tasks: readonly Task[]): { top: Task[]; children: Map<string, Task[]> } {
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const nested = (task: Task) => {
+    const seen = new Set([task.id]);
+    for (let up = task.parent_id; up && byId.has(up); up = byId.get(up)?.parent_id) {
+      if (seen.has(up)) return false;
+      seen.add(up);
+    }
+    return Boolean(task.parent_id && byId.has(task.parent_id));
+  };
+  const top: Task[] = [];
+  const children = new Map<string, Task[]>();
+  for (const task of tasks) {
+    if (!nested(task)) top.push(task);
+    else children.set(task.parent_id as string, [...(children.get(task.parent_id as string) ?? []), task]);
+  }
+  for (const list of children.values()) list.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  return { top, children };
+}
+
 /** What dropping a task on a group does: a column, waiting for the owner, or done. */
 export type GroupMove = { status: string; awaits_owner: false } | { awaits_owner: true } | { done: true };
 
