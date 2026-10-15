@@ -174,7 +174,10 @@ test("an agent answering another one makes a task but gives it to nobody: it nam
   const told = llm.calls
     .flatMap((c) => c.messages)
     .find((m) => m.role === "tool" && /give nobody work/.test(String(m.content)));
-  assert.match(String(told?.content), /Name roby for task_\w+ in your answer: the agent that asked you assigns it\./);
+  assert.match(
+    String(told?.content),
+    /Name roby for task_\w+ in your answer: the agent that asked you assigns it with task_update\./,
+  );
 });
 
 test("giving a task to an agent starts it in its chat; another agent gets a new chat that knows who worked it", async () => {

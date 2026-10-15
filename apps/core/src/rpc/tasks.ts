@@ -72,7 +72,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
     const caller = answering(ctx);
     if (caller)
       throw badRequest(
-        `assignee: you are answering ${caller}, so you give nobody work; leave the task unassigned and name the agent for it in your answer: ${caller} assigns it`,
+        `assignee: you are answering ${caller}, so you start no task work, yours included: do what you can here yourself, and for a task name the agent in your answer: ${caller} assigns it`,
       );
   };
   /** A close reports to the agent that created the task; from the closer's own chat for it, once that turn ends. */

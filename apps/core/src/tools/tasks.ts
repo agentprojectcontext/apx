@@ -198,7 +198,7 @@ export function taskTools(store: Store): Tool[] {
         const t = await ctx.call("tasks.create", answering ? { ...a, assignee: undefined } : a);
         const under = t.parent_id ? `, a subtask of ${t.parent_id}` : "";
         if (answering)
-          return `created ${t.id} in ${t.status}${under}, with nobody on it: you are answering another agent, so you give nobody work. Name ${a.assignee} for ${t.id} in your answer: the agent that asked you assigns it.`;
+          return `created ${t.id} in ${t.status}${under}, with nobody on it: you are answering another agent, so you give nobody work. Name ${a.assignee} for ${t.id} in your answer: the agent that asked you assigns it with task_update.`;
         // A task with nobody on it never starts: say so while the agent can still fix it.
         if (!t.assignee && t.kind === "task")
           return `created ${t.id} in ${t.status}${under}, with nobody on it: it will not start. Assign it with task_update (the agent who does it, or yourself), or ask the owner who should.`;

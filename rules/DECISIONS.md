@@ -924,7 +924,10 @@ another one (a delegation's sub-thread, a consult) may create a task but not giv
 answer, so its caller assigns it, as D-077 has it name who owns the rest). A task an agent creates from a chat about a
 task (its own task chat, a consult on it, a session under one) is that task's subtask (`parent_id`) unless it names
 another parent, so the work an orchestrator splits stays under the task it was given. `tasks.get` lists a task's
-`subtasks`, and the task panel shows them and the task a subtask is part of.
+`subtasks`, and the task panel shows them and the task a subtask is part of. A real run showed a caller told "assign
+it to Roby" delegating to Roby to assign it to himself, which the answering Roby could not do: the caller's note now
+says a task the delegate left for someone is assigned with `task_update`, and the refusal says an answering agent starts
+no task work, its own included.
 
 <a id="d-080"></a>
 ## D-080 — 2026-10-15 — A task chat an agent started spends against the chat it came from

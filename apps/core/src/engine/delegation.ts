@@ -58,7 +58,7 @@ export const actionsNote = (actions: readonly string[]) =>
 
 /** A delegate does its own part and names who owns the rest (it cannot ask them): the caller asks. See DECISIONS.md#d-074 */
 export const REDIRECT_NOTE =
-  "If it names another agent for what is left, ask that agent yourself: delegate only the remaining part to them.";
+  "If it names another agent for what is left, ask that agent yourself: a task it left for them you assign with task_update (that starts their work); anything else, delegate only the remaining part to them.";
 
 const slug = (s: string) =>
   s
