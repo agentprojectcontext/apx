@@ -107,6 +107,10 @@ export type ThreadContext = {
   budget_from?: string;
   /** On a tree's top chat: the owner let agents go on with no limit at this moment, until they write there again. */
   released_at?: string;
+  /** Brought from the owner's Claude Code or Codex: that session. */
+  imported?: { engine: "claude" | "codex"; session: string };
+  /** What an imported chat is about, for the agent that takes it over (sessions.digest). */
+  digest?: { text: string; at: string };
 };
 
 /** A task's start an agent asked for, kept until the owner lets agents go on: who works it, and who asked. */
@@ -342,6 +346,21 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       if (!t) throw new Error(`unknown thread ${id}`);
       if (t.agent_ids.includes(agentId)) return t;
       return repo.write(id, { agent_ids: JSON.stringify([...t.agent_ids, agentId]) });
+    },
+    /** Another agent takes the chat over: it answers there now, and what the old one said shows as its own. */
+    handOver(id: string, from: string, to: string): Thread {
+      const t = repo.get(id);
+      if (!t) throw new Error(`unknown thread ${id}`);
+      const author = JSON.stringify({ kind: "agent", id: from });
+      run(
+        qb
+          .updateTable("messages")
+          .set({ author: JSON.stringify({ kind: "agent", id: to }) })
+          .where("thread_id", "=", id)
+          .where("author", "=", author),
+      );
+      const ids = [to, ...t.agent_ids.filter((a) => a !== from && a !== to)];
+      return repo.write(id, { agent_ids: JSON.stringify(ids) });
     },
     /** The owner's arrangement: their own name (null = the automatic title), pinned, archived. Not activity. */
     arrange(id: string, a: { custom_title?: string | null; pinned?: boolean; archived?: boolean }): Thread {

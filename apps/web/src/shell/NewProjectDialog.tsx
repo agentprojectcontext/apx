@@ -1,14 +1,17 @@
 import type { ProjectKind } from "@apx/protocol";
 import { Button, Dialog, Field, Icons, Input, SegmentedControl, Select, Textarea } from "@apx/ui";
-import { type KeyboardEvent, useState } from "react";
+import { type KeyboardEvent, useEffect, useState } from "react";
 import { bootstrap } from "../data/actions.ts";
+import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { createProject } from "../data/setup.ts";
 import { useT } from "../i18n/index.ts";
 import { kindOptions, NO_KIND } from "../project/ProjectSettings.tsx";
 import { go } from "./nav.ts";
 
-type Where = "folder" | "apx";
+type Where = "folder" | "apx" | "import";
+type Engine = "codex" | "claude";
+type Found = { name: string; cwd: string; chats: number };
 
 /** The folder name the core gives a project without one (the same rule as its `slugOf`). */
 const slugOf = (name: string) =>
@@ -37,13 +40,54 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
   const [kind, setKind] = useState<string>(NO_KIND);
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
-  const ready = where === "folder" ? Boolean(path.trim()) : Boolean(name.trim());
+  const [engine, setEngine] = useState<Engine>("codex");
+  const [found, setFound] = useState<Found[] | undefined>();
+  const [source, setSource] = useState("");
+  useEffect(() => {
+    if (where !== "import") return;
+    let live = true;
+    setFound(undefined);
+    client
+      .call("sessions.projects", { engine })
+      .then(({ projects }) => {
+        if (!live) return;
+        setFound(projects.map((p) => ({ name: p.name, cwd: p.cwd, chats: p.sessions.length })));
+        setSource(projects[0]?.cwd ?? "");
+      })
+      .catch((err) => {
+        if (live) setFound([]);
+        notify(String(err instanceof Error ? err.message : err), "error");
+      });
+    return () => {
+      live = false;
+    };
+  }, [where, engine]);
+  const ready = where === "folder" ? Boolean(path.trim()) : where === "import" ? Boolean(source) : Boolean(name.trim());
   const pick = async () => {
     const dir = await window.apxDesktop?.pickFolder?.();
     if (dir) setPath(dir);
   };
+  const bring = async () => {
+    setBusy(true);
+    try {
+      const r = await client.call("sessions.import", {
+        engine,
+        cwd: source,
+        ...(name.trim() ? { name: name.trim() } : {}),
+      });
+      notify(t("project.new.imported", { name: r.project.name, count: r.chats.length }), "info");
+      await bootstrap().catch(() => {});
+      onClose();
+      go.project(r.project.id);
+    } catch (err) {
+      notify(String(err instanceof Error ? err.message : err), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
   const add = async () => {
     if (!ready || busy) return;
+    if (where === "import") return bring();
     setBusy(true);
     const project = await createProject({
       ...(name.trim() ? { name: name.trim() } : {}),
@@ -71,7 +115,7 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
             {t("common.cancel")}
           </Button>
           <Button disabled={!ready} loading={busy} onClick={() => void add()}>
-            {t("project.new.add")}
+            {where === "import" ? t("project.new.importAction") : t("project.new.add")}
           </Button>
         </>
       }
@@ -84,9 +128,36 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
           options={[
             { value: "folder", label: t("project.new.inFolder") },
             { value: "apx", label: t("project.new.noFolder") },
+            { value: "import", label: t("project.new.import") },
           ]}
         />
-        {where === "folder" ? (
+        {where === "import" ? (
+          <>
+            <SegmentedControl
+              label={t("project.new.importFrom")}
+              value={engine}
+              onValueChange={(v) => setEngine(v as Engine)}
+              options={[
+                { value: "codex", label: "Codex" },
+                { value: "claude", label: "Claude Code" },
+              ]}
+            />
+            <Field label={t("project.new.importProject")}>
+              <Select
+                label={t("project.new.importProject")}
+                value={source}
+                disabled={!found?.length}
+                placeholder={found && !found.length ? t("project.new.importNone") : "…"}
+                onValueChange={(v) => setSource(v ?? "")}
+                options={(found ?? []).map((p) => ({
+                  value: p.cwd,
+                  label: `${p.name} · ${t("project.new.importChats", { count: p.chats })}`,
+                }))}
+              />
+            </Field>
+            <p className="newproject__hint">{t("project.new.importHint")}</p>
+          </>
+        ) : where === "folder" ? (
           <Field label={t("project.new.path")}>
             {(id) => (
               <div className="newproject__row">
@@ -118,7 +189,11 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
               id={id}
               {...(where === "apx" ? { autoFocus: true } : {})}
               placeholder={
-                where === "folder" ? baseName(path.trim()) || t("project.new.nameFromFolder") : t("project.new.example")
+                where === "import"
+                  ? (found?.find((p) => p.cwd === source)?.name ?? "")
+                  : where === "folder"
+                    ? baseName(path.trim()) || t("project.new.nameFromFolder")
+                    : t("project.new.example")
               }
               value={name}
               maxLength={80}
@@ -127,25 +202,29 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
             />
           )}
         </Field>
-        <Field label={t("project.settings.kind")}>
-          <Select
-            label={t("project.settings.kind")}
-            value={kind}
-            onValueChange={(v) => setKind(v ?? NO_KIND)}
-            options={kindOptions(t)}
-          />
-        </Field>
-        <Field label={t("project.settings.description")}>
-          {(id) => (
-            <Textarea
-              id={id}
-              rows={2}
-              maxLength={500}
-              value={description}
-              onChange={(e) => setDescription(e.currentTarget.value)}
-            />
-          )}
-        </Field>
+        {where !== "import" && (
+          <>
+            <Field label={t("project.settings.kind")}>
+              <Select
+                label={t("project.settings.kind")}
+                value={kind}
+                onValueChange={(v) => setKind(v ?? NO_KIND)}
+                options={kindOptions(t)}
+              />
+            </Field>
+            <Field label={t("project.settings.description")}>
+              {(id) => (
+                <Textarea
+                  id={id}
+                  rows={2}
+                  maxLength={500}
+                  value={description}
+                  onChange={(e) => setDescription(e.currentTarget.value)}
+                />
+              )}
+            </Field>
+          </>
+        )}
       </div>
     </Dialog>
   );

@@ -1,11 +1,26 @@
-// The owner's own Claude Code and Codex sessions: listed from where those CLIs keep them, and gone on with in APX as an
-// engine session (the engine itself, in the session's folder, resuming its own transcript).
+// The owner's own Claude Code and Codex sessions: listed from where those CLIs keep them, gone on with in APX as an
+// engine session (the engine itself, in the session's folder, resuming its own transcript), or brought in as a
+// project whose chats agents take over (import, digest, adopt).
 import fs from "node:fs";
 import path from "node:path";
+import type { ApcSync } from "../apc/sync.ts";
+import type { AuxAbout } from "../domain/aux-calls.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, notFound } from "../errors.ts";
+import { summary } from "../domain/surfaces.ts";
+import { badRequest, errorMessage, notFound } from "../errors.ts";
+import { digestChat } from "../import/native-digest.ts";
+import { importedThread, importSessions, nativeProjects } from "../import/native-import.ts";
 import { type NativeHomes, nativeSession, nativeSessions, nativeTranscript } from "../import/native-sessions.ts";
+import { pageAsWidget } from "../import/page-widget.ts";
+import { createProject } from "./app.ts";
 import type { Handlers } from "./router.ts";
+
+/** What bringing a project in needs beyond the store: where APX keeps files, projects, and the auxiliary model. */
+export type SessionDeps = {
+  home: string;
+  apc: ApcSync;
+  ask(about: AuxAbout, system: string, user: string): Promise<string | undefined>;
+};
 
 /** What is copied into the APX chat so the owner sees where they left off (the engine has it all already). */
 const SHOWN_TURNS = 40;
@@ -23,8 +38,133 @@ function projectOf(store: Store, dir: string): string | undefined {
   return best?.id;
 }
 
-export function sessionHandlers(store: Store, homes: NativeHomes) {
+/** The registered project in exactly this folder. */
+const projectAt = (store: Store, dir: string) =>
+  store.projects.list().find((p) => p.path && path.resolve(p.path) === path.resolve(dir))?.id;
+
+const pageName = (file: string) =>
+  path
+    .basename(file)
+    .replace(/\.html?$/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "page";
+
+export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionDeps) {
+  const superAgent = () => store.agents.list().find((a) => a.kind === "secretary") ?? store.agents.list()[0];
+  /** The project a folder brought in lands in: the one APX has there, else the folder made one (or, gone, a new one). */
+  const projectFor = (cwd: string, name: string): string => {
+    const known = projectAt(store, cwd);
+    if (known) return known;
+    if (!fs.existsSync(cwd)) return createProject(deps.apc, deps.home, { name }).project;
+    // A folder that already is a project keeps its own name and files.
+    if (fs.existsSync(path.join(cwd, ".apc", "project.json")))
+      try {
+        return deps.apc.register(cwd).project;
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+    return createProject(deps.apc, deps.home, { name, path: cwd }).project;
+  };
+  const imported = (thread: string) => {
+    const t = store.threads.get(thread);
+    if (!t) throw notFound(`thread ${thread}`);
+    if (!store.threads.context(t.id).imported)
+      throw badRequest(`${t.title} is not a chat brought from Claude Code or Codex`);
+    return t;
+  };
   return {
+    "sessions.projects": ({ engine }) => ({
+      projects: nativeProjects(homes, engine).map((g) => {
+        const project_id = projectAt(store, g.cwd);
+        return {
+          name: g.name,
+          cwd: g.cwd,
+          ...(project_id ? { project_id } : {}),
+          sessions: g.sessions.map(({ id, title, updated_at }) => {
+            const thread = importedThread(store, engine, id);
+            return { id, title, updated_at, ...(thread ? { thread } : {}) };
+          }),
+        };
+      }),
+    }),
+    "sessions.import": ({ engine, cwd, sessions, name }) => {
+      const group = nativeProjects(homes, engine).find((g) => path.resolve(g.cwd) === path.resolve(cwd));
+      if (!group) throw notFound(`${engine} sessions in ${cwd}`);
+      const picked = sessions ? group.sessions.filter((s) => sessions.includes(s.id)) : group.sessions;
+      if (!picked.length) throw notFound(`those ${engine} sessions in ${cwd}`);
+      const owner = superAgent();
+      if (!owner) throw notFound("an agent to own the chats");
+      const projectId = projectFor(group.cwd, name ?? group.name);
+      const project = store.projects.get(projectId);
+      if (!project) throw notFound(`project ${projectId}`);
+      // Oldest first, so the project's chat list ends with the newest on top.
+      const ordered = [...picked].sort((a, b) => a.updated_at.localeCompare(b.updated_at));
+      const r = importSessions(store, deps.home, {
+        engine,
+        sessions: ordered,
+        codexHome: homes.codex,
+        project_id: project.id,
+        owner: owner.id,
+      });
+      const root = project.path ? path.resolve(project.path) : undefined;
+      return {
+        project: { id: project.id, name: project.name },
+        chats: r.chats,
+        pages: root ? r.pages.filter((p) => p.startsWith(`${root}${path.sep}`)).map((p) => path.relative(root, p)) : [],
+      };
+    },
+    "sessions.digest": async ({ thread, refresh }) => {
+      const t = imported(thread);
+      const had = store.threads.context(t.id).digest;
+      if (had && !refresh) return { thread: t.id, title: t.title, digest: had.text, at: had.at };
+      const about: AuxAbout = { purpose: "summary", thread_id: t.id, project_id: t.project_id };
+      const text = await digestChat(store.messages.list(t.id, 100_000), t.title, (system, user) =>
+        deps.ask(about, system, user),
+      );
+      if (!text)
+        throw badRequest("no auxiliary model answered: pick one in Settings › Models (an API model, not a CLI)");
+      const at = new Date().toISOString();
+      store.threads.mergeContext(t.id, { digest: { text, at } });
+      return { thread: t.id, title: t.title, digest: text, at };
+    },
+    "sessions.adopt": ({ thread, agent: ref }) => {
+      const t = imported(thread);
+      const agents = store.agents.list();
+      const agent =
+        store.agents.get(ref) ??
+        agents.find(
+          (a) => a.project_id === t.project_id && (a.slug === ref || a.name.toLowerCase() === ref.toLowerCase()),
+        );
+      if (!agent) throw notFound(`agent ${ref}`);
+      if (agent.project_id && agent.project_id !== t.project_id)
+        throw badRequest(`${agent.name} is in another project than ${t.title}`);
+      const from = t.agent_ids[0];
+      if (!from || from === agent.id) return t;
+      return store.threads.handOver(t.id, from, agent.id);
+    },
+    "surfaces.import_page": ({ project_id, path: file, name, title, pinned }) => {
+      const project = store.projects.get(project_id);
+      if (!project) throw notFound(`project ${project_id}`);
+      if (!project.path || !project.present) throw badRequest(`the folder of ${project.name} is not on disk right now`);
+      let page: { html: string; title: string };
+      try {
+        page = pageAsWidget(project.path, file);
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+      return summary(
+        store.surfaces.upsert({
+          name: name ?? pageName(file),
+          title: title ?? page.title,
+          html: page.html,
+          project_id: project.id,
+          created_by: "owner",
+          pinned,
+        }),
+      );
+    },
     "sessions.native": ({ engine, limit }) => {
       const taken = store.harnessSessions.sessionIds(engine);
       return {

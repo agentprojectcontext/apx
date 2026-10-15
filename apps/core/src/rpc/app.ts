@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { Organization } from "@apx/protocol";
+import type { Organization, ProjectKind } from "@apx/protocol";
 import { readOrganization, writeOrganization } from "../apc/org.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import { writeProjectMeta } from "../apc/write.ts";
@@ -138,18 +138,7 @@ export function appHandlers(deps: {
       return { project: publicProject(project), agents: r.agents };
     },
     "projects.create": ({ name, kind, description, path: dir }) => {
-      const typed = dir?.replace(/^~(?=$|[/\\])/, os.homedir());
-      if (typed && !path.isAbsolute(typed)) throw badRequest(`${dir} is not a full path`);
-      const root = typed ? path.resolve(typed) : freeFolder(path.join(deps.home, "projects"), slugOf(name ?? ""));
-      let r: ReturnType<typeof deps.apc.register>;
-      try {
-        fs.mkdirSync(root, { recursive: true });
-        initProject(root, name);
-        writeProjectMeta(root, { name, kind, description });
-        r = deps.apc.register(root);
-      } catch (err) {
-        throw badRequest(errorMessage(err));
-      }
+      const r = createProject(deps.apc, deps.home, { name, kind, description, path: dir });
       const project = store.projects.get(r.project);
       if (!project) throw notFound(`project ${r.project}`);
       return { project: publicProject(project), agents: r.agents };
@@ -259,6 +248,33 @@ export function appHandlers(deps: {
 
 /** The quick chat opens with Option+Space unless the owner picked another shortcut. */
 const desktopPrefs = (store: Store) => store.settings.read("desktop");
+
+/**
+ * A new project in `path` (made if missing, kept as it is otherwise) or, without one, in a free folder of its own
+ * inside APX's home; registered. Throws a bad request the owner can act on.
+ */
+export function createProject(
+  apc: ApcSync,
+  home: string,
+  p: {
+    name?: string | undefined;
+    kind?: ProjectKind | undefined;
+    description?: string | undefined;
+    path?: string | undefined;
+  },
+): ReturnType<ApcSync["register"]> {
+  const typed = p.path?.replace(/^~(?=$|[/\\])/, os.homedir());
+  if (typed && !path.isAbsolute(typed)) throw badRequest(`${p.path} is not a full path`);
+  const root = typed ? path.resolve(typed) : freeFolder(path.join(home, "projects"), slugOf(p.name ?? ""));
+  try {
+    fs.mkdirSync(root, { recursive: true });
+    initProject(root, p.name);
+    writeProjectMeta(root, { name: p.name, kind: p.kind, description: p.description });
+    return apc.register(root);
+  } catch (err) {
+    throw badRequest(errorMessage(err));
+  }
+}
 
 /** Makes a plain folder an APC project, writing only what is missing: AGENTS.md (named after it) and .apc/. */
 function initProject(dir: string, name?: string): void {

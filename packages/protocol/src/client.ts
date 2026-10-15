@@ -55,6 +55,11 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "surfaces.media") return 120_000;
   // Indexing every note by meaning may take a while on a local model.
   if (method === "memory.reindex") return 10 * 60_000;
+  // Listing reads every session's head; importing copies whole histories and their images.
+  if (method === "sessions.projects") return 60_000;
+  if (method === "sessions.import") return 5 * 60_000;
+  // A long chat is read in stretches by the auxiliary model; the server stops taking notes at 8 min.
+  if (method === "sessions.digest") return 11 * 60_000;
   if (method === "runs.wait") return ((params as { timeout_s?: number })?.timeout_s ?? 60) * 1000 + 10_000;
   return fallback;
 }

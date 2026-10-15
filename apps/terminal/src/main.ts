@@ -23,6 +23,7 @@ import { pair } from "./commands/pair.ts";
 import { routines } from "./commands/routines.ts";
 import { service } from "./commands/service.ts";
 import { adoptBundleApp } from "./commands/service-files.ts";
+import { sessions } from "./commands/sessions.ts";
 import { importV1, setupHeadless } from "./commands/setup.ts";
 import { tasks } from "./commands/tasks.ts";
 import { agents, jobs, projects, runs, runtimeSkills, secrets, skills, threads, usage } from "./commands/threads.ts";
@@ -77,6 +78,9 @@ Usage:
   apx memory add [global|project|agent] <text> [--project p] [--agent a]
   apx memory edit <id> <text…>   Rewrite a note in place
   apx memory rm <id…>     Remove notes
+  apx sessions projects codex|claude   Claude Code or Codex projects and chats on this computer
+  apx sessions import codex|claude <project> [--only <id,…>] [--name "…"]   Bring them in as an APX project
+  apx sessions digest|adopt|page …     What an imported chat is about, who takes it over, its pages as widgets
   apx channels [add|rm|outbox]   Channels (Telegram bots); apx channels add telegram <id> --agent <a>
   apx channels send <channel> <contact> <text…>   Write to a contact yourself, in their chat on that channel
   apx contacts [add|block|rm]    People APX talks to on channels
@@ -224,6 +228,7 @@ function argumentsOf() {
       follow: { type: "boolean", short: "f" },
       level: { type: "string" },
       grep: { type: "string" },
+      only: { type: "string" },
     },
   });
 }
@@ -349,6 +354,15 @@ try {
       break;
     case "memory":
       await memory(client, rest, { project: values.project, agent: values.agent, json: values.json });
+      break;
+    case "sessions":
+      await sessions(client, rest, {
+        only: values.only,
+        name: values.name,
+        title: values.title,
+        refresh: values.refresh,
+        json: values.json,
+      });
       break;
     case "usage":
       await usage(client, rest);

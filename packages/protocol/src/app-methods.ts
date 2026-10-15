@@ -1222,6 +1222,75 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * The engine's work on this machine grouped by project (Codex's own projects, else the folders sessions ran in),
+   * newest first; `project_id` when APX already has that folder, `thread` for a session already brought in.
+   */
+  "sessions.projects": {
+    params: z.object({ engine: z.enum(["claude", "codex"]) }).strict(),
+    result: z.object({
+      projects: z.array(
+        z.object({
+          name: z.string(),
+          cwd: z.string(),
+          project_id: Id.optional(),
+          sessions: z.array(
+            z.object({ id: z.string(), title: z.string(), updated_at: z.string(), thread: Id.optional() }),
+          ),
+        }),
+      ),
+    }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Brings a project's sessions (all, or `sessions`) into APX: the folder becomes a project if it is not one, each
+   * session a chat with its whole history and images, answered by the super-agent until another agent takes it
+   * (sessions.adopt). Again: only what is new. `pages` are the HTML files those sessions wrote (surfaces.import_page).
+   */
+  "sessions.import": {
+    params: z
+      .object({
+        engine: z.enum(["claude", "codex"]),
+        cwd: z.string().min(1).max(1000),
+        sessions: z.array(z.string().min(1).max(120)).max(500).optional(),
+        name: z.string().trim().min(1).max(80).optional(),
+      })
+      .strict(),
+    result: z.object({
+      project: z.object({ id: Id, name: z.string() }),
+      chats: z.array(
+        z.object({
+          thread: Id,
+          session: z.string(),
+          title: z.string(),
+          added: z.number().int(),
+          created: z.boolean(),
+        }),
+      ),
+      pages: z.array(z.string()),
+    }),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * What an imported chat is about, for the agent that takes it over: the owner's opening framing word for word, then
+   * its role, recurring tasks, formats, preferences, facts, open work. Written once by the auxiliary model; `refresh`
+   * writes it again.
+   */
+  "sessions.digest": {
+    params: z.object({ thread: Id, refresh: z.boolean().optional() }).strict(),
+    result: z.object({ thread: Id, title: z.string(), digest: z.string(), at: z.string() }),
+    effect: true,
+    access: "human",
+  },
+  /** An agent takes an imported chat over: it answers there from now on, and the earlier answers show as its own. */
+  "sessions.adopt": {
+    params: z.object({ thread: Id, agent: z.string().min(1).max(120) }).strict(),
+    result: Thread,
+    effect: true,
+    access: "human",
+  },
   "pairing.list": {
     params: z.object({}).strict(),
     result: z.object({ requests: z.array(PairingRequest) }),
@@ -1379,6 +1448,29 @@ export const appMethods = {
    */
   "surfaces.copy": {
     params: z.object({ surface: Id, project_id: Id.nullable(), pinned: z.boolean().default(false) }).strict(),
+    result: SurfaceSummary,
+    effect: true,
+    access: "human",
+  },
+  /**
+   * An HTML page in a project's folder (one an imported session wrote) as a widget of that project: its local
+   * scripts and styles inlined, its images and videos loaded from the folder (data-apx-src). Again: a new version.
+   */
+  "surfaces.import_page": {
+    params: z
+      .object({
+        project_id: Id,
+        path: z.string().min(1).max(1000),
+        name: z
+          .string()
+          .min(1)
+          .max(60)
+          .regex(/^[a-z0-9][a-z0-9-]*$/)
+          .optional(),
+        title: z.string().trim().min(1).max(120).optional(),
+        pinned: z.boolean().default(true),
+      })
+      .strict(),
     result: SurfaceSummary,
     effect: true,
     access: "human",

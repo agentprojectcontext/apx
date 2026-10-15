@@ -13,6 +13,7 @@ import type { Store } from "./domain/store.ts";
 import { audienceOf } from "./engine/audience.ts";
 import { createHooks } from "./engine/hooks.ts";
 import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
+import type { Upkeep } from "./engine/upkeep.ts";
 import { errorMessage } from "./errors.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
@@ -162,7 +163,7 @@ type HandlerDeps = {
   bus: Bus;
   llmLabel: () => string;
   engine: Parameters<typeof threadHandlers>[1] & Parameters<typeof jobHandlers>[1] & Parameters<typeof taskHandlers>[1];
-  upkeep: Parameters<typeof threadHandlers>[2] & Parameters<typeof gitHandlers>[1];
+  upkeep: Parameters<typeof threadHandlers>[2] & Parameters<typeof gitHandlers>[1] & Pick<Upkeep, "judge">;
   memory: Parameters<typeof memoryHandlers>[1];
   channels: Parameters<typeof channelHandlers>[1];
   services: Parameters<typeof mediaHandlers>[0];
@@ -251,7 +252,11 @@ export function coreHandlers(d: HandlerDeps) {
     ...fileHandlers(d.store, d.desktop, d.app.home),
     ...gitHandlers(d.store, d.upkeep),
     ...terminalHandlers(d.store, d.terminals, d.app.home),
-    ...sessionHandlers(d.store, d.native),
+    ...sessionHandlers(d.store, d.native, {
+      home: d.app.home,
+      apc: d.apc,
+      ask: (about, system, user) => d.upkeep.judge(system, user, about),
+    }),
     ...setupHandlers({
       store: d.store,
       apc: d.apc,

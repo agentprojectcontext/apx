@@ -3,6 +3,8 @@
 // transcript is read whole only when it is opened.
 import fs from "node:fs";
 import path from "node:path";
+import { codexState } from "./codex-state.ts";
+import { sessionFile, sessionText } from "./native-read.ts";
 
 export type NativeEngine = "claude" | "codex";
 export type NativeSession = {
@@ -24,6 +26,8 @@ const TAIL_BYTES = 128 * 1024;
 const TITLE_CHARS = 80;
 
 function readSlice(file: string, from: "start" | "end", bytes: number): string {
+  // A compressed rollout has no cheap slice: it is read whole.
+  if (file.endsWith(".zst")) return sessionText(file) ?? "";
   const fd = fs.openSync(file, "r");
   try {
     const size = fs.fstatSync(fd).size;
@@ -177,9 +181,17 @@ export function nativeSessions(homes: NativeHomes, engine: NativeEngine, limit: 
     );
     return found.flatMap((f) => claudeSession(f.file, f.mtime) ?? []).slice(0, limit);
   }
+  const state = codexState(homes.codex);
+  if (state)
+    return state.threads.slice(0, limit).flatMap((t) => {
+      const file = sessionFile(t.file);
+      return file
+        ? [{ id: t.id, engine: "codex" as const, title: short(t.title), cwd: t.cwd, updated_at: t.updated_at, file }]
+        : [];
+    });
   const names = codexNames(homes.codex);
   const found = newest(
-    files(path.join(homes.codex, "sessions"), 3, (n) => n.startsWith("rollout-") && n.endsWith(".jsonl")),
+    files(path.join(homes.codex, "sessions"), 3, (n) => n.startsWith("rollout-") && /\.jsonl(\.zst)?$/.test(n)),
     limit * 2,
   );
   return found.flatMap((f) => codexSession(f.file, f.mtime, names) ?? []).slice(0, limit);
@@ -193,12 +205,8 @@ export function nativeSession(homes: NativeHomes, engine: NativeEngine, id: stri
 /** What was said in a session, owner and engine, text only (tool calls and their output left out). */
 export function nativeTranscript(s: NativeSession, max: number): NativeTurn[] {
   const turns: NativeTurn[] = [];
-  let text: string;
-  try {
-    text = fs.readFileSync(s.file, "utf8");
-  } catch {
-    return [];
-  }
+  const text = sessionText(s.file);
+  if (text === undefined) return [];
   for (const o of jsonLines(text)) {
     if (s.engine === "claude") {
       if (o.isSidechain || o.isMeta) continue;
