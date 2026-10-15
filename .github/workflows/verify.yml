@@ -34,9 +34,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # The public repo's history must stay public-safe too (authors, messages, AI trailers). The private working
       # repo's older history is rewritten on the way out instead (rules/RELEASE.md#history).
+      # A pull request's HEAD is the merge GitHub makes to test it, with the account's own email: scan the PR's commits.
       - name: Commits (public-safe authors and messages)
         if: github.repository == 'agentprojectcontext/apx'
-        run: pnpm check:commits HEAD
+        run: pnpm check:commits ${{ github.event_name == 'pull_request' && format('{0}..{1}', github.event.pull_request.base.sha, github.event.pull_request.head.sha) || 'HEAD' }}
       - name: Preflight (private terms, schema, lint, typecheck, unit tests)
         run: pnpm preflight
       - name: Mobile (its own install; types and pairing logic)
