@@ -5,16 +5,14 @@ import { ChatComposer } from "../chat/composer/ChatComposer.tsx";
 import { Transcript } from "../chat/Transcript.tsx";
 import { Drawer } from "../common/Drawer.tsx";
 import { createThread, loadThread } from "../data/actions.ts";
-import { createStore, useSlice } from "../data/createStore.ts";
+import { useSlice } from "../data/createStore.ts";
 import { keepDraft } from "../data/drafts.ts";
 import { notify } from "../data/notices.ts";
 import { data, useData } from "../data/state.ts";
 import { t as tr, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { SurfaceFrame } from "./SurfaceFrame.tsx";
-
-/** The widget whose chat is open over the page, and the chat. */
-const open = createStore<{ surfaceId?: string; threadId?: string }>({});
+import { widgetChatOpen as open } from "./widgetChatOpen.ts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
