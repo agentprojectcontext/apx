@@ -40,6 +40,7 @@ export async function bootstrap(): Promise<void> {
     surfaces: Object.fromEntries(surfaces.surfaces.map((s) => [s.id, s])),
     ready: true,
   });
+  for (const id of opened) void loadProjectThreads(id);
   void loadTabs();
   void loadJobs();
   void loadEngines();
@@ -47,11 +48,15 @@ export async function bootstrap(): Promise<void> {
   void loadModelsConfig();
 }
 
+/** Projects whose own chats were loaded: a new bootstrap (a reconnect) loads them again. */
+const opened = new Set<string>();
+
 /**
  * A project's own chats, past the global list's recency cap: chats brought from elsewhere keep their old dates and
  * would otherwise be missing from the project.
  */
 export async function loadProjectThreads(projectId: string): Promise<void> {
+  opened.add(projectId);
   try {
     const { threads } = await client.call("threads.list", { project_id: projectId, include_archived: true });
     data.set((s) => ({ threads: { ...s.threads, ...Object.fromEntries(threads.map((t) => [t.id, t])) } }));
