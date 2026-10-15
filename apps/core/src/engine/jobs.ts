@@ -1,12 +1,12 @@
 // Terminal jobs: shell commands agents run, in the foreground of their turn or in the background. Output goes to a
 // capped file; a background job that ends wakes the agent that started it; a restart closes what it cut.
-import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { JobRecord } from "../domain/jobs.ts";
 import type { Store } from "../domain/store.ts";
 import { commandEnv } from "../harness/env.ts";
 import type { Log } from "../log.ts";
+import { processStart, spawnCommand, stopTree } from "../processes.ts";
 import { pausedNotice } from "./breaker.ts";
 import type { AdmitFn } from "./engine.ts";
 
@@ -16,27 +16,6 @@ const OUTPUT_CAP = 20 * 1024 * 1024;
 const WAKE_TAIL = 3000;
 /** A background command runs at most this long (servers and watchers included); then it is stopped. */
 const MAX_BACKGROUND_MS = 6 * 3600_000;
-
-/** When the process started, as ps prints it: with the pid, it says the process is still the one we started. */
-function procStart(pid: number): string | undefined {
-  try {
-    return execFileSync("ps", ["-p", String(pid), "-o", "lstart="], { encoding: "utf8" }).trim() || undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-/** Stops a process group: TERM now, KILL shortly after for whatever ignores it. */
-function stopGroup(pid: number, alive: () => boolean): void {
-  try {
-    process.kill(-pid, "SIGTERM");
-  } catch {}
-  setTimeout(() => {
-    try {
-      if (alive()) process.kill(-pid, "SIGKILL");
-    } catch {}
-  }, 3000).unref();
-}
 
 export function createJobs(deps: { store: Store; home: string; log: Log; admit: AdmitFn }) {
   const { store, log } = deps;
@@ -118,20 +97,17 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
         written += chunk.length;
         out.write(written > OUTPUT_CAP ? Buffer.concat([chunk, Buffer.from("\n[output cut by APX]\n")]) : chunk);
       };
-      // Its own process group, so stopping it also stops what it spawned.
-      const child = spawn("/bin/sh", ["-c", o.command], {
-        cwd: o.cwd,
-        env: commandEnv(),
-        stdio: ["ignore", "pipe", "pipe"],
-        detached: true,
-      });
+      const child = spawnCommand(o.command, { cwd: o.cwd, env: commandEnv(), stdio: ["ignore", "pipe", "pipe"] });
       if (child.pid) {
         store.jobs.setPid(job.id, child.pid);
-        const started = procStart(child.pid);
-        if (started) store.jobs.setProcStart(job.id, started);
+        void processStart(child.pid).then((started) => {
+          try {
+            if (started) store.jobs.setProcStart(job.id, started);
+          } catch {}
+        });
       }
-      child.stdout.on("data", write);
-      child.stderr.on("data", write);
+      child.stdout?.on("data", write);
+      child.stderr?.on("data", write);
       let killed = false;
       let lifetime: ReturnType<typeof setTimeout> | undefined;
       const done = new Promise<JobRecord>((resolve) => {
@@ -156,7 +132,7 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
       });
       const kill = () => {
         killed = true;
-        if (child.pid) stopGroup(child.pid, () => child.exitCode === null);
+        if (child.pid) stopTree(child.pid, { alive: () => child.exitCode === null });
       };
       procs.set(job.id, { kill, done });
       if (o.background) {
@@ -184,9 +160,11 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
      */
     reconcile(): void {
       for (const j of store.jobs.running()) {
-        const pid = j.pid;
-        if (pid && j.proc_start && procStart(pid) === j.proc_start)
-          stopGroup(pid, () => procStart(pid) === j.proc_start);
+        const { pid, proc_start: start } = j;
+        if (pid && start) {
+          const same = async () => (await processStart(pid)) === start;
+          void same().then((yes) => yes && stopTree(pid, { alive: same }));
+        }
         fs.appendFileSync(fileOf(j.id), "\n[stopped by a restart of APX]\n");
         store.jobs.finish(j.id, "failed");
       }

@@ -6,6 +6,7 @@ import path from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import type { TerminalInfo } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
+import { commandShell } from "../processes.ts";
 
 const BRIDGE = path.join(import.meta.dirname, "pty-bridge.py");
 /** What a terminal keeps of its output, to draw it again when the panel opens. */
@@ -49,11 +50,8 @@ const shellOf = () =>
   process.platform === "win32" ? (process.env.COMSPEC ?? "powershell.exe") : (process.env.SHELL ?? "/bin/sh");
 
 /** The shell's arguments: an open (login, interactive) shell, or one that runs only `command` and ends. */
-function shellArgs(shell: string, tty: boolean, command?: string): string[] {
-  if (process.platform === "win32") {
-    if (!command) return [];
-    return /cmd(\.exe)?$/i.test(shell) ? ["/d", "/s", "/c", command] : ["-NoLogo", "-Command", command];
-  }
+function shellArgs(tty: boolean, command?: string): string[] {
+  if (process.platform === "win32") return [];
   if (command) return ["-l", "-c", command];
   return tty ? ["-l"] : ["-i"];
 }
@@ -94,9 +92,11 @@ export function createTerminals(deps: { bus: Bus; commandEnded?: (e: CommandEnde
     ): TerminalInfo {
       if ([...terms.values()].filter((t) => t.info.alive).length >= MAX_ALIVE)
         throw new Error(`${MAX_ALIVE} terminals are open: close one first`);
-      const shell = shellOf();
+      // A command block is written for sh: on Windows it runs where agents' commands do, not in cmd.
+      const block = run && process.platform === "win32" ? commandShell() : undefined;
+      const shell = block?.file ?? shellOf();
       const py = pythonPath();
-      const args = shellArgs(shell, Boolean(py), run?.command);
+      const args = block && run ? block.args(run.command) : shellArgs(Boolean(py), run?.command);
       const child = py
         ? spawn(py, [BRIDGE, String(size.rows), String(size.cols), shell, ...args], {
             cwd,

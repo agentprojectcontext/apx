@@ -2,6 +2,7 @@
 // are invoked is data (the owner can add more in settings); nothing here picks a model.
 import { spawn } from "node:child_process";
 import type { Store } from "../../domain/store.ts";
+import { stopTree } from "../../processes.ts";
 import { childEnv } from "../env.ts";
 import { connect, type RequestHandler, type Rpc, RpcError } from "./rpc.ts";
 
@@ -123,8 +124,10 @@ export async function openSession(
     cwd: o.cwd,
     env: { ...childEnv(), ...agent.env },
     stdio: ["pipe", "pipe", "pipe"],
-    // Its own process group: closing it also stops what it started (the MCP proxy, its shells).
-    detached: true,
+    // Its own process group: closing it also stops what it started (the MCP proxy, its shells). Not on Windows,
+    // where that opens a console window; taskkill reaches the tree there.
+    detached: process.platform !== "win32",
+    windowsHide: true,
   });
   child.stderr.resume();
   const rpc = connect(child, {
@@ -137,15 +140,7 @@ export async function openSession(
   const alive = () => child.exitCode === null && child.signalCode === null;
   const close = () => {
     if (!alive() || !child.pid) return;
-    const pid = child.pid;
-    try {
-      process.kill(-pid, "SIGTERM");
-    } catch {}
-    setTimeout(() => {
-      try {
-        if (alive()) process.kill(-pid, "SIGKILL");
-      } catch {}
-    }, 3000).unref();
+    stopTree(child.pid, { alive });
   };
   const stop = () => close();
   o.signal?.addEventListener("abort", stop, { once: true });

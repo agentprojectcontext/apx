@@ -2,7 +2,6 @@
 // data; whether the model is called depends on that result; the post-command runs after with what came out. The
 // owner writes the commands (routines.set is human-only); they run in the project's folder with a deadline, a capped
 // output and no credentials in their environment.
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { CallModel, Routine } from "@apx/protocol";
@@ -11,6 +10,7 @@ import type { RunRecord } from "../domain/runs.ts";
 import { freshSignals, signalLines, watchSignals } from "../domain/signals.ts";
 import type { Store } from "../domain/store.ts";
 import { commandEnv } from "../harness/env.ts";
+import { spawnCommand, stopTree } from "../processes.ts";
 import { untrusted } from "../tools/result.ts";
 import { workDir } from "../tools/shell.ts";
 import type { Display } from "./display.ts";
@@ -27,7 +27,7 @@ const PRE_SLOT = "{{pre_output}}";
 
 export type StepResult = { output: string; exit: number | null; timedOut: boolean };
 
-/** Runs one owner command with sh in `cwd`; resolves with its (tail-capped) output whatever happens. */
+/** Runs one owner command in this system's shell in `cwd`; resolves with its (tail-capped) output whatever happens. */
 export function runStep(
   command: string,
   o: { cwd: string; env: Record<string, string>; signal: AbortSignal; timeoutMs?: number },
@@ -45,9 +45,9 @@ export function runStep(
       o.signal.removeEventListener("abort", stop);
       resolve({ output: (out + extra).slice(-STEP_OUTPUT_CHARS), exit, timedOut });
     };
-    let child: ReturnType<typeof spawn>;
+    let child: ReturnType<typeof spawnCommand>;
     try {
-      child = spawn("/bin/sh", ["-c", command], { cwd: o.cwd, env, detached: true, stdio: ["ignore", "pipe", "pipe"] });
+      child = spawnCommand(command, { cwd: o.cwd, env, stdio: ["ignore", "pipe", "pipe"] });
     } catch (err) {
       resolve({ output: err instanceof Error ? err.message : String(err), exit: null, timedOut: false });
       return;
@@ -60,9 +60,7 @@ export function runStep(
     // Its own process group: stopping it also stops what it started. Something that left the group (setsid) may
     // still hold the pipes, so the step ends now instead of waiting for them to close.
     function stop() {
-      try {
-        if (child.pid) process.kill(-child.pid, "SIGKILL");
-      } catch {}
+      if (child.pid) stopTree(child.pid, { graceMs: 0 });
       child.stdout?.destroy();
       child.stderr?.destroy();
       done(null, timedOut ? "\n[stopped: time limit]" : "\n[stopped]");
