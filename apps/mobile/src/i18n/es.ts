@@ -67,6 +67,20 @@ export const es: Record<Key, string> = {
   send: "Enviar",
   unpair: "Desvincular",
   offline: "Sin conexión con tu computadora…",
+  connNoInternetTitle: "Sin internet",
+  connNoInternet: "Este teléfono no tiene internet. Activá el Wi-Fi o los datos móviles y probá de nuevo.",
+  connServerTitle: "Tu computadora no responde",
+  connTailscale:
+    "Este teléfono tiene internet, pero tu computadora está en Tailscale ({host}) y no responde. Activá Tailscale en este teléfono y fijate que la computadora esté prendida con APX abierto.",
+  connLocal:
+    "Este teléfono tiene internet, pero tu computadora ({host}) está en la red de tu casa y no responde. Conectate al mismo Wi-Fi, o vinculá por Tailscale para usar APX fuera de casa.",
+  connServer:
+    "Este teléfono tiene internet, pero tu computadora ({host}) no responde. Fijate que esté prendida con APX abierto.",
+  connRetry: "Reintentar",
+  connBannerNoInternet: "Sin internet · mostrando lo último cargado",
+  connBannerTailscale: "Tu computadora no responde · ¿Tailscale está activo?",
+  connBannerLocal: "Tu computadora no responde · ¿mismo Wi-Fi?",
+  connBannerServer: "Tu computadora no responde",
   you: "Vos",
   photoAsk: "Tu agente te pide una foto",
   takePhoto: "Sacarla",

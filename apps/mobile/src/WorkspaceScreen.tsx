@@ -7,6 +7,7 @@ import { newChatThread } from "./chat/newChat";
 import type { Creds } from "./creds";
 import { inboxThreads } from "./hooks/chatSelectors";
 import { inboxItems } from "./hooks/inboxItems";
+import { useConnection } from "./hooks/useConnection";
 import { useNotifications } from "./hooks/useNotifications";
 import type { Routine, Thread } from "./hooks/useWorkspace";
 import { useWorkspace } from "./hooks/useWorkspace";
@@ -30,6 +31,7 @@ import { TaskDetailPage } from "./pages/TaskDetailPage";
 import { TasksPage } from "./pages/TasksPage";
 import { SurfacesScreen } from "./SurfacesScreen";
 import { ChatPicker } from "./ui/ChatPicker";
+import { ConnectionBanner, ConnectionEmpty } from "./ui/ConnectionState";
 import { BottomNav, type NavItem } from "./ui/kit/BottomNav";
 import { makeStyles, useTheme } from "./ui/theme";
 import { useShowRoutines } from "./viewPrefs";
@@ -68,6 +70,11 @@ export function WorkspaceScreen({
       return creds.url;
     }
   }, [creds.url]);
+  const connection = useConnection(creds.url, workspace.online, workspace.loading);
+  const retry = () => {
+    void workspace.refresh();
+    void connection.check();
+  };
   const inbox = useMemo(() => inboxItems(workspace.data), [workspace.data]);
   useNotifications(creds);
   const [tab, setTab] = useState<Tab>("chats");
@@ -362,9 +369,14 @@ export function WorkspaceScreen({
         {workspace.error ? <Text style={s.error}>{workspace.error}</Text> : null}
       </View>
     );
+  if (connection.offline && workspace.data.threads.length === 0)
+    return <ConnectionEmpty offline={connection.offline} host={host} checking={connection.checking} retry={retry} />;
   return (
     <View style={s.root}>
       <View style={[s.content, (thread || surfaces) && { paddingBottom: insets.bottom }]}>{content()}</View>
+      {connection.offline && !thread && !surfaces ? (
+        <ConnectionBanner offline={connection.offline} checking={connection.checking} retry={retry} />
+      ) : null}
       {!thread && !surfaces ? (
         <BottomNav
           items={TABS.map((item) =>

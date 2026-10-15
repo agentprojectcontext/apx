@@ -354,16 +354,31 @@ export function OwnerAvatar({ name, size = 32, online }: { name: string; size?: 
   );
 }
 
-export function EmptyState({ title, body, icon = "Check" }: { title: string; body: string; icon?: IconName }) {
+/** `children` sit under the copy: the one action that gets the owner out of the empty state. */
+export function EmptyState({
+  title,
+  body,
+  icon = "Check",
+  tone = "brand",
+  children,
+}: {
+  title: string;
+  body: string;
+  icon?: IconName;
+  tone?: Tone;
+  children?: React.ReactNode;
+}) {
   const t = useTheme();
   const s = useStyles();
+  const c = t.tones[tone];
   return (
     <View style={s.empty}>
-      <View style={s.emptyIcon}>
-        <Icon name={icon} size={22} color={t.brandSoftFg} />
+      <View style={[s.emptyIcon, { backgroundColor: c.bg }]}>
+        <Icon name={icon} size={22} color={c.fg} />
       </View>
       <Text style={s.emptyTitle}>{title}</Text>
       <Text style={s.emptyBody}>{body}</Text>
+      {children ? <View style={s.emptyActions}>{children}</View> : null}
     </View>
   );
 }
@@ -431,12 +446,12 @@ const useStyles = makeStyles((t) => ({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: t.brandSoft,
     alignItems: "center",
     justifyContent: "center",
   },
   emptyTitle: { color: t.fg, fontSize: 16, fontWeight: "500", textAlign: "center" },
   emptyBody: { color: t.fgMuted, fontSize: 13, textAlign: "center" },
+  emptyActions: { marginTop: 8, alignItems: "center", gap: 8 },
   activity: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", maxWidth: "100%" },
   activityPill: {
     flexDirection: "row",

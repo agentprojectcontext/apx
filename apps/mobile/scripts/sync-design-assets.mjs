@@ -77,6 +77,7 @@ const names = [
   "TextSelect",
   "Music",
   "Maximize",
+  "WifiOff",
 ];
 const icons = {};
 for (const name of names) {
