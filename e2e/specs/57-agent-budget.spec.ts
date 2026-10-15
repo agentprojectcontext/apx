@@ -5,7 +5,10 @@ import { expect, open, rpc, test } from "./kit.ts";
 test("the owner gives an agent its own budget from its detail and takes it back", async ({ page }) => {
   await rpc("setup.finish", {});
   await open(page, "#project=~default&tab=team");
-  await page.getByRole("button", { name: /^Ver: / }).first().click();
+  await page
+    .getByRole("button", { name: /^Ver: / })
+    .first()
+    .click();
   const detail = page.locator(".teamdetail");
   const turns = detail.getByRole("spinbutton", { name: "Turnos sin vos" });
   const tokens = detail.getByRole("spinbutton", { name: "Miles de tokens sin vos" });
@@ -20,7 +23,10 @@ test("the owner gives an agent its own budget from its detail and takes it back"
     .toEqual([{ runs: 5, tokens: 150_000 }]);
 
   await page.reload();
-  await page.getByRole("button", { name: /^Ver: / }).first().click();
+  await page
+    .getByRole("button", { name: /^Ver: / })
+    .first()
+    .click();
   await expect(turns).toHaveValue("5");
   await expect(tokens).toHaveValue("150");
 
