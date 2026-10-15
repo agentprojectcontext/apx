@@ -1,0 +1,79 @@
+---
+title: Supervised contacts
+description: A contact whose answers wait for your OK. The agent drafts each reply, and you send it, edit it or drop it.
+sidebar:
+  order: 6
+---
+
+import { Aside } from "@astrojs/starlight/components";
+import Terminal from "../../../components/Terminal.astro";
+
+A contact can be answered in three ways. **Answered** is the default: the agent replies on its own, in a sealed chat.
+**Silenced** means their messages are kept and nobody answers. **Supervised** sits between the two. The agent writes
+the reply it would send and doesn't send it. You get the draft and decide.
+
+## What happens when they write
+
+1. Their message is kept in their chat, unanswered. Voice notes are transcribed, since the draft needs the words.
+2. APX waits for their burst of messages to settle (about 15 seconds), so three quick lines get one draft.
+3. The agent drafts one reply with the same sealed prompt their chat always uses: who they are, your rules for them,
+   the relation and the chat so far. It has no tools and it sends nothing. The draft uses the agent's own model.
+4. You get a notice on your channel (Telegram, WhatsApp…) and in the app's tray. It shows who wrote (with their
+   number on WhatsApp), everything they said since they were last answered, and the draft, with three buttons:
+
+| Button | What it does |
+|---|---|
+| **Send this** | Sends the draft to them in their chat, as the agent's message. The agent reads it next time as its own words. |
+| **I'll answer** | Your next message in that chat with APX (within 10 minutes) goes to them exactly as you typed it, as your own words. Send "cancel" to send nothing. |
+| **Ignore** | Nothing is sent. They stay supervised, and what they said isn't drafted again. |
+
+If they write again before you decide, a new draft answers everything they said, and the old one can't be sent any
+more. When the agent thinks nothing needs an answer (a "thanks"), or no model could answer, the notice says so and
+offers only **I'll answer** and **Ignore**. A closing "ok" or "thanks" brings no notice at all.
+
+Quiet hours apply as for every notice: it arrives without sound.
+
+<Aside type="note" title="Limits">
+At most 10 drafts per contact per hour, since each draft is a model call. Past that their messages are only kept,
+and you're told once. A burst of messages cut short by a restart gets its draft with their next message.
+</Aside>
+
+## Turn it on
+
+In the panel, open the contact from the channel's screen and press **Supervise**. Silenced and supervised exclude each
+other: turning one on turns the other off. A supervised contact shows an eye next to their name.
+
+From the terminal:
+
+```bash
+apx contacts supervise "Ana Pérez"     # or the contact's id; unsupervise to go back
+apx contacts suggestions               # drafts waiting for you
+apx contacts suggestions send <id>     # send one as it is
+apx contacts suggestions send <id> Friday at 10 works
+apx contacts suggestions drop <id>
+```
+
+<Terminal command="apx contacts suggestions">{`sug_3f2a9c1d0b7e4a51  Ana Pérez: hi / can we meet tomorrow?
+    → Hi Ana! I'll check with them and get back to you today.`}</Terminal>
+
+## From another app (RPC)
+
+The same choices are protocol methods, so any client can show the pending drafts and act on them. They are owner
+methods: call them with the core's token or from a paired device, never with an outside app's token.
+
+| Method | Params | Result |
+|---|---|---|
+| `contacts.set` | `{ id, name, supervised: true }` (`name` is required, as for any change) | The person |
+| `contacts.suggestions.list` | `{ state?: "pending" \| "sent" \| "discarded" \| "superseded" \| "all", person?, limit? }` (pending by default) | `{ suggestions }`, newest first |
+| `contacts.suggestions.send` | `{ id, text?, author?: "agent" \| "owner" }` | `{ suggestion, delivery }` |
+| `contacts.suggestions.discard` | `{ id }` | `{ suggestion }` |
+
+A suggestion has `id`, `person_id`, `thread_id` (their chat), `channel`, `said` (their messages, oldest first),
+`text` (the draft; empty when there is none, with `error` saying why), `state`, `created_at` and, once sent,
+`message_id` and `decided_at`.
+
+`send` with no `text` sends the draft. With `text` it sends your edited version instead. `author: "owner"` sends
+`text` as your own words rather than the agent's. `delivery.state` says how the send went (`sent`, `queued`,
+`uncertain` or `failed` with an `error`). Only a pending draft can be sent or discarded. Anything else is refused with
+a conflict, so two taps or two apps never send twice. `send` and `discard` are side effects and need an idempotency
+key, like every such method.
