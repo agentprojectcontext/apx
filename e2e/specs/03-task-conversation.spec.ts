@@ -118,8 +118,13 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     // Mentions read as badges, in the owner's comment and in an agent's answer.
     await expect(drawer.locator(".apx-msg--user .apx-mention", { hasText: "@builder" }).first()).toBeVisible();
     await expect(drawer.locator(".apx-msg--agent .apx-mention", { hasText: "@roby" }).first()).toBeVisible();
-    await expect(drawer.getByText("@owner please approve the review.", { exact: true })).toBeVisible();
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.status).toBe("review");
+    // Builder's @roby asks nobody: an agent asks with delegate (DECISIONS.md#d-078).
+    expect((await env.client.call("tasks.get", { task: task.id })).consults).toHaveLength(0);
+    // The owner's @roby does: Roby answers in a consult, shown as a card on the task.
+    await comment.fill("@roby can you approve it?");
+    await drawer.getByRole("button", { name: "Enviar", exact: true }).click();
+    await expect(drawer.getByText("@owner please approve the review.", { exact: true })).toBeVisible();
     // Builder, the task's agent, worked in its chat for it; Roby, mentioned, answered in a consult shown as a card.
     await expect
       .poll(async () => (await env.client.call("tasks.get", { task: task.id })).sessions.map((s) => s.agent_ids[0]))
