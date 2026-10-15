@@ -62,6 +62,8 @@ export type TurnIO = {
     status: "running" | "ok" | "error";
     detail?: string;
   }): void;
+  /** An image an external agent made on its own (Codex's image_gen), shown in this turn's answer. */
+  showImage?(file: string): void;
 };
 
 export type TurnOutcome = {

@@ -39,8 +39,9 @@ before(() => {
 });
 after(() => fs.rmSync(fx.root, { recursive: true, force: true }));
 
-/** A `codex` that records its arguments and answers like `codex exec --experimental-json`. */
-function fakeCodex(): { bin: string; args(): string[] } {
+/** A `codex` that records its arguments and answers like `codex exec --experimental-json`; `makes` are files its
+ * image_gen would leave in its thread's folder under CODEX_HOME. */
+function fakeCodex(makes: string[] = []): { bin: string; args(): string[] } {
   const dir = fs.mkdtempSync(path.join(fx.root, "bin-"));
   const out = path.join(dir, "args.json");
   const bin = path.join(dir, "codex");
@@ -53,6 +54,8 @@ function fakeCodex(): { bin: string; args(): string[] } {
     `#!/usr/bin/env node
 const fs = require("node:fs");
 fs.writeFileSync(${JSON.stringify(out)}, JSON.stringify(process.argv.slice(2)));
+const made = require("node:path").join(process.env.CODEX_HOME || "/nonexistent", "generated_images", "thread-1");
+for (const f of ${JSON.stringify(makes)}) { fs.mkdirSync(made, { recursive: true }); fs.writeFileSync(made + "/" + f, "x"); }
 process.stdin.resume();
 process.stdin.on("end", () => process.stdout.write(${JSON.stringify(events.map((e) => JSON.stringify(e)).join("\n"))} + "\\n"));
 `,
@@ -62,8 +65,11 @@ process.stdin.on("end", () => process.stdout.write(${JSON.stringify(events.map((
 }
 
 /** One Codex turn in `cwd`, as an auto code thread: the agent's autonomy decides whether it writes. */
-async function turn(cwd: string, opts: { autonomy?: string; sessionId?: string } = {}): Promise<string[]> {
-  const codex = fakeCodex();
+async function turn(
+  cwd: string,
+  opts: { autonomy?: string; sessionId?: string; makes?: string[]; shown?: string[] } = {},
+): Promise<string[]> {
+  const codex = fakeCodex(opts.makes);
   const harness = codexHarness({
     codexPath: async () => codex.bin,
     cwd: () => cwd,
@@ -79,6 +85,7 @@ async function turn(cwd: string, opts: { autonomy?: string; sessionId?: string }
     signal: AbortSignal.timeout(20_000),
     observe() {},
     onText() {},
+    showImage: (file: string) => opts.shown?.push(file),
   } as unknown as TurnIO;
   await harness.run(io);
   return codex.args();
@@ -126,5 +133,26 @@ test("a GIT_DIR inherited by the core does not decide which git dirs Codex gets"
   } finally {
     if (saved === undefined) delete process.env.GIT_DIR;
     else process.env.GIT_DIR = saved;
+  }
+});
+
+test("the images Codex made in this turn show in the chat, not earlier ones or other files", async () => {
+  const saved = process.env.CODEX_HOME;
+  const home = fs.mkdtempSync(path.join(fx.root, "codex-home-"));
+  process.env.CODEX_HOME = home;
+  try {
+    const dir = path.join(home, "generated_images", "thread-1");
+    const shown: string[] = [];
+    await turn(fx.root, { makes: ["first.png", "notes.txt"], shown });
+    assert.deepEqual(shown, [path.join(dir, "first.png")]);
+    shown.length = 0;
+    await turn(fx.root, { sessionId: "thread-1", makes: ["second.webp"], shown });
+    assert.deepEqual(shown, [path.join(dir, "second.webp")]);
+    shown.length = 0;
+    await turn(fx.root, { sessionId: "thread-1", shown });
+    assert.deepEqual(shown, []);
+  } finally {
+    if (saved === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = saved;
   }
 });

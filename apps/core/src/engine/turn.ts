@@ -1,4 +1,5 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
+import path from "node:path";
 import {
   COMPUTER_CAP,
   type HarnessId,
@@ -24,6 +25,7 @@ import { candidates, modelSettings } from "../models/choice.ts";
 import type { ChatItem, Usage } from "../providers/types.ts";
 import { ProviderError } from "../providers/types.ts";
 import { contextWindow } from "../providers/windows.ts";
+import { saveLocalAttachment } from "../services/attachment-files.ts";
 import { askedSkill } from "../skills/picker.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
@@ -261,6 +263,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     execute: exec.execute,
     approve: exec.approve,
     observe: exec.observe,
+    showImage: (file) => showImage(deps, { thread, run, display, owner: audience.kind === "owner" }, file),
     takeSteered: deps.takeSteered,
     alive: deps.alive ?? (() => {}),
     log: (items) => store.modelLog.append(thread.id, run.id, items),
@@ -287,6 +290,27 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     run = failRun(deps, { run, turn, display, signal, err });
   }
   return end(run);
+}
+
+/** A picture the engine made on its own, kept as the chat's media; local files reach only the owner's chats. */
+function showImage(
+  deps: TurnDeps,
+  t: { thread: Thread; run: RunRecord; display: Display; owner: boolean },
+  file: string,
+): void {
+  if (!t.owner) return;
+  try {
+    const m = saveLocalAttachment(deps.home, deps.store, path.dirname(file), t.thread.id, path.basename(file));
+    if (m.kind !== "image") return;
+    t.display.upsert((p) => p.type === "image" && p.media_id === m.id, {
+      type: "image",
+      media_id: m.id,
+      mime: m.mime,
+      alt: "Generated image",
+    });
+  } catch (err) {
+    deps.log.warn({ run: t.run.id, err: errorMessage(err, 200) }, "could not show a generated image");
+  }
 }
 
 /** Kept in an engine thread's log once its session has read outside content, so later turns start untrusted. */

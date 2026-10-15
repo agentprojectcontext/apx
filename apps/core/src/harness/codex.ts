@@ -1,5 +1,8 @@
 // Codex in its own sessions: the owner's own `codex` (their ChatGPT login and config). APX tools reach it through a
 // per-run MCP proxy (`apx mcp --run <token>`) that calls back into this core. See DECISIONS.md#d-007
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { Codex, type ModelReasoningEffort } from "@openai/codex-sdk";
 import { worksInFolder } from "../domain/threads.ts";
 import { harnessEnv } from "./env.ts";
@@ -16,6 +19,23 @@ export function codexWrites(io: Pick<TurnIO, "thread" | "agent" | "outside">): b
   // Accepting edits is what Codex's workspace-write sandbox does: its folder, whatever the session read.
   if (autonomy === "total" || autonomy === "edits") return true;
   return autonomy !== "ask" && !io.outside();
+}
+
+const IMAGE_FILE = /\.(png|jpe?g|webp|gif)$/i;
+/** More than this in one turn is a batch the owner asked for in files, not in the chat. */
+const MAX_IMAGES = 8;
+
+/** Where Codex keeps the images its image_gen tool made in one of its threads (it reports no event for them). */
+function imageDir(env: Record<string, string>, codexThread: string): string {
+  return path.join(env.CODEX_HOME || path.join(os.homedir(), ".codex"), "generated_images", codexThread);
+}
+
+function imagesIn(dir: string): string[] {
+  try {
+    return fs.readdirSync(dir).filter((f) => IMAGE_FILE.test(f));
+  } catch {
+    return [];
+  }
 }
 
 export type McpCommand = { command: string; args: string[]; env: Record<string, string> };
@@ -35,13 +55,15 @@ export function codexHarness(opts: {
       const gate = opts.gate(io);
       try {
         const apx = { ...gate.command, default_tools_approval_mode: "approve" };
+        const env = harnessEnv();
         const codex = new Codex({
           codexPathOverride: codexPath,
           // With approval "never" Codex refuses every MCP call unless the server's tools are pre-approved; APX's gate
           // asks the owner itself when a tool needs it.
           config: { mcp_servers: { apx } },
-          env: harnessEnv(),
+          env,
         });
+        const madeBefore = new Set(io.sessionId ? imagesIn(imageDir(env, io.sessionId)) : []);
         // Codex cannot ask mid-turn: in a code thread it writes only when the thread's policy is "auto", and then its
         // OS sandbox keeps commands and edits inside the folder (the UI says so when the policy is chosen). An agent
         // that asks first, or outside content in the session, keeps it reading unless the owner chose total autonomy.
@@ -111,6 +133,12 @@ export function codexHarness(opts: {
             };
           } else if (ev.type === "turn.failed") throw new Error(`codex: ${ev.error.message}`);
           else if (ev.type === "error") throw new Error(`codex: ${ev.message}`);
+        }
+        if (sessionId && io.showImage) {
+          const dir = imageDir(env, sessionId);
+          const made = imagesIn(dir).filter((f) => !madeBefore.has(f));
+          const at = (f: string) => fs.statSync(path.join(dir, f)).mtimeMs;
+          for (const f of made.sort((a, b) => at(a) - at(b)).slice(0, MAX_IMAGES)) io.showImage(path.join(dir, f));
         }
         return { text, model: `codex/${chosen ?? "default"}`, effort, sessionId, sessionUsage };
       } finally {
