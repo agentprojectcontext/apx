@@ -1049,7 +1049,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "chat.folderOff": "No trabaja en la carpeta",
   "chat.compactSkipped": "No se resumió: {reason}",
   "error.compact": "No se pudo resumir: {error}",
-  "notice.thread.compacted": "Se resumieron los turnos anteriores para que el agente siga con un contexto más chico.",
+  "notice.thread.compacted":
+    "Se resumieron los turnos anteriores para que el contexto de este chat sea más chico. No se empezó nada nuevo.",
   "memory.filter.forgotten": "Olvidadas",
   "memory.lead.forgotten":
     "Notas que vos o un agente olvidaron. Ningún agente las ve; podés traer una de vuelta o borrarla para siempre.",

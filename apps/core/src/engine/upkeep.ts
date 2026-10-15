@@ -266,7 +266,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
           type: "notice",
           level: "info",
           code: "thread.compacted",
-          text: `Summarized ${plan.runs} earlier turns so the agent keeps working with a smaller context.`,
+          text: `Summarized ${plan.runs} earlier turns to keep this chat's context small. Nothing new was started.`,
         },
       ],
     });

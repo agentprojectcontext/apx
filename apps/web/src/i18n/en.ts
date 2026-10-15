@@ -1044,7 +1044,8 @@ export const en = {
   "chat.folderOff": "Does not work in the folder",
   "chat.compactSkipped": "Not summarized: {reason}",
   "error.compact": "Could not summarize: {error}",
-  "notice.thread.compacted": "Earlier turns were summarized so the agent keeps working with a smaller context.",
+  "notice.thread.compacted":
+    "Earlier turns were summarized to keep this chat's context small. Nothing new was started.",
   "memory.filter.forgotten": "Forgotten",
   "memory.lead.forgotten": "Notes you or an agent forgot. No agent sees them; bring one back or delete it for good.",
   "memory.empty.forgotten": "Nothing forgotten.",
