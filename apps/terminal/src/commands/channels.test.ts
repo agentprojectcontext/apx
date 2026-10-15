@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { channels } from "./channels.ts";
+import { channels, contacts } from "./channels.ts";
 import { printed, recordingClient } from "./testing.ts";
 
 const person = (id: string, name: string) => ({ id, name, role: "contact", addresses: [], created_at: "" });
@@ -31,4 +31,38 @@ test("send refuses an unknown or ambiguous contact and a missing text, sending n
   await assert.rejects(channels(client, ["send", "telegram-main", "Nobody", "Hi"], {}), /no contact Nobody/);
   await assert.rejects(channels(client, ["send", "telegram-main", "per_1"], {}), /apx channels send/);
   assert.ok(!calls.some(([m]) => m !== "contacts.list"));
+});
+
+test("supervise finds the contact by name; suggestions are listed, sent with the owner's text or dropped", async () => {
+  const draft = {
+    id: "sug_1",
+    person_id: "per_1",
+    thread_id: "thr_c",
+    channel: "telegram-main",
+    said: ["hi", "tomorrow?"],
+    text: "Tomorrow works",
+    state: "pending",
+    created_at: "",
+  };
+  const { client, calls } = recordingClient({
+    ...answers,
+    "contacts.set": person("per_1", "Alex Acme"),
+    "contacts.suggestions.list": { suggestions: [draft] },
+    "contacts.suggestions.send": { suggestion: { ...draft, state: "sent" }, delivery: { state: "sent" } },
+    "contacts.suggestions.discard": { suggestion: { ...draft, state: "discarded" } },
+  });
+  assert.equal(await printed(() => contacts(client, ["supervise", "alex", "acme"])), "Alex Acme: supervised");
+  const listed = await printed(() => contacts(client, ["suggestions"]));
+  assert.match(listed, /sug_1 {2}Alex Acme: hi \/ tomorrow\?\n {4}→ Tomorrow works/);
+  await contacts(client, ["suggestions", "send", "sug_1", "Friday", "then"]);
+  await contacts(client, ["suggestions", "drop", "sug_1"]);
+  assert.deepEqual(
+    calls.filter(([m]) => m !== "contacts.list"),
+    [
+      ["contacts.set", { id: "per_1", name: "Alex Acme", supervised: true }],
+      ["contacts.suggestions.list", {}],
+      ["contacts.suggestions.send", { id: "sug_1", text: "Friday then" }],
+      ["contacts.suggestions.discard", { id: "sug_1" }],
+    ],
+  );
 });
