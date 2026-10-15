@@ -47,6 +47,19 @@ export async function bootstrap(): Promise<void> {
   void loadModelsConfig();
 }
 
+/**
+ * A project's own chats, past the global list's recency cap: chats brought from elsewhere keep their old dates and
+ * would otherwise be missing from the project.
+ */
+export async function loadProjectThreads(projectId: string): Promise<void> {
+  try {
+    const { threads } = await client.call("threads.list", { project_id: projectId, include_archived: true });
+    data.set((s) => ({ threads: { ...s.threads, ...Object.fromEntries(threads.map((t) => [t.id, t])) } }));
+  } catch {
+    // The base space has no chats of its own to load; the global list stays as it is.
+  }
+}
+
 /** Every chat `parent` delegated, past the few the list loads with it. */
 export async function loadDelegated(parent: string): Promise<void> {
   try {

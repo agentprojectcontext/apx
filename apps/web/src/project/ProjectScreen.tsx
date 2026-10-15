@@ -1,7 +1,16 @@
 import "../styles/screens.css";
 import { Badge, Button, EmptyState, IconButton, Icons, ProjectTile, Tabs } from "@apx/ui";
 import { useEffect, useState } from "react";
-import { findProject, inProject, isListed, type ProjectEntry, projectInitial, projectTone } from "../data/identity.ts";
+import { loadProjectThreads } from "../data/actions.ts";
+import {
+  findProject,
+  inProject,
+  isListed,
+  type ProjectEntry,
+  projectInitial,
+  projectTone,
+  realProjectId,
+} from "../data/identity.ts";
 import { parseNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -28,6 +37,10 @@ export function ProjectScreen({ layout }: { layout: Layout }) {
   const ready = useData((s) => s.ready);
   const project = findProject(projects, pid);
   useKeepThreadInProject(project?.id, tab);
+  const realId = project && !project.isDefault ? realProjectId(project.id) : undefined;
+  useEffect(() => {
+    if (realId) void loadProjectThreads(realId);
+  }, [realId]);
 
   if (!project) {
     return (
