@@ -1,25 +1,32 @@
 import type { Thread } from "@apx/protocol";
-import { AgentAvatar, IconButton, Icons, Spinner } from "@apx/ui";
+import { AgentAvatar, Icons, Spinner } from "@apx/ui";
 import { useState } from "react";
 import { shortWhen } from "../common/format.ts";
 import { blobOf, isWorking } from "../data/identity.ts";
 import { useShownAgents } from "../data/state.ts";
 import { useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
-import { go } from "../shell/nav.ts";
 import { SessionRow } from "./InboxViews.tsx";
 
 const cx = (...c: Array<string | false>) => c.filter(Boolean).join(" ");
 
+/** Tasks the owner folded, kept while the panel is open so switching views or lists does not unfold them. */
+const folded = new Set<string>();
+
 /**
- * Every chat the agents keep for one task, as one row of a list: the task, who works it and whether it runs; opened,
- * each agent's chat. The task's name opens the task itself.
+ * Every chat the agents keep for one task, as one row of a list: the task, who works it and whether it runs, with each
+ * agent's chat nested under it, open until folded. The row only folds and unfolds; a chat's "Open the task" opens it.
  */
 export function TaskBundle({ taskId, threads, selected }: { taskId: string; threads: Thread[]; selected?: string }) {
   const t = useT();
   const task = useTasks((s) => s.tasks[taskId]);
   const agents = useShownAgents();
-  const [open, setOpen] = useState(() => threads.some((th) => th.id === selected));
+  const [open, setOpenState] = useState(() => !folded.has(taskId) || threads.some((th) => th.id === selected));
+  const setOpen = (next: boolean) => {
+    if (next) folded.delete(taskId);
+    else folded.add(taskId);
+    setOpenState(next);
+  };
   const running = threads.some((th) => isWorking(th.state));
   const waiting = threads.some((th) => th.state === "input-required");
   const unread = threads.reduce((n, th) => n + th.unread, 0);
@@ -28,13 +35,18 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
   return (
     <div className="taskbundle">
       <div className={cx("taskbundle__head", unread > 0 && "is-unread")}>
-        <IconButton
-          size="sm"
-          label={open ? t("inbox.taskBundle.close") : t("inbox.taskBundle.open")}
-          icon={open ? <Icons.ChevronDown size={14} /> : <Icons.ChevronRight size={14} />}
-          onClick={() => setOpen((v) => !v)}
-        />
-        <button type="button" className="taskbundle__task" onClick={() => go.task(taskId)}>
+        <button
+          type="button"
+          className="taskbundle__task"
+          aria-expanded={open}
+          title={open ? t("inbox.taskBundle.close") : t("inbox.taskBundle.open")}
+          onClick={() => setOpen(!open)}
+        >
+          {open ? (
+            <Icons.ChevronDown size={14} className="taskbundle__chevron" />
+          ) : (
+            <Icons.ChevronRight size={14} className="taskbundle__chevron" />
+          )}
           <Icons.ListChecks size={14} className="taskbundle__icon" />
           {running && <Spinner size={12} />}
           {waiting && <Icons.Hand size={12} className="tree__waiting" />}

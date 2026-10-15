@@ -121,6 +121,14 @@
 .taskbundle__task:hover {
   background: var(--apx-fill-hover);
 }
+.taskbundle__chevron {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+/* The guide line of the task's chats runs down from its chevron. */
+.taskbundle .tree__sessions {
+  margin-left: 11px;
+}
 .taskbundle__icon {
   flex: none;
   color: var(--apx-fg-subtle);

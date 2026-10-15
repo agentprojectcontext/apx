@@ -32,12 +32,18 @@ test("a task's chats are one row under the task in the tree, by activity and by 
     await expect(bundle).toHaveCount(1);
     await expect(bundle).toContainText("2 chats");
   }
-  // The chat open beside the list is one of the task's, so its row comes open.
-  await expect(bundle.getByRole("button", { name: "Ocultar los chats de la tarea" })).toBeVisible();
+  // A task's chats show open under it; its row folds and unfolds them, and never opens the task.
+  const row = bundle.locator(".taskbundle__task");
+  await expect(row).toHaveAttribute("aria-expanded", "true");
   await expect(bundle.locator(".tree__session")).toHaveCount(2);
+  await row.click();
+  await expect(row).toHaveAttribute("aria-expanded", "false");
+  await expect(bundle.locator(".tree__session")).toHaveCount(0);
+  await expect(page.getByRole("complementary", { name: "Build the stats panel" })).toHaveCount(0);
+  await row.click();
   await bundle.locator(".tree__session", { hasText: "Quinn" }).click();
   await expect(page.locator(".chat__header")).toContainText("Quinn");
-  // The task's name opens the task.
-  await bundle.locator(".taskbundle__task").click();
+  // The task opens from inside its chat.
+  await page.locator(".chat__header").getByRole("button", { name: "Ver la tarea" }).click();
   await expect(page.getByRole("complementary", { name: "Build the stats panel" })).toBeVisible();
 });
