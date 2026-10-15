@@ -39,6 +39,8 @@ export const LINKS = {
   // times a week, so "latest" is almost never the release that carries an APK.
   androidApk: "https://github.com/agentprojectcontext/apx/releases/download/android-latest/apx.apk",
   androidDocs: "https://agentprojectcontext.github.io/apx/docs/surfaces/install-android/",
+  v2Site: "https://agentprojectcontext.github.io/apx/v2/",
+  v2SiteEs: "https://agentprojectcontext.github.io/apx/v2/es/",
 } as const;
 
 /** Tailwind class tokens reused across components. */

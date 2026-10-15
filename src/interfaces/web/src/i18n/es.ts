@@ -146,6 +146,8 @@ export const es = {
     light:               "Cambiar a claro",
     dark:                "Cambiar a oscuro",
     lang_toggle:         "Idioma",
+    try_v2:              "Probá APX v2 beta",
+    try_v2_tip:          "El próximo APX ya está en beta. Trae tus proyectos, agentes y chats de v1 cuando se lo pedís.",
   },
   admin: {
     title:             "APX",
