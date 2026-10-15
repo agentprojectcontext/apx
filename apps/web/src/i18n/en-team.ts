@@ -78,6 +78,13 @@ export const enTeam = {
   "team.parent.confirmBody": "{name} will report to {to} instead of {from}. APX writes it to {file}.",
   "team.area": "Area",
   "team.autonomy": "Autonomy",
+  "team.budget": "Budget without you",
+  "team.budget.hint":
+    "What this agent may do on its own in a chat before it waits for you, inside the chat's limits. Others go on. Empty: no limit of its own.",
+  "team.budget.runs": "Turns without you",
+  "team.budget.runsUnit": "turns",
+  "team.budget.tokens": "Thousands of tokens without you",
+  "team.budget.tokensUnit": "k tokens",
   "team.autonomy.ask": "Asks before every change",
   "team.autonomy.standard": "Asks when outside content is in play",
   "team.autonomy.edits": "Accepts edits: writes and runs commands in its folder",
@@ -144,6 +151,10 @@ export const enTeam = {
     "Paused: agents started {spent} turns on their own since you last wrote here. {who} starts “{task}” once you let them go on.",
   "notice.breaker.held.tokens":
     "Paused: agents spent {spent} tokens on their own since you last wrote here. {who} starts “{task}” once you let them go on.",
+  "notice.breaker.held.agentRuns":
+    "Paused for {who}: {who} started {spent} turns on its own since you last wrote here, its own limit. It starts “{task}” once you let them go on.",
+  "notice.breaker.held.agentTokens":
+    "Paused for {who}: {who} spent {spent} tokens on its own since you last wrote here, its own limit. It starts “{task}” once you let them go on.",
   "notice.breaker.held.link": "Change the limit",
   "notice.breaker.reset": "Restart the budget",
   "notice.breaker.release": "Let them finish this round",

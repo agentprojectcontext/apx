@@ -58,6 +58,15 @@ export const AgentLimits = z.object({
 });
 export type AgentLimits = z.infer<typeof AgentLimits>;
 
+/**
+ * One agent's own share of that, inside the conversation's: past it that agent waits while others may go on. A field
+ * unset or 0 adds no limit of its own.
+ */
+export const AgentBudget = AgentLimits.partial();
+export type AgentBudget = z.infer<typeof AgentBudget>;
+/** Each agent's own budget, by agent id: only the agents the owner gave one. */
+export const AgentBudgets = z.record(z.string(), AgentBudget);
+
 export const teamMethods = {
   /** Teams and single agents that can be added to a project. Every team member is also offered on its own. */
   "agents.templates": {
@@ -116,13 +125,20 @@ export const teamMethods = {
   },
   "agents.limits": {
     params: z.object({}).strict(),
-    result: AgentLimits.extend({ defaults: AgentLimits }),
+    result: AgentLimits.extend({ defaults: AgentLimits, agents: AgentBudgets }),
     effect: false,
     access: "human",
   },
   "agents.set_limits": {
     params: AgentLimits.strict(),
     result: AgentLimits,
+    effect: true,
+    access: "human",
+  },
+  /** Gives one agent a budget of its own (null takes it away); returns every agent's. */
+  "agents.set_agent_limits": {
+    params: z.object({ agent: z.string().min(1), limits: AgentBudget.strict().nullable() }).strict(),
+    result: z.object({ agents: AgentBudgets }),
     effect: true,
     access: "human",
   },

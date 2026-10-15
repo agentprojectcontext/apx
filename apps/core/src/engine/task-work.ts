@@ -9,7 +9,7 @@ import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { type HeldTask, previewOf } from "../domain/threads.ts";
 import { taskWords } from "../tools/tasks.ts";
-import { heldNotice, trip } from "./breaker.ts";
+import { agentTrip, heldNotice, trip } from "./breaker.ts";
 import { reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
 import { mentioned, taskCommentAttention } from "./office.ts";
@@ -77,8 +77,11 @@ export function startHeld(store: Store, admit: AdmitFn, threadIds: readonly stri
   for (const id of threadIds) {
     const { held } = store.threads.context(id);
     if (!held?.length || trip(store, id)) continue;
-    store.threads.mergeContext(id, { held: undefined });
+    // An agent still past its own budget keeps its tasks until the owner lets it go on.
+    const waiting = held.filter((h) => agentTrip(store, id, h.agent));
+    store.threads.mergeContext(id, { held: waiting.length ? waiting : undefined });
     for (const h of held) {
+      if (waiting.includes(h)) continue;
       const task = store.tasks.get(h.task);
       const asker = store.runs.get(h.run);
       // Reassigned or begun meanwhile: whoever has it now goes on as it is.
@@ -97,7 +100,7 @@ function hold(store: Store, task: Task, agentId: string, asker: Extract<Asker, {
   const entry: HeldTask = { task: task.id, agent: agentId, run: asker.run_id, depth: asker.depth };
   store.threads.mergeContext(asker.thread_id, { held: [...held, entry] });
   const who = store.agents.get(agentId)?.name ?? agentId;
-  const notice = heldNotice(store, asker.thread_id, who, task.title.slice(0, 120));
+  const notice = heldNotice(store, asker.thread_id, who, task.title.slice(0, 120), agentId);
   if (notice) store.messages.add({ thread_id: asker.thread_id, author: { kind: "system" }, parts: [notice] });
 }
 
@@ -114,7 +117,7 @@ export function startTaskWork(
 ): RunRecord | undefined {
   // How far agents hand work on is the breaker's, as the owner set it (DECISIONS.md#d-082).
   if (task.state !== "open" || !store.agents.get(agentId)) return undefined;
-  if (asker.kind === "agent" && trip(store, asker.thread_id)) {
+  if (asker.kind === "agent" && (trip(store, asker.thread_id) || agentTrip(store, asker.thread_id, agentId))) {
     hold(store, task, agentId, asker);
     return undefined;
   }

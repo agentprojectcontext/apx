@@ -5,6 +5,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { APX_SERVER } from "../domain/approvals.ts";
 import type { ProjectRecord } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
+import { budgetLeft } from "../engine/breaker.ts";
 import { cap, fromTeam } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -27,9 +28,22 @@ export function agentTools(store: Store): Tool[] {
         const rows = agents
           .map((x) => ({ ...x, project: x.project_id ? (names.get(x.project_id) ?? "") : "" }))
           .filter((x) => !q || `${x.name} ${x.role} ${x.project}`.toLowerCase().includes(q))
-          .slice(0, 40)
-          .map((x) => `- ${x.name} (id: ${x.id})${x.project ? ` [${x.project}]` : ""}${x.role ? `: ${x.role}` : ""}`);
-        return rows.length ? rows.join("\n") : "no agents match";
+          .slice(0, 40);
+        // What agents may still do on their own here, so work goes to someone with budget left.
+        const budget = budgetLeft(
+          store,
+          ctx.thread.id,
+          rows.map((x) => x.id),
+        );
+        const lines = rows.map((x) => {
+          const own = budget.agents.get(x.id);
+          return `- ${x.name} (id: ${x.id})${x.project ? ` [${x.project}]` : ""}${x.role ? `: ${x.role}` : ""}${own ? ` · own budget used: ${own}` : ""}`;
+        });
+        if (!lines.length) return "no agents match";
+        return [
+          ...(budget.all ? [`Agents on their own since the owner last wrote: ${budget.all}`] : []),
+          ...lines,
+        ].join("\n");
       },
     }),
     defineTool({

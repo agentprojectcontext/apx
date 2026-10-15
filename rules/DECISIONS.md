@@ -980,3 +980,16 @@ app and the launchd/Windows service send its output there; comparing the device 
 twice). Whoever owns the file rotates it at 20 MB into `core.log.1` when the core starts. Reading goes through the
 protocol (`system.logs`, human only: lines may name contacts and chats), filtered in the core, so the panel's
 Settings › Logs and `apx logs` work for a remote core too; `apx service logs` still reads the local file.
+
+<a id="d-085"></a>
+## D-085 — 2026-10-15 — An agent may have a budget of its own inside the chain's
+The breaker counted one budget for the whole conversation tree, so a coordinator only learned it was out when a
+delegation was refused, and could not steer work away from one agent spending most of it. The owner can now give a
+single agent its own turns and tokens (`agents.set_agent_limits`, kept in the `agent_limits` setting beside the chain's;
+unset or 0: none of its own). It is counted in the same window as the chain's (since the owner last wrote, a reset or a
+release of D-081 renews or lifts both), over that agent's unattended turns in the tree. The chain's limit stays the
+outer one. Past its own budget, a delegation to that agent is refused to the caller with no notice and no hold, so the
+caller picks someone else or tells the owner; a task given to it is held with a `breaker.held` notice of variant
+`agentRuns`/`agentTokens` and starts when the owner lets agents go on. `list_agents` reports what the chain and each
+agent with a budget have used, in the tool result (not the prompt). A delegated turn's run row is created in the same
+synchronous step as the check, so delegations racing in one turn count each other's turns; tokens count once spent.

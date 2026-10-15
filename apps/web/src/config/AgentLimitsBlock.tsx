@@ -22,9 +22,9 @@ export function AgentLimitsBlock() {
   useEffect(() => {
     void client
       .call("agents.limits", {})
-      .then(({ defaults: d, ...l }) => {
-        setLimits(l);
-        setDefaults(d);
+      .then((r) => {
+        setLimits({ runs: r.runs, tokens: r.tokens });
+        setDefaults(r.defaults);
       })
       .catch(() => setLimits(undefined));
   }, []);

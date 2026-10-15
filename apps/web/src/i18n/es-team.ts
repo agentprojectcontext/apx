@@ -80,6 +80,13 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.parent.confirmBody": "{name} va a reportar a {to} en vez de a {from}. APX lo escribe en {file}.",
   "team.area": "Área",
   "team.autonomy": "Autonomía",
+  "team.budget": "Presupuesto sin vos",
+  "team.budget.hint":
+    "Lo que este agente puede hacer solo en un chat antes de esperarte, dentro de los límites del chat. Los demás siguen. Vacío: sin límite propio.",
+  "team.budget.runs": "Turnos sin vos",
+  "team.budget.runsUnit": "turnos",
+  "team.budget.tokens": "Miles de tokens sin vos",
+  "team.budget.tokensUnit": "k tokens",
   "team.autonomy.ask": "Pregunta antes de cada cambio",
   "team.autonomy.standard": "Pregunta si hay contenido de afuera",
   "team.autonomy.edits": "Acepta ediciones: escribe y corre comandos en su carpeta",
@@ -146,6 +153,10 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
     "En pausa: los agentes hicieron {spent} turnos solos desde tu último mensaje acá. {who} empieza «{task}» cuando los dejes seguir.",
   "notice.breaker.held.tokens":
     "En pausa: los agentes gastaron {spent} tokens solos desde tu último mensaje acá. {who} empieza «{task}» cuando los dejes seguir.",
+  "notice.breaker.held.agentRuns":
+    "En pausa para {who}: {who} hizo {spent} turnos solo desde tu último mensaje acá, su propio límite. Empieza «{task}» cuando los dejes seguir.",
+  "notice.breaker.held.agentTokens":
+    "En pausa para {who}: {who} gastó {spent} tokens solo desde tu último mensaje acá, su propio límite. Empieza «{task}» cuando los dejes seguir.",
   "notice.breaker.held.link": "Cambiar el límite",
   "notice.breaker.reset": "Reiniciar presupuesto",
   "notice.breaker.release": "Liberar en esta ronda",

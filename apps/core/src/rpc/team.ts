@@ -24,10 +24,19 @@ export function teamHandlers(
     "agents.limits": () => ({
       ...unattendedLimits(store),
       defaults: { runs: MAX_UNATTENDED_RUNS, tokens: MAX_UNATTENDED_TOKENS },
+      agents: store.settings.read("agent_limits").agents ?? {},
     }),
     "agents.set_limits": (limits) => {
-      store.settings.write("agent_limits", limits);
+      store.settings.write("agent_limits", { ...store.settings.read("agent_limits"), ...limits });
       return unattendedLimits(store);
+    },
+    "agents.set_agent_limits": ({ agent, limits }) => {
+      if (!store.agents.get(agent)) throw notFound(`agent ${agent}`);
+      const current = store.settings.read("agent_limits");
+      const others = Object.fromEntries(Object.entries(current.agents ?? {}).filter(([id]) => id !== agent));
+      const agents = limits && (limits.runs || limits.tokens) ? { ...others, [agent]: limits } : others;
+      store.settings.write("agent_limits", { ...current, agents });
+      return { agents };
     },
 
     "agents.templates": () => {

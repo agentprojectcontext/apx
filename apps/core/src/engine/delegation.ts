@@ -8,7 +8,7 @@ import type { Store } from "../domain/store.ts";
 import type { Worker } from "../domain/threads.ts";
 import { agentReply } from "../tools/agents.ts";
 import { ancestors } from "./ancestry.ts";
-import { heldNotice, tripped } from "./breaker.ts";
+import { agentTripped, heldNotice, tripped } from "./breaker.ts";
 import type { Display } from "./display.ts";
 import { A2A_DEADLINE_MS, MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
 
@@ -179,6 +179,10 @@ export function createDelegations(deps: {
         holdDelegation(parentThread.id, from.agent.id, worker?.name ?? to.name, task);
         return `refused: ${paused}. Tell the owner what you were about to delegate; if they let agents go on you get a new turn, and you delegate it again then.`;
       }
+      // Past its own budget only this agent waits: the caller picks another or tells the owner (no hold, no notice).
+      const spentOwn = agentTripped(store, parentThread.id, to.id, worker?.name ?? to.name);
+      if (spentOwn)
+        return `refused: ${spentOwn}. Give this work to another agent (list_agents shows what each has left), or tell the owner.`;
       if (store.runs.activeDelegations(parentThread.id) >= MAX_ACTIVE_DELEGATIONS)
         return `refused: ${MAX_ACTIVE_DELEGATIONS} delegations are already running from this thread; wait for their results.`;
       deps.live.set(from.run.id, from.display);

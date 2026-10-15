@@ -22,3 +22,10 @@ export function unattendedLimits(store: Store): { runs: number; tokens: number }
   const s = store.settings.read("agent_limits");
   return { runs: s.runs ?? MAX_UNATTENDED_RUNS, tokens: s.tokens ?? MAX_UNATTENDED_TOKENS };
 }
+
+/** One agent's own limits inside those, when the owner gave it any (0: none of that kind). */
+export function agentLimits(store: Store, agentId: string): { runs: number; tokens: number } | undefined {
+  const own = store.settings.read("agent_limits").agents?.[agentId];
+  if (!own?.runs && !own?.tokens) return undefined;
+  return { runs: own.runs ?? 0, tokens: own.tokens ?? 0 };
+}

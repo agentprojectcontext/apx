@@ -196,9 +196,10 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     },
     /**
      * Turns agents started on their own (delegations, results waking callers) in these threads since the owner last
-     * wrote (`since`: in the app, or on a channel as the owner, never as a contact), or since `after` when later.
+     * wrote (`since`: in the app, or on a channel as the owner, never as a contact), or since `after` when later;
+     * only `agentId`'s turns when given.
      */
-    unattended(threadIds: string[], after?: string): { runs: number; tokens: number; since: string } {
+    unattended(threadIds: string[], after?: string, agentId?: string): { runs: number; tokens: number; since: string } {
       if (!threadIds.length) return { runs: 0, tokens: 0, since: "" };
       const last = one(
         qb
@@ -218,6 +219,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .select((eb) => [eb.fn.countAll<number>().as("n"), raw<number>`coalesce(sum(${runTokens}), 0)`.as("t")])
           .where("thread_id", "in", threadIds)
           .where("trigger", "in", ["a2a", "a2a_result", "system"])
+          .$if(agentId !== undefined, (q) => q.where("agent_id", "=", agentId ?? ""))
           .where("created_at", ">", [String(last?.at ?? ""), after ?? ""].sort().at(-1) ?? ""),
       );
       return { runs: Number(r?.n ?? 0), tokens: Number(r?.t ?? 0), since: String(last?.at ?? "") };

@@ -720,3 +720,14 @@
   flex-direction: column;
   gap: 8px;
 }
+/* An agent's own budget in its detail: two small numbers with their units, wrapping when narrow. */
+.teambudget {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.teambudget__field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

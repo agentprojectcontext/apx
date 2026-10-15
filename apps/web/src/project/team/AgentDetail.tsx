@@ -15,6 +15,7 @@ import { getAgent, setAgentParent, updateAgent } from "../../data/team.ts";
 import { useLanguage, useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
 import { AgentActivity } from "./AgentActivity.tsx";
+import { AgentBudgetField } from "./AgentBudgetField.tsx";
 import { AgentEditor } from "./AgentEditor.tsx";
 import { AgentRoutines } from "./AgentRoutines.tsx";
 import { engineOf } from "./useTeamInfo.tsx";
@@ -143,6 +144,10 @@ export function AgentDetail({
             void updateAgent(agent.id, { autonomy: v === FROM_PROJECT ? null : (v as (typeof AUTONOMY)[number]) })
           }
         />
+      </dd>
+      <dt>{t("team.budget")}</dt>
+      <dd>
+        <AgentBudgetField agentId={agent.id} />
       </dd>
       {fromFile && (
         <>
