@@ -47,6 +47,8 @@ console doesn't start: `apx` prints the help instead.
 | `apx ping [text]` | A round trip over the live socket. |
 | `apx upgrade --check` | Is there a newer APX? |
 | `apx upgrade` | Apply it, the same as **Update now** in the panel. |
+| `apx logs` | The newest lines of the core's log, through the core: `-n 200`, `--level info\|warn\|error`, `--grep text`, `--scope core\|output`, `--json`. With no core answering, the file on this computer. |
+| `apx service logs` | The log file on this computer (`<home>/logs/core.log`); `-n 100`, `-f` to follow it. |
 | `apx daemon` | Explains which `apx service` command to use (the background core is now a service). |
 | `apx --help` | The full list (`-h`). |
 

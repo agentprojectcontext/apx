@@ -35,14 +35,36 @@ con `pnpm dev` desde el código. Si arranca y se cae, leé su log.
 
 ## Dónde están los logs
 
-El core escribe una línea JSON por evento. Las credenciales que aparezcan se reemplazan por `[redacted]`.
+Corra como corra APX (la app de escritorio, el servicio o `pnpm dev`), el core escribe su log en el mismo archivo,
+en la carpeta `logs` de su home. Una línea JSON por evento; las credenciales que aparezcan se reemplazan por
+`[redacted]`.
 
-| Cómo corre el core | Dónde está su log |
+| Sistema | El log del core |
 |---|---|
-| Como servicio en Linux | `journalctl --user -u apx -f` |
-| Como servicio en macOS o Windows | `~/.apx/v2/logs/core.log` |
-| Dentro de la app de escritorio | `core.log` en la carpeta de logs de la app (la app te dice cuál si no llega a su core) |
-| `pnpm dev` | La terminal donde lo arrancaste |
+| macOS | `~/.apx/v2/logs/core.log` (`/Users/<vos>/.apx/v2/logs/core.log`) |
+| Linux | `~/.apx/v2/logs/core.log` (el servicio además lo manda a `journalctl --user -u apx -f`) |
+| Windows | `%USERPROFILE%\.apx\v2\logs\core.log` |
+
+Si definiste `APX_HOME`, es `<APX_HOME>/logs/core.log`. Cuando el archivo pasa los 20 MB, el core guarda el viejo
+como `core.log.1` y empieza uno nuevo.
+
+Tres formas de leerlo:
+
+- En el panel: **Configuración › Registros** muestra las líneas más nuevas primero, con filtro por nivel, búsqueda y
+  la ruta del archivo para copiar.
+- `apx logs` le pregunta al core (sirve también para un core en un servidor), con `-n 200`, `--level error`,
+  `--grep texto` o `--json`. Si ningún core responde, lee el archivo de esta computadora.
+- `apx service logs -f` lee el archivo de esta computadora y lo sigue.
+
+<Terminal command="apx logs --level error -n 2">{`# ~/.apx/v2/logs/core.log
+2026-10-15 09:12:03  ERROR  core  channel stopped  {"channel":"acme"}
+2026-10-15 09:14:47  ERROR  output  TypeError: Cannot read properties of undefined`}</Terminal>
+
+Las líneas del origen **Salida del proceso** son lo que el core imprimió fuera de su log, como la traza de una caída.
+
+Las versiones de la app de escritorio anteriores a este cambio escribían `core.log` en la carpeta de logs de la app
+(`~/Library/Logs/APX` en macOS, `%APPDATA%\APX\logs` en Windows, `~/.config/APX/logs` en Linux); las líneas
+viejas siguen ahí.
 
 ## El puerto ya está en uso
 

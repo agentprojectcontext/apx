@@ -46,6 +46,8 @@ pipe) la consola no arranca: `apx` muestra la ayuda.
 | `apx ping [text]` | Una ida y vuelta por el socket en vivo. |
 | `apx upgrade --check` | ¿Hay un APX más nuevo? |
 | `apx upgrade` | Aplicarlo, igual que **Actualizar ahora** en el panel. |
+| `apx logs` | Las líneas más nuevas del log del core, a través del core: `-n 200`, `--level info\|warn\|error`, `--grep texto`, `--scope core\|output`, `--json`. Si ningún core responde, el archivo de esta computadora. |
+| `apx service logs` | El archivo de log de esta computadora (`<home>/logs/core.log`); `-n 100`, `-f` para seguirlo. |
 | `apx daemon` | Explica qué comando `apx service` usar (el core en segundo plano ahora es un servicio). |
 | `apx --help` | La lista completa (`-h`). |
 

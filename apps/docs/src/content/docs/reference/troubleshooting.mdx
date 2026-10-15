@@ -35,14 +35,34 @@ from a checkout. If it starts and dies, read its log.
 
 ## Where the logs are
 
-The core writes one JSON line per event. Credentials in them are replaced with `[redacted]`.
+However APX runs (the desktop app, the service, or `pnpm dev`), the core writes its log to the same file, in the
+`logs` folder of its home. One JSON line per event; credentials in them are replaced with `[redacted]`.
 
-| How the core runs | Where its log is |
+| System | The core's log |
 |---|---|
-| As a service on Linux | `journalctl --user -u apx -f` |
-| As a service on macOS or Windows | `~/.apx/v2/logs/core.log` |
-| Inside the desktop app | `core.log` in the app's logs folder (the app names the folder if it can't reach its core) |
-| `pnpm dev` | The terminal you started it in |
+| macOS | `~/.apx/v2/logs/core.log` (`/Users/<you>/.apx/v2/logs/core.log`) |
+| Linux | `~/.apx/v2/logs/core.log` (the service also sends it to `journalctl --user -u apx -f`) |
+| Windows | `%USERPROFILE%\.apx\v2\logs\core.log` |
+
+If you set `APX_HOME`, it is `<APX_HOME>/logs/core.log`. When the file passes 20 MB, the core keeps the old one as
+`core.log.1` and starts a new one.
+
+Three ways to read it:
+
+- In the panel: **Settings › Logs** shows the newest lines first, with a level filter, a search box and the file's
+  path to copy.
+- `apx logs` asks the core (it works for a core on a server too), with `-n 200`, `--level error`, `--grep text` or
+  `--json`. When no core answers, it reads the file on this computer instead.
+- `apx service logs -f` reads the file on this computer and follows it.
+
+<Terminal command="apx logs --level error -n 2">{`# ~/.apx/v2/logs/core.log
+2026-10-15 09:12:03  ERROR  core  channel stopped  {"channel":"acme"}
+2026-10-15 09:14:47  ERROR  output  TypeError: Cannot read properties of undefined`}</Terminal>
+
+Lines in the **Process output** source are what the core printed outside its log, like the trace of a crash.
+
+Desktop app versions before this change wrote `core.log` in the app's own logs folder (`~/Library/Logs/APX` on
+macOS, `%APPDATA%\APX\logs` on Windows, `~/.config/APX/logs` on Linux); older lines stay there.
 
 ## The port is already in use
 
