@@ -23,6 +23,7 @@ const SECTIONS: Partial<Record<ConfigSection, MessageKey>> = {
   desktop: "config.desktop",
   devices: "config.devices",
   advanced: "config.advanced",
+  logs: "config.logs",
 };
 const MAX_PER_GROUP = 6;
 /** Words in messages are looked up in the core once typing pauses, from this many characters on. */
