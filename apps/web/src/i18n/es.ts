@@ -392,6 +392,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "inbox.taskBundle.chats": "{n} chats",
   "inbox.taskBundle.open": "Ver los chats de la tarea",
   "inbox.taskBundle.close": "Ocultar los chats de la tarea",
+  "inbox.delegated.open": "Ver los chats que delegó",
+  "inbox.delegated.close": "Ocultar los chats que delegó",
+  "inbox.delegated.from": "Delegado desde {chat}",
+  "inbox.delegated.fromUnknown": "Delegado desde otro chat",
   "thread.codeHint":
     "Sesión de código: el agente trabaja dentro de la carpeta {folder} (lee, edita archivos y corre comandos ahí)",
   "nav.externalSession": "Sesión externa",
@@ -1533,6 +1537,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "thread.menu.unarchive": "Desarchivar",
   "thread.menu.markRead": "Marcar como leído",
   "thread.menu.viewAgent": "Ver agente",
+  "thread.menu.openParent": "Abrir el chat de origen",
   "thread.menu.delete": "Borrar",
   "thread.menu.homeLocked": "El chat principal no se puede archivar ni borrar",
   "thread.menu.taskLocked": "Este chat es de una tarea: borrá la tarea",

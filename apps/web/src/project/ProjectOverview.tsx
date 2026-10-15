@@ -4,6 +4,7 @@ import { shortWhen } from "../common/format.ts";
 import { blobOf, inProject, isListed, isWorking, type ProjectEntry, teamOf, threadAgent } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { standsAlone } from "../inbox/groupThreads.ts";
 import { go } from "../shell/nav.ts";
 import { ProjectBoard } from "./ProjectBoard.tsx";
 
@@ -18,7 +19,7 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
   const chats = useMemo(
     () =>
       Object.values(threads)
-        .filter((t) => isListed(t) && inProject(t, pid))
+        .filter((t) => (isListed(t) && inProject(t, pid)) || standsAlone(t, threads, pid))
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
     [threads, pid],
   );

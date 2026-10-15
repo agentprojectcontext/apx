@@ -383,6 +383,10 @@ export const en = {
   "inbox.taskBundle.chats": "{n} chats",
   "inbox.taskBundle.open": "Show the task's chats",
   "inbox.taskBundle.close": "Hide the task's chats",
+  "inbox.delegated.open": "Show the chats it delegated",
+  "inbox.delegated.close": "Hide the chats it delegated",
+  "inbox.delegated.from": "Delegated from {chat}",
+  "inbox.delegated.fromUnknown": "Delegated from another chat",
   "thread.codeHint":
     "Coding session: the agent works inside the folder {folder} (reads, edits files and runs commands there)",
   "nav.externalSession": "External session",
@@ -1512,6 +1516,7 @@ export const en = {
   "thread.menu.unarchive": "Unarchive",
   "thread.menu.markRead": "Mark as read",
   "thread.menu.viewAgent": "View agent",
+  "thread.menu.openParent": "Open the chat it came from",
   "thread.menu.delete": "Delete",
   "thread.menu.homeLocked": "The main chat can't be archived or deleted",
   "thread.menu.taskLocked": "This chat belongs to a task: delete the task",
