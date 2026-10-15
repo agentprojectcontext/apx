@@ -674,6 +674,8 @@
   background: var(--apx-fill-hover);
   font-family: var(--apx-font-mono);
   font-size: var(--apx-text-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   user-select: all;
 }
 .updatepill {

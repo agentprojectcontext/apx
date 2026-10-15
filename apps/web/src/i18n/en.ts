@@ -178,12 +178,13 @@ export const en = {
   "topbar.search": "Search or jump to…",
   "update.pill": "Update · {n}",
   "update.pillVersion": "APX {v} · Update",
-  "update.coreBehind": "Core out of date · Restart",
-  "update.coreBehindTitle": "The core needs a restart",
+  "update.coreBehind": "Core out of date",
+  "update.coreBehindTitle": "The core is older than the app",
   "update.coreBehindBody":
-    "This app is APX {app}, but the core answering it still runs {core}: it was started before the update (usually by the service) and keeps the old code until it starts again. Until then some screens fail, such as Logs.",
-  "update.coreBehindHint":
-    "Run it in a terminal, or quit APX and open it again. A core the app started itself restarts with it.",
+    "This app is APX {app}, but the core answering it runs {core}. It is the one installed with the install script, which the service runs and the app's own update does not touch, so restarting it brings back the same version. Until they match, some screens fail, such as Logs.",
+  "update.coreBehindUpdate": "To keep the service, update that core to the latest release (it restarts the service):",
+  "update.coreBehindAppOnly":
+    "If you only use the desktop app, remove the service instead and open APX again: the app then runs its own core, always the same version as the app.",
   "update.reload": "New panel · Reload",
   "update.title": "A newer APX is out",
   "update.lead": "{n} changes on release/v2 that this APX does not have yet:",

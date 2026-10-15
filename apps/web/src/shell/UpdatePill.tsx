@@ -46,8 +46,8 @@ export function UpdatePill() {
 }
 
 /**
- * The core answering this panel still runs an older release: one a service or another app started before APX updated,
- * which keeps the old code until it starts again. Methods the panel uses may be missing until then.
+ * The core answering this panel runs an older release than the app: usually the one install.sh put in ~/.apx/v2/app,
+ * which a service keeps running and the desktop app's own update never touches. Methods the panel uses may be missing.
  */
 function CoreBehind({ version }: { version: string }) {
   const t = useT();
@@ -67,8 +67,12 @@ function CoreBehind({ version }: { version: string }) {
           footer={<Button onClick={() => setOpen(false)}>{t("common.close")}</Button>}
         >
           <p>{t("update.coreBehindBody", { core: version, app })}</p>
-          <pre className="updatepill__cmd">apx service restart</pre>
-          <p>{t("update.coreBehindHint")}</p>
+          <p>{t("update.coreBehindUpdate")}</p>
+          <pre className="updatepill__cmd">
+            curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
+          </pre>
+          <p>{t("update.coreBehindAppOnly")}</p>
+          <pre className="updatepill__cmd">apx service uninstall</pre>
         </Dialog>
       )}
     </>
