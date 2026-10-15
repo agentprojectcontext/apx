@@ -10,10 +10,11 @@ import { printed } from "./testing.ts";
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-logs-cmd-"));
 after(() => fs.rmSync(home, { recursive: true, force: true }));
 
-test("a log line prints as time, level, scope, message and its fields", () => {
+test("a log line prints as this computer's time, level, scope, message and its fields", () => {
+  const at = new Date(2026, 0, 1, 10, 20, 30);
   assert.equal(
     formatLine({
-      t: "2026-01-01T10:20:30.000Z",
+      t: at.toISOString(),
       level: "warn",
       scope: "core",
       msg: "push not delivered",

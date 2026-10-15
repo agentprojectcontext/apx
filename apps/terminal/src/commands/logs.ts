@@ -36,6 +36,13 @@ export async function logsCommand(client: ApxClient, url: string, opts: LogsOpti
 }
 
 export function formatLine(l: { t?: string; level: string; scope: string; msg: string; detail?: string }): string {
-  const time = l.t ? l.t.replace("T", " ").slice(0, 19) : "                   ";
+  const time = l.t ? localTime(new Date(l.t)) : " ".repeat(19);
   return [time, l.level.toUpperCase().padEnd(5), l.scope, l.msg, l.detail ?? ""].join("  ").trimEnd();
+}
+
+/** This computer's time, as `YYYY-MM-DD HH:MM:SS`: the log keeps UTC. */
+function localTime(d: Date): string {
+  if (Number.isNaN(d.getTime())) return " ".repeat(19);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
