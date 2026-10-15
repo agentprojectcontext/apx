@@ -142,4 +142,9 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "notice.breaker.paused.tokens":
     "En pausa: los agentes gastaron {spent} tokens solos desde tu último mensaje acá. {who} terminó; escribí para seguir.",
   "notice.breaker.paused.link": "Cambiar el límite",
+  "notice.breaker.held.runs":
+    "En pausa: los agentes hicieron {spent} turnos solos desde tu último mensaje acá. {who} empieza «{task}» cuando los dejes seguir.",
+  "notice.breaker.held.tokens":
+    "En pausa: los agentes gastaron {spent} tokens solos desde tu último mensaje acá. {who} empieza «{task}» cuando los dejes seguir.",
+  "notice.breaker.held.link": "Cambiar el límite",
 };

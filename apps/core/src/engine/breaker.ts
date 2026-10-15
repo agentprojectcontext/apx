@@ -1,21 +1,26 @@
-// The spend breaker: agents waking each other (delegations, results) without the owner stop after a number of turns
-// or tokens, counted over the whole conversation tree since the owner last wrote in it.
+// The spend breaker: agents waking each other (delegations, results, tasks they give) without the owner stop after a
+// number of turns or tokens, counted over the whole conversation tree since the owner last wrote in it. A task chat an
+// agent's turn started belongs to the tree of the chat it came from (DECISIONS.md#d-080).
 import type { Store } from "../domain/store.ts";
 import { unattendedLimits } from "./limits.ts";
 
-/** The thread at the top of `threadId`'s tree and every sub-thread under it. */
-function tree(store: Store, threadId: string): string[] {
-  let root = store.threads.get(threadId);
-  for (let hops = 0; root?.parent_id && hops < 10; hops++) root = store.threads.get(root.parent_id);
-  if (!root) return [threadId];
-  const ids: string[] = [];
-  const queue = [root.id];
-  while (queue.length && ids.length < 200) {
+/** The chat above this one: its parent, or the chat whose agent gave the task this chat works on. */
+const above = (store: Store, id: string) => store.threads.get(id)?.parent_id ?? store.threads.context(id).asked_from;
+
+/** The thread at the top of `threadId`'s tree and every thread under it: sub-threads and the task chats they started. */
+export function tree(store: Store, threadId: string): string[] {
+  let root = threadId;
+  for (let hops = 0, up = above(store, root); up && hops < 20; hops++, up = above(store, root)) root = up;
+  if (!store.threads.get(root)) return [threadId];
+  const ids = new Set<string>();
+  const queue = [root];
+  while (queue.length && ids.size < 200) {
     const id = queue.shift() as string;
-    ids.push(id);
-    queue.push(...store.threads.children(id));
+    if (ids.has(id)) continue;
+    ids.add(id);
+    queue.push(...store.threads.children(id), ...store.threads.askedFrom(id));
   }
-  return ids;
+  return [...ids];
 }
 
 /** Which limit stopped the chain and how much was spent, or undefined when one more unattended turn may run. */
@@ -33,6 +38,19 @@ export function tripped(store: Store, threadId: string): string | undefined {
   const t = trip(store, threadId);
   if (!t) return undefined;
   return `agents ${t.limit === "runs" ? `started ${t.spent} turns` : `spent ${t.spent} tokens`} on their own since you last wrote here; they wait for you before going on`;
+}
+
+/** The notice the owner sees when an agent gave a task while the chain is paused: `who` starts it once they go on. */
+export function heldNotice(store: Store, threadId: string, who: string, task: string) {
+  const t = trip(store, threadId);
+  if (!t) return undefined;
+  return {
+    type: "notice" as const,
+    level: "warn" as const,
+    code: "breaker.held",
+    text: `Paused: ${tripped(store, threadId)}. ${who} starts "${task}" once you let them go on.`,
+    vars: { variant: t.limit, spent: t.spent, who, task, link: "apx:settings/agents" },
+  };
 }
 
 /** The notice the owner sees when a result arrives while the chain is paused: `who` finished, write to go on. */

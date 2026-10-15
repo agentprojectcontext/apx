@@ -140,4 +140,9 @@ export const enTeam = {
   "notice.breaker.paused.tokens":
     "Paused: agents spent {spent} tokens on their own since you last wrote here. {who} finished; write to continue.",
   "notice.breaker.paused.link": "Change the limit",
+  "notice.breaker.held.runs":
+    "Paused: agents started {spent} turns on their own since you last wrote here. {who} starts “{task}” once you let them go on.",
+  "notice.breaker.held.tokens":
+    "Paused: agents spent {spent} tokens on their own since you last wrote here. {who} starts “{task}” once you let them go on.",
+  "notice.breaker.held.link": "Change the limit",
 } as const;

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { tree } from "./breaker.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 // Roby hands work to Vera through the board; Vera closes each task she is given inside her turn on it.
@@ -17,8 +18,8 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     if (!afterTool) return callTool("r1", "task_create", { title: "Ship the goal", assignee: "vera" });
     return say(last);
   }
-  if (said.includes("hand two goals")) {
-    if (tools < 2) return callTool(`r${tools}`, "task_create", { title: `Goal ${tools + 1}`, assignee: "vera" });
+  if (said.includes("hand paused goals")) {
+    if (tools < 2) return callTool(`p${tools}`, "task_create", { title: `Paused goal ${tools + 1}`, assignee: "vera" });
     return say("Both handed off.");
   }
   if (said.includes("note an idea")) {
@@ -100,20 +101,43 @@ test("nobody is woken when the owner closes a task or its creator closes it itse
   );
 });
 
-test("past the unattended limits a close waits for the owner, shown as a paused notice", async () => {
+test("a task chat counts against the chat that gave it; past the limits a task given waits and a close wakes nobody", async () => {
+  const { store } = env.core;
   await env.client.call("agents.set_limits", { runs: 1, tokens: 0 });
-  const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "two goals" });
-  await env.client.call("threads.send", { thread: chat.id, text: "hand two goals to Vera" });
-  const { runs, messages } = await runsOf(chat.id, 2);
-  env.core.store.settings.write("agent_limits", {});
-  // The first close wakes Roby; that turn reaches the limit, so the second waits for the owner.
-  assert.deepEqual(
-    runs.map((r) => r.trigger),
-    ["a2a_result", "user"],
-  );
-  const notices = messages.flatMap((m) => m.parts.filter((p) => p.type === "notice"));
-  assert.deepEqual(
-    notices.map((p) => p.type === "notice" && p.code),
-    ["breaker.paused"],
-  );
+  try {
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "paused" });
+    await env.client.call("threads.send", { thread: chat.id, text: "hand paused goals to Vera" });
+    await runsOf(chat.id, 1);
+    const tasks = await allTasks();
+    const first = tasks.find((t) => t.title === "Paused goal 1");
+    const second = tasks.find((t) => t.title === "Paused goal 2");
+    // The first started in Vera's chat, which spends against Roby's; that one turn reached the limit.
+    const [vera] = store.threads.byTask(first?.id ?? "");
+    assert.equal(store.threads.context(vera?.id ?? "").asked_from, chat.id);
+    assert.ok(tree(store, chat.id).includes(vera?.id ?? ""));
+    assert.ok(tree(store, vera?.id ?? "").includes(chat.id));
+    // The second waits, kept in Roby's chat, and the owner sees why.
+    assert.equal(second?.state, "open");
+    assert.deepEqual(store.threads.byTask(second?.id ?? ""), []);
+    assert.deepEqual(
+      store.threads.context(chat.id).held?.map((h) => [h.task, h.agent]),
+      [[second?.id, "vera"]],
+    );
+    // Vera's close does not wake Roby either: the report waits for the owner, as a paused notice.
+    await runsOf(vera?.id ?? "", 1);
+    const { runs, messages } = await runsOf(chat.id, 1);
+    assert.deepEqual(
+      runs.map((r) => r.trigger),
+      ["user"],
+    );
+    const notices = messages.flatMap((m) => m.parts).filter((p) => p.type === "notice");
+    assert.deepEqual(
+      notices.map((p) => p.type === "notice" && p.code),
+      ["breaker.held", "breaker.paused"],
+    );
+    assert.match(JSON.stringify(notices[0]), /Vera starts \\"Paused goal 2\\" once you let them go on/);
+  } finally {
+    await env.client.call("agents.set_limits", { runs: 0, tokens: 0 });
+    store.settings.write("agent_limits", {});
+  }
 });

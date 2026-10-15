@@ -97,7 +97,14 @@ export type ThreadContext = {
   consult?: { task: string; card: string };
   /** On a task's conversation: the close (its place in the task's history) already reported to whoever created it. */
   close_reported?: number;
+  /** A task chat an agent's turn started: the chat it came from, whose unattended limits its turns count against. */
+  asked_from?: string;
+  /** Tasks agents gave from this chat while it was paused: each starts once the owner lets agents go on. */
+  held?: HeldTask[];
 };
+
+/** A task's start an agent asked for, kept until the owner lets agents go on: who works it, and who asked. */
+export type HeldTask = { task: string; agent: string; run: string; depth: number };
 
 /** A throwaway helper an agent starts for one task: a name, its instructions and (optionally) fewer tools. */
 export type Worker = { name: string; instructions: string; tools?: string[] | undefined };
@@ -169,6 +176,12 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
     },
     children(parentId: string): string[] {
       return all(qb.selectFrom("threads").select("id").where("parent_id", "=", parentId)).map((r) => r.id);
+    },
+    /** The task chats an agent's turn in `threadId` started (`asked_from`). */
+    askedFrom(threadId: string): string[] {
+      return all(
+        qb.selectFrom("threads").select("id").where(sql`json_extract(context, '$.asked_from')`, "=", threadId),
+      ).map((r) => r.id);
     },
     /** The a2a sessions a thread opened, newest first. */
     sessions(parentId: string): Thread[] {

@@ -7,8 +7,9 @@ import type { Author, Task, Thread } from "@apx/protocol";
 import { ownerIdentity } from "../domain/owner.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { previewOf } from "../domain/threads.ts";
+import { type HeldTask, previewOf } from "../domain/threads.ts";
 import { taskWords } from "../tools/tasks.ts";
+import { heldNotice, trip } from "./breaker.ts";
 import { reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
 import { MAX_MENTION_DEPTH, mentioned, taskCommentAttention } from "./office.ts";
@@ -52,6 +53,9 @@ const OWNER: Asker = { kind: "owner" };
 /** A turn of `agentId` in its chat for the task, on what `text` asks (shown there as the asker's message). */
 function ask(store: Store, admit: AdmitFn, task: Task, agentId: string, text: string, asker: Asker, author: Author) {
   const thread = sessionFor(store, task, agentId);
+  // Work an agent gives spends against the chat it gave it from (DECISIONS.md#d-080).
+  if (asker.kind === "agent" && asker.thread_id !== thread.id && !store.threads.context(thread.id).asked_from)
+    store.threads.mergeContext(thread.id, { asked_from: asker.thread_id });
   store.messages.add({ thread_id: thread.id, author, parts: [{ type: "text", text }] });
   store.threads.patch(thread.id, { preview: previewOf(text) });
   return admit({
@@ -62,6 +66,16 @@ function ask(store: Store, admit: AdmitFn, task: Task, agentId: string, text: st
     text,
     depth: depthOf(asker),
   });
+}
+
+/** Keeps a task an agent gave while its chat's chain is paused, and tells the owner there. */
+function hold(store: Store, task: Task, agentId: string, asker: Extract<Asker, { kind: "agent" }>): void {
+  const held = (store.threads.context(asker.thread_id).held ?? []).filter((h) => h.task !== task.id);
+  const entry: HeldTask = { task: task.id, agent: agentId, run: asker.run_id, depth: asker.depth };
+  store.threads.mergeContext(asker.thread_id, { held: [...held, entry] });
+  const who = store.agents.get(agentId)?.name ?? agentId;
+  const notice = heldNotice(store, asker.thread_id, who, task.title.slice(0, 120));
+  if (notice) store.messages.add({ thread_id: asker.thread_id, author: { kind: "system" }, parts: [notice] });
 }
 
 /**
@@ -76,6 +90,10 @@ export function startTaskWork(
   asker: Asker,
 ): RunRecord | undefined {
   if (task.state !== "open" || !store.agents.get(agentId) || depthOf(asker) > MAX_MENTION_DEPTH) return undefined;
+  if (asker.kind === "agent" && trip(store, asker.thread_id)) {
+    hold(store, task, agentId, asker);
+    return undefined;
+  }
   const ownWords = task.created_by === "owner";
   const text = ownWords ? [task.title, task.description].filter(Boolean).join("\n\n") : "Work on this task.";
   const author: Author =

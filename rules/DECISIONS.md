@@ -925,3 +925,14 @@ answer, so its caller assigns it, as D-077 has it name who owns the rest). A tas
 task (its own task chat, a consult on it, a session under one) is that task's subtask (`parent_id`) unless it names
 another parent, so the work an orchestrator splits stays under the task it was given. `tasks.get` lists a task's
 `subtasks`, and the task panel shows them and the task a subtask is part of.
+
+<a id="d-080"></a>
+## D-080 — 2026-10-15 — A task chat an agent started spends against the chat it came from
+The breaker (D-069) counts unattended turns and tokens over a conversation tree, found through `parent_id`. A task's
+work chat has no parent, so every task an agent gave started a tree of its own with a fresh budget, and starting a
+task's work never looked at the breaker at all: work handed on through the board was not limited. Now the chat a
+task's work runs in records the chat whose agent gave it (`asked_from` in its context), and the breaker's tree climbs
+and descends through that link as through sub-threads, so a superagent's chat, the orchestrator's task chat, the
+tasks it gives and their delegations share one budget, reset when the owner writes anywhere in it. An agent giving a
+task while that tree is paused does not start it: the start is kept in the giving chat (`held`) and the owner sees a
+`breaker.held` notice there naming who starts what once they let agents go on.
