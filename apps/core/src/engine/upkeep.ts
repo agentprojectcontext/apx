@@ -24,6 +24,7 @@ const KEEP_CHARS = Math.floor(HISTORY_BUDGET_CHARS * 0.35);
 /** The transcript the auxiliary model reads, at most (its newest part when longer). */
 const TRANSCRIPT_CHARS = 100_000;
 const AUX_TIMEOUT_MS = 90_000;
+const STUDY_TIMEOUT_MS = 180_000;
 
 export const SUMMARY_SECTIONS = ["Goal", "Facts and decisions", "Done", "Open", "References"] as const;
 
@@ -150,6 +151,11 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);
+    return agentModels(agentId);
+  }
+
+  /** The API models an agent sends its own turns to (its own, then the router's). */
+  function agentModels(agentId?: string): string[] {
     const m = modelSettings(store);
     const router = m.router();
     const choice = (agentId ? store.agents.get(agentId)?.model_choice : undefined) ?? m.defaultChoice();
@@ -171,8 +177,9 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     agentId: string | undefined,
     system: string,
     user: string,
+    o: { models?: string[]; timeoutMs?: number } = {},
   ): Promise<string | undefined> {
-    const models = auxModels(agentId);
+    const models = o.models ?? auxModels(agentId);
     if (!models.length) return undefined;
     const r = await llm.complete({
       models,
@@ -181,7 +188,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
         { role: "user", content: user },
       ],
       tools: [],
-      signal: AbortSignal.any([ac.signal, AbortSignal.timeout(AUX_TIMEOUT_MS)]),
+      signal: AbortSignal.any([ac.signal, AbortSignal.timeout(o.timeoutMs ?? AUX_TIMEOUT_MS)]),
     });
     if (r.usage) store.auxCalls.add(about, r.model, r.usage);
     return typeof r.message.content === "string" ? r.message.content : undefined;
@@ -299,6 +306,15 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     auxModels,
     /** A one-shot answer from the auxiliary model (a room's "is this worth answering?"); none without one. */
     judge: (system: string, user: string, about: AuxAbout) => ask(about, undefined, system, user),
+    /**
+     * A long read for an agent (an imported chat's digest): on the models that agent already sends its turns to, the
+     * auxiliary one after them, with more time than a title gets.
+     */
+    study: (agentId: string, system: string, user: string, about: AuxAbout) =>
+      ask(about, agentId, system, user, {
+        models: [...new Set([...agentModels(agentId), ...auxModels(agentId)])],
+        timeoutMs: STUDY_TIMEOUT_MS,
+      }),
     compact: (threadId: string) => once(threadId, true),
     /** After every run: a title for a new chat, and compaction when the thread got long. */
     afterRun(run: RunRecord): void {

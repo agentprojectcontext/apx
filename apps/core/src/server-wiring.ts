@@ -163,7 +163,7 @@ type HandlerDeps = {
   bus: Bus;
   llmLabel: () => string;
   engine: Parameters<typeof threadHandlers>[1] & Parameters<typeof jobHandlers>[1] & Parameters<typeof taskHandlers>[1];
-  upkeep: Parameters<typeof threadHandlers>[2] & Parameters<typeof gitHandlers>[1] & Pick<Upkeep, "judge">;
+  upkeep: Parameters<typeof threadHandlers>[2] & Parameters<typeof gitHandlers>[1] & Pick<Upkeep, "study">;
   memory: Parameters<typeof memoryHandlers>[1];
   channels: Parameters<typeof channelHandlers>[1];
   services: Parameters<typeof mediaHandlers>[0];
@@ -255,7 +255,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...sessionHandlers(d.store, d.native, {
       home: d.app.home,
       apc: d.apc,
-      ask: (about, system, user) => d.upkeep.judge(system, user, about),
+      ask: (agent, about, system, user) => d.upkeep.study(agent, system, user, about),
     }),
     ...setupHandlers({
       store: d.store,

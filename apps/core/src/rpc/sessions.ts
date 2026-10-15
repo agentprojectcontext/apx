@@ -19,7 +19,8 @@ import type { Handlers } from "./router.ts";
 export type SessionDeps = {
   home: string;
   apc: ApcSync;
-  ask(about: AuxAbout, system: string, user: string): Promise<string | undefined>;
+  /** A long read on the models `agent` sends its turns to (the auxiliary one after them). */
+  ask(agent: string, about: AuxAbout, system: string, user: string): Promise<string | undefined>;
 };
 
 /** What is copied into the APX chat so the owner sees where they left off (the engine has it all already). */
@@ -120,8 +121,10 @@ export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionD
       const had = store.threads.context(t.id).digest;
       if (had && !refresh) return { thread: t.id, title: t.title, digest: had.text, at: had.at };
       const about: AuxAbout = { purpose: "summary", thread_id: t.id, project_id: t.project_id };
+      // The super-agent reads it to make the team: the chat goes only where its turns already go.
+      const reader = superAgent()?.id ?? t.agent_ids[0] ?? "";
       const text = await digestChat(store.messages.list(t.id, 100_000), t.title, (system, user) =>
-        deps.ask(about, system, user),
+        deps.ask(reader, about, system, user),
       );
       if (!text)
         throw badRequest("no auxiliary model answered: pick one in Settings › Models (an API model, not a CLI)");

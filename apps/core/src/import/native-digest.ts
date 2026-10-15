@@ -6,7 +6,7 @@ import type { Message } from "@apx/protocol";
 /** One call to the auxiliary model; undefined when there is none. */
 export type Ask = (system: string, user: string) => Promise<string | undefined>;
 
-const CHUNK_CHARS = 60_000;
+const CHUNK_CHARS = 30_000;
 /** Notes stop here and what was read is merged; the merge itself gets one more call (the client waits 11 min). */
 const NOTES_MS = 8 * 60_000;
 const MAX_CHUNKS = 24;
@@ -100,10 +100,18 @@ export async function digestChat(messages: Message[], title: string, ask: Ask): 
   const start = Date.now();
   for (const i of order) {
     if (notes.size && Date.now() - start > NOTES_MS) break;
-    const n = await ask(NOTES_SYSTEM, `Chat "${title}", stretch ${i + 1} of ${parts.length}:\n\n${parts[i]}`);
+    let n: string | undefined;
+    try {
+      n = await ask(NOTES_SYSTEM, `Chat "${title}", stretch ${i + 1} of ${parts.length}:\n\n${parts[i]}`);
+    } catch (err) {
+      // One stretch the model could not read (too slow, refused) leaves a gap, not a failed digest.
+      if (i === order.at(-1) && !notes.size) throw err;
+      continue;
+    }
     if (n === undefined) return undefined;
     notes.set(i, `### Stretch ${i + 1}\n${n.trim()}`);
   }
+  if (!notes.size) return undefined;
   const ordered = [...notes.entries()].sort((a, b) => a[0] - b[0]).map(([, n]) => n);
   const merged = await ask(MERGE_SYSTEM, `Chat "${title}". Notes, oldest stretch first:\n\n${ordered.join("\n\n")}`);
   if (merged === undefined) return undefined;
