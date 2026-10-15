@@ -104,6 +104,8 @@ export const SETTINGS = {
   acp_agents: entry(listOf(AcpAgent), []),
   /** The owner's media services, in the order they are tried. */
   services: entry(listOf(ServiceSettings.extend({ id: z.string() })), []),
+  /** Services APX added on its own once (Codex's images): one the owner removed is not added again. */
+  services_offered: entry(z.array(z.string()).catch([]), []),
   channels: entry(listOf(Channel), []),
 };
 

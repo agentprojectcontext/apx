@@ -134,7 +134,7 @@ export function ServicesSection({
                   {s.label} <span className="svc__dialect">{s.dialect}</span>
                 </div>
                 <div className="res__desc res__mono">
-                  {s.base_url}
+                  {s.dialect === "codex-images" ? t("svc.codexWhere") : s.base_url}
                   {s.model ? ` · ${s.model}` : ""}
                 </div>
                 {s.status === "unreachable" && why[s.id] && !why[s.id]?.ok && (

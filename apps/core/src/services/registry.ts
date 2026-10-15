@@ -11,6 +11,7 @@ import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { Secrets } from "../secrets.ts";
 import { toOggOpus } from "./audio.ts";
+import type { CodexImages } from "./codex-images.ts";
 import { EMBED_PROBE, embed } from "./embeddings.ts";
 import { generateImage, IMAGE_PROBE } from "./images.ts";
 import { reach } from "./reach.ts";
@@ -63,6 +64,8 @@ export function createServices(deps: {
   log: Log;
   fetch?: typeof fetch;
   whisperCpp?: WhisperCpp;
+  /** The owner's Codex drawing on their ChatGPT plan, when this core can run it. */
+  codexImages?: CodexImages;
 }) {
   const { store, secrets, log } = deps;
   const f = deps.fetch ?? fetch;
@@ -79,11 +82,13 @@ export function createServices(deps: {
     const cached = status.get(s.id);
     if (cached && Date.now() - cached.at < STATUS_TTL_MS) return cached.ok;
     const path = PROBES[s.kind][s.dialect] ?? "/";
-    // APX's own whisper.cpp is not started just to be checked.
+    // APX's own whisper.cpp is not started just to be checked; Codex is there when it is signed in.
     const ok =
       s.dialect === "whisper-cpp"
         ? whisperCpp.available(s.model)
-        : (await reach(s, path, keyOf(s), f, PROBE_TIMEOUT_MS)).ok;
+        : s.dialect === "codex-images"
+          ? Boolean(await deps.codexImages?.available())
+          : (await reach(s, path, keyOf(s), f, PROBE_TIMEOUT_MS)).ok;
     status.set(s.id, { ok, at: Date.now() });
     return ok;
   }
@@ -164,6 +169,18 @@ export function createServices(deps: {
       if (!s) secrets.set(keyName(id), null);
       status.delete(id);
     },
+    /**
+     * Adds a service APX found on this machine, first of its kind, once: one the owner removed (or already has, under
+     * any id) is not added again. True when it was added now.
+     */
+    offer(id: string, s: ServiceSettings): boolean {
+      const offered = store.settings.read("services_offered");
+      if (offered.includes(id)) return false;
+      store.settings.write("services_offered", [...offered, id]);
+      if (all().some((x) => x.id === id || x.dialect === s.dialect)) return false;
+      save([{ ...s, id }, ...all()]);
+      return true;
+    },
     order(kind: ServiceKind, ids: string[]): void {
       const mine = ofKind(kind);
       const sorted = [
@@ -175,23 +192,20 @@ export function createServices(deps: {
     async image(c: ImageCall, signal: AbortSignal) {
       const { out, service, skipped } = await firstThatWorks(candidates("image", c.service), (s) => {
         const d = { ...imageDefaults(), ...s.defaults };
-        return generateImage(
-          s,
-          {
-            prompt: c.prompt,
-            width: c.width ?? d.width,
-            height: c.height ?? d.height,
-            steps: c.steps ?? d.steps,
-            cfg_scale: c.cfg_scale ?? d.cfg_scale,
-            negative_prompt: c.negative_prompt ?? d.negative_prompt,
-            count: c.count ?? d.count,
-            seed: c.seed ?? -1,
-            sampler: "",
-          },
-          keyOf(s),
-          signal,
-          f,
-        );
+        const req = {
+          prompt: c.prompt,
+          width: c.width ?? d.width,
+          height: c.height ?? d.height,
+          steps: c.steps ?? d.steps,
+          cfg_scale: c.cfg_scale ?? d.cfg_scale,
+          negative_prompt: c.negative_prompt ?? d.negative_prompt,
+          count: c.count ?? d.count,
+          seed: c.seed ?? -1,
+          sampler: "",
+        };
+        if (s.dialect !== "codex-images") return generateImage(s, req, keyOf(s), signal, f);
+        if (!deps.codexImages) throw new Error(`${s.label}: Codex cannot run from this core`);
+        return deps.codexImages.draw(s, req, signal);
       });
       const media = out.images.map((img) =>
         saveFile(img.bytes, img.mime, { kind: "image", thread_id: c.thread, service: service.id, prompt: c.prompt }),
@@ -245,7 +259,11 @@ export function createServices(deps: {
           ? whisperCpp.available(s.model)
             ? { ok: true }
             : { ok: false, problem: "other" as const, detail: "whisper-server or the model file is missing" }
-          : await reach(cfg, PROBES[s.kind][s.dialect] ?? "/", apiKey ?? (saved ? keyOf(cfg) : undefined), f);
+          : s.dialect === "codex-images"
+            ? (await deps.codexImages?.available())
+              ? { ok: true }
+              : { ok: false, problem: "other" as const, detail: "Codex is not installed or not signed in here" }
+            : await reach(cfg, PROBES[s.kind][s.dialect] ?? "/", apiKey ?? (saved ? keyOf(cfg) : undefined), f);
       if (saved) status.set(saved.id, { ok: r.ok, at: Date.now() });
       return r;
     },

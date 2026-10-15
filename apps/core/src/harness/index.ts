@@ -30,6 +30,8 @@ export function createHarnesses(deps: {
   /** How a child process reaches this core's tool gate (the MCP proxy command, minus the token). */
   mcpProxy: () => { command: string; args: string[]; env: Record<string, string> };
   overrides?: Partial<Record<HarnessId, Harness>>;
+  /** Told each time the CLIs are asked again whether they are here and signed in. */
+  onDetected?(found: { claude: CliStatus; codex: CliStatus }): void;
 }) {
   const { store, llm } = deps;
   const gates = new Map<string, Gate>();
@@ -116,6 +118,7 @@ export function createHarnesses(deps: {
       if (refresh || !cache || Date.now() - cache.at > STATUS_CACHE_MS) {
         const [claude, codex] = await Promise.all([detectClaude(), detectCodex()]);
         cache = { at: Date.now(), claude, codex };
+        deps.onDetected?.({ claude, codex });
       }
       const d = defaultId();
       const label = llm.label();

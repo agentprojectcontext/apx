@@ -796,6 +796,8 @@ export const ServiceDialect = z.enum([
   "a1111",
   "sdcpp",
   "openai-images",
+  /** The owner's own Codex draws with its image_gen tool, on their ChatGPT plan (no address or key). */
+  "codex-images",
   "openai-speech",
   "gemini-speech",
   "ollama-embed",

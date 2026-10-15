@@ -36,7 +36,9 @@ import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
 import { errorMessage } from "./errors.ts";
 import { thisRunner, writeApxCommand } from "./harness/apx-command.ts";
-import { useApxCommand, useUsualDirs } from "./harness/env.ts";
+import type { CliStatus } from "./harness/detect.ts";
+import { which } from "./harness/detect.ts";
+import { harnessEnv, useApxCommand, useUsualDirs } from "./harness/env.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { createIdleTrim } from "./idle-memory.ts";
@@ -69,6 +71,7 @@ import {
   reachableAt,
   servedPanel,
 } from "./server-wiring.ts";
+import { CODEX_IMAGE_SERVICE, CODEX_IMAGES, createCodexImages } from "./services/codex-images.ts";
 import { createLocalEmbeddings } from "./services/local-embed.ts";
 import { createModelInstaller } from "./services/local-whisper.ts";
 import { createPush } from "./services/push.ts";
@@ -169,9 +172,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       media: (id) => mediaData(store, id),
       signIns,
     });
+  // Bound once the services exist: what the engines' check finds about Codex decides its image service.
+  let codexSeen: ((codex: CliStatus) => void) | undefined;
   const harnesses = createHarnesses({
     store,
     llm,
+    onDetected: ({ codex }) => codexSeen?.(codex),
     home: config.home,
     mcpProxy: () => ({
       command: process.execPath,
@@ -230,7 +236,23 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const mcp = createMcp({ store, secrets, log });
   const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
   const upkeep = createUpkeep({ store, llm, log });
-  const services = createServices({ store, secrets, home: config.home, log });
+  const services = createServices({
+    store,
+    secrets,
+    home: config.home,
+    log,
+    codexImages: createCodexImages({
+      codexPath: () => which("codex"),
+      signedIn: async () => (await harnesses.status()).some((e) => e.id === "codex" && e.logged_in),
+      env: harnessEnv,
+      workDir: path.join(config.home, "codex-images"),
+    }),
+  });
+  // Codex signed in here draws with the owner's ChatGPT plan: added once, first of the image services.
+  codexSeen = (codex) => {
+    if (codex.logged_in && services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE))
+      log.info({ service: CODEX_IMAGES }, "Codex is signed in: it draws images first now");
+  };
   const localModels = createModelInstaller({
     dir: path.join(config.home, "models"),
     onReady: (_id, file) => useLocalModel(services, file, store.settings.get("owner_language") || "es"),
@@ -414,7 +436,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   idleTrim.start();
   // The owner's skills get their vectors now, so the first message does not wait for them.
   skills.warm(skillsFor(store, config.home, undefined));
-  if (config.runtimeSkills.auto) keepRuntimeSkills(config.runtimeSkills.homes, log);
+  if (config.runtimeSkills.auto) {
+    keepRuntimeSkills(config.runtimeSkills.homes, log);
+    // A core that looks after this machine's agent CLIs asks them once now, so a signed-in Codex can draw at once.
+    void harnesses.status().catch(() => {});
+  }
   log.info({ url, code_sha: identity.code_sha, home: config.home, llm: llm.label() }, "apx core listening");
 
   return {

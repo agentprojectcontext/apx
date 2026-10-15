@@ -1229,6 +1229,10 @@ export const en = {
   "svc.newTitle": "New service",
   "svc.name": "Name",
   "svc.model": "Model",
+  "svc.codexHint":
+    "Your own Codex draws with its image tool, on your ChatGPT plan: no address or key. APX adds it on its own, first, when Codex is signed in.",
+  "svc.codexWhere": "Your Codex · ChatGPT plan",
+  "svc.modelCodexHint": "A Codex model id; empty uses your Codex's default.",
   "svc.modelImageHint": "A checkpoint name (A1111) or a model id; empty uses the server's own.",
   "svc.modelSpeechHint": "Empty uses the server's own.",
   "svc.voice": "Voice",

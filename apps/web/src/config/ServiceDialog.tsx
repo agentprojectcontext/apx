@@ -12,6 +12,13 @@ type Preset = { id: string; label: string; dialect: ServiceDialect; base_url: st
 
 const PRESETS: Record<ServiceKind, Preset[]> = {
   image: [
+    {
+      id: "codex",
+      label: "Codex (ChatGPT plan)",
+      dialect: "codex-images",
+      base_url: "http://127.0.0.1",
+      needs_key: false,
+    },
     { id: "a1111", label: "A1111 / Forge", dialect: "a1111", base_url: "http://localhost:7860", needs_key: false },
     {
       id: "sdcpp",
@@ -182,6 +189,8 @@ export function ServiceDialog(props: {
     setDraft((d) => ({ ...d, ...patch }));
   };
   const validUrl = /^https?:\/\/.+/.test(draft.base_url);
+  // APX runs these itself (whisper.cpp) or through the owner's own CLI (Codex): there is no address or key to give.
+  const runsHere = draft.dialect === "whisper-cpp" || draft.dialect === "codex-images";
   const runCheck = async () => {
     setChecking(true);
     setCheck(await testService(draft, initial?.id, key || undefined));
@@ -248,8 +257,8 @@ export function ServiceDialog(props: {
             onChange={(e) => set({ label: e.currentTarget.value })}
           />
         </Field>
-        {/* APX runs whisper.cpp itself: there is no address to give. */}
-        {draft.dialect !== "whisper-cpp" && (
+        {draft.dialect === "codex-images" && <span className="pform__hint">{t("svc.codexHint")}</span>}
+        {!runsHere && (
           <Field label={t("providers.url")}>
             <Input
               aria-label={t("providers.url")}
@@ -263,9 +272,11 @@ export function ServiceDialog(props: {
           hint={t(
             draft.dialect === "whisper-cpp"
               ? "svc.modelWhisperCppHint"
-              : kind === "image"
-                ? "svc.modelImageHint"
-                : "svc.modelSpeechHint",
+              : draft.dialect === "codex-images"
+                ? "svc.modelCodexHint"
+                : kind === "image"
+                  ? "svc.modelImageHint"
+                  : "svc.modelSpeechHint",
           )}
         >
           <Input
@@ -290,12 +301,14 @@ export function ServiceDialog(props: {
           </fieldset>
         )}
         {kind === "speech" && <SpeechFields draft={draft} set={set} />}
-        <Switch
-          checked={draft.needs_key}
-          onCheckedChange={(on) => set({ needs_key: on })}
-          label={t("svc.needsKey")}
-          description={t("svc.needsKeyHint")}
-        />
+        {!runsHere && (
+          <Switch
+            checked={draft.needs_key}
+            onCheckedChange={(on) => set({ needs_key: on })}
+            label={t("svc.needsKey")}
+            description={t("svc.needsKeyHint")}
+          />
+        )}
         {draft.needs_key && (
           <Field label={t("providers.key")} hint={t("providers.keyHint")}>
             <Input

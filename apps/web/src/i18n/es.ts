@@ -1238,6 +1238,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "svc.newTitle": "Nuevo servicio",
   "svc.name": "Nombre",
   "svc.model": "Modelo",
+  "svc.codexHint":
+    "Tu propio Codex dibuja con su herramienta de imágenes, con tu plan de ChatGPT: sin dirección ni clave. APX lo agrega solo, primero, cuando Codex tiene la sesión iniciada.",
+  "svc.codexWhere": "Tu Codex · plan de ChatGPT",
+  "svc.modelCodexHint": "Un id de modelo de Codex; vacío usa el de tu Codex.",
   "svc.modelImageHint": "El nombre de un checkpoint (A1111) o un id de modelo; vacío usa el del servidor.",
   "svc.modelSpeechHint": "Vacío usa el del servidor.",
   "svc.voice": "Voz",
