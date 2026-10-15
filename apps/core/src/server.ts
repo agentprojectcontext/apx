@@ -36,7 +36,7 @@ import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
 import { errorMessage } from "./errors.ts";
 import { thisRunner, writeApxCommand } from "./harness/apx-command.ts";
-import { useApxCommand } from "./harness/env.ts";
+import { useApxCommand, useUsualDirs } from "./harness/env.ts";
 import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { createIdleTrim } from "./idle-memory.ts";
@@ -400,6 +400,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   // Agents' shells and harnesses reach this core with `apx`, whatever the owner's PATH holds.
   try {
     useApxCommand(writeApxCommand(config.home, listening, thisRunner()));
+    useUsualDirs(config.supervised);
   } catch (err) {
     log.warn({ err: errorMessage(err) }, "apx command not written");
   }

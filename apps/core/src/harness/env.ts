@@ -4,6 +4,14 @@ import { withUsualDirs } from "../programs.ts";
 /** The folder of the core's own `apx` launcher (harness/apx-command.ts), set once the core listens. */
 let commandBin: string | undefined;
 
+/** Whether agents' PATH gets the usual program folders: only for a core the desktop app or a service started. */
+let usualDirs = false;
+
+/** A supervised core (desktop app, launchd, systemd) got the system's bare PATH; one started by hand keeps its own. */
+export function useUsualDirs(on: boolean): void {
+  usualDirs = on;
+}
+
 /** Puts this core's `apx` first on the PATH of everything agents run; undefined takes it off. */
 export function useApxCommand(bin: string | undefined): void {
   commandBin = bin;
@@ -11,13 +19,14 @@ export function useApxCommand(bin: string | undefined): void {
 
 /**
  * An agent CLI (Claude Code, Codex, an ACP agent) gets the environment minus APX's own secrets, with this core's `apx`
- * first on its PATH and the usual program folders (Homebrew, ~/.local/bin) the core's own PATH lacks at its end.
+ * first on its PATH and, for a supervised core, the usual program folders (Homebrew, ~/.local/bin) its PATH lacks.
  */
 export function childEnv(): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !k.startsWith("APX_")) env[k] = v;
   const key = Object.keys(env).find((k) => k.toUpperCase() === "PATH") ?? "PATH";
-  env[key] = [commandBin, withUsualDirs(env[key] ?? "")].filter(Boolean).join(path.delimiter);
+  const own = env[key] ?? "";
+  env[key] = [commandBin, usualDirs ? withUsualDirs(own) : own].filter(Boolean).join(path.delimiter);
   return env;
 }
 
