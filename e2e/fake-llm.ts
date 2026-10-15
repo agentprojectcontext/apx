@@ -1,8 +1,8 @@
 // An OpenAI-compatible model on localhost: it answers at once and always the same way, so a test can read the reply
 // ("Got it: <the last line you wrote>"). Streams like a real one when asked. It calls two tools: "start a worker"
-// delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn); "make a
-// note file" runs a command that needs the owner's OK. It also embeds texts (Ollama's /api/embed) for the skills
-// picked by meaning.
+// delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn, "start a
+// worker in <project id>" into that project); "make a note file" runs a command that needs the owner's OK. It also
+// embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 
@@ -60,6 +60,13 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
   // A command that writes: the owner is asked first.
   if (/^make a note file/i.test(said))
     return { name: "shell", arguments: JSON.stringify({ command: "touch e2e-note.txt" }) };
+  // "start a worker in <project id>": the worker's chat is linked to that project.
+  const into = /^start a worker in (\S+)/i.exec(said);
+  if (into)
+    return {
+      name: "delegate",
+      arguments: JSON.stringify({ worker, task: "check the project sources", project: into[1] }),
+    };
   return /^start a worker/i.test(said) ? delegate : undefined;
 }
 

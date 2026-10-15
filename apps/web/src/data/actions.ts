@@ -4,6 +4,7 @@ import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { type Attached, setThreadModel } from "./composer.ts";
 import { loadEngines } from "./engines.ts";
+import { DELEGATED_SHOWN } from "./identity.ts";
 import { loadJobs } from "./jobs.ts";
 import { loadCatalog, loadModelsConfig } from "./models.ts";
 import { parseNewChat, takeNewChatModel } from "./newChat.ts";
@@ -18,8 +19,8 @@ export async function bootstrap(): Promise<void> {
   const [agents, projects, threads, surfaces] = await Promise.all([
     client.call("agents.list", {}),
     client.call("projects.list", { include_unregistered: true }),
-    // Archived chats too: the Inbox keeps them apart, under Archived.
-    client.call("threads.list", { include_archived: true }),
+    // Archived chats too: the Inbox keeps them apart, under Archived. And a few of each chat's delegated chats.
+    client.call("threads.list", { include_archived: true, delegated: DELEGATED_SHOWN }),
     client.call("surfaces.list", {}),
   ]);
   const prev = data.get().threads;
@@ -35,6 +36,7 @@ export async function bootstrap(): Promise<void> {
     projects: projects.projects,
     base: projects.base,
     threads: { ...keep, ...Object.fromEntries(threads.threads.map((t) => [t.id, t])) },
+    delegated: threads.delegated ?? {},
     surfaces: Object.fromEntries(surfaces.surfaces.map((s) => [s.id, s])),
     ready: true,
   });
@@ -43,6 +45,19 @@ export async function bootstrap(): Promise<void> {
   void loadEngines();
   void loadCatalog();
   void loadModelsConfig();
+}
+
+/** Every chat `parent` delegated, past the few the list loads with it. */
+export async function loadDelegated(parent: string): Promise<void> {
+  try {
+    const { threads } = await client.call("threads.list", { root_thread: parent });
+    data.set((s) => ({
+      threads: { ...s.threads, ...Object.fromEntries(threads.map((t) => [t.id, t])) },
+      delegated: { ...s.delegated, [parent]: threads.filter((t) => t.parent_id === parent).length },
+    }));
+  } catch (e) {
+    notify(t("error.openChat", { error: errText(e) }));
+  }
 }
 
 export async function loadTabs(): Promise<void> {

@@ -4,11 +4,39 @@ import { baseName, inInbox, inProject, isTopLevel, isWorking } from "../data/ide
 /** `routines`: routine runs that told something are listed too. */
 type Filter = { projectId?: string; query?: string; routines?: boolean };
 
-/** Top-level chats the Inbox shows (sub-threads between agents live inside their caller's chat). */
+/** A chat an agent delegated: it hangs under the chat it came from. */
+const isDelegated = (t: Thread) => t.kind === "a2a" && !!t.parent_id && !t.archived;
+
+const delegatedCache = new WeakMap<Record<string, Thread>, Map<string, Thread[]>>();
+
+/** Each chat's delegated chats, newest first (one pass per threads snapshot, shared by every row). */
+export function delegatedByChat(threads: Record<string, Thread>): Map<string, Thread[]> {
+  const cached = delegatedCache.get(threads);
+  if (cached) return cached;
+  const out = new Map<string, Thread[]>();
+  for (const t of Object.values(threads))
+    if (isDelegated(t)) out.set(t.parent_id as string, [...(out.get(t.parent_id as string) ?? []), t]);
+  for (const list of out.values()) list.sort(newest);
+  delegatedCache.set(threads, out);
+  return out;
+}
+
+/**
+ * A delegated chat listed on its own: its caller is not loaded, or (in a project's list) the caller is outside that
+ * project while the delegated chat works in it. Anywhere else it only shows under its caller.
+ */
+export function standsAlone(t: Thread, threads: Record<string, Thread>, projectId?: string): boolean {
+  if (!isDelegated(t)) return false;
+  const parent = threads[t.parent_id as string];
+  if (!parent) return true;
+  return !!projectId && inProject(t, projectId) && !inProject(parent, projectId);
+}
+
+/** Top-level chats the Inbox shows; a chat's delegated chats hang under it (`delegatedByChat`). */
 function visible(
   threads: Record<string, Thread>,
   opts: Filter,
-  keep: (t: Thread) => boolean = (t) => inInbox(t, !!opts.routines),
+  keep: (t: Thread) => boolean = (t) => inInbox(t, !!opts.routines) || standsAlone(t, threads, opts.projectId),
 ): Thread[] {
   const q = opts.query?.trim().toLowerCase();
   return Object.values(threads).filter(
@@ -23,6 +51,12 @@ const newest = (a: Thread, b: Thread) => b.updated_at.localeCompare(a.updated_at
 
 /** Within a group: pinned chats first, then the most recent. */
 export const pinnedFirst = (a: Thread, b: Thread) => Number(!!b.pinned) - Number(!!a.pinned) || newest(a, b);
+
+/** Every chat a list shows: its rows and the delegated chats under them (what "Mark all as read" reads). */
+export function listedThreads(threads: Record<string, Thread>, opts: Filter): Thread[] {
+  const nested = delegatedByChat(threads);
+  return visible(threads, opts).flatMap((t) => [t, ...(nested.get(t.id) ?? [])]);
+}
 
 /** The archived chats, most recent first: shown apart, under Archived. */
 export function archivedThreads(threads: Record<string, Thread>, opts: Filter): Thread[] {

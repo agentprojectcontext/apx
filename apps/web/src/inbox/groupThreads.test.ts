@@ -4,10 +4,13 @@ import type { Thread } from "@apx/protocol";
 import {
   archivedThreads,
   bundleTasks,
+  delegatedByChat,
   groupByAgent,
   groupByProject,
   groupByTime,
+  listedThreads,
   pinnedFirst,
+  standsAlone,
 } from "./groupThreads.ts";
 
 const thread = (id: string, extra: Partial<Thread> = {}): Thread =>
@@ -135,4 +138,65 @@ test("a task's chats hang under the task in the tree, whoever works them, and ar
     entries.map((e) => (e.kind === "thread" ? e.thread.id : `${e.taskId}:${e.threads.map((t) => t.id).join(",")}`)),
     ["ccc", "task_1:bb,a", "x"],
   );
+});
+
+test("a chat's delegated chats hang under it, newest first, in every view, and never as rows of their own", () => {
+  const threads = {
+    home: thread("home", { kind: "home" }),
+    a: thread("a", { kind: "a2a", parent_id: "home" }),
+    ccc: thread("ccc", { kind: "a2a", parent_id: "home" }),
+    bb: thread("bb", { kind: "a2a", parent_id: "home", archived: true }),
+    dddd: thread("dddd"),
+  };
+  assert.deepEqual(
+    delegatedByChat(threads)
+      .get("home")
+      ?.map((t) => t.id),
+    ["ccc", "a"],
+    "archived ones left out",
+  );
+  assert.equal(delegatedByChat(threads), delegatedByChat(threads), "one pass per snapshot");
+  const rows = groupByTime(threads, {}, new Date("2026-10-09T12:00:00Z")).flatMap((g) => g.threads.map((t) => t.id));
+  assert.deepEqual(rows.sort(), ["dddd", "home"]);
+  assert.deepEqual(
+    groupByProject(threads, [], {})[0]
+      ?.threads.map((t) => t.id)
+      .sort(),
+    ["dddd", "home"],
+  );
+  assert.deepEqual(
+    groupByAgent(threads, [], {})[0]
+      ?.agents.flatMap((b) => b.threads.map((t) => t.id))
+      .sort(),
+    ["dddd", "home"],
+  );
+  // Mark all as read reads what the list shows: the rows and what hangs under them.
+  assert.deepEqual(
+    listedThreads(threads, {})
+      .map((t) => t.id)
+      .sort(),
+    ["a", "ccc", "dddd", "home"],
+  );
+});
+
+test("a chat delegated into a project from Home is listed in that project, and only under Home in the Inbox", () => {
+  const threads = {
+    home: thread("home", { kind: "home" }),
+    sub: thread("sub", { kind: "a2a", parent_id: "home", project_id: "p_acme" }),
+    mine: thread("mine", { project_id: "p_acme" }),
+    near: thread("near", { kind: "a2a", parent_id: "mine", project_id: "p_acme" }),
+    lost: thread("lost", { kind: "a2a", parent_id: "gone" }),
+  };
+  assert.equal(standsAlone(threads.sub, threads, "p_acme"), true);
+  assert.equal(standsAlone(threads.sub, threads), false, "in the Inbox it hangs under Home");
+  assert.equal(standsAlone(threads.near, threads, "p_acme"), false, "its caller is in the project too");
+  assert.equal(standsAlone(threads.lost, threads), true, "its caller is not loaded");
+  assert.deepEqual(
+    groupByProject(threads, [], { projectId: "p_acme" })[0]
+      ?.threads.map((t) => t.id)
+      .sort(),
+    ["mine", "sub"],
+  );
+  const inbox = groupByProject(threads, [], {}).flatMap((g) => g.threads.map((t) => t.id));
+  assert.equal(inbox.includes("sub"), false, "listed once, under its caller");
 });

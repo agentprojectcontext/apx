@@ -11,20 +11,20 @@ import {
 } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
-import {
-  DEFAULT_PID,
-  findProject,
-  inInbox,
-  inProject,
-  projectInitial,
-  projectTone,
-  threadAgent,
-} from "../data/identity.ts";
+import { DEFAULT_PID, findProject, projectInitial, projectTone, threadAgent } from "../data/identity.ts";
 import { type InboxView, setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
-import { archivedThreads, bundleTasks, groupByAgent, groupByProject, groupByTime } from "./groupThreads.ts";
+import { ListedChat } from "./Delegated.tsx";
+import {
+  archivedThreads,
+  bundleTasks,
+  groupByAgent,
+  groupByProject,
+  groupByTime,
+  listedThreads,
+} from "./groupThreads.ts";
 import { ActivityView, TreeView } from "./InboxViews.tsx";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
 import { TaskBundle } from "./TaskBundle.tsx";
@@ -63,8 +63,8 @@ export function InboxList() {
   // The chats the Inbox counts as unread, in this project when one is open.
   const unreadIds = useMemo(
     () =>
-      Object.values(threads)
-        .filter((th) => th.unread > 0 && inInbox(th, routines) && (!projectId || inProject(th, projectId)))
+      listedThreads(threads, { projectId, routines })
+        .filter((th) => th.unread > 0)
         .map((th) => th.id),
     [threads, routines, projectId],
   );
@@ -184,13 +184,14 @@ export function InboxList() {
                         selected={threadId}
                       />
                     ) : (
-                      <ThreadRow
-                        key={entry.thread.id}
-                        thread={entry.thread}
-                        agent={threadAgent(entry.thread, agents)}
-                        selected={entry.thread.id === threadId}
-                        onOpen={() => go.thread(entry.thread.id)}
-                      />
+                      <ListedChat key={entry.thread.id} thread={entry.thread} selected={threadId}>
+                        <ThreadRow
+                          thread={entry.thread}
+                          agent={threadAgent(entry.thread, agents)}
+                          selected={entry.thread.id === threadId}
+                          onOpen={() => go.thread(entry.thread.id)}
+                        />
+                      </ListedChat>
                     ),
                   )}
               </div>

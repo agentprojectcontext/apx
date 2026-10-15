@@ -185,9 +185,18 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
   }
 
   return {
-    "threads.list": ({ project_id, root_thread, include_subthreads, include_archived, engine }) => {
-      if (!root_thread)
-        return { threads: store.threads.list({ project_id, include_subthreads, include_archived, engine }) };
+    "threads.list": ({ project_id, root_thread, include_subthreads, delegated, include_archived, engine }) => {
+      if (!root_thread) {
+        const threads = store.threads.list({ project_id, include_subthreads, include_archived, engine });
+        if (!delegated || engine) return { threads };
+        const ids = threads.map((t) => t.id);
+        const seen = new Set(ids);
+        const extra = [
+          ...store.threads.delegatedFrom(ids, delegated),
+          ...store.threads.delegatedAcross(project_id),
+        ].filter((t) => !seen.has(t.id) && Boolean(seen.add(t.id)));
+        return { threads: [...threads, ...extra], delegated: store.threads.delegatedCounts(ids) };
+      }
       if (!store.threads.get(root_thread)) throw notFound(`thread ${root_thread}`);
       return {
         threads: store.threads

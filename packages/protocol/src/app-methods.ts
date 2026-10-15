@@ -496,13 +496,22 @@ export const appMethods = {
         /** All delegated descendants of this chat, without the global list cap. */
         root_thread: Id.optional(),
         include_subthreads: z.boolean().default(false),
+        /**
+         * With each listed chat, up to this many of the chats delegated from it (newest first, outside the cap); and
+         * the chats delegated into another project than their caller's, which that project lists too.
+         */
+        delegated: z.number().int().min(0).max(50).default(0),
         /** Archived threads too (they are left out by default). */
         include_archived: z.boolean().default(false),
         /** Only that engine's own sessions ("claude", "codex", "acp:opencode"), not agents' chats run on its model. */
         engine: z.string().max(80).optional(),
       })
       .strict(),
-    result: z.object({ threads: z.array(Thread) }),
+    result: z.object({
+      threads: z.array(Thread),
+      /** With `delegated`: how many chats (not archived) each listed chat delegated, for the ones that did. */
+      delegated: z.record(z.string(), z.number().int().nonnegative()).optional(),
+    }),
     effect: false,
   },
   "threads.get": {
