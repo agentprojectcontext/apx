@@ -48,9 +48,17 @@ export function validSshTarget(input: string): boolean {
   return /^(?:[A-Za-z0-9._-]+@)?[A-Za-z0-9.-]+(?::\d{1,5})?$/.test(input.trim()) && !input.trim().startsWith("-");
 }
 
+/** The home of the core on this computer (the core's own default, unless APX_HOME moves it). */
+export const localCoreHome = (env: NodeJS.ProcessEnv = process.env) =>
+  env.APX_HOME || path.join(os.homedir(), ".apx", "v2");
+
+/** Where the core on this computer logs, however it was started (apps/core/src/core-log.ts). */
+export const localCoreLogFile = (env: NodeJS.ProcessEnv = process.env) =>
+  path.join(localCoreHome(env), "logs", "core.log");
+
 /** The core's own token on this computer (core.env in its home), when it asks for one. */
 export function localCoreToken(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  const home = env.APX_HOME || path.join(os.homedir(), ".apx", "v2");
+  const home = localCoreHome(env);
   try {
     return parseCoreEnv(fs.readFileSync(path.join(home, CORE_ENV_FILE), "utf8")).APX_TOKEN || undefined;
   } catch {

@@ -12,6 +12,7 @@ import { expose } from "./commands/expose.ts";
 import { extensions } from "./commands/extensions.ts";
 import { init } from "./commands/init.ts";
 import { localConnection } from "./commands/local.ts";
+import { logsCommand } from "./commands/logs.ts";
 import { mcpCommand } from "./commands/mcp.ts";
 import { image, say, transcribe } from "./commands/media.ts";
 import { memory } from "./commands/memory.ts";
@@ -136,7 +137,9 @@ Usage:
   apx service install|uninstall|status|restart
                            Run the core in the background (systemd, launchd or a Windows login entry), started at
                            login and again if it dies
-  apx service logs [-n 100] [-f]   The core's log, read on this machine only (never through the core)
+  apx service logs [-n 100] [-f]   The core's log file (<home>/logs/core.log), read on this machine only
+  apx logs [-n 100] [--level info|warn|error] [--grep text] [--scope core|output] [--json]
+                           The core's log through the core (also a remote one); the file when no core answers
   apx expose tailscale|lan|off|status
                            Who may reach the core: your tailnet (https://<machine>.ts.net), the network, or only
                            this computer. Writes <home>/core.env; restart the core afterwards
@@ -219,6 +222,8 @@ function argumentsOf() {
       size: { type: "string" },
       lines: { type: "string", short: "n" },
       follow: { type: "boolean", short: "f" },
+      level: { type: "string" },
+      grep: { type: "string" },
     },
   });
 }
@@ -391,6 +396,15 @@ try {
         keys: values.keys ?? false,
         skills: values.skills ?? false,
         services: values.services ?? false,
+      });
+      break;
+    case "logs":
+      await logsCommand(client, connection.url, {
+        lines: values.lines,
+        level: values.level,
+        grep: values.grep,
+        scope: values.scope,
+        json: values.json,
       });
       break;
     case "service":

@@ -1,10 +1,12 @@
 import { PROTOCOL_VERSION } from "@apx/protocol";
+import { coreLogFile, readCoreLog } from "../core-log.ts";
 import type { Identity } from "../identity.ts";
 import type { Updates } from "../updates.ts";
 import type { Handler, Handlers } from "./router.ts";
 
 export function systemHandlers(
   identity: Identity,
+  home: string,
   panel: () => string | undefined,
   subsystems: () => Record<string, { status: "ok" | "degraded" | "down" | "off"; detail?: string }>,
 ) {
@@ -21,7 +23,11 @@ export function systemHandlers(
     ...(panel() ? { panel: panel() } : {}),
   });
   const ping: Handler<"system.ping"> = ({ echo }) => ({ pong: echo ?? "pong", at: new Date().toISOString() });
-  return { "system.health": health, "system.ping": ping };
+  const logs: Handler<"system.logs"> = ({ limit, level, scope, q }) => {
+    const file = coreLogFile(home);
+    return { path: file, ...readCoreLog(file, { limit, level, scope, q }) };
+  };
+  return { "system.health": health, "system.ping": ping, "system.logs": logs };
 }
 
 /** Whether a newer APX is out, and bringing it in on the owner's word. */

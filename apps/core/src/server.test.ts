@@ -44,6 +44,18 @@ test("bad params and unknown methods fail typed, not with a 500", async () => {
   assert.equal(!unknown.ok && unknown.error.code, "unknown_method");
 });
 
+test("system.logs reads this home's core log", async () => {
+  const file = path.join(home, "logs", "core.log");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, `${JSON.stringify({ level: "error", scope: "core", msg: "channel down" })}\n`);
+  const r = await new ApxClient({ url: core.url }).call("system.logs", { level: "error" });
+  assert.equal(r.path, file);
+  assert.deepEqual(
+    r.lines.map((l) => l.msg),
+    ["channel down"],
+  );
+});
+
 test("refuses a non-loopback bind without a token", () => {
   assert.throws(() => assertSafeBind({ host: "0.0.0.0", token: undefined }));
   assert.doesNotThrow(() => assertSafeBind({ host: "0.0.0.0", token: "t" }));

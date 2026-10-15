@@ -18,6 +18,7 @@ import { telegramAdapter } from "./channels/telegram.ts";
 import type { AdapterFactory } from "./channels/types.ts";
 import { whatsappAdapter } from "./channels/whatsapp.ts";
 import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
+import { coreLogSink } from "./core-log.ts";
 import { openDb } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { seed } from "./domain/seed.ts";
@@ -118,7 +119,7 @@ export type CoreOptions = {
 };
 
 export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
-  const log = createLog("core", opts.quiet);
+  const log = createLog("core", opts.quiet, opts.quiet ? undefined : coreLogSink(config.home));
   const identity = readIdentity(config.home);
   const db = openDb(config.home);
   const bus = createBus();

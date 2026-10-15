@@ -205,7 +205,7 @@ type HandlerDeps = {
 export function coreHandlers(d: HandlerDeps) {
   return {
     ...updateHandlers(d.updates),
-    ...systemHandlers(d.identity, d.panel, () => ({
+    ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)
         ? { status: "ok", detail: d.broker.withCap(BROWSER_CAP)?.name ?? "" }

@@ -970,3 +970,13 @@ as the owner writing; a contact's message on a channel still never does, since a
 limit. A delegation the breaker refuses posts the same `breaker.held` notice as a held task (D-080), once until the
 chain goes on, and marks the caller's chat `kept`, so either button of D-081 gives the caller a turn to ask again. The
 two buttons stay distinct and the limits are never lifted without the owner choosing one.
+
+<a id="d-084"></a>
+## D-084 — 2026-10-15 — The core's log is one file in its home, however it runs
+The desktop app's core logged to Electron's logs folder, the service to `<home>/logs/core.log` (Linux: only the
+journal) and `pnpm dev` only to its terminal, so the docs could not name one place and the panel could not show it.
+Now the core's logger also appends to `<home>/logs/core.log`, unless its stderr already is that file (the desktop
+app and the launchd/Windows service send its output there; comparing the device and inode avoids writing every line
+twice). Whoever owns the file rotates it at 20 MB into `core.log.1` when the core starts. Reading goes through the
+protocol (`system.logs`, human only: lines may name contacts and chats), filtered in the core, so the panel's
+Settings › Logs and `apx logs` work for a remote core too; `apx service logs` still reads the local file.

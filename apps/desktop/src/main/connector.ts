@@ -11,6 +11,7 @@ import {
   type Connection,
   forgetConnection,
   loadConnection,
+  localCoreLogFile,
   localCoreToken,
   normalizeUrl,
   saveConnection,
@@ -245,7 +246,7 @@ export function createConnector(opts: {
       if (app.isPackaged && !core && !(await isUp(opts.coreUrl))) {
         core = startEmbeddedCore({
           resources: process.resourcesPath,
-          logDir: app.getPath("logs"),
+          logFile: localCoreLogFile(),
           cacheDir: path.join(dataDir, "compile-cache"),
         });
         await waitUp(opts.coreUrl);
@@ -253,10 +254,7 @@ export function createConnector(opts: {
       for (const url of app.isPackaged ? [opts.coreUrl] : [opts.webUrl, opts.coreUrl]) {
         if (await load(url, firstRun)) return opts.opened(url, { url: opts.coreUrl, token: localCoreToken() });
       }
-      return unreachable(
-        opts.coreUrl,
-        app.isPackaged ? `See core.log in ${app.getPath("logs")}.` : "Start it with pnpm dev.",
-      );
+      return unreachable(opts.coreUrl, app.isPackaged ? `See ${localCoreLogFile()}.` : "Start it with pnpm dev.");
     }
     if (conn.mode === "url") {
       // A remote core gets this computer's browser only once the desktop pairs as a node of its own (not yet).

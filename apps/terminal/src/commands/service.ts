@@ -214,7 +214,7 @@ export async function logs(home: string, n: number, follow: boolean): Promise<vo
       return;
     }
     throw new Error(
-      `no core log at ${file}: the service writes it (apx service install); a core started with pnpm dev or the desktop app logs to its own terminal`,
+      `no core log at ${file} yet: a core on this home writes it once it starts (desktop app, apx service install or pnpm dev)`,
     );
   }
   for (const line of lastLines(file, n)) console.log(line);

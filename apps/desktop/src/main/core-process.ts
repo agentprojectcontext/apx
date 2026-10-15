@@ -8,6 +8,8 @@ import path from "node:path";
 const RESTART_CODE = 75;
 const READY_MS = 30_000;
 const MAX_BACKOFF_MS = 30_000;
+/** A log this big starts again (the old one kept as core.log.1), like the core does with a log it owns. */
+const ROTATE_BYTES = 20 * 1024 * 1024;
 
 export type EmbeddedCore = { stop(): void };
 
@@ -20,12 +22,17 @@ export async function isUp(url: string): Promise<boolean> {
   }
 }
 
-/** Starts the bundled core and keeps it alive (restarted with backoff if it dies) until stop(). */
-export function startEmbeddedCore(opts: { resources: string; logDir: string; cacheDir: string }): EmbeddedCore {
+/**
+ * Starts the bundled core and keeps it alive (restarted with backoff if it dies) until stop(). Its output goes straight
+ * into `logFile`, the home's core.log, which the core then knows not to write a second time.
+ */
+export function startEmbeddedCore(opts: { resources: string; logFile: string; cacheDir: string }): EmbeddedCore {
   const root = path.join(opts.resources, "apx");
   const build = readBuild(root);
-  fs.mkdirSync(opts.logDir, { recursive: true });
-  const log = fs.createWriteStream(path.join(opts.logDir, "core.log"), { flags: "a" });
+  fs.mkdirSync(path.dirname(opts.logFile), { recursive: true });
+  if ((fs.statSync(opts.logFile, { throwIfNoEntry: false })?.size ?? 0) > ROTATE_BYTES)
+    fs.renameSync(opts.logFile, `${opts.logFile}.1`);
+  const log = fs.openSync(opts.logFile, "a");
   let child: ChildProcess | undefined;
   let stopped = false;
   let backoff = 1000;
@@ -37,7 +44,7 @@ export function startEmbeddedCore(opts: { resources: string; logDir: string; cac
       ["--disable-warning=ExperimentalWarning", path.join(root, "apps", "core", "src", "main.ts")],
       {
         cwd: root,
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["ignore", log, log],
         windowsHide: true,
         env: {
           ...process.env,
@@ -50,10 +57,12 @@ export function startEmbeddedCore(opts: { resources: string; logDir: string; cac
         },
       },
     );
-    child.stdout?.pipe(log, { end: false });
-    child.stderr?.pipe(log, { end: false });
     child.on("exit", (code) => {
-      log.write(`${new Date().toISOString()} core exited (${code})\n`);
+      try {
+        fs.writeSync(log, `${new Date().toISOString()} core exited (${code})\n`);
+      } catch {
+        // The log is a convenience: a full disk must not stop the core coming back.
+      }
       if (stopped) return;
       // A core that ran a while and then died starts again at once; one that keeps dying waits longer each time.
       if (Date.now() - startedAt > 60_000 || code === RESTART_CODE) backoff = 1000;
@@ -66,6 +75,7 @@ export function startEmbeddedCore(opts: { resources: string; logDir: string; cac
     stop() {
       stopped = true;
       child?.kill();
+      fs.closeSync(log);
     },
   };
 }

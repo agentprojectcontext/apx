@@ -29,6 +29,17 @@ export const Health = z.object({
 });
 export type Health = z.infer<typeof Health>;
 
+export const LogLine = z.object({
+  t: z.string().optional(),
+  level: z.enum(["info", "warn", "error"]),
+  /** Who wrote it: the core's logger, or "output" for anything else the process printed (a crash's trace). */
+  scope: z.string(),
+  msg: z.string(),
+  /** The line's other fields, as JSON. */
+  detail: z.string().optional(),
+});
+export type LogLine = z.infer<typeof LogLine>;
+
 export type MethodDef = {
   params: z.ZodType;
   result: z.ZodType;
@@ -52,6 +63,26 @@ export const methods = {
     params: z.object({ echo: z.string().max(200).optional() }).strict(),
     result: z.object({ pong: z.string(), at: z.string() }),
     effect: false,
+  },
+  /** The newest lines of the core's log (<home>/logs/core.log) that match, oldest first; `more`: older ones match too. */
+  "system.logs": {
+    params: z
+      .object({
+        limit: z.number().int().min(1).max(1000).default(300),
+        level: z.enum(["info", "warn", "error"]).optional(),
+        scope: z.string().max(80).optional(),
+        q: z.string().max(200).optional(),
+      })
+      .strict(),
+    result: z.object({
+      path: z.string(),
+      exists: z.boolean(),
+      lines: z.array(LogLine),
+      scopes: z.array(z.string()),
+      more: z.boolean(),
+    }),
+    effect: false,
+    access: "human",
   },
   ...browserMethods,
   ...appMethods,

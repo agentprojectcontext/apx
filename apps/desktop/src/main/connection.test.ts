@@ -6,6 +6,7 @@ import { test } from "node:test";
 import {
   forgetConnection,
   loadConnection,
+  localCoreLogFile,
   localCoreToken,
   normalizeUrl,
   saveConnection,
@@ -53,4 +54,9 @@ test("the local core's token comes from core.env in its home, when there is one"
   fs.writeFileSync(path.join(home, "core.env"), "APX_HOST=0.0.0.0\nAPX_TOKEN=abc123\n");
   assert.equal(localCoreToken({ APX_HOME: home }), "abc123");
   fs.rmSync(home, { recursive: true, force: true });
+});
+
+test("the embedded core logs into its home's logs folder, where the service and pnpm dev log too", () => {
+  assert.equal(localCoreLogFile({ APX_HOME: "/tmp/acme" }), path.join("/tmp/acme", "logs", "core.log"));
+  assert.equal(localCoreLogFile({}), path.join(os.homedir(), ".apx", "v2", "logs", "core.log"));
 });
