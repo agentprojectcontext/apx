@@ -78,7 +78,7 @@ export const es: Record<Key, string> = {
     "Este teléfono tiene internet, pero tu computadora ({host}) no responde. Fijate que esté prendida con APX abierto.",
   connRetry: "Reintentar",
   connBannerNoInternet: "Sin internet · mostrando lo último cargado",
-  connBannerTailscale: "Tu computadora no responde · ¿Tailscale está activo?",
+  connBannerTailscale: "Tu computadora no responde · ¿Tailscale activo?",
   connBannerLocal: "Tu computadora no responde · ¿mismo Wi-Fi?",
   connBannerServer: "Tu computadora no responde",
   you: "Vos",

@@ -66,7 +66,7 @@ export function ConnectionBanner({
       ) : (
         <Icon name={offline === "noInternet" ? "WifiOff" : "Plug"} size={14} color={theme.warningSoftFg} />
       )}
-      <Text style={s.bannerText} numberOfLines={1}>
+      <Text style={s.bannerText} numberOfLines={2}>
         {t(BANNER[offline])}
       </Text>
       <Icon name="RefreshCw" size={14} color={theme.warningSoftFg} />
