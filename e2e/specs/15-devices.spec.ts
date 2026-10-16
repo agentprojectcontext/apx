@@ -66,6 +66,17 @@ test("a phone pairs with the panel's code and is listed; removing it cuts its ke
   expect((await rpc<{ devices: unknown[] }>("devices.list")).devices).toEqual([]);
 });
 
+test("the top bar opens this chat on the phone: its dialog loads when asked and closes", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Más opciones" }).click();
+  await page.getByRole("menuitem", { name: "Abrir en el teléfono" }).click();
+  const dialog = page.getByRole("dialog", { name: "Abrir en el teléfono" });
+  // Only reachable from this computer, the sandbox says why there is no QR instead of showing one.
+  await expect(dialog.getByText("Tu teléfono todavía no llega a este core")).toBeVisible();
+  await dialog.getByRole("button", { name: "Cerrar" }).last().click();
+  await expect(dialog).toBeHidden();
+});
+
 test("who may reach this APX: the local network is saved for the next start, and this computer only undoes it", async ({
   page,
 }) => {

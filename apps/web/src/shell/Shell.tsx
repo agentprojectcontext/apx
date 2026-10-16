@@ -10,7 +10,6 @@ import { ChatWorkspace } from "./ChatWorkspace.tsx";
 import { computeLayout, layoutVars } from "./layout.ts";
 import { go, nav, showsChat, useNav } from "./nav.ts";
 import { OfflineBanner } from "./OfflineBanner.tsx";
-import { PhoneDialog } from "./PhoneDialog.tsx";
 import { Sidebar } from "./Sidebar.tsx";
 import { Toasts } from "./Toasts.tsx";
 import { Topbar } from "./Topbar.tsx";
@@ -31,6 +30,7 @@ const CornerCards = lazy(() => import("./CornerCards.tsx").then((m) => ({ defaul
 const CommandPalette = lazy(() => import("./CommandPalette.tsx").then((m) => ({ default: m.CommandPalette })));
 const ThreadDialogs = lazy(() => import("../inbox/ThreadDialogs.tsx").then((m) => ({ default: m.ThreadDialogs })));
 const WidgetChatHost = lazy(() => import("../surfaces/WidgetChat.tsx").then((m) => ({ default: m.WidgetChatHost })));
+const PhoneDialog = lazy(() => import("./PhoneDialog.tsx").then((m) => ({ default: m.PhoneDialog })));
 const TasksScreen = lazy(() => import("../tasks/TasksScreen.tsx").then((m) => ({ default: m.TasksScreen })));
 
 /** Topbar · Sidebar · main (chat workspace, a project, an app or a placeholder view). See SPEC §1. */
@@ -46,6 +46,7 @@ export function Shell() {
   const config = useNav((s) => s.config != null);
   const palette = useNav((s) => s.palette);
   const threadDialog = useThreadDialog() != null;
+  const phone = useNav((s) => s.phone);
   const widgetChat = useSlice(widgetChatOpen, (s) => s.threadId != null);
   const panelWide = useNav((s) => s.panelWide);
   const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, { ...own, panelWide });
@@ -95,7 +96,11 @@ export function Shell() {
           <ThreadDialogs />
         </Suspense>
       )}
-      <PhoneDialog />
+      {phone && (
+        <Suspense fallback={null}>
+          <PhoneDialog />
+        </Suspense>
+      )}
       {widgetChat && (
         <Suspense fallback={null}>
           <WidgetChatHost />
