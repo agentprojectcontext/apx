@@ -12,8 +12,18 @@ import {
 } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
 import { dueLabel, shortWhen } from "../common/format.ts";
+import { SearchSelect } from "../common/pickers/SearchSelect.tsx";
 import { useLongPressDrag } from "../common/useLongPressDrag.ts";
-import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
+import {
+  blobOf,
+  DEFAULT_PID,
+  inProject,
+  projectEntries,
+  projectInitial,
+  projectName,
+  projectTone,
+} from "../data/identity.ts";
+import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { loadTasks, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
@@ -26,6 +36,8 @@ import { dropOn, taskMenu } from "./taskActions.tsx";
 import { GROUP_ORDER, type GroupId, groupOf, groupTasks, nestTasks } from "./taskGroups.ts";
 
 const LIVE: ReadonlySet<Run["state"]> = new Set(["submitted", "working"]);
+/** The project filter's value for every project (a nav project id never is empty). */
+const ALL_PROJECTS = "";
 /** How many tasks each group shows globally before "See n more". */
 const GLOBAL_PEEK = 5;
 /** How deep subtasks indent; deeper ones line up with the last level. */
@@ -96,14 +108,14 @@ export function TasksList({
     void loadTasks();
   }, []);
   const global = !projectId;
+  const projects = useData((s) => s.projects);
+  const picked = usePrefs((s) => s.tasksProject);
+  // A remembered project that was removed since falls back to every project.
+  const filter =
+    global && picked !== ALL_PROJECTS && projectEntries(projects).some((p) => p.id === picked) ? picked : undefined;
+  const scope = projectId ?? filter;
 
-  const scoped = useMemo(
-    () =>
-      Object.values(all).filter(
-        (x) => !projectId || (projectId === DEFAULT_PID ? !x.project_id : x.project_id === projectId),
-      ),
-    [all, projectId],
-  );
+  const scoped = useMemo(() => Object.values(all).filter((x) => !scope || inProject(x, scope)), [all, scope]);
   const counts: Record<Kind, number> = {
     all: scoped.length,
     task: scoped.filter((x) => x.kind === "task").length,
@@ -149,7 +161,7 @@ export function TasksList({
             : undefined
         }
         running={running.has(task.thread_id)}
-        showProject={global}
+        showProject={global && !filter}
         selected={task.id === open}
         dragging={drag?.item.id === task.id}
         drag={bind(task, task.title)}
@@ -179,6 +191,25 @@ export function TasksList({
               ),
             }))}
           />
+          {global && (
+            <SearchSelect
+              label={t("pickers.project")}
+              searchPlaceholder={t("pickers.searchProject")}
+              emptyLabel={t("pickers.noMatch")}
+              size="sm"
+              className="tasks__project"
+              value={filter ?? ALL_PROJECTS}
+              onValueChange={(v) => setPrefs({ tasksProject: v ?? ALL_PROJECTS })}
+              options={[
+                { value: ALL_PROJECTS, label: t("tasks.allProjects"), icon: <Icons.Layers size={14} /> },
+                ...projectEntries(projects).map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                  icon: <ProjectTile tone={projectTone(p.id)} initial={projectInitial(p.name)} size={16} />,
+                })),
+              ]}
+            />
+          )}
           <span className="board__spacer" />
           {!global && (
             <Button size="sm" leadingIcon={<Icons.Plus size={14} />} onClick={() => setCreating(true)}>

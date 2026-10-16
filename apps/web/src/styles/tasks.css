@@ -26,8 +26,13 @@
 }
 .tasks__bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+.tasks__project {
+  min-width: 160px;
+  max-width: 240px;
 }
 .tasks__grouphead {
   display: flex;

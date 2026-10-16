@@ -30,6 +30,8 @@ export type Prefs = {
   inboxView: InboxView;
   /** The Inbox lists routine runs that told something, besides the chats. */
   inboxRoutines: boolean;
+  /** The Tasks screen shows one project's tasks (a nav project id) or every project's (""). */
+  tasksProject: string;
   /** Columns the owner resized (px; 0 = the default) or folded away. */
   sidebarW: number;
   sidebarCollapsed: boolean;
@@ -73,6 +75,7 @@ const DEFAULTS: Prefs = {
   engineOrder: [],
   inboxView: "tree",
   inboxRoutines: true,
+  tasksProject: "",
   sidebarW: 0,
   sidebarCollapsed: false,
   listW: 0,
@@ -107,6 +110,7 @@ function load(): Prefs {
         : [],
       inboxView: raw.inboxView === "activity" || raw.inboxView === "chats" ? raw.inboxView : "tree",
       inboxRoutines: raw.inboxRoutines !== false,
+      tasksProject: typeof raw.tasksProject === "string" ? raw.tasksProject : "",
       sidebarW: typeof raw.sidebarW === "number" ? raw.sidebarW : 0,
       sidebarCollapsed: raw.sidebarCollapsed === true,
       listW: typeof raw.listW === "number" ? raw.listW : 0,

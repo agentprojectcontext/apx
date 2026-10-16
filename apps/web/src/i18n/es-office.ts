@@ -399,6 +399,7 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "tasks.menu.unblock": "Ya no espera tu respuesta",
   "tasks.dropHere": "Soltá acá",
   "tasks.kind.all": "Todas",
+  "tasks.allProjects": "Todos los proyectos",
   "tasks.kind.tasks": "Tareas",
   "tasks.kind.commitments": "Compromisos",
   "tasks.group.doing": "En curso",

@@ -394,6 +394,7 @@ export const enOffice = {
   "tasks.menu.unblock": "No longer waits for you",
   "tasks.dropHere": "Drop here",
   "tasks.kind.all": "All",
+  "tasks.allProjects": "All projects",
   "tasks.kind.tasks": "Tasks",
   "tasks.kind.commitments": "Commitments",
   "tasks.group.doing": "In progress",
