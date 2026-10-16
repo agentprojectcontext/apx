@@ -13,6 +13,7 @@ import {
   projectName,
   projectTone,
   routineName,
+  threadAgent,
 } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
@@ -55,8 +56,34 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
   const engines = useData((s) => s.engines);
   const engineLabel = (id: string) => engines.find((e) => e.id === id)?.label ?? id;
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  // Unread chats repeat on top: in the tree they can sit under "N more".
+  const unread = [
+    ...new Map(trees.flatMap((tr) => tr.agents.flatMap((b) => b.threads)).map((th) => [th.id, th])).values(),
+  ]
+    .filter((th) => th.unread > 0)
+    .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
   return (
     <>
+      {unread.length > 0 && (
+        <div className="tree__project">
+          <div className="tree__projecthead">
+            <span className="tree__unreaddot" />
+            <span>{t("inbox.unread")}</span>
+            <span className="tree__agentmeta">{unread.length}</span>
+          </div>
+          <div className="tree__unreadlist">
+            {unread.map((th) => (
+              <SessionRow
+                key={th.id}
+                thread={th}
+                agent={threadAgent(th, agents)}
+                selected={th.id === selected}
+                withAgent
+              />
+            ))}
+          </div>
+        </div>
+      )}
       {trees.map((tree) => (
         <div key={tree.key} className="tree__project">
           <div className="tree__projecthead">

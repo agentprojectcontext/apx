@@ -19,6 +19,17 @@
   font-weight: var(--apx-weight-medium);
   color: var(--apx-fg-subtle);
 }
+.tree__unreaddot {
+  width: 6px;
+  height: 6px;
+  margin: 0 5px;
+  border-radius: 50%;
+  background: var(--apx-fg);
+}
+.tree__unreadlist {
+  display: flex;
+  flex-direction: column;
+}
 .tree__agent {
   padding: 2px 0 6px;
 }
