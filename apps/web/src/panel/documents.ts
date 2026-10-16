@@ -4,6 +4,25 @@ export type DocumentPart = Extract<Part, { type: "file" }> & {
   document: NonNullable<Extract<Part, { type: "file" }>["document"]>;
 };
 
+/** What a document panel needs to show one: from a chat's message, or from `documents.list`. */
+export type DocRef = { media_id: string; name: string; title: string; format: "markdown" | "text" };
+
+export const docRef = (part: DocumentPart): DocRef => ({
+  media_id: part.media_id,
+  name: part.name,
+  title: part.document.title,
+  format: part.document.format,
+});
+
+/**
+ * A chat's documents, newest first: the ones in its loaded messages, then those only the core still has (a long chat
+ * loads its latest messages, not the old ones a document may be in).
+ */
+export function withStored(loaded: DocumentPart[], stored: readonly DocRef[]): DocRef[] {
+  const seen = new Set(loaded.map((p) => p.media_id));
+  return [...loaded.map(docRef), ...stored.filter((d) => !seen.has(d.media_id))];
+}
+
 export function isDocument(part: Part): part is DocumentPart {
   return part.type === "file" && part.document !== undefined;
 }

@@ -61,17 +61,18 @@ export const threadMethods = {
     access: "human",
   },
   /**
-   * The documents in a project's chats (without `project_id`: the chats with no project), newest first: each file once,
-   * with the chat it is in. They open in the side panel (media.get).
+   * The documents in a project's chats (without `project_id`: the chats with no project), or in one chat with
+   * `thread_id`, newest first: each file once, with the chat it is in. They open in the side panel (media.get).
    */
   "documents.list": {
-    params: z.object({ project_id: Id.optional() }).strict(),
+    params: z.object({ project_id: Id.optional(), thread_id: Id.optional() }).strict(),
     result: z.object({
       documents: z.array(
         z.object({
           media_id: Id,
           title: z.string(),
           name: z.string(),
+          format: z.enum(["markdown", "text"]),
           bytes: z.number().int(),
           thread_id: Id,
           thread_title: z.string(),

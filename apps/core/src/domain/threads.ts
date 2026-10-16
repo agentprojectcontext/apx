@@ -533,15 +533,23 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
       const r = one(qb.selectFrom("messages").selectAll().where("id", "=", id));
       return r ? toMessage(r) : undefined;
     },
-    /** The documents (files that open in the side panel) in a project's chats, newest first, each file once. */
-    documentsIn(projectId: string | undefined, limit = 300): Array<{ part: DocumentPart; message: Message }> {
+    /**
+     * The documents (files that open in the side panel) in a project's chats, or in one chat, newest first, each file
+     * once. A chat's reach past the messages it loads: a long chat's old documents still open.
+     */
+    documentsIn(
+      scope: { project_id?: string | undefined; thread_id?: string | undefined },
+      limit = 300,
+    ): Array<{ part: DocumentPart; message: Message }> {
+      const { project_id, thread_id } = scope;
       const rows = all(
         qb
           .selectFrom("messages")
           .innerJoin("threads", "threads.id", "messages.thread_id")
           .selectAll("messages")
-          .$if(!!projectId, (q) => q.where("threads.project_id", "=", projectId as string))
-          .$if(!projectId, (q) => q.where("threads.project_id", "is", null))
+          .$if(!!thread_id, (q) => q.where("messages.thread_id", "=", thread_id as string))
+          .$if(!thread_id && !!project_id, (q) => q.where("threads.project_id", "=", project_id as string))
+          .$if(!thread_id && !project_id, (q) => q.where("threads.project_id", "is", null))
           .where("messages.parts", "like", '%"document":{%')
           .orderBy("messages.created_at", "desc")
           .limit(limit),

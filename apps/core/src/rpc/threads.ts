@@ -185,11 +185,12 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
   }
 
   return {
-    "documents.list": ({ project_id }) => ({
-      documents: store.messages.documentsIn(project_id).map(({ part, message }) => ({
+    "documents.list": ({ project_id, thread_id }) => ({
+      documents: store.messages.documentsIn({ project_id, thread_id }).map(({ part, message }) => ({
         media_id: part.media_id,
         title: part.document.title,
         name: part.name,
+        format: part.document.format,
         bytes: part.bytes,
         thread_id: message.thread_id,
         thread_title: store.threads.get(message.thread_id)?.title ?? "",

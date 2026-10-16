@@ -4,7 +4,7 @@ import type { CoreEvent, Message, Part } from "@apx/protocol";
 import { MarkdownView } from "@apx/ui";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { chatDocuments, documentToOpen } from "./documents.ts";
+import { chatDocuments, documentToOpen, withStored } from "./documents.ts";
 
 const doc: Extract<Part, { type: "file" }> = {
   type: "file",
@@ -85,4 +85,18 @@ test("sparse wide tables cannot expand a bounded document into unbounded cells",
   const html = renderToStaticMarkup(createElement(MarkdownView, { source }));
   assert.ok((html.match(/<t[hd](?: | >|>)/g) ?? []).length <= 10_000);
   assert.match(html, /Last paragraph/);
+});
+
+test("a chat's old documents the transcript did not load still list, after the loaded ones, each once", () => {
+  const isDoc = (p: Part): p is Parameters<typeof withStored>[0][number] => p.type === "file" && !!p.document;
+  const loaded = [doc].filter(isDoc);
+  const stored = [
+    { media_id: "doc1", name: "Report.txt", title: "Report", format: "markdown" as const },
+    { media_id: "old", name: "Guide.md", title: "Guide", format: "markdown" as const },
+  ];
+  assert.deepEqual(
+    withStored(loaded, stored).map((d) => d.media_id),
+    ["doc1", "old"],
+  );
+  assert.deepEqual(withStored([], []), []);
 });

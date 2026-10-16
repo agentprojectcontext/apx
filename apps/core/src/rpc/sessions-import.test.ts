@@ -303,4 +303,11 @@ test("Claude Code sessions group by their folder and land in the same project", 
     documents.map((d) => [d.title, d.name, d.thread_id]),
     [["Launch plan", "plan.md", t.thread.id]],
   );
+  // One chat's documents, past the messages a long chat loads.
+  const inChat = await env.client.call("documents.list", { thread_id: t.thread.id });
+  assert.deepEqual(
+    inChat.documents.map((d) => [d.title, d.format]),
+    [["Launch plan", "markdown"]],
+  );
+  assert.deepEqual((await env.client.call("documents.list", { thread_id: r.project.id })).documents, []);
 });
