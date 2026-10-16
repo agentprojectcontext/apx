@@ -18,6 +18,7 @@ export function SkillDetail({
   projectId,
   onChanged,
   onCopy,
+  onUseCopy,
   editing = false,
 }: {
   skill: SkillInfo;
@@ -25,6 +26,8 @@ export function SkillDetail({
   onChanged(next?: SkillInfo): Promise<void> | void;
   /** Copies another app's skill into APX, to change it here. */
   onCopy?(): void;
+  /** Makes one of its copies (by its SKILL.md path) the one agents use. */
+  onUseCopy?(path: string): void;
   /** Opened from "Edit": its SKILL.md source first. */
   editing?: boolean;
 }) {
@@ -108,6 +111,11 @@ export function SkillDetail({
                     <Badge tone={c.same ? "neutral" : "warning"}>
                       {t(c.same ? "res.copySame" : "res.copyDiffers")}
                     </Badge>
+                    {!c.same && onUseCopy && (
+                      <Button size="sm" variant="ghost" onClick={() => onUseCopy(c.path)}>
+                        {t("res.useThis")}
+                      </Button>
+                    )}
                   </li>
                 ))}
               </ul>

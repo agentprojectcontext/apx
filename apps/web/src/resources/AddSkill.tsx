@@ -18,7 +18,12 @@ type Kind = SkillImportSource["kind"];
 const PRESELECT = 3;
 
 /** Opens on Import with this source already read (another app's skill being copied into APX). */
-export type ImportStart = { source: SkillImportSource; project: string | undefined };
+export type ImportStart = {
+  source: SkillImportSource;
+  project: string | undefined;
+  /** Takes the place of the skill of that name agents use now ("Use this one" on a copy). */
+  replace?: boolean;
+};
 
 /**
  * "+ Skill": write a new one, or import skills from a folder, a .zip or a git repository. An import reads the source
@@ -33,14 +38,21 @@ export function AddSkill(props: {
   const t = useT();
   const [mode, setMode] = useState(props.start ? "import" : "create");
   const create = useCreate(props.projectId, props.onDone);
-  const imp = useImport(props.start?.project ?? props.projectId, props.start?.source, props.onDone);
+  // Copying a skill goes where it belongs (a global one into APX's skills, even from a project's screen).
+  const imp = useImport(props.start ? props.start.project : props.projectId, props.start, props.onDone);
   const creating = mode === "create";
   return (
     <Dialog
       open
       size={creating ? "md" : "lg"}
       onOpenChange={(o) => !o && props.onClose()}
-      title={creating ? t("res.newSkill") : props.start ? t("res.copyToApx") : t("res.skill.import")}
+      title={
+        creating
+          ? t("res.newSkill")
+          : props.start
+            ? t(props.start.replace ? "res.useThis" : "res.copyToApx")
+            : t("res.skill.import")
+      }
       description={
         creating
           ? t(props.projectId ? "res.newSkill.project" : "res.newSkill.global")
@@ -126,15 +138,16 @@ function CreateFields(c: ReturnType<typeof useCreate>) {
   );
 }
 
-function useImport(project: string | undefined, start: SkillImportSource | undefined, onDone: (s?: SkillInfo) => void) {
+function useImport(project: string | undefined, from: ImportStart | undefined, onDone: (s?: SkillInfo) => void) {
   const t = useT();
+  const start = from?.source;
   const [kind, setKind] = useState<Kind>(start?.kind ?? "folder");
   const [folder, setFolder] = useState(start?.kind === "folder" ? start.path : "");
   const [url, setUrl] = useState("");
   const [zip, setZip] = useState<{ name: string; data: string }>();
   const [found, setFound] = useState<SkillCandidate[]>();
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
-  const [replace, setReplace] = useState(false);
+  const [replace, setReplace] = useState(Boolean(from?.replace));
   const [busy, setBusy] = useState(false);
   const source: SkillImportSource | undefined =
     kind === "folder"
@@ -153,7 +166,7 @@ function useImport(project: string | undefined, start: SkillImportSource | undef
     setBusy(false);
     setFound(list);
     // A few are ticked at once; from a big collection the owner picks.
-    const fresh = (list ?? []).filter((c) => c.status === "new");
+    const fresh = (list ?? []).filter((c) => c.status === "new" || (replace && c.status === "exists"));
     setPicked(new Set(fresh.length <= PRESELECT ? fresh.map((c) => c.id) : []));
   };
   // Copying another app's skill: it is read at once, there is nothing to choose.

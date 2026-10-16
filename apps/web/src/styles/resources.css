@@ -88,7 +88,7 @@
   background: var(--apx-accent);
   color: var(--apx-accent-fg);
 }
-/* Under the header's line: the scope to filter by, or (in a project) what it inherits; skills' filters at the end. */
+/* Under the header's line: skills' filters first, the scope to filter by, then what the list shows. */
 .resv__under {
   display: flex;
   flex: none;
@@ -112,12 +112,14 @@
   align-items: center;
   gap: 4px;
 }
+.resv__copytag {
+  opacity: 0.5;
+}
 .resv__filters {
   display: flex;
   flex: none;
   align-items: center;
   gap: 8px;
-  margin-left: auto;
 }
 .resv__under .resv__scopes {
   flex-wrap: nowrap;

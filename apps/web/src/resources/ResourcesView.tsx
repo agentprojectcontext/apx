@@ -91,7 +91,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
         />
       )}
       <Menu
-        align="end"
+        align="start"
         trigger={
           <Button size="sm" variant="secondary" trailingIcon={<Icons.ChevronDown size={14} />}>
             {engines.size
@@ -113,6 +113,27 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
       />
     </span>
   );
+
+  const name = projectId ? projectName(projects, projectId) : "";
+  // What the list shows, said after the filters that change it.
+  const note = [
+    projectId
+      ? tab === "skills" && ownOnly
+        ? t("res.show.projectNote", { name })
+        : t("res.inherit", { name })
+      : inDefault
+        ? t("res.defaultGlobal")
+        : "",
+    tab === "skills" && engines.size
+      ? t("res.engines.note", {
+          list: SKILL_ENGINES.filter((e) => engines.has(e))
+            .map((e) => ENGINE_LABEL[e])
+            .join(", "),
+        })
+      : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   let body: ReactNode;
   if (tab === "skills") body = <SkillsTab {...ctx} />;
@@ -167,33 +188,28 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
         </div>
       </header>
       <div className="resv__under">
-        {projectId ? (
-          <p className="resv__inherit">{t("res.inherit", { name: projectName(projects, projectId) })}</p>
-        ) : inDefault ? (
-          <p className="resv__inherit">{t("res.defaultGlobal")}</p>
-        ) : (
-          tab !== "extensions" && (
-            <fieldset className="resv__scopes">
-              <legend className="resv__scopelabel">{t("res.scope")}</legend>
-              {[
-                { id: "all", label: t("res.scope.all") },
-                { id: "global", label: t("res.scope.global") },
-                ...projects.filter((p) => p.path && p.registered !== false).map((p) => ({ id: p.id, label: p.name })),
-              ].map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={scope === c.id ? "resv__chip is-on" : "resv__chip"}
-                  aria-pressed={scope === c.id}
-                  onClick={() => setScope(c.id)}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </fieldset>
-          )
-        )}
         {skillFilters}
+        {!projectId && !inDefault && tab !== "extensions" && (
+          <fieldset className="resv__scopes">
+            <legend className="resv__scopelabel">{t("res.scope")}</legend>
+            {[
+              { id: "all", label: t("res.scope.all") },
+              { id: "global", label: t("res.scope.global") },
+              ...projects.filter((p) => p.path && p.registered !== false).map((p) => ({ id: p.id, label: p.name })),
+            ].map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={scope === c.id ? "resv__chip is-on" : "resv__chip"}
+                aria-pressed={scope === c.id}
+                onClick={() => setScope(c.id)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </fieldset>
+        )}
+        {note && <p className="resv__inherit">{note}</p>}
       </div>
       <div className="resv__body">{body}</div>
     </section>

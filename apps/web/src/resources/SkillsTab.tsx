@@ -6,17 +6,26 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { AddSkill, type ImportStart } from "./AddSkill.tsx";
-import { copyTag, engineOf, inEngines, sourceTag } from "./labels.ts";
+import { copyTag, ENGINE_LABEL, engineOf, inEngines, sourceTag, unusedIn } from "./labels.ts";
 import type { TabProps } from "./ResourcesView.tsx";
 import { ScopedGroups, useInheritance } from "./ScopedGroups.tsx";
 import { SkillDetail } from "./SkillDetail.tsx";
 
 const keyOf = (s: SkillInfo) => `${s.scope}:${s.project_id ?? ""}:${s.name}`;
 
+const folderOf = (skillMd: string) => skillMd.replace(/[\\/]SKILL\.md$/, "");
+
 /** Another app's skill copied into APX: its folder, into APX's skills (or the project's, for a project's own). */
 export const copyStart = (s: SkillInfo): ImportStart => ({
-  source: { kind: "folder", path: s.path.replace(/[\\/]SKILL\.md$/, "") },
+  source: { kind: "folder", path: folderOf(s.path) },
   project: s.scope === "project" ? s.project_id : undefined,
+});
+
+/** One of a skill's copies made the one agents use: copied into APX in place of the current one. */
+const takeCopyStart = (s: SkillInfo, copyPath: string): ImportStart => ({
+  ...copyStart(s),
+  source: { kind: "folder", path: folderOf(copyPath) },
+  replace: true,
 });
 
 /** Skills grouped: inside a project its own first, then the inherited global ones; globally by scope. */
@@ -107,6 +116,12 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res, own
                   </Badge>
                 )}
                 {tag && <Tag>{tag}</Tag>}
+                {/* Filtered by an engine it only has a copy in: that engine's tag, dimmed (that copy is not used). */}
+                {unusedIn(s, engines).map((e) => (
+                  <Tag key={e} className="resv__copytag" title={t("res.copyUnused", { engine: ENGINE_LABEL[e] })}>
+                    {ENGINE_LABEL[e]}
+                  </Tag>
+                ))}
               </span>
             )
           }
@@ -195,6 +210,7 @@ export function SkillsTab({ projectId, query, scope, adding, setAdding, res, own
               projectId={projectId}
               editing={editing > 0}
               onCopy={() => setCopying(copyStart(current))}
+              onUseCopy={(path) => setCopying(takeCopyStart(current, path))}
               onChanged={async (next) => {
                 await res.loadSkills();
                 if (next) setPicked(keyOf(next));

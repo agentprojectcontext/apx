@@ -21,6 +21,12 @@ export const engineOf = (source: SkillInfo["source"]): SkillEngine =>
 export const inEngines = (s: SkillInfo, picked: ReadonlySet<SkillEngine>) =>
   !picked.size || [s.source, ...s.copies.map((c) => c.source)].some((src) => picked.has(engineOf(src)));
 
+/** The picked engines a skill is in only through a copy agents do not use. */
+export const unusedIn = (s: SkillInfo, picked: ReadonlySet<SkillEngine> | undefined): SkillEngine[] =>
+  picked?.size
+    ? [...new Set(s.copies.map((c) => engineOf(c.source)))].filter((e) => picked.has(e) && e !== engineOf(s.source))
+    : [];
+
 /** Where a skill comes from, when it is not the owner's or the project's own. */
 export function sourceTag(s: Pick<SkillInfo, "source">, t: T): string | undefined {
   if (s.source === "apx") return "APX";

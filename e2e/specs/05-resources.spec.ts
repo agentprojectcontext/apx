@@ -202,9 +202,21 @@ test("other apps' skills show their tag and duplicates; the engines filter narro
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: /^acme-deck/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /^apx-mcps/ })).toHaveCount(0);
+  // In Claude only as an unused copy: listed, with Claude's tag dimmed and saying so.
+  await expect(page.getByTitle("Copia en Claude: los agentes no la usan")).toBeVisible();
+  await expect(page.getByText(/Mostrando las de Claude/)).toBeVisible();
   await page.getByRole("button", { name: "Claude", exact: true }).click();
   await page.getByRole("menuitem", { name: "Claude" }).click();
   await page.keyboard.press("Escape");
+
+  // "Use this one" on Claude's copy: it takes the place of APX's, and the copy is now the same.
+  await page.getByRole("article").getByRole("button", { name: "Usar esta" }).click();
+  const use = page.getByRole("dialog", { name: "Usar esta" });
+  await expect(use.getByRole("checkbox", { name: "Reemplazar las que ya existen" })).toBeChecked();
+  await use.getByRole("button", { name: "Importar 1" }).click();
+  await expect(use).toBeHidden();
+  await expect(page.getByRole("article").getByText("Claude's memo.")).toBeVisible();
+  await expect(page.getByRole("article").getByText("Igual")).toBeVisible();
 
   const source = path.join(dir, "import-src");
   skill(source, "northwind-notes", "Takes Northwind notes.", { "scripts/run.sh": "echo hi\n" });
