@@ -81,6 +81,8 @@ html{color-scheme:${opts.mode}}
 html,body{margin:0;background:transparent;color:var(--apx-fg);font-family:var(--apx-font-sans);font-size:14px;line-height:1.45}
 body{padding:0;display:flow-root}*{box-sizing:border-box}</style>
 <script>${bridge(opts.nonce)}</script>`;
+  // A stylesheet or font from the web never loads here (the CSP), and a blocked one can hold the page unpainted.
+  html = html.replace(/<link\b[^>]*\bhref\s*=\s*["']?(?:https?:)?\/\/[^>]*>/gi, "");
   if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => `${m}${head}`);
   if (/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i, (m) => `${m}<head>${head}</head>`);
   return `<!doctype html><html><head>${head}</head><body>${html}</body></html>`;

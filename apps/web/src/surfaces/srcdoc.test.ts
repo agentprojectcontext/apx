@@ -28,3 +28,12 @@ test("project media reaches a widget as its own blob: URLs, so its CSP names no 
   assert.match(csp, /media-src data: blob:$/);
   assert.doesNotMatch(csp, /https?:|'self'|\*/);
 });
+
+test("links to the web are left out: they never load here, and one held back would leave the page blank", () => {
+  const page =
+    '<link rel="preconnect" href="https://fonts.example.com" crossorigin><link rel="stylesheet" href="//cdn.example.com/a.css"><link rel="icon" href="data:,"><p>Hi</p>';
+  const doc = buildSrcdoc(page, { theme: "", mode: "light", nonce: "n" });
+  assert.doesNotMatch(doc, /example\.com/);
+  assert.match(doc, /<link rel="icon" href="data:,">/);
+  assert.match(doc, /<p>Hi<\/p>/);
+});
