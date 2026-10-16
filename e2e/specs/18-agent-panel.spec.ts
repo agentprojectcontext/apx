@@ -33,7 +33,7 @@ test("the super-agent's face opens its block beside the chat; its prompt and pro
   await expect(editor.getByLabel("Descripción")).toHaveCount(0);
   await editor.getByRole("button", { name: "Prompt" }).click();
   await editor.getByRole("textbox", { name: "Instrucciones extra" }).fill("Sign every message with a lemon.");
-  await editor.getByRole("button", { name: "Guardar" }).click();
+  await editor.getByRole("button", { name: "Guardar y cerrar" }).click();
   await expect(block.getByText("Sign every message with a lemon.")).toBeVisible();
 
   await block.getByRole("button", { name: /Lo que sabe de vos/ }).click();

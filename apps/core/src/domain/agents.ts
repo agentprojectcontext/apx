@@ -42,6 +42,16 @@ export function rulesOf(v: unknown): AgentRules | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
+/** `orchestrator:` true or false as written; anything else says nothing, and the team's head is guessed by role. */
+function orchestratorOf(v: unknown): Pick<Agent, "orchestrator"> {
+  const text = String(v ?? "").toLowerCase();
+  return v === true || text === "true"
+    ? { orchestrator: true }
+    : v === false || text === "false"
+      ? { orchestrator: false }
+      : {};
+}
+
 /** The pairs an agent's file writes for its rules. */
 export const rulesText = (r: AgentRules | null | undefined): string[] =>
   Object.entries(r ?? {}).flatMap(([k, v]) => (v ? [`${k}=${v}`] : []));
@@ -71,7 +81,7 @@ function policyOf(extra: string | null): Policy {
     ...(typeof e.personality === "string" && e.personality.trim()
       ? { personality: e.personality.trim().slice(0, 1000) }
       : {}),
-    ...(e.orchestrator === true || String(e.orchestrator ?? "").toLowerCase() === "true" ? { orchestrator: true } : {}),
+    ...orchestratorOf(e.orchestrator),
     ...(rulesOf(e.rules) ? { rules: rulesOf(e.rules) } : {}),
   };
 }
@@ -299,7 +309,7 @@ function extraOf(a: Policy): string | null {
     ...(a.skills?.length ? { skills: a.skills } : {}),
     ...(a.area ? { area: a.area } : {}),
     ...(a.personality ? { personality: a.personality } : {}),
-    ...(a.orchestrator ? { orchestrator: true } : {}),
+    ...(a.orchestrator !== undefined ? { orchestrator: a.orchestrator } : {}),
     ...(a.rules && rulesText(a.rules).length ? { rules: rulesText(a.rules) } : {}),
   };
   return Object.keys(e).length ? JSON.stringify(e) : null;

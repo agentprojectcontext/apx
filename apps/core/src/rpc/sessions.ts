@@ -79,7 +79,7 @@ export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionD
     const heads = team.filter((a) => !a.parent || !team.some((b) => b.slug === a.parent));
     return (
       team.find((a) => a.orchestrator) ??
-      heads.find((a) => /orchestr|orquest|lead|líder|lider/i.test(`${a.role} ${a.name}`)) ??
+      heads.find((a) => a.orchestrator !== false && /orchestr|orquest|lead|líder|lider/i.test(`${a.role} ${a.name}`)) ??
       (heads.length === 1 ? heads[0] : undefined)
     );
   };

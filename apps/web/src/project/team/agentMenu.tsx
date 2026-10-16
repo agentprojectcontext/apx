@@ -10,6 +10,8 @@ export type AgentActions = {
   onDelete(a: Agent): void;
   /** Marks it as the one that runs its team, or unmarks it. */
   onOrchestrator?(a: Agent): void;
+  /** Whether it heads its team now: marked, or guessed by its role. */
+  isOrchestrator?(a: Agent): boolean;
 };
 
 /** See its details, edit it, chat with it, mark it orchestrator, and delete it last; the super-agent cannot be deleted. */
@@ -24,7 +26,7 @@ export function agentMenu(agent: Agent, t: T, o: AgentActions): MenuEntry[] {
           {
             label: t("team.menu.orchestrator"),
             icon: <Icons.Crown />,
-            checked: Boolean(agent.orchestrator),
+            checked: o.isOrchestrator ? o.isOrchestrator(agent) : Boolean(agent.orchestrator),
             onSelect: () => o.onOrchestrator?.(agent),
           },
         ]

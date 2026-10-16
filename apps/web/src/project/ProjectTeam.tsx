@@ -70,7 +70,8 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
     onEdit: setEditing,
     onChat: (a) => startChat(a, project.id),
     onDelete: setDeleting,
-    onOrchestrator: (a) => void updateAgent(a.id, { orchestrator: !a.orchestrator }),
+    isOrchestrator: (a) => a.id === lead?.id,
+    onOrchestrator: (a) => void updateAgent(a.id, { orchestrator: a.id !== lead?.id }),
   };
 
   return (

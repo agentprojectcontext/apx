@@ -208,7 +208,12 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agentedit.personality": "Personalidad",
   "agentedit.personalityHint": "Cómo se expresa, aparte de lo que hace. Va antes de sus instrucciones.",
   "agentedit.avatar": "Blobo (avatar)",
-  "agentedit.promptSave": "⌘S guarda.",
+  "agentedit.promptSave": "⌘S guarda y sigue; ⇧⌘S guarda y cierra.",
+  "agentedit.saveClose": "Guardar y cerrar",
+  "agentedit.unknownTools": "Tools que APX no conoce",
+  "agentedit.unknownToolsHint":
+    "Las escribió otra app en el archivo de este agente. Acá no hacen nada: APX no tiene tools con esos nombres.",
+  "agentedit.unknownToolsRemove": "Quitarlas",
   "agentedit.model": "Modelo",
   "agentedit.modelHint": "El router elige según la tarea, salvo que tenga uno propio.",
   "agentedit.parent": "Reporta a",

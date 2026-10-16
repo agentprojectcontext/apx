@@ -38,7 +38,7 @@ test("the editor creates an area, takes its own rules after a warning, and searc
   await expect(editor.getByText("browser_click")).toBeVisible();
   await expect(editor.getByText("file_read")).toHaveCount(0);
 
-  await editor.getByRole("button", { name: "Guardar" }).click();
+  await editor.getByRole("button", { name: "Guardar y cerrar" }).click();
   await expect(editor).toHaveCount(0);
   const ledger = await rpc<{ agent: { area?: string; rules?: Record<string, string> } }>("agents.get", {
     agent: "ledger",

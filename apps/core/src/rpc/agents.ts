@@ -161,7 +161,8 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
         personality: p.personality,
         // null: back to its project's, so the key leaves the file.
         autonomy: p.autonomy === null ? "" : p.autonomy,
-        orchestrator: p.orchestrator === undefined ? undefined : p.orchestrator ? "true" : "",
+        // false is written too: the owner said this agent is not the head, whatever its role suggests.
+        orchestrator: p.orchestrator === undefined ? undefined : String(p.orchestrator),
         rules: p.rules === undefined ? undefined : rulesText(p.rules),
         tools: p.tools,
         skills: p.skills,
@@ -193,7 +194,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
           ...(p.area !== undefined ? { area: p.area || undefined } : {}),
           ...(p.parent !== undefined ? { parent: p.parent || undefined } : {}),
           ...(p.autonomy !== undefined ? { autonomy: p.autonomy ?? undefined } : {}),
-          ...(p.orchestrator !== undefined ? { orchestrator: p.orchestrator || undefined } : {}),
+          ...(p.orchestrator !== undefined ? { orchestrator: p.orchestrator } : {}),
           ...(p.rules !== undefined ? { rules: p.rules ?? undefined } : {}),
           ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
           ...(p.personality !== undefined ? { personality: p.personality || undefined } : {}),

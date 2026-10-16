@@ -91,14 +91,17 @@ export function ToolsTab({
   if (!catalog) return <Skeleton shape="block" height={200} />;
   const groups = groupsOf(catalog);
   const known = new Set([...catalog.map((x) => x.name), ...groups.map(([g]) => g)]);
-  const extra = value.filter((n) => !known.has(n));
+  const isMcp = (n: string) => n.toLowerCase().startsWith("mcp_");
+  // Names APX has no tool for (another app wrote them) restrict nothing; MCP names are patterns for later tools.
+  const mcp = value.filter((n) => !known.has(n) && isMcp(n));
+  const unknown = value.filter((n) => !known.has(n) && !isMcp(n));
   const picked = expand(
     value.filter((n) => known.has(n)),
     groups,
   );
-  const limited = value.length > 0;
+  const limited = value.some((n) => known.has(n) || isMcp(n));
   const has = (name: string) => !limited || picked.has(name);
-  const set = (next: Set<string>, nextExtra = extra) => onChange(compact(next, groups, nextExtra));
+  const set = (next: Set<string>, nextMcp = mcp) => onChange(compact(next, groups, [...nextMcp, ...unknown]));
   // A grant with a condition still asks outside it, so only a whole grant counts here.
   const freely = new Set(granted.filter((g) => !g.condition).map((g) => g.tool));
   const policyOf = (x: Catalog[number]): ToolPolicy => {
@@ -129,7 +132,7 @@ export function ToolsTab({
           checked={!limited}
           // Limiting starts from everything picked, so nothing is lost until the owner unticks it.
           onCheckedChange={(all) =>
-            onChange(all ? [] : groups.flatMap(([g, x]) => (g === OTHER ? x.map((y) => y.name) : [g])))
+            onChange(all ? [] : [...groups.flatMap(([g, x]) => (g === OTHER ? x.map((y) => y.name) : [g])), ...unknown])
           }
         />
       </SettingRow>
@@ -185,9 +188,29 @@ export function ToolsTab({
           label={t("agent.access.mcpTools")}
           placeholder="mcp_postiz_*"
           max={50}
-          value={extra}
+          value={mcp}
           onValueChange={(v) => set(picked, v)}
         />
+      )}
+      {unknown.length > 0 && (
+        <section className="agentedit__unknown">
+          <div className="agentedit__unknownhead">
+            <div>
+              <div className="agentedit__grantstitle">{t("agentedit.unknownTools")}</div>
+              <div className="agentedit__hint">{t("agentedit.unknownToolsHint")}</div>
+            </div>
+            <Button size="sm" variant="secondary" onClick={() => onChange(value.filter((n) => !unknown.includes(n)))}>
+              {t("agentedit.unknownToolsRemove")}
+            </Button>
+          </div>
+          <div className="agentedit__chips">
+            {unknown.map((n) => (
+              <code key={n} className="agentedit__chip">
+                {n}
+              </code>
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );

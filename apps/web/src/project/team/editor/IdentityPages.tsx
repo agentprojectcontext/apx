@@ -1,7 +1,19 @@
 // The agent editor's general pages: identity (with area and role picked from the project or created on the spot),
 // prompt, and model and team.
 import type { Agent, Organization } from "@apx/protocol";
-import { AgentAvatar, BLOB_NAMES, Button, Dialog, Field, Input, Select, SettingRow, Switch, Textarea } from "@apx/ui";
+import {
+  AgentAvatar,
+  BLOB_NAMES,
+  Button,
+  Dialog,
+  Field,
+  Icons,
+  Input,
+  Select,
+  SettingRow,
+  Switch,
+  Textarea,
+} from "@apx/ui";
 import { useState } from "react";
 import { slugOf } from "../../../common/slug.ts";
 import { AgentModelPicker } from "../../../config/models/AgentModelPicker.tsx";
@@ -108,6 +120,21 @@ export function IdentityPage({
                 }),
                 { value: NEW, label: t("agentedit.newRole") },
               ]}
+            />
+          </SettingRow>
+          <SettingRow
+            title={
+              <span className="agentedit__orch">
+                <Icons.Crown size={14} className={d.orchestrator ? "agentedit__crown" : undefined} />
+                {t("agentedit.orchestrator")}
+              </span>
+            }
+            description={t("agentedit.orchestratorHint")}
+          >
+            <Switch
+              aria-label={t("agentedit.orchestrator")}
+              checked={d.orchestrator}
+              onCheckedChange={(orchestrator) => edit({ orchestrator })}
             />
           </SettingRow>
           <SettingRow stacked title={t("agentedit.description")} description={t("agentedit.descriptionHint")}>
@@ -258,7 +285,7 @@ function OrgQuickCreate(props: {
   );
 }
 
-export function PromptPage({ draft: d, edit, isSuper, onSave }: PageProps & { isSuper: boolean; onSave(): void }) {
+export function PromptPage({ draft: d, edit, isSuper }: PageProps & { isSuper: boolean }) {
   const t = useT();
   return (
     <div className="agentedit__prompt">
@@ -268,12 +295,6 @@ export function PromptPage({ draft: d, edit, isSuper, onSave }: PageProps & { is
         rows={20}
         value={d.prompt}
         onChange={(e) => edit({ prompt: e.currentTarget.value })}
-        onKeyDown={(e) => {
-          if (e.key === "s" && (e.metaKey || e.ctrlKey)) {
-            e.preventDefault();
-            onSave();
-          }
-        }}
       />
       <span className="agentedit__hint">{isSuper ? t("agent.edit.superPromptHint") : t("agentedit.promptSave")}</span>
     </div>
@@ -312,27 +333,18 @@ export function TeamPage({
         <AgentModelPicker agent={agent} />
       </SettingRow>
       {!isSuper && (
-        <>
-          <SettingRow title={t("agentedit.parent")} description={t("agentedit.parentHint")}>
-            <Select
-              label={t("agentedit.parent")}
-              className="agentedit__control"
-              value={d.parent || NONE}
-              onValueChange={(v) => edit({ parent: !v || v === NONE ? "" : v })}
-              options={[
-                { value: NONE, label: t("team.parent.none") },
-                ...parents.map((p) => ({ value: keyOf(p) ?? "", label: p.name, ...(p.role ? { hint: p.role } : {}) })),
-              ]}
-            />
-          </SettingRow>
-          <SettingRow title={t("agentedit.orchestrator")} description={t("agentedit.orchestratorHint")}>
-            <Switch
-              aria-label={t("agentedit.orchestrator")}
-              checked={d.orchestrator}
-              onCheckedChange={(orchestrator) => edit({ orchestrator })}
-            />
-          </SettingRow>
-        </>
+        <SettingRow title={t("agentedit.parent")} description={t("agentedit.parentHint")}>
+          <Select
+            label={t("agentedit.parent")}
+            className="agentedit__control"
+            value={d.parent || NONE}
+            onValueChange={(v) => edit({ parent: !v || v === NONE ? "" : v })}
+            options={[
+              { value: NONE, label: t("team.parent.none") },
+              ...parents.map((p) => ({ value: keyOf(p) ?? "", label: p.name, ...(p.role ? { hint: p.role } : {}) })),
+            ]}
+          />
+        </SettingRow>
       )}
       {file && (
         <SettingRow title={t("agentedit.file")} description={t("agentedit.fileHint")}>

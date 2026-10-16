@@ -125,9 +125,11 @@
 }
 
 /* TagInput */
+/* It grows to several lines of chips, so a pill's round ends would bulge: corners like a textarea's. */
 .apx-taginput {
   flex-wrap: wrap;
   height: auto;
+  border-radius: var(--apx-radius-lg);
   min-height: var(--apx-control-h-md);
   padding-block: 4px;
   gap: 4px;

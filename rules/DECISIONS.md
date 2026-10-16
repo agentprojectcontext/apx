@@ -1067,5 +1067,5 @@ rules for every case the first time one changes, after saying so, so later proje
 A grant for good can now carry a `condition` (comma-separated paths, domains or names: it covers a call only when one
 of its text arguments starts with one, or is a URL on that domain) and an `expires_at`, after which it is gone; it also
 keeps when and from which chat it was given (`tools.grant_set`). A grant with a condition never counts as using a tool
-freely, so it is not handed on to another agent. `orchestrator: true` marks the head of a team explicitly; the guesses
-by role ("orchestrator", "lead") remain only for files that do not say it.
+freely, so it is not handed on to another agent. `orchestrator: true` marks the head of a team explicitly and `orchestrator: false` says an agent is not it; the
+guesses by role ("orchestrator", "CEO", "lead") remain only for files that say neither.

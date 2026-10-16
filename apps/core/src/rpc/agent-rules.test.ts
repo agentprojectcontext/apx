@@ -42,8 +42,11 @@ test("an agent's orchestrator mark and rules by risk are written to its file and
 
   const cleared = await env.client.call("agents.update", { agent: made.id, rules: null, orchestrator: false });
   assert.equal(cleared.rules, undefined);
-  assert.equal(cleared.orchestrator, undefined);
-  assert.doesNotMatch(fs.readFileSync(path.join(root, ".apc", "agents", "lead.md"), "utf8"), /^(rules|orchestrator):/m);
+  // Unmarked on purpose: written as false, so its role no longer makes it the head.
+  assert.equal(cleared.orchestrator, false);
+  const after = fs.readFileSync(path.join(root, ".apc", "agents", "lead.md"), "utf8");
+  assert.doesNotMatch(after, /^rules:/m);
+  assert.match(after, /^orchestrator: false$/m);
 });
 
 test("the tool catalog says each tool's risk", async () => {

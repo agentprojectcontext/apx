@@ -88,7 +88,7 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `area` | The area it belongs to, for the org chart (`product`, `engineering`…). |
 | `autonomy` | `ask`, `standard` (the default) or `total`. See [Autonomy and safety](/concepts/autonomy/). |
 | `personality` | How it sounds, apart from what it does. Up to 1,000 characters. |
-| `orchestrator` | `true` marks the agent that runs the team: it goes on top of the chart and gets the project's work first. |
+| `orchestrator` | `true` marks the agent that runs the team: it goes on top of the chart and gets the project's work first. `false` says it is not, whatever its role suggests; left out, the head is guessed by role (orchestrator, CEO, lead). |
 | `rules` | Its own rule per kind of action, over its autonomy: `read`, `write`, `outside` or `irreversible`, each `auto`, `ask` or `off` (`rules: write=auto, outside=ask`). A kind left out follows the autonomy. |
 | `tools` | Limits the agent to these tools or groups. Leave it out for every tool. |
 | `skills` | Limits which skills it is offered. Leave it out for all of them. |

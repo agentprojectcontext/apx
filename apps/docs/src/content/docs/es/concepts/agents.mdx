@@ -93,7 +93,7 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `area` | El área a la que pertenece, para el organigrama (`product`, `engineering`…). |
 | `autonomy` | `ask`, `standard` (por defecto) o `total`. Mirá [Autonomía y seguridad](/es/concepts/autonomy/). |
 | `personality` | Cómo suena, aparte de lo que hace. Hasta 1.000 caracteres. |
-| `orchestrator` | `true` marca al agente que dirige el equipo: va arriba del organigrama y recibe primero el trabajo del proyecto. |
+| `orchestrator` | `true` marca al agente que dirige el equipo: va arriba del organigrama y recibe primero el trabajo del proyecto. `false` dice que no lo es, sugiera lo que sugiera su rol; sin el campo, se adivina por el rol (orquestador, CEO, lead). |
 | `rules` | Su propia regla por tipo de acción, por encima de su autonomía: `read`, `write`, `outside` o `irreversible`, cada una `auto`, `ask` u `off` (`rules: write=auto, outside=ask`). Un tipo que no aparece sigue a la autonomía. |
 | `tools` | Limita al agente a esas herramientas o grupos. Sin este campo, tiene todas. |
 | `skills` | Limita qué skills se le ofrecen. Sin este campo, todas. |

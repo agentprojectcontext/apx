@@ -188,7 +188,10 @@ export const Agent = z.object({
   skills: z.array(z.string()).optional(),
   /** How it comes across (warm, dry, playful…), apart from its instructions. */
   personality: z.string().max(1000).optional(),
-  /** It runs its team: on top of the chart, and the one work goes to first. From `orchestrator: true`. */
+  /**
+   * It runs its team: on top of the chart, and the one work goes to first. From `orchestrator:`; false says it is not,
+   * whatever its role suggests; absent, the head is guessed by role.
+   */
   orchestrator: z.boolean().optional(),
   /** Its own rules by risk, over its autonomy. From `rules:`. */
   rules: AgentRules.optional(),

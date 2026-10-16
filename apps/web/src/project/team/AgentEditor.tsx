@@ -1,6 +1,6 @@
 import type { Agent, Autonomy, Params, Result, ToolApproval } from "@apx/protocol";
-import { AgentAvatar, Button, Dialog, Icons, NavItem, SearchField, Skeleton } from "@apx/ui";
-import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
+import { AgentAvatar, Button, Dialog, Icons, Kbd, NavItem, SearchField, Skeleton } from "@apx/ui";
+import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { client } from "../../data/client.ts";
 import { blobOf } from "../../data/identity.ts";
 import { revokeApproval } from "../../data/resources.ts";
@@ -11,7 +11,9 @@ import { LAYOUT } from "../../shell/layout.ts";
 import { GrantsPage, SkillsTab, ToolsTab } from "./AgentAccess.tsx";
 import { type Draft, type GrantChange, grantId, type PageId, sameValue } from "./editor/draft.ts";
 import { IdentityPage, PromptPage, TeamPage } from "./editor/IdentityPages.tsx";
+import { useModifierHeld } from "./editor/keys.ts";
 import { AutonomyPage, BrowserPage, RulesPage } from "./editor/RulesPages.tsx";
+import { teamLead } from "./lead.ts";
 
 type Catalog = Result<"agents.tools">["tools"];
 
@@ -48,7 +50,10 @@ const SIZE = {
   "--config-nav-w": "240px",
 } as CSSProperties;
 
-const draftOf = (a: Agent, prompt: string): Draft => ({
+const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl";
+
+/** `lead`: it heads its team now, marked or guessed by its role, so the switch shows what the chart shows. */
+const draftOf = (a: Agent, prompt: string, lead: boolean): Draft => ({
   name: a.name,
   role: a.role,
   area: a.area ?? "",
@@ -58,7 +63,7 @@ const draftOf = (a: Agent, prompt: string): Draft => ({
   prompt,
   tools: a.tools ?? [],
   skills: a.skills ?? [],
-  orchestrator: Boolean(a.orchestrator),
+  orchestrator: a.orchestrator ?? lead,
   autonomy: a.autonomy ?? "",
   rules: a.rules ?? {},
   parent: a.parent ?? "",
@@ -112,11 +117,13 @@ export function AgentEditor({
   const projectName = project?.name ?? baseProject.name;
   const isSuper = agent.kind === "secretary";
 
+  const teamRef = useRef(team);
+  teamRef.current = team;
   useEffect(() => {
     let current = true;
     void getAgent(agent.id).then((r) => {
       if (!current || !r) return;
-      const start = draftOf(r.agent, r.prompt);
+      const start = draftOf(r.agent, r.prompt, teamLead(teamRef.current)?.id === agent.id);
       setBase(start);
       setD(start);
     });
@@ -132,8 +139,15 @@ export function AgentEditor({
 
   const changed = base && d ? (Object.keys(d) as Array<keyof Draft>).filter((k) => !sameValue(d[k], base[k])) : [];
   const dirty = changed.length > 0 || Object.keys(grantChanges).length > 0;
-  const save = async () => {
-    if (!d || !dirty) return onClose();
+  const loadGrants = () =>
+    void client
+      .call("tools.approvals", {})
+      .then((r) => setGrants(r.approvals.filter((g) => g.scope === "always")))
+      .catch(() => {});
+  /** Saves what changed; `close` also closes the editor, else it stays open on what was saved. */
+  const save = async (close: boolean) => {
+    if (!d?.name.trim() || saving) return;
+    if (!dirty) return close ? onClose() : undefined;
     setSaving(true);
     let ok = !changed.length || (await updateAgent(agent.id, fieldsOf(d, changed)));
     for (const [id, c] of Object.entries(grantChanges)) {
@@ -148,15 +162,39 @@ export function AgentEditor({
           })) && ok;
     }
     setSaving(false);
-    if (ok) onClose();
+    if (!ok) return;
+    if (close) return onClose();
+    setBase(d);
+    if (Object.keys(grantChanges).length) {
+      setGrantChanges({});
+      loadGrants();
+    }
   };
+  // ⌘S saves and goes on, ⇧⌘S saves and closes (Ctrl elsewhere).
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || e.key.toLowerCase() !== "s") return;
+      e.preventDefault();
+      void saveRef.current(e.shiftKey);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  const hints = useModifierHeld();
   const edit = (patch: Partial<Draft>) => setD((cur) => (cur ? { ...cur, ...patch } : cur));
 
   const mine = (grants ?? []).filter((g) => g.agent_id === agent.id || !g.agent_id);
   const nGrants = mine.filter((g) => !grantChanges[grantId(g.key, g.agent_id)]?.revoke).length;
   const metaOf = (id: PageId): string => {
     if (!d) return "";
-    if (id === "tools") return d.tools.length ? String(d.tools.length) : t("agentedit.all");
+    if (id === "tools") {
+      // Only what APX knows counts; names another app wrote restrict nothing.
+      const names = new Set([...(catalog ?? []).map((x) => x.name), ...(catalog ?? []).flatMap((x) => x.group ?? [])]);
+      const n = d.tools.filter((x) => names.has(x) || x.toLowerCase().startsWith("mcp_")).length;
+      return n ? String(n) : t("agentedit.all");
+    }
     if (id === "skills") return d.skills.length ? String(d.skills.length) : t("agentedit.all");
     if (id === "autonomy") return d.autonomy ? t("agentedit.own") : t("agentedit.fromProject");
     if (id === "rules") {
@@ -181,7 +219,7 @@ export function AgentEditor({
       case "identity":
         return <IdentityPage {...common} isSuper={isSuper} team={team} />;
       case "prompt":
-        return <PromptPage {...common} isSuper={isSuper} onSave={() => void save()} />;
+        return <PromptPage {...common} isSuper={isSuper} />;
       case "team":
         return <TeamPage {...common} isSuper={isSuper} team={team} file={file} />;
       case "tools":
@@ -261,6 +299,7 @@ export function AgentEditor({
         </div>
         <SearchField
           size="sm"
+          aria-label={t("common.search")}
           placeholder={t("common.search")}
           value={q}
           onChange={(e) => setQ(e.currentTarget.value)}
@@ -312,8 +351,21 @@ export function AgentEditor({
           >
             {t("agentedit.discard")}
           </Button>
-          <Button loading={saving} disabled={!d?.name.trim() || !dirty} onClick={() => void save()}>
+          <Button
+            variant="secondary"
+            disabled={!d?.name.trim() || !dirty || saving}
+            onClick={() => void save(false)}
+            trailingIcon={hints ? <Kbd keys={[MOD, "S"]} /> : undefined}
+          >
             {t("common.save")}
+          </Button>
+          <Button
+            loading={saving}
+            disabled={!d?.name.trim() || !dirty}
+            onClick={() => void save(true)}
+            trailingIcon={hints ? <Kbd keys={["⇧", MOD, "S"]} /> : undefined}
+          >
+            {t("agentedit.saveClose")}
           </Button>
         </footer>
       </div>

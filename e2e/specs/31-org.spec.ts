@@ -44,7 +44,7 @@ test("the base project is renamed and made a company, with areas and roles its a
   await editor.getByRole("combobox", { name: "Rol" }).click();
   await page.getByRole("option", { name: /Chief Financial Officer/ }).click();
   await expect(editor.getByRole("combobox", { name: "Área" })).toHaveText(/Finanzas/);
-  await editor.getByRole("button", { name: "Guardar" }).click();
+  await editor.getByRole("button", { name: "Guardar y cerrar" }).click();
   await expect(editor).toHaveCount(0);
   const scout = await rpc<{ agent: { role: string; area?: string } }>("agents.get", { agent: "scout" });
   expect([scout.agent.role, scout.agent.area]).toEqual(["Chief Financial Officer", "finanzas"]);

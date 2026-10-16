@@ -1102,3 +1102,28 @@
   border-radius: var(--apx-radius-md);
   background: var(--apx-fill);
 }
+.agentedit__orch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.agentedit__unknown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px dashed var(--apx-border-strong);
+  border-radius: var(--apx-radius-lg);
+}
+.agentedit__unknownhead {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.agentedit__unknownhead > div {
+  flex: 1;
+  min-width: 0;
+}
+.agentedit__unknown .agentedit__chips {
+  padding-left: 0;
+}

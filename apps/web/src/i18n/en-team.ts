@@ -206,7 +206,12 @@ export const enTeam = {
   "agentedit.personality": "Personality",
   "agentedit.personalityHint": "How it comes across, apart from what it does. It goes before its instructions.",
   "agentedit.avatar": "Blobo (avatar)",
-  "agentedit.promptSave": "⌘S saves.",
+  "agentedit.promptSave": "⌘S saves and goes on; ⇧⌘S saves and closes.",
+  "agentedit.saveClose": "Save and close",
+  "agentedit.unknownTools": "Tools APX does not know",
+  "agentedit.unknownToolsHint":
+    "Another app wrote them in this agent's file. Here they do nothing: APX has no tool by those names.",
+  "agentedit.unknownToolsRemove": "Remove them",
   "agentedit.model": "Model",
   "agentedit.modelHint": "The router picks one by the task unless it has its own.",
   "agentedit.parent": "Reports to",
