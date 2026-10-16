@@ -362,6 +362,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const dispatch = createRouter(
     coreHandlers({
+      internal,
       addresses: () => reachableAt(config.host, listening, config.publicUrl),
       terminals,
       access: createAccess({

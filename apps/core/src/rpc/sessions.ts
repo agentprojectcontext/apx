@@ -8,11 +8,14 @@ import type { AuxAbout } from "../domain/aux-calls.ts";
 import type { Store } from "../domain/store.ts";
 import { summary } from "../domain/surfaces.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
+import { applyExtras } from "../import/apply-extras.ts";
 import { digestChat } from "../import/native-digest.ts";
+import { nativeExtras } from "../import/native-extras.ts";
 import { importedThread, importSessions, nativeProjects } from "../import/native-import.ts";
 import { type NativeHomes, nativeSession, nativeSessions, nativeTranscript } from "../import/native-sessions.ts";
 import { pageAsWidget } from "../import/page-widget.ts";
 import { createProject } from "./app.ts";
+import type { InternalCall } from "./internal.ts";
 import type { Handlers } from "./router.ts";
 
 /** What bringing a project in needs beyond the store: where APX keeps files, projects, and the auxiliary model. */
@@ -21,6 +24,8 @@ export type SessionDeps = {
   apc: ApcSync;
   /** A long read on the models `agent` sends its turns to (the auxiliary one after them). */
   ask(agent: string, about: AuxAbout, system: string, user: string): Promise<string | undefined>;
+  /** The router, for what an import brings besides chats (servers, notes, tasks, routines): the owner's own checks. */
+  call: InternalCall;
 };
 
 /** What is copied into the APX chat so the owner sees where they left off (the engine has it all already). */
@@ -99,7 +104,7 @@ export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionD
         };
       }),
     }),
-    "sessions.import": ({ engine, cwd, sessions, name }) => {
+    "sessions.import": async ({ engine, cwd, sessions, name, extras }) => {
       const group = nativeProjects(homes, engine).find((g) => path.resolve(g.cwd) === path.resolve(cwd));
       if (!group) throw notFound(`${engine} sessions in ${cwd}`);
       const picked = sessions ? group.sessions.filter((s) => sessions.includes(s.id)) : group.sessions;
@@ -119,8 +124,21 @@ export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionD
         owner: owner.id,
       });
       const root = project.path ? path.resolve(project.path) : undefined;
+      const brought = extras
+        ? await applyExtras(store, deps.call, {
+            engine,
+            project_id: project.id,
+            head: owner.id,
+            extras: nativeExtras(homes, engine, group.cwd, picked),
+            chatOf: (session) => {
+              const t = store.threads.get(importedThread(store, engine, session) ?? "");
+              return t ? { title: t.title, agent: t.agent_ids[0] ?? owner.id } : undefined;
+            },
+          })
+        : undefined;
       return {
         project: { id: project.id, name: project.name },
+        ...(brought ? { extras: brought } : {}),
         chats: r.chats,
         pages: root ? r.pages.filter((p) => p.startsWith(`${root}${path.sep}`)).map((p) => path.relative(root, p)) : [],
       };

@@ -70,6 +70,20 @@ export async function sessions(client: ApxClient, [sub, ...rest]: string[], opts
         console.log(`Project ${r.project.name} (${r.project.id})`);
         for (const c of r.chats)
           console.log(`  ${c.thread}  ${c.created ? "new" : c.added ? `+${c.added}` : "up to date"}  ${c.title}`);
+        const x = r.extras;
+        if (x) {
+          if (x.mcps.added.length)
+            console.log(`MCP servers added (approve them in the project): ${x.mcps.added.join(", ")}`);
+          if (x.mcps.existing.length) console.log(`MCP servers already there: ${x.mcps.existing.join(", ")}`);
+          for (const m of x.mcps.need_values)
+            console.log(
+              `MCP server ${m.name} holds a credential (${m.keys.join(", ")}): add it yourself with its value`,
+            );
+          if (x.notes) console.log(`Memory notes: ${x.notes}`);
+          if (x.tasks) console.log(`Open tasks on the board: ${x.tasks}`);
+          if (x.routines.length)
+            console.log(`Routines, turned off (turn off the original first): ${x.routines.join(", ")}`);
+        }
         if (r.pages.length) {
           console.log("Pages these chats wrote (apx sessions page <project> <file>):");
           for (const p of r.pages) console.log(`  ${p}`);

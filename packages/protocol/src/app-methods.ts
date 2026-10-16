@@ -1315,10 +1315,27 @@ export const appMethods = {
         cwd: z.string().min(1).max(1000),
         sessions: z.array(z.string().min(1).max(120)).max(500).optional(),
         name: z.string().trim().min(1).max(80).optional(),
+        /**
+         * The project's MCP servers, memory notes, open tasks and automations too (default). Servers whose file holds
+         * a credential are only listed (`need_values`); automations come as routines turned off.
+         */
+        extras: z.boolean().default(true),
       })
       .strict(),
     result: z.object({
       project: z.object({ id: Id, name: z.string() }),
+      extras: z
+        .object({
+          mcps: z.object({
+            added: z.array(z.string()),
+            existing: z.array(z.string()),
+            need_values: z.array(z.object({ name: z.string(), keys: z.array(z.string()) })),
+          }),
+          notes: z.number().int(),
+          tasks: z.number().int(),
+          routines: z.array(z.string()),
+        })
+        .optional(),
       chats: z.array(
         z.object({
           thread: Id,

@@ -21,6 +21,10 @@ apx sessions import codex "<name or folder>"   # the folder becomes an APX proje
 - Until adopted, the chats are the project orchestrator's (yours when it has none). Artifacts the sessions published
   come as widgets in their chats, documents they wrote as files that open in the side panel. Never import a project
   the owner did not name.
+- The import also brings the project's MCP servers (waiting for the owner's approval), the memory notes the engine
+  kept, its open tasks (on the board) and Codex's automations (as routines, turned off). Tell the owner: which servers
+  to approve, which ones hold a credential they must add themselves (never copy it), and that a routine is turned on
+  only after its original is turned off, so it never runs twice.
 
 ## 2. Read each chat
 

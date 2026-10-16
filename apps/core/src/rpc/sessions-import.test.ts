@@ -81,8 +81,47 @@ before(async () => {
   thread.run("c-cmo", rollout, acme, "You are Acme's CMO", "CMO", 1788000000, 0, "user", "p1", "Codex Desktop", null);
   thread.run("c-sub", rollout, acme, "explore", null, 1788000000, 0, "subagent", "p1", "Codex Desktop", "explorer");
   db.close();
+  // What the Codex project keeps besides its chats: a goal still open, a memory, an automation, its own servers.
+  const goals = new DatabaseSync(path.join(codex, "goals_1.sqlite"));
+  goals.exec("CREATE TABLE thread_goals (thread_id TEXT, goal_id TEXT, objective TEXT, status TEXT)");
+  goals.prepare("INSERT INTO thread_goals VALUES ('c-cmo', 'g1', 'Plan the November campaign', 'active')").run();
+  goals.close();
+  const memories = new DatabaseSync(path.join(codex, "memories_1.sqlite"));
+  memories.exec("CREATE TABLE stage1_outputs (thread_id TEXT, raw_memory TEXT)");
+  memories.prepare("INSERT INTO stage1_outputs VALUES ('c-cmo', 'Acme posts Reels on Tuesdays')").run();
+  memories.close();
+  fs.mkdirSync(path.join(codex, "automations", "weekly"), { recursive: true });
+  fs.writeFileSync(
+    path.join(codex, "automations", "weekly", "automation.toml"),
+    [
+      'id = "weekly"',
+      'name = "Weekly reel plan"',
+      'prompt = "Plan next week\'s Reels."',
+      'status = "ACTIVE"',
+      'rrule = "FREQ=WEEKLY;BYDAY=MO;BYHOUR=10;BYMINUTE=0"',
+      `cwds = ${JSON.stringify([acme])}`,
+    ].join("\n"),
+  );
+  fs.mkdirSync(path.join(acme, ".codex"));
+  fs.writeFileSync(
+    path.join(acme, ".codex", "config.toml"),
+    [
+      "[mcp_servers.docs]",
+      'command = "npx"',
+      'args = ["-y", "acme-docs-mcp"]',
+      "[mcp_servers.jira]",
+      'command = "npx"',
+      "[mcp_servers.jira.env]",
+      'API_TOKEN = "not-a-real-token"',
+    ].join("\n"),
+  );
   const claude = path.join(env.home, "claude-home", "projects", "-work-acme");
-  fs.mkdirSync(claude, { recursive: true });
+  fs.mkdirSync(path.join(claude, "memory"), { recursive: true });
+  fs.writeFileSync(
+    path.join(claude, "memory", "brand.md"),
+    "---\nname: brand\ndescription: Acme's tone is warm\n---\n\nNo jargon in posts.\n",
+  );
+  fs.writeFileSync(path.join(claude, "memory", "MEMORY.md"), "- [brand](brand.md)\n");
   fs.writeFileSync(
     path.join(claude, "s-fix.jsonl"),
     line({ type: "user", cwd: acme, timestamp: at(5), message: { role: "user", content: "Fix the reel page" } }) +
@@ -145,6 +184,17 @@ test("importing makes the folder a project and each session a chat with its whol
   assert.deepEqual(r.pages, [path.join("reel", "index.html")]);
   const chat = r.chats[0];
   assert.equal(chat?.created, true);
+  assert.deepEqual(r.extras, {
+    mcps: { added: ["docs"], existing: [], need_values: [{ name: "jira", keys: ["API_TOKEN"] }] },
+    notes: 1,
+    tasks: 1,
+    routines: ["Weekly reel plan"],
+  });
+  const routines = (await env.client.call("routines.list", {})).routines;
+  const weekly = routines.find((x) => x.name === "Weekly reel plan");
+  assert.equal(weekly?.enabled, false);
+  const board = await env.client.call("tasks.list", { project: r.project.id });
+  assert.ok(board.tasks.some((t) => t.title === "Plan the November campaign"));
   const thread = await env.client.call("threads.get", { thread: chat?.thread ?? "" });
   assert.equal(thread.thread.project_id, r.project.id);
   const [owner, answer] = thread.messages;
@@ -171,6 +221,8 @@ test("importing again brings only what is new", async () => {
   assert.equal(again.chats[0]?.added, 2);
   const still = await env.client.call("sessions.import", { engine: "codex", cwd: acme });
   assert.equal(still.chats[0]?.added, 0);
+  assert.deepEqual(still.extras?.mcps.added, []);
+  assert.deepEqual([still.extras?.notes, still.extras?.tasks, still.extras?.routines], [0, 0, []]);
   const t = await env.client.call("threads.get", { thread: again.chats[0]?.thread ?? "" });
   assert.equal(t.messages.length, 4);
 });
@@ -235,4 +287,7 @@ test("Claude Code sessions group by their folder and land in the same project", 
   assert.equal(doc?.type === "file" && doc.document?.title, "Launch plan");
   const widget = made.find((p) => p.type === "surface");
   assert.equal(widget?.type === "surface" && widget.title, "Acme vs Globex");
+  assert.equal(r.extras?.notes, 1);
+  const notes = await env.client.call("memory.list", { project: r.project.id });
+  assert.ok(JSON.stringify(notes).includes("Acme's tone is warm"));
 });

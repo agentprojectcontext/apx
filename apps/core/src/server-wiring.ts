@@ -14,6 +14,7 @@ import { audienceOf } from "./engine/audience.ts";
 import { createHooks } from "./engine/hooks.ts";
 import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
 import type { Upkeep } from "./engine/upkeep.ts";
+import type { InternalCall } from "./rpc/internal.ts";
 import { errorMessage } from "./errors.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
@@ -155,6 +156,8 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
 
 type HandlerDeps = {
   store: Store;
+  /** The router from inside the core (late-bound: it exists once these handlers do). */
+  internal: InternalCall;
   log: Log;
   identity: Identity;
   broker: NodeBroker;
@@ -256,6 +259,7 @@ export function coreHandlers(d: HandlerDeps) {
       home: d.app.home,
       apc: d.apc,
       ask: (agent, about, system, user) => d.upkeep.study(agent, system, user, about),
+      call: d.internal,
     }),
     ...setupHandlers({
       store: d.store,
