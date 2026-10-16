@@ -11,7 +11,7 @@ import {
   updateAgentFile,
   writeNewAgent,
 } from "../apc/write.ts";
-import { type AgentRecord, publicAgent } from "../domain/agents.ts";
+import { type AgentRecord, publicAgent, rulesText } from "../domain/agents.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, errorMessage, notFound } from "../errors.ts";
@@ -112,6 +112,9 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
           prompt: p.prompt,
           ...(p.blob ? { blob: p.blob } : {}),
           ...(p.model_choice ? { model_choice: p.model_choice } : {}),
+          ...(p.area ? { area: p.area } : {}),
+          ...(p.personality ? { personality: p.personality } : {}),
+          ...(p.orchestrator ? { orchestrator: true } : {}),
         });
         return fresh(p.slug);
       }
@@ -120,7 +123,16 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
         writeNewAgent(
           root,
           p.slug,
-          { name: p.name, role: p.role, description: p.description, parent: p.parent, icon: p.blob },
+          {
+            name: p.name,
+            role: p.role,
+            description: p.description,
+            parent: p.parent,
+            icon: p.blob,
+            area: p.area,
+            personality: p.personality,
+            orchestrator: p.orchestrator ? "true" : undefined,
+          },
           p.prompt,
         ),
       );
@@ -149,6 +161,8 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
         personality: p.personality,
         // null: back to its project's, so the key leaves the file.
         autonomy: p.autonomy === null ? "" : p.autonomy,
+        orchestrator: p.orchestrator === undefined ? undefined : p.orchestrator ? "true" : "",
+        rules: p.rules === undefined ? undefined : rulesText(p.rules),
         tools: p.tools,
         skills: p.skills,
       };
@@ -179,6 +193,8 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
           ...(p.area !== undefined ? { area: p.area || undefined } : {}),
           ...(p.parent !== undefined ? { parent: p.parent || undefined } : {}),
           ...(p.autonomy !== undefined ? { autonomy: p.autonomy ?? undefined } : {}),
+          ...(p.orchestrator !== undefined ? { orchestrator: p.orchestrator || undefined } : {}),
+          ...(p.rules !== undefined ? { rules: p.rules ?? undefined } : {}),
           ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
           ...(p.personality !== undefined ? { personality: p.personality || undefined } : {}),
           ...(p.tools !== undefined ? { tools: p.tools.length ? p.tools : undefined } : {}),

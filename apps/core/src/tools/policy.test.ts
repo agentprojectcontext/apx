@@ -124,3 +124,28 @@ test("standard autonomy: high-impact calls wait only while untrusted content is 
   assert.equal(authorize(send, {}, agent(), true).kind, "confirm");
   assert.equal(authorize(tool("open", "external"), {}, agent(), true).kind, "allow");
 });
+
+test("rules: an agent's own rule for a risk wins over its autonomy, and off takes the tools away", () => {
+  const send = tool("send_it", "message");
+  const write = tool("write_it", "local", "ask");
+  const wipe = tool("wipe_it", "local", "always");
+  const read = tool("read_it");
+  const ruled = agent({ autonomy: "total", rules: { outside: "ask", irreversible: "off", write: "auto" } });
+  assert.equal(authorize(send, {}, ruled, false).kind, "confirm");
+  assert.equal(authorize(wipe, {}, ruled, false).kind, "deny");
+  assert.equal(authorize(write, {}, agent({ autonomy: "ask", rules: { write: "auto" } }), true).kind, "allow");
+  assert.equal(authorize(read, {}, ruled, true).kind, "allow");
+  assert.deepEqual(
+    allowedTools(ruled, [send, wipe, read, tool("ask_owner")]).map((t) => t.name),
+    ["send_it", "read_it", "ask_owner"],
+  );
+});
+
+test("rules: a delegated run never gets looser rules than its own autonomy from its caller", () => {
+  const caller = agent({ id: "boss", rules: { outside: "auto" } });
+  const worker = agent({ id: "w", autonomy: "ask" });
+  const { agent: run } = inherit(worker, [caller], []);
+  assert.equal(run.rules?.outside, "ask");
+  const strict = inherit(agent({ id: "w2", rules: { write: "auto" } }), [agent({ rules: { write: "off" } })], []);
+  assert.equal(strict.agent.rules?.write, "off");
+});

@@ -11,6 +11,12 @@ const CALLS: Record<string, [string, object]> = {
   "hire one for nowhere": ["agent_set", { slug: "lost", name: "Lost", project: "Nowhere" }],
   "rename the writer": ["agent_set", { agent: "acme-writer", name: "Northwind Writer", prompt: "Write short." }],
   "let the writer go": ["agent_set", { agent: "acme-writer", archive: true }],
+  "show the team": ["agent_set", {}],
+  "hire a designer": ["agent_set", { slug: "designer", name: "Designer", role: "Designer", area: "Design" }],
+  "hire a lead": [
+    "agent_set",
+    { slug: "lead", name: "Lead", role: "Head of design", area: "design", orchestrator: true },
+  ],
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(String(req.messages.at(-1)?.content));
@@ -109,4 +115,31 @@ test("a new agent goes to the project it names, from any chat, and the answer sa
     (await env.client.call("agents.list", {})).agents.find((a) => a.name === "Lost"),
     undefined,
   );
+});
+
+test("the team sheet lists kind, areas and roles; an area exists only in a company and joins its list", async () => {
+  assert.match(await ask("show the team"), /^project kind: not set \(areas only exist in company projects/);
+  assert.match(await ask("hire a designer", "roby", "approve"), /not run: areas only exist in company projects/);
+  assert.equal(await agent("designer"), undefined);
+
+  await env.client.call("projects.update_base", { kind: "company" });
+  assert.match(await ask("hire a designer", "roby", "approve"), /created: Designer/);
+  assert.equal((await agent("designer"))?.area, "design");
+  assert.match(await ask("hire a lead", "roby", "approve"), /created: Lead/);
+  const lead = await agent("lead");
+  assert.equal(lead?.area, "design", "the area is found by its slug, not added twice");
+  assert.equal(lead?.orchestrator, true);
+  const org = await env.client.call("org.get", {});
+  assert.deepEqual(
+    org.areas.map((a) => a.slug),
+    ["design"],
+  );
+  assert.deepEqual(
+    org.roles.map((r) => [r.name, r.area]),
+    [
+      ["Designer", "design"],
+      ["Head of design", "design"],
+    ],
+  );
+  assert.match(await ask("show the team"), /areas: Design \(design\)\nroles: Designer; Head of design/);
 });

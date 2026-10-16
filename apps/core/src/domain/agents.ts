@@ -1,6 +1,6 @@
 // Agents are always addressed by id. Names are for people and models; turning a name into an id is an explicit,
 // scoped lookup (`resolve`) that refuses ambiguity instead of picking one.
-import { type Agent, Autonomy, type ModelChoice } from "@apx/protocol";
+import { type Agent, type AgentRules, Autonomy, type ModelChoice, RulePolicy, ToolRisk } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { AgentsTable } from "../db/schema.ts";
 import { harnessOf } from "./refs.ts";
@@ -25,9 +25,38 @@ const toAgent = (r: Selectable<AgentsTable>): AgentRecord => ({
   prompt: r.prompt,
 });
 
+type Policy = Pick<Agent, "tools" | "autonomy" | "skills" | "area" | "personality" | "orchestrator" | "rules">;
+
+/** `rules:` as `risk=policy` pairs ("write=ask"); unknown risks or policies are left out. */
+export function rulesOf(v: unknown): AgentRules | undefined {
+  const pairs = Array.isArray(v) ? v : typeof v === "string" ? v.split(",") : [];
+  const out: AgentRules = {};
+  for (const pair of pairs) {
+    const [k, p] = String(pair)
+      .split(/[=:]/)
+      .map((x) => x.trim().toLowerCase());
+    const risk = ToolRisk.safeParse(k);
+    const policy = RulePolicy.safeParse(p);
+    if (risk.success && policy.success) out[risk.data] = policy.data;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** The pairs an agent's file writes for its rules. */
+export const rulesText = (r: AgentRules | null | undefined): string[] =>
+  Object.entries(r ?? {}).flatMap(([k, v]) => (v ? [`${k}=${v}`] : []));
+
 /** `tools:`, `autonomy:`, `skills:` and `area:` as the agent's file wrote them; unknown autonomy values mean the default. */
-function policyOf(extra: string | null): Pick<Agent, "tools" | "autonomy" | "skills" | "area" | "personality"> {
-  let e: { tools?: unknown; autonomy?: unknown; skills?: unknown; area?: unknown; personality?: unknown } = {};
+function policyOf(extra: string | null): Policy {
+  let e: {
+    tools?: unknown;
+    autonomy?: unknown;
+    skills?: unknown;
+    area?: unknown;
+    personality?: unknown;
+    orchestrator?: unknown;
+    rules?: unknown;
+  } = {};
   try {
     e = extra ? JSON.parse(extra) : {};
   } catch {}
@@ -42,6 +71,8 @@ function policyOf(extra: string | null): Pick<Agent, "tools" | "autonomy" | "ski
     ...(typeof e.personality === "string" && e.personality.trim()
       ? { personality: e.personality.trim().slice(0, 1000) }
       : {}),
+    ...(e.orchestrator === true || String(e.orchestrator ?? "").toLowerCase() === "true" ? { orchestrator: true } : {}),
+    ...(rulesOf(e.rules) ? { rules: rulesOf(e.rules) } : {}),
   };
 }
 
@@ -261,13 +292,15 @@ export function agentsRepo({ one, all, run }: Sql, changed: () => void) {
 }
 
 /** The fields kept in `extra`: what an agent's file writes as tools, autonomy, skills and area, and its personality. */
-function extraOf(a: Pick<Agent, "tools" | "autonomy" | "skills" | "area" | "personality">): string | null {
+function extraOf(a: Policy): string | null {
   const e = {
     ...(a.tools?.length ? { tools: a.tools } : {}),
     ...(a.autonomy ? { autonomy: a.autonomy } : {}),
     ...(a.skills?.length ? { skills: a.skills } : {}),
     ...(a.area ? { area: a.area } : {}),
     ...(a.personality ? { personality: a.personality } : {}),
+    ...(a.orchestrator ? { orchestrator: true } : {}),
+    ...(a.rules && rulesText(a.rules).length ? { rules: rulesText(a.rules) } : {}),
   };
   return Object.keys(e).length ? JSON.stringify(e) : null;
 }

@@ -16,6 +16,10 @@ export type AgentFileFields = {
   area?: string | undefined;
   personality?: string | undefined;
   autonomy?: string | undefined;
+  /** "true", or "" to remove it. */
+  orchestrator?: string | undefined;
+  /** `risk=policy` pairs ("write=ask"). */
+  rules?: string[] | undefined;
   tools?: string[] | undefined;
   skills?: string[] | undefined;
   aliases?: string[] | undefined;
@@ -94,6 +98,9 @@ export function writeNewAgent(root: string, slug: string, fields: AgentFileField
         description: fields.description,
         parent: fields.parent,
         icon: fields.icon,
+        area: fields.area,
+        personality: fields.personality,
+        orchestrator: fields.orchestrator,
       }),
       prompt,
     ),
@@ -131,6 +138,8 @@ export function updateAgentFile(root: string, slug: string, fields: AgentFileFie
     area: fields.area,
     personality: fields.personality,
     autonomy: fields.autonomy,
+    orchestrator: fields.orchestrator,
+    rules: fields.rules,
     tools: fields.tools,
     skills: fields.skills,
     aliases: fields.aliases,

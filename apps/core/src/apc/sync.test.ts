@@ -251,7 +251,7 @@ test("an agent's tools and skills are set from APX: a project agent's file says 
     const { tools } = await env.client.call("agents.tools", {});
     assert.deepEqual(
       tools.find((t) => t.name === "shell_output"),
-      { name: "shell_output", group: "shell", kept: false },
+      { name: "shell_output", group: "shell", kept: false, risk: "read" },
     );
     assert.equal(tools.find((t) => t.name === "recall")?.kept, true);
     assert.equal(tools.find((t) => t.name === "mcp_call")?.group, "mcp", "MCP's bridge is offered too");

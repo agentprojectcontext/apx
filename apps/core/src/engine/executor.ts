@@ -215,11 +215,18 @@ export function createExecutor(o: {
       return { ok: false, text: "refused: this code thread is read-only; only actions that read may run here" };
     }
     const decision = authorize(tool, args, agent, untrusted);
+    if (decision.kind === "deny") {
+      card("error", "turned off");
+      return {
+        ok: false,
+        text: `not run: ${decision.reason}. Do not retry it; tell the owner or continue without it.`,
+      };
+    }
     // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089).
     const target = level === "always" && tool.approval ? strictApproval(tool.approval) : tool.approval;
     if (
       decision.kind === "confirm" &&
-      !(target && store.approvals.allows(target, thread.id, agent.id)) &&
+      !(target && store.approvals.allows(target, thread.id, agent.id, args)) &&
       !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key)
     ) {
       const answer = await o.inputs.ask({
@@ -346,6 +353,7 @@ export function createExecutor(o: {
     const workspace = inside && (req.kind === "edit" || req.kind === "execute") && !paths.some((p) => guarded(base, p));
     const decision = decide(level, reading ? "none" : "external", agent, untrusted, workspace);
     if (decision.kind === "allow") return true;
+    if (decision.kind === "deny") return false;
     const answer = await o.inputs.ask({
       run: o.run(),
       agent,

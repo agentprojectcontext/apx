@@ -53,6 +53,16 @@ Y así se cruzan:
 Cuando un agente le delega a otro, el ayudante recibe la autonomía **más estricta** de la cadena y sólo las
 herramientas que pueden usar todos los agentes de esa cadena. Delegar nunca da más poder.
 
+## Reglas por caso
+
+Un agente también puede tener su propia regla para cada tipo de acción, por encima de su autonomía: **leer y mirar**,
+**cambiar cosas del proyecto**, **actuar afuera en tu nombre** e **irreversible**. Cada una corre sin preguntar,
+pregunta, o está apagada (le saca esas herramientas). Se ajustan en el editor del agente, en **Reglas por caso**, o en
+su archivo como `rules: write=auto, outside=ask`. Un agente que usaba la autonomía del proyecto pasa a tener reglas
+propias para todos los casos la primera vez que cambiás una, así los cambios del proyecto ya no le llegan; **Volver a
+usar las del proyecto** lo deshace. Lo que le concediste para siempre sigue corriendo sin preguntar, y un ayudante
+nunca recibe reglas más sueltas que las que tendría solo.
+
 ## Aprobar
 
 Cuando una acción espera, el chat muestra una tarjeta **Necesita tu OK** con lo que el agente quiere hacer. Podés
@@ -64,6 +74,10 @@ responder:
 - **Rechazar**: al agente se le dice que no y sigue sin eso.
 
 Una acción `always` sólo se puede aprobar de a una: la siguiente vuelve a preguntar, elijas lo que elijas antes.
+
+En el editor del agente, **Concedidos** lista lo que le permitiste para siempre. Podés limitar un permiso a ciertas
+rutas, dominios o nombres (`app/Http/, github.com`: sólo corren sin preguntar las llamadas cuyos argumentos coinciden)
+o ponerle vencimiento, y después vuelve a preguntar.
 
 El turno queda en `input-required` mientras espera. Si no respondés dentro de la espera del turno, el turno termina y
 la tarjeta queda abierta **30 días**; si respondés después, arranca un turno nuevo y la llamada aprobada corre una vez

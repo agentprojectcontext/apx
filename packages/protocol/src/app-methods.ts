@@ -3,6 +3,7 @@ import { z } from "zod";
 import { composerMethods } from "./composer-methods.ts";
 import {
   Agent,
+  AgentRules,
   ApprovalScope,
   Author,
   Autonomy,
@@ -55,6 +56,8 @@ import {
   SurfaceOrigin,
   SurfaceSummary,
   Thread,
+  ToolApproval,
+  ToolRisk,
   WritePolicy,
 } from "./domain.ts";
 import { filesMethods } from "./files-methods.ts";
@@ -265,6 +268,9 @@ export const appMethods = {
         parent: z.string().max(64).optional(),
         blob: z.string().max(40).optional(),
         model_choice: ModelChoice.optional(),
+        area: z.string().trim().max(60).optional(),
+        personality: z.string().max(1000).optional(),
+        orchestrator: z.boolean().optional(),
       })
       .strict(),
     result: Agent,
@@ -306,7 +312,7 @@ export const appMethods = {
   "agents.tools": {
     params: z.object({}).strict(),
     result: z.object({
-      tools: z.array(z.object({ name: z.string(), group: z.string().optional(), kept: z.boolean() })),
+      tools: z.array(z.object({ name: z.string(), group: z.string().optional(), kept: z.boolean(), risk: ToolRisk })),
     }),
     effect: false,
     access: "human",
@@ -341,6 +347,10 @@ export const appMethods = {
         /** The tools (or groups) it may use, and the skills it works with; [] goes back to all of them. */
         tools: z.array(z.string().trim().min(1).max(80)).max(200).optional(),
         skills: z.array(z.string().trim().min(1).max(120)).max(200).optional(),
+        /** Runs its team (false clears it). */
+        orchestrator: z.boolean().optional(),
+        /** Its own rules by risk; null: none, its autonomy decides. Owner only. */
+        rules: AgentRules.nullable().optional(),
         /** Renames the file (project agents); the agent keeps its id and the old slug is kept as an alias. */
         slug: z
           .string()
@@ -350,6 +360,23 @@ export const appMethods = {
       })
       .strict(),
     result: Agent,
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Narrows or changes a grant for good (one agent's, or every agent's without `agent`): only calls matching
+   * `condition`, until `expires_at`. Empty strings clear them.
+   */
+  "tools.grant_set": {
+    params: z
+      .object({
+        key: z.string().min(1),
+        agent: Id.optional(),
+        condition: z.string().max(200).optional(),
+        expires_at: z.string().datetime().or(z.literal("")).optional(),
+      })
+      .strict(),
+    result: z.object({ approval: ToolApproval }),
     effect: true,
     access: "human",
   },

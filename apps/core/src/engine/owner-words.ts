@@ -8,6 +8,7 @@ const es: Record<ConfirmWhy, (agent: string, tool: string) => string> = {
   always: (a, t) => `${a} quiere usar ${t}: es una acción de alto impacto.`,
   needs_ok: (a, t) => `${a} necesita tu OK para usar ${t}.`,
   asks_every: (a, t) => `${a} quiere usar ${t}: pide tu OK antes de cada acción que cambia algo.`,
+  rule: (a, t) => `${a} quiere usar ${t}: sus reglas piden tu OK para esta clase de acción.`,
 };
 
 const en: typeof es = {
@@ -16,6 +17,7 @@ const en: typeof es = {
   always: (a, t) => `${a} wants to use ${t}: this is a high-impact action.`,
   needs_ok: (a, t) => `${a} needs your OK to use ${t}.`,
   asks_every: (a, t) => `${a} wants to use ${t}: it asks before every action that changes something.`,
+  rule: (a, t) => `${a} wants to use ${t}: its rules ask for your OK on this kind of action.`,
 };
 
 /** The question shown when an agent's action waits for the owner. */

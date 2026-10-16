@@ -5,7 +5,7 @@ import path from "node:path";
 import type { ModelChoice } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
-import { textField } from "./frontmatter.ts";
+import { listField, textField } from "./frontmatter.ts";
 import { type ApcAgent, isApcProject, readAgents, readProject } from "./read.ts";
 
 const DEBOUNCE_MS = 400;
@@ -89,6 +89,8 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
             autonomy: textField(a.fields.autonomy ?? a.fields.Autonomy),
             area: textField(a.fields.area ?? a.fields.Area),
             personality: textField(a.fields.personality ?? a.fields.Personality),
+            orchestrator: textField(a.fields.orchestrator ?? a.fields.Orchestrator),
+            rules: listField(a.fields.rules ?? a.fields.Rules),
           },
         });
       }

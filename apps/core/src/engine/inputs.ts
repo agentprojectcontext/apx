@@ -93,7 +93,8 @@ export function createInputs(deps: {
 
   store.approvals.subscribe(() => {
     for (const r of store.inputs.pending()) {
-      if (r.kind !== "confirm" || !r.approval || !store.approvals.allows(r.approval, r.thread_id, r.agent_id)) continue;
+      if (r.kind !== "confirm" || !r.approval || !store.approvals.allows(r.approval, r.thread_id, r.agent_id, r.args))
+        continue;
       const grant = store.approvals
         .list(r.thread_id)
         .find((g) => g.key === r.approval?.key && (!g.agent_id || g.agent_id === r.agent_id));

@@ -1049,3 +1049,23 @@ calls that always ask (a destructive one), and the agent's permissions list says
 grant the owner gives, it holds with outside content in the turn too: the owner picks it on the card, and revokes it
 from the agent's permissions. External agents' own tools (ACP) still get a yes for that one call only.
 `routine_set` also says to create or change a routine and run it in one call.
+
+<a id="d-090"></a>
+## D-090 — 2026-10-16 — An agent's own rules by kind of action, and grants narrowed to a condition or a date
+Autonomy is one dial for every action, so an owner who wanted an agent to edit the project freely but ask before every
+message had to pick between `ask` (it asks for everything) and `standard` (it writes without asking but also sends when
+nothing outside is in the turn). Now each call falls into one of four risks, decided in `tools/policy.ts` from what the
+tool already declares: a call that always asks is **irreversible**; otherwise `effect: none` **reads**, `local`
+**writes** the project, `external` and `message` act **outside**. An agent's `rules:` (in its file as
+`rules: write=auto, outside=ask`) sets `auto`, `ask` or `off` per risk, over its autonomy: the owner chose it for that
+kind of action, so `auto` runs with outside content in the turn too, as `total` does (D-047); `off` takes the risk's
+tools out of the turn and refuses a call that turns out to be that risk (a shell command that deletes). A risk with no
+rule follows the autonomy as before. A delegated run takes, per risk any agent in the chain ruled on, the strictest of
+what each would do on its own (a rule, else what its autonomy amounts to), so a caller's `auto` never loosens a
+helper. Owner grants still go over `ask`. The editor turns an agent that followed its project into one with its own
+rules for every case the first time one changes, after saying so, so later project changes do not half-apply.
+A grant for good can now carry a `condition` (comma-separated paths, domains or names: it covers a call only when one
+of its text arguments starts with one, or is a URL on that domain) and an `expires_at`, after which it is gone; it also
+keeps when and from which chat it was given (`tools.grant_set`). A grant with a condition never counts as using a tool
+freely, so it is not handed on to another agent. `orchestrator: true` marks the head of a team explicitly; the guesses
+by role ("orchestrator", "lead") remain only for files that do not say it.

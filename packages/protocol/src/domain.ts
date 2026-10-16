@@ -15,6 +15,32 @@ export const ProjectKind = z.enum(["personal", "app", "company", "software", "ot
 export const Autonomy = z.enum(["ask", "standard", "edits", "total"]);
 export type Autonomy = z.infer<typeof Autonomy>;
 
+/**
+ * What a tool call does, by risk: reads; changes the project (files, memory, delegating); acts outside in the owner's
+ * name (messages, posts, clicks on the web); or cannot be undone (deleting, granting). DECISIONS.md#d-090
+ */
+export const ToolRisk = z.enum(["read", "write", "outside", "irreversible"]);
+export type ToolRisk = z.infer<typeof ToolRisk>;
+/** An agent's own rule for one risk: runs without asking, asks first, or is never used. */
+export const RulePolicy = z.enum(["auto", "ask", "off"]);
+export type RulePolicy = z.infer<typeof RulePolicy>;
+/** Its rules by risk; a risk left out follows its autonomy. */
+export const AgentRules = z.object({
+  read: RulePolicy.optional(),
+  write: RulePolicy.optional(),
+  outside: RulePolicy.optional(),
+  irreversible: RulePolicy.optional(),
+});
+export type AgentRules = z.infer<typeof AgentRules>;
+
+/** What each autonomy amounts to per risk, as the editor shows it before an agent sets rules of its own. */
+export const AUTONOMY_RULES: Record<Autonomy, Required<AgentRules>> = {
+  ask: { read: "auto", write: "ask", outside: "ask", irreversible: "ask" },
+  standard: { read: "auto", write: "auto", outside: "ask", irreversible: "ask" },
+  edits: { read: "auto", write: "auto", outside: "ask", irreversible: "ask" },
+  total: { read: "auto", write: "auto", outside: "auto", irreversible: "auto" },
+};
+
 /** The base project (no folder): the owner may name it, describe it and give it a kind, like any other. */
 export const BaseProject = z.object({
   name: z.string().trim().min(1).max(80),
@@ -162,6 +188,10 @@ export const Agent = z.object({
   skills: z.array(z.string()).optional(),
   /** How it comes across (warm, dry, playful…), apart from its instructions. */
   personality: z.string().max(1000).optional(),
+  /** It runs its team: on top of the chart, and the one work goes to first. From `orchestrator: true`. */
+  orchestrator: z.boolean().optional(),
+  /** Its own rules by risk, over its autonomy. From `rules:`. */
+  rules: AgentRules.optional(),
 });
 export type Agent = z.infer<typeof Agent>;
 
@@ -255,6 +285,16 @@ export const ToolApproval = z.object({
   scope: z.enum(["session", "always"]),
   thread_id: Id.optional(),
   agent_id: Id.optional(),
+  /**
+   * Only calls whose arguments match: comma-separated paths, domains or names ("app/Http/", "github.com"). A call
+   * matches when one of its text arguments starts with one, or is a URL on that domain.
+   */
+  condition: z.string().max(200).optional(),
+  /** After this it asks again. */
+  expires_at: z.string().optional(),
+  granted_at: z.string().optional(),
+  /** The chat it was granted from. */
+  from_thread: Id.optional(),
 });
 export type ToolApproval = z.infer<typeof ToolApproval>;
 

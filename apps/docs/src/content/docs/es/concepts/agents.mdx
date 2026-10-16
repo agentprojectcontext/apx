@@ -93,6 +93,8 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `area` | El área a la que pertenece, para el organigrama (`product`, `engineering`…). |
 | `autonomy` | `ask`, `standard` (por defecto) o `total`. Mirá [Autonomía y seguridad](/es/concepts/autonomy/). |
 | `personality` | Cómo suena, aparte de lo que hace. Hasta 1.000 caracteres. |
+| `orchestrator` | `true` marca al agente que dirige el equipo: va arriba del organigrama y recibe primero el trabajo del proyecto. |
+| `rules` | Su propia regla por tipo de acción, por encima de su autonomía: `read`, `write`, `outside` o `irreversible`, cada una `auto`, `ask` u `off` (`rules: write=auto, outside=ask`). Un tipo que no aparece sigue a la autonomía. |
 | `tools` | Limita al agente a esas herramientas o grupos. Sin este campo, tiene todas. |
 | `skills` | Limita qué skills se le ofrecen. Sin este campo, todas. |
 | `aliases` | Slugs viejos. Renombrás el archivo, ponés acá el slug anterior y el agente conserva sus chats. |
@@ -123,6 +125,11 @@ hacerte una pregunta, cargar una skill y buscar en las notas.
    proyecto.
 4. Tocá el nombre de cualquier agente en la cabecera de un chat para abrir su panel lateral: rol, a quién reporta,
    autonomía, modelo, perfil del navegador y sus números.
+5. Tocá el lápiz para editar el agente entero: identidad (elegí un área y un rol del proyecto o creá uno; las áreas
+   existen sólo en proyectos de tipo empresa), prompt, modelo y equipo (marcalo como **Orquestador**), las tools y
+   skills que puede usar (cada lista tiene buscador), su autonomía, sus **reglas por caso**, lo que le **concediste**
+   para siempre (limitá un permiso a ciertas rutas o dominios, o ponele vencimiento) y su perfil del navegador. El
+   menú del clic derecho del agente también tiene **Orquestador**, con una corona.
 
 </Steps>
 

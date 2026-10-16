@@ -15,6 +15,11 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       store.approvals.revoke(key, thread, agent);
       return { ok: true };
     },
+    "tools.grant_set": ({ key, agent, condition, expires_at }) => {
+      const approval = store.approvals.update(key, agent, { condition, expires_at });
+      if (!approval) throw notFound(`grant ${key}`);
+      return { approval };
+    },
     "mcp.tools": async ({ scope, server, project }) => {
       const d = mcp.find(scope, server, project);
       if (!d) throw notFound(`MCP server ${server}`);
