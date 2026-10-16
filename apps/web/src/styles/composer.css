@@ -36,8 +36,11 @@
   flex: 99;
 }
 
-.composer__mic.is-recording {
+/* While recording the mic turns into a stop button */
+.composer__mic.is-recording,
+.composer__mic.is-recording:hover {
   color: var(--apx-danger);
+  background: var(--apx-danger-soft);
 }
 .chat__composer.is-recording .apx-composer.is-disabled {
   opacity: 1;
@@ -45,7 +48,10 @@
 .composer__mic.is-transcribing svg {
   animation: composer-spin 1s linear infinite;
 }
+/* Full width from the first frame, not only once the heard words push it open */
 .voice-recording {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

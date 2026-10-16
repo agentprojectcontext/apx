@@ -215,7 +215,15 @@ export function ChatComposer({
                 size="sm"
                 className={`composer__mic is-${mic.state}`}
                 label={mic.state === "recording" ? t("composer.dictateStop") : t("composer.dictate")}
-                icon={mic.state === "transcribing" ? <Icons.LoaderCircle size={14} /> : <Icons.Mic size={14} />}
+                icon={
+                  mic.state === "transcribing" ? (
+                    <Icons.LoaderCircle size={14} />
+                  ) : mic.state === "recording" ? (
+                    <Icons.Square size={12} fill="currentColor" />
+                  ) : (
+                    <Icons.Mic size={14} />
+                  )
+                }
                 disabled={
                   offline ||
                   mic.state === "transcribing" ||
