@@ -16,7 +16,7 @@ const keyOf = (s: McpServerStatus) => `${s.scope}:${s.project_id ?? ""}:${s.name
 const isGlobal = (s: McpServerStatus) => s.scope === "global" && !s.only;
 
 /** MCP servers: inside a project its own and the inherited global ones (each can be turned off here). */
-export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabProps) {
+export function McpTab({ projectId, query, scope, adding, setAdding, res, ownOnly }: TabProps) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const [picked, setPicked] = useState<string>();
@@ -201,6 +201,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res }: TabP
               inherit={inherit}
               emptyOwn={t("res.noOwnMcp")}
               render={row}
+              ownOnly={ownOnly}
             />
           ) : (
             groups

@@ -60,6 +60,9 @@ export const enResources = {
   "res.useThis": "Use this one",
   "res.copyUnused": "A copy in {engine}: agents do not use it",
   "res.show.projectNote": "Only {name}'s own: its .apc/skills/ and the skills folders of other engines inside it.",
+  "res.show.projectNote.mcp": "Only {name}'s own: the servers in its .apc/mcps.json.",
+  "res.show.projectNote.variables":
+    "Only {name}'s own: values stored for this project, and names its own servers ask for.",
   "res.engines.note": "Showing those in {list}; a dimmed tag is a copy agents do not use.",
   "res.appReadOnly": "It lives in {app}'s skills folder: change it there, or copy it into APX to edit it here.",
   "res.copyToApx": "Copy to APX",

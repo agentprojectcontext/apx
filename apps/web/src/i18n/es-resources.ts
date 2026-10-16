@@ -64,6 +64,9 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.copyUnused": "Copia en {engine}: los agentes no la usan",
   "res.show.projectNote":
     "Solo las propias de {name}: su .apc/skills/ y las carpetas de skills de otros motores dentro del proyecto.",
+  "res.show.projectNote.mcp": "Solo los propios de {name}: los servidores de su .apc/mcps.json.",
+  "res.show.projectNote.variables":
+    "Solo las propias de {name}: valores guardados para este proyecto y los nombres que piden sus servidores.",
   "res.engines.note": "Mostrando las de {list}; un tag atenuado es una copia que los agentes no usan.",
   "res.appReadOnly": "Vive en la carpeta de skills de {app}: cambiala ahí, o copiala a APX para editarla acá.",
   "res.copyToApx": "Copiar a APX",

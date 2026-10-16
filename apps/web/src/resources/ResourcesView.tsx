@@ -20,6 +20,16 @@ const TABS: Array<{ id: ResourceTab; label: MessageKey; add?: MessageKey; search
   { id: "extensions", label: "res.tab.extensions", add: "res.add.extension" },
 ];
 
+/** Tabs where a project has resources of its own: they can show only those. */
+const OWN_TABS: readonly ResourceTab[] = ["skills", "mcp", "variables"];
+
+/** What "Project" shows on each tab that has a project's own. */
+const OWN_NOTE = {
+  skills: "res.show.projectNote",
+  mcp: "res.show.projectNote.mcp",
+  variables: "res.show.projectNote.variables",
+} as const satisfies Record<string, MessageKey>;
+
 /** "all", "global" or a project id: which scope the global screen lists. */
 export type ScopeFilter = string;
 
@@ -66,7 +76,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
     adding,
     setAdding,
     res,
-    ownOnly: Boolean(projectId) && ownOnly,
+    ownOnly: Boolean(projectId) && ownOnly && OWN_TABS.includes(tab),
     engines,
   };
   const toggleEngine = (e: SkillEngine) =>
@@ -75,8 +85,8 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
       if (!next.delete(e)) next.add(e);
       return next;
     });
-  // Skills: the project's own or all, and which engines they live in (none picked: all).
-  const skillFilters = tab === "skills" && (
+  // A project's own or all of them (where a project can have its own), and for skills the engines they live in.
+  const filters = (tab === "skills" || (Boolean(projectId) && OWN_TABS.includes(tab))) && (
     <span className="resv__filters">
       {projectId && (
         <SegmentedControl
@@ -90,27 +100,29 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
           ]}
         />
       )}
-      <Menu
-        align="start"
-        trigger={
-          <Button size="sm" variant="secondary" trailingIcon={<Icons.ChevronDown size={14} />}>
-            {engines.size
-              ? SKILL_ENGINES.filter((e) => engines.has(e))
-                  .map((e) => ENGINE_LABEL[e])
-                  .join(", ")
-              : t("res.engines.all")}
-          </Button>
-        }
-        items={[
-          { type: "label", label: t("res.engines") },
-          ...SKILL_ENGINES.map((e) => ({
-            label: ENGINE_LABEL[e],
-            checked: engines.has(e),
-            keepOpen: true,
-            onSelect: () => toggleEngine(e),
-          })),
-        ]}
-      />
+      {tab === "skills" && (
+        <Menu
+          align="start"
+          trigger={
+            <Button size="sm" variant="secondary" trailingIcon={<Icons.ChevronDown size={14} />}>
+              {engines.size
+                ? SKILL_ENGINES.filter((e) => engines.has(e))
+                    .map((e) => ENGINE_LABEL[e])
+                    .join(", ")
+                : t("res.engines.all")}
+            </Button>
+          }
+          items={[
+            { type: "label", label: t("res.engines") },
+            ...SKILL_ENGINES.map((e) => ({
+              label: ENGINE_LABEL[e],
+              checked: engines.has(e),
+              keepOpen: true,
+              onSelect: () => toggleEngine(e),
+            })),
+          ]}
+        />
+      )}
     </span>
   );
 
@@ -118,8 +130,8 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   // What the list shows, said after the filters that change it.
   const note = [
     projectId
-      ? tab === "skills" && ownOnly
-        ? t("res.show.projectNote", { name })
+      ? ownOnly && OWN_TABS.includes(tab)
+        ? t(OWN_NOTE[tab as "skills" | "mcp" | "variables"], { name })
         : t("res.inherit", { name })
       : inDefault
         ? t("res.defaultGlobal")
@@ -188,7 +200,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
         </div>
       </header>
       <div className="resv__under">
-        {skillFilters}
+        {filters}
         {!projectId && !inDefault && tab !== "extensions" && (
           <fieldset className="resv__scopes">
             <legend className="resv__scopelabel">{t("res.scope")}</legend>

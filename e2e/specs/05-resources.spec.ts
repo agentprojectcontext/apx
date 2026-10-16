@@ -237,3 +237,23 @@ test("other apps' skills show their tag and duplicates; the engines filter narro
     "echo hi\n",
   );
 });
+
+test("inside a project, Project shows only its own MCP servers and variables", async ({ page }) => {
+  const { repo } = await world.info();
+  const project = (await rpc<{ project: { id: string } }>("projects.register", { path: repo })).project.id;
+  await rpc("mcp.set", { name: "acme-own", project, server: { command: "npx", args: ["-y", "@acme/own"] } });
+  await rpc("mcp.set", { name: "globex-shared", server: { command: "npx", args: ["-y", "@acme/shared"] } });
+  await rpc("secrets.set", { name: "ACME_ONLY", value: "acme-only-value", project });
+  await open(page, `#project=${project}&tab=resources`);
+  await page.getByRole("radio", { name: /^MCP/ }).click();
+  await expect(page.getByRole("button", { name: /^globex-shared/ })).toBeVisible();
+  await page.getByRole("radio", { name: "Proyecto", exact: true }).click();
+  await expect(page.getByRole("button", { name: /^acme-own/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^globex-shared/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Todos los motores" })).toHaveCount(0);
+  await page.getByRole("radio", { name: /^Variables/ }).click();
+  await expect(page.getByText("ACME_ONLY")).toBeVisible();
+  await expect(page.getByText("NORTHWIND_API")).toHaveCount(0);
+  await page.getByRole("radio", { name: "Todas", exact: true }).click();
+  await expect(page.getByText("NORTHWIND_API")).toBeVisible();
+});
