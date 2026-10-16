@@ -18,7 +18,9 @@ apx sessions import codex "<name or folder>"   # the folder becomes an APX proje
 
 - The import prints the project id, one line per chat (`thread id · new/+N/up to date · title`) and the HTML pages
   those chats wrote. Importing again later adds only what is new: say so if the owner still works there.
-- Until adopted, the chats are yours (they show as answered by you). Never import a project the owner did not name.
+- Until adopted, the chats are the project orchestrator's (yours when it has none). Artifacts the sessions published
+  come as widgets in their chats, documents they wrote as files that open in the side panel. Never import a project
+  the owner did not name.
 
 ## 2. Read each chat
 

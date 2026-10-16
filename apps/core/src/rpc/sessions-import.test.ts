@@ -96,8 +96,30 @@ before(async () => {
             { type: "text", text: "Fixed." },
           ],
         },
+      }) +
+      line({
+        type: "assistant",
+        timestamp: at(7),
+        message: {
+          role: "assistant",
+          content: [
+            { type: "tool_use", id: "t2", name: "Write", input: { file_path: path.join(acme, "notes", "plan.md") } },
+            {
+              type: "tool_use",
+              id: "t3",
+              name: "Artifact",
+              input: { file_path: path.join(acme, "out", "compare.html") },
+            },
+            { type: "tool_use", id: "t4", name: "Artifact", input: { action: "quickstart", intent: "other" } },
+            { type: "text", text: "Here is the comparison." },
+          ],
+        },
       }),
   );
+  fs.mkdirSync(path.join(acme, "notes"));
+  fs.writeFileSync(path.join(acme, "notes", "plan.md"), "# Launch plan\n\nShip it.\n");
+  fs.mkdirSync(path.join(acme, "out"));
+  fs.writeFileSync(path.join(acme, "out", "compare.html"), "<title>Acme vs Globex</title><p>Side by side</p>");
 });
 after(async () => {
   await env.core.close();
@@ -204,4 +226,13 @@ test("Claude Code sessions group by their folder and land in the same project", 
   const codex = await env.client.call("sessions.projects", { engine: "codex" });
   assert.equal(r.project.id, codex.projects[0]?.project_id);
   assert.deepEqual(r.pages, [path.join("reel", "index.html")]);
+  // The project's head (its only top agent) answers until an agent of the area takes the chat.
+  const t = await env.client.call("threads.get", { thread: r.chats[0]?.thread ?? "" });
+  const team = (await env.client.call("agents.list", {})).agents.filter((a) => a.project_id === r.project.id);
+  assert.equal(t.thread.agent_ids[0], team.find((a) => a.slug === "cmo")?.id);
+  const made = t.messages.at(-1)?.parts ?? [];
+  const doc = made.find((p) => p.type === "file");
+  assert.equal(doc?.type === "file" && doc.document?.title, "Launch plan");
+  const widget = made.find((p) => p.type === "surface");
+  assert.equal(widget?.type === "surface" && widget.title, "Acme vs Globex");
 });

@@ -1245,8 +1245,9 @@ export const appMethods = {
   },
   /**
    * Brings a project's sessions (all, or `sessions`) into APX: the folder becomes a project if it is not one, each
-   * session a chat with its whole history and images, answered by the super-agent until another agent takes it
-   * (sessions.adopt). Again: only what is new. `pages` are the HTML files those sessions wrote (surfaces.import_page).
+   * session a chat with its whole history, images, artifacts (as widgets) and documents, answered by the project's
+   * orchestrator (else the super-agent) until an agent of its area takes it (sessions.adopt). Again: only what is new.
+   * `pages` are the HTML files those sessions wrote (surfaces.import_page).
    */
   "sessions.import": {
     params: z

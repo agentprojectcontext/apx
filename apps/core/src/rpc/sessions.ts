@@ -68,6 +68,15 @@ export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionD
       }
     return createProject(deps.apc, deps.home, { name, path: cwd }).project;
   };
+  /** The project's orchestrator: the head of its team, the one its chats go to until an agent of their area takes them. */
+  const headOf = (projectId: string) => {
+    const team = store.agents.list().filter((a) => a.project_id === projectId);
+    const heads = team.filter((a) => !a.parent || !team.some((b) => b.slug === a.parent));
+    return (
+      heads.find((a) => /orchestr|orquest|lead|líder|lider/i.test(`${a.role} ${a.name}`)) ??
+      (heads.length === 1 ? heads[0] : undefined)
+    );
+  };
   const imported = (thread: string) => {
     const t = store.threads.get(thread);
     if (!t) throw notFound(`thread ${thread}`);
@@ -95,11 +104,11 @@ export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionD
       if (!group) throw notFound(`${engine} sessions in ${cwd}`);
       const picked = sessions ? group.sessions.filter((s) => sessions.includes(s.id)) : group.sessions;
       if (!picked.length) throw notFound(`those ${engine} sessions in ${cwd}`);
-      const owner = superAgent();
-      if (!owner) throw notFound("an agent to own the chats");
       const projectId = projectFor(group.cwd, name ?? group.name);
       const project = store.projects.get(projectId);
       if (!project) throw notFound(`project ${projectId}`);
+      const owner = headOf(project.id) ?? superAgent();
+      if (!owner) throw notFound("an agent to own the chats");
       // Oldest first, so the project's chat list ends with the newest on top.
       const ordered = [...picked].sort((a, b) => a.updated_at.localeCompare(b.updated_at));
       const r = importSessions(store, deps.home, {

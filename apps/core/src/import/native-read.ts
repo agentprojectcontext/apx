@@ -7,6 +7,8 @@ import type { NativeEngine } from "./native-sessions.ts";
 
 export type NativeImage = { mime: string; bytes: Buffer };
 export type NativeTool = { name: string; detail: string };
+/** A page the engine published as an artifact, or a document it wrote (Claude Code's Artifact and Write calls). */
+export type NativeFile = { kind: "artifact" | "document"; path: string };
 export type NativeItem = {
   role: "user" | "assistant";
   text: string;
@@ -14,6 +16,8 @@ export type NativeItem = {
   images: NativeImage[];
   /** The tools the engine ran before this answer. */
   tools: NativeTool[];
+  /** The artifacts and documents those tools made. */
+  files: NativeFile[];
 };
 
 /** Enough of a call's input to find the files it wrote; the chat shows only its start. */
@@ -119,6 +123,16 @@ function generatedImages(codexHome: string, thread: string): Array<NativeImage &
   });
 }
 
+/** An Artifact publish (not its other actions) or a Markdown file written whole. */
+function madeFile(tool: string, input: Record<string, unknown>): NativeFile | undefined {
+  const file = str(input.file_path);
+  if (!file) return undefined;
+  if (tool === "Artifact" && !input.action && !input.asset && /\.html?$/i.test(file))
+    return { kind: "artifact", path: file };
+  if (tool === "Write" && /\.(md|markdown)$/i.test(file)) return { kind: "document", path: file };
+  return undefined;
+}
+
 /**
  * Every turn of a session, oldest first. Tool calls ride on the answer that follows them; Codex's own images go after
  * the turn they were made in.
@@ -132,11 +146,16 @@ export function sessionItems(
   if (text === undefined) return [];
   const items: NativeItem[] = [];
   let tools: NativeTool[] = [];
+  let files: NativeFile[] = [];
   const push = (role: NativeItem["role"], content: unknown, at: string | undefined) => {
     const c = contentOf(content);
     if (!c.text && !c.images.length) return;
-    items.push({ role, text: c.text, at, images: c.images, tools: role === "assistant" ? tools : [] });
-    if (role === "assistant") tools = [];
+    const mine = role === "assistant";
+    items.push({ role, text: c.text, at, images: c.images, tools: mine ? tools : [], files: mine ? files : [] });
+    if (mine) {
+      tools = [];
+      files = [];
+    }
   };
   for (const o of lines(text)) {
     const at = str(o.timestamp) || undefined;
@@ -145,7 +164,11 @@ export function sessionItems(
       const content = obj(o.message).content;
       if (o.type === "assistant" && Array.isArray(content))
         for (const p of content.map(obj))
-          if (p.type === "tool_use") tools.push({ name: str(p.name) || "tool", detail: detailOf(p.input) });
+          if (p.type === "tool_use") {
+            tools.push({ name: str(p.name) || "tool", detail: detailOf(p.input) });
+            const f = madeFile(str(p.name), obj(p.input));
+            if (f) files.push(f);
+          }
       push(o.type, content, at);
       continue;
     }
@@ -160,7 +183,7 @@ export function sessionItems(
       // After the last turn that started before the image was written.
       let i = items.length;
       while (i > 0 && (items[i - 1]?.at ?? "") > img.at) i--;
-      items.splice(i, 0, { role: "assistant", text: "", at: img.at, images: [img], tools: [] });
+      items.splice(i, 0, { role: "assistant", text: "", at: img.at, images: [img], tools: [], files: [] });
     }
   }
   return items;

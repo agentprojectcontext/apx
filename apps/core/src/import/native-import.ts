@@ -1,12 +1,13 @@
 // The owner's Claude Code and Codex work brought into APX as projects: each session a chat with its whole history, its
 // images and the tools the engine ran, under the project of the folder it ran in. Importing again adds only what is
 // new, so the owner can keep working there while moving. Read-only on the CLIs' folders.
+import fs from "node:fs";
 import path from "node:path";
 import type { Part } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { codexState } from "./codex-state.ts";
-import { type NativeItem, sessionFile, sessionItems, writtenPages } from "./native-read.ts";
+import { type NativeFile, type NativeItem, sessionFile, sessionItems, writtenPages } from "./native-read.ts";
 import { type NativeEngine, type NativeHomes, type NativeSession, nativeSessions } from "./native-sessions.ts";
 
 export type NativeProject = { name: string; cwd: string; sessions: NativeSession[] };
@@ -18,9 +19,12 @@ const LOG_CHARS = 200_000;
 const TOOLS_PER_ANSWER = 40;
 const TOOL_SHOWN = 200;
 const SCAN = 2000;
+const PAGE_CHARS = 400_000;
 
 const doneKey = (engine: NativeEngine, id: string) => `native_import:${engine}:${id}`;
-type Done = { thread: string; items: number };
+/** `made`: the session's artifacts and documents came too (chats imported before that get them on the next import). */
+type Done = { thread: string; items: number; made?: boolean };
+type Where = { home: string; thread: string; project_id: string | undefined; owner: string };
 
 /** Whether `dir` is `root` or inside it. */
 const within = (dir: string, root: string) => dir === root || dir.startsWith(`${root}${path.sep}`);
@@ -93,6 +97,97 @@ function partsOf(home: string, store: Store, thread: string, it: NativeItem, key
   return parts;
 }
 
+const slug = (file: string) =>
+  path
+    .basename(file)
+    .replace(/\.[a-z0-9]+$/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50) || "artifact";
+
+/** The widget an artifact file is, kept by its path: published again it is a new version, never a second widget. */
+function widgetName(store: Store, projectId: string | undefined, file: string): string {
+  const key = `native_artifact:${projectId ?? ""}:${file}`;
+  const known = store.settings.get(key);
+  if (known) return known;
+  let name = slug(file);
+  for (let n = 2; store.surfaces.byName(projectId, name); n++) name = `${slug(file)}-${n}`;
+  store.settings.set(key, name);
+  return name;
+}
+
+/**
+ * What an answer made, as it is on disk now: each artifact as a widget of the project, each document as a file that
+ * opens in the side panel. A file gone from disk is left out; one file shows once per session.
+ */
+function madeParts(store: Store, w: Where, files: NativeFile[], seen: Set<string>): Part[] {
+  const parts: Part[] = [];
+  for (const f of files) {
+    if (seen.has(f.path)) continue;
+    let bytes: Buffer;
+    try {
+      bytes = fs.readFileSync(f.path);
+    } catch {
+      continue;
+    }
+    seen.add(f.path);
+    if (f.kind === "artifact") {
+      const html = bytes.toString("utf8");
+      if (html.length > PAGE_CHARS) continue;
+      const title =
+        /<title>([^<]{1,120})<\/title>/i.exec(html)?.[1]?.trim() || path.basename(f.path).replace(/\.html?$/i, "");
+      const s = store.surfaces.upsert({
+        name: widgetName(store, w.project_id, f.path),
+        title,
+        html,
+        project_id: w.project_id,
+        thread_id: w.thread,
+        created_by: w.owner,
+      });
+      parts.push({ type: "surface", surface_id: s.id, version: s.version, title: s.title });
+      continue;
+    }
+    try {
+      const name = path.basename(f.path);
+      const m = saveUpload(w.home, store, { name, mime: "text/markdown", bytes, thread: w.thread });
+      const heading = /^#\s+(.+)$/m.exec(bytes.toString("utf8"))?.[1]?.trim();
+      parts.push({
+        type: "file",
+        media_id: m.id,
+        name,
+        mime: m.mime,
+        bytes: m.bytes,
+        document: { title: (heading || name).slice(0, 120), format: "markdown" },
+      });
+    } catch {
+      // A document the store refuses (too big, binary) stays out.
+    }
+  }
+  return parts;
+}
+
+/** Chats imported before artifacts and documents came along get them now, on the answers that made them. */
+function backfill(store: Store, w: Where, items: NativeItem[]): number {
+  const seen = new Set<string>();
+  const answers = new Map(
+    store.messages
+      .list(w.thread, 100_000)
+      .filter((m) => m.author.kind === "agent")
+      .map((m) => [m.created_at, m]),
+  );
+  let n = 0;
+  for (const it of items) {
+    if (!it.files.length || !it.at) continue;
+    const m = answers.get(it.at) ?? answers.get(new Date(it.at).toISOString());
+    const made = m ? madeParts(store, w, it.files, seen) : [];
+    if (!m || !made.length) continue;
+    store.messages.update({ ...m, parts: [...m.parts, ...made] });
+    n++;
+  }
+  return n;
+}
+
 /**
  * Brings sessions in as chats of `project` owned by `owner` (the agent that answers there until another takes it).
  * A session brought before gets only its new turns.
@@ -112,12 +207,25 @@ export function importSessions(
   const pages = new Set<string>();
   for (const s of o.sessions) {
     const items = sessionItems(o.engine, s.file, { codexHome: o.codexHome, thread: s.id });
-    for (const p of writtenPages(items, s.cwd)) pages.add(p);
+    // A page published as an artifact comes in as a widget already.
+    const published = new Set(items.flatMap((it) => it.files.filter((f) => f.kind === "artifact").map((f) => f.path)));
+    for (const p of writtenPages(items, s.cwd)) if (!published.has(p)) pages.add(p);
     const done = JSON.parse(store.settings.get(doneKey(o.engine, s.id)) ?? "null") as Done | null;
     const existing = done ? store.threads.get(done.thread) : undefined;
     const fresh = items.slice(existing && done ? done.items : 0);
+    const earlier = existing && done && !done.made ? items.slice(0, done.items) : [];
+    const filled = existing
+      ? backfill(
+          store,
+          { home, thread: existing.id, project_id: o.project_id, owner: existing.agent_ids[0] ?? o.owner },
+          earlier,
+        )
+      : 0;
+    if (existing && done && !done.made)
+      store.settings.set(doneKey(o.engine, s.id), JSON.stringify({ ...done, made: true }));
     if (!items.length || (existing && !fresh.length)) {
-      if (existing) chats.push({ thread: existing.id, session: s.id, title: existing.title, added: 0, created: false });
+      if (existing)
+        chats.push({ thread: existing.id, session: s.id, title: existing.title, added: filled, created: false });
       continue;
     }
     const thread =
@@ -132,7 +240,15 @@ export function importSessions(
     const log: Array<{ role: "user" | "assistant"; content: string }> = [];
     let last = { at: items[0]?.at ?? new Date().toISOString(), text: "" };
     const base = existing && done ? done.items : 0;
-    const rows = fresh.map((it, i) => ({ it, parts: partsOf(home, store, thread.id, it, `${s.id}-${base + i}`) }));
+    const where: Where = { home, thread: thread.id, project_id: o.project_id, owner: thread.agent_ids[0] ?? o.owner };
+    const seen = new Set<string>();
+    const rows = fresh.map((it, i) => ({
+      it,
+      parts: [
+        ...partsOf(home, store, thread.id, it, `${s.id}-${base + i}`),
+        ...madeParts(store, where, it.files, seen),
+      ],
+    }));
     store.tx(() => {
       if (!existing) store.threads.mergeContext(thread.id, { imported: { engine: o.engine, session: s.id } });
       for (const { it, parts } of rows) {
@@ -153,9 +269,18 @@ export function importSessions(
       // The model's view of the chat, so going on with it there has the earlier turns (its newest stretch).
       if (log.length) store.modelLog.append(thread.id, undefined, newest(log, LOG_CHARS));
       store.threads.settle(thread.id, last.at, last.text.slice(0, 140));
-      store.settings.set(doneKey(o.engine, s.id), JSON.stringify({ thread: thread.id, items: items.length }));
+      store.settings.set(
+        doneKey(o.engine, s.id),
+        JSON.stringify({ thread: thread.id, items: items.length, made: true }),
+      );
     });
-    chats.push({ thread: thread.id, session: s.id, title: thread.title, added: rows.length, created: !existing });
+    chats.push({
+      thread: thread.id,
+      session: s.id,
+      title: thread.title,
+      added: rows.length + filled,
+      created: !existing,
+    });
   }
   return { chats, pages: [...pages] };
 }
