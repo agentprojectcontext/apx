@@ -1334,6 +1334,8 @@ export const appMethods = {
           notes: z.number().int(),
           tasks: z.number().int(),
           routines: z.array(z.string()),
+          /** What APX refused, with why (a note that reads as a credential); the next import tries it again. */
+          skipped: z.array(z.string()),
         })
         .optional(),
       chats: z.array(

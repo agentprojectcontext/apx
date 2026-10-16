@@ -81,6 +81,7 @@ export async function sessions(client: ApxClient, [sub, ...rest]: string[], opts
             );
           if (x.notes) console.log(`Memory notes: ${x.notes}`);
           if (x.tasks) console.log(`Open tasks on the board: ${x.tasks}`);
+          for (const why of x.skipped) console.log(`Skipped: ${why}`);
           if (x.routines.length)
             console.log(`Routines, turned off (turn off the original first): ${x.routines.join(", ")}`);
         }

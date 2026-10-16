@@ -122,6 +122,9 @@ before(async () => {
     "---\nname: brand\ndescription: Acme's tone is warm\n---\n\nNo jargon in posts.\n",
   );
   fs.writeFileSync(path.join(claude, "memory", "MEMORY.md"), "- [brand](brand.md)\n");
+  // A note with a password is brought without it; one that is all key never is.
+  fs.writeFileSync(path.join(claude, "memory", "staging.md"), "Staging login: demo, clave: hunter22!\n");
+  fs.writeFileSync(path.join(claude, "memory", "deploy-key.md"), "-----BEGIN OPENSSH PRIVATE KEY-----\nabc\n");
   fs.writeFileSync(
     path.join(claude, "s-fix.jsonl"),
     line({ type: "user", cwd: acme, timestamp: at(5), message: { role: "user", content: "Fix the reel page" } }) +
@@ -189,6 +192,7 @@ test("importing makes the folder a project and each session a chat with its whol
     notes: 1,
     tasks: 1,
     routines: ["Weekly reel plan"],
+    skipped: [],
   });
   const routines = (await env.client.call("routines.list", {})).routines;
   const weekly = routines.find((x) => x.name === "Weekly reel plan");
@@ -287,7 +291,11 @@ test("Claude Code sessions group by their folder and land in the same project", 
   assert.equal(doc?.type === "file" && doc.document?.title, "Launch plan");
   const widget = made.find((p) => p.type === "surface");
   assert.equal(widget?.type === "surface" && widget.title, "Acme vs Globex");
-  assert.equal(r.extras?.notes, 1);
-  const notes = await env.client.call("memory.list", { project: r.project.id });
-  assert.ok(JSON.stringify(notes).includes("Acme's tone is warm"));
+  assert.equal(r.extras?.notes, 2);
+  assert.equal(r.extras?.skipped.length, 1);
+  assert.match(r.extras?.skipped[0] ?? "", /credentials/);
+  const notes = JSON.stringify(await env.client.call("memory.list", { project: r.project.id }));
+  assert.ok(notes.includes("Acme's tone is warm"));
+  assert.ok(notes.includes("clave: [secret]"));
+  assert.doesNotMatch(notes, /hunter22|PRIVATE KEY/);
 });
