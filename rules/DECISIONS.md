@@ -1037,3 +1037,15 @@ until sent, discarded or replaced by a newer draft of the same chat; `contacts.s
 same choices for any client (owner only). A sent draft goes out as the agent's message, through the outbox, and
 enters what the agent reads next. At most 10 drafts per contact per hour; past it their messages are only kept and
 the owner is told once. A burst cut by a restart gets no draft until their next message.
+
+<a id="d-089"></a>
+## D-089 — 2026-10-16 — A call that always asks can be approved for the chat or for the agent
+A call that always asks (D-047, D-059: a routine change, a destructive command, iMessage, answering a contact…) took
+no standing grant, so its card had only "Approve" and "Deny": an agent creating a routine, running it to test it and
+fixing its prompt asked five times in one chat, with no way to say yes for the rest. Now its card offers the same four
+answers as any other: once, for this chat, always for this agent, and deny. Its grant has its own key (the tool's key
+plus `#always`), so an OK already given for a tool's ordinary calls (a plain shell command) never starts covering its
+calls that always ask (a destructive one), and the agent's permissions list says which grant is which. Like every
+grant the owner gives, it holds with outside content in the turn too: the owner picks it on the card, and revokes it
+from the agent's permissions. External agents' own tools (ACP) still get a yes for that one call only.
+`routine_set` also says to create or change a routine and run it in one call.

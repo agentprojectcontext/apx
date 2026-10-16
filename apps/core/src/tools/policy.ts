@@ -91,7 +91,7 @@ export function decide(
   const autonomy = agent.autonomy ?? "standard";
   // Total autonomy is the owner's explicit choice: nothing waits for them, not even `always` (DECISIONS.md#d-047).
   if (autonomy === "total") return { kind: "allow" };
-  if (level === "always") return { kind: "confirm", why: "always", reason: "this action always needs your OK" };
+  if (level === "always") return { kind: "confirm", why: "always", reason: "this is a high-impact action" };
   // Accepting edits: the agent's own work in its folder goes on, outside content or not (DECISIONS.md#d-072).
   if (autonomy === "edits" && workspace) return { kind: "allow" };
   if (level === "ask")

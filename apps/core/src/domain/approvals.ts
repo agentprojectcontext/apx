@@ -1,6 +1,6 @@
 // Owner grants: durable for every agent or for one, or limited to one chat in this core process.
 import { createHash } from "node:crypto";
-import { type ApprovalScope, ToolApproval } from "@apx/protocol";
+import { type ApprovalScope, STRICT_APPROVAL, ToolApproval } from "@apx/protocol";
 import { z } from "zod";
 import { settingsRepo } from "./settings.ts";
 import type { Sql } from "./sql.ts";
@@ -20,7 +20,7 @@ export const APX_SERVER = "apx";
 
 /**
  * One of APX's own tools: one key per tool name, so the owner's "always" for an agent covers that tool's calls that
- * would ask. Calls that always ask (a destructive command, a routine or agent change) never use a grant.
+ * would ask. Calls that always ask (a destructive command, a routine or agent change) use `strictApproval`'s key.
  */
 export const nativeApproval = (tool: string): ApprovalTarget => ({
   key: `${APX_SERVER}:${tool}`,
@@ -28,6 +28,12 @@ export const nativeApproval = (tool: string): ApprovalTarget => ({
   tool,
   permanent: false,
 });
+
+/**
+ * The grant for a tool's calls that always ask: its own key, so an OK given for the tool's ordinary calls never
+ * covers them, and an OK given for them never covers more than they are. DECISIONS.md#d-089
+ */
+export const strictApproval = (a: ApprovalTarget): ApprovalTarget => ({ ...a, key: `${a.key}${STRICT_APPROVAL}` });
 
 export function approvalsRepo(q: Sql) {
   const settings = settingsRepo(q);

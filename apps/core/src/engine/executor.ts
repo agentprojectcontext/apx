@@ -3,6 +3,7 @@
 // model a capped copy.
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
+import { strictApproval } from "../domain/approvals.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -214,8 +215,8 @@ export function createExecutor(o: {
       return { ok: false, text: "refused: this code thread is read-only; only actions that read may run here" };
     }
     const decision = authorize(tool, args, agent, untrusted);
-    // A call that always asks takes no standing grant: its "once" is kept and looked up without the tool's target.
-    const target = level === "always" ? undefined : tool.approval;
+    // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089).
+    const target = level === "always" && tool.approval ? strictApproval(tool.approval) : tool.approval;
     if (
       decision.kind === "confirm" &&
       !(target && store.approvals.allows(target, thread.id, agent.id)) &&

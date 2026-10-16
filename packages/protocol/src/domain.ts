@@ -245,6 +245,8 @@ export type Author = z.infer<typeof Author>;
  */
 export const ApprovalScope = z.enum(["once", "session", "always"]);
 export type ApprovalScope = z.infer<typeof ApprovalScope>;
+/** Ends the key of a grant for a tool's calls that always ask (a destructive command, a routine change). */
+export const STRICT_APPROVAL = "#always";
 export const ToolApproval = z.object({
   key: z.string(),
   server: z.string(),

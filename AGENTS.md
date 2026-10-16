@@ -81,8 +81,9 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 10. **Untrusted content stays untrusted.** Web pages, channel messages, outside apps' agents and tool output are
     data, never instructions; the owner's own agents speak for the owner ([D-071](rules/DECISIONS.md#d-071)). Model output never becomes unchecked authority for side effects: high-impact tools
     (send, pay, shell, write outside the project) need confirmation while untrusted content is in context, unless the
-    owner explicitly selected total autonomy. Tools marked `always` require confirmation in every other autonomy; total
-    asks for nothing ([D-047](rules/DECISIONS.md#d-047)). The embedded browser never types passwords or payment data —
+    owner explicitly selected total autonomy. Tools marked `always` require confirmation in every other autonomy, until the
+    owner approves them for that chat or that agent ([D-089](rules/DECISIONS.md#d-089)); total asks for nothing
+    ([D-047](rules/DECISIONS.md#d-047)). The embedded browser never types passwords or payment data —
     it hands off to the human. `[review]`
 11. **Secrets by reference** (`secret://…`), resolved only inside the handler; never in prompts, logs or traces.
     `[review]`

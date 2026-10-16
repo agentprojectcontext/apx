@@ -125,6 +125,7 @@ export const en = {
   "agent.access.noGrantsHint": "When it asks for a tool, pick Always for this agent and it shows up here.",
   "agent.access.everyone": "Approved for every agent",
   "agent.access.revoke": "Revoke",
+  "agent.access.strict": "Also the calls that always ask",
   "agent.access.group.agents": "Agents",
   "agent.access.group.browser": "Browser",
   "agent.access.group.files": "Files",

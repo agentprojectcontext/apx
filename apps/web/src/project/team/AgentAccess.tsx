@@ -1,5 +1,5 @@
 // The agent editor's access tabs: which tools and skills it may use, and the tools the owner let it use for good.
-import type { Agent, Result, SkillInfo, ToolApproval } from "@apx/protocol";
+import { type Agent, type Result, type SkillInfo, STRICT_APPROVAL, type ToolApproval } from "@apx/protocol";
 import { Button, Checkbox, EmptyState, Skeleton, Switch, TagInput } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { listApprovals, listSkills, revokeApproval } from "../../data/resources.ts";
@@ -178,7 +178,10 @@ export function PermissionsTab({ agent }: { agent: Agent }) {
   const row = (g: ToolApproval) => (
     <li key={`${g.key}:${g.agent_id ?? ""}`} className="agentaccess__grant">
       <code>{g.tool}</code>
-      <span className="agentaccess__server">{g.server === "apx" ? "APX" : g.server}</span>
+      <span className="agentaccess__server">
+        {g.server === "apx" ? "APX" : g.server}
+        {g.key.endsWith(STRICT_APPROVAL) && ` · ${t("agent.access.strict")}`}
+      </span>
       <Button
         size="sm"
         variant="secondary"

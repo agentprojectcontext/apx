@@ -129,6 +129,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "agent.access.noGrantsHint": "Cuando te pida una tool, elegí Siempre para este agente y va a aparecer acá.",
   "agent.access.everyone": "Aprobadas para todos los agentes",
   "agent.access.revoke": "Quitar",
+  "agent.access.strict": "También las acciones que siempre piden permiso",
   "agent.access.group.agents": "Agentes",
   "agent.access.group.browser": "Navegador",
   "agent.access.group.files": "Archivos",
