@@ -21,7 +21,7 @@ export function DocumentPanel() {
     client
       .call("documents.list", { thread_id: thread })
       .then((r) => active && setStored({ thread, docs: r.documents }))
-      .catch(() => {});
+      .catch(() => active && setStored({ thread, docs: [] }));
     return () => {
       active = false;
     };
@@ -30,8 +30,9 @@ export function DocumentPanel() {
     () => withStored(loaded, stored && stored.thread === thread ? stored.docs : []),
     [loaded, stored, thread],
   );
-  const current = documents.find((p) => p.media_id === selected) ?? documents[0];
-  if (!current)
+  const ready = stored?.thread === thread;
+  const current = selected ? documents.find((p) => p.media_id === selected) : undefined;
+  if (!documents.length && (ready || !selected))
     return (
       <div className="sidepanel__body">
         <EmptyState icon={<Icons.FileText />} title={t("document.empty")}>
@@ -39,22 +40,39 @@ export function DocumentPanel() {
         </EmptyState>
       </div>
     );
+  // An old document may be one only the core lists: wait for it before falling back to the list.
+  if (selected && !current && !ready)
+    return (
+      <div className="documentpanel">
+        <p className="documentpanel__status" role="status">
+          {t("document.loading")}
+        </p>
+      </div>
+    );
+  if (!current)
+    return (
+      <div className="documentpanel">
+        <ul className="documentpanel__list" aria-label={t("document.list")}>
+          {documents.map((d) => (
+            <li key={d.media_id}>
+              <button type="button" className="documentpanel__item" onClick={() => go.document(d.media_id)}>
+                <Icons.FileText size={16} />
+                <span className="documentpanel__itemtext">
+                  <span className="documentpanel__itemtitle">{d.title}</span>
+                  <span className="documentpanel__filename">{d.name}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
   return (
     <div className="documentpanel">
-      {documents.length > 1 && (
-        <select
-          className="documentpanel__select"
-          aria-label={t("document.choose")}
-          value={current.media_id}
-          onChange={(e) => go.document(e.target.value)}
-        >
-          {documents.map((p) => (
-            <option key={p.media_id} value={p.media_id}>
-              {p.title} · {p.name}
-            </option>
-          ))}
-        </select>
-      )}
+      <button type="button" className="documentpanel__back" onClick={() => go.document()}>
+        <Icons.ArrowLeft size={14} />
+        {t("document.back", { n: documents.length })}
+      </button>
       <DocumentBody key={current.media_id} doc={current} />
     </div>
   );

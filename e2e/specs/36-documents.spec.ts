@@ -65,7 +65,11 @@ test("documentos: txt como Markdown, apertura explícita, fuente, descarga y rec
     await expect(panel.locator(".documentpanel__source")).toHaveText("# Literal heading");
     await panel.getByRole("button", { name: "Leer documento", exact: true }).click();
     await expect(panel.getByRole("heading", { name: "Literal heading", exact: true })).toBeVisible();
-    await panel.getByRole("combobox", { name: "Elegir documento" }).selectOption({ index: 1 });
+    // Back to the chat's documents, newest first, and into another one.
+    await panel.getByRole("button", { name: "Todos los documentos (2)" }).click();
+    const list = panel.getByRole("list", { name: "Documentos de este chat" });
+    await expect(list.getByRole("button")).toHaveCount(2);
+    await list.getByRole("button", { name: /Report\.txt/ }).click();
     await page.reload();
     await expect(panel.getByRole("cell", { name: "Ready", exact: true })).toBeVisible();
     await page.screenshot({ path: "/tmp/apx-documents.png", fullPage: true });

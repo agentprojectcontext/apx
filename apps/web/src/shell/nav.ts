@@ -459,7 +459,8 @@ export const go = {
   terminal(terminalId: string) {
     nav.set({ panel: "terminal", panelTerminal: terminalId, panelThread: undefined, panelParent: undefined });
   },
-  document(mediaId: string) {
+  /** The documents panel: that document, or without one the chat's list of them. */
+  document(mediaId?: string) {
     nav.set({ panel: "document", panelDocument: mediaId, panelThread: undefined, panelParent: undefined });
   },
   togglePanelWide() {
