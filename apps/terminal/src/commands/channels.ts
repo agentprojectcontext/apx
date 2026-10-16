@@ -13,6 +13,10 @@ apx channels recover <thread>                   Ask the channel again for files 
   contacts: `apx contacts                                  People and their addresses
 apx contacts add <name…>                        Add a contact (link addresses with pairing)
 apx contacts block|unblock <id>
+apx contacts supervise|unsupervise <contact>     Their answers wait for your OK (contact: an id or name)
+apx contacts suggestions                        Suggested answers waiting for you
+apx contacts suggestions send <id> [text…]      Send one (your text instead, when given)
+apx contacts suggestions drop <id>              Drop one: nothing is sent
 apx contacts rm <id>`,
   pairing: `apx pairing                                   Strangers waiting for approval
 apx pairing me <code>                           This address is mine (the owner's)
@@ -81,6 +85,13 @@ async function contactOf(client: ApxClient, idOrName: string) {
 }
 
 export async function contacts(client: ApxClient, [sub, ...rest]: string[]) {
+  if (sub === "suggestions") return suggestions(client, rest);
+  if ((sub === "supervise" || sub === "unsupervise") && rest.length) {
+    const p = await contactOf(client, rest.join(" "));
+    await client.call("contacts.set", { id: p.id, name: p.name, supervised: sub === "supervise" });
+    console.log(sub === "supervise" ? `${p.name}: supervised` : `${p.name}: answered on their own again`);
+    return;
+  }
   if (sub === "add" && rest.length) await client.call("contacts.set", { name: rest.join(" ") });
   else if ((sub === "block" || sub === "unblock") && rest[0]) {
     const p = (await client.call("contacts.list", {})).persons.find((x) => x.id === rest[0]);
@@ -92,6 +103,27 @@ export async function contacts(client: ApxClient, [sub, ...rest]: string[]) {
     console.log(
       `${p.id.padEnd(22)} ${p.role.padEnd(8)} ${p.name}${p.addresses.length ? `  ${p.addresses.map((a) => `${a.channel}:${a.label ?? a.external_id}`).join(", ")}` : ""}`,
     );
+}
+
+/** A supervised contact's suggested answers: listed, sent (as is or with the owner's text) or dropped. */
+async function suggestions(client: ApxClient, [sub, id, ...text]: string[]) {
+  if (sub === "send" && id) {
+    const r = await client.call("contacts.suggestions.send", { id, ...(text.length ? { text: text.join(" ") } : {}) });
+    console.log(`sent (${r.delivery.state}${r.delivery.error ? `: ${r.delivery.error}` : ""})`);
+    return;
+  }
+  if (sub === "drop" && id) {
+    await client.call("contacts.suggestions.discard", { id });
+    console.log("dropped");
+    return;
+  }
+  if (sub) throw new Error(USAGE.contacts);
+  const { persons } = await client.call("contacts.list", {});
+  for (const s of (await client.call("contacts.suggestions.list", {})).suggestions) {
+    const name = persons.find((p) => p.id === s.person_id)?.name ?? s.person_id;
+    console.log(`${s.id}  ${name}: ${s.said.join(" / ").slice(0, 120)}`);
+    console.log(`    → ${s.text || `(no draft: ${s.error ?? "none"})`}`);
+  }
 }
 
 export async function pairing(client: ApxClient, [sub, code, ...rest]: string[]) {

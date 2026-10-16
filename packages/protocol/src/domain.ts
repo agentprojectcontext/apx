@@ -458,7 +458,7 @@ export const RunUsage = z.object({
 export type RunUsage = z.infer<typeof RunUsage>;
 
 /** What an auxiliary model call was for: a chat's title, a long chat's summary, a room's gate, a commit message. */
-export const AuxPurpose = z.enum(["title", "summary", "room", "commit"]);
+export const AuxPurpose = z.enum(["title", "summary", "room", "commit", "suggestion"]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 
 /** What started a run. Everything enters through threads.send; this only says from where. */
@@ -626,11 +626,41 @@ export const Person = z.object({
   muted: z.boolean().default(false),
   /** Wrote first and was kept silenced for the owner to decide: each message of theirs is reported meanwhile. */
   unreviewed: z.boolean().default(false),
+  /**
+   * Supervised: their messages get a reply drafted, never sent on its own; the owner sends it, edits it or drops it.
+   * Silenced and supervised exclude each other (setting one clears the other).
+   */
+  supervised: z.boolean().default(false),
   perms: PersonPerms.default({ appointments: false, requests: false, notes: false }),
   addresses: z.array(Address),
   created_at: z.string(),
 });
 export type Person = z.infer<typeof Person>;
+
+/** What became of a reply drafted for a supervised contact. */
+export const SuggestionState = z.enum(["pending", "sent", "discarded", "superseded"]);
+export type SuggestionState = z.infer<typeof SuggestionState>;
+/** A reply the agent drafted for a supervised contact, waiting for the owner (see channels/suggestions.ts). */
+export const ContactSuggestion = z.object({
+  id: Id,
+  person_id: Id,
+  /** The contact's chat, where it goes once sent. */
+  thread_id: Id,
+  channel: z.string(),
+  /** Their messages it answers, oldest first. */
+  said: z.array(z.string()),
+  /** The reply the agent would send; empty when it wrote none (see `error`). */
+  text: z.string(),
+  /** Why there is no draft: no model answered, or nothing needed an answer. */
+  error: z.string().optional(),
+  model: z.string().optional(),
+  state: SuggestionState,
+  created_at: z.string(),
+  decided_at: z.string().optional(),
+  /** The chat message it became, once sent. */
+  message_id: Id.optional(),
+});
+export type ContactSuggestion = z.infer<typeof ContactSuggestion>;
 
 export const ChannelStrangers = z.enum(["pair", "ask", "answer", "ignore"]);
 export type ChannelStrangers = z.infer<typeof ChannelStrangers>;

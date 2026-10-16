@@ -206,6 +206,7 @@ export type ContactDraft = {
   note?: string;
   rules?: string;
   muted?: boolean;
+  supervised?: boolean;
   perms?: Partial<Person["perms"]>;
 };
 

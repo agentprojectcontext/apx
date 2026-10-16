@@ -1,0 +1,82 @@
+---
+title: Contactos supervisados
+description: Un contacto cuyas respuestas esperan tu OK. El agente escribe cada respuesta y vos la mandás, la editás o la descartás.
+sidebar:
+  order: 6
+---
+
+import { Aside } from "@astrojs/starlight/components";
+import Terminal from "../../../../components/Terminal.astro";
+
+A un contacto se le puede contestar de tres maneras. **Contestado** es lo normal: el agente le responde solo, en un
+chat sellado. **Silenciado** quiere decir que sus mensajes se guardan y nadie le contesta. **Supervisado** queda en el
+medio. El agente escribe la respuesta que mandaría y no la manda. Te llega el borrador y decidís vos.
+
+## Qué pasa cuando te escribe
+
+1. Su mensaje queda en su chat, sin respuesta. Los audios se transcriben, porque el borrador necesita las palabras.
+2. APX espera a que termine de mandar mensajes seguidos (unos 15 segundos), así tres líneas rápidas llevan un solo
+   borrador.
+3. El agente escribe una respuesta con el mismo prompt sellado que usa siempre su chat: quién es, tus reglas para esa
+   persona, la relación y la charla hasta ahora. No tiene herramientas y no manda nada. Usa el modelo del agente.
+4. Te llega un aviso por tu canal (Telegram, WhatsApp…) y en la bandeja de la app. Dice quién escribió (con su número
+   en WhatsApp), todo lo que dijo desde la última vez que se le contestó, y el borrador, con tres botones:
+
+| Botón | Qué hace |
+|---|---|
+| **Mandar esta** | Le manda el borrador en su chat, como mensaje del agente. La próxima vez el agente lo lee como palabras suyas. |
+| **Contestar yo** | Lo próximo que le escribas a APX en ese chat (dentro de 10 minutos) le llega tal cual, como palabras tuyas. Mandá «cancelar» para no enviarle nada. |
+| **Ignorar** | No se manda nada. Sigue supervisado, y lo que dijo no vuelve a tener borrador. |
+
+Si escribe de nuevo antes de que decidas, un borrador nuevo contesta todo lo que dijo, y el anterior ya no se puede
+mandar. Cuando el agente cree que no hace falta contestar (un «gracias») o ningún modelo pudo responder, el aviso lo
+dice y ofrece solo **Contestar yo** e **Ignorar**. Un «ok» o un «gracias» de cierre no trae aviso.
+
+Las horas de silencio valen como para cualquier aviso: llega sin sonido.
+
+<Aside type="note" title="Límites">
+Como mucho 10 borradores por contacto por hora, porque cada uno es una llamada al modelo. Pasado eso sus mensajes
+solo se guardan, y te avisa una vez. Una tanda de mensajes cortada por un reinicio recibe su borrador con el
+siguiente mensaje.
+</Aside>
+
+## Cómo se activa
+
+En el panel, abrí el contacto desde la pantalla del canal y tocá **Supervisar**. Silenciado y supervisado se excluyen:
+activar uno apaga el otro. Un contacto supervisado muestra un ojo al lado del nombre.
+
+Desde la terminal:
+
+```bash
+apx contacts supervise "Ana Pérez"     # o el id del contacto; unsupervise para volver atrás
+apx contacts suggestions               # borradores que te esperan
+apx contacts suggestions send <id>     # mandar uno tal cual
+apx contacts suggestions send <id> El viernes a las 10 me viene bien
+apx contacts suggestions drop <id>
+```
+
+<Terminal command="apx contacts suggestions">{`sug_3f2a9c1d0b7e4a51  Ana Pérez: hola / ¿nos vemos mañana?
+    → ¡Hola Ana! Lo consulto y te confirmo hoy.`}</Terminal>
+
+## Desde otra app (RPC)
+
+Las mismas opciones son métodos del protocolo, así cualquier cliente puede mostrar los borradores pendientes y actuar.
+Son métodos del dueño: se llaman con el token del core o desde un dispositivo vinculado, nunca con el token de una app
+de afuera.
+
+| Método | Parámetros | Resultado |
+|---|---|---|
+| `contacts.set` | `{ id, name, supervised: true }` (`name` es obligatorio, como en cualquier cambio) | La persona |
+| `contacts.suggestions.list` | `{ state?: "pending" \| "sent" \| "discarded" \| "superseded" \| "all", person?, limit? }` (pendientes por defecto) | `{ suggestions }`, los más nuevos primero |
+| `contacts.suggestions.send` | `{ id, text?, author?: "agent" \| "owner" }` | `{ suggestion, delivery }` |
+| `contacts.suggestions.discard` | `{ id }` | `{ suggestion }` |
+
+Una sugerencia tiene `id`, `person_id`, `thread_id` (su chat), `channel`, `said` (sus mensajes, del más viejo al más
+nuevo), `text` (el borrador; vacío cuando no hay, con `error` diciendo por qué), `state`, `created_at` y, una vez
+mandada, `message_id` y `decided_at`.
+
+`send` sin `text` manda el borrador. Con `text` manda tu versión editada. `author: "owner"` manda `text` como palabras
+tuyas y no del agente. `delivery.state` dice cómo salió el envío (`sent`, `queued`, `uncertain` o `failed` con un
+`error`). Solo un borrador pendiente se puede mandar o descartar. Lo demás se rechaza con un conflicto, así dos toques
+o dos apps nunca mandan dos veces. `send` y `discard` tienen efectos y necesitan una clave de idempotencia, como todo
+método de ese tipo.

@@ -17,8 +17,9 @@ import { saveUpload } from "../services/uploads.ts";
 import { untrusted } from "../tools/result.ts";
 import { asksSomething, asksToStop, needsNoAnswer, reactionFor } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
-import { buttonId, parseButton, ratingOf } from "./notices.ts";
+import { buttonId, parseButton, ratingOf, shown } from "./notices.ts";
 import type { createRooms } from "./rooms.ts";
+import type { Suggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
 import type { ChannelConfig } from "./types.ts";
 
@@ -46,6 +47,8 @@ export function createInbound(deps: {
   ownAccount(channel: string): boolean;
   /** Messages in the public rooms the owner listed. */
   rooms: ReturnType<typeof createRooms>;
+  /** Drafts for supervised contacts, and the owner answering one of them in their own words. */
+  suggestions: Pick<Suggestions, "held" | "write" | "takeWriting">;
   /** Puts the agent's emoji on a platform message; false when the channel has no reactions or is not running. */
   react(channel: string, conversation: string, ref: string, emoji: string): Promise<boolean>;
 }) {
@@ -84,7 +87,9 @@ export function createInbound(deps: {
     if (person.role === "blocked") return "ignored";
     const owner = person.role === "owner";
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
-    if (!owner && !person.muted && overLimit(person.id, person.name)) return "ignored";
+    // A supervised contact costs a draft, not an answer: suggestions.ts keeps its own hourly cap.
+    const supervised = !owner && !person.muted && person.supervised;
+    if (!owner && !person.muted && !supervised && overLimit(person.id, person.name)) return "ignored";
     let text = m.text;
     const attachments: string[] = [];
     let voice: MediaRecord | undefined;
@@ -124,6 +129,23 @@ export function createInbound(deps: {
       if (person.unreviewed) report(cfg, person, m.sender.id, said, thread.id);
       return "done";
     }
+    // Supervised: kept unanswered, and the owner gets the reply the agent would send (a closing "ok" gets none).
+    if (supervised) {
+      const said = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
+      const closes = !attachments.length && closesChat(thread.id, said);
+      theirLast(thread.id, cfg.id, m, keepQuiet(thread.id, cfg.id, person, said, attachments, {}));
+      if (!closes) deps.suggestions.held(cfg, person, m.sender.id, thread.id);
+      return "done";
+    }
+    // After "I'll answer" on a draft, even an "ok" is the owner's answer to that contact.
+    if (
+      owner &&
+      !attachments.length &&
+      !m.voice &&
+      text.trim() &&
+      (await answerContact(cfg.id, m.conversation, text.trim(), rowId))
+    )
+      return "done";
     if (!attachments.length && closesChat(thread.id, text)) {
       const kept = keepQuiet(thread.id, cfg.id, owner ? undefined : person, text.trim());
       theirLast(thread.id, cfg.id, m, kept);
@@ -365,6 +387,8 @@ export function createInbound(deps: {
     person: { id: string; name: string; muted?: boolean } | undefined,
     text: string,
     attachments: string[] = [],
+    /** What the agent reads about why it was not answered; by default, silenced or needing no answer. */
+    note?: Record<string, string>,
   ): string {
     return store.tx(() => {
       const kept = store.messages.add({
@@ -378,7 +402,8 @@ export function createInbound(deps: {
           }),
         ],
       });
-      const why: Record<string, string> = person?.muted ? { silenced: "yes" } : { answered: "no, it needed no answer" };
+      const why: Record<string, string> =
+        note ?? (person?.muted ? { silenced: "yes" } : { answered: "no, it needed no answer" });
       store.modelLog.append(threadId, undefined, [
         {
           role: "user",
@@ -414,6 +439,51 @@ export function createInbound(deps: {
       );
   }
 
+  /**
+   * The owner pressed "I'll answer" on a supervised contact's draft: their next words on this chat go to the contact
+   * as theirs ("cancelar" sends nothing). A draft replaced meanwhile still takes them, as the owner's direct words.
+   */
+  async function answerContact(channel: string, conversation: string, words: string, rowId: string): Promise<boolean> {
+    const id = deps.suggestions.takeWriting(channel, conversation);
+    if (!id) return false;
+    const t = channelTexts(store);
+    const reply = (text: string) => delivery.enqueue({ channel, conversation, kind: "notice", body: { text } });
+    if (/^(cancel|cancelar|cancelá)\W*$/i.test(words.trim())) {
+      reply(t.writeCanceled);
+      return true;
+    }
+    const s = store.suggestions.get(id);
+    const name = (s && store.persons.get(s.person_id)?.name) || "";
+    try {
+      if (s?.state === "pending") {
+        const r = await call(
+          "contacts.suggestions.send",
+          { id, text: words, author: "owner" },
+          { actor: "human" },
+          `channel:${rowId}:suggestion`,
+        );
+        reply(sentText(name, r.delivery));
+      } else if (s) {
+        await call(
+          "channels.send",
+          { thread: s.thread_id, text: words },
+          { actor: "human" },
+          `channel:${rowId}:direct`,
+        );
+        reply(t.suggestionSent(name));
+      }
+    } catch (err) {
+      reply(t.buttonFailed(errorMessage(err, 200)));
+    }
+    return true;
+  }
+
+  /** How a send to a contact went, for the owner: sent (or on its way), or why it did not reach them. */
+  function sentText(name: string, d: { state: string; error?: string | undefined }): string {
+    const t = channelTexts(store);
+    return d.state === "failed" ? t.suggestionNotSent(name, d.error ?? "") : t.suggestionSent(name);
+  }
+
   /** The owner's text answers an open question of that thread, when one is waiting for words. */
   async function answerPending(
     threadId: string,
@@ -444,6 +514,25 @@ export function createInbound(deps: {
         const answer = button.decision === "answer";
         await call("contacts.set", { id: person.id, name: person.name, muted: !answer }, { actor: "human" });
         reply(answer ? t.willAnswer(person.name) : t.keptQuiet(person.name));
+        return;
+      }
+      if (button.kind === "suggestion") {
+        const s = store.suggestions.get(button.id);
+        if (s?.state !== "pending") {
+          reply(t.suggestionGone);
+          return;
+        }
+        const name = store.persons.get(s.person_id)?.name ?? "";
+        if (button.decision === "send") {
+          const r = await call("contacts.suggestions.send", { id: s.id }, { actor: "human" });
+          reply(sentText(name, r.delivery));
+        } else if (button.decision === "write") {
+          const w = deps.suggestions.write(s.id, channel, a.conversation);
+          reply(t.writeNow(w.name, w.minutes));
+        } else {
+          await call("contacts.suggestions.discard", { id: s.id }, { actor: "human" });
+          reply(t.suggestionDropped(name));
+        }
         return;
       }
       if (button.kind === "pairing") {
@@ -501,12 +590,6 @@ export function createInbound(deps: {
       for (const row of store.channels.inbox.pending()) void process(row);
     },
   };
-}
-
-/** A name with its phone number when the channel has one (a stranger picks their own name; the number is theirs). */
-function shown(cfg: ChannelConfig, name: string, externalId: string): string {
-  const phone = cfg.type === "whatsapp" ? /^(\d{6,})@s\.whatsapp\.net$/.exec(externalId)?.[1] : undefined;
-  return phone ? `${name} (+${phone})` : name;
 }
 
 /** The tray notice of a pairing request, closed when the owner answers it. */

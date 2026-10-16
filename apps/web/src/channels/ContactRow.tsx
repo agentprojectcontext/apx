@@ -48,7 +48,7 @@ const PERM_FLAGS: Array<{ key: keyof Person["perms"]; icon: ReactNode; label: Me
 ];
 
 const hasFlags = (p: Person | undefined) =>
-  Boolean(p && (p.muted || p.rules?.trim() || Object.values(p.perms).some(Boolean)));
+  Boolean(p && (p.muted || p.supervised || p.rules?.trim() || Object.values(p.perms).some(Boolean)));
 
 /** What is set for a contact, as small marks: silenced, rules of their own, and each thing their chat may do. */
 export function ContactFlags({ person }: { person: Person | undefined }) {
@@ -65,6 +65,7 @@ export function ContactFlags({ person }: { person: Person | undefined }) {
           },
         ]
       : []),
+    ...(person.supervised ? [{ key: "supervised", icon: <Icons.Eye size={12} />, label: t("ch.supervised") }] : []),
     ...(person.rules?.trim() ? [{ key: "rules", icon: <Icons.FileText size={12} />, label: t("ch.flag.rules") }] : []),
     ...PERM_FLAGS.filter((f) => person.perms[f.key]).map((f) => ({ key: f.key, icon: f.icon, label: t(f.label) })),
   ];

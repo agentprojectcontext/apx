@@ -30,6 +30,7 @@ import { createMemoryIndex } from "./engine/memory-index.ts";
 import { createNoticePush } from "./engine/notice-push.ts";
 import type { ProfileRoot } from "./engine/profiles.ts";
 import { createSkillPicker } from "./engine/skill-pick.ts";
+import { createDrafter } from "./engine/suggest.ts";
 import { afterWorkTurn } from "./engine/task-work.ts";
 import { wakeAfterCommand } from "./engine/terminal-wake.ts";
 import type { ToolCall } from "./engine/turn.ts";
@@ -101,6 +102,8 @@ export type CoreOptions = {
   channelRetryMs?: readonly number[];
   /** How long a room waits for one person's quick messages to settle (tests shorten it). */
   roomBurstMs?: number;
+  /** How long a supervised contact's quick messages may keep coming before their draft (tests shorten it). */
+  suggestBurstMs?: number;
   /** How long a turn waits for the owner's answer before it ends and the input stays open (tests shorten it). */
   inputWaits?: InputWaits;
   /** How long an outside engine may go without an event before its turn ends (tests shorten it). */
@@ -294,7 +297,9 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     services,
     attention: attention.add,
     judge: upkeep.judge,
+    draft: createDrafter({ store, llm, fallbackModels: upkeep.auxModels }).draft,
     ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),
+    ...(opts.suggestBurstMs !== undefined ? { suggestBurstMs: opts.suggestBurstMs } : {}),
     pushOwner: (deviceId, text) => {
       const target = store.devices.pushTarget(deviceId);
       if (!target) return false;

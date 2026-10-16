@@ -48,6 +48,23 @@ const es = {
     `Ningún canal pudo entregarlo (${channels}${why ? `: ${why}` : ""}). Decía: «${text}»`,
   reminders: (lines: string[]) => `Recordatorios:\n${lines.map((l) => `• ${l}`).join("\n")}`,
   digest: (texts: string[]) => `Mientras estabas en silencio:\n\n${texts.join("\n\n—\n\n")}`,
+  suggested: (name: string, label: string, said: string, draft: string) =>
+    `${name} te escribió por ${label}:\n${said}\n\nLe contestaría:\n«${draft}»`,
+  noSuggestion: (name: string, label: string, said: string, why: string) =>
+    `${name} te escribió por ${label}:\n${said}\n\nNo te sugiero respuesta: ${why}`,
+  nothingToAnswer: "parece que no hace falta contestar.",
+  quote: (text: string) => `«${text}»`,
+  sendThis: "Mandar esta",
+  writeMyself: "Contestar yo",
+  suggestionSent: (name: string) => `Listo: se lo mandé a ${name}.`,
+  suggestionNotSent: (name: string, why: string) => `No le llegó a ${name}: ${why}`,
+  suggestionDropped: (name: string) => `Listo: no le contesto a ${name}.`,
+  suggestionGone: "Esa sugerencia ya no está pendiente (ya se decidió o llegó un mensaje más nuevo).",
+  writeNow: (name: string, minutes: number) =>
+    `Escribí tu respuesta para ${name}: lo próximo que me mandes acá se lo envío tal cual (durante ${minutes} minutos). Mandá «cancelar» para no enviarle nada.`,
+  writeCanceled: "Listo, no le mando nada.",
+  tooManyDrafts: (name: string) =>
+    `${name} escribe mucho seguido: por esta hora no te sugiero más respuestas. Sus mensajes quedan en su chat.`,
 };
 
 const en: typeof es = {
@@ -95,6 +112,21 @@ const en: typeof es = {
     `No channel could deliver it (${channels}${why ? `: ${why}` : ""}). It said: "${text}"`,
   reminders: (lines) => `Reminders:\n${lines.map((l) => `• ${l}`).join("\n")}`,
   digest: (texts) => `While your quiet hours lasted:\n\n${texts.join("\n\n—\n\n")}`,
+  suggested: (name, label, said, draft) => `${name} wrote to you on ${label}:\n${said}\n\nI'd answer:\n"${draft}"`,
+  noSuggestion: (name, label, said, why) => `${name} wrote to you on ${label}:\n${said}\n\nNo suggested answer: ${why}`,
+  nothingToAnswer: "it seems to need no answer.",
+  quote: (text) => `"${text}"`,
+  sendThis: "Send this",
+  writeMyself: "I'll answer",
+  suggestionSent: (name) => `Done: sent to ${name}.`,
+  suggestionNotSent: (name, why) => `It didn't reach ${name}: ${why}`,
+  suggestionDropped: (name) => `Done: I won't answer ${name}.`,
+  suggestionGone: "That suggestion is no longer pending (it was decided, or a newer message came in).",
+  writeNow: (name, minutes) =>
+    `Write your answer for ${name}: the next thing you send me here goes to them as it is (for ${minutes} minutes). Send "cancel" to send nothing.`,
+  writeCanceled: "Done, I'm sending nothing.",
+  tooManyDrafts: (name) =>
+    `${name} is writing a lot in a row: no more suggested answers this hour. Their messages stay in their chat.`,
 };
 
 export type ChannelTexts = typeof es;

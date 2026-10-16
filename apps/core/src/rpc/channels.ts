@@ -129,6 +129,14 @@ export function channelHandlers(store: Store, channels: Channels) {
       if (!p) throw notFound(`person ${id}`);
       return p;
     },
+    "contacts.suggestions.list": ({ state, person, limit }) => ({
+      suggestions: store.suggestions.list({ state: state === "all" ? undefined : state, person, limit }),
+    }),
+    "contacts.suggestions.send": async ({ id, text, author }) => {
+      const { suggestion, outbox } = channels.suggestions.send(id, { text, author });
+      return { suggestion, delivery: await channels.settled(outbox, SETTLE_MS) };
+    },
+    "contacts.suggestions.discard": ({ id }) => ({ suggestion: channels.suggestions.discard(id) }),
     "contacts.remove": ({ id, address }) => {
       if (address) return { removed: store.persons.unlink(address) };
       if (!id) throw badRequest("give a person or an address");
