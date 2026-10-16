@@ -13,7 +13,7 @@
     "typecheck": "pnpm -r --if-present typecheck && tsc -p e2e",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "test": "pnpm -r --if-present test",
+    "test": "pnpm -r --if-present test && node --test 'scripts/*.test.ts'",
     "check:private": "node scripts/check-private-terms.ts",
     "check:commits": "node scripts/check-private-terms.ts --commits",
     "check:schema": "node --no-warnings apps/core/scripts/schema.ts --check",
