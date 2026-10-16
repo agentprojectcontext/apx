@@ -1008,3 +1008,16 @@ widget's HTML, so what a widget can load is fixed when it is written and visible
 widget with `connect` origins could send those files out, as it could anything else it shows; that is why a widget
 with `connect` already asks the owner while outside content is in play. A published artifact (`/a/<token>`) does not
 resolve these refs.
+
+<a id="d-087"></a>
+## D-087 — 2026-10-15 — CI checks the commits a push or pull request brings, never published history again
+`verify` ran `pnpm check:commits HEAD` on every push, rescanning the whole public history, so one commit already
+published there (b3d609e0, a pull request merged in GitHub's web UI under the account's own email) failed every run
+after it, and nothing short of rewriting public history could clear it. History is never rewritten once published
+(RELEASE.md#history), so the check now covers what each run adds: a pull request's own commits (base..head), a push's
+new ones (before..after), and for a new branch or tag, or a `before` no longer in the repo, whatever `release/v2`
+lacks. A commit that brings a personal email still fails the push that brings it; the gate moved, it did not loosen.
+GitHub's own web-flow committer (`noreply@github.com`, the same for everyone) is accepted as a committer, never as
+an author: a pull request merged in the web UI passes when the merging account keeps its email private (GitHub's
+"Keep my email addresses private"), and fails when it does not. The trade-off: after a force-push to `release/v2` its
+old `before` is gone and the run scans nothing; a published branch is never force-pushed (RELEASE.md#history).

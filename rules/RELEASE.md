@@ -17,7 +17,8 @@ the copy. The rewrite script and its replacement list live beside the checkout, 
 what they remove).
 
 From then on new commits must be public-safe as they are made: `pnpm check:commits` scans the commits on no remote
-yet (or a range: `pnpm check:commits HEAD`), and `verify` runs it over the whole history in the public repo.
+yet (or a range: `pnpm check:commits HEAD`), and `verify` runs it over the commits each push or pull request brings
+to the public repo ([D-087](DECISIONS.md#d-087)).
 
 ## Where v2 lives
 

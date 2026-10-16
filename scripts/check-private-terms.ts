@@ -143,6 +143,8 @@ export function scan(files: string[], matchers: Matcher[], allow: string[]): Hit
 const AI_TRAILER =
   /^(co-authored-by:.*\b(claude|codex|copilot|gemini|gpt|anthropic|openai)\b|claude-session:|generated with |\u{1F916})/iu;
 const NOREPLY = /@users\.noreply\.github\.com$/i;
+/** GitHub's own committer on what it makes in its web UI (a pull request merged there): the same for everyone. */
+const GITHUB_WEB_FLOW = "noreply@github.com";
 
 export type Commit = { sha: string; authorEmail: string; committerEmail: string; message: string };
 
@@ -155,8 +157,9 @@ export function scanCommits(commits: Commit[], matchers: Matcher[], allow: strin
     lines.forEach((text, i) => {
       if (AI_TRAILER.test(text.trim())) hits.push({ file: where, line: i + 1, term: "ai-trailer" });
     });
-    for (const email of new Set([c.authorEmail, c.committerEmail]))
-      if (!NOREPLY.test(email)) hits.push({ file: where, line: 0, term: "author-email" });
+    if (!NOREPLY.test(c.authorEmail)) hits.push({ file: where, line: 0, term: "author-email" });
+    if (c.committerEmail !== c.authorEmail && !NOREPLY.test(c.committerEmail) && c.committerEmail !== GITHUB_WEB_FLOW)
+      hits.push({ file: where, line: 0, term: "author-email" });
   }
   return hits;
 }
