@@ -129,6 +129,8 @@ function madeFile(tool: string, input: Record<string, unknown>): NativeFile | un
   if (!file) return undefined;
   if (tool === "Artifact" && !input.action && !input.asset && /\.html?$/i.test(file))
     return { kind: "artifact", path: file };
+  // Claude Code's own memory files come in as memory notes (sessions.import's extras), not as documents.
+  if (/[/\\]\.claude[/\\]projects[/\\][^/\\]+[/\\]memory[/\\]/.test(file)) return undefined;
   if (tool === "Write" && /\.(md|markdown)$/i.test(file)) return { kind: "document", path: file };
   return undefined;
 }
