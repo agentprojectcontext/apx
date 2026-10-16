@@ -66,13 +66,20 @@ export function ProjectSettings({
   const [autonomy, setAutonomy] = useState<Autonomy>("standard");
   const [busy, setBusy] = useState(false);
   const [newProject, setNewProject] = useState(false);
+  // Filled once per opening: the project list refreshing while it is open must not undo what the owner typed.
+  const [seeded, setSeeded] = useState(false);
   useEffect(() => {
-    if (!open) return;
-    setName(full?.name ?? project.name);
-    setDescription(full?.description ?? "");
-    setKind(full?.kind ?? NONE);
-    setAutonomy(full?.autonomy ?? "standard");
-  }, [open, full, project.name]);
+    if (!open) {
+      setSeeded(false);
+      return;
+    }
+    if (seeded || !full) return;
+    setName(full.name);
+    setDescription(full.description ?? "");
+    setKind(full.kind ?? NONE);
+    setAutonomy(full.autonomy ?? "standard");
+    setSeeded(true);
+  }, [open, full, seeded]);
 
   const kinds: SelectOption[] = [
     ...kindOptions(t),
