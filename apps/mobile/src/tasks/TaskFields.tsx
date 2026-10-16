@@ -24,15 +24,18 @@ export type TaskField = "status" | "kind" | "priority" | "project" | "assignee" 
 /**
  * A task's column, priority, who does it, due date, project and type, one row each; a row opens its sheet and the
  * pick reaches `onChange` as tasks.update takes it (`null` clears). Shared by the task's page and the new task.
+ * A closed task shows how it ended instead of the column it keeps for a reopen.
  */
 export function TaskFields({
   data,
   value,
   onChange,
+  closed,
 }: {
   data: Workspace;
   value: TaskValues;
   onChange: (patch: TaskPatch) => void;
+  closed?: string;
 }) {
   const theme = useTheme();
   const [sheet, setSheet] = useState<TaskField>();
@@ -47,8 +50,15 @@ export function TaskFields({
         <ListRow
           label={t("tkColumn")}
           leading={lead("LayoutGrid")}
-          detail={column ? columnName(column, t) : value.status}
-          onPress={() => setSheet("status")}
+          detail={
+            closed
+              ? t(closed === "dropped" ? "tkStateDropped" : "tkStateDone")
+              : column
+                ? columnName(column, t)
+                : value.status
+          }
+          chevron={!closed}
+          onPress={closed ? undefined : () => setSheet("status")}
         />
         <ListRow
           label={t("tkPriority")}

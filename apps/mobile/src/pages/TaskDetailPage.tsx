@@ -195,7 +195,7 @@ export function TaskDetailPage({
           />
         </View>
         <Description key={`description-${task.id}`} task={task} save={(description) => update({ description })} />
-        <TaskFields data={data} value={taskValues(task)} onChange={update} />
+        <TaskFields data={data} value={taskValues(task)} onChange={update} closed={open ? undefined : task.state} />
         <ListGroup>
           <ListRow
             label={t("tkWork")}

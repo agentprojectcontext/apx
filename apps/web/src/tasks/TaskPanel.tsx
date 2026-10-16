@@ -132,20 +132,29 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
   );
 }
 
-/** Its column, and done / drop (or reopen). */
+/** Its column (how it ended, once closed: it keeps its column to go back to on reopen), and done / drop (or reopen). */
 function StateBar({ task }: { task: Task }) {
   const t = useT();
   const columns = useTasks((s) => s.columns);
+  const closed = task.state !== "open";
+  const ended =
+    task.state === "dropped"
+      ? { label: t("tasks.dropped"), icon: <Icons.X size={12} /> }
+      : { label: t("tasks.done"), icon: <Icons.Check size={12} /> };
   return (
     <div className="taskdetail__bar">
       <Select
         size="sm"
         label={t("tasks.column")}
         className="taskdetail__status"
-        value={task.status}
-        disabled={task.state !== "open"}
+        value={closed ? task.state : task.status}
+        disabled={closed}
         onValueChange={(v) => v && v !== task.status && void updateTask(task.id, { status: v, awaits_owner: false })}
-        options={columns.map((c) => ({ value: c.id, label: columnLabel(c, t), icon: <ColumnDot id={c.id} /> }))}
+        options={
+          closed
+            ? [{ value: task.state, ...ended }]
+            : columns.map((c) => ({ value: c.id, label: columnLabel(c, t), icon: <ColumnDot id={c.id} /> }))
+        }
       />
       <ColumnHelp />
       <span className="board__spacer" />
