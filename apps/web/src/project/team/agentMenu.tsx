@@ -8,15 +8,27 @@ export type AgentActions = {
   onEdit(a: Agent): void;
   onChat(a: Agent): void;
   onDelete(a: Agent): void;
+  /** Marks it as the one that runs its team, or unmarks it. */
+  onOrchestrator?(a: Agent): void;
 };
 
-/** See its details, edit it, chat with it, and delete it last; the super-agent cannot be deleted. */
+/** See its details, edit it, chat with it, mark it orchestrator, and delete it last; the super-agent cannot be deleted. */
 export function agentMenu(agent: Agent, t: T, o: AgentActions): MenuEntry[] {
   const locked = agent.kind === "secretary";
   return [
     { label: t("team.menu.open"), icon: <Icons.Eye />, onSelect: () => o.onOpen(agent) },
     { label: t("team.menu.edit"), icon: <Icons.Pencil />, onSelect: () => o.onEdit(agent) },
     { label: t("team.chat"), icon: <Icons.MessageCircle />, onSelect: () => o.onChat(agent) },
+    ...(!locked && o.onOrchestrator
+      ? [
+          {
+            label: t("team.menu.orchestrator"),
+            icon: <Icons.Crown />,
+            checked: Boolean(agent.orchestrator),
+            onSelect: () => o.onOrchestrator?.(agent),
+          },
+        ]
+      : []),
     { type: "separator" },
     {
       label: t("team.menu.delete"),

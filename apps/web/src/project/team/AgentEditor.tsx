@@ -1,35 +1,85 @@
-import type { Agent } from "@apx/protocol";
-import { AgentAvatar, BLOB_NAMES, Button, Dialog, Field, Input, Select, Skeleton, Tabs, Textarea } from "@apx/ui";
-import { useEffect, useState } from "react";
-import { blobOf, DEFAULT_PID } from "../../data/identity.ts";
-import { useOrg } from "../../data/org.ts";
-import { getAgent, updateAgent } from "../../data/team.ts";
-import { useT } from "../../i18n/index.ts";
-import { PermissionsTab, SkillsTab, ToolsTab } from "./AgentAccess.tsx";
+import type { Agent, Autonomy, Params, Result, ToolApproval } from "@apx/protocol";
+import { AgentAvatar, Button, Dialog, Icons, NavItem, SearchField, Skeleton } from "@apx/ui";
+import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
+import { client } from "../../data/client.ts";
+import { blobOf } from "../../data/identity.ts";
+import { revokeApproval } from "../../data/resources.ts";
+import { useData } from "../../data/state.ts";
+import { agentToolCatalog, getAgent, setGrant, updateAgent } from "../../data/team.ts";
+import { type MessageKey, useT } from "../../i18n/index.ts";
+import { LAYOUT } from "../../shell/layout.ts";
+import { GrantsPage, SkillsTab, ToolsTab } from "./AgentAccess.tsx";
+import { type Draft, type GrantChange, grantId, type PageId, sameValue } from "./editor/draft.ts";
+import { IdentityPage, PromptPage, TeamPage } from "./editor/IdentityPages.tsx";
+import { AutonomyPage, BrowserPage, RulesPage } from "./editor/RulesPages.tsx";
 
-const NONE = "~none";
-const OTHER = "~other";
+type Catalog = Result<"agents.tools">["tools"];
 
-type Draft = {
-  name: string;
-  role: string;
-  area: string;
-  description: string;
-  personality: string;
-  blob: string;
-  prompt: string;
-  /** Empty: every tool (or skill), as an agent without a list. */
-  tools: string[];
-  skills: string[];
-};
+const NAV: Array<{ label: MessageKey; items: Array<{ id: PageId; icon: ReactNode }> }> = [
+  {
+    label: "agentedit.group.general",
+    items: [
+      { id: "identity", icon: <Icons.User /> },
+      { id: "prompt", icon: <Icons.FileText /> },
+      { id: "team", icon: <Icons.Sparkles /> },
+    ],
+  },
+  {
+    label: "agentedit.group.abilities",
+    items: [
+      { id: "tools", icon: <Icons.Wrench /> },
+      { id: "skills", icon: <Icons.Brain /> },
+    ],
+  },
+  {
+    label: "agentedit.group.permissions",
+    items: [
+      { id: "autonomy", icon: <Icons.Zap /> },
+      { id: "rules", icon: <Icons.ListChecks /> },
+      { id: "granted", icon: <Icons.Check /> },
+      { id: "browser", icon: <Icons.Globe /> },
+    ],
+  },
+];
 
-const same = (a: Draft[keyof Draft], b: Draft[keyof Draft]) =>
-  Array.isArray(a) && Array.isArray(b) ? a.join("\n") === b.join("\n") : a === b;
+const SIZE = {
+  width: `min(${LAYOUT.configW}px, calc(100vw - 64px))`,
+  height: `min(${LAYOUT.configH}px, calc(100vh - 64px))`,
+  "--config-nav-w": "240px",
+} as CSSProperties;
+
+const draftOf = (a: Agent, prompt: string): Draft => ({
+  name: a.name,
+  role: a.role,
+  area: a.area ?? "",
+  description: a.description ?? "",
+  personality: a.personality ?? "",
+  blob: blobOf(a) ?? "",
+  prompt,
+  tools: a.tools ?? [],
+  skills: a.skills ?? [],
+  orchestrator: Boolean(a.orchestrator),
+  autonomy: a.autonomy ?? "",
+  rules: a.rules ?? {},
+  parent: a.parent ?? "",
+  browser_profile: a.browser_profile,
+});
+
+/** What agents.update takes for each changed draft field. */
+function fieldsOf(d: Draft, changed: Array<keyof Draft>): Omit<Params<"agents.update">, "agent"> {
+  const out: Record<string, unknown> = {};
+  for (const k of changed) {
+    if (k === "autonomy") out.autonomy = d.autonomy || null;
+    else if (k === "rules") out.rules = Object.keys(d.rules).length ? d.rules : null;
+    else out[k] = d[k];
+  }
+  return out as Omit<Params<"agents.update">, "agent">;
+}
 
 /**
- * The whole agent in one dialog: who it is (name, role, area, what it does, its personality, avatar), its system
- * prompt, the tools and skills it may use, and the tools the owner approved for it for good. A project agent's
- * changes are written to its `.apc/agents/<slug>.md`.
+ * The whole agent in one place, laid out like Config: who it is, its prompt, model and team, the tools and skills it
+ * may use, and how far it goes on its own (autonomy, rules by case, what was granted, the browser). Everything but the
+ * model and the budget is saved together; a project agent's definition goes to its `.apc/agents/<slug>.md`.
  */
 export function AgentEditor({
   agent,
@@ -38,240 +88,235 @@ export function AgentEditor({
 }: {
   agent: Agent;
   onClose: () => void;
-  /** The tab it opens on. */
-  start?: "identity" | "prompt" | "tools" | "skills" | "permissions";
+  /** The page it opens on ("permissions" is the granted page). */
+  start?: PageId | "permissions";
 }) {
   const t = useT();
   const [base, setBase] = useState<Draft>();
   const [d, setD] = useState<Draft>();
-  const [tab, setTab] = useState<string>(start);
+  const [page, setPage] = useState<PageId>(start === "permissions" ? "granted" : start);
+  const [q, setQ] = useState("");
   const [saving, setSaving] = useState(false);
+  const [catalog, setCatalog] = useState<Catalog>();
+  const [grants, setGrants] = useState<ToolApproval[]>();
+  const [grantChanges, setGrantChanges] = useState<Record<string, GrantChange>>({});
+  const live = useData((s) => s.agents[agent.id]) ?? agent;
+  const agents = useData((s) => s.agents);
+  const team = useMemo(
+    () => Object.values(agents).filter((a) => a.project_id === agent.project_id),
+    [agents, agent.project_id],
+  );
+  const project = useData((s) => (agent.project_id ? s.projects.find((p) => p.id === agent.project_id) : undefined));
+  const baseProject = useData((s) => s.base);
+  const projectAutonomy: Autonomy = (agent.project_id ? project?.autonomy : baseProject.autonomy) ?? "standard";
+  const projectName = project?.name ?? baseProject.name;
+  const isSuper = agent.kind === "secretary";
+
   useEffect(() => {
     let current = true;
     void getAgent(agent.id).then((r) => {
       if (!current || !r) return;
-      const start = {
-        name: r.agent.name,
-        role: r.agent.role,
-        area: r.agent.area ?? "",
-        description: r.agent.description ?? "",
-        personality: r.agent.personality ?? "",
-        blob: blobOf(r.agent) ?? "",
-        prompt: r.prompt,
-        tools: r.agent.tools ?? [],
-        skills: r.agent.skills ?? [],
-      };
+      const start = draftOf(r.agent, r.prompt);
       setBase(start);
       setD(start);
     });
+    void agentToolCatalog().then((c) => current && c && setCatalog(c));
+    void client
+      .call("tools.approvals", {})
+      .then((r) => current && setGrants(r.approvals.filter((g) => g.scope === "always")))
+      .catch(() => current && setGrants([]));
     return () => {
       current = false;
     };
   }, [agent.id]);
 
-  const changed = base && d ? (Object.keys(d) as (keyof Draft)[]).filter((k) => !same(d[k], base[k])) : [];
+  const changed = base && d ? (Object.keys(d) as Array<keyof Draft>).filter((k) => !sameValue(d[k], base[k])) : [];
+  const dirty = changed.length > 0 || Object.keys(grantChanges).length > 0;
   const save = async () => {
-    if (!d || !changed.length) return onClose();
+    if (!d || !dirty) return onClose();
     setSaving(true);
-    const ok = await updateAgent(agent.id, Object.fromEntries(changed.map((k) => [k, d[k]])));
+    let ok = !changed.length || (await updateAgent(agent.id, fieldsOf(d, changed)));
+    for (const [id, c] of Object.entries(grantChanges)) {
+      const g = grants?.find((x) => grantId(x.key, x.agent_id) === id);
+      if (!g) continue;
+      if (c.revoke) await revokeApproval(g.key, undefined, g.agent_id);
+      else
+        ok =
+          (await setGrant(g.key, g.agent_id, {
+            ...(c.condition !== undefined ? { condition: c.condition } : {}),
+            ...(c.expires_at !== undefined ? { expires_at: c.expires_at } : {}),
+          })) && ok;
+    }
     setSaving(false);
     if (ok) onClose();
   };
-  const set = (k: keyof Draft) => (v: string) => setD((cur) => (cur ? { ...cur, [k]: v } : cur));
-  const setList = (k: "tools" | "skills") => (v: string[]) => setD((cur) => (cur ? { ...cur, [k]: v } : cur));
-  // A company project's areas and roles are offered as lists (a global agent: the base project's).
-  const org = useOrg(agent.project_id ?? DEFAULT_PID);
-  const pickedRole = d && org?.roles.find((r) => r.name === d.role);
-  // The super-agent is one of a kind: no role, area or description to give it, and its prompt adds to its base role.
-  const isSuper = agent.kind === "secretary";
+  const edit = (patch: Partial<Draft>) => setD((cur) => (cur ? { ...cur, ...patch } : cur));
+
+  const mine = (grants ?? []).filter((g) => g.agent_id === agent.id || !g.agent_id);
+  const nGrants = mine.filter((g) => !grantChanges[grantId(g.key, g.agent_id)]?.revoke).length;
+  const metaOf = (id: PageId): string => {
+    if (!d) return "";
+    if (id === "tools") return d.tools.length ? String(d.tools.length) : t("agentedit.all");
+    if (id === "skills") return d.skills.length ? String(d.skills.length) : t("agentedit.all");
+    if (id === "autonomy") return d.autonomy ? t("agentedit.own") : t("agentedit.fromProject");
+    if (id === "rules") {
+      const n = Object.keys(d.rules).length;
+      return n ? t("agentedit.ownRules", { count: n }) : "";
+    }
+    if (id === "granted") return grants ? String(nGrants) : "";
+    return "";
+  };
+  const query = q.trim().toLowerCase();
+  const matches = (id: PageId) =>
+    !query ||
+    t(`agentedit.page.${id}`).toLowerCase().includes(query) ||
+    (id === "tools" && Boolean(catalog?.some((x) => x.name.includes(query))));
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => matches(i.id)) })).filter((g) => g.items.length);
+  const file = agent.source === "apc" && agent.slug ? `.apc/agents/${agent.slug}.md` : undefined;
+
+  const body = (): ReactNode => {
+    if (!d) return <Skeleton shape="block" height={240} />;
+    const common = { agent: live, draft: d, edit };
+    switch (page) {
+      case "identity":
+        return <IdentityPage {...common} isSuper={isSuper} team={team} />;
+      case "prompt":
+        return <PromptPage {...common} isSuper={isSuper} onSave={() => void save()} />;
+      case "team":
+        return <TeamPage {...common} isSuper={isSuper} team={team} file={file} />;
+      case "tools":
+        return (
+          <ToolsTab
+            value={d.tools}
+            onChange={(tools) => edit({ tools })}
+            catalog={catalog}
+            draft={d}
+            projectAutonomy={projectAutonomy}
+            granted={mine}
+            onRules={() => setPage("rules")}
+          />
+        );
+      case "skills":
+        return <SkillsTab agent={agent} value={d.skills} onChange={(skills) => edit({ skills })} />;
+      case "autonomy":
+        return <AutonomyPage {...common} projectAutonomy={projectAutonomy} onRules={() => setPage("rules")} />;
+      case "rules":
+        return (
+          <RulesPage
+            {...common}
+            catalog={catalog}
+            granted={mine}
+            projectAutonomy={projectAutonomy}
+            projectName={projectName}
+            onAutonomy={() => setPage("autonomy")}
+          />
+        );
+      case "granted":
+        return (
+          <GrantsPage
+            agent={agent}
+            grants={grants}
+            changes={grantChanges}
+            onChange={(id, c) =>
+              setGrantChanges((cur) => {
+                const next = { ...cur };
+                if (c) next[id] = { ...cur[id], ...c };
+                else delete next[id];
+                return next;
+              })
+            }
+          />
+        );
+      case "browser":
+        return <BrowserPage {...common} projectAutonomy={projectAutonomy} onRules={() => setPage("rules")} />;
+    }
+  };
 
   return (
     <Dialog
-      open
-      size="lg"
-      onOpenChange={(o) => !o && onClose()}
+      bare
+      size="xl"
       title={isSuper ? t("agent.edit.superTitle") : t("agent.edit.title", { name: agent.name })}
-      {...(isSuper ? { description: t("agent.edit.superNote") } : {})}
-      footer={
-        <>
-          {agent.source === "apc" && agent.slug && (
-            <span className="agentedit__file">{t("agent.edit.file", { file: `.apc/agents/${agent.slug}.md` })}</span>
-          )}
-          <Button variant="secondary" onClick={onClose}>
-            {t("common.cancel")}
+      closeLabel={t("common.close")}
+      open
+      onOpenChange={(o) => !o && onClose()}
+      className="config agentedit"
+      style={SIZE}
+    >
+      <nav className="config__nav" aria-label={t("agent.edit.title", { name: agent.name })}>
+        <div className="agentedit__who">
+          <AgentAvatar name={d?.name ?? agent.name} blob={d?.blob || blobOf(agent)} size={32} animated={false} />
+          <div className="agentedit__whotext">
+            <div className="agentedit__whoname">
+              {d?.name ?? agent.name}
+              {d?.orchestrator && (
+                <Icons.Crown size={12} className="agentedit__crown" aria-label={t("agentedit.orchestrator")} />
+              )}
+            </div>
+            <div className="agentedit__whoproject">
+              <Icons.Folder size={12} />
+              {projectName}
+            </div>
+          </div>
+        </div>
+        <SearchField
+          size="sm"
+          placeholder={t("common.search")}
+          value={q}
+          onChange={(e) => setQ(e.currentTarget.value)}
+        />
+        {groups.map((g) => (
+          <div key={g.label} className="config__group">
+            <div className="config__grouplabel">{t(g.label)}</div>
+            {g.items.map((i) => (
+              <NavItem
+                key={i.id}
+                className="config__navitem"
+                icon={i.icon}
+                label={t(`agentedit.page.${i.id}`)}
+                trailing={metaOf(i.id) ? <span className="agentedit__meta">{metaOf(i.id)}</span> : undefined}
+                active={page === i.id}
+                onClick={() => setPage(i.id)}
+              />
+            ))}
+          </div>
+        ))}
+      </nav>
+      <div className="agentedit__main">
+        <div className="config__content">
+          <div className="config__inner">
+            <div className="config__head">
+              <div className="config__headtext">
+                <h2 className="config__title">
+                  {isSuper && page === "prompt" ? t("agent.edit.superPrompt") : t(`agentedit.page.${page}`)}
+                </h2>
+                <p className="config__lead">{t(`agentedit.page.${page}Sub`)}</p>
+              </div>
+            </div>
+            {body()}
+          </div>
+        </div>
+        <footer className="agentedit__foot">
+          <span className="agentedit__file">
+            {dirty && <span className="agentedit__dot" aria-hidden />}
+            {dirty ? `${t("agentedit.unsaved")} · ` : ""}
+            {file ? t("agentedit.savedTo", { file }) : t("agentedit.savedLocal")}
+          </span>
+          <Button
+            variant="ghost"
+            disabled={!dirty}
+            onClick={() => {
+              setD(base);
+              setGrantChanges({});
+            }}
+          >
+            {t("agentedit.discard")}
           </Button>
-          <Button loading={saving} disabled={!d?.name.trim() || !changed.length} onClick={() => void save()}>
+          <Button loading={saving} disabled={!d?.name.trim() || !dirty} onClick={() => void save()}>
             {t("common.save")}
           </Button>
-        </>
-      }
-    >
-      {!d ? (
-        <Skeleton shape="block" height={240} />
-      ) : (
-        <Tabs
-          variant="pill"
-          value={tab}
-          onValueChange={setTab}
-          items={[
-            {
-              value: "identity",
-              label: t("agent.edit.identity"),
-              content: (
-                <div className="taskform">
-                  {isSuper ? (
-                    <Field label={t("agent.edit.name")}>
-                      {(id) => <Input id={id} value={d.name} onChange={(e) => set("name")(e.currentTarget.value)} />}
-                    </Field>
-                  ) : (
-                    <>
-                      <div className="taskform__row">
-                        <Field label={t("agent.edit.name")}>
-                          {(id) => (
-                            <Input id={id} value={d.name} onChange={(e) => set("name")(e.currentTarget.value)} />
-                          )}
-                        </Field>
-                        <Field label={t("team.area")} hint={t("agent.edit.areaHint")}>
-                          {org?.areas.length ? (
-                            <Select
-                              label={t("team.area")}
-                              value={d.area || NONE}
-                              onValueChange={(v) => set("area")(!v || v === NONE ? "" : v)}
-                              options={[
-                                { value: NONE, label: t("agent.edit.noArea") },
-                                ...org.areas.map((a) => ({ value: a.slug, label: a.name })),
-                                // An area written by hand, not in the list, is kept as it is.
-                                ...(d.area && !org.areas.some((a) => a.slug === d.area)
-                                  ? [{ value: d.area, label: d.area }]
-                                  : []),
-                              ]}
-                            />
-                          ) : (
-                            (id) => (
-                              <Input id={id} value={d.area} onChange={(e) => set("area")(e.currentTarget.value)} />
-                            )
-                          )}
-                        </Field>
-                      </div>
-                      <Field label={t("agent.edit.role")} hint={t("agent.edit.roleHint")}>
-                        {org?.roles.length ? (
-                          <div className="agentedit__role">
-                            <Select
-                              label={t("agent.edit.role")}
-                              value={pickedRole?.slug ?? OTHER}
-                              onValueChange={(v) => {
-                                const r = org.roles.find((x) => x.slug === v);
-                                // A role brings its area; "Other" lets the owner write one.
-                                if (r) setD((cur) => (cur ? { ...cur, role: r.name, area: r.area ?? cur.area } : cur));
-                                else set("role")("");
-                              }}
-                              options={[
-                                ...org.roles.map((r) => ({
-                                  value: r.slug,
-                                  label: r.name,
-                                  ...(r.area ? { description: org.areas.find((a) => a.slug === r.area)?.name } : {}),
-                                })),
-                                { value: OTHER, label: t("agent.edit.otherRole") },
-                              ]}
-                            />
-                            {!pickedRole && (
-                              <Input
-                                aria-label={t("agent.edit.role")}
-                                value={d.role}
-                                onChange={(e) => set("role")(e.currentTarget.value)}
-                              />
-                            )}
-                          </div>
-                        ) : (
-                          (id) => <Input id={id} value={d.role} onChange={(e) => set("role")(e.currentTarget.value)} />
-                        )}
-                      </Field>
-                      <Field label={t("agent.edit.description")}>
-                        {(id) => (
-                          <Textarea
-                            id={id}
-                            rows={3}
-                            value={d.description}
-                            onChange={(e) => set("description")(e.currentTarget.value)}
-                          />
-                        )}
-                      </Field>
-                    </>
-                  )}
-                  <Field label={t("agent.edit.personality")} hint={t("agent.edit.personalityHint")}>
-                    {(id) => (
-                      <Textarea
-                        id={id}
-                        rows={2}
-                        value={d.personality}
-                        placeholder={t("agent.edit.personalityPlaceholder")}
-                        onChange={(e) => set("personality")(e.currentTarget.value)}
-                      />
-                    )}
-                  </Field>
-                  <Field label={t("agent.edit.avatar")}>
-                    <div className="agentedit__blobs">
-                      {BLOB_NAMES.map((b) => (
-                        <button
-                          key={b}
-                          type="button"
-                          aria-pressed={d.blob === b}
-                          aria-label={b}
-                          className={`agentedit__blob${d.blob === b ? " is-on" : ""}`}
-                          onClick={() => set("blob")(b)}
-                        >
-                          <AgentAvatar name={d.name} blob={b} size={32} animated={false} />
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-                </div>
-              ),
-            },
-            {
-              value: "prompt",
-              label: isSuper ? t("agent.edit.superPrompt") : t("agent.edit.prompt"),
-              content: (
-                <Field
-                  label={isSuper ? t("agent.edit.superPrompt") : t("agent.edit.prompt")}
-                  hint={isSuper ? t("agent.edit.superPromptHint") : t("agent.edit.promptHint")}
-                >
-                  {(id) => (
-                    <Textarea
-                      id={id}
-                      className="agentedit__prompt"
-                      rows={16}
-                      value={d.prompt}
-                      onChange={(e) => set("prompt")(e.currentTarget.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "s" && (e.metaKey || e.ctrlKey)) {
-                          e.preventDefault();
-                          void save();
-                        }
-                      }}
-                    />
-                  )}
-                </Field>
-              ),
-            },
-            {
-              value: "tools",
-              label: t("agent.edit.tools"),
-              content: <ToolsTab value={d.tools} onChange={setList("tools")} />,
-            },
-            {
-              value: "skills",
-              label: t("agent.edit.skills"),
-              content: <SkillsTab agent={agent} value={d.skills} onChange={setList("skills")} />,
-            },
-            {
-              value: "permissions",
-              label: t("agent.edit.permissions"),
-              content: <PermissionsTab agent={agent} />,
-            },
-          ]}
-        />
-      )}
+        </footer>
+      </div>
     </Dialog>
   );
 }

@@ -606,10 +606,6 @@
   border-color: var(--apx-brand);
   box-shadow: 0 0 0 2px var(--apx-brand-soft);
 }
-.agentedit__prompt {
-  font-family: var(--apx-font-mono);
-  font-size: var(--apx-text-sm);
-}
 .agentaccess__group {
   display: grid;
   gap: 6px;
@@ -623,37 +619,6 @@
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 6px 14px;
   padding-left: 24px;
-}
-.agentaccess__note {
-  margin: 0;
-  font-size: var(--apx-text-sm);
-  color: var(--apx-fg-muted);
-}
-.agentaccess__grants {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.agentaccess__grant {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
-  border: 1px solid var(--apx-border);
-  border-radius: var(--apx-radius-md);
-}
-.agentaccess__server {
-  margin-right: auto;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
-}
-.agentedit__file {
-  margin-right: auto;
-  font-size: var(--apx-text-xs);
-  color: var(--apx-fg-subtle);
-  font-family: var(--apx-font-mono);
 }
 
 /* The same block beside a chat: the side panel's whole column, no card frame. */
@@ -715,11 +680,6 @@
   margin: 0;
   font-size: var(--apx-text-sm);
 }
-.agentedit__role {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
 /* An agent's own budget in its detail: two small numbers with their units, wrapping when narrow. */
 .teambudget {
   display: flex;
@@ -730,4 +690,415 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+/* The agent editor: Config's layout (nav + content) with a footer that saves the whole agent. */
+.agentedit__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.agentedit__who {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 12px;
+}
+.agentedit__whotext {
+  min-width: 0;
+}
+.agentedit__whoname {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--apx-weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agentedit__crown {
+  flex: none;
+  color: var(--apx-warning);
+}
+.agentedit__whoproject {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.agentedit__meta {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.agentedit__foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 40px;
+  border-top: 1px solid var(--apx-border);
+}
+.agentedit__file {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--apx-text-xs);
+  font-family: var(--apx-font-mono);
+  color: var(--apx-fg-subtle);
+}
+.agentedit__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-warning);
+}
+.agentedit__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.agentedit__rows > .apx-setting + .apx-setting {
+  margin-top: -12px;
+}
+.agentedit__control {
+  width: 260px;
+}
+.agentedit__struck {
+  text-decoration: line-through;
+  color: var(--apx-fg-subtle);
+}
+.agentedit__mono {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.agentedit__hint {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.agentedit__prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.agentedit__prompttext {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-sm);
+  line-height: 1.6;
+}
+.agentedit__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.agentedit__link:hover {
+  color: var(--apx-fg);
+}
+.agentedit__empty {
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+  color: var(--apx-fg-subtle);
+}
+.agentedit__tag {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-regular);
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.agentedit__tag.is-info {
+  background: var(--apx-info-soft);
+  color: var(--apx-info-soft-fg);
+}
+.agentedit__chip {
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+/* Single-pick lists (autonomy, browser): one bordered block, a radio per row. */
+.agentedit__choices {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  overflow: hidden;
+}
+.agentedit__choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.agentedit__choice + .agentedit__choice {
+  border-top: 1px solid var(--apx-border);
+}
+.agentedit__choice:hover {
+  background: var(--apx-fill-hover);
+}
+.agentedit__choice.is-on {
+  background: var(--apx-fill-strong);
+}
+.agentedit__legend,
+.agentedit__radioinput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.agentedit__radio {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid var(--apx-border-strong);
+  box-sizing: border-box;
+}
+.agentedit__choice.is-on .agentedit__radio {
+  border: 5px solid var(--apx-fg);
+}
+.agentedit__radioinput:focus-visible + .agentedit__radio {
+  outline: 2px solid var(--apx-brand);
+  outline-offset: 2px;
+}
+.agentedit__choicetext {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.agentedit__choice.is-on .agentedit__choicelabel {
+  font-weight: var(--apx-weight-semibold);
+}
+.agentedit__choicedesc {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.agentedit__summary,
+.agentedit__base,
+.agentedit__note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.agentedit__note {
+  padding: 8px 12px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-info-soft);
+  color: var(--apx-info-soft-fg);
+}
+.agentedit__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--apx-fill);
+}
+/* Each risk's color: reading is quiet, changing the project informs, acting outside warns, irreversible alarms. */
+.agentedit__riskdot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--risk);
+}
+.agentedit__risk-read {
+  --risk: var(--apx-fg-subtle);
+}
+.agentedit__risk-write {
+  --risk: var(--apx-info);
+}
+.agentedit__risk-outside {
+  --risk: var(--apx-warning);
+}
+.agentedit__risk-irreversible {
+  --risk: var(--apx-danger);
+}
+.agentedit__pol {
+  flex: none;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.agentedit__pol.is-auto,
+.agentedit__pol.is-granted,
+.agentedit__pol.is-kept {
+  color: var(--apx-brand);
+}
+.agentedit__pol.is-ask {
+  color: var(--apx-warning);
+}
+.agentedit__tier {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-fill);
+}
+.agentedit__tierhead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.agentedit__tiertext {
+  flex: 1;
+  min-width: 0;
+}
+.agentedit__tiertitle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-weight: var(--apx-weight-semibold);
+}
+.agentedit__tiertitle .agentedit__link {
+  font-size: var(--apx-text-xs);
+  font-weight: var(--apx-weight-regular);
+  color: var(--apx-fg-muted);
+}
+.agentedit__tierdesc {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.agentedit__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-left: 20px;
+}
+.agentedit__tier .agentedit__chip {
+  background: var(--apx-bg);
+}
+.agentedit__tiernote {
+  margin-left: 20px;
+  padding: 6px 10px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-bg);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+}
+.agentedit__tiernote.is-danger {
+  background: var(--apx-danger-soft);
+  color: var(--apx-danger-soft-fg);
+}
+.agentedit__warn {
+  margin: 0;
+  text-wrap: pretty;
+}
+.agentaccess__group.is-all,
+.agentaccess__skills.is-all {
+  opacity: 0.6;
+}
+.agentaccess__tool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.agentaccess__tool > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+/* A long tool name ends in an ellipsis instead of running under its policy. */
+.agentaccess__tool .apx-choice__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.agentedit .agentaccess__tools {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.agentaccess__skills {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px 16px;
+}
+.agentedit__grants {
+  display: flex;
+  flex-direction: column;
+}
+.agentedit__grantshead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 4px;
+}
+.agentedit__grantstitle {
+  font-weight: var(--apx-weight-semibold);
+}
+.agentedit__grant {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--apx-border);
+}
+.agentedit__granttext {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.agentedit__grantname {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.agentedit__grantmeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}
+.agentedit__grant.is-revoked .agentedit__granttext {
+  opacity: 0.55;
+}
+.agentedit__grant.is-revoked code {
+  text-decoration: line-through;
+}
+.agentedit__grantmeta .is-soon {
+  color: var(--apx-warning);
+}
+.agentedit__grantedit {
+  flex-basis: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill);
 }

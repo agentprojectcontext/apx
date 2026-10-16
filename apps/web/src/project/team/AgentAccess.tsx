@@ -1,10 +1,34 @@
-// The agent editor's access tabs: which tools and skills it may use, and the tools the owner let it use for good.
-import { type Agent, type Result, type SkillInfo, STRICT_APPROVAL, type ToolApproval } from "@apx/protocol";
-import { Button, Checkbox, EmptyState, Skeleton, Switch, TagInput } from "@apx/ui";
+// The agent editor's access pages: which tools and skills it may use (with a search), and what the owner granted
+// it for good, narrowed to a condition or given an end date.
+import {
+  type Agent,
+  type Autonomy,
+  type Result,
+  type RulePolicy,
+  type SkillInfo,
+  STRICT_APPROVAL,
+  type ToolApproval,
+} from "@apx/protocol";
+import {
+  Button,
+  Checkbox,
+  EmptyState,
+  Field,
+  Icons,
+  Input,
+  SearchField,
+  Select,
+  SettingRow,
+  Skeleton,
+  Switch,
+  TagInput,
+} from "@apx/ui";
 import { useEffect, useState } from "react";
-import { listApprovals, listSkills, revokeApproval } from "../../data/resources.ts";
-import { agentToolCatalog } from "../../data/team.ts";
-import { useT } from "../../i18n/index.ts";
+import { aheadLabel, shortWhen } from "../../common/format.ts";
+import { listSkills } from "../../data/resources.ts";
+import { useData } from "../../data/state.ts";
+import { type MessageKey, useT } from "../../i18n/index.ts";
+import { type Draft, effectiveRule, type GrantChange, grantId } from "./editor/draft.ts";
 
 type Catalog = Result<"agents.tools">["tools"];
 const OTHER = "other";
@@ -43,12 +67,27 @@ function compact(picked: Set<string>, groups: Array<[string, Catalog]>, extra: s
   return [...out, ...extra];
 }
 
-export function ToolsTab({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+type ToolPolicy = RulePolicy | "granted" | "kept";
+
+export function ToolsTab({
+  value,
+  onChange,
+  catalog,
+  draft,
+  projectAutonomy,
+  granted,
+  onRules,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  catalog: Catalog | undefined;
+  draft: Draft;
+  projectAutonomy: Autonomy;
+  granted: ToolApproval[];
+  onRules(): void;
+}) {
   const t = useT();
-  const [catalog, setCatalog] = useState<Catalog>();
-  useEffect(() => {
-    void agentToolCatalog().then((c) => c && setCatalog(c));
-  }, []);
+  const [q, setQ] = useState("");
   if (!catalog) return <Skeleton shape="block" height={200} />;
   const groups = groupsOf(catalog);
   const known = new Set([...catalog.map((x) => x.name), ...groups.map(([g]) => g)]);
@@ -58,63 +97,97 @@ export function ToolsTab({ value, onChange }: { value: string[]; onChange: (v: s
     groups,
   );
   const limited = value.length > 0;
+  const has = (name: string) => !limited || picked.has(name);
   const set = (next: Set<string>, nextExtra = extra) => onChange(compact(next, groups, nextExtra));
+  // A grant with a condition still asks outside it, so only a whole grant counts here.
+  const freely = new Set(granted.filter((g) => !g.condition).map((g) => g.tool));
+  const policyOf = (x: Catalog[number]): ToolPolicy => {
+    if (x.kept) return "kept";
+    const rule = effectiveRule(draft, projectAutonomy, x.risk);
+    if (!has(x.name) || rule === "off") return "off";
+    return freely.has(x.name) && rule === "ask" ? "granted" : rule;
+  };
+  const query = q.trim().toLowerCase();
+  const shown = groups
+    .map(([g, tools]) => [g, tools.filter((x) => !query || x.name.includes(query) || g.includes(query))] as const)
+    .filter(([, tools]) => tools.length);
   return (
-    <div className="taskform">
-      <Switch
-        label={t("agent.access.allTools")}
-        description={t("agent.access.allToolsHint")}
-        checked={!limited}
-        // Limiting starts from everything picked, so nothing is lost until the owner unticks it.
-        onCheckedChange={(all) =>
-          onChange(all ? [] : groups.flatMap(([g, x]) => (g === OTHER ? x.map((y) => y.name) : [g])))
+    <div className="agentedit__rows">
+      <SettingRow
+        title={t("agent.access.allTools")}
+        description={
+          <>
+            {t("agentedit.allToolsHint")}{" "}
+            <button type="button" className="agentedit__link" onClick={onRules}>
+              {t("agentedit.page.rules")}
+            </button>
+          </>
         }
+      >
+        <Switch
+          aria-label={t("agent.access.allTools")}
+          checked={!limited}
+          // Limiting starts from everything picked, so nothing is lost until the owner unticks it.
+          onCheckedChange={(all) =>
+            onChange(all ? [] : groups.flatMap(([g, x]) => (g === OTHER ? x.map((y) => y.name) : [g])))
+          }
+        />
+      </SettingRow>
+      <SearchField
+        size="sm"
+        aria-label={t("agentedit.searchTools")}
+        placeholder={t("agentedit.searchTools")}
+        value={q}
+        onChange={(e) => setQ(e.currentTarget.value)}
       />
-      {limited && (
-        <>
-          {groups.map(([g, tools]) => {
-            const free = tools.filter((x) => !x.kept);
-            const on = free.filter((x) => picked.has(x.name)).length;
-            return (
-              <fieldset key={g} className="agentaccess__group">
-                <Checkbox
-                  label={g in GROUP ? t(GROUP[g as keyof typeof GROUP]) : <code>{g}</code>}
-                  checked={free.length > 0 && on === free.length}
-                  indeterminate={on > 0 && on < free.length}
-                  disabled={!free.length}
-                  onCheckedChange={(c) => {
-                    const next = new Set(picked);
-                    for (const x of free) c ? next.add(x.name) : next.delete(x.name);
-                    set(next);
-                  }}
-                />
-                <div className="agentaccess__tools">
-                  {tools.map((x) => (
+      {shown.map(([g, tools]) => {
+        const free = tools.filter((x) => !x.kept);
+        const on = free.filter((x) => has(x.name)).length;
+        return (
+          <fieldset key={g} className={`agentaccess__group${limited ? "" : " is-all"}`}>
+            <Checkbox
+              label={g in GROUP ? t(GROUP[g as keyof typeof GROUP]) : <code>{g}</code>}
+              checked={free.length > 0 && on === free.length}
+              indeterminate={on > 0 && on < free.length}
+              disabled={!limited || !free.length}
+              onCheckedChange={(c) => {
+                const next = new Set(picked);
+                for (const x of free) c ? next.add(x.name) : next.delete(x.name);
+                set(next);
+              }}
+            />
+            <div className="agentaccess__tools">
+              {tools.map((x) => {
+                const p = policyOf(x);
+                return (
+                  <div key={x.name} className="agentaccess__tool">
                     <Checkbox
-                      key={x.name}
                       label={<code>{x.name}</code>}
-                      {...(x.kept ? { description: t("agent.access.kept") } : {})}
-                      checked={x.kept || picked.has(x.name)}
-                      disabled={x.kept}
+                      checked={x.kept || has(x.name)}
+                      disabled={x.kept || !limited}
                       onCheckedChange={(c) => {
                         const next = new Set(picked);
                         c ? next.add(x.name) : next.delete(x.name);
                         set(next);
                       }}
                     />
-                  ))}
-                </div>
-              </fieldset>
-            );
-          })}
-          <TagInput
-            label={t("agent.access.mcpTools")}
-            placeholder="mcp_postiz_*"
-            max={50}
-            value={extra}
-            onValueChange={(v) => set(picked, v)}
-          />
-        </>
+                    <span className={`agentedit__pol is-${p}`}>{t(`agentedit.pol.${p}` as MessageKey)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </fieldset>
+        );
+      })}
+      {!shown.length && <p className="agentedit__empty">{t("agentedit.noToolMatch", { q })}</p>}
+      {limited && (
+        <TagInput
+          label={t("agent.access.mcpTools")}
+          placeholder="mcp_postiz_*"
+          max={50}
+          value={extra}
+          onValueChange={(v) => set(picked, v)}
+        />
       )}
     </div>
   );
@@ -131,81 +204,195 @@ export function SkillsTab({
 }) {
   const t = useT();
   const [skills, setSkills] = useState<SkillInfo[]>();
+  const [q, setQ] = useState("");
   useEffect(() => {
     void listSkills(agent.project_id).then((s) => setSkills(s ?? []));
   }, [agent.project_id]);
   if (!skills) return <Skeleton shape="block" height={200} />;
   const wanted = new Set(value.map((s) => s.toLowerCase()));
   const limited = value.length > 0;
+  const query = q.trim().toLowerCase();
+  const shown = skills.filter(
+    (s) => !query || s.name.toLowerCase().includes(query) || s.description?.toLowerCase().includes(query),
+  );
   return (
-    <div className="taskform">
-      <Switch
-        label={t("agent.access.allSkills")}
-        description={t("agent.access.allSkillsHint")}
-        checked={!limited}
-        onCheckedChange={(all) => onChange(all ? [] : skills.filter((s) => s.on).map((s) => s.name))}
-      />
-      {limited &&
-        (skills.length ? (
-          <div className="agentaccess__tools">
-            {skills.map((s) => (
+    <div className="agentedit__rows">
+      <SettingRow title={t("agent.access.allSkills")} description={t("agentedit.allSkillsHint")}>
+        <Switch
+          aria-label={t("agent.access.allSkills")}
+          checked={!limited}
+          onCheckedChange={(all) => onChange(all ? [] : skills.filter((s) => s.on).map((s) => s.name))}
+        />
+      </SettingRow>
+      {skills.length ? (
+        <>
+          <SearchField
+            size="sm"
+            aria-label={t("agentedit.searchSkills")}
+            placeholder={t("agentedit.searchSkills")}
+            value={q}
+            onChange={(e) => setQ(e.currentTarget.value)}
+          />
+          <div className={`agentaccess__skills${limited ? "" : " is-all"}`}>
+            {shown.map((s) => (
               <Checkbox
                 key={`${s.scope}:${s.name}`}
                 label={<code>{s.name}</code>}
                 description={s.description}
-                checked={wanted.has(s.name.toLowerCase())}
+                checked={!limited || wanted.has(s.name.toLowerCase())}
+                disabled={!limited}
                 onCheckedChange={(c) =>
                   onChange(c ? [...value, s.name] : value.filter((n) => n.toLowerCase() !== s.name.toLowerCase()))
                 }
               />
             ))}
           </div>
-        ) : (
-          <EmptyState size="sm" title={t("agent.access.noSkills")} />
-        ))}
+          {!shown.length && <p className="agentedit__empty">{t("agentedit.noSkillMatch", { q })}</p>}
+        </>
+      ) : (
+        <EmptyState size="sm" title={t("agent.access.noSkills")} />
+      )}
     </div>
   );
 }
 
-export function PermissionsTab({ agent }: { agent: Agent }) {
+const DAY = 86_400_000;
+const EXPIRY: Array<{ value: string; label: MessageKey; days: number }> = [
+  { value: "never", label: "agentedit.expiry.never", days: 0 },
+  { value: "day", label: "agentedit.expiry.day", days: 1 },
+  { value: "week", label: "agentedit.expiry.week", days: 7 },
+  { value: "month", label: "agentedit.expiry.month", days: 30 },
+];
+
+export function GrantsPage({
+  agent,
+  grants,
+  changes,
+  onChange,
+}: {
+  agent: Agent;
+  grants: ToolApproval[] | undefined;
+  changes: Record<string, GrantChange>;
+  /** Undefined drops the pending change. */
+  onChange(id: string, change: GrantChange | undefined): void;
+}) {
   const t = useT();
-  const [grants, setGrants] = useState<ToolApproval[]>();
-  const load = () => void listApprovals().then((g) => setGrants((g ?? []).filter((x) => x.scope === "always")));
-  useEffect(load, []);
   if (!grants) return <Skeleton shape="block" height={160} />;
   const mine = grants.filter((g) => g.agent_id === agent.id);
   const everyone = grants.filter((g) => !g.agent_id);
-  const row = (g: ToolApproval) => (
-    <li key={`${g.key}:${g.agent_id ?? ""}`} className="agentaccess__grant">
-      <code>{g.tool}</code>
-      <span className="agentaccess__server">
-        {g.server === "apx" ? "APX" : g.server}
-        {g.key.endsWith(STRICT_APPROVAL) && ` · ${t("agent.access.strict")}`}
-      </span>
+  const section = (label: string, sub: string, rows: ToolApproval[]) => (
+    <section className="agentedit__grants">
+      <div className="agentedit__grantshead">
+        <span className="agentedit__grantstitle">{label}</span>
+        <span className="agentedit__hint">{sub}</span>
+      </div>
+      {rows.map((g) => (
+        <GrantRow
+          key={grantId(g.key, g.agent_id)}
+          grant={g}
+          change={changes[grantId(g.key, g.agent_id)]}
+          onChange={(c) => onChange(grantId(g.key, g.agent_id), c)}
+        />
+      ))}
+    </section>
+  );
+  return (
+    <>
+      {mine.length ? (
+        section(t("agentedit.forAgent"), t("agentedit.forAgentSub", { name: agent.name }), mine)
+      ) : (
+        <EmptyState size="sm" title={t("agentedit.noGrants")}>
+          {t("agentedit.noGrantsHint")}
+        </EmptyState>
+      )}
+      {everyone.length > 0 && section(t("agentedit.forAll"), t("agentedit.forAllSub"), everyone)}
+    </>
+  );
+}
+
+function GrantRow({
+  grant: g,
+  change,
+  onChange,
+}: {
+  grant: ToolApproval;
+  change: GrantChange | undefined;
+  onChange(c: GrantChange | undefined): void;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const thread = useData((s) => (g.from_thread ? s.threads[g.from_thread]?.title : undefined));
+  const revoked = Boolean(change?.revoke);
+  const condition = change?.condition ?? g.condition ?? "";
+  const expires = change?.expires_at ?? g.expires_at ?? "";
+  const soon = expires !== "" && Date.parse(expires) - Date.now() < 3 * DAY;
+  const from = [
+    g.from_thread ? (thread ? `“${thread}”` : t("agentedit.grantFromChat")) : t("agentedit.grantFromSettings"),
+    g.granted_at ? shortWhen(g.granted_at) : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const pending = change && !revoked;
+  return (
+    <div className={`agentedit__grant${revoked ? " is-revoked" : ""}`}>
+      <div className="agentedit__granttext">
+        <div className="agentedit__grantname">
+          <code>{g.tool}</code>
+          {g.server !== "apx" && <span className="agentedit__chip">{g.server}</span>}
+          {condition && <span className="agentedit__chip">{t("agentedit.onlyFor", { condition })}</span>}
+          {g.key.endsWith(STRICT_APPROVAL) && <span className="agentedit__hint">{t("agentedit.strict")}</span>}
+        </div>
+        <div className="agentedit__grantmeta">
+          {g.from_thread ? <Icons.MessageCircle size={12} /> : <Icons.Settings size={12} />}
+          <span>{revoked ? t("agentedit.revoked") : from}</span>
+          <span>·</span>
+          <span className={soon && !revoked ? "is-soon" : undefined}>
+            {revoked || pending
+              ? t("agentedit.unsavedShort")
+              : expires
+                ? t("agentedit.expiresIn", { when: aheadLabel(expires) })
+                : t("agentedit.noExpiry")}
+          </span>
+        </div>
+      </div>
+      {!revoked && (
+        <Button size="sm" variant="ghost" onClick={() => setOpen((o) => !o)}>
+          {t("agentedit.limit")}
+        </Button>
+      )}
       <Button
         size="sm"
         variant="secondary"
-        onClick={() => void revokeApproval(g.key, undefined, g.agent_id).then(load)}
+        onClick={() => (revoked ? onChange(undefined) : onChange({ revoke: true }))}
       >
-        {t("agent.access.revoke")}
+        {revoked ? t("agentedit.undo") : t("agentedit.revoke")}
       </Button>
-    </li>
-  );
-  return (
-    <div className="taskform">
-      <p className="agentaccess__note">{t("agent.access.grantsHint")}</p>
-      {mine.length ? (
-        <ul className="agentaccess__grants">{mine.map(row)}</ul>
-      ) : (
-        <EmptyState size="sm" title={t("agent.access.noGrants")}>
-          {t("agent.access.noGrantsHint")}
-        </EmptyState>
-      )}
-      {everyone.length > 0 && (
-        <>
-          <p className="agentaccess__note">{t("agent.access.everyone")}</p>
-          <ul className="agentaccess__grants">{everyone.map(row)}</ul>
-        </>
+      {open && !revoked && (
+        <div className="agentedit__grantedit">
+          <Field label={t("agentedit.conditionLabel")} hint={t("agentedit.conditionHint")}>
+            {(id) => (
+              <Input
+                id={id}
+                maxLength={200}
+                placeholder={t("agentedit.conditionPlaceholder")}
+                value={condition}
+                onChange={(e) => onChange({ ...change, condition: e.currentTarget.value })}
+              />
+            )}
+          </Field>
+          <Field label={t("agentedit.expiry")}>
+            <Select
+              label={t("agentedit.expiry")}
+              value={null}
+              placeholder={expires ? aheadLabel(expires) : t("agentedit.expiry.never")}
+              onValueChange={(v) => {
+                const days = EXPIRY.find((e) => e.value === v)?.days ?? 0;
+                onChange({ ...change, expires_at: days ? new Date(Date.now() + days * DAY).toISOString() : "" });
+              }}
+              options={EXPIRY.map((e) => ({ value: e.value, label: t(e.label) }))}
+            />
+          </Field>
+        </div>
       )}
     </div>
   );

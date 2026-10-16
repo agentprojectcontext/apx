@@ -6,6 +6,7 @@ import { PROFILE_KEY } from "../data/engines.ts";
 import { blobOf, type ProjectEntry, realProjectId, teamOf } from "../data/identity.ts";
 import { useOrg } from "../data/org.ts";
 import { useData } from "../data/state.ts";
+import { updateAgent } from "../data/team.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { startChat } from "../inbox/NewChatMenu.tsx";
 import { go } from "../shell/nav.ts";
@@ -69,6 +70,7 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
     onEdit: setEditing,
     onChat: (a) => startChat(a, project.id),
     onDelete: setDeleting,
+    onOrchestrator: (a) => void updateAgent(a.id, { orchestrator: !a.orchestrator }),
   };
 
   return (
@@ -203,7 +205,12 @@ function AgentRow({ agent, lead, actions }: { agent: Agent; lead: boolean; actio
       <span className="team__cell team__cellname">
         <span className="agentcard__name">
           {agent.name}
-          {lead && <span className="agentcard__lead">{leadLabel(agent, t)}</span>}
+          {lead && (
+            <span className="agentcard__lead">
+              <Icons.Crown size={12} />
+              {leadLabel(agent, t)}
+            </span>
+          )}
         </span>
         <span className="agentcard__slug">{agent.id}</span>
       </span>

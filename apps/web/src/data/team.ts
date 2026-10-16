@@ -219,3 +219,18 @@ export async function archiveAgent(agent: Agent): Promise<boolean> {
     return false;
   }
 }
+
+/** Narrows a grant for good to a condition or gives it an end date ("" clears either); true when the core took it. */
+export async function setGrant(
+  key: string,
+  agent: string | undefined,
+  change: { condition?: string; expires_at?: string },
+): Promise<boolean> {
+  try {
+    await client.call("tools.grant_set", { key, ...(agent ? { agent } : {}), ...change });
+    return true;
+  } catch (e) {
+    notify(t("error.save", { error: errText(e) }));
+    return false;
+  }
+}

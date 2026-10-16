@@ -19,7 +19,13 @@ test("a global agent is created from the team, edited and deleted from its right
   await expect(card).toBeVisible();
 
   await card.click({ button: "right" });
-  await expect(page.getByRole("menuitem")).toHaveText(["Ver detalle", "Editar", "Chatear", "Borrar agente"]);
+  await expect(page.getByRole("menuitem")).toHaveText([
+    "Ver detalle",
+    "Editar",
+    "Chatear",
+    "Orquestador",
+    "Borrar agente",
+  ]);
   await page.getByRole("menuitem", { name: "Editar" }).click();
   await expect(page.getByRole("dialog", { name: "Editar a Northwind Analyst" })).toBeVisible();
   await page.keyboard.press("Escape");
