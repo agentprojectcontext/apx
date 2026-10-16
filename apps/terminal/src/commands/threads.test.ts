@@ -47,6 +47,7 @@ const skill = (name: string, on: boolean) => ({
   off_everywhere: false,
   editable: true,
   path: `~/skills/${name}`,
+  copies: [],
 });
 
 test("skills list is not a project id; on|off toggles a skill everywhere or in one project", async () => {
@@ -91,4 +92,46 @@ test("projects create and set send only what was given, and a wrong kind never r
     ["projects.update", { project: "p_nw", description: "" }],
     ["projects.update", { project: "p_nw", autonomy: "edits" }],
   ]);
+});
+
+test("skills import previews first; --yes copies the new ones, --only picks by id or name", async () => {
+  const { importSource, skillsImport } = await import("./skills-import.ts");
+  assert.deepEqual(importSource("git@github.com:acme/skills.git"), {
+    kind: "repo",
+    url: "git@github.com:acme/skills.git",
+  });
+  assert.deepEqual(importSource("skills", "/work"), { kind: "folder", path: "/work/skills" });
+  const candidate = (id: string, status: string) => ({
+    id,
+    name: id,
+    description: "",
+    folder: id,
+    files: [{ path: "SKILL.md", bytes: 10 }],
+    notes: id === "pdf" ? [{ kind: "scripts", items: ["fill.py"] }] : [],
+    status,
+  });
+  const { client, calls } = recordingClient({
+    "skills.preview": { candidates: [candidate("pdf", "new"), candidate("notes", "exists")] },
+    "skills.import": { imported: [{ ...skill("pdf", true), path: "~/skills/pdf/SKILL.md" }], skipped: [] },
+  });
+  const look = await printed(() => skillsImport(client, "/work/pack", {}));
+  assert.match(look, /pdf +pdf +new +1 files\n +scripts an agent could run: fill\.py/);
+  assert.match(look, /Add --yes to import 1/);
+  assert.deepEqual(
+    calls.map((c) => c[0]),
+    ["skills.preview"],
+  );
+  await printed(() => skillsImport(client, "/work/pack", { yes: true, project: "p_acme" }));
+  assert.deepEqual(calls.at(-1), [
+    "skills.import",
+    {
+      source: { kind: "folder", path: "/work/pack" },
+      target: "project",
+      project: "p_acme",
+      pick: ["pdf"],
+      replace: false,
+    },
+  ]);
+  await printed(() => skillsImport(client, "/work/pack", { yes: true, only: "notes", replace: true }));
+  assert.deepEqual((calls.at(-1)?.[1] as { pick?: string[] } | undefined)?.pick, ["notes"]);
 });

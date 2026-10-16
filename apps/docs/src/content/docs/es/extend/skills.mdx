@@ -47,10 +47,26 @@ usarla, no solo qué es. Los nombres usan letras, números, puntos, `-` y `_`.
   puede apagar una para sí mismo, o dejar de usar las globales del todo.
 - Las **de proyecto** viven en `.apc/skills/` del proyecto, viajan con el repositorio y solo las ven sus agentes.
 - También pueden venir de una [extensión](/es/extend/extensions/).
+- **Las skills de otras apps de agentes** también están, leídas donde esas apps las guardan: `~/.claude/skills`,
+  `~/.codex/skills`, `~/.cursor/skills` y `~/.agents/skills` (globales), y `.claude/skills`, `.codex/skills`… dentro de
+  un proyecto. Cada una muestra la etiqueta de su app (Claude, Codex, Cursor, Agents) y en APX es de solo lectura:
+  cambiala en su app, o **Copiar a APX**.
+- Un mismo nombre en dos lugares es una sola skill: gana la del proyecto, después la de APX, después las de otras apps
+  y por último las de extensiones. Las demás se marcan **Duplicada** y aparecen en **También en**, diciendo si cada una
+  es igual o distinta.
 
 Se manejan en **Recursos › Skills**: leer, editar, crear (**+ Skill**) y prender o apagar cada una globalmente o por
 proyecto. Si editás una skill global desde adentro de un proyecto, APX te pregunta si cambiar la original o darle a
-ese proyecto su propia copia.
+ese proyecto su propia copia. Arriba de la lista podés ver solo las del proyecto (**Todas** / **Proyecto**) y filtrar
+por motor (APX, Claude, Codex, Cursor, Agents; varios a la vez).
+
+## Importar skills
+
+**+ Skill › Importar** trae skills desde una carpeta, un `.zip` o un repositorio git (https o ssh; un link de GitHub a
+una carpeta trae solo esa carpeta). APX primero lo lee y no ejecuta nada: ves cada skill que encontró, sus archivos,
+los scripts que trae, la configuración que solo lee otra app (como `allowed-tools`) y lo que quedó afuera (links,
+archivos demasiado grandes). Marcás las que querés copiar; un nombre que ya existe se mantiene salvo que elijas
+reemplazarlo. Dentro de un proyecto van a su `.apc/skills/`.
 
 <Shot name="resources-skills" alt="Recursos, pestaña Skills: una lista de skills globales y de proyecto, con una abierta que muestra su descripción y dónde está prendida" caption="Recursos › Skills" />
 
@@ -76,6 +92,13 @@ de APX.
 daily-brief                      global   Writes a short morning brief from the owner's open tasks and commitments.`}</Terminal>
 
 `apx skills <proyecto>` las lista como las ve un proyecto.
+
+```bash
+apx skills import https://github.com/acme/skills                 # lista lo que hay; no copia nada
+apx skills import https://github.com/acme/skills --only pdf --yes
+apx skills import ./pack.zip --project <proyecto> --yes          # a .apc/skills/ de ese proyecto
+apx skills import ~/.claude/skills/pdf --yes                     # copia a APX una skill de otra app
+```
 
 ## Enseñale a otras apps de agentes a usar APX
 

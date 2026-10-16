@@ -24,7 +24,7 @@ export function useInheritance(projectId: string | undefined, kind: "skills" | "
 
 /**
  * A project's resources in two parts: its own (always shown, with a word when there are none) and the owner's global
- * ones under a switch that decides whether this project takes them at all.
+ * ones under a switch that decides whether this project takes them at all (left out with `ownOnly`).
  */
 export function ScopedGroups<T>({
   ownTitle,
@@ -33,6 +33,7 @@ export function ScopedGroups<T>({
   inherit,
   emptyOwn,
   render,
+  ownOnly = false,
 }: {
   ownTitle: string;
   own: T[];
@@ -40,6 +41,7 @@ export function ScopedGroups<T>({
   inherit: { on: boolean | undefined; set(on: boolean): void };
   emptyOwn: string;
   render: (item: T) => ReactNode;
+  ownOnly?: boolean;
 }) {
   const t = useT();
   return (
@@ -50,22 +52,24 @@ export function ScopedGroups<T>({
         </div>
         {own.length ? own.map(render) : <p className="resv__groupempty">{emptyOwn}</p>}
       </div>
-      <div className={`resv__group${inherit.on === false ? " is-off" : ""}`}>
-        <div className="resv__grouptitle resv__grouptitle--switch">
-          <span className="resv__grouplabel">
-            {t("res.group.global")} <span>{globals.length}</span>
-          </span>
-          <Switch
-            size="sm"
-            checked={inherit.on ?? true}
-            disabled={inherit.on === undefined}
-            label={t("res.useGlobals")}
-            onCheckedChange={(v) => inherit.set(v)}
-          />
+      {!ownOnly && (
+        <div className={`resv__group${inherit.on === false ? " is-off" : ""}`}>
+          <div className="resv__grouptitle resv__grouptitle--switch">
+            <span className="resv__grouplabel">
+              {t("res.group.global")} <span>{globals.length}</span>
+            </span>
+            <Switch
+              size="sm"
+              checked={inherit.on ?? true}
+              disabled={inherit.on === undefined}
+              label={t("res.useGlobals")}
+              onCheckedChange={(v) => inherit.set(v)}
+            />
+          </div>
+          {inherit.on === false && <p className="resv__groupempty">{t("res.globalsOffHere")}</p>}
+          {globals.map(render)}
         </div>
-        {inherit.on === false && <p className="resv__groupempty">{t("res.globalsOffHere")}</p>}
-        {globals.map(render)}
-      </div>
+      )}
     </>
   );
 }

@@ -55,6 +55,17 @@ export function runtimes({ home, claude, codex = path.join(home, ".codex") }: Ru
   ];
 }
 
+/** Every name APX writes into the runtimes' folders, shipped or retired: a skill there under one of them is APX's. */
+export function shippedNames(source = sourceDir()): ReadonlySet<string> {
+  let shipped: string[] = [];
+  try {
+    shipped = fs.readdirSync(source).filter((n) => fs.existsSync(path.join(source, n, "SKILL.md")));
+  } catch {
+    // A core without the terminal's folder ships none.
+  }
+  return new Set([...shipped, ...RETIRED]);
+}
+
 export type Skill = { name: string; files: Record<string, string> };
 
 /** Every shipped skill: each folder with a SKILL.md, with all its files (relative path → text). */

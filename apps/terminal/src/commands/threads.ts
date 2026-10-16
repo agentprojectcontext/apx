@@ -370,6 +370,10 @@ export async function runtimeSkills(client: ApxClient, dryRun: boolean): Promise
   if (!r.steps.length) console.log("(no agent app found: nothing to do)");
 }
 
+/** apx, global or project for APX's folders; the app's name (claude, codex…) for a skill read from that app. */
+const placeOf = (s: { source: string; scope: string }) =>
+  s.source === "apx" ? "apx" : ["owner", "project", "extension"].includes(s.source) ? s.scope : s.source;
+
 export async function skills(
   client: ApxClient,
   [sub, name]: string[],
@@ -401,7 +405,7 @@ export async function skills(
   const r = await client.call("skills.list", project ? { project } : {});
   for (const s of r.skills)
     console.log(
-      `${s.name.padEnd(32)} ${(s.source === "apx" ? "apx" : s.scope).padEnd(8)} ${s.on ? "   " : "off"} ${s.description.slice(0, 90)}`,
+      `${s.name.padEnd(32)} ${placeOf(s).padEnd(8)} ${s.on ? "   " : "off"} ${s.description.slice(0, 90)}${s.copies.length ? ` (also in ${s.copies.map((c) => c.source).join(", ")})` : ""}`,
     );
   if (!r.skills.length) console.log("(no skills: add folders with a SKILL.md under ~/.apx/v2/skills or .apc/skills)");
 }

@@ -1,6 +1,6 @@
 ---
 name: apx-skills
-description: Create, edit, turn on or off APX skills, the know-how agents load on demand (a SKILL.md with name and description), for every agent or for one project. Use it when the owner asks to make, change or install a skill, teach agents a procedure, or save a way of working for next time.
+description: Create, import, edit, turn on or off APX skills, the know-how agents load on demand (a SKILL.md with name and description), for every agent or for one project. Use it when the owner asks to make, change, install or import a skill (from a folder, a zip, a git repo or another agent app), teach agents a procedure, or save a way of working for next time.
 ---
 
 # Skills in APX
@@ -15,8 +15,12 @@ when a task matches, so a skill costs almost nothing until it is used.
 | The owner's | APX's home, `skills/` | Every agent, unless turned off in a project |
 | A project's | `<project>/.apc/skills/<name>/` | That project's agents; committed with the repo |
 | An extension's | Inside the extension | While the extension is on |
+| Another agent app's | `~/.claude/skills`, `~/.codex/skills`, `~/.cursor/skills`, `~/.agents/skills` (and `.claude/skills`… in a project) | Every agent (that project's), read where the app keeps it |
 
-The owner sees them all in [Resources › Skills](apx:resources/skills).
+The owner sees them all in [Resources › Skills](apx:resources/skills). One name found in two places is one skill: the
+first in the table's order wins (a project's own, the owner's, then the other apps', then extensions') and the others
+are listed as its copies ("also in"). Another app's skill is read-only here: it changes in that app, or is copied into
+APX (`apx skills import <its folder>`) to change it here.
 
 ## Write a good one
 
@@ -53,6 +57,22 @@ apx skills save weekly-report --project <project-id> < "$TMP/weekly-report/SKILL
 Write the draft in your temp folder first. Saving an existing name replaces it (from a project, an owner's skill gets
 a project copy instead). The command prints where the `SKILL.md` lives; extra files a skill needs (scripts,
 references) go next to it, and the body says when to read them (`load_skill <name> file=<path>`).
+
+## Import
+
+From a folder, a `.zip` or a git repository (https or ssh; a GitHub link to a folder takes only that folder). Reading
+runs nothing: it lists each skill found, its files, the scripts it brings, settings only another app reads, and what
+is left out (links, oversized files).
+
+```bash
+apx skills import https://github.com/acme/skills            # list what is there
+apx skills import https://github.com/acme/skills --only pdf --yes
+apx skills import ~/.claude/skills/pdf --yes                # copy another app's skill into APX
+apx skills import ./pack.zip --project <project-id> --yes   # into that project's .apc/skills/
+```
+
+A name already taken is kept unless `--replace`. Show the owner the list (and any scripts) before `--yes` when the
+source is not theirs.
 
 ## On and off
 

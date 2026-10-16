@@ -38,6 +38,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "mcp.call") return 180_000;
   if (method === "mcp.describe" || method === "mcp.tools" || method === "mcp.test") return 45_000;
   if (method === "system.import_v1") return 60_000;
+  // Importing skills may clone a repository (the server gives up at 60 s).
+  if (method === "skills.preview" || method === "skills.import") return 90_000;
   // An update installs dependencies and builds the panel; a check fetches from the remote.
   if (method === "system.update") return 25 * 60_000;
   if (method === "system.updates") return 120_000;

@@ -1,4 +1,4 @@
-// Resources: skills (list, read, edit, on/off) and variables (stored secrets: hint and where each is used). MCP
+// Resources: skills (list, read, edit, on/off, import) and variables (stored secrets: hint and where each is used). MCP
 // servers are in rpc/mcp.ts.
 
 import path from "node:path";
@@ -7,6 +7,7 @@ import { badRequest, errorMessage, notFound } from "../errors.ts";
 import type { McpConfig, McpDef } from "../mcp/config.ts";
 import { projectSecretName, type Secrets, splitSecretName } from "../secrets.ts";
 import { skillInfo, writeSkill } from "../skills/edit.ts";
+import { type GitRunner, type ImportTarget, importSkills, previewSkills } from "../skills/import.ts";
 import { type RuntimeHomes, syncRuntimeSkills } from "../skills/runtimes.ts";
 import { allSkills, NO_GLOBALS, readSkillFile, setSkillOn, skillFiles, skillsOff } from "../skills/skills.ts";
 import type { Handlers } from "./router.ts";
@@ -35,16 +36,33 @@ export function resourceHandlers(deps: {
   secrets: Secrets;
   mcp: McpConfig;
   runtimeHomes: RuntimeHomes;
+  /** Clones a repository to import skills from; tests pass their own. */
+  git?: GitRunner;
 }) {
   const { store, home, mcp } = deps;
+  const roots = { home, apps: deps.runtimeHomes };
   const find = (name: string, project: string | undefined) => {
-    const s = allSkills(store, home, project).find((x) => x.name === name);
+    const s = allSkills(store, roots, project).find((x) => x.name === name);
     if (!s) throw notFound(`skill ${name}`);
     return s;
   };
   const rootOf = (project: string | undefined) => {
     const p = project ? store.projects.get(project) : undefined;
     return p?.path && p.present ? p.path : undefined;
+  };
+  const importTarget = (target: "global" | "project", project: string | undefined): ImportTarget => {
+    if (target === "global") return { dir: path.join(home, "skills") };
+    const repo = rootOf(project);
+    if (!repo) throw badRequest("a project skill needs a project whose folder is on disk");
+    return { dir: path.join(repo, ".apc", "skills"), repo };
+  };
+  /** A failure reading the source (a bad zip, a clone that failed, no SKILL.md) is the caller's to fix. */
+  const fromSource = async <T>(work: () => Promise<T>): Promise<T> => {
+    try {
+      return await work();
+    } catch (err) {
+      throw badRequest(errorMessage(err));
+    }
   };
   const inheritance = (project: string) => {
     if (!store.projects.get(project)) throw notFound(`project ${project}`);
@@ -69,7 +87,7 @@ export function resourceHandlers(deps: {
       return { value };
     },
     "skills.list": ({ project }) => ({
-      skills: allSkills(store, home, project).map((s) => skillInfo(store, s, project)),
+      skills: allSkills(store, roots, project).map((s) => skillInfo(store, s, project)),
     }),
     "skills.get": ({ name, project }) => {
       const s = find(name, project);
@@ -82,7 +100,7 @@ export function resourceHandlers(deps: {
       return { skill: skillInfo(store, s, project), content, files: skillFiles(s) };
     },
     "skills.save": ({ name, target, project, content }) => {
-      const current = allSkills(store, home, project).find((x) => x.name === name);
+      const current = allSkills(store, roots, project).find((x) => x.name === name);
       if (current?.source === "apx")
         throw badRequest(`${name} comes with APX and changes with it; save your own skill under another name`);
       if (current?.source === "extension" && target === "global")
@@ -97,11 +115,25 @@ export function resourceHandlers(deps: {
         throw badRequest(errorMessage(err));
       }
       // Found again by folder: the save may have changed the name in its frontmatter.
-      const saved = allSkills(store, home, project).find(
+      const saved = allSkills(store, roots, project).find(
         (x) => path.basename(x.dir) === folder && x.scope === target && x.source !== "extension",
       );
       if (!saved) throw badRequest("the skill was written but could not be read back (check its frontmatter)");
       return { skill: skillInfo(store, saved, project) };
+    },
+    "skills.preview": ({ source, target, project }) =>
+      fromSource(async () => ({ candidates: await previewSkills(source, importTarget(target, project), deps.git) })),
+    "skills.import": async ({ source, target, project, pick, replace }) => {
+      const done = await fromSource(() =>
+        importSkills(source, importTarget(target, project), { pick, replace }, deps.git),
+      );
+      // As listed now: an imported skill hidden behind another of its name shows as that one, with it among the copies.
+      const all = allSkills(store, roots, project);
+      const imported = done.imported.flatMap((dir) => {
+        const s = all.find((x) => x.dir === dir || x.copies.some((c) => c.dir === dir));
+        return s ? [skillInfo(store, s, project)] : [];
+      });
+      return { imported, skipped: done.skipped };
     },
     "resources.inheritance": ({ project }) => inheritance(project),
     "resources.inherit": ({ project, kind, on }) => {

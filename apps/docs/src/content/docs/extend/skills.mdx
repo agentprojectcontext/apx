@@ -47,10 +47,24 @@ only what it is. Names use letters, digits, dots, `-` and `_`.
   for itself, or stop using the global ones altogether.
 - **Project** skills live in the project's `.apc/skills/`, travel with the repository, and only its agents see them.
 - Skills can also come from an [extension](/extend/extensions/).
+- **Other agent apps' skills** are there too, read where those apps keep them: `~/.claude/skills`, `~/.codex/skills`,
+  `~/.cursor/skills` and `~/.agents/skills` (globals), and `.claude/skills`, `.codex/skills`… inside a project. Each
+  shows its app's tag (Claude, Codex, Cursor, Agents) and is read-only in APX: change it in its app, or **Copy to APX**.
+- One name in two places is one skill: a project's own wins, then APX's, then the other apps', then extensions'. The
+  others are marked **Duplicate** and listed under **Also in**, saying whether each one is the same file or differs.
 
 Manage them in **Resources › Skills**: read, edit, create (**+ Skill**), and turn each one on or off globally or per
 project. When you edit a global skill from inside a project, APX asks whether to change the original or give that
-project its own copy.
+project its own copy. Above the list, show a project's skills only (**All** / **Project**) and filter by engine (APX,
+Claude, Codex, Cursor, Agents; pick several).
+
+## Import skills
+
+**+ Skill › Import** brings skills from a folder, a `.zip` or a git repository (https or ssh; a GitHub link to a folder
+takes only that folder). APX reads it first and runs nothing: you see each skill found, its files, the scripts it
+brings, settings only another app reads (like `allowed-tools`), and what was left out (links, oversized files). Tick
+the ones to copy; a name already taken is kept unless you choose to replace it. Inside a project they go to its
+`.apc/skills/`.
 
 <Shot name="resources-skills" alt="Resources, Skills tab: a list of global and project skills with one open, showing its description and where it is on" caption="Resources › Skills" />
 
@@ -74,6 +88,13 @@ Contacts' chats on channels and outside engines' sessions (Claude Code, Codex) d
 daily-brief                      global   Writes a short morning brief from the owner's open tasks and commitments.`}</Terminal>
 
 `apx skills <project>` lists them as one project sees them.
+
+```bash
+apx skills import https://github.com/acme/skills                 # list what is there; nothing is copied
+apx skills import https://github.com/acme/skills --only pdf --yes
+apx skills import ./pack.zip --project <project> --yes           # into that project's .apc/skills/
+apx skills import ~/.claude/skills/pdf --yes                     # copy another app's skill into APX
+```
 
 ## Teach other agent apps to use APX
 

@@ -1,11 +1,12 @@
 // Reading and writing a skill's SKILL.md for the Resources screen. The owner's skills live in APX's home; a project's
-// in `.apc/skills/`, written without following a symlink out of the repo. APX's and extensions' skills are read-only.
+// in `.apc/skills/`, written without following a symlink out of the repo. APX's, extensions' and the other apps' skills
+// are read-only here (one of those is copied into APX to be changed).
 import fs from "node:fs";
 import path from "node:path";
 import type { SkillInfo } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
-import { tildeHome, writeAtomic } from "../paths.ts";
-import { NO_GLOBALS, type Skill, skillOn, skillsOff } from "./skills.ts";
+import { writeAtomic } from "../paths.ts";
+import { NO_GLOBALS, type Skill, skillOn, skillPath, skillsOff } from "./skills.ts";
 
 /** What the panel shows about a skill, in the context it was asked from. */
 export function skillInfo(store: Store, s: Skill, projectId: string | undefined): SkillInfo {
@@ -23,8 +24,9 @@ export function skillInfo(store: Store, s: Skill, projectId: string | undefined)
     on: s.source === "apx" || skillOn(off, s.name, projectId, s.scope),
     off_in: s.source === "apx" ? [] : offIn,
     off_everywhere: s.source !== "apx" && Boolean(off["*"]?.includes(s.name)),
-    editable: s.source !== "extension" && s.source !== "apx",
-    path: tildeHome(path.join(s.dir, "SKILL.md")),
+    editable: s.own,
+    path: skillPath(s.dir),
+    copies: s.copies.map((c) => ({ source: c.source, scope: c.scope, path: skillPath(c.dir), same: c.same })),
   };
 }
 

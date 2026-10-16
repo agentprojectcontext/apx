@@ -27,6 +27,7 @@ import { ProviderError } from "../providers/types.ts";
 import { contextWindow } from "../providers/windows.ts";
 import { saveLocalAttachment } from "../services/attachment-files.ts";
 import { askedSkill } from "../skills/picker.ts";
+import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
@@ -83,6 +84,8 @@ export type TurnDeps = {
   jobs: Jobs;
   /** APX's home: the owner's skills live under it. */
   home: string;
+  /** The other agent apps whose skills agents may load too. */
+  skillApps?: RuntimeHomes | undefined;
   apxPort: () => number;
   /** Notes by words and by meaning. */
   memory: MemoryIndex;
@@ -369,7 +372,9 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   // A worker delegates to no one: it needs no roster.
   const rosterChanged =
     !sealed && !turn.worker && (ctxState.roster_hash !== roster.hash || ctxState.roster_agent !== agent.id);
-  const available = sealed ? [] : agentSkills(agent, skillsFor(store, deps.home, thread.project_id));
+  const available = sealed
+    ? []
+    : agentSkills(agent, skillsFor(store, { home: deps.home, apps: deps.skillApps }, thread.project_id));
   // A skill named with "/name" goes in as asked; otherwise skills are weighed while notes are recalled (both wait on
   // the embedding engine).
   const asked = askedSkill(turn.input.text, available);

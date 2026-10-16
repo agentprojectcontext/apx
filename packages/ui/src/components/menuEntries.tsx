@@ -14,6 +14,8 @@ export type MenuEntry =
       disabled?: boolean;
       /** Shows a check at the end: the current choice in a list of options. */
       checked?: boolean;
+      /** The menu stays open after it is picked: one of several options turned on and off in a row. */
+      keepOpen?: boolean;
       onSelect?: () => void;
     }
   | { type: "separator" }
@@ -58,6 +60,7 @@ export function MenuEntries({
         key={key}
         className={cx("apx-menu__item", it.danger && "is-danger")}
         disabled={it.disabled}
+        closeOnClick={!it.keepOpen}
         onClick={it.onSelect}
       >
         <span className="apx-menu__icon">{it.icon}</span>

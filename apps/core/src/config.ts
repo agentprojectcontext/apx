@@ -46,8 +46,9 @@ export type CoreConfig = {
   /** Where Claude Code and Codex keep the owner's own sessions (read-only, to go on with one in APX). */
   native: { claude: string; codex: string };
   /**
-   * Other agent apps' folders that get APX's skills for them (Claude Code, Codex, Cursor, ~/.agents). `auto`: kept up
-   * to date at every start; only a core on the default home does it (APX_RUNTIME_SKILLS=on|off overrides).
+   * Other agent apps' folders (Claude Code, Codex, Cursor, ~/.agents): their skills are read from there, and APX's skills
+   * for them written there. `auto`: those kept up to date at every start; only a core on the default home does it
+   * (APX_RUNTIME_SKILLS=on|off overrides).
    */
   runtimeSkills: { homes: { home: string; claude: string; codex: string }; auto: boolean };
   /** Telegram's Bot API; a test environment points it at an emulated one (APX_TELEGRAM_API). */
@@ -190,7 +191,8 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     },
     runtimeSkills: {
       homes: {
-        home: os.homedir(),
+        // Where ~/.cursor and ~/.agents are looked for; a sandbox points it away from the owner's (APX_APPS_HOME).
+        home: env.APX_APPS_HOME || os.homedir(),
         claude: env.CLAUDE_CONFIG_DIR ?? path.join(os.homedir(), ".claude"),
         codex: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),
       },

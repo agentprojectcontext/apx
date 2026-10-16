@@ -9,16 +9,20 @@ const McpTarget = z
 
 const SkillName = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/);
 
+/**
+ * Where a skill's files live. apx: comes with APX (how to change APX itself; always on, read-only); owner: APX home
+ * `skills/`; project: `.apc/skills/`; extension; claude, codex, cursor, agents: that app's own skills folder (in the
+ * home or the project), read where it is, or linked into APX's.
+ */
+export const SkillSource = z.enum(["apx", "owner", "project", "extension", "claude", "codex", "cursor", "agents"]);
+export type SkillSource = z.infer<typeof SkillSource>;
+
 export const SkillInfo = z.object({
   name: z.string(),
   description: z.string(),
   scope: z.enum(["global", "project"]),
   project_id: Id.optional(),
-  /**
-   * apx: comes with APX (how to change APX itself; always on, read-only); owner: APX home `skills/`; claude: linked
-   * there from Claude's skills; project: `.apc/skills/`; extension.
-   */
-  source: z.enum(["apx", "owner", "claude", "project", "extension"]),
+  source: SkillSource,
   /** On where it was asked about (the project, or everywhere). */
   on: z.boolean(),
   /** Projects where the owner turned this global skill off. */
@@ -28,8 +32,57 @@ export const SkillInfo = z.object({
   editable: z.boolean(),
   /** Where its SKILL.md lives, home shortened to ~. */
   path: z.string(),
+  /** The same name found in other folders, hidden behind this one; `same` when that SKILL.md is identical. */
+  copies: z
+    .array(z.object({ source: SkillSource, scope: z.enum(["global", "project"]), path: z.string(), same: z.boolean() }))
+    .default([]),
 });
 export type SkillInfo = z.infer<typeof SkillInfo>;
+
+/** A zip is sent whole, as base64: skills are small. */
+export const SKILL_ZIP_MAX = 8 * 1024 * 1024;
+
+/** What to import skills from: a folder on the core's computer, a .zip, or a git repository (https or ssh). */
+export const SkillImportSource = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("folder"), path: z.string().min(1).max(1000) }).strict(),
+  z
+    .object({
+      kind: z.literal("zip"),
+      name: z.string().max(200).optional(),
+      data: z
+        .string()
+        .min(1)
+        .max(Math.ceil(SKILL_ZIP_MAX / 3) * 4),
+    })
+    .strict(),
+  z.object({ kind: z.literal("repo"), url: z.string().min(1).max(500) }).strict(),
+]);
+export type SkillImportSource = z.infer<typeof SkillImportSource>;
+
+/** A skill found in what is being imported, read without running anything. */
+export const SkillCandidate = z.object({
+  /** Its folder inside the source ("." for the root): what `skills.import` picks it by. */
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  /** The folder it lands in, in APX's skills or the project's `.apc/skills/`. */
+  folder: z.string(),
+  files: z.array(z.object({ path: z.string(), bytes: z.number().int() })),
+  /**
+   * scripts: files an agent could run (they never run on import); app_only: frontmatter only another app reads
+   * (`allowed-tools`…), kept but ignored; skipped: links, oversized or extra files left out.
+   */
+  notes: z.array(z.object({ kind: z.enum(["scripts", "app_only", "skipped"]), items: z.array(z.string()) })),
+  /** new; exists: that folder is taken (kept unless replaced); reserved: one of APX's own names; invalid: no usable name. */
+  status: z.enum(["new", "exists", "reserved", "invalid"]),
+});
+export type SkillCandidate = z.infer<typeof SkillCandidate>;
+
+const ImportTarget = {
+  /** `global`: APX's skills; `project`: that project's `.apc/skills/`. */
+  target: z.enum(["global", "project"]),
+  project: Id.optional(),
+};
 
 export const SecretInfo = z.object({
   name: z.string(),
@@ -116,6 +169,36 @@ export const resourceMethods = {
         }),
       ),
       missing: z.array(z.object({ runtime: z.string(), dir: z.string() })),
+    }),
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Reads a folder, .zip or git repository and lists the skills in it, with their files and what to look at before
+   * importing. Nothing is run and nothing is kept: a zip or a clone is read in a temporary folder and removed.
+   */
+  "skills.preview": {
+    params: z.object({ source: SkillImportSource, ...ImportTarget }).strict(),
+    result: z.object({ candidates: z.array(SkillCandidate) }),
+    effect: false,
+    access: "human",
+  },
+  /**
+   * Copies the picked skills (by candidate id) into APX's skills or a project's `.apc/skills/`: regular files only, no
+   * links, nothing run. A taken folder is kept unless `replace`.
+   */
+  "skills.import": {
+    params: z
+      .object({
+        source: SkillImportSource,
+        ...ImportTarget,
+        pick: z.array(z.string().max(500)).min(1).max(100),
+        replace: z.boolean().default(false),
+      })
+      .strict(),
+    result: z.object({
+      imported: z.array(SkillInfo),
+      skipped: z.array(z.object({ id: z.string(), reason: z.string() })),
     }),
     effect: true,
     access: "human",

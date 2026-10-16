@@ -3,10 +3,12 @@ category: Actions
 ---
 # Menu
 
-Dropdown / overflow menu driven by an `items` array: `{ label, icon, shortcut, danger, disabled, checked, onSelect }`, `{ type: "separator" }`, `{ type: "label", label }`, `{ type: "submenu", label, icon, items }`. `ContextMenu` takes the same items.
+Dropdown / overflow menu driven by an `items` array: `{ label, icon, shortcut, danger, disabled, checked, keepOpen, onSelect }`, `{ type: "separator" }`, `{ type: "label", label }`, `{ type: "submenu", label, icon, items }`. `ContextMenu` takes the same items.
 
 - Trigger is any single element, usually `<IconButton icon={<Icons.Ellipsis />} />`.
 - Put destructive items last, after a separator, with `danger`.
+- A multiple choice (filters turned on and off in a row): `checked` on each picked item and `keepOpen`, so the menu
+  stays open between clicks.
 - Renders into the ApxProvider portal, so it keeps the look.
 
 ```tsx

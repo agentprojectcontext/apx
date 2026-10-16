@@ -63,6 +63,7 @@ import { threadAdminHandlers } from "./rpc/thread-admin.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import { transcriptionHandlers } from "./rpc/transcription.ts";
 import type { Secrets } from "./secrets.ts";
+import type { RuntimeHomes } from "./skills/runtimes.ts";
 import { agentSetTools } from "./tools/agent-set.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
@@ -125,7 +126,14 @@ export function extensionStack(d: { store: Store; secrets: Secrets; bus: Bus; lo
 }
 
 /** Every built-in tool, plus the ones a test adds. `port` is read late: tests listen on 0. */
-export function builtinTools(store: Store, home: string, port: () => number, extra: Tool[] = []): Tool[] {
+export function builtinTools(
+  store: Store,
+  home: string,
+  port: () => number,
+  extra: Tool[] = [],
+  /** The other agent apps whose skills agents may load too. */
+  skillApps?: RuntimeHomes,
+): Tool[] {
   const tools = [
     ...agentTools(store),
     ...agentSetTools(store),
@@ -138,7 +146,7 @@ export function builtinTools(store: Store, home: string, port: () => number, ext
     ...messageTools(store, home),
     ...directoryTools(store),
     ...routineTools(store),
-    ...skillTools(store, home),
+    ...skillTools(store, { home, apps: skillApps }),
     ...memoryTools(),
     ...mediaTools(),
     ...phoneTools(),

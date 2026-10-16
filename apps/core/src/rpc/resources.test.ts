@@ -40,8 +40,11 @@ test("a global skill turned off in one project is off only there; agents there n
   await env.client.call("skills.toggle", { name: "brief", project, on: false });
   const there = await env.client.call("skills.list", { project });
   assert.equal(there.skills.find((s) => s.name === "brief")?.on, false, "listed, but off");
-  assert.ok(!skillsFor(env.core.store, home, project).some((s) => s.name === "brief"), "not in that project's catalog");
-  assert.ok(skillsFor(env.core.store, home, undefined).some((s) => s.name === "brief"));
+  assert.ok(
+    !skillsFor(env.core.store, { home }, project).some((s) => s.name === "brief"),
+    "not in that project's catalog",
+  );
+  assert.ok(skillsFor(env.core.store, { home }, undefined).some((s) => s.name === "brief"));
   const elsewhere = await env.client.call("skills.list", {});
   const g = elsewhere.skills.find((s) => s.name === "brief");
   assert.equal(g?.on, true, "still on everywhere else");
@@ -179,10 +182,10 @@ test("a project can take none of the owner's global skills or servers; its own s
   const there = (await env.client.call("skills.list", { project })).skills;
   assert.equal(there.find((s) => s.name === "digest")?.on, false, "global: off here");
   assert.equal(there.find((s) => s.name === "acme-only")?.on, true, "its own: on");
-  const catalog = skillsFor(env.core.store, home, project).map((s) => s.name);
+  const catalog = skillsFor(env.core.store, { home }, project).map((s) => s.name);
   assert.ok(catalog.includes("acme-only") && !catalog.includes("digest"));
   assert.ok(
-    skillsFor(env.core.store, home, undefined).some((s) => s.name === "digest"),
+    skillsFor(env.core.store, { home }, undefined).some((s) => s.name === "digest"),
     "still on elsewhere",
   );
 

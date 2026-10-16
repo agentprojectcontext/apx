@@ -1,10 +1,10 @@
-import { Badge, Button, Dialog, MarkdownView, SegmentedControl, Skeleton, Switch, Tag, Textarea } from "@apx/ui";
+import { Badge, Button, Dialog, Icons, MarkdownView, SegmentedControl, Skeleton, Switch, Tag, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { projectName } from "../data/identity.ts";
 import { getSkill, type SkillInfo, saveSkill, toggleSkill } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { sourceTag } from "./labels.ts";
+import { copyTag, ENGINE_LABEL, engineOf, sourceTag } from "./labels.ts";
 
 /** The body without its frontmatter, for the rendered view. */
 const bodyOf = (text: string) => text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "").trim();
@@ -17,11 +17,14 @@ export function SkillDetail({
   skill,
   projectId,
   onChanged,
+  onCopy,
   editing = false,
 }: {
   skill: SkillInfo;
   projectId: string | undefined;
   onChanged(next?: SkillInfo): Promise<void> | void;
+  /** Copies another app's skill into APX, to change it here. */
+  onCopy?(): void;
   /** Opened from "Edit": its SKILL.md source first. */
   editing?: boolean;
 }) {
@@ -56,6 +59,7 @@ export function SkillDetail({
   };
   const tag = sourceTag(skill, t);
   const apx = skill.source === "apx";
+  const app = engineOf(skill.source);
 
   return (
     <article className="resd">
@@ -92,7 +96,37 @@ export function SkillDetail({
         </dd>
         <dt>{t("res.path")}</dt>
         <dd className="resd__mono">{skill.path}</dd>
+        {skill.copies.length > 0 && (
+          <>
+            <dt className="resd__top">{t("res.copies")}</dt>
+            <dd>
+              <ul className="resd__copies">
+                {skill.copies.map((c) => (
+                  <li key={c.path}>
+                    <Tag>{copyTag(c, t)}</Tag>
+                    <span className="resd__mono">{c.path}</span>
+                    <Badge tone={c.same ? "neutral" : "warning"}>
+                      {t(c.same ? "res.copySame" : "res.copyDiffers")}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+              <span className="resd__hint">{t("res.copiesNote")}</span>
+            </dd>
+          </>
+        )}
       </dl>
+      {/* Another app's skill: said before its text, which may be long, with the way to change it here. */}
+      {!skill.editable && app !== "apx" && (
+        <p className="resd__note resd__noteaction">
+          {t("res.appReadOnly", { app: ENGINE_LABEL[app] })}
+          {onCopy && (
+            <Button size="sm" variant="secondary" leadingIcon={<Icons.Copy size={14} />} onClick={onCopy}>
+              {t("res.copyToApx")}
+            </Button>
+          )}
+        </p>
+      )}
 
       {!apx && !projectId && skill.scope === "global" && projects.some((p) => p.path) && (
         <section className="resd__section">
@@ -154,7 +188,9 @@ export function SkillDetail({
           onChange={(e) => setDraft(e.currentTarget.value)}
         />
       )}
-      {!skill.editable && <p className="resd__note">{t(apx ? "res.apxSkillNote" : "res.extensionReadOnly")}</p>}
+      {!skill.editable && app === "apx" && (
+        <p className="resd__note">{t(apx ? "res.apxSkillNote" : "res.extensionReadOnly")}</p>
+      )}
 
       {asking && (
         <Dialog

@@ -217,11 +217,13 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     // An integration is off where the owner turned it off, and in a project that takes none of their globals.
     offIn: (project, id) => !integrationsOff.takesGlobals(project) || integrationsOff.offIn(project).includes(id),
   });
-  const tools = builtinTools(store, config.home, () => listening, [
-    ...imessageTools(imessage),
-    ...googleTools(google),
-    ...(opts.extraTools ?? []),
-  ]);
+  const tools = builtinTools(
+    store,
+    config.home,
+    () => listening,
+    [...imessageTools(imessage), ...googleTools(google), ...(opts.extraTools ?? [])],
+    config.runtimeSkills.homes,
+  );
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
   // The router exists only after the engine, hence the late binding.
   let routed: Dispatch | undefined;
@@ -319,6 +321,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     log,
     call,
     home: config.home,
+    skillApps: config.runtimeSkills.homes,
     apxPort: () => listening,
     memory,
     skills,
@@ -441,7 +444,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const idleTrim = createIdleTrim();
   idleTrim.start();
   // The owner's skills get their vectors now, so the first message does not wait for them.
-  skills.warm(skillsFor(store, config.home, undefined));
+  skills.warm(skillsFor(store, { home: config.home, apps: config.runtimeSkills.homes }, undefined));
   if (config.runtimeSkills.auto) {
     keepRuntimeSkills(config.runtimeSkills.homes, log);
     // A core that looks after this machine's agent CLIs asks them once now, so a signed-in Codex can draw at once.

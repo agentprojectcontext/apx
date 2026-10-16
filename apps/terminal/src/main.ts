@@ -25,6 +25,7 @@ import { service } from "./commands/service.ts";
 import { adoptBundleApp } from "./commands/service-files.ts";
 import { sessions } from "./commands/sessions.ts";
 import { importV1, setupHeadless } from "./commands/setup.ts";
+import { skillsImport } from "./commands/skills-import.ts";
 import { tasks } from "./commands/tasks.ts";
 import { agents, jobs, projects, runs, runtimeSkills, secrets, skills, threads, usage } from "./commands/threads.ts";
 import { v1 } from "./commands/v1.ts";
@@ -66,6 +67,8 @@ Usage:
   apx skills [list] [project]   Skills agents can load ("off" marks one turned off there)
   apx skills on|off <skill> [--project p]   Turn a skill on or off everywhere, or only in one project
   apx skills save <skill> [--project p]     Create or replace a skill: its SKILL.md on stdin
+  apx skills import <folder|file.zip|git url> [--project p] [--only a,b] [--replace] [--yes]
+                           List the skills in it (nothing runs); with --yes copy them into APX (or the project)
   apx skills install-runtimes [--dry-run]
                            Refresh now the skills that teach Claude Code, Codex, Cursor and ~/.agents how to use APX
                            (the core does it at every start); removes ones APX no longer ships, never anyone else's
@@ -214,6 +217,8 @@ function argumentsOf() {
       autonomy: { type: "string" },
       path: { type: "string" },
       rename: { type: "boolean" },
+      replace: { type: "boolean" },
+      yes: { type: "boolean", short: "y" },
       under: { type: "string" },
       router: { type: "boolean" },
       timeout: { type: "string" },
@@ -297,6 +302,13 @@ try {
       break;
     case "skills":
       if (rest[0] === "install-runtimes") await runtimeSkills(client, Boolean(values["dry-run"]));
+      else if (rest[0] === "import")
+        await skillsImport(client, rest[1], {
+          project: values.project,
+          only: values.only,
+          replace: values.replace,
+          yes: values.yes,
+        });
       else await skills(client, rest, { project: values.project });
       break;
     case "channels":

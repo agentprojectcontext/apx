@@ -1,4 +1,4 @@
-import { Button, Icons, SearchField, SegmentedControl } from "@apx/ui";
+import { Button, Icons, Menu, SearchField, SegmentedControl } from "@apx/ui";
 import { type ReactNode, useState } from "react";
 import { type ProjectEntry, projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -6,6 +6,7 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 import { go, type ResourceTab, useNav } from "../shell/nav.ts";
 import { ExtensionsTab } from "./ExtensionsTab.tsx";
 import { IntegrationsTab } from "./IntegrationsTab.tsx";
+import { ENGINE_LABEL, SKILL_ENGINES, type SkillEngine } from "./labels.ts";
 import { McpTab } from "./McpTab.tsx";
 import { SkillsTab } from "./SkillsTab.tsx";
 import { useResources } from "./useResources.ts";
@@ -33,6 +34,8 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
   const [query, setQuery] = useState("");
   const [picked, setScope] = useState<ScopeFilter>("all");
   const [adding, setAdding] = useState(false);
+  const [ownOnly, setOwnOnly] = useState(false);
+  const [engines, setEngines] = useState<ReadonlySet<SkillEngine>>(new Set());
   const projectId = project && !project.isDefault ? project.id : undefined;
   // Default's resources are the global ones, which every project takes: no other scope to pick there.
   const inDefault = Boolean(project?.isDefault);
@@ -56,7 +59,60 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
     extensions: extensions?.length,
   };
   const def = TABS.find((x) => x.id === tab) ?? (TABS[0] as (typeof TABS)[number]);
-  const ctx = { projectId, query: query.trim().toLowerCase(), scope, adding, setAdding, res };
+  const ctx = {
+    projectId,
+    query: query.trim().toLowerCase(),
+    scope,
+    adding,
+    setAdding,
+    res,
+    ownOnly: Boolean(projectId) && ownOnly,
+    engines,
+  };
+  const toggleEngine = (e: SkillEngine) =>
+    setEngines((now) => {
+      const next = new Set(now);
+      if (!next.delete(e)) next.add(e);
+      return next;
+    });
+  // Skills: the project's own or all, and which engines they live in (none picked: all).
+  const skillFilters = tab === "skills" && (
+    <span className="resv__filters">
+      {projectId && (
+        <SegmentedControl
+          size="sm"
+          label={t("res.show")}
+          value={ownOnly ? "project" : "all"}
+          onValueChange={(v) => setOwnOnly(v === "project")}
+          options={[
+            { value: "all", label: t("res.show.all") },
+            { value: "project", label: t("res.show.project") },
+          ]}
+        />
+      )}
+      <Menu
+        align="end"
+        trigger={
+          <Button size="sm" variant="secondary" trailingIcon={<Icons.ChevronDown size={14} />}>
+            {engines.size
+              ? SKILL_ENGINES.filter((e) => engines.has(e))
+                  .map((e) => ENGINE_LABEL[e])
+                  .join(", ")
+              : t("res.engines.all")}
+          </Button>
+        }
+        items={[
+          { type: "label", label: t("res.engines") },
+          ...SKILL_ENGINES.map((e) => ({
+            label: ENGINE_LABEL[e],
+            checked: engines.has(e),
+            keepOpen: true,
+            onSelect: () => toggleEngine(e),
+          })),
+        ]}
+      />
+    </span>
+  );
 
   let body: ReactNode;
   if (tab === "skills") body = <SkillsTab {...ctx} />;
@@ -137,6 +193,7 @@ export function ResourcesView({ project }: { project?: ProjectEntry }) {
             </fieldset>
           )
         )}
+        {skillFilters}
       </div>
       <div className="resv__body">{body}</div>
     </section>
@@ -150,4 +207,8 @@ export type TabProps = {
   adding: boolean;
   setAdding(on: boolean): void;
   res: ReturnType<typeof useResources>;
+  /** Skills inside a project: only its own, not the inherited global ones. */
+  ownOnly?: boolean;
+  /** Skills living in these engines (or with a copy there); empty: all. */
+  engines?: ReadonlySet<SkillEngine>;
 };

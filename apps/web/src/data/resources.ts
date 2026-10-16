@@ -1,5 +1,5 @@
 // Resources screen calls: skills, MCP servers and variables. Each returns undefined (and shows a notice) on failure.
-import type { McpServerStatus, SecretInfo, SkillInfo } from "@apx/protocol";
+import type { McpServerStatus, SecretInfo, SkillCandidate, SkillImportSource, SkillInfo } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { notify } from "./notices.ts";
@@ -25,6 +25,20 @@ export const getSkill = (name: string, project?: string) =>
 
 export const saveSkill = (name: string, target: "global" | "project", content: string, project?: string) =>
   attempt(async () => (await client.call("skills.save", { name, target, content, ...scoped(project) })).skill);
+
+/** Reads a folder, zip or repository and lists the skills in it (nothing is kept). */
+export const previewSkillImport = (source: SkillImportSource, project?: string) =>
+  attempt(
+    async () =>
+      (await client.call("skills.preview", { source, target: project ? "project" : "global", ...scoped(project) }))
+        .candidates,
+  );
+
+/** Copies the picked skills (by candidate id) into APX's skills, or the project's with `project`. */
+export const importSkills = (source: SkillImportSource, pick: string[], replace: boolean, project?: string) =>
+  attempt(() =>
+    client.call("skills.import", { source, pick, replace, target: project ? "project" : "global", ...scoped(project) }),
+  );
 
 export const toggleSkill = (name: string, on: boolean, project?: string) =>
   attempt(() => client.call("skills.toggle", { name, on, ...scoped(project) }));
@@ -63,7 +77,7 @@ export const listSecrets = () => attempt(async () => (await client.call("secrets
 export const setSecret = (name: string, value: string | null, project?: string) =>
   attempt(() => client.call("secrets.set", { name, value, ...(project ? { project } : {}) }));
 
-export type { McpServerStatus, SecretInfo, SkillInfo };
+export type { McpServerStatus, SecretInfo, SkillCandidate, SkillImportSource, SkillInfo };
 
 export const getInheritance = (project: string) => attempt(() => client.call("resources.inheritance", { project }));
 

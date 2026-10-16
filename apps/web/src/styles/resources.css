@@ -88,14 +88,36 @@
   background: var(--apx-accent);
   color: var(--apx-accent-fg);
 }
-/* Under the header's line: the scope to filter by, or (in a project) what it inherits. */
+/* Under the header's line: the scope to filter by, or (in a project) what it inherits; skills' filters at the end. */
 .resv__under {
+  display: flex;
   flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
   padding: 10px 28px;
   border-bottom: 1px solid var(--apx-border);
 }
 .resv__under:empty {
   display: none;
+}
+/* They keep a readable width: the skills' filters go to the next line first. */
+.resv__under .resv__scopes,
+.resv__under .resv__inherit {
+  flex: 1;
+  min-width: min(100%, 220px);
+}
+.resv__tags {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.resv__filters {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 .resv__under .resv__scopes {
   flex-wrap: nowrap;
@@ -209,6 +231,34 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+.resd__facts .resd__top {
+  align-self: start;
+}
+.resd__copies {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 4px;
+  padding: 0;
+  list-style: none;
+}
+.resd__copies li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.resd__hint {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.resd__noteaction {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 .resd__section {
   margin-top: 4px;
@@ -868,4 +918,64 @@
 }
 .mcp-permission.is-some {
   color: var(--apx-fg);
+}
+
+/* Importing skills: the source's input beside its button, then what was found, one block per skill. */
+.skimp__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.skimp__input {
+  flex: 1;
+  min-width: 0;
+}
+.skimp__list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.skimp__item {
+  padding: 8px 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: 10px;
+}
+.skimp__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.skimp__name {
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-sm);
+}
+.skimp__meta {
+  margin-left: auto;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
+.skimp__found {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.skimp__desc {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.skimp__desc,
+.skimp__note {
+  margin: 4px 0 0 26px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.skimp__note.is-warn {
+  color: var(--apx-warning);
 }

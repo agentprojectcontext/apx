@@ -8,6 +8,7 @@ import { Canceled, DeadlineExceeded, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses } from "../harness/index.ts";
 import { systemNote } from "../harness/native.ts";
 import type { Log } from "../log.ts";
+import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { fromTeam } from "../tools/result.ts";
 import type { Tool } from "../tools/types.ts";
 import { pausedNotice } from "./breaker.ts";
@@ -114,6 +115,8 @@ export function createEngine(deps: {
   log: Log;
   call: ToolCall;
   home: string;
+  /** The other agent apps whose skills agents may load too. */
+  skillApps?: RuntimeHomes | undefined;
   /** The port this core listens on (known once the server listens): commands reaching it are APX's own door. */
   apxPort: () => number;
   memory: MemoryIndex;

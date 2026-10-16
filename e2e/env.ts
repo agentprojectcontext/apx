@@ -64,6 +64,8 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_V1_HOME: fx.v1,
     APX_V1_URL: "http://127.0.0.1:9",
     CLAUDE_CONFIG_DIR: fx.claude,
+    // Never the owner's other agent apps' skills (~/.cursor, ~/.agents).
+    APX_APPS_HOME: dir,
     CODEX_HOME: fx.codex,
     APX_LLM_BASE_URL: llm.url,
     APX_LLM_KEY: "e2e",

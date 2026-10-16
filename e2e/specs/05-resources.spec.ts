@@ -1,6 +1,8 @@
-// Resources: the variable imported from v1, a new one revealed with the eye; an integration connected and removed.
+// Resources: the variable imported from v1, a new one revealed with the eye; an integration connected and removed;
+// other apps' skills with their tag, duplicates and the engines filter; skills imported from a folder after a preview.
+import fs from "node:fs";
 import path from "node:path";
-import { expect, open, rpc, test } from "./kit.ts";
+import { expect, open, rpc, test, world } from "./kit.ts";
 
 test("variables: the imported one is listed, a new one is saved and shown with the eye", async ({ page }) => {
   await open(page);
@@ -165,4 +167,61 @@ test("APX's own skills are listed with an APX tag, always on and read-only", asy
   await expect(detail.getByRole("switch")).toHaveCount(0);
   await expect(detail.getByText(/^Viene con APX y les enseña a los agentes a cambiar APX/)).toBeVisible();
   await expect(detail.getByText(/apx mcps add/).first()).toBeVisible();
+});
+
+test("other apps' skills show their tag and duplicates; the engines filter narrows; a folder is read, then imported", async ({
+  page,
+}) => {
+  const { dir } = await world.info();
+  const skill = (root: string, name: string, description: string, extra: Record<string, string> = {}) => {
+    for (const [file, text] of Object.entries({
+      "SKILL.md": `---\nname: ${name}\ndescription: ${description}\n---\nHow.\n`,
+      ...extra,
+    })) {
+      fs.mkdirSync(path.dirname(path.join(root, name, file)), { recursive: true });
+      fs.writeFileSync(path.join(root, name, file), text);
+    }
+  };
+  skill(path.join(dir, "claude", "skills"), "acme-deck", "Makes Acme decks.");
+  skill(path.join(dir, "claude", "skills"), "acme-memo", "Claude's memo.");
+  await rpc("skills.save", {
+    name: "acme-memo",
+    target: "global",
+    content: "---\nname: acme-memo\ndescription: APX's memo.\n---\nHow.\n",
+  });
+  await open(page);
+  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
+  await page.getByRole("radio", { name: /^Skills/ }).click();
+  await expect(page.getByRole("button", { name: /^acme-deck.*Claude/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^acme-memo.*Duplicada/ })).toBeVisible();
+  await page.getByRole("button", { name: /^acme-memo/ }).click();
+  await expect(page.getByRole("article").getByText("Distinta")).toBeVisible();
+
+  await page.getByRole("button", { name: "Todos los motores" }).click();
+  await page.getByRole("menuitem", { name: "Claude" }).click();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: /^acme-deck/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^apx-mcps/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Claude", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Claude" }).click();
+  await page.keyboard.press("Escape");
+
+  const source = path.join(dir, "import-src");
+  skill(source, "northwind-notes", "Takes Northwind notes.", { "scripts/run.sh": "echo hi\n" });
+  await page.getByRole("button", { name: "Skill", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("radio", { name: "Importar" }).click();
+  await dialog.getByRole("textbox", { name: "Carpeta" }).fill(source);
+  await dialog.getByRole("button", { name: "Leer" }).click();
+  await expect(dialog.getByText("Trae scripts que un agente podría ejecutar: scripts/run.sh")).toBeVisible();
+  await expect(dialog.getByRole("checkbox", { name: "northwind-notes" })).toBeChecked();
+  expect(fs.existsSync(path.join(dir, "apx-home", "skills", "northwind-notes")), "a preview copies nothing").toBe(
+    false,
+  );
+  await dialog.getByRole("button", { name: "Importar 1" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole("button", { name: /^northwind-notes/ })).toBeVisible();
+  expect(fs.readFileSync(path.join(dir, "apx-home", "skills", "northwind-notes", "scripts", "run.sh"), "utf8")).toBe(
+    "echo hi\n",
+  );
 });

@@ -1,11 +1,11 @@
 // load_skill: an agent reads the know-how a skill brings, when a task matches its one-line description.
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
-import { readSkillFile, skillFiles, skillsFor } from "../skills/skills.ts";
+import { readSkillFile, type SkillRoots, skillFiles, skillsFor } from "../skills/skills.ts";
 import { cap } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
-export function skillTools(store: Store, home: string): Tool[] {
+export function skillTools(store: Store, roots: SkillRoots): Tool[] {
   return [
     defineTool({
       name: "load_skill",
@@ -16,7 +16,7 @@ export function skillTools(store: Store, home: string): Tool[] {
       deadlineMs: 5_000,
       title: (a) => `Loaded the skill ${String(a.name)}`,
       async run(a, ctx) {
-        const skill = skillsFor(store, home, ctx.thread.project_id).find(
+        const skill = skillsFor(store, roots, ctx.thread.project_id).find(
           (s) => s.name.toLowerCase() === a.name.toLowerCase(),
         );
         if (!skill) return `no skill named ${a.name}`;
