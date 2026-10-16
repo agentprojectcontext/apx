@@ -44,6 +44,9 @@ pipe) la consola no arranca: `apx` muestra la ayuda.
 | `apx status` | La versión y el commit del core, cuánto lleva prendido, memoria, URL, cada subsistema, el equipo, los proyectos, los servidores MCP, los dispositivos, el acceso y los chats. También `apx --status`. |
 | `apx --version` | La versión y el commit de esta CLI (`-v`). Anda sin el core. |
 | `apx ping [text]` | Una ida y vuelta por el socket en vivo. |
+| `apx open` | Abre el panel en tu navegador. |
+| `apx desktop` | Abre la app de escritorio (la primera vez baja y abre el instalador). |
+| `apx wizard` | Configuración y mantenimiento guiados en la terminal. |
 | `apx upgrade --check` | ¿Hay un APX más nuevo? |
 | `apx upgrade` | Aplicarlo, igual que **Actualizar ahora** en el panel. |
 | `apx logs` | Las líneas más nuevas del log del core, a través del core: `-n 200`, `--level info\|warn\|error`, `--grep texto`, `--scope core\|output`, `--json`. Si ningún core responde, el archivo de esta computadora. |
@@ -77,6 +80,7 @@ aceptan `--json`. `apx status --plain` saca la tarjeta y el retrato.
 | `apx devices revoke <id>` | Revoca la llave de un dispositivo. |
 | `apx setup --headless` | Un servidor sin escritorio: servicio, importación opcional (`--import`), exposición opcional (`--expose tailscale` o `--expose lan`) y después un código para vincular. |
 | `apx import-v1` | Registra las carpetas de proyecto que conoce un APX v1 local (solo lee v1). `--keys` también copia sus claves de API de modelos, `--skills` sus skills, `--services` sus motores de imágenes y voces. |
+| `apx v1` | ¿Sigue APX v1 acá y corriendo? `apx v1 off` detiene su daemon para siempre y hace que `apx` sea este. |
 
 `apx expose` edita `<home>/core.env` directamente; después reiniciá el core (`apx service restart`). `apx tailscale`
 pasa por el core que está corriendo, que se reinicia solo cuando corre bajo un supervisor como el servicio, y si no te
@@ -97,6 +101,7 @@ settings ~/.apx/v2/core.env (none yet)`}</Terminal>
 | `apx chat "<text>" --code` | Un hilo de código en el proyecto registrado que contiene la carpeta actual (`--cwd <folder>` para otra, `--write ask`, `auto` o `read-only`, `--agent <id>`). |
 | `apx threads [list]` | Los hilos con su estado y tipo. |
 | `apx threads get <thread>` | Los últimos 20 mensajes de un hilo. |
+| `apx threads search <words…>` | Mensajes con todas las palabras, el mejor resultado primero. |
 | `apx threads cancel <thread>` | Frena lo que esté corriendo ahí. |
 | `apx runs get <run>` | Una corrida, en JSON. |
 | `apx runs wait <run>` | Espera a que termine (`--timeout 60`, en segundos). |
@@ -122,12 +127,20 @@ Hay dos tareas abiertas en Acme Store: el catálogo de primavera (en curso, Luc�
 | Comando | Qué hace |
 |---|---|
 | `apx agents` | Los agentes y el modelo con que corre cada uno (★ marca a Home). |
+| `apx agents show <agent>` | Sus campos y su prompt completo. |
 | `apx agents new <slug> "<Name>"` | Un agente nuevo; `--project <id>` lo pone en un proyecto (se escribe en `.apc/agents/<slug>.md`), `--role "<role>"` le da un rol. |
 | `apx agents set <agent> key=value…` | Cambia `name`, `role`, `slug`, `parent` o `blob`. |
+| `apx agents set <agent> --prompt-file <file>` | Reemplaza su prompt desde un archivo (`-` lee stdin). |
+| `apx agents clone <agent…>` | Copia agentes a un proyecto (`--project <id>`); `--rename` le da a cada uno un nombre libre, `--under <slug>` fija el padre. |
 | `apx agents archive <agent>` | Archiva un agente (el archivo de un agente de proyecto pasa a `.apc/agents/.archived/`). |
+| `apx agents archived` | Agentes archivados; `apx agents restore <agent>` trae uno de vuelta. |
 | `apx agents model <agent> <ref>` | Su modelo: `<engine>/<model>`, `<engine>`, `router` o `default`; `--router` deja el router como respaldo. |
 | `apx projects [list]` | Los proyectos (un `!` marca una carpeta que no está). |
 | `apx projects register <folder>` | Registra una carpeta con `AGENTS.md` y/o `.apc/`. |
+| `apx projects create "<Name>"` | Un proyecto nuevo, en `--path <folder>` (se crea si falta) o en una carpeta propia en el home de APX; `--kind personal\|app\|company\|software\|other`, `--desc "…"`. |
+| `apx projects set <project>` | Cambia `--name`, `--kind`, `--desc` o `--autonomy ask\|standard\|edits\|total` (hasta dónde llegan sus agentes sin preguntar). |
+| `apx projects rm <project>` | Lo olvida en APX; su carpeta y sus archivos nunca se borran. |
+| `apx init [folder]` | Convierte una carpeta (esta por defecto) en un proyecto APC y la registra; solo escribe lo que falta (`AGENTS.md`, `.apc/`). |
 | `apx projects sync [project]` | Vuelve a leer los archivos del proyecto. |
 
 ## Modelos y consumo
@@ -140,6 +153,12 @@ Hay dos tareas abiertas en Acme Store: el catálogo de primavera (en curso, Luc�
 | `apx models chain <ref> [<ref>…]` | La cadena de respaldo del router, en orden. |
 | `apx models rules < rules.json` | Las reglas del router, como un array JSON por stdin. |
 | `apx usage [days]` | Turnos y tokens por modelo en los últimos días (30 por defecto), y si entraron en un plan o se pagaron por token. |
+| `apx image "<prompt>"` | Dibuja una imagen y la guarda (`--out <file>`, `--size WxH`). |
+| `apx say "<text>"` | Dice un texto en voz alta y guarda el audio (`--out <file>`). |
+| `apx transcribe <audio file>` | De voz a texto. |
+| `apx owner [set key=value…]` | Quién sos para tus agentes: nombre, sobre vos, idioma, zona horaria. |
+| `apx org [set] --project <id>` | Las áreas y roles de un proyecto (`set` lee JSON por stdin). |
+| `apx profiles [list]` | Para qué sirve el super-agente. `use <id> [key=value…]`, `off`, `restore <routine>`. |
 
 Qué es una referencia de modelo y el router está en [Modelos](/es/concepts/models/).
 
@@ -161,6 +180,7 @@ Qué es una referencia de modelo y el router está en [Modelos](/es/concepts/mod
 | `apx routines log <id>` | Sus últimas corridas. |
 | `apx memory [words]` | Las notas que guardan los agentes, de la más nueva a la más vieja, o las que mejor coinciden con las palabras (`--project`, `--agent`, `--json`). |
 | `apx memory add [scope] <text>` | Agrega una nota. El alcance es `global`, `project` o `agent` (con `--project <id>` o `--agent <id>`); sin alcance sigue esas opciones, y si no, `global`. |
+| `apx memory edit <id> <text…>` | Reescribe una nota en el lugar. |
 | `apx memory rm <id…>` | Borra notas. |
 
 En una rutina, la salida del pre-comando llega al prompt donde escribas `{{pre_output}}`. Más en
@@ -174,6 +194,7 @@ En una rutina, la salida del pre-comando llega al prompt donde escribas `{{pre_o
 | `apx channels add telegram <id> --agent <agent>` | Agrega un bot de Telegram. El token sale de `APX_CHANNEL_TOKEN`, nunca de la línea de comandos. |
 | `apx channels rm <id>` | Borra un canal y su token. |
 | `apx channels outbox` | Lo que se mandó últimamente y cómo salió. |
+| `apx channels send <channel> <contact> <text…>` | Le escribís vos a un contacto, en su chat de ese canal. |
 | `apx channels recover <thread>` | Le vuelve a pedir al canal los archivos que nunca llegaron a un chat (WhatsApp: tu teléfono vuelve a mandar esos mensajes; tiene que estar en línea). |
 | `apx contacts` | Las personas y sus direcciones. |
 | `apx contacts add <name…>` | Agrega un contacto. |
@@ -191,10 +212,18 @@ Los demás canales (WhatsApp, Discord, Slack) se configuran en el panel. Mirá [
 | Comando | Qué hace |
 |---|---|
 | `apx skills [project]` | Las skills que pueden cargar los agentes. |
+| `apx skills on\|off <skill>` | Activa o desactiva una skill en todos lados, o en un proyecto (`--project <id>`). |
+| `apx skills save <skill>` | Crea o reemplaza una skill: su `SKILL.md` por stdin (`--project <id>`). |
 | `apx skills install-runtimes` | Actualiza ya las skills que le enseñan a Claude Code, Codex, Cursor y `~/.agents` a usar APX (el core también lo hace en cada arranque). `--dry-run` muestra qué cambiaría. |
 | `apx mcps [list [project]]` | Los servidores MCP, con su estado y cantidad de herramientas. |
 | `apx mcps add <name> <command…>` | Agrega uno propio: un comando con sus argumentos, o una URL. |
 | `apx mcps rm <name>` | Lo saca. |
+| `apx mcps show <name>` | Su definición (las variables salen como `secret://NAME`, nunca sus valores). |
+| `apx mcps set <name> --env K=V` | Cambia solo lo que pasás (`--env`, `--header`) y deja el resto. |
+| `apx mcps on\|off <server> --project <id>` | Activa o desactiva uno de tus servidores dentro de un proyecto. |
+| `apx mcps logs <server>` | Lo que un servidor imprimió por stderr desde que arrancó el core (`--project`, `-n 100`). |
+| `apx sessions projects codex\|claude` | Proyectos y chats de Claude Code o Codex en esta computadora. |
+| `apx sessions import codex\|claude <project>` | Los trae como un proyecto de APX (`--only <id,…>`, `--name "…"`); también `digest`, `adopt` y `page`. |
 | `apx mcps trust <project> <server>` | Aprueba un servidor que nombra el `.apc/mcps.json` de un proyecto (`untrust` para deshacerlo). |
 | `apx mcp tools <server> [<tool>]` | Las descripciones de las herramientas y sus esquemas JSON. |
 | `apx mcp run <server> <tool> '<json>'` | Llama a una herramienta directo y muestra el resultado crudo; `-` lee los argumentos de stdin. |

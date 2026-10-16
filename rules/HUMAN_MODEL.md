@@ -7,11 +7,11 @@ boundary changes.
 
 | Process | Entry | Role | Lifetime |
 |---|---|---|---|
-| **core** | `apps/core/src/main.ts` (`pnpm dev`) | The only owner of state. Serves the protocol on `127.0.0.1:7440`. | Long-running (service later, F1/F3). |
+| **core** | `apps/core/src/main.ts` (`pnpm dev`) | The only owner of state. Serves the protocol on `127.0.0.1:7440`. | Long-running (a user service: `apx service`, or the desktop app starts it). |
 | **terminal** | `apps/terminal/src/main.ts` (`apx`) | One command → protocol call(s) → exit. | Per command. |
 | **web** | `apps/web` (Vite on `:7441` in dev) | Panel in a browser. Talks to core through the Vite proxy. | Per tab. |
 | **desktop** | `apps/desktop` (`pnpm --filter @apx/desktop dev`) | Panel on the left, embedded browser on the right; connects to core as a **node** offering `browser`. | While the app is open. |
-| **mobile** *(F7)* | `apps/mobile` (Expo) | Operator + node (camera, notify). | App lifecycle. |
+| **mobile** | `apps/mobile` (Expo) | Operator + node (camera, notify). | App lifecycle. |
 
 ## 2. How a call flows
 
@@ -23,7 +23,7 @@ apps/core/src/transport/{http,ws}.ts        adapters only: parse, auth header, h
    ▼
 apps/core/src/rpc/router.ts                  known method? idempotency key if effect? params valid (zod)?
    ▼
-apps/core/src/rpc/<domain>.ts handler        does the work (later: calls domain/, db/, nodes/)
+apps/core/src/rpc/<domain>.ts handler        does the work (calls engine/, domain/, db/, nodes/)
    ▼
 result validated against the registry → same frame shape on both transports
 ```
@@ -40,10 +40,10 @@ gets the types. There is no other way into a handler.
 
 - `packages/protocol` ← used by everything. Isomorphic: no Node-only imports.
 - `packages/ui` ← web (and desktop through web). React + Base UI + CSS tokens.
-- `packages/surfaces` ← web/desktop/mobile hosts and core store (F3).
+- `packages/surfaces` ← placement types shared by the surface hosts (the host itself is `apps/web/src/surfaces`).
 - `apps/core`: `transport → rpc → engine (turns) → harness / providers / tools → domain (one repository per
-  aggregate over SQLite)`; `nodes/` routes capability calls to the desktop. Planned: `channels/`, `office/`,
-  `memory/` (see `plan/archivo/03-relevo-y-plan-motor.md` §6).
+  aggregate over SQLite)`; `nodes/` routes capability calls to the desktop; `channels/` adapts the messaging apps
+  (Telegram, WhatsApp, Discord, Slack, iMessage, email, Signal, Matrix, Mattermost) and enters through `threads.send`.
 - `apps/*` never import each other; `packages/*` never import `apps/*`.
 
 ## 4. State and persistence
@@ -51,7 +51,9 @@ gets the types. There is no other way into a handler.
 `~/.apx/v2/apx.db` (SQLite, WAL): projects, agents, threads (incl. a2a sub-threads), messages (what the UI shows),
 `model_log` (what the model saw — never rendered, tagged by run), runs (the durable queue: input, origin, reply destination, depth,
 deadline, A2A-shaped states, usage), steps (one per tool call, written before it runs), surfaces (+ share tokens),
-idempotency. Channel photos/documents and voice notes enter through `threads.send` as persisted uploads; image references reach
+idempotency, and the rest of the product's records (persons and their addresses, channel inbox/outbox, tasks, routines,
+memories, notifications, devices, extensions, nudges, suggestions, media); `db/migrations.ts` is the list, `db/schema.ts`
+the generated types. Channel photos/documents and voice notes enter through `threads.send` as persisted uploads; image references reach
 vision models and the panel shows attachments from both sides. Owner uploads are copied into an ignored
 `.apx-attachments/upload-*` folder inside the turn work directory so file tools can inspect PDFs and other
 documents. Contact uploads stay in their sealed chat and never get a shared work-folder copy. Voice uploads stay
@@ -76,7 +78,8 @@ the project's folder itself when APX made it, `projects/<name>`), where outside 
 the native agent falls back while the folder is off this machine; and each chat's temp folder (`apx-scratch-…` in the
 system's temp folder), for downloads and tries, kept with `files.keep`. `work/` is the folder of chats outside a
 project. Widgets are not files: their HTML and where they show live in `surfaces`, scoped to one project or global.
-`~/.apx/v2/secrets.json` (0600) holds secrets referenced as `secret://name`. `~/.apx/v2/home-id` is the
+Secrets are referenced as `secret://name`: on macOS the values live in the login Keychain, elsewhere (and with
+`APX_SECRETS=file`, as in tests) in `~/.apx/v2/secrets.json` (0600). `~/.apx/v2/home-id` is the
 install id. Browser sessions live in Electron partitions on the
 desktop (`persist:apx-shared`, `persist:apx-agent-<id>`, in-memory `apx-incog-*`), never in the core.
 
@@ -131,16 +134,16 @@ jobs are closed, and queued runs are picked up.
 ## 5. Auth and trust
 
 - Loopback bind needs no token; any other bind **requires** `APX_TOKEN` (enforced at startup).
-- `/rpc/*` checks `Authorization: Bearer` when a token is set. WS auth + device pairing arrive with nodes.
+- `/rpc/*` checks `Authorization: Bearer` when a token is set. Over WS the token (`?token=`), or a paired device's own, is checked when the socket upgrades.
 - Trust boundaries to remember: web page content (embedded browser), channel messages, outside apps' agents,
   tool output → all untrusted data. The owner's own agents speak for the owner (DECISIONS.md#d-071).
 
 ## 6. External integrations
 
-- LLM: any OpenAI-compatible endpoint; default Gemini with the key read by reference from APX v1's config.
-- APX v1 daemon: read-only import of projects/agents (`import/v1.ts`, loopback only).
+- LLM: `providers/` speaks OpenAI-compatible chat, Anthropic Messages and the ChatGPT plan's responses API; keys are `secret://` references.
+- APX v1: read-only import (`import/v1.ts`, `import/v1-*.ts`) of projects, agents, chats, channels and, when asked, keys and skills; never writes to v1.
 - Electron + in-process CDP for the embedded browser; macOS Keychain + `sqlite3` for cookie import.
-Harnesses: native (our loop over `providers/`), Claude Code (Agent SDK) and Codex (Codex SDK) — D-007, D-008. Planned: ACP, Telegram and WhatsApp.
+Harnesses: native (our loop over `providers/`), Claude Code (Agent SDK), Codex (Codex SDK) and ACP agents — D-007, D-008.
 
 ## 7. Build / test / run lifecycle
 

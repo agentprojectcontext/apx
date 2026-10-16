@@ -141,7 +141,7 @@ v2 is a ground-up rewrite with one rule: one way to do each thing.
 | Ways for one agent to talk to another | 12 | **1** — sessions calling sessions |
 | Ways to build the model context | 9 | **1** — one tested context builder |
 | Places where a conversation lives | 10 | **1** — thread + run + steps |
-| API surface | ~378 endpoints | **~90** typed methods; the CLI only speaks the protocol |
+| API surface | ~378 endpoints | **~260** typed methods; the CLI only speaks the protocol |
 
 ### What every model call carries
 
@@ -170,7 +170,8 @@ packages/ui        the design system
 ```bash
 pnpm install
 pnpm app        # starts the core on 127.0.0.1:7440 and opens the desktop app
-pnpm preflight  # privacy check + lint + typecheck + tests
+pnpm preflight  # privacy + schema checks, lint, typecheck, tests
+pnpm verify     # preflight, then end to end (web and desktop) and the lightness budgets
 pnpm package    # this OS's desktop installer and server bundle, in out/ (also package:mac, :linux, :win)
 ```
 

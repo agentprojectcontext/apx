@@ -50,7 +50,7 @@
 <text x="490" y="497.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#f08a8a" text-anchor="middle">~378</text>
 <path d="M555 491.0 h40 m-8 -6 l8 6 l-8 6" stroke="#5b6378" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 <rect x="605" y="475.0" width="90" height="32" rx="16" fill="#4fd1a5" fill-opacity="0.15"/>
-<text x="650" y="497.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#5fe0b4" text-anchor="middle">~90</text>
+<text x="650" y="497.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="17" font-weight="700" fill="#5fe0b4" text-anchor="middle">~260</text>
 <text x="712" y="496.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="13" fill="#8a93a6">typed methods</text>
 <text x="40" y="562" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12.5" fill="#6f788c">Code-level survey of v1, October 2026</text>
 </svg>

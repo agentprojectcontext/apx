@@ -84,6 +84,7 @@ The process environment always wins over the file. The core reads it when it sta
 | `APX_CHROME` | found on its own | The Chrome, Chromium or Edge binary for the headless browser. |
 | `APX_RUNTIME_SKILLS` | on for the default home | `on` or `off`: keep APX's skills current in Claude Code, Codex, Cursor and `~/.agents` at every start. A core with its own `APX_HOME` doesn't, unless this says `on`. |
 | `APX_WEB_DIST` | the workspace build | The built panel to serve. |
+| `APX_OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama on this machine, used for the embedding models behind memory search. |
 | `APX_V1_URL` | `http://127.0.0.1:7430` | APX v1's daemon, only for the read-only import. |
 | `APX_V1_HOME` | `~/.apx` | APX v1's folder, only for the read-only import. |
 | `CLAUDE_CONFIG_DIR` | `~/.claude` | Where Claude Code keeps your sessions (read to list and resume them). |

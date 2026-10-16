@@ -13,11 +13,13 @@ pnpm --filter @apx/ui build        # design system dist/ (what web and design-sy
 ```bash
 pnpm lint                          # Biome; `pnpm lint:fix` applies safe fixes
 pnpm check:private                 # public-safe gate (AGENTS.md rule 17)
+pnpm check:commits HEAD              # the same gate over commits (public-safe history), see rules/RELEASE.md
+pnpm check:schema                  # apps/core/src/db/schema.ts matches the migrations (`node apps/core/scripts/schema.ts` rewrites it)
 ```
 
 ## 3. Tests
 ```bash
-pnpm test                          # node:test in every package that has *.test.ts
+pnpm test                          # node:test in every package that has *.test.ts, plus scripts/*.test.ts
 node --test apps/core/src/server.test.ts
 ```
 Rules: tests never touch the real home — pass a temp `home` to `createCore` (see `server.test.ts`); bind
@@ -36,8 +38,8 @@ While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.ap
 
 ## 5. All at once
 ```bash
-pnpm preflight                     # gates + unit tests
-pnpm verify                        # preflight, then end to end, then lightness budgets (what CI runs)
+pnpm preflight                     # check:private, check:schema, lint, typecheck, unit tests
+pnpm verify                        # preflight, then end to end (web and desktop), then lightness budgets (what CI runs)
 ```
 
 ## 5a. End to end (Playwright)
@@ -77,8 +79,8 @@ once quiet again, and the panel's first load (gzip). Each number has a budget in
 going over fails. Raising a budget is a regression: it needs a reason in the commit body.
 
 ## CI
-`.github/workflows/verify.yml` runs `preflight`, `e2e` and `perf` on every push to main, every `v*` tag and every
-pull request; reports (Playwright HTML, failed-test snapshots, `e2e/.out/perf.json`) are kept 14 days. Its
+`.github/workflows/verify.yml` runs `preflight`, `e2e`, the desktop e2e (under xvfb) and `perf` on every push to
+`release/v2`, every `v*` tag and every pull request; reports (Playwright HTML, failed-test snapshots, `e2e/.out/perf.json`) are kept 14 days. Its
 `autofix` job is off by default: with the repo variable `APX_AUTOFIX=true` and the secret `ANTHROPIC_API_KEY`, a
 failure on main hands the reports to an agent that fixes the cause and opens a pull request (never merged on its
 own, never by weakening a gate).

@@ -8,14 +8,14 @@ messages or spends money on the owner's behalf).
 | Runtime | Node ≥ 24.11 (`.nvmrc`), ESM, TypeScript run natively (type stripping) |
 | Language | TypeScript strict, `erasableSyntaxOnly`, `noUncheckedIndexedAccess`, TS 7 compiler |
 | Package manager | pnpm 11 workspaces (`apps/*`, `packages/*`), one lockfile |
-| Surfaces | core (daemon), terminal (CLI), web (React 19 + Vite 8), desktop (Electron, F1), mobile (Expo, F7) |
+| Surfaces | core (daemon), terminal (CLI), web (React 19 + Vite 8), desktop (Electron), mobile (Expo, Android), docs (Astro) |
 | Contract | `packages/protocol` (zod) — HTTP `/rpc/<method>` + WS frames |
 | Persistence | SQLite (`node:sqlite`, WAL) in `~/.apx/v2/apx.db`; append-only migrations in `apps/core/src/db/migrations.ts` |
-| Auth | loopback by default; browser origins limited to the panel's own (`transport/guard.ts`); `APX_TOKEN` required off-loopback (HTTP header or WS `?token=`); device pairing planned |
-| Agentic surfaces | own tool loop (OpenAI-compatible, Gemini by default), browser tools via the desktop node, widgets (sandboxed iframes), delegation between agents (a2a sub-threads) |
-| Tests | `node:test` (core, protocol, terminal) |
+| Auth | loopback by default; browser origins limited to the panel's own (`transport/guard.ts`); `APX_TOKEN` required off-loopback (HTTP header or WS `?token=`); a paired device (`apx pair`, `devices.*`) carries its own token, which passes like the core's |
+| Agentic surfaces | harnesses: our own tool loop over providers (OpenAI-compatible, Anthropic Messages, ChatGPT plan), Claude Code, Codex and ACP agents; browser and computer tools via the desktop node; widgets (sandboxed iframes); delegation between agents (a2a sub-threads) |
+| Tests | `node:test` (every package, `scripts/`, mobile) and Playwright end to end (`e2e/`, web and desktop) |
 | Lint / format | Biome 2 |
-| CI / deploy | none yet (planned: GitHub Actions running `pnpm preflight`) |
+| CI / deploy | GitHub Actions: `verify.yml` (preflight, e2e, desktop e2e, perf), `release.yml` (`v2.*` tags build installers, bundles, APK), `site.yml` (docs site) |
 
 <a id="gates"></a>
 ## Gates (mechanically enforced)
@@ -25,12 +25,13 @@ messages or spends money on the owner's behalf).
 | Typecheck | `pnpm typecheck` | Contract types across all clients; erasable TS only (rule 5) |
 | Lint | `pnpm lint` | Biome recommended + no `console` outside CLI/scripts, `import type`, no `!` assertions; dependency direction (rule 4: `domain` never imports `transport`/`rpc`/`channels`, `rpc` never imports `transport`, `packages/*` never import `apps/*`) |
 | Tests | `pnpm test` | Router, idempotency, safe bind, HTTP ≡ WS, origin/token gate, static path safety, agent runs (streaming, cancel, interrupted turns), delegation (sync + async wake-up), artifacts isolation, node routing, cookie mapping/decryption; prompt budget (rule 23: a default turn's system prompt and tools within [`PROMPT_SIZE.md`](PROMPT_SIZE.md)) |
-| Private data | `pnpm check:private` | Rule 17 — local denylist (never committed) + public shapes (phone numbers, `/Users`/`/Volumes` paths) |
-| All | `pnpm preflight` | The four above; run before every push |
+| Private data | `pnpm check:private` | Rule 17 — local denylist (never committed) + public shapes (phone numbers, `/Users`/`/Volumes` paths); `pnpm check:commits` runs it over commit messages and authors |
+| Schema | `pnpm check:schema` | `db/schema.ts` (the typed queries' tables) matches the migrations |
+| All | `pnpm preflight` | Private data, schema, lint, typecheck and tests; run before every push. `pnpm verify` adds e2e and perf |
 
 Convention-only today (review must catch them): no a2a side path (rule 2), untrusted content handling (rule 10),
 secrets by reference (rule 11), no tests reading source (rule 13).
-**Planned gate:** a CI workflow running `preflight`.
+CI (`verify.yml`) runs the gates on every push to `release/v2` and every pull request.
 
 No lint ratchets outstanding: every package, `packages/ui` included, gets the full rule set (the former `packages/ui`
 override is closed — see [`DECISIONS.md#d-005`](DECISIONS.md#d-005)).

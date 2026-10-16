@@ -19,7 +19,7 @@ New here or reviewing? Read [`rules/HUMAN_MODEL.md`](rules/HUMAN_MODEL.md) first
 | **node** | A client that *lends capabilities* to the core (desktop: `browser`, `fs`; mobile: `camera`, `notify`). The core routes tool calls to it. | A Node.js process. |
 | **surface** | A widget/app/artifact: HTML bundle + manifest, shown inline, in the sidebar or fullscreen, or published. | A UI "surface" in the generic sense. |
 | **provider** | A model API (Gemini, Anthropic, OpenAI-compatible…) called by the built-in harness. `apps/core/src/providers`. | A harness. |
-| **harness** | What runs an agent turn's loop: `native` (ours), `claude` (Agent SDK), `codex` (Codex SDK), later `acp`. | A provider. "Engine" and "runtime" are not used for either. |
+| **harness** | What runs an agent turn's loop: `native` (ours), `claude` (Agent SDK), `codex` (Codex SDK), `acp` (agents that speak the Agent Client Protocol). | A provider. "Engine" and "runtime" are not used for either. |
 | **channel / contact / room** | An app APX talks through (WhatsApp, Telegram, Discord…); a person on it; a shared place on it (a Discord #channel, a group). [D-049](rules/DECISIONS.md#d-049) | A **thread**: each contact chat and each room is kept in one. |
 | **thread / run / step** | A conversation; one agent turn in it (durable, with its input and origin); one tool call in a run. | v1's ledgers, sessions and conversations (all replaced by these). |
 | **APC** | The open standard: `AGENTS.md` + `.apc/` in a project. APX implements it. | APX itself. |
@@ -32,7 +32,8 @@ pnpm app                                   # build panel + desktop, start the co
 pnpm dev                                   # core only, on 127.0.0.1:7440, home ~/.apx/v2 (override APX_HOME/APX_PORT)
 node apps/terminal/src/main.ts status      # is the core up, and is it running my code? (code_sha)
 pnpm --filter @apx/web dev                 # panel on :7441, proxies /rpc, /ws, /health to the core
-pnpm preflight                             # check:private + lint + typecheck + test — must be green before push
+pnpm preflight                             # check:private + check:schema + lint + typecheck + test — must be green before push
+pnpm verify                                # preflight + e2e (web, desktop) + perf budgets — what CI runs; green before merge
 pnpm package                               # this OS's installer + daemon bundle in out/ (CI: push a v2.x.y tag)
 pnpm package:linux                         # …or another OS's (also :mac, :win), built from this computer
 ```
@@ -45,14 +46,15 @@ pnpm package:linux                         # …or another OS's (also :mac, :win
 ## Repo map
 
 ```
-apps/core        daemon — transport/ → rpc/ (single router) → engine/ (turns) · harness/ · providers/ · tools/ → domain/ (repos) · nodes/ · db/
+apps/core        daemon — transport/ → rpc/ (single router) → engine/ (turns) · harness/ · providers/ · tools/ → domain/ (repos) · channels/ · nodes/ · db/
 apps/terminal    apx CLI — protocol calls only
 apps/web         React panel — served by core, renderer of desktop
 apps/desktop     Electron shell + embedded browser node (tabs, CDP, profiles, cookie import)
-apps/mobile      Expo                                               (F7)
+apps/mobile      Expo (Android app; installs outside the pnpm workspace)
+apps/docs        Astro site + documentation (English and Spanish)
 packages/protocol  zod frames + method registry + isomorphic client
 packages/ui        design system, synced with Claude Design (see packages/ui/.design-sync/NOTES.md)
-packages/surfaces  widgets/apps/artifacts runtime (placeholder; the MVP host lives in apps/web/src/surfaces)
+packages/surfaces  surface placement types (the host lives in apps/web/src/surfaces)
 packages/config    shared tsconfig
 plan/            plan + research (Spanish, maintainers only). rules/  engineering docs. scripts/  repo gates.
 ```
@@ -72,8 +74,8 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
    or `channels`; `rpc` never imports `transport`. `packages/*` never import `apps/*`. `[gate]` lint.
 5. **Erasable TypeScript only** (`erasableSyntaxOnly`): no `enum`, `namespace` or parameter properties. Enums are
    `as const` objects + derived type. `[gate]` typecheck.
-6. **Config and paths are injected**, never read at import time. The store must refuse the real home under a
-   test runner (lands with `db/`). `[review]`
+6. **Config and paths are injected**, never read at import time. The store refuses the real home under a
+   test runner (`db/db.ts`). `[review]`
 7. **Loopback by default.** The core refuses a non-loopback bind without `APX_TOKEN`. `[gate]` test.
 8. **Side-effect methods require an idempotency key** (`effect: true` in the registry). `[gate]` router.
 9. **Every turn/job/tool call has a deadline and a persisted terminal state**; client deadline > server deadline.

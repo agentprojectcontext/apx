@@ -71,7 +71,7 @@ that the feature works.
 
 ## 6. Architecture check
 
-Compare against `AGENTS.md`, `GUARDRAILS_PROFILE.md`, `SYSTEM_MAP.md` and the
+Compare against `AGENTS.md`, `GUARDRAILS_PROFILE.md`, `HUMAN_MODEL.md` and the
 neighboring code. Look for a second implementation of one operation, a wrong
 layer, new global state, hidden side effects, boundary drift and docs that
 became false. Do not refactor for aesthetic purity.
@@ -128,5 +128,5 @@ permanently only after the cause is proven.
   your `code_sha` (`apx status`) and exercise the method over HTTP **and** WS when the transport matters.
 - **Architecture check:** compare with [`HUMAN_MODEL.md`](HUMAN_MODEL.md) (system map) and
   `plan/01-arquitectura-v2.md` §2; update both when a module, process or boundary changes.
-- **Release check:** not yet deploy-sensitive (nothing ships before F1). When it is: v2 must never touch v1's
-  port or home (`~/.apx`); v2 uses `7440` and `~/.apx/v2` (v1's files in `~/.apx` untouched) until the cut-over.
+- **Release check:** v2 ships as `v2.x.y` tags ([`RELEASE.md`](RELEASE.md)); a fix is not out until its tag is. v2 must never
+  touch v1's files: it uses port `7440` and `~/.apx/v2`.
