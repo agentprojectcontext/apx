@@ -73,7 +73,11 @@ export async function applyExtras(
   for (const n of o.extras.notes)
     if (
       await once(n.key, `note "${n.text.slice(0, 40)}…"`, () =>
-        call("memory.add", { text: redactSecrets(n.text), scope: "project", project: o.project_id }, OWNER),
+        call(
+          "memory.add",
+          { text: redactSecrets(n.text).slice(0, 2000), scope: "project", project: o.project_id },
+          OWNER,
+        ),
       )
     )
       out.notes++;
