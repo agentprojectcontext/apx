@@ -28,6 +28,7 @@ import { createInbound } from "./inbound.ts";
 import { inputPresentation } from "./notices.ts";
 import { createOutgoing } from "./outgoing.ts";
 import { createPoster } from "./post.ts";
+import { createRecovery } from "./recover.ts";
 import { createRooms, quietMentions, roomMentions } from "./rooms.ts";
 import { channelTexts } from "./texts.ts";
 import {
@@ -189,6 +190,15 @@ export function createChannels(deps: {
     ownAccount: (id) => Boolean(live.get(id)?.adapter.caps.ownAccount),
     rooms,
     react: reactOn,
+  });
+  const recovery = createRecovery({
+    store,
+    home: deps.home,
+    log,
+    target: (id) => {
+      const l = live.get(id);
+      return l ? { adapter: l.adapter, label: l.config.label, running: l.status === "running" } : undefined;
+    },
   });
 
   /** Puts the agent's emoji on a platform message; false when the channel has no reactions or is not running. */
@@ -568,6 +578,7 @@ export function createChannels(deps: {
     notifyOwner,
     approved: inbound.approved,
     afterRun,
+    recover: recovery.recover,
     /** Adds, changes or removes a channel and (re)starts it. */
     async set(id: string, config: Omit<ChannelConfig, "id"> | null, token?: string): Promise<ChannelInfo[]> {
       await serially(id, async () => {

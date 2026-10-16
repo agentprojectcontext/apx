@@ -1,8 +1,9 @@
 // A WhatsApp account in memory, with the library's shape (see WaLib): a QR until it is "scanned", the restart WhatsApp
-// asks for after a scan, people writing, the owner typing on their phone, the echo of every send, and a logout.
+// asks for after a scan, people writing, the owner typing on their phone, the echo of every send, a logout, and the
+// phone's copy of each message (sent again on request while the phone is online).
 import fs from "node:fs";
 import path from "node:path";
-import type { WaContent, WaLib, WaMessage, WaSocket } from "./whatsapp.ts";
+import type { WaContent, WaKey, WaLib, WaMessage, WaSocket } from "./whatsapp.ts";
 
 const OWNER_PN = "5491100000001@s.whatsapp.net";
 const OWNER_LID = "100000000000001@lid";
@@ -23,6 +24,11 @@ export function fakeWhatsApp() {
   /** Who this device asked to hear coming online. */
   const watched = new Set<string>();
   const loggedOut = { value: false };
+  /** What the owner's phone keeps of every chat, in order; it sends a message again only while online. */
+  const phone = { online: true, history: [] as WaMessage[] };
+  const resendAsked: WaKey[] = [];
+  /** Private ids WhatsApp told this device, by phone address. */
+  const lids = new Map<string, string>();
   const creds = () => path.join(dir, "creds.json");
 
   const makeSocket = (): WaSocket & { emit(event: string, arg: unknown): void } => {
@@ -45,6 +51,14 @@ export function fakeWhatsApp() {
         return { key: { id } };
       },
       async sendPresenceUpdate() {},
+      signalRepository: { lidMapping: { getLIDForPN: async (pn: string) => lids.get(pn) } },
+      // The phone sends one message again, found by its id under the address it came on.
+      async requestPlaceholderResend(key: WaKey) {
+        resendAsked.push(key);
+        const m = phone.history.find((x) => x.key.id === key.id && x.key.remoteJid === key.remoteJid);
+        if (phone.online && m) setTimeout(() => s.emit("messages.upsert", { type: "notify", messages: [m] }), 5);
+        return `PDO-${++seq}`;
+      },
       async presenceSubscribe(jid: string) {
         watched.add(jid);
       },
@@ -70,7 +84,10 @@ export function fakeWhatsApp() {
     sock.user = { id: OWNER_PN.replace("@", ":7@"), lid: OWNER_LID };
     sock.emit("connection.update", { connection: "open" });
   };
-  const deliver = (m: WaMessage) => sock?.emit("messages.upsert", { type: "notify", messages: [m] });
+  const deliver = (m: WaMessage) => {
+    phone.history.push(m);
+    sock?.emit("messages.upsert", { type: "notify", messages: [m] });
+  };
 
   const lib: WaLib = {
     makeWASocket(opts) {
@@ -147,6 +164,7 @@ export function fakeWhatsApp() {
     /** Someone writes; `lid` makes it arrive under their private id with the phone as the alternative. */
     message(from: Person, text: string, opts: { group?: string; voice?: Buffer; content?: object } = {}) {
       const jid = opts.group ?? (from.lid ? from.lid : from.phone);
+      if (from.lid) lids.set(from.phone, from.lid);
       const id = `IN-${++seq}`;
       deliver({
         key: { id, remoteJid: jid, ...(from.lid && !opts.group ? { remoteJidAlt: from.phone } : {}), fromMe: false },
@@ -190,6 +208,13 @@ export function fakeWhatsApp() {
     },
     watched,
     sent,
+    phone,
+    resendAsked,
+    /** The phone holds a message's real content (APX had kept only a placeholder for it). */
+    phoneKeeps(id: string, content: object) {
+      const m = phone.history.find((x) => x.key.id === id);
+      if (m) m.message = content as WaContent;
+    },
     textsTo: (jid: string) => sent.filter((s) => s.jid === jid).map((s) => String(s.content.text ?? "")),
     loggedOut,
   };

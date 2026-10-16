@@ -62,7 +62,11 @@ export const world = {
   whatsapp: {
     scan: () => post(`${phone}/scan`),
     fromOwner: (text: string) => post(`${phone}/owner`, { text }),
-    message: (from: { phone: string; name: string }, text: string) => post(`${phone}/message`, { from, text }),
+    /** Someone writes; resolves with WhatsApp's id of the message. */
+    message: async (from: { phone: string; name: string }, text: string) =>
+      ((await (await post(`${phone}/message`, { from, text })).json()) as { id: string }).id,
+    /** The phone holds a message's real content (a video APX kept only as a placeholder), to send when asked again. */
+    keep: (id: string, content: object) => post(`${phone}/keep`, { id, content }),
     /** Someone sends a file: `content` as WhatsApp shapes it (videoMessage, documentMessage…), `bytes` base64. */
     media: (from: { phone: string; name: string }, content: object) => post(`${phone}/media`, { from, content }),
     /** The last message sent to `jid` reaches their phone (3) or is read (4). */

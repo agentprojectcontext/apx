@@ -57,7 +57,15 @@ On your own number there's nothing to link: whoever writes in "Message yourself"
 
 APX reads one-to-one chats. Groups, broadcasts and WhatsApp channels are ignored. Voice notes in private chats are
 transcribed (see [Voice notes](/channels/overview/#voice-notes)), and options the agent offers you arrive as a
-numbered list: answer with the number.
+numbered list: answer with the number. Photos, videos, stickers and documents are kept in the chat to play or
+download.
+
+### Files that never arrived
+
+A file that could not be downloaded when it came (or that arrived before APX read media) shows as a note such as
+"[video — APX cannot read this kind of message yet]". Press **Recover files** in that chat, or run
+`apx channels recover <thread>`: APX asks your phone to send those messages again and puts each file in its message,
+without a new answer from the agent. Your phone has to be online for it to answer.
 
 ## Strangers
 

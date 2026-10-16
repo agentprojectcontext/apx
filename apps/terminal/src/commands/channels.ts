@@ -7,7 +7,9 @@ apx channels add telegram <id> --agent <agent>  Add a Telegram bot; reads its to
 apx channels rm <id>                            Remove a channel (and its token)
 apx channels outbox                             What was sent lately and how it went
 apx channels send <channel> <contact> <text…>   Write to a contact yourself, in their chat on that channel
-                                                (contact: an id or name from apx contacts)`,
+                                                (contact: an id or name from apx contacts)
+apx channels recover <thread>                   Ask the channel again for files that never arrived in a chat
+                                                (WhatsApp: your phone sends those messages again; it must be online)`,
   contacts: `apx contacts                                  People and their addresses
 apx contacts add <name…>                        Add a contact (link addresses with pairing)
 apx contacts block|unblock <id>
@@ -40,6 +42,14 @@ export async function channels(client: ApxClient, [sub, ...rest]: string[], opts
     const chat = await client.call("channels.open", { person: person.id, channel });
     await client.call("channels.send", { thread: chat.id, text: words.join(" ") });
     console.log(`sent to ${person.name} on ${channel}`);
+    return;
+  } else if (sub === "recover") {
+    const [thread] = rest;
+    if (!thread) throw new Error(USAGE.channels);
+    const r = await client.call("channels.recover", { thread });
+    for (const x of r.recovered) console.log(`recovered ${x.name}  (${x.message_id})`);
+    for (const x of r.missing) console.log(`missing   ${x.message_id}: ${x.reason}`);
+    console.log(r.reason ?? `${r.recovered.length} of ${r.asked} recovered`);
     return;
   } else if (sub === "outbox") {
     for (const i of (await client.call("channels.outbox", {})).items)

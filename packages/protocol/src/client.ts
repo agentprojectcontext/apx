@@ -60,6 +60,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "sessions.import") return 5 * 60_000;
   // A long chat is read in stretches by the auxiliary model; the server stops taking notes at 8 min.
   if (method === "sessions.digest") return 11 * 60_000;
+  // The owner's phone is asked again under each of a chat's addresses, then each file is downloaded (server: 150 s).
+  if (method === "channels.recover") return 170_000;
   if (method === "runs.wait") return ((params as { timeout_s?: number })?.timeout_s ?? 60) * 1000 + 10_000;
   return fallback;
 }

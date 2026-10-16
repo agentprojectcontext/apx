@@ -9,7 +9,15 @@ import type { Inbound, Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { chunks } from "./telegram-format.ts";
-import { type AdapterIO, type ChannelAdapter, ChannelRefused, fileName, type OutFile, SendError } from "./types.ts";
+import {
+  type AdapterIO,
+  type ChannelAdapter,
+  ChannelRefused,
+  fileName,
+  type OutFile,
+  type Recovered,
+  SendError,
+} from "./types.ts";
 import { type Menu, menuText, optionNamed, readMenu, tapFor, WA_CONTAINERS } from "./whatsapp-menus.ts";
 
 /** The part of the library APX uses, so a test can hand in its own. */
@@ -39,8 +47,15 @@ export type WaSocket = {
   presenceSubscribe?(jid: string): Promise<void>;
   /** Asks the sender's phone to upload an expired file again (its download link is old). */
   updateMediaMessage?(m: WaMessage): Promise<WaMessage>;
-  /** A private id's phone number, when WhatsApp told it. */
-  signalRepository?: { lidMapping?: { getPNForLID?(lid: string): Promise<string | null | undefined> } };
+  /** Asks the owner's phone to send one message again; it comes back through `messages.upsert`. */
+  requestPlaceholderResend?(key: WaKey): Promise<string | undefined>;
+  /** A private id's phone number (and the other way round), when WhatsApp told it. */
+  signalRepository?: {
+    lidMapping?: {
+      getPNForLID?(lid: string): Promise<string | null | undefined>;
+      getLIDForPN?(pn: string): Promise<string | null | undefined>;
+    };
+  };
 };
 export type WaKey = {
   id?: string | null;
@@ -98,6 +113,8 @@ const QR_ROUNDS = 4;
 const ECHOES = 500;
 // WhatsApp's own service numbers (verification codes, product tips): never someone writing.
 const SERVICE = new Set(["16505361212", "16508638904"]);
+/** How long the phone has to send messages again under one address before the next one is tried. */
+const RESEND_WAIT_MS = 12_000;
 
 /** `5491100000000:12@s.whatsapp.net` → `5491100000000@s.whatsapp.net` (the device suffix is not the person). */
 export const normalJid = (jid: string | null | undefined): string => {
@@ -198,6 +215,8 @@ export function whatsappAdapter(opts: {
   selfOwner?: boolean;
   log?: Log;
   lib?: () => Promise<WaLib>;
+  /** How long the phone has to send a message again (tests shorten it). */
+  resendWaitMs?: number;
 }): ChannelAdapter {
   const { dir, log } = opts;
   let lib: WaLib | undefined;
@@ -219,6 +238,8 @@ export function whatsappAdapter(opts: {
   const watching = new Set<string>();
   /** The chat each recent message came in on (WhatsApp's own id for it), to react to it exactly there. */
   const chats = new Map<string, string>();
+  /** Messages asked of the phone again (recover), waiting for it to send them. */
+  const resending = new Map<string, (m: WaMessage) => void>();
   /** The menu each chat's other side offered last (a business's buttons), so an answer naming an option taps it. */
   const menus = new Map<string, Menu>();
 
@@ -256,9 +277,14 @@ export function whatsappAdapter(opts: {
     }) as (arg: never) => void);
     s.ev.on("connection.update", ((u: ConnectionUpdate) => onConnection(s, u)) as (arg: never) => void);
     s.ev.on("messages.upsert", ((up: { type: string; messages: WaMessage[] }) => {
-      if (up.type !== "notify" || s !== sock) return;
-      for (const m of up.messages)
-        void onMessage(m).catch((err) => log?.warn({ err: errorMessage(err, 200) }, "whatsapp message not handled"));
+      if (s !== sock) return;
+      for (const m of up.messages) {
+        // A message the phone sent again on request is that request's answer, not news.
+        const asked = m.key.id ? resending.get(m.key.id) : undefined;
+        if (asked) asked(m);
+        else if (up.type === "notify")
+          void onMessage(m).catch((err) => log?.warn({ err: errorMessage(err, 200) }, "whatsapp message not handled"));
+      }
     }) as (arg: never) => void);
     s.ev.on("messages.update", ((ups: WaUpdate[]) => {
       if (s !== sock) return;
@@ -450,6 +476,53 @@ export function whatsappAdapter(opts: {
     }
   }
 
+  /**
+   * The owner's phone sends these messages again (WhatsApp's request for a message a device could not read). Its key
+   * names the chat as the message came, which may be the number or the private id: each is tried in turn while some
+   * are missing. Nothing comes while the phone is offline.
+   */
+  async function resent(
+    s: WaSocket,
+    ask: NonNullable<WaSocket["requestPlaceholderResend"]>,
+    conversation: string,
+    wanted: Array<{ id: string; fromMe: boolean }>,
+  ): Promise<Map<string, WaMessage>> {
+    const lid = isPhone(conversation)
+      ? normalJid(await s.signalRepository?.lidMapping?.getLIDForPN?.(conversation)?.catch(() => undefined))
+      : "";
+    const jidsOf = (id: string) => [
+      ...new Set([chats.get(id), lid, conversation].filter((j): j is string => Boolean(j))),
+    ];
+    const got = new Map<string, WaMessage>();
+    for (let round = 0; round < 3; round++) {
+      const asking = wanted.flatMap((w) => {
+        const remoteJid = jidsOf(w.id)[round];
+        return !got.has(w.id) && remoteJid ? [{ ...w, remoteJid }] : [];
+      });
+      if (!asking.length) break;
+      await new Promise<void>((resolve) => {
+        let left = asking.length;
+        const end = () => {
+          clearTimeout(limit);
+          for (const w of asking) resending.delete(w.id);
+          resolve();
+        };
+        const limit = setTimeout(end, opts.resendWaitMs ?? RESEND_WAIT_MS);
+        for (const w of asking) {
+          resending.set(w.id, (m) => {
+            got.set(w.id, m);
+            resending.delete(w.id);
+            if (--left === 0) end();
+          });
+          void ask({ remoteJid: w.remoteJid, id: w.id, fromMe: w.fromMe }).catch((err) =>
+            log?.warn({ err: errorMessage(err, 200) }, "whatsapp message not asked again"),
+          );
+        }
+      });
+    }
+    return got;
+  }
+
   async function sendOne(jid: string, content: Record<string, unknown>): Promise<string | undefined> {
     if (!sock || !me) throw new SendError("retry", "WhatsApp is not connected");
     try {
@@ -555,6 +628,24 @@ export function whatsappAdapter(opts: {
         react: { text: emoji, key: { remoteJid, id: ref, fromMe: false } },
       });
       if (r?.key?.id) ownSends.add(r.key.id);
+    },
+    async recover(conversation, wanted): Promise<Recovered> {
+      const s = sock;
+      const ask = s?.requestPlaceholderResend?.bind(s);
+      if (!s || !ask || !me) throw new Error("WhatsApp is not connected");
+      const got = await resent(s, ask, conversation, wanted);
+      const found: Recovered["found"] = [];
+      for (const [id, m] of got) {
+        const content = unwrap(m.message);
+        const media = content ? mediaOf(content) : undefined;
+        if (!media) {
+          found.push({ id, failure: "WhatsApp sent the message without its file" });
+          continue;
+        }
+        const r = await fileOf(m, media);
+        found.push(r.file ? { id, file: r.file } : { id, failure: r.failure });
+      }
+      return { found };
     },
     presence(ids) {
       const s = sock;

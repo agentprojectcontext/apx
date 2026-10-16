@@ -1,6 +1,6 @@
 // The library's surface backed by the in-memory WhatsApp of the core's tests, plus a small HTTP API (E2E_WA_PORT) for
 // specs to act as the phone: scan the QR, write as the owner or as someone else, read what was sent, read it on the
-// other side (receipts), react to it and come online.
+// other side (receipts), react to it, come online, and keep a message's real content for when it is asked again.
 import http from "node:http";
 import { fakeWhatsApp } from "../apps/core/src/channels/fake-whatsapp.test-support.ts";
 
@@ -32,12 +32,14 @@ if (port)
           emoji?: string;
           /** A message's content as the library hands it (a video, a document), its file's bytes in `bytes`. */
           content?: object;
+          id?: string;
         };
         const url = new URL(req.url ?? "/", "http://x");
         let out: unknown = { ok: true };
         if (url.pathname === "/scan") wa.scan();
         else if (url.pathname === "/owner") wa.fromOwner(String(body.text ?? ""));
-        else if (url.pathname === "/message" && body.from) wa.message(body.from, String(body.text ?? ""));
+        else if (url.pathname === "/message" && body.from) out = { id: wa.message(body.from, String(body.text ?? "")) };
+        else if (url.pathname === "/keep" && body.id && body.content) wa.phoneKeeps(body.id, body.content);
         else if (url.pathname === "/media" && body.from && body.content)
           wa.message(body.from, "", { content: body.content });
         else if (url.pathname === "/receipt") {

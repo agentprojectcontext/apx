@@ -940,6 +940,24 @@ export const appMethods = {
     effect: false,
     access: "human",
   },
+  /**
+   * Files that never arrived in a channel chat (kept as "[video — APX cannot read…]" or "[attachment could not be
+   * downloaded…]") asked of the platform again — on WhatsApp the owner's phone sends each message again, so it has to
+   * be online — and put in their messages. Starts no turn. `missing` says why each one did not come.
+   */
+  "channels.recover": {
+    params: z.object({ thread: Id }).strict(),
+    result: z.object({
+      /** Messages waiting for their file. */
+      asked: z.number().int(),
+      recovered: z.array(z.object({ message_id: z.string(), name: z.string() })),
+      missing: z.array(z.object({ message_id: z.string(), reason: z.string() })),
+      /** Why nothing was tried, or why nothing came. */
+      reason: z.string().optional(),
+    }),
+    effect: true,
+    access: "human",
+  },
   /** iMessage on this Mac as agent tools (read recent messages, send one with the owner's OK); off until turned on. */
   "imessage.get": {
     params: z.object({}).strict(),
