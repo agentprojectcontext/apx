@@ -298,4 +298,9 @@ test("Claude Code sessions group by their folder and land in the same project", 
   assert.ok(notes.includes("Acme's tone is warm"));
   assert.ok(notes.includes("clave: [secret]"));
   assert.doesNotMatch(notes, /hunter22|PRIVATE KEY/);
+  const { documents } = await env.client.call("documents.list", { project_id: r.project.id });
+  assert.deepEqual(
+    documents.map((d) => [d.title, d.name, d.thread_id]),
+    [["Launch plan", "plan.md", t.thread.id]],
+  );
 });

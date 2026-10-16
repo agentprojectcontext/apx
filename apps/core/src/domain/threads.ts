@@ -493,6 +493,9 @@ export function snippetOf(text: string, query: string, width = 140): string {
 }
 
 export type MessageHit = { message: Message; snippet: string };
+export type DocumentPart = Extract<Part, { type: "file" }> & {
+  document: NonNullable<Extract<Part, { type: "file" }>["document"]>;
+};
 
 export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
   const repo = {
@@ -529,6 +532,28 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
     get(id: string): Message | undefined {
       const r = one(qb.selectFrom("messages").selectAll().where("id", "=", id));
       return r ? toMessage(r) : undefined;
+    },
+    /** The documents (files that open in the side panel) in a project's chats, newest first, each file once. */
+    documentsIn(projectId: string | undefined, limit = 300): Array<{ part: DocumentPart; message: Message }> {
+      const rows = all(
+        qb
+          .selectFrom("messages")
+          .innerJoin("threads", "threads.id", "messages.thread_id")
+          .selectAll("messages")
+          .$if(!!projectId, (q) => q.where("threads.project_id", "=", projectId as string))
+          .$if(!projectId, (q) => q.where("threads.project_id", "is", null))
+          .where("messages.parts", "like", '%"document":{%')
+          .orderBy("messages.created_at", "desc")
+          .limit(limit),
+      ).map(toMessage);
+      const seen = new Set<string>();
+      return rows.flatMap((message) =>
+        message.parts.flatMap((part) => {
+          if (part.type !== "file" || !part.document || seen.has(part.media_id)) return [];
+          seen.add(part.media_id);
+          return [{ part: part as DocumentPart, message }];
+        }),
+      );
     },
     /** Whether the owner ever wrote anything (an install in use, not a new one). */
     anyFromOwner(): boolean {

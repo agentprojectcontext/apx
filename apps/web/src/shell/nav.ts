@@ -24,6 +24,7 @@ export const PROJECT_TABS = [
   { id: "team", label: "project.tab.team" },
   { id: "tasks", label: "project.tab.tasks" },
   { id: "routines", label: "project.tab.routines" },
+  { id: "artifacts", label: "project.tab.artifacts" },
   { id: "files", label: "project.tab.files" },
   { id: "memory", label: "project.tab.memory" },
   { id: "resources", label: "project.tab.resources" },

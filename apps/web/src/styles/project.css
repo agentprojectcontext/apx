@@ -533,6 +533,38 @@
   flex-direction: column;
   gap: 6px;
 }
+.artifacts__title {
+  overflow-wrap: anywhere;
+}
+.artifacts__chat {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--apx-fg-muted);
+  font: inherit;
+  cursor: pointer;
+}
+.artifacts__open {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--apx-fg);
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.artifacts__chat:hover {
+  color: var(--apx-fg);
+  text-decoration: underline;
+}
+.artifacts__open:hover .artifacts__title {
+  text-decoration: underline;
+}
 .memory__editbar {
   display: flex;
   justify-content: flex-end;

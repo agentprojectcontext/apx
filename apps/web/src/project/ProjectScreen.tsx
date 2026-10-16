@@ -22,6 +22,7 @@ import type { Layout } from "../shell/layout.ts";
 import { go, nav, PROJECT_TABS, type ProjectTab, useNav } from "../shell/nav.ts";
 import { ProjectTasks } from "../tasks/TasksList.tsx";
 import { ProjectFiles } from "./files/ProjectFiles.tsx";
+import { ProjectArtifacts } from "./ProjectArtifacts.tsx";
 import { ProjectMemory } from "./ProjectMemory.tsx";
 import { ProjectOverview } from "./ProjectOverview.tsx";
 import { kindIcon, kindLabel, ProjectSettings } from "./ProjectSettings.tsx";
@@ -143,6 +144,8 @@ function TabBody({ project, tab, layout }: { project: ProjectEntry; tab: Project
       return <ProjectTasks projectId={project.id} />;
     case "routines":
       return <RoutinesPane projectId={project.id} />;
+    case "artifacts":
+      return <ProjectArtifacts key={project.id} project={project} />;
     case "files":
       return <ProjectFiles key={project.id} project={project} />;
     case "memory":

@@ -185,6 +185,17 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
   }
 
   return {
+    "documents.list": ({ project_id }) => ({
+      documents: store.messages.documentsIn(project_id).map(({ part, message }) => ({
+        media_id: part.media_id,
+        title: part.document.title,
+        name: part.name,
+        bytes: part.bytes,
+        thread_id: message.thread_id,
+        thread_title: store.threads.get(message.thread_id)?.title ?? "",
+        created_at: message.created_at,
+      })),
+    }),
     "threads.list": ({ project_id, root_thread, include_subthreads, delegated, include_archived, engine }) => {
       if (!root_thread) {
         const threads = store.threads.list({ project_id, include_subthreads, include_archived, engine });
