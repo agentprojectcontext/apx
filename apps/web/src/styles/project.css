@@ -565,6 +565,39 @@
 .artifacts__open:hover .artifacts__title {
   text-decoration: underline;
 }
+.artifacts__row.is-selected {
+  background: var(--apx-fill-strong);
+}
+/* An artifact beside the list: icon actions in its head, the widget filling the rest, a document scrolling. */
+.drawer.artifactpanel {
+  overflow: hidden;
+}
+.artifactpanel__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.artifactpanel > .artifactpanel__body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+.artifactpanel__body--widget {
+  overflow: hidden;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+}
+.artifactpanel__file {
+  overflow: hidden;
+  color: var(--apx-fg-muted);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-2xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .memory__editbar {
   display: flex;
   justify-content: flex-end;

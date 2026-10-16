@@ -1042,6 +1042,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "artifacts.version": "Versión {n}",
   "artifacts.onBoard": "En el tablero",
   "artifacts.inChat": "En {chat}",
+  "artifacts.openChat": "Abrir su chat",
   "error.artifacts": "No se pudieron cargar los artefactos: {error}",
   "memory.empty.project":
     "Todavía no hay notas de este proyecto. Los agentes guardan acá lo que aprenden, o agregá una vos.",

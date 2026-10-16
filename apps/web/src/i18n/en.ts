@@ -1038,6 +1038,7 @@ export const en = {
   "artifacts.version": "Version {n}",
   "artifacts.onBoard": "On the board",
   "artifacts.inChat": "In {chat}",
+  "artifacts.openChat": "Open its chat",
   "error.artifacts": "Could not load the artifacts: {error}",
   "memory.empty.project": "No notes about this project yet. Agents save what they learn here, or add one yourself.",
   "memory.empty.agents": "The agents of this team have not kept notes of their own yet.",

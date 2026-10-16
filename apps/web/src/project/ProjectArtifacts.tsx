@@ -9,6 +9,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { SurfaceActions } from "../surfaces/SurfaceActions.tsx";
+import { DocumentDrawer, WidgetDrawer } from "./ArtifactPanel.tsx";
 
 type Filter = "all" | "widgets" | "documents";
 type Doc = Result<"documents.list">["documents"][number];
@@ -18,7 +19,7 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
  * What the project's agents made: its widgets (live pages, on the board or not) and the documents its chats hold, the
- * newest first. A widget opens full screen, a document beside the chat it came from.
+ * newest first. Each opens beside the list (the list stays in view): a widget live, a document to read.
  */
 export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
   const t = useT();
@@ -27,6 +28,7 @@ export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [docs, setDocs] = useState<Doc[] | undefined>();
+  const [open, setOpen] = useState<string>();
   const pid = realProjectId(project.id);
 
   const load = useCallback(async () => {
@@ -56,11 +58,16 @@ export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
 
   const chatTitle = (id: string | undefined, fallback = "") => (id ? (threads[id]?.title ?? fallback) : "");
   const openChat = (id: string) => go.project(project.id, "chats", id);
-  // The side panel lives beside a chat: a document opens in the one it came from.
-  const openDoc = (d: Doc) => {
+  // A chat's side panel shows the document in the chat it came from.
+  const openDocInChat = (d: Doc) => {
     openChat(d.thread_id);
     go.document(d.media_id);
   };
+  const toggle = (id: string) => setOpen((o) => (o === id ? undefined : id));
+  const openWidget = open ? surfaces[open] : undefined;
+  const openDoc = open ? docs?.find((d) => d.media_id === open) : undefined;
+  const rowClass = (id: string) =>
+    id === open ? "memory__row artifacts__row is-selected" : "memory__row artifacts__row";
 
   return (
     <div className="memory artifacts">
@@ -99,8 +106,13 @@ export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
         <ul className="memory__list" aria-label={t("project.tab.artifacts")}>
           {items.map((i) =>
             i.kind === "widget" ? (
-              <li key={i.widget.id} className="memory__row artifacts__row">
-                <button type="button" className="artifacts__open" onClick={() => go.app(i.widget.id)}>
+              <li key={i.widget.id} className={rowClass(i.widget.id)}>
+                <button
+                  type="button"
+                  className="artifacts__open"
+                  aria-expanded={i.widget.id === open}
+                  onClick={() => toggle(i.widget.id)}
+                >
                   <Icons.LayoutGrid size={16} />
                   <span className="artifacts__title">{i.widget.title}</span>
                 </button>
@@ -123,8 +135,13 @@ export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
                 </div>
               </li>
             ) : (
-              <li key={i.doc.media_id} className="memory__row artifacts__row">
-                <button type="button" className="artifacts__open" onClick={() => openDoc(i.doc)}>
+              <li key={i.doc.media_id} className={rowClass(i.doc.media_id)}>
+                <button
+                  type="button"
+                  className="artifacts__open"
+                  aria-expanded={i.doc.media_id === open}
+                  onClick={() => toggle(i.doc.media_id)}
+                >
                   <Icons.FileText size={16} />
                   <span className="artifacts__title">{i.doc.title}</span>
                 </button>
@@ -141,6 +158,15 @@ export function ProjectArtifacts({ project }: { project: ProjectEntry }) {
             ),
           )}
         </ul>
+      )}
+      {openWidget && <WidgetDrawer key={openWidget.id} surface={openWidget} onClose={() => setOpen(undefined)} />}
+      {openDoc && (
+        <DocumentDrawer
+          key={openDoc.media_id}
+          doc={openDoc}
+          onOpenChat={() => openDocInChat(openDoc)}
+          onClose={() => setOpen(undefined)}
+        />
       )}
     </div>
   );
