@@ -71,6 +71,11 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.pick.body": "Leela, decile al agente qué contestar o escribí vos.",
   "ch.back": "Volver a los contactos",
   "ch.contact": "Contacto",
+  "ch.recover": "Recuperar archivos",
+  "ch.recover.hint":
+    "Volver a pedirle a WhatsApp los archivos que nunca llegaron acá (el teléfono tiene que estar en línea)",
+  "ch.recover.done": "Se recuperaron {n} de {total} archivos",
+  "ch.recover.none": "No volvió ningún archivo: {reason}",
   "ch.you": "Vos",
   "ch.agentDid": "{agent}: {what}",
   "ch.who": "Quién contesta",

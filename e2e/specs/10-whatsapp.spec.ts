@@ -109,6 +109,29 @@ test("a contact's video plays in the chat's own player, and a document of any ty
   await expect(page.getByText(/cannot read this kind/)).toHaveCount(0);
 });
 
+test("a video kept only as a placeholder: 'Recover files' asks the phone again and it plays in the chat", async ({
+  page,
+}) => {
+  const mp4 = Buffer.concat([Buffer.from("000000186674797069736f6d", "hex"), Buffer.alloc(32 * 1024, 2)]);
+  // What APX kept of a video before it read media: the words only. The phone still has the video.
+  const answers = (await world.whatsapp.sentTo(FRIEND.phone)).length;
+  const id = await world.whatsapp.message(FRIEND, "[video — APX cannot read this kind of message yet]");
+  await until(async () => (await world.whatsapp.sentTo(FRIEND.phone)).length > answers);
+  await world.whatsapp.keep(id, { videoMessage: { mimetype: "video/mp4" }, bytes: mp4.toString("base64") });
+  await open(page);
+  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.getByRole("button", { name: /Lucía/ }).first().click();
+  await expect(page.getByText(/cannot read this kind/)).toBeVisible();
+  const calls = await world.llmCalls();
+
+  await page.getByRole("button", { name: "Recuperar archivos" }).click();
+  await expect(page.getByText("Se recuperaron 1 de 1 archivos")).toBeVisible();
+  await expect(page.locator('video[aria-label="video.mp4"]').last()).toBeVisible();
+  await expect(page.getByText(/cannot read this kind/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Recuperar archivos" })).toHaveCount(0);
+  expect(await world.llmCalls()).toBe(calls);
+});
+
 test("the line turned into the owner's own phone: 'Message yourself' is the owner", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: "WhatsApp", exact: true }).click();

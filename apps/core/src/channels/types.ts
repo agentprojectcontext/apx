@@ -12,6 +12,8 @@
 import type { ChannelInfo } from "@apx/protocol";
 import type { Inbound, InboundAction, InboundReaction, Presentation } from "../domain/channels.ts";
 
+type InboundFile = NonNullable<Inbound["files"]>[number];
+
 export type ChannelConfig = Omit<ChannelInfo, "token_set" | "token_hint" | "status" | "error" | "account">;
 
 export type AdapterCaps = {
@@ -93,7 +95,17 @@ export interface ChannelAdapter {
   presence?(externalIds: string[]): Record<string, Presence>;
   /** The rooms of the servers the bot is in (to pick from instead of typing ids), and whether it may write in each. */
   rooms?(): Promise<ServerRoom[]>;
+  /**
+   * Asks the platform to send these messages again, for files that never arrived (WhatsApp: the owner's phone resends
+   * each by its id); resolves with what came. An id missing from `found` got no answer.
+   */
+  recover?(conversation: string, messages: Array<{ id: string; fromMe: boolean }>): Promise<Recovered>;
 }
+
+/** Each message that came again: its file, or why it has none. */
+export type Recovered = {
+  found: Array<{ id: string; file?: InboundFile | undefined; failure?: string | undefined }>;
+};
 
 export type ServerRoom = { id: string; name: string; server: string; writable: boolean };
 

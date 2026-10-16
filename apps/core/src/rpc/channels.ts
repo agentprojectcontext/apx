@@ -88,6 +88,14 @@ export function channelHandlers(store: Store, channels: Channels) {
         throw badRequest(errorMessage(err));
       }
     },
+    "channels.recover": async ({ thread }) => {
+      if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
+      try {
+        return await channels.recover(thread);
+      } catch (err) {
+        throw badRequest(errorMessage(err));
+      }
+    },
     "channels.outbox": ({ limit }) => ({
       items: store.channels.outbox.recent(limit).map(publicOutbox),
     }),

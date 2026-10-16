@@ -231,6 +231,17 @@ export async function sendDirect(thread: string, text: string): Promise<boolean>
   }
 }
 
+/** Asks the channel again for a chat's files that never arrived; the messages update by themselves as they come. */
+export async function recoverFiles(thread: string): Promise<void> {
+  try {
+    const r = await client.call("channels.recover", { thread });
+    if (r.recovered.length) notify(t("ch.recover.done", { n: r.recovered.length, total: r.asked }), "info");
+    else notify(t("ch.recover.none", { reason: r.reason ?? r.missing[0]?.reason ?? "" }));
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+  }
+}
+
 /**
  * A contact's chat on a channel, made empty when they have none yet, ready in the app to write in. Undefined (and a
  * notice) when it could not be opened.

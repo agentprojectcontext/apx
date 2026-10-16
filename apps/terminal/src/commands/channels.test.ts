@@ -32,3 +32,20 @@ test("send refuses an unknown or ambiguous contact and a missing text, sending n
   await assert.rejects(channels(client, ["send", "telegram-main", "per_1"], {}), /apx channels send/);
   assert.ok(!calls.some(([m]) => m !== "contacts.list"));
 });
+
+test("recover asks for a chat's lost files and prints what came and why the rest did not", async () => {
+  const { client, calls } = recordingClient({
+    "channels.recover": {
+      asked: 2,
+      recovered: [{ message_id: "msg_1", name: "video.mp4" }],
+      missing: [{ message_id: "msg_2", reason: "WhatsApp did not send this message again" }],
+    },
+  });
+  const out = await printed(() => channels(client, ["recover", "thr_c"], {}));
+  assert.deepEqual(calls, [["channels.recover", { thread: "thr_c" }]]);
+  assert.equal(
+    out,
+    "recovered video.mp4  (msg_1)\nmissing   msg_2: WhatsApp did not send this message again\n1 of 2 recovered",
+  );
+  await assert.rejects(channels(client, ["recover"], {}), /apx channels recover/);
+});

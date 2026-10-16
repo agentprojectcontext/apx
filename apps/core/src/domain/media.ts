@@ -1,5 +1,6 @@
 // Media APX made (generated images, synthesized speech) or the owner attached (images, files): one row per file. The bytes stay on disk under the home,
 // never in the database or in messages; clients fetch them through media.get.
+import type { Part } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { MediaTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
@@ -15,6 +16,15 @@ export type MediaRecord = {
   prompt?: string | undefined;
   created_at: string;
 };
+
+/** How a kept file shows in a message: a picture, a sound, or a file to play or download. */
+export function partOfMedia(m: MediaRecord): Part {
+  return m.kind === "image"
+    ? { type: "image", media_id: m.id, mime: m.mime, alt: m.prompt ?? "image" }
+    : m.kind === "audio"
+      ? { type: "audio", media_id: m.id, mime: m.mime }
+      : { type: "file", media_id: m.id, mime: m.mime, name: m.prompt ?? m.id, bytes: m.bytes };
+}
 
 const toMedia = (r: Selectable<MediaTable>): MediaRecord => ({
   id: r.id,

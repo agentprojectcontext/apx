@@ -6,7 +6,7 @@ import { AudioPart } from "../chat/parts/lazyAudio.tsx";
 import { bubbleFiles, mediaBlocks, withoutFilesNote } from "../chat/parts/mediaGroups.ts";
 import { shortWhen } from "../common/format.ts";
 import { loadThread, markRead, send } from "../data/actions.ts";
-import { openContactChat, type PresenceState, sendDirect } from "../data/channels.ts";
+import { openContactChat, type PresenceState, recoverFiles, sendDirect } from "../data/channels.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
@@ -14,6 +14,10 @@ import { RELATION_KEY } from "./ChannelScreen.tsx";
 import { addressText, ContactFace } from "./ContactRow.tsx";
 import { DeliveryTicks, ReactionList } from "./MessageMarks.tsx";
 import { isSignal } from "./signal.ts";
+
+/** What a file that never arrived left in its message (the core asks for it again: channels.recover). */
+const LOST_FILE =
+  /\[(?:(?:photo|video|file|sticker) — APX cannot read this kind of message yet|attachment could not be downloaded: [^\]\n]*)\]/;
 
 // Pictures and videos load with the first message that has them, as in the chat.
 const MediaGroup = lazy(() => import("../chat/parts/MediaGroup.tsx"));
@@ -42,6 +46,7 @@ export function ChannelConversation(props: {
   const [mode, setMode] = useState("agent");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [recovering, setRecovering] = useState(false);
   const end = useRef<HTMLDivElement>(null);
   const name = person?.name ?? thread?.title ?? "";
   const agentName = agent?.name ?? channel.agent_id;
@@ -94,6 +99,20 @@ export function ChannelConversation(props: {
     person?.relation ? t(RELATION_KEY[person.relation]) : undefined,
   ].filter(Boolean);
   const address = addressText(channel.type, person, channel.id);
+  // Only WhatsApp can send old messages again (the owner's phone keeps them).
+  const lostFiles =
+    channel.type === "whatsapp" &&
+    (messages ?? []).some(
+      (m) =>
+        m.author.kind === "person" &&
+        !m.parts.some((p) => p.type === "file" || p.type === "image") &&
+        m.parts.some((p) => p.type === "text" && LOST_FILE.test(p.text)),
+    );
+  const recover = async () => {
+    setRecovering(true);
+    await recoverFiles(threadId);
+    setRecovering(false);
+  };
 
   return (
     <section className="chan__chat" aria-label={name}>
@@ -118,6 +137,18 @@ export function ChannelConversation(props: {
             <span className="chan__meta">{meta.join(" · ")}</span>
           </span>
         </button>
+        {lostFiles && (
+          <Button
+            size="sm"
+            variant="ghost"
+            title={t("ch.recover.hint")}
+            leadingIcon={<Icons.Download size={14} />}
+            disabled={recovering}
+            onClick={() => void recover()}
+          >
+            {t("ch.recover")}
+          </Button>
+        )}
         <Button
           size="sm"
           variant={props.card ? "secondary" : "ghost"}

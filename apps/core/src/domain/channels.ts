@@ -153,6 +153,25 @@ export function channelsRepo({ one, all, run }: Sql) {
         }
         return [...seen.values()];
       },
+      /** A conversation's messages as they came in (oldest first), each with the platform's id and its arrival. */
+      history(
+        channel: string,
+        conversation: string,
+        limit = 2000,
+      ): Array<{ external_id: string; created_at: string; payload: Inbound }> {
+        const newest = qb
+          .selectFrom("channel_inbox")
+          .select(["external_id", "created_at", "payload"])
+          .where("channel", "=", channel)
+          .where("conversation", "=", conversation)
+          .orderBy("created_at", "desc")
+          .limit(limit);
+        return all(qb.selectFrom(newest.as("m")).selectAll().orderBy("created_at")).map((r) => ({
+          external_id: r.external_id,
+          created_at: r.created_at,
+          payload: JSON.parse(r.payload) as Inbound,
+        }));
+      },
       /** The last message that came in on a conversation. */
       latest(channel: string, conversation: string): Inbound | undefined {
         const r = one(

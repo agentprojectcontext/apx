@@ -3,7 +3,7 @@
 
 import { type Thread, UPLOAD_LIMITS } from "@apx/protocol";
 import type { Inbound, InboundAction, InboundReaction, OutboxRow, Presentation } from "../domain/channels.ts";
-import type { MediaRecord } from "../domain/media.ts";
+import { type MediaRecord, partOfMedia } from "../domain/media.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
@@ -374,14 +374,7 @@ export function createInbound(deps: {
           { type: "text", text },
           ...attachments.flatMap((id) => {
             const m = store.media.get(id);
-            if (!m) return [];
-            return [
-              m.kind === "image"
-                ? { type: "image" as const, media_id: id, mime: m.mime, alt: m.prompt ?? "image" }
-                : m.kind === "audio"
-                  ? { type: "audio" as const, media_id: id, mime: m.mime }
-                  : { type: "file" as const, media_id: id, mime: m.mime, name: m.prompt ?? id, bytes: m.bytes },
-            ];
+            return m ? [partOfMedia(m)] : [];
           }),
         ],
       });
