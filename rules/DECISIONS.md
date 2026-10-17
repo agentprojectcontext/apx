@@ -1131,6 +1131,7 @@ its project's notes and its own, and a global note only when a match shares at l
 task text; notes of other projects were never visible. The word test is deliberate: search by meaning fuses ranks and
 exposes no score to filter on. The owner's direct turns keep D-013 as it was.
 
+<a id="d-096"></a>
 ## D-096 — 2026-10-17 — A delegation past the cap waits in a queue instead of being refused
 With three delegations already running from a thread, `delegate` answered "refused", and an orchestrator fanning out an
 audit never asked again: a whole part of the owner's request was never looked at. Now the fourth (and later) is accepted
@@ -1141,3 +1142,19 @@ and its result reaches the caller as any delegation's does. A queued run is canc
 the caller's turn or thread, `jobs.cancel`), outlives a restart (the boot starts what fits after the cut ones resume), and
 is cancelled rather than started if its caller's run or thread is gone. The cap itself and the breaker are unchanged:
 queued runs count as turns agents started on their own from the moment they are queued.
+
+<a id="d-097"></a>
+## D-097 — 2026-10-17 — A project may have read-only folders: its agents read them and change nothing there
+An audit of one checkout against a sibling one failed because the sibling was outside the project's folder: helpers
+could not read it, and the only way in was a relative path one tool let through. The owner now adds read-only folders
+to a project (Project settings, `projects.update` `read_only_folders`, `apx projects folders`). They are roots of the
+one folder rule (`tools/folders.ts`), after the folder the agent works in and its temp folder, so `file_read` and
+`shell` read there and every write is refused with the read-only refusal; the first root holding a path decides, so a
+parent of the project's folder leaves the project writable. A shell command in one is judged by whether it writes, not
+by where its arguments point (each path it names is judged by the rule). Each turn's input names them (not the
+system prompt). They are kept in APX's database like autonomy (D-072), never in `.apc/`: a folder someone else wrote
+cannot widen what its agents read. A folder must be absolute, on disk, outside APX's home and not holding it (its
+database and secrets), and not inside the project's own folder (already writable there). Outside agents: Claude Code
+and ACP agents ask APX about each of their tools, and reads in these folders now run without asking while any change
+there is refused; Codex's sandbox already reads anywhere and its `additionalDirectories` would make a folder writable,
+so it is not given them. The base project has none yet.

@@ -735,4 +735,9 @@ export const MIGRATIONS: readonly string[] = [
   UPDATE meta SET value = json_remove(value, '$.tokens')
     WHERE key = 'setting:agent_limits' AND json_extract(value, '$.tokens') = 600000;
   `,
+  `
+  -- Folders a project's agents may read and never change (tools/folders.ts rootsOf), a JSON array of absolute paths:
+  -- kept by APX, as autonomy is, so a folder someone else wrote cannot widen what its agents read.
+  ALTER TABLE projects ADD COLUMN read_only_folders TEXT;
+  `,
 ];

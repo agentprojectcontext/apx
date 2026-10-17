@@ -1,10 +1,11 @@
 // The folders an agent may use, and the one rule every APX tool (files, shell, sending a file) asks about a path:
 // readable, writable or refused, the same whether the path is written relative or absolute.
 import { createHash } from "node:crypto";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { Store } from "../domain/store.ts";
-import { expandHome, insideReal } from "../paths.ts";
+import { expandHome, insideReal, isInside, real } from "../paths.ts";
 
 /**
  * APX's own folder for a project, so one project's files never land among another's: the project's folder when APX
@@ -67,12 +68,43 @@ export type Root = { dir: string; write: boolean; scratch: boolean };
 
 type Thread = Parameters<typeof workDir>[2] & Parameters<typeof scratchDir>[2];
 
-/** The folders of a thread's agent: where it works and its temp folder, both writable. */
+/** The folders the owner added to a thread's project for its agents to read and never change. */
+export function readOnlyFolders(store: Store, thread: { project_id?: string | undefined }): string[] {
+  return (thread.project_id && store.projects.get(thread.project_id)?.read_only_folders) || [];
+}
+
+/**
+ * The folders of a thread's agent: where it works and its temp folder, both writable, then its project's read-only
+ * folders. The first that holds a path decides, so a read-only parent of the work folder leaves the work folder writable.
+ */
 export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
   return [
     { dir: workDir(store, home, thread), write: true, scratch: false },
     { dir: scratchDir(store, home, thread), write: true, scratch: true },
+    ...readOnlyFolders(store, thread).map((dir) => ({ dir, write: false, scratch: false })),
   ];
+}
+
+/**
+ * A project's read-only folders as the owner gave them, checked: absolute (or `~/…`), on disk, a folder, not APX's home
+ * nor in it nor holding it (its database and secrets), not in the project's own folder (already readable and writable
+ * there, so listing it would only mislead). Duplicates are dropped. Throws the first problem.
+ */
+export function checkReadOnly(home: string, project: { path?: string | undefined }, folders: string[]): string[] {
+  const apx = real(home);
+  const own = project.path ? real(project.path) : undefined;
+  const out: string[] = [];
+  for (const given of folders) {
+    const p = expandHome(given.trim());
+    if (!path.isAbsolute(p)) throw new Error(`${given} is not an absolute path`);
+    const dir = path.resolve(p);
+    if (!fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory()) throw new Error(`${given} is not a folder here`);
+    const at = real(dir);
+    if (isInside(at, apx) || isInside(apx, at)) throw new Error(`${given} holds or is inside APX's own folder`);
+    if (own && isInside(own, at)) throw new Error(`${given} is already in the project's folder`);
+    if (!out.some((o) => real(o) === at)) out.push(dir);
+  }
+  return out;
 }
 
 /** Where a path lands (`base`: the folder it is in) and whether it may be changed, or why it is refused. */

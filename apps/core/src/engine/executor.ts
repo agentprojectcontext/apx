@@ -121,6 +121,8 @@ export function createExecutor(o: {
   apxPort: () => number;
   /** Where an outside agent works (harnessDir): its tools are checked against this folder. */
   workDir: string;
+  /** The project's read-only folders: an outside agent reads there as in its own folder and changes nothing. */
+  readOnly?: string[];
 }): Executor {
   const { store, display, signal, agent, thread } = o;
   const byName = new Map(o.tools.map((t) => [t.name, t]));
@@ -347,8 +349,10 @@ export function createExecutor(o: {
     const base = o.workDir;
     const paths = pathsOf(req.input);
     const command = (req.input as { command?: unknown } | undefined)?.command;
-    const inside = paths.every((p) => insideReal(base, p));
     const reading = READING.has(req.kind);
+    const readOnly = (p: string) => !insideReal(base, p) && (o.readOnly ?? []).some((d) => insideReal(d, p));
+    if (!reading && paths.some(readOnly)) return false;
+    const inside = paths.every((p) => insideReal(base, p) || (reading && readOnly(p)));
     const level = externalLevel(req.kind, inside, command);
     // A code thread's write policy comes first: read-only lets only reading run; auto lets edits inside its folder,
     // never to git's config, APC files or AGENTS.md.

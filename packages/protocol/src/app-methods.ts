@@ -498,6 +498,8 @@ export const appMethods = {
         kind: ProjectKind.nullable().optional(),
         /** How far agents without one of their own go here; null = standard. Kept by APX, not in the folder. */
         autonomy: Autonomy.nullable().optional(),
+        /** Replaces the folders its agents may only read: absolute (or "~/…"), existing, outside APX's home. */
+        read_only_folders: z.array(z.string().trim().min(1).max(1024)).max(20).optional(),
       })
       .strict(),
     result: z.object({ project: Project }),

@@ -21,6 +21,7 @@ apx projects register ~/work/existing-repo     # a folder that already has AGENT
 apx projects set <project-id> --name "Northwind Ltd" --desc "…"           # only what you give changes
 apx projects set <project-id> --desc ""        # an empty value removes the description
 apx projects set <project-id> --autonomy edits # how far its agents go without asking (only when the owner asks)
+apx projects folders add <project-id> ~/work/other-repo   # a folder its agents may read, never change (owner's OK)
 ```
 
 - Autonomy is one of `ask`, `standard`, `edits` (writes files and runs commands in the project's folder without

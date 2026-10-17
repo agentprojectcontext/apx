@@ -665,6 +665,13 @@ export const es: Partial<Record<MessageKey, string>> = {
   "project.settings.folderHint":
     "La usan los chats que trabajan en la carpeta, y su .apc/ guarda los agentes y la configuración.",
   "project.settings.folderMissing": "La carpeta no está en el disco ahora (se movió, o es un disco sin montar).",
+  "project.settings.readOnly": "Carpetas de solo lectura",
+  "project.settings.readOnlyHint":
+    "Los agentes de este proyecto pueden leerlas (otro checkout, documentación) y nunca cambiarlas. Las guarda APX, no la carpeta.",
+  "project.settings.readOnlyNone": "Ninguna todavía.",
+  "project.settings.readOnlyPlaceholder": "Ruta absoluta, como ~/work/referencia",
+  "project.settings.readOnlyAdd": "Agregar",
+  "project.settings.readOnlyRemove": "Quitar {path}",
   "project.kind.none": "Sin definir",
   "project.kind.personal": "Personal",
   "project.kind.personal.hint": "Cosas tuyas. Sin equipo ni estructura.",

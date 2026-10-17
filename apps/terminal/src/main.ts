@@ -114,6 +114,8 @@ Usage:
                            A new project: in that folder (made if missing), else in a folder of its own in APX's home
   apx projects set <project> [--name "…"] [--kind …] [--desc "…"] [--autonomy ask|standard|edits|total]
                            Rename it, change its kind or description, or how far its agents go without asking
+  apx projects folders list|add|rm <project> [folder]
+                           Folders its agents may read and never change (another checkout, docs)
   apx projects rm <project>   Forget a project in APX; its folder and files are never deleted
   apx init [folder]       Make a folder (default: this one) an APC project and register it; writes only what is
                            missing (AGENTS.md, .apc/), never over an existing file

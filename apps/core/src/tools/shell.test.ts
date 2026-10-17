@@ -11,6 +11,8 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "find . -name x.ts -type f",
     "pwd && date",
     "pwd; ls -la",
+    "rg -n 'TODO' src | head",
+    "git -C src log --oneline",
   ])
     assert.equal(commandRisk(c), "never", c);
   // Quoted globs and find's grouping are how these commands are normally written.
@@ -47,9 +49,15 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "cat ../x",
     "tree -o f",
     "rg --pre ./s x",
+    "rg --hostname-bin=./s x",
     "ls; rm x",
   ];
   for (const c of asks) assert.equal(commandRisk(c), "ask", c);
+  // A caller that judges each named path itself (the folder rule) only asks whether the command writes.
+  for (const c of ["cat /etc/passwd", "rg -n x ../other/src", "git -C /src/v1 log"])
+    assert.equal(commandRisk(c, undefined, { anywhere: true }), "never", c);
+  for (const c of ["touch /src/v1/x", "cat ~/.ssh/id_rsa", "rg --pre ./s x /src/v1"])
+    assert.equal(commandRisk(c, undefined, { anywhere: true }), "ask", c);
   const destroys = [
     "rm -rf build",
     "sudo ls",

@@ -88,6 +88,8 @@ export const Project = z.object({
   path: z.string().optional(),
   /** How far its agents go on their own when they set nothing themselves; kept by APX, never in the folder. */
   autonomy: Autonomy.optional(),
+  /** Absolute folders its agents may read and never change (another checkout, docs); kept by APX. */
+  read_only_folders: z.array(z.string()).optional(),
 });
 export type Project = z.infer<typeof Project>;
 

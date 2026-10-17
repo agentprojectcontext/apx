@@ -140,6 +140,7 @@ Hay dos tareas abiertas en Acme Store: el catálogo de primavera (en curso, Luc�
 | `apx projects register <folder>` | Registra una carpeta con `AGENTS.md` y/o `.apc/`. |
 | `apx projects create "<Name>"` | Un proyecto nuevo, en `--path <folder>` (se crea si falta) o en una carpeta propia en el home de APX; `--kind personal\|app\|company\|software\|other`, `--desc "…"`. |
 | `apx projects set <project>` | Cambia `--name`, `--kind`, `--desc` o `--autonomy ask\|standard\|edits\|total` (hasta dónde llegan sus agentes sin preguntar). |
+| `apx projects folders list\|add\|rm <project> [folder]` | Carpetas que sus agentes pueden leer y nunca cambiar (otro checkout, documentación): `file_read` y `shell` leen ahí, nada escribe. |
 | `apx projects rm <project>` | Lo olvida en APX; su carpeta y sus archivos nunca se borran. |
 | `apx init [folder]` | Convierte una carpeta (esta por defecto) en un proyecto APC y la registra; solo escribe lo que falta (`AGENTS.md`, `.apc/`). |
 | `apx projects sync [project]` | Vuelve a leer los archivos del proyecto. |

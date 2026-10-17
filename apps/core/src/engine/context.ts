@@ -174,9 +174,16 @@ const WRITES: Record<NonNullable<Thread["write"]>, string> = {
     "read-only (nothing here may change; shell runs only plain reads: simple commands such as ls, cat, grep, find or git status|log|diff|show, joined by && | ;, with relative paths and no $, redirects, parentheses, braces, brackets, #, ~, .. or absolute paths)",
 };
 
-/** A code thread's folder and write policy, so its agent can state them; in the turn's input, as both can change. */
-export function workspaceBlock(thread: Pick<Thread, "cwd" | "write">): string | undefined {
-  return thread.cwd && thread.write ? `Folder: ${thread.cwd} · writes: ${WRITES[thread.write]}` : undefined;
+/**
+ * A code thread's folder and write policy, and the project's read-only folders, so its agent can state and use them;
+ * in the turn's input, as all can change.
+ */
+export function workspaceBlock(thread: Pick<Thread, "cwd" | "write">, readOnly: string[] = []): string | undefined {
+  const lines = [
+    thread.cwd && thread.write ? `Folder: ${thread.cwd} · writes: ${WRITES[thread.write]}` : "",
+    readOnly.length ? `Read-only folders (read with file tools or shell, never change): ${readOnly.join(", ")}` : "",
+  ].filter(Boolean);
+  return lines.length ? lines.join("\n") : undefined;
 }
 
 /** The other agents in scope here (global ones and the thread's project team): whom to delegate to, or to name. */
@@ -278,7 +285,7 @@ export function turnInput(opts: {
   channel?: string | undefined;
   /** The chat gets spoken answers: the first paragraph becomes a voice note. */
   voice?: boolean | undefined;
-  /** A code thread: its folder and what may change there (workspaceBlock). */
+  /** A code thread's folder and what may change there, the project's read-only folders (workspaceBlock). */
   workspace?: string | undefined;
 }): string {
   const when = opts.now.toLocaleString("en-US", {

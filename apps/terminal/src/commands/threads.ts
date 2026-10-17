@@ -196,6 +196,7 @@ export async function projects(client: ApxClient, [sub, arg, ...more]: string[],
     );
     return;
   }
+  if (sub === "folders") return folders(client, arg, more);
   if (sub === "sync") {
     const r = await client.call("projects.sync", arg ? { project: arg } : {});
     console.log(`read ${r.projects} projects · ${r.agents} agents · ${r.archived} archived`);
@@ -208,6 +209,26 @@ export async function projects(client: ApxClient, [sub, arg, ...more]: string[],
     return;
   }
   throw new Error(`unknown projects command: ${sub}`);
+}
+
+/** apx projects folders: the folders a project's agents may read and never change. */
+async function folders(client: ApxClient, sub: string | undefined, [project, dir]: string[]): Promise<void> {
+  const usage = "usage: apx projects folders list|add|rm <project> [folder]";
+  if (!sub || !project || !["list", "add", "rm"].includes(sub) || (sub !== "list" && !dir)) throw new Error(usage);
+  const { projects } = await client.call("projects.list", {});
+  const p = projects.find((x) => x.id === project);
+  if (!p) throw new Error(`no project ${project}`);
+  let shown = p.read_only_folders ?? [];
+  if (dir && sub !== "list") {
+    const { resolve } = await import("node:path");
+    const { homedir } = await import("node:os");
+    const at = resolve(dir.replace(/^~(?=$|[/\\])/, homedir()));
+    const next = sub === "add" ? [...shown, at] : shown.filter((f) => f !== at && f !== dir);
+    if (next.length === shown.length) throw new Error(`${dir} is not a read-only folder of ${p.name}`);
+    const r = await client.call("projects.update", { project, read_only_folders: next });
+    shown = r.project.read_only_folders ?? [];
+  }
+  console.log(shown.length ? shown.join("\n") : `(${p.name} has no read-only folders)`);
 }
 
 export async function jobs(client: ApxClient, [sub, id]: string[]): Promise<void> {

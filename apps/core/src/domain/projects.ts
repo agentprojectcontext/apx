@@ -18,7 +18,20 @@ const toProject = (r: Selectable<ProjectsTable>): ProjectRecord => ({
   ...opt("context", r.context),
   ...opt("memory", r.memory_md),
   ...autonomyOf(r.autonomy),
+  ...foldersOf(r.read_only_folders),
 });
+
+/** A stored list of folders; anything that is not a list of strings reads as none. */
+function foldersOf(v: string | null): { read_only_folders?: string[] } {
+  try {
+    const list: unknown = v ? JSON.parse(v) : undefined;
+    return Array.isArray(list) && list.length && list.every((x) => typeof x === "string")
+      ? { read_only_folders: list }
+      : {};
+  } catch {
+    return {};
+  }
+}
 
 /** A stored autonomy APX knows; anything else reads as none. */
 function autonomyOf(v: string | null): { autonomy?: Autonomy } {
@@ -147,6 +160,15 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
         qb
           .updateTable("projects")
           .set({ autonomy: autonomy ?? null })
+          .where("id", "=", id),
+      );
+    },
+    /** The folders its agents may only read, already checked (tools/folders.ts checkReadOnly); [] removes them. */
+    setReadOnlyFolders(id: string, folders: string[]): void {
+      write(
+        qb
+          .updateTable("projects")
+          .set({ read_only_folders: folders.length ? JSON.stringify(folders) : null })
           .where("id", "=", id),
       );
     },

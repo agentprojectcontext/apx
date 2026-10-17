@@ -806,6 +806,30 @@
   color: var(--apx-fg-muted);
   overflow-wrap: anywhere;
 }
+.projsettings__folders {
+  display: flex;
+  flex-direction: column;
+  gap: var(--apx-space-2);
+}
+.projsettings__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.projsettings__list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--apx-space-2);
+}
+.projsettings__none {
+  margin: 0;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
 
 /* Areas and roles of a company project. */
 .org__grid {

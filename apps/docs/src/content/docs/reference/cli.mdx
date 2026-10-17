@@ -141,6 +141,7 @@ Two tasks are open in Acme Store: the spring catalog (in progress, Lucía) and t
 | `apx projects register <folder>` | Register a folder with `AGENTS.md` and/or `.apc/`. |
 | `apx projects create "<Name>"` | A new project, in `--path <folder>` (made if missing) or a folder of its own in APX's home; `--kind personal\|app\|company\|software\|other`, `--desc "…"`. |
 | `apx projects set <project>` | Change `--name`, `--kind`, `--desc` or `--autonomy ask\|standard\|edits\|total` (how far its agents go without asking). |
+| `apx projects folders list\|add\|rm <project> [folder]` | Folders its agents may read and never change (another checkout, docs): `file_read` and `shell` read there, nothing writes. |
 | `apx projects rm <project>` | Forget it in APX; its folder and files are never deleted. |
 | `apx init [folder]` | Make a folder (this one by default) an APC project and register it; writes only what is missing (`AGENTS.md`, `.apc/`). |
 | `apx projects sync [project]` | Read the project files again. |
