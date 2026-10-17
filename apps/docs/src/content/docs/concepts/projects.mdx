@@ -104,7 +104,9 @@ Read the files again by hand, for every project or one:
 An agent reads and writes only in the folder it works in and its own temp folder. When a task needs another folder,
 like a second checkout to compare against or a folder of docs, add it as a **read-only folder** of the project. Its
 agents, and the helpers they delegate to, can read it with `file_read` and with commands like `cat`, `rg` or
-`git log`. Nothing can write there. Each turn tells the agent which folders these are.
+`git log`, and copy from it into their own folder. APX refuses every write it can see there, from a file tool or in a
+command. That check is what protects the folder, not an operating-system sandbox: a script that builds a path while it
+runs is not caught. Each turn tells the agent which folders these are.
 
 <Tabs syncKey="surface">
   <TabItem label="Panel">

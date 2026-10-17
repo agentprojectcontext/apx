@@ -103,7 +103,9 @@ Releé los archivos a mano, de todos los proyectos o de uno:
 Un agente lee y escribe solo en la carpeta donde trabaja y en su carpeta temporal. Cuando una tarea necesita otra
 carpeta, por ejemplo otro checkout para comparar o una carpeta de documentación, sumala como **carpeta de solo
 lectura** del proyecto. Sus agentes, y los ayudantes a los que delegan, pueden leerla con `file_read` y con comandos
-como `cat`, `rg` o `git log`. Nada puede escribir ahí. Cada turno le dice al agente cuáles son.
+como `cat`, `rg` o `git log`, y copiar de ella a su propia carpeta. APX rechaza toda escritura que puede ver ahí,
+desde una herramienta de archivos o en un comando. Esa revisión es lo que protege la carpeta, no un sandbox del sistema
+operativo: un script que arma una ruta mientras corre no se detecta. Cada turno le dice al agente cuáles son.
 
 <Tabs syncKey="surface">
   <TabItem label="Panel">
