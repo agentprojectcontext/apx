@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { OrgArea, type Organization, OrgRole } from "@apx/protocol";
 import { writeAtomic } from "../paths.ts";
+import { withoutBom } from "./read.ts";
 
 export const EMPTY_ORG: Organization = { areas: [], roles: [] };
 
@@ -23,7 +24,7 @@ const clean = (x: unknown) =>
 export function readOrganization(root: string): Organization {
   let raw: { areas?: unknown; roles?: unknown };
   try {
-    raw = JSON.parse(fs.readFileSync(orgFile(root), "utf8")) as typeof raw;
+    raw = JSON.parse(withoutBom(fs.readFileSync(orgFile(root), "utf8"))) as typeof raw;
   } catch {
     return EMPTY_ORG;
   }

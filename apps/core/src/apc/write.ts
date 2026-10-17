@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { writeAtomic } from "../paths.ts";
 import { listField, parseFrontmatter } from "./frontmatter.ts";
-import { SLUG_RE } from "./read.ts";
+import { SLUG_RE, withoutBom } from "./read.ts";
 
 export type AgentFileFields = {
   name?: string | undefined;
@@ -75,7 +75,7 @@ function setFields(front: string[], fields: Record<string, string | string[] | u
 }
 
 function split(text: string): { front: string[]; body: string } {
-  const src = text.replace(/\r\n/g, "\n");
+  const src = withoutBom(text).replace(/\r\n/g, "\n");
   if (!src.startsWith("---\n")) return { front: [], body: src.trim() };
   const end = src.indexOf("\n---", 4);
   if (end < 0) return { front: [], body: src.trim() };
@@ -216,7 +216,7 @@ export function writeProjectMeta(root: string, meta: ProjectMeta): void {
     if (isLink(p)) throw new Error(`refusing to write through a symlink: ${path.relative(root, p)}`);
   let current: Record<string, unknown> = {};
   if (fs.existsSync(file)) {
-    const raw = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
+    const raw = JSON.parse(withoutBom(fs.readFileSync(file, "utf8"))) as unknown;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error(".apc/project.json is not an object");
     current = raw as Record<string, unknown>;
   }

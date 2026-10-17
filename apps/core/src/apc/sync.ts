@@ -43,21 +43,29 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
   function syncRoot(root: string): SyncResult {
     const abs = path.resolve(root);
     const p = readProject(abs);
+    // One folder is one project: the record already indexed here keeps its id, chats and tasks even when
+    // project.json's apx_id changed (another tool rewrote it) or cannot be read.
+    const [indexed, ...duplicates] = store.projects.atPath(abs);
     // A clone or worktree carries the same committed apx_id: while the first folder is still there, this one is a
     // different project (its own id from its path), not a replacement.
-    const holder = store.projects.get(projectIdOf(p.id));
+    const holder = indexed ? undefined : store.projects.get(projectIdOf(p.id));
     const taken = holder?.path && holder.path !== abs && fs.existsSync(holder.path);
-    const apcId = taken ? p.pathId : p.id;
-    const projectId = projectIdOf(apcId);
+    const apcId = indexed ? indexed.id.replace(/^p_/, "") : taken ? p.pathId : p.id;
+    const projectId = indexed?.id ?? projectIdOf(apcId);
+    // An unreadable project.json says nothing about the name or kind: keep what the index knew.
+    const meta = p.metaError && indexed ? indexed : p;
+    if (p.metaError) log.warn({ root: abs, err: p.metaError }, "could not read .apc/project.json");
     const agents: ApcAgent[] = readAgents(abs);
     const present = new Set(agents.map((a) => a.slug));
     return store.tx(() => {
+      // A second record an earlier apx_id change left at this folder stops being listed; its chats and tasks stay.
+      for (const d of duplicates) if (d.registered !== false) store.projects.unregister(d.id);
       store.projects.upsert({
         id: projectId,
-        name: p.name,
+        name: meta.name,
         path: abs,
-        ...(p.description ? { description: p.description } : {}),
-        ...(p.kind ? { kind: p.kind } : {}),
+        ...(meta.description ? { description: meta.description } : {}),
+        ...(meta.kind ? { kind: meta.kind } : {}),
         ...(p.context ? { context: p.context } : {}),
         ...(p.memory ? { memory: p.memory } : {}),
         present: true,

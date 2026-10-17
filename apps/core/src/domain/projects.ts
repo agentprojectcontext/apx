@@ -34,6 +34,17 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
   const write = (q: Parameters<Sql["run"]>[0]) => {
     if (run(q)) changed();
   };
+  /** Every record indexed at a folder, the one that holds it first: registered, then the oldest. */
+  const atPath = (p: string): ProjectRecord[] =>
+    all(
+      qb
+        .selectFrom("projects")
+        .selectAll()
+        .where("path", "=", p)
+        .orderBy("registered", "desc")
+        .orderBy("created_at")
+        .orderBy("id"),
+    ).map(toProject);
   return {
     list(includeUnregistered = false): ProjectRecord[] {
       let query = qb.selectFrom("projects").selectAll().orderBy("name");
@@ -70,9 +81,9 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
       return latest;
     },
     byPath(p: string): ProjectRecord | undefined {
-      const r = one(qb.selectFrom("projects").selectAll().where("path", "=", p));
-      return r ? toProject(r) : undefined;
+      return atPath(p)[0];
     },
+    atPath,
     upsert(p: Omit<ProjectRecord, "present"> & { present?: boolean }): void {
       write(
         qb

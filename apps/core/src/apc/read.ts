@@ -24,6 +24,8 @@ export type ApcProject = {
   context?: string | undefined;
   /** .apc/memory.md (written by the owner), capped. */
   memory?: string | undefined;
+  /** Why .apc/project.json is there but unreadable: its name, kind and apx_id are then unknown, not absent. */
+  metaError?: string | undefined;
 };
 
 export type ApcAgent = {
@@ -44,6 +46,9 @@ export type ApcAgent = {
   fields: Fields;
 };
 
+/** Windows editors and PowerShell 5 may start a UTF-8 file with a BOM; it is not part of the text. */
+export const withoutBom = (text: string): string => text.replace(/^\uFEFF/, "");
+
 /**
  * Reads a project file, refusing symlinks: a repo must not be able to pull any other file of the machine into an
  * agent's prompt.
@@ -51,7 +56,7 @@ export type ApcAgent = {
 export const readText = (file: string): string | undefined => {
   try {
     if (fs.lstatSync(file).isSymbolicLink()) return undefined;
-    return fs.readFileSync(file, "utf8");
+    return withoutBom(fs.readFileSync(file, "utf8"));
   } catch {
     return undefined;
   }
@@ -79,9 +84,17 @@ export function isApcProject(root: string): boolean {
 export function readProject(root: string): ApcProject {
   const abs = path.resolve(root);
   let meta: { name?: string; description?: string; apx_id?: string; kind?: string } = {};
-  try {
-    meta = JSON.parse(readText(path.join(abs, ".apc", "project.json")) ?? "{}");
-  } catch {}
+  let metaError: string | undefined;
+  const metaText = readText(path.join(abs, ".apc", "project.json"));
+  if (metaText !== undefined) {
+    try {
+      const raw = JSON.parse(metaText) as unknown;
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) meta = raw as typeof meta;
+      else metaError = "not a JSON object";
+    } catch (err) {
+      metaError = err instanceof Error ? err.message : String(err);
+    }
+  }
   const pathId = createHash("sha256").update(abs).digest("hex").slice(0, 12);
   const id = meta.apx_id && /^[a-z0-9]{6,32}$/.test(meta.apx_id) ? meta.apx_id : pathId;
   const agentsMd = readText(path.join(abs, "AGENTS.md"));
@@ -96,6 +109,7 @@ export function readProject(root: string): ApcProject {
     kind: meta.kind,
     context: agentsMd ? cap(agentsMd.trim()) : undefined,
     memory: memoryMd ? cap(memoryMd, MEMORY_MD_CAP, ".apc/memory.md") : undefined,
+    metaError,
   };
 }
 

@@ -4,6 +4,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { withoutBom } from "../apc/read.ts";
 import type { Store } from "../domain/store.ts";
 import { extSecret, SECRET_REF } from "../extensions/extensions.ts";
 import { NO_GLOBALS } from "../skills/skills.ts";
@@ -94,7 +95,7 @@ function readProjectFile(root: string): string | undefined {
   const file = path.join(root, ".apc", "mcps.json");
   try {
     if (fs.lstatSync(file).isSymbolicLink() || fs.lstatSync(path.join(root, ".apc")).isSymbolicLink()) return undefined;
-    return fs.readFileSync(file, "utf8");
+    return withoutBom(fs.readFileSync(file, "utf8"));
   } catch {
     return undefined;
   }
@@ -179,7 +180,7 @@ export function mcpConfig(store: Store) {
         throw new Error("mcps.json is a link: not written");
       let doc: Record<string, unknown> = {};
       try {
-        doc = JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
+        doc = JSON.parse(withoutBom(fs.readFileSync(file, "utf8"))) as Record<string, unknown>;
       } catch {}
       const servers = { ...((doc.mcpServers as Record<string, unknown> | undefined) ?? {}) };
       if (server) {

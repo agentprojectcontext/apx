@@ -227,3 +227,18 @@ test("direct MCP calls obey project toggles and cannot be made by an agent", asy
   const agent = new ApxClient({ url: env.core.url, actor: "agent" });
   await assert.rejects(agent.call("mcp.call", { ...target, tool: "echo", arguments: { text: "blocked" } }), /reserved/);
 });
+
+test("a project's mcps.json saved with a BOM is read, and editing it keeps the file's other servers", async () => {
+  const file = path.join(root, ".apc", "mcps.json");
+  fs.writeFileSync(file, `﻿${fs.readFileSync(file, "utf8")}`);
+  const { servers } = await env.client.call("mcp.list", { project });
+  assert.ok(servers.some((x) => x.name === "notes" && x.scope === "project"));
+  await env.client.call("mcp.set", {
+    name: "notes",
+    project,
+    server: { command: process.execPath, args: [SERVER], env: { MODE: "slow" } },
+  });
+  const doc = JSON.parse(fs.readFileSync(file, "utf8"));
+  assert.deepEqual(doc.mcpServers.notes.env, { MODE: "slow" });
+  assert.ok(doc.mcpServers.sneaky, "the rest of the file stays");
+});

@@ -23,6 +23,82 @@ function makeProject(root: string) {
   );
 }
 
+test("one folder is one project: a BOM is read, a changed or unreadable project.json keeps the project", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcid-"));
+  const clone = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcidc-"));
+  const at = async (folder: string) =>
+    (await env.client.call("projects.list", {})).projects
+      .filter((p) => p.path === folder)
+      .map((p) => [p.id, p.name, p.kind]);
+  try {
+    makeProject(root);
+    const meta = path.join(root, ".apc", "project.json");
+    // Windows PowerShell 5 saves UTF-8 with a BOM.
+    fs.writeFileSync(meta, `\uFEFF${fs.readFileSync(meta, "utf8")}`);
+    await env.client.call("projects.register", { path: root });
+    assert.deepEqual(await at(root), [["p_abc123def456", "Northwind", "company"]]);
+
+    // Another tool rewrites the apx_id: the folder keeps its project (and agents), it gets no second one.
+    fs.writeFileSync(meta, JSON.stringify({ name: "Northwind Labs", apx_id: "fedcba654321", kind: "company" }));
+    await env.client.call("projects.sync", { project: "p_abc123def456" });
+    assert.deepEqual(await at(root), [["p_abc123def456", "Northwind Labs", "company"]]);
+    const again = await env.client.call("projects.register", { path: root });
+    assert.equal(again.project.id, "p_abc123def456");
+    assert.deepEqual(await at(root), [["p_abc123def456", "Northwind Labs", "company"]]);
+    const { agents } = await env.client.call("agents.list", {});
+    assert.equal(agents.find((a) => a.id === "abc123def456-arch")?.project_id, "p_abc123def456");
+    assert.ok(!agents.some((a) => a.id.startsWith("fedcba654321-")), "no agents for a second identity");
+
+    // A project.json that does not parse says nothing about the project: its name and kind stay.
+    fs.writeFileSync(meta, "{ name: broken");
+    await env.client.call("projects.sync", { project: "p_abc123def456" });
+    assert.deepEqual(await at(root), [["p_abc123def456", "Northwind Labs", "company"]]);
+
+    // A second record an earlier version left at the same folder stops being listed; its record stays.
+    env.core.store.projects.upsert({ id: "p_zz9876543210", name: "Duplicate", path: root });
+    assert.equal((await at(root)).length, 2);
+    await env.client.call("projects.sync", {});
+    assert.deepEqual(await at(root), [["p_abc123def456", "Northwind Labs", "company"]]);
+    assert.equal(env.core.store.projects.get("p_zz9876543210")?.registered, false);
+
+    // A clone with the same apx_id is its own project, and stays so once the first folder is gone.
+    makeProject(clone);
+    const copy = (await env.client.call("projects.register", { path: clone })).project.id;
+    assert.notEqual(copy, "p_abc123def456");
+    fs.rmSync(root, { recursive: true, force: true });
+    await env.client.call("projects.sync", {});
+    assert.deepEqual(await at(clone), [[copy, "Northwind", "company"]]);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(clone, { recursive: true, force: true });
+  }
+});
+
+test("an agent file saved with a BOM is edited in place, not given a second frontmatter", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcbom-"));
+  try {
+    makeProject(root);
+    const file = path.join(root, ".apc", "agents", "ceo.md");
+    fs.writeFileSync(file, `\uFEFF${fs.readFileSync(file, "utf8")}`);
+    await env.client.call("projects.register", { path: root });
+    const ceo = (await env.client.call("agents.list", {})).agents.find((a) => a.id === "abc123def456-ceo");
+    assert.equal(ceo?.name, "Ceo");
+    await env.client.call("agents.update", { agent: "abc123def456-ceo", name: "Chief" });
+    const text = fs.readFileSync(file, "utf8");
+    assert.equal(text.match(/^---$/gm)?.length, 2, "one frontmatter");
+    assert.match(text, /^name: Chief$/m);
+    assert.match(text, /Decide\.\n$/);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("a registered project's agents come from its files; edits and removals follow; the owner's choices stay", async () => {
   const llm = scriptedLlm((_r, { system }) =>
     say(system.includes("Use metric units.") ? "saw AGENTS.md" : "no context"),
