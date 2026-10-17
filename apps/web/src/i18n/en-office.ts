@@ -91,6 +91,8 @@ export const enOffice = {
   "tasks.usage.value": "{input} tokens in · {output} out · {runs} turns",
   "tasks.usage.model": "{input} in · {output} out",
   "tasks.fromTask": "Open the task",
+  "tasks.chipHint": "Open the task ({id})",
+  "tasks.openInList": "Open in Tasks",
   "tasks.fromTaskHint": "This chat works on a task; its answers go to the task as comments",
   "tasks.help.columns": "About columns",
   "tasks.help.columnsTitle": "Columns: where the work is",

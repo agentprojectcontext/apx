@@ -34,6 +34,18 @@ export async function loadTasks(): Promise<void> {
   }
 }
 
+const asked = new Set<string>();
+
+/** Reads one task the board has not loaded (an old one an agent names in a chat); once per id. */
+export function ensureTask(id: string): void {
+  if (store.get().tasks[id] || asked.has(id)) return;
+  asked.add(id);
+  void client.call("tasks.get", { task: id }).then(
+    (r) => taskChanged(r.task),
+    () => undefined,
+  );
+}
+
 /** A task.updated event. */
 export function taskChanged(task: Task): void {
   store.set((s) => ({ tasks: { ...s.tasks, [task.id]: task } }));

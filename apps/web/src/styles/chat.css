@@ -730,3 +730,38 @@
     opacity: 0;
   }
 }
+
+/* ── A task an agent names in its text ───────────────────────────────────────── */
+.taskchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: min(320px, 100%);
+  padding: 0 7px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg);
+  font: inherit;
+  font-size: 0.92em;
+  line-height: 1.5;
+  vertical-align: baseline;
+  cursor: pointer;
+}
+.taskchip:hover {
+  border-color: var(--apx-border-strong);
+  background: var(--apx-fill-hover);
+}
+.taskchip__icon {
+  flex: none;
+  color: var(--apx-fg-muted);
+}
+.taskchip__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.taskchip.is-closed .taskchip__title {
+  color: var(--apx-fg-muted);
+  text-decoration: line-through;
+}

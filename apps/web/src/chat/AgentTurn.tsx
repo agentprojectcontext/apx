@@ -21,6 +21,7 @@ import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { SubthreadPart } from "./parts/SubthreadPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { runnableCode } from "./RunnableCode.tsx";
+import { taskCodeSpan } from "./TaskChip.tsx";
 
 // A widget's frame loads with the first message that has one, not with the chat.
 const SurfacePart = lazy(() => import("./parts/SurfacePart.tsx").then((m) => ({ default: m.SurfacePart })));
@@ -134,6 +135,7 @@ export function AgentTurn({
                 renderLink={linkMenu}
                 renderCode={runnableCode(thread, message.id)}
                 renderQuote={copyableQuote}
+                renderCodeSpan={taskCodeSpan}
               />
             ) : (
               renderCard(part, agent, message)

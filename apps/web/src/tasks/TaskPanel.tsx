@@ -33,7 +33,7 @@ import { pickerValue, type Reminder, remindAt, reminderOf } from "./when.ts";
  * One task beside the list (the list stays in view): its state, every property editable in place, what it is about,
  * and its conversation or history; a comment with @agent asks that agent there.
  */
-export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }) {
+export function TaskPanel({ task, onClose, actions }: { task: Task; onClose: () => void; actions?: ReactNode }) {
   const t = useT();
   const thread = useData((s) => s.threads[task.thread_id]);
   const load = useData((s) => s.threadLoad[task.thread_id]);
@@ -89,7 +89,7 @@ export function TaskPanel({ task, onClose }: { task: Task; onClose: () => void }
     };
   }, [task.id, movedAt]);
   return (
-    <Drawer className="taskpanel" label={task.title} title={task.title} onClose={onClose}>
+    <Drawer className="taskpanel" label={task.title} title={task.title} onClose={onClose} actions={actions}>
       <div className="taskpanel__body" ref={body}>
         <StateBar task={task} />
         <Properties task={task} detail={detail} />

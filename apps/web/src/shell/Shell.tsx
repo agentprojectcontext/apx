@@ -21,6 +21,7 @@ import { useViewportWidth } from "./useViewportWidth.ts";
 const AppScreen = lazy(() => import("../apps/AppScreen.tsx").then((m) => ({ default: m.AppScreen })));
 const ChannelScreen = lazy(() => import("../channels/ChannelScreen.tsx").then((m) => ({ default: m.ChannelScreen })));
 const ConfigModal = lazy(() => import("../config/ConfigModal.tsx").then((m) => ({ default: m.ConfigModal })));
+const TaskPeek = lazy(() => import("../tasks/TaskPeek.tsx").then((m) => ({ default: m.TaskPeek })));
 const EngineSessions = lazy(() => import("../engines/EngineSessions.tsx").then((m) => ({ default: m.EngineSessions })));
 const ProjectScreen = lazy(() => import("../project/ProjectScreen.tsx").then((m) => ({ default: m.ProjectScreen })));
 const ResourcesScreen = lazy(() =>
@@ -47,6 +48,8 @@ export function Shell() {
   const palette = useNav((s) => s.palette);
   const threadDialog = useThreadDialog() != null;
   const phone = useNav((s) => s.phone);
+  // A task opened from a chat floats over it; the Tasks screen shows its own beside the list.
+  const peek = useNav((s) => s.peekTaskId != null && s.view !== "tasks");
   const widgetChat = useSlice(widgetChatOpen, (s) => s.threadId != null);
   const panelWide = useNav((s) => s.panelWide);
   const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, { ...own, panelWide });
@@ -104,6 +107,11 @@ export function Shell() {
       {widgetChat && (
         <Suspense fallback={null}>
           <WidgetChatHost />
+        </Suspense>
+      )}
+      {peek && (
+        <Suspense fallback={null}>
+          <TaskPeek />
         </Suspense>
       )}
       <UpdateDialogHost />

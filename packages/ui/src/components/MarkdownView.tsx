@@ -13,11 +13,15 @@ export interface MarkdownViewProps {
   renderCode?: CodeRenderer;
   /** Wraps each quote (a copy button, for instance: the quote's `innerText` is its words without the marks). */
   renderQuote?: QuoteRenderer;
+  /** Replaces an inline `code` span (an id the app knows, shown as a link to it); `code` is the ready element. */
+  renderCodeSpan?: CodeSpanRenderer;
 }
 
 export type LinkRenderer = (href: string, link: ReactElement, key: string) => ReactNode;
 export type CodeRenderer = (code: string, lang: string | undefined, pre: ReactElement, key: string) => ReactNode;
 export type QuoteRenderer = (quote: ReactElement, key: string) => ReactNode;
+export type CodeSpanRenderer = (text: string, code: ReactElement, key: string) => ReactNode;
+type InlineRenderers = { link?: LinkRenderer | undefined; codeSpan?: CodeSpanRenderer | undefined };
 
 type Block =
   | { kind: "p"; text: string }
@@ -128,7 +132,8 @@ function parseBlocks(src: string): Block[] {
   return blocks;
 }
 
-function inline(text: string, keyBase: string, wrap?: LinkRenderer): ReactNode[] {
+function inline(text: string, keyBase: string, r: InlineRenderers): ReactNode[] {
+  const wrap = r.link;
   const out: ReactNode[] = [];
   let last = 0;
   let n = 0;
@@ -145,12 +150,14 @@ function inline(text: string, keyBase: string, wrap?: LinkRenderer): ReactNode[]
     if (at > last) out.push(breaks(text.slice(last, at), `${keyBase}t${n}`));
     const tok = m[0];
     const key = `${keyBase}i${n++}`;
-    if (m[1]) out.push(<code key={key}>{tok.slice(1, -1)}</code>);
-    else if (m[2]) out.push(<strong key={key}>{inline(tok.slice(2, -2), key, wrap)}</strong>);
+    if (m[1]) {
+      const code = <code key={key}>{tok.slice(1, -1)}</code>;
+      out.push(r.codeSpan ? <Fragment key={key}>{r.codeSpan(tok.slice(1, -1), code, key)}</Fragment> : code);
+    } else if (m[2]) out.push(<strong key={key}>{inline(tok.slice(2, -2), key, r)}</strong>);
     else if (m[3]) {
       const lm = /^\[([^\]]+)\]\(([^)\s]+)\)$/.exec(tok);
       const href = lm?.[2] ?? "";
-      const body = inline(lm?.[1] ?? "", key, wrap);
+      const body = inline(lm?.[1] ?? "", key, r);
       out.push(
         SAFE_HREF.test(href) ? (
           link(href, key, body)
@@ -160,7 +167,7 @@ function inline(text: string, keyBase: string, wrap?: LinkRenderer): ReactNode[]
           <Fragment key={key}>{lm?.[1] ?? tok}</Fragment>
         ),
       );
-    } else if (m[4] || m[5]) out.push(<em key={key}>{inline(tok.slice(1, -1), key, wrap)}</em>);
+    } else if (m[4] || m[5]) out.push(<em key={key}>{inline(tok.slice(1, -1), key, r)}</em>);
     else if (m[7])
       out.push(
         <span key={key} className="apx-mention">
@@ -198,22 +205,23 @@ export function MarkdownView({
   renderLink,
   renderCode,
   renderQuote,
+  renderCodeSpan,
 }: MarkdownViewProps) {
   const blocks = parseBlocks(source);
   return (
     <div className={cx("apx-md", `apx-md--${size}`, className)}>
-      {renderBlocks(blocks, "b", { renderLink, renderCode, renderQuote })}
+      {renderBlocks(blocks, "b", { renderLink, renderCode, renderQuote, renderCodeSpan })}
     </div>
   );
 }
 
-type Renderers = Pick<MarkdownViewProps, "renderLink" | "renderCode" | "renderQuote">;
+type Renderers = Pick<MarkdownViewProps, "renderLink" | "renderCode" | "renderQuote" | "renderCodeSpan">;
 
 function renderBlocks(blocks: Block[], prefix: string, r: Renderers): ReactNode[] {
-  const renderLink = r.renderLink;
+  const spans: InlineRenderers = { link: r.renderLink, codeSpan: r.renderCodeSpan };
   return blocks.map((b, i) => {
     const k = `${prefix}${i}`;
-    if (b.kind === "p") return <p key={k}>{inline(b.text, k, renderLink)}</p>;
+    if (b.kind === "p") return <p key={k}>{inline(b.text, k, spans)}</p>;
     if (b.kind === "quote") {
       const quote = (
         <blockquote key={k} className="apx-md__quote">
@@ -232,7 +240,7 @@ function renderBlocks(blocks: Block[], prefix: string, r: Renderers): ReactNode[
     }
     if (b.kind === "h") {
       const Tag = b.level <= 2 ? "h3" : "h4";
-      return <Tag key={k}>{inline(b.text, k, renderLink)}</Tag>;
+      return <Tag key={k}>{inline(b.text, k, spans)}</Tag>;
     }
     if (b.kind === "table")
       return (
@@ -243,7 +251,7 @@ function renderBlocks(blocks: Block[], prefix: string, r: Renderers): ReactNode[
                 {b.headers.map((cell, j) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: table columns are positional
                   <th key={j} scope="col" style={{ textAlign: b.align[j] }}>
-                    {inline(cell, `${k}h${j}`, renderLink)}
+                    {inline(cell, `${k}h${j}`, spans)}
                   </th>
                 ))}
               </tr>
@@ -255,7 +263,7 @@ function renderBlocks(blocks: Block[], prefix: string, r: Renderers): ReactNode[
                   {b.headers.map((_, j) => (
                     // biome-ignore lint/suspicious/noArrayIndexKey: table columns are positional
                     <td key={j} style={{ textAlign: b.align[j] }}>
-                      {inline(row[j] ?? "", `${k}r${ri}c${j}`, renderLink)}
+                      {inline(row[j] ?? "", `${k}r${ri}c${j}`, spans)}
                     </td>
                   ))}
                 </tr>
@@ -269,7 +277,7 @@ function renderBlocks(blocks: Block[], prefix: string, r: Renderers): ReactNode[
       <List key={k}>
         {b.items.map((it, j) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: list items are positional
-          <li key={j}>{inline(it, `${k}l${j}`, renderLink)}</li>
+          <li key={j}>{inline(it, `${k}l${j}`, spans)}</li>
         ))}
       </List>
     );

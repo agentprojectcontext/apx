@@ -93,6 +93,8 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "tasks.usage.value": "{input} tokens de entrada · {output} de salida · {runs} turnos",
   "tasks.usage.model": "{input} entrada · {output} salida",
   "tasks.fromTask": "Ver la tarea",
+  "tasks.chipHint": "Abrir la tarea ({id})",
+  "tasks.openInList": "Abrir en Tareas",
   "tasks.fromTaskHint": "Este chat trabaja una tarea; sus respuestas van a la tarea como comentarios",
   "tasks.help.columns": "Sobre las columnas",
   "tasks.help.columnsTitle": "Columnas: en qué punto está",

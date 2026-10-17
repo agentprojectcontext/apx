@@ -99,6 +99,8 @@ export type NavState = {
   focus: string | undefined;
   /** The task open beside a tasks list (the Tasks screen or a project's Tasks tab). */
   taskId: string | undefined;
+  /** A task open over any other screen (from a chat), so the owner does not leave it. */
+  peekTaskId: string | undefined;
 };
 
 const THEME_KEY = "apx.mode";
@@ -184,6 +186,7 @@ export const nav = createStore<NavState>({
   engineId: undefined,
   focus: undefined,
   taskId: undefined,
+  peekTaskId: undefined,
   ...fromHash(),
 });
 
@@ -421,9 +424,15 @@ export const go = {
   view(view: "tasks" | "resources") {
     nav.set({ view });
   },
-  /** A task, open beside the Tasks list (from the chat its agent works it in, a notice…). */
+  /** A task: beside a tasks list when one is open, else over the current screen (a chat, a notice…). */
   task(taskId: string) {
-    nav.set({ view: "tasks", taskId });
+    nav.set((s) =>
+      s.view === "tasks" || (s.view === "project" && s.projectTab === "tasks") ? { taskId } : { peekTaskId: taskId },
+    );
+  },
+  /** The whole Tasks screen with this task open (from a task shown over another screen). */
+  taskInList(taskId: string) {
+    nav.set({ view: "tasks", taskId, peekTaskId: undefined });
   },
   /** A Resources tab: in the open project's Resources tab when a project is open, else the global screen. */
   resources(tab: ResourceTab, global = false) {
