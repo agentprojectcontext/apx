@@ -130,3 +130,9 @@ export async function open(page: Page, hash = "") {
   await page.goto(`/${hash}`);
   await expect(page.getByRole("button", { name: "Inbox" })).toBeVisible();
 }
+
+/** Opens Settings the way the owner does: from the account menu at the bottom of the sidebar. */
+export async function openSettings(page: Page) {
+  await page.getByRole("button", { name: /^Cuenta/ }).click();
+  await page.getByRole("menuitem", { name: /^Configuración(?! inicial)/ }).click();
+}

@@ -1,7 +1,7 @@
 // The frame: the list is resized (never folded away), icon buttons say what they do, the language switches with no key
 // left untranslated, and Settings opens every section.
 import type { Page } from "@playwright/test";
-import { expect, open, rpc, test } from "./kit.ts";
+import { expect, open, openSettings, rpc, test } from "./kit.ts";
 
 // Done with the setup wizard: this spec must not depend on an earlier one having finished it.
 test.beforeAll(async () => {
@@ -24,7 +24,7 @@ test("the chat list resizes from its edge and never folds away; an icon button s
 
 test("a chain entry picks one of the model APIs' models; the CLIs are not offered", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: "Config", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("dialog").getByRole("button", { name: "Router" }).click();
   await page.getByRole("button", { name: "Agregar un modelo" }).click();
   await expect(page.getByRole("option", { name: /GPT e2e/ })).toHaveCount(0);
@@ -38,7 +38,7 @@ test("a chain entry picks one of the model APIs' models; the CLIs are not offere
 
 test("an agent picks its own model from the list, and one button leaves it on the router alone", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: "Config", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("dialog").getByRole("navigation").getByRole("button", { name: "Agentes" }).click();
   await page
     .getByRole("button", { name: /^Modelo de / })
@@ -81,7 +81,7 @@ test("English and Spanish show text, never a raw key", async ({ page }) => {
 
 test("Settings opens each section", async ({ page }) => {
   await open(page);
-  await page.getByRole("button", { name: "Config", exact: true }).click();
+  await openSettings(page);
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   const sections = dialog.getByRole("navigation").getByRole("button");

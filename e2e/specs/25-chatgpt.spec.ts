@@ -1,7 +1,7 @@
 // Engines and models: the ChatGPT plan first among the model APIs (as Codex, signed in from APX, never removed), then
 // the APIs, known ones shown before they are set up (and removable from the list). The CLIs live in External sessions,
 // never in a picker of models for agents.
-import { expect, open, rpc, test } from "./kit.ts";
+import { expect, open, openSettings, rpc, test } from "./kit.ts";
 
 test("the ChatGPT plan comes first as Codex, fixed, and connects with its own sign-in", async ({ page }) => {
   await rpc("setup.finish", {});
@@ -55,7 +55,7 @@ test("a CLI is never offered as a model for agents or the router, and the core r
     rpc("agents.update", { agent: "roby", model_choice: { model: "claude", router: false } }),
   ).rejects.toThrow(/own sessions/);
   await open(page);
-  await page.getByRole("button", { name: "Config", exact: true }).click();
+  await openSettings(page);
   const settings = page.getByRole("dialog", { name: "Configuración" });
   await settings.getByRole("button", { name: "Router" }).click();
   await settings.getByRole("button", { name: "Agregar un modelo" }).click();

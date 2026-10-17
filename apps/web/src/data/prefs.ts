@@ -26,6 +26,8 @@ export type Prefs = {
   channelOrderAt: string;
   projectOrder: string[];
   engineOrder: string[];
+  /** Rows each sidebar section shows before the rest folds into "N more" (0 = its minimum). */
+  sidebarRows: SidebarRows;
   /** How the Inbox lists chats: project → agent → chats, by time, or by project. */
   inboxView: InboxView;
   /** The Inbox lists routine runs that told something, besides the chats. */
@@ -56,6 +58,11 @@ export type BoardPrefs = {
   widths: Record<string, number>;
 };
 
+export type SidebarRows = { channels: number; projects: number; engines: number };
+
+/** The fewest rows each sidebar section can be dragged down to, and what it shows until then. */
+export const SIDEBAR_MIN_ROWS: SidebarRows = { channels: 3, projects: 5, engines: 3 };
+
 export type InboxView = "tree" | "activity" | "chats";
 
 const KEY = "apx.prefs";
@@ -73,6 +80,7 @@ const DEFAULTS: Prefs = {
   channelOrderAt: "",
   projectOrder: [],
   engineOrder: [],
+  sidebarRows: { channels: 0, projects: 0, engines: 0 },
   inboxView: "tree",
   inboxRoutines: true,
   tasksProject: "",
@@ -108,6 +116,7 @@ function load(): Prefs {
       engineOrder: Array.isArray(raw.engineOrder)
         ? [...new Set(raw.engineOrder.filter((id): id is string => typeof id === "string"))]
         : [],
+      sidebarRows: sidebarRowsOf(raw.sidebarRows),
       inboxView: raw.inboxView === "activity" || raw.inboxView === "chats" ? raw.inboxView : "tree",
       inboxRoutines: raw.inboxRoutines !== false,
       tasksProject: typeof raw.tasksProject === "string" ? raw.tasksProject : "",
@@ -125,6 +134,12 @@ function load(): Prefs {
   } catch {
     return DEFAULTS;
   }
+}
+
+function sidebarRowsOf(raw: unknown): SidebarRows {
+  const v = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<keyof SidebarRows, unknown>>;
+  const rows = (n: unknown) => (typeof n === "number" && n > 0 ? Math.round(n) : 0);
+  return { channels: rows(v.channels), projects: rows(v.projects), engines: rows(v.engines) };
 }
 
 /** Only well-formed boards survive a stored value written by an older (or a hand-edited) panel. */
@@ -162,6 +177,16 @@ export function setPrefs(patch: Partial<Prefs>): void {
   } catch {
     // Storage blocked: the change still applies to this session.
   }
+}
+
+/** Rows a sidebar section shows now: what the owner dragged it to, never under its minimum. */
+export function useSidebarRows(section: keyof SidebarRows): number {
+  const rows = usePrefs((s) => s.sidebarRows[section]);
+  return Math.max(SIDEBAR_MIN_ROWS[section], rows);
+}
+
+export function setSidebarRows(section: keyof SidebarRows, rows: number): void {
+  setPrefs({ sidebarRows: { ...prefs.get().sidebarRows, [section]: rows } });
 }
 
 export function usePrefs<T>(select: (s: Prefs) => T): T {

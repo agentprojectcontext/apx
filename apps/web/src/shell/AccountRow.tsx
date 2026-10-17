@@ -4,25 +4,17 @@ import { openSetup } from "../data/setup.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { go, useNav } from "./nav.ts";
 
-/** Sidebar footer: who is using the panel, with quick theme / language / phone / config actions. */
+/** Sidebar footer: who is using the panel, with quick theme / phone / setup actions and Settings. */
 export function AccountRow({ rail }: { rail: boolean }) {
   const t = useT();
   const name = usePrefs((s) => s.displayName) || t("account.you");
-  const lang = usePrefs((s) => s.language);
   const mode = useNav((s) => s.mode);
   const items: MenuEntry[] = [
     { type: "label", label: name },
-    { label: t("account.profile"), icon: <Icons.User />, onSelect: () => go.config("account") },
     {
       label: mode === "dark" ? t("theme.light") : t("theme.dark"),
       icon: mode === "dark" ? <Icons.Sun /> : <Icons.Moon />,
       onSelect: go.toggleMode,
-    },
-    {
-      label: t("language.label"),
-      icon: <Icons.Languages />,
-      shortcut: lang.toUpperCase(),
-      onSelect: () => go.config("appearance"),
     },
     { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
     { label: t("setup.menu"), icon: <Icons.Sparkles />, onSelect: openSetup },

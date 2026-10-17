@@ -3,16 +3,14 @@ import { useMemo, useState } from "react";
 import { addChannelItems } from "../channels/KindIcon.tsx";
 import { CHANNEL_KIND_IDS } from "../channels/kinds.ts";
 import { useChannels } from "../data/channels.ts";
-import { setPrefs, usePrefs } from "../data/prefs.ts";
+import { setPrefs, usePrefs, useSidebarRows } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { ChannelNavRow } from "./ChannelNavRow.tsx";
 import { go, useNav } from "./nav.ts";
-import { SidebarOverflow, SidebarSection } from "./SidebarSection.tsx";
+import { SidebarOverflow, SidebarRowsGrip, SidebarSection } from "./SidebarSection.tsx";
 
-const SHOWN = 3;
-
-/** Three most recently active channels; manual order lasts until newer activity arrives. */
+/** The most recently active channels, as many as the owner dragged the section to; manual order lasts until newer activity arrives. */
 export function ChannelsNav({ rail }: { rail: boolean }) {
   const t = useT();
   const channels = useChannels((s) => s.channels);
@@ -24,6 +22,7 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
   const view = useNav((s) => s.view);
   const channelId = useNav((s) => s.channelId);
   const [moreOpen, setMoreOpen] = useState(false);
+  const rows = useSidebarRows("channels");
   const ordered = useMemo(() => {
     const byId = new Map(channels.map((channel) => [channel.id, channel]));
     const ids = [...new Set([...saved, ...channels.map((channel) => channel.id)])];
@@ -48,8 +47,10 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
     }
     return counts;
   }, [threads]);
-  const shown = ordered.slice(0, SHOWN);
-  const rest = ordered.slice(SHOWN);
+  // Folding a single leftover would save nothing.
+  const cut = ordered.length > rows + 1 ? rows : ordered.length;
+  const shown = ordered.slice(0, cut);
+  const rest = ordered.slice(cut);
   const hiddenActive = view === "channel" && rest.some((channel) => channel.id === channelId);
   const hiddenUnread = rest.reduce((sum, channel) => sum + (counts.get(channel.id) ?? 0), 0);
   const totalUnread = ordered.reduce((sum, channel) => sum + (counts.get(channel.id) ?? 0), 0);
@@ -124,6 +125,7 @@ export function ChannelsNav({ rail }: { rail: boolean }) {
           {rest.map((channel) => row(channel, true))}
         </SidebarOverflow>
       )}
+      {!hidden && !rail && <SidebarRowsGrip section="channels" total={ordered.length} title={t("nav.channels")} />}
     </>
   );
 }

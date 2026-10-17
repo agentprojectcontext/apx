@@ -1,14 +1,17 @@
 import type { EngineStatus } from "@apx/protocol";
 import { EngineIcon, engineBrand, Icons } from "@apx/ui";
-import { useEffect } from "react";
-import { rememberSidebar, setPrefs, usePrefs } from "../data/prefs.ts";
+import { useEffect, useState } from "react";
+import { rememberSidebar, setPrefs, usePrefs, useSidebarRows } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "./nav.ts";
 import { orderItems, SidebarNavRow } from "./SidebarNavRow.tsx";
-import { SidebarSection } from "./SidebarSection.tsx";
+import { SidebarOverflow, SidebarRowsGrip, SidebarSection } from "./SidebarSection.tsx";
 
-/** Last opened engine first, with the same row actions and manual ordering as the other sections. */
+/**
+ * Last opened engine first, with the same row actions and manual ordering as the other sections; past the rows the
+ * owner dragged it to, the rest folds into "N more" like Projects.
+ */
 export function ExternalSessionsNav({ rail }: { rail: boolean }) {
   const t = useT();
   const folded = usePrefs((s) => s.externalSessionsFolded);
@@ -16,6 +19,8 @@ export function ExternalSessionsNav({ rail }: { rail: boolean }) {
   const engines = useData((s) => s.engines);
   const view = useNav((s) => s.view);
   const engineId = useNav((s) => s.engineId);
+  const rows = useSidebarRows("engines");
+  const [moreOpen, setMoreOpen] = useState(false);
   useEffect(() => {
     if (view === "engine" && engineId) rememberSidebar("engineOrder", engineId);
   }, [view, engineId]);
@@ -24,42 +29,68 @@ export function ExternalSessionsNav({ rail }: { rail: boolean }) {
     .filter((engine) => engine.id !== "native" && engine.installed)
     .sort((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity));
   const order = shown.map((engine) => engine.id);
+  // Folding a single leftover would save nothing.
+  const cut = shown.length > rows + 1 ? rows : shown.length;
+  const rest = shown.slice(cut);
+  const hidden = folded && !rail;
   const move = (id: string, index: number) => {
     if (!order.includes(id)) return;
     const ids = order.filter((current) => current !== id);
     ids.splice(Math.max(0, Math.min(index, ids.length)), 0, id);
     setPrefs({ engineOrder: ids });
   };
+  const open = (id: string) => {
+    setMoreOpen(false);
+    go.engine(id);
+  };
+  const row = (engine: EngineStatus, overflow = false) => (
+    <SidebarNavRow
+      key={engine.id}
+      id={engine.id}
+      kind="engine"
+      label={engine.label}
+      rail={rail && !overflow}
+      icon={<SessionIcon engine={engine.id} />}
+      trailing={<EngineState engine={engine} />}
+      active={view === "engine" && engineId === engine.id}
+      onPick={() => open(engine.id)}
+      order={order}
+      onMove={move}
+      items={[
+        { label: t("nav.open"), icon: <Icons.Terminal />, onSelect: () => open(engine.id) },
+        { label: t("nav.engineSettings"), icon: <Icons.Settings />, onSelect: () => go.config("external") },
+        { type: "separator" },
+        ...orderItems(t, engine.id, order, move),
+      ]}
+    />
+  );
   return (
     <>
       <SidebarSection
         rail={rail}
         title={t("nav.externalSessions")}
         folded={folded}
-        onToggle={() => setPrefs({ externalSessionsFolded: !folded })}
+        onToggle={() => {
+          setMoreOpen(false);
+          setPrefs({ externalSessionsFolded: !folded });
+        }}
       />
-      {(!folded || rail) &&
-        shown.map((engine) => (
-          <SidebarNavRow
-            key={engine.id}
-            id={engine.id}
-            kind="engine"
-            label={engine.label}
-            rail={rail}
-            icon={<SessionIcon engine={engine.id} />}
-            trailing={<EngineState engine={engine} />}
-            active={view === "engine" && engineId === engine.id}
-            onPick={() => go.engine(engine.id)}
-            order={order}
-            onMove={move}
-            items={[
-              { label: t("nav.open"), icon: <Icons.Terminal />, onSelect: () => go.engine(engine.id) },
-              { label: t("nav.engineSettings"), icon: <Icons.Settings />, onSelect: () => go.config("external") },
-              { type: "separator" },
-              ...orderItems(t, engine.id, order, move),
-            ]}
-          />
-        ))}
+      {!hidden && shown.slice(0, cut).map((engine) => row(engine))}
+      {!hidden && rest.length > 0 && (
+        <SidebarOverflow
+          rail={rail}
+          title={t("nav.externalSessions")}
+          text={t("nav.moreProjects", { n: rest.length })}
+          label={t("nav.moreSessions", { n: rest.length })}
+          count={rest.length}
+          active={view === "engine" && rest.some((engine) => engine.id === engineId)}
+          open={moreOpen}
+          onOpenChange={setMoreOpen}
+        >
+          {rest.map((engine) => row(engine, true))}
+        </SidebarOverflow>
+      )}
+      {!hidden && !rail && <SidebarRowsGrip section="engines" total={shown.length} title={t("nav.externalSessions")} />}
     </>
   );
 }

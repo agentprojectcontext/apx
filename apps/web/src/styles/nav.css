@@ -198,7 +198,7 @@
   border-right: 1px solid var(--apx-border);
   overflow: hidden;
 }
-/* Inbox and Tasks stay pinned on top, Resources/Settings/account at the bottom; the middle scrolls. */
+/* Inbox, Tasks and Resources stay pinned on top, the account at the bottom; the middle scrolls. */
 .sidebar__top {
   flex: none;
   display: flex;
@@ -240,6 +240,31 @@
   margin: 12px 10px 6px;
   border: 0;
   border-top: 1px solid var(--apx-border);
+}
+/* A section's bottom edge: drag it to show more or fewer rows. */
+.sidebar__grip {
+  flex: none;
+  position: relative;
+  height: 8px;
+  margin: 0 10px -6px;
+  cursor: row-resize;
+  touch-action: none;
+}
+.sidebar__grip::after {
+  content: "";
+  position: absolute;
+  inset: 3px 30% 3px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.12s;
+}
+.sidebar__grip:hover::after,
+.sidebar__grip:focus-visible::after,
+.sidebar__grip:active::after {
+  background: var(--apx-border-strong, var(--apx-border));
+}
+.sidebar__grip:focus-visible {
+  outline: none;
 }
 .sidebar__railaction {
   display: flex;

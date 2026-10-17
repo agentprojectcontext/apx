@@ -233,3 +233,41 @@ test("Sesiones externas: orden por acceso y arrastre, mismas opciones en ambos m
   await page.locator('.sidebar [data-engine-id="claude"]').dragTo(codex, { targetPosition: { x: 20, y: 1 } });
   await expect.poll(() => orderedIds(page, "engine")).toEqual(["claude", "codex"]);
 });
+
+test("the Projects section shows more or fewer rows from its bottom edge, never under five", async ({ page }) => {
+  const info = await world.info();
+  for (const name of ["Fir", "Gum", "Hazel", "Ivy", "Juniper", "Kapok", "Larch", "Maple", "Nutmeg"]) {
+    const dir = path.join(info.dir, "sidebar-rows", name);
+    fs.mkdirSync(dir, { recursive: true });
+    await rpc("projects.register", { path: dir, init: true });
+  }
+  // The icon rail has no section edges to drag.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, "#view=tasks");
+  const rows = page.locator(".sidebar__scroll [data-project-id]");
+  await expect(rows).toHaveCount(5);
+  const grip = page.getByRole("separator", { name: "Mostrar más o menos proyectos" });
+  await grip.focus();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  await expect(rows).toHaveCount(7);
+  await page.reload();
+  await expect(rows).toHaveCount(7);
+  for (let i = 0; i < 4; i++) await grip.press("ArrowUp");
+  await expect(rows).toHaveCount(5);
+  await expect(page.getByRole("button", { name: /^\d+ más$/ })).toBeVisible();
+});
+
+test("Resources sits under Tasks and Settings opens from the account menu, which leaves profile and language out", async ({
+  page,
+}) => {
+  await open(page);
+  const top = page.locator(".sidebar__top");
+  await expect(top.getByRole("button", { name: "Recursos", exact: true })).toBeVisible();
+  await expect(page.locator(".sidebar__foot").getByRole("button", { name: "Config", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: /^Cuenta/ }).click();
+  await expect(page.getByRole("menuitem", { name: "Perfil y cuenta" })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: /^Idioma/ })).toHaveCount(0);
+  await page.getByRole("menuitem", { name: /^Configuración(?! inicial)/ }).click();
+  await expect(page.getByRole("dialog", { name: "Configuración" })).toBeVisible();
+});

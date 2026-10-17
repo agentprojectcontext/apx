@@ -16,12 +16,11 @@ import { SidebarSection } from "./SidebarSection.tsx";
 // Not needed for the first paint.
 const CornerCards = lazy(() => import("./CornerCards.tsx").then((m) => ({ default: m.CornerCards })));
 
-/** Inbox · Tasks (pinned) · Channels · Projects · External sessions · Apps · Resources · Settings · account. `rail` = 60px icons. */
+/** Inbox · Tasks · Resources (pinned) · Channels · Projects · External sessions · Apps · account (with Settings). `rail` = 60px icons. */
 export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
   const t = useT();
   const view = useNav((s) => s.view);
   const appId = useNav((s) => s.appId);
-  const configOpen = useNav((s) => s.config != null);
   const threads = useData((s) => s.threads);
   const surfaces = useData((s) => s.surfaces);
   useEffect(() => {
@@ -65,6 +64,13 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
           active={view === "tasks"}
           onClick={() => go.view("tasks")}
         />
+        <NavItem
+          collapsed={rail}
+          icon={<Icons.Layers />}
+          label={t("nav.resources")}
+          active={view === "resources"}
+          onClick={() => go.view("resources")}
+        />
       </div>
       <div className="sidebar__scroll">
         <ChannelsNav rail={rail} />
@@ -95,20 +101,6 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
         </Suspense>
       )}
       <div className="sidebar__foot">
-        <NavItem
-          collapsed={rail}
-          icon={<Icons.Layers />}
-          label={t("nav.resources")}
-          active={view === "resources"}
-          onClick={() => go.view("resources")}
-        />
-        <NavItem
-          collapsed={rail}
-          icon={<Icons.Settings />}
-          label={t("nav.config")}
-          active={configOpen}
-          onClick={() => go.config()}
-        />
         <AccountRow rail={rail} />
       </div>
     </aside>

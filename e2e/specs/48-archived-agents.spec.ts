@@ -1,4 +1,4 @@
-import { expect, open, rpc, test } from "./kit.ts";
+import { expect, open, openSettings, rpc, test } from "./kit.ts";
 
 test.beforeAll(async () => {
   await rpc("setup.finish");
@@ -13,7 +13,7 @@ test("Config › Agentes: un agente archivado se restaura o se borra para siempr
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await open(page);
-  await page.getByRole("button", { name: "Config", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("dialog").getByRole("navigation").getByRole("button", { name: "Agentes" }).click();
   const archived = page.getByRole("region", { name: "Archivados" });
   await archived.getByRole("button", { name: /^Archivados/ }).click();

@@ -10,13 +10,13 @@ import {
   projectInitial,
   projectTone,
 } from "../data/identity.ts";
-import { rememberSidebar, setPrefs, usePrefs } from "../data/prefs.ts";
+import { rememberSidebar, setPrefs, usePrefs, useSidebarRows } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "./nav.ts";
 import { projectNavMenu } from "./ProjectNavActions.tsx";
 import { SidebarNavRow } from "./SidebarNavRow.tsx";
-import { SidebarOverflow, SidebarSection } from "./SidebarSection.tsx";
+import { SidebarOverflow, SidebarRowsGrip, SidebarSection } from "./SidebarSection.tsx";
 
 // Opened rarely: loaded when first shown, so the sidebar adds nothing to the first screen's script.
 const NewProjectDialog = lazy(() => import("./NewProjectDialog.tsx").then((m) => ({ default: m.NewProjectDialog })));
@@ -27,11 +27,9 @@ const ProjectSettings = lazy(() =>
   import("../project/ProjectSettings.tsx").then((m) => ({ default: m.ProjectSettings })),
 );
 
-/** Projects shown before the rest folds into "N more". */
-const SHOWN = 5;
-
 /**
- * The Projects section: foldable as a whole, and past SHOWN entries the rest goes into a "N more" popover.
+ * The Projects section: foldable as a whole, and past the rows the owner dragged it to the rest goes into a "N more"
+ * popover.
  * The base space remains first, followed by the owner’s last opened or manually ordered projects.
  */
 export function ProjectsNav({ rail }: { rail: boolean }) {
@@ -49,6 +47,7 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
   // The rail has no section header to unfold with, so it always lists them.
   const hidden = folded && !rail;
   const routines = usePrefs((s) => s.inboxRoutines);
+  const rows = useSidebarRows("projects");
   const { shown, rest, running, unread, ordered } = useMemo(() => {
     const entries = projectEntries(projects);
     const live = Object.values(threads).filter(isListed);
@@ -75,7 +74,7 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
         (lastActive.get(b.id) ?? "").localeCompare(lastActive.get(a.id) ?? ""),
     );
     // Folding a single leftover would save nothing.
-    const cut = ordered.length > SHOWN + 1 ? SHOWN : ordered.length;
+    const cut = ordered.length > rows + 1 ? rows : ordered.length;
     return {
       shown: ordered.slice(0, cut),
       rest: ordered.slice(cut),
@@ -83,7 +82,7 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
       running,
       unread,
     };
-  }, [projects, threads, saved, routines]);
+  }, [projects, threads, saved, routines, rows]);
   // Read when a project opens, not when the list reorders after it. The page coming back on a project (a reload)
   // is not opening it.
   const inView = useRef<string[]>([]);
@@ -173,6 +172,9 @@ export function ProjectsNav({ rail }: { rail: boolean }) {
         >
           {rest.map((p) => item(p, () => setMoreOpen(false)))}
         </SidebarOverflow>
+      )}
+      {!hidden && !rail && (
+        <SidebarRowsGrip section="projects" total={shown.length + rest.length} title={t("nav.projects")} />
       )}
       <Suspense fallback={null}>
         {adding && <NewProjectDialog onClose={() => setAdding(false)} />}
