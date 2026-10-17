@@ -119,9 +119,7 @@ export function agentTools(store: Store): Tool[] {
             .string()
             .max(500)
             .optional()
-            .describe(
-              "the project the task is about (name, id, or its root path; sub-path workspaces are not supported)",
-            ),
+            .describe("the project the task is about (name, id, or a path inside it): the agent works in its folder"),
           task: z.string().min(1).describe("clear, self-contained task with everything the other agent needs"),
           wait_s: z.number().int().min(0).max(120).optional().describe("seconds to wait inside this turn (default 60)"),
         })
@@ -139,11 +137,16 @@ export function agentTools(store: Store): Tool[] {
         }
         const project = a.project ? projectOf(store, a.project, ctx.agent) : undefined;
         if (typeof project === "string") return project;
-        return ctx.delegate(
+        const result = await ctx.delegate(
           { agent, session: a.session, worker: a.worker, project: project?.id },
           a.task,
           (a.wait_s ?? 60) * 1000,
         );
+        // A path inside the project finds it, but the session works in its root: said, never dropped silently.
+        const inner = project?.path && a.project ? path.relative(project.path, path.resolve(a.project.trim())) : "";
+        return inner && !inner.startsWith("..") && !path.isAbsolute(inner)
+          ? `note: ${project?.name} works in its root folder; ${inner} is not its working folder (name it in the task).\n${result}`
+          : result;
       },
     }),
     defineTool({
@@ -164,7 +167,10 @@ export function agentTools(store: Store): Tool[] {
   ];
 }
 
-/** A project by id, name or its root path; a project's own agent reaches only its project. A string: why none. */
+/**
+ * A project by id, name or a path inside its folder (the deepest one holding it); a project's own agent reaches only its
+ * project. A string: why none.
+ */
 function projectOf(store: Store, ref: string, agent: AgentRecord): ProjectRecord | string {
   const all = store.projects.list().filter((p) => !agent.project_id || p.id === agent.project_id);
   const q = ref.trim();
@@ -176,8 +182,6 @@ function projectOf(store: Store, ref: string, agent: AgentRecord): ProjectRecord
       return absolute === root || absolute.startsWith(`${root}${path.sep}`);
     })
     .sort((x, y) => (y.path?.length ?? 0) - (x.path?.length ?? 0))[0];
-  if (pathProject?.path && absolute !== path.resolve(pathProject.path))
-    return "refused: delegate cannot honor a project sub-path; pass the project's root path, id, or name instead.";
   const found = all.find((p) => p.id === q) ?? all.find((p) => p.name.toLowerCase() === q.toLowerCase()) ?? pathProject;
   return (
     found ??

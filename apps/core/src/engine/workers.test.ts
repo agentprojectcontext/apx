@@ -107,7 +107,7 @@ test("a late worker result shows its report above the caller's new answer", asyn
   assert.equal(report.state, "completed");
 });
 
-test("delegate refuses an unhonored project sub-path instead of silently using the root", async () => {
+test("delegate finds the project by a path inside it and says the session works in its root", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-delegate-subpath-"));
   fs.mkdirSync(path.join(root, "sub"));
   fs.writeFileSync(path.join(root, "AGENTS.md"), "# Project\n");
@@ -121,9 +121,13 @@ test("delegate refuses an unhonored project sub-path instead of silently using t
     });
     subpathProjectRoot = root;
     await env.client.call("threads.send", { thread: t.id, text: "delegate to a project subpath" });
-    const { messages } = await env.settle(t.id);
-    assert.match(texts(messages).join("\n"), /cannot honor a project sub-path/);
-    assert.equal(env.core.store.threads.sessions(t.id).length, 0, "a rejected sub-path opens no delegated session");
+    await env.settle(t.id);
+    assert.equal(env.core.store.threads.sessions(t.id)[0]?.project_id, project.id);
+    const result = llm.calls
+      .flatMap((c) => c.messages)
+      .map((m) => String(m.content))
+      .find((c) => c.includes("is not its working folder"));
+    assert.match(result ?? "", /works in its root folder; sub is not its working folder/);
   } finally {
     subpathProjectRoot = undefined;
     fs.rmSync(root, { recursive: true, force: true });
