@@ -5,6 +5,7 @@ import { elapsed, formatNumber } from "../common/format.ts";
 import { cancelJob } from "../data/actions.ts";
 import { client } from "../data/client.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
+import { turnName } from "./QueuedTurns.tsx";
 
 const STATE_KEY: Record<Job["state"], MessageKey> = {
   queued: "job.state.queued",
@@ -60,6 +61,8 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job:
   const [showOutput, setShowOutput] = useState(false);
   const live = !j.ended_at;
   const terminal = j.kind === "terminal";
+  // A turn not started yet says what it carries: a delegation's task, a helper's result for its caller…
+  const waiting = live && (j.state === "queued" || j.state === "submitted");
   const took = j.ended_at ? elapsed(j.started_at, new Date(j.ended_at).getTime()) : elapsed(j.started_at, now);
   const meta = [
     terminal ? j.cwd : j.model,
@@ -85,7 +88,13 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job:
               <span className={terminal ? "job__title is-mono" : "job__title"}>{j.title}</span>
               <span className="job__time">{took}</span>
             </span>
-            <span className="job__activity">{live && j.activity ? j.activity : t(STATE_KEY[j.state])}</span>
+            <span className="job__activity">
+              {live && j.activity
+                ? j.activity
+                : waiting && j.from
+                  ? `${turnName(t, j.from)} · ${t(STATE_KEY[j.state])}`
+                  : t(STATE_KEY[j.state])}
+            </span>
             {meta.length > 0 && <span className="job__meta">{meta.join(" · ")}</span>}
           </span>
         </button>

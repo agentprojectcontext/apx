@@ -1,14 +1,30 @@
 // Accounting of work: the background view (agents' runs on their own and terminal commands, as one list) and
 // usage by model.
-import type { Job } from "@apx/protocol";
+import type { Job, JobFrom } from "@apx/protocol";
 import { publicJob } from "../domain/jobs.ts";
-import type { RunRecord } from "../domain/runs.ts";
+import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Engine } from "../engine/engine.ts";
 import { notFound, unauthorized } from "../errors.ts";
 import type { Handlers } from "./router.ts";
 
 const newest = (a: Job, b: Job) => (b.ended_at ?? b.started_at).localeCompare(a.ended_at ?? a.started_at);
+
+/** What a turn carries, without its text: enough for an app to name a queued turn. */
+function fromOf(origin: Origin): JobFrom {
+  switch (origin.kind) {
+    case "agent":
+    case "channel":
+    case "routine":
+    case "task_result":
+    case "delegation_result":
+      return { kind: origin.kind, name: origin.name };
+    case "surface":
+      return { kind: origin.kind, name: origin.title };
+    default:
+      return { kind: origin.kind };
+  }
+}
 
 export function jobHandlers(store: Store, engine: Engine) {
   const view = (r: RunRecord): Job => {
@@ -23,6 +39,7 @@ export function jobHandlers(store: Store, engine: Engine) {
       ...(t?.parent_id ? { parent_thread_id: t.parent_id } : {}),
       agent_id: r.agent_id,
       trigger: r.trigger,
+      ...(r.input ? { from: fromOf(r.input.origin) } : {}),
       ...(r.model ? { model: r.model } : {}),
       ...(r.usage ? { usage: r.usage } : {}),
       tool_calls: r.tool_calls,

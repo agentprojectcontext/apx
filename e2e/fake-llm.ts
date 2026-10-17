@@ -2,7 +2,8 @@
 // ("Got it: <the last line you wrote>"). Streams like a real one when asked. It calls two tools: "start a worker"
 // delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn, "start a
 // worker in <project id>" into that project, "start four slow workers" four at once, each taking a few seconds, so one
-// waits for a slot); "make a note file" runs a command that needs the owner's OK; "show a widget" makes one; "open a
+// waits for a slot; "start a worker and keep going" hands one off and takes a while to answer, so the worker's result
+// waits behind that turn); "make a note file" runs a command that needs the owner's OK; "show a widget" makes one; "open a
 // report" writes one and opens it as a document. It also
 // embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
@@ -44,6 +45,9 @@ const SUGGESTION = "Run this in the project:\n\n```bash\necho e2e-suggested-$((6
 
 /** How long a slow worker takes to answer. */
 const SLOW_MS = 2500;
+/** How long a caller that handed work off keeps its turn going ("start a worker and keep going"). */
+const KEEP_GOING_MS = 10_000;
+const KEEP_GOING = /^start a worker and keep going/i;
 
 /** Four delegations in one step: past the three at once from a thread, the fourth is queued. */
 function fanOut(messages: Message[], said: string): Array<{ name: string; arguments: string }> | undefined {
@@ -82,6 +86,15 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
     return sinceOwner.filter((m) => m.role === "tool").length < 2 ? delegate : undefined;
   }
   if (messages.at(-1)?.role === "tool") return undefined;
+  if (KEEP_GOING.test(said))
+    return {
+      name: "delegate",
+      arguments: JSON.stringify({
+        worker: { name: "Scout", instructions: "Check the sources quickly." },
+        task: "check the sources",
+        wait_s: 0,
+      }),
+    };
   if (/^show a widget/i.test(said))
     return {
       name: "show_widget",
@@ -196,7 +209,8 @@ export async function fakeLlm() {
         send({ id: "fake", choices: [], usage });
         res.end("data: [DONE]\n\n");
       };
-      if (slow) setTimeout(answer, SLOW_MS);
+      const keepGoing = KEEP_GOING.test(said) && body.messages?.at(-1)?.role === "tool";
+      if (slow || keepGoing) setTimeout(answer, slow ? SLOW_MS : KEEP_GOING_MS);
       else answer();
     });
   });

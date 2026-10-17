@@ -1,12 +1,13 @@
 import { AgentAvatar, EngineIcon, Icons, Popover, SegmentedControl, Spinner } from "@apx/ui";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { Fragment, lazy, Suspense, useMemo, useState } from "react";
 import { elapsed } from "../common/format.ts";
 import { useNow } from "../common/useNow.ts";
 import { blobOf, isWorking, projectName, threadAgent } from "../data/identity.ts";
-import { isBackground } from "../data/jobs.ts";
+import { isBackground, queuedTurnsOf } from "../data/jobs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, showsChat, useNav } from "./nav.ts";
+import { QueuedTurns } from "./QueuedTurns.tsx";
 
 // The jobs list shows only once its tab is opened: not part of the first screen's script.
 const JobList = lazy(() => import("./JobList.tsx").then((m) => ({ default: m.JobList })));
@@ -41,7 +42,16 @@ export function RunningIndicator() {
   }, [runs]);
   const working = active.filter((t) => isWorking(t.state)).length;
   const waiting = active.length - working;
-  const bgRunning = useMemo(() => jobs.running.filter(isBackground), [jobs.running]);
+  // A working chat's own turns (the one in progress and those queued behind it) show with it, not in the background.
+  const queued = useMemo(
+    () => new Map(active.map((th) => [th.id, queuedTurnsOf(jobs.running, th.id)])),
+    [active, jobs.running],
+  );
+  const queuedCount = [...queued.values()].reduce((n, q) => n + q.length, 0);
+  const bgRunning = useMemo(() => {
+    const shown = new Set(active.map((th) => th.id));
+    return jobs.running.filter((j) => isBackground(j) && !(j.kind === "agent" && shown.has(j.thread_id)));
+  }, [jobs.running, active]);
   const background = bgRunning.length;
   const now = useNow(open);
 
@@ -97,7 +107,7 @@ export function RunningIndicator() {
         value={tab}
         onValueChange={setTab}
         options={[
-          { value: "agents", label: <TabLabel text={t("running.tab.agents")} n={active.length} /> },
+          { value: "agents", label: <TabLabel text={t("running.tab.agents")} n={active.length + queuedCount} /> },
           { value: "bg", label: <TabLabel text={t("running.tab.background")} n={background} /> },
         ]}
       />
@@ -107,36 +117,35 @@ export function RunningIndicator() {
             {active.map((th) => {
               const agent = threadAgent(th, agents);
               const since = startedAt.get(th.id);
+              const openChat = () => {
+                setOpen(false);
+                go.inboxThread(th.id);
+              };
               return (
-                <button
-                  key={th.id}
-                  type="button"
-                  className="running__row"
-                  onClick={() => {
-                    setOpen(false);
-                    go.inboxThread(th.id);
-                  }}
-                >
-                  {th.engine ? (
-                    <EngineIcon engine={th.engine} tile size={28} />
-                  ) : (
-                    <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={false} />
-                  )}
-                  <span className="running__item">
-                    <span className="running__title">{th.title}</span>
-                    <span className="running__sub">
-                      {projectName(projects, th.project_id)} ·{" "}
-                      {th.engine
-                        ? (engines.find((e) => e.id === th.engine)?.label ?? th.engine)
-                        : (agent?.name ?? t("common.agent"))}
+                <Fragment key={th.id}>
+                  <button type="button" className="running__row" onClick={openChat}>
+                    {th.engine ? (
+                      <EngineIcon engine={th.engine} tile size={28} />
+                    ) : (
+                      <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={false} />
+                    )}
+                    <span className="running__item">
+                      <span className="running__title">{th.title}</span>
+                      <span className="running__sub">
+                        {projectName(projects, th.project_id)} ·{" "}
+                        {th.engine
+                          ? (engines.find((e) => e.id === th.engine)?.label ?? th.engine)
+                          : (agent?.name ?? t("common.agent"))}
+                      </span>
                     </span>
-                  </span>
-                  {th.state === "input-required" ? (
-                    <span className="running__waiting">{t("running.waitingForYou")}</span>
-                  ) : (
-                    since && <span className="running__elapsed">{elapsed(since, now)}</span>
-                  )}
-                </button>
+                    {th.state === "input-required" ? (
+                      <span className="running__waiting">{t("running.waitingForYou")}</span>
+                    ) : (
+                      since && <span className="running__elapsed">{elapsed(since, now)}</span>
+                    )}
+                  </button>
+                  <QueuedTurns turns={queued.get(th.id) ?? []} now={now} onOpen={openChat} />
+                </Fragment>
               );
             })}
           </div>

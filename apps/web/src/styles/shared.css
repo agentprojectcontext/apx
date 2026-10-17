@@ -217,3 +217,44 @@
 .mlist__engine .apx-engine {
   flex: none;
 }
+/* A chat's queued turns, nested under its working turn (running popover, chat processes). */
+.turns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 24px;
+  padding-left: 10px;
+  border-left: 1px solid var(--apx-border);
+}
+.turns__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: transparent;
+  color: var(--apx-fg);
+  font-size: var(--apx-text-sm);
+  text-align: left;
+}
+button.turns__row:hover {
+  background: var(--apx-fill-hover);
+}
+.turns__icon {
+  flex: none;
+  color: var(--apx-fg-subtle);
+}
+.turns__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.turns__state,
+.turns__time {
+  flex: none;
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+}

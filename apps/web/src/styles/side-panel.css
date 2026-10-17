@@ -716,6 +716,13 @@
 .processes__row:hover {
   background: var(--apx-fill);
 }
+/* The chat's own turn: its transcript is already beside the panel, nothing to open. */
+.processes__row.is-own {
+  cursor: default;
+}
+.processes__row.is-own:hover {
+  background: transparent;
+}
 .processes__name {
   flex: 1;
   min-width: 0;
