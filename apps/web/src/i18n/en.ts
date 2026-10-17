@@ -1320,7 +1320,7 @@ export const en = {
   "rooms.title": "Server rooms",
   "rooms.lead":
     "The rooms of your server where the bot reads and may speak. A room not on the list does not exist for APX. There it answers in public and sealed: no memory and nothing of yours, also when you write; at most it searches the web, as “Search the web” says.",
-  "rooms.mode": "Mode of #{room}",
+  "rooms.mode": "Mode of {room}",
   "rooms.mode.mention": "When called",
   "rooms.mode.useful": "When useful",
   "rooms.mode.always": "Always",
@@ -1330,7 +1330,7 @@ export const en = {
     "Also when nobody calls it: a cheap model reads each message and answers only if it is worth it, by your criterion below.",
   "rooms.modeHint.always": "Answers every message, within the room's limits.",
   "rooms.modeHint.read": "Never answers; it keeps what is said so your agents can read it.",
-  "rooms.remove": "Remove #{room}",
+  "rooms.remove": "Remove {room}",
   "rooms.name": "Room name",
   "rooms.namePlaceholder": "general",
   "rooms.id": "Room id",
@@ -1357,6 +1357,18 @@ export const en = {
   "rooms.limitsHint": "So it does not answer too much in a busy room. They do not apply to you.",
   "rooms.cooldown": "Seconds between answers to one person",
   "rooms.perHour": "Answers per hour in a room",
+  "rooms.tg.title": "Groups",
+  "rooms.tg.lead":
+    "The Telegram groups where the bot reads and may speak. A group not on the list does not exist for APX. There it answers in public and sealed: no memory and nothing of yours, also when you write; at most it searches the web, as “Search the web” says.",
+  "rooms.tg.privacy":
+    "To read every message of a group, turn off the bot's Group Privacy in @BotFather (/mybots › Bot Settings › Group Privacy), then remove the bot from the group and add it again. With it on, Telegram only hands the bot messages that @mention it or reply to it.",
+  "rooms.tg.pick": "Add a group the bot is in…",
+  "rooms.tg.allListed": "Every group the bot was seen in is listed",
+  "rooms.tg.none": "No groups yet: add the bot to a group or write there",
+  "rooms.tg.namePlaceholder": "Team",
+  "rooms.tg.idPlaceholder": "Group id (-1001234567890)",
+  "rooms.tg.idHint":
+    "Telegram cannot list a bot's groups: one shows up here once the bot is added to it or someone writes there while it runs.",
   "dc.lead":
     "Talk with your agents from Discord in direct messages to your bot, and let it look after the rooms of your server you pick. In direct messages only people you approve reach them.",
   "dc.step1": "In the Discord Developer Portal, create an application and open Bot.",

@@ -1,10 +1,12 @@
 // Telegram through the Bot API: long polling with plain fetch, no library. Updates are handed to the manager (which
 // stores them) before the next poll confirms them to Telegram, so a crash never loses a message; a redelivery is
-// dropped by the inbox's unique key.
+// dropped by the inbox's unique key. Groups are read only when the owner listed them (rooms, like Discord's); the Bot
+// API cannot list a bot's groups, so the ones it is in are learned from updates and offered to pick from.
 import { UPLOAD_LIMITS } from "@apx/protocol";
 import type { Presentation } from "../domain/channels.ts";
 import { errorMessage } from "../errors.ts";
 import { causeCode, neverSent, sleep } from "./net.ts";
+import { HANDLE } from "./rooms.ts";
 import { chunks, toTelegramHtml } from "./telegram-format.ts";
 import {
   type AdapterFactory,
@@ -23,14 +25,18 @@ const MAX_BACKOFF_MS = 60_000;
 const MAX_VOICE_BYTES = 10 * 1024 * 1024;
 const UPLOAD_MS = 60_000;
 
-type TgUser = { id: number; first_name?: string; last_name?: string; username?: string };
-type TgChat = { id: number; type: string };
+type TgUser = { id: number; is_bot?: boolean; first_name?: string; last_name?: string; username?: string };
+type TgChat = { id: number; type: string; title?: string };
+type TgEntity = { type: string; offset: number; length: number; user?: TgUser };
 type TgMessage = {
   message_id: number;
   chat: TgChat;
   from?: TgUser;
   text?: string;
   caption?: string;
+  entities?: TgEntity[];
+  caption_entities?: TgEntity[];
+  reply_to_message?: { from?: TgUser };
   photo?: Array<TgFile & { width: number; height: number }>;
   voice?: TgFile;
   audio?: TgFile;
@@ -53,7 +59,12 @@ type TgUpdate = {
     user?: TgUser;
     new_reaction: Array<{ type: string; emoji?: string }>;
   };
+  /** The bot was added to a chat, or removed from it. */
+  my_chat_member?: { chat: TgChat; new_chat_member: { status: string } };
 };
+
+/** The chats that are groups (rooms); "channel" is a broadcast the bot only posts in. */
+const GROUP_TYPES = new Set(["group", "supergroup"]);
 
 /** Bots may only use Telegram's fixed set of reactions: the closest one of those for an emoji it lacks. */
 const TG_REACTION: Record<string, string> = { "❤️": "❤", "😂": "🤣", "👋": "👍" };
@@ -125,9 +136,28 @@ function fileKind(m: TgMessage, f: TgFile & { file_name?: string }): { name: str
   return { name: f.file_name ?? fallback.name, mime: f.mime_type ?? fallback.mime };
 }
 
+/**
+ * Whether a group message calls the bot: an @mention of it (or a command addressed to it), or a reply to one of its
+ * messages. With Group Privacy on, these are the only group messages Telegram hands a bot at all.
+ */
+export function callsBot(m: TgMessage, me: { id: number; username?: string | undefined }): boolean {
+  if (m.reply_to_message?.from?.id === me.id) return true;
+  const text = m.text ?? m.caption ?? "";
+  const handle = me.username ? `@${me.username.toLowerCase()}` : undefined;
+  return (m.entities ?? m.caption_entities ?? []).some((e) => {
+    if (e.type === "text_mention") return e.user?.id === me.id;
+    const said = text.slice(e.offset, e.offset + e.length).toLowerCase();
+    if (!handle) return false;
+    return (e.type === "mention" && said === handle) || (e.type === "bot_command" && said.endsWith(handle));
+  });
+}
+
 export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.org"): ChannelAdapter => {
   const ac = new AbortController();
   let loop: Promise<void> | undefined;
+  /** The bot itself, to know when a group message calls it. */
+  let me: { id: number; username?: string | undefined } | undefined;
+  const listed = new Set((config.rooms?.rooms ?? []).map((r) => r.id));
 
   async function api<T>(method: string, body: object, timeoutMs = CALL_MS, signal = ac.signal): Promise<T> {
     if (!token) throw new TgError(401, "no bot token");
@@ -216,8 +246,39 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     return code && /^[A-Z0-9_]+$/.test(code) ? `connection failed (${code})` : "connection or download failed";
   }
 
+  /** A group message: offered to pick, and handed over only from a listed group, as a room message. */
+  function groupMessage(u: TgUpdate, m: TgMessage & { from: TgUser }, io: AdapterIO): void {
+    const id = String(m.chat.id);
+    io.room?.({ id, name: m.chat.title ?? id });
+    const words = m.text ?? m.caption;
+    if (!listed.has(id) || m.from.is_bot || !words?.trim()) return;
+    // The @mention of the bot itself says nothing: it is how it was called.
+    const own = me?.username ? new RegExp(`@${me.username}\\b`, "gi") : undefined;
+    io.receive({
+      external_id: String(u.update_id),
+      ref: String(m.message_id),
+      conversation: id,
+      sender: {
+        id: String(m.from.id),
+        name: nameOf(m.from),
+        ...(m.from.username ? { handle: m.from.username } : {}),
+      },
+      text: (own ? words.replace(own, "") : words).trim(),
+      private: false,
+      room: { called: me ? callsBot(m, me) : false },
+    });
+  }
+
   async function handle(u: TgUpdate, io: AdapterIO): Promise<void> {
+    const joined = u.my_chat_member;
+    if (joined && GROUP_TYPES.has(joined.chat.type)) {
+      const id = String(joined.chat.id);
+      const left = ["left", "kicked"].includes(joined.new_chat_member.status);
+      io.room?.({ id, name: joined.chat.title ?? id, ...(left ? { left } : {}) });
+      return;
+    }
     const m = u.message;
+    if (m?.from && GROUP_TYPES.has(m.chat.type)) return groupMessage(u, { ...m, from: m.from }, io);
     if (m?.from) {
       const private_ = m.chat.type === "private";
       // Downloads finish before the update is persisted and confirmed to Telegram.
@@ -280,7 +341,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
           {
             ...(offset === undefined ? {} : { offset }),
             timeout: POLL_S,
-            allowed_updates: ["message", "callback_query", "message_reaction"],
+            allowed_updates: ["message", "callback_query", "message_reaction", "my_chat_member"],
           },
           (POLL_S + 10) * 1000,
         );
@@ -345,8 +406,12 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     text: string,
     buttons: Presentation["buttons"],
     silent?: boolean,
+    replyTo?: string,
   ): Promise<number> {
-    const markup = buttons?.length ? keyboard(buttons) : {};
+    const markup = {
+      ...(buttons?.length ? keyboard(buttons) : {}),
+      ...(replyTo ? { reply_parameters: { message_id: Number(replyTo), allow_sending_without_reply: true } } : {}),
+    };
     try {
       const r = await api<{ message_id: number }>("sendMessage", {
         chat_id: chat,
@@ -375,7 +440,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   return {
     caps: { typing: true, buttons: true, reactions: true },
     async start(io) {
-      const me = await api<{ username?: string }>("getMe", {}).catch((err: unknown) => {
+      me = await api<{ id: number; username?: string }>("getMe", {}).catch((err: unknown) => {
         throw err instanceof TgError && (err.code === 401 || err.code === 404)
           ? new ChannelRefused("Telegram refused the bot token: check it with @BotFather")
           : err;
@@ -388,19 +453,31 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
       await loop?.catch(() => {});
     },
     async send(conversation, p, files = []) {
+      // In a group, only the people the core named are pinged: any other @handle is written so it pings nobody.
+      const named = new Set((p.mentions ?? []).map((x) => x.handle.toLowerCase()));
+      const body = conversation.startsWith("-")
+        ? p.text.replace(HANDLE, (raw, h: string) => (named.has(h.toLowerCase()) ? raw : `@\u200b${h}`))
+        : p.text;
       // A voice note with its transcript: one message, the words as its caption (Telegram caps captions at 1024).
       const [only] = files;
-      if (p.mediaFirst && only && files.length === 1 && p.text.trim().length <= CAPTION_MAX && !p.skip) {
-        const id = await sendFile(conversation, only, p.silent, p.text.trim()).catch((err) => {
+      if (p.mediaFirst && only && files.length === 1 && body.trim().length <= CAPTION_MAX && !p.skip) {
+        const id = await sendFile(conversation, only, p.silent, body.trim()).catch((err) => {
           throw toSendError(err, 0);
         });
         return { external_id: String(id) };
       }
-      const texts = p.text.trim() ? chunks(p.text) : [];
+      const texts = body.trim() ? chunks(body) : [];
       // Text parts first, then each file; `skip` counts across both.
       const steps: Array<() => Promise<number>> = [
         ...texts.map(
-          (t, i) => () => sendOne(conversation, t, i === texts.length - 1 ? p.buttons : undefined, p.silent),
+          (t, i) => () =>
+            sendOne(
+              conversation,
+              t,
+              i === texts.length - 1 ? p.buttons : undefined,
+              p.silent,
+              i === 0 ? p.reply_to : undefined,
+            ),
         ),
         ...files.map((f) => () => sendFile(conversation, f, p.silent)),
       ];
