@@ -22,6 +22,8 @@ import { makeStyles, useTheme } from "./theme";
 type Part = Message["parts"][number];
 type InputPart = Extract<Part, { type: "input" }>;
 export type Respond = (input: string, answer: Answer) => Promise<void>;
+/** Lets a conversation the breaker paused go on: a fresh budget, or no limit until the owner writes there again. */
+export type GoOn = (thread: string, mode: "reset" | "release") => Promise<unknown>;
 type Open =
   | { kind: "text" }
   | { kind: "media"; item: MediaItem }
@@ -32,12 +34,14 @@ export function ChatMessage({
   agents,
   waiting = false,
   respond,
+  goOn,
   openThread,
 }: {
   message: Message;
   agents: Agent[];
   waiting?: boolean;
   respond: Respond;
+  goOn?: GoOn;
   /** Opens another chat: the one a sub-thread card stands for. */
   openThread?: (id: string) => void;
 }) {
@@ -109,6 +113,9 @@ export function ChatMessage({
                   <Text numberOfLines={2} style={s.code}>
                     {part.detail}
                   </Text>
+                ) : null}
+                {goOn && part.code.startsWith("breaker.") && typeof part.vars?.thread === "string" ? (
+                  <BreakerActions thread={part.vars.thread} goOn={goOn} />
                 ) : null}
               </View>
             );
@@ -190,6 +197,40 @@ export function ChatMessage({
 }
 
 /** A confirmation or a question waiting in the chat, answered right here. */
+/** A paused chain's way on, as on the web: a fresh budget, or no limit this round (DECISIONS.md#d-081). */
+function BreakerActions({ thread, goOn }: { thread: string; goOn: GoOn }) {
+  const s = useStyles();
+  const [busy, setBusy] = useState<"reset" | "release">();
+  const [done, setDone] = useState(false);
+  if (done) return <Text style={s.noticeDone}>{t("breakerWentOn")}</Text>;
+  const go = (mode: "reset" | "release") => {
+    setBusy(mode);
+    goOn(thread, mode)
+      .then(() => setDone(true))
+      .catch((e: unknown) => Alert.alert(e instanceof Error ? e.message : String(e)))
+      .finally(() => setBusy(undefined));
+  };
+  return (
+    <View style={s.noticeActions}>
+      <Button
+        size="sm"
+        label={t("breakerReset")}
+        busy={busy === "reset"}
+        disabled={Boolean(busy)}
+        onPress={() => go("reset")}
+      />
+      <Button
+        size="sm"
+        variant="secondary"
+        label={t("breakerRelease")}
+        busy={busy === "release"}
+        disabled={Boolean(busy)}
+        onPress={() => go("release")}
+      />
+    </View>
+  );
+}
+
 function InputCard({ part, respond }: { part: InputPart; respond: Respond }) {
   const theme = useTheme();
   const s = useStyles();
@@ -333,6 +374,8 @@ const useStyles = makeStyles((theme) => ({
     maxWidth: "88%",
   },
   noticeText: { color: theme.warning, fontSize: 13, fontWeight: "500", flexShrink: 1 },
+  noticeActions: { flexDirection: "row", flexWrap: "wrap", gap: 8, width: "100%" },
+  noticeDone: { color: theme.fgMuted, fontSize: 12, width: "100%" },
   code: { color: theme.fgMuted, fontSize: 12, fontFamily: theme.mono },
   line: {
     flexDirection: "row",
