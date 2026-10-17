@@ -14,6 +14,7 @@ export type {
   TaskEvent,
   Thread,
 } from "../../../packages/protocol/src/index.ts";
+export { noticeText } from "../../../packages/protocol/src/notices.ts";
 
 /** The owner's answer to a pending input: a decision (with how long it lasts) or a text. */
 export type Answer = Omit<Params<"runs.respond">, "input">;

@@ -145,23 +145,6 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "limits.none": "Sin límite",
   "limits.off": "Quitar los límites",
   "limits.offHint": "Los agentes siguen solos hasta terminar, tarden lo que tarden y cueste lo que cueste.",
-  "notice.breaker.paused.runs":
-    "En pausa: los agentes hicieron {spent} turnos solos desde tu último mensaje acá. {who} terminó; escribí para seguir.",
-  "notice.breaker.paused.tokens":
-    "En pausa: los agentes gastaron {spent} tokens solos desde tu último mensaje acá. {who} terminó; escribí para seguir.",
-  "notice.breaker.paused.link": "Cambiar el límite",
-  "notice.breaker.held.runs":
-    "En pausa: los agentes hicieron {spent} turnos solos desde tu último mensaje acá. {who} empieza «{task}» cuando los dejes seguir.",
-  "notice.breaker.held.tokens":
-    "En pausa: los agentes gastaron {spent} tokens solos desde tu último mensaje acá. {who} empieza «{task}» cuando los dejes seguir.",
-  "notice.breaker.held.agentRuns":
-    "En pausa para {who}: {who} hizo {spent} turnos solo desde tu último mensaje acá, su propio límite. Empieza «{task}» cuando los dejes seguir.",
-  "notice.breaker.held.agentTokens":
-    "En pausa para {who}: {who} gastó {spent} tokens solo desde tu último mensaje acá, su propio límite. Empieza «{task}» cuando los dejes seguir.",
-  "notice.breaker.held.link": "Cambiar el límite",
-  "notice.breaker.reset": "Reiniciar presupuesto",
-  "notice.breaker.release": "Liberar en esta ronda",
-  "notice.breaker.wentOn": "Los agentes siguieron",
   "agentedit.group.general": "General",
   "agentedit.group.abilities": "Capacidades",
   "agentedit.group.permissions": "Permisos",
