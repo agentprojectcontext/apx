@@ -46,6 +46,13 @@ The phone app is `dev.apx.mobile` and v1's is `dev.agentprojectcontext.apx`: the
 carries arm64-v8a only by default (`APX_ANDROID_ABIS` adds more) and its versionCode follows the tag (2.1.3 → 20103); Expo push needs the owner's EAS project
 and Firebase app, set once as repo variable/secret ([apps/mobile/README.md](../apps/mobile/README.md#push)).
 
+## What people are told
+
+The same commits since the previous v2 tag, each subject as a sentence, reach people three ways: the Discord
+announcement, the replies to the issues a release fixes, and, inside APX, the super-agent's "what's new" chat on the
+first start of the new version ([D-098](DECISIONS.md#d-098)). So a commit subject is release text: write it for the
+people who use APX. Only `feat`, `fix` and `perf` commits are shown.
+
 ## Issues a release fixes
 
 A commit that fixes a GitHub issue ends its message with a trailer, one per issue: `Issue: #105`. Do not comment on

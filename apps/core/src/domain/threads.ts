@@ -7,11 +7,14 @@ import type { Bus } from "../bus.ts";
 import type { MessagesTable, ThreadsTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
-/** The model picked for this chat in its composer, kept in its context. */
-function chatModel(context: string): Pick<Thread, "model_choice"> {
+/** What a chat's context shows outside: the model picked in its composer, the release it tells about. */
+function fromContext(context: string): Pick<Thread, "model_choice" | "release"> {
   try {
     const c = JSON.parse(context) as ThreadContext;
-    return c.model_choice ? { model_choice: c.model_choice } : {};
+    return {
+      ...(c.model_choice ? { model_choice: c.model_choice } : {}),
+      ...(c.release ? { release: c.release.version } : {}),
+    };
   } catch {
     return {};
   }
@@ -41,7 +44,7 @@ const toThread = (r: Selectable<ThreadsTable>): Thread => ({
         },
       }
     : {}),
-  ...chatModel(r.context),
+  ...fromContext(r.context),
   state: r.state as Thread["state"],
   preview: r.preview,
   unread: Number(r.unread),
@@ -113,7 +116,12 @@ export type ThreadContext = {
   imported?: { engine: "claude" | "codex"; session: string };
   /** What an imported chat is about, for the agent that takes it over (sessions.digest). */
   digest?: { text: string; at: string };
+  /** The chat that told the owner what an update brought (domain/whats-new.ts): the releases it covers. */
+  release?: ReleaseContext;
 };
+
+/** A release-notes chat: up to which version, from which one (its commits are previous..version), and where built. */
+export type ReleaseContext = { version: string; previous?: string; branch?: string; repo_dir?: string };
 
 /** A task's start an agent asked for, kept until the owner lets agents go on: who works it, and who asked. */
 export type HeldTask = { task: string; agent: string; run: string; depth: number };

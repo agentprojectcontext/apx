@@ -4,7 +4,7 @@
 // closed. A comment already there for that version is not posted twice.
 //   TAG=v2.3.28 node scripts/issue-replies.ts [--dry]     (needs `gh`, logged in or with GH_TOKEN)
 import { execFileSync } from "node:child_process";
-import { previousTag } from "./discord-release.ts";
+import { previousTag, sentence } from "../apps/core/src/release-notes.ts";
 
 const REPO = "agentprojectcontext/apx";
 
@@ -25,15 +25,9 @@ export function fixesIn(log: string): Fix[] {
     });
 }
 
-/** `fix(core): a chat turn gets 60 steps` → "A chat turn gets 60 steps". */
-const plain = (subject: string) => {
-  const s = subject.replace(/^[a-z]+(\([^)]*\))?!?:\s*/, "");
-  return s.startsWith("apx ") ? s : `${s.charAt(0).toUpperCase()}${s.slice(1)}`;
-};
-
 /** What the issue is told: every commit of the release that names it. */
 export function replyFor(tag: string, fixes: Fix[]): string {
-  const lines = fixes.map((f) => `- ${plain(f.subject)} (${f.sha})`);
+  const lines = fixes.map((f) => `- ${sentence(f.subject)} (${f.sha})`);
   return [
     `Released in APX ${tag}:`,
     "",

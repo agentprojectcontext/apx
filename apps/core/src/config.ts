@@ -84,6 +84,8 @@ export type CoreConfig = {
   agentName: string | undefined;
   /** Look for a newer APX now and then (APX_UPDATES): on; app = only say so, the desktop app installs it; off. */
   updates: "on" | "app" | "off";
+  /** The super-agent tells what an update brought, on the first start of a newer release (APX_WHATS_NEW=off: never). */
+  whatsNew: boolean;
   /** A supervisor starts the core again when it exits to update (`pnpm app` sets APX_SUPERVISED=1). */
   supervised: boolean;
   /** APX_APP: where install.sh/ps1 put this daemon (its bundles and `current`); unset for a checkout or the app. */
@@ -211,6 +213,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),
     agentName: env.APX_AGENT_NAME?.trim() || undefined,
     updates: env.APX_UPDATES === "off" ? "off" : env.APX_UPDATES === "app" ? "app" : "on",
+    whatsNew: env.APX_WHATS_NEW !== "off",
     supervised: env.APX_SUPERVISED === "1",
     app: env.APX_APP || undefined,
     releases: env.APX_RELEASES === "off" ? undefined : env.APX_RELEASES || RELEASE_FEED,
@@ -245,6 +248,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     native,
     runtimeSkills: { homes: { home: over.home, ...native }, auto: false },
     updates: "off",
+    whatsNew: false,
     app: undefined,
     releases: undefined,
     telemetry: undefined,

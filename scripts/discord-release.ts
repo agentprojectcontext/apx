@@ -3,6 +3,7 @@
 // read from the commits since the previous v2 tag, and how each install updates.
 //   TAG=v2.3.4 WEBHOOK=… [ROLE_ID=…] [BETA=1] node scripts/discord-release.ts [--dry]
 import { execFileSync } from "node:child_process";
+import { previousTag, sentence } from "../apps/core/src/release-notes.ts";
 
 const REPO = "agentprojectcontext/apx";
 const BRAND = 4176208; // APX green
@@ -16,26 +17,12 @@ const SECTIONS = [
 
 const git = (...args: string[]) => execFileSync("git", args, { encoding: "utf8" }).trim();
 
-/** The v2 tag before this one, by version (not by date). */
-export function previousTag(tag: string, tags: string[]): string | undefined {
-  const key = (t: string) => t.slice(1).split(".").map(Number);
-  // Negative when a comes before b.
-  const cmp = (a: string, b: string) => {
-    const [x, y] = [key(a), key(b)];
-    for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0);
-    return 0;
-  };
-  return tags.filter((t) => /^v2\.\d+\.\d+$/.test(t) && cmp(t, tag) < 0).sort((a, b) => cmp(b, a))[0];
-}
-
 /** `feat(web): mark every chat read` → the section it goes in and "Mark every chat read". */
 export function sections(subjects: string[]): Array<{ name: string; value: string }> {
   return SECTIONS.flatMap(({ type, name }) => {
     const lines = subjects
-      .map((s) => new RegExp(`^${type}(\\([^)]*\\))?!?:\\s*(.+)$`).exec(s)?.[2])
-      .filter((s): s is string => Boolean(s))
-      // The command keeps its own case (`apx …`); any other line starts as a sentence.
-      .map((s) => `• ${s.startsWith("apx ") ? s : `${s.charAt(0).toUpperCase()}${s.slice(1)}`}`);
+      .filter((s) => new RegExp(`^${type}(\\([^)]*\\))?!?:\\s*\\S`).test(s))
+      .map((s) => `• ${sentence(s)}`);
     if (!lines.length) return [];
     const shown = lines.slice(0, PER_SECTION);
     const more = lines.length - shown.length;

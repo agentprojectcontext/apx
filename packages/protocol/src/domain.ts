@@ -258,6 +258,8 @@ export const Thread = z.object({
   channel: z.object({ id: z.string(), conversation: z.string(), person_id: Id.optional() }).optional(),
   /** The chat's own model, picked in its composer; absent = the agent's. */
   model_choice: ModelChoice.optional(),
+  /** The chat in which the super-agent told what an update brought: that release's version. */
+  release: z.string().optional(),
   /** The automatic title, present only while the owner's own name (`title`) stands over it. */
   auto_title: z.string().optional(),
   /** Pinned by the owner: first within its group in every list. */
