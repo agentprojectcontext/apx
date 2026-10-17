@@ -41,7 +41,9 @@ test("file-capable agents can present a UTF-8 txt as Markdown without changing i
   const { thread, message } = await present({ path: "Report.TXT", title: "Project report" });
   const doc = message?.parts.find((p) => p.type === "file" && p.document);
   assert.ok(doc && doc.type === "file");
-  assert.deepEqual(doc.document, { title: "Project report", format: "markdown" });
+  assert.deepEqual(doc.document, { title: "Project report", format: "markdown", source: { path: "Report.TXT" } });
+  const listed = await env.client.call("documents.list", { thread_id: thread.id });
+  assert.deepEqual(listed.documents[0]?.source, { path: "Report.TXT" });
   assert.equal(doc.name, "Report.TXT");
   assert.equal(doc.mime, "text/plain");
   assert.equal(env.core.store.media.get(doc.media_id)?.thread_id, thread.id);

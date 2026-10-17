@@ -499,6 +499,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.openApp": "Abrir como app",
   "widget.installApp": "Instalar como app",
   "widget.unavailable": "Widget no disponible",
+  "widget.toPanel": "Mostrar en el panel lateral",
+  "widget.inPanel": "Se muestra en el panel lateral",
+  "widget.showHere": "Mostrar acá",
+  "widget.backToChat": "Volver al chat",
+  "widgets.all": "Todos los widgets ({n})",
   "widgets.empty": "Sin widgets en este chat",
   "widgets.emptyBody":
     "Los widgets que arme el agente en este chat aparecen acá. Fijalos para tenerlos también en el tablero del proyecto.",
@@ -1328,7 +1333,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "rooms.title": "Salas del servidor",
   "rooms.lead":
     "Las salas de tu servidor donde el bot lee y puede hablar. Una sala que no está en la lista no existe para APX. Ahí contesta en público y sellado: sin memoria y sin nada tuyo, también cuando escribís vos; como mucho busca en la web, según diga “Buscar en la web”.",
-  "rooms.mode": "Modo de #{room}",
+  "rooms.mode": "Modo de {room}",
   "rooms.mode.mention": "Cuando lo llaman",
   "rooms.mode.useful": "Cuando sirve",
   "rooms.mode.always": "Siempre",
@@ -1338,7 +1343,7 @@ export const es: Partial<Record<MessageKey, string>> = {
     "También cuando nadie lo llama: un modelo barato lee cada mensaje y contesta solo si vale la pena, con tu criterio de abajo.",
   "rooms.modeHint.always": "Contesta todos los mensajes, dentro de los límites de la sala.",
   "rooms.modeHint.read": "Nunca contesta; guarda lo que se dice para que tus agentes lo puedan leer.",
-  "rooms.remove": "Quitar #{room}",
+  "rooms.remove": "Quitar {room}",
   "rooms.name": "Nombre de la sala",
   "rooms.namePlaceholder": "general",
   "rooms.id": "ID de la sala",
@@ -1367,6 +1372,18 @@ export const es: Partial<Record<MessageKey, string>> = {
   "rooms.limitsHint": "Para no responder de más en una sala activa. A vos no te aplican.",
   "rooms.cooldown": "Segundos entre respuestas a una persona",
   "rooms.perHour": "Respuestas por hora en una sala",
+  "rooms.tg.title": "Grupos",
+  "rooms.tg.lead":
+    "Los grupos de Telegram donde el bot lee y puede hablar. Un grupo que no está en la lista no existe para APX. Ahí contesta en público y sellado: sin memoria y sin nada tuyo, también cuando escribís vos; como mucho busca en la web, según diga “Buscar en la web”.",
+  "rooms.tg.privacy":
+    "Para leer todos los mensajes de un grupo, desactivá la privacidad de grupos del bot en @BotFather (/mybots › Bot Settings › Group Privacy) y después sacá el bot del grupo y volvé a agregarlo. Con la privacidad activa, Telegram solo le pasa al bot los mensajes que lo @mencionan o le responden.",
+  "rooms.tg.pick": "Agregar un grupo donde está el bot…",
+  "rooms.tg.allListed": "Todos los grupos donde se vio al bot ya están",
+  "rooms.tg.none": "Todavía no hay grupos: agregá el bot a un grupo o escribí ahí",
+  "rooms.tg.namePlaceholder": "Equipo",
+  "rooms.tg.idPlaceholder": "ID del grupo (-1001234567890)",
+  "rooms.tg.idHint":
+    "Telegram no deja listar los grupos de un bot: uno aparece acá cuando agregan el bot o alguien escribe ahí mientras funciona.",
   "dc.lead":
     "Hablá con tus agentes desde Discord por mensaje directo a tu bot, y dejalo atender las salas de tu servidor que elijas. Por mensaje directo solo llegan las personas que apruebes.",
   "dc.step1": "En el Discord Developer Portal, creá una aplicación y entrá a Bot.",

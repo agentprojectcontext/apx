@@ -1,6 +1,6 @@
 // The owner's arrangement of a chat: its name, pinned, archived, and deleting it.
 import { z } from "zod";
-import { Id, Message, Run, Thread, WritePolicy } from "./domain.ts";
+import { DocumentSource, Id, Message, Run, Thread, WritePolicy } from "./domain.ts";
 
 export const threadMethods = {
   /**
@@ -73,6 +73,7 @@ export const threadMethods = {
           title: z.string(),
           name: z.string(),
           format: z.enum(["markdown", "text"]),
+          source: DocumentSource.optional(),
           bytes: z.number().int(),
           thread_id: Id,
           thread_title: z.string(),

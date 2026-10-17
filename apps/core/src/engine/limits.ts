@@ -6,7 +6,7 @@ import type { Store } from "../domain/store.ts";
  * delegation, a consult) does the work itself and asks nobody else (DECISIONS.md#d-074).
  */
 export const MAX_DEPTH = 1;
-/** Delegations running at once from one thread; past it the next ones wait in a queue (DECISIONS.md#d-094). */
+/** Delegations running at once from one thread; past it the next ones wait in a queue (DECISIONS.md#d-096). */
 export const MAX_ACTIVE_DELEGATIONS = 3;
 /** How long a delegated run may work. */
 export const A2A_DEADLINE_MS = 10 * 60_000;

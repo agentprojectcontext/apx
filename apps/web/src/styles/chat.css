@@ -269,6 +269,30 @@
 .surfacecard__spacer {
   flex: 1;
 }
+/* Shown in the side panel: one line in the chat, as a delegation's card, never the widget twice. */
+.surfacecard--aside {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  color: var(--apx-fg-muted);
+}
+.surfacecard__asidetext {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.surfacecard__asidetitle {
+  overflow: hidden;
+  color: var(--apx-fg);
+  font-weight: var(--apx-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.surfacecard__asidenote {
+  font-size: var(--apx-text-xs);
+}
 
 /* ── Surfaces ──────────────────────────────────────────────────────────────── */
 .surfaceframe {

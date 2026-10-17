@@ -212,7 +212,7 @@ export const EngineStatus = z.object({
 });
 export type EngineStatus = z.infer<typeof EngineStatus>;
 
-/** `queued`: a delegation past the cap of its caller's thread, waiting for one of them to end (DECISIONS.md#d-094). */
+/** `queued`: a delegation past the cap of its caller's thread, waiting for one of them to end (DECISIONS.md#d-096). */
 export const RunState = z.enum(["queued", "submitted", "working", "input-required", "completed", "failed", "canceled"]);
 export type RunState = z.infer<typeof RunState>;
 export const TERMINAL_RUN_STATES: readonly RunState[] = ["completed", "failed", "canceled"];
@@ -355,6 +355,10 @@ export const PendingInput = z.object({
 });
 export type PendingInput = z.infer<typeof PendingInput>;
 
+/** Where a document's file is in its chat: a path in the chat's folder, or (`scratch`) in its temp folder. */
+export const DocumentSource = z.object({ path: z.string().max(1000), scratch: z.boolean().optional() });
+export type DocumentSource = z.infer<typeof DocumentSource>;
+
 /** What the UI shows. The model's own transcript is stored separately (two projections of one log). */
 const KnownPart = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), text: z.string() }),
@@ -409,7 +413,14 @@ const KnownPart = z.discriminatedUnion("type", [
     name: z.string(),
     mime: z.string(),
     bytes: z.number().int(),
-    document: z.object({ title: z.string().max(120), format: z.enum(["markdown", "text"]) }).optional(),
+    document: z
+      .object({
+        title: z.string().max(120),
+        format: z.enum(["markdown", "text"]),
+        /** The file it was read from, for files.reveal and files.open. */
+        source: DocumentSource.optional(),
+      })
+      .optional(),
   }),
   /**
    * What changed in a code thread's folder (uncommitted, per git) when the turn ended; with `edits`, the files the
@@ -750,14 +761,14 @@ export const ChannelType = z.enum([
 export type ChannelType = z.infer<typeof ChannelType>;
 
 /**
- * How the bot behaves in a room of a server (a Discord channel): answer everything, only when called, only when it
+ * How the bot behaves in a room (a Discord server's channel, a Telegram group): answer everything, only when called, only when it
  * can really help (a cheap model judges, by the owner's criterion), or never (it reads, so the owner can ask later).
  */
 export const RoomMode = z.enum(["always", "mention", "useful", "read"]);
 export type RoomMode = z.infer<typeof RoomMode>;
 
 /**
- * Public rooms (a Discord server's channels). Deny by default: a room that is not listed does not exist for APX. People
+ * Public rooms (a Discord server's channels, Telegram groups). Deny by default: a room that is not listed does not exist for APX. People
  * there are strangers in public: the agent answers sealed (no tools, no memory, nothing of the owner's), by the owner's
  * knowledge and rules.
  */
@@ -850,7 +861,7 @@ export const ChannelInfo = z.object({
    * its own the agent answers on, and the owner writes to it from their phone (linked with a code or by number).
    */
   self_owner: z.boolean().optional(),
-  /** Discord: the server rooms it reads and may speak in. None: only direct messages. */
+  /** Discord: the server rooms it reads and may speak in; Telegram: its groups. None: only direct messages. */
   rooms: ChannelRooms.optional(),
   /**
    * A message that needs no answer ("ok", "gracias"): left in silence (none: the same), or answered with an emoji

@@ -1112,7 +1112,18 @@ equal to a former default (16, 600k), and saving now keeps only what differs fro
 reaches everyone who never touched it while a limit the owner picked stays.
 
 <a id="d-094"></a>
-## D-094 — 2026-10-17 — A delegation past the cap waits in a queue instead of being refused
+## D-094 — 2026-10-17 — Telegram groups are rooms, learned from what arrives
+A Telegram bot added to a group was silent unless the group was ignored entirely: its messages were marked not private
+and had no room, so they were dropped. Groups are now rooms exactly like a Discord server's channels (D-041): deny by
+default, a mode per group, sealed public turns, answers in the group as a reply. Called means an @mention of the bot, a
+command addressed to it or a reply to its message. The Bot API has no call that lists a bot's chats, so the adapter
+reports every group it sees (a message, or `my_chat_member` when it is added or removed) through `io.room`, and the
+manager keeps them per channel in settings for the rooms picker; an unlisted group's messages are reported but never
+handed over, so nothing of it is stored. Telegram pings any `@username` written in a message, so in a group the
+adapter breaks every handle the core did not name with a zero-width space, the equivalent of Discord's
+`allowed_mentions`. A group upgraded to a supergroup changes id: the owner picks it again.
+
+## D-096 — 2026-10-17 — A delegation past the cap waits in a queue instead of being refused
 With three delegations already running from a thread, `delegate` answered "refused", and an orchestrator fanning out an
 audit never asked again: a whole part of the owner's request was never looked at. Now the fourth (and later) is accepted
 and queued: its sub-thread, task message, card and run are written at once, the run in a new state `queued` that the

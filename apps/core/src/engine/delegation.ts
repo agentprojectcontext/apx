@@ -230,7 +230,7 @@ export function createDelegations(deps: {
       const spentOwn = agentTripped(store, parentThread.id, to.id, worker?.name ?? to.name);
       if (spentOwn)
         return `refused: ${spentOwn}. Give this work to another agent (list_agents shows what each has left), or tell the owner.`;
-      // Past the cap it waits in a durable queue rather than being refused: a refusal was easy to drop. See DECISIONS.md#d-094
+      // Past the cap it waits in a durable queue rather than being refused: a refusal was easy to drop. See DECISIONS.md#d-096
       const queued = store.runs.activeDelegations(parentThread.id) >= MAX_ACTIVE_DELEGATIONS;
       deps.live.set(from.run.id, from.display);
       const who = worker?.name ?? to.name;

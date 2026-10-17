@@ -9,7 +9,7 @@ import type { Store } from "../domain/store.ts";
 import { inlineName, untrusted } from "../tools/result.ts";
 
 /** A public room of a server: who is in it is a crowd, the owner included (what is said there is public). */
-export type Room = { name: string; settings: ChannelRooms };
+export type Room = { name: string; settings: ChannelRooms; platform?: string | undefined };
 
 export type Audience =
   | { kind: "owner" }
@@ -23,7 +23,7 @@ export function audienceOf(store: Store, thread: Pick<Thread, "id" | "channel">)
     const settings = cfg?.rooms ?? ChannelRooms.parse({ rooms: [] });
     // Room and contact names come from the channel app: they sit inside APX's sentences as one plain line.
     const name = inlineName(room.name);
-    return { kind: "contact", name: `#${name}`, channel: ch.id, room: { name, settings } };
+    return { kind: "contact", name: `#${name}`, channel: ch.id, room: { name, settings, platform: cfg?.type } };
   }
   if (!ch?.person_id) return { kind: "owner" };
   const person: Person | undefined = store.persons.get(ch.person_id);
@@ -101,7 +101,7 @@ export function ownerInstruction(name: string, text: string): string {
 export function roomPrompt(agent: AgentRecord, room: Room, ownerLanguage: string, web = false): string {
   const s = room.settings;
   return [
-    `You are ${agent.name}, answering in #${room.name}, a public room of a Discord server. Everything you write is posted publicly there.`,
+    `You are ${agent.name}, answering in #${room.name}, ${room.platform === "telegram" ? "a Telegram group" : "a public room of a Discord server"}. Everything you write is posted publicly there.`,
     "",
     "## Rules",
     `- This turn has ${web ? "only web search and reading" : "no tools"}, no private memory and no access to your owner's machine, files, projects or other chats. Never say or guess anything private about your owner.`,
