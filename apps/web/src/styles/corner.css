@@ -81,7 +81,13 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+/* Side by side when they fit; in a narrow sidebar the second goes under the first instead of being cut. */
 .corner__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+}
+.corner__actions > * {
+  flex: 1 1 auto;
+  width: auto;
 }

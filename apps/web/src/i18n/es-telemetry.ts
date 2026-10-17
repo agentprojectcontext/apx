@@ -4,7 +4,7 @@ import type { MessageKey } from "./en.ts";
 export const esTelemetry: Partial<Record<MessageKey, string>> = {
   "telemetry.check": "Compartir estadísticas de uso anónimas",
   "telemetry.checkHint":
-    "Una vez por día: los tokens usados y cuántos proyectos, agentes y canales tenés. Nunca tus chats, nombres ni archivos.",
+    "Las estadísticas de uso anónimas nos muestran cómo se usa APX de verdad, para saber qué mejorar primero. Nunca miramos tus chats, archivos ni datos personales.",
   "telemetry.cardTitle": "Ayudá a mejorar APX",
   "telemetry.cardYes": "Compartir estadísticas",
   "telemetry.cardNo": "No, gracias",

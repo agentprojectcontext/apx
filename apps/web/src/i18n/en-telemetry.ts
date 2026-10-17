@@ -2,7 +2,7 @@
 export const enTelemetry = {
   "telemetry.check": "Share anonymous usage statistics",
   "telemetry.checkHint":
-    "Once a day: tokens used and how many projects, agents and channels you have. Never your chats, names or files.",
+    "Anonymous usage statistics show us how APX is really used, so we know what to improve first. We never look at your chats, files or personal data.",
   "telemetry.cardTitle": "Help improve APX",
   "telemetry.cardYes": "Share statistics",
   "telemetry.cardNo": "No, thanks",
