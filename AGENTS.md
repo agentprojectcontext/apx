@@ -103,7 +103,8 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 18. **Conventional commits** (`feat:`, `fix:`, `chore:`…); the release tooling will read them. Branches are named the
     same way (`feat/…`, `fix/…`, `docs/…`, `perf/…`, `chore/…`), never after a tool or an agent (`claude/…`, `codex/…`):
     rename one before it is pushed. They start from and merge back into `release/v2` of `agentprojectcontext/apx`.
-    `[review]`
+    A commit that fixes a GitHub issue ends with an `Issue: #N` trailer; the release answers and closes it
+    ([RELEASE.md](rules/RELEASE.md#issues-a-release-fixes)). `[review]`
 19. **Never weaken a gate to get green** (lint rule off, test skipped, type `any`). Downgrading a rule needs a
     `DECISIONS.md` entry. `[review]`
 20. **New dependency = stated reason** why the platform or an existing dependency is not enough (in the PR/commit
