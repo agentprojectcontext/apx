@@ -1,6 +1,8 @@
 // The one executor every tool call goes through, whatever harness made it: check the arguments, ask the policy,
 // wait for the owner when it says so, record the step, run with a deadline, keep the full output and hand the
 // model a capped copy.
+
+import path from "node:path";
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { strictApproval } from "../domain/approvals.ts";
@@ -11,10 +13,11 @@ import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
 import { insideReal } from "../paths.ts";
+import type { Root } from "../tools/folders.ts";
 import { MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
 import { authorize, decide } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
-import { commandRisk } from "../tools/shell.ts";
+import { commandRisk, judgeCommand } from "../tools/shell.ts";
 import type { CheckContext, Confirm, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
 import type { Inputs } from "./inputs.ts";
@@ -123,6 +126,8 @@ export function createExecutor(o: {
   workDir: string;
   /** The project's read-only folders: an outside agent reads there as in its own folder and changes nothing. */
   readOnly?: string[];
+  /** Its folders under the folder rule (harnessRoots): a command it runs is judged as the shell tool's. */
+  roots?: Root[];
 }): Executor {
   const { store, display, signal, agent, thread } = o;
   const byName = new Map(o.tools.map((t) => [t.name, t]));
@@ -350,8 +355,12 @@ export function createExecutor(o: {
     const paths = pathsOf(req.input);
     const command = (req.input as { command?: unknown } | undefined)?.command;
     const reading = READING.has(req.kind);
-    const readOnly = (p: string) => !insideReal(base, p) && (o.readOnly ?? []).some((d) => insideReal(d, p));
+    const readOnly = (p: string) =>
+      !insideReal(base, p) && (o.readOnly ?? []).some((d) => insideReal(d, path.resolve(base, p)));
     if (!reading && paths.some(readOnly)) return false;
+    // A command is held to the shell tool's folder rule: what it reads readable, what it writes writable.
+    if (req.kind === "execute" && typeof command === "string" && o.roots && judgeCommand(o.roots, command, base))
+      return false;
     const inside = paths.every((p) => insideReal(base, p) || (reading && readOnly(p)));
     const level = externalLevel(req.kind, inside, command);
     // A code thread's write policy comes first: read-only lets only reading run; auto lets edits inside its folder,
