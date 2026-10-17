@@ -2,19 +2,15 @@
 export const enTelemetry = {
   "telemetry.check": "Share anonymous usage statistics",
   "telemetry.checkHint":
-    "Once a day: tokens used and how many projects, agents and channels you have. Never your chats, names, files or keys. You can change it in Settings › Advanced.",
+    "Once a day: tokens used and how many projects, agents and channels you have. Never your chats, names or files.",
   "telemetry.cardTitle": "Help improve APX",
-  "telemetry.cardDesc":
-    "Share anonymous numbers once a day: tokens used and how many projects, agents and channels you have. Never your chats, names or files.",
   "telemetry.cardYes": "Share statistics",
   "telemetry.cardNo": "No, thanks",
   "telemetry.whatIsSent": "What is sent",
   "telemetry.title": "Usage statistics",
   "telemetry.lead":
-    "APX tells the APX project that this install exists, with a random id that is not linked to you: when it was installed, first opened, set up and first used, and each new version. With your yes it also sends the numbers below once a day.",
-  "telemetry.shareHint":
-    "Totals only: tokens in and out across every model, turns, and how many projects, agents, channels and routines you have.",
-  "telemetry.off": "Telemetry is off on this computer (APX_TELEMETRY=off, DO_NOT_TRACK or CI): nothing is sent.",
+    "A random id, not linked to you, tells the APX project when this install was set up, first used and updated. With your yes it also sends the numbers below once a day.",
+  "telemetry.off": "Telemetry is off on this computer: nothing is sent.",
   "telemetry.preview": "Next report",
   "telemetry.last": "Last sent",
   "telemetry.never": "Nothing sent yet",

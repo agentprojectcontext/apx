@@ -80,7 +80,7 @@ export function CornerCards({ floating = false }: { floating?: boolean }) {
         id="telemetry"
         icon={<ProjectTile tone="brand" size={24} icon={<Icons.Activity size={14} />} />}
         title={t("telemetry.cardTitle")}
-        description={t("telemetry.cardDesc")}
+        description={t("telemetry.checkHint")}
         link={{ label: t("telemetry.whatIsSent"), href: PRIVACY_URL }}
         action={t("telemetry.cardYes")}
         onAction={() => void setUsage(true)}

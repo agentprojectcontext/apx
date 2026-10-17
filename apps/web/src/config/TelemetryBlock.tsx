@@ -35,7 +35,7 @@ export function TelemetryBlock() {
         </a>
       </p>
       {state.enabled && (
-        <SettingRow title={t("telemetry.check")} description={t("telemetry.shareHint")}>
+        <SettingRow title={t("telemetry.check")} description={t("telemetry.checkHint")}>
           <Switch
             checked={state.usage === true}
             onCheckedChange={(on) => void setUsage(on)}

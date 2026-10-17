@@ -4,20 +4,15 @@ import type { MessageKey } from "./en.ts";
 export const esTelemetry: Partial<Record<MessageKey, string>> = {
   "telemetry.check": "Compartir estadísticas de uso anónimas",
   "telemetry.checkHint":
-    "Una vez por día: los tokens usados y cuántos proyectos, agentes y canales tenés. Nunca tus chats, nombres, archivos ni claves. Lo podés cambiar en Configuración › Avanzado.",
+    "Una vez por día: los tokens usados y cuántos proyectos, agentes y canales tenés. Nunca tus chats, nombres ni archivos.",
   "telemetry.cardTitle": "Ayudá a mejorar APX",
-  "telemetry.cardDesc":
-    "Compartí números anónimos una vez por día: los tokens usados y cuántos proyectos, agentes y canales tenés. Nunca tus chats, nombres ni archivos.",
   "telemetry.cardYes": "Compartir estadísticas",
   "telemetry.cardNo": "No, gracias",
   "telemetry.whatIsSent": "Qué se envía",
   "telemetry.title": "Estadísticas de uso",
   "telemetry.lead":
-    "APX le avisa al proyecto APX que esta instalación existe, con un id al azar que no está ligado a vos: cuándo se instaló, se abrió por primera vez, se configuró y se usó por primera vez, y cada versión nueva. Si decís que sí, además manda una vez por día los números de abajo.",
-  "telemetry.shareHint":
-    "Solo totales: tokens de entrada y salida sumando todos los modelos, turnos, y cuántos proyectos, agentes, canales y rutinas tenés.",
-  "telemetry.off":
-    "La telemetría está apagada en esta computadora (APX_TELEMETRY=off, DO_NOT_TRACK o CI): no se envía nada.",
+    "Un id al azar, no ligado a vos, le avisa al proyecto APX cuándo se configuró esta instalación, cuándo se usó por primera vez y cuándo se actualizó. Si decís que sí, además manda una vez por día los números de abajo.",
+  "telemetry.off": "La telemetría está apagada en esta computadora: no se envía nada.",
   "telemetry.preview": "Próximo reporte",
   "telemetry.last": "Último envío",
   "telemetry.never": "Todavía no se envió nada",
