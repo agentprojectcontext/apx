@@ -44,6 +44,8 @@ Asana uses the REST API directly, not an MCP server. Create a personal access to
 [Asana developer apps](https://app.asana.com/0/my-apps) and enter it in the connection form.
 APX validates the token before saving `secret://asana-token`. An empty field keeps the saved token.
 The native `asana_read` tool supports workspaces, projects, tasks and task details, with pagination.
+Task lists exclude completed tasks by default; pass `completed: true` to include them. Results include notes, links and sections.
+Create a task with an Asana `project` or a `workspace` (for a task without a project).
 `asana_write` creates or updates tasks (name, notes, completion, assignee and due date), with owner authorization.
 The per-project switch controls availability, not Asana object permissions: the shared account can access whatever its token permits.
 Do not repeat a create after an unknown outcome without checking Asana first; writes are not automatically retried.

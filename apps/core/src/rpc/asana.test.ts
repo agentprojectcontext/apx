@@ -55,6 +55,13 @@ test("native Asana lifecycle, pagination, writes and idempotency through the run
     });
     assert.equal(result.next_offset, "next");
     assert.ok(calls.at(-1)?.url.includes("offset=previous"));
+    const query = new URL(calls.at(-1)?.url ?? "").searchParams;
+    assert.equal(query.get("completed_since"), "now");
+    assert.ok(
+      query.get("opt_fields")?.includes("notes,permalink_url,memberships.section.name,memberships.section.gid"),
+    );
+    await env.client.call("asana.read", { project, request: { operation: "tasks", project: "123", completed: true } });
+    assert.equal(new URL(calls.at(-1)?.url ?? "").searchParams.has("completed_since"), false);
     await env.client.call("mcp.toggle", { project, server: "asana", on: false });
     assert.deepEqual((await entry())?.off_in, [project]);
     const count = calls.length;
@@ -75,6 +82,11 @@ test("native Asana lifecycle, pagination, writes and idempotency through the run
     assert.deepEqual(JSON.parse(calls.find((c) => c.method === "POST")?.body ?? "{}"), {
       data: { name: "Acme task", projects: ["123"] },
     });
+    await env.client.call("asana.write", {
+      project,
+      request: { operation: "create_task", workspace: "456", name: "Workspace task" },
+    });
+    assert.deepEqual(JSON.parse(calls.at(-1)?.body ?? "{}"), { data: { workspace: "456", name: "Workspace task" } });
     await env.client.call("asana.write", {
       project,
       request: { operation: "update_task", task: "123", completed: true, due_on: null },
@@ -99,6 +111,17 @@ test("Asana tools are conditional, writes require owner authority and request sc
     const asana = createAsana({ secrets: env.core.secrets, offIn: (p) => p === "off" });
     const tools = asanaTools(asana);
     assert.equal(tools[1]?.confirm({}), "always");
+    assert.equal(
+      methods["asana.write"].params.safeParse({ request: { operation: "create_task", name: "No destination" } })
+        .success,
+      false,
+    );
+    assert.equal(
+      methods["asana.write"].params.safeParse({
+        request: { operation: "create_task", workspace: "../unsafe", name: "Unsafe" },
+      }).success,
+      false,
+    );
     assert.equal(methods["asana.write"].access, "human");
     assert.equal(methods["asana.write"].effect, true);
     assert.equal(asana.usable(), false);

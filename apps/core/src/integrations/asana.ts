@@ -85,6 +85,7 @@ export function createAsana(deps: { secrets: Secrets; offIn: (project: string) =
         case "projects":
           return call("projects", "GET", undefined, {
             workspace: request.workspace,
+            opt_fields: "gid,name,color,archived,permalink_url",
             limit: request.limit,
             offset: request.offset,
           });
@@ -92,7 +93,9 @@ export function createAsana(deps: { secrets: Secrets; offIn: (project: string) =
           return call(`projects/${request.project}/tasks`, "GET", undefined, {
             limit: request.limit,
             offset: request.offset,
-            opt_fields: "gid,name,completed,due_on,assignee.name",
+            completed_since: request.completed ? undefined : "now",
+            opt_fields:
+              "gid,name,completed,due_on,assignee.name,notes,permalink_url,memberships.section.name,memberships.section.gid",
           });
         case "task":
           return call(`tasks/${request.task}`);
@@ -101,7 +104,7 @@ export function createAsana(deps: { secrets: Secrets; offIn: (project: string) =
     write(request: ParsedParams<"asana.write">["request"]) {
       if (request.operation === "create_task") {
         const { operation: _, project, ...fields } = request;
-        return call("tasks", "POST", { ...fields, projects: [project] });
+        return call("tasks", "POST", { ...fields, ...(project ? { projects: [project] } : {}) });
       }
       const { operation: _, task, ...fields } = request;
       if (!Object.keys(fields).length) throw new Error("Asana needs at least one task field to update");

@@ -44,6 +44,8 @@ suma su servidor MCP como uno de tus servidores globales, así tus agentes puede
 Asana usa REST directamente, sin MCP. Creá un token personal en [Asana](https://app.asana.com/0/my-apps) y pegalo solo en el formulario.
 APX lo valida antes de guardar `secret://asana-token`; un campo vacío conserva el token anterior.
 `asana_read` consulta espacios de trabajo, proyectos, tareas y sus detalles, con paginación.
+Los listados excluyen tareas completadas por defecto; usá `completed: true` para incluirlas. Devuelven notas, enlaces y secciones.
+Para crear una tarea, indicá un `project` de Asana o un `workspace` si no querés asociarla a un proyecto.
 `asana_write` crea o actualiza tareas (nombre, notas, estado, responsable y vencimiento), con autorización del dueño.
 El switch por proyecto controla la disponibilidad, no los permisos sobre objetos: la cuenta compartida conserva los permisos de su token.
 Si no sabés si una creación se completó, revisá Asana antes de repetirla: APX no reintenta las escrituras automáticamente.

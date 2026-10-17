@@ -25,7 +25,7 @@ Linear is listed as coming: it is not available yet.
 
 Asana uses a personal access token from https://app.asana.com/0/my-apps, entered only in the app.
 APX validates it before saving `secret://asana-token`; no MCP server is installed.
-`asana_read` lists workspaces, projects, tasks and task details (use next_offset for more).
+`asana_read` lists workspaces, projects, tasks and task details (use next_offset for more). Task lists exclude completed tasks unless completed is true; task creation needs an Asana project or workspace.
 `asana_write` creates or updates a task and requires owner authorization. An Asana project is its numeric gid, not an APX project id.
 The account is shared, with the usual per-project integration switches. These switches control availability, not Asana object permissions.
 There is no automatic retry of a write; inspect Asana before repeating a create whose outcome is unknown.

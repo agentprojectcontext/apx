@@ -5,7 +5,14 @@ const Page = { limit: z.number().int().min(1).max(100).default(50), offset: z.st
 export const AsanaRead = z.discriminatedUnion("operation", [
   z.object({ operation: z.literal("workspaces"), ...Page }).strict(),
   z.object({ operation: z.literal("projects"), workspace: Gid, ...Page }).strict(),
-  z.object({ operation: z.literal("tasks"), project: Gid, ...Page }).strict(),
+  z
+    .object({
+      operation: z.literal("tasks"),
+      project: Gid,
+      completed: z.boolean().default(false).describe("Include completed tasks"),
+      ...Page,
+    })
+    .strict(),
   z.object({ operation: z.literal("task"), task: Gid }).strict(),
 ]);
 const Fields = {
@@ -16,7 +23,19 @@ const Fields = {
   assignee: z.union([Gid, z.literal("me"), z.null()]).optional(),
 };
 export const AsanaWrite = z.discriminatedUnion("operation", [
-  z.object({ operation: z.literal("create_task"), project: Gid, ...Fields, name: Fields.name.unwrap() }).strict(),
+  z
+    .object({
+      operation: z.literal("create_task"),
+      workspace: Gid.optional(),
+      project: Gid.optional(),
+      ...Fields,
+      name: Fields.name.unwrap(),
+    })
+    .strict()
+    .refine(
+      (value) => value.project !== undefined || value.workspace !== undefined,
+      "a workspace or project is required",
+    ),
   z
     .object({ operation: z.literal("update_task"), task: Gid, ...Fields })
     .strict()
