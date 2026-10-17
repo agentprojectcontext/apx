@@ -648,6 +648,13 @@ export const en = {
   "project.settings.folder": "Folder",
   "project.settings.folderHint": "Chats that work in the folder use it, and its .apc/ holds the agents and settings.",
   "project.settings.folderMissing": "The folder is not on disk right now (moved, or a drive that is not mounted).",
+  "project.settings.readOnly": "Read-only folders",
+  "project.settings.readOnlyHint":
+    "Agents here may read these folders (another checkout, docs) and never change them. APX keeps them, not the folder.",
+  "project.settings.readOnlyNone": "None yet.",
+  "project.settings.readOnlyPlaceholder": "Absolute path, like ~/work/reference",
+  "project.settings.readOnlyAdd": "Add",
+  "project.settings.readOnlyRemove": "Remove {path}",
   "project.kind.none": "Not set",
   "project.kind.personal": "Personal",
   "project.kind.personal.hint": "Your own things. No team or structure.",

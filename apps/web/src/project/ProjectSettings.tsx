@@ -8,6 +8,7 @@ import { useData } from "../data/state.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { NewProjectDialog } from "../shell/NewProjectDialog.tsx";
 import { go } from "../shell/nav.ts";
+import { ReadOnlyFolders } from "./ReadOnlyFolders.tsx";
 
 const KINDS: readonly ProjectKind[] = ["personal", "app", "company", "software", "other"];
 /** How far agents with none of their own go here, strictest first (DECISIONS.md#d-072). */
@@ -187,6 +188,7 @@ export function ProjectSettings({
               <code className="projsettings__path">{full.path}</code>
             </Field>
           )}
+          {!project.isDefault && real && <ReadOnlyFolders project={real} />}
         </div>
       </Dialog>
       {newProject && <NewProjectDialog onClose={() => setNewProject(false)} />}
