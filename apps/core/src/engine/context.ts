@@ -178,9 +178,16 @@ const WRITES: Record<NonNullable<Thread["write"]>, string> = {
  * A code thread's folder and write policy, and the project's read-only folders, so its agent can state and use them;
  * in the turn's input, as all can change.
  */
-export function workspaceBlock(thread: Pick<Thread, "cwd" | "write">, readOnly: string[] = []): string | undefined {
+export function workspaceBlock(
+  thread: Pick<Thread, "cwd" | "write">,
+  readOnly: string[] = [],
+  workFolder?: string,
+): string | undefined {
+  // Named beside read-only folders, else an agent takes the only path it sees for the project's own.
+  const own = !(thread.cwd && thread.write) && readOnly.length && workFolder;
   const lines = [
     thread.cwd && thread.write ? `Folder: ${thread.cwd} · writes: ${WRITES[thread.write]}` : "",
+    own ? `Folder you work in (yours to change): ${workFolder}` : "",
     readOnly.length ? `Read-only folders (read with file tools or shell, never change): ${readOnly.join(", ")}` : "",
   ].filter(Boolean);
   return lines.length ? lines.join("\n") : undefined;

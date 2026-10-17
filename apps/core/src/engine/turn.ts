@@ -30,7 +30,7 @@ import { askedSkill } from "../skills/picker.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
-import { harnessDir, harnessRoots, readOnlyFolders, scratchDir } from "../tools/folders.ts";
+import { harnessDir, harnessRoots, readOnlyFolders, scratchDir, workDir } from "../tools/folders.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
 import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
 import { inherit, withProjectAutonomy } from "../tools/policy.ts";
@@ -457,7 +457,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
                 timeZone: ownerTimeZone(store),
                 channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
                 voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
-                workspace: workspaceBlock(thread, readOnlyFolders(store, thread)),
+                workspace: workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
                 release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
                 feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
                 // The owner's channel lands in Home: what went out on it meanwhile is what they may be answering.

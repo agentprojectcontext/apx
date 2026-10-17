@@ -205,11 +205,10 @@ test("a project's read-only folders are read by file_read and shell, never chang
     assert.match(await call("file_read", { path: file }), /old/);
     assert.match(await call("shell", { command: `rg -n old ${ref}` }), /v1\.txt/);
     assert.match(await call("shell", { command: `cat v1.txt`, cwd: ref }), /old/);
-    // The turn says where they are; a delegated sub-chat of the project reads them too.
-    assert.match(
-      JSON.stringify(llm.calls.at(-1)?.messages),
-      /Read-only folders \(read with file tools or shell, never change\): /,
-    );
+    // The turn says where they are, beside the folder it works in; a delegated sub-chat of the project reads them too.
+    const said = JSON.stringify(llm.calls.at(-1)?.messages);
+    assert.match(said, /Read-only folders \(read with file tools or shell, never change\): /);
+    assert.match(said, /Folder you work in \(yours to change\): /);
     const sub = { id: "t_sub", parent_id: t.id, project_id: project };
     assert.deepEqual(
       rootsOf(env.core.store, env.home, sub).find((r) => !r.write),
