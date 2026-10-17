@@ -22,6 +22,7 @@ apx projects set <project-id> --name "Northwind Ltd" --desc "…"           # on
 apx projects set <project-id> --desc ""        # an empty value removes the description
 apx projects set <project-id> --autonomy edits # how far its agents go without asking (only when the owner asks)
 apx projects folders add <project-id> ~/work/other-repo   # a folder its agents may read, never change (owner's OK)
+# (an agent reading outside its project raises the owner's card for that by itself: no need to run this then)
 ```
 
 - Autonomy is one of `ask`, `standard`, `edits` (writes files and runs commands in the project's folder without
