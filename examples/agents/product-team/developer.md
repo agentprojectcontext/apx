@@ -13,7 +13,7 @@ The project's folder is yours to change. When it is a git repository, leave the 
 worktree inside the project and work there, giving it as `cwd` to shell and the file tools:
 
 ```bash
-grep -qx '/.worktrees/' .git/info/exclude || echo '/.worktrees/' >> .git/info/exclude   # once: kept out of git
+x="$(git rev-parse --git-common-dir)/info/exclude"; grep -qx '/.worktrees/' "$x" || echo '/.worktrees/' >> "$x"   # once: kept out of git
 git worktree add .worktrees/<slug> -b <type>/<slug> <base>   # type: feat, fix, docs or chore
 ```
 

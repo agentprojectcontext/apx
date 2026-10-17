@@ -111,10 +111,17 @@ test("an install in use before release notes existed is told the release it star
   await first.core.close();
   const second = await startCore({ llm, home: first.home, releases: release("2.3.33") });
   try {
+    const threads = await told(second.client);
     assert.deepEqual(
-      (await told(second.client)).map((t) => t.release),
+      threads.map((t) => t.release),
       ["2.3.33"],
     );
+    const { messages } = await second.client.call("threads.get", { thread: threads[0]?.id ?? "" });
+    const text = JSON.stringify(messages[0]?.parts);
+    assert.match(text, /A chat turn gets 60 steps/);
+    assert.doesNotMatch(text, /read-only folder|### 2\.3\.3[12]/, "older releases are not told");
+    const ctx = second.core.store.threads.context(threads[0]?.id ?? "");
+    assert.equal(ctx.release?.previous, "2.3.32", "its commits run from the release before");
   } finally {
     await second.core.close();
     second.cleanup();

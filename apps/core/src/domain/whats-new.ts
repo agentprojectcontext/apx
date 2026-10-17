@@ -1,6 +1,6 @@
 // What an update brought, told by the super-agent: on the first start of a newer release, a chat of its own, unread,
 // with each new release's changes. Written from the notes the build carries (no model call); asking about them there
-// is an ordinary turn. See DECISIONS.md#d-098
+// is an ordinary turn. See DECISIONS.md#d-100
 import { compareVersions, type Release, type ReleaseNotes, type ReleaseSource } from "../release-notes.ts";
 import type { Store } from "./store.ts";
 import { previewOf } from "./threads.ts";
@@ -57,10 +57,12 @@ export function whatsNewText(version: string, releases: Release[], language: str
   return `${w.intro(version)}\n\n${body}\n\n${w.outro}`;
 }
 
-/** The releases after `seen` up to `version`, from what the build carries. */
+/** The releases after `seen` up to `version`, from what the build carries; with no `seen`, only `version`'s own. */
 const newSince = (notes: ReleaseNotes, version: string, seen: string | undefined) =>
-  notes.releases.filter(
-    (r) => compareVersions(r.version, version) <= 0 && (!seen || compareVersions(r.version, seen) > 0),
+  notes.releases.filter((r) =>
+    seen
+      ? compareVersions(r.version, version) <= 0 && compareVersions(r.version, seen) > 0
+      : compareVersions(r.version, version) === 0,
   );
 
 /**

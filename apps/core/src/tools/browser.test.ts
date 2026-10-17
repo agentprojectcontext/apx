@@ -1,13 +1,21 @@
 // Browser tools through a fake desktop node: an agent can wait on the page itself instead of reaching for a shell.
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
+/** The model the scripted calls report: one that reads images unless a test says otherwise. */
+let model = "fake/gpt-4o";
 const llm = scriptedLlm((req, { said, afterTool }) => {
-  if (afterTool) return say(`Done: ${String(req.messages.findLast((m) => m.role === "tool")?.content).slice(0, 200)}`);
-  if (said.includes("wait and look")) return callTool("w1", "browser_snapshot", { tab: "t1", wait_s: 1 });
-  return say("ok");
+  const looks = req.messages.filter((m) => m.role === "tool").length;
+  if (said.includes("look six times") && looks < 6)
+    return { ...callTool(`l${looks}`, "browser_snapshot", { tab: "t1" }), model };
+  if (afterTool)
+    return { ...say(`Done: ${String(req.messages.findLast((m) => m.role === "tool")?.content).slice(0, 200)}`), model };
+  if (said.includes("wait and look")) return { ...callTool("w1", "browser_snapshot", { tab: "t1", wait_s: 1 }), model };
+  return { ...say("ok"), model };
 });
 
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -15,6 +23,8 @@ let desktop: ApxSocket;
 const snapshots: number[] = [];
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
 const holds: Array<{ run: string; tabs: string[] }> = [];
+/** What the fake tab's screenshot returns next. */
+let shot = JPEG;
 
 before(async () => {
   env = await startCore({ llm });
@@ -35,7 +45,7 @@ before(async () => {
       return { url: "https://example.com/", title: "Example", tree: 'button "Send" [e1]', refs: 1, truncated: false };
     }
     if (method === "browser.screenshot")
-      return { mime: "image/jpeg", data: JPEG.toString("base64"), bytes: JPEG.length };
+      return { mime: "image/jpeg", data: shot.toString("base64"), bytes: shot.length };
     throw new Error(`unknown ${method}`);
   });
 });
@@ -64,6 +74,53 @@ test("browser_snapshot shows the model a picture of the tab, not the chat", asyn
   assert.equal(shown.images?.[0]?.mime, "image/jpeg");
   const parts = (await env.client.call("threads.get", { thread })).messages.flatMap((m) => m.parts);
   assert.ok(!parts.some((p) => p.type === "image"), "the picture is for the model only");
+});
+
+test("a model not known to read images gets the snapshot's text alone", async () => {
+  for (const m of ["fake/fake-1", "fake/deepseek-chat"]) {
+    model = m;
+    try {
+      const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+      await env.client.call("threads.send", { thread, text: "wait and look" });
+      await env.settle(thread);
+      const call = llm.calls.at(-1);
+      assert.match(String(call?.messages.findLast((m) => m.role === "tool")?.content), /Send/, m);
+      assert.ok(!call?.messages.some((m) => m.role === "user" && m.images?.length), `no picture for ${m}`);
+    } finally {
+      model = "fake/gpt-4o";
+    }
+  }
+});
+
+test("a chat keeps only its newest few tab pictures on disk", async () => {
+  const uploads = path.join(env.home, "media", "uploads");
+  const files = () =>
+    fs.existsSync(uploads)
+      ? fs.readdirSync(uploads, { recursive: true }).filter((f) => String(f).endsWith(".jpg"))
+      : [];
+  const before = files().length;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  await env.client.call("threads.send", { thread, text: "look six times" });
+  await env.settle(thread);
+  const shown = (llm.calls.at(-1)?.messages ?? []).flatMap((m) => (m.role === "user" ? (m.images ?? []) : []));
+  assert.equal(shown.length, 6, "each look showed its picture");
+  const kept = shown.map((i) => Boolean(env.core.store.media.get(i.media_id)));
+  assert.deepEqual(kept, [false, false, true, true, true, true], "the newest 4 are kept");
+  assert.equal(files().length, before + 4, "the older pictures' files are gone too");
+});
+
+test("a picture that cannot be kept leaves browser_snapshot with the page's tree", async () => {
+  shot = Buffer.from("not a jpeg at all");
+  try {
+    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    await env.client.call("threads.send", { thread, text: "wait and look" });
+    await env.settle(thread);
+    const call = llm.calls.at(-1);
+    assert.match(String(call?.messages.findLast((m) => m.role === "tool")?.content), /Send/);
+    assert.ok(!call?.messages.some((m) => m.role === "user" && m.images?.length), "no picture travels");
+  } finally {
+    shot = JPEG;
+  }
 });
 
 test("the turn holds the tab it used while it runs and lets it go when it ends", async () => {

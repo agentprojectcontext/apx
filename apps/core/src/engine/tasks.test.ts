@@ -23,6 +23,11 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
     await bridgeHeld;
     return callTool("b1", "task_list", {});
   }
+  // Works until stopped: the owner interrupts it from the task.
+  if (said.includes("Translate the onboarding guide") && !afterTool) {
+    await new Promise((r) => req.signal.addEventListener("abort", r, { once: true }));
+    return say("Stopped");
+  }
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 120)}`);
   if (said.includes("make a task")) return callTool("t1", "task_create", { title: "Draft the launch post" });
   if (said.includes("peek at the other")) return callTool("t2", "task_list", {});
@@ -199,6 +204,94 @@ test("the owner writing in a task's conversation reaches its agent's working tur
   assert.deepEqual(
     env.core.store.threads.children(t.thread_id).map((id) => env.core.store.threads.get(id)?.agent_ids[0]),
     ["roby"],
+  );
+});
+
+/** Vera's runs in a task's work chat, oldest first. */
+const workRuns = (task: string) =>
+  env.core.store.threads
+    .byTask(task)
+    .flatMap((s) => env.core.store.runs.list(s.id))
+    .filter((r) => r.agent_id === "vera")
+    .sort((a, b) => a.started_at.localeCompare(b.started_at));
+
+test("the owner writing on a task whose work chat is idle starts its next turn there, words and all", async () => {
+  const t = await env.client.call("tasks.create", { title: "Tidy the changelog", project, assignee: "vera" });
+  const { sessions } = await settleTask(t.id);
+  const work = sessions[0]?.id ?? "";
+  const before = workRuns(t.id).length;
+  const sent = await env.client.call("threads.send", { thread: t.thread_id, text: "also bump the version" });
+  await settleTask(t.id);
+  const runs = workRuns(t.id);
+  assert.equal(runs.length, before + 1, "one more turn, in the work chat");
+  assert.equal(runs.at(-1)?.id, sent.run?.id);
+  assert.equal(runs.at(-1)?.state, "completed");
+  assert.equal(env.core.store.runs.get(sent.run?.id ?? "")?.input?.text, "also bump the version");
+  assert.deepEqual(env.core.store.runs.list(t.thread_id), [], "nothing ran in the task's conversation");
+  const chat = await env.client.call("threads.get", { thread: work });
+  assert.ok(texts(chat.messages).includes("also bump the version"));
+  const asked = llm.calls.find((c) => JSON.stringify(c.messages.at(-1)).includes("also bump the version"));
+  assert.ok(asked && String(asked.messages[0]?.content).startsWith("You are Vera"), "Vera's model read the words");
+});
+
+test("interrupting from a task stops the work chat's turn and starts one with the owner's words", async () => {
+  const t = await env.client.call("tasks.create", {
+    title: "Translate the onboarding guide",
+    project,
+    assignee: "vera",
+  });
+  for (let i = 0; i < 200 && workRuns(t.id)[0]?.state !== "working"; i++) await new Promise((r) => setTimeout(r, 10));
+  const working = workRuns(t.id)[0];
+  assert.equal(working?.state, "working");
+  const sent = await env.client.call("threads.send", {
+    thread: t.thread_id,
+    text: "stop, use the new template",
+    mode: "interrupt",
+  });
+  assert.notEqual(sent.run?.id, working?.id);
+  assert.ok(!sent.steered);
+  await settleTask(t.id);
+  const runs = workRuns(t.id);
+  assert.deepEqual(
+    runs.map((r) => r.id),
+    [working?.id, sent.run?.id],
+  );
+  assert.equal(runs[0]?.state, "canceled");
+  assert.equal(runs[1]?.state, "completed");
+  assert.equal(runs[1]?.input?.text, "stop, use the new template");
+  assert.deepEqual(env.core.store.runs.list(t.thread_id), [], "nothing ran in the task's conversation");
+});
+
+test("files the owner attaches on a task reach the work chat's turn", async () => {
+  const t = await env.client.call("tasks.create", { title: "Review the logo", project, assignee: "vera" });
+  const { sessions } = await settleTask(t.id);
+  const work = sessions[0]?.id ?? "";
+  const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+  const { media } = await env.client.call("media.upload", { name: "logo.png", mime: "image/png", data: PNG });
+  const sent = await env.client.call("threads.send", {
+    thread: t.thread_id,
+    text: "this one",
+    attachments: [media.id],
+  });
+  await settleTask(t.id);
+  assert.deepEqual(
+    env.core.store.runs.get(sent.run?.id ?? "")?.input?.attachments?.map((a) => a.media_id),
+    [media.id],
+  );
+  const chat = await env.client.call("threads.get", { thread: work });
+  const said = chat.messages.findLast((m) => m.author.kind === "user");
+  assert.ok(
+    said?.parts.some((p) => p.type === "image" && p.media_id === media.id),
+    "shown in the work chat",
+  );
+  const asked = llm.calls.findLast((c) => JSON.stringify(c.messages).includes("this one"));
+  const item = asked?.messages.findLast((m) => m.role === "user" && m.images?.length) as
+    | { images?: Array<{ media_id: string }> }
+    | undefined;
+  assert.deepEqual(
+    item?.images?.map((i) => i.media_id),
+    [media.id],
+    "Vera's model got the picture",
   );
 });
 

@@ -2,6 +2,7 @@
 // logged as they happen.
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem, ModelFailure, Usage } from "../providers/types.ts";
+import { readsImages } from "../providers/vision.ts";
 import type { Harness } from "./types.ts";
 
 /** Model calls a turn may make before it must answer: a real piece of work fits, watched or not. */
@@ -20,6 +21,8 @@ const REPEAT_LIMIT = 3;
 const LOOKS_AGAIN = new Set(["screen_snapshot", "browser_snapshot"]);
 /** Reading the same page part again is stuck only when it says the same: after a click or a load it may not. */
 const READS_AGAIN = new Set(["browser_text"]);
+/** A picture that comes beside a whole text answer: shown only to a model known to read images. */
+const PICTURE_BESIDE_TEXT = new Set(["browser_snapshot"]);
 
 /**
  * A note from APX to the model mid-turn. Sent as a tagged user item: some providers fold every system item into
@@ -100,6 +103,8 @@ export function nativeHarness(llm: Llm): Harness {
         let stuck: string | undefined;
         const looked: Array<{ media_id: string; mime: string }> = [];
         const lookedFrom = new Set<string>();
+        // The model that asked for these tools takes the next step too, unless it fails over.
+        const sees = readsImages(c.model);
         for (const call of calls) {
           let args: Record<string, unknown> = {};
           try {
@@ -108,7 +113,7 @@ export function nativeHarness(llm: Llm): Harness {
           const out = await io.execute(call.id, call.function.name, args);
           io.alive?.();
           push({ role: "tool", tool_call_id: call.id, content: out.text });
-          if (out.images?.length) {
+          if (out.images?.length && (sees ?? !PICTURE_BESIDE_TEXT.has(call.function.name))) {
             looked.push(...out.images);
             lookedFrom.add(call.function.name);
           }

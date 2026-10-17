@@ -101,6 +101,14 @@ export function saveUpload(
   return { ...media, name: a.name };
 }
 
+/** Deletes a thread's files kept under `name` beyond the newest `keep`, rows and bytes. */
+export function pruneUploads(store: Store, thread: string, name: string, keep: number): void {
+  for (const m of store.media.named(thread, name).slice(keep)) {
+    fs.rmSync(m.path, { force: true });
+    store.media.remove(m.id);
+  }
+}
+
 /** A stored file's bytes, base64 (images for a model call). */
 export function mediaData(store: Store, id: string): { mime: string; data: string } | undefined {
   const m = store.media.get(id);
