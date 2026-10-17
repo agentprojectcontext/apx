@@ -9,7 +9,11 @@ export const authorOf = (a: Author) => (a.kind === "agent" ? a.id : a.kind);
 export const messageText = (m: Message) =>
   m.parts.map((p) => (p.type === "text" ? p.text : p.type === "notice" ? `[${p.text}]` : `[${p.type}]`)).join(" ");
 
-export async function threads(client: ApxClient, [sub, id, ...rest]: string[]): Promise<void> {
+export async function threads(
+  client: ApxClient,
+  [sub, id, ...rest]: string[],
+  o: { json?: boolean | undefined } = {},
+): Promise<void> {
   if (!sub || sub === "list") {
     const { threads } = await client.call("threads.list", {});
     for (const t of threads) console.log(`${t.id.padEnd(22)} ${t.state.padEnd(10)} ${t.kind.padEnd(6)} ${t.title}`);
@@ -29,7 +33,12 @@ export async function threads(client: ApxClient, [sub, id, ...rest]: string[]): 
   if (!id) throw new Error(`usage: apx threads ${sub} <thread>`);
   if (sub === "get") {
     const t = await client.call("threads.get", { thread: id });
+    if (o.json) {
+      console.log(JSON.stringify(t, null, 2));
+      return;
+    }
     console.log(`${t.thread.title} · ${t.thread.kind} · ${t.thread.state}`);
+    if (t.thread.cwd) console.log(`Folder: ${t.thread.cwd} · writes: ${t.thread.write ?? "ask"}`);
     for (const m of t.messages.slice(-20))
       console.log(`  ${authorOf(m.author).padEnd(10)} ${messageText(m).slice(0, 200)}`);
     return;

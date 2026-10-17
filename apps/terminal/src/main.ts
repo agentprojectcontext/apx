@@ -102,7 +102,7 @@ Usage:
   apx mcps on|off <server> --project p   Turn one of your servers on or off inside a project
   apx mcps logs <server> [--project p] [-n 100]   What a server printed on stderr since the core started
                            The one way to talk to an agent. Default: Home (the secretary)
-  apx threads [list] | get <thread> | cancel <thread>
+  apx threads [list] | get <thread> [--json] | cancel <thread>
   apx threads search <words…>   Messages with every word, best first
   apx runs get <run> | wait <run> [--timeout 60]
   apx runs pending [thread]   What agents are waiting on from you
@@ -293,7 +293,7 @@ try {
       await chat(client, rest.join(" "), values);
       break;
     case "threads":
-      await threads(client, rest);
+      await threads(client, rest, { json: values.json });
       break;
     case "runs":
       await runs(client, rest, Number(values.timeout ?? 60), values.scope);

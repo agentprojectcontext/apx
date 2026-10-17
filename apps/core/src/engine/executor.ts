@@ -212,7 +212,11 @@ export function createExecutor(o: {
     const level = tool.confirm(args);
     if (worksInFolder(thread) && thread.write === "read-only" && (level === "ask" || level === "always")) {
       card("error", "read-only thread");
-      return { ok: false, text: "refused: this code thread is read-only; only actions that read may run here" };
+      const why =
+        tool.name === "shell"
+          ? "this command is not a plain read (see [workspace] in the turn's context for what runs)"
+          : "only actions that read may run here";
+      return { ok: false, text: `refused: this code thread is read-only; ${why}` };
     }
     const decision = authorize(tool, args, agent, untrusted);
     if (decision.kind === "deny") {

@@ -60,8 +60,29 @@ test("a read-only code thread refuses commands that change things", async () => 
   });
   await env.client.call("threads.send", { thread: t.id, text: "make a file" });
   await env.settle(t.id);
-  assert.match(lastSeen(), /read-only/);
+  assert.match(lastSeen(), /read-only; this command is not a plain read/);
   assert.ok(!fs.existsSync(path.join(repo, "made.txt")));
+});
+
+test("a code thread's folder and write policy are in its turn's input and in threads.get, not in the system prompt", async () => {
+  const t = await env.client.call("threads.create", {
+    kind: "code",
+    agent_id: "roby",
+    project_id: project,
+    cwd: "src",
+    write: "read-only",
+  });
+  await env.client.call("threads.send", { thread: t.id, text: "which folder?" });
+  await env.settle(t.id);
+  const call = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).includes("which folder?"));
+  const input = String(call?.messages.at(-1)?.content);
+  assert.ok(input.includes(`[workspace] Folder: ${path.join(repo, "src")} · writes: read-only (`), input);
+  const system = call?.messages.find((m) => m.role === "system")?.content;
+  assert.match(String(system), /^You are /);
+  assert.doesNotMatch(String(system), /\[workspace\]|read-only/);
+  const { thread } = await env.client.call("threads.get", { thread: t.id });
+  assert.equal(thread.cwd, path.join(repo, "src"));
+  assert.equal(thread.write, "read-only");
 });
 
 test("after an approved change, the turn ends with what git sees as uncommitted", async () => {

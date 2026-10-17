@@ -24,6 +24,20 @@ test("threads search joins the words into one query and prints each hit", async 
   await assert.rejects(threads(client, ["search"]), /usage: apx threads search/);
 });
 
+test("threads get shows a code thread's folder and write policy, and --json prints the whole answer", async () => {
+  const got = {
+    thread: { id: "thr_c", kind: "code", title: "Audit", state: "idle", cwd: "~/work/acme", write: "read-only" },
+    messages: [],
+    runs: [],
+  };
+  const { client } = recordingClient({ "threads.get": got });
+  const out = await printed(() => threads(client, ["get", "thr_c"]));
+  assert.equal(out, "Audit · code · idle\nFolder: ~/work/acme · writes: read-only");
+  const json = JSON.parse(await printed(() => threads(client, ["get", "thr_c"], { json: true })));
+  assert.equal(json.thread.write, "read-only");
+  assert.equal(json.thread.cwd, "~/work/acme");
+});
+
 test("projects rm unregisters the project and says the folder stays", async () => {
   const { client, calls } = recordingClient({ "projects.unregister": { ok: true } });
   assert.match(await printed(() => projects(client, ["rm", "p_acme"])), /folder and files were not touched/);

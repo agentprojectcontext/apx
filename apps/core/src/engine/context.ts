@@ -167,6 +167,18 @@ export function systemPrompt(
     .join("\n");
 }
 
+const WRITES: Record<NonNullable<Thread["write"]>, string> = {
+  ask: "ask (each change waits for the owner's OK)",
+  auto: "auto (edits inside this folder run without asking, except to git config, .apc/ or AGENTS.md; anything else is asked)",
+  "read-only":
+    "read-only (nothing here may change; shell runs only plain reads: simple commands such as ls, cat, grep, find or git status|log|diff|show, joined by && | ;, with relative paths and no $, redirects, parentheses, braces, brackets, #, ~, .. or absolute paths)",
+};
+
+/** A code thread's folder and write policy, so its agent can state them; in the turn's input, as both can change. */
+export function workspaceBlock(thread: Pick<Thread, "cwd" | "write">): string | undefined {
+  return thread.cwd && thread.write ? `Folder: ${thread.cwd} · writes: ${WRITES[thread.write]}` : undefined;
+}
+
 /** The other agents in scope here (global ones and the thread's project team): whom to delegate to, or to name. */
 export function rosterBlock(agent: AgentRecord, roster: AgentRecord[], thread: Thread): { text: string; hash: string } {
   const inScope = roster.filter((a) => a.id !== agent.id && (!a.project_id || a.project_id === thread.project_id));
@@ -266,6 +278,8 @@ export function turnInput(opts: {
   channel?: string | undefined;
   /** The chat gets spoken answers: the first paragraph becomes a voice note. */
   voice?: boolean | undefined;
+  /** A code thread: its folder and what may change there (workspaceBlock). */
+  workspace?: string | undefined;
 }): string {
   const when = opts.now.toLocaleString("en-US", {
     dateStyle: "full",
@@ -280,6 +294,7 @@ export function turnInput(opts: {
       ? `[channel turn] ${ownerChannelNote(channel)}`
       : "",
     opts.voice ? `[voice] ${VOICE_STYLE}` : "",
+    opts.workspace ? `[workspace] ${opts.workspace}` : "",
     opts.roster ? `[agents]\n${opts.roster}` : "",
     opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : "",
     opts.skills ? `[skills for this message]\n${opts.skills}` : "",
