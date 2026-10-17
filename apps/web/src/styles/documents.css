@@ -77,6 +77,29 @@
   text-align: left;
   cursor: pointer;
 }
+/* A row's actions show while it is pointed at or focused, over its right end. */
+.documentpanel__row {
+  position: relative;
+}
+.documentpanel__rowactions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 2px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+  opacity: 0;
+  pointer-events: none;
+}
+.documentpanel__row:hover .documentpanel__rowactions,
+.documentpanel__row:focus-within .documentpanel__rowactions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.documentpanel__row:hover .documentpanel__item {
+  background: var(--apx-fill-hover);
+}
 .documentpanel__item:hover {
   background: var(--apx-fill-hover);
 }
@@ -116,6 +139,31 @@
   min-width: 0;
   gap: 3px;
   text-align: left;
+}
+/* The card's actions show over its top right while it is pointed at or focused. */
+.documentpart__wrap {
+  position: relative;
+  width: min(100%, 440px);
+  min-width: 220px;
+}
+.documentpart__wrap .filepart.documentpart {
+  width: 100%;
+}
+.documentpart__actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 2px;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+  opacity: 0;
+  pointer-events: none;
+}
+.documentpart__wrap:hover .documentpart__actions,
+.documentpart__wrap:focus-within .documentpart__actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 .documentpart__label,
 .documentpart__name {

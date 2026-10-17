@@ -498,6 +498,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.openApp": "Abrir como app",
   "widget.installApp": "Instalar como app",
   "widget.unavailable": "Widget no disponible",
+  "widget.toPanel": "Mostrar en el panel lateral",
+  "widget.inPanel": "Se muestra en el panel lateral",
+  "widget.showHere": "Mostrar acá",
+  "widget.backToChat": "Volver al chat",
+  "widgets.all": "Todos los widgets ({n})",
   "widgets.empty": "Sin widgets en este chat",
   "widgets.emptyBody":
     "Los widgets que arme el agente en este chat aparecen acá. Fijalos para tenerlos también en el tablero del proyecto.",
