@@ -12,6 +12,7 @@ import type { Harness } from "../harness/index.ts";
 import type { IMessageOps } from "../imessage.ts";
 import type { Llm, LlmRequest } from "../providers/llm.ts";
 import type { AssistantItem, Completion } from "../providers/types.ts";
+import type { ReleaseSource } from "../release-notes.ts";
 import { createCore } from "../server.ts";
 import type { TelemetrySink } from "../telemetry-sink.ts";
 import { scratchRoot } from "../tools/folders.ts";
@@ -84,6 +85,8 @@ export async function startCore(opts: {
   googleApi?: string;
   /** Where telemetry goes (a recorder); none sends nothing, like any test core. */
   telemetrySink?: TelemetrySink;
+  /** The release this core starts on and its notes; none tells nothing. */
+  releases?: ReleaseSource;
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
@@ -116,6 +119,7 @@ export async function startCore(opts: {
       ...(opts.clock ? { clock: opts.clock } : {}),
       ...(opts.unseenAfterMs !== undefined ? { unseenAfterMs: opts.unseenAfterMs } : {}),
       ...(opts.telemetrySink ? { telemetrySink: opts.telemetrySink } : {}),
+      ...(opts.releases ? { releases: opts.releases } : {}),
     },
   );
   // Tests choose their model like an owner would: through the settings, never through code defaults.

@@ -24,6 +24,7 @@ import { openDb } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
+import { announceRelease } from "./domain/whats-new.ts";
 import { createAttention } from "./engine/attention.ts";
 import { createEngine } from "./engine/engine.ts";
 import type { InputWaits } from "./engine/inputs.ts";
@@ -58,6 +59,7 @@ import { officeScheduler } from "./office-wiring.ts";
 import { createChatgptLogin } from "./providers/chatgpt-login.ts";
 import { createLlm, type Llm } from "./providers/llm.ts";
 import { providerRegistry } from "./providers/registry.ts";
+import { localReleases, type ReleaseSource } from "./release-notes.ts";
 import { useLocalEmbedder } from "./rpc/embeddings.ts";
 import { internalCaller } from "./rpc/internal.ts";
 import { createRouter, type Dispatch } from "./rpc/router.ts";
@@ -127,6 +129,8 @@ export type CoreOptions = {
   telemetrySink?: TelemetrySink;
   /** Closes the core and asks its supervisor to start it again (after an update). */
   restart?: () => void;
+  /** What each release changed, instead of this APX's own (release-notes.ts); tests stand in a release. */
+  releases?: ReleaseSource;
 };
 
 export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
@@ -139,6 +143,13 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const store = createStore(db, bus);
   const secrets = createSecrets(config.home, config.secrets);
   seed(store, config.agentName);
+  const releases =
+    opts.releases ?? (config.whatsNew ? localReleases(path.resolve(import.meta.dirname, "../../..")) : undefined);
+  try {
+    if (releases) announceRelease(store, releases);
+  } catch (err) {
+    log.warn({ err: errorMessage(err) }, "release notes not told");
+  }
   store.idempotency.prune();
   store.nudges.prune();
 

@@ -11,7 +11,7 @@ import { useDesktopClass } from "./desktop.ts";
 import { LanguageMenu, useLanguageItems } from "./LanguageMenu.tsx";
 import { go, PROJECT_TABS, useNav, useNavHistory } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
-import { UpdatePill } from "./UpdatePill.tsx";
+import { UpdatePill, WhatsNewPill } from "./UpdatePill.tsx";
 
 /** SPEC §1.5: Inbox / project / chat · Projects / project / tab · External sessions / engine / chat · Apps · Tasks. */
 function useCrumbs(): string[] {
@@ -98,6 +98,7 @@ export function Topbar() {
         <Kbd keys={["⌘", "K"]} data-shortcut-modifier />
       </button>
       <div className="topbar__right">
+        <WhatsNewPill />
         <UpdatePill />
         <RunningIndicator />
         <AttentionTray />

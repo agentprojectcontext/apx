@@ -7,8 +7,9 @@ import { createHash } from "node:crypto";
 import type { Organization, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Origin } from "../domain/runs.ts";
-import type { LogEntry } from "../domain/threads.ts";
+import type { LogEntry, ReleaseContext } from "../domain/threads.ts";
 import type { AssistantItem, ChatItem } from "../providers/types.ts";
+import { RELEASE_REPO } from "../release-notes.ts";
 import { DOCUMENT_GUIDANCE } from "../tools/documents.ts";
 import { fromTeam, inlineName, untrusted } from "../tools/result.ts";
 import { actionsNote, endedAs, endNote, REDIRECT_NOTE } from "./delegation.ts";
@@ -186,6 +187,20 @@ export function workspaceBlock(thread: Pick<Thread, "cwd" | "write">, readOnly: 
 }
 
 /** The other agents in scope here (global ones and the thread's project team): whom to delegate to, or to name. */
+/** The release-notes chat's note: the version, its branch, and the commits to read to answer about a change. */
+export function releaseBlock(r: ReleaseContext | undefined): string | undefined {
+  if (!r) return undefined;
+  const range = r.previous ? `v${r.previous}..v${r.version}` : `v${r.version}`;
+  const web = r.previous
+    ? `https://github.com/${RELEASE_REPO}/compare/v${r.previous}...v${r.version}`
+    : `https://github.com/${RELEASE_REPO}/releases/tag/v${r.version}`;
+  return (
+    `You posted here what APX's update to ${r.version} changed${r.branch ? ` (built from branch ${r.branch})` : ""}. ` +
+    `To answer about a change, read its commits (${range})` +
+    (r.repo_dir ? `: \`git log --no-merges ${range}\` in ${r.repo_dir}, or ${web}.` : `: ${web}.`)
+  );
+}
+
 export function rosterBlock(agent: AgentRecord, roster: AgentRecord[], thread: Thread): { text: string; hash: string } {
   const inScope = roster.filter((a) => a.id !== agent.id && (!a.project_id || a.project_id === thread.project_id));
   const hidden = roster.length - inScope.length - 1;
@@ -286,6 +301,8 @@ export function turnInput(opts: {
   voice?: boolean | undefined;
   /** A code thread's folder and what may change there, the project's read-only folders (workspaceBlock). */
   workspace?: string | undefined;
+  /** In the chat that told what an update brought: which release, and where its commits are (releaseBlock). */
+  release?: string | undefined;
 }): string {
   const when = opts.now.toLocaleString("en-US", {
     dateStyle: "full",
@@ -301,6 +318,7 @@ export function turnInput(opts: {
       : "",
     opts.voice ? `[voice] ${VOICE_STYLE}` : "",
     opts.workspace ? `[workspace] ${opts.workspace}` : "",
+    opts.release ? `[release notes] ${opts.release}` : "",
     opts.roster ? `[agents]\n${opts.roster}` : "",
     opts.memory ? `[memory: notes saved earlier]\n${opts.memory}` : "",
     opts.skills ? `[skills for this message]\n${opts.skills}` : "",

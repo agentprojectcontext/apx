@@ -54,6 +54,7 @@ import {
   HISTORY_BUDGET_CHARS,
   type ProjectBrief,
   project,
+  releaseBlock,
   rosterBlock,
   systemPrompt,
   turnInput,
@@ -457,6 +458,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
                 channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
                 voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
                 workspace: workspaceBlock(thread, readOnlyFolders(store, thread)),
+                release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
                 feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
                 // The owner's channel lands in Home: what went out on it meanwhile is what they may be answering.
                 meanwhile:

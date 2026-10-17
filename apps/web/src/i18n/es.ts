@@ -162,6 +162,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "topbar.search": "Buscar o saltar a…",
   "update.pill": "Actualización · {n}",
   "update.pillVersion": "APX {v} · Actualizar",
+  "update.whatsNew": "Ver cambios",
+  "update.whatsNewTitle": "Novedades de APX {v}",
   "update.coreBehind": "Core desactualizado",
   "update.coreBehindTitle": "El core es más viejo que la app",
   "update.coreBehindBody":

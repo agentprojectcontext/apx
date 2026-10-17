@@ -1204,3 +1204,27 @@ command reading several outside folders raises one card for all of them; `file_r
 `off` keeps the refusal. Writes outside stay refused, a chat with no project keeps the refusal (there is nothing to add
 a folder to), and no refusal sends the agent to `ask_owner` for a folder any more. A "once" given after the turn
 stopped waiting lets the same call run when the agent makes it again.
+
+<a id="d-100"></a>
+## D-100 — 2026-10-17 — After an update, the super-agent tells what changed in a chat of its own, with no model call
+People should learn what an update brought without spending tokens. The first time the core starts on a newer release,
+the super-agent opens a new chat, unread, titled with the version, holding each new release's changes as its own
+message; it is written from a template (`domain/whats-new.ts`), like the setup's greeting, so it runs no turn. A "See
+what's new" pill in the top bar opens that chat until it is read; the chat came first because it is the one place that
+also answers questions, works on every operator (the phone lists it like any unread chat) and keeps the notes readable
+later, offline, in the database; a separate changelog view would have been a second copy of the same text.
+
+The text is the commits between version tags, each subject as a sentence: the one source the Discord announcement
+and the issue replies already read (their `previousTag` and `sentence` now live in `apps/core/src/release-notes.ts`).
+GitHub's generated release body was not used: it lists pull requests, which v2 does not use, and needs the network. A
+packaged APX has no git, so `stage.ts` writes `release-notes.json` beside `build.json` (the last 20 releases and the
+branch the build came from; the release workflow fetches every tag for it); a checkout reads its own tags, so the
+owner's core under launchd is told once a new `v2.x.y` tag is reachable, not on every merge.
+
+The release last told is a setting (`release_seen`). A new install (no message from the owner yet) records its release
+untold; an install in use from before this existed is told the release it starts on. A downgrade tells nothing and
+keeps the newest release told, so going back up is not told twice; an install that skipped releases gets one chat with
+each under its version. Asking in that chat is an ordinary turn: its input (never the byte-stable system prompt) names
+the version, its branch and the commit range to read (`git log` in a checkout, the compare page otherwise), about 300
+characters. No tool was added: the agent's shell and web reading already reach the commits. `APX_WHATS_NEW=off` turns
+the chat off; test cores start with it off.
