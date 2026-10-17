@@ -713,4 +713,9 @@ export const MIGRATIONS: readonly string[] = [
   -- A routine may need more model calls than a chat turn (engine/pipeline.ts stepsFor): its own limit, when set.
   ALTER TABLE routines ADD COLUMN max_steps INTEGER;
   `,
+  `
+  -- Why a run ended when APX knows it (a provider's usage limit, its deadline…), and when a provider limit lifts.
+  ALTER TABLE runs ADD COLUMN end_reason TEXT;
+  ALTER TABLE runs ADD COLUMN resets_at TEXT;
+  `,
 ];

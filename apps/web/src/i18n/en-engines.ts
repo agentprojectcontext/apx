@@ -41,6 +41,8 @@ export const enEngines = {
   "external.models": "Their models",
   "external.modelsLead": "What each CLI offers in its own sessions, as it reports it.",
   "notice.run.noModel": "No model available: none of the models could answer (out of quota, signed out or down).",
+  "notice.run.noModel.limit": "Stopped by the model provider's usage limit, which lifts at {until}.",
+  "notice.run.noModel.limitUnknown": "Stopped by the model provider's usage limit (it did not say when it lifts).",
   "models.effortLevel.none": "None",
   "models.effortLevel.minimal": "Minimal",
   "models.effortLevel.low": "Low",

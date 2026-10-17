@@ -1,14 +1,17 @@
 // How the office's clock reaches the owner: a routine's news and the reminders the owner asked for go to the attention
 // tray and, through the interruption budget (engine/nudges.ts), to the owner's channel, in the owner's language. A due
 // date passing only lands in the tray: the watch routine mentions overdue work in one line, never a message per task.
-// The same clock picks up, hourly, assigned tasks whose work never started.
+// The same clock picks up, hourly, assigned tasks whose work never started. A provider limit that stops the agents is
+// told once per stall.
 import { channelTexts } from "./channels/texts.ts";
 import type { Presentation } from "./domain/channels.ts";
+import { ownerTimeZone } from "./domain/owner.ts";
 import type { Store } from "./domain/store.ts";
 import { previewOf } from "./domain/threads.ts";
 import type { Attention } from "./engine/attention.ts";
 import type { AdmitFn } from "./engine/engine.ts";
 import { createNudges } from "./engine/nudges.ts";
+import { createStallNotices, resetLabel } from "./engine/provider-limit.ts";
 import { createScheduler } from "./engine/routines.ts";
 import { PICKUP_EVERY_MS, pickUpTasks } from "./engine/task-work.ts";
 import type { Log } from "./log.ts";
@@ -88,5 +91,15 @@ export function officeScheduler(deps: {
       });
     },
   });
-  return Object.assign(scheduler, { nudges });
+  // A provider limit that stopped the agents: one notice per stall, like an agent's news (tray and budget).
+  const stalls = createStallNotices({
+    notify: (run) => {
+      const texts = channelTexts(store);
+      const text = texts.providerLimit(run.resets_at && resetLabel(run.resets_at, ownerTimeZone(store)));
+      attention.add({ kind: "agent", level: "warn", title: texts.providerLimitTitle, body: text });
+      nudges.offer({ kind: "provider-limit", text });
+    },
+    ...(deps.now ? { now: deps.now } : {}),
+  });
+  return Object.assign(scheduler, { nudges, stalls });
 }

@@ -130,7 +130,10 @@ export function createScheduler(deps: {
         .trim();
       const failed = run.state === "failed";
       const quiet = run.state === "canceled" || (!failed && (!text || isSkip(text)));
-      store.routines.delivered(run.id, !quiet);
+      // A provider limit is told once per stall (provider-limit.ts), not by each routine it stopped.
+      const stalled = run.end_reason === "provider_limit";
+      store.routines.delivered(run.id, !quiet && !stalled);
+      if (stalled) return;
       if (quiet) {
         // Nothing said: the run stays reachable from its routine, out of the Inbox and its unread count.
         store.threads.patch(run.thread_id, { unread: 0 }, false);

@@ -510,6 +510,13 @@ export type AuxPurpose = z.infer<typeof AuxPurpose>;
 export const RunTrigger = z.enum(["user", "a2a", "a2a_result", "surface", "channel", "routine", "system"]);
 export type RunTrigger = z.infer<typeof RunTrigger>;
 
+/**
+ * Why a run ended, when APX knows: `provider_limit` is the model provider's usage limit (its plan or rate), not a
+ * fault of the agent; `deadline` is the run's time running out. Absent on runs older than the field.
+ */
+export const RunEndReason = z.enum(["failed", "canceled", "deadline", "provider_limit"]);
+export type RunEndReason = z.infer<typeof RunEndReason>;
+
 export const Run = z.object({
   id: Id,
   thread_id: Id,
@@ -523,6 +530,9 @@ export const Run = z.object({
   harness: HarnessId.optional(),
   model: z.string().optional(),
   error: z.string().optional(),
+  end_reason: RunEndReason.optional(),
+  /** A run stopped by a provider limit: when the provider said that limit lifts. */
+  resets_at: z.string().optional(),
   started_at: z.string(),
   ended_at: z.string().optional(),
   /** Tools called so far. */

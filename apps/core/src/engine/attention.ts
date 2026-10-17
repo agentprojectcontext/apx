@@ -23,8 +23,8 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
   function runEnded(runId: string): void {
     const run = store.runs.get(runId);
     if (!run || (run.state !== "completed" && run.state !== "failed") || run.trigger === "surface") return;
-    // An answer to a channel message already went to that channel.
-    if (run.input?.origin?.kind === "channel") return;
+    // An answer to a channel message already went to that channel; a provider limit is told once per stall.
+    if (run.input?.origin?.kind === "channel" || run.end_reason === "provider_limit") return;
     const thread = store.threads.get(run.thread_id);
     if (!thread || QUIET_KINDS.has(thread.kind) || audienceOf(store, thread).kind !== "owner") return;
     if (ended.has(run.id)) return;

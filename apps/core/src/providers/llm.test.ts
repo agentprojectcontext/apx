@@ -7,6 +7,7 @@ import type { ProviderConfig } from "../config.ts";
 import { createSecrets } from "../secrets.ts";
 import { toAnthropic } from "./anthropic-messages.ts";
 import { createLlm } from "./llm.ts";
+import { ProviderError, resetOf } from "./types.ts";
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-llm-"));
 const secrets = createSecrets(home, "file", {});
@@ -347,4 +348,93 @@ test("when the first model fails and the next answers, the answer says which fai
   assert.equal(out.failed?.length, 1);
   assert.equal(out.failed?.[0]?.model, "pa/m1");
   assert.match(out.failed?.[0]?.why ?? "", /quota/);
+});
+
+test("a usage limit stops the chain with the earliest reset any model gave, whatever stopped the others", async () => {
+  const now = Date.now();
+  const soon = new Date(Math.ceil(now / 1000) * 1000 + 3600_000);
+  const late = new Date(soon.getTime() + 3 * 3600_000);
+  const seen: string[] = [];
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      const model = (JSON.parse(String(init.body)) as { model: string }).model;
+      seen.push(model);
+      // A subscription plan's shape: the reset inside the error object, in epoch seconds.
+      if (model === "m1")
+        return new Response(
+          JSON.stringify({ error: { type: "usage_limit_reached", resets_at: Math.floor(late.getTime() / 1000) } }),
+          { status: 429 },
+        );
+      if (model === "m2") return new Response("bad key", { status: 401 });
+      // A Retry-After header, in seconds.
+      return new Response("You exceeded your current quota", {
+        status: 429,
+        headers: { "retry-after": String(Math.round((soon.getTime() - Date.now()) / 1000)) },
+      });
+    }) as typeof fetch,
+  });
+  const err = await llm
+    .complete({ models: ["pa/m1", "pa/m2", "pb/m3"], messages: [], tools: [], signal: new AbortController().signal })
+    .then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+  assert.ok(err instanceof ProviderError);
+  assert.equal(err.kind, "quota");
+  assert.ok(err.limit);
+  const reset = Date.parse(err.resetsAt ?? "");
+  assert.ok(Math.abs(reset - soon.getTime()) < 5000, `earliest reset, got ${err.resetsAt}`);
+  // Every model's reason is still there.
+  assert.match(err.message, /pa\/m1: .*usage_limit_reached/);
+  assert.match(err.message, /pb\/m3: .*quota/);
+  // A plan's "usage_limit_reached" is its quota, not a pause to retry after.
+  assert.equal(seen.filter((m) => m === "m1").length, 1);
+});
+
+test("a chain that fails for other reasons only is not a usage limit", async () => {
+  const llm = createLlm({
+    providers: () => providers,
+    secrets,
+    firstByteMs: 1000,
+    retryDelayMs: 5,
+    fetchImpl: (async () => new Response("bad key", { status: 401 })) as typeof fetch,
+  });
+  const err = await llm
+    .complete({ models: ["pa/m1", "pb/m3"], messages: [], tools: [], signal: new AbortController().signal })
+    .then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+  assert.ok(err instanceof ProviderError);
+  assert.equal(err.kind, "auth");
+  assert.equal(err.limit, false);
+  assert.equal(err.resetsAt, undefined);
+});
+
+test("a 429's reset is read from Retry-After or the body, and an implausible one is dropped", () => {
+  const now = Date.parse("2026-03-02T10:00:00Z");
+  const iso = (ms: number) => new Date(ms).toISOString();
+  assert.equal(resetOf("", new Headers({ "retry-after": "120" }), now), iso(now + 120_000));
+  assert.equal(
+    resetOf("", new Headers({ "retry-after": "Mon, 02 Mar 2026 12:00:00 GMT" }), now),
+    "2026-03-02T12:00:00.000Z",
+  );
+  assert.equal(
+    resetOf(JSON.stringify({ resets_at: "2026-03-02T14:30:00Z" }), undefined, now),
+    "2026-03-02T14:30:00.000Z",
+  );
+  assert.equal(resetOf(JSON.stringify({ error: { resets_in_seconds: 60 } }), undefined, now), iso(now + 60_000));
+  // OpenRouter: the provider's headers inside the error's metadata, in epoch milliseconds.
+  const openrouter = { error: { code: 429, metadata: { headers: { "X-RateLimit-Reset": String(now + 3600_000) } } } };
+  assert.equal(resetOf(JSON.stringify(openrouter), undefined, now), iso(now + 3600_000));
+  // Gemini: a retry delay in its error details.
+  const gemini = { error: { details: [{ "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "34s" }] } };
+  assert.equal(resetOf(JSON.stringify(gemini), undefined, now), iso(now + 34_000));
+  assert.equal(resetOf("You exceeded your current quota", undefined, now), undefined);
+  assert.equal(resetOf(JSON.stringify({ resets_at: 1 }), undefined, now), undefined, "long past");
+  assert.equal(resetOf(JSON.stringify({ resets_at: "2027-03-02T10:00:00Z" }), undefined, now), undefined, "a year out");
 });

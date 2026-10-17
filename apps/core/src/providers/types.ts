@@ -57,32 +57,90 @@ export type ErrorKind =
   | "empty"
   | "context";
 
-/** A provider failure with what to do about it. */
+/**
+ * A provider failure with what to do about it. `resetsAt` (ISO): when a usage limit lifts, if the provider said so.
+ */
 export class ProviderError extends Error {
   readonly kind: ErrorKind;
-  constructor(kind: ErrorKind, message: string) {
+  readonly resetsAt: string | undefined;
+  constructor(kind: ErrorKind, message: string, resetsAt?: string) {
     super(message);
     this.name = "ProviderError";
     this.kind = kind;
+    this.resetsAt = resetsAt;
   }
   /** Worth one more try on the same model. */
   get retryable(): boolean {
     return this.kind === "rate_limit" || this.kind === "overloaded" || this.kind === "network" || this.kind === "empty";
   }
+  /** The provider's usage limit (its plan or its rate), not a fault of the request or of APX. */
+  get limit(): boolean {
+    return this.kind === "quota" || this.kind === "rate_limit";
+  }
 }
 
-export function classifyHttp(status: number, body: string): ProviderError {
+export function classifyHttp(status: number, body: string, headers?: Headers): ProviderError {
   const text = body.slice(0, 300);
   if (status === 401 || status === 403) return new ProviderError("auth", `HTTP ${status}: ${text}`);
   if (status === 404) return new ProviderError("model_gone", `HTTP 404: ${text}`);
   if (status === 429) {
     // Providers use 429 both for "slow down" and for "your plan is out"; the body tells them apart.
-    const quota = /quota|billing|credit|insufficient|exceeded your current|usage limit|limit reached/i.test(body);
-    return new ProviderError(quota ? "quota" : "rate_limit", `HTTP 429: ${text}`);
+    const quota = /quota|billing|credit|insufficient|exceeded your current|usage[ _]limit|limit[ _]reached/i.test(body);
+    return new ProviderError(quota ? "quota" : "rate_limit", `HTTP 429: ${text}`, resetOf(body, headers));
   }
   if (status === 0 || status >= 500)
     return new ProviderError(status === 0 ? "network" : "overloaded", `HTTP ${status}: ${text}`);
   return new ProviderError("bad_request", `HTTP ${status}: ${text}`);
+}
+
+/** A reset further out than this is not believed (a unit mix-up), nor one already past. */
+const MAX_RESET_MS = 31 * 86_400_000;
+
+/** A reset as a time: epoch seconds or milliseconds, or a date string. */
+function absolute(v: unknown): number | undefined {
+  if (typeof v === "number" && Number.isFinite(v)) return v < 1e12 ? v * 1000 : v;
+  if (typeof v !== "string" || !v.trim()) return undefined;
+  if (/^\d+(\.\d+)?$/.test(v.trim())) return absolute(Number(v));
+  const t = Date.parse(v);
+  return Number.isNaN(t) ? undefined : t;
+}
+
+/** A wait as milliseconds: seconds as a number, or a duration string ("34s", "1.5s"). */
+function relative(v: unknown, now: number): number | undefined {
+  const s = typeof v === "number" ? v : typeof v === "string" ? Number(/^\s*([\d.]+)\s*s?\s*$/.exec(v)?.[1]) : NaN;
+  return Number.isFinite(s) ? now + s * 1000 : undefined;
+}
+
+const ABSOLUTE_KEYS = new Set(["resets_at", "reset_at", "resetsat", "resetat", "x-ratelimit-reset"]);
+const RELATIVE_KEYS = new Set(["resets_in_seconds", "retry_after", "retry_after_seconds", "retrydelay"]);
+
+/** The first reset found in a JSON error body, at any depth (the plan's error object, OpenRouter's metadata). */
+function resetInBody(value: unknown, now: number, depth = 0): number | undefined {
+  if (!value || typeof value !== "object" || depth > 5) return undefined;
+  for (const [k, v] of Object.entries(value)) {
+    const key = k.toLowerCase();
+    const at = ABSOLUTE_KEYS.has(key) ? absolute(v) : RELATIVE_KEYS.has(key) ? relative(v, now) : undefined;
+    if (at !== undefined) return at;
+  }
+  for (const v of Object.values(value)) {
+    const at = resetInBody(v, now, depth + 1);
+    if (at !== undefined) return at;
+  }
+  return undefined;
+}
+
+/** When a 429 lifts, from the Retry-After header or the body, as ISO; undefined when unsaid or implausible. */
+export function resetOf(body: string, headers?: Headers, now = Date.now()): string | undefined {
+  const header = headers?.get("retry-after");
+  let at = header ? (relative(header, now) ?? absolute(header)) : undefined;
+  if (at === undefined) {
+    try {
+      at = resetInBody(JSON.parse(body), now);
+    } catch {
+      // Not JSON: only the header could say.
+    }
+  }
+  return at !== undefined && at > now - 60_000 && at < now + MAX_RESET_MS ? new Date(at).toISOString() : undefined;
 }
 
 export type TransportRequest = {
@@ -134,7 +192,7 @@ export async function post(
     if (!res.ok) {
       const text = await res.text().catch(() => "");
       done();
-      throw classifyHttp(res.status, text);
+      throw classifyHttp(res.status, text, res.headers);
     }
     return { res, touch, done };
   } catch (err) {

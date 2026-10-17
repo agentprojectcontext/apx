@@ -90,6 +90,7 @@ export function createLlm(opts: {
           `no model to run (${req.models.join(", ") || "none chosen"}); pick one in Settings → Engines and models`,
         );
       let last: ProviderError | undefined;
+      const limited: ProviderError[] = [];
       const skipped = new Set<string>();
       const failed: ModelFailure[] = [];
       const need = tokensOf(req);
@@ -168,6 +169,7 @@ export function createLlm(opts: {
           }
         }
         if (last) failed.push({ model: ref, why: last.message.slice(ref.length + 2, ref.length + 302) });
+        if (last?.limit) limited.push(last);
         if (streamed) {
           streamed = false;
           req.onText?.("");
@@ -175,9 +177,20 @@ export function createLlm(opts: {
       }
       // Every model's reason, not only the last one's: the owner needs to see why the first choice failed.
       const reasons = failed.map((f) => `${f.model}: ${f.why}`).join("\n");
+      if (limited.length) throw limitError(limited, reasons);
       throw new ProviderError(last?.kind ?? "auth", reasons || last?.message || "no usable model provider");
     },
   };
+}
+
+/**
+ * Some model of the chain hit its provider's limit and none answered: the work waits for a limit to lift, whatever
+ * stopped the others. It can go on at the earliest reset any of them gave.
+ */
+function limitError(limited: ProviderError[], reasons: string): ProviderError {
+  const kind = limited.some((e) => e.kind === "quota") ? "quota" : "rate_limit";
+  const resets = limited.flatMap((e) => (e.resetsAt ? [e.resetsAt] : [])).sort();
+  return new ProviderError(kind, reasons, resets[0]);
 }
 
 /** A rough token count of a call (four characters each), enough to tell a 60k chat from a 4k window. */

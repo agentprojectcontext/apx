@@ -342,6 +342,8 @@ export interface RunsTable {
   created_at: string | null;
   tool_calls: Generated<number>;
   activity: string | null;
+  end_reason: string | null;
+  resets_at: string | null;
 }
 
 export interface StepsTable {

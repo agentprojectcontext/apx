@@ -1,6 +1,6 @@
 // Runs (one agent turn each) and their tool steps. A run row is written, with its input, before anything runs:
 // the runs table is also the durable queue a restart picks up from.
-import type { HarnessId, Run, RunState, RunTrigger } from "@apx/protocol";
+import type { HarnessId, Run, RunEndReason, RunState, RunTrigger } from "@apx/protocol";
 import { sql as raw, type Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { RunsTable } from "../db/schema.ts";
@@ -71,6 +71,8 @@ const toRun = (r: Selectable<RunsTable>): RunRecord => ({
   ...(r.harness ? { harness: r.harness as HarnessId } : {}),
   ...opt("model", r.model),
   ...opt("error", r.error),
+  ...(r.end_reason ? { end_reason: r.end_reason as RunEndReason } : {}),
+  ...opt("resets_at", r.resets_at),
   started_at: r.started_at,
   ...opt("ended_at", r.ended_at),
   ...(r.usage ? { usage: JSON.parse(r.usage) as NonNullable<Run["usage"]> } : {}),
@@ -285,7 +287,13 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     setDeadline(id: string, at: string): void {
       run(qb.updateTable("runs").set({ deadline_at: at }).where("id", "=", id).where("ended_at", "is", null));
     },
-    setState(cur: RunRecord, state: RunState, error?: string): RunRecord {
+    /** `end`: why it ended, when known (and when a provider limit lifts). */
+    setState(
+      cur: RunRecord,
+      state: RunState,
+      error?: string,
+      end?: { reason: RunEndReason; resets_at?: string | undefined },
+    ): RunRecord {
       const terminal = TERMINAL.has(state);
       const base = repo.get(cur.id) ?? cur;
       const next: RunRecord = {
@@ -294,6 +302,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         ...(terminal ? { activity: undefined } : {}),
         state,
         ...(error ? { error } : {}),
+        ...(end ? { end_reason: end.reason, ...(end.resets_at ? { resets_at: end.resets_at } : {}) } : {}),
         ...(state === "working" && base.state === "submitted" ? { started_at: now() } : {}),
         ...(terminal ? { ended_at: now() } : {}),
       };
@@ -306,6 +315,8 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
             started_at: next.started_at,
             ended_at: next.ended_at ?? null,
             activity: next.activity ?? null,
+            end_reason: next.end_reason ?? null,
+            resets_at: next.resets_at ?? null,
           })
           .where("id", "=", cur.id),
       );

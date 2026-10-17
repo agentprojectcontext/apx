@@ -72,6 +72,7 @@ import { ratingNote, sentMeanwhile } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
+import { resetLabel } from "./provider-limit.ts";
 import { recallFor } from "./recall.ts";
 import { closeTurnLog, RESUME_NOTE } from "./recovery.ts";
 import { askedPick, type SkillPicker } from "./skill-pick.ts";
@@ -723,16 +724,28 @@ function failRun(
         ? t.err.message
         : String(t.err);
   const short = reason.split("\n")[0]?.slice(0, 200) ?? reason;
-  const message = canceled ? "Canceled." : `Could not finish: ${short}`;
+  // The provider's usage limit, not the agent: it says when it lifts, when the provider said so.
+  const limit = !canceled && t.err instanceof ProviderError && t.err.limit ? t.err : undefined;
+  const until = limit?.resetsAt ? resetLabel(limit.resetsAt, ownerTimeZone(store)) : undefined;
+  const message = canceled
+    ? "Canceled."
+    : limit
+      ? `Stopped by the model provider's usage limit${until ? `, which lifts at ${until}` : " (it did not say when it lifts)"}.`
+      : `Could not finish: ${short}`;
   if (!canceled) deps.log.warn({ thread: t.turn.thread.id, agent: t.turn.agent.id, err: reason }, "run failed");
   // Every model tried and none answered (out of quota, signed out, down): said as such, the reasons below it.
   const noModel = t.err instanceof ProviderError;
   if (canceled) t.display.notice("info", "run.canceled", message);
   else
-    t.display.notice("error", noModel ? "run.noModel" : "run.failed", noModel ? "No model could answer." : message, {
-      vars: {},
-      detail: reason.slice(0, 2000),
-    });
+    t.display.notice(
+      "error",
+      noModel ? "run.noModel" : "run.failed",
+      limit ? message : noModel ? "No model could answer." : message,
+      {
+        vars: limit ? (until ? { variant: "limit", until } : { variant: "limitUnknown" }) : {},
+        detail: reason.slice(0, 2000),
+      },
+    );
   // Cut by the owner's next message is not dropped: the model must not read it as "the owner no longer wants this".
   const why =
     t.signal.reason instanceof Superseded
@@ -741,7 +754,16 @@ function failRun(
         ? "The owner canceled this turn."
         : `This turn failed: ${reason}`;
   closeTurnLog(store, t.run, why);
-  const run = store.runs.setState(t.run, canceled ? "canceled" : "failed", message);
+  const run = store.runs.setState(t.run, canceled ? "canceled" : "failed", message, {
+    reason: canceled
+      ? "canceled"
+      : limit
+        ? "provider_limit"
+        : t.signal.reason instanceof DeadlineExceeded
+          ? "deadline"
+          : "failed",
+    resets_at: limit?.resetsAt,
+  });
   // A failure is news the owner has not seen yet; a cancel is their own doing.
   store.threads.patch(t.turn.thread.id, {
     state: canceled ? "canceled" : "failed",

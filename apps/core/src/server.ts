@@ -339,6 +339,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       upkeep.afterRun(run);
       channels.afterRun(run);
       scheduler.afterRun(run);
+      scheduler.stalls.afterRun(run);
       afterWorkTurn(store, engine.admit, run);
     },
   });

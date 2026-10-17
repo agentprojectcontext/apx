@@ -43,6 +43,11 @@ const es = {
         : `Vence: ${title}. Se lo debés a ${person}.`
       : `Vence: ${title}.`,
   routineFailed: (name: string, why: string) => `La rutina «${name}» no pudo terminar: ${why}`,
+  providerLimitTitle: "Límite del proveedor de modelos",
+  providerLimit: (until?: string) =>
+    until
+      ? `El proveedor de modelos llegó a su límite de uso: los agentes quedan frenados hasta las ${until}.`
+      : "El proveedor de modelos llegó a su límite de uso: los agentes quedan frenados y no dijo hasta cuándo.",
   noticeLostTitle: "Un aviso no te llegó",
   noticeLost: (channels: string, why: string, text: string) =>
     `Ningún canal pudo entregarlo (${channels}${why ? `: ${why}` : ""}). Decía: «${text}»`,
@@ -107,6 +112,11 @@ const en: typeof es = {
         : `Due: ${title}. You owe it to ${person}.`
       : `Due: ${title}.`,
   routineFailed: (name, why) => `The routine "${name}" couldn't finish: ${why}`,
+  providerLimitTitle: "Model provider limit",
+  providerLimit: (until) =>
+    until
+      ? `The model provider's usage limit was reached: agents are stopped until ${until}.`
+      : "The model provider's usage limit was reached: agents are stopped, and it did not say until when.",
   noticeLostTitle: "A notice didn't reach you",
   noticeLost: (channels, why, text) =>
     `No channel could deliver it (${channels}${why ? `: ${why}` : ""}). It said: "${text}"`,

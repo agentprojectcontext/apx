@@ -9,6 +9,7 @@ import {
   type Finish,
   ProviderError,
   post,
+  resetOf,
   sseData,
   type ToolCall,
   type Transport,
@@ -181,7 +182,8 @@ export const chatgptResponses: Transport = async (req) => {
         case "response.failed":
         case "error": {
           const why = ev.response?.error?.message ?? ev.error?.message ?? ev.message ?? "the model failed";
-          throw new ProviderError(/limit|quota|usage/i.test(why) ? "quota" : "overloaded", why);
+          const limit = /limit|quota|usage/i.test(why);
+          throw new ProviderError(limit ? "quota" : "overloaded", why, limit ? resetOf(data) : undefined);
         }
       }
     }
