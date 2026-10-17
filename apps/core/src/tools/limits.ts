@@ -1,9 +1,10 @@
 // agent_limits: how far agents may go on their own before the chain pauses (engine/breaker.ts), read by the agent that
 // orchestrates the work, and changed or let go on only with the owner's OK. Without it an agent guessed at the pause and
-// took it for the notice budget, and "raise it" stayed an empty promise.
+// took it for the notice budget, and "raise it" stayed an empty promise. Offered only in a conversation where agents work
+// together (sub-threads, task chats), the only place the limits apply, so a plain chat's prompt stays as small.
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
-import { budgetLeft, tripped } from "../engine/breaker.ts";
+import { budgetLeft, tree, tripped } from "../engine/breaker.ts";
 import { MAX_UNATTENDED_RUNS, MAX_UNATTENDED_TOKENS, unattendedLimits } from "../engine/limits.ts";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -21,6 +22,7 @@ export function limitTools(store: Store): Tool[] {
         tokens: z.number().int().min(0).max(1_000_000_000).optional().describe("fresh tokens without the owner"),
         go_on: z.enum(["reset", "release"]).optional(),
       }),
+      when: (thread) => tree(store, thread.id).length > 1,
       effect: "local",
       confirm: (a) => (a.runs !== undefined || a.tokens !== undefined || a.go_on ? "always" : "never"),
       deadlineMs: 15_000,
