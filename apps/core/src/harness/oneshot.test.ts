@@ -5,12 +5,25 @@ import path from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { harnessOf, isCliRef } from "../domain/refs.ts";
-import { type OneshotId, oneshotHarness } from "./oneshot.ts";
+import { type OneshotId, oneshotHarness, oneshotStatus } from "./oneshot.ts";
 import type { TurnIO } from "./types.ts";
 
 const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-oneshot-test-")));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 const fixture = fileURLToPath(new URL("./fake-oneshot.test-support.mjs", import.meta.url));
+
+test("discovery does not confuse a GUI installation with headless availability or claim authentication", async () => {
+  const missing = await oneshotStatus("antigravity", async (name) =>
+    name === "antigravity-ide" ? "/tmp/antigravity-ide" : undefined,
+  );
+  assert.equal(missing.installed, false);
+  assert.equal(missing.logged_in, false);
+  for (const id of ["aider", "antigravity"] as const) {
+    const found = await oneshotStatus(id, async () => process.execPath);
+    assert.equal(found.installed, true);
+    assert.equal(found.logged_in, false);
+  }
+});
 function setup(id: OneshotId, mode = "echo", approved = true) {
   const events: string[] = [];
   const harness = oneshotHarness(id, {

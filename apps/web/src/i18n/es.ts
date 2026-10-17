@@ -910,7 +910,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "engine.kind.cli": "Sesión externa · CLI",
   "engine.kind.acp": "CLI con Agent Client Protocol",
   "engine.login.acp": "Iniciá sesión con el propio CLI y después actualizá la lista de modelos.",
-  "engine.login.oneshot": "Configurá las credenciales en el CLI. La autenticación se comprueba al ejecutar un turno; APX no puede aprobar cada herramienta por separado.",
+  "engine.login.oneshot":
+    "Configurá las credenciales en el CLI. La autenticación se comprueba al ejecutar un turno; APX no puede aprobar cada herramienta por separado.",
   "engine.login.claude": "Abrí Claude Code en una terminal e iniciá sesión con tu cuenta.",
   "engine.login.codex": "Corré codex login en una terminal.",
   "engines.recheck": "Revisar de nuevo",

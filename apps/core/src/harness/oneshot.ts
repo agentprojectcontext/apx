@@ -15,8 +15,8 @@ export const ONESHOT = {
 export type OneshotId = keyof typeof ONESHOT;
 const MAX_BYTES = 1_000_000;
 
-export async function oneshotStatus(id: OneshotId) {
-  const installed = Boolean(await which(ONESHOT[id].binary));
+export async function oneshotStatus(id: OneshotId, lookup = which) {
+  const installed = Boolean(await lookup(ONESHOT[id].binary));
   return {
     installed,
     logged_in: false,
@@ -133,7 +133,10 @@ function runCli(binary: string, args: string[], cwd: string, signal: AbortSignal
         }
       } catch {}
     };
+    let stopping = false;
     const stop = () => {
+      if (stopping) return;
+      stopping = true;
       kill(false);
       killer ??= setTimeout(() => kill(true), 1000);
       killer.unref();
@@ -167,6 +170,7 @@ function runCli(binary: string, args: string[], cwd: string, signal: AbortSignal
       reject(err);
     });
     child.once("close", (code, sig) => {
+      if (failure && process.platform !== "win32") kill(true);
       cleanup();
       if (failure) reject(failure);
       else if (code !== 0) reject(new Error(`CLI exited with ${sig ?? code}`));
