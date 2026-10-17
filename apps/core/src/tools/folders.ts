@@ -78,6 +78,16 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
 /** Where a path lands (`base`: the folder it is in) and whether it may be changed, or why it is refused. */
 export type Access = { at: string; base: string; scratch: boolean; write: boolean } | { refused: string };
 
+/** Every refusal says what to do next, the same from every tool: it lands in context each time, so it stays short. */
+export const refusal = {
+  outside: (p: string) =>
+    `${p} is outside the folders you can read. If the task needs it, ask the owner with ask_owner to add it as a read-only folder of the project.`,
+  unwritable: (p: string) =>
+    `${p} is outside the folders you can change: write in the folder you work in or your temp folder.`,
+  readOnly: (p: string) =>
+    `${p} is in a read-only folder: write your changes in the folder you work in or your temp folder.`,
+};
+
 /**
  * The rule itself: `file` (relative to `from`, `~` for the user's home) once links are resolved, in a root or not.
  * `name` is the path as the agent wrote it, for the refusal.
@@ -85,8 +95,8 @@ export type Access = { at: string; base: string; scratch: boolean; write: boolea
 export function judge(roots: Root[], file: string, from: string, write = false, name = file): Access {
   const at = path.resolve(from, expandHome(file));
   const root = roots.find((r) => insideReal(r.dir, at));
-  if (!root) return { refused: `${name} is outside the folder you work in and your temp folder` };
-  if (write && !root.write) return { refused: `${name} is in a folder you can read, not change` };
+  if (!root) return { refused: write ? refusal.unwritable(name) : refusal.outside(name) };
+  if (write && !root.write) return { refused: refusal.readOnly(name) };
   return { at, base: root.dir, scratch: root.scratch, write: root.write };
 }
 

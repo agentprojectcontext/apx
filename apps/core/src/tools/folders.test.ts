@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { harnessDir, scratchDir, workDir } from "./folders.ts";
+import { harnessDir, judge, refusal, scratchDir, workDir } from "./folders.ts";
 import { commandFolder } from "./shell.ts";
 
 // The owner's message is the call to make: `{"name": "file_read", "args": {...}}`.
@@ -97,6 +97,25 @@ test("a path is readable or refused the same way through file_read and shell, wr
     for (const [how, said] of Object.entries(verdicts))
       assert.equal(!/refused:/.test(said), readable, `${how} ${p}: ${said.slice(0, 200)}`);
   }
+
+  // Refused, both say the same next step, naming the tool that asks the owner.
+  const p = `${out}/b.txt`;
+  assert.equal(await call("file_read", { path: p }), `refused: ${refusal.outside(p)}`);
+  assert.ok((await call("shell", { command: `rg -n x ${p}` })).endsWith(`refused: ${refusal.outside(p)}`));
+  assert.match(refusal.outside(p), /ask_owner/);
+  const { tools } = await env.client.call("agents.tools", {});
+  assert.ok(tools.some((tool) => tool.name === "ask_owner"));
+  assert.match(await call("file_write", { path: p, content: "x" }), /outside the folders you can change: write in/);
+});
+
+test("a read-only folder is read, never changed", () => {
+  const roots = [
+    { dir: repo, write: true, scratch: false },
+    { dir: sibling, write: false, scratch: false },
+  ];
+  const file = path.join(sibling, "b.txt");
+  assert.deepEqual(judge(roots, file, repo), { at: file, base: sibling, scratch: false, write: false });
+  assert.deepEqual(judge(roots, file, repo, true), { refused: refusal.readOnly(file) });
 });
 
 test("ordinary commands name no folder they may not use; ones that leave it through any door are refused", async () => {

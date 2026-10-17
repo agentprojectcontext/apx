@@ -148,7 +148,8 @@ export function fileTools(store: Store, home: string): Tool[] {
     // Links resolved: a symlink inside the folder must not send the write somewhere else.
     const r = folderAccess(store, home, thread, a.path, { cwd: a.cwd, write });
     if ("refused" in r) return r;
-    if (r.at.split(path.sep).includes(".git")) return { refused: "the .git folder is off limits" };
+    if (r.at.split(path.sep).includes(".git"))
+      return { refused: "the .git folder is off limits: use git through shell" };
     // The owner was asked by the path as written: one that only lands on APC files through a link is refused.
     if (write && !r.scratch && guarded(r.base, r.at) && !namesGuarded(named(a)))
       return { refused: "APC files and AGENTS.md are written only by their path from the folder's root" };

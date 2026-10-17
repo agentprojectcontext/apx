@@ -74,7 +74,7 @@ export function messageTools(store: Store, home: string): Tool[] {
       const where = folderAccess(store, home, ctx.thread, file);
       if ("refused" in where) return { problem: where.refused };
       // Only the work folder's files go out to someone else, not the temp folder's.
-      if (where.base !== base) return { problem: `${file} is not in the folder you work in` };
+      if (where.base !== base) return { problem: `${file} is not in the folder you work in: copy it there to send it` };
       const { at } = where;
       if (!fs.existsSync(at) || !fs.statSync(at).isFile()) return { problem: `no file ${file}` };
       const bytes = fs.statSync(at).size;

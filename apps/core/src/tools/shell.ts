@@ -8,7 +8,7 @@ import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { commandShell } from "../processes.ts";
 import { namedPaths } from "./command-paths.ts";
-import { type Access, folderAccess, judge, rootsOf } from "./folders.ts";
+import { type Access, folderAccess, judge, refusal, rootsOf } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool } from "./types.ts";
 
@@ -120,15 +120,18 @@ export function commandFolder(
   a: { command: string; cwd?: string | undefined },
   apxPort?: number,
 ): Access {
+  // Outside every folder a command is refused as a read would be; only a read-only one asks whether it writes.
   const write = commandRisk(a.command, apxPort) !== "never";
-  const where = folderAccess(store, home, thread, a.cwd ?? ".", { write });
+  const judged = (r: Access, name: string): Access =>
+    "refused" in r || !write || r.write ? r : { refused: refusal.readOnly(name) };
+  const where = judged(folderAccess(store, home, thread, a.cwd ?? "."), a.cwd ?? ".");
   if ("refused" in where) return where;
   const roots = rootsOf(store, home, thread);
   let from: string | undefined = where.at;
   for (const named of namedPaths(a.command)) {
     if (named.cd && !named.path) from = undefined;
     if (!named.path || (from === undefined && !path.isAbsolute(named.path))) continue;
-    const r = judge(roots, named.path, from ?? "/", write);
+    const r = judged(judge(roots, named.path, from ?? "/"), named.path);
     if ("refused" in r) return r;
     if (named.cd) from = r.at;
   }
