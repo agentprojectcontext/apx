@@ -2,11 +2,11 @@ import { DOCUMENT_MAX_BYTES } from "@apx/protocol/client";
 import { Button, EmptyState, IconButton, Icons, MarkdownView } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
-import { coreOnThisComputer, openFile, revealFile } from "../data/files.ts";
 import { mediaUrl } from "../data/media.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { DocumentActions } from "./DocumentActions.tsx";
 import { chatDocuments, type DocRef, withStored } from "./documents.ts";
 
 export function DocumentPanel() {
@@ -55,14 +55,17 @@ export function DocumentPanel() {
       <div className="documentpanel">
         <ul className="documentpanel__list" aria-label={t("document.list")}>
           {documents.map((d) => (
-            <li key={d.media_id}>
+            <li key={d.media_id} className="documentpanel__row">
               <button type="button" className="documentpanel__item" onClick={() => go.document(d.media_id)}>
                 <Icons.FileText size={16} />
                 <span className="documentpanel__itemtext">
                   <span className="documentpanel__itemtitle">{d.title}</span>
-                  <span className="documentpanel__filename">{d.name}</span>
+                  <span className="documentpanel__filename">{d.source?.path ?? d.name}</span>
                 </span>
               </button>
+              <div className="documentpanel__rowactions">
+                <DocumentActions doc={d} thread={thread} />
+              </div>
             </li>
           ))}
         </ul>
@@ -79,73 +82,10 @@ export function DocumentPanel() {
   );
 }
 
-/** Saves the document's file as it is. */
-export async function downloadDocument(doc: DocRef): Promise<void> {
-  const a = document.createElement("a");
-  a.href = await mediaUrl(doc.media_id);
-  a.download = doc.name;
-  a.click();
-}
-
-/** Shows the document's text in a new browser tab (a browser only: the desktop app opens no blank windows). */
-async function openInTab(doc: DocRef): Promise<void> {
-  const tab = window.open("", "_blank");
-  const text = await (await fetch(await mediaUrl(doc.media_id))).text();
-  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
-  if (tab) tab.location.href = url;
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
-
-/** Where the file is and how to open it apart: Finder and its app beside the core, else the chat's files and a tab. */
-function DocumentPlaces({ doc, thread }: { doc: DocRef; thread: string | undefined }) {
-  const t = useT();
-  const local = coreOnThisComputer();
-  const where = thread && doc.source ? { thread, ...(doc.source.scratch && { scratch: true }) } : undefined;
-  const path = doc.source?.path;
-  return (
-    <>
-      {where && path && (
-        <IconButton
-          size="sm"
-          label={local ? t("files.reveal") : t("document.showFiles")}
-          icon={<Icons.FolderOpen size={14} />}
-          onClick={() => (local ? void revealFile(where, path) : go.panel("files"))}
-        />
-      )}
-      {local && where && path ? (
-        <IconButton
-          size="sm"
-          label={t("document.open")}
-          icon={<Icons.ExternalLink size={14} />}
-          onClick={() => void openFile(where, path)}
-        />
-      ) : (
-        !window.apxDesktop && (
-          <IconButton
-            size="sm"
-            label={t("document.openTab")}
-            icon={<Icons.ExternalLink size={14} />}
-            onClick={() => void openInTab(doc)}
-          />
-        )
-      )}
-    </>
-  );
-}
-
 function DocumentBody({ doc }: { doc: DocRef }) {
   const t = useT();
   const thread = useNav((s) => s.threadId);
   const [raw, setRaw] = useState(doc.format === "text");
-  const [downloadFailed, setDownloadFailed] = useState(false);
-  const download = async () => {
-    setDownloadFailed(false);
-    try {
-      await downloadDocument(doc);
-    } catch {
-      setDownloadFailed(true);
-    }
-  };
   return (
     <section className="documentpanel__page" aria-label={doc.title}>
       <header className="documentpanel__head">
@@ -161,16 +101,9 @@ function DocumentBody({ doc }: { doc: DocRef }) {
             icon={raw ? <Icons.Eye size={14} /> : <Icons.Code size={14} />}
             onClick={() => setRaw((v) => !v)}
           />
-          <DocumentPlaces doc={doc} thread={thread} />
-          <IconButton
-            size="sm"
-            label={t("document.download")}
-            icon={<Icons.Download size={14} />}
-            onClick={() => void download()}
-          />
+          <DocumentActions doc={doc} thread={thread} />
         </div>
       </header>
-      {downloadFailed && <p role="alert">{t("document.failed")}</p>}
       <DocumentText doc={doc} raw={raw} />
     </section>
   );

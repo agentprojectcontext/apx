@@ -5,7 +5,7 @@ import path from "node:path";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { mediaData } from "../services/uploads.ts";
-import { scratchRoot } from "../tools/shell.ts";
+import { scratchRoot } from "../tools/folders.ts";
 import { claudeHarness } from "./claude.ts";
 
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";

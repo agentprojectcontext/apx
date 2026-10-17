@@ -20,6 +20,22 @@ const calls: Record<string, object | [string, object]> = {
   "edit it": ["edit_widget", { name: "btc-live", edits: [{ old: "<div id=p></div>", new: "<div id=price>$&</div>" }] }],
   "edit missing": ["edit_widget", { name: "btc-live", edits: [{ old: "<span>", new: "x" }] }],
   "edit nothing": ["edit_widget", { name: "no-such", edits: [{ old: "a", new: "b" }] }],
+  "broken script": {
+    name: "broken",
+    title: "Broken",
+    html: "<div></div>\n<script>\nconst a = {\n  x: 1\n  y: 2 };\n</script>",
+  },
+  "json and module": {
+    name: "mixed",
+    title: "Mixed",
+    html: '<script type="application/json">{"a": 1 "b"}</script><script type="text/template">{{ ( }}</script><script>let x = 1;</script>\n<script type="module">import a from "./a.js";\nexport const b = 1;</script>',
+  },
+  "broken module": {
+    name: "mixed-mod",
+    title: "Mod",
+    html: '<p></p>\n<script type="module">\nimport a from "./a.js";\nconst b = {\n x: 1\n y: 2};</script>',
+  },
+  "break the script": ["edit_widget", { name: "mixed", edits: [{ old: "let x = 1;", new: "let x = ;" }] }],
   "project widget": { name: "acme-sales", title: "Acme sales", html: "<p>sales</p>" },
   "read the global one": ["read_widget", { name: "btc-live" }],
 };
@@ -122,4 +138,24 @@ test("a project's chat lists and reads only that project's widgets, and a chat o
     (await env.client.call("surfaces.list", project_id ? { project_id } : {})).surfaces.map((s) => s.name).sort();
   assert.deepEqual(await names(project.id), ["acme-sales"]);
   assert.deepEqual(await names(), ["acme-sales", "btc-live"]);
+});
+
+test("a widget whose inline script does not parse is refused with its line; other blocks are not checked", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "syntax" });
+  assert.match(
+    await said(t.id, "broken script"),
+    /refused: the script at line 5 \(column 3\) of the widget does not parse: Unexpected identifier 'y'/,
+  );
+  assert.match(await said(t.id, "broken module"), /line 6 \(column 2\).*does not parse/);
+  assert.ok(!(await env.client.call("surfaces.list", {})).surfaces.some((s) => s.name === "broken"));
+
+  // JSON and template blocks are skipped; classic and module scripts that parse pass.
+  assert.match(await said(t.id, "json and module"), /widget "mixed" v1 shown/);
+  const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "mixed")?.id ?? "";
+
+  // An edit that breaks a script is refused and the stored widget stays as it was.
+  assert.match(await said(t.id, "break the script"), /refused: the script at line 1 \(column \d+\).*does not parse/);
+  const kept = await env.client.call("surfaces.get", { surface: id });
+  assert.equal(kept.version, 1);
+  assert.ok(kept.html.includes("let x = 1;"));
 });

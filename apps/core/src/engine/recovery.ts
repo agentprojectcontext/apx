@@ -69,7 +69,7 @@ const resumable = (store: Store, run: RunRecord) =>
 function stillDelegated(store: Store, run: RunRecord): string {
   const names = store.runs
     .children(run.id)
-    .filter((c) => c.state === "submitted" || c.state === "working")
+    .filter((c) => c.state === "queued" || c.state === "submitted" || c.state === "working")
     .map((c) => store.threads.context(c.thread_id).worker?.name ?? store.agents.get(c.agent_id)?.name ?? c.agent_id);
   return names.length
     ? ` Tasks you delegated to ${names.join(", ")} are still going: their results come back in a new turn, do not delegate them again.`

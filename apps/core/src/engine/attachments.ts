@@ -8,8 +8,8 @@ import type { Attachment } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { insideReal } from "../paths.ts";
 import { ATTACHMENT_TEXT_CHARS, isReadable } from "../services/uploads.ts";
+import { scratchDir } from "../tools/folders.ts";
 import { untrusted } from "../tools/result.ts";
-import { scratchDir } from "../tools/shell.ts";
 
 /** A file name as plain text in the prompt: it cannot open a tag or a bracket of its own. */
 const nameOf = (name: string) => name.replace(/[[\]<>\r\n]/g, " ").slice(0, 120);

@@ -73,6 +73,7 @@ import { computerTools } from "./tools/computer.ts";
 import { contactTools } from "./tools/contact.ts";
 import { directoryTools } from "./tools/directory.ts";
 import { fileTools } from "./tools/files.ts";
+import { folderAccess } from "./tools/folders.ts";
 import { limitTools } from "./tools/limits.ts";
 import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
@@ -81,7 +82,7 @@ import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
 import { requestTools } from "./tools/requests.ts";
 import { routineTools } from "./tools/routines.ts";
-import { locateFile, shellTools, workDir } from "./tools/shell.ts";
+import { shellTools } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
 import { taskTools } from "./tools/tasks.ts";
@@ -298,8 +299,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...composerHandlers({
       store: d.store,
       home: d.app.home,
-      workFolder: (thread, file) =>
-        locateFile(d.store, d.app.home, thread, file) ?? { base: workDir(d.store, d.app.home, thread), scratch: false },
+      locate: (thread, file) => folderAccess(d.store, d.app.home, thread, file),
       services: d.services,
       checkModel: (ref, session) => refProblem(ref, d.engines, session),
     }),

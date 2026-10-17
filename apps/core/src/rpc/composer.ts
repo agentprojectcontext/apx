@@ -6,17 +6,15 @@ import { badRequest, errorMessage, notFound, unauthorized, unavailable } from ".
 import { saveLocalAttachment } from "../services/attachment-files.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
+import type { Access } from "../tools/folders.ts";
 import type { Handlers } from "./router.ts";
 
 export function composerHandlers(deps: {
   store: Store;
   home: string;
   services: Services;
-  /** The folder `file` is attached from: where the chat's agent works, or its temp folder. */
-  workFolder(
-    thread: NonNullable<ReturnType<Store["threads"]["get"]>>,
-    file: string,
-  ): { base: string; scratch: boolean };
+  /** Where `file` is, by the folder rule every tool follows (folders.ts), or why it is refused. */
+  locate(thread: NonNullable<ReturnType<Store["threads"]["get"]>>, file: string): Access;
   /** `session`: the CLI whose own session the chat is (only that CLI runs there). */
   checkModel(ref: string, session: string | undefined): string | undefined;
 }) {
@@ -31,12 +29,13 @@ export function composerHandlers(deps: {
       if (audienceOf(store, thread).kind !== "owner")
         throw unauthorized("local files can only be attached in the owner's chats");
       try {
-        const { base, scratch } = deps.workFolder(thread, path);
-        const m = saveLocalAttachment(deps.home, store, base, thread.id, path, document);
-        const rel = nodePath.relative(base, nodePath.resolve(base, path)).split(nodePath.sep).join("/");
+        const where = deps.locate(thread, path);
+        if ("refused" in where) throw new Error(`refused: ${where.refused}`);
+        const m = saveLocalAttachment(deps.home, store, where.base, thread.id, where.at, document);
+        const rel = nodePath.relative(where.base, where.at).split(nodePath.sep).join("/");
         return {
           media: { id: m.id, kind: m.kind, mime: m.mime, bytes: m.bytes, name: m.name },
-          ...(document && { source: { path: rel, ...(scratch && { scratch }) } }),
+          ...(document && { source: { path: rel, ...(where.scratch && { scratch: true }) } }),
         };
       } catch (err) {
         throw badRequest(errorMessage(err));

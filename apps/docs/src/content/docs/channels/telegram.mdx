@@ -98,6 +98,41 @@ it: from the request under **Waiting for your approval**, from your notice, by t
 Approved people are contacts: their chats are sealed (no tools, none of your memory). They show under **People on
 Telegram**, where you can block or forget them.
 
+## Groups
+
+The bot can also look after Telegram groups, the way a Discord bot looks after rooms of a server. Groups are opt-in:
+one that isn't listed doesn't exist for APX, so it's neither read nor stored, even with the bot in it.
+
+<Steps>
+
+1. In **@BotFather**, send `/mybots`, pick your bot, then **Bot Settings › Group Privacy › Turn off**. With privacy
+   on, Telegram only hands a bot the group messages that @mention it or reply to it, so **Always** and **When
+   useful** would never see the rest. Turning it off applies to groups the bot joins afterwards: if it is already in
+   one, remove it and add it again.
+
+2. Add the bot to the group, and write something there while the channel is connected. Telegram can't list the groups
+   a bot is in, so APX learns them from what arrives: being added, or any message.
+
+3. In **Settings › Channels**, under **Groups**, pick the group from **Add a group the bot is in…**. Typing its id
+   (a negative number, `-100…` for a supergroup) is the fallback.
+
+</Steps>
+
+Each group has the same modes, words that call it, notes, rules and limits as a Discord room (see
+[Server rooms](/channels/discord-slack/#server-rooms)). In **When called**, an @mention of the bot, a command
+addressed to it (`/help@your_bot`) or a reply to one of its messages calls it. Answers go to the group, as a reply to
+the message they answer, and only ping people your own turn names.
+
+<Aside type="caution" title="Groups are public, so their turns are sealed">
+In a group the agent answers with no memory and nothing of yours, even when you're the one writing. Private chats
+with the bot don't change.
+</Aside>
+
+<Aside type="note">
+When Telegram turns a group into a supergroup (for example after you make someone an admin), its id changes: pick it
+again from the list and remove the old one.
+</Aside>
+
 ## One bot per project
 
 The panel sets up one Telegram bot. If you want a separate bot for a project, add it from the terminal with its own

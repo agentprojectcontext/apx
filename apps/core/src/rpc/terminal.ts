@@ -3,7 +3,7 @@ import fs from "node:fs";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
 import type { Terminals } from "../terminal/terminals.ts";
-import { workDir } from "../tools/shell.ts";
+import { workDir } from "../tools/folders.ts";
 import type { Handlers } from "./router.ts";
 
 export function terminalHandlers(store: Store, terminals: Terminals, home: string) {

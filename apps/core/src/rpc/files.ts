@@ -8,10 +8,12 @@ import type { Store } from "../domain/store.ts";
 import { gitDiff, gitStatus } from "../engine/changes.ts";
 import { badRequest, conflict, notFound } from "../errors.ts";
 import { insideReal, real, writeAtomic } from "../paths.ts";
-import { scratchDir, workDir } from "../tools/shell.ts";
+import { scratchDir, workDir } from "../tools/folders.ts";
 import { reportedDiff } from "./reported-diff.ts";
 import type { Handlers } from "./router.ts";
 
+/** What a document's snapshot is stored as (attachment-files.ts): only these open in their app. */
+const DOCUMENT_MIMES = new Set(["text/markdown", "text/plain"]);
 /** Entries one folder lists at most. */
 const MAX_ENTRIES = 500;
 /** Never shown, whatever the case or a link's name: .git holds remotes (with tokens, sometimes) and hooks. */
@@ -229,6 +231,17 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
       if (!/\.(md|markdown|txt)$/i.test(abs)) throw badRequest("only .md, .markdown and .txt files open here");
       if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) throw notFound(`file ${rel}`);
       await desktop.open(abs);
+      return { ok: true as const };
+    },
+    "documents.open": async ({ media_id }) => {
+      const m = store.media.get(media_id);
+      if (!m || m.kind !== "file" || !DOCUMENT_MIMES.has(m.mime)) throw notFound(`document ${media_id}`);
+      const name = path.basename(m.prompt ?? "").replace(/^\.+/, "") || "document";
+      const file = /\.(md|markdown|txt)$/i.test(name) ? name : `${name}.txt`;
+      const copy = path.join(home, "media", "open", media_id, file);
+      fs.mkdirSync(path.dirname(copy), { recursive: true });
+      fs.copyFileSync(m.path, copy);
+      await desktop.open(copy);
       return { ok: true as const };
     },
     "files.rename": ({ path: rel, name, ...where }) => {
