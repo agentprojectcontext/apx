@@ -25,7 +25,6 @@ import {
   v1Notes,
   v1OpenCommitments,
   v1OpenTasks,
-  v1OrphanStorages,
   v1Projects,
   v1ProjectVars,
   v1Routines,
@@ -80,15 +79,11 @@ const defaultSpace = (home: string): V1Project => ({
 const spaces = (home: string) => [defaultSpace(home), ...v1Projects(home)];
 
 /**
- * Every v1 note file that becomes global: the super-agent's own, Default's (v1's workspace without a folder) and,
- * marked with their name, those of projects v1 no longer lists (v2 has no project for them).
+ * Every v1 note file that becomes global: the super-agent's own and Default's (v1's workspace without a folder). A
+ * project v1 no longer lists has no project here, and as global its notes would show in every project: left out.
  */
-function globalNotes(home: string): Array<{ file: string; mark?: string }> {
-  return [
-    { file: path.join(home, "memory.md") },
-    { file: path.join(defaultSpace(home).storage, "memory.md") },
-    ...v1OrphanStorages(home).map((o) => ({ file: path.join(o.storage, "memory.md"), mark: `[v1 · ${o.name}] ` })),
-  ];
+function globalNotes(home: string): Array<{ file: string }> {
+  return [{ file: path.join(home, "memory.md") }, { file: path.join(defaultSpace(home).storage, "memory.md") }];
 }
 
 /** How much of each group v1 has, and a word on it (channel names). */
@@ -255,9 +250,9 @@ export function importV1(deps: V1ImportDeps, groups: readonly V1Group[]) {
   // Counted by what is new: a note v2 already has (same scope and text) is not added twice.
   run("memory", () => {
     const before = store.memories.counts(undefined).total;
-    for (const { file, mark } of globalNotes(home))
+    for (const { file } of globalNotes(home))
       for (const text of v1Notes(file))
-        store.memories.add({ scope: "global", text: `${mark ?? ""}${text}`.slice(0, 2000), source: "owner" });
+        store.memories.add({ scope: "global", text: text.slice(0, 2000), source: "owner" });
     for (const p of v1Projects(home)) {
       const project = projectOf(p);
       if (!project) continue;

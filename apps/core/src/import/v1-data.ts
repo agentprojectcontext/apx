@@ -66,36 +66,6 @@ export function v1Projects(home: string): V1Project[] {
   return out;
 }
 
-/**
- * Project storages v1 still has but no longer lists (the folder was removed or unregistered), with the name their
- * memory file's title gives ("# Acme — project memory"), else their id. Only those with notes.
- */
-export function v1OrphanStorages(home: string): Array<{ storage: string; name: string }> {
-  const root = path.join(home, "projects");
-  const known = new Set(v1Projects(home).map((p) => p.storage));
-  let ids: string[];
-  try {
-    ids = fs.readdirSync(root).sort();
-  } catch {
-    return [];
-  }
-  return ids.flatMap((id) => {
-    const storage = path.join(root, id);
-    if (id === "default" || id.startsWith(".") || known.has(storage)) return [];
-    let head: string;
-    try {
-      head = fs.readFileSync(path.join(storage, "memory.md"), "utf8").slice(0, 400);
-    } catch {
-      return [];
-    }
-    const title = /^#\s+(.+)$/m
-      .exec(head)?.[1]
-      ?.split(/\s+[—–-]\s+/)[0]
-      ?.trim();
-    return [{ storage, name: (title || id).slice(0, 60) }];
-  });
-}
-
 /** The agents a project defines (.apc/agents/*.md). */
 export function v1AgentCount(project: V1Project): number {
   try {

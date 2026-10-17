@@ -115,14 +115,14 @@ test("the scan counts v1's images, voices and transcription, and every note that
   const count = Object.fromEntries(groups.map((g) => [g.id, g.count]));
   // zimage, flux, sdcpp; qvox, alejandro, Gemini's voice; v1's whisper.
   assert.equal(count.services, 7);
-  assert.equal(count.memory, 3, "the super-agent's, Default's and a project v1 no longer lists");
+  assert.equal(count.memory, 2, "the super-agent's and Default's; a project v1 no longer lists stays out");
   assert.equal(count.embeddings, 2, "Gemini on its engine's key");
 });
 
 test("importing brings v1's media in its order, its notes, its embedders where v1 had them, and the aux model", async () => {
   const r = await env.client.call("setup.import_v1", { groups: [...GROUPS] });
   assert.deepEqual(r.errors, []);
-  assert.equal(r.imported.memory, 3);
+  assert.equal(r.imported.memory, 2);
   assert.equal(r.imported.services, 9, "7 services, the image defaults and spoken replies");
 
   // Images: v1's order, a switched-off one off, the shared defaults.
@@ -163,11 +163,11 @@ test("importing brings v1's media in its order, its notes, its embedders where v
   // Keys stay in the secret store, never in the saved settings.
   assert.ok(!JSON.stringify(env.core.store.settings.read("services")).includes("test-key"));
 
-  // Notes: Default's are global, and an unlisted project's say where they came from.
+  // Notes: Default's are global; an unlisted project's stay out, or they would show in every project.
   const global = env.core.store.memories.list({ scope: "global", limit: 50 }).map((m) => m.text);
   assert.ok(global.includes("Ana prefers short answers"));
   assert.ok(global.includes("Coffee at 10"));
-  assert.ok(global.includes("[v1 · Northwind] Deploys go out on Fridays"));
+  assert.ok(!global.some((t) => t.includes("Deploys go out on Fridays")));
 
   // Embeddings: Ollama where v1's engine is; Gemini with the Gemini engine's key.
   const embed = stored("embedding");
@@ -189,7 +189,7 @@ test("importing brings v1's media in its order, its notes, its embedders where v
     await new Promise((r) => setTimeout(r, 25));
     counts = env.core.store.memories.counts("v1-ollama/embed-test");
   }
-  assert.ok(counts.total >= 3);
+  assert.ok(counts.total >= 2);
   assert.equal(counts.indexed, counts.total);
 });
 
