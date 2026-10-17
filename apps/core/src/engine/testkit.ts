@@ -14,7 +14,7 @@ import type { Llm, LlmRequest } from "../providers/llm.ts";
 import type { AssistantItem, Completion } from "../providers/types.ts";
 import { createCore } from "../server.ts";
 import type { TelemetrySink } from "../telemetry-sink.ts";
-import { scratchRoot } from "../tools/shell.ts";
+import { scratchRoot } from "../tools/folders.ts";
 import type { Tool } from "../tools/types.ts";
 import type { InputWaits } from "./inputs.ts";
 

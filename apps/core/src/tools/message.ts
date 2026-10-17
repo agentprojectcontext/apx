@@ -8,9 +8,8 @@ import path from "node:path";
 import { z } from "zod";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
-import { insideReal } from "../paths.ts";
+import { folderAccess, workDir } from "./folders.ts";
 import { untrusted } from "./result.ts";
-import { workDir } from "./shell.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
 /** Largest file sent in one message (the channels take more; a bigger one is not something to send unasked). */
@@ -72,9 +71,11 @@ export function messageTools(store: Store, home: string): Tool[] {
     const base = workDir(store, home, ctx.thread);
     const ids: string[] = [];
     for (const file of files) {
-      if (path.isAbsolute(file) || !insideReal(base, file))
-        return { problem: `${file} is outside the folder you work in` };
-      const at = path.resolve(base, file);
+      const where = folderAccess(store, home, ctx.thread, file);
+      if ("refused" in where) return { problem: where.refused };
+      // Only the work folder's files go out to someone else, not the temp folder's.
+      if (where.base !== base) return { problem: `${file} is not in the folder you work in` };
+      const { at } = where;
       if (!fs.existsSync(at) || !fs.statSync(at).isFile()) return { problem: `no file ${file}` };
       const bytes = fs.statSync(at).size;
       if (bytes > MAX_FILE) return { problem: `${file} is over ${MAX_FILE / 1024 / 1024} MB` };

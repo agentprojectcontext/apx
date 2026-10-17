@@ -8,7 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { gitDiff, gitStatus } from "../engine/changes.ts";
 import { badRequest, conflict, notFound } from "../errors.ts";
 import { insideReal, real, writeAtomic } from "../paths.ts";
-import { scratchDir, workDir } from "../tools/shell.ts";
+import { scratchDir, workDir } from "../tools/folders.ts";
 import { reportedDiff } from "./reported-diff.ts";
 import type { Handlers } from "./router.ts";
 

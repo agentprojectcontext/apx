@@ -210,7 +210,7 @@ test("a cwd outside the project folder is refused", async () => {
   const t = await thread();
   await env.client.call("threads.send", { thread: t, text: "escape please" });
   await env.settle(t);
-  assert.match(lastSeen(), /outside the project folder/);
+  assert.match(lastSeen(), /refused: \.\.\/\.\. is outside the folder you work in/);
 });
 
 test("a folder that is a symlink pointing outside the project is refused", async () => {

@@ -8,7 +8,7 @@ import { ApxClient } from "@apx/protocol/client";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { fileTools } from "./files.ts";
-import { scratchRoot } from "./shell.ts";
+import { scratchRoot } from "./folders.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 const calls: Record<string, [string, object]> = {

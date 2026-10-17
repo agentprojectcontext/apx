@@ -12,8 +12,8 @@ import type { Store } from "../domain/store.ts";
 import { commandEnv } from "../harness/env.ts";
 import { MAX_STEPS } from "../harness/native.ts";
 import { spawnCommand, stopTree } from "../processes.ts";
+import { workDir } from "../tools/folders.ts";
 import { untrusted } from "../tools/result.ts";
-import { workDir } from "../tools/shell.ts";
 import type { Display } from "./display.ts";
 import { takeTeamNews } from "./team-news.ts";
 

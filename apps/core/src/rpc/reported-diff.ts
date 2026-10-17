@@ -4,7 +4,7 @@ import { FILE_READ_LIMIT, type Params, type Result } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { insideReal, real } from "../paths.ts";
-import { workDir } from "../tools/shell.ts";
+import { workDir } from "../tools/folders.ts";
 
 /** Historical snapshots need no live folder; legacy records may read only their chat's current work folder. */
 export function reportedDiff(store: Store, home: string, p: Params<"files.diff">): Result<"files.diff"> {

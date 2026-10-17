@@ -5,14 +5,15 @@ import { badRequest, errorMessage, notFound, unauthorized, unavailable } from ".
 import { saveLocalAttachment } from "../services/attachment-files.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
+import type { Access } from "../tools/folders.ts";
 import type { Handlers } from "./router.ts";
 
 export function composerHandlers(deps: {
   store: Store;
   home: string;
   services: Services;
-  /** The folder `file` is attached from: where the chat's agent works, or its temp folder. */
-  workFolder(thread: NonNullable<ReturnType<Store["threads"]["get"]>>, file: string): string;
+  /** Where `file` is, by the folder rule every tool follows (folders.ts), or why it is refused. */
+  locate(thread: NonNullable<ReturnType<Store["threads"]["get"]>>, file: string): Access;
   /** `session`: the CLI whose own session the chat is (only that CLI runs there). */
   checkModel(ref: string, session: string | undefined): string | undefined;
 }) {
@@ -27,7 +28,9 @@ export function composerHandlers(deps: {
       if (audienceOf(store, thread).kind !== "owner")
         throw unauthorized("local files can only be attached in the owner's chats");
       try {
-        const m = saveLocalAttachment(deps.home, store, deps.workFolder(thread, path), thread.id, path, document);
+        const where = deps.locate(thread, path);
+        if ("refused" in where) throw new Error(`refused: ${where.refused}`);
+        const m = saveLocalAttachment(deps.home, store, where.base, thread.id, where.at, document);
         return { media: { id: m.id, kind: m.kind, mime: m.mime, bytes: m.bytes, name: m.name } };
       } catch (err) {
         throw badRequest(errorMessage(err));
