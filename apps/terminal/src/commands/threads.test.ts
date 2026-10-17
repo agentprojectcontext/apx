@@ -108,6 +108,26 @@ test("projects create and set send only what was given, and a wrong kind never r
   ]);
 });
 
+test("projects folders add, list and remove a read-only folder through projects.update", async () => {
+  const project = { id: "p_nw", name: "Northwind", present: true, read_only_folders: ["/work/v1"] };
+  const { client, calls } = recordingClient({
+    "projects.list": { projects: [project], base: { name: "Base" } },
+    "projects.update": { project: { ...project, read_only_folders: ["/work/v1", "/work/docs"] } },
+  });
+  assert.equal(await printed(() => projects(client, ["folders", "list", "p_nw"])), "/work/v1");
+  assert.match(await printed(() => projects(client, ["folders", "add", "p_nw", "/work/docs"])), /\/work\/docs/);
+  await printed(() => projects(client, ["folders", "rm", "p_nw", "/work/v1"]));
+  await assert.rejects(projects(client, ["folders", "rm", "p_nw", "/work/other"]), /not a read-only folder/);
+  await assert.rejects(projects(client, ["folders", "add", "p_nw"]), /usage: apx projects folders/);
+  assert.deepEqual(
+    calls.filter(([m]) => m === "projects.update"),
+    [
+      ["projects.update", { project: "p_nw", read_only_folders: ["/work/v1", "/work/docs"] }],
+      ["projects.update", { project: "p_nw", read_only_folders: [] }],
+    ],
+  );
+});
+
 test("skills import previews first; --yes copies the new ones, --only picks by id or name", async () => {
   const { importSource, skillsImport } = await import("./skills-import.ts");
   assert.deepEqual(importSource("git@github.com:acme/skills.git"), {
