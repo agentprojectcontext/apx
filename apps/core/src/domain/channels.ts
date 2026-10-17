@@ -4,7 +4,7 @@
 
 import { randomInt } from "node:crypto";
 import type { OutboxItem, PairingRequest } from "@apx/protocol";
-import type { Selectable } from "kysely";
+import { type Selectable, sql } from "kysely";
 import type { OutboxTable, PairingTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
@@ -41,7 +41,13 @@ export type InboundReaction = {
 };
 
 /** A button press: the platform's id for it, the conversation, who pressed and the button's data. */
-export type InboundAction = { conversation: string; sender: { id: string; name: string }; data: string };
+export type InboundAction = {
+  conversation: string;
+  sender: { id: string; name: string };
+  data: string;
+  /** The platform's id of the message whose button was pressed, where its buttons can be changed. */
+  ref?: string;
+};
 
 /** What goes out: text, and buttons when the owner is asked something. */
 export type Presentation = {
@@ -330,6 +336,16 @@ export function channelsRepo({ one, all, run }: Sql) {
             .set({ state: "uncertain", error: "cut by a restart while sending", updated_at: now() })
             .where("state", "=", "sending"),
         );
+      },
+      /** What asked this confirmation or question on a channel, sent or still queued. */
+      forInput(inputId: string): OutboxRow[] {
+        return all(
+          qb
+            .selectFrom("outbox")
+            .selectAll()
+            .where("kind", "=", "input")
+            .where(sql`json_extract(body, '$.input_id')`, "=", inputId),
+        ).map(toOut);
       },
       /** What was sent as this platform message (a receipt names it). */
       byExternal(channel: string, externalId: string): OutboxRow | undefined {

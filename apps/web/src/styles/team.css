@@ -803,6 +803,15 @@
 .agentedit__link:hover {
   color: var(--apx-fg);
 }
+/* The page scrolls as a whole, so the list's search pins itself to the top of it. */
+.agentedit__search {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -8px 0;
+  padding: 8px 0;
+  background: var(--apx-surface-raised);
+}
 .agentedit__empty {
   margin: 0;
   padding: 20px;

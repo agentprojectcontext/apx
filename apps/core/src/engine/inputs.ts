@@ -31,6 +31,7 @@ const partOf = (r: InputRecord): Part => ({
   ...(r.detail ? { detail: r.detail } : {}),
   ...(r.change ? { change: r.change } : {}),
   ...(r.options ? { options: r.options } : {}),
+  ...(r.multi ? { multi: true } : {}),
   ...(r.approval_scopes ? { approval_scopes: r.approval_scopes } : {}),
   ...(r.approval_scope ? { approval_scope: r.approval_scope } : {}),
   state: r.state,
@@ -126,6 +127,7 @@ export function createInputs(deps: {
       detail?: string | undefined;
       change?: FileChange | undefined;
       options?: string[] | undefined;
+      multi?: boolean | undefined;
       /** Claude Code or Codex: its call to our tool has a shorter deadline. */
       external: boolean;
       /** Stays open after the turn stops waiting, instead of counting as no answer. */
@@ -147,6 +149,7 @@ export function createInputs(deps: {
         detail: o.detail,
         change: o.change,
         options: o.options,
+        multi: o.multi,
         waitMs: o.stays ? OPEN_INPUT_MS : waitMs,
       });
       const show = (r: InputRecord) => o.display.upsert((p) => p.type === "input" && p.input_id === r.id, partOf(r));
@@ -223,7 +226,7 @@ export function createInputs(deps: {
      */
     withdraw(id: string, agentId: string): InputRecord {
       const rec = store.inputs.get(id);
-      if (!rec || rec.kind !== "question" || rec.agent_id !== agentId) throw notFound(`question ${id} of yours`);
+      if (rec?.kind !== "question" || rec.agent_id !== agentId) throw notFound(`question ${id} of yours`);
       const settled = store.inputs.settle(id, "withdrawn");
       if (!settled) throw conflict(`question ${id} is already ${store.inputs.get(id)?.state ?? "closed"}`);
       const listener = waiting.get(id);

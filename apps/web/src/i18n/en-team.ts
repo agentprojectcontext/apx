@@ -224,6 +224,8 @@ export const enTeam = {
   "agentedit.searchSkills": "Search skills",
   "agentedit.noToolMatch": "No tool matches “{q}”.",
   "agentedit.noSkillMatch": "No skill matches “{q}”.",
+  "agentedit.searchGrants": "Search granted tools",
+  "agentedit.noGrantMatch": "Nothing granted matches “{q}”.",
   "agentedit.allToolsHint": "Turn it off to pick which ones it has. Whether it asks first is set in Rules by case.",
   "agentedit.allSkillsHint": "Skills are knowledge it loads when it needs it. They grant no permissions.",
   "agentedit.pol.auto": "Without asking",

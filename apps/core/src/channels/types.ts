@@ -86,6 +86,10 @@ export interface ChannelAdapter {
   typing?(conversation: string): Promise<void>;
   /** Puts the agent's emoji on a message (`ref`: the platform's id of it); "" takes it off. */
   react?(conversation: string, ref: string, emoji: string): Promise<void>;
+  /** Replaces the buttons under a message APX sent (`ref`: the platform's id of it); none takes them off. */
+  setButtons?(conversation: string, ref: string, buttons: Presentation["buttons"]): Promise<void>;
+  /** Takes a message APX sent out of the chat; fails when the platform no longer allows it. */
+  remove?(conversation: string, ref: string): Promise<void>;
   /** The profile picture someone shows on the platform (none when hidden or not set). */
   avatar?(externalId: string): Promise<{ mime: string; data: Buffer } | undefined>;
   /**

@@ -10,7 +10,9 @@ export function ChangesPart({ part }: { part: Extract<Part, { type: "changes" }>
     <div className="changes">
       <div className="changes__head">
         <Icons.FileText size={14} />
-        <span>{t(part.edits ? "changes.edited" : "changes.title", { n })}</span>
+        <span>
+          {t(part.scratch ? "changes.scratchEdited" : part.edits ? "changes.edited" : "changes.title", { n })}
+        </span>
         <span className="changes__cwd" title={part.cwd}>
           {part.cwd}
         </span>

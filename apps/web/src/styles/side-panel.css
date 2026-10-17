@@ -372,6 +372,18 @@
 .wchanges__del {
   color: var(--apx-danger);
 }
+.wchanges__scratch {
+  padding-top: 12px;
+}
+.wchanges__scratch .apx-section-label,
+.wchanges__hint {
+  padding: 0 12px;
+}
+.wchanges__hint {
+  margin: 2px 0 8px;
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-xs);
+}
 .wchanges__list {
   margin: 0;
   padding: 0;

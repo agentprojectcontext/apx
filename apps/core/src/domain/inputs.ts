@@ -34,6 +34,7 @@ const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
   ...opt("detail", r.detail),
   ...(r.change ? { change: JSON.parse(r.change) as FileChange } : {}),
   ...(r.options ? { options: JSON.parse(r.options) as string[] } : {}),
+  ...(r.multi ? { multi: true } : {}),
   state: r.state as InputState,
   ...opt("answer", r.answer),
   created_at: r.created_at,
@@ -64,6 +65,7 @@ export function inputsRepo({ one, all, run }: Sql) {
       detail?: string | undefined;
       change?: FileChange | undefined;
       options?: string[] | undefined;
+      multi?: boolean | undefined;
       waitMs: number;
       approval?: ApprovalTarget | undefined;
     }): InputRecord {
@@ -85,6 +87,7 @@ export function inputsRepo({ one, all, run }: Sql) {
           detail: i.detail ?? null,
           change: i.change ? JSON.stringify(i.change) : null,
           options: i.options?.length ? JSON.stringify(i.options) : null,
+          multi: i.multi && i.options?.length ? 1 : null,
           state: "pending",
           created_at: now(),
           expires_at: new Date(Date.now() + i.waitMs).toISOString(),

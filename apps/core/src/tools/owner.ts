@@ -21,11 +21,12 @@ export function ownerTools(store: Store): Tool[] {
     defineTool({
       name: "ask_owner",
       description:
-        "Ask the owner something only they can answer, and wait (they see it in the chat). options: short choices to tap; they may still write their own answer. If they answer late, the answer reaches you in a new turn.",
+        "Ask the owner something only they can answer, and wait. options: short choices to tap (multi: several at once); they may still write their own answer. A late answer reaches you in a new turn.",
       args: z
         .object({
           question: z.string().min(1).max(1000).optional(),
           options: z.array(z.string().min(1).max(80)).max(6).optional(),
+          multi: z.boolean().optional(),
           can_continue: z
             .boolean()
             .optional()
@@ -54,7 +55,7 @@ export function ownerTools(store: Store): Tool[] {
           const r = ctx.withdrawQuestion(a.withdraw);
           return `Question ${r.id} withdrawn; the owner is not asked again.`;
         }
-        const r = await ctx.askOwner(a.question ?? "", a.options, a.can_continue);
+        const r = await ctx.askOwner(a.question ?? "", a.options, a.can_continue, a.multi);
         if (r.state === "answered") return `The owner answered: ${r.answer ?? ""}`;
         if (r.state === "pending")
           return `The owner has not answered yet. The question stays open in the chat (id ${r.id}) and their answer will reach you in a new turn; if it is no longer needed, take it back with ask_owner withdraw=${r.id}. End this turn now: say briefly what you are waiting for and do not go on with work that depends on it.`;

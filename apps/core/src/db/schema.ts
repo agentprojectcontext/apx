@@ -259,6 +259,7 @@ export interface PendingInputsTable {
   approval: string | null;
   approval_scope: string | null;
   change: string | null;
+  multi: number | null;
 }
 
 export interface PersonsTable {

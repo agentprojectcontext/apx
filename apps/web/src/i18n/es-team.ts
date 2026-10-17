@@ -226,6 +226,8 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agentedit.searchSkills": "Buscar skills",
   "agentedit.noToolMatch": "Ninguna tool coincide con “{q}”.",
   "agentedit.noSkillMatch": "Ninguna skill coincide con “{q}”.",
+  "agentedit.searchGrants": "Buscar tools concedidas",
+  "agentedit.noGrantMatch": "Nada concedido coincide con “{q}”.",
   "agentedit.allToolsHint":
     "Apagalo para elegir cuáles tiene. Si pregunta antes de usarlas se define en Reglas por caso.",
   "agentedit.allSkillsHint": "Las skills son conocimiento que carga cuando lo necesita. No dan permisos.",

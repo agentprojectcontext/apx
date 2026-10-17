@@ -680,8 +680,8 @@ async function finishRun(
   }
   if (worksInFolder(thread) && thread.cwd) {
     const changes = await gitChanges(thread.cwd);
-    if (changes && !display.message.parts.some((p) => p.type === "changes" && p.edits))
-      display.upsert((p) => p.type === "changes", changes);
+    if (changes && !display.message.parts.some((p) => p.type === "changes" && p.edits && !p.scratch))
+      display.upsert((p) => p.type === "changes" && !p.scratch, changes);
   }
   const text = outcome.text.trim();
   const empty = t.exec.toolsRan ? "Finished without a message." : "The model gave no answer.";

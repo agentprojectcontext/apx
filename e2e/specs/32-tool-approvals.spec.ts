@@ -100,7 +100,7 @@ test("chat offers once, session and always; session lets later calls proceed wit
   await expect(page.locator(".inputline")).toContainText("Esta sesión");
   await page.getByRole("textbox", { name: /Escribile/ }).fill("read MCP twice again");
   await page.keyboard.press("Enter");
-  await expect(page.getByText("Got it: read MCP twice again", { exact: true })).toBeVisible();
+  await expect(page.locator(".transcript").getByText("Got it: read MCP twice again", { exact: true })).toBeVisible();
   await expect(card).toBeHidden();
   await rpc("mcp.set", { project, name: "notes", server: null });
 });

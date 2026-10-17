@@ -722,4 +722,8 @@ export const MIGRATIONS: readonly string[] = [
   -- A confirmation of a file write shows the patch it would make (tools/files.ts preview), kept with the request.
   ALTER TABLE pending_inputs ADD COLUMN change TEXT;
   `,
+  `
+  -- A question whose options the owner may pick several of.
+  ALTER TABLE pending_inputs ADD COLUMN multi INTEGER;
+  `,
 ];

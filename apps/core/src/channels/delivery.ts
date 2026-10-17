@@ -67,6 +67,12 @@ export function createDelivery(deps: {
       return;
     }
     if (!store.channels.outbox.claim(o.id)) return;
+    // Answered elsewhere while it waited to go out: its buttons would ask nothing.
+    const input = o.kind === "input" && o.body.input_id ? store.inputs.get(o.body.input_id) : undefined;
+    if (input && input.state !== "pending") {
+      store.channels.outbox.fail(o.id, "failed", `not sent: already ${input.state}`);
+      return;
+    }
     try {
       const files = (o.body.media ?? []).flatMap((m) => {
         const f = deps.media(m.id);

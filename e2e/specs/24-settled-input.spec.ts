@@ -23,3 +23,24 @@ test("an approved request shrinks to one line saying what was asked and how it e
   await line.getByRole("button").click();
   await expect(line).toContainText("touch e2e-note.txt");
 });
+
+test("a question with several answers is ticked, then sent, and shows what was picked", async ({ page }) => {
+  await rpc("setup.finish", {});
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "scout", title: "Días" });
+  await open(page, `#thread=${chat.id}`);
+  await page.getByRole("textbox", { name: /Escribile/ }).fill("ask me which days");
+  await page.keyboard.press("Enter");
+
+  const card = page.locator(".inputcard.is-pending");
+  await expect(card).toContainText("Which days work for the Northwind review?");
+  const send = card.getByRole("button", { name: "Enviar" });
+  await expect(send).toBeDisabled();
+  await card.getByRole("button", { name: "Monday" }).click();
+  await card.getByRole("button", { name: "Wednesday" }).click();
+  await expect(card.getByRole("button", { name: "Monday" })).toHaveAttribute("aria-pressed", "true");
+  await expect(card.getByRole("button", { name: "Tuesday" })).toHaveAttribute("aria-pressed", "false");
+  await send.click();
+
+  await expect(page.locator(".inputline")).toContainText("Monday, Wednesday");
+  await expect(page.locator(".inputcard")).toHaveCount(0);
+});

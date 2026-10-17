@@ -24,6 +24,12 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("slow job") && !afterTool) return callTool("s1", "slowpoke", {});
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 80)}`);
   if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+  if (said.includes("pick the days"))
+    return callTool("q1", "ask_owner", {
+      question: "Which days work for the Northwind review?",
+      options: ["Mon", "Tue", "Wed"],
+      multi: true,
+    });
   if (said.includes("where do you live")) return say("My files are in /Users/someone/secret/notes.md, **sorry**.");
   if (said.includes("break please")) throw new Error("quota exceeded for this billing account");
   if (said.includes("long answer")) return say(`${"word ".repeat(900)}\n\n${"tail ".repeat(400)}END`);
@@ -194,8 +200,93 @@ test("a confirmation reaches the owner with buttons and a press approves it", as
   // Someone else pressing it changes nothing.
   tg.press(ANA, allow);
   await new Promise((r) => setTimeout(r, 150));
-  tg.press(OWNER, allow);
+  tg.press(OWNER, allow, ask?.message_id);
   await until(() => tg.messagesTo(OWNER.id).some((m) => /Done: probed/.test(String(m.body.text))), "probe result");
+  // Answered right there: the question stays in the chat.
+  assert.ok(!tg.sent.some((s) => s.method === "deleteMessage" && s.body.message_id === ask?.message_id));
+});
+
+test("a confirmation answered in the app is taken out of Telegram; a press on it after says it is gone", async () => {
+  const before = tg.messagesTo(OWNER.id).length;
+  tg.message(OWNER, "launch the probe");
+  await until(
+    () =>
+      tg
+        .messagesTo(OWNER.id)
+        .slice(before)
+        .some((m) => m.body.reply_markup),
+    "buttons",
+  );
+  const ask = tg
+    .messagesTo(OWNER.id)
+    .slice(before)
+    .find((m) => m.body.reply_markup);
+  const markup = ask?.body.reply_markup as { inline_keyboard: Array<Array<{ callback_data: string }>> };
+  const allow = markup.inline_keyboard[0]?.[0]?.callback_data ?? "";
+  const inputId = allow.split(":")[1] ?? "";
+  await env.client.call("runs.respond", { input: inputId, decision: "approve" });
+  await until(
+    () => tg.sent.some((s) => s.method === "deleteMessage" && s.body.message_id === ask?.message_id),
+    "the question deleted",
+  );
+  await until(() => tg.messagesTo(OWNER.id).some((m) => /Done: probed/.test(String(m.body.text))), "probe result");
+  const seen = tg.messagesTo(OWNER.id).length;
+  tg.press(OWNER, allow, ask?.message_id);
+  await until(() => tg.messagesTo(OWNER.id).length > seen, "stale press answered");
+  assert.match(String(tg.messagesTo(OWNER.id).at(-1)?.body.text), /ya no está pendiente/);
+});
+
+test("a multi-choice question is ticked on Telegram, then sent; a question can be skipped", async () => {
+  type Markup = { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> };
+  const ask = async () => {
+    const before = tg.messagesTo(OWNER.id).length;
+    tg.message(OWNER, "pick the days");
+    await until(
+      () =>
+        tg
+          .messagesTo(OWNER.id)
+          .slice(before)
+          .some((m) => m.body.reply_markup),
+      "question",
+    );
+    const m = tg
+      .messagesTo(OWNER.id)
+      .slice(before)
+      .find((x) => x.body.reply_markup);
+    const keys = (m?.body.reply_markup as Markup | undefined)?.inline_keyboard.map((r) => r[0]) ?? [];
+    return { id: m?.message_id, keys };
+  };
+  const edits = (id: number | undefined) =>
+    tg.sent.filter((s) => s.method === "editMessageReplyMarkup" && s.body.message_id === id);
+
+  const q = await ask();
+  assert.deepEqual(
+    q.keys.map((k) => k?.text),
+    ["☐ Mon", "☐ Tue", "☐ Wed", "Enviar", "Omitir"],
+  );
+  const data = (label: string) => q.keys.find((k) => k?.text.endsWith(label))?.callback_data ?? "";
+  tg.press(OWNER, data("Enviar"), q.id);
+  await until(() => tg.messagesTo(OWNER.id).some((m) => /al menos una opción/.test(String(m.body.text))), "pick some");
+  tg.press(OWNER, data("Mon"), q.id);
+  await until(() => edits(q.id).length === 1, "Mon ticked");
+  tg.press(OWNER, data("Wed"), q.id);
+  await until(() => edits(q.id).length === 2, "Wed ticked");
+  const ticked = (edits(q.id)[1]?.body.reply_markup as Markup | undefined)?.inline_keyboard.map((r) => r[0]?.text);
+  assert.deepEqual(ticked?.slice(0, 3), ["☑ Mon", "☐ Tue", "☑ Wed"]);
+  tg.press(OWNER, data("Enviar"), q.id);
+  await until(
+    () => tg.messagesTo(OWNER.id).some((m) => /Done: The owner answered: Mon, Wed/.test(String(m.body.text))),
+    "answer with both",
+  );
+  const last = edits(q.id).at(-1)?.body.reply_markup as Markup | undefined;
+  assert.deepEqual(last?.inline_keyboard, [], "sent: the buttons go");
+
+  const skip = await ask();
+  tg.press(OWNER, skip.keys.find((k) => k?.text === "Omitir")?.callback_data ?? "", skip.id);
+  await until(
+    () => tg.messagesTo(OWNER.id).some((m) => /Done: The owner answered: \(omitida\)/.test(String(m.body.text))),
+    "skipped",
+  );
 });
 
 test("a contact gets a sealed agent: no tools, no owner context, and a filtered reply", async () => {

@@ -17,7 +17,7 @@ import { saveUpload } from "../services/uploads.ts";
 import { untrusted } from "../tools/result.ts";
 import { asksSomething, asksToStop, needsNoAnswer, reactionFor } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
-import { buttonId, parseButton, ratingOf, shown } from "./notices.ts";
+import { type Button, buttonId, inputPresentation, parseButton, ratingOf, shown } from "./notices.ts";
 import type { createRooms } from "./rooms.ts";
 import type { Suggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
@@ -51,12 +51,18 @@ export function createInbound(deps: {
   suggestions: Pick<Suggestions, "held" | "write" | "takeWriting">;
   /** Puts the agent's emoji on a platform message; false when the channel has no reactions or is not running. */
   react(channel: string, conversation: string, ref: string, emoji: string): Promise<boolean>;
+  /** The owner answers an input from this chat: its message there is not taken out when it settles. */
+  answeredHere(inputId: string, at: { channel: string; conversation: string }, by: "button" | "text"): void;
+  /** Replaces the buttons under a message sent on a channel; false when the channel cannot. */
+  setButtons(channel: string, conversation: string, ref: string, buttons: Presentation["buttons"]): Promise<boolean>;
 }) {
   const { store, log, call, delivery } = deps;
   const recent = new Map<string, number[]>();
   const paused = new Set<string>();
   const codesSent = new Map<string, number[]>();
   const reports = new Map<string, number[]>();
+  /** The options ticked so far on a multi-choice question, by input. */
+  const ticked = new Map<string, Set<number>>();
 
   /** Stores a one-to-one message (or one in a listed room) and handles it; other groups are never stored nor answered. */
   function receive(channel: string, m: Inbound): void {
@@ -502,6 +508,7 @@ export function createInbound(deps: {
     if (!question) return false;
     store.threads.mergeContext(question.thread_id, { reply_to: to });
     store.runs.setReplyTo(question.run_id, to);
+    deps.answeredHere(question.id, to, "text");
     await call("runs.respond", { input: question.id, text: words }, { actor: "human" }, `channel:${rowId}:respond`);
     return true;
   }
@@ -514,6 +521,9 @@ export function createInbound(deps: {
       delivery.enqueue({ channel, conversation: a.conversation, kind: "notice", body: { text } });
     const button = parseButton(a.data);
     if (!button) return;
+    // Pressed once, its message stops offering it; ticking an option or sending none keeps the buttons.
+    const keeps = button.kind === "toggle" || button.kind === "confirm";
+    if (a.ref && !keeps) void deps.setButtons(channel, a.conversation, a.ref, []);
     try {
       if (button.kind === "review") {
         const person = store.persons.get(button.person);
@@ -547,24 +557,72 @@ export function createInbound(deps: {
         reply(button.decision === "contact" ? t.approved : t.denied);
         return;
       }
-      const input = store.inputs.get(button.inputId);
-      if (input?.state !== "pending") return;
-      store.threads.mergeContext(input.thread_id, { reply_to: { channel, conversation: a.conversation } });
-      store.runs.setReplyTo(input.run_id, { channel, conversation: a.conversation });
-      if (button.kind === "input") {
-        await call("runs.respond", { input: input.id, decision: button.answer }, { actor: "human" });
-        reply(button.answer === "approve" ? t.approved : t.denied);
-      } else {
-        const choice = input.options?.[button.index];
-        if (choice === undefined) return;
-        await call("runs.respond", { input: input.id, text: choice }, { actor: "human" });
-        reply(t.answered(choice));
-      }
+      await inputButton(channel, a, button, reply);
     } catch (err) {
       const msg = errorMessage(err, 200);
       log.warn({ channel, err: msg }, "channel button not handled");
       reply(t.buttonFailed(msg));
     }
+  }
+
+  /** A press on a confirmation or question's button: answer it, or tick an option of a multi-choice one. */
+  async function inputButton(
+    channel: string,
+    a: InboundAction,
+    button: Extract<Button, { inputId: string }>,
+    reply: (text: string) => void,
+  ): Promise<void> {
+    const t = channelTexts(store);
+    const input = store.inputs.get(button.inputId);
+    if (input?.state !== "pending") {
+      if (a.ref) void deps.setButtons(channel, a.conversation, a.ref, []);
+      reply(t.inputGone);
+      return;
+    }
+    const picked = ticked.get(input.id) ?? new Set<number>();
+    if (button.kind === "toggle") {
+      if (input.options?.[button.index] === undefined) return;
+      if (!picked.delete(button.index)) picked.add(button.index);
+      if (ticked.size > 200) ticked.clear();
+      ticked.set(input.id, picked);
+      const shown = inputPresentation({ ...input, input_id: input.id }, t, picked);
+      // A channel that cannot change a sent message's buttons gets the question again, ticked.
+      if (!(a.ref && (await deps.setButtons(channel, a.conversation, a.ref, shown.buttons))))
+        delivery.enqueue({
+          channel,
+          conversation: a.conversation,
+          kind: "input",
+          body: { ...shown, input_id: input.id },
+        });
+      return;
+    }
+    if (button.kind === "confirm" && !picked.size) {
+      reply(t.pickSome);
+      return;
+    }
+    if (button.kind === "confirm" && a.ref) void deps.setButtons(channel, a.conversation, a.ref, []);
+    const at = { channel, conversation: a.conversation };
+    store.threads.mergeContext(input.thread_id, { reply_to: at });
+    store.runs.setReplyTo(input.run_id, at);
+    deps.answeredHere(input.id, at, "button");
+    if (button.kind === "input") {
+      await call("runs.respond", { input: input.id, decision: button.answer }, { actor: "human" });
+      reply(button.answer === "approve" ? t.approved : t.denied);
+      return;
+    }
+    const text =
+      button.kind === "skip"
+        ? t.skipped
+        : button.kind === "confirm"
+          ? [...picked]
+              .sort((x, y) => x - y)
+              .flatMap((i) => input.options?.[i] ?? [])
+              .join(", ")
+          : input.options?.[button.index];
+    if (!text) return;
+    await call("runs.respond", { input: input.id, text }, { actor: "human" });
+    ticked.delete(input.id);
+    reply(t.answered(text));
   }
 
   return {

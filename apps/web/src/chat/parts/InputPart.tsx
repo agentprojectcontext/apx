@@ -90,7 +90,9 @@ function ProposedChange({ change }: { change: FileChange }) {
 function PendingInput({ part }: { part: InputPartData }) {
   const t = useT();
   const [text, setText] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const tick = (o: string) => setPicked((p) => (p.includes(o) ? p.filter((x) => x !== o) : [...p, o]));
   const send = async (a: { decision?: "approve" | "deny"; text?: string; scope?: "once" | "session" | "always" }) => {
     setBusy(true);
     await respond(part.input_id, a);
@@ -147,13 +149,42 @@ function PendingInput({ part }: { part: InputPartData }) {
         >
           {part.options?.length ? (
             <div className="inputcard__options">
-              {part.options.map((o) => (
-                <Button key={o} size="sm" variant="secondary" disabled={busy} onClick={() => send({ text: o })}>
-                  {o}
-                </Button>
-              ))}
+              {part.options.map((o) =>
+                part.multi ? (
+                  <Button
+                    key={o}
+                    size="sm"
+                    variant={picked.includes(o) ? "primary" : "secondary"}
+                    aria-pressed={picked.includes(o)}
+                    disabled={busy}
+                    onClick={() => tick(o)}
+                  >
+                    {picked.includes(o) ? <Icons.Check size={12} /> : null}
+                    {o}
+                  </Button>
+                ) : (
+                  <Button key={o} size="sm" variant="secondary" disabled={busy} onClick={() => send({ text: o })}>
+                    {o}
+                  </Button>
+                ),
+              )}
             </div>
           ) : null}
+          <div className="inputcard__actions">
+            {part.multi && part.options?.length ? (
+              <Button
+                size="sm"
+                loading={busy}
+                disabled={!picked.length}
+                onClick={() => send({ text: part.options?.filter((o) => picked.includes(o)).join(", ") })}
+              >
+                {t("input.send")}
+              </Button>
+            ) : null}
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => send({ text: t("input.skipped") })}>
+              {t("input.skip")}
+            </Button>
+          </div>
           <input
             className="inputcard__input"
             value={text}

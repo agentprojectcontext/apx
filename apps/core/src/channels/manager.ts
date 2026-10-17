@@ -26,6 +26,7 @@ import { reactAnswer } from "./closers.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
 import { createInbound } from "./inbound.ts";
+import { createInputCards } from "./input-cards.ts";
 import { inputPresentation } from "./notices.ts";
 import { createOutgoing } from "./outgoing.ts";
 import { createPoster } from "./post.ts";
@@ -194,6 +195,14 @@ export function createChannels(deps: {
     sendAsOwner: outgoing.sendAsOwner,
     burstMs: deps.suggestBurstMs,
   });
+  const cards = createInputCards({
+    store,
+    log,
+    running: (id) => {
+      const l = live.get(id);
+      return l?.status === "running" ? l.adapter : undefined;
+    },
+  });
   const inbound = createInbound({
     store,
     home: deps.home,
@@ -208,6 +217,15 @@ export function createChannels(deps: {
     rooms,
     suggestions,
     react: reactOn,
+    answeredHere: cards.answeredHere,
+    setButtons: async (id, conversation, ref, buttons) => {
+      const l = live.get(id);
+      if (l?.status !== "running" || !l.adapter.setButtons) return false;
+      return l.adapter.setButtons(conversation, ref, buttons).then(
+        () => true,
+        () => false,
+      );
+    },
   });
   const recovery = createRecovery({
     store,
@@ -471,8 +489,12 @@ export function createChannels(deps: {
       else if (e.run.state !== "working") stopTyping(e.run.id);
     } else if (e.type === "message.part" && e.part.type === "tool") {
       onTool(e.thread_id, e.message_id);
-    } else if (e.type === "message.part" && e.part.type === "input" && e.part.state === "pending") {
-      onInput(e.part, e.thread_id);
+    } else if (e.type === "message.part" && e.part.type === "input") {
+      if (e.part.state === "pending") onInput(e.part, e.thread_id);
+      else cards.settled(e.part.input_id, e.part.state);
+    } else if (e.type === "message.updated") {
+      // An answer with no turn listening rewrites the whole message.
+      for (const p of e.message.parts) if (p.type === "input") cards.settled(p.input_id, p.state);
     } else if (e.type === "message.created" && e.message.author.kind === "system") {
       // Agents stopped by the breaker: the owner hears it wherever they are.
       const paused = e.message.parts.find((p) => p.type === "notice" && p.code === "breaker.paused");
