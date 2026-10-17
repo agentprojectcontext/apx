@@ -17,7 +17,7 @@ const MAX: Record<Key, number> = { runs: 10_000, tokens: 1_000_000 };
 export function AgentLimitsBlock() {
   const t = useT();
   const [limits, setLimits] = useState<AgentLimits>();
-  const [defaults, setDefaults] = useState<AgentLimits>({ runs: 16, tokens: 600_000 });
+  const [defaults, setDefaults] = useState<AgentLimits>({ runs: 30, tokens: 1_500_000 });
   const [draft, setDraft] = useState<Partial<Record<Key, string>>>({});
   useEffect(() => {
     void client

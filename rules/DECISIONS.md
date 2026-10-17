@@ -1101,3 +1101,12 @@ Modeled on Homebrew (notice before anything optional, env opt-out), Next.js (ano
 and Zed (choice on the welcome screen, a log of what was sent). The lifecycle ping without a yes rests on it carrying no
 personal data and being disclosed in the dialog and the privacy page; if that is ever judged not enough, it moves
 behind the same checkbox by changing `due()` in telemetry.ts.
+
+## D-093 — 2026-10-17 — The breaker counts fresh tokens, and its defaults follow whoever never changed them
+The breaker summed each run's whole input, and every model call of a turn sends the conversation again, mostly from the
+provider's cache: three helpers auditing a codebase "spent" 1.15M tokens of which 190k were new, and a 600k limit paused
+the chain before the orchestrator could read their reports. It now counts input less cached input plus output, the same
+figure providers bill near full price for, and the defaults are 30 turns and 1.5M fresh tokens. Settings saved both
+fields on any change, so most installs held the old defaults as if the owner chose them: a migration drops a saved value
+equal to a former default (16, 600k), and saving now keeps only what differs from the defaults, so a later default
+reaches everyone who never touched it while a limit the owner picked stays.

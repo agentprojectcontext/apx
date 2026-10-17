@@ -139,7 +139,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "limits.runs": "Turnos sin vos",
   "limits.runsHint": "Turnos que los agentes empiezan solos en un chat antes de esperarte. Vacío: sin límite.",
   "limits.tokens": "Tokens sin vos",
-  "limits.tokensHint": "Lo que pueden gastar esos turnos antes de esperarte. Vacío: sin límite.",
+  "limits.tokensHint": "Tokens nuevos que pueden gastar esos turnos antes de esperarte, en miles; lo leído de la caché no cuenta. Vacío: sin límite.",
   "limits.thousands": "mil",
   "limits.none": "Sin límite",
   "limits.off": "Quitar los límites",

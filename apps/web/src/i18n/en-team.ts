@@ -137,7 +137,7 @@ export const enTeam = {
   "limits.runs": "Turns without you",
   "limits.runsHint": "Turns agents start on their own in one chat before they wait for you. Empty: no limit.",
   "limits.tokens": "Tokens without you",
-  "limits.tokensHint": "What those turns may spend before they wait for you. Empty: no limit.",
+  "limits.tokensHint": "Fresh tokens those turns may spend before they wait for you, in thousands; what a provider reads from its cache does not count. Empty: no limit.",
   "limits.thousands": "thousand",
   "limits.none": "No limit",
   "limits.off": "Remove the limits",
