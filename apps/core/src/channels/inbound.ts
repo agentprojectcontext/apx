@@ -484,18 +484,25 @@ export function createInbound(deps: {
     return d.state === "failed" ? t.suggestionNotSent(name, d.error ?? "") : t.suggestionSent(name);
   }
 
-  /** The owner's text answers an open question of that thread, when one is waiting for words. */
+  /**
+   * The owner's text answers an open question: the one APX sent last in this chat, from whatever thread asked it,
+   * else one waiting in the thread the text goes to. An older question is not taken: the text may be about else.
+   */
   async function answerPending(
     threadId: string,
     words: string,
     rowId: string,
     to: { channel: string; conversation: string },
   ): Promise<boolean> {
-    const open = store.inputs.pending(threadId).find((i) => i.kind === "question");
-    if (!open) return false;
-    store.threads.mergeContext(threadId, { reply_to: to });
-    store.runs.setReplyTo(open.run_id, to);
-    await call("runs.respond", { input: open.id, text: words }, { actor: "human" }, `channel:${rowId}:respond`);
+    const last = store.channels.outbox.last(to.channel, to.conversation);
+    const asked = last?.kind === "input" && last.state === "sent" ? last.body.input_id : undefined;
+    const open = (id: string) => store.inputs.pending().find((i) => i.id === id && i.kind === "question");
+    const question =
+      (asked ? open(asked) : undefined) ?? store.inputs.pending(threadId).find((i) => i.kind === "question");
+    if (!question) return false;
+    store.threads.mergeContext(question.thread_id, { reply_to: to });
+    store.runs.setReplyTo(question.run_id, to);
+    await call("runs.respond", { input: question.id, text: words }, { actor: "human" }, `channel:${rowId}:respond`);
     return true;
   }
 

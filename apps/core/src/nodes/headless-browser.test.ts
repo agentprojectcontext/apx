@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import type { ChildProcess } from "node:child_process";
+import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { PassThrough } from "node:stream";
 import { after, before, test } from "node:test";
 import type { TabInfo } from "@apx/protocol";
 import { createHeadlessBrowser, findChrome } from "./headless-browser.ts";
@@ -51,6 +54,42 @@ after(() => {
   srv.close();
   // Chrome may still be writing its profile while it exits.
   fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+});
+
+test("CDP input and output pipe errors reject work and stop Chrome without an unhandled error", async () => {
+  for (const stream of ["input", "output"] as const) {
+    const input = new PassThrough();
+    const output = new PassThrough();
+    let killed = false;
+    const child = Object.assign(new EventEmitter(), {
+      stdio: [null, null, null, output, input],
+      kill: () => {
+        killed = true;
+        return true;
+      },
+    }) as unknown as ChildProcess;
+    const isolatedDir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-headless-pipe-"));
+    const isolated = createHeadlessBrowser({
+      dir: isolatedDir,
+      chrome: process.execPath,
+      spawn: (() => child) as never,
+      blockedPorts: () => new Set(),
+      onChange: () => {},
+    });
+    try {
+      const opening = isolated.handle("browser.open", { url: "https://example.com", by: "roby" });
+      (stream === "input" ? input : output).emit("error", new Error("ECONNRESET"));
+      await assert.rejects(opening, /ECONNRESET/);
+      assert.equal(isolated.running(), false);
+      assert.equal(killed, true);
+      assert.deepEqual(isolated.list(), []);
+    } finally {
+      isolated.close();
+      input.destroy();
+      output.destroy();
+      fs.rmSync(isolatedDir, { recursive: true, force: true });
+    }
+  }
 });
 
 test("with no desktop app the core drives its own headless Chrome: open, read, click, type; never a password", {

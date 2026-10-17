@@ -4,10 +4,8 @@ import type { Llm } from "../providers/llm.ts";
 import type { ChatItem, ModelFailure, Usage } from "../providers/types.ts";
 import type { Harness } from "./types.ts";
 
-/** A turn the owner is watching (a chat, a channel message). */
-export const MAX_STEPS = 14;
-/** A turn no one is watching (a routine, a delegated task, a background wake): it has no one to say "go on". */
-export const BACKGROUND_STEPS = 60;
+/** Model calls a turn may make before it must answer: a real piece of work fits, watched or not. */
+export const MAX_STEPS = 60;
 /**
  * A turn that works on the owner's computer goes step by step (look, click, look again): it gets this many. The owner
  * is asked whether to go on every 60 computer actions (tools/computer.ts), well before this ends.

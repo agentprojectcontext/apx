@@ -1079,6 +1079,10 @@ since the owner can ask for more. A routine may set `max_steps` (5 to 200) for w
 browser and the computer still raise the limit as before, the repeat check still stops a stuck loop, and a turn that
 goes six minutes without progress is still stopped (D-067).
 
+Changed 2026-10-17: a chat turn gets 60 too. At 14, ordinary work (read a few files, edit, run the tests) stopped in
+the middle and the owner had to say "go on" for it; the repeat check and the six-minute stop already bound a turn
+that loops.
+
 ## D-092 — 2026-10-16 — Telemetry: a lifecycle ping for every install, usage numbers only with a yes
 We could not tell how many people install APX, how many open it, finish the setup or use it, or how much they use it.
 APX now keeps a random install id of its own (`<home>/telemetry-id`, apart from the home id the panel shows) and reports

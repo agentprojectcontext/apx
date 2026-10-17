@@ -60,6 +60,16 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
   // A command that writes: the owner is asked first.
   if (/^make a note file/i.test(said))
     return { name: "shell", arguments: JSON.stringify({ command: "touch e2e-note.txt" }) };
+  // An edit of AGENTS.md: always asked, with the patch it would make.
+  if (/^edit the agents file/i.test(said))
+    return {
+      name: "file_edit",
+      arguments: JSON.stringify({
+        path: "AGENTS.md",
+        old: "The Acme storefront.",
+        new: "The Acme storefront, rebuilt.",
+      }),
+    };
   // "start a worker in <project id>": the worker's chat is linked to that project.
   const into = /^start a worker in (\S+)/i.exec(said);
   if (into)

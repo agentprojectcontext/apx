@@ -1,9 +1,10 @@
 import "../../styles/screens.css";
-import type { Part } from "@apx/protocol";
+import type { FileChange, Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons } from "@apx/ui";
 import { useState } from "react";
 import { respond } from "../../data/actions.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
+import { DiffView } from "../../panel/DiffView.tsx";
 
 const DONE: Record<Exclude<Extract<Part, { type: "input" }>["state"], "pending">, MessageKey> = {
   approved: "input.approved",
@@ -55,10 +56,34 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
     >
       <div className="inputline__body">
         <p className="inputcard__prompt">{part.prompt}</p>
-        {part.detail && <code className="inputcard__detail">{part.detail}</code>}
+        <Detail part={part} />
         {part.answer && part.kind === "confirm" && <p className="inputcard__answer">“{part.answer}”</p>}
       </div>
     </ActionGroup>
+  );
+}
+
+/** What the call would do: the file's patch when the core could make one, else its arguments. */
+function Detail({ part }: { part: InputPartData }) {
+  if (part.change) return <ProposedChange change={part.change} />;
+  return part.detail ? <code className="inputcard__detail">{part.detail}</code> : null;
+}
+
+function ProposedChange({ change }: { change: FileChange }) {
+  const t = useT();
+  return (
+    <div className="inputcard__change">
+      <div className="inputcard__file">
+        <Icons.FileText size={14} />
+        <span className="inputcard__path" title={change.path}>
+          {change.path}
+        </span>
+        {change.status === "A" && <span className="wchanges__badge">{t("changes.new")}</span>}
+        {change.added != null && <span className="wchanges__add">+{change.added}</span>}
+        {change.removed != null && <span className="wchanges__del">−{change.removed}</span>}
+      </div>
+      <DiffView text={change.diff ?? ""} truncated={change.truncated ?? false} />
+    </div>
   );
 }
 
@@ -72,7 +97,7 @@ function PendingInput({ part }: { part: InputPartData }) {
     setBusy(false);
   };
   return (
-    <div className="inputcard is-pending" role="alert">
+    <div className={`inputcard is-pending${part.change ? " has-change" : ""}`} role="alert">
       <div className="inputcard__head">
         {part.kind === "confirm" ? <Icons.Hand size={16} /> : <Icons.MessageCircle size={16} />}
         <span className="inputcard__title">
@@ -80,7 +105,7 @@ function PendingInput({ part }: { part: InputPartData }) {
         </span>
       </div>
       <p className="inputcard__prompt">{part.prompt}</p>
-      {part.detail && <code className="inputcard__detail">{part.detail}</code>}
+      <Detail part={part} />
       {part.approval_scopes && <p className="resd__note">{t("input.scopeHelp")}</p>}
       {part.kind === "confirm" && (
         <div className="inputcard__actions">

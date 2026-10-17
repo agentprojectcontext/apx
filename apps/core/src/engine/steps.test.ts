@@ -29,14 +29,14 @@ async function runRoutine(id: string) {
   return steps(started.thread_id);
 }
 
-test("a chat turn stops at its plain limit", async () => {
+test("a chat turn the owner watches gets the same steps as background work", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
   await env.client.call("threads.send", { thread: t.id, text: "search everything" });
   await env.settle(t.id);
-  assert.equal(steps(t.id), 14);
+  assert.equal(steps(t.id), 60);
 });
 
-test("a routine gets more steps, its own limit wins, and null puts the default back", async () => {
+test("a routine gets the default steps, its own limit wins, and null puts the default back", async () => {
   const base = {
     name: "Long review",
     agent: "roby",

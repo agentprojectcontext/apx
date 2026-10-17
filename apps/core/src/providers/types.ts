@@ -73,9 +73,13 @@ export class ProviderError extends Error {
   get retryable(): boolean {
     return this.kind === "rate_limit" || this.kind === "overloaded" || this.kind === "network" || this.kind === "empty";
   }
-  /** The provider's usage limit (its plan or its rate), not a fault of the request or of APX. */
+  /**
+   * The provider's usage limit (its plan or its rate), not a fault of the request or of APX. A rate limit that lifts
+   * within a few minutes is a pause, not a stall worth telling the owner.
+   */
   get limit(): boolean {
-    return this.kind === "quota" || this.kind === "rate_limit";
+    if (this.kind === "quota") return true;
+    return this.kind === "rate_limit" && (!this.resetsAt || Date.parse(this.resetsAt) - Date.now() > PAUSE_MS);
   }
 }
 
@@ -95,6 +99,8 @@ export function classifyHttp(status: number, body: string, headers?: Headers): P
 
 /** A reset further out than this is not believed (a unit mix-up), nor one already past. */
 const MAX_RESET_MS = 31 * 86_400_000;
+/** A rate limit that lifts sooner than this is a pause. */
+const PAUSE_MS = 5 * 60_000;
 
 /** A reset as a time: epoch seconds or milliseconds, or a date string. */
 function absolute(v: unknown): number | undefined {
@@ -140,7 +146,7 @@ export function resetOf(body: string, headers?: Headers, now = Date.now()): stri
       // Not JSON: only the header could say.
     }
   }
-  return at !== undefined && at > now - 60_000 && at < now + MAX_RESET_MS ? new Date(at).toISOString() : undefined;
+  return at !== undefined && at > now && at < now + MAX_RESET_MS ? new Date(at).toISOString() : undefined;
 }
 
 export type TransportRequest = {

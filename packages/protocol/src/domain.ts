@@ -310,6 +310,17 @@ export const ToolApproval = z.object({
 });
 export type ToolApproval = z.infer<typeof ToolApproval>;
 
+/** A file a turn changed, or a confirmation proposes to change: a unified patch (from the first hunk) when known. */
+export const FileChange = z.object({
+  path: z.string(),
+  status: z.string(),
+  added: z.number().int().optional(),
+  removed: z.number().int().optional(),
+  diff: z.string().max(64_000).optional(),
+  truncated: z.boolean().optional(),
+});
+export type FileChange = z.infer<typeof FileChange>;
+
 export const InputKind = z.enum(["confirm", "question"]);
 export type InputKind = z.infer<typeof InputKind>;
 /**
@@ -329,6 +340,8 @@ export const PendingInput = z.object({
   prompt: z.string(),
   tool: z.string().optional(),
   detail: z.string().optional(),
+  /** For a confirmation of a file write: what the file would become, as a patch. */
+  change: FileChange.optional(),
   options: z.array(z.string()).optional(),
   approval_scopes: z.array(ApprovalScope).optional(),
   approval_scope: ApprovalScope.optional(),
@@ -404,16 +417,7 @@ const KnownPart = z.discriminatedUnion("type", [
     type: z.literal("changes"),
     cwd: z.string(),
     edits: z.boolean().optional(),
-    files: z.array(
-      z.object({
-        path: z.string(),
-        status: z.string(),
-        added: z.number().int().optional(),
-        removed: z.number().int().optional(),
-        diff: z.string().max(64_000).optional(),
-        truncated: z.boolean().optional(),
-      }),
-    ),
+    files: z.array(FileChange),
     more: z.number().int().optional(),
   }),
   /** The agent waits for the owner: a yes/no on an action, or an answer to a question. Answered with runs.respond. */
@@ -425,6 +429,7 @@ const KnownPart = z.discriminatedUnion("type", [
     /** For a confirmation: the tool and a readable summary of its arguments. */
     tool: z.string().optional(),
     detail: z.string().optional(),
+    change: FileChange.optional(),
     options: z.array(z.string()).optional(),
     approval_scopes: z.array(ApprovalScope).optional(),
     approval_scope: ApprovalScope.optional(),

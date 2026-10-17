@@ -1,6 +1,6 @@
 // What agents wait on from the owner. A row is written before the agent starts waiting, so a restart never loses
 // the question; answering is a compare-and-set on `pending`, so two answers cannot both win.
-import { ApprovalScope, type InputKind, type InputState, type PendingInput } from "@apx/protocol";
+import { ApprovalScope, type FileChange, type InputKind, type InputState, type PendingInput } from "@apx/protocol";
 import type { Selectable } from "kysely";
 import type { PendingInputsTable } from "../db/schema.ts";
 import { type ApprovalTarget, approvalScopes } from "./approvals.ts";
@@ -32,6 +32,7 @@ const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
   ...opt("tool", r.tool),
   ...(r.args ? { args: JSON.parse(r.args) as Record<string, unknown> } : {}),
   ...opt("detail", r.detail),
+  ...(r.change ? { change: JSON.parse(r.change) as FileChange } : {}),
   ...(r.options ? { options: JSON.parse(r.options) as string[] } : {}),
   state: r.state as InputState,
   ...opt("answer", r.answer),
@@ -61,6 +62,7 @@ export function inputsRepo({ one, all, run }: Sql) {
       tool?: string | undefined;
       args?: Record<string, unknown> | undefined;
       detail?: string | undefined;
+      change?: FileChange | undefined;
       options?: string[] | undefined;
       waitMs: number;
       approval?: ApprovalTarget | undefined;
@@ -81,6 +83,7 @@ export function inputsRepo({ one, all, run }: Sql) {
           tool: i.tool ?? null,
           args: i.args ? JSON.stringify(i.args) : null,
           detail: i.detail ?? null,
+          change: i.change ? JSON.stringify(i.change) : null,
           options: i.options?.length ? JSON.stringify(i.options) : null,
           state: "pending",
           created_at: now(),

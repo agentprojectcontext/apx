@@ -66,7 +66,7 @@ test("reading the same page part is stuck only while it says the same", async ()
 
 test("a turn without the browser or the screen still ends at its own step limit", async () => {
   const { ran, seen } = await turn((done) => callTool(`m${done}`, "memory_search", { query: `q${done}` }));
-  assert.equal(ran.length, 14);
+  assert.equal(ran.length, 60);
   assert.match(String(notes(seen).at(-1)), /ran out of steps/);
 });
 

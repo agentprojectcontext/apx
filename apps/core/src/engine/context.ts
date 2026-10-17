@@ -168,8 +168,8 @@ export function systemPrompt(
 }
 
 const WRITES: Record<NonNullable<Thread["write"]>, string> = {
-  ask: "ask (each change waits for the owner's OK)",
-  auto: "auto (edits inside this folder run without asking, except to git config, .apc/ or AGENTS.md; anything else is asked)",
+  ask: "ask (a change runs as your autonomy and rules allow; what they leave to the owner waits for an OK)",
+  auto: "auto (Claude Code edits inside this folder without asking, Codex too unless you ask before acting or outside content is in the session; git config, .apc/ and AGENTS.md always ask; APX's own tools follow your autonomy and rules)",
   "read-only":
     "read-only (nothing here may change; shell runs only plain reads: simple commands such as ls, cat, grep, find or git status|log|diff|show, joined by && | ;, with relative paths and no $, redirects, parentheses, braces, brackets, #, ~, .. or absolute paths)",
 };

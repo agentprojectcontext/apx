@@ -137,11 +137,16 @@ export function agentTools(store: Store): Tool[] {
         }
         const project = a.project ? projectOf(store, a.project, ctx.agent) : undefined;
         if (typeof project === "string") return project;
-        return ctx.delegate(
+        const result = await ctx.delegate(
           { agent, session: a.session, worker: a.worker, project: project?.id },
           a.task,
           (a.wait_s ?? 60) * 1000,
         );
+        // A path inside the project finds it, but the session works in its root: said, never dropped silently.
+        const inner = project?.path && a.project ? path.relative(project.path, path.resolve(a.project.trim())) : "";
+        return inner && !inner.startsWith("..") && !path.isAbsolute(inner)
+          ? `note: ${project?.name} works in its root folder; ${inner} is not its working folder (name it in the task).\n${result}`
+          : result;
       },
     }),
     defineTool({
@@ -169,12 +174,15 @@ export function agentTools(store: Store): Tool[] {
 function projectOf(store: Store, ref: string, agent: AgentRecord): ProjectRecord | string {
   const all = store.projects.list().filter((p) => !agent.project_id || p.id === agent.project_id);
   const q = ref.trim();
-  const found =
-    all.find((p) => p.id === q) ??
-    all.find((p) => p.name.toLowerCase() === q.toLowerCase()) ??
-    all
-      .filter((p) => p.path && path.isAbsolute(q) && (q === p.path || q.startsWith(`${p.path}${path.sep}`)))
-      .sort((x, y) => (y.path?.length ?? 0) - (x.path?.length ?? 0))[0];
+  const absolute = path.isAbsolute(q) ? path.resolve(q) : undefined;
+  const pathProject = all
+    .filter((p) => {
+      if (!p.path || !absolute) return false;
+      const root = path.resolve(p.path);
+      return absolute === root || absolute.startsWith(`${root}${path.sep}`);
+    })
+    .sort((x, y) => (y.path?.length ?? 0) - (x.path?.length ?? 0))[0];
+  const found = all.find((p) => p.id === q) ?? all.find((p) => p.name.toLowerCase() === q.toLowerCase()) ?? pathProject;
   return (
     found ??
     `no project "${q}". Projects: ${

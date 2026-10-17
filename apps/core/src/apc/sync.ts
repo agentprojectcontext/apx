@@ -43,9 +43,11 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
   function syncRoot(root: string): SyncResult {
     const abs = path.resolve(root);
     const p = readProject(abs);
-    // One folder is one project: the record already indexed here keeps its id, chats and tasks even when
-    // project.json's apx_id changed (another tool rewrote it) or cannot be read.
-    const [indexed, ...duplicates] = store.projects.atPath(abs);
+    // One folder is one project: the record registered here keeps its id, chats and tasks even when project.json's
+    // apx_id changed (another tool rewrote it) or cannot be read. One removed from APX does not outrank the apx_id.
+    const records = store.projects.atPath(abs);
+    const indexed = records.find((r) => r.registered !== false) ?? (p.metaError ? records[0] : undefined);
+    const duplicates = records.filter((r) => r !== indexed);
     // A clone or worktree carries the same committed apx_id: while the first folder is still there, this one is a
     // different project (its own id from its path), not a replacement.
     const holder = indexed ? undefined : store.projects.get(projectIdOf(p.id));
@@ -58,8 +60,13 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
     const agents: ApcAgent[] = readAgents(abs);
     const present = new Set(agents.map((a) => a.slug));
     return store.tx(() => {
-      // A second record an earlier apx_id change left at this folder stops being listed; its chats and tasks stay.
-      for (const d of duplicates) if (d.registered !== false) store.projects.unregister(d.id);
+      // A second record an earlier apx_id change left at this folder stops being listed, and its agents with it;
+      // its chats and tasks stay.
+      for (const d of duplicates)
+        if (d.registered !== false && d.id !== projectId) {
+          store.projects.unregister(d.id);
+          store.agents.archiveMissing(d.id, []);
+        }
       store.projects.upsert({
         id: projectId,
         name: meta.name,

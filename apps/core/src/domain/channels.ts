@@ -63,6 +63,8 @@ export type Presentation = {
   mentions?: Array<{ id: string; handle: string }>;
   /** A notice for the owner: the channels that already refused it, so the next try goes elsewhere. */
   refused_by?: string[];
+  /** Internal correlation for free-form replies to an input; adapters ignore it. */
+  input_id?: string;
 };
 
 export type InboxRow = { id: string; channel: string; payload: Inbound; state: string };
@@ -250,6 +252,20 @@ export function channelsRepo({ one, all, run }: Sql) {
             .orderBy("next_at")
             .limit(limit),
         ).map(toOut);
+      },
+      /** The last thing sent or queued to a conversation, of any kind. */
+      last(channel: string, conversation: string): OutboxRow | undefined {
+        const r = one(
+          qb
+            .selectFrom("outbox")
+            .selectAll()
+            .where("channel", "=", channel)
+            .where("conversation", "=", conversation)
+            .orderBy("created_at", "desc")
+            .orderBy("id", "desc")
+            .limit(1),
+        );
+        return r ? toOut(r) : undefined;
       },
       /** The next time something queued is due, if anything is. */
       nextDue(): string | undefined {

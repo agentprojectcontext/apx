@@ -186,3 +186,24 @@ jobs:
         with:
           node-version: "24.11"
       - run: node --no-warnings scripts/discord-release.ts
+
+  # Then each issue a commit of this release names (an `Issue: #N` trailer) is told the version and closed.
+  issues:
+    needs: [announce]
+    if: ${{ always() && needs.announce.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11"
+      - run: node --no-warnings scripts/issue-replies.ts

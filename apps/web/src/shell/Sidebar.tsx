@@ -1,10 +1,12 @@
-import { Icons, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
+import { ContextMenu, Icons, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
 import { lazy, Suspense, useEffect, useMemo } from "react";
+import { markAllRead } from "../data/actions.ts";
 import { loadChannels } from "../data/channels.ts";
 import { inInbox } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { unreadListed } from "../inbox/groupThreads.ts";
 import { AccountRow } from "./AccountRow.tsx";
 import { ChannelsNav } from "./ChannelsNav.tsx";
 import { ExternalSessionsNav } from "./ExternalSessionsNav.tsx";
@@ -28,6 +30,8 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
   }, []);
 
   const routines = usePrefs((s) => s.inboxRoutines);
+  // The same chats the Inbox's own button reads.
+  const unreadIds = useMemo(() => unreadListed(threads, { routines }), [threads, routines]);
   const unread = useMemo(() => {
     let n = 0;
     for (const t of Object.values(threads)) if (inInbox(t, routines)) n += t.unread;
@@ -49,14 +53,25 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
         />
       )}
       <div className="sidebar__top">
-        <NavItem
-          collapsed={rail}
-          icon={<Icons.Inbox />}
-          label={t("nav.inbox")}
-          count={unread}
-          active={view === "inbox"}
-          onClick={() => go.inbox()}
-        />
+        <ContextMenu
+          items={[
+            {
+              label: t("inbox.markAllRead"),
+              icon: <Icons.CheckCheck />,
+              disabled: unreadIds.length === 0,
+              onSelect: () => void markAllRead(unreadIds),
+            },
+          ]}
+        >
+          <NavItem
+            collapsed={rail}
+            icon={<Icons.Inbox />}
+            label={t("nav.inbox")}
+            count={unread}
+            active={view === "inbox"}
+            onClick={() => go.inbox()}
+          />
+        </ContextMenu>
         <NavItem
           collapsed={rail}
           icon={<Icons.ListChecks />}

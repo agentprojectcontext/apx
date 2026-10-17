@@ -58,6 +58,12 @@ export function listedThreads(threads: Record<string, Thread>, opts: Filter): Th
   return visible(threads, opts).flatMap((t) => [t, ...(nested.get(t.id) ?? [])]);
 }
 
+/** What "Mark all as read" reads: the unread chats the list shows, delegated ones under them included. */
+export const unreadListed = (threads: Record<string, Thread>, opts: Filter): string[] =>
+  listedThreads(threads, opts)
+    .filter((t) => t.unread > 0)
+    .map((t) => t.id);
+
 /** The archived chats, most recent first: shown apart, under Archived. */
 export function archivedThreads(threads: Record<string, Thread>, opts: Filter): Thread[] {
   return visible(threads, opts, (t) => !!t.archived && isTopLevel(t)).sort(newest);

@@ -104,3 +104,28 @@ test("chat offers once, session and always; session lets later calls proceed wit
   await expect(card).toBeHidden();
   await rpc("mcp.set", { project, name: "notes", server: null });
 });
+
+test("a file edit waiting for the owner shows its patch across the chat's width", async ({ page }) => {
+  await rpc("setup.finish", {});
+  const { repo } = await world.info();
+  const project = (await rpc<{ project: { id: string } }>("projects.register", { path: repo })).project.id;
+  const editor = await rpc<{ id: string }>("agents.create", { slug: "patch-editor", name: "Patch editor" });
+  const chat = await rpc<{ id: string }>("threads.create", {
+    kind: "loose",
+    agent_id: editor.id,
+    project_id: project,
+    title: "Patch",
+  });
+  await open(page, `#thread=${chat.id}`);
+  await page.getByRole("textbox", { name: /Escribile/ }).fill("edit the agents file");
+  await page.keyboard.press("Enter");
+  const card = page.locator(".inputcard.is-pending.has-change");
+  await expect(card.locator(".inputcard__path")).toHaveText("AGENTS.md");
+  await expect(card.locator(".diff__line--del")).toHaveText(/The Acme storefront\.$/);
+  await expect(card.locator(".diff__line--add")).toHaveText(/The Acme storefront, rebuilt\.$/);
+  await expect(card.locator(".inputcard__detail")).toHaveCount(0);
+  await card.getByRole("button", { name: "Rechazar" }).click();
+  await expect(card).toBeHidden();
+  await page.locator(".inputline").getByRole("button").first().click();
+  await expect(page.locator(".inputline .diff__line--add")).toBeVisible();
+});

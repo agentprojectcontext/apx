@@ -78,7 +78,11 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
   /** A close reports to the agent that created the task; from the closer's own chat for it, once that turn ends. */
   const reported = (t: Task, ctx: CallContext): Task => {
     const working = ctx.agent && store.threads.get(ctx.agent.thread_id)?.task_id === t.id;
-    if (t.state !== "open" && !working) reportClose(store, engine.admit, t.id);
+    if (t.state !== "open" && !working)
+      reportClose(store, engine.admit, t.id, {
+        immediate: true,
+        runStartedAt: ctx.agent ? store.runs.get(ctx.agent.run_id)?.started_at : undefined,
+      });
     return t;
   };
 

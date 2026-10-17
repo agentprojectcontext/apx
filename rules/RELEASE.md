@@ -46,6 +46,13 @@ The phone app is `dev.apx.mobile` and v1's is `dev.agentprojectcontext.apx`: the
 carries arm64-v8a only by default (`APX_ANDROID_ABIS` adds more) and its versionCode follows the tag (2.1.3 → 20103); Expo push needs the owner's EAS project
 and Firebase app, set once as repo variable/secret ([apps/mobile/README.md](../apps/mobile/README.md#push)).
 
+## Issues a release fixes
+
+A commit that fixes a GitHub issue ends its message with a trailer, one per issue: `Issue: #105`. Do not comment on
+or close the issue by hand while the fix is only on the branch. Once the release is out and announced, `release.yml`'s
+`issues` job (`scripts/issue-replies.ts`) comments on each named issue with the version and the commits, then closes
+it; a version already answered is skipped. To preview it locally: `TAG=v2.x.y node scripts/issue-replies.ts --dry`.
+
 ## Install paths
 
 | Who | How | Notes |

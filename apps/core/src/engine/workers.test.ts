@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Part } from "@apx/protocol";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 const worker = { name: "Researcher", instructions: "Dig through sources; list each with its link." };
+let subpathProjectRoot: string | undefined;
 
 const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (system.startsWith("You are Researcher")) {
@@ -11,6 +15,12 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
     return say("## Report\n- Found 2 sources.\n- One is stale.");
   }
   if (said.includes("<delegation_result")) return say("The researcher is back: 2 sources.");
+  if (said.includes("delegate to a project subpath") && !afterTool && subpathProjectRoot)
+    return callTool("w6", "delegate", {
+      worker,
+      project: path.join(subpathProjectRoot, "sub"),
+      task: "read marker.txt",
+    });
   if (said.includes("use a worker") && !afterTool)
     return callTool("w1", "delegate", { worker: { ...worker, tools: ["recall"] }, task: "look into A2A" });
   if (said.includes("worker slowly") && !afterTool)
@@ -95,6 +105,33 @@ test("a late worker result shows its report above the caller's new answer", asyn
   assert.equal(woken?.parts[0]?.type, "subthread", "the report comes first");
   assert.match(report.summary ?? "", /2 sources/);
   assert.equal(report.state, "completed");
+});
+
+test("delegate finds the project by a path inside it and says the session works in its root", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-delegate-subpath-"));
+  fs.mkdirSync(path.join(root, "sub"));
+  fs.writeFileSync(path.join(root, "AGENTS.md"), "# Project\n");
+  try {
+    const { project } = await env.client.call("projects.register", { path: root });
+    const t = await env.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "roby",
+      project_id: project.id,
+      title: "sub-path delegation",
+    });
+    subpathProjectRoot = root;
+    await env.client.call("threads.send", { thread: t.id, text: "delegate to a project subpath" });
+    await env.settle(t.id);
+    assert.equal(env.core.store.threads.sessions(t.id)[0]?.project_id, project.id);
+    const result = llm.calls
+      .flatMap((c) => c.messages)
+      .map((m) => String(m.content))
+      .find((c) => c.includes("is not its working folder"));
+    assert.match(result ?? "", /works in its root folder; sub is not its working folder/);
+  } finally {
+    subpathProjectRoot = undefined;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("an agent still cannot delegate to itself", async () => {

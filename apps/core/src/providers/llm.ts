@@ -91,6 +91,8 @@ export function createLlm(opts: {
         );
       let last: ProviderError | undefined;
       const limited: ProviderError[] = [];
+      // A key, a model or a request the owner must fix: told as such even when another model hit a limit.
+      let broken: ProviderError | undefined;
       const skipped = new Set<string>();
       const failed: ModelFailure[] = [];
       const need = tokensOf(req);
@@ -170,6 +172,8 @@ export function createLlm(opts: {
         }
         if (last) failed.push({ model: ref, why: last.message.slice(ref.length + 2, ref.length + 302) });
         if (last?.limit) limited.push(last);
+        if (last && (last.kind === "auth" || last.kind === "model_gone" || last.kind === "bad_request"))
+          broken ??= last;
         if (streamed) {
           streamed = false;
           req.onText?.("");
@@ -177,15 +181,18 @@ export function createLlm(opts: {
       }
       // Every model's reason, not only the last one's: the owner needs to see why the first choice failed.
       const reasons = failed.map((f) => `${f.model}: ${f.why}`).join("\n");
-      if (limited.length) throw limitError(limited, reasons);
-      throw new ProviderError(last?.kind ?? "auth", reasons || last?.message || "no usable model provider");
+      if (limited.length && !broken) throw limitError(limited, reasons);
+      throw new ProviderError(
+        broken?.kind ?? last?.kind ?? "auth",
+        reasons || last?.message || "no usable model provider",
+      );
     },
   };
 }
 
 /**
- * Some model of the chain hit its provider's limit and none answered: the work waits for a limit to lift, whatever
- * stopped the others. It can go on at the earliest reset any of them gave.
+ * Some model of the chain hit its provider's limit, none answered and nothing needs the owner's fix: the work waits
+ * for a limit to lift. It can go on at the earliest reset any of them gave.
  */
 function limitError(limited: ProviderError[], reasons: string): ProviderError {
   const kind = limited.some((e) => e.kind === "quota") ? "quota" : "rate_limit";
