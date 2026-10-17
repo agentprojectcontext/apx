@@ -1,5 +1,6 @@
 // UI strings, Spanish (Rioplatense, voseo). A missing key falls back to English.
 
+import { noticeEs } from "@apx/protocol";
 import type { MessageKey } from "./en.ts";
 import { esChannels } from "./es-channels.ts";
 import { esChat } from "./es-chat.ts";
@@ -12,6 +13,7 @@ import { esTeam } from "./es-team.ts";
 import { esTelemetry } from "./es-telemetry.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
+  ...noticeEs,
   ...esOffice,
   ...esTeam,
   ...esChannels,
@@ -146,12 +148,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "error.change": "No se pudo cambiar: {error}",
 
   // Avisos del sistema en un chat
-  "notice.run.interrupted": "Se interrumpió por un reinicio de APX.",
-  "notice.run.resumed": "Se interrumpió por un reinicio de APX; lo retomo.",
-  "notice.run.canceled": "Cancelado.",
-  "notice.run.failed": "No pude terminar.",
-  "notice.run.empty": "Terminó sin mensaje.",
-  "notice.harness.fallback": "El motor elegido no estaba disponible; respondió el modelo propio.",
 
   // Conexión
   "offline.stale": "Sin conexión con el core. Mostrando lo último que vimos.",
@@ -343,10 +339,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "input.asked": "Pidió permiso para usar {tool}",
   "input.askedQuestion": "Te hizo una pregunta",
   "input.anAction": "una acción",
-  "notice.info": "Nota",
-  "notice.warn": "Aviso",
-  "notice.engine.fallback": "{model} no respondió ({why}); siguió con {to}.",
-  "notice.engine.fallback.title": "Cambió de modelo",
   "input.answerPlaceholder": "Escribí tu respuesta y apretá Enter",
   "input.send": "Enviar",
   "input.skip": "Omitir",
@@ -1075,8 +1067,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "chat.folderOff": "No trabaja en la carpeta",
   "chat.compactSkipped": "No se resumió: {reason}",
   "error.compact": "No se pudo resumir: {error}",
-  "notice.thread.compacted":
-    "Se resumieron los turnos anteriores para que el contexto de este chat sea más chico. No se empezó nada nuevo.",
   "memory.filter.forgotten": "Olvidadas",
   "memory.lead.forgotten":
     "Notas que vos o un agente olvidaron. Ningún agente las ve; podés traer una de vuelta o borrarla para siempre.",
@@ -1156,7 +1146,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tg.out.uncertain": "Quizás enviado",
   "tg.out.failed": "Falló",
   "error.channels": "Canales: {error}",
-  "notice.pairing.request": "Alguien nuevo quiere hablar por un canal: aprobalo en Configuración › Canales.",
   "chat.viaChannel": "Por {channel}",
   "tg.notices": "Avisos para vos",
   "tg.followUp": "Las confirmaciones te siguen",

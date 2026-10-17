@@ -71,8 +71,6 @@ export const enChat = {
   "usage.state.failed": "Failed",
   "usage.state.canceled": "Canceled",
   "usage.state.stepLimit": "Out of steps",
-  "notice.run.stepLimit":
-    "Ran out of steps for this turn: this is a report of what is done and left, not a final answer.",
   "skills.trace.title": "Skills picked by meaning for this message ({engine})",
   "skills.trace.loaded": "Loaded: its whole text went into this turn's context",
   "skills.trace.strong":

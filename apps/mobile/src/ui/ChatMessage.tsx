@@ -5,8 +5,8 @@ import { type MediaItem, mediaRows } from "../chat/media";
 import { clock } from "../format";
 import { isWorking } from "../hooks/chatSelectors";
 import type { Agent } from "../hooks/useWorkspace";
-import { t } from "../i18n";
-import type { Answer, Message } from "../protocol";
+import { lang, t } from "../i18n";
+import { type Answer, type Message, noticeText } from "../protocol";
 import { ActionGroup } from "./ActionGroup";
 import { Icon } from "./Icon";
 import { Button, Spinner, Tag } from "./kit";
@@ -108,7 +108,9 @@ export function ChatMessage({
                   size={16}
                   color={part.level === "error" ? theme.danger : part.level === "warn" ? theme.warning : theme.fgMuted}
                 />
-                <Text style={[s.noticeText, part.level === "error" && { color: theme.danger }]}>{part.text}</Text>
+                <Text style={[s.noticeText, part.level === "error" && { color: theme.danger }]}>
+                  {noticeText(part, lang)}
+                </Text>
                 {part.detail ? (
                   <Text numberOfLines={2} style={s.code}>
                     {part.detail}

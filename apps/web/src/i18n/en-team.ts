@@ -143,23 +143,6 @@ export const enTeam = {
   "limits.none": "No limit",
   "limits.off": "Remove the limits",
   "limits.offHint": "Agents keep going on their own until they finish, however long it takes and whatever it costs.",
-  "notice.breaker.paused.runs":
-    "Paused: agents started {spent} turns on their own since you last wrote here. {who} finished; write to continue.",
-  "notice.breaker.paused.tokens":
-    "Paused: agents spent {spent} tokens on their own since you last wrote here. {who} finished; write to continue.",
-  "notice.breaker.paused.link": "Change the limit",
-  "notice.breaker.held.runs":
-    "Paused: agents started {spent} turns on their own since you last wrote here. {who} starts “{task}” once you let them go on.",
-  "notice.breaker.held.tokens":
-    "Paused: agents spent {spent} tokens on their own since you last wrote here. {who} starts “{task}” once you let them go on.",
-  "notice.breaker.held.agentRuns":
-    "Paused for {who}: {who} started {spent} turns on its own since you last wrote here, its own limit. It starts “{task}” once you let them go on.",
-  "notice.breaker.held.agentTokens":
-    "Paused for {who}: {who} spent {spent} tokens on its own since you last wrote here, its own limit. It starts “{task}” once you let them go on.",
-  "notice.breaker.held.link": "Change the limit",
-  "notice.breaker.reset": "Restart the budget",
-  "notice.breaker.release": "Let them finish this round",
-  "notice.breaker.wentOn": "Agents went on",
   "agentedit.group.general": "General",
   "agentedit.group.abilities": "Abilities",
   "agentedit.group.permissions": "Permissions",

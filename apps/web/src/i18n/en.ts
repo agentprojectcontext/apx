@@ -1,3 +1,4 @@
+import { noticeEn } from "@apx/protocol";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
 import { enEngines } from "./en-engines.ts";
@@ -10,6 +11,7 @@ import { enTelemetry } from "./en-telemetry.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
+  ...noticeEn,
   ...enOffice,
   ...enTeam,
   ...enChannels,
@@ -142,12 +144,6 @@ export const en = {
   "error.change": "Could not change it: {error}",
 
   // System notices inside a chat (codes come from the core)
-  "notice.run.interrupted": "Interrupted by a restart of APX.",
-  "notice.run.resumed": "Interrupted by a restart of APX; picking it back up.",
-  "notice.run.canceled": "Canceled.",
-  "notice.run.failed": "Could not finish.",
-  "notice.run.empty": "Finished without a message.",
-  "notice.harness.fallback": "The chosen engine was not available; answered with the built-in model.",
 
   // Connection
   "offline.stale": "No connection to the core. Showing the last thing we saw.",
@@ -335,10 +331,6 @@ export const en = {
   "input.asked": "Asked to use {tool}",
   "input.askedQuestion": "Asked you a question",
   "input.anAction": "an action",
-  "notice.info": "Note",
-  "notice.warn": "Warning",
-  "notice.engine.fallback": "{model} did not answer ({why}); went on with {to}.",
-  "notice.engine.fallback.title": "Switched model",
   "input.answerPlaceholder": "Type your answer and press Enter",
   "input.send": "Send",
   "input.skip": "Skip",
@@ -1070,8 +1062,6 @@ export const en = {
   "chat.folderOff": "Does not work in the folder",
   "chat.compactSkipped": "Not summarized: {reason}",
   "error.compact": "Could not summarize: {error}",
-  "notice.thread.compacted":
-    "Earlier turns were summarized to keep this chat's context small. Nothing new was started.",
   "memory.filter.forgotten": "Forgotten",
   "memory.lead.forgotten": "Notes you or an agent forgot. No agent sees them; bring one back or delete it for good.",
   "memory.empty.forgotten": "Nothing forgotten.",
@@ -1149,7 +1139,6 @@ export const en = {
   "tg.out.uncertain": "Maybe sent",
   "tg.out.failed": "Failed",
   "error.channels": "Channels: {error}",
-  "notice.pairing.request": "Someone new wants to talk on a channel: approve them in Settings → Channels.",
   "chat.viaChannel": "On {channel}",
   "tg.notices": "Notices for you",
   "tg.followUp": "Confirmations follow you",

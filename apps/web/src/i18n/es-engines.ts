@@ -43,10 +43,6 @@ export const esEngines: Record<keyof typeof enEngines, string> = {
     "Las CLIs de tus suscripciones. Las usás desde Sesiones externas en la barra lateral, cada una con su propio chat y sus herramientas: no son modelos para tus agentes ni para el router.",
   "external.models": "Sus modelos",
   "external.modelsLead": "Lo que ofrece cada CLI en sus propias sesiones, según lo que informa.",
-  "notice.run.noModel": "Sin modelo disponible: ninguno de los modelos pudo responder (sin cupo, sin sesión o caído).",
-  "notice.run.noModel.limit": "Frenado por el límite de uso del proveedor de modelos, que se libera a las {until}.",
-  "notice.run.noModel.limitUnknown":
-    "Frenado por el límite de uso del proveedor de modelos (no dijo cuándo se libera).",
   "models.effortLevel.none": "Ninguno",
   "models.effortLevel.minimal": "Mínimo",
   "models.effortLevel.low": "Bajo",
