@@ -4,7 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { CORE_ENV_FILE, parseCoreEnv, serializeCoreEnv } from "@apx/protocol";
 
-export const apxHome = (env: NodeJS.ProcessEnv = process.env) => env.APX_HOME ?? path.join(os.homedir(), ".apx", "v2");
+export const apxHome = (env: NodeJS.ProcessEnv = process.env) => {
+  const home = path.resolve(env.APX_HOME || path.join(os.homedir(), ".apx", "v2"));
+  return fs.existsSync(home) ? fs.realpathSync(home) : home;
+};
 
 export const coreEnvPath = (home: string) => path.join(home, CORE_ENV_FILE);
 
@@ -51,4 +54,9 @@ export async function waitForCore(url: string, ms = 30_000): Promise<boolean> {
     await new Promise((r) => setTimeout(r, 400));
   }
   return false;
+}
+
+/** Service commands always address this machine, regardless of the CLI's RPC connection. */
+export function serviceConnection(env: NodeJS.ProcessEnv = process.env): { url: string; token?: string } {
+  return localConnection({ ...env, APX_URL: undefined });
 }

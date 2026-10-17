@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
-import { rpc, until } from "../specs/kit.ts";
+import { rpc, until, world } from "../specs/kit.ts";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
@@ -55,7 +55,9 @@ test.beforeAll(async () => {
       APX_DESKTOP_DATA: path.join(home, "desktop"),
       APX_QUIT_CONFIRM: "off",
       APX_CONNECTION: "local",
-      APX_URL: core,
+      APX_URL: "",
+      APX_HOME: (await world.info()).home,
+      APX_PORT: process.env.E2E_PORT ?? "7460",
       // No dev server: the window falls back to the panel the core serves.
       APX_WEB_URL: "http://127.0.0.1:9",
     },

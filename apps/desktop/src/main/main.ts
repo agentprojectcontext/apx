@@ -25,6 +25,7 @@ import { installedBrowsers, isWebUrl, openExternal } from "./browser/external.ts
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { type Bounds, createPopout } from "./browser/popout.ts";
 import { COMPUTER_PLATFORMS, computerPermissions, createComputer, openPrivacy } from "./computer.ts";
+import { localCoreUrl } from "./connection.ts";
 import { createConnector } from "./connector.ts";
 import { createCursor } from "./cursor.ts";
 import { editMenu } from "./edit-menu.ts";
@@ -32,7 +33,6 @@ import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.
 import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
 import { confirmQuit } from "./quit-confirm.ts";
-import { updateRemoteCore } from "./remote-core.ts";
 import { createUpdateMenu } from "./update-menu.ts";
 import { createDesktopUpdater, type DesktopUpdate } from "./updater.ts";
 
@@ -40,7 +40,7 @@ import { createDesktopUpdater, type DesktopUpdate } from "./updater.ts";
 // data folder, its scheme or the single-instance lock are touched.
 if (process.env.APX_ASKPASS) process.exit(await runAskpass(process.env, process.argv));
 
-const CORE_URL = process.env.APX_URL ?? "http://127.0.0.1:7440";
+const CORE_URL = localCoreUrl();
 const WEB_URL = process.env.APX_WEB_URL ?? "http://127.0.0.1:7441";
 const DIST = import.meta.dirname;
 
@@ -340,9 +340,6 @@ app.whenReady().then(() => {
       panel.webContents.send("desktop:update-changed", s);
     },
   });
-  // Connected to a server over SSH, its core updates first: the panel it serves may not offer both at once yet.
-  const restartApp = updater.restart;
-  updater.restart = () => void updateRemoteCore(connector.remoteCoreUrl()).finally(restartApp);
   const updateMenu = createUpdateMenu({
     updater,
     window: win,

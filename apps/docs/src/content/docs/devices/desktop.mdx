@@ -112,6 +112,21 @@ To pick another APX later, use the app menu: **APX › Change connection…**
 
 Setting up the server side is covered in [Run APX on a server](/devices/server/).
 
+## Which process the app controls
+
+The local choice uses `APX_HOME` (default `~/.apx/v2`) and that home's configured port. The app checks the daemon's
+home identity before connecting. If a daemon already runs for that home, quitting Desktop leaves it running. If
+Desktop starts its bundled daemon, quitting Desktop stops only that child, including its routines and channels.
+A home can have only one daemon, even when two launches use different ports.
+
+An explicit URL (including `APX_URL`) is connect-only: an unavailable server never makes the app start a replacement
+on this computer. SSH mode owns its tunnel, not the server daemon. Updating or restarting Desktop does not update
+or restart that server.
+
+The CLI's `apx service` commands always control services on the computer running the command, never the computer
+named by `APX_URL`. Use `--home` to select the local installation. `apx desktop` likewise opens the app on the
+computer where the command runs, not on your client when you run it over SSH.
+
 ## Updates
 
 The installed app updates itself. Every few hours it checks the release feed and, when a newer APX is out, the panel

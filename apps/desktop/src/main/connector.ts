@@ -10,12 +10,14 @@ import { openAskpass, type Prompt } from "./askpass.ts";
 import {
   type Connection,
   forgetConnection,
-  loadConnection,
+  initialConnection,
+  localCoreHome,
   localCoreLogFile,
   localCoreToken,
   normalizeUrl,
   saveConnection,
   validSshTarget,
+  verifyLocalCore,
 } from "./connection.ts";
 import { type EmbeddedCore, isUp, startEmbeddedCore, waitUp } from "./core-process.ts";
 import { appKeyPath, askpassSupported, authorizeKey, ensureAppKey, localSshVersion } from "./ssh-login.ts";
@@ -49,8 +51,7 @@ export function createConnector(opts: {
   const dataDir = app.getPath("userData");
   const corePort = Number(new URL(opts.coreUrl).port || 7440);
   // Asked once (installed or from a checkout) and kept; APX_CONNECTION=local skips the question (tests, scripts).
-  let conn: Connection | undefined =
-    process.env.APX_CONNECTION === "local" ? { mode: "local" } : loadConnection(dataDir);
+  let conn: Connection | undefined = initialConnection(dataDir);
   let core: EmbeddedCore | undefined;
   let tunnel: Tunnel | undefined;
   // ssh's questions waiting for the owner's answer on the first-run screen (never logged, never kept).
@@ -201,7 +202,7 @@ export function createConnector(opts: {
   /** The bundled core reads core.env when it starts: after an exposure change it starts again (a checkout's is not ours). */
   async function restartOwnCore(): Promise<void> {
     if (!core) return;
-    core.stop();
+    await core.stop();
     core = undefined;
     const until = Date.now() + 10_000;
     while (Date.now() < until && (await isUp(opts.coreUrl))) await new Promise((r) => setTimeout(r, 200));
@@ -210,7 +211,7 @@ export function createConnector(opts: {
   async function choose(c: Connection): Promise<Answer> {
     // A client needs no core here: the bundled one stops.
     if (c.mode !== "local") {
-      core?.stop();
+      await core?.stop();
       core = undefined;
     }
     saveConnection(dataDir, c);
@@ -225,7 +226,7 @@ export function createConnector(opts: {
       ? path.join(process.resourcesPath, "apx", "apps", "terminal", "src", "main.ts")
       : path.resolve(opts.dist, "../../terminal/src/main.ts");
     const r = spawnSync(process.execPath, ["--disable-warning=ExperimentalWarning", main, ...args], {
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+      env: { ...process.env, APX_URL: "", APX_HOME: localCoreHome(), ELECTRON_RUN_AS_NODE: "1" },
       timeout: 60_000,
       windowsHide: true,
       encoding: "utf8",
@@ -246,11 +247,18 @@ export function createConnector(opts: {
       if (app.isPackaged && !core && !(await isUp(opts.coreUrl))) {
         core = startEmbeddedCore({
           resources: process.resourcesPath,
+          home: localCoreHome(),
+          port: corePort,
           logFile: localCoreLogFile(),
           cacheDir: path.join(dataDir, "compile-cache"),
         });
         await waitUp(opts.coreUrl);
       }
+      if (!(await verifyLocalCore(opts.coreUrl).catch(() => false)))
+        return unreachable(
+          opts.coreUrl,
+          "The local daemon is unavailable or belongs to another home. Check APX_HOME and APX_PORT.",
+        );
       for (const url of app.isPackaged ? [opts.coreUrl] : [opts.webUrl, opts.coreUrl]) {
         if (await load(url, firstRun)) return opts.opened(url, { url: opts.coreUrl, token: localCoreToken() });
       }
@@ -280,15 +288,14 @@ export function createConnector(opts: {
 
   async function unreachable(where: string, hint: string): Promise<void> {
     const text = `APX not reachable at ${where}. ${hint} To pick another APX: APX menu › Change connection.`;
+    const escaped = text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
     await opts.panel.loadURL(
-      `data:text/html,<body style="font:14px system-ui;padding:24px;color:#555">${encodeURIComponent(text)}</body>`,
+      `data:text/html;charset=utf-8,${encodeURIComponent(`<body style="font:14px system-ui;padding:24px;color:#555">${escaped}</body>`)}#apx-unreachable`,
     );
   }
 
   return {
     open,
-    /** The core of the server this app reaches over SSH (through its tunnel), when that is the connection. */
-    remoteCoreUrl: (): string | undefined => (conn?.mode === "ssh" && tunnel ? tunnel.url : undefined),
     /**
      * Back to the first-run choice in the same window. Nothing restarts: a checkout's supervisor (`pnpm app`) takes its
      * core down with the app.
@@ -301,7 +308,7 @@ export function createConnector(opts: {
       await open();
     },
     stop(): void {
-      core?.stop();
+      void core?.stop();
       tunnel?.stop();
     },
     /** This app runs the core itself: quitting stops the crew's routines and channels too. */

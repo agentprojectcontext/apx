@@ -116,6 +116,21 @@ Para elegir otro APX más adelante, usá el menú de la app: **APX › Cambiar c
 
 Cómo preparar el lado del servidor está en [APX en un servidor](/es/devices/server/).
 
+## Qué proceso controla la app
+
+La opción local usa `APX_HOME` (por defecto `~/.apx/v2`) y el puerto configurado para ese home. Antes de conectarse,
+la app verifica la identidad del home del daemon. Si el daemon ya estaba corriendo, salir de Desktop lo deja activo.
+Si Desktop arrancó su core incluido, salir de Desktop detiene solo ese proceso, con sus rutinas y canales. Cada home
+puede tener un solo daemon, incluso si se intenta arrancar otro con un puerto distinto.
+
+Una URL explícita (también `APX_URL`) sirve solo para conectarse: si el servidor no responde, la app no arranca un
+reemplazo en esta computadora. El modo SSH controla su túnel, no el daemon del servidor. Actualizar o reiniciar
+Desktop no actualiza ni reinicia ese servidor.
+
+Los comandos `apx service` de la CLI siempre controlan servicios de la computadora donde corrés el comando, nunca
+la indicada por `APX_URL`. Usá `--home` para elegir la instalación local. `apx desktop` también abre la app en la
+computadora donde corre el comando: ejecutarlo por SSH no abre Desktop en tu cliente.
+
 ## Actualizaciones
 
 La app instalada se actualiza sola. Cada tantas horas revisa las versiones publicadas y, cuando sale un APX más nuevo,

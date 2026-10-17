@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { getDefaultAutoSelectFamilyAttemptTimeout, setDefaultAutoSelectFamilyAttemptTimeout } from "node:net";
 import { legacyHome, loadConfig } from "./config.ts";
+import { acquireDaemonLock } from "./daemon-lock.ts";
 import { moveLegacyHome } from "./home.ts";
 import { createCore } from "./server.ts";
 import { RESTART_CODE } from "./updates.ts";
@@ -9,8 +10,19 @@ import { RESTART_CODE } from "./updates.ts";
 setDefaultAutoSelectFamilyAttemptTimeout(Math.max(2000, getDefaultAutoSelectFamilyAttemptTimeout()));
 
 const config = loadConfig();
-if (moveLegacyHome({ home: config.home, legacy: legacyHome(), explicit: Boolean(process.env.APX_HOME) }) === "moved")
-  console.warn(`APX moved its state from ${legacyHome()} to ${config.home}`);
+const startupLock = acquireDaemonLock(`${config.home}.startup`);
+const lock = (() => {
+  try {
+    if (
+      moveLegacyHome({ home: config.home, legacy: legacyHome(), explicit: Boolean(process.env.APX_HOME) }) === "moved"
+    )
+      console.warn(`APX moved its state from ${legacyHome()} to ${config.home}`);
+    return acquireDaemonLock(config.home);
+  } finally {
+    startupLock.release();
+  }
+})();
+process.once("exit", () => lock.release());
 const core = await createCore(config, {
   // After an update: close cleanly, then the supervisor starts the new code.
   restart: () => void core.close().finally(() => process.exit(RESTART_CODE)),

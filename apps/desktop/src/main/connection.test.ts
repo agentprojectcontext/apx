@@ -1,16 +1,21 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import fs from "node:fs";
+import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import {
   forgetConnection,
+  initialConnection,
   loadConnection,
   localCoreLogFile,
   localCoreToken,
+  localCoreUrl,
   normalizeUrl,
   saveConnection,
   validSshTarget,
+  verifyLocalCore,
 } from "./connection.ts";
 import { sshArgs } from "./ssh-tunnel.ts";
 
@@ -59,4 +64,50 @@ test("the local core's token comes from core.env in its home, when there is one"
 test("the embedded core logs into its home's logs folder, where the service and pnpm dev log too", () => {
   assert.equal(localCoreLogFile({ APX_HOME: "/tmp/acme" }), path.join("/tmp/acme", "logs", "core.log"));
   assert.equal(localCoreLogFile({}), path.join(os.homedir(), ".apx", "v2", "logs", "core.log"));
+});
+
+test("an explicit URL is connect-only, even when a local connection was saved", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-conn-target-"));
+  try {
+    saveConnection(dir, { mode: "local" });
+    assert.deepEqual(initialConnection(dir, { APX_URL: "https://core.example.com", APX_CONNECTION: "local" }), {
+      mode: "url",
+      url: "https://core.example.com",
+    });
+    assert.deepEqual(initialConnection(dir, { APX_URL: "http://127.0.0.1:7550" }), {
+      mode: "url",
+      url: "http://127.0.0.1:7550",
+    });
+    assert.throws(() => initialConnection(dir, { APX_URL: "file:///tmp/core" }), /Invalid APX_URL/);
+    fs.writeFileSync(path.join(dir, "core.env"), "APX_PORT=7550\nAPX_TOKEN=stored\n");
+    assert.equal(localCoreUrl({ APX_HOME: dir, APX_URL: "https://core.example.com" }), "http://127.0.0.1:7550");
+    assert.equal(localCoreUrl({ APX_HOME: dir, APX_PORT: "7660" }), "http://127.0.0.1:7660");
+    assert.equal(localCoreToken({ APX_HOME: dir, APX_TOKEN: "explicit" }), "explicit");
+    assert.throws(() => localCoreUrl({ APX_PORT: "0" }), /Invalid local APX_PORT/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("local connection verifies the daemon home identity before lending capabilities", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-conn-home-"));
+  const server = createServer((_req, res) => {
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify({ ok: true, result: { home_id: "selected-home" } }));
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  try {
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const url = `http://127.0.0.1:${address.port}`;
+    fs.writeFileSync(path.join(dir, "home-id"), "selected-home\n");
+    assert.equal(await verifyLocalCore(url, { APX_HOME: dir }), true);
+    fs.writeFileSync(path.join(dir, "home-id"), "other-home\n");
+    assert.equal(await verifyLocalCore(url, { APX_HOME: dir }), false);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

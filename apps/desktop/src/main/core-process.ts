@@ -1,17 +1,13 @@
-// The installed app carries its own core (resources/apx) and runs it on Electron's Node: the owner installs one
-// thing and APX works. A core already answering on the port (a checkout run with `pnpm dev`) is used instead.
 import { type ChildProcess, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-/** Exit code the core uses to ask for a restart (see apps/core/src/updates.ts). */
 const RESTART_CODE = 75;
 const READY_MS = 30_000;
 const MAX_BACKOFF_MS = 30_000;
-/** A log this big starts again (the old one kept as core.log.1), like the core does with a log it owns. */
 const ROTATE_BYTES = 20 * 1024 * 1024;
 
-export type EmbeddedCore = { stop(): void };
+export type EmbeddedCore = { stop(): Promise<void> };
 
 export async function isUp(url: string): Promise<boolean> {
   try {
@@ -22,11 +18,15 @@ export async function isUp(url: string): Promise<boolean> {
   }
 }
 
-/**
- * Starts the bundled core and keeps it alive (restarted with backoff if it dies) until stop(). Its output goes straight
- * into `logFile`, the home's core.log, which the core then knows not to write a second time.
- */
-export function startEmbeddedCore(opts: { resources: string; logFile: string; cacheDir: string }): EmbeddedCore {
+/** Supervises only the bundled child at the explicit local home/port, never an endpoint supplied by APX_URL. */
+export function startEmbeddedCore(opts: {
+  resources: string;
+  logFile: string;
+  cacheDir: string;
+  home: string;
+  port: number;
+  restartDelayMs?: number;
+}): EmbeddedCore {
   const root = path.join(opts.resources, "apx");
   const build = readBuild(root);
   fs.mkdirSync(path.dirname(opts.logFile), { recursive: true });
@@ -35,9 +35,12 @@ export function startEmbeddedCore(opts: { resources: string; logFile: string; ca
   const log = fs.openSync(opts.logFile, "a");
   let child: ChildProcess | undefined;
   let stopped = false;
-  let backoff = 1000;
+  let retry: NodeJS.Timeout | undefined;
+  let stopping: Promise<void> | undefined;
+  let backoff = opts.restartDelayMs ?? 1000;
 
   const start = () => {
+    if (stopped) return;
     const startedAt = Date.now();
     child = spawn(
       process.execPath,
@@ -47,36 +50,51 @@ export function startEmbeddedCore(opts: { resources: string; logFile: string; ca
         stdio: ["ignore", log, log],
         windowsHide: true,
         env: {
-          ...process.env,
+          ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("APX_"))),
+          APX_HOST: "127.0.0.1",
           ELECTRON_RUN_AS_NODE: "1",
           NODE_COMPILE_CACHE: opts.cacheDir,
+          APX_APP: "",
+          APX_HOME: path.resolve(opts.home),
+          APX_PORT: String(opts.port),
           APX_WEB_DIST: path.join(root, "apps", "web", "dist"),
-          // The app installs updates; its core only says one is out, for a panel opened in a browser.
           APX_UPDATES: "app",
           APX_SUPERVISED: "1",
-          ...(build.sha ? { APX_CODE_SHA: build.sha } : {}),
+          APX_CODE_SHA: build.sha ?? "",
         },
       },
     );
-    child.on("exit", (code) => {
-      try {
-        fs.writeSync(log, `${new Date().toISOString()} core exited (${code})\n`);
-      } catch {
-        // The log is a convenience: a full disk must not stop the core coming back.
-      }
+    const finished = (code: number | null) => {
       if (stopped) return;
-      // A core that ran a while and then died starts again at once; one that keeps dying waits longer each time.
-      if (Date.now() - startedAt > 60_000 || code === RESTART_CODE) backoff = 1000;
-      setTimeout(start, backoff);
+      fs.writeSync(log, `${new Date().toISOString()} core exited (${code})\n`);
+      if (Date.now() - startedAt > 60_000 || code === RESTART_CODE) backoff = opts.restartDelayMs ?? 1000;
+      retry = setTimeout(start, backoff);
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
-    });
+    };
+    child.once("exit", finished);
+    child.once("error", () => finished(null));
   };
   start();
   return {
     stop() {
+      if (stopping) return stopping;
       stopped = true;
-      child?.kill();
-      fs.closeSync(log);
+      clearTimeout(retry);
+      stopping = new Promise<void>((resolve) => {
+        const close = () => {
+          fs.closeSync(log);
+          resolve();
+        };
+        if (!child || child.exitCode !== null || child.signalCode !== null || !child.pid) return close();
+        const current = child;
+        const force = setTimeout(() => current.kill("SIGKILL"), 5000);
+        current.once("exit", () => {
+          clearTimeout(force);
+          close();
+        });
+        current.kill();
+      });
+      return stopping;
     },
   };
 }

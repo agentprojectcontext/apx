@@ -4,7 +4,7 @@ import { type ChildProcess, execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { apxHome, corePort, coreUp, localConnection } from "./local.ts";
+import { apxHome, corePort, coreUp, serviceConnection } from "./local.ts";
 import {
   appRoot,
   bundleRun,
@@ -15,10 +15,13 @@ import {
   type ServiceSpec,
   SYSTEMD_UNIT,
   serviceEnv,
+  serviceNames,
+  serviceOwnsHome,
   systemdUnit,
   terminalMain,
   WINDOWS_RUN_VALUE,
   windowsRunCommand,
+  windowsStopScript,
 } from "./service-files.ts";
 
 const USAGE = `apx service install     Run the core in the background, started at login and again if it dies
@@ -57,27 +60,63 @@ const must = (cmd: string, args: string[]) => {
   return r.out;
 };
 
-const systemdFile = () => path.join(os.homedir(), ".config", "systemd", "user", SYSTEMD_UNIT);
-const launchdFile = () => path.join(os.homedir(), "Library", "LaunchAgents", `${LAUNCHD_LABEL}.plist`);
+const names = () => serviceNames(apxHome());
+
+const systemdFile = () => path.join(os.homedir(), ".config", "systemd", "user", names().systemd);
+const launchdFile = () => path.join(os.homedir(), "Library", "LaunchAgents", `${names().launchd}.plist`);
 const launchdTarget = () => `gui/${process.getuid?.() ?? 0}`;
 const pidFile = (home: string) => path.join(home, "service.pid");
 
+function refuseLegacyService(): void {
+  if (names().systemd === SYSTEMD_UNIT) return;
+  let text: string | undefined;
+  let entry: string;
+  if (process.platform === "win32") {
+    entry = WINDOWS_RUN_VALUE;
+    const r = sh("reg", ["query", RUN_KEY, "/v", entry]);
+    if (r.ok) text = r.out;
+  } else {
+    entry =
+      process.platform === "darwin"
+        ? path.join(os.homedir(), "Library", "LaunchAgents", `${LAUNCHD_LABEL}.plist`)
+        : path.join(os.homedir(), ".config", "systemd", "user", SYSTEMD_UNIT);
+    if (fs.existsSync(entry)) text = fs.readFileSync(entry, "utf8");
+  }
+  if (text && serviceOwnsHome(text, process.platform, apxHome()))
+    throw new Error(
+      `This home has a legacy fixed-name service at ${entry}. Stop and remove that entry with the OS service manager, then run apx service install --home "${apxHome()}". No service was changed.`,
+    );
+}
+
 function installed(): boolean {
-  if (process.platform === "linux") return fs.existsSync(systemdFile());
-  if (process.platform === "darwin") return fs.existsSync(launchdFile());
-  if (process.platform === "win32") return sh("reg", ["query", RUN_KEY, "/v", WINDOWS_RUN_VALUE]).ok;
-  return false;
+  refuseLegacyService();
+  let text: string;
+  if (process.platform === "win32") {
+    const r = sh("reg", ["query", RUN_KEY, "/v", names().windows]);
+    if (!r.ok) return false;
+    text = r.out;
+  } else {
+    const file =
+      process.platform === "linux" ? systemdFile() : process.platform === "darwin" ? launchdFile() : undefined;
+    if (!file || !fs.existsSync(file)) return false;
+    text = fs.readFileSync(file, "utf8");
+  }
+  if (!serviceOwnsHome(text, process.platform, apxHome()))
+    throw new Error(
+      `The local service entry belongs to another home. Inspect it with the OS service manager before changing it: ${apxHome()}`,
+    );
+  return true;
 }
 
 function spec(home: string): ServiceSpec {
-  const env = serviceEnv(process.env);
+  const env = { ...serviceEnv(process.env), APX_HOME: home, APX_PORT: String(corePort()) };
   const log = path.join(home, "logs", "core.log");
   if (process.env.APX_APP) {
     const b = bundleRun(process.env.APX_APP);
-    return { node: b.node, main: b.core, cwd: b.cwd, env, log };
+    return { node: b.node, main: b.core, cwd: b.cwd, env, log, label: names().launchd };
   }
   const main = coreMain();
-  return { node: process.execPath, main, cwd: appRoot(main), env, log };
+  return { node: process.execPath, main, cwd: appRoot(main), env, log, label: names().launchd };
 }
 
 /** The terminal and the Node that run `apx service run` on Windows (through `current` for a bundle install). */
@@ -91,6 +130,8 @@ export async function service(
   opts: { home?: string | undefined; lines?: string | undefined; follow?: boolean | undefined } = {},
 ) {
   if (sub === "help") return console.log(USAGE);
+  if (opts.home) process.env.APX_HOME = path.resolve(opts.home);
+  if (sub !== "run") console.log(`Target: this machine, home ${apxHome()} (APX_URL does not control services).`);
   if (sub === "install") return install();
   if (sub === "logs") return logs(apxHome(), Number(opts.lines ?? 100), Boolean(opts.follow));
   if (sub === "uninstall") return uninstall();
@@ -102,7 +143,7 @@ export async function service(
 
 export async function install(): Promise<void> {
   const home = apxHome();
-  const { url } = localConnection();
+  const { url } = serviceConnection();
   const wasInstalled = installed();
   if (!wasInstalled && (await coreUp(url)))
     throw new Error(
@@ -117,68 +158,69 @@ export async function install(): Promise<void> {
     fs.mkdirSync(path.dirname(systemdFile()), { recursive: true });
     fs.writeFileSync(systemdFile(), systemdUnit(s));
     must("systemctl", ["--user", "daemon-reload"]);
-    must("systemctl", ["--user", "enable", "--now", SYSTEMD_UNIT]);
-    if (wasInstalled) must("systemctl", ["--user", "restart", SYSTEMD_UNIT]);
+    must("systemctl", ["--user", "enable", "--now", names().systemd]);
+    if (wasInstalled) must("systemctl", ["--user", "restart", names().systemd]);
     console.log(`installed ${systemdFile()}`);
-    console.log("logs: journalctl --user -u apx -f");
+    console.log(`logs: journalctl --user -u ${names().systemd} -f`);
     console.log(
       `On a server, keep it running after you log out:  sudo loginctl enable-linger ${os.userInfo().username}`,
     );
   } else if (process.platform === "darwin") {
     fs.mkdirSync(path.dirname(launchdFile()), { recursive: true });
     fs.writeFileSync(launchdFile(), launchdPlist(s));
-    sh("launchctl", ["bootout", `${launchdTarget()}/${LAUNCHD_LABEL}`]);
+    sh("launchctl", ["bootout", `${launchdTarget()}/${names().launchd}`]);
     must("launchctl", ["bootstrap", launchdTarget(), launchdFile()]);
     console.log(`installed ${launchdFile()}`);
     console.log(`logs: ${s.log}`);
   } else {
     const command = windowsCommand(home);
-    must("reg", ["add", RUN_KEY, "/v", WINDOWS_RUN_VALUE, "/t", "REG_SZ", "/d", command, "/f"]);
     if (wasInstalled) stopWindows(home);
+    must("reg", ["add", RUN_KEY, "/v", names().windows, "/t", "REG_SZ", "/d", command, "/f"]);
     startWindows(command);
-    console.log(`installed the login entry ${WINDOWS_RUN_VALUE}`);
+    console.log(`installed the login entry ${names().windows}`);
     console.log(`logs: ${s.log}`);
   }
   console.log(`the core will listen on port ${corePort()}`);
 }
 
 export async function uninstall(): Promise<void> {
+  const wasInstalled = installed();
   if (process.platform === "linux") {
-    sh("systemctl", ["--user", "disable", "--now", SYSTEMD_UNIT]);
+    sh("systemctl", ["--user", "disable", "--now", names().systemd]);
     fs.rmSync(systemdFile(), { force: true });
     sh("systemctl", ["--user", "daemon-reload"]);
   } else if (process.platform === "darwin") {
-    sh("launchctl", ["bootout", `${launchdTarget()}/${LAUNCHD_LABEL}`]);
+    sh("launchctl", ["bootout", `${launchdTarget()}/${names().launchd}`]);
     fs.rmSync(launchdFile(), { force: true });
   } else if (process.platform === "win32") {
-    sh("reg", ["delete", RUN_KEY, "/v", WINDOWS_RUN_VALUE, "/f"]);
-    stopWindows(apxHome());
+    if (wasInstalled) stopWindows(apxHome());
+    sh("reg", ["delete", RUN_KEY, "/v", names().windows, "/f"]);
   }
   console.log("the core no longer runs as a service");
 }
 
 export async function status(): Promise<void> {
-  const { url } = localConnection();
+  const { url } = serviceConnection();
   let manager = "not installed";
   if (process.platform === "linux" && installed())
-    manager = `systemd: ${sh("systemctl", ["--user", "is-active", SYSTEMD_UNIT]).out.trim() || "unknown"}`;
+    manager = `systemd: ${sh("systemctl", ["--user", "is-active", names().systemd]).out.trim() || "unknown"}`;
   else if (process.platform === "darwin" && installed()) {
-    const r = sh("launchctl", ["print", `${launchdTarget()}/${LAUNCHD_LABEL}`]);
+    const r = sh("launchctl", ["print", `${launchdTarget()}/${names().launchd}`]);
     manager = r.ok ? `launchd: ${/^\s*state = (.+)$/m.exec(r.out)?.[1] ?? "loaded"}` : "launchd: installed, not loaded";
-  } else if (process.platform === "win32" && installed()) manager = `login entry ${WINDOWS_RUN_VALUE}`;
+  } else if (process.platform === "win32" && installed()) manager = `login entry ${names().windows}`;
+  console.log(`target   local machine, home ${apxHome()}`);
   console.log(`service  ${manager}`);
   console.log(`core     ${(await coreUp(url)) ? "answers" : "does not answer"} on ${url}`);
 }
 
 export async function restart(): Promise<void> {
   if (!installed()) throw new Error("the service is not installed (apx service install)");
-  if (process.platform === "linux") must("systemctl", ["--user", "restart", SYSTEMD_UNIT]);
-  else if (process.platform === "darwin") must("launchctl", ["kickstart", "-k", `${launchdTarget()}/${LAUNCHD_LABEL}`]);
+  if (process.platform === "linux") must("systemctl", ["--user", "restart", names().systemd]);
+  else if (process.platform === "darwin")
+    must("launchctl", ["kickstart", "-k", `${launchdTarget()}/${names().launchd}`]);
   else {
-    // The supervisor starts the core again once it exits.
-    const core = readPids(apxHome())?.core;
-    if (core && alive(core)) process.kill(core);
-    else startWindows(windowsCommand(apxHome()));
+    const command = stopWindows(apxHome());
+    startWindows(command);
   }
   console.log("restarting the core");
 }
@@ -210,7 +252,9 @@ export async function logs(home: string, n: number, follow: boolean): Promise<vo
   const file = path.join(home, "logs", "core.log");
   if (!fs.existsSync(file)) {
     if (process.platform === "linux" && installed()) {
-      console.log(`The service logs to the systemd journal:  journalctl --user -u apx -n ${n}${follow ? " -f" : ""}`);
+      console.log(
+        `The service logs to the systemd journal:  journalctl --user -u ${names().systemd} -n ${n}${follow ? " -f" : ""}`,
+      );
       return;
     }
     throw new Error(
@@ -241,7 +285,7 @@ function windowsCommand(home: string): string {
     ...supervisorRun(),
     home,
     electron: Boolean(process.env.ELECTRON_RUN_AS_NODE),
-    ...(feed ? { env: { APX_RELEASES: feed } } : {}),
+    env: { APX_PORT: String(corePort()), ...(feed ? { APX_RELEASES: feed } : {}) },
   });
 }
 
@@ -255,40 +299,12 @@ function startWindows(command: string) {
 }
 
 function stopWindows(home: string) {
-  const pids = readPids(home);
-  for (const pid of [pids?.supervisor, pids?.core]) if (pid && alive(pid)) process.kill(pid);
+  const entry = must("reg", ["query", RUN_KEY, "/v", serviceNames(home).windows]);
+  const command = /\sREG_SZ\s+([^\r\n]+)/.exec(entry)?.[1];
+  if (!command) throw new Error("The Windows service entry has no command; no process was stopped.");
+  must("powershell", ["-NoProfile", "-NonInteractive", "-Command", windowsStopScript(home, command)]);
   fs.rmSync(pidFile(home), { force: true });
-  // A supervisor and core with no pid file (an older install wrote none, or it went stale) are found by their command
-  // line, which names this home; until they are gone the new core cannot take the port, so it waits for them.
-  sh("powershell", ["-NoProfile", "-NonInteractive", "-Command", windowsStopScript(home)]);
-}
-
-/** Stops this home's `apx service run` and the core it started, and waits up to 10 s for them to exit. */
-export function windowsStopScript(home: string): string {
-  const at = home.replaceAll("'", "''");
-  return [
-    `$ids = @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" | Where-Object {`,
-    `$_.CommandLine -and $_.CommandLine.Contains('${at}') -and ($_.CommandLine.Contains('service run') -or $_.CommandLine.Contains('apps\\core\\src\\main.ts'))`,
-    `} | ForEach-Object { $_.ProcessId })`,
-    `; if ($ids.Count) { Stop-Process -Id $ids -Force -ErrorAction SilentlyContinue; Wait-Process -Id $ids -Timeout 10 -ErrorAction SilentlyContinue }`,
-  ].join(" ");
-}
-
-function readPids(home: string): { supervisor?: number; core?: number } | undefined {
-  try {
-    return JSON.parse(fs.readFileSync(pidFile(home), "utf8"));
-  } catch {
-    return undefined;
-  }
-}
-
-function alive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
+  return command;
 }
 
 /** `apx service run`: keeps one core alive, started again with backoff whenever it exits. */
