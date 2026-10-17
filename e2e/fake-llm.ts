@@ -2,7 +2,7 @@
 // ("Got it: <the last line you wrote>"). Streams like a real one when asked. It calls two tools: "start a worker"
 // delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn, "start a
 // worker in <project id>" into that project); "make a note file" runs a command that needs the owner's OK; "show a
-// widget" makes one. It also
+// widget" makes one; "open a report" writes one and opens it as a document. It also
 // embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -48,6 +48,16 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
     if (last?.role !== "tool") return { name: "mcp_notes_echo", arguments: JSON.stringify({ text: "first" }) };
     if (String(last.content).includes("echo: first"))
       return { name: "mcp_notes_echo", arguments: JSON.stringify({ text: "second" }) };
+    return undefined;
+  }
+  // A report written, then opened as a document.
+  if (/^open a report/i.test(said)) {
+    const sinceOwner = messages.slice(messages.findLastIndex((m) => m.role === "user"));
+    const done = sinceOwner.filter((m) => m.role === "tool").length;
+    if (done === 0)
+      return { name: "file_write", arguments: JSON.stringify({ path: "notes/report.md", content: "# Quarter\n" }) };
+    if (done === 1)
+      return { name: "open_document", arguments: JSON.stringify({ path: "notes/report.md", title: "Quarter report" }) };
     return undefined;
   }
   const worker = { name: "Researcher", instructions: "Check every source and list it." };
