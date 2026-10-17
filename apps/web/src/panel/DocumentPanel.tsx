@@ -6,6 +6,7 @@ import { mediaUrl } from "../data/media.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
+import { DocumentActions } from "./DocumentActions.tsx";
 import { chatDocuments, type DocRef, withStored } from "./documents.ts";
 
 export function DocumentPanel() {
@@ -54,14 +55,17 @@ export function DocumentPanel() {
       <div className="documentpanel">
         <ul className="documentpanel__list" aria-label={t("document.list")}>
           {documents.map((d) => (
-            <li key={d.media_id}>
+            <li key={d.media_id} className="documentpanel__row">
               <button type="button" className="documentpanel__item" onClick={() => go.document(d.media_id)}>
                 <Icons.FileText size={16} />
                 <span className="documentpanel__itemtext">
                   <span className="documentpanel__itemtitle">{d.title}</span>
-                  <span className="documentpanel__filename">{d.name}</span>
+                  <span className="documentpanel__filename">{d.source?.path ?? d.name}</span>
                 </span>
               </button>
+              <div className="documentpanel__rowactions">
+                <DocumentActions doc={d} thread={thread} />
+              </div>
             </li>
           ))}
         </ul>
@@ -78,33 +82,17 @@ export function DocumentPanel() {
   );
 }
 
-/** Saves the document's file as it is. */
-export async function downloadDocument(doc: DocRef): Promise<void> {
-  const a = document.createElement("a");
-  a.href = await mediaUrl(doc.media_id);
-  a.download = doc.name;
-  a.click();
-}
-
 function DocumentBody({ doc }: { doc: DocRef }) {
   const t = useT();
+  const thread = useNav((s) => s.threadId);
   const [raw, setRaw] = useState(doc.format === "text");
-  const [downloadFailed, setDownloadFailed] = useState(false);
-  const download = async () => {
-    setDownloadFailed(false);
-    try {
-      await downloadDocument(doc);
-    } catch {
-      setDownloadFailed(true);
-    }
-  };
   return (
     <section className="documentpanel__page" aria-label={doc.title}>
       <header className="documentpanel__head">
         <h2>{doc.title}</h2>
         {/* Icons with tooltips: a narrow panel keeps the name on one line instead of breaking it per letter. */}
-        <span className="documentpanel__filename" title={doc.name}>
-          {doc.name}
+        <span className="documentpanel__filename" title={doc.source?.path ?? doc.name}>
+          {doc.source?.path ?? doc.name}
         </span>
         <div className="documentpanel__actions">
           <IconButton
@@ -113,15 +101,9 @@ function DocumentBody({ doc }: { doc: DocRef }) {
             icon={raw ? <Icons.Eye size={14} /> : <Icons.Code size={14} />}
             onClick={() => setRaw((v) => !v)}
           />
-          <IconButton
-            size="sm"
-            label={t("document.download")}
-            icon={<Icons.Download size={14} />}
-            onClick={() => void download()}
-          />
+          <DocumentActions doc={doc} thread={thread} />
         </div>
       </header>
-      {downloadFailed && <p role="alert">{t("document.failed")}</p>}
       <DocumentText doc={doc} raw={raw} />
     </section>
   );

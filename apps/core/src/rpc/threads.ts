@@ -191,6 +191,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         title: part.document.title,
         name: part.name,
         format: part.document.format,
+        ...(part.document.source && { source: part.document.source }),
         bytes: part.bytes,
         thread_id: message.thread_id,
         thread_title: store.threads.get(message.thread_id)?.title ?? "",

@@ -1,7 +1,8 @@
 // An OpenAI-compatible model on localhost: it answers at once and always the same way, so a test can read the reply
 // ("Got it: <the last line you wrote>"). Streams like a real one when asked. It calls two tools: "start a worker"
 // delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn, "start a
-// worker in <project id>" into that project); "make a note file" runs a command that needs the owner's OK. It also
+// worker in <project id>" into that project); "make a note file" runs a command that needs the owner's OK; "show a
+// widget" makes one; "open a report" writes one and opens it as a document. It also
 // embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -49,6 +50,16 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
       return { name: "mcp_notes_echo", arguments: JSON.stringify({ text: "second" }) };
     return undefined;
   }
+  // A report written, then opened as a document.
+  if (/^open a report/i.test(said)) {
+    const sinceOwner = messages.slice(messages.findLastIndex((m) => m.role === "user"));
+    const done = sinceOwner.filter((m) => m.role === "tool").length;
+    if (done === 0)
+      return { name: "file_write", arguments: JSON.stringify({ path: "notes/report.md", content: "# Quarter\n" }) };
+    if (done === 1)
+      return { name: "open_document", arguments: JSON.stringify({ path: "notes/report.md", title: "Quarter report" }) };
+    return undefined;
+  }
   const worker = { name: "Researcher", instructions: "Check every source and list it." };
   const delegate = { name: "delegate", arguments: JSON.stringify({ worker, task: "check the sources" }) };
   // Two delegations in one turn, the second after the first's result: past a one-turn limit the breaker refuses it.
@@ -57,6 +68,11 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
     return sinceOwner.filter((m) => m.role === "tool").length < 2 ? delegate : undefined;
   }
   if (messages.at(-1)?.role === "tool") return undefined;
+  if (/^show a widget/i.test(said))
+    return {
+      name: "show_widget",
+      arguments: JSON.stringify({ name: "e2e-coverage", title: "Coverage audit", html: "<h1>Coverage rows</h1>" }),
+    };
   // A command that writes: the owner is asked first.
   if (/^make a note file/i.test(said))
     return { name: "shell", arguments: JSON.stringify({ command: "touch e2e-note.txt" }) };

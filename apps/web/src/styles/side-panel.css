@@ -182,6 +182,22 @@
   border-radius: var(--apx-radius-lg);
   background: var(--apx-surface);
 }
+.widgets__back {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--apx-fg-muted);
+  font: inherit;
+  font-size: var(--apx-text-sm);
+  cursor: pointer;
+}
+.widgets__back:hover {
+  color: var(--apx-fg);
+}
 .widgets__head {
   display: flex;
   align-items: center;

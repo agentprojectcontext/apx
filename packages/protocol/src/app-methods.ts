@@ -945,8 +945,9 @@ export const appMethods = {
     access: "human",
   },
   /**
-   * The rooms of the servers a channel's bot is in (Discord's text and announcement channels), to add one by picking
-   * it; `writable`: whether the bot may post there (Discord's permissions for its roles in that room).
+   * The rooms of the servers a channel's bot is in (Discord's text and announcement channels), or the groups a Telegram
+   * bot was seen in (the Bot API cannot list them), to add one by picking it; `writable`: whether the bot may post there
+   * (Discord's permissions for its roles in that room; always true for a Telegram group).
    */
   "channels.rooms": {
     params: z.object({ channel: z.string().min(1).max(60) }).strict(),
