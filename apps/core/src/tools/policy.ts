@@ -145,6 +145,13 @@ export function decide(
   return { kind: "allow" };
 }
 
+/**
+ * How a read outside the agent's folders goes (DECISIONS.md#d-099): its rule for acting outside, else its autonomy's;
+ * `auto` (total autonomy) reads without a card, `ask` shows one, `off` keeps the refusal.
+ */
+export const outsideRule = (agent: AgentRecord): RulePolicy =>
+  agent.rules?.outside ?? AUTONOMY_RULES[agent.autonomy ?? "standard"].outside;
+
 const STRICTNESS = { ask: 0, standard: 1, edits: 2, total: 3 } as const;
 
 /** An agent with no autonomy of its own goes as far as its project says (the base project's, for a global one). */

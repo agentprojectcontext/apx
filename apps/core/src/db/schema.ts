@@ -260,6 +260,7 @@ export interface PendingInputsTable {
   approval_scope: string | null;
   change: string | null;
   multi: number | null;
+  folders: string | null;
 }
 
 export interface PersonsTable {

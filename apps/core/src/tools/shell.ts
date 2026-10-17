@@ -15,6 +15,7 @@ import {
   type JudgeOptions,
   judge,
   missingCwd,
+  outsideFolders,
   type Root,
   refusal,
   rootsOf,
@@ -193,6 +194,10 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
         const r = commandFolder(store, home, ctx.thread, a);
         if ("refused" in r) throw new Error(`refused: ${r.refused}`);
       },
+      outside: (a, ctx) =>
+        missingCwd(store, home, ctx.thread, a.cwd)
+          ? []
+          : outsideFolders((lent) => commandFolder(store, home, { ...ctx.thread, lent }, a)),
       workspace: true,
       local: (a) => !a.background && commandRisk(a.command, apxPort()) === "never",
       reads: (a) => commandRisk(a.command, apxPort()) === "never",

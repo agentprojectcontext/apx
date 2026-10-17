@@ -8,7 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { textDiff } from "../engine/changes.ts";
 import { guarded } from "../engine/paths.ts";
 import { insideReal, writeAtomic } from "../paths.ts";
-import { folderAccess, scratchRoot } from "./folders.ts";
+import { type FolderThread, folderAccess, outsideFolders, scratchRoot } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
@@ -136,10 +136,10 @@ export function fileTools(store: Store, home: string): Tool[] {
   };
   /** Where `file` is: in the folder the agent works in or its temp folder, or why it is refused. */
   const resolve = (
-    thread: ToolContext["thread"],
+    thread: FolderThread,
     a: { path: string; cwd?: string | undefined },
     write = false,
-  ): { at: string; base: string; scratch: boolean } | { refused: string } | { missing: string } => {
+  ): { at: string; base: string; scratch: boolean } | { refused: string; offer?: string } | { missing: string } => {
     if (a.cwd !== undefined) {
       const dir = folderAccess(store, home, thread, a.cwd);
       if ("refused" in dir) return dir;
@@ -189,6 +189,11 @@ export function fileTools(store: Store, home: string): Tool[] {
       effect: "none",
       // Only files under the folder it works in.
       local: () => true,
+      outside: (a, ctx) =>
+        outsideFolders((lent) => {
+          const r = resolve({ ...ctx.thread, lent }, a);
+          return "missing" in r ? { refused: r.missing } : { write: false, ...r };
+        }),
       // Room for transcribing an audio file; a text file returns at once.
       deadlineMs: 200_000,
       title: (a) => `Read ${String(a.path ?? "a file")}`,

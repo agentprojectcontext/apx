@@ -6,6 +6,7 @@ import path from "node:path";
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { strictApproval } from "../domain/approvals.ts";
+import type { InputRecord } from "../domain/inputs.ts";
 import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -15,14 +16,14 @@ import type { TurnIO } from "../harness/index.ts";
 import { insideReal } from "../paths.ts";
 import type { Root } from "../tools/folders.ts";
 import { MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
-import { authorize, decide } from "../tools/policy.ts";
+import { authorize, decide, outsideRule } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk, judgeCommand } from "../tools/shell.ts";
 import type { CheckContext, Confirm, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
-import type { Inputs } from "./inputs.ts";
+import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
-import { confirmPrompt } from "./owner-words.ts";
+import { confirmPrompt, folderPrompt } from "./owner-words.ts";
 import { guarded, pathsOf } from "./paths.ts";
 import { toolTitle } from "./tool-titles.ts";
 
@@ -82,6 +83,21 @@ function describe(args: Record<string, unknown>): string {
     .map(([k, v]) => `${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`)
     .join("\n")
     .slice(0, CONFIRM_DETAIL_CHARS);
+}
+
+/** What the model reads when the owner has not said yes: still waiting, or declined (or never answered). */
+function unanswered(answer: InputRecord): { card: string; text: string } | undefined {
+  if (answer.state === "pending")
+    return {
+      card: "waiting for the owner",
+      text: "not run yet: the owner has not answered. The request stays open in the chat; if they approve it, a new turn tells you and the same call then runs without asking. End this turn now: say briefly what you are waiting for and do not go on with work that depends on it.",
+    };
+  if (answer.state === "approved") return undefined;
+  const why = answer.state === "denied" ? "the owner declined" : "the owner did not answer in time";
+  return {
+    card: why,
+    text: `not run: ${why}${answer.answer ? ` (their note: ${answer.answer})` : ""}. Do not retry it; tell the owner or continue without it.`,
+  };
 }
 
 export type Executor = {
@@ -176,6 +192,44 @@ export function createExecutor(o: {
     }
   };
 
+  /**
+   * The thread a call runs with: the folders outside the agent's own it would read lent to it for this call, once the
+   * owner lets it (a card: once, or for good as read-only folders of the project) or its rules let it read outside.
+   */
+  const lend = async (
+    tool: Tool,
+    name: string,
+    args: Record<string, unknown>,
+    raw: Record<string, unknown>,
+    callId: string,
+    run: RunRecord,
+  ): Promise<{ thread: Thread } | { card: string; text: string }> => {
+    const folders = thread.project_id ? (tool.outside?.(args, { agent, thread }) ?? []) : [];
+    const rule = outsideRule(agent);
+    // `off`: the tool's own check refuses it, as before.
+    if (!folders.length || rule === "off") return { thread };
+    const lent: Thread & { lent: string[] } = { ...thread, lent: folders };
+    if (rule === "auto" || o.inputs.takeGrant(thread.id, agent.id, name, raw, folderBinding(folders)))
+      return { thread: lent };
+    const answer = await o.inputs.ask({
+      run,
+      agent,
+      display,
+      callId,
+      kind: "confirm",
+      prompt: folderPrompt(store, agent.name, folders),
+      tool: name,
+      args: raw,
+      detail: describe(args),
+      folders,
+      external: o.external(),
+      stays: true,
+      signal,
+    });
+    signal.throwIfAborted();
+    return unanswered(answer) ?? { thread: lent };
+  };
+
   const execute: TurnIO["execute"] = async (callId, called, given) => {
     const run = o.run();
     // mcp_call runs the tool it names, through every check below as if the model had called that tool itself.
@@ -208,8 +262,15 @@ export function createExecutor(o: {
       return { ok: false, text: parsed.error };
     }
     const args = parsed.args;
+    // A read outside the agent's folders asks the owner to let it, instead of being refused (DECISIONS.md#d-099).
+    const lent = await lend(tool, name, args, raw, callId, run);
+    if ("card" in lent) {
+      card("error", lent.card);
+      return { ok: false, text: lent.text };
+    }
+    const callThread = lent.thread;
     // Before anyone is asked: a call that could only fail ends here, and the model learns which argument is wrong.
-    const problem = await precheck(tool, args, { agent, thread });
+    const problem = await precheck(tool, args, { agent, thread: callThread });
     if (problem !== undefined) {
       card("error", problem.slice(0, CARD_DETAIL_CHARS));
       return { ok: false, text: `not run, nothing was asked of the owner: ${problem}` };
@@ -252,26 +313,16 @@ export function createExecutor(o: {
         args: raw,
         detail: describe(args),
         // A preview that fails only costs the patch: the owner still sees the arguments.
-        change: await tool.preview?.(args, { agent, thread }).catch(() => undefined),
+        change: await tool.preview?.(args, { agent, thread: callThread }).catch(() => undefined),
         external: o.external(),
         stays: true,
         signal,
       });
       signal.throwIfAborted();
-      if (answer.state === "pending") {
-        card("error", "waiting for the owner");
-        return {
-          ok: false,
-          text: "not run yet: the owner has not answered. The request stays open in the chat; if they approve it, a new turn tells you and the same call then runs without asking. End this turn now: say briefly what you are waiting for and do not go on with work that depends on it.",
-        };
-      }
-      if (answer.state !== "approved") {
-        const why = answer.state === "denied" ? "the owner declined" : "the owner did not answer in time";
-        card("error", why);
-        return {
-          ok: false,
-          text: `not run: ${why}${answer.answer ? ` (their note: ${answer.answer})` : ""}. Do not retry it; tell the owner or continue without it.`,
-        };
+      const no = unanswered(answer);
+      if (no) {
+        card("error", no.card);
+        return { ok: false, text: no.text };
       }
     }
 
@@ -281,7 +332,7 @@ export function createExecutor(o: {
     const seen: Array<{ media_id: string; mime: string }> = [];
     const ctx: Omit<ToolContext, "runCommand"> = {
       agent,
-      thread,
+      thread: callThread,
       run,
       signal,
       untrusted: () => untrusted,

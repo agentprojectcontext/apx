@@ -1188,3 +1188,19 @@ owner's to approve but the folder rule's (D-097), which judges every path it nam
 (`curl`, `gh`, `git fetch|pull|push`, `npm`), writes, sets a variable or a git option (`-c` can name a program to run),
 or that the classifier does not know keeps asking as before. Outside agents' commands (Claude Code, ACP) are judged the
 same way. AGENTS.md rule 10 holds: what stops asking has no side effect and no way off the machine.
+
+<a id="d-099"></a>
+## D-099 — 2026-10-17 — A read outside the project's folders asks the owner with a card instead of being refused
+A refused read told the agent to "ask the owner with ask_owner to add it as a read-only folder": one ran `ls ..` as a
+first look, concluded its chat had only a read-only repository, and asked the owner, in a question with a text box only,
+to "enable a writable worktree". The owner had nothing to press. Now a read outside the agent's folders, in a project,
+is a card on the approval flow: "<agent> wants to read <folder>" with "Only this time" (that call runs with the folder
+lent to it, `thread.lent`, after every other root, so other chats' temp folders and APX's home stay closed), "Allow
+reading it in this project" (the folder joins the project's read-only folders through the checks `projects.update`
+uses, D-097: never APX's home or a folder holding it or the temp folders, so for those only "once" is offered) and
+"No". The folder offered is the nearest one on disk holding the path (the parent folder for `..`), not the disk. A shell
+command reading several outside folders raises one card for all of them; `file_read` asks the same way (tools declare
+`outside`). An agent whose rule for acting outside is `auto` (total autonomy) reads without a card and nothing is kept;
+`off` keeps the refusal. Writes outside stay refused, a chat with no project keeps the refusal (there is nothing to add
+a folder to), and no refusal sends the agent to `ask_owner` for a folder any more. A "once" given after the turn
+stopped waiting lets the same call run when the agent makes it again.

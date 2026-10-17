@@ -7,7 +7,8 @@ import type { ApprovalTarget } from "../domain/approvals.ts";
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { badRequest, conflict, notFound, Shutdown } from "../errors.ts";
+import { badRequest, conflict, errorMessage, notFound, Shutdown } from "../errors.ts";
+import { addReadOnly } from "../tools/folders.ts";
 import type { Display } from "./display.ts";
 import type { AdmitFn } from "./engine.ts";
 
@@ -22,6 +23,9 @@ const MAX_TIMER_MS = 2 ** 31 - 1;
 
 export type InputWaits = { turn: number; external: number };
 
+/** What a folder card's "once" answer is kept under, when it comes after the turn stopped waiting. */
+export const folderBinding = (folders: string[]) => `folders:${folders.join("\n")}`;
+
 const partOf = (r: InputRecord): Part => ({
   type: "input",
   input_id: r.id,
@@ -32,6 +36,7 @@ const partOf = (r: InputRecord): Part => ({
   ...(r.change ? { change: r.change } : {}),
   ...(r.options ? { options: r.options } : {}),
   ...(r.multi ? { multi: true } : {}),
+  ...(r.folders ? { folders: r.folders } : {}),
   ...(r.approval_scopes ? { approval_scopes: r.approval_scopes } : {}),
   ...(r.approval_scope ? { approval_scope: r.approval_scope } : {}),
   state: r.state,
@@ -40,6 +45,8 @@ const partOf = (r: InputRecord): Part => ({
 
 export function createInputs(deps: {
   store: Store;
+  /** APX's home: a folder card's folder is checked against it before it joins a project. */
+  home: string;
   admit: AdmitFn;
   /** Stops the run's deadline while it waits; the returned function starts it again. */
   hold: (runId: string) => () => void;
@@ -68,9 +75,13 @@ export function createInputs(deps: {
     let text: string;
     if (r.kind === "question") text = `You asked the owner: "${r.prompt}". Their answer: ${r.answer ?? "(empty)"}`;
     else if (r.state === "approved") {
+      const binding = r.approval?.key ?? (r.folders ? folderBinding(r.folders) : undefined);
       if (r.tool && (!r.approval_scope || r.approval_scope === "once"))
-        store.approvals.grantOnce(r.thread_id, r.agent_id, r.tool, r.args ?? {}, r.approval?.key, r.approval?.server);
-      text = `The owner approved ${r.tool} (${r.detail ?? r.prompt}), but your earlier turn had already ended, so it did not run. If it is still needed, call it again with the same arguments: it will run without asking.${r.answer ? ` Their note: ${r.answer}` : ""}`;
+        store.approvals.grantOnce(r.thread_id, r.agent_id, r.tool, r.args ?? {}, binding, r.approval?.server);
+      const what = r.folders
+        ? `let you read ${r.folders.join(", ")}${r.approval_scope === "project" ? " in this project from now on" : " for that call"}`
+        : `approved ${r.tool} (${r.detail ?? r.prompt})`;
+      text = `The owner ${what}, but your earlier turn had already ended, so it did not run. If it is still needed, call it again with the same arguments: it will run without asking.${r.answer ? ` Their note: ${r.answer}` : ""}`;
     } else
       text = `The owner declined ${r.tool} (${r.detail ?? r.prompt}). Do not try it again.${r.answer ? ` Their note: ${r.answer}` : ""}`;
     const previous = store.runs.get(r.run_id);
@@ -85,6 +96,19 @@ export function createInputs(deps: {
       depth: previous?.depth ?? 0,
     });
   }
+
+  /** Why a folder card's folders cannot join its chat's project as read-only folders, or undefined when they can. */
+  function cannotKeep(threadId: string, folders: string[]): string | undefined {
+    const project = store.threads.get(threadId)?.project_id;
+    if (!project) return "this chat has no project to add the folder to";
+    try {
+      addReadOnly(store, deps.home, project, folders, true);
+      return undefined;
+    } catch (err) {
+      return errorMessage(err);
+    }
+  }
+  const keepable = (threadId: string, folders: string[]) => cannotKeep(threadId, folders) === undefined;
 
   /** A chat that only waited on the owner goes back to idle once nothing is left to wait on. */
   function idleIfDone(threadId: string): void {
@@ -128,6 +152,8 @@ export function createInputs(deps: {
       change?: FileChange | undefined;
       options?: string[] | undefined;
       multi?: boolean | undefined;
+      /** A folder card: the folders outside the agent's own the call would read. */
+      folders?: string[] | undefined;
       /** Claude Code or Codex: its call to our tool has a shorter deadline. */
       external: boolean;
       /** Stays open after the turn stops waiting, instead of counting as no answer. */
@@ -150,6 +176,7 @@ export function createInputs(deps: {
         change: o.change,
         options: o.options,
         multi: o.multi,
+        folders: o.folders && { dirs: o.folders, keep: keepable(o.run.thread_id, o.folders) },
         waitMs: o.stays ? OPEN_INPUT_MS : waitMs,
       });
       const show = (r: InputRecord) => o.display.upsert((p) => p.type === "input" && p.input_id === r.id, partOf(r));
@@ -196,8 +223,12 @@ export function createInputs(deps: {
       const scope = a.scope ?? "once";
       if (a.scope && (rec.kind !== "confirm" || a.decision !== "approve"))
         throw badRequest("approval scope requires approving a confirmation");
-      if (scope !== "once" && (!rec.approval || !rec.approval_scopes?.includes(scope)))
+      if (scope !== "once" && !rec.approval_scopes?.includes(scope))
         throw badRequest("this approval scope is not available for this tool");
+      // "Allow reading it in this project": the folder joins the project's read-only folders, checked as projects.update.
+      const project = scope === "project" ? store.threads.get(rec.thread_id)?.project_id : undefined;
+      const why = scope === "project" && rec.folders ? cannotKeep(rec.thread_id, rec.folders) : undefined;
+      if (why) throw badRequest(why);
       const text = a.text?.trim() || undefined;
       let state: "approved" | "denied" | "answered";
       if (rec.kind === "confirm") {
@@ -211,6 +242,7 @@ export function createInputs(deps: {
         const r = store.inputs.settle(id, state, text, state === "approved" ? scope : undefined);
         if (r && state === "approved" && rec.approval)
           store.approvals.grant(rec.approval, scope, rec.thread_id, rec.agent_id);
+        if (r && project && rec.folders) addReadOnly(store, deps.home, project, rec.folders);
         return r;
       });
       if (!settled) throw conflict(`input ${id} was answered already`);
