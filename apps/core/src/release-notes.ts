@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // What changed in each APX release: the commits between two v2 tags, each subject as a sentence (the same sentences
 // the Discord announcement and the issue replies use). A packaged APX carries them in release-notes.json beside
-// build.json, written when it is staged; a checkout reads them from its own git. See DECISIONS.md#d-098
+// build.json, written when it is staged; a checkout reads them from its own git. See DECISIONS.md#d-100
 //   node apps/core/src/release-notes.ts <file>     writes this checkout's notes (stage.ts calls it)
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";

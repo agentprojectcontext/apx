@@ -1,6 +1,6 @@
 // What an update brought, told by the super-agent: on the first start of a newer release, a chat of its own, unread,
 // with each new release's changes. Written from the notes the build carries (no model call); asking about them there
-// is an ordinary turn. See DECISIONS.md#d-098
+// is an ordinary turn. See DECISIONS.md#d-100
 import { compareVersions, type Release, type ReleaseNotes, type ReleaseSource } from "../release-notes.ts";
 import type { Store } from "./store.ts";
 import { previewOf } from "./threads.ts";

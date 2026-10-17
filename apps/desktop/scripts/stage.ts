@@ -126,7 +126,7 @@ fs.writeFileSync(
   path.join(out, "build.json"),
   JSON.stringify({ version, sha, os: target.os, arch: target.arch }, null, 2),
 );
-// What each release changed, read from this checkout's tags now: the installed core has no git (DECISIONS.md#d-098).
+// What each release changed, read from this checkout's tags now: the installed core has no git (DECISIONS.md#d-100).
 execFileSync(
   process.execPath,
   [path.join(repo, "apps/core/src/release-notes.ts"), path.join(out, "release-notes.json")],

@@ -50,7 +50,7 @@ and Firebase app, set once as repo variable/secret ([apps/mobile/README.md](../a
 
 The same commits since the previous v2 tag, each subject as a sentence, reach people three ways: the Discord
 announcement, the replies to the issues a release fixes, and, inside APX, the super-agent's "what's new" chat on the
-first start of the new version ([D-098](DECISIONS.md#d-098)). So a commit subject is release text: write it for the
+first start of the new version ([D-100](DECISIONS.md#d-100)). So a commit subject is release text: write it for the
 people who use APX. Only `feat`, `fix` and `perf` commits are shown.
 
 ## Issues a release fixes
