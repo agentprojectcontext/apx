@@ -278,7 +278,8 @@ export function createChannels(deps: {
     const timer = setTimeout(() => {
       escalations.delete(part.input_id);
       if (stopped || store.inputs.get(part.input_id)?.state !== "pending" || announced.has(part.input_id)) return;
-      if (notifyOwner(inputPresentation(part, channelTexts(store)), "input", threadId)) announced.add(part.input_id);
+      const body = { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id };
+      if (notifyOwner(body, "input", threadId)) announced.add(part.input_id);
     }, after * 1000);
     timer.unref?.();
     escalations.set(part.input_id, timer);
@@ -460,7 +461,7 @@ export function createChannels(deps: {
       conversation: to.conversation,
       thread_id: threadId,
       kind: "input",
-      body: inputPresentation(part, channelTexts(store)),
+      body: { ...inputPresentation(part, channelTexts(store)), input_id: part.input_id },
     });
   }
 

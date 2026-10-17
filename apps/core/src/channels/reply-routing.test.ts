@@ -19,6 +19,12 @@ const probe = defineTool({
   title: () => "Probe",
   run: async () => "probed",
 });
+const questionLlm = () =>
+  scriptedLlm((_req, { said, afterTool }) => {
+    if (afterTool) return say("Question sent");
+    if (said.includes("ask from project")) return callTool("q1", "ask_owner", { question: "Which color?" });
+    return say("Answer received");
+  });
 const probeLlm = () =>
   scriptedLlm((_req, { said, afterTool }) => {
     if (afterTool) return say("Probe finished");
@@ -62,6 +68,98 @@ async function setup(t: TestContext, llm: Llm, extraTools: Tool[] = [probe]) {
   f.env.core.store.persons.link(owner.id, { channel: "tg", external_id: String(OWNER.id) });
   return f;
 }
+
+test("a free-form Telegram reply resumes the exact delivered question from another thread", async (t) => {
+  let beginQuestion = () => {};
+  let resumeQuestion = () => {};
+  const started = new Promise<void>((resolve) => {
+    beginQuestion = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    resumeQuestion = resolve;
+  });
+  const llm = scriptedLlm(async (_req, { said, afterTool }) => {
+    if (afterTool) return say("Question sent");
+    if (said.includes("ask from project")) {
+      beginQuestion();
+      await held;
+      return callTool("q1", "ask_owner", { question: "Which color?" });
+    }
+    return say("Answer received");
+  });
+  const f = await setup(t, llm);
+  const project = await f.env.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  await f.env.client.call("threads.send", { thread: project.id, text: "ask from project" });
+  await started;
+  const run = f.env.core.store.runs.list(project.id)[0];
+  if (!run) throw new Error("project run missing");
+  f.env.core.store.runs.setReplyTo(run.id, { channel: "tg", conversation: String(OWNER.id) });
+  resumeQuestion();
+
+  await until(() => f.env.core.store.inputs.pending(project.id).length > 0, "project question");
+  const question = f.env.core.store.inputs.pending(project.id)[0];
+  if (!question) throw new Error("project question missing");
+  await until(
+    () => f.tg.messagesTo(OWNER.id).some((m) => String(m.body.text).includes("Which color?")),
+    "delivered question",
+  );
+
+  f.tg.message(OWNER, "Green, please");
+  await until(() => f.env.core.store.inputs.get(question.id)?.state !== "pending", "question answered");
+  await until(() => f.env.core.store.runs.list(project.id)[0]?.state === "completed", "resumed run");
+  assert.equal(f.env.core.store.inputs.get(question.id)?.answer, "Green, please");
+  assert.equal(f.env.core.store.runs.list(project.id).length, 1);
+});
+
+test("a question something else was sent after is not answered by the owner's next words there", async (t) => {
+  const f = await setup(t, questionLlm());
+  const project = await f.env.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  await f.env.client.call("threads.send", { thread: project.id, text: "ask from project" });
+  await until(() => f.env.core.store.inputs.pending(project.id).length > 0, "project question");
+  const question = f.env.core.store.inputs.pending(project.id)[0];
+  if (!question) throw new Error("project question missing");
+  const run = f.env.core.store.runs.get(question.run_id);
+  if (!run) throw new Error("project run missing");
+  f.env.core.store.runs.setReplyTo(run.id, { channel: "tg", conversation: String(OWNER.id) });
+  // The question reaches Telegram as it does when the app leaves it unanswered.
+  f.env.core.store.channels.outbox.add({
+    channel: "tg",
+    conversation: String(OWNER.id),
+    thread_id: project.id,
+    kind: "input",
+    body: { text: "Which color?", input_id: question.id },
+  });
+  await until(
+    () => f.tg.messagesTo(OWNER.id).some((m) => String(m.body.text).includes("Which color?")),
+    "delivered question",
+  );
+  await new Promise((r) => setTimeout(r, 5));
+  f.env.core.store.channels.outbox.add({
+    channel: "tg",
+    conversation: String(OWNER.id),
+    kind: "notice",
+    body: { text: "The weekly report is ready." },
+  });
+  await until(
+    () => f.tg.messagesTo(OWNER.id).some((m) => String(m.body.text).includes("weekly report")),
+    "a later message",
+  );
+
+  f.tg.message(OWNER, "remind me to call the dentist");
+  await until(() => f.env.core.store.runs.list("home").length > 0, "normal Home message");
+  assert.equal(f.env.core.store.inputs.get(question.id)?.state, "pending", "the old question is still open");
+});
+
+test("a message does not answer a question that was not delivered to that chat", async (t) => {
+  const f = await setup(t, questionLlm());
+  const project = await f.env.client.call("threads.create", { kind: "agent", agent_id: "roby" });
+  await f.env.client.call("threads.send", { thread: project.id, text: "ask from project" });
+  await until(() => f.env.core.store.inputs.pending(project.id).length > 0, "project question");
+
+  f.tg.message(OWNER, "unrelated message");
+  await until(() => f.env.core.store.runs.list("home").length > 0, "normal Home message");
+  assert.equal(f.env.core.store.inputs.pending(project.id).length, 1);
+});
 
 test("approving in the app keeps a Telegram turn on Telegram while an app turn is queued", async (t) => {
   const f = await setup(t, probeLlm());
