@@ -288,8 +288,9 @@ export function createConnector(opts: {
 
   async function unreachable(where: string, hint: string): Promise<void> {
     const text = `APX not reachable at ${where}. ${hint} To pick another APX: APX menu › Change connection.`;
+    const escaped = text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
     await opts.panel.loadURL(
-      `data:text/html,<body style="font:14px system-ui;padding:24px;color:#555">${encodeURIComponent(text)}</body>`,
+      `data:text/html;charset=utf-8,${encodeURIComponent(`<body style="font:14px system-ui;padding:24px;color:#555">${escaped}</body>`)}#apx-unreachable`,
     );
   }
 
