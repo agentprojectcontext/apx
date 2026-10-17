@@ -1,5 +1,5 @@
 // Every write the panel makes. Components call these; they never call the client directly.
-import type { Message, Part, Thread } from "@apx/protocol";
+import type { ApprovalScope, Message, Part, Thread } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { type Attached, setThreadModel } from "./composer.ts";
@@ -289,7 +289,7 @@ export async function copySurface(id: string, projectId: string | undefined, pin
 /** The owner's answer to something an agent is waiting on (a confirmation or a question). */
 export async function respond(
   input: string,
-  a: { decision?: "approve" | "deny"; text?: string; scope?: "once" | "session" | "always" },
+  a: { decision?: "approve" | "deny"; text?: string; scope?: ApprovalScope },
 ): Promise<void> {
   try {
     await client.call("runs.respond", { input, ...a });

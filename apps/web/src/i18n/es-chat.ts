@@ -10,6 +10,12 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "input.alwaysScope": "Todos los agentes y chats",
   "input.scopeHelp":
     "Sesión: este chat hasta archivarlo o reiniciar. Siempre: este agente, en todos los chats; se revoca en Recursos.",
+  "input.folderOnce": "Solo esta vez",
+  "input.folderKeep": "Permitir leerla en este proyecto",
+  "input.folderKeepMany": "Permitir leerlas en este proyecto",
+  "input.folderDeny": "No",
+  "input.projectScope": "En este proyecto",
+  "input.askedFolder": "Pidió leer una carpeta",
 
   "composer.offline": "Sin conexión con el core…",
   "composer.placeholder": "Escribile a {name}…",
