@@ -221,6 +221,13 @@ APX mantiene la delegación con correa:
 Una delegación nunca tiene más poder que quien la pidió: sólo recibe las herramientas que todos los agentes de la
 cadena pueden usar, y la autonomía más estricta entre ellos.
 
+Una delegación puede trabajar en una carpeta de un proyecto, como un worktree de git: quien la pide nombra el proyecto
+con una ruta dentro de él, y las rutas relativas y los comandos del ayudante arrancan ahí, nunca fuera del proyecto (un
+enlace que sale de él se rechaza). También puede decir cuánto puede cambiar esa carpeta el ayudante (`ask`, `auto` o
+`read-only`). El ayudante nunca llega más lejos que quien lo llamó: en un hilo de código, no más que la política de ese
+hilo; en otro lado, `ask`, salvo que pida `auto` y pueda hacer cambios por su cuenta. Su resultado vuelve a quien lo
+pidió como el de cualquier delegación.
+
 ## Una sola forma de hablarle a un agente
 
 Todo lo que le habla a un agente entra por la misma puerta: vos en el panel, la CLI `apx`, un mensaje de un canal,

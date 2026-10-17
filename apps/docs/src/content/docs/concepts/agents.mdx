@@ -215,6 +215,12 @@ APX keeps delegation on a leash:
 A delegated run never has more power than whoever asked for it: it only gets the tools every agent up the chain may
 use, and the strictest autonomy among them.
 
+A delegation can work in one folder of a project, such as a git worktree: the caller names the project by a path
+inside it, and the helper's relative paths and commands start there, never outside the project (a link out of it is
+refused). It can also say how far the helper may change that folder (`ask`, `auto` or `read-only`). The helper never
+gets further than its caller: in a code thread, no more than that thread's own policy; elsewhere, `ask` unless the
+caller asks for `auto` and may make changes itself. Its result comes back to the caller like any other delegation's.
+
 ## One way to talk to an agent
 
 Everything that talks to an agent goes through the same door: you in the panel, the `apx` CLI, a channel message,

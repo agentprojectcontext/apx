@@ -56,6 +56,26 @@ export function missingCwd(
 }
 
 /**
+ * A folder inside a project's folder on disk (`cwd` relative to it, or absolute), links resolved, so an agent cannot be
+ * pointed outside the project. Throws why not.
+ */
+export function folderInProject(store: Store, projectId: string | undefined, cwd: string | undefined): string {
+  const project = projectId ? store.projects.get(projectId) : undefined;
+  if (!project?.path || !project.present) throw new Error("needs a project whose folder is on disk");
+  let root: string;
+  let dir: string;
+  try {
+    root = fs.realpathSync(project.path);
+    dir = fs.realpathSync(path.resolve(root, expandHome(cwd ?? ".")));
+  } catch {
+    throw new Error(`no folder ${cwd ?? project.path}`);
+  }
+  if (!isInside(root, dir)) throw new Error(`${cwd} is outside the project's folder`);
+  if (!fs.statSync(dir).isDirectory()) throw new Error(`${cwd} is not a folder`);
+  return dir;
+}
+
+/**
  * Where an outside agent (Claude, Codex, an ACP agent) works: a code thread's folder, else APX's side of the project,
  * never the project's own folder (its settings there would apply unchecked), else APX's work folder.
  */

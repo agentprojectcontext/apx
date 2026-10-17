@@ -25,7 +25,7 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     return callTool("n1", "delegate", { agent: "scout", session: "Market Q3", task: "look" });
   if (said.includes("continue named")) return callTool("n2", "delegate", { session: "Market Q3", task: "more" });
   if (said.includes("research the repo"))
-    return callTool("p1", "delegate", { agent: "scout", task: "read the repo", project: "/srv/acme/apps/web" });
+    return callTool("p1", "delegate", { agent: "scout", task: "read the repo", project: "/srv/acme/apps" });
   if (said.includes("research elsewhere"))
     return callTool("p2", "delegate", { agent: "scout", task: "read it", project: "Northwind" });
   if (said.includes("delegate while paused"))

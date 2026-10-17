@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Part } from "@apx/protocol";
+import { workspaceOf } from "./delegation.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 const worker = { name: "Researcher", instructions: "Dig through sources; list each with its link." };
@@ -11,6 +12,10 @@ let subpathProjectRoot: string | undefined;
 
 const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (system.startsWith("You are Researcher")) {
+    if (said.includes("read marker.txt"))
+      return afterTool
+        ? say(`Read: ${String(req.messages.at(-1)?.content).slice(0, 200)}`)
+        : callTool("r1", "file_read", { path: "marker.txt" });
     if (said.includes("slowly")) await new Promise((r) => setTimeout(r, 300));
     return say("## Report\n- Found 2 sources.\n- One is stale.");
   }
@@ -19,6 +24,15 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
     return callTool("w6", "delegate", {
       worker,
       project: path.join(subpathProjectRoot, "sub"),
+      task: "read marker.txt",
+    });
+  if (said.includes("delegate through a link") && !afterTool && subpathProjectRoot)
+    return callTool("w7", "delegate", { worker, project: path.join(subpathProjectRoot, "link"), task: "x" });
+  if (said.includes("delegate with more writes") && !afterTool && subpathProjectRoot)
+    return callTool("w8", "delegate", {
+      worker,
+      project: path.join(subpathProjectRoot, "sub"),
+      write: "auto",
       task: "read marker.txt",
     });
   if (said.includes("use a worker") && !afterTool)
@@ -107,31 +121,100 @@ test("a late worker result shows its report above the caller's new answer", asyn
   assert.equal(report.state, "completed");
 });
 
-test("delegate finds the project by a path inside it and says the session works in its root", async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-delegate-subpath-"));
+/** A project with sub/marker.txt in it and a link to a folder outside it; the folders are removed after `body`. */
+async function withProject(body: (root: string, project: string) => Promise<void>) {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-delegate-subpath-")));
+  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-delegate-outside-")));
   fs.mkdirSync(path.join(root, "sub"));
+  fs.writeFileSync(path.join(root, "sub", "marker.txt"), "northwind marker\n");
   fs.writeFileSync(path.join(root, "AGENTS.md"), "# Project\n");
+  fs.symlinkSync(outside, path.join(root, "link"));
   try {
     const { project } = await env.client.call("projects.register", { path: root });
-    const t = await env.client.call("threads.create", {
-      kind: "loose",
-      agent_id: "roby",
-      project_id: project.id,
-      title: "sub-path delegation",
-    });
     subpathProjectRoot = root;
-    await env.client.call("threads.send", { thread: t.id, text: "delegate to a project subpath" });
-    await env.settle(t.id);
-    assert.equal(env.core.store.threads.sessions(t.id)[0]?.project_id, project.id);
-    const result = llm.calls
-      .flatMap((c) => c.messages)
-      .map((m) => String(m.content))
-      .find((c) => c.includes("is not its working folder"));
-    assert.match(result ?? "", /works in its root folder; sub is not its working folder/);
+    await body(root, project.id);
   } finally {
     subpathProjectRoot = undefined;
     fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
   }
+}
+
+const lastToolResult = () =>
+  String(
+    llm.calls
+      .flatMap((c) => c.messages)
+      .filter((m) => m.role === "tool")
+      .at(-1)?.content,
+  );
+
+test("a path inside the project is the folder a delegation works in: relative reads land there, its result returns", async () => {
+  await withProject(async (root, project) => {
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+    await env.client.call("threads.send", { thread: t.id, text: "delegate to a project subpath" });
+    await env.settle(t.id);
+    const sub = env.core.store.threads.sessions(t.id)[0];
+    assert.equal(sub?.project_id, project);
+    assert.equal(sub?.cwd, path.join(root, "sub"));
+    // Nobody asked for more: a chat outside a folder hands on the code threads' default.
+    assert.equal(sub?.write, "ask");
+    assert.equal(sub?.parent_id, t.id);
+    const child = env.core.store.runs.list(sub?.id ?? "")[0];
+    assert.ok(child?.parent_run_id, "the session's run belongs to the caller's run");
+    // The worker read marker.txt by its relative path, and the caller got that back in its turn.
+    const result = lastToolResult();
+    assert.match(result, /Read: [\s\S]*northwind marker/);
+    assert.ok(result.includes(`It works in ${path.join(root, "sub")}, writes: ask.`), result);
+  });
+});
+
+test("a delegation's folder never leaves the project, through a link or otherwise", async () => {
+  await withProject(async (_root, project) => {
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+    await env.client.call("threads.send", { thread: t.id, text: "delegate through a link" });
+    await env.settle(t.id);
+    assert.match(lastToolResult(), /refused: .*link is outside the project's folder/);
+    assert.equal(env.core.store.threads.sessions(t.id).length, 0);
+  });
+});
+
+test("a delegation's write policy is never looser than its caller's", async () => {
+  await withProject(async (root, project) => {
+    const code = await env.client.call("threads.create", {
+      kind: "code",
+      agent_id: "roby",
+      project_id: project,
+      write: "read-only",
+    });
+    await env.client.call("threads.send", { thread: code.id, text: "delegate with more writes" });
+    await env.settle(code.id);
+    assert.equal(env.core.store.threads.sessions(code.id)[0]?.write, "read-only");
+    assert.match(lastToolResult(), /writes: read-only \(auto would go further than you may\)/);
+
+    // Outside a folder, an agent that asks before every change hands on no more than that; others the default.
+    const store = env.core.store;
+    const roby = store.agents.get("roby");
+    const chat = store.threads.get(
+      (await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project })).id,
+    );
+    assert.ok(roby && chat);
+    const asked = { folder: "sub", write: "auto" } as const;
+    assert.deepEqual(workspaceOf(store, { ...roby, autonomy: "ask" }, chat, project, asked), {
+      cwd: path.join(root, "sub"),
+      write: "ask",
+    });
+    assert.equal(
+      (workspaceOf(store, { ...roby, autonomy: "standard" }, chat, project, asked) as { write: string }).write,
+      "auto",
+    );
+    assert.equal((workspaceOf(store, roby, chat, project, { folder: "sub" }) as { write: string }).write, "ask");
+    assert.equal(
+      workspaceOf(store, roby, chat, project, {}),
+      undefined,
+      "no folder nor policy asked: the project's root, as before",
+    );
+    assert.match(String(workspaceOf(store, roby, chat, project, { folder: "../.." })), /outside the project's folder/);
+  });
 });
 
 test("an agent still cannot delegate to itself", async () => {
