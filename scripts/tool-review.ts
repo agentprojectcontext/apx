@@ -33,7 +33,7 @@ async function turnTools(): Promise<Spec[]> {
     const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
     await env.client.call("threads.send", { thread: t.id, text: "hola" });
     await env.settle(t.id);
-    const sent = [...(llm.calls.at(-1)?.tools ?? []), ...browserTools().map(toSpec)];
+    const sent = [...(llm.calls.at(-1)?.tools ?? []), ...browserTools(env.core.store, env.home).map(toSpec)];
     return sent.map((s) => ({
       name: s.function.name,
       description: s.function.description,

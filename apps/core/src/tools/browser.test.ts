@@ -13,6 +13,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 let env: Awaited<ReturnType<typeof startCore>>;
 let desktop: ApxSocket;
 const snapshots: number[] = [];
+const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
 const holds: Array<{ run: string; tabs: string[] }> = [];
 
 before(async () => {
@@ -33,6 +34,8 @@ before(async () => {
       snapshots.push(Date.now());
       return { url: "https://example.com/", title: "Example", tree: 'button "Send" [e1]', refs: 1, truncated: false };
     }
+    if (method === "browser.screenshot")
+      return { mime: "image/jpeg", data: JPEG.toString("base64"), bytes: JPEG.length };
     throw new Error(`unknown ${method}`);
   });
 });
@@ -50,6 +53,17 @@ test("browser_snapshot waits the seconds asked before reading the page", async (
   assert.equal(snapshots.length, 1);
   assert.ok((snapshots[0] ?? 0) - sent >= 1000, "read after the wait");
   assert.match(String(llm.calls.at(-1)?.messages.findLast((m) => m.role === "tool")?.content), /Send/);
+});
+
+test("browser_snapshot shows the model a picture of the tab, not the chat", async () => {
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  await env.client.call("threads.send", { thread, text: "wait and look" });
+  await env.settle(thread);
+  const shown = llm.calls.at(-1)?.messages.at(-1) as { role: string; images?: Array<{ mime: string }> };
+  assert.equal(shown.role, "user");
+  assert.equal(shown.images?.[0]?.mime, "image/jpeg");
+  const parts = (await env.client.call("threads.get", { thread })).messages.flatMap((m) => m.parts);
+  assert.ok(!parts.some((p) => p.type === "image"), "the picture is for the model only");
 });
 
 test("the turn holds the tab it used while it runs and lets it go when it ends", async () => {

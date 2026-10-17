@@ -143,7 +143,7 @@ export function builtinTools(
     ...agentTools(store),
     ...agentSetTools(store),
     ...chatTools(store),
-    ...browserTools(),
+    ...browserTools(store, home),
     ...surfaceTools(store),
     ...ownerTools(store),
     ...shellTools(store, home, port),

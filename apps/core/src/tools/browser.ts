@@ -4,6 +4,8 @@ import { setTimeout } from "node:timers/promises";
 import { BROWSER_CAP, type TabInfo } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
+import type { Store } from "../domain/store.ts";
+import { saveUpload } from "../services/uploads.ts";
 import { cap, untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 import { urlConfirm } from "./web.ts";
@@ -30,7 +32,20 @@ const refArg = z
   .regex(/^e\d+$/)
   .describe("ref like e12, from the last snapshot");
 
-export function browserTools(): Tool[] {
+export function browserTools(store: Store, home: string): Tool[] {
+  /** The model looks at the tab itself: the tree alone misses images, charts and slides. */
+  const look = async (ctx: ToolContext, tab: string) => {
+    if (!ctx.see) return;
+    const shot = await ctx.call("browser.screenshot", { tab }).catch(() => undefined);
+    if (!shot) return;
+    const m = saveUpload(home, store, {
+      name: "tab.jpg",
+      mime: shot.mime,
+      bytes: Buffer.from(shot.data, "base64"),
+      thread: ctx.thread.id,
+    });
+    ctx.see({ media_id: m.id, mime: m.mime });
+  };
   const card = async (ctx: ToolContext, tab: string, state: "agent" | "handoff" | "user" | "done", reason?: string) => {
     const tabs = (await ctx.call("browser.tabs", {}).catch(() => ({ tabs: [] as TabInfo[] }))).tabs;
     const t = tabs.find((x) => x.tab === tab);
@@ -92,7 +107,7 @@ export function browserTools(): Tool[] {
       needsCap: BROWSER_CAP,
       name: "browser_snapshot",
       description:
-        "Accessibility snapshot of a tab: interactive elements with refs (e12) for click/type. Untrusted web content.",
+        "Accessibility snapshot of a tab: interactive elements with refs (e12) for click/type, and a picture of the tab. Untrusted web content.",
       args: z.object({
         tab: tabArg,
         wait_s: z.number().int().min(1).max(10).optional().describe("seconds to wait before reading"),
@@ -104,6 +119,7 @@ export function browserTools(): Tool[] {
         const tab = await own(ctx, a.tab);
         if (a.wait_s) await setTimeout(a.wait_s * 1000, undefined, { signal: ctx.signal });
         const r = await ctx.call("browser.snapshot", { tab, max_chars: 12_000 });
+        await look(ctx, tab);
         return untrusted("web_snapshot", { tab }, cap(r.tree));
       },
     }),
