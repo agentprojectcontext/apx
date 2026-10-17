@@ -1,6 +1,7 @@
 // A task is worked in its agent's own chat for it (listed in the inbox like any chat), never in the task's
 // conversation: that one keeps only comments, the owner's and each work turn's final answer posted back by its agent.
-// Assigning starts the work; the owner's @mention of its agent asks it there, and of anyone else opens a short consult
+// Assigning starts the work; the owner's @mention of its agent, or words written in the task's conversation, reach it
+// there (DECISIONS.md#d-101), and an @mention of anyone else opens a short consult
 // (the question and its answer, under the task's conversation, shown there as a card); an hourly pickup starts what was
 // assigned and never began. Agents ask each other only with `delegate` (DECISIONS.md#d-078).
 import type { Author, Task, Thread } from "@apx/protocol";
@@ -141,6 +142,19 @@ export function askMentioned(store: Store, admit: AdmitFn, task: Task, text: str
         : consult(store, admit, task, a, text);
     return run ? [run] : [];
   });
+}
+
+/** The owner's comment's @mentions of anyone but the task's own agent, each answered in a consult. */
+export function consultMentioned(store: Store, admit: AdmitFn, task: Task, text: string): RunRecord[] {
+  return mentioned(store, text, task.project_id)
+    .filter((a) => a.id !== task.assignee)
+    .flatMap((a) => consult(store, admit, task, a, text) ?? []);
+}
+
+/** The task whose conversation this is, when an agent has it: that agent works it in its own chat, never here. */
+export function assignedTaskOf(store: Store, threadId: string): (Task & { assignee: string }) | undefined {
+  const task = store.tasks.byThread(threadId);
+  return task?.assignee && store.agents.get(task.assignee) ? { ...task, assignee: task.assignee } : undefined;
 }
 
 /**

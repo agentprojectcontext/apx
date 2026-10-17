@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { Author } from "@apx/protocol";
+import type { Author, Task } from "@apx/protocol";
 import { OWNER_ID } from "../domain/persons.ts";
 import { type Attachment, publicRun } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -8,7 +8,7 @@ import { previewOf } from "../domain/threads.ts";
 import { tree } from "../engine/breaker.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
 import { goOn } from "../engine/go-on.ts";
-import { startHeld } from "../engine/task-work.ts";
+import { addComment, assignedTaskOf, consultMentioned, sessionFor, startHeld } from "../engine/task-work.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import { isInside } from "../paths.ts";
@@ -144,6 +144,29 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     });
   }
 
+  /**
+   * The owner writing in a task's conversation: a comment there, and the task's agent hears it in its chat for the task,
+   * inside the turn working there or as its next one; never a second turn of its own here (DECISIONS.md#d-101).
+   */
+  function toTaskWork(task: Task & { assignee: string }, text: string, mode: SendMode, attachments: string[]) {
+    return store.tx(() => {
+      const work = sessionFor(store, task, task.assignee);
+      if (mode === "interrupt") engine.interrupt(work.id);
+      const message = addComment(store, task, { kind: "user" }, text, "owner");
+      // The owner does not see that chat's state from here: whatever its turn is doing, the words join it.
+      const sent = post(work.id, text, { kind: "user" }, mode !== "interrupt", {
+        agent_id: task.assignee,
+        trigger: "user",
+        origin: { kind: "user" },
+        ...(attachments.length ? { attachments: attachedFiles(store, task.thread_id, attachments) } : {}),
+      });
+      consultMentioned(store, engine.admit, task, text);
+      // As in any chat the owner writes in, a paused chain goes on (DECISIONS.md#d-082).
+      startHeld(store, engine.admit, tree(store, work.id));
+      return { message, run: sent.run, ...(sent.steered ? { steered: true } : {}) };
+    });
+  }
+
   /** A message that arrived on a channel: the owner's own words, or a contact's (a third party's). */
   function channelSend(
     threadId: string,
@@ -235,6 +258,8 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
           throw badRequest("channel attachments must belong to this chat");
         return channelSend(thread, agent.id, text, mode, ctx.channel, files);
       }
+      const task = ctx.actor === "agent" ? undefined : assignedTaskOf(store, thread);
+      if (task) return toTaskWork(task, text, mode, attachments ?? []);
       if (mode === "interrupt") engine.interrupt(thread);
       // A model-driven client (another tool's agent) is not the owner: its text arrives as untrusted data, and it
       // never steers a running turn.
