@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
+import { scratchRoot } from "../tools/shell.ts";
 import type { Harness, TurnIO } from "./index.ts";
 
 const seen: Array<{ harness: string; io: TurnIO; outside: boolean }> = [];
@@ -270,4 +271,25 @@ test("Codex writes in an auto code chat only when the agent may act and nothing 
   assert.equal(codexWrites(io("total", true)), true);
   assert.equal(codexWrites(io("edits", true)), true, "accepting edits writes whatever the session read");
   assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "ask" } } as TurnIO), false);
+});
+
+test("an external session gets an owner's attachment in its temp folder despite omitting agent framing", async () => {
+  const thread = await session("claude");
+  const bytes = Buffer.from("%PDF-1.4\nreceipt\n%%EOF");
+  const { media } = await env.client.call("media.upload", {
+    name: "receipt.pdf",
+    mime: "application/pdf",
+    data: bytes.toString("base64"),
+    thread: thread.id,
+  });
+  await env.client.call("threads.send", { thread: thread.id, text: "Read this", attachments: [media.id] });
+  await env.settle(thread.id);
+  const input = seen.at(-1)?.io.input.content ?? "";
+  const file = /File in your temp folder: (.+)\. Use/.exec(input)?.[1];
+  assert.ok(file, input);
+  assert.equal(
+    path.relative(path.join(scratchRoot(env.home), thread.id), file).startsWith(`attachments${path.sep}`),
+    true,
+  );
+  assert.deepEqual(fs.readFileSync(file), bytes);
 });

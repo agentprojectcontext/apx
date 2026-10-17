@@ -119,6 +119,33 @@ export function claudeUsage(report: (soFar: Usage) => void) {
 type Tally = ReturnType<typeof claudeUsage>;
 
 type Sdk = typeof import("@anthropic-ai/claude-agent-sdk");
+type ImageReader = (id: string) => { mime: string; data: string } | undefined;
+
+async function* imagePrompt(io: TurnIO, readImage: ImageReader) {
+  const content: import("@anthropic-ai/claude-agent-sdk").SDKUserMessage["message"]["content"] = [
+    { type: "text", text: io.input.content },
+  ];
+  for (const image of io.input.images ?? []) {
+    const stored = readImage(image.media_id);
+    if (!stored) throw new Error(`Image attachment ${image.media_id} is no longer available`);
+    if (!["image/png", "image/jpeg", "image/gif", "image/webp"].includes(stored.mime))
+      throw new Error(`Unsupported image attachment type: ${stored.mime}`);
+    content.push({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: stored.mime as "image/png" | "image/jpeg" | "image/gif" | "image/webp",
+        data: stored.data,
+      },
+    });
+  }
+  yield {
+    type: "user" as const,
+    session_id: io.sessionId ?? "",
+    message: { role: "user" as const, content },
+    parent_tool_use_id: null,
+  };
+}
 
 // The SDK is a large module: loaded on the first Claude turn, so a core that never runs one never pays for it.
 let sdkLoad: Promise<Sdk> | undefined;
@@ -175,6 +202,7 @@ async function attempt(
     counts: Counts;
     tally: Tally;
     resume: string | undefined;
+    readImage: ImageReader;
   },
 ): Promise<TurnOutcome> {
   const ac = new AbortController();
@@ -189,7 +217,7 @@ async function attempt(
     const sdk = await loadSdk();
     const cwd = o.cwd(io);
     const q = sdk.query({
-      prompt: io.input.content,
+      prompt: io.input.images?.length ? imagePrompt(io, o.readImage) : io.input.content,
       options: {
         abortController: ac,
         pathToClaudeCodeExecutable: o.claudePath,
@@ -261,13 +289,18 @@ async function attempt(
   }
 }
 
-export function claudeHarness(opts: { claudePath: () => Promise<string>; cwd: (io: TurnIO) => string }): Harness {
+export function claudeHarness(opts: {
+  claudePath: () => Promise<string>;
+  cwd: (io: TurnIO) => string;
+  readImage: ImageReader;
+}): Harness {
   return {
     id: "claude",
     async run(io: TurnIO): Promise<TurnOutcome> {
       const base = {
         claudePath: await opts.claudePath(),
         cwd: opts.cwd,
+        readImage: opts.readImage,
         chosen: modelPart(io.models[0]),
         effort: effortPart(io.models[0]),
       };

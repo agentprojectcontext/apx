@@ -9,6 +9,7 @@ import { unauthorized } from "../errors.ts";
 import { cachedCatalog } from "../models/catalog.ts";
 import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
+import { mediaData } from "../services/uploads.ts";
 import { harnessDir } from "../tools/shell.ts";
 import { acpAgents, acpEngine } from "./acp/agents.ts";
 import { acpHarness } from "./acp/harness.ts";
@@ -55,7 +56,9 @@ export function createHarnesses(deps: {
   };
   const registry: Record<HarnessId, Harness> = {
     native: deps.overrides?.native ?? nativeHarness(llm),
-    claude: deps.overrides?.claude ?? claudeHarness({ claudePath: bin("claude"), cwd }),
+    claude:
+      deps.overrides?.claude ??
+      claudeHarness({ claudePath: bin("claude"), cwd, readImage: (id) => mediaData(store, id) }),
     codex:
       deps.overrides?.codex ??
       codexHarness({
