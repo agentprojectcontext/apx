@@ -334,3 +334,31 @@ test("a queued delegation survives a restart and still waits for a free slot", a
     second.cleanup();
   }
 });
+
+test("the boot never runs more delegations at once than the cap", async () => {
+  const g = gated({ asks: ofParts(FIVE) });
+  const first = await startCore({ llm: g.llm });
+  // One cut while it asked the owner (not resumed), two cut mid-work (resumed), two queued.
+  const { parentThread } = seedCut(first.core.store, ["input-required", "working", "working", "queued", "queued"]);
+  await first.core.close();
+
+  const second = await startCore({ llm: g.llm, home: first.home });
+  const { store } = second.core;
+  try {
+    assert.ok(
+      store.runs.activeDelegations(parentThread.id) <= MAX_ACTIVE_DELEGATIONS,
+      `at most ${MAX_ACTIVE_DELEGATIONS} admitted (saw ${store.runs.activeDelegations(parentThread.id)})`,
+    );
+    await until("three at work", () => g.asked.length === MAX_ACTIVE_DELEGATIONS);
+    await pause();
+    assert.equal(g.asked.length, MAX_ACTIVE_DELEGATIONS);
+    assert.deepEqual(g.asked.toSorted(), ["part-2", "part-3", "part-4"], "the resumed two and the oldest queued");
+    g.open("part-2");
+    await until("the last one starting", () => g.asked.includes("part-5"));
+    assert.ok(g.at.peak <= MAX_ACTIVE_DELEGATIONS, `at most ${MAX_ACTIVE_DELEGATIONS} at once (saw ${g.at.peak})`);
+  } finally {
+    g.openAll();
+    await second.core.close();
+    second.cleanup();
+  }
+});

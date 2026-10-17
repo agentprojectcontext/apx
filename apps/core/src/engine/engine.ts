@@ -379,10 +379,11 @@ export function createEngine(deps: {
       jobs.reconcile();
       const interrupted = recoverInterrupted(store);
       if (interrupted.length) log.warn({ runs: interrupted.length }, "closed runs interrupted by the last restart");
+      const cut: RunRecord[] = [];
       for (const { run, resume } of interrupted) {
         // The resumed turn settles the caller's card and reports to it; the cut one wakes nobody.
         if (!resume || !run.input) {
-          ended(run);
+          cut.push(run);
           continue;
         }
         admit({
@@ -398,6 +399,8 @@ export function createEngine(deps: {
           resume_of: run.id,
         });
       }
+      // Only once the resumed ones hold their slots: a slot a cut delegation frees must not let a queued one in too.
+      for (const run of cut) ended(run);
       for (const threadId of store.runs.queuedThreads()) kick(threadId);
       // After the resumed delegations are admitted, so they hold their slots first.
       for (const threadId of store.runs.heldParents()) delegations.release(threadId);
