@@ -94,7 +94,7 @@ export const Project = z.object({
 export type Project = z.infer<typeof Project>;
 
 /** Who runs a turn's loop. `acp` covers every Agent Client Protocol CLI; the engine id says which ("acp:opencode"). */
-export const HarnessId = z.enum(["native", "claude", "codex", "acp"]);
+export const HarnessId = z.enum(["native", "claude", "codex", "acp", "aider", "antigravity"]);
 export type HarnessId = z.infer<typeof HarnessId>;
 
 /**

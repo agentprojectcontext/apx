@@ -60,7 +60,7 @@ export async function startCore(opts: {
   home?: string;
   /** Known port for browser fixtures whose origin must be allowed before the core starts. */
   port?: number;
-  harnesses?: Partial<Record<"native" | "claude" | "codex", Harness>>;
+  harnesses?: Partial<Record<Harness["id"], Harness>>;
   extraTools?: Tool[];
   /** Lets the scripted model also answer auxiliary calls (titles, summaries); off by default. */
   aux?: boolean;

@@ -115,6 +115,39 @@ Estas CLIs corren solo en sus propias sesiones: no son modelos para tus agentes 
 por ejemplo, se usa solo a través de las sesiones de Claude Code. Mirá [Modelos](/es/concepts/models/).
 </Aside>
 
+## Aider y Antigravity
+
+APX también admite **Aider** (`aider`) y **Antigravity headless** (`agy`) como harnesses de ejecución única,
+no como agentes ACP. Instalá el CLI en la máquina del core y configurá sus credenciales primero. Actualizá
+**Configuración → Motores externos**, abrí su entrada en **Sesiones externas** e iniciá un chat en la carpeta
+de un proyecto. Una instalación de Antigravity que solo tiene interfaz gráfica no sirve para estas sesiones:
+APX no abre el editor como reemplazo de una respuesta.
+
+El catálogo ofrece el modelo **CLI default**: la configuración del CLI elige el modelo. Una referencia de sesión
+como `aider/<modelo>` o `antigravity/<modelo>` pasa ese modelo mediante `--model`. No podés usarlos como modelo
+de un agente, predeterminado de la instalación ni en una cadena del router. La autenticación se comprueba al
+ejecutar un turno; la detección no la da por hecha.
+
+<Aside type="caution">
+Estos CLIs no tienen un puente de permisos por herramienta. La autorización abarca **toda la ejecución**:
+lectura y escritura de archivos y comandos con tus permisos del sistema operativo, no solo dentro del proyecto.
+Un chat de solo lectura rechaza la ejecución. No la apruebes si no confiás en las instrucciones o en el workspace.
+La autonomía total omite esta confirmación. Para aislamiento real, usá una cuenta o contenedor restringidos.
+
+Ambos reciben la conversación mediante un archivo temporal privado que se borra al terminar. Aider usa su opción
+de archivo de mensaje y no crea commits automáticos; `agy` recibe solamente una instrucción para leer el archivo,
+no la conversación en los argumentos. Se quitan las variables de entorno de APX y las que parecen contener
+credenciales. Configurá las credenciales mediante la configuración local o el inicio de sesión del CLI, no mediante
+API keys heredadas del entorno. Las credenciales locales siguen siendo accesibles para el CLI y sus comandos.
+</Aside>
+
+Cada turno inicia un proceso nuevo y reproduce el historial de texto proyectado. No hay reanudación de sesión
+externa, trazas por herramienta, instrucciones en vivo, entrada de imágenes ni conteo de tokens. APX registra un
+paso de ejecución y persiste éxito, fallo o cancelación por su ciclo normal de runs. Una salida no exitosa, vacía,
+binaria o de más de 1 MB combinado produce un fallo explícito; stderr no se copia en el error. La cancelación
+termina el proceso y hay un límite absoluto de diez minutos, además del deadline de APX. En POSIX se termina el
+grupo de procesos; Windows usa `taskkill /T /F` para terminar el árbol.
+
 ## Lo que sigue
 
 <CardGrid>

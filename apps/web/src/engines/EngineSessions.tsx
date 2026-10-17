@@ -86,7 +86,8 @@ export function EngineSessions() {
       setResuming(undefined);
     }
   };
-  const ready = Boolean(engine?.installed && engine.logged_in);
+  const oneshot = engineId === "aider" || engineId === "antigravity";
+  const ready = Boolean(engine?.installed && (engine.logged_in || oneshot));
   const label = engine?.label ?? engineId;
 
   return (
@@ -117,7 +118,7 @@ export function EngineSessions() {
       <div className="inbox__list">
         {!ids ? (
           <Skeleton shape="block" height={120} />
-        ) : !engine?.installed || !engine.logged_in ? (
+        ) : !ready ? (
           <EmptyState
             icon={<Icons.Plug />}
             title={t(engine?.installed ? "engine.signIn" : "engine.install", { engine: label })}

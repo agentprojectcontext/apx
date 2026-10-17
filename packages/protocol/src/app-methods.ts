@@ -562,7 +562,7 @@ export const appMethods = {
         /** A code thread with an outside engine itself ("claude", "codex", "acp:opencode"): its own prompt, no persona. */
         engine: z
           .string()
-          .regex(/^(claude|codex|acp:[a-z0-9][a-z0-9-]*)$/)
+          .regex(/^(claude|codex|aider|antigravity|acp:[a-z0-9][a-z0-9-]*)$/)
           .optional(),
       })
       .strict(),

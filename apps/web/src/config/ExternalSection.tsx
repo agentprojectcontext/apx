@@ -12,6 +12,8 @@ import { SectionHead } from "./SectionHead.tsx";
 type Look = { kind: MessageKey; login: MessageKey };
 
 const LOOK: Record<string, Look> = {
+  aider: { kind: "engine.kind.cli", login: "engine.login.oneshot" },
+  antigravity: { kind: "engine.kind.cli", login: "engine.login.oneshot" },
   claude: { kind: "engine.kind.cli", login: "engine.login.claude" },
   codex: { kind: "engine.kind.cli", login: "engine.login.codex" },
 };
@@ -79,7 +81,11 @@ export function ExternalSection() {
         <div className="engines">
           {engines
             // ACP agents only when installed here.
-            .filter((e) => e.id !== "native" && (e.installed || e.id === "claude" || e.id === "codex"))
+            .filter(
+              (e) =>
+                e.id !== "native" &&
+                (e.installed || e.id === "claude" || e.id === "codex" || e.id === "aider" || e.id === "antigravity"),
+            )
             .map((e) => (
               <EngineCard key={e.id} engine={e} />
             ))}

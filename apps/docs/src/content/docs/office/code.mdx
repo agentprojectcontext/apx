@@ -113,6 +113,37 @@ These CLIs run only in their own sessions: they are not models for your agents o
 example, is used only through Claude Code sessions. See [Models](/concepts/models/).
 </Aside>
 
+## Aider and Antigravity
+
+APX also supports **Aider** (`aider`) and headless **Antigravity** (`agy`) as one-shot CLI harnesses, not ACP
+agents. Install the CLI on the core's machine and configure its own credentials first. Refresh **Settings →
+External engines**, then open its entry under **External sessions** and start a chat in a project folder.
+A GUI-only Antigravity installation is not runnable: APX does not launch the editor and pretend it returned an answer.
+
+The catalog offers **CLI default**; the CLI's configuration chooses the model. A session model reference such as
+`aider/<model>` or `antigravity/<model>` passes that model to `--model`. These harnesses cannot be an agent's model,
+an install default or part of a router chain. Authentication is checked on invocation, not claimed by discovery.
+
+<Aside type="caution">
+These CLIs have no per-tool permission bridge. Approval covers the **entire invocation**, including file writes and
+commands with your operating-system permissions, not just the project folder. A read-only chat refuses execution.
+Do not approve an invocation with untrusted instructions or a workspace you do not trust. Total autonomy bypasses
+this confirmation. Use a sandboxed OS account/container if you need filesystem or command isolation.
+
+Both CLIs receive the conversation through a private temporary file, removed after the run. Aider uses its
+message-file option and runs without automatic commits; `agy` receives only instructions to read that file in its
+print argument, not the conversation itself. APX's environment variables and credential-like environment variables
+are removed. Configure credentials with the CLI's own local configuration or sign-in, rather than inherited API-key
+environment variables. Local credentials remain accessible to the CLI and commands it launches.
+</Aside>
+
+Each turn starts a fresh process and replays the projected text history. There is no external session resume,
+per-tool trace, live steering, image input or token accounting. APX records one execution step and persists success,
+failure or cancellation through its normal run lifecycle. Nonzero exit, empty/binary output and more than 1 MB of
+combined output fail explicitly; stderr is not copied into errors. A turn's cancellation kills the process, with a
+10-minute absolute invocation limit in addition to APX's run deadline. On POSIX, termination targets the process
+group; Windows uses `taskkill /T /F` to terminate the process tree.
+
 ## Next
 
 <CardGrid>
