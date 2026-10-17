@@ -1,4 +1,5 @@
 // The composer's calls: attachments, dictation and the chat's own model.
+import nodePath from "node:path";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
 import { badRequest, errorMessage, notFound, unauthorized, unavailable } from "../errors.ts";
@@ -12,7 +13,10 @@ export function composerHandlers(deps: {
   home: string;
   services: Services;
   /** The folder `file` is attached from: where the chat's agent works, or its temp folder. */
-  workFolder(thread: NonNullable<ReturnType<Store["threads"]["get"]>>, file: string): string;
+  workFolder(
+    thread: NonNullable<ReturnType<Store["threads"]["get"]>>,
+    file: string,
+  ): { base: string; scratch: boolean };
   /** `session`: the CLI whose own session the chat is (only that CLI runs there). */
   checkModel(ref: string, session: string | undefined): string | undefined;
 }) {
@@ -27,8 +31,13 @@ export function composerHandlers(deps: {
       if (audienceOf(store, thread).kind !== "owner")
         throw unauthorized("local files can only be attached in the owner's chats");
       try {
-        const m = saveLocalAttachment(deps.home, store, deps.workFolder(thread, path), thread.id, path, document);
-        return { media: { id: m.id, kind: m.kind, mime: m.mime, bytes: m.bytes, name: m.name } };
+        const { base, scratch } = deps.workFolder(thread, path);
+        const m = saveLocalAttachment(deps.home, store, base, thread.id, path, document);
+        const rel = nodePath.relative(base, nodePath.resolve(base, path)).split(nodePath.sep).join("/");
+        return {
+          media: { id: m.id, kind: m.kind, mime: m.mime, bytes: m.bytes, name: m.name },
+          ...(document && { source: { path: rel, ...(scratch && { scratch }) } }),
+        };
       } catch (err) {
         throw badRequest(errorMessage(err));
       }

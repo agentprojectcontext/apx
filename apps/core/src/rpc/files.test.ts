@@ -13,6 +13,7 @@ let env: Awaited<ReturnType<typeof startCore>>;
 const desktopCalls: string[] = [];
 const desktop = {
   reveal: async (abs: string) => void desktopCalls.push(`reveal ${abs}`),
+  open: async (abs: string) => void desktopCalls.push(`open ${abs}`),
   trash: async (abs: string) => void desktopCalls.push(`trash ${abs}`),
 };
 let repo = "";
@@ -95,6 +96,24 @@ test("media: images, video, audio and PDF are previewed as bytes; other files ar
 test("Finder, rename and trash stay inside the folder; the trash never takes the folder itself or .git", async () => {
   await env.client.call("files.reveal", { project, path: "docs/plan.md" });
   assert.equal(desktopCalls.at(-1), `reveal ${path.join(repo, "docs", "plan.md")}`);
+  await env.client.call("files.open", { project, path: "docs/plan.md" });
+  assert.equal(desktopCalls.at(-1), `open ${path.join(repo, "docs", "plan.md")}`);
+  await assert.rejects(env.client.call("files.open", { project, path: "logo.png" }), /only \.md/);
+  const doc = await env.client.call("media.upload", {
+    name: "Plan.md",
+    mime: "text/markdown",
+    data: Buffer.from("# Plan\n").toString("base64"),
+  });
+  await env.client.call("documents.open", { media_id: doc.media.id });
+  const opened = String(desktopCalls.at(-1)).replace(/^open /, "");
+  assert.equal(path.basename(opened), "Plan.md");
+  assert.equal(fs.readFileSync(opened, "utf8"), "# Plan\n");
+  const sheet = await env.client.call("media.upload", {
+    name: "rows.csv",
+    mime: "text/csv",
+    data: Buffer.from("a,b\n").toString("base64"),
+  });
+  await assert.rejects(env.client.call("documents.open", { media_id: sheet.media.id }), /not found/);
 
   fs.writeFileSync(path.join(repo, "draft.txt"), "x");
   const r = await env.client.call("files.rename", { project, path: "draft.txt", name: "final.txt" });

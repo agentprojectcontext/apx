@@ -1,7 +1,7 @@
 // Methods behind the composer: attachments, dictation and the chat's own model.
 import { z } from "zod";
 import { UPLOAD_LIMITS } from "./constants.ts";
-import { Id, ModelChoice } from "./domain.ts";
+import { DocumentSource, Id, ModelChoice } from "./domain.ts";
 
 export const composerMethods = {
   /** Snapshots a local file for the calling agent's current chat. */
@@ -15,6 +15,8 @@ export const composerMethods = {
         bytes: z.number().int(),
         name: z.string(),
       }),
+      /** With `document`: where the file is in the chat. */
+      source: DocumentSource.optional(),
     }),
     effect: true,
   },
