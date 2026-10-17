@@ -243,6 +243,25 @@ test("images: references in the log, bytes only in the call; OpenAI as image_url
   });
 });
 
+test("a model known not to read images gets the chat's words without its pictures", async () => {
+  let body: { messages: Array<{ role: string; content: unknown }> } | undefined;
+  const llm = createLlm({
+    providers: () => [{ ...(providers[0] as ProviderConfig), models: ["deepseek-chat"] }],
+    secrets,
+    firstByteMs: 1000,
+    media: () => ({ mime: "image/png", data: "AAAA" }),
+    fetchImpl: (async (_url: string, init: RequestInit) => {
+      body = JSON.parse(String(init.body));
+      return new Response(JSON.stringify({ choices: [{ message: { content: "ok" }, finish_reason: "stop" }] }));
+    }) as typeof fetch,
+  });
+  const messages = [
+    { role: "user" as const, content: "what is this?", images: [{ media_id: "i1", mime: "image/png" }] },
+  ];
+  await llm.complete({ models: ["pa"], messages, tools: [], signal: new AbortController().signal });
+  assert.deepEqual(body?.messages[0], { role: "user", content: "what is this?" });
+});
+
 test("a call carries the newest 4 images of the chat; older ones stay references", async () => {
   let body: { messages: Array<{ role: string; content: unknown }> } | undefined;
   const llm = createLlm({

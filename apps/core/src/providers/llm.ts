@@ -15,6 +15,7 @@ import {
   type Transport,
   type Usage,
 } from "./types.ts";
+import { readsImages } from "./vision.ts";
 import { contextWindow } from "./windows.ts";
 
 export type LlmRequest = {
@@ -97,6 +98,8 @@ export function createLlm(opts: {
       const failed: ModelFailure[] = [];
       const need = tokensOf(req);
       const messages = withImageBytes(req.messages, opts.media);
+      // A model known not to read images refuses a call carrying any: it gets the words alone.
+      const wordsOnly = withoutImages(messages);
       // A model that failed after streaming part of an answer must not leave that part on screen.
       let streamed = false;
       const onText =
@@ -144,7 +147,7 @@ export function createLlm(opts: {
               model: t.model,
               effort: t.effort,
               headers,
-              messages,
+              messages: readsImages(ref) === false ? wordsOnly : messages,
               tools: req.tools,
               signal: req.signal,
               cacheKey: req.cacheKey,
@@ -220,6 +223,14 @@ function checkNotCut(usage: Usage | undefined, need: number): void {
     "context",
     `the server read only ${kTokens(n)} of this chat (${kTokens(need)}): raise its context length`,
   );
+}
+
+function withoutImages(messages: ChatItem[]): ChatItem[] {
+  return messages.map((m) => {
+    if (m.role !== "user" || !m.images) return m;
+    const { images: _i, ...rest } = m;
+    return rest;
+  });
 }
 
 /** Images a call carries at most: the newest ones; older ones stay named in their message's text. */
