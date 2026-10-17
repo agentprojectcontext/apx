@@ -20,8 +20,8 @@ import {
   systemdUnit,
   terminalMain,
   WINDOWS_RUN_VALUE,
-  windowsProcessPattern,
   windowsRunCommand,
+  windowsStopScript,
 } from "./service-files.ts";
 
 const USAGE = `apx service install     Run the core in the background, started at login and again if it dies
@@ -174,8 +174,8 @@ export async function install(): Promise<void> {
     console.log(`logs: ${s.log}`);
   } else {
     const command = windowsCommand(home);
-    must("reg", ["add", RUN_KEY, "/v", names().windows, "/t", "REG_SZ", "/d", command, "/f"]);
     if (wasInstalled) stopWindows(home);
+    must("reg", ["add", RUN_KEY, "/v", names().windows, "/t", "REG_SZ", "/d", command, "/f"]);
     startWindows(command);
     console.log(`installed the login entry ${names().windows}`);
     console.log(`logs: ${s.log}`);
@@ -184,7 +184,7 @@ export async function install(): Promise<void> {
 }
 
 export async function uninstall(): Promise<void> {
-  installed();
+  const wasInstalled = installed();
   if (process.platform === "linux") {
     sh("systemctl", ["--user", "disable", "--now", names().systemd]);
     fs.rmSync(systemdFile(), { force: true });
@@ -193,8 +193,8 @@ export async function uninstall(): Promise<void> {
     sh("launchctl", ["bootout", `${launchdTarget()}/${names().launchd}`]);
     fs.rmSync(launchdFile(), { force: true });
   } else if (process.platform === "win32") {
+    if (wasInstalled) stopWindows(apxHome());
     sh("reg", ["delete", RUN_KEY, "/v", names().windows, "/f"]);
-    stopWindows(apxHome());
   }
   console.log("the core no longer runs as a service");
 }
@@ -219,8 +219,8 @@ export async function restart(): Promise<void> {
   else if (process.platform === "darwin")
     must("launchctl", ["kickstart", "-k", `${launchdTarget()}/${names().launchd}`]);
   else {
-    stopWindows(apxHome());
-    startWindows(windowsCommand(apxHome()));
+    const command = stopWindows(apxHome());
+    startWindows(command);
   }
   console.log("restarting the core");
 }
@@ -299,25 +299,12 @@ function startWindows(command: string) {
 }
 
 function stopWindows(home: string) {
-  must("powershell", ["-NoProfile", "-NonInteractive", "-Command", windowsStopScript(home)]);
+  const entry = must("reg", ["query", RUN_KEY, "/v", serviceNames(home).windows]);
+  const command = /\sREG_SZ\s+([^\r\n]+)/.exec(entry)?.[1];
+  if (!command) throw new Error("The Windows service entry has no command; no process was stopped.");
+  must("powershell", ["-NoProfile", "-NonInteractive", "-Command", windowsStopScript(home, command)]);
   fs.rmSync(pidFile(home), { force: true });
-}
-
-/** Stops only supervisors naming this exact home and their direct core children; PID files are not authority. */
-export function windowsStopScript(home: string): string {
-  const quote = (value: string) => value.replaceAll("'", "''");
-  const runner = supervisorRun();
-  const supervisor = quote(
-    windowsProcessPattern([runner.node, ...NODE_FLAGS, runner.terminal, "service", "run", "--home", home]),
-  );
-  const target = spec(home);
-  const core = quote(windowsProcessPattern([target.node, ...NODE_FLAGS, target.main]));
-  return [
-    `$all = @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'")`,
-    `; $parents = @($all | Where-Object { $_.CommandLine -imatch '${supervisor}' } | ForEach-Object { $_.ProcessId })`,
-    `; $ids = @($all | Where-Object { ($parents -contains $_.ProcessId) -or (($parents -contains $_.ParentProcessId) -and $_.CommandLine -imatch '${core}') } | ForEach-Object { $_.ProcessId })`,
-    `; if ($ids.Count) { Stop-Process -Id $ids -Force -ErrorAction Stop; Wait-Process -Id $ids -Timeout 10 -ErrorAction SilentlyContinue }`,
-  ].join(" ");
+  return command;
 }
 
 /** `apx service run`: keeps one core alive, started again with backoff whenever it exits. */

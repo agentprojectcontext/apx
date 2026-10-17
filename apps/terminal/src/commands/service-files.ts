@@ -176,6 +176,28 @@ export function windowsProcessPattern(args: string[]): string {
     .join("[ \\t]+")}$`;
 }
 
+/** Stops only the registered supervisor and its direct core children, never a PID file or the caller's paths. */
+export function windowsStopScript(home: string, command: string): string {
+  const match = /"([^"]+)" ([^"]*) "([^"]+)" service run --home "([^"]+)""?$/.exec(command);
+  if (!match || match[2] !== NODE_FLAGS.join(" ") || !serviceOwnsHome(command, "win32", home))
+    throw new Error("The Windows service command is not recognized for this home; no process was stopped.");
+  const node = match[1] as string;
+  const terminal = match[3] as string;
+  const registeredHome = match[4] as string;
+  const quote = (value: string) => value.replaceAll("'", "''");
+  const supervisor = quote(
+    windowsProcessPattern([node, ...NODE_FLAGS, terminal, "service", "run", "--home", registeredHome]),
+  );
+  const main = path.win32.resolve(path.win32.dirname(terminal), "../../core/src/main.ts");
+  const core = quote(windowsProcessPattern([node, ...NODE_FLAGS, main]));
+  return [
+    `$all = @(Get-CimInstance Win32_Process)`,
+    `; $parents = @($all | Where-Object { ($_.CommandLine -ceq '${quote(command)}') -or ($_.CommandLine -imatch '${supervisor}') } | ForEach-Object { $_.ProcessId })`,
+    `; $ids = @($all | Where-Object { ($parents -contains $_.ProcessId) -or (($parents -contains $_.ParentProcessId) -and $_.CommandLine -imatch '${core}') } | ForEach-Object { $_.ProcessId })`,
+    `; if ($ids.Count) { Stop-Process -Id $ids -Force -ErrorAction Stop; Wait-Process -Id $ids -Timeout 10 -ErrorAction SilentlyContinue }`,
+  ].join(" ");
+}
+
 /**
  * The Windows login entry: it starts `apx service run`, the terminal's own supervisor, since a Run value cannot
  * restart what dies. Electron's binary only behaves as Node with ELECTRON_RUN_AS_NODE, set through cmd.
