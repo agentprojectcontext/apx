@@ -1,15 +1,19 @@
-import { EmptyState, Icons } from "@apx/ui";
+import { EmptyState, IconButton, Icons } from "@apx/ui";
 import { useMemo } from "react";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { useNav } from "../shell/nav.ts";
+import { go, useNav } from "../shell/nav.ts";
 import { SurfaceActions } from "../surfaces/SurfaceActions.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 
-/** The widgets made in the open chat, newest first; pinning one also puts it on its project's board. */
+/**
+ * The widgets made in the open chat, newest first, or the one moved here from the chat; pinning one also puts it on its
+ * project's board.
+ */
 export function WidgetPanel() {
   const t = useT();
   const threadId = useNav((s) => s.threadId);
+  const focused = useNav((s) => s.panelWidget);
   const surfaces = useData((s) => s.surfaces);
   const mine = useMemo(
     () =>
@@ -27,13 +31,28 @@ export function WidgetPanel() {
       </div>
     );
   }
+  const one = focused ? mine.find((s) => s.id === focused) : undefined;
   return (
     <div className="widgets">
-      {mine.map((s) => (
+      {one && (
+        <button type="button" className="widgets__back" onClick={() => go.widget()}>
+          <Icons.ArrowLeft size={14} />
+          {t("widgets.all", { n: mine.length })}
+        </button>
+      )}
+      {(one ? [one] : mine).map((s) => (
         <section key={s.id} className="widgets__item" aria-label={s.title}>
           <header className="widgets__head">
             <span className="widgets__title">{s.title}</span>
             <SurfaceActions surface={s} />
+            {one && (
+              <IconButton
+                size="sm"
+                label={t("widget.backToChat")}
+                icon={<Icons.PanelRightClose size={14} />}
+                onClick={() => go.panel(null)}
+              />
+            )}
           </header>
           <SurfaceFrame surfaceId={s.id} />
         </section>
