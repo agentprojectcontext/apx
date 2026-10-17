@@ -28,7 +28,7 @@ test("unsent words stay with their chat through moving around and a reload", asy
   await expect(box).toHaveValue("Another one for Scout");
   // A sent message is no draft any more.
   await box.press("Enter");
-  await expect(page.getByText("Got it: Another one for Scout")).toBeVisible();
+  await expect(page.locator(".transcript").getByText("Got it: Another one for Scout")).toBeVisible();
   await goTo(page, "#thread=home");
   await goTo(page, `#thread=${other.id}`);
   await expect(page.getByText("Got it: Another one for Scout")).toBeVisible();

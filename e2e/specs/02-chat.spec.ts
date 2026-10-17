@@ -7,7 +7,7 @@ test("the owner writes to the super-agent and the answer streams in", async ({ p
   const box = page.getByRole("textbox", { name: /^Escribile a/ });
   await box.fill("What is on today?");
   await page.getByRole("button", { name: "Enviar" }).click();
-  await expect(page.getByText("Got it: What is on today?")).toBeVisible();
+  await expect(page.locator(".transcript").getByText("Got it: What is on today?")).toBeVisible();
   expect(await world.llmCalls()).toBeGreaterThan(before);
   await expect(box).toHaveValue("");
 
@@ -57,7 +57,7 @@ test("a message is matched to skills by meaning: a recommended chip over the ans
     const box = page.getByRole("textbox", { name: /^Escribile a/ });
     await box.fill("creame una imagen de un gato");
     await box.press("Enter");
-    await expect(page.getByText("Got it: creame una imagen de un gato")).toBeVisible();
+    await expect(page.locator(".transcript").getByText("Got it: creame una imagen de un gato")).toBeVisible();
     const chip = page.getByRole("button", { name: "image-gen", exact: true });
     await expect(chip).toBeVisible();
     await chip.click();
@@ -88,7 +88,7 @@ test("the / menu: commands and skills, a skill named loads whole, /new opens a f
   await expect(menu).toBeHidden();
   await box.pressSequentially("dibujá un perro");
   await box.press("Enter");
-  await expect(page.getByText("Got it: /image-gen dibujá un perro")).toBeVisible();
+  await expect(page.locator(".transcript").getByText("Got it: /image-gen dibujá un perro")).toBeVisible();
   await expect(page.getByRole("button", { name: "image-gen", exact: true }).last()).toBeVisible();
 
   // Esc closes the menu; the text stays as typed.

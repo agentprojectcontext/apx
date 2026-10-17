@@ -26,7 +26,7 @@ test("agente adjunta JPG, MP4 y audio: visibles, reproducibles y descargables tr
     for (const [i, name] of ["preview.jpg", "preview.mp4", "preview.wav"].entries()) {
       await input.fill(name);
       await page.getByRole("button", { name: "Enviar", exact: true }).click();
-      await expect(page.getByText("File attached", { exact: true })).toHaveCount(i + 1);
+      await expect(page.locator(".transcript").getByText("File attached", { exact: true })).toHaveCount(i + 1);
     }
     const image = page.getByRole("img", { name: "preview.jpg", exact: true });
     await expect(image).toBeVisible();

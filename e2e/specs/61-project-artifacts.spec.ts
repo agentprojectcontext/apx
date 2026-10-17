@@ -57,7 +57,7 @@ test("a document opens beside the Artifacts list, and from there in its chat", a
     await page.goto(env.core.url);
     await page.getByRole("textbox", { name: /^Escribile a/ }).fill("open the guide");
     await page.getByRole("button", { name: "Enviar", exact: true }).click();
-    await expect(page.getByText("Done", { exact: true })).toBeVisible();
+    await expect(page.locator(".transcript").getByText("Done", { exact: true })).toBeVisible();
 
     await page.goto(`${env.core.url}/#project=~default&tab=artifacts`);
     const row = page.locator(".artifacts__row", { hasText: "Guide.md" });

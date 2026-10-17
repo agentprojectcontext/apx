@@ -66,7 +66,7 @@ test("nota voz muestra volumen real, conserva audio y texto, reproduce después 
     await expect(page.locator(".attchip.is-audio")).toBeVisible();
     await expect(page.locator(".transcript__row")).toHaveCount(0);
     await page.getByRole("button", { name: "Enviar", exact: true }).click();
-    await expect(page.getByText("Duplicates checked", { exact: true })).toBeVisible();
+    await expect(page.locator(".transcript").getByText("Duplicates checked", { exact: true })).toBeVisible();
     await expect(page.getByText("Revisá publicaciones duplicadas", { exact: true })).toBeVisible();
     const player = page.getByRole("button", { name: "Reproducir nota de voz", exact: true });
     await expect(player).toBeEnabled();

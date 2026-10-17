@@ -24,5 +24,5 @@ test("a deleted agent's old chat still shows its name and face, not its id", asy
   await open(page, `#project=${project.id}&tab=chats&thread=${chat.id}`);
   await expect(page.locator(".chat__header")).toContainText("Tessa");
   await expect(page.locator(".inbox__list")).not.toContainText(agent.id);
-  await expect(page.getByRole("main").getByText("Got it: Draft the plan")).toBeVisible();
+  await expect(page.locator(".transcript").getByText("Got it: Draft the plan")).toBeVisible();
 });

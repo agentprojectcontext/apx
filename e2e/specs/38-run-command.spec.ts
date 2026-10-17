@@ -29,7 +29,9 @@ test("a suggested command runs in a terminal from the chat and its end wakes the
   await expect(out.getByText("Salió con 0")).toBeVisible();
 
   // The command ended: the agent got its output in a new turn and answered.
-  await expect(page.getByText(/Got it: The owner ran the command you suggested/)).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".transcript").getByText(/Got it: The owner ran the command you suggested/)).toBeVisible({
+    timeout: 15_000,
+  });
 
   // Its terminal is one click away in the side panel, with what it printed.
   await out.getByRole("button", { name: "Abrir en el panel lateral" }).click();

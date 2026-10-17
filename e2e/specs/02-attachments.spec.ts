@@ -67,7 +67,7 @@ test("adjuntos usuario y agente muestran imágenes y descargan archivos después
     await expect(page.getByRole("button", { name: "Enviar", exact: true })).toBeEnabled();
     await input.fill("Show attached receipts");
     await page.getByRole("button", { name: "Enviar", exact: true }).click();
-    await expect(page.getByText("Files shown", { exact: true })).toBeVisible();
+    await expect(page.locator(".transcript").getByText("Files shown", { exact: true })).toBeVisible();
     await expect(page.getByRole("img", { name: "ticket.png", exact: true })).toBeVisible();
     await expect(page.getByRole("img", { name: "Agent copy: ticket.png", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /^receipt.pdf/ })).toBeVisible();

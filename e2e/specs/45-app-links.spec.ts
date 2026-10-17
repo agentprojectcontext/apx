@@ -21,9 +21,9 @@ test("un enlace del agente a Config › Escritorio es un botón que abre esa sec
     const go = page.getByRole("button", { name: "Config › Escritorio", exact: true });
     await expect(go).toBeVisible();
     // An unknown place is plain text, never a link that goes nowhere.
-    await expect(page.getByText("Otro lado", { exact: false })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Otro lado" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Otro lado" })).toHaveCount(0);
+    await expect(page.locator(".transcript").getByText("Otro lado", { exact: false })).toBeVisible();
+    await expect(page.locator(".transcript").getByRole("button", { name: "Otro lado" })).toHaveCount(0);
+    await expect(page.locator(".transcript").getByRole("link", { name: "Otro lado" })).toHaveCount(0);
     await go.click();
     await expect(page.getByRole("dialog").getByRole("heading", { name: "Escritorio", exact: true })).toBeVisible();
   } finally {

@@ -32,7 +32,7 @@ test("documentos: txt como Markdown, apertura explícita, fuente, descarga y rec
     const send = async (text: string, count: number) => {
       await input.fill(text);
       await page.getByRole("button", { name: "Enviar", exact: true }).click();
-      await expect(page.getByText("Done", { exact: true })).toHaveCount(count);
+      await expect(page.locator(".transcript").getByText("Done", { exact: true })).toHaveCount(count);
     };
     await send("small edit", 1);
     await expect(page.locator(".sidepanel")).toHaveCount(0);
