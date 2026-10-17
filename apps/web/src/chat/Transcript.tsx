@@ -201,6 +201,11 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
             />
           </div>
         )}
+        {thread.state === "queued" && (
+          <div className="transcript__activity">
+            <ActivityPill label={t("chat.agentQueued", { name: agent?.name ?? t("chat.theAgent") })} />
+          </div>
+        )}
         {thread.state === "input-required" && (
           <div className="transcript__activity">
             <ActivityPill tone="danger" label={t("chat.agentWaiting", { name: agent?.name ?? t("chat.theAgent") })} />

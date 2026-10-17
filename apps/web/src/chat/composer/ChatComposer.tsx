@@ -7,7 +7,7 @@ import { cancel, loadThread, makeChat, send } from "../../data/actions.ts";
 import { sendDirect } from "../../data/channels.ts";
 import { setThreadModel } from "../../data/composer.ts";
 import { draftOf, keepDraft } from "../../data/drafts.ts";
-import { isWorking } from "../../data/identity.ts";
+import { isPending } from "../../data/identity.ts";
 import { choiceLabel, splitRef, useModels } from "../../data/models.ts";
 import { isNewChat } from "../../data/newChat.ts";
 import { notify } from "../../data/notices.ts";
@@ -69,7 +69,8 @@ export function ChatComposer({
   const over = useFileDrop(box, (files) => {
     if (!micBusy) att.add(files);
   });
-  const busy = isWorking(thread.state);
+  // A queued delegation is work the owner can stop too.
+  const busy = isPending(thread.state);
   const room = thread.channel && !thread.channel.person_id ? thread.title : undefined;
   const [direct, setDirect] = useState(false);
   const agentName = agent?.name ?? t("composer.yourAgent");

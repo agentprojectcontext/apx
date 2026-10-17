@@ -35,7 +35,8 @@ import { TaskPanel } from "./TaskPanel.tsx";
 import { dropOn, taskMenu } from "./taskActions.tsx";
 import { GROUP_ORDER, type GroupId, groupOf, groupTasks, nestTasks } from "./taskGroups.ts";
 
-const LIVE: ReadonlySet<Run["state"]> = new Set(["submitted", "working"]);
+/** A task is being worked while one of these runs: a delegation queued for a slot is work taken on too. */
+const LIVE: ReadonlySet<Run["state"]> = new Set(["queued", "submitted", "working"]);
 /** The project filter's value for every project (a nav project id never is empty). */
 const ALL_PROJECTS = "";
 /** How many tasks each group shows globally before "See n more". */

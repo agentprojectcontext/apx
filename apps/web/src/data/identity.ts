@@ -61,6 +61,11 @@ export function isWorking(state: Thread["state"] | undefined): boolean {
   return state === "submitted" || state === "working";
 }
 
+/** Work taken on and not done: at work, or a delegation queued for a free slot (DECISIONS.md#d-096). Never idle. */
+export function isPending(state: Thread["state"] | undefined): boolean {
+  return isWorking(state) || state === "queued";
+}
+
 /** Nav id of the base space (threads and agents without a project). Never a real project id (those are p_…). */
 export const DEFAULT_PID = "~default";
 
