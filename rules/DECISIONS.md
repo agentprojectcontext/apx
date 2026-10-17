@@ -1078,3 +1078,7 @@ another agent delegated, a wake from a job or the breaker) now gets 60, the brow
 since the owner can ask for more. A routine may set `max_steps` (5 to 200) for work it knows is longer or shorter. The
 browser and the computer still raise the limit as before, the repeat check still stops a stuck loop, and a turn that
 goes six minutes without progress is still stopped (D-067).
+
+Changed 2026-10-17: a chat turn gets 60 too. At 14, ordinary work (read a few files, edit, run the tests) stopped in
+the middle and the owner had to say "go on" for it; the repeat check and the six-minute stop already bound a turn
+that loops.
