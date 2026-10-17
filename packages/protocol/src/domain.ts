@@ -572,9 +572,29 @@ export const Run = z.object({
 });
 export type Run = z.infer<typeof Run>;
 
+/** What an agent's turn carries, as the core stamped it: the owner's message, a helper's result, a routine… */
+export const JobFrom = z.object({
+  kind: z.enum([
+    "user",
+    "agent",
+    "surface",
+    "channel",
+    "routine",
+    "input_answer",
+    "job",
+    "terminal",
+    "go_on",
+    "task_result",
+    "delegation_result",
+  ]),
+  /** Who sent it (the helper, the contact, the routine, the surface), when it has a name. */
+  name: z.string().optional(),
+});
+export type JobFrom = z.infer<typeof JobFrom>;
+
 /**
- * Work running on its own, for the background view: an agent's turn outside the thread the owner is in (a
- * delegation, a woken agent) or a terminal command an agent started. `thread_id` opens the chat it belongs to.
+ * Every agent turn not over yet (working or queued) and the latest finished ones, or a terminal command an agent
+ * started. `thread_id` opens the chat it belongs to.
  */
 export const Job = z.object({
   id: Id,
@@ -586,6 +606,8 @@ export const Job = z.object({
   parent_thread_id: Id.optional(),
   agent_id: Id.optional(),
   trigger: RunTrigger,
+  /** Agent jobs: what the turn carries, to name one still queued ("Alma's result"). */
+  from: JobFrom.optional(),
   model: z.string().optional(),
   usage: RunUsage.optional(),
   tool_calls: z.number().int().nonnegative(),
