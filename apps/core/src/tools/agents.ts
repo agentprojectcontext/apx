@@ -119,7 +119,9 @@ export function agentTools(store: Store): Tool[] {
             .string()
             .max(500)
             .optional()
-            .describe("the project the task is about (name, id, or a path inside it): the agent works in its folder"),
+            .describe(
+              "the project the task is about (name, id, or its root path; sub-path workspaces are not supported)",
+            ),
           task: z.string().min(1).describe("clear, self-contained task with everything the other agent needs"),
           wait_s: z.number().int().min(0).max(120).optional().describe("seconds to wait inside this turn (default 60)"),
         })
@@ -162,19 +164,21 @@ export function agentTools(store: Store): Tool[] {
   ];
 }
 
-/**
- * A project by id, name or a path inside its folder (the deepest one holding it); a project's own agent reaches only its
- * project. A string: why none.
- */
+/** A project by id, name or its root path; a project's own agent reaches only its project. A string: why none. */
 function projectOf(store: Store, ref: string, agent: AgentRecord): ProjectRecord | string {
   const all = store.projects.list().filter((p) => !agent.project_id || p.id === agent.project_id);
   const q = ref.trim();
-  const found =
-    all.find((p) => p.id === q) ??
-    all.find((p) => p.name.toLowerCase() === q.toLowerCase()) ??
-    all
-      .filter((p) => p.path && path.isAbsolute(q) && (q === p.path || q.startsWith(`${p.path}${path.sep}`)))
-      .sort((x, y) => (y.path?.length ?? 0) - (x.path?.length ?? 0))[0];
+  const absolute = path.isAbsolute(q) ? path.resolve(q) : undefined;
+  const pathProject = all
+    .filter((p) => {
+      if (!p.path || !absolute) return false;
+      const root = path.resolve(p.path);
+      return absolute === root || absolute.startsWith(`${root}${path.sep}`);
+    })
+    .sort((x, y) => (y.path?.length ?? 0) - (x.path?.length ?? 0))[0];
+  if (pathProject?.path && absolute !== path.resolve(pathProject.path))
+    return "refused: delegate cannot honor a project sub-path; pass the project's root path, id, or name instead.";
+  const found = all.find((p) => p.id === q) ?? all.find((p) => p.name.toLowerCase() === q.toLowerCase()) ?? pathProject;
   return (
     found ??
     `no project "${q}". Projects: ${
