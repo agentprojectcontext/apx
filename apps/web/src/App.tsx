@@ -4,6 +4,7 @@ import { startLive } from "./data/live.ts";
 import { checkAccess, useGate } from "./data/pairing.ts";
 import { usePrefs } from "./data/prefs.ts";
 import { loadSetup, useSetup } from "./data/setup.ts";
+import { loadTelemetry } from "./data/telemetry.ts";
 import { useLanguage } from "./i18n/index.ts";
 import { IS_BROWSER_WINDOW } from "./panel/browserWindow.ts";
 import { useNav } from "./shell/nav.ts";
@@ -80,7 +81,9 @@ function Panel() {
   const setup = useSetup((s) => s.open);
   useEffect(() => startLive(), []);
   useEffect(() => {
-    if (!QUICK && !IS_BROWSER_WINDOW) void loadSetup();
+    if (QUICK || IS_BROWSER_WINDOW) return;
+    void loadSetup();
+    void loadTelemetry();
   }, []);
   // The desktop app's browser window (?browser): only the browser panel.
   if (IS_BROWSER_WINDOW)

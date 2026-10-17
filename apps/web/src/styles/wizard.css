@@ -879,3 +879,12 @@ input.wiz__name {
 .wiz__chain .chain__item {
   flex-wrap: wrap;
 }
+.wiz__share {
+  max-width: 440px;
+  text-align: left;
+}
+.wiz__share a {
+  color: var(--apx-fg);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

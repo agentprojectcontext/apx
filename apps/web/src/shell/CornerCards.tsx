@@ -2,6 +2,7 @@ import "../styles/corner.css";
 import { Button, ChannelIcon, IconButton, Icons, ProjectTile } from "@apx/ui";
 import type { CSSProperties, ReactNode } from "react";
 import { closeCard, useClosedCards } from "../data/cornerCards.ts";
+import { PRIVACY_URL, setUsage, useTelemetry } from "../data/telemetry.ts";
 import { newerOf, openUpdate, restartApp, useUpdates } from "../data/updates.ts";
 import { useV1Running } from "../data/v1Running.ts";
 import { useT } from "../i18n/index.ts";
@@ -27,6 +28,8 @@ export function CornerCards({ floating = false }: { floating?: boolean }) {
   // A checkout behind main has no version to name: the top bar's pill says it.
   const update = newer?.version && closed.update !== newer.version ? newer : undefined;
   const v1 = useV1Running();
+  // An install from before telemetry: asked once here; a fresh one answered in the setup.
+  const ask = useTelemetry((s) => s.state?.enabled === true && s.state.usage === null);
 
   const cards: ReactNode[] = [];
   // First: two APX daemons run the same routines and answer the same bots. Closed, it shows again next time.
@@ -70,6 +73,22 @@ export function CornerCards({ floating = false }: { floating?: boolean }) {
       />,
     );
   }
+  if (ask)
+    cards.push(
+      <CornerCard
+        key="telemetry"
+        id="telemetry"
+        icon={<ProjectTile tone="brand" size={24} icon={<Icons.Activity size={14} />} />}
+        title={t("telemetry.cardTitle")}
+        description={t("telemetry.cardDesc")}
+        link={{ label: t("telemetry.whatIsSent"), href: PRIVACY_URL }}
+        action={t("telemetry.cardYes")}
+        onAction={() => void setUsage(true)}
+        secondary={t("telemetry.cardNo")}
+        // Closing it is a no: the card is never said twice.
+        onClose={() => void setUsage(false)}
+      />,
+    );
   if (!closed.discord)
     cards.push(
       <CornerCard
@@ -115,6 +134,9 @@ function CornerCard(props: {
   title: string;
   description: string;
   action: string;
+  /** A second, quieter answer beside the action (it closes the card). */
+  secondary?: string;
+  link?: { label: string; href: string };
   busy?: boolean;
   onAction(): void;
   onClose(): void;
@@ -127,19 +149,36 @@ function CornerCard(props: {
         <div className="corner__title">{props.title}</div>
         <IconButton size="sm" label={t("common.close")} icon={<Icons.X size={14} />} onClick={props.onClose} />
       </div>
-      <div className="corner__desc">{props.description}</div>
-      <Button
-        size="sm"
-        fullWidth
-        loading={props.busy}
-        onClick={() => {
-          props.onAction();
-          // Done with it once acted on; the update and v1 cards stay until what they say is no longer true.
-          if (props.id !== "update" && props.id !== "v1") props.onClose();
-        }}
-      >
-        {props.action}
-      </Button>
+      <div className="corner__desc">
+        {props.description}
+        {props.link && (
+          <>
+            {" "}
+            <a href={props.link.href} target="_blank" rel="noopener noreferrer">
+              {props.link.label}
+            </a>
+          </>
+        )}
+      </div>
+      <div className="corner__actions">
+        {props.secondary && (
+          <Button size="sm" variant="secondary" fullWidth onClick={props.onClose}>
+            {props.secondary}
+          </Button>
+        )}
+        <Button
+          size="sm"
+          fullWidth
+          loading={props.busy}
+          onClick={() => {
+            props.onAction();
+            // Done with it once acted on; the update, v1 and telemetry cards go when what they ask is settled.
+            if (props.id !== "update" && props.id !== "v1" && props.id !== "telemetry") props.onClose();
+          }}
+        >
+          {props.action}
+        </Button>
+      </div>
     </div>
   );
 }

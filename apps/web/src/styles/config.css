@@ -1177,3 +1177,19 @@
   font-size: var(--apx-text-sm);
   color: var(--apx-fg-muted);
 }
+.telemetry__last {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--apx-fg-muted);
+}
+.telemetry__last pre {
+  margin: 8px 0 0;
+  padding: 12px;
+  overflow-x: auto;
+  border: 1px solid var(--apx-border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.telemetry__preview {
+  margin-top: 16px;
+}
