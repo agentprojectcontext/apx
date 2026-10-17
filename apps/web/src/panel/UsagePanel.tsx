@@ -12,6 +12,7 @@ import { useNav } from "../shell/nav.ts";
 const EMPTY: Message[] = [];
 const STATE_TONE = { completed: "brand", failed: "danger", canceled: "neutral" } as const;
 const STATE_LABEL: Record<Run["state"], MessageKey> = {
+  queued: "usage.state.submitted",
   submitted: "usage.state.submitted",
   working: "usage.state.working",
   "input-required": "usage.state.waiting",

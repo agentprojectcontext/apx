@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { type TestContext, test } from "node:test";
 import { UPLOAD_LIMITS } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { scratchRoot } from "../tools/shell.ts";
+import { scratchRoot } from "../tools/folders.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
 import { telegramAdapter } from "./telegram.ts";
 

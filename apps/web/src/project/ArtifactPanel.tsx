@@ -2,9 +2,9 @@ import type { SurfaceSummary } from "@apx/protocol";
 import { IconButton, Icons } from "@apx/ui";
 import { useState } from "react";
 import { Drawer } from "../common/Drawer.tsx";
-import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
-import { DocumentText, downloadDocument } from "../panel/DocumentPanel.tsx";
+import { DocumentActions } from "../panel/DocumentActions.tsx";
+import { DocumentText } from "../panel/DocumentPanel.tsx";
 import type { DocRef } from "../panel/documents.ts";
 import { SurfaceActions } from "../surfaces/SurfaceActions.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
@@ -36,7 +36,8 @@ export function DocumentDrawer({
   onOpenChat,
   onClose,
 }: {
-  doc: DocRef;
+  /** With the chat it is in, for its folder. */
+  doc: DocRef & { thread_id?: string };
   onOpenChat: () => void;
   onClose: () => void;
 }) {
@@ -63,12 +64,7 @@ export function DocumentDrawer({
             active={raw}
             onClick={() => setRaw((v) => !v)}
           />
-          <IconButton
-            size="sm"
-            label={t("document.download")}
-            icon={<Icons.Download size={14} />}
-            onClick={() => void downloadDocument(doc).catch(() => notify(t("document.failed")))}
-          />
+          <DocumentActions doc={doc} thread={doc.thread_id} />
         </div>
       }
     >

@@ -2,7 +2,7 @@ import type { ChannelInfo, ChannelRooms, RoomMode } from "@apx/protocol";
 import { Button, Icons, Input, Select, SettingRow, Switch, Tag, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
-import { useT } from "../i18n/index.ts";
+import { type MessageKey, useT } from "../i18n/index.ts";
 import { SubHead } from "./SectionHead.tsx";
 
 const MODES: RoomMode[] = ["mention", "useful", "always", "read"];
@@ -17,6 +17,31 @@ const EMPTY: ChannelRooms = {
 };
 
 type ServerRoom = { id: string; name: string; server: string; writable: boolean };
+type RoomsKind = "discord" | "telegram";
+
+/** A Discord channel id; a Telegram group's id (negative, -100… for a supergroup). */
+const ROOM_ID: Record<RoomsKind, RegExp> = { discord: /^\d{15,21}$/, telegram: /^-\d{5,16}$/ };
+/** The texts that name the platform's rooms: Discord's server rooms, Telegram's groups. */
+const WORDS = {
+  discord: {
+    title: "rooms.title",
+    lead: "rooms.lead",
+    pick: "rooms.pick",
+    allListed: "rooms.allListed",
+    namePlaceholder: "rooms.namePlaceholder",
+    idPlaceholder: "rooms.idPlaceholder",
+    idHint: "rooms.idHint",
+  },
+  telegram: {
+    title: "rooms.tg.title",
+    lead: "rooms.tg.lead",
+    pick: "rooms.tg.pick",
+    allListed: "rooms.tg.allListed",
+    namePlaceholder: "rooms.tg.namePlaceholder",
+    idPlaceholder: "rooms.tg.idPlaceholder",
+    idHint: "rooms.tg.idHint",
+  },
+} as const satisfies Record<RoomsKind, Record<string, MessageKey>>;
 
 /** The rooms of the bot's servers while it runs; none (and the id form) when they cannot be read. */
 function useServerRooms(channel: ChannelInfo): ServerRoom[] | undefined {
@@ -37,12 +62,24 @@ function useServerRooms(channel: ChannelInfo): ServerRoom[] | undefined {
 }
 
 /**
- * The server rooms a Discord bot reads and may speak in, each with its mode; the words that call it, the owner's notes
- * for that community, its rules and limits. A room not listed does not exist for APX. Rooms are picked from the bot's
- * servers (each says whether the bot may write there); typing an id is the fallback.
+ * The server rooms a Discord bot (or the groups a Telegram bot) reads and may speak in, each with its mode; the words
+ * that call it, the owner's notes for that community, its rules and limits. A room not listed does not exist for APX.
+ * Rooms are picked from the bot's servers (each says whether the bot may write there), or from the groups a Telegram
+ * bot was seen in; typing an id is the fallback.
  */
-export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(rooms: ChannelRooms): Promise<unknown> }) {
+export function RoomsSection({
+  channel,
+  kind,
+  save,
+}: {
+  channel: ChannelInfo;
+  kind: RoomsKind;
+  save(rooms: ChannelRooms): Promise<unknown>;
+}) {
   const t = useT();
+  const words = WORDS[kind];
+  // Telegram groups have no "#" in front of their names.
+  const shown = (r: { id: string; name: string }) => (kind === "discord" ? `#${r.name || r.id}` : r.name || r.id);
   const cur = channel.rooms ?? EMPTY;
   const set = (patch: Partial<ChannelRooms>) => void save({ ...cur, ...patch });
   const [adding, setAdding] = useState({ id: "", name: "" });
@@ -50,7 +87,7 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
   const [byId, setById] = useState(false);
   const writable = new Map((server ?? []).map((r) => [r.id, r.writable]));
   const unlisted = (server ?? []).filter((r) => !cur.rooms.some((x) => x.id === r.id));
-  const validId = /^\d{15,21}$/.test(adding.id.trim());
+  const validId = ROOM_ID[kind].test(adding.id.trim());
   const add = () => {
     if (!validId || cur.rooms.some((r) => r.id === adding.id.trim())) return;
     set({
@@ -70,12 +107,13 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
   );
   return (
     <>
-      <SubHead>{t("rooms.title")}</SubHead>
-      <p className="pform__hint">{t("rooms.lead")}</p>
+      <SubHead>{t(words.title)}</SubHead>
+      <p className="pform__hint">{t(words.lead)}</p>
+      {kind === "telegram" && <p className="pform__hint">{t("rooms.tg.privacy")}</p>}
       <div className="rooms">
         {cur.rooms.map((r) => (
           <div key={r.id} className="rooms__row">
-            <span className="rooms__name">#{r.name || r.id}</span>
+            <span className="rooms__name">{shown(r)}</span>
             {writable.get(r.id) === false ? (
               <Tag className="rooms__mute" title={t("rooms.cannotWriteHint")}>
                 {t("rooms.cannotWrite")}
@@ -84,7 +122,7 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
               <code className="rooms__id">{r.id}</code>
             )}
             <Select
-              label={t("rooms.mode", { room: r.name || r.id })}
+              label={t("rooms.mode", { room: shown(r) })}
               value={r.mode}
               onValueChange={(v) =>
                 v && set({ rooms: cur.rooms.map((x) => (x.id === r.id ? { ...x, mode: v as RoomMode } : x)) })
@@ -98,7 +136,7 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
             <Button
               size="sm"
               variant="ghost"
-              aria-label={t("rooms.remove", { room: r.name || r.id })}
+              aria-label={t("rooms.remove", { room: shown(r) })}
               leadingIcon={<Icons.Trash2 size={14} />}
               onClick={() => set({ rooms: cur.rooms.filter((x) => x.id !== r.id) })}
             />
@@ -107,10 +145,16 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
         {server && (
           <div className="rooms__row rooms__add">
             <Select
-              label={t("rooms.pick")}
+              label={t(words.pick)}
               className="rooms__pick"
               value={null}
-              placeholder={unlisted.length ? t("rooms.pick") : t("rooms.allListed")}
+              placeholder={
+                unlisted.length
+                  ? t(words.pick)
+                  : kind === "telegram" && !server.length
+                    ? t("rooms.tg.none")
+                    : t(words.allListed)
+              }
               disabled={!unlisted.length}
               onValueChange={(id) => {
                 const r = unlisted.find((x) => x.id === id);
@@ -118,8 +162,8 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
               }}
               options={unlisted.map((r) => ({
                 value: r.id,
-                label: `#${r.name}`,
-                group: r.server,
+                label: shown(r),
+                ...(r.server ? { group: r.server } : {}),
                 ...(r.writable ? {} : { description: t("rooms.cannotWriteHint") }),
               }))}
             />
@@ -135,14 +179,14 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
             <Input
               aria-label={t("rooms.name")}
               className="rooms__addname"
-              placeholder={t("rooms.namePlaceholder")}
+              placeholder={t(words.namePlaceholder)}
               value={adding.name}
               onChange={(e) => setAdding({ ...adding, name: e.currentTarget.value })}
             />
             <Input
               aria-label={t("rooms.id")}
               className="rooms__addid"
-              placeholder={t("rooms.idPlaceholder")}
+              placeholder={t(words.idPlaceholder)}
               value={adding.id}
               onChange={(e) => setAdding({ ...adding, id: e.currentTarget.value })}
               onKeyDown={(e) => e.key === "Enter" && add()}
@@ -158,7 +202,7 @@ export function RoomsSection({ channel, save }: { channel: ChannelInfo; save(roo
             </Button>
           </div>
         )}
-        {(!server || byId) && <p className="pform__hint">{t("rooms.idHint")}</p>}
+        {(!server || byId || kind === "telegram") && <p className="pform__hint">{t(words.idHint)}</p>}
       </div>
 
       <SettingRow title={t("rooms.names")} description={t("rooms.namesHint")}>

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { scratchRoot } from "../tools/shell.ts";
+import { scratchRoot } from "../tools/folders.ts";
 
 const llm = scriptedLlm((_req, { said }) =>
   said.includes("how full")

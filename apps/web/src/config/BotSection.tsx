@@ -283,7 +283,9 @@ function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
       </div>
 
       <Behavior channel={channel} save={save} />
-      {kind === "discord" && <RoomsSection channel={channel} save={(rooms) => save({ rooms })} />}
+      {(kind === "discord" || kind === "telegram") && (
+        <RoomsSection channel={channel} kind={kind} save={(rooms) => save({ rooms })} />
+      )}
       {!fixToken && (
         <SettingRow title={t("tg.token")} description={t("tg.tokenStored")}>
           <StoredToken channel={channel} kind={kind} onSave={(token) => save({}, token)} />

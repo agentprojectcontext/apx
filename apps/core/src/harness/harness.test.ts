@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
-import { scratchRoot } from "../tools/shell.ts";
+import { scratchRoot } from "../tools/folders.ts";
 import type { Harness, TurnIO } from "./index.ts";
 
 const seen: Array<{ harness: string; io: TurnIO; outside: boolean }> = [];

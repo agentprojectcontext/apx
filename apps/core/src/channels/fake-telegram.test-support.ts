@@ -77,7 +77,11 @@ export async function fakeTelegram(token: string) {
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
-  const user = (id: number, first: string) => ({ id, first_name: first });
+  const user = (id: number, first: string, username?: string) => ({
+    id,
+    first_name: first,
+    ...(username ? { username } : {}),
+  });
   return {
     url,
     sent,
@@ -116,18 +120,32 @@ export async function fakeTelegram(token: string) {
       });
       return update_id;
     },
-    message(from: { id: number; name: string }, text: string, chat: { id?: number; type?: string } = {}) {
+    /** `extra` goes into the message as is (entities, reply_to_message); a `username` gives the sender one. */
+    message(
+      from: { id: number; name: string; username?: string },
+      text: string,
+      chat: { id?: number; type?: string; title?: string } = {},
+      extra: Record<string, unknown> = {},
+    ) {
       const update_id = nextUpdate++;
       updates.push({
         update_id,
         message: {
           message_id: update_id,
-          chat: { id: chat.id ?? from.id, type: chat.type ?? "private" },
-          from: user(from.id, from.name),
+          chat: { id: chat.id ?? from.id, type: chat.type ?? "private", ...(chat.title ? { title: chat.title } : {}) },
+          from: user(from.id, from.name, from.username),
           text,
+          ...extra,
         },
       });
       return update_id;
+    },
+    /** The bot was added to a group ("member") or removed from it ("left", "kicked"). */
+    membership(chat: { id: number; title: string; type?: string }, status: string) {
+      updates.push({
+        update_id: nextUpdate++,
+        my_chat_member: { chat: { type: "supergroup", ...chat }, new_chat_member: { status, user: user(1, "bot") } },
+      });
     },
     voice(from: { id: number; name: string }) {
       const update_id = nextUpdate++;

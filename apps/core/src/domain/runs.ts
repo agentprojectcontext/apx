@@ -108,7 +108,8 @@ export type StepHit = {
   started_at: string;
 };
 
-const LIVE = ["submitted", "working", "input-required"] as const;
+const RUNNING = ["submitted", "working", "input-required"] as const;
+const LIVE = ["queued", ...RUNNING] as const;
 
 /**
  * Fresh tokens a run spent: its input less what the provider read from its cache, plus its output. Every model call
@@ -149,6 +150,8 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       parent_run_id?: string | undefined;
       depth?: number;
       deadline_at: string;
+      /** `queued`: a delegation that waits for a slot; the engine never picks it up until it is released. */
+      state?: "submitted" | "queued";
     }): RunRecord {
       const id = newId("run");
       const ts = now();
@@ -157,7 +160,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           id,
           thread_id: r.thread_id,
           agent_id: r.agent_id,
-          state: "submitted",
+          state: r.state ?? "submitted",
           trigger: r.trigger,
           input: JSON.stringify(r.input),
           parent_run_id: r.parent_run_id ?? null,
@@ -190,10 +193,41 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         (r) => r.thread_id,
       );
     },
+    /** The thread's runs that have not started, delegations waiting for a slot included. */
     queuedIds(threadId: string): string[] {
       return all(
-        qb.selectFrom("runs").select("id").where("thread_id", "=", threadId).where("state", "=", "submitted"),
+        qb
+          .selectFrom("runs")
+          .select("id")
+          .where("thread_id", "=", threadId)
+          .where("state", "in", ["submitted", "queued"]),
       ).map((r) => r.id);
+    },
+    /** The oldest delegation from this thread waiting for a slot. */
+    nextHeld(parentThreadId: string): RunRecord | undefined {
+      const r = one(
+        qb
+          .selectFrom("runs as r")
+          .innerJoin("threads as t", "t.id", "r.thread_id")
+          .selectAll("r")
+          .where("t.parent_id", "=", parentThreadId)
+          .where("r.state", "=", "queued")
+          .orderBy("r.created_at")
+          .orderBy(raw`r.rowid`)
+          .limit(1),
+      );
+      return r ? toRun(r) : undefined;
+    },
+    /** Threads with delegations waiting for a slot. */
+    heldParents(): string[] {
+      return all(
+        qb
+          .selectFrom("runs as r")
+          .innerJoin("threads as t", "t.id", "r.thread_id")
+          .select("t.parent_id")
+          .distinct()
+          .where("r.state", "=", "queued"),
+      ).flatMap((r) => (r.parent_id ? [r.parent_id] : []));
     },
     /** Runs a crash or restart left mid-turn. */
     interrupted(): RunRecord[] {
@@ -267,7 +301,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         output: Number(r.o),
       }));
     },
-    /** Delegations from this thread still queued or running. */
+    /** Delegations from this thread admitted or running (not those waiting for a slot). */
     activeDelegations(parentThreadId: string): number {
       const r = one(
         qb
@@ -275,7 +309,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .innerJoin("threads as t", "t.id", "r.thread_id")
           .select((eb) => eb.fn.countAll<number>().as("n"))
           .where("t.parent_id", "=", parentThreadId)
-          .where("r.state", "in", LIVE),
+          .where("r.state", "in", RUNNING),
       );
       return Number(r?.n ?? 0);
     },

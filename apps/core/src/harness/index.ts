@@ -10,7 +10,7 @@ import { cachedCatalog } from "../models/catalog.ts";
 import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
 import { mediaData } from "../services/uploads.ts";
-import { harnessDir } from "../tools/shell.ts";
+import { harnessDir } from "../tools/folders.ts";
 import { acpAgents, acpEngine } from "./acp/agents.ts";
 import { acpHarness } from "./acp/harness.ts";
 import { claudeHarness } from "./claude.ts";

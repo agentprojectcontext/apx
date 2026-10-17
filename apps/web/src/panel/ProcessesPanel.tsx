@@ -14,6 +14,9 @@ import { go, useNav } from "../shell/nav.ts";
 import { chatDescendants } from "./process-scope.ts";
 import { PanelHeader } from "./SidePanel.tsx";
 
+/** Not over yet: working, waiting on the owner, or waiting for a free delegation slot. */
+const going = (state: Thread["state"]) => isWorking(state) || state === "input-required" || state === "queued";
+
 /** This chat's delegated conversations and commands, leaving its transcript in place. */
 export function ProcessesPanel() {
   const t = useT();
@@ -62,12 +65,8 @@ export function ProcessesPanel() {
   useEffect(() => {
     if (selected && loadState == null) void loadThread(selected);
   }, [selected, loadState]);
-  const active = (children ?? [])
-    .map((th) => threads[th.id] ?? th)
-    .filter((th) => isWorking(th.state) || th.state === "input-required");
-  const done = (children ?? [])
-    .map((th) => threads[th.id] ?? th)
-    .filter((th) => !isWorking(th.state) && th.state !== "input-required");
+  const active = (children ?? []).map((th) => threads[th.id] ?? th).filter((th) => going(th.state));
+  const done = (children ?? []).map((th) => threads[th.id] ?? th).filter((th) => !going(th.state));
   const row = (th: Thread) => {
     const agent = threadAgent(th, agents);
     return (
@@ -77,11 +76,13 @@ export function ProcessesPanel() {
         <span className="processes__status">
           {th.state === "input-required"
             ? t("run.waiting")
-            : isWorking(th.state)
-              ? t("run.working")
-              : th.state === "failed"
-                ? t("run.failed")
-                : t("run.done")}
+            : th.state === "queued"
+              ? t("run.queued")
+              : isWorking(th.state)
+                ? t("run.working")
+                : th.state === "failed"
+                  ? t("run.failed")
+                  : t("run.done")}
         </span>
       </button>
     );

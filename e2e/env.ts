@@ -111,7 +111,10 @@ const control = http.createServer((req, res) => {
         llm: llm.url.replace(/\/v1$/, ""),
       });
     if (req.url === "/tg/message" && req.method === "POST") {
-      tg.message(body.from as { id: number; name: string }, String(body.text ?? ""));
+      // In a group: its chat, and what the message carries (an @mention's entities).
+      const chat = body.chat as { id: number; type: string; title: string } | undefined;
+      const extra = (body.extra ?? {}) as Record<string, unknown>;
+      tg.message(body.from as { id: number; name: string }, String(body.text ?? ""), chat, extra);
       return json(200, { ok: true });
     }
     if (req.url?.startsWith("/tg/sent")) {

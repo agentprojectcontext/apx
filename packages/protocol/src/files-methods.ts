@@ -139,6 +139,16 @@ export const filesMethods = {
     effect: true,
     access: "human",
   },
+  /**
+   * Opens a chat's document in its default app on the core's computer, from a copy named as the file was: the file
+   * itself may have moved or be one the document does not name (files.open opens that one).
+   */
+  "documents.open": {
+    params: z.object({ media_id: Id }).strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   /** Renames a file or folder in place (a new name, never a new folder). */
   "files.rename": {
     params: z

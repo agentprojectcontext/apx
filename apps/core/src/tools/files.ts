@@ -8,8 +8,8 @@ import type { Store } from "../domain/store.ts";
 import { textDiff } from "../engine/changes.ts";
 import { guarded } from "../engine/paths.ts";
 import { insideReal, writeAtomic } from "../paths.ts";
+import { folderAccess, scratchRoot } from "./folders.ts";
 import { untrusted } from "./result.ts";
-import { locateFile, scratchRoot } from "./shell.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
 /** Largest file an agent writes in one call. */
@@ -68,7 +68,7 @@ async function proposed(r: { at: string; base: string }, status: string, before:
   } satisfies FileChange;
 }
 
-/** The path as the model wrote it, joined to the `cwd` it gave (an absolute path ignores it, as in locateFile). */
+/** The path as the model wrote it, joined to the `cwd` it gave (an absolute path ignores it, as in folderAccess). */
 const named = (a: { path: string; cwd?: string | undefined }) =>
   a.cwd === undefined || path.isAbsolute(a.path) ? a.path : path.join(a.cwd, a.path);
 
@@ -141,14 +141,15 @@ export function fileTools(store: Store, home: string): Tool[] {
     write = false,
   ): { at: string; base: string; scratch: boolean } | { refused: string } => {
     if (a.cwd !== undefined) {
-      const dir = locateFile(store, home, thread, a.cwd);
-      if (!dir) return { refused: `${a.cwd} is outside the folder you work in and your temp folder` };
+      const dir = folderAccess(store, home, thread, a.cwd);
+      if ("refused" in dir) return dir;
       if (!fs.existsSync(dir.at) || !fs.statSync(dir.at).isDirectory()) return { refused: `no folder ${a.cwd}` };
     }
     // Links resolved: a symlink inside the folder must not send the write somewhere else.
-    const r = locateFile(store, home, thread, a.path, a.cwd);
-    if (!r) return { refused: `${named(a)} is outside the folder you work in and your temp folder` };
-    if (r.at.split(path.sep).includes(".git")) return { refused: "the .git folder is off limits" };
+    const r = folderAccess(store, home, thread, a.path, { cwd: a.cwd, write });
+    if ("refused" in r) return r;
+    if (r.at.split(path.sep).includes(".git"))
+      return { refused: "the .git folder is off limits: use git through shell" };
     // The owner was asked by the path as written: one that only lands on APC files through a link is refused.
     if (write && !r.scratch && guarded(r.base, r.at) && !namesGuarded(named(a)))
       return { refused: "APC files and AGENTS.md are written only by their path from the folder's root" };
