@@ -1,5 +1,6 @@
-import { Icons, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
+import { ContextMenu, Icons, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
 import { lazy, Suspense, useEffect, useMemo } from "react";
+import { markAllRead } from "../data/actions.ts";
 import { loadChannels } from "../data/channels.ts";
 import { inInbox } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
@@ -28,6 +29,13 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
   }, []);
 
   const routines = usePrefs((s) => s.inboxRoutines);
+  const unreadIds = useMemo(
+    () =>
+      Object.values(threads)
+        .filter((thread) => thread.unread > 0 && inInbox(thread, routines))
+        .map((thread) => thread.id),
+    [threads, routines],
+  );
   const unread = useMemo(() => {
     let n = 0;
     for (const t of Object.values(threads)) if (inInbox(t, routines)) n += t.unread;
@@ -49,14 +57,25 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
         />
       )}
       <div className="sidebar__top">
-        <NavItem
-          collapsed={rail}
-          icon={<Icons.Inbox />}
-          label={t("nav.inbox")}
-          count={unread}
-          active={view === "inbox"}
-          onClick={() => go.inbox()}
-        />
+        <ContextMenu
+          items={[
+            {
+              label: t("inbox.markAllRead"),
+              icon: <Icons.CheckCheck />,
+              disabled: unreadIds.length === 0,
+              onSelect: () => void markAllRead(unreadIds),
+            },
+          ]}
+        >
+          <NavItem
+            collapsed={rail}
+            icon={<Icons.Inbox />}
+            label={t("nav.inbox")}
+            count={unread}
+            active={view === "inbox"}
+            onClick={() => go.inbox()}
+          />
+        </ContextMenu>
         <NavItem
           collapsed={rail}
           icon={<Icons.ListChecks />}

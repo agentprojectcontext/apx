@@ -42,6 +42,17 @@ test("Marcar todo como leído: desde la Bandeja y desde el menú del proyecto", 
   await expect(inbox.locator(".apx-nav__count")).toHaveCount(0);
   await expect(all).toBeDisabled();
 
+  // Inbox unread counts can also be cleared from its sidebar context menu.
+  unread.set(a.id, 2);
+  unread.set(b.id, 3);
+  read.length = 0;
+  await page.reload();
+  await expect(inbox.locator(".apx-nav__count")).toHaveText("5");
+  await inbox.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Marcar todo como leído", exact: true }).click();
+  await expect.poll(() => [...read].sort()).toEqual([a.id, b.id].sort());
+  await expect(inbox.locator(".apx-nav__count")).toHaveCount(0);
+
   // The project's dot goes the same way, from its own menu.
   unread.set(a.id, 1);
   read.length = 0;
