@@ -489,6 +489,11 @@ export const en = {
   "widget.openApp": "Open as app",
   "widget.installApp": "Install as app",
   "widget.unavailable": "Widget not available",
+  "widget.toPanel": "Show in the side panel",
+  "widget.inPanel": "Showing in the side panel",
+  "widget.showHere": "Show here",
+  "widget.backToChat": "Back to the chat",
+  "widgets.all": "All widgets ({n})",
   "widgets.empty": "No widgets in this chat",
   "widgets.emptyBody":
     "Widgets the agent builds in this chat show here. Pin one to keep it on the project's board too.",

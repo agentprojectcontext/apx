@@ -69,6 +69,8 @@ export type NavState = {
   panelWide: boolean;
   browserTab: string | undefined;
   panelDocument: string | undefined;
+  /** The one widget the widget panel shows (moved there from the chat); without one it lists the chat's widgets. */
+  panelWidget: string | undefined;
   /** The terminal tab to bring forward in the terminal panel (one just opened to run a command). */
   panelTerminal: string | undefined;
   /** The agent the "agent" side panel shows (opened from its face or name in a chat). */
@@ -142,6 +144,7 @@ function fromHash(): Partial<NavState> {
     ...(h.get("task") ? { taskId: h.get("task") ?? undefined } : {}),
     ...(panel && (PANELS as readonly string[]).includes(panel) ? { panel: panel as PanelKind } : {}),
     panelDocument: panel === "document" ? (h.get("document") ?? undefined) : undefined,
+    panelWidget: panel === "widget" ? (h.get("widget") ?? undefined) : undefined,
     ...(project
       ? {
           view: "project" as const,
@@ -169,6 +172,7 @@ export const nav = createStore<NavState>({
   panelWide: false,
   browserTab: undefined,
   panelDocument: undefined,
+  panelWidget: undefined,
   panelTerminal: undefined,
   panelAgent: undefined,
   panelThread: undefined,
@@ -208,6 +212,7 @@ type Place = Pick<
   | "panelWide"
   | "browserTab"
   | "panelDocument"
+  | "panelWidget"
   | "panelAgent"
   | "panelThread"
   | "panelParent"
@@ -232,6 +237,7 @@ function placeOf(s: NavState): Place {
     panelWide: s.panelWide,
     browserTab: s.browserTab,
     panelDocument: s.panelDocument,
+    panelWidget: s.panelWidget,
     panelAgent: s.panelAgent,
     panelThread: s.panelThread,
     panelParent: s.panelParent,
@@ -307,6 +313,7 @@ nav.subscribe(() => {
   } else if (s.threadId) h.set("thread", s.threadId);
   if (s.panel && showsChat(s)) h.set("panel", s.panel);
   if (s.panel === "document" && showsChat(s) && s.panelDocument) h.set("document", s.panelDocument);
+  if (s.panel === "widget" && showsChat(s) && s.panelWidget) h.set("widget", s.panelWidget);
   const next = `#${h.toString()}`;
   if (window.location.hash !== next) history.replaceState(null, "", next);
   rememberPlace(placeOf(s));
@@ -469,7 +476,7 @@ export const go = {
     nav.set({ panel: "processes", panelThread: undefined, panelParent: undefined });
   },
   panel(panel: PanelKind | null) {
-    nav.set({ panel, panelThread: undefined, panelParent: undefined });
+    nav.set({ panel, panelThread: undefined, panelParent: undefined, panelWidget: undefined });
   },
   /** The terminal panel, showing that terminal. */
   terminal(terminalId: string) {
@@ -479,11 +486,20 @@ export const go = {
   document(mediaId?: string) {
     nav.set({ panel: "document", panelDocument: mediaId, panelThread: undefined, panelParent: undefined });
   },
+  /** The widget panel showing that one widget (the chat keeps a card of it), or without one the chat's widgets. */
+  widget(surfaceId?: string) {
+    nav.set({ panel: "widget", panelWidget: surfaceId, panelThread: undefined, panelParent: undefined });
+  },
   togglePanelWide() {
     nav.set((s) => ({ panelWide: !s.panelWide }));
   },
   togglePanel(panel: PanelKind) {
-    nav.set((s) => ({ panel: s.panel === panel ? null : panel, panelThread: undefined, panelParent: undefined }));
+    nav.set((s) => ({
+      panel: s.panel === panel ? null : panel,
+      panelThread: undefined,
+      panelParent: undefined,
+      panelWidget: undefined,
+    }));
   },
   browser(tab?: string) {
     nav.set((s) => ({
