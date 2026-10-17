@@ -406,7 +406,11 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
     turn.audience.kind === "contact" && !turn.audience.room && o.kind === "user"
       ? ownerInstruction(turn.audience.name, turn.input.text)
       : turn.input.text;
-  const files = attachmentsBlock(store, turn.input.attachments ?? [], sealed ? undefined : { home: deps.home, thread });
+  const files = attachmentsBlock(
+    store,
+    turn.input.attachments ?? [],
+    turn.audience.kind === "contact" ? undefined : { home: deps.home, thread },
+  );
   const images = (turn.input.attachments ?? []).filter((a) => a.kind === "image");
   // A resumed turn already has its message in the history: it only learns why it stopped.
   const input: ChatItem & { role: "user" } = turn.input.resume_of
