@@ -161,8 +161,8 @@ test("a worktree inside the project is made through the folder rule; one outside
   const thread = { id: "t_wt", project_id: project };
   const verdict = (command: string) => commandFolder(env.core.store, env.home, thread, { command });
   for (const c of [
-    "git worktree add .claude/worktrees/x -b fix/x",
-    "git worktree add -b fix/x .claude/worktrees/x origin/release",
+    "git worktree add .worktrees/x -b fix/x",
+    "git worktree add -b fix/x .worktrees/x origin/release",
   ])
     assert.ok(!("refused" in verdict(c)), c);
   for (const c of ["git worktree add ../x -b fix/x", "git worktree add /tmp/../elsewhere/x"]) {

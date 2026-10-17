@@ -13,7 +13,8 @@ The project's folder is yours to change. When it is a git repository, leave the 
 worktree inside the project and work there, giving it as `cwd` to shell and the file tools:
 
 ```bash
-git worktree add .claude/worktrees/<slug> -b <type>/<slug> <base>   # type: feat, fix, docs or chore
+grep -qx '/.worktrees/' .git/info/exclude || echo '/.worktrees/' >> .git/info/exclude   # once: kept out of git
+git worktree add .worktrees/<slug> -b <type>/<slug> <base>   # type: feat, fix, docs or chore
 ```
 
 Reading a folder outside the project asks the owner by itself, with a card they answer; never ask them for a writable
