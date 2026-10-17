@@ -350,7 +350,7 @@ test("when the first model fails and the next answers, the answer says which fai
   assert.match(out.failed?.[0]?.why ?? "", /quota/);
 });
 
-test("a usage limit stops the chain with the earliest reset any model gave, whatever stopped the others", async () => {
+test("a usage limit stops the chain with the earliest reset any model gave, whatever else was down", async () => {
   const now = Date.now();
   const soon = new Date(Math.ceil(now / 1000) * 1000 + 3600_000);
   const late = new Date(soon.getTime() + 3 * 3600_000);
@@ -369,7 +369,7 @@ test("a usage limit stops the chain with the earliest reset any model gave, what
           JSON.stringify({ error: { type: "usage_limit_reached", resets_at: Math.floor(late.getTime() / 1000) } }),
           { status: 429 },
         );
-      if (model === "m2") return new Response("bad key", { status: 401 });
+      if (model === "m2") return new Response("overloaded", { status: 503 });
       // A Retry-After header, in seconds.
       return new Response("You exceeded your current quota", {
         status: 429,
@@ -393,6 +393,35 @@ test("a usage limit stops the chain with the earliest reset any model gave, what
   assert.match(err.message, /pb\/m3: .*quota/);
   // A plan's "usage_limit_reached" is its quota, not a pause to retry after.
   assert.equal(seen.filter((m) => m === "m1").length, 1);
+});
+
+test("a key to fix is told as such, even when another model hit a limit; a short rate limit is a pause", async () => {
+  const fetchWith = (second: () => Response) =>
+    (async (_url: string, init: RequestInit) => {
+      const model = (JSON.parse(String(init.body)) as { model: string }).model;
+      return model === "m1" ? new Response("You exceeded your current quota", { status: 429 }) : second();
+    }) as typeof fetch;
+  const fail = (fetchImpl: typeof fetch, models: string[]) =>
+    createLlm({ providers: () => providers, secrets, firstByteMs: 1000, retryDelayMs: 5, fetchImpl })
+      .complete({ models, messages: [], tools: [], signal: new AbortController().signal })
+      .then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+  const revoked = await fail(
+    fetchWith(() => new Response("bad key", { status: 401 })),
+    ["pa/m1", "pb/m3"],
+  );
+  assert.ok(revoked instanceof ProviderError);
+  assert.equal(revoked.kind, "auth");
+  assert.equal(revoked.limit, false);
+  assert.match(revoked.message, /pa\/m1: .*quota/);
+
+  const pause = new ProviderError("rate_limit", "HTTP 429: slow down", new Date(Date.now() + 30_000).toISOString());
+  assert.equal(pause.limit, false, "lifts in 30 seconds");
+  const long = new ProviderError("rate_limit", "HTTP 429: slow down", new Date(Date.now() + 3600_000).toISOString());
+  assert.equal(long.limit, true);
+  assert.equal(new ProviderError("rate_limit", "HTTP 429: slow down").limit, true, "unsaid: may be long");
 });
 
 test("a chain that fails for other reasons only is not a usage limit", async () => {

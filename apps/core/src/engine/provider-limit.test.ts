@@ -5,13 +5,14 @@ import { resetLabel } from "./provider-limit.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 let now = new Date("2026-03-02T10:00:00Z");
-const RESET = "2026-03-02T14:30:00.000Z";
-const LATER_RESET = "2026-03-02T20:00:00.000Z";
+/** A time on the test clock's day: each test that counts notices starts on a day of its own, past earlier stalls. */
+const on = (hhmm: string) => `${now.toISOString().slice(0, 10)}T${hhmm}:00.000Z`;
 
 const llm = scriptedLlm((_req, { said }) => {
   if (said.includes("limited later"))
-    throw new ProviderError("quota", "fake/fake-1: HTTP 429: usage_limit_reached", LATER_RESET);
-  if (said.includes("limited")) throw new ProviderError("quota", "fake/fake-1: HTTP 429: usage_limit_reached", RESET);
+    throw new ProviderError("quota", "fake/fake-1: HTTP 429: usage_limit_reached", on("20:00"));
+  if (said.includes("limited"))
+    throw new ProviderError("quota", "fake/fake-1: HTTP 429: usage_limit_reached", on("14:30"));
   if (said.includes("unsaid")) throw new ProviderError("rate_limit", "fake/fake-1: HTTP 429: slow down");
   if (said.includes("broken")) throw new ProviderError("auth", "fake/fake-1: HTTP 401: bad key");
   return say("Done.");
@@ -45,7 +46,7 @@ test("a run a provider limit stopped keeps the reset and a reason of its own, an
   const run = t.runs[0];
   assert.equal(run?.state, "failed");
   assert.equal(run?.end_reason, "provider_limit");
-  assert.equal(run?.resets_at, RESET);
+  assert.equal(run?.resets_at, on("14:30"));
   // Told in the owner's time zone, with the date when it is not today.
   assert.match(run?.error ?? "", /usage limit, which lifts at (2026-03-02 )?14:30\./);
   const notice = t.messages.at(-1)?.parts.find((p) => p.type === "notice");
@@ -66,11 +67,12 @@ test("other failures keep their own reason", async () => {
 });
 
 test("the owner hears once per stall, not once per stopped run; a new stall after the reset is told again", async () => {
+  now = new Date("2026-03-03T10:00:00Z");
   const before = stallNotices().length;
   const nudgesBefore = stallNudges().length;
-  // A model answering ends whatever stall came before.
-  await turn("hello");
   await turn("limited: task one");
+  // Another agent answering (on another provider, say) does not end the stall.
+  await turn("hello");
   await turn("limited: task two");
   await turn("limited later: task three");
   await wait(150);
@@ -85,14 +87,14 @@ test("the owner hears once per stall, not once per stopped run; a new stall afte
       .some((n) => n.kind === "run" && /usage limit/.test(n.body)),
   );
   // Past the reset the limit is hit again: that is a new stall.
-  now = new Date("2026-03-02T15:00:00Z");
+  now = new Date("2026-03-03T15:00:00Z");
   await turn("limited later: task four");
   assert.equal(stallNotices().length - before, 2);
   assert.match(stallNotices()[0]?.body ?? "", /20:00/);
 });
 
 test("a limit with no reset said is still a provider limit, told without a time", async () => {
-  await turn("hello");
+  now = new Date("2026-03-04T10:00:00Z");
   const t = await turn("unsaid: go");
   assert.equal(t.runs[0]?.end_reason, "provider_limit");
   assert.equal(t.runs[0]?.resets_at, undefined);
