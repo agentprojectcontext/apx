@@ -3,6 +3,7 @@
 // Shown notes stay in the model log, so the prefix never changes; once the turn that showed the standing notes falls
 // out of the model's view (history budget), they are offered again.
 import type { Memory, Thread } from "@apx/protocol";
+import { ftsQuery } from "../domain/memories.ts";
 import type { Store } from "../domain/store.ts";
 import type { ThreadContext } from "../domain/threads.ts";
 import { notesText } from "../tools/memory.ts";
@@ -12,9 +13,25 @@ const STANDING = 8;
 const MATCHES = 5;
 /** Ids remembered as shown, per agent: older ones may be shown again (they left the context long ago). */
 const SHOWN_CAP = 200;
+/** A global note comes into a delegated turn only when it shares this many distinctive words with the task. */
+const GLOBAL_SHARED_WORDS = 2;
+
+const plain = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
+/** True when the note shares enough distinctive words (same prefix rule as the search) with the task. */
+function relatedToTask(note: Memory, task: string): boolean {
+  const words = [...(ftsQuery(task, 40) ?? "").matchAll(/"([^"]+)"(\*)?/g)].map((m) => ({
+    w: m[1] as string,
+    prefix: !!m[2],
+  }));
+  const have = plain(note.text).match(/[\p{L}\p{N}]{3,}/gu) ?? [];
+  const shared = words.filter(({ w, prefix }) => have.some((h) => (prefix ? h.startsWith(w) : h === w)));
+  return shared.length >= GLOBAL_SHARED_WORDS;
+}
 
 /**
- * `from`: the oldest model log seq still in the model's view. Returns the block and, when something changed, the
+ * `from`: the oldest model log seq still in the model's view. `delegated`: a helper's turn, which is about the task
+ * it was handed: no standing global notes, and a global match only when it shares words with the task. Returns the block and, when something changed, the
  * bookkeeping to store once the input's seq is known.
  */
 export async function recallFor(
@@ -25,6 +42,7 @@ export async function recallFor(
   text: string,
   ctx: ThreadContext,
   from: number,
+  delegated = false,
 ): Promise<{ text?: string | undefined; shown?: ((at: number) => ThreadContext) | undefined }> {
   const all = ctx.memory_shown ?? {};
   const since = ctx.memory_since ?? {};
@@ -42,10 +60,15 @@ export async function recallFor(
   };
   if (!before) {
     // What an agent wrote about the owner stands only once the owner confirmed it; until then it shows only on a match.
-    add(store.memories.list({ view, scope: "global", pending: false, limit: STANDING }));
+    if (delegated && thread.project_id)
+      add(store.memories.list({ view, scope: "project", project_id: thread.project_id, limit: STANDING }));
+    else if (!delegated) add(store.memories.list({ view, scope: "global", pending: false, limit: STANDING }));
     add(store.memories.list({ view, scope: "agent", agent_id: agentId, limit: STANDING }));
   }
-  if (text.trim()) add(await search({ view, query: text.slice(0, 2000), limit: MATCHES }));
+  if (text.trim()) {
+    const found = await search({ view, query: text.slice(0, 2000), limit: MATCHES });
+    add(delegated ? found.filter((m) => m.scope !== "global" || relatedToTask(m, text)) : found);
+  }
   const block = notesText(notes);
   // The first turn records the agent even with nothing to show, so its standing notes are not looked up again.
   if (before && !block.ids.length) return {};

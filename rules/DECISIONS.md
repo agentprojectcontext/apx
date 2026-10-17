@@ -1110,3 +1110,10 @@ figure providers bill near full price for, and the defaults are 30 turns and 1.5
 fields on any change, so most installs held the old defaults as if the owner chose them: a migration drops a saved value
 equal to a former default (16, 600k), and saving now keeps only what differs from the defaults, so a later default
 reaches everyone who never touched it while a limit the owner picked stays.
+
+## D-094 — 2026-10-17 — A helper's turn recalls its project and the task, not the owner's whole notebook
+D-013 gives an agent's first turn the owner's standing global notes. In a delegated turn (input origin `agent`) that
+put a dozen notes from unrelated projects in front of a helper handed one narrow task. Now a helper's first turn gets
+its project's notes and its own, and a global note only when a match shares at least two distinctive words with the
+task text; notes of other projects were never visible. The word test is deliberate: search by meaning fuses ranks and
+exposes no score to filter on. The owner's direct turns keep D-013 as it was.
