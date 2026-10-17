@@ -248,7 +248,8 @@ test("the Projects section shows more or fewer rows from its bottom edge, never 
   await expect(rows).toHaveCount(5);
   const grip = page.getByRole("separator", { name: "Mostrar más o menos proyectos" });
   // The edge is the divider under the section, not a second line beside it.
-  await expect(page.locator(".sidebar__grip + .sidebar__divider")).toBeHidden();
+  // Every section with an edge (Projects, and the external sessions once there are some) hides its own divider.
+  await expect(page.locator(".sidebar__grip + .sidebar__divider").filter({ visible: true })).toHaveCount(0);
   await grip.focus();
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowDown");
