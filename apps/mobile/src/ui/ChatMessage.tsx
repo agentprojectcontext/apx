@@ -3,7 +3,7 @@ import { Alert, Pressable, Text, TextInput, View } from "react-native";
 import { parseMarkdown, plainText } from "../chat/markdown";
 import { type MediaItem, mediaRows } from "../chat/media";
 import { clock } from "../format";
-import { isWorking } from "../hooks/chatSelectors";
+import { stateMark } from "../hooks/chatSelectors";
 import type { Agent } from "../hooks/useWorkspace";
 import { lang, t } from "../i18n";
 import { type Answer, type Message, noticeText } from "../protocol";
@@ -135,16 +135,16 @@ export function ChatMessage({
                 style={({ pressed }) => [s.subthread, pressed && { backgroundColor: theme.fill }]}
               >
                 <View style={s.subthreadHead}>
-                  {part.state === "queued" ? (
+                  {stateMark(part.state) === "queued" ? (
                     <Icon name="Clock" size={14} color={theme.fgSubtle} />
-                  ) : isWorking(part.state) ? (
+                  ) : stateMark(part.state) === "working" ? (
                     <Spinner size={14} />
                   ) : (
-                    <Icon name={part.state === "failed" ? "X" : "Check"} size={14} color={theme.fgSubtle} />
+                    <Icon name={stateMark(part.state) === "failed" ? "X" : "Check"} size={14} color={theme.fgSubtle} />
                   )}
                   <Text numberOfLines={1} style={s.lineText}>
                     {agents.find((agent) => agent.id === part.agent_id)?.name ?? part.worker ?? t("agent")} ·{" "}
-                    {part.state === "queued" ? `${t("queued")} · ` : ""}
+                    {stateMark(part.state) === "queued" ? `${t("queued")} · ` : ""}
                     {part.title}
                   </Text>
                 </View>

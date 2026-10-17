@@ -12,6 +12,7 @@ import {
   isWorking,
   listedThreads,
   pickAgents,
+  stateMark,
   threadContext,
   workingNow,
   workSubject,
@@ -221,4 +222,16 @@ test("a task's chats are one row of the list, where its most recent one is", () 
     entries.map((e) => (e.kind === "thread" ? e.thread.id : `${e.taskId}:${e.threads.map((t) => t.id).join(",")}`)),
     ["a", "task_1:b,d", "c"],
   );
+});
+
+test("a queued delegation is marked queued, never in progress or done, and says so in both languages", () => {
+  assert.equal(stateMark("queued"), "queued");
+  assert.equal(stateMark("submitted"), "working");
+  assert.equal(stateMark("working"), "working");
+  assert.equal(stateMark("completed"), "done");
+  assert.equal(stateMark("canceled"), "done");
+  assert.equal(stateMark("failed"), "failed");
+  assert.equal(stateMark(undefined), "done");
+  assert.equal(translator("en")("queued"), "Queued");
+  assert.equal(translator("es")("queued"), "En cola");
 });

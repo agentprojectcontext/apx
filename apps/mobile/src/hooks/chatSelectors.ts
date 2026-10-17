@@ -8,6 +8,15 @@ export function isWorking(state?: string): boolean {
   return state === "submitted" || state === "working";
 }
 
+/** What a delegation card or session row shows for a run's state: a queued one is neither in progress nor done. */
+export type StateMark = "queued" | "working" | "failed" | "done";
+
+export function stateMark(state?: string): StateMark {
+  if (state === "queued") return "queued";
+  if (isWorking(state)) return "working";
+  return state === "failed" ? "failed" : "done";
+}
+
 export function activeThreads(threads: Thread[]): Thread[] {
   return threads
     .filter((thread) => isWorking(thread.state) || thread.state === "input-required")

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
 import { listWhen } from "../format";
-import { engineName, isWorking } from "../hooks/chatSelectors";
+import { engineName, stateMark } from "../hooks/chatSelectors";
 import type { Engine, NativeSession, Thread, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import { EngineIcon } from "../ui/EngineIcon";
@@ -144,8 +144,9 @@ function SessionRow({ thread, data, onPress }: { thread: Thread; data: Workspace
   const type = useType();
   const theme = useTheme();
   const s = useStyles();
-  const failed = thread.state === "failed";
-  const queued = thread.state === "queued";
+  const mark = stateMark(thread.state);
+  const failed = mark === "failed";
+  const queued = mark === "queued";
   const project = data.projects.find((item) => item.id === thread.project_id)?.name;
   return (
     <Pressable
@@ -156,7 +157,7 @@ function SessionRow({ thread, data, onPress }: { thread: Thread; data: Workspace
       <View style={s.mark}>
         {queued ? (
           <Icon name="Clock" size={16} color={theme.fgSubtle} />
-        ) : isWorking(thread.state) ? (
+        ) : mark === "working" ? (
           <Spinner size={14} color={theme.brand} />
         ) : (
           <Icon name={failed ? "TriangleAlert" : "Check"} size={16} color={failed ? theme.danger : theme.fgSubtle} />
