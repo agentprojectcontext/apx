@@ -1,6 +1,7 @@
 import { PROTOCOL_VERSION } from "@apx/protocol";
 import { coreLogFile, readCoreLog } from "../core-log.ts";
 import type { Identity } from "../identity.ts";
+import type { Telemetry } from "../telemetry.ts";
 import type { Updates } from "../updates.ts";
 import type { Handler, Handlers } from "./router.ts";
 
@@ -35,5 +36,17 @@ export function updateHandlers(updates: Updates) {
   return {
     "system.updates": async ({ check }) => (check ? await updates.check() : updates.status()),
     "system.update": () => updates.apply(),
+  } satisfies Partial<Handlers>;
+}
+
+/** What this install reports about itself, and the owner's answer on usage statistics. */
+export function telemetryHandlers(telemetry: Telemetry) {
+  return {
+    "telemetry.get": () => telemetry.get(),
+    "telemetry.set": ({ usage }) => telemetry.set(usage),
+    "telemetry.seen": () => {
+      telemetry.seen();
+      return { ok: true as const };
+    },
   } satisfies Partial<Handlers>;
 }

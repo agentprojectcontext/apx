@@ -55,7 +55,7 @@ import { routineHandlers } from "./rpc/routines.ts";
 import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
 import { setupHandlers } from "./rpc/setup.ts";
-import { systemHandlers, updateHandlers } from "./rpc/system.ts";
+import { systemHandlers, telemetryHandlers, updateHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
 import { terminalHandlers } from "./rpc/terminal.ts";
@@ -64,6 +64,7 @@ import { threadHandlers } from "./rpc/threads.ts";
 import { transcriptionHandlers } from "./rpc/transcription.ts";
 import type { Secrets } from "./secrets.ts";
 import type { RuntimeHomes } from "./skills/runtimes.ts";
+import type { Telemetry } from "./telemetry.ts";
 import { agentSetTools } from "./tools/agent-set.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
@@ -203,6 +204,7 @@ type HandlerDeps = {
   /** Other agent apps' folders that get APX's skills for them. */
   runtimeHomes: Parameters<typeof resourceHandlers>[0]["runtimeHomes"];
   updates: Updates;
+  telemetry: Telemetry;
   /** The panel build being served (its entry file). */
   panel: () => string | undefined;
   /** The addresses a paired device may reach this core on. */
@@ -217,6 +219,7 @@ type HandlerDeps = {
 export function coreHandlers(d: HandlerDeps) {
   return {
     ...updateHandlers(d.updates),
+    ...telemetryHandlers(d.telemetry),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)

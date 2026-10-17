@@ -244,6 +244,8 @@ export function createExecutor(o: {
         approval: target,
         args: raw,
         detail: describe(args),
+        // A preview that fails only costs the patch: the owner still sees the arguments.
+        change: await tool.preview?.(args, { agent, thread }).catch(() => undefined),
         external: o.external(),
         stays: true,
         signal,

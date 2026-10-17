@@ -718,4 +718,8 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE runs ADD COLUMN end_reason TEXT;
   ALTER TABLE runs ADD COLUMN resets_at TEXT;
   `,
+  `
+  -- A confirmation of a file write shows the patch it would make (tools/files.ts preview), kept with the request.
+  ALTER TABLE pending_inputs ADD COLUMN change TEXT;
+  `,
 ];

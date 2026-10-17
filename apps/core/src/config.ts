@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { CORE_ENV_FILE, coreEnvDefaults, parseCoreEnv, RELEASE_FEED } from "@apx/protocol";
 import type { SecretsBackend } from "./secrets.ts";
+import { TELEMETRY_SINK } from "./telemetry-sink.ts";
 
 /**
  * Where v2 keeps its state: inside the APX folder, apart from v1's files (which stay as they are until the owner
@@ -89,6 +90,11 @@ export type CoreConfig = {
   app: string | undefined;
   /** owner/repo whose Releases announce newer bundles (APX_RELEASES; "off" stops it). */
   releases: string | undefined;
+  /**
+   * Where telemetry goes (APX_TELEMETRY: a sink, or "off"); undefined sends nothing. DO_NOT_TRACK=1 and CI turn it off
+   * too. See telemetry-sink.ts.
+   */
+  telemetry: string | undefined;
 };
 
 /** The key reference of the ChatGPT plan's sign-in. */
@@ -208,9 +214,16 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     supervised: env.APX_SUPERVISED === "1",
     app: env.APX_APP || undefined,
     releases: env.APX_RELEASES === "off" ? undefined : env.APX_RELEASES || RELEASE_FEED,
+    telemetry: telemetryOff(env) ? undefined : env.APX_TELEMETRY || TELEMETRY_SINK,
   };
   assertSafeBind(config);
   return config;
+}
+
+/** The owner, the shell or a CI said no telemetry (https://consoledonottrack.com). */
+function telemetryOff(env: NodeJS.ProcessEnv): boolean {
+  const yes = (v: string | undefined) => Boolean(v) && v !== "0" && v !== "false";
+  return env.APX_TELEMETRY === "off" || yes(env.DO_NOT_TRACK) || yes(env.CI);
 }
 
 export function assertSafeBind(config: Pick<CoreConfig, "host" | "token">): void {
@@ -234,6 +247,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     updates: "off",
     app: undefined,
     releases: undefined,
+    telemetry: undefined,
     headless: false,
     agentName: "Roby",
     ...over,

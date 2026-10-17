@@ -4,6 +4,7 @@ import { z } from "zod";
 import { appMethods } from "./app-methods.ts";
 import { browserMethods } from "./browser.ts";
 import { deviceMethods } from "./device-methods.ts";
+import { telemetryMethods } from "./telemetry-methods.ts";
 import { terminalMethods } from "./terminal-methods.ts";
 import { threadMethods } from "./thread-methods.ts";
 
@@ -89,6 +90,7 @@ export const methods = {
   ...deviceMethods,
   ...threadMethods,
   ...terminalMethods,
+  ...telemetryMethods,
 } as const satisfies Record<string, MethodDef>;
 
 export type MethodName = keyof typeof methods;

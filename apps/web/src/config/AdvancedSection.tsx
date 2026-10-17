@@ -5,6 +5,7 @@ import { loadHealth } from "../data/engines.ts";
 import { useData } from "../data/state.ts";
 import { isKey, useT } from "../i18n/index.ts";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
+import { TelemetryBlock } from "./TelemetryBlock.tsx";
 
 const STATUS_TONE = { ok: "brand", degraded: "warning", down: "danger", off: "neutral" } as const;
 
@@ -88,6 +89,7 @@ export function AdvancedSection() {
         <Skeleton shape="block" height={120} />
       )}
       <MemoryUsage />
+      <TelemetryBlock />
     </>
   );
 }

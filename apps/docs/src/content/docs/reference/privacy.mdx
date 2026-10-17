@@ -1,0 +1,64 @@
+---
+title: Privacy and telemetry
+description: What APX tells the APX project about your install, what it sends only if you say yes, what it never sends, and how to turn it all off.
+sidebar:
+  order: 4
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+APX runs on your computer and keeps your chats, agents, files and keys there. To know how many people install it, get
+through the setup and keep using it, it tells the APX project a little about your install. This page lists all of it.
+
+## Every install: the steps it goes through
+
+Under a random id made for this alone (it is not your home id, your name or anything about your computer), APX sends
+each of these once, when it happens:
+
+| Step | When |
+|---|---|
+| Installed | The core starts for the first time. |
+| Opened | The panel opens for the first time. |
+| Answer on statistics | You answer the question below (again if you change it). |
+| Setup finished | You finish the first-run setup. |
+| First use | You send your first message. |
+| Updated | APX starts on a new version. |
+
+Each one carries the APX version, the operating system (`darwin`, `linux`, `win32`), the processor (`arm64`, `x64`)
+and how APX was installed (desktop app, install script or source checkout). The time is stamped by the receiving
+server, not by your computer.
+
+## Only if you say yes: usage numbers
+
+The setup asks, with the box unticked: **Share anonymous usage statistics**. An install from before this question asks
+once in the corner of the window. If you say yes, APX sends one report a day, starting the day after:
+
+- tokens in and tokens out, summed over every model and provider;
+- how many turns your agents ran;
+- how many projects, agents, channels and routines you have.
+
+Only these numbers. You can change your answer any time in **Settings › Advanced › Usage statistics**, which also shows
+the next report's numbers and the last thing sent, exactly as it left.
+
+## Never sent
+
+Your messages or anything an agent wrote; names of people, agents, projects or files; folder paths; which models or
+providers you use; API keys, tokens or secrets; your home id; your IP address on purpose (the receiving service sees
+it to answer the request, as any web request does, and APX does not store it).
+
+## Where it goes
+
+To a Google Cloud Firestore database of the APX project (`apx-agents`, in the United States), written without an
+account. Its rules accept only the shapes above, stamp every time on the server and let no one outside the project
+read anything back.
+
+## Turning it off
+
+<Aside>
+Any of these stops everything, including the install steps: `APX_TELEMETRY=off` in the core's environment or
+`core.env`, `DO_NOT_TRACK=1` ([Console Do Not Track](https://consoledonottrack.com)), or a `CI` variable.
+</Aside>
+
+To start over with a new random id, delete `telemetry-id` in your APX home (`~/.apx/v2`). To have an install's records
+removed, open an issue on [GitHub](https://github.com/agentprojectcontext/apx/issues) with the telemetry id shown in
+Settings › Advanced.

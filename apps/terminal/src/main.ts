@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 // The terminal owns no domain logic: every command is a protocol call to the core.
 import { admin, status, version, wizard } from "./commands/admin.ts";
+import { agentLimits } from "./commands/agent-fields.ts";
 import { browser } from "./commands/browser.ts";
 import { channels, contacts, pairing } from "./commands/channels.ts";
 import { chat } from "./commands/chat.ts";
@@ -119,8 +120,12 @@ Usage:
   apx agents              Agents and the model each one runs on
   apx agents show <agent>            Its fields and full prompt
   apx agents new <slug> "<Name>" [--project <id>] [--role "<role>"]
-  apx agents set <agent> name=… role=… slug=… parent=… blob=…
+  apx agents set <agent> <field>=<value>…   Any field the agent editor has (an unknown one lists them all)
+                           Lists as a,b (tools= is all of them); orchestrator=true|false; rules='{"write":"ask"}';
+                           autonomy= or rules= go back to the default
   apx agents set <agent> --prompt-file <file | ->   Its prompt from a file, or stdin with -
+  apx agents limits [<agent> runs=… tokens=… | <agent> clear | default runs=… tokens=…]
+                           How far agents go without you in one chat: the default, and an agent's own (0 = no limit)
   apx agents clone <agent…> [--project <id>] [--rename] [--under <slug>]
                            Copy agents (whole definition) into a project; --rename gives each a new free name
   apx agents archive <agent>         Project agents: changes are written to .apc/agents/<slug>.md
@@ -405,6 +410,7 @@ try {
       break;
     case "agents":
       if (rest[0] === "model") await agentModel(client, rest.slice(1), values);
+      else if (rest[0] === "limits") await agentLimits(client, rest.slice(1));
       else if (rest[0] && rest[0] !== "list") await agentEdit(client, rest, values);
       else await agents(client);
       break;

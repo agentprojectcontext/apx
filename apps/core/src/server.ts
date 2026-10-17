@@ -2,6 +2,7 @@
 // Only wiring lives here. Tests call createCore directly (with a temp home and fakes).
 
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 import { BROWSER_CAP, type HarnessId, TabInfo } from "@apx/protocol";
 import { createAccess } from "./access.ts";
@@ -80,6 +81,8 @@ import { createServices } from "./services/registry.ts";
 import { mediaData } from "./services/uploads.ts";
 import { syncRuntimeSkills } from "./skills/runtimes.ts";
 import { skillsFor } from "./skills/skills.ts";
+import { createTelemetry } from "./telemetry.ts";
+import { type TelemetrySink, telemetrySink } from "./telemetry-sink.ts";
 import { createTerminals } from "./terminal/terminals.ts";
 import { googleTools } from "./tools/google.ts";
 import { imessageTools } from "./tools/imessage.ts";
@@ -120,6 +123,8 @@ export type CoreOptions = {
   imessage?: IMessageOps | null;
   /** Runs the update's commands (git, pnpm); tests answer them. */
   updateRunner?: Runner;
+  /** Where telemetry goes instead of config.telemetry's sink (tests record it). */
+  telemetrySink?: TelemetrySink;
   /** Closes the core and asks its supervisor to start it again (after an update). */
   restart?: () => void;
 };
@@ -365,6 +370,16 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ...(opts.restart ? { restart: opts.restart } : {}),
   });
 
+  const telemetry = createTelemetry({
+    home: config.home,
+    store,
+    log,
+    // A checkout's package.json holds a placeholder: its commit tells one checkout from another.
+    version: identity.version === "0.0.0" ? `0.0.0+${identity.code_sha.slice(0, 12)}` : identity.version,
+    channel: telemetryChannel(config),
+    sink: opts.telemetrySink ?? (config.telemetry ? telemetrySink(config.telemetry) : undefined),
+  });
+
   const dispatch = createRouter(
     coreHandlers({
       internal,
@@ -416,6 +431,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       native: config.native,
       runtimeHomes: config.runtimeSkills.homes,
       updates,
+      telemetry,
       panel: () => panelEntry(servedPanel(config)),
       profileRoots,
       // APX's own templates, then the owner's v1 vault (read-only).
@@ -443,6 +459,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   await channels.start();
   scheduler.start();
   updates.start();
+  telemetry.start();
   const idleTrim = createIdleTrim();
   idleTrim.start();
   // The owner's skills get their vectors now, so the first message does not wait for them.
@@ -466,11 +483,13 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     secrets,
     channels,
     scheduler,
+    telemetry,
     async close() {
       useApxCommand(undefined);
       idleTrim.stop();
       terminals.closeAll();
       updates.stop();
+      telemetry.stop();
       chatgpt.stop();
       localModels.cancel();
       headless?.close();
@@ -506,4 +525,11 @@ function keepRuntimeSkills(homes: Parameters<typeof syncRuntimeSkills>[0], log: 
       log.warn({ err: errorMessage(err) }, "could not update the skills for other agent apps");
     }
   });
+}
+
+/** Where this APX came from, for telemetry: the desktop app's core, an install.sh/ps1 bundle, or a git checkout. */
+function telemetryChannel(config: CoreConfig): "source" | "bundle" | "app" | "other" {
+  if (config.updates === "app") return "app";
+  if (config.app) return "bundle";
+  return fs.existsSync(path.resolve(import.meta.dirname, "../../../.git")) ? "source" : "other";
 }

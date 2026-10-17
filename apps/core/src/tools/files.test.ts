@@ -162,6 +162,25 @@ test("APC files named through cwd still wait for the owner; the temp folder thro
   assert.equal(write.confirm({ path: "a.md", content: "", cwd: scratch }), "never");
 });
 
+test("a file write waiting for the owner shows the patch it would make, and nothing for a call that would fail", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "preview" });
+  const ctx = { thread: env.core.store.threads.get(t.id), agent: env.core.store.agents.get("roby") } as Parameters<
+    NonNullable<Tool["preview"]>
+  >[1];
+  const tool = (name: string) => parallelFiles.find((x) => x.name === name);
+  fs.writeFileSync(path.join(env.home, "work", "preview.md"), "one\ntwo\nthree\n");
+  const edit = await tool("file_edit")?.preview?.({ path: "preview.md", old: "two", new: "TWO" }, ctx);
+  assert.equal(edit?.path, "preview.md");
+  assert.equal(edit?.status, "M");
+  assert.deepEqual([edit?.added, edit?.removed], [1, 1]);
+  assert.match(edit?.diff ?? "", /^@@ -1,3 \+1,3 @@\n one\n-two\n\+TWO\n three/);
+  assert.equal(fs.readFileSync(path.join(env.home, "work", "preview.md"), "utf8"), "one\ntwo\nthree\n");
+  const write = await tool("file_write")?.preview?.({ path: "fresh.md", content: "hi\n" }, ctx);
+  assert.deepEqual([write?.status, write?.added, write?.removed], ["A", 1, 0]);
+  assert.equal(await tool("file_edit")?.preview?.({ path: "preview.md", old: "missing", new: "x" }, ctx), undefined);
+  assert.equal(await tool("file_write")?.preview?.({ path: "../outside.md", content: "x" }, ctx), undefined);
+});
+
 test("the files an agent writes in a turn show in its answer, with the lines added and removed", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "card" });
   await env.client.call("threads.send", { thread: t.id, text: "write new" });

@@ -9,6 +9,7 @@ import { esOffice } from "./es-office.ts";
 import { esResources } from "./es-resources.ts";
 import { esSetup } from "./es-setup.ts";
 import { esTeam } from "./es-team.ts";
+import { esTelemetry } from "./es-telemetry.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
   ...esOffice,
@@ -19,6 +20,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esFiles,
   ...esResources,
   ...esEngines,
+  ...esTelemetry,
   // Palabras compartidas
   "common.agent": "Agente",
   "common.app": "App",

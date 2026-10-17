@@ -15,6 +15,8 @@ import {
   RouterConfig,
   ServiceSettings,
   TaskColumn,
+  TelemetryEvent,
+  TelemetryStage,
 } from "@apx/protocol";
 import { z } from "zod";
 import { DEFAULT_COLUMNS } from "./tasks.ts";
@@ -107,6 +109,32 @@ export const SETTINGS = {
   /** Services APX added on its own once (Codex's images): one the owner removed is not added again. */
   services_offered: entry(z.array(z.string()).catch([]), []),
   channels: entry(listOf(Channel), []),
+  /**
+   * Telemetry (telemetry.ts): the owner's answer on usage statistics (null: not asked yet), the lifecycle steps sent,
+   * the version and answer the install's record holds, where the next usage report starts, and the last thing sent.
+   */
+  telemetry: entry(
+    z.object({
+      usage: z.boolean().nullable().catch(null),
+      usage_reported: z.boolean().nullable().catch(null),
+      sent: z.partialRecord(TelemetryStage, z.string()).catch({}),
+      opened_at: z.string().nullable().catch(null),
+      reported_version: z.string().nullable().catch(null),
+      usage_from: z.string().nullable().catch(null),
+      usage_day: z.string().nullable().catch(null),
+      last: z.object({ at: z.string(), event: TelemetryEvent }).nullable().catch(null),
+    }),
+    {
+      usage: null,
+      usage_reported: null,
+      sent: {},
+      opened_at: null,
+      reported_version: null,
+      usage_from: null,
+      usage_day: null,
+      last: null,
+    },
+  ),
 };
 
 export type SettingKey = keyof typeof SETTINGS;

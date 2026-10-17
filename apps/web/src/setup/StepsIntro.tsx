@@ -1,8 +1,9 @@
 import type { Result } from "@apx/protocol";
 import { randomAgentName } from "@apx/protocol/client";
-import { AgentAvatar, BLOB_NAMES, Button, IconButton, Icons, Input, Skeleton, Switch } from "@apx/ui";
-import type { ReactNode } from "react";
+import { AgentAvatar, BLOB_NAMES, Button, Checkbox, IconButton, Icons, Input, Skeleton, Switch } from "@apx/ui";
+import { type ReactNode, useState } from "react";
 import type { V1Group, V1Groups } from "../data/setup.ts";
+import { PRIVACY_URL, setUsage, useTelemetry } from "../data/telemetry.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { CrewHero } from "./CrewHero.tsx";
 import type { Draft, StepProps } from "./draft.ts";
@@ -46,6 +47,13 @@ export function Welcome({
   onStart: (mode: Draft["mode"]) => void;
 }) {
   const t = useT();
+  // Asked once, unticked: the answer goes with the first step the owner takes.
+  const ask = useTelemetry((s) => s.state?.enabled === true && s.state.usage === null);
+  const [share, setShare] = useState(false);
+  const begin = (mode: Draft["mode"]) => {
+    if (ask) void setUsage(share);
+    onStart(mode);
+  };
   const pill = JUST_INSTALLED ? (
     <span className="wiz__pill crew__pill">
       {t("setup.welcome.installed")} <span className="is-muted">{t("setup.welcome.installedMuted")}</span>
@@ -69,14 +77,14 @@ export function Welcome({
         {/* Two ways in only when there is a v1 to bring; otherwise just the way in. */}
         {v1 ? (
           <div className="wiz__choices">
-            <button type="button" className="wiz__choice" onClick={() => onStart("new")}>
+            <button type="button" className="wiz__choice" onClick={() => begin("new")}>
               <span className="wiz__choicetitle">
                 <Icons.Sparkles size={16} />
                 {t("setup.welcome.new")}
               </span>
               <span className="wiz__choicebody">{t("setup.welcome.newBody")}</span>
             </button>
-            <button type="button" className="wiz__choice is-brand" onClick={() => onStart("import")}>
+            <button type="button" className="wiz__choice is-brand" onClick={() => begin("import")}>
               <span className="wiz__choicetitle">
                 <Icons.Download size={16} />
                 {t("setup.welcome.import")}
@@ -96,9 +104,26 @@ export function Welcome({
             </button>
           </div>
         ) : (
-          <Button id="welcome-start" size="lg" onClick={() => onStart("new")}>
+          <Button id="welcome-start" size="lg" onClick={() => begin("new")}>
             {t(JUST_INSTALLED ? "setup.next" : "setup.welcome.start")}
           </Button>
+        )}
+        {ask && (
+          <div className="wiz__share">
+            <Checkbox
+              checked={share}
+              onCheckedChange={setShare}
+              label={t("telemetry.check")}
+              description={
+                <>
+                  {t("telemetry.checkHint")}{" "}
+                  <a href={PRIVACY_URL} target="_blank" rel="noopener noreferrer">
+                    {t("telemetry.whatIsSent")}
+                  </a>
+                </>
+              }
+            />
+          </div>
         )}
         <span className="wiz__waiting">
           <AgentAvatar

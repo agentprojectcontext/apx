@@ -6,6 +6,7 @@ import { enOffice } from "./en-office.ts";
 import { enResources } from "./en-resources.ts";
 import { enSetup } from "./en-setup.ts";
 import { enTeam } from "./en-team.ts";
+import { enTelemetry } from "./en-telemetry.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
@@ -17,6 +18,7 @@ export const en = {
   ...enFiles,
   ...enResources,
   ...enEngines,
+  ...enTelemetry,
   // Shared words
   "common.agent": "Agent",
   "common.app": "App",

@@ -76,3 +76,12 @@
     transition: none;
   }
 }
+.corner__desc a {
+  color: var(--apx-fg);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.corner__actions {
+  display: flex;
+  gap: 8px;
+}

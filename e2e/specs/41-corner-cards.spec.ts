@@ -65,3 +65,34 @@ test("a newer release goes first, opens the update dialog, and once closed comes
   await page.reload();
   await expect(card.getByText("Salió APX 9.2.0")).toBeVisible();
 });
+
+test("an install from before telemetry is asked once in the corner, and closing the card is a no", async ({ page }) => {
+  const asked: boolean[] = [];
+  let usage: boolean | null = null;
+  const state = () => ({
+    enabled: true,
+    install_id: "6f1c2b9e-1d2a-4c3b-8e4f-5a6b7c8d9e0f",
+    usage,
+    sent: {},
+    last: null,
+    preview: { tokens_in: 0, tokens_out: 0, runs: 0, projects: 1, agents: 1, channels: 0, routines: 0 },
+  });
+  // The sandbox core sends nothing (APX_TELEMETRY=off): the panel is shown one that would.
+  await page.route("**/rpc/telemetry.get", (route: Route) => route.fulfill({ json: { ok: true, result: state() } }));
+  await page.route("**/rpc/telemetry.set", async (route: Route) => {
+    usage = (route.request().postDataJSON() as { usage: boolean }).usage;
+    asked.push(usage);
+    await route.fulfill({ json: { ok: true, result: state() } });
+  });
+  await open(page);
+  const card = page.locator('[data-card="telemetry"]');
+  await expect(card.getByText("Ayudá a mejorar APX")).toBeVisible();
+  // It says where to read what is sent before anyone answers.
+  await expect(card.getByRole("link", { name: "Qué se envía" })).toHaveAttribute("href", /reference\/privacy/);
+  await card.getByRole("button", { name: "Cerrar" }).click();
+  await expect(card).toBeHidden();
+  expect(asked).toEqual([false]);
+  await page.reload();
+  await expect(page.getByText("Sumate a la comunidad")).toBeVisible();
+  await expect(card).toBeHidden();
+});

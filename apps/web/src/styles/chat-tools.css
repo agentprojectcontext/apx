@@ -165,6 +165,37 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+/* A file write to confirm: the card takes the chat's width so the patch reads without wrapping. */
+.inputcard.has-change {
+  max-width: none;
+}
+.inputcard__change {
+  overflow: hidden;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-bg);
+}
+.inputcard__change .diff {
+  max-height: 420px;
+  overflow: auto;
+}
+.inputcard__file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  color: var(--apx-fg-muted);
+}
+.inputcard__path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .inputcard__actions,
 .inputcard__options {
   display: flex;
