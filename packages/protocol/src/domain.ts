@@ -343,6 +343,7 @@ export const PendingInput = z.object({
   /** For a confirmation of a file write: what the file would become, as a patch. */
   change: FileChange.optional(),
   options: z.array(z.string()).optional(),
+  multi: z.boolean().optional(),
   approval_scopes: z.array(ApprovalScope).optional(),
   approval_scope: ApprovalScope.optional(),
   state: InputState,
@@ -417,9 +418,9 @@ const KnownPart = z.discriminatedUnion("type", [
     type: z.literal("changes"),
     cwd: z.string(),
     edits: z.boolean().optional(),
-    files: z.array(FileChange),
     /** The files are in the chat's temp folder (`cwd`): the agent's scratch work, not changes to the owner's folders. */
     scratch: z.boolean().optional(),
+    files: z.array(FileChange),
     more: z.number().int().optional(),
   }),
   /** The agent waits for the owner: a yes/no on an action, or an answer to a question. Answered with runs.respond. */
@@ -433,6 +434,8 @@ const KnownPart = z.discriminatedUnion("type", [
     detail: z.string().optional(),
     change: FileChange.optional(),
     options: z.array(z.string()).optional(),
+    /** A question whose options may be picked several at once. */
+    multi: z.boolean().optional(),
     approval_scopes: z.array(ApprovalScope).optional(),
     approval_scope: ApprovalScope.optional(),
     state: InputState,

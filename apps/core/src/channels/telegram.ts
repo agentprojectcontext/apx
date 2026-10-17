@@ -259,17 +259,13 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     }
     const q = u.callback_query;
     if (q?.data && q.message) {
-      // The button stops spinning now; its message loses its buttons so it cannot be pressed twice.
+      // The button stops spinning now; what its message shows next is up to the press (taken off, or ticked).
       void api("answerCallbackQuery", { callback_query_id: q.id }).catch(() => {});
-      void api("editMessageReplyMarkup", {
-        chat_id: q.message.chat.id,
-        message_id: q.message.message_id,
-        reply_markup: { inline_keyboard: [] },
-      }).catch(() => {});
       io.action({
         conversation: String(q.message.chat.id),
         sender: { id: String(q.from.id), name: nameOf(q.from) },
         data: q.data,
+        ref: String(q.message.message_id),
       });
     }
   }
@@ -350,9 +346,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     buttons: Presentation["buttons"],
     silent?: boolean,
   ): Promise<number> {
-    const markup = buttons?.length
-      ? { reply_markup: { inline_keyboard: buttons.map((b) => [{ text: b.label, callback_data: b.id.slice(0, 64) }]) } }
-      : {};
+    const markup = buttons?.length ? keyboard(buttons) : {};
     try {
       const r = await api<{ message_id: number }>("sendMessage", {
         chat_id: chat,
@@ -446,11 +440,31 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
         8000,
       );
     },
+    async setButtons(conversation, ref, buttons) {
+      await api(
+        "editMessageReplyMarkup",
+        { chat_id: conversation, message_id: Number(ref), ...keyboard(buttons) },
+        8000,
+      );
+    },
+    async remove(conversation, ref) {
+      // A bot may delete its own message only within 48 hours.
+      await api("deleteMessage", { chat_id: conversation, message_id: Number(ref) }, 8000);
+    },
     async typing(conversation) {
       await api("sendChatAction", { chat_id: conversation, action: "typing" }, 8000);
     },
   };
 }) satisfies (...args: [...Parameters<AdapterFactory>, string?]) => ChannelAdapter;
+
+/** Telegram's inline keyboard, one button per row (none: an empty keyboard takes them off). */
+function keyboard(buttons: Presentation["buttons"]) {
+  return {
+    reply_markup: {
+      inline_keyboard: (buttons ?? []).map((b) => [{ text: b.label, callback_data: b.id.slice(0, 64) }]),
+    },
+  };
+}
 
 /**
  * Maps a failure to what the outbox should do. `sent` parts of a long reply already went out: a retry continues after

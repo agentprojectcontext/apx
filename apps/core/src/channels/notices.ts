@@ -11,6 +11,11 @@ export const buttonId = {
   approve: (inputId: string) => `i:${inputId}:a`,
   deny: (inputId: string) => `i:${inputId}:d`,
   option: (inputId: string, n: number) => `i:${inputId}:o${n}`,
+  /** A multi-choice question: tick or untick an option, then send what is ticked. */
+  toggle: (inputId: string, n: number) => `i:${inputId}:t${n}`,
+  confirm: (inputId: string) => `i:${inputId}:c`,
+  /** A question the owner leaves unanswered: the agent goes on without it. */
+  skip: (inputId: string) => `i:${inputId}:s`,
   pairing: (code: string, decision: "contact" | "deny") => `p:${code}:${decision}`,
   /** Someone kept unreviewed: answer them from now on, or keep them silenced without reports. */
   review: (personId: string, decision: "answer" | "ignore") => `r:${personId}:${decision}`,
@@ -23,6 +28,9 @@ export type SuggestionDecision = "send" | "write" | "ignore";
 export type Button =
   | { kind: "input"; inputId: string; answer: "approve" | "deny" }
   | { kind: "option"; inputId: string; index: number }
+  | { kind: "toggle"; inputId: string; index: number }
+  | { kind: "confirm"; inputId: string }
+  | { kind: "skip"; inputId: string }
   | { kind: "pairing"; code: string; decision: "contact" | "deny" }
   | { kind: "review"; person: string; decision: "answer" | "ignore" }
   | { kind: "suggestion"; id: string; decision: SuggestionDecision };
@@ -33,6 +41,8 @@ export function parseButton(data: string): Button | undefined {
   if (kind === "i" && (what === "a" || what === "d"))
     return { kind: "input", inputId: ref, answer: what === "a" ? "approve" : "deny" };
   if (kind === "i" && /^o\d+$/.test(what)) return { kind: "option", inputId: ref, index: Number(what.slice(1)) };
+  if (kind === "i" && /^t\d+$/.test(what)) return { kind: "toggle", inputId: ref, index: Number(what.slice(1)) };
+  if (kind === "i" && (what === "c" || what === "s")) return { kind: what === "c" ? "confirm" : "skip", inputId: ref };
   if (kind === "p" && (what === "contact" || what === "deny")) return { kind: "pairing", code: ref, decision: what };
   if (kind === "r" && (what === "answer" || what === "ignore")) return { kind: "review", person: ref, decision: what };
   if (kind === "s" && (what === "send" || what === "write" || what === "ignore"))
@@ -40,7 +50,13 @@ export function parseButton(data: string): Button | undefined {
   return undefined;
 }
 
-type Labels = { approve: string; deny: string; cut: (more: number) => string };
+type Labels = { approve: string; deny: string; send: string; skip: string; cut: (more: number) => string };
+
+/** What a channel shows of an input (a chat part or a stored record, both carry these). */
+export type InputShown = Pick<
+  Extract<Part, { type: "input" }>,
+  "input_id" | "kind" | "prompt" | "tool" | "detail" | "options" | "multi"
+>;
 
 /**
  * A confirmation is one message on every channel, its buttons under the words: up to 20k chars of a call's detail
@@ -48,17 +64,32 @@ type Labels = { approve: string; deny: string; cut: (more: number) => string };
  */
 const NOTICE_CHARS = 3500;
 
-/** A confirmation or a question as a message with buttons only the owner can press. */
-export function inputPresentation(part: Extract<Part, { type: "input" }>, labels: Labels): Presentation {
+/**
+ * A confirmation or a question as a message with buttons only the owner can press. A multi-choice question shows
+ * each option ticked or not (`picked`), then Send; every question can be skipped.
+ */
+export function inputPresentation(
+  part: InputShown,
+  labels: Labels,
+  picked: ReadonlySet<number> = new Set(),
+): Presentation {
+  const id = part.input_id;
+  const options = (part.options ?? []).slice(0, 8);
   const buttons =
     part.kind === "confirm"
       ? [
-          { id: buttonId.approve(part.input_id), label: labels.approve },
-          { id: buttonId.deny(part.input_id), label: labels.deny },
+          { id: buttonId.approve(id), label: labels.approve },
+          { id: buttonId.deny(id), label: labels.deny },
         ]
-      : (part.options ?? [])
-          .slice(0, 8)
-          .map((o, i) => ({ id: buttonId.option(part.input_id, i), label: o.slice(0, 60) }));
+      : [
+          ...options.map((o, i) =>
+            part.multi
+              ? { id: buttonId.toggle(id, i), label: `${picked.has(i) ? "☑" : "☐"} ${o.slice(0, 58)}` }
+              : { id: buttonId.option(id, i), label: o.slice(0, 60) },
+          ),
+          ...(part.multi && options.length ? [{ id: buttonId.confirm(id), label: labels.send }] : []),
+          { id: buttonId.skip(id), label: labels.skip },
+        ];
   const body = [part.prompt, part.tool ? `${part.tool}${part.detail ? `: ${part.detail}` : ""}` : ""]
     .filter(Boolean)
     .join("\n");

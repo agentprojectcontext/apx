@@ -60,6 +60,16 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
   // A command that writes: the owner is asked first.
   if (/^make a note file/i.test(said))
     return { name: "shell", arguments: JSON.stringify({ command: "touch e2e-note.txt" }) };
+  // A question with several answers to tick.
+  if (/^ask me which days/i.test(said))
+    return {
+      name: "ask_owner",
+      arguments: JSON.stringify({
+        question: "Which days work for the Northwind review?",
+        options: ["Monday", "Tuesday", "Wednesday"],
+        multi: true,
+      }),
+    };
   // An edit of AGENTS.md: always asked, with the patch it would make.
   if (/^edit the agents file/i.test(said))
     return {

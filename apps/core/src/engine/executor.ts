@@ -298,7 +298,7 @@ export function createExecutor(o: {
         ? { callAsOwner: (method, params) => o.call(method, params, { run, callId, owner: true }) }
         : {}),
       delegate: o.delegate,
-      askOwner: (prompt, options, canContinue) =>
+      askOwner: (prompt, options, canContinue, multi) =>
         o.inputs.ask({
           run,
           agent,
@@ -307,6 +307,7 @@ export function createExecutor(o: {
           kind: "question",
           prompt,
           options,
+          multi,
           external: o.external(),
           stays: !canContinue,
           signal,
