@@ -241,26 +241,39 @@
   border: 0;
   border-top: 1px solid var(--apx-border);
 }
-/* A section's bottom edge: drag it to show more or fewer rows. */
+/* A section's bottom edge is the divider under it: drag the line to show more or fewer rows. */
 .sidebar__grip {
   flex: none;
   position: relative;
-  height: 8px;
-  margin: 0 10px -6px;
+  height: 13px;
+  margin: 6px 10px 0;
   cursor: row-resize;
   touch-action: none;
 }
 .sidebar__grip::after {
   content: "";
   position: absolute;
-  inset: 3px 30% 3px;
-  border-radius: 2px;
+  inset: 6px 0 auto;
+  height: 1px;
+  background: var(--apx-border);
+  transition:
+    background 0.12s,
+    height 0.12s,
+    top 0.12s;
+}
+.sidebar__grip + .sidebar__divider {
+  display: none;
+}
+/* The last section has no divider under it: its edge shows only while used. */
+.sidebar__grip:last-child::after {
   background: transparent;
-  transition: background 0.12s;
 }
 .sidebar__grip:hover::after,
 .sidebar__grip:focus-visible::after,
 .sidebar__grip:active::after {
+  top: 5px;
+  height: 3px;
+  border-radius: 2px;
   background: var(--apx-border-strong, var(--apx-border));
 }
 .sidebar__grip:focus-visible {

@@ -247,6 +247,8 @@ test("the Projects section shows more or fewer rows from its bottom edge, never 
   const rows = page.locator(".sidebar__scroll [data-project-id]");
   await expect(rows).toHaveCount(5);
   const grip = page.getByRole("separator", { name: "Mostrar más o menos proyectos" });
+  // The edge is the divider under the section, not a second line beside it.
+  await expect(page.locator(".sidebar__grip + .sidebar__divider")).toBeHidden();
   await grip.focus();
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("ArrowDown");
