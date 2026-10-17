@@ -329,7 +329,7 @@ const OUTSIDE_IN_SESSION = untrusted(
 /** A message routine's text, as the run's answer: delivered to the owner like any routine's, with no model call. */
 function sendAsIs(store: Store, t: { run: RunRecord; thread: Thread; display: Display; text: string }): RunRecord {
   t.display.finalText(t.text);
-  const run = store.runs.setState(t.run, "completed");
+  const run = store.runs.setState(t.run, "completed", undefined, { reason: "normal" });
   store.threads.patch(t.thread.id, { state: "idle", preview: previewOf(t.text) });
   return run;
 }
@@ -350,7 +350,7 @@ function skipModel(
       "routine.skipped",
       "The model was not called; the pre-command's result did not ask for it.",
     );
-  const run = store.runs.setState(t.run, "completed");
+  const run = store.runs.setState(t.run, "completed", undefined, { reason: "normal" });
   store.threads.patch(t.thread.id, { state: "idle", preview: previewOf("Ran without calling the model.") });
   return run;
 }
@@ -687,10 +687,14 @@ async function finishRun(
   const empty = t.exec.toolsRan ? "Finished without a message." : "The model gave no answer.";
   if (text) display.finalText(text);
   else display.notice("info", "run.empty", empty);
+  // Out of steps is not finished: the owner and any caller see it, never a plain completion.
+  if (outcome.outOfSteps) display.notice("warn", "run.stepLimit", STEP_LIMIT, { vars: {} });
   const window = outcome.usage?.window ?? (outcome.usage?.context ? contextWindow(outcome.model) : undefined);
   const usage = outcome.usage && { ...outcome.usage, ...(window ? { window } : {}) };
   let run = store.runs.patch(t.run, { model: outcome.model, ...(usage ? { usage } : {}) });
-  run = store.runs.setState(run, "completed");
+  // Only our own loop can tell; an outside engine's completed turn keeps no reason.
+  const end = outcome.outOfSteps ? "step_limit" : (run.harness ?? "native") === "native" ? "normal" : undefined;
+  run = store.runs.setState(run, "completed", undefined, end && { reason: end });
   store.threads.patch(thread.id, {
     // A question or confirmation the turn stopped waiting for is still the owner's to answer.
     state: store.inputs.pending(thread.id).length ? "input-required" : "idle",
@@ -699,6 +703,8 @@ async function finishRun(
   });
   return run;
 }
+
+const STEP_LIMIT = "Ran out of steps for this turn: this is a report of what is done and left, not a final answer.";
 
 /** A delegated turn's answer is read in its caller's card, not in the delegated chat: it marks nothing unread there. */
 const news = (run: RunRecord) => (run.trigger === "a2a" ? 0 : 1);
@@ -754,14 +760,10 @@ function failRun(
         ? "The owner canceled this turn."
         : `This turn failed: ${reason}`;
   closeTurnLog(store, t.run, why);
+  const deadline = t.signal.reason instanceof DeadlineExceeded;
+  const end = canceled ? "canceled" : limit ? "provider_limit" : deadline ? "deadline" : "failed";
   const run = store.runs.setState(t.run, canceled ? "canceled" : "failed", message, {
-    reason: canceled
-      ? "canceled"
-      : limit
-        ? "provider_limit"
-        : t.signal.reason instanceof DeadlineExceeded
-          ? "deadline"
-          : "failed",
+    reason: end,
     resets_at: limit?.resetsAt,
   });
   // A failure is news the owner has not seen yet; a cancel is their own doing.

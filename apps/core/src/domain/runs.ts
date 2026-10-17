@@ -40,6 +40,8 @@ export type Origin =
       thread_id: string;
       run_id: string;
       state: RunState;
+      /** Why it ended (`step_limit`: it reported progress, not a result); absent on runs older than the field. */
+      end_reason?: RunEndReason;
       /** Its calls with an effect as APX recorded them (`actionsOf`), absent on runs older than the field. */
       actions?: string[];
     };

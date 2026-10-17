@@ -79,9 +79,13 @@ export function AgentActivity({ agent }: { agent: Agent }) {
                     {r.error && r.state === "failed" ? ` · ${r.error.slice(0, 80)}` : ""}
                   </span>
                 </span>
-                <Badge tone={STATE_TONE[r.state as keyof typeof STATE_TONE] ?? "neutral"}>
-                  {t(RUN_STATE[r.state])}
-                </Badge>
+                {r.end_reason === "step_limit" ? (
+                  <Badge tone="warning">{t("usage.state.stepLimit")}</Badge>
+                ) : (
+                  <Badge tone={STATE_TONE[r.state as keyof typeof STATE_TONE] ?? "neutral"}>
+                    {t(RUN_STATE[r.state])}
+                  </Badge>
+                )}
                 <time className="agentact__when" dateTime={r.started_at}>
                   {shortWhen(r.started_at)}
                 </time>

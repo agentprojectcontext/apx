@@ -19,7 +19,9 @@ async function answerOf(client: ApxClient, thread: string, runId: string, until:
     if (run && ["completed", "failed", "canceled"].includes(run.state)) {
       const msg = r.messages.filter((m) => m.run_id === runId && m.author.kind === "agent").at(-1);
       const words = (msg?.parts ?? []).flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n");
-      return run.state === "completed" ? words || "(no answer)" : `The run ${run.state}: ${run.error ?? ""}`;
+      const cut =
+        run.end_reason === "step_limit" ? "(It ran out of steps: a progress report, not a final result.)\n" : "";
+      return run.state === "completed" ? `${cut}${words || "(no answer)"}` : `The run ${run.state}: ${run.error ?? ""}`;
     }
     if (run?.state === "input-required") return `Waiting for the owner to approve something in APX (thread ${thread}).`;
     if (Date.now() > until) return `Still working; read it later with apx_read (thread ${thread}).`;

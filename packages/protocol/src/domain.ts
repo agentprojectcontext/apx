@@ -216,6 +216,15 @@ export const RunState = z.enum(["submitted", "working", "input-required", "compl
 export type RunState = z.infer<typeof RunState>;
 export const TERMINAL_RUN_STATES: readonly RunState[] = ["completed", "failed", "canceled"];
 
+/**
+ * Why a run ended, when APX knows: `step_limit` is a turn on APX's own loop that used all its steps (its answer is
+ * a progress report, not a final result); `provider_limit` is the model provider's usage limit (its plan or rate),
+ * not a fault of the agent; `deadline` is the run's time running out. Absent on runs older than the field and on
+ * outside engines' completed turns, which cannot tell.
+ */
+export const RunEndReason = z.enum(["normal", "step_limit", "failed", "canceled", "deadline", "provider_limit"]);
+export type RunEndReason = z.infer<typeof RunEndReason>;
+
 export const ThreadKind = z.enum(["home", "agent", "loose", "a2a", "group", "code", "channel", "task", "routine"]);
 /** What an agent may change in a code thread's folder: ask each time, change files freely, or only read. */
 export const WritePolicy = z.enum(["ask", "auto", "read-only"]);
@@ -355,6 +364,8 @@ const KnownPart = z.discriminatedUnion("type", [
     worker: z.string().optional(),
     /** How long it worked, once it ended. */
     ms: z.number().int().nonnegative().optional(),
+    /** Why it ended, once it did (a completed run that ran out of steps is not a finished one). */
+    end_reason: RunEndReason.optional(),
     /** Who asked, when it is not the message's author (a consult on a task): an agent's id, or "owner". */
     asked_by: z.string().optional(),
   }),
@@ -509,13 +520,6 @@ export type AuxPurpose = z.infer<typeof AuxPurpose>;
 /** What started a run. Everything enters through threads.send; this only says from where. */
 export const RunTrigger = z.enum(["user", "a2a", "a2a_result", "surface", "channel", "routine", "system"]);
 export type RunTrigger = z.infer<typeof RunTrigger>;
-
-/**
- * Why a run ended, when APX knows: `provider_limit` is the model provider's usage limit (its plan or rate), not a
- * fault of the agent; `deadline` is the run's time running out. Absent on runs older than the field.
- */
-export const RunEndReason = z.enum(["failed", "canceled", "deadline", "provider_limit"]);
-export type RunEndReason = z.infer<typeof RunEndReason>;
 
 export const Run = z.object({
   id: Id,

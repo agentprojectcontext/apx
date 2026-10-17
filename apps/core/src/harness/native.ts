@@ -145,7 +145,7 @@ export function nativeHarness(llm: Llm): Harness {
         ),
       );
       const c = await step(false);
-      return { text, model, effort, finish: c.finish, usage, failed: [...failed.values()] };
+      return { text, model, effort, finish: c.finish, usage, failed: [...failed.values()], outOfSteps: true };
     },
   };
 }

@@ -115,8 +115,10 @@ export async function chat(client: ApxClient, text: string, o: ChatOptions): Pro
     if (!ev.success) return;
     const e = ev.data;
     if (e.type === "run.updated" && e.run.thread_id === thread) {
-      if (e.run.ended_at) early.set(e.run.id, e.run.state);
-      if (e.run.id === runId && e.run.ended_at) finish(e.run.state);
+      // A turn that ran out of steps completed without finishing: said so in its end line.
+      const end = e.run.end_reason === "step_limit" ? `${e.run.state} (out of steps)` : e.run.state;
+      if (e.run.ended_at) early.set(e.run.id, end);
+      if (e.run.id === runId && e.run.ended_at) finish(end);
     }
     if (e.type === "message.created" && e.message.run_id && e.message.run_id === runId) messageId = e.message.id;
     const parts =
@@ -157,5 +159,5 @@ export async function chat(client: ApxClient, text: string, o: ChatOptions): Pro
   if (textPart?.type === "text") console.log(`\n${textPart.text}`);
   console.log(`— ${state}${answer?.model ? ` · ${answer.model}` : ""} · thread ${thread}`);
   socket.close();
-  if (state !== "completed") process.exitCode = 1;
+  if (!state.startsWith("completed")) process.exitCode = 1;
 }

@@ -35,8 +35,24 @@ const tookMs = (run: RunRecord) =>
 /** The card a delegated run shows once it ended: its state, what it answered and how long it took. */
 export function reportCard(p: Extract<Part, { type: "subthread" }>, child: RunRecord, answer: string): Part {
   const ms = tookMs(child);
-  return { ...p, state: child.state, summary: answer.slice(0, REPORT_CHARS), ...(ms !== undefined ? { ms } : {}) };
+  return {
+    ...p,
+    state: child.state,
+    summary: answer.slice(0, REPORT_CHARS),
+    ...(ms !== undefined ? { ms } : {}),
+    ...(child.end_reason ? { end_reason: child.end_reason } : {}),
+  };
 }
+
+/** How a delegated run ended, for its caller: a completed run that ran out of steps did not finish. */
+export const endedAs = (run: Pick<RunRecord, "state" | "end_reason">): string =>
+  run.end_reason === "step_limit" ? "out_of_steps" : run.state;
+
+/** Said to the caller beside a delegated answer that ran out of steps, so it never reads as the result. */
+export const endNote = (run: Pick<RunRecord, "end_reason">): string =>
+  run.end_reason === "step_limit"
+    ? "It ran out of steps before finishing: this is a progress report, not its final result. What it says is left is not done; to go on, delegate only the rest in its session, or tell the owner; never record it as a verdict.\n"
+    : "";
 
 /** The calls with an effect APX recorded in a run, and how each ended ("show_widget ok", "message_contact error ×2"). */
 export function actionsOf(store: Store, run: RunRecord): string[] {
@@ -247,7 +263,7 @@ export function createDelegations(deps: {
       inline.delete(child.id);
       const resume = `(session "${name}": delegate with session="${name}" to continue it with ${who}, who keeps the context)`;
       if (quick && TERMINAL.has(quick.state))
-        return `${agentReply(who, answerOf(quick), quick.state)}\n${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}`;
+        return `${agentReply(who, answerOf(quick), endedAs(quick))}\n${endNote(quick)}${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}`;
       return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.`;
     },
 

@@ -76,6 +76,8 @@ export type TurnOutcome = {
   /** Models tried first that did not answer, with why (each once). */
   failed?: ModelFailure[] | undefined;
   finish?: Finish;
+  /** Our loop used every step it had: the answer is the model's account of what is done and left, not a result. */
+  outOfSteps?: boolean | undefined;
   sessionId?: string | undefined;
   usage?: Usage | undefined;
   /** The outside session's running total, from an engine that reports only that (Codex): the engine takes the delta. */
