@@ -50,7 +50,7 @@ export function surfaceTools(store: Store): Tool[] {
       deadlineMs: 10_000,
       title: (a) => `Made the widget ${String(a.title ?? a.name)}`,
       async run(a, ctx) {
-        const broken = widgetScriptError(a.html.slice(0, MAX_HTML));
+        const broken = await widgetScriptError(a.html.slice(0, MAX_HTML));
         if (broken) return broken;
         const surface = await ctx.call("surfaces.show", {
           name: slug(a.name),
@@ -122,7 +122,7 @@ export function surfaceTools(store: Store): Tool[] {
           html = html.replace(e.old, () => e.new);
         }
         if (html.length > MAX_HTML) return `refused: the widget would pass ${MAX_HTML} characters`;
-        const broken = widgetScriptError(html);
+        const broken = await widgetScriptError(html);
         if (broken) return broken;
         const surface = await ctx.call("surfaces.show", {
           name: s.name,

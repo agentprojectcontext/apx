@@ -1,5 +1,5 @@
 // Syntax-only check of a widget's inline scripts, so a typo is refused before the owner sees an empty widget.
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import vm from "node:vm";
 
 const SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
@@ -23,12 +23,18 @@ function checkClassic(src: string, lineOffset: number): Fail | null {
   }
 }
 
-// vm.SourceTextModule needs a flag; `node --check` parses an ES module without running it.
-function checkModule(src: string, lineOffset: number): Fail | null {
-  const r = spawnSync(process.execPath, ["--check", "--input-type=module", "-"], {
-    input: src,
-    encoding: "utf8",
-    timeout: 5_000,
+// vm.SourceTextModule needs a flag; `node --check` parses an ES module without running it, off the event loop.
+async function checkModule(src: string, lineOffset: number): Promise<Fail | null> {
+  const r = await new Promise<{ status: number | null; stderr: string }>((resolve) => {
+    const child = spawn(process.execPath, ["--check", "--input-type=module", "-"], { timeout: 5_000 });
+    let stderr = "";
+    child.stderr.setEncoding("utf8").on("data", (d: string) => {
+      stderr += d;
+    });
+    child.on("error", () => resolve({ status: null, stderr }));
+    child.on("close", (status) => resolve({ status, stderr }));
+    child.stdin.on("error", () => {});
+    child.stdin.end(src);
   });
   if (r.status !== 1) return null;
   const message = /^SyntaxError: (.*)$/m.exec(r.stderr)?.[1];
@@ -38,7 +44,7 @@ function checkModule(src: string, lineOffset: number): Fail | null {
 }
 
 /** The first inline script that does not parse, as a refusal for the agent; null when all do (or there are none). */
-export function widgetScriptError(html: string): string | null {
+export async function widgetScriptError(html: string): Promise<string | null> {
   for (const m of html.matchAll(SCRIPT)) {
     const attrs = m[1] ?? "";
     const src = m[2] ?? "";
@@ -48,7 +54,7 @@ export function widgetScriptError(html: string): string | null {
     const bodyAt = (m.index ?? 0) + m[0].lastIndexOf("</") - src.length;
     const startLine = html.slice(0, bodyAt).split("\n").length;
     const startCol = bodyAt - html.lastIndexOf("\n", bodyAt - 1);
-    const fail = (type === "module" ? checkModule : checkClassic)(src, startLine - 1);
+    const fail = type === "module" ? await checkModule(src, startLine - 1) : checkClassic(src, startLine - 1);
     if (!fail) continue;
     const column = fail.line === startLine ? fail.column + startCol - 1 : fail.column;
     return `refused: the script at line ${fail.line} (column ${column}) of the widget does not parse: ${fail.message}. Fix it and call show_widget again.`;
