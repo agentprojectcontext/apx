@@ -35,6 +35,12 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   channel_list: () => "Revisó los canales",
   routine_list: (a) => (a.routine ? `Revisó la rutina ${str(a.routine)}` : "Revisó las rutinas"),
   routine_set: (a) => (a.routine ? `Cambió la rutina ${str(a.routine)}` : `Creó la rutina ${str(a.name)}`),
+  agent_limits: (a) =>
+    a.go_on
+      ? "Dejó seguir a los agentes"
+      : a.runs !== undefined || a.tokens !== undefined
+        ? "Cambió los límites de los agentes"
+        : "Revisó los límites de los agentes",
   contact_list: () => "Revisó los contactos",
   list_agents: () => "Buscó agentes",
   agent_set: (a) =>

@@ -73,6 +73,7 @@ import { computerTools } from "./tools/computer.ts";
 import { contactTools } from "./tools/contact.ts";
 import { directoryTools } from "./tools/directory.ts";
 import { fileTools } from "./tools/files.ts";
+import { limitTools } from "./tools/limits.ts";
 import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
 import { messageTools } from "./tools/message.ts";
@@ -147,6 +148,7 @@ export function builtinTools(
     ...messageTools(store, home),
     ...directoryTools(store),
     ...routineTools(store),
+    ...limitTools(store),
     ...skillTools(store, { home, apps: skillApps }),
     ...memoryTools(),
     ...mediaTools(),
