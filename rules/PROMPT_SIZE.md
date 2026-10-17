@@ -8,9 +8,9 @@ it that way.
 
 Measured on a fresh install: the secretary, a new chat, default settings, no skills or MCP servers added.
 
-| Part | Budget | Now (2026-10-15) |
+| Part | Budget | Now (2026-10-17) |
 |---|---|---|
-| System prompt | 6,500 chars (about 1,450 tokens) | 6,427 chars, about 1,450 tokens |
+| System prompt | 6,500 chars (about 1,450 tokens) | 6,471 chars, about 1,450 tokens |
 | Tool definitions (44, without the browser) | 28,000 chars (about 6,700 tokens) | 27,974 chars, about 6,700 tokens |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
 
