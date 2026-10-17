@@ -145,6 +145,7 @@ function SessionRow({ thread, data, onPress }: { thread: Thread; data: Workspace
   const theme = useTheme();
   const s = useStyles();
   const failed = thread.state === "failed";
+  const queued = thread.state === "queued";
   const project = data.projects.find((item) => item.id === thread.project_id)?.name;
   return (
     <Pressable
@@ -153,7 +154,9 @@ function SessionRow({ thread, data, onPress }: { thread: Thread; data: Workspace
       style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.fill }]}
     >
       <View style={s.mark}>
-        {isWorking(thread.state) ? (
+        {queued ? (
+          <Icon name="Clock" size={16} color={theme.fgSubtle} />
+        ) : isWorking(thread.state) ? (
           <Spinner size={14} color={theme.brand} />
         ) : (
           <Icon name={failed ? "TriangleAlert" : "Check"} size={16} color={failed ? theme.danger : theme.fgSubtle} />
@@ -164,7 +167,7 @@ function SessionRow({ thread, data, onPress }: { thread: Thread; data: Workspace
           {thread.title}
         </Text>
         <Text numberOfLines={1} style={[s.sub, failed && { color: theme.danger }]}>
-          {[project, thread.preview].filter(Boolean).join(" · ")}
+          {[project, queued ? t("queued") : undefined, thread.preview].filter(Boolean).join(" · ")}
         </Text>
       </View>
       <Text style={type.meta}>{listWhen(thread.updated_at)}</Text>

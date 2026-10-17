@@ -112,6 +112,7 @@ export const en = {
   workingNow: "Working now · {n}",
   waitsForYou: "Waits for you",
   working: "Working",
+  queued: "Queued",
   all: "All",
   noChats: "No chats here",
   noChatsBody: "Try another filter or start a conversation.",

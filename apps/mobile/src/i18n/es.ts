@@ -116,6 +116,7 @@ export const es: Record<Key, string> = {
   workingNow: "Trabajando ahora · {n}",
   waitsForYou: "Te espera",
   working: "Trabajando",
+  queued: "En cola",
   all: "Todos",
   noChats: "No hay chats acá",
   noChatsBody: "Probá otro filtro o empezá una conversación.",

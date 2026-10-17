@@ -135,13 +135,16 @@ export function ChatMessage({
                 style={({ pressed }) => [s.subthread, pressed && { backgroundColor: theme.fill }]}
               >
                 <View style={s.subthreadHead}>
-                  {isWorking(part.state) || part.state === "queued" ? (
+                  {part.state === "queued" ? (
+                    <Icon name="Clock" size={14} color={theme.fgSubtle} />
+                  ) : isWorking(part.state) ? (
                     <Spinner size={14} />
                   ) : (
                     <Icon name={part.state === "failed" ? "X" : "Check"} size={14} color={theme.fgSubtle} />
                   )}
                   <Text numberOfLines={1} style={s.lineText}>
                     {agents.find((agent) => agent.id === part.agent_id)?.name ?? part.worker ?? t("agent")} ·{" "}
+                    {part.state === "queued" ? `${t("queued")} · ` : ""}
                     {part.title}
                   </Text>
                 </View>
