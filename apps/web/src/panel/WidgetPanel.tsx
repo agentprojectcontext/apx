@@ -7,21 +7,23 @@ import { SurfaceActions } from "../surfaces/SurfaceActions.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 
 /**
- * The widgets made in the open chat, newest first, or the one moved here from the chat; pinning one also puts it on its
- * project's board.
+ * The widgets made or shown in the open chat, newest first, or the one moved here from the chat; pinning one also puts
+ * it on its project's board.
  */
 export function WidgetPanel() {
   const t = useT();
   const threadId = useNav((s) => s.threadId);
   const focused = useNav((s) => s.panelWidget);
   const surfaces = useData((s) => s.surfaces);
-  const mine = useMemo(
-    () =>
-      Object.values(surfaces)
-        .filter((s) => threadId && s.thread_id === threadId)
-        .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
-    [surfaces, threadId],
-  );
+  const messages = useData((s) => (threadId ? s.messages[threadId] : undefined));
+  const mine = useMemo(() => {
+    // A widget keeps the chat that made it; another chat that shows it again only holds a card of it.
+    const shown = new Set<string>();
+    for (const m of messages ?? []) for (const p of m.parts) if (p.type === "surface") shown.add(p.surface_id);
+    return Object.values(surfaces)
+      .filter((s) => threadId && (s.thread_id === threadId || shown.has(s.id)))
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+  }, [surfaces, messages, threadId]);
   if (!mine.length) {
     return (
       <div className="sidepanel__body">
