@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import type { ModelChoice, RouterConfig } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
+import { agentPatch } from "./agent-fields.ts";
 
 const show = (c: ModelChoice) => (c.model ? `${c.model}${c.router ? " → router" : ""}` : "router");
 
@@ -65,9 +66,9 @@ export async function agentModel(client: ApxClient, [agent, ref]: string[], o: {
   console.log(`${a.name}: ${a.model_choice ? show(a.model_choice) : "install default"}`);
 }
 
-const SET_USAGE = "usage: apx agents set <agent> [name=… role=… slug=… parent=… blob=…] [--prompt-file f|-]";
+const SET_USAGE = "usage: apx agents set <agent> <field>=<value>… [--prompt-file f|-]  (apx agents set --help)";
 
-/** agents.update params for `apx agents set`: key=value pairs, and the prompt from a file or stdin ("-"). */
+/** agents.update params for `apx agents set`: typed key=value pairs, and the prompt from a file or stdin ("-"). */
 export function agentSetOf(
   agent: string | undefined,
   pairs: string[],
@@ -75,17 +76,7 @@ export function agentSetOf(
   readFile = (f: string) => fs.readFileSync(f === "-" ? 0 : f, "utf8"),
 ) {
   if (!agent || (!pairs.length && !promptFile)) throw new Error(SET_USAGE);
-  const patch: Record<string, string> = {};
-  for (const p of pairs) {
-    const i = p.indexOf("=");
-    if (i < 1) throw new Error(`expected key=value, got "${p}"`);
-    patch[p.slice(0, i)] = p.slice(i + 1);
-  }
-  if (promptFile) {
-    if ("prompt" in patch) throw new Error("give the prompt as prompt=… or --prompt-file, not both");
-    patch.prompt = readFile(promptFile);
-  }
-  return { agent, ...patch };
+  return agentPatch(agent, pairs, promptFile ? { prompt: readFile(promptFile) } : {});
 }
 
 /** apx agents show|new|set|archive: a project agent's changes land in its .apc/agents/<slug>.md. */
@@ -138,7 +129,7 @@ export async function agentEdit(
   if (sub === "set") {
     const [agent, ...pairs] = args;
     const a = await client.call("agents.update", agentSetOf(agent, pairs, o["prompt-file"]));
-    console.log(`${a.name} (${a.id})${a.slug ? ` · ${a.slug}` : ""} · ${a.role}`);
+    console.log(`${a.name} (${a.id})${a.slug ? ` · ${a.slug}` : ""}${a.role ? ` · ${a.role}` : ""}`);
     return;
   }
   if (sub === "clone") {

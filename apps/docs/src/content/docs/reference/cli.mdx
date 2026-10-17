@@ -130,8 +130,9 @@ Two tasks are open in Acme Store: the spring catalog (in progress, Lucía) and t
 | `apx agents` | Agents and the model each one runs on (★ marks Home). |
 | `apx agents show <agent>` | Its fields and full prompt. |
 | `apx agents new <slug> "<Name>"` | A new agent; `--project <id>` puts it in a project (written to `.apc/agents/<slug>.md`), `--role "<role>"` sets its role. |
-| `apx agents set <agent> key=value…` | Change `name`, `role`, `slug`, `parent` or `blob`. |
+| `apx agents set <agent> key=value…` | Change any field the agent editor has (an unknown one lists them all). Lists as `tools=web_search,shell` (`tools=` is all of them), `orchestrator=true`, `rules='{"write":"ask"}'`; `autonomy=` or `rules=` go back to the default. |
 | `apx agents set <agent> --prompt-file <file>` | Replace its prompt from a file (`-` reads stdin). |
+| `apx agents limits [<agent> runs=… tokens=… \| <agent> clear \| default runs=… tokens=…]` | How far agents go without you in one chat: the default, and an agent's own budget (`0` = no limit). |
 | `apx agents clone <agent…>` | Copy agents into a project (`--project <id>`); `--rename` gives each a free name, `--under <slug>` sets the parent. |
 | `apx agents archive <agent>` | Archive an agent (a project agent's file moves to `.apc/agents/.archived/`). |
 | `apx agents archived` | Archived agents; `apx agents restore <agent>` brings one back. |
