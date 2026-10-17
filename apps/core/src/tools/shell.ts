@@ -8,7 +8,7 @@ import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { commandShell } from "../processes.ts";
 import { namedPaths } from "./command-paths.ts";
-import { type Access, folderAccess, judge, refusal, rootsOf } from "./folders.ts";
+import { type Access, folderAccess, type JudgeOptions, judge, type Root, refusal, rootsOf } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool } from "./types.ts";
 
@@ -82,10 +82,9 @@ export function broadScan(command: string, home = os.homedir()): string | undefi
 
 /**
  * How much the owner must be asked for this command. Only simple commands of known reading programs, with plain
- * arguments inside the project, run without asking; anything the classifier cannot be sure of asks. `anywhere`: its
- * arguments may point outside the project, for a caller that judges each path itself.
+ * arguments inside the project, run without asking; anything the classifier cannot be sure of asks.
  */
-export function commandRisk(command: string, apxPort?: number, o: { anywhere?: boolean } = {}): Confirm {
+export function commandRisk(command: string, apxPort?: number): Confirm {
   const c = command.trim();
   if (DESTRUCTIVE.test(c) || DESTRUCTIVE.test(normalize(c))) return "always";
   // A command that talks to APX's own API could act as the owner (answer its own confirmation): always asked.
@@ -102,7 +101,7 @@ export function commandRisk(command: string, apxPort?: number, o: { anywhere?: b
     if (!seg || SHELL_SYNTAX.test(seg) || /["']/.test(seg)) return false;
     const [word = "", ...args] = seg.split(/\s+/);
     if (/=/.test(word)) return false;
-    if (!args.every(o.anywhere ? (x: string) => !/^(~|\.apx)/.test(x) : localArg)) return false;
+    if (!args.every(localArg)) return false;
     const sub = args[0] === "-C" ? args[2] : args[0];
     if (word === "git") return READ_ONLY_GIT.has(sub ?? "") && !args.some((x) => x.startsWith("--output"));
     if (word === "find") return !args.some((x) => /^-(exec|ok|delete|fprint|fls|fprintf)/.test(x));
@@ -112,34 +111,77 @@ export function commandRisk(command: string, apxPort?: number, o: { anywhere?: b
   return segments.every(simple) ? "never" : "ask";
 }
 
+/** Programs, libraries, devices and system settings a command may read or run (`/usr/bin/env`, `/etc/hosts`). */
+const PLUMBING =
+  /^\/(dev|usr|bin|sbin|opt|System|nix|etc|private\/etc|Applications|Library|proc|sys|lib|lib32|lib64|libx32|snap)(\/|$)/;
+/** Where output may always go: it lands nowhere on disk. */
+const SINK = /^\/dev\/(null|stdout|stderr|tty|fd\/\d+)$/;
+
 /**
- * Where a command runs, or why the folder rule file_read follows refuses it: its cwd, or a path it names, taken from
- * where it runs (after its `cd`s). A command that is not a plain read may not change a read-only folder.
+ * Why the folder rule refuses a command line run from `cwd`, or undefined: each path it reads must be readable and
+ * each it writes writable, from where it runs after its `cd`s. Words whose place only the shell knows cannot write
+ * while a read-only folder is there to protect; without one, commandRisk already asks the owner about them.
+ */
+export function judgeCommand(
+  roots: Root[],
+  command: string,
+  cwd: string,
+  o: Omit<JudgeOptions, "write" | "name"> & { userHome?: string } = {},
+): { refused: string } | undefined {
+  const locked = roots.some((r) => !r.write && !r.off);
+  const unknown = (what: string) => (locked ? { refused: refusal.unknown(what) } : undefined);
+  let from: string | undefined = cwd;
+  let old: string | undefined;
+  for (const n of namedPaths(command, o.userHome)) {
+    if (n.kind === "unknown") {
+      if (n.write) return unknown(n.text);
+      continue;
+    }
+    if (n.kind === "here") {
+      if (from === undefined) {
+        if (n.known && locked) return unknown("this command");
+        continue;
+      }
+      // Any program may write where it runs; refused only in a read-only folder.
+      const r = judge(roots, ".", from);
+      if (!("refused" in r) && !r.write) return { refused: refusal.readOnly(from) };
+      continue;
+    }
+    const to = n.to;
+    const base = to?.old ? old : from;
+    if (n.kind === "cd") old = from;
+    if (!to || (base === undefined && (to.old || !path.isAbsolute(to.path)))) {
+      if (n.kind === "cd") from = undefined;
+      else if (n.write) return unknown(to?.path ?? "a path");
+      continue;
+    }
+    const at = path.resolve(base ?? "/", to.path);
+    const write = n.kind === "path" && n.write;
+    if (write ? SINK.test(at) : PLUMBING.test(at)) {
+      if (n.kind === "cd") from = at;
+      continue;
+    }
+    const r = judge(roots, to.path, base ?? "/", { ...o, write, name: to.path });
+    if ("refused" in r) return r;
+    if (n.kind === "cd") from = r.at;
+  }
+  return undefined;
+}
+
+/**
+ * Where a command runs, or why the folder rule file_read follows refuses it: its cwd, or a path it reads or writes,
+ * taken from where it runs (after its `cd`s).
  */
 export function commandFolder(
   store: Store,
   home: string,
   thread: Parameters<typeof folderAccess>[2],
   a: { command: string; cwd?: string | undefined },
-  apxPort?: number,
 ): Access {
-  // Outside every folder a command is refused as a read would be; only a read-only one asks whether it writes. Each
-  // path it names is judged below, so where its arguments point does not make it a write.
-  const write = commandRisk(a.command, apxPort, { anywhere: true }) !== "never";
-  const judged = (r: Access, name: string): Access =>
-    "refused" in r || !write || r.write ? r : { refused: refusal.readOnly(name) };
-  const where = judged(folderAccess(store, home, thread, a.cwd ?? "."), a.cwd ?? ".");
+  const where = folderAccess(store, home, thread, a.cwd ?? ".");
   if ("refused" in where) return where;
   const roots = rootsOf(store, home, thread);
-  let from: string | undefined = where.at;
-  for (const named of namedPaths(a.command)) {
-    if (named.cd && !named.path) from = undefined;
-    if (!named.path || (from === undefined && !path.isAbsolute(named.path))) continue;
-    const r = judged(judge(roots, named.path, from ?? "/"), named.path);
-    if ("refused" in r) return r;
-    if (named.cd) from = r.at;
-  }
-  return where;
+  return judgeCommand(roots, a.command, where.at, { home, project: Boolean(thread.project_id) }) ?? where;
 }
 
 /** How long a background job may run when the agent does not say: servers and watchers pass a longer timeout_s. */
@@ -175,13 +217,13 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
           .string()
           .max(500)
           .optional()
-          .describe("folder inside the project, relative; or your temp folder (absolute)"),
+          .describe("relative to the project, or an absolute temp or read-only folder"),
       }),
       effect: "external",
       confirm: (a) => commandRisk(a.command, apxPort()),
       // A command that could only be refused is not put to the owner.
       check(a, ctx) {
-        const r = commandFolder(store, home, ctx.thread, a, apxPort());
+        const r = commandFolder(store, home, ctx.thread, a);
         if ("refused" in r) throw new Error(`refused: ${r.refused}`);
       },
       workspace: true,
@@ -191,7 +233,7 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
       title: (a) => `Ran ${String(a.command ?? "").slice(0, 60)}`,
       async run(a, ctx) {
         // Links resolved: a symlink inside the project must not run the command somewhere else.
-        const where = commandFolder(store, home, ctx.thread, a, apxPort());
+        const where = commandFolder(store, home, ctx.thread, a);
         if ("refused" in where) return `refused: ${where.refused}`;
         const { base, at: cwd } = where;
         const limit = a.background ? (a.timeout_s ?? BACKGROUND_S) : Math.min(a.timeout_s ?? 120, 600);

@@ -53,11 +53,6 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "ls; rm x",
   ];
   for (const c of asks) assert.equal(commandRisk(c), "ask", c);
-  // A caller that judges each named path itself (the folder rule) only asks whether the command writes.
-  for (const c of ["cat /etc/passwd", "rg -n x ../other/src", "git -C /src/v1 log"])
-    assert.equal(commandRisk(c, undefined, { anywhere: true }), "never", c);
-  for (const c of ["touch /src/v1/x", "cat ~/.ssh/id_rsa", "rg --pre ./s x /src/v1"])
-    assert.equal(commandRisk(c, undefined, { anywhere: true }), "ask", c);
   const destroys = [
     "rm -rf build",
     "sudo ls",
