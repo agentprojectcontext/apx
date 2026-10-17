@@ -1116,6 +1116,8 @@ export const appMethods = {
         negative_prompt: z.string().max(2000).optional(),
         count: z.number().int().min(1).max(4).optional(),
         seed: z.number().int().optional(),
+        /** Images (media ids, from this chat when `thread` is given) the drawing works from. */
+        references: z.array(Id).max(4).optional(),
         thread: Id.optional(),
       })
       .strict(),

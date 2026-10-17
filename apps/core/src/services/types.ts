@@ -17,6 +17,9 @@ export type ImageOptions = {
   sampler: string;
 };
 
+/** An image a drawing works from: a media file APX keeps. */
+export type ImageReference = { path: string; mime: string };
+
 export type GeneratedImage = { bytes: Buffer; mime: string; seed?: number | undefined };
 
 export type ImageResult = { images: GeneratedImage[]; model?: string | undefined };

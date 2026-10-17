@@ -13,9 +13,10 @@ const PNG = Buffer.from(
 );
 
 /** A `codex` that answers like `codex exec --experimental-json` and leaves a PNG where its image_gen would. */
-function fakeCodex(dir: string): { bin: string; prompt(): string } {
+function fakeCodex(dir: string): { bin: string; prompt(): string; args(): string[] } {
   const bin = path.join(dir, "codex");
   const asked = path.join(dir, "prompt.txt");
+  const argv = path.join(dir, "argv.json");
   const events = [
     { type: "thread.started", thread_id: "thread-img" },
     { type: "item.completed", item: { id: "i0", type: "agent_message", text: "Done." } },
@@ -30,6 +31,7 @@ let input = "";
 process.stdin.on("data", (c) => (input += c));
 process.stdin.on("end", () => {
   fs.writeFileSync(${JSON.stringify(asked)}, input);
+  fs.writeFileSync(${JSON.stringify(argv)}, JSON.stringify(process.argv.slice(2)));
   const made = path.join(process.env.CODEX_HOME, "generated_images", "thread-img");
   fs.mkdirSync(made, { recursive: true });
   fs.writeFileSync(path.join(made, "exec-1.png"), Buffer.from(${JSON.stringify(PNG.toString("base64"))}, "base64"));
@@ -38,7 +40,11 @@ process.stdin.on("end", () => {
 `,
     { mode: 0o755 },
   );
-  return { bin, prompt: () => fs.readFileSync(asked, "utf8") };
+  return {
+    bin,
+    prompt: () => fs.readFileSync(asked, "utf8"),
+    args: () => JSON.parse(fs.readFileSync(argv, "utf8")) as string[],
+  };
 }
 
 async function withServices(
@@ -123,5 +129,39 @@ test("Codex not signed in shows as unreachable and does not draw", async () => {
     services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE);
     assert.equal((await services.info("image"))[0]?.status, "unreachable");
     assert.equal((await services.test(CODEX_IMAGE_SERVICE)).ok, false);
+  });
+});
+
+test("reference images reach Codex as images of its turn; only images of the same chat can be references", async () => {
+  await withServices(true, async (services, _home, codex) => {
+    services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE);
+    const ref = services.keep(PNG, "image/png");
+    const got = await services.image(
+      {
+        prompt: "a carousel cover in the reel's style",
+        references: [{ path: ref.path, mime: ref.mime }],
+      },
+      AbortSignal.timeout(20_000),
+    );
+    assert.equal(got.media.length, 1);
+    const args = codex.args();
+    assert.equal(args[args.indexOf("--image") + 1], ref.path);
+    assert.match(codex.prompt(), /attached image is a reference/);
+
+    assert.deepEqual(services.imageReference(ref.id, undefined), { path: ref.path, mime: "image/png" });
+    assert.equal(services.imageReference(ref.id, "thr_other"), undefined);
+    const drawn = got.media[0];
+    assert.ok(drawn);
+    assert.equal(services.imageReference(drawn.id, "thr_other"), undefined);
+    assert.equal(services.imageReference("med_missing", undefined), undefined);
+  });
+});
+
+test("Codex is told nothing about references when there are none", async () => {
+  await withServices(true, async (services, _home, codex) => {
+    services.offer(CODEX_IMAGES, CODEX_IMAGE_SERVICE);
+    await services.image({ prompt: "a fox" }, AbortSignal.timeout(20_000));
+    assert.equal(codex.args().includes("--image"), false);
+    assert.doesNotMatch(codex.prompt(), /reference/);
   });
 });

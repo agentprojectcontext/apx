@@ -51,6 +51,11 @@ function promptFor(r: ImageRequest): string {
   return [
     `Use your built-in image_gen tool now to make ${r.count === 1 ? "one image" : `${r.count} separate images`}, ${shapeOf(r.width, r.height)}.`,
     "Do not run commands, read files or skills, or write files: only call image_gen, then answer in one short line.",
+    ...(r.references?.length
+      ? [
+          `The ${r.references.length === 1 ? "attached image is a reference" : `${r.references.length} attached images are references`}: take from them what the description asks for (style, layout, subject), and make a new image rather than a copy.`,
+        ]
+      : []),
     `Description: ${r.prompt}`,
     ...(r.negative_prompt ? [`Avoid: ${r.negative_prompt}`] : []),
   ].join("\n");
@@ -81,7 +86,9 @@ export function createCodexImages(deps: {
         modelReasoningEffort: "low",
         ...(s.model ? { model: s.model } : {}),
       });
-      const turn = await thread.run(promptFor(r), {
+      const refs = (r.references ?? []).map((ref) => ({ type: "local_image" as const, path: ref.path }));
+      const input = refs.length ? [{ type: "text" as const, text: promptFor(r) }, ...refs] : promptFor(r);
+      const turn = await thread.run(input, {
         signal: AbortSignal.any([signal, AbortSignal.timeout(IMAGE_TIMEOUT_MS)]),
       });
       const dir = thread.id ? codexImageDir(env, thread.id) : "";

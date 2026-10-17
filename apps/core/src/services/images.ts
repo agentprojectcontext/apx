@@ -1,10 +1,13 @@
 // Image dialects: what each kind of server expects and returns. A1111 (and Forge, SD.Next…) answers in one call;
 // stable-diffusion.cpp's server queues the job and is polled; OpenAI-compatible APIs answer with base64 or a URL.
 
+import fs from "node:fs";
+import path from "node:path";
 import { errorMessage } from "../errors.ts";
 import {
   IMAGE_TIMEOUT_MS,
   type ImageOptions,
+  type ImageReference,
   type ImageResult,
   joinUrl,
   type ServiceConfig,
@@ -12,7 +15,7 @@ import {
   sniffImage,
 } from "./types.ts";
 
-export type ImageRequest = ImageOptions & { prompt: string };
+export type ImageRequest = ImageOptions & { prompt: string; references?: ImageReference[] | undefined };
 
 type Fetch = typeof fetch;
 
@@ -36,6 +39,7 @@ async function post(f: Fetch, url: string, body: object, key: string | undefined
 const b64 = (s: unknown) => Buffer.from(String(s).replace(/^data:[^,]+,/, ""), "base64");
 
 async function a1111(s: ServiceConfig, r: ImageRequest, key: string | undefined, signal: AbortSignal, f: Fetch) {
+  wordsOnly(r);
   const j = await post(
     f,
     joinUrl(s.base_url, "/sdapi/v1/txt2img"),
@@ -71,6 +75,7 @@ async function a1111(s: ServiceConfig, r: ImageRequest, key: string | undefined,
 }
 
 async function sdcpp(s: ServiceConfig, r: ImageRequest, key: string | undefined, signal: AbortSignal, f: Fetch) {
+  wordsOnly(r);
   const job = await post(
     f,
     joinUrl(s.base_url, "/sdcpp/v1/img_gen"),
@@ -119,14 +124,47 @@ async function sdcpp(s: ServiceConfig, r: ImageRequest, key: string | undefined,
   }
 }
 
+/** The edits endpoint takes the reference images as multipart files, the rest as form fields. */
+async function postForm(
+  f: Fetch,
+  url: string,
+  fields: Record<string, string>,
+  refs: ImageReference[],
+  key: string | undefined,
+  signal: AbortSignal,
+) {
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
+  for (const ref of refs)
+    form.append("image[]", new Blob([fs.readFileSync(ref.path)], { type: ref.mime }), path.basename(ref.path));
+  const res = await f(url, { method: "POST", headers: auth(key), body: form, signal });
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  return JSON.parse(text) as Record<string, unknown>;
+}
+
+/** Dialects that only draw from words fail a request with references, so the next service is tried. */
+function wordsOnly(r: ImageRequest) {
+  if (r.references?.length) throw new Error("it cannot draw from reference images");
+}
+
 async function openaiImages(s: ServiceConfig, r: ImageRequest, key: string | undefined, signal: AbortSignal, f: Fetch) {
-  const j = await post(
-    f,
-    joinUrl(s.base_url, "/v1/images/generations"),
-    { prompt: r.prompt, n: r.count, size: `${r.width}x${r.height}`, ...(s.model ? { model: s.model } : {}) },
-    key,
-    signal,
-  );
+  const fields = {
+    prompt: r.prompt,
+    n: r.count,
+    size: `${r.width}x${r.height}`,
+    ...(s.model ? { model: s.model } : {}),
+  };
+  const j = r.references?.length
+    ? await postForm(
+        f,
+        joinUrl(s.base_url, "/v1/images/edits"),
+        Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, String(v)])),
+        r.references,
+        key,
+        signal,
+      )
+    : await post(f, joinUrl(s.base_url, "/v1/images/generations"), fields, key, signal);
   const data = (j.data as Array<{ b64_json?: string; url?: string }>) ?? [];
   const images = await Promise.all(
     data.map(async (d) => {

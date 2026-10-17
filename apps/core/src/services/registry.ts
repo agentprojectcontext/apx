@@ -17,7 +17,7 @@ import { generateImage, IMAGE_PROBE } from "./images.ts";
 import { reach } from "./reach.ts";
 import { SPEECH_PROBE, speak } from "./speech.ts";
 import { TRANSCRIBE_PROBE, transcribe } from "./transcription.ts";
-import { PROBE_TIMEOUT_MS, type ServiceConfig } from "./types.ts";
+import { type ImageReference, PROBE_TIMEOUT_MS, type ServiceConfig } from "./types.ts";
 import { createWhisperCpp, type WhisperCpp } from "./whisper-cpp.ts";
 
 /** The bottom layer under every image: a service's own defaults and the call's arguments go on top. */
@@ -55,7 +55,11 @@ export type ImageCall = Partial<ImageDefaults> & {
   seed?: number | undefined;
   service?: string | undefined;
   thread?: string | undefined;
+  references?: ImageReference[] | undefined;
 };
+
+/** What a drawing service can read as a reference image. */
+const REFERENCE_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 export function createServices(deps: {
   store: Store;
@@ -202,6 +206,7 @@ export function createServices(deps: {
           count: c.count ?? d.count,
           seed: c.seed ?? -1,
           sampler: "",
+          references: c.references,
         };
         if (s.dialect !== "codex-images") return generateImage(s, req, keyOf(s), signal, f);
         if (!deps.codexImages) throw new Error(`${s.label}: Codex cannot run from this core`);
@@ -305,6 +310,12 @@ export function createServices(deps: {
     /** Keeps bytes APX was handed (a contact's profile picture) as media, read back through media.get. */
     keep(bytes: Buffer, mime: string): MediaRecord {
       return saveFile(bytes, mime, { kind: "image" });
+    },
+    /** An image APX keeps that a drawing may work from; only one of `thread`'s when a thread is given. */
+    imageReference(id: string, thread: string | undefined): ImageReference | undefined {
+      const m = store.media.get(id);
+      if (m?.kind !== "image" || !REFERENCE_MIME.has(m.mime) || (thread && m.thread_id !== thread)) return undefined;
+      return fs.existsSync(m.path) ? { path: m.path, mime: m.mime } : undefined;
     },
     read(id: string): { mime: string; data: Buffer } | undefined {
       const m = store.media.get(id);

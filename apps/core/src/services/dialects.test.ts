@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import os from "node:os";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { generateImage, IMAGE_PROBE } from "./images.ts";
 import { reach } from "./reach.ts";
@@ -28,7 +31,8 @@ before(async () => {
     });
     req.on("end", () => {
       const path = req.url ?? "";
-      seen.push({ path, body: raw ? JSON.parse(raw) : {}, headers: req.headers });
+      const isJson = String(req.headers["content-type"] ?? "").includes("json");
+      seen.push({ path, body: raw ? (isJson ? JSON.parse(raw) : { raw }) : {}, headers: req.headers });
       const json = (j: object) => {
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify(j));
@@ -51,7 +55,8 @@ before(async () => {
         canceled = true;
         return json({});
       }
-      if (path === "/v1/images/generations") return json({ data: [{ b64_json: PNG.toString("base64") }] });
+      if (path === "/v1/images/generations" || path === "/v1/images/edits")
+        return json({ data: [{ b64_json: PNG.toString("base64") }] });
       if (path === "/v1/audio/speech") {
         res.writeHead(200, { "content-type": "audio/wav" });
         return res.end(Buffer.from("RIFFfake"));
@@ -163,4 +168,24 @@ test("OpenAI-compatible images; QVox speech gets its style and language; Gemini 
   const call = seen.findLast((s) => s.path.startsWith("/v1beta/models/"));
   assert.equal(call?.headers["x-goog-api-key"], "gk");
   assert.ok(!call?.path.includes("gk"), "the key never goes in the URL");
+});
+
+test("with references, OpenAI-compatible images go to the edits endpoint as files; word-only servers refuse them", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-refs-"));
+  try {
+    const ref = path.join(dir, "reel.png");
+    fs.writeFileSync(ref, PNG);
+    const withRef = { ...req, references: [{ path: ref, mime: "image/png" }] };
+    const img = await generateImage(svc({ dialect: "openai-images", model: "gpt-image-1" }), withRef, "k", signal());
+    assert.equal(img.images[0]?.mime, "image/png");
+    const edit = seen.findLast((s) => s.path === "/v1/images/edits");
+    assert.match(String(edit?.headers["content-type"]), /multipart\/form-data/);
+    const raw = String(edit?.body.raw);
+    assert.match(raw, /name="image\[\]"; filename="reel.png"/);
+    assert.match(raw, /name="prompt"\r\n\r\na fox/);
+    assert.match(raw, /name="model"\r\n\r\ngpt-image-1/);
+    await assert.rejects(generateImage(svc({}), withRef, undefined, signal()), /cannot draw from reference images/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

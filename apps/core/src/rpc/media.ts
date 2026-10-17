@@ -1,7 +1,7 @@
 // Image and voice services (owner-only settings) and what they make. An agent draws or speaks only into its own
 // thread, through the same methods.
 
-import { errorMessage, notFound, unavailable } from "../errors.ts";
+import { badRequest, errorMessage, notFound, unavailable } from "../errors.ts";
 import type { Services } from "../services/registry.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
@@ -28,9 +28,15 @@ export function mediaHandlers(services: Services) {
     },
     "services.defaults": (d) => services.setImageDefaults(d),
 
-    "media.image": async (p, ctx) => {
+    "media.image": async ({ references: ids, ...p }, ctx) => {
+      const thread = threadOf(ctx, p.thread);
+      const references = (ids ?? []).map((id) => {
+        const ref = services.imageReference(id, thread);
+        if (!ref) throw badRequest(`${id} is not an image in this chat`);
+        return ref;
+      });
       try {
-        const r = await services.image({ ...p, thread: threadOf(ctx, p.thread) }, AbortSignal.timeout(11 * 60_000));
+        const r = await services.image({ ...p, thread, references }, AbortSignal.timeout(11 * 60_000));
         return {
           media: r.media.map((m) => ({ id: m.id, mime: m.mime })),
           service: r.service.label,
