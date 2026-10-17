@@ -354,6 +354,10 @@ export const PendingInput = z.object({
 });
 export type PendingInput = z.infer<typeof PendingInput>;
 
+/** Where a document's file is in its chat: a path in the chat's folder, or (`scratch`) in its temp folder. */
+export const DocumentSource = z.object({ path: z.string().max(1000), scratch: z.boolean().optional() });
+export type DocumentSource = z.infer<typeof DocumentSource>;
+
 /** What the UI shows. The model's own transcript is stored separately (two projections of one log). */
 const KnownPart = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), text: z.string() }),
@@ -408,7 +412,14 @@ const KnownPart = z.discriminatedUnion("type", [
     name: z.string(),
     mime: z.string(),
     bytes: z.number().int(),
-    document: z.object({ title: z.string().max(120), format: z.enum(["markdown", "text"]) }).optional(),
+    document: z
+      .object({
+        title: z.string().max(120),
+        format: z.enum(["markdown", "text"]),
+        /** The file it was read from, for files.reveal and files.open. */
+        source: DocumentSource.optional(),
+      })
+      .optional(),
   }),
   /**
    * What changed in a code thread's folder (uncommitted, per git) when the turn ended; with `edits`, the files the

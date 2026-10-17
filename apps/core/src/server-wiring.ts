@@ -299,7 +299,7 @@ export function coreHandlers(d: HandlerDeps) {
       store: d.store,
       home: d.app.home,
       workFolder: (thread, file) =>
-        locateFile(d.store, d.app.home, thread, file)?.base ?? workDir(d.store, d.app.home, thread),
+        locateFile(d.store, d.app.home, thread, file) ?? { base: workDir(d.store, d.app.home, thread), scratch: false },
       services: d.services,
       checkModel: (ref, session) => refProblem(ref, d.engines, session),
     }),

@@ -132,6 +132,13 @@ export const filesMethods = {
     effect: true,
     access: "human",
   },
+  /** Opens a text document (.md, .markdown, .txt) in its default app on the core's computer. */
+  "files.open": {
+    params: z.object({ ...Where, path: z.string().min(1).max(1000) }).strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   /** Renames a file or folder in place (a new name, never a new folder). */
   "files.rename": {
     params: z

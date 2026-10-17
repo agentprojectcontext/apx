@@ -13,6 +13,7 @@ let env: Awaited<ReturnType<typeof startCore>>;
 const desktopCalls: string[] = [];
 const desktop = {
   reveal: async (abs: string) => void desktopCalls.push(`reveal ${abs}`),
+  open: async (abs: string) => void desktopCalls.push(`open ${abs}`),
   trash: async (abs: string) => void desktopCalls.push(`trash ${abs}`),
 };
 let repo = "";
@@ -95,6 +96,9 @@ test("media: images, video, audio and PDF are previewed as bytes; other files ar
 test("Finder, rename and trash stay inside the folder; the trash never takes the folder itself or .git", async () => {
   await env.client.call("files.reveal", { project, path: "docs/plan.md" });
   assert.equal(desktopCalls.at(-1), `reveal ${path.join(repo, "docs", "plan.md")}`);
+  await env.client.call("files.open", { project, path: "docs/plan.md" });
+  assert.equal(desktopCalls.at(-1), `open ${path.join(repo, "docs", "plan.md")}`);
+  await assert.rejects(env.client.call("files.open", { project, path: "logo.png" }), /only \.md/);
 
   fs.writeFileSync(path.join(repo, "draft.txt"), "x");
   const r = await env.client.call("files.rename", { project, path: "draft.txt", name: "final.txt" });
