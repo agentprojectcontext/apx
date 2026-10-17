@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { harnessDir, judge, refusal, scratchDir, workDir } from "./folders.ts";
+import { harnessDir, judge, refusal, rootsOf, scratchDir, workDir } from "./folders.ts";
 import { commandFolder } from "./shell.ts";
 
 // The owner's message is the call to make: `{"name": "file_read", "args": {...}}`.
@@ -154,4 +154,90 @@ test("ordinary commands name no folder they may not use; ones that leave it thro
     "head -n 1 src/../../x",
   ])
     assert.ok("refused" in verdict(c), c);
+});
+
+test("a project's read-only folders are read by file_read and shell, never changed, until the owner removes them", async () => {
+  const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
+  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const ref = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
+  const away = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
+  fs.writeFileSync(path.join(ref, "v1.txt"), "old\n");
+  fs.writeFileSync(path.join(away, "x.txt"), "away\n");
+  fs.symlinkSync(away, path.join(ref, "out"));
+  const call = async (name: string, args: object) => {
+    await env.client.call("threads.send", { thread: t.id, text: JSON.stringify({ name, args }) });
+    await env.settle(t.id);
+    return String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  };
+  const file = path.join(ref, "v1.txt");
+  try {
+    const set = await env.client.call("projects.update", { project, read_only_folders: [ref, `${ref}/`] });
+    assert.deepEqual(set.project.read_only_folders, [ref], "kept once, as written");
+
+    assert.match(await call("file_read", { path: file }), /old/);
+    assert.match(await call("shell", { command: `rg -n old ${ref}` }), /v1\.txt/);
+    assert.match(await call("shell", { command: `cat v1.txt`, cwd: ref }), /old/);
+    // The turn says where they are; a delegated sub-chat of the project reads them too.
+    assert.match(
+      JSON.stringify(llm.calls.at(-1)?.messages),
+      /Read-only folders \(read with file tools or shell, never change\): /,
+    );
+    const sub = { id: "t_sub", parent_id: t.id, project_id: project };
+    assert.deepEqual(rootsOf(env.core.store, env.home, sub).at(-1), { dir: ref, write: false, scratch: false });
+
+    assert.equal(await call("file_write", { path: file, content: "x" }), `refused: ${refusal.readOnly(file)}`);
+    assert.equal(await call("file_edit", { path: file, old: "old", new: "x" }), `refused: ${refusal.readOnly(file)}`);
+    assert.match(await call("shell", { command: `touch ${ref}/new.txt` }), /refused: .*read-only folder/);
+    assert.match(await call("shell", { command: "touch new.txt", cwd: ref }), /refused: .*read-only folder/);
+    assert.equal(fs.readFileSync(file, "utf8"), "old\n");
+    assert.ok(!fs.existsSync(path.join(ref, "new.txt")));
+    // A link inside it does not reach past it.
+    const linked = path.join(ref, "out", "x.txt");
+    assert.equal(await call("file_read", { path: linked }), `refused: ${refusal.outside(linked)}`);
+    assert.match(await call("shell", { command: `cat ${linked}` }), /refused: .*outside the folders you can read/);
+
+    await env.client.call("projects.update", { project, read_only_folders: [] });
+    assert.equal(env.core.store.projects.get(project)?.read_only_folders, undefined);
+    assert.equal(await call("file_read", { path: file }), `refused: ${refusal.outside(file)}`);
+  } finally {
+    await env.client.call("projects.update", { project, read_only_folders: [] });
+    fs.rmSync(ref, { recursive: true, force: true });
+    fs.rmSync(away, { recursive: true, force: true });
+  }
+});
+
+test("a read-only folder must be an absolute folder on disk, apart from APX's home and the project's own folder", async () => {
+  const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
+  fs.mkdirSync(path.join(repo, "docs"), { recursive: true });
+  const refused = async (folder: string, why: RegExp) =>
+    assert.rejects(env.client.call("projects.update", { project, read_only_folders: [folder] }), why);
+  await refused("relative/dir", /not an absolute path/);
+  await refused(path.join(sibling, "missing"), /not a folder here/);
+  await refused(path.join(sibling, "b.txt"), /not a folder here/);
+  await refused(env.home, /APX's own folder/);
+  fs.mkdirSync(path.join(env.home, "projects"), { recursive: true });
+  await refused(path.join(env.home, "projects"), /APX's own folder/);
+  await refused(path.dirname(env.home), /APX's own folder/);
+  await refused(repo, /already in the project's folder/);
+  await refused(path.join(repo, "docs"), /already in the project's folder/);
+  assert.equal(env.core.store.projects.get(project)?.read_only_folders, undefined, "nothing kept from a refusal");
+  // A parent of the project's folder is fine: the project's folder still comes first and stays writable.
+  const outer = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-outer-")));
+  try {
+    const inner = path.join(outer, "app");
+    const nested = (await env.client.call("projects.create", { path: inner })).project.id;
+    await env.client.call("projects.update", { project: nested, read_only_folders: [outer] });
+    const roots = rootsOf(env.core.store, env.home, { id: "t_p", project_id: nested });
+    assert.deepEqual(judge(roots, "a.txt", inner, true), {
+      at: path.join(inner, "a.txt"),
+      base: inner,
+      scratch: false,
+      write: true,
+    });
+    const b = path.join(outer, "b.txt");
+    assert.deepEqual(judge(roots, b, inner, true), { refused: refusal.readOnly(b) });
+  } finally {
+    fs.rmSync(outer, { recursive: true, force: true });
+  }
 });

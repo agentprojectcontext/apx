@@ -82,9 +82,10 @@ export function broadScan(command: string, home = os.homedir()): string | undefi
 
 /**
  * How much the owner must be asked for this command. Only simple commands of known reading programs, with plain
- * arguments inside the project, run without asking; anything the classifier cannot be sure of asks.
+ * arguments inside the project, run without asking; anything the classifier cannot be sure of asks. `anywhere`: its
+ * arguments may point outside the project, for a caller that judges each path itself.
  */
-export function commandRisk(command: string, apxPort?: number): Confirm {
+export function commandRisk(command: string, apxPort?: number, o: { anywhere?: boolean } = {}): Confirm {
   const c = command.trim();
   if (DESTRUCTIVE.test(c) || DESTRUCTIVE.test(normalize(c))) return "always";
   // A command that talks to APX's own API could act as the owner (answer its own confirmation): always asked.
@@ -101,9 +102,11 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
     if (!seg || SHELL_SYNTAX.test(seg) || /["']/.test(seg)) return false;
     const [word = "", ...args] = seg.split(/\s+/);
     if (/=/.test(word)) return false;
-    if (!args.every(localArg)) return false;
-    if (word === "git") return READ_ONLY_GIT.has(args[0] ?? "") && !args.some((x) => x.startsWith("--output"));
+    if (!args.every(o.anywhere ? (x: string) => !/^(~|\.apx)/.test(x) : localArg)) return false;
+    const sub = args[0] === "-C" ? args[2] : args[0];
+    if (word === "git") return READ_ONLY_GIT.has(sub ?? "") && !args.some((x) => x.startsWith("--output"));
     if (word === "find") return !args.some((x) => /^-(exec|ok|delete|fprint|fls|fprintf)/.test(x));
+    if (word === "rg") return !args.some((x) => /^--(pre|hostname-bin)/.test(x));
     return READ_ONLY.has(word);
   };
   return segments.every(simple) ? "never" : "ask";
@@ -120,8 +123,9 @@ export function commandFolder(
   a: { command: string; cwd?: string | undefined },
   apxPort?: number,
 ): Access {
-  // Outside every folder a command is refused as a read would be; only a read-only one asks whether it writes.
-  const write = commandRisk(a.command, apxPort) !== "never";
+  // Outside every folder a command is refused as a read would be; only a read-only one asks whether it writes. Each
+  // path it names is judged below, so where its arguments point does not make it a write.
+  const write = commandRisk(a.command, apxPort, { anywhere: true }) !== "never";
   const judged = (r: Access, name: string): Access =>
     "refused" in r || !write || r.write ? r : { refused: refusal.readOnly(name) };
   const where = judged(folderAccess(store, home, thread, a.cwd ?? "."), a.cwd ?? ".");

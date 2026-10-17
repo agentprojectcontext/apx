@@ -21,6 +21,7 @@ import type { Catalog } from "../models/catalog.ts";
 import { modelSettings, refProblem } from "../models/choice.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
+import { checkReadOnly } from "../tools/folders.ts";
 import type { Handlers } from "./router.ts";
 
 export function appHandlers(deps: {
@@ -143,9 +144,18 @@ export function appHandlers(deps: {
       if (!project) throw notFound(`project ${r.project}`);
       return { project: publicProject(project), agents: r.agents };
     },
-    "projects.update": ({ project: id, name, description, kind, autonomy }) => {
+    "projects.update": ({ project: id, name, description, kind, autonomy, read_only_folders }) => {
       const project = store.projects.get(id);
       if (!project) throw notFound(`project ${id}`);
+      if (read_only_folders !== undefined) {
+        let folders: string[];
+        try {
+          folders = checkReadOnly(deps.home, project, read_only_folders);
+        } catch (err) {
+          throw badRequest(errorMessage(err));
+        }
+        store.projects.setReadOnlyFolders(id, folders);
+      }
       // Autonomy is APX's, not the folder's: it changes even with the folder away.
       if (autonomy !== undefined) store.projects.setAutonomy(id, autonomy ?? undefined);
       const meta = name !== undefined || description !== undefined || kind !== undefined;

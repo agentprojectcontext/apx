@@ -1110,3 +1110,19 @@ figure providers bill near full price for, and the defaults are 30 turns and 1.5
 fields on any change, so most installs held the old defaults as if the owner chose them: a migration drops a saved value
 equal to a former default (16, 600k), and saving now keeps only what differs from the defaults, so a later default
 reaches everyone who never touched it while a limit the owner picked stays.
+
+<a id="d-094"></a>
+## D-094 — 2026-10-17 — A project may have read-only folders: its agents read them and change nothing there
+An audit of one checkout against a sibling one failed because the sibling was outside the project's folder: helpers
+could not read it, and the only way in was a relative path one tool let through. The owner now adds read-only folders
+to a project (Project settings, `projects.update` `read_only_folders`, `apx projects folders`). They are roots of the
+one folder rule (`tools/folders.ts`), after the folder the agent works in and its temp folder, so `file_read` and
+`shell` read there and every write is refused with the read-only refusal; the first root holding a path decides, so a
+parent of the project's folder leaves the project writable. A shell command in one is judged by whether it writes, not
+by where its arguments point (each path it names is judged by the rule). Each turn's input names them (not the
+system prompt). They are kept in APX's database like autonomy (D-072), never in `.apc/`: a folder someone else wrote
+cannot widen what its agents read. A folder must be absolute, on disk, outside APX's home and not holding it (its
+database and secrets), and not inside the project's own folder (already writable there). Outside agents: Claude Code
+and ACP agents ask APX about each of their tools, and reads in these folders now run without asking while any change
+there is refused; Codex's sandbox already reads anywhere and its `additionalDirectories` would make a folder writable,
+so it is not given them. The base project has none yet.

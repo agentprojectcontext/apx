@@ -291,6 +291,7 @@ export interface ProjectsTable {
   memory_md: string | null;
   registered: Generated<number>;
   autonomy: string | null;
+  read_only_folders: string | null;
 }
 
 export interface RoutineRunsTable {

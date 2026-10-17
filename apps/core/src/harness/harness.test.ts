@@ -13,6 +13,17 @@ const fake = (id: "claude" | "codex"): Harness => ({
   id,
   async run(io) {
     seen.push({ harness: id, io, outside: io.outside() });
+    // "probe [...]" asks the core about each of its own tool calls, as Claude Code's canUseTool does.
+    const probe = /^probe (.*)$/s.exec(String(io.input.content).split("\n").at(-1) ?? "");
+    if (probe) {
+      const asked = JSON.parse(probe[1] ?? "[]") as Array<{ kind: string; path: string }>;
+      const said: boolean[] = [];
+      for (const [i, a] of asked.entries())
+        said.push(
+          await io.approve({ callId: `${io.run.id}-p${i}`, title: a.kind, kind: a.kind, input: { path: a.path } }),
+        );
+      return { text: JSON.stringify(said), model: `${id}/model`, sessionId: "probe" };
+    }
     io.onText("thinking…");
     if (String(io.input.content).includes("search the web"))
       io.observe({ callId: `${io.run.id}-w`, title: "Searched news", kind: "fetch", status: "ok" });
@@ -292,4 +303,21 @@ test("an external session gets an owner's attachment in its temp folder despite 
     true,
   );
   assert.deepEqual(fs.readFileSync(file), bytes);
+});
+
+test("an outside agent reads its project's read-only folders without asking and may never change them", async () => {
+  const t0 = await session("claude");
+  const ref = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
+  await env.client.call("projects.update", { project: t0.project_id ?? "", read_only_folders: [ref] });
+  const asks = [
+    { kind: "read", path: path.join(ref, "a.ts") },
+    { kind: "search", path: ref },
+    { kind: "edit", path: path.join(ref, "a.ts") },
+    { kind: "delete", path: path.join(ref, "a.ts") },
+  ];
+  await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });
+  const t = await env.settle(t0.id);
+  const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
+  assert.equal(answer?.type === "text" ? answer.text : "", "[true,true,false,false]");
+  fs.rmSync(ref, { recursive: true, force: true });
 });
