@@ -167,6 +167,7 @@ export const scratchRoot = (home: string) =>
 
 /**
  * A file an agent names: relative or absolute inside the folder it works in, or absolute inside its temp folder.
+ * A relative one is taken from `cwd` when given (itself located the same way), as shell runs a command there.
  * `base` is the folder it is in; undefined when it is in neither (links resolved).
  */
 export function locateFile(
@@ -174,7 +175,13 @@ export function locateFile(
   home: string,
   thread: Parameters<typeof workDir>[2] & Parameters<typeof scratchDir>[2],
   file: string,
+  cwd?: string,
 ): { base: string; at: string; scratch: boolean } | undefined {
+  if (cwd !== undefined && !path.isAbsolute(file)) {
+    const dir = locateFile(store, home, thread, cwd);
+    const at = dir && path.resolve(dir.at, file);
+    return dir && at && insideReal(dir.base, at) ? { ...dir, at } : undefined;
+  }
   const work = workDir(store, home, thread);
   if (!path.isAbsolute(file))
     return insideReal(work, file) ? { base: work, at: path.resolve(work, file), scratch: false } : undefined;

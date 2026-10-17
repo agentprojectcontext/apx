@@ -8,6 +8,7 @@ import { ApxClient } from "@apx/protocol/client";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { fileTools } from "./files.ts";
+import { scratchRoot } from "./shell.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 const calls: Record<string, [string, object]> = {
@@ -25,6 +26,13 @@ const calls: Record<string, [string, object]> = {
   "read picture": ["file_read", { path: "pages/dot.png" }],
   "read memo": ["file_read", { path: "pages/memo.mp3" }],
   "read outside": ["file_read", { path: "../secrets.index.json" }],
+  "edit in tree": ["file_edit", { path: "docs/spec.md", old: "base", new: "tree", cwd: ".worktrees/issue-1" }],
+  "write in tree": ["file_write", { path: "docs/new.md", content: "new\n", cwd: ".worktrees/issue-1" }],
+  "read in tree": ["file_read", { path: "docs/spec.md", cwd: ".worktrees/issue-1" }],
+  "tree escape": ["file_write", { path: "../../../outside.txt", content: "no", cwd: ".worktrees/issue-1" }],
+  "cwd outside": ["file_read", { path: "secrets.index.json", cwd: ".." }],
+  "cwd missing": ["file_write", { path: "a.md", content: "no", cwd: "no-such-tree" }],
+  "cwd git": ["file_write", { path: "config", content: "no", cwd: ".git" }],
   parallel: ["file_parallel", {}],
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
@@ -117,6 +125,41 @@ test("an agent writes and edits a file in the folder it works in, never outside 
     assert.match(await said(t.id, ask), why);
   assert.equal(fs.existsSync(path.join(env.home, "outside.txt")), false);
   assert.equal(fs.existsSync("/tmp/apx-absolute.txt"), false);
+});
+
+test("file tools take shell's cwd: a relative path in a worktree lands in it, never in the root checkout", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "worktree" });
+  const root = path.join(env.home, "work");
+  const tree = path.join(root, ".worktrees", "issue-1");
+  fs.mkdirSync(path.join(root, "docs"), { recursive: true });
+  fs.mkdirSync(path.join(tree, "docs"), { recursive: true });
+  fs.mkdirSync(path.join(root, ".git"), { recursive: true });
+  fs.writeFileSync(path.join(root, "docs", "spec.md"), "root\n");
+  fs.writeFileSync(path.join(tree, "docs", "spec.md"), "base\n");
+  assert.match(await said(t.id, "edit in tree"), /replaced 1 occurrence in .*\.worktrees\/issue-1\/docs\/spec\.md/);
+  assert.match(await said(t.id, "write in tree"), /created .*\.worktrees\/issue-1\/docs\/new\.md/);
+  assert.match(await said(t.id, "read in tree"), /lines 1-2 of 2[\s\S]*tree/);
+  assert.equal(fs.readFileSync(path.join(tree, "docs", "spec.md"), "utf8"), "tree\n");
+  assert.equal(fs.readFileSync(path.join(root, "docs", "spec.md"), "utf8"), "root\n");
+  assert.equal(fs.existsSync(path.join(root, "docs", "new.md")), false);
+  for (const [ask, why] of [
+    ["tree escape", /outside the folder/],
+    ["cwd outside", /outside the folder/],
+    ["cwd missing", /no folder no-such-tree/],
+    ["cwd git", /\.git folder is off limits/],
+  ] as const)
+    assert.match(await said(t.id, ask), why);
+  assert.equal(fs.existsSync(path.join(env.home, "outside.txt")), false);
+});
+
+test("APC files named through cwd still wait for the owner; the temp folder through cwd does not", () => {
+  const write = parallelFiles.find((t) => t.name === "file_write");
+  assert.ok(write);
+  assert.equal(write.confirm({ path: "AGENTS.md", content: "", cwd: ".worktrees/issue-1" }), "always");
+  assert.equal(write.confirm({ path: "agents/a.md", content: "", cwd: ".apc" }), "always");
+  assert.equal(write.confirm({ path: "docs/a.md", content: "", cwd: ".worktrees/issue-1" }), "untrusted");
+  const scratch = path.join(scratchRoot(env.home), "some-chat");
+  assert.equal(write.confirm({ path: "a.md", content: "", cwd: scratch }), "never");
 });
 
 test("the files an agent writes in a turn show in its answer, with the lines added and removed", async () => {
