@@ -63,9 +63,14 @@ class Pipe {
   #id = 0;
   #pending = new Map<number, { resolve(v: unknown): void; reject(e: Error): void }>();
   #buf = "";
+  #failure: string | undefined;
   readonly #out: Writable;
-  constructor(out: Writable, input: Readable, onEvent: (m: Message) => void) {
+  readonly #onFailure: (why: string) => void;
+  constructor(out: Writable, input: Readable, onEvent: (m: Message) => void, onFailure: (why: string) => void) {
     this.#out = out;
+    this.#onFailure = onFailure;
+    input.on("error", (error: Error) => this.#fail("input pipe", error));
+    out.on("error", (error: Error) => this.#fail("output pipe", error));
     input.setEncoding("utf8");
     input.on("data", (chunk: string) => {
       this.#buf += chunk;
@@ -90,14 +95,29 @@ class Pipe {
     });
   }
   send<T>(method: string, params: object = {}, sessionId?: string): Promise<T> {
+    if (this.#failure) return Promise.reject(new ApxError({ code: "unavailable", message: this.#failure }));
     const id = ++this.#id;
     return new Promise<T>((resolve, reject) => {
       this.#pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
-      this.#out.write(`${JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })}\0`);
+      try {
+        this.#out.write(`${JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })}\0`, (error) => {
+          if (error) this.#fail("output pipe", error);
+        });
+      } catch (error) {
+        this.#pending.delete(id);
+        reject(new ApxError({ code: "unavailable", message: error instanceof Error ? error.message : String(error) }));
+      }
     });
   }
+  #fail(stream: string, error: Error) {
+    if (this.#failure) return;
+    const why = `headless browser ${stream} failed: ${error.message}`;
+    this.failAll(why);
+    this.#onFailure(why);
+  }
   failAll(why: string) {
-    for (const p of this.#pending.values()) p.reject(new ApxError({ code: "unavailable", message: why }));
+    this.#failure ??= why;
+    for (const p of this.#pending.values()) p.reject(new ApxError({ code: "unavailable", message: this.#failure }));
     this.#pending.clear();
   }
 }
@@ -118,6 +138,7 @@ export function createHeadlessBrowser(deps: {
   /** Where the shared profile keeps its cookies between runs. */
   dir: string;
   chrome?: string | undefined;
+  spawn?: typeof spawn;
   /** APX's own ports: a tab never loads APX itself. */
   blockedPorts: () => ReadonlySet<string>;
   onChange: (tabs: TabInfo[]) => void;
@@ -176,7 +197,7 @@ export function createHeadlessBrowser(deps: {
     if (!chrome) throw new ApxError({ code: "unavailable", message: "no Chrome, Chromium or Edge on this machine" });
     const profile = path.join(deps.dir, "shared");
     fs.mkdirSync(profile, { recursive: true });
-    const child = spawn(
+    const child = (deps.spawn ?? spawn)(
       chrome,
       [
         "--headless=new",
@@ -195,7 +216,15 @@ export function createHeadlessBrowser(deps: {
       { stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"] },
     );
     proc = child;
-    const p = new Pipe(child.stdio[3] as Writable, child.stdio[4] as Readable, onEvent);
+    const p = new Pipe(child.stdio[3] as Writable, child.stdio[4] as Readable, onEvent, () => {
+      if (proc !== child) return;
+      proc = undefined;
+      pipe = undefined;
+      tabs.clear();
+      contexts.clear();
+      child.kill();
+      changed();
+    });
     child.on("exit", () => {
       if (proc !== child) return;
       p.failAll("the headless browser stopped");
