@@ -5,12 +5,15 @@ import { BROWSER_CAP, type TabInfo } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
-import { saveUpload } from "../services/uploads.ts";
+import { pruneUploads, saveUpload } from "../services/uploads.ts";
 import { cap, untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 import { urlConfirm } from "./web.ts";
 
 const HANDOFF_S = 300;
+const SNAPSHOT_NAME = "browser-snapshot.jpg";
+/** Tab pictures a chat keeps: a model call carries the newest 4 images (providers/llm.ts), older ones are dropped. */
+const SNAPSHOTS_KEPT = 4;
 
 export function profileFor(agent: AgentRecord): string {
   if (agent.browser_profile === "incognito") return "incognito";
@@ -42,7 +45,7 @@ export function browserTools(store: Store, home: string): Tool[] {
     let m: { id: string; mime: string };
     try {
       m = saveUpload(home, store, {
-        name: "tab.jpg",
+        name: SNAPSHOT_NAME,
         mime: shot.mime,
         bytes: Buffer.from(shot.data, "base64"),
         thread: ctx.thread.id,
@@ -50,6 +53,7 @@ export function browserTools(store: Store, home: string): Tool[] {
     } catch {
       return;
     }
+    pruneUploads(store, ctx.thread.id, SNAPSHOT_NAME, SNAPSHOTS_KEPT);
     ctx.see({ media_id: m.id, mime: m.mime });
   };
   const card = async (ctx: ToolContext, tab: string, state: "agent" | "handoff" | "user" | "done", reason?: string) => {

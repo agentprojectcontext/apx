@@ -38,7 +38,7 @@ const toMedia = (r: Selectable<MediaTable>): MediaRecord => ({
   created_at: r.created_at,
 });
 
-export function mediaRepo({ one, run }: Sql) {
+export function mediaRepo({ one, all, run }: Sql) {
   const repo = {
     get(id: string): MediaRecord | undefined {
       const r = one(qb.selectFrom("media").selectAll().where("id", "=", id));
@@ -60,6 +60,21 @@ export function mediaRepo({ one, run }: Sql) {
         }),
       );
       return repo.get(id) as MediaRecord;
+    },
+    /** A thread's files kept under one name, newest first. */
+    named(thread: string, name: string): MediaRecord[] {
+      return all(
+        qb
+          .selectFrom("media")
+          .selectAll()
+          .where("thread_id", "=", thread)
+          .where("prompt", "=", name)
+          .orderBy("created_at", "desc"),
+      ).map(toMedia);
+    },
+    /** Forgets a row; its file is the caller's to delete. */
+    remove(id: string): void {
+      run(qb.deleteFrom("media").where("id", "=", id));
     },
   };
   return repo;

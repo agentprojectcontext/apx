@@ -1,5 +1,7 @@
 // Browser tools through a fake desktop node: an agent can wait on the page itself instead of reaching for a shell.
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, type ApxSocket } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
@@ -7,6 +9,9 @@ import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 /** The model the scripted calls report: one that reads images unless a test says otherwise. */
 let model = "fake/gpt-4o";
 const llm = scriptedLlm((req, { said, afterTool }) => {
+  const looks = req.messages.filter((m) => m.role === "tool").length;
+  if (said.includes("look six times") && looks < 6)
+    return { ...callTool(`l${looks}`, "browser_snapshot", { tab: "t1" }), model };
   if (afterTool)
     return { ...say(`Done: ${String(req.messages.findLast((m) => m.role === "tool")?.content).slice(0, 200)}`), model };
   if (said.includes("wait and look")) return { ...callTool("w1", "browser_snapshot", { tab: "t1", wait_s: 1 }), model };
@@ -85,6 +90,23 @@ test("a model not known to read images gets the snapshot's text alone", async ()
       model = "fake/gpt-4o";
     }
   }
+});
+
+test("a chat keeps only its newest few tab pictures on disk", async () => {
+  const uploads = path.join(env.home, "media", "uploads");
+  const files = () =>
+    fs.existsSync(uploads)
+      ? fs.readdirSync(uploads, { recursive: true }).filter((f) => String(f).endsWith(".jpg"))
+      : [];
+  const before = files().length;
+  const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  await env.client.call("threads.send", { thread, text: "look six times" });
+  await env.settle(thread);
+  const shown = (llm.calls.at(-1)?.messages ?? []).flatMap((m) => (m.role === "user" ? (m.images ?? []) : []));
+  assert.equal(shown.length, 6, "each look showed its picture");
+  const kept = shown.map((i) => Boolean(env.core.store.media.get(i.media_id)));
+  assert.deepEqual(kept, [false, false, true, true, true, true], "the newest 4 are kept");
+  assert.equal(files().length, before + 4, "the older pictures' files are gone too");
 });
 
 test("a picture that cannot be kept leaves browser_snapshot with the page's tree", async () => {
