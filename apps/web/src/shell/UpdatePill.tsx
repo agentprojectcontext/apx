@@ -1,7 +1,9 @@
 import { Button, Dialog, Icons } from "@apx/ui";
 import { lazy, Suspense, useState } from "react";
+import { useData } from "../data/state.ts";
 import { newerOf, openUpdate, useUpdates } from "../data/updates.ts";
 import { useT } from "../i18n/index.ts";
+import { go } from "./nav.ts";
 
 // The dialog loads when it is first opened, not with the top bar.
 const UpdateDialog = lazy(() => import("./UpdateDialog.tsx").then((m) => ({ default: m.UpdateDialog })));
@@ -41,6 +43,28 @@ export function UpdatePill() {
     <button type="button" className="updatepill" aria-label={label} onClick={() => openUpdate(newer.target)}>
       <Icons.ArrowDown size={12} />
       <span className="updatepill__label">{label}</span>
+    </button>
+  );
+}
+
+/** After an update, until it is read: the chat in which the super-agent told what the new release brought. */
+export function WhatsNewPill() {
+  const t = useT();
+  const told = useData((s) => {
+    const unread = Object.values(s.threads).filter((x) => x.release && x.unread > 0 && !x.archived);
+    return unread.sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  });
+  if (!told?.release) return null;
+  return (
+    <button
+      type="button"
+      className="updatepill"
+      aria-label={t("update.whatsNew")}
+      title={t("update.whatsNewTitle", { v: told.release })}
+      onClick={() => go.thread(told.id)}
+    >
+      <Icons.Sparkles size={12} />
+      <span className="updatepill__label">{t("update.whatsNew")}</span>
     </button>
   );
 }

@@ -158,6 +158,8 @@ export const en = {
   "topbar.search": "Search or jump to…",
   "update.pill": "Update · {n}",
   "update.pillVersion": "APX {v} · Update",
+  "update.whatsNew": "See what's new",
+  "update.whatsNewTitle": "What's new in APX {v}",
   "update.coreBehind": "Core out of date",
   "update.coreBehindTitle": "The core is older than the app",
   "update.coreBehindBody":
