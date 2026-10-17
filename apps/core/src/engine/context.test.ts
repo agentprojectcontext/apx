@@ -193,8 +193,9 @@ test("an unreadable source is a blocker in the shared rules, not 'not verifiable
   const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
     typeof systemPrompt
   >[0];
-  const blocker = /cannot read.*blocker.*never "not verifiable"/s;
+  const blocker = /unreadable source is a blocker.*never "not verifiable"/s;
   assert.match(systemPrompt(agent, { kind: "home" }, "es"), /ask_owner for access/);
+  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /A greeting with a request is a request\./);
   assert.match(systemPrompt(agent, { kind: "home" }, "es"), blocker);
   const worker = workerPrompt({ name: "Helper", instructions: "audit" }, { name: "Roby" }, "es");
   assert.match(worker, /blockers first/);
