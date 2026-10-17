@@ -1,4 +1,5 @@
-// A read outside the project's folder: the agent's card asks the owner, who lets it read there in this project.
+// A read outside the project's folder: the agent's card asks the owner. The folder holding the project is only lent
+// for that call: kept, it would read to the agent as if its own folder could not change.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -9,7 +10,7 @@ type Thread = {
   messages: Array<{ parts: Array<{ type: string; tool?: string; status?: string }> }>;
 };
 
-test("an agent reading its project's parent folder asks with a card; allowing it adds a read-only folder", async ({
+test("an agent reading its project's parent folder asks with a card; it is lent for that call, never kept", async ({
   page,
 }) => {
   await rpc("setup.finish", {});
@@ -40,17 +41,16 @@ test("an agent reading its project's parent folder asks with a card; allowing it
     await expect(card.locator("code.inputcard__folder")).toHaveText(northwind);
     await expect(card.getByRole("button", { name: "Solo esta vez" })).toBeVisible();
     await expect(card.getByRole("button", { name: "No", exact: true })).toBeVisible();
-    await card.getByRole("button", { name: "Permitir leerla en este proyecto" }).click();
+    await expect(card.getByRole("button", { name: "Permitir leerla en este proyecto" })).toHaveCount(0);
+    await card.getByRole("button", { name: "Solo esta vez" }).click();
 
-    const line = page.locator(".inputline");
-    await expect(line).toContainText("Pidió leer una carpeta");
-    await expect(line).toContainText("En este proyecto");
-    await expect.poll(listed).toEqual([northwind]);
+    await expect(page.locator(".inputline")).toContainText("Pidió leer una carpeta");
     // The turn goes on and finishes: the command ran.
     const thread = () => rpc<Thread>("threads.get", { thread: chat.id });
     await expect.poll(async () => (await thread()).runs.every((r) => r.ended_at)).toBe(true);
     const parts = (await thread()).messages.flatMap((m) => m.parts);
     expect(parts.some((p) => p.type === "tool" && p.tool === "shell" && p.status === "ok")).toBe(true);
+    expect(await listed()).toBeUndefined();
   } finally {
     await rpc("projects.unregister", { project });
     fs.rmSync(northwind, { recursive: true, force: true });
