@@ -136,13 +136,7 @@ export function ToolsTab({
           }
         />
       </SettingRow>
-      <SearchField
-        size="sm"
-        aria-label={t("agentedit.searchTools")}
-        placeholder={t("agentedit.searchTools")}
-        value={q}
-        onChange={(e) => setQ(e.currentTarget.value)}
-      />
+      <ListSearch label={t("agentedit.searchTools")} value={q} onChange={setQ} />
       {shown.map(([g, tools]) => {
         const free = tools.filter((x) => !x.kept);
         const on = free.filter((x) => has(x.name)).length;
@@ -249,13 +243,7 @@ export function SkillsTab({
       </SettingRow>
       {skills.length ? (
         <>
-          <SearchField
-            size="sm"
-            aria-label={t("agentedit.searchSkills")}
-            placeholder={t("agentedit.searchSkills")}
-            value={q}
-            onChange={(e) => setQ(e.currentTarget.value)}
-          />
+          <ListSearch label={t("agentedit.searchSkills")} value={q} onChange={setQ} />
           <div className={`agentaccess__skills${limited ? "" : " is-all"}`}>
             {shown.map((s) => (
               <Checkbox
@@ -300,9 +288,17 @@ export function GrantsPage({
   onChange(id: string, change: GrantChange | undefined): void;
 }) {
   const t = useT();
+  const [q, setQ] = useState("");
   if (!grants) return <Skeleton shape="block" height={160} />;
-  const mine = grants.filter((g) => g.agent_id === agent.id);
-  const everyone = grants.filter((g) => !g.agent_id);
+  const query = q.trim().toLowerCase();
+  // Matches what the row shows: the tool, its server and the condition, a pending edit included.
+  const matches = (g: ToolApproval) =>
+    !query ||
+    [g.tool, g.server, changes[grantId(g.key, g.agent_id)]?.condition ?? g.condition ?? ""].some((s) =>
+      s.toLowerCase().includes(query),
+    );
+  const mine = grants.filter((g) => g.agent_id === agent.id && matches(g));
+  const everyone = grants.filter((g) => !g.agent_id && matches(g));
   const section = (label: string, sub: string, rows: ToolApproval[]) => (
     <section className="agentedit__grants">
       <div className="agentedit__grantshead">
@@ -321,15 +317,34 @@ export function GrantsPage({
   );
   return (
     <>
-      {mine.length ? (
-        section(t("agentedit.forAgent"), t("agentedit.forAgentSub", { name: agent.name }), mine)
-      ) : (
-        <EmptyState size="sm" title={t("agentedit.noGrants")}>
-          {t("agentedit.noGrantsHint")}
-        </EmptyState>
-      )}
+      {grants.length > 0 && <ListSearch label={t("agentedit.searchGrants")} value={q} onChange={setQ} />}
+      {mine.length
+        ? section(t("agentedit.forAgent"), t("agentedit.forAgentSub", { name: agent.name }), mine)
+        : !query && (
+            <EmptyState size="sm" title={t("agentedit.noGrants")}>
+              {t("agentedit.noGrantsHint")}
+            </EmptyState>
+          )}
       {everyone.length > 0 && section(t("agentedit.forAll"), t("agentedit.forAllSub"), everyone)}
+      {query && !mine.length && !everyone.length && (
+        <p className="agentedit__empty">{t("agentedit.noGrantMatch", { q })}</p>
+      )}
     </>
+  );
+}
+
+/** The search over an access page's list; it stays on top while the list scrolls under it. */
+function ListSearch({ label, value, onChange }: { label: string; value: string; onChange(v: string): void }) {
+  return (
+    <div className="agentedit__search">
+      <SearchField
+        size="sm"
+        aria-label={label}
+        placeholder={label}
+        value={value}
+        onChange={(e) => onChange(e.currentTarget.value)}
+      />
+    </div>
   );
 }
 
