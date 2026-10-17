@@ -1137,11 +1137,14 @@ With three delegations already running from a thread, `delegate` answered "refus
 audit never asked again: a whole part of the owner's request was never looked at. Now the fourth (and later) is accepted
 and queued: its sub-thread, task message, card and run are written at once, the run in a new state `queued` that the
 engine never picks up by itself, and the tool says plainly that it starts when one finishes and its result comes back like
-the others. When a delegation from that thread ends, the oldest queued one starts (its ten minutes counted from then),
-and its result reaches the caller as any delegation's does. A queued run is cancelled the way an unstarted one is (stopping
-the caller's turn or thread, `jobs.cancel`), outlives a restart (the boot starts what fits after the cut ones resume), and
-is cancelled rather than started if its caller's run or thread is gone. The cap itself and the breaker are unchanged:
-queued runs count as turns agents started on their own from the moment they are queued.
+the others. When a slot frees, the oldest queued one starts (its ten minutes counted from then), and its result reaches
+the caller as any delegation's does. A slot is held by a run at work in one of the thread's sub-threads, whether a
+delegation started it or not; a run waiting for the owner's answer gives its slot back, so a question nobody answers never
+stalls the queue (once answered, that run may work beside three others). A queued run is cancelled the way an unstarted
+one is (stopping the caller's turn or thread, `jobs.cancel`), outlives a restart (the boot starts what fits only once the
+cut ones resume, so never more than three), and is cancelled rather than started if its caller's run or thread is gone.
+The cap itself and the breaker are unchanged: queued runs count as turns agents started on their own from the moment
+they are queued.
 
 <a id="d-097"></a>
 ## D-097 — 2026-10-17 — A project may have read-only folders: its agents read them and change nothing there

@@ -210,6 +210,10 @@ export function createEngine(deps: {
     hold: (runId) => {
       const clock = active.get(runId)?.clock;
       clock?.pause();
+      // A delegation waiting for the owner gives its slot to a queued one (DECISIONS.md#d-096).
+      const run = store.runs.get(runId);
+      const from = run ? store.threads.get(run.thread_id)?.parent_id : undefined;
+      if (from) delegations.release(from);
       return () => clock?.resume();
     },
     ...(deps.inputWaits ? { waits: deps.inputWaits } : {}),

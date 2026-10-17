@@ -240,6 +240,16 @@ test("a slot freed by a failed or canceled delegation starts the oldest queued o
   });
 });
 
+test("a delegation waiting for the owner's answer frees its slot", async () => {
+  await withCore({ askOwner: ["part-1"] }, async (env, g) => {
+    const parent = await fanOut(env);
+    await until("part-1 asking the owner", () => session(env, parent, "part-1").run?.state === "input-required");
+    await until("the queued one starting", () => g.asked.length === PARTS.length);
+    assert.notEqual(session(env, parent, "part-4").run?.state, "queued");
+    assert.equal(session(env, parent, "part-1").run?.state, "input-required", "it still waits for the owner");
+  });
+});
+
 test("a turn in a session that no delegation started frees its slot when it ends", async () => {
   const asks = ofParts(["part-1", "part-2", "part-3", "part-4"]);
   await withCore({ asks, keys: ["side"] }, async (env, g) => {
