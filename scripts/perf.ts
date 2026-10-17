@@ -101,6 +101,7 @@ function coreEnv(apxHome: string): NodeJS.ProcessEnv {
     HOME: process.env.HOME ?? os.homedir(),
     ...compileCacheEnv(root),
     APX_HOME: apxHome,
+    APX_TELEMETRY: "off",
     APX_PORT: String(port),
     APX_SECRETS: "file",
     APX_UPDATES: "off",

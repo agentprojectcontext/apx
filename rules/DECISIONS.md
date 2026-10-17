@@ -1078,3 +1078,22 @@ another agent delegated, a wake from a job or the breaker) now gets 60, the brow
 since the owner can ask for more. A routine may set `max_steps` (5 to 200) for work it knows is longer or shorter. The
 browser and the computer still raise the limit as before, the repeat check still stops a stuck loop, and a turn that
 goes six minutes without progress is still stopped (D-067).
+
+## D-092 — 2026-10-16 — Telemetry: a lifecycle ping for every install, usage numbers only with a yes
+We could not tell how many people install APX, how many open it, finish the setup or use it, or how much they use it.
+APX now keeps a random install id of its own (`<home>/telemetry-id`, apart from the home id the panel shows) and reports
+the steps an install goes through once each — installed, opened, consent (the owner's answer), setup, first_run — and
+`updated` on each new version, with the version, OS, CPU and where it came from (checkout, bundle, desktop app). Only
+after the owner ticks "Share anonymous usage statistics" (asked in the setup on a fresh install, and once in a dialog on
+an install that predates it; unticked by default) does it also send, once a UTC day, totals: tokens in and out over every
+model, turns, and how many projects, agents, channels and routines there are. Never names, text, paths, models,
+providers, keys or the home id; the first report starts the day after the yes. The settings show the last thing sent.
+`APX_TELEMETRY=off`, `DO_NOT_TRACK=1` or `CI` send nothing at all; tests, e2e and perf cores never send.
+It lands in the `apx-agents` Firestore through its REST API without an account (the Spark plan has no Functions):
+`firebase/firestore.rules` allows only these shapes, stamps every time with the server's clock, keeps a stamped step
+from moving and allows no reads or deletes from outside. The sink is one function (`telemetry-sink.ts`), so a backend of
+our own (beside the marketplace and accounts) can take an https URL later without touching the core's logic.
+Modeled on Homebrew (notice before anything optional, env opt-out), Next.js (anonymous random id, documented events)
+and Zed (choice on the welcome screen, a log of what was sent). The lifecycle ping without a yes rests on it carrying no
+personal data and being disclosed in the dialog and the privacy page; if that is ever judged not enough, it moves
+behind the same checkbox by changing `due()` in telemetry.ts.

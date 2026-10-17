@@ -13,6 +13,7 @@ import type { IMessageOps } from "../imessage.ts";
 import type { Llm, LlmRequest } from "../providers/llm.ts";
 import type { AssistantItem, Completion } from "../providers/types.ts";
 import { createCore } from "../server.ts";
+import type { TelemetrySink } from "../telemetry-sink.ts";
 import { scratchRoot } from "../tools/shell.ts";
 import type { Tool } from "../tools/types.ts";
 import type { InputWaits } from "./inputs.ts";
@@ -81,6 +82,8 @@ export async function startCore(opts: {
   providers?: ProviderConfig[];
   /** A stand-in Google (sign-in and REST APIs under one address). */
   googleApi?: string;
+  /** Where telemetry goes (a recorder); none sends nothing, like any test core. */
+  telemetrySink?: TelemetrySink;
 }) {
   const home = opts.home ?? fs.mkdtempSync(path.join(os.tmpdir(), "apx-engine-"));
   // A provider named "fake" so refs like "fake/fake-1" are valid; the scripted model answers for it.
@@ -112,6 +115,7 @@ export async function startCore(opts: {
       imessage: opts.imessage ?? null,
       ...(opts.clock ? { clock: opts.clock } : {}),
       ...(opts.unseenAfterMs !== undefined ? { unseenAfterMs: opts.unseenAfterMs } : {}),
+      ...(opts.telemetrySink ? { telemetrySink: opts.telemetrySink } : {}),
     },
   );
   // Tests choose their model like an owner would: through the settings, never through code defaults.
