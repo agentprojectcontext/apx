@@ -101,7 +101,8 @@ const BRIDGE = new Set(["mcp_search", "mcp_call"]);
  * then a model may be acting on someone else's instructions, so high-impact calls wait for the owner.
  */
 export function authorize(tool: Tool, args: Record<string, unknown>, agent: AgentRecord, untrusted: boolean): Decision {
-  return decide(tool.confirm(args), tool.effect, agent, untrusted, tool.workspace);
+  // A call that only reads here is risk read whatever the tool may do otherwise (DECISIONS.md#d-098).
+  return decide(tool.confirm(args), tool.reads?.(args) ? "none" : tool.effect, agent, untrusted, tool.workspace);
 }
 
 const OUTSIDE = "content from outside (web, another agent or a message) is in this turn";

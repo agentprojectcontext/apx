@@ -371,7 +371,9 @@ export function createExecutor(o: {
       if (thread.write === "auto" && req.kind === "edit" && editable) return true;
     }
     const workspace = inside && (req.kind === "edit" || req.kind === "execute") && !paths.some((p) => guarded(base, p));
-    const decision = decide(level, reading ? "none" : "external", agent, untrusted, workspace);
+    // A command that only reads here is risk read, as the shell tool's (DECISIONS.md#d-098).
+    const reads = reading || (req.kind === "execute" && level === "never");
+    const decision = decide(level, reads ? "none" : "external", agent, untrusted, workspace);
     if (decision.kind === "allow") return true;
     if (decision.kind === "deny") return false;
     const answer = await o.inputs.ask({

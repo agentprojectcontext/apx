@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { gitLists } from "./git-reads.ts";
 
 /** A path as written, from where the command runs (`old`: from the folder it was in before its last `cd`). */
 export type Ref = { path: string; old?: boolean };
@@ -19,7 +20,7 @@ export type Named =
   | { kind: "unknown"; text: string; write: boolean }
   | { kind: "here"; known: boolean };
 
-type Word = {
+export type Word = {
   text: string;
   /** Quoted text with spaces: a message or a pattern, not a path unless it starts like one. */
   prose: boolean;
@@ -59,7 +60,7 @@ function substitutions(s: string): string[] {
  * The command's simple commands, each as its words: quotes resolved, redirections marked, heredoc bodies and comments
  * left out. A command substitution's commands come before the command that uses them, as the shell runs them.
  */
-function segments(c: string): Word[][] {
+export function segments(c: string): Word[][] {
   const out: Word[][] = [];
   let cur: Word[] = [];
   let w: Word | undefined;
@@ -337,16 +338,6 @@ const GIT_READS = new Set(
     "name-rev for-each-ref whatchanged count-objects show-ref var help version"
   ).split(" "),
 );
-/** `git branch`, `tag`, `stash`… only read with these words (listing). */
-const GIT_LISTS: Record<string, RegExp> = {
-  branch: /^(-a|-r|-v|-vv|-l|--list|--all|--remotes|--show-current|--verbose|--color.*|--no-color|--sort=.*)$/,
-  tag: /^(-l|--list|-n\d*|--sort=.*|--contains|--points-at)$/,
-  stash: /^(list|show|-p|--stat)$/,
-  remote: /^(-v|--verbose|show|get-url)$/,
-  config: /^(--get|--get-all|--list|-l|--show-origin|--global|--local|--system|--name-only|--get-regexp)$/,
-  worktree: /^(list|--porcelain)$/,
-};
-
 /** The option and the positional words of a command's arguments: options (and their values) left out. */
 function split(args: Word[], valued: Set<string> = new Set()) {
   const flags = new Map<string, Word | true>();
@@ -680,7 +671,7 @@ function gitPaths(args: Word[], home: string): Named[] {
   }
   const sub = args[i]?.text ?? "";
   const rest = args.slice(i + 1);
-  const reads = GIT_READS.has(sub) || (GIT_LISTS[sub] !== undefined && rest.every((a) => GIT_LISTS[sub]?.test(a.text)));
+  const reads = GIT_READS.has(sub) || gitLists(sub, rest);
   const named = (w: Word, write: boolean) => {
     const r = toRef(w, home);
     if (r === "unknown") out.push({ kind: "unknown", text: w.text, write });
@@ -706,6 +697,11 @@ function gitPaths(args: Word[], home: string): Named[] {
     else if (dir) named(dir, true);
     else out.push({ kind: "here", known: true });
     return out;
+  }
+  // `git worktree add <path>` makes a checkout at that path, besides writing in the repository's .git.
+  if (sub === "worktree" && rest[0]?.text === "add") {
+    const target = split(rest.slice(1), words("-b -B --reason")).positional[0];
+    if (target) named(target, true);
   }
   if (dir) {
     const r = toRef(dir, home);

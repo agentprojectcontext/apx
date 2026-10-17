@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import { allowedTools, authorize, inherit } from "./policy.ts";
+import { shellTools } from "./shell.ts";
 import { type Confirm, defineTool, type Effect } from "./types.ts";
 
 const base = (name: string, effect: Effect = "none", confirm: Confirm = "never") => ({
@@ -148,4 +149,27 @@ test("rules: a delegated run never gets looser rules than its own autonomy from 
   assert.equal(run.rules?.outside, "ask");
   const strict = inherit(agent({ id: "w2", rules: { write: "auto" } }), [agent({ rules: { write: "off" } })], []);
   assert.equal(strict.agent.rules?.write, "off");
+});
+
+test("shell: a command that only reads here never waits, outside content in the turn or not, in any autonomy", () => {
+  const shell = shellTools({} as never, "/nonexistent-apx-home", () => 7440).find((t) => t.name === "shell");
+  assert.ok(shell);
+  const run = (command: string, a: AgentRecord) => authorize(shell, { command }, a, true).kind;
+  const reads = [
+    "find . -maxdepth 4 -type f | grep -i readme",
+    "git ls-tree -r --name-only 1a2b3c4 | grep src/",
+    "git log --since='2 weeks ago' --format='%h %an %s'",
+    "git -C ~/work/northwind-docs rev-parse --short HEAD",
+    "git branch -avv",
+    "find apps/mobile/src -name '*.tsx' | sort",
+    "pwd; git status --short; ls ..",
+  ];
+  for (const autonomy of ["ask", "standard", "edits"] as const)
+    for (const c of reads) assert.equal(run(c, agent({ autonomy })), "allow", `${autonomy}: ${c}`);
+  // The owner's own rule for reads still holds.
+  assert.equal(run(reads[0] as string, agent({ rules: { read: "ask" } })), "confirm");
+  // Anything that reaches the network, writes or is unknown asks as before.
+  for (const c of ["curl -s https://example.com", "gh pr list", "git fetch origin", "rm notes.txt", "ls > listing.txt"])
+    assert.equal(run(c, agent()), "confirm", c);
+  assert.equal(run("git push origin main", agent({ autonomy: "edits" })), "confirm");
 });

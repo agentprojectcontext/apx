@@ -87,6 +87,8 @@ export type Tool = {
    * does not count as outside content for confirmations.
    */
   local?: ((args: Record<string, unknown>) => boolean) | undefined;
+  /** This call only reads, on this machine (a shell command of known readers): its risk is read (DECISIONS.md#d-098). */
+  reads?: ((args: Record<string, unknown>) => boolean) | undefined;
   /**
    * It writes files or runs commands in the folder the agent works in: what `edits` autonomy lets run without asking,
    * short of what always asks.
@@ -121,6 +123,7 @@ export function defineTool<S extends Args>(def: {
   confirm?: Confirm | ((args: z.output<S>) => Confirm);
   deadlineMs: number;
   local?: (args: z.output<S>) => boolean;
+  reads?: (args: z.output<S>) => boolean;
   workspace?: true;
   needsCap?: string;
   when?: (thread: Thread) => boolean;
@@ -147,6 +150,7 @@ export function defineTool<S extends Args>(def: {
       ? { preview: async (a: Record<string, unknown>, ctx: CheckContext) => def.preview?.(a as z.output<S>, ctx) }
       : {}),
     ...(def.local ? { local: (a: Record<string, unknown>) => def.local?.(a as z.output<S>) === true } : {}),
+    ...(def.reads ? { reads: (a: Record<string, unknown>) => def.reads?.(a as z.output<S>) === true } : {}),
     parse(raw) {
       const r = def.args.safeParse(raw);
       if (r.success) return { ok: true, args: r.data as Record<string, unknown> };
