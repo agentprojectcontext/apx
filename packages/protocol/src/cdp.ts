@@ -24,6 +24,9 @@ const INTERACTIVE =
 // Fields the agent must never fill: the human does it through "take control" / handoff.
 const CREDENTIAL_AUTOCOMPLETE = /\b(current-password|new-password|one-time-code|cc-[a-z-]+)\b/;
 
+/** Widest tab picture taken, in pixels: what a model reads well, a retina tab would be twice its viewport. */
+const SHOT_WIDTH = 1280;
+
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]", "0.0.0.0"]);
 
 /**
@@ -122,13 +125,31 @@ export class CdpPage {
     if (submit) await this.#key("Enter", "Enter", 13, 0, "\r");
   }
 
-  /** A JPEG of what the page shows (base64), bounded in time. */
+  /** A JPEG of what the page shows (base64), at most SHOT_WIDTH pixels wide, bounded in time. */
   async screenshot(timeoutMs = 4_000): Promise<string> {
-    const { data } = await withTimeout(
-      this.#send<{ data: string }>("Page.captureScreenshot", { format: "jpeg", quality: 70, optimizeForSpeed: true }),
-      timeoutMs,
-    );
+    const shoot = async () => {
+      const clip = await this.#viewportClip().catch(() => undefined);
+      return this.#send<{ data: string }>("Page.captureScreenshot", {
+        format: "jpeg",
+        quality: 70,
+        optimizeForSpeed: true,
+        ...(clip ? { clip, captureBeyondViewport: false } : {}),
+      });
+    };
+    const { data } = await withTimeout(shoot(), timeoutMs);
     return data;
+  }
+
+  /** The visible part of the page, scaled so the picture (in device pixels) fits SHOT_WIDTH. */
+  async #viewportClip() {
+    type Viewport = { pageX: number; pageY: number; clientWidth: number; clientHeight: number };
+    const m = await this.#send<{ cssVisualViewport?: Viewport; visualViewport?: Viewport }>("Page.getLayoutMetrics");
+    const css = m.cssVisualViewport;
+    if (!css?.clientWidth || !css.clientHeight) return undefined;
+    // The device-pixel viewport over the CSS one: 2 on a retina screen, where the picture would be twice as wide.
+    const ratio = m.visualViewport?.clientWidth ? m.visualViewport.clientWidth / css.clientWidth : 1;
+    const scale = Math.min(1, SHOT_WIDTH / (css.clientWidth * ratio));
+    return { x: css.pageX, y: css.pageY, width: css.clientWidth, height: css.clientHeight, scale };
   }
 
   #backend(ref: string): number {
