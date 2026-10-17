@@ -1253,8 +1253,8 @@ project or not, with no card and nothing kept. APX's home stays refused, other c
 project's read-only folders stay read-only, since those roots come first. Outside harnesses (Claude Code, Codex) keep
 their own sandboxes; this is the folder rule of APX's tools.
 
-<a id="d-103"></a>
-## D-103 — 2026-10-17 — A delegation works in a folder of its project, never with more writes than its caller
+<a id="d-104"></a>
+## D-104 — 2026-10-17 — A delegation works in a folder of its project, never with more writes than its caller
 An orchestrator delegating review or fixes into one git worktree under its project could only name the project: the
 session worked in the project's root, so it fell back to `apx chat --code --cwd`, whose threads have no parent and
 never report back, and polled for results. Now a path inside the project given to `delegate` as `project` is the

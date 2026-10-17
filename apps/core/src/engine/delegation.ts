@@ -38,7 +38,7 @@ type Workspace = { cwd: string; write: WritePolicy };
 /**
  * The folder a delegation works in, when the caller named one or a write policy (then the project's root), or why
  * not. Its write policy is the strictest of the caller's thread, the caller's autonomy (its project's when it has
- * none) and the one asked for: a delegation never gets further than its caller (DECISIONS.md#d-103).
+ * none) and the one asked for: a delegation never gets further than its caller (DECISIONS.md#d-104).
  */
 export function workspaceOf(
   store: Store,
