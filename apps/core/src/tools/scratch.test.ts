@@ -8,8 +8,8 @@ import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { scratchRoot } from "./folders.ts";
 import { untrusted } from "./result.ts";
-import { scratchRoot } from "./shell.ts";
 import { defineTool } from "./types.ts";
 
 const readPage = defineTool({
