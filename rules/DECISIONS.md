@@ -653,8 +653,8 @@ The G0 audit (plan/parity/07-seguridad.md) left holes open for the owner to deci
   password, api_key, authorization, cookie…) become `[redacted]`, and key shapes anywhere in a string (`sk-`, `ghp_`,
   `xox?-`, `AIza`, bot tokens, JWTs, `Bearer …`, `?key=`) too. `secret://` references and counts stay.
 
-<a id="d-058"></a>
-## D-058 — 2026-10-08 — Google Calendar and Gmail are APX's own tools behind the owner's Google sign-in
+<a id="d-103"></a>
+## D-103 — 2026-10-08 — Google Calendar and Gmail are APX's own tools behind the owner's Google sign-in
 The owner brings their own OAuth client (Cloud Console, Desktop app or Web application); APX ships no client id. The
 sign-in needs no route of its own in the core: the redirect URI is the panel's `/oauth/google` page on the core's
 loopback address (the SPA fallback serves it), and that page hands the code to `integrations.oauth_finish`. The
