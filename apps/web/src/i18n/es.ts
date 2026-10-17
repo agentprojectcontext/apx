@@ -1495,6 +1495,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nudge.linkHint": "Las horas de silencio, el tope diario y lo que se mandó sin pedirlo están en Interrupciones.",
   "nudge.open": "Abrir Interrupciones",
   "routines.anchor": "Llega siempre",
+  "routines.maxSteps": "Pasos por corrida",
+  "routines.maxStepsHint":
+    "Cuántas llamadas al modelo puede hacer cada corrida antes de tener que responder (de 5 a 200). Vacío: 60.",
   "routines.anchorHint":
     "Encendido: sus novedades llegan siempre, aunque sea de noche o ya se haya llegado al tope diario (para el resumen de la mañana o de la tarde). Apagado: entran en tu presupuesto de interrupciones.",
   "nudge.where": "A dónde llegan los avisos",

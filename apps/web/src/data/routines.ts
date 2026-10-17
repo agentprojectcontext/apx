@@ -44,6 +44,8 @@ export type RoutineDraft = {
   call_model: CallModel;
   /** Its news always arrives: not counted in the daily cap nor held by quiet hours. */
   anchor: boolean;
+  /** Model calls each run may make; empty = what any routine gets. */
+  max_steps: string;
   enabled: boolean;
 };
 
@@ -62,6 +64,7 @@ export async function saveRoutine(d: RoutineDraft): Promise<boolean> {
       post_command: d.post_command.trim(),
       call_model: d.call_model,
       anchor: d.anchor,
+      max_steps: d.max_steps.trim() ? Number(d.max_steps) : null,
       enabled: d.enabled,
     });
     await loadRoutines();
@@ -84,6 +87,7 @@ export const draftOf = (r: Routine): RoutineDraft => ({
   post_command: r.post_command ?? "",
   call_model: r.call_model,
   anchor: r.anchor,
+  max_steps: r.max_steps ? String(r.max_steps) : "",
   enabled: r.enabled,
 });
 

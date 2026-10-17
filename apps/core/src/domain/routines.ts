@@ -17,6 +17,7 @@ const toRoutine = (r: Selectable<RoutinesTable>, last: RoutineRun | undefined): 
   ...opt("post_command", r.post_command),
   call_model: r.call_model as CallModel,
   anchor: Boolean(r.anchor),
+  ...(r.max_steps === null ? {} : { max_steps: r.max_steps }),
   ...opt("origin", r.origin),
   enabled: Boolean(r.enabled),
   ...opt("next_run_at", r.next_run_at),
@@ -37,6 +38,7 @@ export type RoutineDraft = {
   post_command?: string | undefined;
   call_model: CallModel;
   anchor?: boolean | undefined;
+  max_steps?: number | undefined;
   origin?: string | undefined;
   enabled: boolean;
   next_run_at: string | undefined;
@@ -48,6 +50,7 @@ const commands = (d: RoutineDraft) => ({
   post_command: d.post_command || null,
   call_model: d.call_model,
   anchor: d.anchor ? 1 : 0,
+  max_steps: d.max_steps ?? null,
   origin: d.origin ?? null,
 });
 

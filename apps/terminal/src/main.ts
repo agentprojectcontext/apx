@@ -208,6 +208,7 @@ function argumentsOf() {
       call: { type: "string" },
       name: { type: "string" },
       "prompt-file": { type: "string" },
+      "max-steps": { type: "string" },
       title: { type: "string" },
       desc: { type: "string" },
       "desc-file": { type: "string" },
@@ -363,6 +364,7 @@ try {
         call: values.call,
         name: values.name,
         promptFile: values["prompt-file"],
+        maxSteps: values["max-steps"],
       });
       break;
     case "memory":

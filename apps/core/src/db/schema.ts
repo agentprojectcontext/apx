@@ -319,6 +319,7 @@ export interface RoutinesTable {
   action: Generated<string>;
   anchor: Generated<number>;
   origin: string | null;
+  max_steps: number | null;
 }
 
 export interface RunsTable {

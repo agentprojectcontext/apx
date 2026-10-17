@@ -44,6 +44,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
       post_command,
       call_model,
       anchor,
+      max_steps,
       enabled,
     }) => {
       try {
@@ -72,6 +73,7 @@ export function routineHandlers(store: Store, scheduler: Scheduler, profileRoots
         post_command: post_command ?? was?.post_command,
         call_model: call_model ?? was?.call_model ?? "always",
         anchor: anchor ?? was?.anchor ?? false,
+        max_steps: max_steps === null ? undefined : (max_steps ?? was?.max_steps),
         origin: was?.origin,
         enabled,
         next_run_at: next,

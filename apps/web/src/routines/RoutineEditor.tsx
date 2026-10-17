@@ -52,7 +52,9 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
   // Without a pick, the super-agent: it signs a message or shell job and answers an agent routine.
   const agent = d.agent || (secretary(agents)?.id ?? "");
   const text = shell ? d.prompt || d.name : d.prompt;
-  const ok = Boolean(d.name.trim() && agent && (shell ? d.pre_command.trim() : d.prompt.trim()));
+  const steps = d.max_steps.trim();
+  const stepsOk = !steps || (Number.isInteger(Number(steps)) && Number(steps) >= 5 && Number(steps) <= 200);
+  const ok = Boolean(d.name.trim() && agent && (shell ? d.pre_command.trim() : d.prompt.trim()) && stepsOk);
   const save = async () => {
     setSaving(true);
     const saved = await saveRoutine({ ...d, agent, name: d.name.trim(), prompt: text.trim() });
@@ -127,6 +129,22 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
           {!shell && (
             <Field label={t("routines.anchor")} hint={t("routines.anchorHint")}>
               <Switch checked={d.anchor} label={t("routines.anchor")} onCheckedChange={(anchor) => set({ anchor })} />
+            </Field>
+          )}
+          {!shell && d.action !== "message" && (
+            <Field label={t("routines.maxSteps")} hint={t("routines.maxStepsHint")}>
+              {(id) => (
+                <Input
+                  id={id}
+                  type="number"
+                  min={5}
+                  max={200}
+                  placeholder="60"
+                  invalid={!stepsOk}
+                  value={d.max_steps}
+                  onChange={(e) => set({ max_steps: e.currentTarget.value })}
+                />
+              )}
             </Field>
           )}
           {d.pre_command.trim() && !shell && !watch && (

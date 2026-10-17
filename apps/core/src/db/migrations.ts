@@ -709,4 +709,8 @@ export const MIGRATIONS: readonly string[] = [
   CREATE INDEX suggestions_state ON suggestions(state, created_at);
   CREATE INDEX suggestions_thread ON suggestions(thread_id);
   `,
+  `
+  -- A routine may need more model calls than a chat turn (engine/pipeline.ts stepsFor): its own limit, when set.
+  ALTER TABLE routines ADD COLUMN max_steps INTEGER;
+  `,
 ];

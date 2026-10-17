@@ -69,3 +69,28 @@ test("a turn without the browser or the screen still ends at its own step limit"
   assert.equal(ran.length, 14);
   assert.match(String(notes(seen).at(-1)), /ran out of steps/);
 });
+
+test("a turn given more steps uses them before it must answer", async () => {
+  const llm = scriptedLlm((req) =>
+    req.tools.length
+      ? callTool(`m${req.messages.length}`, "memory_search", { query: `q${req.messages.length}` })
+      : say("done"),
+  );
+  const io = {
+    system: "system",
+    history: [],
+    input: { role: "user", content: "go" },
+    tools: [{ type: "function", function: { name: "any", description: "", parameters: {} } }],
+    steps: 30,
+    models: ["fake/fake-1"],
+    signal: new AbortController().signal,
+    thread: { id: "t1" },
+    onText() {},
+    log() {},
+    async execute() {
+      return { ok: true, text: "ok" };
+    },
+  } as unknown as TurnIO;
+  await nativeHarness(llm).run(io);
+  assert.equal(llm.calls.filter((c) => c.tools.length).length, 30);
+});

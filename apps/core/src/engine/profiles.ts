@@ -142,6 +142,7 @@ export function applyProfile(
       post_command: mine?.post_command,
       call_model: mine?.call_model ?? ("always" as const),
       anchor: spec.anchor,
+      max_steps: mine?.max_steps,
       origin,
       enabled: true,
       next_run_at: o.nextFor(schedule),

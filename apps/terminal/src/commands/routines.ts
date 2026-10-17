@@ -6,10 +6,11 @@ import type { ApxClient } from "@apx/protocol/client";
 const USAGE = `apx routines                                   Routines and when they run next
 apx routines add <name> <prompt…> --agent a [--project p] (--cron "30 8 * * 1-5" | --every 60 | --at <ISO date>)
                  [--pre "<command>"] [--call always|output|succeeds|fails|never] [--post "<command>"]
-                                                The pre-command's output reaches the prompt at {{pre_output}}
+                 [--max-steps 5-200]           The pre-command's output reaches the prompt at {{pre_output}}
 apx routines show <routine>                    Its schedule, commands and full prompt
 apx routines edit <routine> [<prompt…> | --prompt-file f] [--name n] [--cron …|--every …|--at …]
-                 [--pre "<command>"] [--call …] [--post "<command>"]   Change only what is given
+                 [--pre "<command>"] [--call …] [--post "<command>"] [--max-steps n|default]
+                                                Change only what is given
 apx routines run <routine>                     Run now
 apx routines on|off <routine>
 apx routines rm <routine>
@@ -27,6 +28,7 @@ type Opts = {
   call?: string | undefined;
   name?: string | undefined;
   promptFile?: string | undefined;
+  maxSteps?: string | undefined;
 };
 
 const scheduleOf = (o: Opts): Schedule =>
@@ -67,9 +69,19 @@ export function editOf(r: Routine, o: Opts, prompt: string | undefined) {
     ...(o.pre === undefined ? {} : { pre_command: o.pre }),
     ...(o.post === undefined ? {} : { post_command: o.post }),
     ...(o.call ? { call_model: callModel(o.call) } : {}),
+    ...(o.maxSteps === undefined ? {} : { max_steps: maxSteps(o.maxSteps) }),
     enabled: r.enabled,
   };
 }
+
+/** --max-steps: a number of model calls per run, or "default" for what any routine gets. */
+const maxSteps = (v: string): number | null => {
+  if (v === "default") return null;
+  const n = Number(v);
+  if (!Number.isInteger(n) || n < 5 || n > 200)
+    throw new Error("--max-steps is a whole number from 5 to 200, or default");
+  return n;
+};
 
 const when = (iso: string | undefined) => (iso ? new Date(iso).toLocaleString() : "—");
 
@@ -112,6 +124,7 @@ export async function routines(client: ApxClient, [sub, id, ...rest]: string[], 
       ...(opts.pre ? { pre_command: opts.pre } : {}),
       ...(opts.post ? { post_command: opts.post } : {}),
       ...(opts.call ? { call_model: callModel(opts.call) } : {}),
+      ...(opts.maxSteps ? { max_steps: maxSteps(opts.maxSteps) } : {}),
     });
     console.log(`${r.id}  next: ${when(r.next_run_at)}`);
     return;
@@ -123,6 +136,7 @@ export async function routines(client: ApxClient, [sub, id, ...rest]: string[], 
     );
     if (r.pre_command) console.log(`pre:  ${r.pre_command}`);
     if (r.post_command) console.log(`post: ${r.post_command}`);
+    if (r.max_steps) console.log(`steps: ${r.max_steps} per run`);
     console.log(`\n${r.prompt}`);
     return;
   }

@@ -1069,3 +1069,12 @@ of its text arguments starts with one, or is a URL on that domain) and an `expir
 keeps when and from which chat it was given (`tools.grant_set`). A grant with a condition never counts as using a tool
 freely, so it is not handed on to another agent. `orchestrator: true` marks the head of a team explicitly and `orchestrator: false` says an agent is not it; the
 guesses by role ("orchestrator", "CEO", "lead") remain only for files that say neither.
+
+<a id="d-091"></a>
+## D-091 — 2026-10-16 — A run no one watches gets more steps, and a routine can set its own
+Our own loop gave every turn 14 model calls, and a routine that reviews several issues ran out halfway and ended with
+"what is left", with no one there to say "go on": the next run started over. A run no one watches (a routine, a task
+another agent delegated, a wake from a job or the breaker) now gets 60, the browser's figure; a chat turn keeps 14,
+since the owner can ask for more. A routine may set `max_steps` (5 to 200) for work it knows is longer or shorter. The
+browser and the computer still raise the limit as before, the repeat check still stops a stuck loop, and a turn that
+goes six minutes without progress is still stopped (D-067).

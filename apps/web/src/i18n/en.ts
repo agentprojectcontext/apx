@@ -1475,6 +1475,8 @@ export const en = {
   "nudge.linkHint": "Quiet hours, the daily cap and what was sent unasked are in Interruptions.",
   "nudge.open": "Open Interruptions",
   "routines.anchor": "Always arrives",
+  "routines.maxSteps": "Steps per run",
+  "routines.maxStepsHint": "How many model calls each run may make before it must answer (5 to 200). Empty: 60.",
   "routines.anchorHint":
     "On: its news always arrives, even at night or past the daily cap (for a morning or evening brief). Off: it goes through your interruption budget.",
   "nudge.where": "Where notices go",

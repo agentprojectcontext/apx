@@ -69,7 +69,7 @@ import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { ratingNote, sentMeanwhile } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
-import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands } from "./pipeline.ts";
+import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
 import { recallFor } from "./recall.ts";
 import { closeTurnLog, RESUME_NOTE } from "./recovery.ts";
@@ -254,6 +254,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     history,
     input,
     tools: tools.map(toSpec),
+    steps: stepsFor(store, run),
     models: [],
     signal,
     sessionId: undefined,

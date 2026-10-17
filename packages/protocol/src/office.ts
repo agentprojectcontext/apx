@@ -124,6 +124,8 @@ export const Routine = z.object({
   call_model: CallModel.default("always"),
   /** Its news always arrives (a morning or evening brief): never counted in the daily cap nor held by quiet hours. */
   anchor: z.boolean().default(false),
+  /** Model calls each run may make before it must answer; absent: what any run no one watches gets. */
+  max_steps: z.number().int().optional(),
   /** Seeded by a profile ("secretary:day-open"): the profile keeps its schedule, and can restore its prompt. */
   origin: z.string().optional(),
   enabled: z.boolean(),

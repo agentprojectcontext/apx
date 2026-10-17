@@ -172,6 +172,8 @@ export const officeMethods = {
         call_model: CallModel.optional(),
         /** Absent: what the routine had (off for a new one). */
         anchor: z.boolean().optional(),
+        /** Model calls each run may make. Absent keeps what the routine had; null goes back to the default. */
+        max_steps: z.number().int().min(5).max(200).nullable().optional(),
         enabled: z.boolean().default(true),
       })
       .strict(),

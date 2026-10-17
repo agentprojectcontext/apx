@@ -4,7 +4,10 @@ import type { Llm } from "../providers/llm.ts";
 import type { ChatItem, ModelFailure, Usage } from "../providers/types.ts";
 import type { Harness } from "./types.ts";
 
-const MAX_STEPS = 14;
+/** A turn the owner is watching (a chat, a channel message). */
+export const MAX_STEPS = 14;
+/** A turn no one is watching (a routine, a delegated task, a background wake): it has no one to say "go on". */
+export const BACKGROUND_STEPS = 60;
 /**
  * A turn that works on the owner's computer goes step by step (look, click, look again): it gets this many. The owner
  * is asked whether to go on every 60 computer actions (tools/computer.ts), well before this ends.
@@ -75,7 +78,7 @@ export function nativeHarness(llm: Llm): Harness {
         return c;
       };
 
-      let limit = MAX_STEPS;
+      let limit = io.steps ?? MAX_STEPS;
       for (let i = 0; i < limit; i++) {
         // The owner's words added while we work go in after the last tool results, before the next model call.
         for (const t of io.takeSteered?.() ?? [])

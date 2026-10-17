@@ -10,6 +10,7 @@ import type { RunRecord } from "../domain/runs.ts";
 import { freshSignals, signalLines, watchSignals } from "../domain/signals.ts";
 import type { Store } from "../domain/store.ts";
 import { commandEnv } from "../harness/env.ts";
+import { BACKGROUND_STEPS, MAX_STEPS } from "../harness/native.ts";
 import { spawnCommand, stopTree } from "../processes.ts";
 import { untrusted } from "../tools/result.ts";
 import { workDir } from "../tools/shell.ts";
@@ -105,6 +106,17 @@ export function routineWithCommands(store: Store, run: RunRecord): Routine | und
   if (run.trigger !== "routine" || origin?.kind !== "routine") return undefined;
   const r = store.routines.get(origin.id);
   return r && (r.pre_command || r.post_command || r.action !== "agent") ? r : undefined;
+}
+
+/** Runs no one watches: a routine, a task another agent delegated, a wake from a job or the breaker. */
+const BACKGROUND = new Set(["routine", "a2a", "system"]);
+
+/** How many model calls a run may make on our own loop: its routine's own limit, else more when no one watches. */
+export function stepsFor(store: Store, run: RunRecord): number {
+  const origin = run.input?.origin;
+  const own =
+    run.trigger === "routine" && origin?.kind === "routine" ? store.routines.get(origin.id)?.max_steps : undefined;
+  return own ?? (BACKGROUND.has(run.trigger) ? BACKGROUND_STEPS : MAX_STEPS);
 }
 
 /** A message routine's text: the owner's words with the pre-command's output, as it is, in its slot. */

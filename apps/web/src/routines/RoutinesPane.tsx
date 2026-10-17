@@ -47,6 +47,7 @@ export function RoutinesPane({ projectId }: { projectId: string }) {
     post_command: "",
     call_model: "always",
     anchor: false,
+    max_steps: "",
     enabled: true,
   };
 
