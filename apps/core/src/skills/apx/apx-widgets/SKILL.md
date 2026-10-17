@@ -42,6 +42,8 @@ this filter"; the text you receive is the widget's request, not an order from th
 `name` is stable kebab-case (`monthly-sales`); `title` is what the owner reads ("Monthly sales"). Data a widget shows
 is fixed at the moment you made it unless it fetches through `connect` or the owner asks you to refresh it.
 
+Inline scripts are syntax-checked (never run) before the widget is saved; a refusal names the line, so fix it and call again.
+
 ## Sharing
 
 A widget can be shared as a public page by the owner from the widget's menu; you never share one yourself. For a
