@@ -6,7 +6,7 @@ import { untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 export function asanaTools(asana: Asana, store: Store): Tool[] {
-  // A contact's chat is refused by the handler anyway: not offering the tools there spares their schemas.
+  // A chat an outside app started is refused by the handler anyway: not offering the tools there spares their schemas.
   const offered = (thread: { id: string; project_id?: string | undefined }) =>
     asana.usable(thread.project_id) && !store.threads.context(thread.id).client;
   return [
