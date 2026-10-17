@@ -136,6 +136,13 @@ export type Worker = { name: string; instructions: string; tools?: string[] | un
  */
 export const worksInFolder = (t: Pick<Thread, "cwd" | "write">) => Boolean(t.cwd && t.write);
 
+type Write = NonNullable<Thread["write"]>;
+const WRITE_STRICTNESS: Record<Write, number> = { auto: 0, ask: 1, "read-only": 2 };
+
+/** The strictest of these write policies: what a folder allows when several say how far it may go. */
+export const strictestWrite = (first: Write, ...rest: Write[]): Write =>
+  rest.reduce((m, w) => (WRITE_STRICTNESS[w] > WRITE_STRICTNESS[m] ? w : m), first);
+
 export const PREVIEW_CHARS = 160;
 export const previewOf = (text: string) => text.slice(0, PREVIEW_CHARS);
 

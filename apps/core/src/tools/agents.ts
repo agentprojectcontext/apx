@@ -1,5 +1,6 @@
 // Finding and asking other agents. `delegate` is the only way an agent talks to another one.
 import path from "node:path";
+import { WritePolicy } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import { APX_SERVER } from "../domain/approvals.ts";
@@ -94,10 +95,10 @@ export function agentTools(store: Store): Tool[] {
     defineTool({
       name: "delegate",
       description:
-        "Hand a task to another agent (agent: its id or name) or to a worker you define (worker: a name and instructions; it uses your model and tools); give one, not both. session continues an earlier sub-thread. The answer comes back within wait_s, or later in a new turn: never poll for it.",
+        "Hand a task to another agent or to a worker you define (it uses your model and tools); give one, not both. session continues an earlier sub-thread. The answer comes back within wait_s, or later in a new turn: never poll for it.",
       args: z
         .object({
-          agent: z.string().optional().describe("agent id or unique name; to start a session with an agent"),
+          agent: z.string().optional().describe("agent id or unique name"),
           worker: z
             .object({
               name: z.string().min(1).max(40).describe("short name for the helper (Researcher, Reviewer)"),
@@ -119,7 +120,8 @@ export function agentTools(store: Store): Tool[] {
             .string()
             .max(500)
             .optional()
-            .describe("the project the task is about (name, id, or a path inside it): the agent works in its folder"),
+            .describe("project name, id, or a path inside it: the agent works in that folder"),
+          write: WritePolicy.optional().describe("in its folder; never more than yours"),
           task: z.string().min(1).describe("clear, self-contained task with everything the other agent needs"),
           wait_s: z.number().int().min(0).max(120).optional().describe("seconds to wait inside this turn (default 60)"),
         })
@@ -137,16 +139,14 @@ export function agentTools(store: Store): Tool[] {
         }
         const project = a.project ? projectOf(store, a.project, ctx.agent) : undefined;
         if (typeof project === "string") return project;
-        const result = await ctx.delegate(
-          { agent, session: a.session, worker: a.worker, project: project?.id },
+        // A path inside the project finds it and is the folder the session works in.
+        const inner = project?.path && a.project ? path.relative(project.path, path.resolve(a.project.trim())) : "";
+        const folder = inner && !inner.startsWith("..") && !path.isAbsolute(inner) ? inner : undefined;
+        return ctx.delegate(
+          { agent, session: a.session, worker: a.worker, project: project?.id, folder, write: a.write },
           a.task,
           (a.wait_s ?? 60) * 1000,
         );
-        // A path inside the project finds it, but the session works in its root: said, never dropped silently.
-        const inner = project?.path && a.project ? path.relative(project.path, path.resolve(a.project.trim())) : "";
-        return inner && !inner.startsWith("..") && !path.isAbsolute(inner)
-          ? `note: ${project?.name} works in its root folder; ${inner} is not its working folder (name it in the task).\n${result}`
-          : result;
       },
     }),
     defineTool({

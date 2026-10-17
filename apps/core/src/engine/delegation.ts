@@ -1,12 +1,14 @@
 // The one way an agent asks another: a sub-thread with a durable child run. The caller may wait for it inside its
 // turn; past that (or when the caller's turn ends for any reason) the result comes back to the caller's thread as
 // a new input. See DECISIONS.md#d-009
-import type { Part } from "@apx/protocol";
+import type { Part, Thread, WritePolicy } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import type { Worker } from "../domain/threads.ts";
+import { strictestWrite, type Worker, worksInFolder } from "../domain/threads.ts";
 import { agentReply } from "../tools/agents.ts";
+import { folderInProject } from "../tools/folders.ts";
+import { withProjectAutonomy } from "../tools/policy.ts";
 import { ancestors } from "./ancestry.ts";
 import { agentTripped, heldNotice, tripped } from "./breaker.ts";
 import type { Display } from "./display.ts";
@@ -24,7 +26,39 @@ export type DelegateTo = {
   worker?: Worker | undefined;
   /** The project the task is about: the session works in its folder. */
   project?: string | undefined;
+  /** A folder inside that project to work in (relative to it, or absolute), instead of its root. */
+  folder?: string | undefined;
+  /** How far the session may change that folder: never further than the caller may. */
+  write?: WritePolicy | undefined;
 };
+
+/** Where a delegated session works in a folder: the folder and the write policy it gets. */
+type Workspace = { cwd: string; write: WritePolicy };
+
+/**
+ * The folder a delegation works in, when the caller named one or a write policy (then the project's root), or why
+ * not. Its write policy is the strictest of the caller's thread, the caller's autonomy (its project's when it has
+ * none) and the one asked for: a delegation never gets further than its caller (DECISIONS.md#d-103).
+ */
+export function workspaceOf(
+  store: Store,
+  caller: AgentRecord,
+  parent: Thread,
+  projectId: string | undefined,
+  req: Pick<DelegateTo, "folder" | "write">,
+): Workspace | undefined | string {
+  if (req.folder === undefined && !req.write) return undefined;
+  let cwd: string;
+  try {
+    cwd = folderInProject(store, projectId, req.folder);
+  } catch (err) {
+    const why = (err as Error).message;
+    return `refused: ${why.startsWith("needs") ? `a folder to work in ${why}` : why}`;
+  }
+  const own: WritePolicy | undefined = worksInFolder(parent) ? parent.write : undefined;
+  const ceiling = own ?? (withProjectAutonomy(store, caller).autonomy === "ask" ? "ask" : "auto");
+  return { cwd, write: strictestWrite(ceiling, req.write ?? own ?? "ask") };
+}
 
 /** How much of an answer its card keeps: the whole report, short of a runaway one. */
 const REPORT_CHARS = 6000;
@@ -247,6 +281,14 @@ export function createDelegations(deps: {
         return "refused: you cannot delegate to yourself; complete this task directly with your own tools.";
       if (!worker && chainAgents(parentThread.id).includes(to.id))
         return `refused: ${to.name} is already part of this delegation chain (cycle).`;
+      // The project named, else this chat's, else the agent's own: its folder is where the session reads and works.
+      const projectId = existing
+        ? existing.project_id
+        : (req.project ?? parentThread.project_id ?? (worker ? undefined : to.project_id));
+      const place = workspaceOf(store, from.agent, parentThread, projectId, req);
+      if (typeof place === "string") return place;
+      if (existing && place && (existing.cwd !== place.cwd || existing.write !== place.write))
+        return `refused: session "${existing.session ?? existing.id}" works in another folder or with another write policy; name a new session.`;
       const paused = tripped(store, parentThread.id);
       if (paused) {
         holdDelegation(parentThread.id, from.agent.id, worker?.name ?? to.name, task);
@@ -267,10 +309,10 @@ export function createDelegations(deps: {
           kind: "a2a",
           title: `${from.agent.name} → ${who}: ${task.slice(0, 60)}`,
           agent_ids: worker ? [to.id] : [to.id, from.agent.id],
-          // The project named, else this chat's, else the agent's own: its folder is where the session reads and works.
-          project_id: req.project ?? parentThread.project_id ?? (worker ? undefined : to.project_id),
+          project_id: projectId,
           parent_id: parentThread.id,
           session: name,
+          ...(place ?? {}),
         });
         if (worker) store.threads.mergeContext(sub.id, { worker });
       }
@@ -307,10 +349,13 @@ export function createDelegations(deps: {
         deadline_at: new Date(Date.now() + A2A_DEADLINE_MS).toISOString(),
         ...(queued ? { state: "queued" as const } : {}),
       });
+      const at = place
+        ? `\nIt works in ${place.cwd}, writes: ${place.write}${req.write && req.write !== place.write ? ` (${req.write} would go further than you may)` : ""}.`
+        : "";
       if (queued) {
         // A session still answering an earlier task keeps showing that it works.
         if (store.threads.get(sub.id)?.state !== "working") store.threads.patch(sub.id, { state: "queued" });
-        return `queued: ${MAX_ACTIVE_DELEGATIONS} delegations are running from this thread; ${who} starts this one (session "${name}") when one finishes. Its result comes back like the others: do not delegate it again.`;
+        return `queued: ${MAX_ACTIVE_DELEGATIONS} delegations are running from this thread; ${who} starts this one (session "${name}") when one finishes. Its result comes back like the others: do not delegate it again.${at}`;
       }
       let timer: ReturnType<typeof setTimeout> | undefined;
       const done = new Promise<RunRecord | undefined>((resolve) => {
@@ -326,8 +371,8 @@ export function createDelegations(deps: {
       inline.delete(child.id);
       const resume = `(session "${name}": delegate with session="${name}" to continue it with ${who}, who keeps the context)`;
       if (quick && TERMINAL.has(quick.state))
-        return `${agentReply(who, answerOf(quick), endedAs(quick))}\n${endNote(quick)}${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}`;
-      return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.`;
+        return `${agentReply(who, answerOf(quick), endedAs(quick))}\n${endNote(quick)}${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}${at}`;
+      return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.${at}`;
     },
 
     /**

@@ -1,4 +1,4 @@
-import type { FileChange, MethodName, Params, Part, Result, Thread } from "@apx/protocol";
+import type { FileChange, MethodName, Params, Part, Result, Thread, WritePolicy } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { ApprovalTarget } from "../domain/approvals.ts";
@@ -50,6 +50,8 @@ export type ToolContext = {
       session?: string | undefined;
       worker?: Worker | undefined;
       project?: string | undefined;
+      folder?: string | undefined;
+      write?: WritePolicy | undefined;
     },
     task: string,
     waitMs: number,

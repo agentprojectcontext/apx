@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 import type { Author, Task } from "@apx/protocol";
 import { OWNER_ID } from "../domain/persons.ts";
@@ -11,7 +10,7 @@ import { goOn } from "../engine/go-on.ts";
 import { addComment, assignedTaskOf, consultMentioned, sessionFor, startHeld } from "../engine/task-work.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
-import { isInside } from "../paths.ts";
+import { folderInProject } from "../tools/folders.ts";
 import type { CallContext } from "./context.ts";
 
 type SendMode = "queue" | "interrupt" | "steer";
@@ -25,18 +24,12 @@ import type { Handlers } from "./router.ts";
  * outside the project.
  */
 export function codeFolder(store: Store, projectId: string | undefined, cwd: string | undefined): string {
-  const project = projectId ? store.projects.get(projectId) : undefined;
-  if (!project?.path || !project.present) throw badRequest("a code thread needs a project whose folder is on disk");
-  let root: string;
-  let dir: string;
   try {
-    root = fs.realpathSync(project.path);
-    dir = fs.realpathSync(path.resolve(root, cwd ?? "."));
-  } catch {
-    throw badRequest(`no folder ${cwd ?? project.path}`);
+    return folderInProject(store, projectId, cwd);
+  } catch (err) {
+    const why = (err as Error).message;
+    throw badRequest(why.startsWith("needs") ? `a code thread ${why}` : why);
   }
-  if (!isInside(root, dir)) throw badRequest(`${cwd} is outside the project's folder`);
-  return dir;
 }
 
 /** A new chat or code thread. An outside app gets a plain chat, named after it, that only it can use. */

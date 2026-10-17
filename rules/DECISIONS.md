@@ -1252,3 +1252,16 @@ call runs with every folder open (`thread.anywhere`: a last root after the other
 project or not, with no card and nothing kept. APX's home stays refused, other chats' temp folders stay closed and a
 project's read-only folders stay read-only, since those roots come first. Outside harnesses (Claude Code, Codex) keep
 their own sandboxes; this is the folder rule of APX's tools.
+
+<a id="d-103"></a>
+## D-103 — 2026-10-17 — A delegation works in a folder of its project, never with more writes than its caller
+An orchestrator delegating review or fixes into one git worktree under its project could only name the project: the
+session worked in the project's root, so it fell back to `apx chat --code --cwd`, whose threads have no parent and
+never report back, and polled for results. Now a path inside the project given to `delegate` as `project` is the
+session's folder (`cwd` on the a2a sub-thread, checked like a code thread's folder: inside the project once links are
+resolved), and `write` says how far it may change it. The policy is the strictest of the caller's code thread, the
+caller's autonomy (`ask` stays `ask`) and the one asked for, `ask` when none is: a delegation never gets further than
+its caller, and the result tells it when what it asked for was capped. A separate folder argument was left out: a
+path already names both the project and the folder, and the tool definitions are at their budget (PROMPT_SIZE.md).
+Continuing a session with another folder or policy is refused, as with another project. The sub-thread keeps
+`parent_id` and its run `parent_run_id`, so the result returns to the caller as any delegation's does.
