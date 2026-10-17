@@ -99,6 +99,30 @@ Read the files again by hand, for every project or one:
   </TabItem>
 </Tabs>
 
+## Read-only folders
+
+An agent reads and writes only in the folder it works in and its own temp folder. When a task needs another folder,
+like a second checkout to compare against or a folder of docs, add it as a **read-only folder** of the project. Its
+agents, and the helpers they delegate to, can read it with `file_read` and with commands like `cat`, `rg` or
+`git log`. Nothing can write there. Each turn tells the agent which folders these are.
+
+<Tabs syncKey="surface">
+  <TabItem label="Panel">
+Open the project's settings (the gear in its header). Under **Read-only folders**, type an absolute path (or choose
+one in the desktop app) and click **Add**. Click the **×** beside a folder to remove it. Each change is saved right
+away.
+  </TabItem>
+  <TabItem label="Terminal">
+<Terminal command="apx projects folders add p_3f9a1c0d7e21 ~/work/acme-store-v1">{`~/work/acme-store-v1`}</Terminal>
+
+`apx projects folders list <project>` shows them and `apx projects folders rm <project> <folder>` removes one.
+  </TabItem>
+</Tabs>
+
+A read-only folder must exist and be a folder. It can't be APX's own folder, a folder inside it, or a folder that
+holds it, and it can't be inside the project's own folder (agents can already read and write there). APX keeps the
+list in its database, not in `.apc/`, so a repo can't widen what its agents read.
+
 ## The base project
 
 Home and your global agents live in the **base project**. It has no folder: APX keeps its name and type, its agents
