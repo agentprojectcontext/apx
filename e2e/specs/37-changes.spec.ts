@@ -55,7 +55,7 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     await guide.getByRole("button").click();
     await expect(guide.locator(".diff__line--add")).toContainText(["# Guía", "", "Original"]);
     advance();
-    await expect(page.getByText("Done", { exact: true })).toHaveCount(1);
+    await expect(page.locator(".transcript").getByText("Done", { exact: true })).toHaveCount(1);
     await expect(panel.getByText("Cambios: 3 archivos editados", { exact: true })).toBeVisible();
     await expect(panel.locator(".wchanges__file")).toHaveCount(3);
     await expect(panel.locator(".changes")).toHaveCount(0);
@@ -109,6 +109,34 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     await expect(code.locator(".diff__line--ctx")).toContainText(["Current after timeout"]);
   } finally {
     advance();
+    await env.core.close();
+    env.cleanup();
+  }
+});
+
+test("cambios: los archivos de la carpeta temporal se listan aparte, con su diff", async ({ page }) => {
+  const listener = net.createServer();
+  await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  const port = (listener.address() as AddressInfo).port;
+  await new Promise<void>((resolve) => listener.close(() => resolve()));
+  const llm = scriptedLlm(async (req, { afterTool }) => {
+    if (afterTool) return say("Done");
+    const temp = /your temp folder, (\S+), never/.exec(String(req.messages[0]?.content ?? ""))?.[1] ?? "";
+    return callTool("draft", "file_write", { path: path.join(temp, "draft.py"), content: "print(42)\n" });
+  });
+  const env = await startCore({ port, llm });
+  try {
+    await env.client.call("setup.finish", {});
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Borrador" });
+    await page.goto(`${env.core.url}/#thread=${thread.id}&panel=changes`);
+    await page.getByRole("textbox", { name: /^Escribile a/ }).fill("draft");
+    await page.getByRole("button", { name: "Enviar", exact: true }).click();
+    await expect(page.locator(".transcript").getByText("Done", { exact: true })).toHaveCount(1);
+    await expect(page.locator(".changes__head")).toContainText("Archivos en la carpeta temporal: 1");
+    const scratch = page.locator(".sidepanel").getByRole("region", { name: "Carpeta temporal del chat" });
+    await scratch.getByRole("button", { name: /draft\.py/ }).click();
+    await expect(scratch.locator(".diff__line--add")).toContainText("print(42)");
+  } finally {
     await env.core.close();
     env.cleanup();
   }

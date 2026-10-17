@@ -418,6 +418,8 @@ const KnownPart = z.discriminatedUnion("type", [
     cwd: z.string(),
     edits: z.boolean().optional(),
     files: z.array(FileChange),
+    /** The files are in the chat's temp folder (`cwd`): the agent's scratch work, not changes to the owner's folders. */
+    scratch: z.boolean().optional(),
     more: z.number().int().optional(),
   }),
   /** The agent waits for the owner: a yes/no on an action, or an answer to a question. Answered with runs.respond. */

@@ -18,7 +18,13 @@ const MAX_BYTES = 1_000_000;
 const KEPT_RUNS = 20;
 
 type Edit = { path: string; status: string; added: number; removed: number };
-type RecordedEdit = { file: Edit & { diff?: string; truncated?: boolean }; before: string | undefined };
+type RecordedEdit = {
+  file: Edit & { diff?: string; truncated?: boolean };
+  before: string | undefined;
+  scratch: boolean;
+};
+/** Where a write landed: the folder the agent works in, or the chat's temp folder (kept apart in the card). */
+type Where = { base: string; scratch: boolean };
 const SNAPSHOT_BUDGET = 200_000;
 const ORIGINAL_BUDGET = 2_000_000;
 /** Pictures file_read shows the model, and sound it transcribes, instead of refusing them as not text. */
@@ -72,7 +78,7 @@ export function fileTools(store: Store, home: string): Tool[] {
   /** The turn's net edits from each file's first original, with bounded persisted patches. */
   const recordEdit = async (
     ctx: ToolContext,
-    base: string,
+    where: Where,
     e: Edit,
     before: string,
     after: string,
@@ -84,11 +90,12 @@ export function fileTools(store: Store, home: string): Tool[] {
       edited.set(ctx.run.id, files);
       if (edited.size > KEPT_RUNS) edited.delete(edited.keys().next().value ?? "");
     }
-    const was = files.get(e.path);
+    const key = `${where.scratch ? "scratch" : "work"}\0${e.path}`;
+    const was = files.get(key);
     const used = [...files.values()].reduce((n, edit) => n + (edit.before?.length ?? 0), 0);
     const original = was ? was.before : before.length + used <= ORIGINAL_BUDGET ? before : undefined;
     const snapshotUsed = [...files.values()].reduce(
-      (n, edit) => n + (edit.file.path === e.path ? 0 : (edit.file.diff?.length ?? 0)),
+      (n, edit) => n + (edit === was ? 0 : (edit.file.diff?.length ?? 0)),
       0,
     );
     const limit = Math.min(64_000, SNAPSHOT_BUDGET - snapshotUsed);
@@ -105,20 +112,21 @@ export function fileTools(store: Store, home: string): Tool[] {
       removed: snapshot?.removed ?? (was?.file.removed ?? 0) + e.removed,
       ...(snapshot ? { diff: snapshot.diff, truncated: snapshot.truncated } : {}),
     };
-    files.set(e.path, { file, before: original });
-    ctx.upsertPart((p) => p.type === "changes", {
+    files.set(key, { file, before: original, scratch: where.scratch });
+    ctx.upsertPart((p) => p.type === "changes" && !p.scratch === !where.scratch, {
       type: "changes",
-      cwd: base,
+      cwd: where.base,
       edits: true,
-      files: [...files.values()].map((edit) => edit.file),
+      ...(where.scratch ? { scratch: true } : {}),
+      files: [...files.values()].filter((edit) => edit.scratch === where.scratch).map((edit) => edit.file),
     });
   };
-  const noteEdit = async (ctx: ToolContext, base: string, e: Edit, before: string, after: string) => {
+  const noteEdit = async (ctx: ToolContext, where: Where, e: Edit, before: string, after: string) => {
     const deadline = Date.now() + 1500;
     // Parallel harness calls must preserve write order and share the turn's patch budget.
     const next = (recording.get(ctx.run.id) ?? Promise.resolve())
       .catch(() => undefined)
-      .then(() => recordEdit(ctx, base, e, before, after, deadline));
+      .then(() => recordEdit(ctx, where, e, before, after, deadline));
     recording.set(ctx.run.id, next);
     try {
       await next;
@@ -236,20 +244,18 @@ export function fileTools(store: Store, home: string): Tool[] {
         const existed = fs.existsSync(r.at);
         const before = existed ? fs.readFileSync(r.at, "utf8") : "";
         writeAtomic(r.at, a.content);
-        // The temp folder's files are not the owner's changes.
-        if (!r.scratch)
-          await noteEdit(
-            ctx,
-            r.base,
-            {
-              path: path.relative(r.base, r.at),
-              status: existed ? "M" : "A",
-              added: lineCount(a.content),
-              removed: lineCount(before),
-            },
-            before,
-            a.content,
-          );
+        await noteEdit(
+          ctx,
+          r,
+          {
+            path: path.relative(r.base, r.at),
+            status: existed ? "M" : "A",
+            added: lineCount(a.content),
+            removed: lineCount(before),
+          },
+          before,
+          a.content,
+        );
         return `${existed ? "replaced" : "created"} ${r.at} (${Buffer.byteLength(a.content)} bytes)`;
       },
     }),
@@ -290,19 +296,18 @@ export function fileTools(store: Store, home: string): Tool[] {
         const { next, count } = edit;
         writeAtomic(r.at, next);
         const times = a.all ? count : 1;
-        if (!r.scratch)
-          await noteEdit(
-            ctx,
-            r.base,
-            {
-              path: path.relative(r.base, r.at),
-              status: "M",
-              added: lineCount(a.new) * times,
-              removed: lineCount(a.old) * times,
-            },
-            text,
-            next,
-          );
+        await noteEdit(
+          ctx,
+          r,
+          {
+            path: path.relative(r.base, r.at),
+            status: "M",
+            added: lineCount(a.new) * times,
+            removed: lineCount(a.old) * times,
+          },
+          text,
+          next,
+        );
         return `replaced ${a.all ? count : 1} occurrence${(a.all ? count : 1) === 1 ? "" : "s"} in ${r.at}`;
       },
     }),

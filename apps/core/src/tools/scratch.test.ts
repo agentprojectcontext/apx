@@ -79,7 +79,13 @@ test("a project chat writes, runs and sends its temporary files from its temp fo
   assert.deepEqual(fs.readdirSync(root), [".apc"]);
   const parts = messages.flatMap((m) => m.parts);
   assert.ok(parts.some((p) => p.type === "file" && p.name === "numbers.py"));
-  assert.ok(!parts.some((p) => p.type === "changes"), "temp files are not the owner's changes");
+  const changes = parts.filter((p) => p.type === "changes");
+  assert.equal(changes.length, 1, "temp files are shown, apart from the owner's changes");
+  assert.ok(changes[0]?.type === "changes" && changes[0].scratch && changes[0].edits);
+  assert.equal(changes[0]?.type === "changes" && changes[0].cwd, named);
+  assert.deepEqual(changes[0]?.type === "changes" && changes[0].files.map((f) => [f.path, f.status, f.added]), [
+    ["numbers.py", "A", 1],
+  ]);
   const ran = env.core.store.runs.steps(runs[0]?.id ?? "").find((s) => s.tool === "shell");
   assert.match(String(ran?.result ?? ""), /numbers\.py/);
 });

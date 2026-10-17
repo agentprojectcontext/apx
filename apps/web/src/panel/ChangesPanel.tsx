@@ -1,5 +1,5 @@
 import type { Message, Result, Thread } from "@apx/protocol";
-import { EmptyState, IconButton, Icons, Skeleton } from "@apx/ui";
+import { EmptyState, IconButton, Icons, SectionLabel, Skeleton } from "@apx/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
 import { useData } from "../data/state.ts";
@@ -44,8 +44,21 @@ export function ChangesPanel({ thread, ws }: { thread: Thread; ws?: Workspace | 
   }, [scope, busy, load]);
   const rows: ChangeRow[] =
     scope === "folder"
-      ? (changes?.files ?? []).map((file) => ({ file, cwd: changes?.cwd ?? "", message: "", part: 0 }))
+      ? (changes?.files ?? []).map((file) => ({ file, cwd: changes?.cwd ?? "", message: "", part: 0, scratch: false }))
       : records;
+  const owned = rows.filter((r) => !r.scratch);
+  const scratch = rows.filter((r) => r.scratch);
+  const list = (items: ChangeRow[]) => (
+    <ul className="wchanges__list">
+      {items.map((row) => (
+        <FileChange
+          key={`${row.cwd}:${row.file.path}:${row.message}:${row.part}:${version}`}
+          thread={thread.id}
+          row={row}
+        />
+      ))}
+    </ul>
+  );
   const totals = rows.reduce(
     (n, { file }) => ({ added: n.added + (file.added ?? 0), removed: n.removed + (file.removed ?? 0) }),
     { added: 0, removed: 0 },
@@ -108,15 +121,18 @@ export function ChangesPanel({ thread, ws }: { thread: Thread; ws?: Workspace | 
             title={t(scope === "folder" ? "changes.none" : "changes.reportedEmpty")}
           />
         ) : (
-          <ul className="wchanges__list">
-            {rows.map((row) => (
-              <FileChange
-                key={`${row.cwd}:${row.file.path}:${row.message}:${row.part}:${version}`}
-                thread={thread.id}
-                row={row}
-              />
-            ))}
-          </ul>
+          <>
+            {!!owned.length && list(owned)}
+            {!!scratch.length && (
+              <section className="wchanges__scratch" aria-label={t("changes.scratch")}>
+                <SectionLabel>{t("changes.scratch")}</SectionLabel>
+                <p className="wchanges__hint" title={scratch[0]?.cwd}>
+                  {t("changes.scratchHint")}
+                </p>
+                {list(scratch)}
+              </section>
+            )}
+          </>
         )}
       </div>
     </>

@@ -50,3 +50,21 @@ test("all turns flatten into one row per folder and path, with its latest edit a
   const updated = messages.map((m) => (m.id === "second" ? { ...m, parts: [change("A.md", "live revision")] } : m));
   assert.equal(recordedChanges(updated, "visible", "all")[0]?.file.diff, "live revision");
 });
+
+test("temp-folder files are listed apart, beside the folder's own changes, never instead of them", () => {
+  const scratch: Part = {
+    type: "changes",
+    cwd: "/tmp/chat",
+    edits: true,
+    scratch: true,
+    files: [{ path: "x.py", status: "A" }],
+  };
+  const rows = recordedChanges([message("turn", [scratch, change("Git.md", "", false)])], "visible", "latest");
+  assert.deepEqual(
+    rows.map((row) => [row.file.path, row.scratch]),
+    [
+      ["Git.md", false],
+      ["x.py", true],
+    ],
+  );
+});
