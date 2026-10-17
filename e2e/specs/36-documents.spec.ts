@@ -68,7 +68,7 @@ test("documentos: txt como Markdown, apertura explícita, fuente, descarga y rec
     // Back to the chat's documents, newest first, and into another one.
     await panel.getByRole("button", { name: "Todos los documentos (2)" }).click();
     const list = panel.getByRole("list", { name: "Documentos de este chat" });
-    await expect(list.getByRole("button")).toHaveCount(2);
+    await expect(list.getByRole("listitem")).toHaveCount(2);
     await list.getByRole("button", { name: /Report\.txt/ }).click();
     await page.reload();
     await expect(panel.getByRole("cell", { name: "Ready", exact: true })).toBeVisible();
