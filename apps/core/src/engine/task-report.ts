@@ -29,16 +29,23 @@ export function closedIn(store: Store, task: Task, run: RunRecord): boolean {
   return close.event.at >= (first?.started_at ?? run.started_at);
 }
 
-/** What the closer says: its last comment on the task (the answer of the turn that closed it) and its closing note. */
-function reportOf(store: Store, task: Task, closer: string, note: unknown): string {
-  const said = store.messages
+/** The closer's note and latest comment; immediate reports label comments from before the current work. */
+function reportOf(store: Store, task: Task, closer: string, note: unknown, freshSince?: string): string {
+  const comment = store.messages
     .list(task.thread_id, 50)
-    .findLast((m) => m.author.kind === "agent" && m.author.id === closer)
-    ?.parts.map((p) => (p.type === "text" ? p.text : ""))
+    .findLast((m) => m.author.kind === "agent" && m.author.id === closer);
+  const said = comment?.parts
+    .map((p) => (p.type === "text" ? p.text : ""))
     .join("\n")
     .trim();
+  const stale = freshSince && comment && comment.created_at < freshSince;
   const closing = typeof note === "string" && note.trim() ? `Closing note: ${note.trim()}` : "";
-  return [said, closing].filter(Boolean).join("\n\n").slice(0, REPORT_CHARS) || "(no comment)";
+  const text = stale && said ? `Earlier comment (written before this close, not the closing verdict):\n${said}` : said;
+  const pending = freshSince && (!said || stale) ? "Closing turn's final answer pending." : "";
+  return (
+    (freshSince ? [closing, text, pending] : [text, closing]).filter(Boolean).join("\n\n").slice(0, REPORT_CHARS) ||
+    "(no comment)"
+  );
 }
 
 /**
@@ -46,7 +53,12 @@ function reportOf(store: Store, task: Task, closer: string, note: unknown): stri
  * woken when the owner created or closed it, or its creator closed it; a chat that was answering another agent is
  * not woken (DECISIONS.md#d-074). Past the unattended limits the report waits there for the owner.
  */
-export function reportClose(store: Store, admit: AdmitFn, taskId: string): RunRecord | undefined {
+export function reportClose(
+  store: Store,
+  admit: AdmitFn,
+  taskId: string,
+  options: { immediate?: boolean; runStartedAt?: string } = {},
+): RunRecord | undefined {
   const task = store.tasks.get(taskId);
   const close = task && lastClose(store, task);
   if (!task || !close) return undefined;
@@ -66,7 +78,13 @@ export function reportClose(store: Store, admit: AdmitFn, taskId: string): RunRe
     agent_id: closer.id,
     name: closer.name,
   };
-  const text = reportOf(store, task, closer.id, close.event.data.note);
+  const since = close.event.at;
+  const freshSince = options.immediate
+    ? options.runStartedAt && options.runStartedAt < since
+      ? options.runStartedAt
+      : since
+    : undefined;
+  const text = reportOf(store, task, closer.id, close.event.data.note, freshSince);
   const paused = pausedNotice(store, thread.id, closer.name);
   if (paused) {
     // Kept for the creator's next turn (when the owner writes), and the owner sees why it stopped.

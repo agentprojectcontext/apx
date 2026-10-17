@@ -6,15 +6,34 @@ import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 // Roby hands work to Vera through the board; Vera closes each task she is given inside her turn on it.
 let idea = "";
+let reviewTask = "";
 const llm = scriptedLlm((req, { system, said, afterTool }) => {
   const tools = req.messages.filter((m) => m.role === "tool").length;
   const last = String(req.messages.at(-1)?.content);
   if (system.startsWith("You are Vera")) {
+    if (said.includes("review from another session")) {
+      if (!afterTool) return callTool("review", "task_comment", { task: reviewTask, text: "APPROVED: checks pass." });
+      if (tools === 1) return callTool("close-review", "task_close", { task: reviewTask, state: "done" });
+      return say("Review complete.");
+    }
+    if (said.includes("record failing review")) {
+      if (!afterTool) return callTool("old-review", "task_comment", { task: reviewTask, text: "FAILED: checks fail." });
+      return say("Failure recorded.");
+    }
+    if (said.includes("close from another session")) {
+      if (!afterTool) return callTool("close-old", "task_close", { task: reviewTask, state: "done", note: "APPROVED" });
+      return say("Review complete.");
+    }
     if (afterTool) return say("Shipped: three PRs merged.");
     const task = /Task (task_\w+):/.exec(JSON.stringify(req.messages))?.[1] ?? "";
     return callTool("v1", "task_close", { task, state: "done", note: "all checks green" });
   }
   if (said.includes("<task_result")) return say("Vera finished it.");
+  if (said.includes("prepare external review")) {
+    if (!afterTool) return callTool("prepare", "task_create", { title: "External review" });
+    reviewTask = /created (task_\w+)/.exec(last)?.[1] ?? "";
+    return say("Review ready.");
+  }
   if (said.includes("hand the goal")) {
     if (!afterTool) return callTool("r1", "task_create", { title: "Ship the goal", assignee: "vera" });
     return say(last);
@@ -90,6 +109,57 @@ test("a task an agent gave to another wakes its creator where it created it, wit
       `<task_result task="${task?.id}" title="Ship the goal" from="Vera" state="done" trust="team">\\nShipped: three PRs merged\\.\\n\\nClosing note: all checks green\\n</task_result>\\nA task you created and gave to Vera is closed \\(done\\)`,
     ),
   );
+});
+
+test("closing through RPC from another session preserves a fresh review without a closing note", async () => {
+  const creator = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Fresh review" });
+  await env.client.call("threads.send", { thread: creator.id, text: "prepare external review" });
+  await runsOf(creator.id, 1);
+  assert.ok(reviewTask);
+  const reviewer = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "vera",
+    title: "Review session",
+  });
+  await env.client.call("threads.send", { thread: reviewer.id, text: "review from another session" });
+  await runsOf(reviewer.id, 1);
+  const result = await runsOf(creator.id, 2);
+  const report = result.runs.find((r) => r.trigger === "a2a_result");
+  assert.ok(report);
+  const input = llm.calls.findLast((c) =>
+    String(c.messages.at(-1)?.content).includes(`<task_result task="${reviewTask}"`),
+  );
+  const text = String(input?.messages.at(-1)?.content);
+  assert.match(text, /APPROVED: checks pass\./);
+  assert.doesNotMatch(text, /Earlier comment|final answer pending/);
+});
+
+test("closing through RPC from another session labels a review from an earlier run", async () => {
+  const creator = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "Old review" });
+  await env.client.call("threads.send", { thread: creator.id, text: "prepare external review" });
+  await runsOf(creator.id, 1);
+  const reviewer = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "vera",
+    title: "Earlier review",
+  });
+  await env.client.call("threads.send", { thread: reviewer.id, text: "record failing review" });
+  await runsOf(reviewer.id, 1);
+  const closing = await env.client.call("threads.create", {
+    kind: "loose",
+    agent_id: "vera",
+    title: "Closing session",
+  });
+  await env.client.call("threads.send", { thread: closing.id, text: "close from another session" });
+  await runsOf(closing.id, 1);
+  await runsOf(creator.id, 2);
+  const input = llm.calls.findLast((c) =>
+    String(c.messages.at(-1)?.content).includes(`<task_result task="${reviewTask}"`),
+  );
+  const text = String(input?.messages.at(-1)?.content);
+  assert.match(text, /Closing note: APPROVED/);
+  assert.match(text, /Earlier comment \(written before this close, not the closing verdict\):\nFAILED: checks fail\./);
+  assert.match(text, /Closing turn's final answer pending\./);
 });
 
 test("nobody is woken when the owner closes a task or its creator closes it itself", async () => {
