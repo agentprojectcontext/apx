@@ -2,6 +2,7 @@
 // folder it works in, from the same `cwd` shell takes. One call per file instead of shell cat or heredocs in pieces.
 import fs from "node:fs";
 import path from "node:path";
+import type { FileChange } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { textDiff } from "../engine/changes.ts";
@@ -29,6 +30,36 @@ const lineCount = (s: string) => (s ? s.split("\n").length - (s.endsWith("\n") ?
 function namesGuarded(p: string): boolean {
   const parts = path.normalize(p).split(/[\\/]/).filter(Boolean);
   return parts.includes(".apc") || parts.at(-1) === "AGENTS.md";
+}
+
+/** The file after a file_edit, or why it cannot be made (nothing is written then). */
+function applyEdit(
+  text: string,
+  a: { path: string; old: string; new: string; all?: boolean | undefined },
+): { next: string; count: number } | { error: string } {
+  const count = text.split(a.old).length - 1;
+  if (count === 0)
+    return { error: `not found in ${a.path}: nothing changed (old must match exactly, spaces included)` };
+  if (count > 1 && !a.all)
+    return { error: `found ${count} times in ${a.path}: nothing changed; give more context in old, or set all=true` };
+  // A function replacer: "$&" and the like in the new text are written as they are.
+  const next = a.all ? text.split(a.old).join(a.new) : text.replace(a.old, () => a.new);
+  if (Buffer.byteLength(next) > MAX_BYTES) return { error: `refused: ${a.path} would pass ${MAX_BYTES} bytes` };
+  return { next, count };
+}
+
+/** The patch a write would make, shown when the owner is asked to confirm it. */
+async function proposed(r: { at: string; base: string }, status: string, before: string, after: string) {
+  const d = await textDiff(before, after);
+  if (!d) return undefined;
+  return {
+    path: path.relative(r.base, r.at),
+    status,
+    added: d.added,
+    removed: d.removed,
+    diff: d.diff,
+    truncated: d.truncated,
+  } satisfies FileChange;
 }
 
 /** The path as the model wrote it, joined to the `cwd` it gave (an absolute path ignores it, as in locateFile). */
@@ -192,6 +223,12 @@ export function fileTools(store: Store, home: string): Tool[] {
       workspace: true,
       deadlineMs: 10_000,
       title: (a) => `Wrote ${String(a.path ?? "a file")}`,
+      async preview(a, ctx) {
+        const r = resolve(ctx.thread, a, true);
+        if ("refused" in r || (fs.existsSync(r.at) && !fs.statSync(r.at).isFile())) return undefined;
+        const existed = fs.existsSync(r.at);
+        return proposed(r, existed ? "M" : "A", existed ? fs.readFileSync(r.at, "utf8") : "", a.content);
+      },
       async run(a, ctx) {
         const r = resolve(ctx.thread, a, true);
         if ("refused" in r) return `refused: ${r.refused}`;
@@ -236,18 +273,21 @@ export function fileTools(store: Store, home: string): Tool[] {
       workspace: true,
       deadlineMs: 10_000,
       title: (a) => `Edited ${String(a.path ?? "a file")}`,
+      async preview(a, ctx) {
+        const r = resolve(ctx.thread, a, true);
+        if ("refused" in r || !fs.existsSync(r.at) || !fs.statSync(r.at).isFile()) return undefined;
+        const text = fs.readFileSync(r.at, "utf8");
+        const edit = applyEdit(text, a);
+        return "error" in edit ? undefined : proposed(r, "M", text, edit.next);
+      },
       async run(a, ctx) {
         const r = resolve(ctx.thread, a, true);
         if ("refused" in r) return `refused: ${r.refused}`;
         if (!fs.existsSync(r.at) || !fs.statSync(r.at).isFile()) return `no file ${a.path}: create it with file_write`;
         const text = fs.readFileSync(r.at, "utf8");
-        const count = text.split(a.old).length - 1;
-        if (count === 0) return `not found in ${a.path}: nothing changed (old must match exactly, spaces included)`;
-        if (count > 1 && !a.all)
-          return `found ${count} times in ${a.path}: nothing changed; give more context in old, or set all=true`;
-        // A function replacer: "$&" and the like in the new text are written as they are.
-        const next = a.all ? text.split(a.old).join(a.new) : text.replace(a.old, () => a.new);
-        if (Buffer.byteLength(next) > MAX_BYTES) return `refused: ${a.path} would pass ${MAX_BYTES} bytes`;
+        const edit = applyEdit(text, a);
+        if ("error" in edit) return edit.error;
+        const { next, count } = edit;
         writeAtomic(r.at, next);
         const times = a.all ? count : 1;
         if (!r.scratch)

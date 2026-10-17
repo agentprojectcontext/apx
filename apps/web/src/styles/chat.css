@@ -184,7 +184,8 @@
 .turn .apx-msg__bare {
   width: 100%;
 }
-.turn:has(.surfacecard) .apx-msg__col {
+.turn:has(.surfacecard) .apx-msg__col,
+.apx-msg__col:has(.inputcard.has-change) {
   max-width: 100%;
   width: 100%;
 }

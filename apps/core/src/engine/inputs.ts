@@ -1,7 +1,7 @@
 // One machine for everything an agent waits on from the owner: confirmations before a tool runs and questions.
 // The row is written before the wait starts; an answer that arrives after its run is gone (a restart, a deadline)
 // wakes the agent with a new run instead of being lost.
-import type { ApprovalScope, InputKind, Part } from "@apx/protocol";
+import type { ApprovalScope, FileChange, InputKind, Part } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { ApprovalTarget } from "../domain/approvals.ts";
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
@@ -29,6 +29,7 @@ const partOf = (r: InputRecord): Part => ({
   prompt: r.prompt,
   ...(r.tool ? { tool: r.tool } : {}),
   ...(r.detail ? { detail: r.detail } : {}),
+  ...(r.change ? { change: r.change } : {}),
   ...(r.options ? { options: r.options } : {}),
   ...(r.approval_scopes ? { approval_scopes: r.approval_scopes } : {}),
   ...(r.approval_scope ? { approval_scope: r.approval_scope } : {}),
@@ -123,6 +124,7 @@ export function createInputs(deps: {
       tool?: string | undefined;
       args?: Record<string, unknown> | undefined;
       detail?: string | undefined;
+      change?: FileChange | undefined;
       options?: string[] | undefined;
       /** Claude Code or Codex: its call to our tool has a shorter deadline. */
       external: boolean;
@@ -143,6 +145,7 @@ export function createInputs(deps: {
         tool: o.tool,
         args: o.args,
         detail: o.detail,
+        change: o.change,
         options: o.options,
         waitMs: o.stays ? OPEN_INPUT_MS : waitMs,
       });
