@@ -1131,6 +1131,7 @@ its project's notes and its own, and a global note only when a match shares at l
 task text; notes of other projects were never visible. The word test is deliberate: search by meaning fuses ranks and
 exposes no score to filter on. The owner's direct turns keep D-013 as it was.
 
+<a id="d-096"></a>
 ## D-096 — 2026-10-17 — A delegation past the cap waits in a queue instead of being refused
 With three delegations already running from a thread, `delegate` answered "refused", and an orchestrator fanning out an
 audit never asked again: a whole part of the owner's request was never looked at. Now the fourth (and later) is accepted
