@@ -83,6 +83,12 @@ Secrets are referenced as `secret://name`: on macOS the values live in the login
 install id. Browser sessions live in Electron partitions on the
 desktop (`persist:apx-shared`, `persist:apx-agent-<id>`, in-memory `apx-incog-*`), never in the core.
 
+Asana is a native REST integration (`integrations/asana.ts`), configured with a validated personal access token
+referenced as `secret://asana-token`. The existing integration form and global-integration project switches apply,
+without creating an MCP server. `asana.read` and human-only `asana.write` enter through the router; conditional
+agent tools wrap their output as untrusted and request owner authorization for writes. Project switches control
+availability, not Asana object-level permissions.
+
 ## 4b. The agent loop
 
 `threads.send` (the only door) stores the message and a `submitted` run with its input → `engine/engine.ts` runs

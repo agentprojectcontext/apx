@@ -3,6 +3,7 @@
 import os from "node:os";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
+import { ASANA_FIELD, ASANA_SECRET, type Asana } from "../integrations/asana.ts";
 import {
   CATALOG,
   COMING,
@@ -20,8 +21,8 @@ import type { Handlers } from "./router.ts";
 const expand = (v: string) => (v.startsWith("~/") ? `${os.homedir()}${v.slice(1)}` : v);
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp: Mcp; google: Google }) {
-  const { store, secrets, mcp, google } = deps;
+export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp: Mcp; google: Google; asana: Asana }) {
+  const { store, secrets, mcp, google, asana } = deps;
   const connected = (id: string) => mcp.config.global().some((d) => d.name === id);
   /** What was typed in an integration's plain fields (a team id, a folder), to edit it later. */
   const plainOf = (id: string): Record<string, string> => {
@@ -65,6 +66,15 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
       return {
         integrations: [
           ...GOOGLE_INTEGRATIONS.map((e) => googleEntry(e, projects)),
+          {
+            id: "asana",
+            label: "Asana",
+            description: "Tasks and projects of your workspace.",
+            fields: [{ ...ASANA_FIELD, set: asana.connected() }],
+            connected: asana.connected(),
+            coming: false,
+            off_in: asana.connected() ? offIn("asana", projects) : [],
+          },
           ...CATALOG.map((e) => ({
             id: e.id,
             label: e.label,
@@ -90,7 +100,16 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
         ],
       };
     },
-    "integrations.connect": ({ id, values }) => {
+    "integrations.connect": async ({ id, values }) => {
+      if (id === "asana") {
+        const token = values.token?.trim();
+        if (!token && !asana.connected()) throw badRequest("Asana needs its Personal access token");
+        if (token) {
+          await asana.validate(token);
+          secrets.set(ASANA_SECRET, token);
+        }
+        return { connected: true as const };
+      }
       if (isGoogleId(id)) throw badRequest(`${id} connects by signing in with Google`);
       const e = CATALOG.find((x) => x.id === id);
       if (!e) throw notFound(`integration ${id}`);
@@ -131,6 +150,10 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
       }
     },
     "integrations.disconnect": ({ id }) => {
+      if (id === "asana") {
+        secrets.set(ASANA_SECRET, null);
+        return { connected: false as const };
+      }
       if (isGoogleId(id)) {
         google.disconnect(id);
         return { connected: false as const };

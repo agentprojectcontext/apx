@@ -19,6 +19,7 @@ import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
 import { acpAgents, acpEngine } from "./harness/acp/agents.ts";
 import type { Identity } from "./identity.ts";
+import type { Asana } from "./integrations/asana.ts";
 import { isGoogleId } from "./integrations/catalog.ts";
 import type { Google } from "./integrations/google.ts";
 import type { Log } from "./log.ts";
@@ -29,6 +30,7 @@ import { findProgram } from "./programs.ts";
 import { accessHandlers } from "./rpc/access.ts";
 import { agentHandlers } from "./rpc/agents.ts";
 import { appHandlers } from "./rpc/app.ts";
+import { asanaHandlers } from "./rpc/asana.ts";
 import { browserHandlers } from "./rpc/browser.ts";
 import { channelHandlers } from "./rpc/channels.ts";
 import { clientHandlers } from "./rpc/clients.ts";
@@ -188,6 +190,7 @@ type HandlerDeps = {
   mcp: Parameters<typeof extensionHandlers>[1] & Parameters<typeof mcpHandlers>[0];
   /** The owner's Google account (Calendar, Gmail). */
   google: Google;
+  asana: Asana;
   providers: Parameters<typeof providerHandlers>[0];
   secrets: Parameters<typeof providerHandlers>[1];
   chatgpt: Parameters<typeof providerHandlers>[2];
@@ -252,9 +255,12 @@ export function coreHandlers(d: HandlerDeps) {
     ...phoneHandlers(d.broker, d.store, d.app.home),
     ...computerHandlers(d.broker, d.store, d.app.home, d.engine),
     ...extensionHandlers(d.extensions, d.mcp),
-    // A connected Google integration is switched per project like a global server.
-    ...mcpHandlers(d.mcp, d.store, (name) => isGoogleId(name) && d.google.connected(name)),
-    ...integrationHandlers({ store: d.store, secrets: d.secrets, mcp: d.mcp, google: d.google }),
+    // Native integrations share the project switches of global servers, without starting an MCP.
+    ...mcpHandlers(d.mcp, d.store, (name) =>
+      name === "asana" ? d.asana.connected() : isGoogleId(name) && d.google.connected(name),
+    ),
+    ...integrationHandlers({ store: d.store, secrets: d.secrets, mcp: d.mcp, google: d.google, asana: d.asana }),
+    ...asanaHandlers(d.store, d.asana),
     ...resourceHandlers({
       store: d.store,
       home: d.app.home,

@@ -36,10 +36,22 @@ and adds its MCP server as one of your global servers, so your agents can use it
 | Sentry | Errors and issues of your projects | An access token |
 | Brave Search | Web search | An API key |
 | Obsidian | Read and write the notes of your vault | The vault's folder |
-| Google Calendar, Gmail, Linear, Asana | | Marked **Soon**: they need a sign-in flow APX doesn't run yet |
+| Asana | Native workspace, project and task reads; task creation and updates | A personal access token |
+| Google Calendar, Gmail | Native calendar and mail tools | Sign in with Google |
+| Linear | | Marked **Soon**: they need a sign-in flow APX doesn't run yet |
 
-These servers start with `npx`, so the machine running the core needs Node.js and internet access the first time
-each one starts. Once connected, an integration behaves like any other MCP server: it has [tool
+Asana uses the REST API directly, not an MCP server. Create a personal access token at
+[Asana developer apps](https://app.asana.com/0/my-apps) and enter it in the connection form.
+APX validates the token before saving `secret://asana-token`. An empty field keeps the saved token.
+The native `asana_read` tool supports workspaces, projects, tasks and task details, with pagination.
+Task lists exclude completed tasks by default; pass `completed: true` to include them. Results include notes, links and sections.
+Create a task with an Asana `project` or a `workspace` (for a task without a project).
+`asana_write` creates or updates tasks (name, notes, completion, assignee and due date), with owner authorization.
+The per-project switch controls availability, not Asana object permissions: the shared account can access whatever its token permits.
+Do not repeat a create after an unknown outcome without checking Asana first; writes are not automatically retried.
+
+The MCP-based servers start with `npx`, so the machine running the core needs Node.js and internet access the first time
+each one starts. Once connected, an MCP-based integration behaves like any other MCP server: it has [tool
 permissions](/extend/mcp/#tool-permissions), and agents reach its tools through `mcp_search` and `mcp_call`.
 
 To change a token, open the integration and edit it (an empty secret field keeps the stored one). **Disconnect**

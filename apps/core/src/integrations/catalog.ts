@@ -23,10 +23,7 @@ export type IntegrationEntry = {
 };
 
 /** Coming: they need a sign-in flow (OAuth) APX does not run for them yet. */
-export const COMING = [
-  { id: "linear", label: "Linear", description: "Issues, projects and cycles." },
-  { id: "asana", label: "Asana", description: "Tasks and projects of your workspace." },
-];
+export const COMING = [{ id: "linear", label: "Linear", description: "Issues, projects and cycles." }];
 
 /**
  * Google accounts the owner signs in to (OAuth, with their own client from Google Cloud Console). No MCP server: their

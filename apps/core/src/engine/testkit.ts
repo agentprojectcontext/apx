@@ -83,6 +83,7 @@ export async function startCore(opts: {
   providers?: ProviderConfig[];
   /** A stand-in Google (sign-in and REST APIs under one address). */
   googleApi?: string;
+  asanaFetch?: typeof fetch;
   /** Where telemetry goes (a recorder); none sends nothing, like any test core. */
   telemetrySink?: TelemetrySink;
   /** The release this core starts on and its notes; none tells nothing. */
@@ -104,6 +105,7 @@ export async function startCore(opts: {
     }),
     {
       quiet: true,
+      ...(opts.asanaFetch ? { asanaFetch: opts.asanaFetch } : {}),
       llm: opts.llm,
       ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),
       ...(opts.extraTools ? { extraTools: opts.extraTools } : {}),
