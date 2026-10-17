@@ -57,10 +57,12 @@ export function whatsNewText(version: string, releases: Release[], language: str
   return `${w.intro(version)}\n\n${body}\n\n${w.outro}`;
 }
 
-/** The releases after `seen` up to `version`, from what the build carries. */
+/** The releases after `seen` up to `version`, from what the build carries; with no `seen`, only `version`'s own. */
 const newSince = (notes: ReleaseNotes, version: string, seen: string | undefined) =>
-  notes.releases.filter(
-    (r) => compareVersions(r.version, version) <= 0 && (!seen || compareVersions(r.version, seen) > 0),
+  notes.releases.filter((r) =>
+    seen
+      ? compareVersions(r.version, version) <= 0 && compareVersions(r.version, seen) > 0
+      : compareVersions(r.version, version) === 0,
   );
 
 /**
