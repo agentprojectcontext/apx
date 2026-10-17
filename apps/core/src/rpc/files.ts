@@ -223,6 +223,14 @@ export function fileHandlers(store: Store, desktop: DesktopOps, home: string) {
       await desktop.reveal(abs);
       return { ok: true as const };
     },
+    "files.open": async ({ path: rel, ...where }) => {
+      const { abs } = locate(where, rel);
+      // Only text documents: the default app of a script or a bundle would run it.
+      if (!/\.(md|markdown|txt)$/i.test(abs)) throw badRequest("only .md, .markdown and .txt files open here");
+      if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) throw notFound(`file ${rel}`);
+      await desktop.open(abs);
+      return { ok: true as const };
+    },
     "files.rename": ({ path: rel, name, ...where }) => {
       const { abs, root, rel: clean } = locate(where, rel);
       if (!clean) throw badRequest("the folder itself is renamed from Finder");

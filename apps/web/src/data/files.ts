@@ -72,6 +72,15 @@ export async function revealFile(where: FileWhere, path: string): Promise<void> 
   }
 }
 
+/** Opens a text document in its default app on the core's computer. */
+export async function openFile(where: FileWhere, path: string): Promise<void> {
+  try {
+    await client.call("files.open", { ...where, path });
+  } catch (e) {
+    notify(t("files.error", { error: errText(e) }));
+  }
+}
+
 /** The new relative path, or undefined when the core refused. */
 export async function renameFile(where: FileWhere, path: string, name: string): Promise<string | undefined> {
   try {
