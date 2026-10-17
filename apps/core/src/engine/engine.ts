@@ -237,7 +237,11 @@ export function createEngine(deps: {
     });
     if (store.threads.get(a.thread_id)?.state !== "working") store.threads.patch(a.thread_id, { state: "submitted" });
     // After the caller's transaction commits: the turn must never run on a row that could still roll back.
-    queueMicrotask(() => kick(a.thread_id));
+    queueMicrotask(() => {
+      kick(a.thread_id);
+      // The owner writing starts a new breaker window: delegations it held may start.
+      if (a.trigger === "user") delegations.release(a.thread_id);
+    });
     return run;
   }
 
@@ -343,6 +347,8 @@ export function createEngine(deps: {
   return {
     admit,
     cancel,
+    /** Starts the thread's queued delegations that fit (after the owner lets agents go on); how many it started. */
+    release: (threadId: string) => delegations.release(threadId),
     /** Hands owner text to the thread's running turn when its loop can take it mid-turn (ours); else undefined. */
     steer(threadId: string, text: string): RunRecord | undefined {
       for (const [runId, a] of active) {

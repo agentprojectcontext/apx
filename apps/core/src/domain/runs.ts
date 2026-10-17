@@ -204,9 +204,9 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .where("state", "in", ["submitted", "queued"]),
       ).map((r) => r.id);
     },
-    /** The oldest delegation from this thread waiting for a slot. */
-    nextHeld(parentThreadId: string): RunRecord | undefined {
-      const r = one(
+    /** The delegations from this thread waiting for a slot, oldest first. */
+    held(parentThreadId: string): RunRecord[] {
+      return all(
         qb
           .selectFrom("runs as r")
           .innerJoin("threads as t", "t.id", "r.thread_id")
@@ -214,10 +214,8 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .where("t.parent_id", "=", parentThreadId)
           .where("r.state", "=", "queued")
           .orderBy("r.created_at")
-          .orderBy(raw`r.rowid`)
-          .limit(1),
-      );
-      return r ? toRun(r) : undefined;
+          .orderBy(raw`r.rowid`),
+      ).map(toRun);
     },
     /** Threads with delegations waiting for a slot. */
     heldParents(): string[] {
@@ -262,6 +260,8 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .select((eb) => [eb.fn.countAll<number>().as("n"), raw<number>`coalesce(sum(${runTokens}), 0)`.as("t")])
           .where("thread_id", "in", threadIds)
           .where("trigger", "in", ["a2a", "a2a_result", "system"])
+          // A queued delegation counts once it starts, when the breaker is checked again.
+          .where("state", "!=", "queued")
           .$if(agentId !== undefined, (q) => q.where("agent_id", "=", agentId ?? ""))
           .where("created_at", ">", [String(last?.at ?? ""), after ?? ""].sort().at(-1) ?? ""),
       );

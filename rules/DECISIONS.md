@@ -1143,8 +1143,9 @@ delegation started it or not; a run waiting for the owner's answer gives its slo
 stalls the queue (once answered, that run may work beside three others). A queued run is cancelled the way an unstarted
 one is (stopping the caller's turn or thread, `jobs.cancel`), outlives a restart (the boot starts what fits only once the
 cut ones resume, so never more than three), and is cancelled rather than started if its caller's run or thread is gone.
-The cap itself and the breaker are unchanged: queued runs count as turns agents started on their own from the moment
-they are queued.
+The cap itself is unchanged. A queued run counts against the breaker once it starts, and the breaker is checked again
+then: past it, the run stays queued, the owner sees the paused notice once, and letting agents go on (or writing in that
+chat) starts it.
 
 <a id="d-097"></a>
 ## D-097 — 2026-10-17 — A project may have read-only folders: its agents read them and change nothing there

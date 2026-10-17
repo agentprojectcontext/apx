@@ -296,6 +296,37 @@ test("a queued task for a session still at work leaves that session showing it w
   });
 });
 
+for (const kind of ["chain", "agent"] as const)
+  test(`a queued delegation waits while the ${kind} budget is spent, and starts once the owner ${kind === "chain" ? "lets agents go on" : "writes"}`, async () => {
+    await withCore({}, async (env, g) => {
+      const parent = await fanOut(env);
+      await until("three at work", () => g.asked.length === MAX_ACTIVE_DELEGATIONS);
+      if (kind === "chain") await env.client.call("agents.set_limits", { runs: MAX_ACTIVE_DELEGATIONS, tokens: 0 });
+      else
+        await env.client.call("agents.set_agent_limits", {
+          agent: "scout",
+          limits: { runs: MAX_ACTIVE_DELEGATIONS },
+        });
+      g.open("part-1");
+      g.open("part-2");
+      await until("two done", () =>
+        ["part-1", "part-2"].every((p) => session(env, parent, p).run?.state === "completed"),
+      );
+      await pause();
+      assert.equal(session(env, parent, "part-4").run?.state, "queued", "the breaker holds it");
+      assert.equal(g.asked.length, MAX_ACTIVE_DELEGATIONS);
+      const held = env.core.store.messages
+        .list(parent)
+        .flatMap((m) => m.parts)
+        .filter((p) => p.type === "notice" && p.code === "breaker.held");
+      assert.equal(held.length, 1, "the owner sees why, once");
+
+      if (kind === "chain") await env.client.call("threads.go_on", { thread: parent, mode: "reset" });
+      else await env.client.call("threads.send", { thread: parent, text: "Carry on with the audit." });
+      await until("the queued one starting", () => g.asked.length === PARTS.length);
+    });
+  });
+
 /** Seeds a delegation per state, as a killed process leaves them: the caller's turn already ended. */
 function seedCut(store: Store, states: Array<"working" | "input-required" | "queued">) {
   const deadline = new Date(Date.now() + 60_000).toISOString();

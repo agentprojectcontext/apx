@@ -8,14 +8,24 @@ import { startHeld } from "./task-work.ts";
 
 export type GoOnMode = "reset" | "release";
 
-/** Lets the tree `threadId` is in go on; returns how many turns it started. */
-export function goOn(store: Store, admit: AdmitFn, threadId: string, mode: GoOnMode): number {
+/**
+ * Lets the tree `threadId` is in go on; returns how many turns it started. `release` starts a chat's queued
+ * delegations the breaker held (engine `release`).
+ */
+export function goOn(
+  store: Store,
+  admit: AdmitFn,
+  release: (threadId: string) => number,
+  threadId: string,
+  mode: GoOnMode,
+): number {
   const ids = tree(store, threadId);
   const top = ids[0] ?? threadId;
   const at = new Date().toISOString();
   store.threads.mergeContext(top, mode === "reset" ? { budget_from: at } : { released_at: at });
   let started = startHeld(store, admit, ids);
   for (const id of ids) {
+    started += release(id);
     const { kept } = store.threads.context(id);
     if (kept && store.agents.get(kept)) {
       store.threads.mergeContext(id, { kept: undefined });

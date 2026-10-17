@@ -296,7 +296,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
     "threads.cancel": ({ thread }) => ({ canceled: engine.cancel(thread) }),
     "threads.go_on": ({ thread, mode }) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);
-      return { started: goOn(store, engine.admit, thread, mode) };
+      return { started: goOn(store, engine.admit, engine.release, thread, mode) };
     },
     "threads.voice": ({ thread, on }, ctx) => {
       if (!store.threads.get(thread)) throw notFound(`thread ${thread}`);

@@ -101,6 +101,8 @@ export type ThreadContext = {
   asked_from?: string;
   /** Tasks agents gave from this chat while it was paused: each starts once the owner lets agents go on. */
   held?: HeldTask[];
+  /** Queued delegations from this chat the breaker holds (run ids) whose notice the owner already saw. */
+  queue_held?: string[];
   /** A result or report reached this chat's agent (its id) while paused: kept for its next turn, which going on starts. */
   kept?: string;
   /** On a tree's top chat: the owner gave agents a fresh budget at this moment (counted from here). */
