@@ -27,6 +27,18 @@ test("a widget shows in the side panel, the chat keeps a card of it, and it come
   await expect(card).toContainText("Se muestra en el panel lateral");
   await expect(transcript.locator("iframe")).toHaveCount(0);
 
+  // The side panel has its own close; the widget opens in the browser, privately at this panel's address.
+  const head = panel.locator(".widgets__head");
+  await expect(head.getByRole("button", { name: "Volver al chat" })).toHaveCount(0);
+  let opens = page.waitForEvent("popup");
+  await head.getByRole("button", { name: "Abrir en el navegador · solo donde se llega a APX" }).click();
+  const surfaceId = new URL((await opens).url()).hash.replace("#app=", "");
+  expect(surfaceId).not.toBe("");
+  const shared = await rpc<{ share_path?: string }>("surfaces.share", { surface: surfaceId, shared: true });
+  opens = page.waitForEvent("popup");
+  await head.getByRole("button", { name: "Abrir en el navegador", exact: true }).click();
+  expect((await opens).url()).toContain(String(shared.share_path));
+
   await card.getByRole("button", { name: "Mostrar acá" }).click();
   await expect(panel).toHaveCount(0);
   await expect(inline.getByText("Coverage rows")).toBeVisible();

@@ -4,7 +4,7 @@ import { shareSurface } from "../data/actions.ts";
 import { notify } from "../data/notices.ts";
 import { t as tr, useT } from "../i18n/index.ts";
 
-function linkOf(s: SurfaceSummary): string | undefined {
+export function linkOf(s: SurfaceSummary): string | undefined {
   return s.share_path ? `${window.location.origin}${s.share_path}` : undefined;
 }
 

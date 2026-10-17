@@ -1,4 +1,4 @@
-import { EmptyState, IconButton, Icons } from "@apx/ui";
+import { EmptyState, Icons } from "@apx/ui";
 import { useMemo } from "react";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -45,14 +45,6 @@ export function WidgetPanel() {
           <header className="widgets__head">
             <span className="widgets__title">{s.title}</span>
             <SurfaceActions surface={s} />
-            {one && (
-              <IconButton
-                size="sm"
-                label={t("widget.backToChat")}
-                icon={<Icons.PanelRightClose size={14} />}
-                onClick={() => go.panel(null)}
-              />
-            )}
           </header>
           <SurfaceFrame surfaceId={s.id} />
         </section>

@@ -505,7 +505,8 @@ export const en = {
   "widget.toPanel": "Show in the side panel",
   "widget.inPanel": "Showing in the side panel",
   "widget.showHere": "Show here",
-  "widget.backToChat": "Back to the chat",
+  "widget.openBrowser": "Open in the browser",
+  "widget.openBrowserLocal": "Open in the browser · only where APX is reachable",
   "widgets.all": "All widgets ({n})",
   "widgets.empty": "No widgets in this chat",
   "widgets.emptyBody":

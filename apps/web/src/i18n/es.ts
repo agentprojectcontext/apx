@@ -514,7 +514,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.toPanel": "Mostrar en el panel lateral",
   "widget.inPanel": "Se muestra en el panel lateral",
   "widget.showHere": "Mostrar acá",
-  "widget.backToChat": "Volver al chat",
+  "widget.openBrowser": "Abrir en el navegador",
+  "widget.openBrowserLocal": "Abrir en el navegador · solo donde se llega a APX",
   "widgets.all": "Todos los widgets ({n})",
   "widgets.empty": "Sin widgets en este chat",
   "widgets.emptyBody":

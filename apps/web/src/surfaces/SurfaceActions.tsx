@@ -3,7 +3,7 @@ import { IconButton, Icons } from "@apx/ui";
 import { setSurfaceFlags } from "../data/actions.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { ShareMenu } from "./ShareMenu.tsx";
+import { linkOf, ShareMenu } from "./ShareMenu.tsx";
 import { openWidgetChat } from "./WidgetChat.tsx";
 
 /**
@@ -38,6 +38,22 @@ export function SurfaceActions({ surface }: { surface: SurfaceSummary }) {
         }}
       />
       <ShareMenu surface={surface} variant="icon" />
+      <OpenInBrowser surface={surface} />
     </>
+  );
+}
+
+/** A shared widget opens at its public link; a private one at this panel's own address, reachable only where it is. */
+function OpenInBrowser({ surface }: { surface: SurfaceSummary }) {
+  const t = useT();
+  const shared = linkOf(surface);
+  const url = shared ?? `${window.location.origin}/#app=${encodeURIComponent(surface.id)}`;
+  return (
+    <IconButton
+      size="sm"
+      label={shared ? t("widget.openBrowser") : t("widget.openBrowserLocal")}
+      icon={<Icons.ExternalLink size={14} />}
+      onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+    />
   );
 }
