@@ -5,17 +5,17 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { type Platform, platformOf, type Release } from "@apx/protocol";
+import { type Platform, platformOf, type Release, releaseChanges } from "@apx/protocol";
 import { errorMessage } from "./errors.ts";
 import type { Log } from "./log.ts";
-import { checkReleases, installRelease, releaseChanges } from "./updates-release.ts";
+import { checkReleases, installRelease } from "./updates-release.ts";
 
 export type UpdateStatus = {
   /**
-   * Where updates come from: this checkout's git remote, the release feed (a daemon installed from a bundle), or
-   * nowhere (the desktop app updates itself, a test).
+   * Where updates come from: this checkout's git remote, the release feed (a daemon installed from a bundle), the
+   * release feed for a core the desktop app carries (the app installs them), or nowhere (a test).
    */
-  source: "git" | "release" | "none";
+  source: "git" | "release" | "app" | "none";
   /** Commits on release/v2 this checkout does not have, or releases newer than this one. */
   behind: number;
   latest?: string | undefined;
@@ -62,6 +62,8 @@ export function createUpdates(opts: {
   version?: string;
   /** APX_APP: the folder a bundle install lives in (install.sh/ps1); updates then come from the release feed. */
   app?: string | undefined;
+  /** The desktop app carries this core and installs its updates: the core only says a newer one is out. */
+  byApp?: boolean;
   /** owner/repo of the release feed; undefined turns release updates off. */
   feed?: string | undefined;
   platform?: Platform | undefined;
@@ -71,10 +73,11 @@ export function createUpdates(opts: {
 }) {
   const git = opts.enabled && fs.existsSync(path.join(opts.root, ".git"));
   const platform = opts.platform ?? platformOf(process.platform, process.arch);
-  const release = !git && opts.enabled && Boolean(opts.app && opts.feed && opts.version && platform);
+  const release = !git && opts.enabled && Boolean((opts.app || opts.byApp) && opts.feed && opts.version && platform);
+  const releaseSource = opts.byApp ? "app" : "release";
   const sh = opts.run ?? run(opts.root);
   const fetchImpl = opts.fetch ?? fetch;
-  let status: UpdateStatus = { source: git ? "git" : release ? "release" : "none", behind: 0, changes: [] };
+  let status: UpdateStatus = { source: git ? "git" : release ? releaseSource : "none", behind: 0, changes: [] };
   let newer: Release[] = [];
   let timer: ReturnType<typeof setTimeout> | undefined;
   let busy: Promise<unknown> | undefined;
@@ -109,7 +112,7 @@ export function createUpdates(opts: {
       return status;
     }
     status = {
-      source: "release",
+      source: releaseSource,
       behind: newer.length,
       latest: newer[0]?.version,
       changes: releaseChanges(newer),
@@ -149,7 +152,7 @@ export function createUpdates(opts: {
   }
 
   async function apply(): Promise<UpdateResult> {
-    if (!git && !release)
+    if (opts.byApp || (!git && !release))
       return { ok: false, restart: false, log: "This APX updates with its desktop app, or by hand." };
     const r = git ? await applyGit() : await applyRelease();
     if (!r.ok) return { ...r, log: r.log.slice(-6000) };

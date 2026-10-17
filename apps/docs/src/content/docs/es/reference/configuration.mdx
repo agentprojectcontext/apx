@@ -76,7 +76,7 @@ necesita un reinicio.
 | `APX_PUBLIC_URL` | ninguna | La dirección por la que los dispositivos llegan a este core desde afuera (un VPS o un nombre de Tailscale). Va primera en el QR de vinculación. |
 | `APX_ALLOWED_ORIGINS` | ninguno | Orígenes extra que pueden llamar al core, separados por comas. |
 | `APX_SECRETS` | Llavero en macOS, archivo en el resto | `file` guarda los secretos en `<home>/secrets.json` también en macOS. |
-| `APX_UPDATES` | prendido | `off` deja de buscar un APX más nuevo. |
+| `APX_UPDATES` | prendido | `off` deja de buscar un APX más nuevo; `app` solo avisa que salió uno (la app de escritorio lo pone para su core, y las actualizaciones las instala ella). |
 | `APX_RELEASES` | `agentprojectcontext/apx` | El repositorio de GitHub cuyos releases anuncian un paquete nuevo. `off` lo frena. |
 | `APX_APP` | `~/.apx/v2/app` | Donde el script de instalación pone el paquete (sus versiones y `current`). |
 | `APX_AGENT_NAME` | uno al azar | El nombre de Home en una instalación nueva. |

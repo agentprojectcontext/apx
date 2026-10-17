@@ -17,17 +17,11 @@ import {
 } from "@apx/protocol";
 import type { Runner } from "./updates.ts";
 
-const CHANGES = 8;
-
 export type ReleaseCheck = { newer: Release[] };
 
 export async function checkReleases(feed: string, version: string, fetchImpl: typeof fetch): Promise<ReleaseCheck> {
   return { newer: newerReleases(await fetchReleases(feed, fetchImpl), version) };
 }
-
-/** What the newer releases change, newest first, as a few lines. */
-export const releaseChanges = (newer: Release[]) =>
-  newer.flatMap((r) => (r.notes.length ? r.notes : [`APX ${r.version}`])).slice(0, CHANGES);
 
 async function download(url: string, file: string, fetchImpl: typeof fetch): Promise<void> {
   const r = await fetchImpl(url, { signal: AbortSignal.timeout(15 * 60_000) });

@@ -1,5 +1,5 @@
 import { Button, Dialog, Spinner } from "@apx/ui";
-import { applyUpdate, closeUpdate, loadUpdates, restartApp, useUpdates } from "../data/updates.ts";
+import { applyUpdate, closeUpdate, loadUpdates, restartApp, updatedByApp, useUpdates } from "../data/updates.ts";
 import { useT } from "../i18n/index.ts";
 
 /** The update dialog (from the pill or the corner card): what changed, and "Update now". */
@@ -18,6 +18,7 @@ export function UpdateDialog() {
   const phase = target === "app" && own === "idle" ? (app?.ready ? "ready" : app?.downloading ? "updating" : own) : own;
   const changes = (target === "core" ? status?.changes : app?.notes) ?? [];
   const drag = target === "app" && app?.install === "drag";
+  const byApp = updatedByApp(status, target);
   const lead =
     target === "both"
       ? t("update.leadBoth", { v: app?.latest ?? app?.ready ?? "", current: app?.current ?? "" })
@@ -25,9 +26,11 @@ export function UpdateDialog() {
         ? phase === "ready" || phase === "restarting"
           ? t("update.leadReady", { v: app?.ready ?? app?.latest ?? "" })
           : t(drag ? "update.leadAppDrag" : "update.leadApp", { v: app?.latest ?? "", current: app?.current ?? "" })
-        : status?.source === "release"
-          ? t("update.leadRelease", { v: status.latest ?? "" })
-          : t("update.lead", { n: status?.behind ?? 0 });
+        : byApp
+          ? t("update.leadByApp", { v: status?.latest ?? "" })
+          : status?.source === "release"
+            ? t("update.leadRelease", { v: status.latest ?? "" })
+            : t("update.lead", { n: status?.behind ?? 0 });
   return (
     <Dialog
       open
@@ -40,7 +43,11 @@ export function UpdateDialog() {
             <Button variant="secondary" onClick={() => void loadUpdates(true)}>
               {t("update.check")}
             </Button>
-            <Button onClick={() => void applyUpdate()}>{t(drag ? "update.download" : "update.now")}</Button>
+            {byApp ? (
+              <Button onClick={close}>{t("common.close")}</Button>
+            ) : (
+              <Button onClick={() => void applyUpdate()}>{t(drag ? "update.download" : "update.now")}</Button>
+            )}
           </>
         ) : phase === "ready" ? (
           <>

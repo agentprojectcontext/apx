@@ -66,6 +66,39 @@ test("a daemon installed from a bundle offers the newer release by its version",
   await expect(dialog.getByText("Listo. Reiniciá APX para usar la versión nueva.")).toBeVisible();
 });
 
+test("a browser on the desktop app's core says a newer APX is out, and to update it from the app", async ({ page }) => {
+  await answer(page, "system.updates", (r) => ({
+    ...r,
+    source: "app",
+    behind: 1,
+    latest: "9.1.0",
+    changes: ["feat: sidebar sections"],
+  }));
+  await open(page);
+  await page.getByRole("button", { name: "APX 9.1.0 · Actualizar" }).click();
+  const dialog = page.getByRole("dialog", { name: "Hay una versión nueva de APX" });
+  await expect(dialog.getByText(/Actualizalo desde la app de APX/)).toBeVisible();
+  await expect(dialog.getByText("feat: sidebar sections")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Actualizar ahora" })).toBeHidden();
+  await dialog.getByRole("button", { name: "Cerrar" }).click();
+  await expect(dialog).toBeHidden();
+});
+
+test("inside the desktop app, its core's notice gives way to the app's own", async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as unknown as Record<string, unknown>).apxDesktop = {
+      platform: "linux",
+      coreLocal: true,
+      setBrowserBounds: () => {},
+      updateStatus: async () => ({ current: "9.1.0", notes: [], install: "none" }),
+    };
+  });
+  await answer(page, "system.updates", (r) => ({ ...r, source: "app", behind: 1, latest: "9.1.0", changes: [] }));
+  await open(page);
+  await expect(page.locator(".topbar")).toBeVisible();
+  await expect(page.getByRole("button", { name: "APX 9.1.0 · Actualizar" })).toBeHidden();
+});
+
 /** The desktop app's bridge, as its preload exposes it, with a newer app out. */
 const desktopWithUpdate = (page: Page, install: "auto" | "drag") =>
   page.addInitScript((mode) => {

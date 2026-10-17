@@ -81,8 +81,8 @@ export type CoreConfig = {
   llmTimeoutMs: number;
   /** The super-agent's name on a fresh install (APX_AGENT_NAME); none = one picked at random. */
   agentName: string | undefined;
-  /** Look for a newer APX now and then (APX_UPDATES=off stops it). */
-  updates: boolean;
+  /** Look for a newer APX now and then (APX_UPDATES): on; app = only say so, the desktop app installs it; off. */
+  updates: "on" | "app" | "off";
   /** A supervisor starts the core again when it exits to update (`pnpm app` sets APX_SUPERVISED=1). */
   supervised: boolean;
   /** APX_APP: where install.sh/ps1 put this daemon (its bundles and `current`); unset for a checkout or the app. */
@@ -204,7 +204,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     secrets: env.APX_SECRETS === "file" || process.platform !== "darwin" ? "file" : "keychain",
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),
     agentName: env.APX_AGENT_NAME?.trim() || undefined,
-    updates: env.APX_UPDATES !== "off",
+    updates: env.APX_UPDATES === "off" ? "off" : env.APX_UPDATES === "app" ? "app" : "on",
     supervised: env.APX_SUPERVISED === "1",
     app: env.APX_APP || undefined,
     releases: env.APX_RELEASES === "off" ? undefined : env.APX_RELEASES || RELEASE_FEED,
@@ -231,7 +231,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     v1,
     native,
     runtimeSkills: { homes: { home: over.home, ...native }, auto: false },
-    updates: false,
+    updates: "off",
     app: undefined,
     releases: undefined,
     headless: false,

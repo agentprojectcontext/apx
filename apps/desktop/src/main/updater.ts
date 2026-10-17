@@ -21,6 +21,7 @@ import {
   RELEASE_FEED,
   type Release,
   type ReleaseAsset,
+  releaseChanges,
 } from "@apx/protocol";
 import { app, shell } from "electron";
 import { replaceableBundle } from "./app-bundle.ts";
@@ -45,18 +46,22 @@ export type InstallAnswer = { ok: true; ready: boolean } | { ok: false; error: s
 const FIRST_MS = 60_000;
 const run = promisify(execFile);
 
-/** The newest release that has an installer for this platform. */
+/**
+ * The newest release that has an installer for this platform, and what it and the others since `current` change (a
+ * release whose notes are only a changelog link still shows the ones before it).
+ */
 export function pickUpdate(
   list: unknown,
   current: string,
   platform: string,
   arch: string,
-): { release: Release; asset: ReleaseAsset } | undefined {
+): { release: Release; asset: ReleaseAsset; notes: string[] } | undefined {
   const p = platformOf(platform, arch);
   if (!p) return undefined;
-  for (const release of newerReleases(list, current)) {
+  const newer = newerReleases(list, current);
+  for (const [i, release] of newer.entries()) {
     const asset = desktopAssetFor(release.assets, release.version, p);
-    if (asset) return { release, asset };
+    if (asset) return { release, asset, notes: releaseChanges(newer.slice(i)) };
   }
   return undefined;
 }
@@ -117,7 +122,7 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
   // An AppImage replaces itself; run from an unpacked zip, the owner gets the file instead.
   const appImage = process.platform === "linux" ? process.env.APPIMAGE : undefined;
   const mode: DesktopUpdate["install"] = process.platform === "win32" || bundle || appImage ? "auto" : "drag";
-  let found: { release: Release; asset: ReleaseAsset } | undefined;
+  let found: ReturnType<typeof pickUpdate>;
   let status: DesktopUpdate = { current: app.getVersion(), notes: [], install: "none" };
   let staged: Staged | undefined;
   let downloading: Promise<InstallAnswer> | undefined;
@@ -134,7 +139,7 @@ export function createDesktopUpdater(opts: { quit(): void; changed(status: Deskt
       status = {
         current: app.getVersion(),
         latest: found?.release.version,
-        notes: found?.release.notes ?? [],
+        notes: found?.notes ?? [],
         install: found ? mode : "none",
         checked_at: new Date().toISOString(),
       };

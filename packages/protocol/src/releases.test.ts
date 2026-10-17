@@ -8,6 +8,7 @@ import {
   newerReleases,
   parseSha256,
   platformOf,
+  releaseChanges,
 } from "./releases.ts";
 
 const asset = (name: string) => ({ name, browser_download_url: `https://example.com/${name}` });
@@ -83,4 +84,20 @@ test("a .sha256 file gives its digest", () => {
   const hex = "a".repeat(64);
   assert.equal(parseSha256(`${hex}  apx-core-2.2.0-linux-x64.tar.gz\n`), hex);
   assert.equal(parseSha256("not a digest"), undefined);
+});
+
+test("what the newer releases change: their bullets, newest first, and the name of one that has none", () => {
+  const newer = newerReleases(
+    [
+      { tag_name: "v2.3.26", body: "**Full Changelog**: https://example.com/compare/v2.3.25...v2.3.26" },
+      { tag_name: "v2.3.25", body: "- Inbox: unread chats repeat on top\n- Docs: guides in line with the code" },
+    ],
+    "2.3.24",
+  );
+  assert.deepEqual(releaseChanges(newer), [
+    "APX 2.3.26",
+    "Inbox: unread chats repeat on top",
+    "Docs: guides in line with the code",
+  ]);
+  assert.equal(releaseChanges(newer, 2).length, 2);
 });

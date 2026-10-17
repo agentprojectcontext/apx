@@ -105,6 +105,10 @@ export function newerReleases(list: unknown, current: string): Release[] {
   return out.sort((a, b) => compareVersions(b.version, a.version));
 }
 
+/** What the newer releases change, newest first, as a few lines (a release without bullets says its name). */
+export const releaseChanges = (newer: Release[], max = 8): string[] =>
+  newer.flatMap((r) => (r.notes.length ? r.notes : [`APX ${r.version}`])).slice(0, max);
+
 /** Asks GitHub for the feed's recent releases (no token: 60 requests an hour per address is plenty). */
 export async function fetchReleases(feed: string, fetchImpl: typeof fetch = fetch): Promise<unknown> {
   const base = /^https?:\/\//.test(feed) ? feed.replace(/\/+$/, "") : `https://api.github.com/repos/${feed}`;

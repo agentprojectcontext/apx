@@ -144,7 +144,8 @@ export async function admin(client: ApxClient, command: string, rest: string[], 
     return;
   }
   if (r.error) throw new Error(r.error);
-  if (r.source === "none") throw new Error("This install uses the desktop updater; open Settings > About");
+  if (r.source === "none" || r.source === "app")
+    throw new Error("This install uses the desktop updater; open Settings > About");
   if (!r.behind) {
     console.log(o.json ? JSON.stringify(r, null, 2) : "Up to date");
     return;

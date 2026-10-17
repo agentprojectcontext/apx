@@ -161,19 +161,26 @@ export function restartApp(): void {
 
 /**
  * What is newer, if anything: the desktop app first (it carries its own core), then the core. With a core elsewhere
- * (a server over SSH or at an address) both may be: one card and one update for the two.
+ * (a server over SSH or at an address) both may be: one card and one update for the two. A core the desktop app
+ * carries says so too, for a browser; inside that app its own check speaks instead.
  */
 export function newerOf(
   status: Status | undefined,
   app: DesktopUpdate | undefined,
   coreElsewhere = window.apxDesktop?.coreLocal === false,
+  inApp = Boolean(window.apxDesktop),
 ): { target: State["target"]; version?: string } | undefined {
   const appVersion = app?.ready ?? app?.latest;
-  if (appVersion && status?.behind && coreElsewhere) return { target: "both", version: appVersion };
+  const coreBehind = status?.behind && !(status.source === "app" && inApp && !coreElsewhere) ? status : undefined;
+  if (appVersion && coreBehind && coreElsewhere) return { target: "both", version: appVersion };
   if (appVersion) return { target: "app", version: appVersion };
-  if (status?.behind) return { target: "core", version: status.source === "release" ? status.latest : undefined };
+  if (coreBehind) return { target: "core", version: coreBehind.source === "git" ? undefined : coreBehind.latest };
   return undefined;
 }
+
+/** The core is the desktop app's: from here the update can only be pointed at, not done. */
+export const updatedByApp = (status: Status | undefined, target: State["target"]) =>
+  target === "core" && status?.source === "app";
 
 /** Opens the dialog on what is newer; a desktop app that already has it downloaded only asks when to restart. */
 export const openUpdate = (target: State["target"]) =>

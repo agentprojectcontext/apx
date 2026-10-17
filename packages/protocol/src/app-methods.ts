@@ -184,12 +184,12 @@ export const appMethods = {
   },
   /**
    * Whether a newer APX is out: for a checkout, commits on main it does not have; for a daemon installed from a bundle,
-   * newer releases. `check` asks now.
+   * newer releases; for the core the desktop app carries (`app`), newer releases the app installs. `check` asks now.
    */
   "system.updates": {
     params: z.object({ check: z.boolean().default(false) }).strict(),
     result: z.object({
-      source: z.enum(["git", "release", "none"]),
+      source: z.enum(["git", "release", "app", "none"]),
       behind: z.number().int(),
       latest: z.string().optional(),
       changes: z.array(z.string()),

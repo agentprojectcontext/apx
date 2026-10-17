@@ -51,7 +51,8 @@ export function startEmbeddedCore(opts: { resources: string; logFile: string; ca
           ELECTRON_RUN_AS_NODE: "1",
           NODE_COMPILE_CACHE: opts.cacheDir,
           APX_WEB_DIST: path.join(root, "apps", "web", "dist"),
-          APX_UPDATES: "off",
+          // The app installs updates; its core only says one is out, for a panel opened in a browser.
+          APX_UPDATES: "app",
           APX_SUPERVISED: "1",
           ...(build.sha ? { APX_CODE_SHA: build.sha } : {}),
         },

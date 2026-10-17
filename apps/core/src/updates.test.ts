@@ -223,3 +223,29 @@ test("without a bundle install or a checkout, updates belong to the desktop app"
   assert.equal((await u.check()).source, "none");
   assert.equal((await u.apply()).ok, false);
 });
+
+test("the core the desktop app carries says a newer release is out, and leaves installing it to the app", async () => {
+  const f = await releaseFeed();
+  const u = createUpdates({
+    root: os.tmpdir(),
+    log,
+    enabled: true,
+    supervised: true,
+    version: "2.0.3",
+    byApp: true,
+    feed: "acme/apx",
+    platform: { os: "linux", arch: "x64" },
+    fetch: f.fakeFetch,
+    run: f.tar,
+    restart: () => assert.fail("restarted"),
+  });
+  const s = await u.check();
+  assert.equal(s.source, "app");
+  assert.equal(s.behind, 1);
+  assert.equal(s.latest, "2.1.0");
+  assert.deepEqual(s.changes, ["feat: sidebar sections"]);
+  const r = await u.apply();
+  assert.equal(r.ok, false);
+  assert.match(r.log, /desktop app/);
+  f.done();
+});

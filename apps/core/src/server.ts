@@ -354,7 +354,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const updates = createUpdates({
     root: path.resolve(import.meta.dirname, "../../.."),
     log,
-    enabled: config.updates,
+    enabled: config.updates !== "off",
+    byApp: config.updates === "app",
     supervised: config.supervised,
     version: identity.version,
     app: config.app,
