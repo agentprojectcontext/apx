@@ -13,6 +13,7 @@ import {
   serviceNames,
   serviceOwnsHome,
   systemdUnit,
+  windowsProcessPattern,
   windowsRunCommand,
 } from "./service-files.ts";
 
@@ -121,4 +122,25 @@ test("existing service entries cannot authorize control of another home", () => 
   const command = windowsRunCommand({ node: "node.exe", terminal: "main.ts", home, electron: false });
   assert.equal(serviceOwnsHome(command, "win32", home), true);
   assert.equal(serviceOwnsHome(command, "win32", "/data/other"), false);
+});
+
+test("Windows process authority matches complete arguments with OS quoting variations", () => {
+  const args = [
+    "C:\\node\\node.exe",
+    "--disable-warning=ExperimentalWarning",
+    "C:\\apx\\main.ts",
+    "service",
+    "run",
+    "--home",
+    "C:\\data\\apx",
+  ];
+  const matches = new RegExp(windowsProcessPattern(args), "i");
+  assert.ok(matches.test(args.join(" ")));
+  assert.ok(matches.test(args.map((arg) => `"${arg}"`).join(" ")));
+  assert.ok(!matches.test(`${args.join(" ")} --extra`));
+  assert.ok(!matches.test(`echo ${args.join(" ")}`));
+  assert.ok(!matches.test(args.join(" ").replace("C:\\data\\apx", "C:\\data\\apx-other")));
+  const spaced = ["C:\\Program Files\\node.exe", "main.ts"];
+  assert.ok(new RegExp(windowsProcessPattern(spaced), "i").test('"C:\\Program Files\\node.exe" main.ts'));
+  assert.ok(!new RegExp(windowsProcessPattern(spaced), "i").test(spaced.join(" ")));
 });

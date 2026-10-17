@@ -20,6 +20,7 @@ import {
   systemdUnit,
   terminalMain,
   WINDOWS_RUN_VALUE,
+  windowsProcessPattern,
   windowsRunCommand,
 } from "./service-files.ts";
 
@@ -305,13 +306,16 @@ function stopWindows(home: string) {
 /** Stops only supervisors naming this exact home and their direct core children; PID files are not authority. */
 export function windowsStopScript(home: string): string {
   const quote = (value: string) => value.replaceAll("'", "''");
-  const supervisor = quote(windowsRunCommand({ ...supervisorRun(), home, electron: false }));
+  const runner = supervisorRun();
+  const supervisor = quote(
+    windowsProcessPattern([runner.node, ...NODE_FLAGS, runner.terminal, "service", "run", "--home", home]),
+  );
   const target = spec(home);
-  const core = quote(`"${target.node}" ${NODE_FLAGS.join(" ")} "${target.main}"`);
+  const core = quote(windowsProcessPattern([target.node, ...NODE_FLAGS, target.main]));
   return [
     `$all = @(Get-CimInstance Win32_Process -Filter "Name = 'node.exe'")`,
-    `; $parents = @($all | Where-Object { $_.CommandLine -ceq '${supervisor}' } | ForEach-Object { $_.ProcessId })`,
-    `; $ids = @($all | Where-Object { ($parents -contains $_.ProcessId) -or (($parents -contains $_.ParentProcessId) -and $_.CommandLine -ceq '${core}') } | ForEach-Object { $_.ProcessId })`,
+    `; $parents = @($all | Where-Object { $_.CommandLine -imatch '${supervisor}' } | ForEach-Object { $_.ProcessId })`,
+    `; $ids = @($all | Where-Object { ($parents -contains $_.ProcessId) -or (($parents -contains $_.ParentProcessId) -and $_.CommandLine -imatch '${core}') } | ForEach-Object { $_.ProcessId })`,
     `; if ($ids.Count) { Stop-Process -Id $ids -Force -ErrorAction Stop; Wait-Process -Id $ids -Timeout 10 -ErrorAction SilentlyContinue }`,
   ].join(" ");
 }

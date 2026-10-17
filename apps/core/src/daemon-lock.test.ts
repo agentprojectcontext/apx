@@ -41,7 +41,8 @@ test("the operating system releases ownership after a daemon crashes", { timeout
       "-e",
       `
     import { acquireDaemonLock } from ${JSON.stringify(module)};
-    acquireDaemonLock(${JSON.stringify(home)});
+    const lock = acquireDaemonLock(${JSON.stringify(home)});
+    process.once('exit', () => lock.release());
     process.stdout.write('ready');
     setInterval(() => {}, 1000);
   `,

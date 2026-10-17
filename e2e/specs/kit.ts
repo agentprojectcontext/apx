@@ -26,6 +26,7 @@ export const world = {
     (await (await fetch(`${control}/info`)).json()) as {
       dir: string;
       repo: string;
+      home: string;
       token: string;
       core: string;
       /** The fake model's server, which also embeds (Ollama-style). */

@@ -166,6 +166,16 @@ export function launchdPlist(spec: ServiceSpec): string {
   ].join("\n")}\n`;
 }
 
+/** Node and cmd may quote space-free arguments differently; match complete argv, never a substring. */
+export function windowsProcessPattern(args: string[]): string {
+  return `^${args
+    .map((arg) => {
+      const escaped = arg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return /\s/.test(arg) ? `"${escaped}"` : `(?:"${escaped}"|${escaped})`;
+    })
+    .join("[ \\t]+")}$`;
+}
+
 /**
  * The Windows login entry: it starts `apx service run`, the terminal's own supervisor, since a Run value cannot
  * restart what dies. Electron's binary only behaves as Node with ELECTRON_RUN_AS_NODE, set through cmd.

@@ -104,6 +104,7 @@ const control = http.createServer((req, res) => {
       return json(200, {
         dir,
         repo: fx.repo,
+        home: fx.home,
         token: E2E.telegramToken,
         discord: E2E.discordToken,
         slack: E2E.slackTokens,

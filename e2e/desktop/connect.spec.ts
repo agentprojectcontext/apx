@@ -3,10 +3,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
+import { world } from "../specs/kit.ts";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
 let home: string;
+let coreHome: string;
 
 const launch = (env: Record<string, string> = {}) =>
   _electron.launch({
@@ -17,7 +19,9 @@ const launch = (env: Record<string, string> = {}) =>
       XDG_CONFIG_HOME: path.join(home, ".config"),
       APX_DESKTOP_DATA: path.join(home, "desktop"),
       APX_QUIT_CONFIRM: "off",
-      APX_URL: core,
+      APX_URL: "",
+      APX_HOME: coreHome,
+      APX_PORT: process.env.E2E_PORT ?? "7460",
       APX_WEB_URL: "http://127.0.0.1:9",
       ...env,
     },
@@ -59,7 +63,8 @@ async function windowAt(app: ElectronApplication, test: (url: string) => boolean
   return app.windows().find((p) => test(p.url())) as Page;
 }
 
-test.beforeAll(() => {
+test.beforeAll(async () => {
+  coreHome = (await world.info()).home;
   home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-connect-"));
 });
 test.afterAll(() => fs.rmSync(home, { recursive: true, force: true }));
@@ -182,4 +187,38 @@ test("a server that only takes a password asks for it in the terminal view, then
     fs.rmSync(state, { recursive: true, force: true });
     fs.rmSync(path.join(home, "desktop", "connection.json"), { force: true });
   }
+});
+
+test("APX_URL stays connect-only even with a saved local choice", async () => {
+  fs.writeFileSync(path.join(home, "desktop", "connection.json"), JSON.stringify({ mode: "local" }));
+  const app = await launch({ APX_URL: core });
+  try {
+    const panel = await windowAt(app, (u) => u.startsWith(core));
+    expect(
+      await panel.evaluate(
+        () => (window as { apxDesktop?: { coreLocal: boolean; coreToken?: string } }).apxDesktop?.coreLocal,
+      ),
+    ).toBe(false);
+    expect(
+      await panel.evaluate(() => (window as { apxDesktop?: { coreToken?: string } }).apxDesktop?.coreToken),
+    ).toBeUndefined();
+  } finally {
+    await app.close();
+  }
+  expect((await fetch(`${core}/health`)).ok).toBe(true);
+});
+
+test("a local port belonging to another home is not adopted", async () => {
+  const other = path.join(home, "other-home");
+  fs.mkdirSync(other, { recursive: true });
+  fs.writeFileSync(path.join(other, "home-id"), "another-installation");
+  const app = await launch({ APX_HOME: other, APX_CONNECTION: "local" });
+  try {
+    const page = await windowAt(app, (u) => u.startsWith("data:text/html"));
+    await expect(page.locator("body")).toContainText("belongs to another home");
+    expect(app.windows().some((p) => p.url().startsWith(core))).toBe(false);
+  } finally {
+    await app.close();
+  }
+  expect((await fetch(`${core}/health`)).ok).toBe(true);
 });
