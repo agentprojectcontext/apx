@@ -102,7 +102,7 @@ test("the base project's areas and roles are kept by APX and reach the chats out
 test("an organization.json saved with a BOM is read as written", async () => {
   fs.writeFileSync(
     path.join(repo, ".apc", "organization.json"),
-    `﻿${JSON.stringify({ areas: [{ slug: "sales", name: "Ventas" }], roles: [] })}`,
+    `\uFEFF${JSON.stringify({ areas: [{ slug: "sales", name: "Ventas" }], roles: [] })}`,
   );
   assert.deepEqual((await env.client.call("org.get", { project })).areas, [{ slug: "sales", name: "Ventas" }]);
 });

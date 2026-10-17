@@ -57,10 +57,21 @@ test("one folder is one project: a BOM is read, a changed or unreadable project.
 
     // A second record an earlier version left at the same folder stops being listed; its record stays.
     env.core.store.projects.upsert({ id: "p_zz9876543210", name: "Duplicate", path: root });
+    env.core.store.agents.upsertApc({
+      id: "zz9876543210-arch",
+      project_id: "p_zz9876543210",
+      slug: "arch",
+      name: "Arch",
+      role: "Software Architect",
+      prompt: "Keep it simple.",
+      extra: {},
+    });
     assert.equal((await at(root)).length, 2);
     await env.client.call("projects.sync", {});
     assert.deepEqual(await at(root), [["p_abc123def456", "Northwind Labs", "company"]]);
     assert.equal(env.core.store.projects.get("p_zz9876543210")?.registered, false);
+    const listed = (await env.client.call("agents.list", {})).agents.map((a) => a.id);
+    assert.ok(!listed.includes("zz9876543210-arch"), "a duplicate's agents leave with it");
 
     // A clone with the same apx_id is its own project, and stays so once the first folder is gone.
     makeProject(clone);
@@ -74,6 +85,35 @@ test("one folder is one project: a BOM is read, a changed or unreadable project.
     env.cleanup();
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(clone, { recursive: true, force: true });
+  }
+});
+
+test("a project removed from APX does not take over its folder from the project now in it", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcrm-"));
+  const other = fs.mkdtempSync(path.join(os.tmpdir(), "apx-apcmv-"));
+  const meta = (folder: string, apx_id: string, name: string) =>
+    fs.writeFileSync(path.join(folder, ".apc", "project.json"), JSON.stringify({ name, apx_id }));
+  try {
+    makeProject(root);
+    await env.client.call("projects.register", { path: root });
+    makeProject(other);
+    meta(other, "bbb222bbb222", "Acme");
+    await env.client.call("projects.register", { path: other });
+    await env.client.call("projects.unregister", { project: "p_abc123def456" });
+
+    // Acme moves into Northwind's old folder: it keeps its own id, Northwind's record is not brought back.
+    fs.rmSync(other, { recursive: true, force: true });
+    meta(root, "bbb222bbb222", "Acme");
+    const moved = await env.client.call("projects.register", { path: root });
+    assert.equal(moved.project.id, "p_bbb222bbb222");
+    assert.equal(env.core.store.projects.get("p_abc123def456")?.registered, false);
+    assert.equal(env.core.store.projects.get("p_bbb222bbb222")?.path, root);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(other, { recursive: true, force: true });
   }
 });
 

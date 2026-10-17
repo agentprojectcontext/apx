@@ -230,7 +230,7 @@ test("direct MCP calls obey project toggles and cannot be made by an agent", asy
 
 test("a project's mcps.json saved with a BOM is read, and editing it keeps the file's other servers", async () => {
   const file = path.join(root, ".apc", "mcps.json");
-  fs.writeFileSync(file, `﻿${fs.readFileSync(file, "utf8")}`);
+  fs.writeFileSync(file, `\uFEFF${fs.readFileSync(file, "utf8")}`);
   const { servers } = await env.client.call("mcp.list", { project });
   assert.ok(servers.some((x) => x.name === "notes" && x.scope === "project"));
   await env.client.call("mcp.set", {
