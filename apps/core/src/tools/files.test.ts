@@ -145,7 +145,7 @@ test("file tools take shell's cwd: a relative path in a worktree lands in it, ne
   for (const [ask, why] of [
     ["tree escape", /APX's own folder/],
     ["cwd outside", /APX's own folder/],
-    ["cwd missing", /no folder no-such-tree/],
+    ["cwd missing", /^(?!.*refused).*no-such-tree does not exist/s],
     ["cwd git", /\.git folder is off limits/],
   ] as const)
     assert.match(await said(t.id, ask), why);

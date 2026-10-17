@@ -4,7 +4,17 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { harnessDir, judge, refusal, rootsOf, scratchDir, scratchRoot, tempAreas, workDir } from "./folders.ts";
+import {
+  folderAccess,
+  harnessDir,
+  judge,
+  refusal,
+  rootsOf,
+  scratchDir,
+  scratchRoot,
+  tempAreas,
+  workDir,
+} from "./folders.ts";
 import { commandFolder } from "./shell.ts";
 
 // The owner's message is the call to make: `{"name": "file_read", "args": {...}}`.
@@ -84,27 +94,37 @@ test("a path is readable or refused the same way through file_read and shell, wr
     await env.settle(t.id);
     return String(llm.calls.at(-1)?.messages.at(-1)?.content);
   };
+  const store = env.core.store;
   for (const [p, readable] of table) {
     const dir = path.dirname(p);
-    const verdicts = {
-      file_read: await call("file_read", { path: p }),
-      cat: await call("shell", { command: `cat ${p}` }),
-      "rg in a pipe": await call("shell", { command: `rg -n . ${p} | head -5` }),
-      cd: await call("shell", { command: `cd ${dir} && cat ${path.basename(p)}` }),
-      "git -C": await call("shell", { command: `git -C ${dir} status --short 2>/dev/null; true` }),
-      cwd: await call("shell", { command: `cat ${path.basename(p)}`, cwd: dir }),
-    };
-    for (const [how, said] of Object.entries(verdicts))
-      assert.equal(!/refused:/.test(said), readable, `${how} ${p}: ${said.slice(0, 200)}`);
+    const forms: Array<[string, { command: string; cwd?: string }]> = [
+      ["cat", { command: `cat ${p}` }],
+      ["rg in a pipe", { command: `rg -n . ${p} | head -5` }],
+      ["cd", { command: `cd ${dir} && cat ${path.basename(p)}` }],
+      ["git -C", { command: `git -C ${dir} status --short 2>/dev/null; true` }],
+      ["cwd", { command: `cat ${path.basename(p)}`, cwd: dir }],
+    ];
+    // Judged alone, every form gives the same verdict, and a read outside offers the same folder to the owner.
+    const judged: Array<[string, ReturnType<typeof folderAccess>]> = [
+      ["file_read", folderAccess(store, env.home, t, p)],
+      ...forms.map(
+        ([how, a]) => [how, commandFolder(store, env.home, t, a)] as [string, ReturnType<typeof folderAccess>],
+      ),
+    ];
+    for (const [how, r] of judged) {
+      assert.equal(!("refused" in r), readable, `${how} ${p}: ${JSON.stringify(r)}`);
+      if ("refused" in r) assert.equal(r.offer, sibling, `${how} ${p} offers the folder holding it`);
+    }
+    // Through the agent on total autonomy, a read outside runs lent for that call (DECISIONS.md#d-099).
+    assert.doesNotMatch(await call("file_read", { path: p }), /refused:/, `file_read ${p}`);
+    for (const [how, a] of forms) assert.doesNotMatch(await call("shell", a), /refused:/, `${how} ${p}`);
   }
+  assert.equal(store.projects.get(project)?.read_only_folders, undefined, "a loan keeps nothing");
 
-  // Refused, both say the same next step, naming the tool that asks the owner.
+  // Refused, no tool tells the agent to go asking for a folder: the owner's card is how it happens.
   const p = `${out}/b.txt`;
-  assert.equal(await call("file_read", { path: p }), `refused: ${refusal.outside(p)}`);
-  assert.ok((await call("shell", { command: `rg -n x ${p}` })).endsWith(`refused: ${refusal.outside(p)}`));
-  assert.match(refusal.outside(p), /ask_owner/);
-  const { tools } = await env.client.call("agents.tools", {});
-  assert.ok(tools.some((tool) => tool.name === "ask_owner"));
+  assert.deepEqual(folderAccess(store, env.home, t, p), { refused: refusal.outside(p), offer: sibling });
+  assert.doesNotMatch(refusal.outside(p), /ask_owner/);
   assert.match(await call("file_write", { path: p, content: "x" }), /outside the folders you can change: write in/);
 });
 
@@ -202,14 +222,19 @@ test("a project's read-only folders are read by file_read and shell, never chang
     assert.match(await call("shell", { command: "touch new.txt", cwd: ref }), /refused: .*read-only folder/);
     assert.equal(fs.readFileSync(file, "utf8"), "old\n");
     assert.ok(!fs.existsSync(path.join(ref, "new.txt")));
-    // A link inside it does not reach past it.
+    // A link inside it does not reach past it: what it points at is outside, offered on its own.
     const linked = path.join(ref, "out", "x.txt");
-    assert.equal(await call("file_read", { path: linked }), `refused: ${refusal.outside(linked)}`);
-    assert.match(await call("shell", { command: `cat ${linked}` }), /refused: .*outside the folders you can read/);
+    assert.deepEqual(folderAccess(env.core.store, env.home, t, linked), {
+      refused: refusal.outside(linked),
+      offer: away,
+    });
+    // On total autonomy that read runs lent for the call, and the project keeps only what the owner gave it.
+    assert.match(await call("shell", { command: `cat ${linked}` }), /away/);
+    assert.deepEqual(env.core.store.projects.get(project)?.read_only_folders, [ref]);
 
     await env.client.call("projects.update", { project, read_only_folders: [] });
     assert.equal(env.core.store.projects.get(project)?.read_only_folders, undefined);
-    assert.equal(await call("file_read", { path: file }), `refused: ${refusal.outside(file)}`);
+    assert.deepEqual(folderAccess(env.core.store, env.home, t, file), { refused: refusal.outside(file), offer: ref });
   } finally {
     await env.client.call("projects.update", { project, read_only_folders: [] });
     fs.rmSync(ref, { recursive: true, force: true });

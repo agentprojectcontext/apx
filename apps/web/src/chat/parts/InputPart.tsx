@@ -1,7 +1,7 @@
 import "../../styles/screens.css";
-import type { FileChange, Part } from "@apx/protocol";
+import type { ApprovalScope, FileChange, Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons } from "@apx/ui";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { respond } from "../../data/actions.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
 import { DiffView } from "../../panel/DiffView.tsx";
@@ -35,8 +35,11 @@ export function InputPart({ part }: { part: InputPartData }) {
 function SettledInput({ part, state }: { part: InputPartData; state: Exclude<InputPartData["state"], "pending"> }) {
   const t = useT();
   const Icon = DONE_ICON[state];
-  const what =
-    part.kind === "confirm" ? t("input.asked", { tool: part.tool ?? t("input.anAction") }) : t("input.askedQuestion");
+  const what = part.folders
+    ? t("input.askedFolder")
+    : part.kind === "confirm"
+      ? t("input.asked", { tool: part.tool ?? t("input.anAction") })
+      : t("input.askedQuestion");
   return (
     <ActionGroup
       className={`turn__tools inputline is-${state}`}
@@ -49,17 +52,36 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
             {t(DONE[state])}
             {part.approval_scope === "session" && ` · ${t("input.sessionScope")}`}
             {part.approval_scope === "always" && ` · ${t("input.agentScope")}`}
+            {part.approval_scope === "project" && ` · ${t("input.projectScope")}`}
             {part.answer && part.kind === "question" ? `: “${part.answer}”` : ""}
           </span>
         </>
       }
     >
       <div className="inputline__body">
-        <p className="inputcard__prompt">{part.prompt}</p>
+        <Prompt part={part} />
         <Detail part={part} />
         {part.answer && part.kind === "confirm" && <p className="inputcard__answer">“{part.answer}”</p>}
       </div>
     </ActionGroup>
+  );
+}
+
+/** What the agent asks; a folder card shows the folders it names as code, after the words before them. */
+function Prompt({ part }: { part: InputPartData }) {
+  const folders = part.folders ?? [];
+  const at = folders[0] ? part.prompt.indexOf(folders[0]) : -1;
+  if (at < 0) return <p className="inputcard__prompt">{part.prompt}</p>;
+  return (
+    <p className="inputcard__prompt">
+      {part.prompt.slice(0, at)}
+      {folders.map((f, i) => (
+        <Fragment key={f}>
+          {i ? ", " : ""}
+          <code className="inputcard__folder">{f}</code>
+        </Fragment>
+      ))}
+    </p>
   );
 }
 
@@ -93,7 +115,7 @@ function PendingInput({ part }: { part: InputPartData }) {
   const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const tick = (o: string) => setPicked((p) => (p.includes(o) ? p.filter((x) => x !== o) : [...p, o]));
-  const send = async (a: { decision?: "approve" | "deny"; text?: string; scope?: "once" | "session" | "always" }) => {
+  const send = async (a: { decision?: "approve" | "deny"; text?: string; scope?: ApprovalScope }) => {
     setBusy(true);
     await respond(part.input_id, a);
     setBusy(false);
@@ -106,10 +128,30 @@ function PendingInput({ part }: { part: InputPartData }) {
           {t(part.kind === "confirm" ? "input.confirmTitle" : "input.questionTitle")}
         </span>
       </div>
-      <p className="inputcard__prompt">{part.prompt}</p>
+      <Prompt part={part} />
       <Detail part={part} />
-      {part.approval_scopes && <p className="resd__note">{t("input.scopeHelp")}</p>}
-      {part.kind === "confirm" && (
+      {part.approval_scopes && !part.folders && <p className="resd__note">{t("input.scopeHelp")}</p>}
+      {part.kind === "confirm" && part.folders && (
+        <div className="inputcard__actions">
+          <Button size="sm" loading={busy} onClick={() => send({ decision: "approve" })}>
+            {t("input.folderOnce")}
+          </Button>
+          {part.approval_scopes?.includes("project") && (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => send({ decision: "approve", scope: "project" })}
+            >
+              {t(part.folders.length > 1 ? "input.folderKeepMany" : "input.folderKeep")}
+            </Button>
+          )}
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => send({ decision: "deny" })}>
+            {t("input.folderDeny")}
+          </Button>
+        </div>
+      )}
+      {part.kind === "confirm" && !part.folders && (
         <div className="inputcard__actions">
           <Button size="sm" loading={busy} onClick={() => send({ decision: "approve" })}>
             {t(part.approval_scopes ? "input.approveOnce" : "input.approve")}

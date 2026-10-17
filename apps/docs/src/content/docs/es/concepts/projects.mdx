@@ -124,6 +124,12 @@ Una carpeta de solo lectura tiene que existir y ser una carpeta. No puede ser la
 ella ni una que la contenga, y no puede estar adentro de la carpeta del proyecto (ahí los agentes ya leen y escriben).
 APX guarda la lista en su base de datos, no en `.apc/`, así que un repo no puede ampliar lo que leen sus agentes.
 
+Cuando un agente lee fuera de sus carpetas en un proyecto (un `ls ..` para mirar alrededor, un archivo de otro checkout
+al lado), no se queda trabado: el chat muestra una tarjeta, **Fausto quiere leer** y la carpeta, con **Solo esta vez**
+(esa llamada lee ahí), **Permitir leerla en este proyecto** (la carpeta pasa a ser de solo lectura, con los controles de
+arriba) y **No**. Un agente con autonomía total lee sin tarjeta, y no se suma nada. Escribir fuera de sus carpetas
+sigue rechazado, igual que leer en un chat sin proyecto.
+
 ## El proyecto base
 
 Home y tus agentes globales viven en el **proyecto base**. No tiene carpeta: APX guarda su nombre y su tipo, sus

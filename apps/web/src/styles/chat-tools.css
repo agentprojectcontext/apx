@@ -152,6 +152,14 @@
 .inputcard__answer {
   color: var(--apx-fg-muted);
 }
+.inputcard__folder {
+  padding: 1px 4px;
+  border-radius: var(--apx-radius-sm);
+  background: var(--apx-fill);
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  word-break: break-all;
+}
 .inputcard__detail {
   display: block;
   max-height: 220px;

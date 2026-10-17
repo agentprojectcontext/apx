@@ -25,6 +25,7 @@ const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
         approval_scopes: approvalScopes(JSON.parse(r.approval) as ApprovalTarget),
       }
     : {}),
+  ...(r.folders ? foldersOf(r.folders) : {}),
   ...(r.approval_scope ? { approval_scope: ApprovalScope.parse(r.approval_scope) } : {}),
   ...opt("message_id", r.message_id),
   kind: r.kind as InputKind,
@@ -41,6 +42,12 @@ const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
   expires_at: r.expires_at,
   ...opt("answered_at", r.answered_at),
 });
+
+/** The folders a folder card offers, and its answers: once, and for the project when they may be kept there. */
+function foldersOf(v: string): Pick<PendingInput, "folders" | "approval_scopes"> {
+  const f = JSON.parse(v) as { dirs: string[]; keep: boolean };
+  return { folders: f.dirs, approval_scopes: f.keep ? ["once", "project"] : ["once"] };
+}
 
 export const publicInput = ({
   call_id: _c,
@@ -68,6 +75,7 @@ export function inputsRepo({ one, all, run }: Sql) {
       multi?: boolean | undefined;
       waitMs: number;
       approval?: ApprovalTarget | undefined;
+      folders?: { dirs: string[]; keep: boolean } | undefined;
     }): InputRecord {
       const id = newId("inp");
       run(
@@ -88,6 +96,7 @@ export function inputsRepo({ one, all, run }: Sql) {
           change: i.change ? JSON.stringify(i.change) : null,
           options: i.options?.length ? JSON.stringify(i.options) : null,
           multi: i.multi && i.options?.length ? 1 : null,
+          folders: i.folders ? JSON.stringify(i.folders) : null,
           state: "pending",
           created_at: now(),
           expires_at: new Date(Date.now() + i.waitMs).toISOString(),

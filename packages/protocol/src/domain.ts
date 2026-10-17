@@ -286,9 +286,10 @@ export type Author = z.infer<typeof Author>;
 
 /**
  * Repeated approvals belong to the owner; a session lasts in one chat until the core restarts. `always` with an
- * `agent_id` is that agent's; without one, every agent's.
+ * `agent_id` is that agent's; without one, every agent's. `project` answers a folder card: the folder becomes a
+ * read-only folder of the chat's project (never a grant).
  */
-export const ApprovalScope = z.enum(["once", "session", "always"]);
+export const ApprovalScope = z.enum(["once", "session", "always", "project"]);
 export type ApprovalScope = z.infer<typeof ApprovalScope>;
 /** Ends the key of a grant for a tool's calls that always ask (a destructive command, a routine change). */
 export const STRICT_APPROVAL = "#always";
@@ -347,6 +348,8 @@ export const PendingInput = z.object({
   change: FileChange.optional(),
   options: z.array(z.string()).optional(),
   multi: z.boolean().optional(),
+  /** A read outside the agent's folders: the folders it would read, which the owner may let it read. */
+  folders: z.array(z.string()).optional(),
   approval_scopes: z.array(ApprovalScope).optional(),
   approval_scope: ApprovalScope.optional(),
   state: InputState,
@@ -450,6 +453,8 @@ const KnownPart = z.discriminatedUnion("type", [
     options: z.array(z.string()).optional(),
     /** A question whose options may be picked several at once. */
     multi: z.boolean().optional(),
+    /** A read outside the agent's folders: the folders it would read (approval_scopes says if they may be kept). */
+    folders: z.array(z.string()).optional(),
     approval_scopes: z.array(ApprovalScope).optional(),
     approval_scope: ApprovalScope.optional(),
     state: InputState,

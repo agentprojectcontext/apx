@@ -206,6 +206,7 @@ export function createEngine(deps: {
   // The turn's clock stops while it waits for the owner: their time to answer is not the agent's time to work.
   const inputs = createInputs({
     store,
+    home: deps.home,
     admit: (a) => admit(a),
     hold: (runId) => {
       const clock = active.get(runId)?.clock;

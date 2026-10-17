@@ -87,6 +87,8 @@ export type Tool = {
    * does not count as outside content for confirmations.
    */
   local?: ((args: Record<string, unknown>) => boolean) | undefined;
+  /** This call only reads, on this machine (a shell command of known readers): its risk is read (DECISIONS.md#d-098). */
+  reads?: ((args: Record<string, unknown>) => boolean) | undefined;
   /**
    * It writes files or runs commands in the folder the agent works in: what `edits` autonomy lets run without asking,
    * short of what always asks.
@@ -101,6 +103,11 @@ export type Tool = {
    * the owner is asked: nobody approves a call that could only fail. Throws what the call itself would.
    */
   check?: ((args: Record<string, unknown>, ctx: CheckContext) => void | Promise<void>) | undefined;
+  /**
+   * The folders outside the agent's own this call would read (tools/folders.ts outsideFolders): the owner is asked to
+   * let it, and the call then runs with them lent (`thread.lent`) instead of being refused.
+   */
+  outside?: ((args: Record<string, unknown>, ctx: CheckContext) => string[]) | undefined;
   /** What the call would change in a file, shown to the owner when they are asked to confirm it. */
   preview?: ((args: Record<string, unknown>, ctx: CheckContext) => Promise<FileChange | undefined>) | undefined;
   /** Checks the model's arguments; a failure goes back to the model as the tool's result. */
@@ -121,10 +128,12 @@ export function defineTool<S extends Args>(def: {
   confirm?: Confirm | ((args: z.output<S>) => Confirm);
   deadlineMs: number;
   local?: (args: z.output<S>) => boolean;
+  reads?: (args: z.output<S>) => boolean;
   workspace?: true;
   needsCap?: string;
   when?: (thread: Thread) => boolean;
   check?: (args: z.output<S>, ctx: CheckContext) => void | Promise<void>;
+  outside?: (args: z.output<S>, ctx: CheckContext) => string[];
   preview?: (args: z.output<S>, ctx: CheckContext) => Promise<FileChange | undefined>;
   title(args: Partial<z.input<S>>): string;
   run(args: z.output<S>, ctx: ToolContext): Promise<string>;
@@ -143,10 +152,14 @@ export function defineTool<S extends Args>(def: {
     ...(def.check
       ? { check: (a: Record<string, unknown>, ctx: CheckContext) => def.check?.(a as z.output<S>, ctx) }
       : {}),
+    ...(def.outside
+      ? { outside: (a: Record<string, unknown>, ctx: CheckContext) => def.outside?.(a as z.output<S>, ctx) ?? [] }
+      : {}),
     ...(def.preview
       ? { preview: async (a: Record<string, unknown>, ctx: CheckContext) => def.preview?.(a as z.output<S>, ctx) }
       : {}),
     ...(def.local ? { local: (a: Record<string, unknown>) => def.local?.(a as z.output<S>) === true } : {}),
+    ...(def.reads ? { reads: (a: Record<string, unknown>) => def.reads?.(a as z.output<S>) === true } : {}),
     parse(raw) {
       const r = def.args.safeParse(raw);
       if (r.success) return { ok: true, args: r.data as Record<string, unknown> };

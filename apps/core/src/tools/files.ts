@@ -8,7 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { textDiff } from "../engine/changes.ts";
 import { guarded } from "../engine/paths.ts";
 import { insideReal, writeAtomic } from "../paths.ts";
-import { folderAccess, scratchRoot } from "./folders.ts";
+import { type FolderThread, folderAccess, outsideFolders, scratchRoot } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
@@ -136,14 +136,16 @@ export function fileTools(store: Store, home: string): Tool[] {
   };
   /** Where `file` is: in the folder the agent works in or its temp folder, or why it is refused. */
   const resolve = (
-    thread: ToolContext["thread"],
+    thread: FolderThread,
     a: { path: string; cwd?: string | undefined },
     write = false,
-  ): { at: string; base: string; scratch: boolean } | { refused: string } => {
+  ): { at: string; base: string; scratch: boolean } | { refused: string; offer?: string } | { missing: string } => {
     if (a.cwd !== undefined) {
       const dir = folderAccess(store, home, thread, a.cwd);
       if ("refused" in dir) return dir;
-      if (!fs.existsSync(dir.at) || !fs.statSync(dir.at).isDirectory()) return { refused: `no folder ${a.cwd}` };
+      const stat = fs.statSync(dir.at, { throwIfNoEntry: false });
+      // Not a permission: said plainly, so the agent does not go asking for one.
+      if (!stat?.isDirectory()) return { missing: `${a.cwd} ${stat ? "is not a folder" : "does not exist"}` };
     }
     // Links resolved: a symlink inside the folder must not send the write somewhere else.
     const r = folderAccess(store, home, thread, a.path, { cwd: a.cwd, write });
@@ -187,13 +189,20 @@ export function fileTools(store: Store, home: string): Tool[] {
       effect: "none",
       // Only files under the folder it works in.
       local: () => true,
+      outside: (a, ctx) =>
+        outsideFolders((lent) => {
+          const r = resolve({ ...ctx.thread, lent }, a);
+          return "missing" in r ? { refused: r.missing } : { write: false, ...r };
+        }),
       // Room for transcribing an audio file; a text file returns at once.
       deadlineMs: 200_000,
       title: (a) => `Read ${String(a.path ?? "a file")}`,
       async run(a, ctx) {
         const r = resolve(ctx.thread, a);
         if ("refused" in r) return `refused: ${r.refused}`;
-        if (!fs.existsSync(r.at) || !fs.statSync(r.at).isFile()) return `no file ${a.path}`;
+        if ("missing" in r) return r.missing;
+        const stat = fs.statSync(r.at, { throwIfNoEntry: false });
+        if (!stat?.isFile()) return `${a.path} ${stat ? "is not a file" : "does not exist"}`;
         if (IMAGE.test(r.at) && ctx.see) {
           const { media } = await ctx.call("media.attach", { path: r.at });
           ctx.see({ media_id: media.id, mime: media.mime });
@@ -234,13 +243,14 @@ export function fileTools(store: Store, home: string): Tool[] {
       title: (a) => `Wrote ${String(a.path ?? "a file")}`,
       async preview(a, ctx) {
         const r = resolve(ctx.thread, a, true);
-        if ("refused" in r || (fs.existsSync(r.at) && !fs.statSync(r.at).isFile())) return undefined;
+        if ("refused" in r || "missing" in r || (fs.existsSync(r.at) && !fs.statSync(r.at).isFile())) return undefined;
         const existed = fs.existsSync(r.at);
         return proposed(r, existed ? "M" : "A", existed ? fs.readFileSync(r.at, "utf8") : "", a.content);
       },
       async run(a, ctx) {
         const r = resolve(ctx.thread, a, true);
         if ("refused" in r) return `refused: ${r.refused}`;
+        if ("missing" in r) return r.missing;
         if (fs.existsSync(r.at) && fs.statSync(r.at).isDirectory()) return `refused: ${a.path} is a folder`;
         const existed = fs.existsSync(r.at);
         const before = existed ? fs.readFileSync(r.at, "utf8") : "";
@@ -282,7 +292,7 @@ export function fileTools(store: Store, home: string): Tool[] {
       title: (a) => `Edited ${String(a.path ?? "a file")}`,
       async preview(a, ctx) {
         const r = resolve(ctx.thread, a, true);
-        if ("refused" in r || !fs.existsSync(r.at) || !fs.statSync(r.at).isFile()) return undefined;
+        if ("refused" in r || "missing" in r || !fs.existsSync(r.at) || !fs.statSync(r.at).isFile()) return undefined;
         const text = fs.readFileSync(r.at, "utf8");
         const edit = applyEdit(text, a);
         return "error" in edit ? undefined : proposed(r, "M", text, edit.next);
@@ -290,7 +300,9 @@ export function fileTools(store: Store, home: string): Tool[] {
       async run(a, ctx) {
         const r = resolve(ctx.thread, a, true);
         if ("refused" in r) return `refused: ${r.refused}`;
-        if (!fs.existsSync(r.at) || !fs.statSync(r.at).isFile()) return `no file ${a.path}: create it with file_write`;
+        if ("missing" in r) return r.missing;
+        if (!fs.existsSync(r.at) || !fs.statSync(r.at).isFile())
+          return `${a.path} does not exist as a file: create it with file_write`;
         const text = fs.readFileSync(r.at, "utf8");
         const edit = applyEdit(text, a);
         if ("error" in edit) return edit.error;

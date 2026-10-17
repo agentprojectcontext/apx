@@ -23,3 +23,9 @@ const en: typeof es = {
 /** The question shown when an agent's action waits for the owner. */
 export const confirmPrompt = (store: Store, why: ConfirmWhy, agent: string, tool: string) =>
   (store.settings.get("owner_language") === "en" ? en : es)[why](agent, tool);
+
+/** The question of a folder card: an agent wants to read folders outside its own. */
+export const folderPrompt = (store: Store, agent: string, folders: string[]) =>
+  store.settings.get("owner_language") === "en"
+    ? `${agent} wants to read ${folders.join(", ")}`
+    : `${agent} quiere leer ${folders.join(", ")}`;

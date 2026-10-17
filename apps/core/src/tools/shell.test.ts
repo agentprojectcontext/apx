@@ -22,17 +22,33 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "ls -lh 'reels/reel 143.mp4'",
   ])
     assert.equal(commandRisk(c), "never", c);
-  const asks = [
-    "find . -name '*.png' -exec rm {} +",
-    "find . '-delete'",
+  // Reading anywhere is not the owner's to approve: the folder rule judges where (DECISIONS.md#d-098).
+  for (const c of [
     `grep "$HOME" x`,
     "cat '/etc/passwd'",
     "ls '../x'",
+    "echo $(whoami)",
+    "cat ~/.ssh/id_rsa",
+    "cat ../x",
+    "git branch -avv",
+    "git tag -l 'v2*'",
+    "git config --get user.name",
+    "git remote -v",
+    "git worktree list",
+    "git stash list",
+    "sed -n '1,20p' a.txt",
+    "awk '{print $1}' a | sort | uniq -c",
+    "find . -name '*.ts' -exec grep -l TODO {} +",
+    "ls 2>/dev/null",
+  ])
+    assert.equal(commandRisk(c), "never", c);
+  const asks = [
+    "find . -name '*.png' -exec rm {} +",
+    "find . '-delete'",
     `for f in a b; do [ -f "$f" ] && ls "$f"; done`,
     "touch x",
     "npm install",
     "ls > out.txt",
-    "echo $(whoami)",
     "find . -delete",
     "node build.js",
     // Second commands, writes and paths outside the project hidden in "reading" commands.
@@ -43,14 +59,26 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
     "sort -o f x",
     "git branch -D main",
     "git diff --output=f",
-    "cat ~/.ssh/id_rsa",
-    "cat /etc/passwd",
     "FOO=1 ls",
-    "cat ../x",
     "tree -o f",
     "rg --pre ./s x",
     "rg --hostname-bin=./s x",
     "ls; rm x",
+    // Reading that runs or writes something else, or a word only the shell can place.
+    "sed 's/a/b/w out' x",
+    "sed -n '1e date' x",
+    "awk '{print $1 > \"o\"}' a",
+    "awk 'BEGIN{system(\"id\")}'",
+    "cat a | tee b",
+    "git -c core.pager=x log",
+    "git grep -O vim foo",
+    "git tag v1",
+    "git branch new",
+    "git remote add o https://example.com/r.git",
+    "git config user.name x",
+    "wc -l $(find . -name '*.ts')",
+    "cat $FILE",
+    "cat x | xargs ls",
   ];
   for (const c of asks) assert.equal(commandRisk(c), "ask", c);
   const destroys = [
@@ -94,6 +122,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
     return callTool("s7", "shell", { command: "find /Volumes/disk -type d -name audit -print" });
   if (said.includes("touch please")) return callTool("s4", "shell", { command: "touch made-by-agent" });
   if (said.includes("escape please")) return callTool("s5", "shell", { command: "ls", cwd: "../.." });
+  if (said.includes("gone please")) return callTool("s8", "shell", { command: "ls", cwd: "gone-tree" });
   return say("ok");
 });
 
@@ -214,6 +243,14 @@ test("a cwd outside the project folder is refused", async () => {
   await env.client.call("threads.send", { thread: t, text: "escape please" });
   await env.settle(t);
   assert.match(lastSeen(), /refused: \.\.\/\.\. is outside the folders you can read/);
+});
+
+test("a cwd that no longer exists is said plainly, not as a refusal", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "gone please" });
+  await env.settle(t);
+  assert.match(lastSeen(), /gone-tree does not exist/);
+  assert.doesNotMatch(lastSeen(), /refused/);
 });
 
 test("a folder that is a symlink pointing outside the project is refused", async () => {

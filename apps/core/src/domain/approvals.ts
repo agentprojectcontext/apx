@@ -127,7 +127,8 @@ export function approvalsRepo(q: Sql) {
       );
     },
     grant(a: ApprovalTarget, scope: ApprovalScope, thread: string, agent?: string): void {
-      if (scope === "once") return;
+      // A folder card's `project` adds a read-only folder (inputs.respond), never a grant.
+      if (scope === "once" || scope === "project") return;
       const g: ToolApproval = {
         key: a.key,
         server: a.server,

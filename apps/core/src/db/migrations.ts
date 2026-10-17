@@ -740,4 +740,9 @@ export const MIGRATIONS: readonly string[] = [
   -- kept by APX, as autonomy is, so a folder someone else wrote cannot widen what its agents read.
   ALTER TABLE projects ADD COLUMN read_only_folders TEXT;
   `,
+  `
+  -- A read outside an agent's folders asks the owner (engine/executor.ts lend): the folders it would read, as JSON
+  -- {dirs, keep}, keep when they may become read-only folders of the project.
+  ALTER TABLE pending_inputs ADD COLUMN folders TEXT;
+  `,
 ];

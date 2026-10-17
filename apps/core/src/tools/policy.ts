@@ -101,7 +101,8 @@ const BRIDGE = new Set(["mcp_search", "mcp_call"]);
  * then a model may be acting on someone else's instructions, so high-impact calls wait for the owner.
  */
 export function authorize(tool: Tool, args: Record<string, unknown>, agent: AgentRecord, untrusted: boolean): Decision {
-  return decide(tool.confirm(args), tool.effect, agent, untrusted, tool.workspace);
+  // A call that only reads here is risk read whatever the tool may do otherwise (DECISIONS.md#d-098).
+  return decide(tool.confirm(args), tool.reads?.(args) ? "none" : tool.effect, agent, untrusted, tool.workspace);
 }
 
 const OUTSIDE = "content from outside (web, another agent or a message) is in this turn";
@@ -143,6 +144,13 @@ export function decide(
   if (level === "untrusted" && untrusted) return { kind: "confirm", why: "untrusted", reason: OUTSIDE };
   return { kind: "allow" };
 }
+
+/**
+ * How a read outside the agent's folders goes (DECISIONS.md#d-099): its rule for acting outside, else its autonomy's;
+ * `auto` (total autonomy) reads without a card, `ask` shows one, `off` keeps the refusal.
+ */
+export const outsideRule = (agent: AgentRecord): RulePolicy =>
+  agent.rules?.outside ?? AUTONOMY_RULES[agent.autonomy ?? "standard"].outside;
 
 const STRICTNESS = { ask: 0, standard: 1, edits: 2, total: 3 } as const;
 

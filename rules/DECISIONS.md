@@ -1170,3 +1170,37 @@ database and secrets), and not inside the project's own folder (already writable
 and ACP agents ask APX about each of their tools, and reads in these folders now run without asking while any change
 there is refused (their commands judged as the shell tool's); Codex's sandbox already reads anywhere and its `additionalDirectories` would make a folder writable,
 so it is not given them. The base project has none yet.
+
+<a id="d-098"></a>
+## D-098 — 2026-10-17 — A shell command that only reads on this machine never waits for the owner
+An agent working on a repository stopped fourteen times in one chat for commands that only looked (`find . | grep`,
+`git ls-tree`, `git log --format=…`, `git branch -avv`, `git -C <read-only folder> rev-parse`), every one approved:
+the shell tool acts outside (`effect: external`), and only simple commands with plain relative arguments counted as
+reading, so anything else asked, with outside content in the turn or not. Now a command line every part of which is a
+known local reader (`ls`, `find` without `-delete` or an `-exec` that is not itself a reader, `grep`/`rg`/`ag`,
+`cat`/`head`/`tail`/`wc`/`sort`/`uniq`/`cut`/`tr`/`jq`, `sed` without `-i` or a `w`/`e` command, `awk` without printing
+into a file, a pipe or `system`, `stat`, `du`, `tree`, `diff`, `echo`, `pwd`, and git's reading subcommands and the list
+forms of `branch`, `tag`, `stash`, `remote`, `config` and `worktree`), joined by pipes, `&&` or `;`, writing nowhere
+(no redirection into a file, no `tee`, no output option) and with no word only the shell can place (`$X`, `$(…)`), is
+risk `read` (D-090) whatever the tool may do otherwise: `read` is `auto` in every autonomy (D-047), so it runs without
+asking even with outside content in the turn; an agent's own `rules: read=ask` still asks. Where it reads is not the
+owner's to approve but the folder rule's (D-097), which judges every path it names. Anything that reaches the network
+(`curl`, `gh`, `git fetch|pull|push`, `npm`), writes, sets a variable or a git option (`-c` can name a program to run),
+or that the classifier does not know keeps asking as before. Outside agents' commands (Claude Code, ACP) are judged the
+same way. AGENTS.md rule 10 holds: what stops asking has no side effect and no way off the machine.
+
+<a id="d-099"></a>
+## D-099 — 2026-10-17 — A read outside the project's folders asks the owner with a card instead of being refused
+A refused read told the agent to "ask the owner with ask_owner to add it as a read-only folder": one ran `ls ..` as a
+first look, concluded its chat had only a read-only repository, and asked the owner, in a question with a text box only,
+to "enable a writable worktree". The owner had nothing to press. Now a read outside the agent's folders, in a project,
+is a card on the approval flow: "<agent> wants to read <folder>" with "Only this time" (that call runs with the folder
+lent to it, `thread.lent`, after every other root, so other chats' temp folders and APX's home stay closed), "Allow
+reading it in this project" (the folder joins the project's read-only folders through the checks `projects.update`
+uses, D-097: never APX's home or a folder holding it or the temp folders, so for those only "once" is offered) and
+"No". The folder offered is the nearest one on disk holding the path (the parent folder for `..`), not the disk. A shell
+command reading several outside folders raises one card for all of them; `file_read` asks the same way (tools declare
+`outside`). An agent whose rule for acting outside is `auto` (total autonomy) reads without a card and nothing is kept;
+`off` keeps the refusal. Writes outside stay refused, a chat with no project keeps the refusal (there is nothing to add
+a folder to), and no refusal sends the agent to `ask_owner` for a folder any more. A "once" given after the turn
+stopped waiting lets the same call run when the agent makes it again.

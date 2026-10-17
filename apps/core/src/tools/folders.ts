@@ -36,6 +36,26 @@ export function workDir(
 }
 
 /**
+ * Why a `cwd` an agent gave is not a folder to run in (a worktree removed since), or undefined: said plainly, never as
+ * a refusal, so the agent does not read it as a permission it lacks.
+ */
+export function missingCwd(
+  store: Store,
+  home: string,
+  thread: Parameters<typeof workDir>[2],
+  cwd: string | undefined,
+): string | undefined {
+  if (cwd === undefined) return undefined;
+  const base = workDir(store, home, thread);
+  const at = path.resolve(base, expandHome(cwd));
+  // The folder it works in is made on first use.
+  if (at === base) return undefined;
+  const stat = fs.statSync(at, { throwIfNoEntry: false });
+  if (!stat) return `${cwd} does not exist`;
+  return stat.isDirectory() ? undefined : `${cwd} is not a folder`;
+}
+
+/**
  * Where an outside agent (Claude, Codex, an ACP agent) works: a code thread's folder, else APX's side of the project,
  * never the project's own folder (its settings there would apply unchecked), else APX's work folder.
  */
@@ -63,10 +83,16 @@ export function scratchDir(store: Store, home: string, thread: { id: string; par
 export const scratchRoot = (home: string) =>
   path.join(os.tmpdir(), `apx-scratch-${createHash("sha256").update(home).digest("hex").slice(0, 8)}`);
 
-/** A folder an agent may use (`off`: one it may not, inside one it may). The first is where relative paths start. */
-export type Root = { dir: string; write: boolean; scratch: boolean; off?: boolean };
+/**
+ * A folder an agent may use (`off`: one it may not, inside one it may; `lent`: the owner let it read there for one
+ * call). The first is where relative paths start.
+ */
+export type Root = { dir: string; write: boolean; scratch: boolean; off?: boolean; lent?: boolean };
 
-type Thread = Parameters<typeof workDir>[2] & Parameters<typeof scratchDir>[2];
+/** A thread as the folder rule sees it; `lent`: folders outside its own the owner let this one call read. */
+export type FolderThread = Parameters<typeof workDir>[2] &
+  Parameters<typeof scratchDir>[2] & { lent?: readonly string[] | undefined };
+type Thread = FolderThread;
 
 /** The folders the owner added to a thread's project for its agents to read and never change. */
 export function readOnlyFolders(store: Store, thread: { project_id?: string | undefined }): string[] {
@@ -102,6 +128,8 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
     { dir: scratchDir(store, home, thread), write: true, scratch: true },
     ...readOnlyFolders(store, thread).map((dir) => ({ dir, write: false, scratch: false })),
     ...sharedRoots(home),
+    // Last, so other chats' temp folders stay closed even inside a folder lent for one call.
+    ...(thread.lent ?? []).map((dir) => ({ dir, write: false, scratch: false, lent: true })),
   ];
 }
 
@@ -138,13 +166,18 @@ export function checkReadOnly(home: string, project: { path?: string | undefined
   return out;
 }
 
-/** Where a path lands (`base`: the folder it is in) and whether it may be changed, or why it is refused. */
-export type Access = { at: string; base: string; scratch: boolean; write: boolean } | { refused: string };
+/**
+ * Where a path lands (`base`: the folder it is in) and whether it may be changed, or why it is refused (`offer`: a read
+ * outside, in a project: the folder holding it, which the owner may let the agent read).
+ */
+export type Access =
+  | { at: string; base: string; scratch: boolean; write: boolean }
+  | { refused: string; offer?: string };
 
 /** Every refusal says what to do next, the same from every tool: it lands in context each time, so it stays short. */
 export const refusal = {
   outside: (p: string) =>
-    `${p} is outside the folders you can read. If the task needs it, ask the owner with ask_owner to add it as a read-only folder of the project.`,
+    `${p} is outside the folders you can read: the folder you work in, your temp folder and the project's read-only folders.`,
   unwritable: (p: string) =>
     `${p} is outside the folders you can change: write in the folder you work in or your temp folder.`,
   readOnly: (p: string) => `${p} is in a read-only folder: it can be read, never changed.`,
@@ -195,13 +228,53 @@ export function judge(roots: Root[], file: string, from: string, o: JudgeOptions
   const at = path.resolve(from, expandHome(file));
   const lands = physical(from, expandHome(file));
   const root = roots.find((r) => insideReal(r.dir, lands));
-  if (!root || root.off) {
+  if (!root || root.off || root.lent) {
+    // A folder lent for one call never opens APX's home inside it.
     if (o.home && insideReal(o.home, lands)) return { refused: refusal.apx(name) };
+  }
+  if (!root || root.off) {
     if (o.write) return { refused: refusal.unwritable(name) };
-    return { refused: o.project === false ? refusal.alone(name) : refusal.outside(name) };
+    if (o.project === false) return { refused: refusal.alone(name) };
+    // In a project the owner may let it read there: the card offers the folder holding the path.
+    const offer = o.project && o.home && !root ? { offer: holding(lands) } : {};
+    return { refused: refusal.outside(name), ...offer };
   }
   if (o.write && !root.write) return { refused: refusal.readOnly(name) };
   return { at, base: root.dir, scratch: root.scratch, write: root.write };
+}
+
+/** The nearest folder on disk holding a path: itself when it is one, else the folder of the file it names. */
+function holding(p: string): string {
+  let dir = p;
+  while (!fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory() && path.dirname(dir) !== dir)
+    dir = path.dirname(dir);
+  return dir;
+}
+
+/**
+ * The folders outside the agent's own a call would read, found one at a time by lending each the folder rule offers
+ * (`judgeWith` judges the call with those lent): [] when it needs none, or when it is refused for another reason.
+ */
+export function outsideFolders(judgeWith: (lent: string[]) => Access): string[] {
+  const lent: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    const r = judgeWith(lent);
+    if (!("refused" in r)) return lent;
+    if (!r.offer || lent.includes(r.offer)) return [];
+    lent.push(r.offer);
+  }
+  return [];
+}
+
+/**
+ * Adds folders to a project's read-only ones, checked as projects.update checks them (checkReadOnly); `dry` only
+ * checks. Throws the first problem.
+ */
+export function addReadOnly(store: Store, home: string, projectId: string, folders: string[], dry = false): void {
+  const project = store.projects.get(projectId);
+  if (!project) throw new Error(`no project ${projectId}`);
+  const all = checkReadOnly(home, project, [...(project.read_only_folders ?? []), ...folders]);
+  if (!dry) store.projects.setReadOnlyFolders(projectId, all);
 }
 
 /**

@@ -8,37 +8,21 @@ import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { commandShell } from "../processes.ts";
 import { namedPaths } from "./command-paths.ts";
-import { type Access, folderAccess, type JudgeOptions, judge, type Root, refusal, rootsOf } from "./folders.ts";
+import { readsOnly } from "./command-reads.ts";
+import {
+  type Access,
+  folderAccess,
+  type JudgeOptions,
+  judge,
+  missingCwd,
+  outsideFolders,
+  type Root,
+  refusal,
+  rootsOf,
+} from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool } from "./types.ts";
 
-/**
- * Programs that only read when given plain arguments. Anything with options that write (sort -o, tree -o, rg --pre,
- * file -C, git --output) is left out or checked below.
- */
-const READ_ONLY = new Set([
-  "sleep",
-  "true",
-  "ls",
-  "pwd",
-  "cat",
-  "head",
-  "tail",
-  "wc",
-  "grep",
-  "echo",
-  "which",
-  "date",
-  "whoami",
-  "du",
-  "df",
-  "stat",
-  "uname",
-  "cut",
-]);
-const READ_ONLY_GIT = new Set(["status", "log", "diff", "show", "rev-parse", "ls-files", "blame"]);
-/** Shell syntax that can hide a second command, a redirection, an expansion or a subshell. */
-const SHELL_SYNTAX = /[\n\r&;|<>`$(){}\\[\]!#~]/;
 const DESTRUCTIVE =
   /\b(sudo|su|doas|mkfs|dd|shutdown|reboot|halt|diskutil|launchctl|crontab|shred|srm)\b|\brm\b[^|;&]*\s(-\w*[rf]|--recursive|--force)|\bgit\b[^|;&]*\s(push|reset\s+--hard|clean\b|filter-branch|update-ref\s+-d)|\b(curl|wget|fetch)\b[^|]*\|\s*(sudo\s+)?(ba|z|da|k)?sh\b|\bchmod\b[^|;&]*\s-\w*R|\bchown\b[^|;&]*\s-\w*R|:\(\)\s*\{|\/dev\/(sd|disk|nvme)/;
 
@@ -48,9 +32,6 @@ const normalize = (c: string) =>
     .replace(/\\\n/g, " ")
     .replace(/["'\\]/g, "")
     .replace(/(^|[\s;&|(])\/(?:[\w.-]+\/)*([\w.-]+)/g, "$1$2");
-
-/** A plain, project-local argument: not a path that leaves the folder, not the home, no `..`. */
-const localArg = (a: string) => !a.startsWith("/") && !a.includes("..") && !/^(~|\.apx)/.test(a);
 
 /** Programs that walk a whole folder tree; grep and ls only with a recursive flag. */
 const WALKERS = new Set(["find", "fd", "rg", "du", "tree"]);
@@ -81,8 +62,8 @@ export function broadScan(command: string, home = os.homedir()): string | undefi
 }
 
 /**
- * How much the owner must be asked for this command. Only simple commands of known reading programs, with plain
- * arguments inside the project, run without asking; anything the classifier cannot be sure of asks.
+ * How much the owner must be asked for this command. Commands that only read on this machine run without asking
+ * (DECISIONS.md#d-098); anything the classifier cannot be sure of asks.
  */
 export function commandRisk(command: string, apxPort?: number): Confirm {
   const c = command.trim();
@@ -92,23 +73,8 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
     return "always";
   // So does APX's own CLI, which finds the port by itself.
   if (/(^|[\s;&|(`])([\w./~-]*\/)?(apx|[\w./-]*apps\/terminal\/src\/main\.ts)(\s|$)/.test(c)) return "always";
-  // Pipes, && and ; between simple commands are fine; any other shell syntax is not judged, it is asked.
-  const segments = c.split(/&&|\|\||\||;/).map((x) => x.trim());
-  const simple = (raw: string): boolean => {
-    // Quoted plain text ('*.png', "two words") is an argument like any other; `\(` `\)` only group find's tests.
-    let seg = raw.replace(/'([^'"]*)'|"([^'"$`\\]*)"/g, (_m, s?: string, d?: string) => s ?? d ?? "");
-    if (/^find\s/.test(seg)) seg = seg.replace(/(^|\s)\\[()](?=\s|$)/g, " ");
-    if (!seg || SHELL_SYNTAX.test(seg) || /["']/.test(seg)) return false;
-    const [word = "", ...args] = seg.split(/\s+/);
-    if (/=/.test(word)) return false;
-    if (!args.every(localArg)) return false;
-    const sub = args[0] === "-C" ? args[2] : args[0];
-    if (word === "git") return READ_ONLY_GIT.has(sub ?? "") && !args.some((x) => x.startsWith("--output"));
-    if (word === "find") return !args.some((x) => /^-(exec|ok|delete|fprint|fls|fprintf)/.test(x));
-    if (word === "rg") return !args.some((x) => /^--(pre|hostname-bin)/.test(x));
-    return READ_ONLY.has(word);
-  };
-  return segments.every(simple) ? "never" : "ask";
+  // Only reading, here: where it reads is the folder rule's to judge (commandFolder), not the owner's to approve.
+  return readsOnly(c) ? "never" : "ask";
 }
 
 /** Programs, libraries, devices and system settings a command may read or run (`/usr/bin/env`, `/etc/hosts`). */
@@ -223,11 +189,18 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
       confirm: (a) => commandRisk(a.command, apxPort()),
       // A command that could only be refused is not put to the owner.
       check(a, ctx) {
+        const missing = missingCwd(store, home, ctx.thread, a.cwd);
+        if (missing) throw new Error(missing);
         const r = commandFolder(store, home, ctx.thread, a);
         if ("refused" in r) throw new Error(`refused: ${r.refused}`);
       },
+      outside: (a, ctx) =>
+        missingCwd(store, home, ctx.thread, a.cwd)
+          ? []
+          : outsideFolders((lent) => commandFolder(store, home, { ...ctx.thread, lent }, a)),
       workspace: true,
       local: (a) => !a.background && commandRisk(a.command, apxPort()) === "never",
+      reads: (a) => commandRisk(a.command, apxPort()) === "never",
       // Covers the longest foreground wait plus the time to stop the process.
       deadlineMs: 615_000,
       title: (a) => `Ran ${String(a.command ?? "").slice(0, 60)}`,
@@ -241,7 +214,7 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
         if (a.command.includes(home) || /\.apx(2\b|\/v2\b)/.test(a.command))
           return "refused: APX's own folder is off limits";
         if (cwd === base) fs.mkdirSync(base, { recursive: true });
-        else if (!fs.existsSync(cwd)) return `no folder ${a.cwd} in the project`;
+        else if (!fs.existsSync(cwd)) return `${a.cwd} does not exist`;
         const r = await ctx.runCommand({
           command: a.command,
           cwd,

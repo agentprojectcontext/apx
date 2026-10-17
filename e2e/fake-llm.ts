@@ -3,7 +3,8 @@
 // delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn, "start a
 // worker in <project id>" into that project, "start four slow workers" four at once, each taking a few seconds, so one
 // waits for a slot; "start a worker and keep going" hands one off and takes a while to answer, so the worker's result
-// waits behind that turn); "make a note file" runs a command that needs the owner's OK; "show a widget" makes one; "open a
+// waits behind that turn); "make a note file" runs a command that needs the owner's OK; "look around the parent
+// folder" reads outside the project's folder (a folder card); "show a widget" makes one; "open a
 // report" writes one and opens it as a document. It also
 // embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
@@ -100,6 +101,9 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
       name: "show_widget",
       arguments: JSON.stringify({ name: "e2e-coverage", title: "Coverage audit", html: "<h1>Coverage rows</h1>" }),
     };
+  // A first look past the project's folder: a folder card asks the owner.
+  if (/^look around the parent folder/i.test(said))
+    return { name: "shell", arguments: JSON.stringify({ command: "pwd; ls .." }) };
   // A command that writes: the owner is asked first.
   if (/^make a note file/i.test(said))
     return { name: "shell", arguments: JSON.stringify({ command: "touch e2e-note.txt" }) };
