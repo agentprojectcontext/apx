@@ -102,7 +102,7 @@ const http = process.getBuiltinModule("node:http");
 
 /** Engine ids a thread or agent may name: the CLI harnesses, every ACP agent, every configured provider. */
 export function knownEngines(store: Store, providers: { has: (id: string) => boolean }) {
-  const harnessEngines = () => ["claude", "codex", ...acpAgents(store).map(acpEngine)];
+  const harnessEngines = () => ["claude", "codex", "aider", "antigravity", ...acpAgents(store).map(acpEngine)];
   return {
     harness: { has: (id: string) => harnessEngines().includes(id) },
     providers: { has: providers.has },

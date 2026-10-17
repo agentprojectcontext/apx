@@ -99,13 +99,18 @@ availability, not Asana object-level permissions.
 `threads.send` (the only door) stores the message and a `submitted` run with its input → `engine/engine.ts` runs
 a thread's queue one run at a time → `engine/turn.ts` builds the context (`engine/context.ts`: byte-stable system
 prompt, projected history, per-turn input with the origin envelope), logs the input, and hands the turn to the
-agent's harness (`harness/`: native over `providers/`, Claude Code, Codex) → every tool call goes through one
+agent's harness (`harness/`: native over `providers/`, Claude Code, Codex, ACP agents, Aider and headless Antigravity) → every tool call goes through one
 executor (`engine/executor.ts`: check the arguments against the tool's zod schema → `tools/policy.ts` `authorize`
 → wait for the owner when it says so → `steps` row → run with a deadline → full output kept, a capped copy to the
 model) → the answer's parts stream as `message.part` events → the run ends completed / failed / canceled with a
 notice when there is no text. Tools that touch core state call protocol methods through the router as the agent
 (`ctx.call`), so owner-only methods refuse them.
 
+- **One-shot CLIs** (`harness/oneshot.ts`): Aider and headless Antigravity use `threads.send` in their own code
+  sessions, not ACP. Each approved invocation gets a private request file and a credential-filtered environment;
+  `agy` receives only the file-reading instruction in argv. A single external step represents the unmediated CLI,
+  never per-tool control. The engine persists outcomes; the process has cancellation and an absolute ten-minute
+  deadline. CLI discovery does not claim authentication, and GUI-only Antigravity is not runnable.
 - **Memory and long threads** (D-013): notes live in `memories` (FTS5) and reach a turn in its `[memory]` block
   (`engine/recall.ts`); `.apc/memory.md` joins `AGENTS.md` in the system prompt. After each run `engine/upkeep.ts`
   titles new chats and, when the history gets long, summarizes older turns into a new epoch that

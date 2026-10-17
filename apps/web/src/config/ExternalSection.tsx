@@ -12,6 +12,8 @@ import { SectionHead } from "./SectionHead.tsx";
 type Look = { kind: MessageKey; login: MessageKey };
 
 const LOOK: Record<string, Look> = {
+  aider: { kind: "engine.kind.cli", login: "engine.login.oneshot" },
+  antigravity: { kind: "engine.kind.cli", login: "engine.login.oneshot" },
   claude: { kind: "engine.kind.cli", login: "engine.login.claude" },
   codex: { kind: "engine.kind.cli", login: "engine.login.codex" },
 };
@@ -79,7 +81,11 @@ export function ExternalSection() {
         <div className="engines">
           {engines
             // ACP agents only when installed here.
-            .filter((e) => e.id !== "native" && (e.installed || e.id === "claude" || e.id === "codex"))
+            .filter(
+              (e) =>
+                e.id !== "native" &&
+                (e.installed || e.id === "claude" || e.id === "codex" || e.auth === "on_invocation"),
+            )
             .map((e) => (
               <EngineCard key={e.id} engine={e} />
             ))}
@@ -101,6 +107,7 @@ function EngineCard({ engine: e }: { engine: EngineStatus }) {
   const look = lookOf(e.id);
   const hint = !e.installed ? t("engines.notInstalled") : !e.logged_in ? t(look.login) : undefined;
   const kind = t(look.kind);
+  const detail = e.detail_code ? t(`engine.detail.${e.detail_code}`) : e.detail;
   const copy = (command: string) =>
     void navigator.clipboard.writeText(command).then(
       () => notify(t("engines.copied", { command }), "info"),
@@ -116,7 +123,7 @@ function EngineCard({ engine: e }: { engine: EngineStatus }) {
             {e.label}
             {e.version && <span className="engine__version">v{e.version.replace(/^v/, "")}</span>}
           </div>
-          <div className="engine__kind">{e.detail ? `${kind} · ${e.detail}` : kind}</div>
+          <div className="engine__kind">{detail ? `${kind} · ${detail}` : kind}</div>
         </div>
         <Menu
           align="end"
@@ -147,7 +154,10 @@ function EngineCard({ engine: e }: { engine: EngineStatus }) {
       </div>
       <ol className="engine__steps" aria-label={t("engines.status")}>
         <Step done={e.installed} label={t("engines.installed")} />
-        <Step done={e.logged_in} label={t("engine.loggedIn")} />
+        <Step
+          done={e.auth === "on_invocation" ? e.installed : e.logged_in}
+          label={t(e.auth === "on_invocation" ? "engine.authOnInvocation" : "engine.loggedIn")}
+        />
       </ol>
       {hint && <p className="engine__hint">{hint}</p>}
     </div>

@@ -18,7 +18,7 @@ export function parseRef(ref: string): {
 
 export const engineOf = (ref: string): string => parseRef(ref).engine;
 
-const HARNESS_ENGINES = new Set<string>(["claude", "codex"]);
+const HARNESS_ENGINES = new Set<string>(["claude", "codex", "aider", "antigravity"]);
 
 /** The harness that runs a model ref: Claude Code, Codex or an ACP agent for theirs, our own loop for providers. */
 export const harnessOf = (ref: string): HarnessId => {

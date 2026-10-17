@@ -57,7 +57,7 @@ const ZEN_PUBLIC_KEY = "public";
 const EFFORTS = new Set(["minimal", "low", "medium", "high", "xhigh", "max"]);
 const ID = /^[a-z0-9][a-z0-9-]{0,31}$/;
 /** Engine ids v2 keeps for itself: a provider of that name could not be addressed. */
-const RESERVED = new Set(["claude", "codex", "native", "acp"]);
+const RESERVED = new Set(["claude", "codex", "native", "acp", "aider", "antigravity"]);
 
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
 

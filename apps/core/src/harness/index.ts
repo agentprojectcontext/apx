@@ -17,6 +17,7 @@ import { claudeHarness } from "./claude.ts";
 import { codexHarness, type McpCommand } from "./codex.ts";
 import { type CliStatus, detectClaude, detectCodex, which } from "./detect.ts";
 import { nativeHarness } from "./native.ts";
+import { ONESHOT, oneshotHarness, oneshotStatus } from "./oneshot.ts";
 import type { Harness, TurnIO } from "./types.ts";
 
 const STATUS_CACHE_MS = 60_000;
@@ -56,6 +57,8 @@ export function createHarnesses(deps: {
   };
   const registry: Record<HarnessId, Harness> = {
     native: deps.overrides?.native ?? nativeHarness(llm),
+    aider: deps.overrides?.aider ?? oneshotHarness("aider", { cwd }),
+    antigravity: deps.overrides?.antigravity ?? oneshotHarness("antigravity", { cwd }),
     claude:
       deps.overrides?.claude ??
       claudeHarness({ claudePath: bin("claude"), cwd, readImage: (id) => mediaData(store, id) }),
@@ -136,6 +139,14 @@ export function createHarnesses(deps: {
         },
         { id: "claude", label: "Claude Code", ...cache.claude, default: d === "claude" },
         { id: "codex", label: "Codex", ...cache.codex, default: d === "codex" },
+        ...(await Promise.all(
+          (Object.keys(ONESHOT) as Array<keyof typeof ONESHOT>).map(async (id) => ({
+            id,
+            label: ONESHOT[id].label,
+            ...(await oneshotStatus(id)),
+            default: false,
+          })),
+        )),
         ...(await acpStatus()),
       ];
     },

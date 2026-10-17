@@ -15,6 +15,7 @@ import { errorMessage } from "../errors.ts";
 import { type AcpAgent, acpAgents, acpEngine, openSession } from "../harness/acp/agents.ts";
 import { which } from "../harness/detect.ts";
 import { harnessEnv } from "../harness/env.ts";
+import { ONESHOT, type OneshotId } from "../harness/oneshot.ts";
 import { NO_KEY } from "../providers/llm.ts";
 import type { Secrets } from "../secrets.ts";
 import { starterModel } from "./starter.ts";
@@ -242,6 +243,13 @@ export function createCatalog(deps: {
         list: deps.harnessLists?.claude ?? claudeModels,
       },
       { base: { id: "codex", kind: "harness", label: "Codex" }, list: deps.harnessLists?.codex ?? codexModels },
+      ...(Object.keys(ONESHOT) as OneshotId[]).map((id) => ({
+        base: { id, kind: "harness" as const, label: ONESHOT[id].label },
+        list: async () => {
+          if (!(await which(ONESHOT[id].binary))) throw new Error(`${ONESHOT[id].binary} is not installed`);
+          return [{ id: "default", name: "CLI default", chat: true }];
+        },
+      })),
       ...acpAgents(store).map((a) => ({
         base: { id: acpEngine(a), kind: "harness" as const, label: a.label },
         list: () => (deps.acpList ? deps.acpList(a) : acpModels(a, deps.home)),
