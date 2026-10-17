@@ -10,6 +10,8 @@ import {
   coreMain,
   launchdPlist,
   serviceEnv,
+  serviceNames,
+  serviceOwnsHome,
   systemdUnit,
   windowsRunCommand,
 } from "./service-files.ts";
@@ -98,4 +100,25 @@ test("a checkout leaves APX_APP unset; a bundle's terminal sets it, and an APX_A
   const given: NodeJS.ProcessEnv = { APX_APP: "/srv/apx" };
   adoptBundleApp(given, "/home/u/.apx/v2/app/versions/2.1.0/apps/terminal/src");
   assert.equal(given.APX_APP, "/srv/apx");
+});
+
+test("service identities isolate custom homes and preserve default names", () => {
+  const base = path.resolve("/data/apx");
+  const normal = serviceNames(base, base);
+  assert.deepEqual(normal, { systemd: "apx.service", launchd: "dev.apx.core", windows: "APXCore" });
+  const other = serviceNames(path.join(base, "other"), base);
+  assert.notDeepEqual(other, normal);
+  assert.deepEqual(other, serviceNames(path.join(base, "other", "."), base));
+});
+
+test("existing service entries cannot authorize control of another home", () => {
+  const home = "/data/apx 100%";
+  assert.equal(serviceOwnsHome(systemdUnit(spec), "linux", home), true);
+  assert.equal(serviceOwnsHome(systemdUnit(spec), "linux", "/data/other"), false);
+  assert.equal(serviceOwnsHome(launchdPlist(spec), "darwin", home), true);
+  assert.equal(serviceOwnsHome(launchdPlist(spec), "darwin", "/data/other"), false);
+  assert.match(launchdPlist({ ...spec, label: "dev.apx.core-custom" }), /<string>dev.apx.core-custom<\/string>/);
+  const command = windowsRunCommand({ node: "node.exe", terminal: "main.ts", home, electron: false });
+  assert.equal(serviceOwnsHome(command, "win32", home), true);
+  assert.equal(serviceOwnsHome(command, "win32", "/data/other"), false);
 });

@@ -13,6 +13,11 @@ boundary changes.
 | **desktop** | `apps/desktop` (`pnpm --filter @apx/desktop dev`) | Panel on the left, embedded browser on the right; connects to core as a **node** offering `browser`. | While the app is open. |
 | **mobile** | `apps/mobile` (Expo) | Operator + node (camera, notify). | App lifecycle. |
 
+Desktop supervises only a bundled child for its explicitly local home/port. URL and SSH connections never grant
+implicit lifecycle control over the server; client restart/update does not update the server. Production daemon
+startup holds an OS-released SQLite lock per canonical home, independent of port. Local service identities are
+home-specific; `APX_URL` does not redirect OS service commands. See [Desktop lifecycle](DESKTOP_LIFECYCLE.md).
+
 ## 2. How a call flows
 
 ```
