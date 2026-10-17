@@ -211,3 +211,21 @@ test("in a room's chat, the owner's words the room received become direct; their
   db.close();
   cleanup();
 });
+
+test("unattended limits saved at the former defaults follow the new ones; limits the owner chose stay", () => {
+  const limitsAfter = (saved: object) => {
+    const { db, cleanup } = upgradeFrom("setting:agent_limits", (db) => {
+      db.prepare("INSERT INTO meta (key, value) VALUES ('setting:agent_limits', ?)").run(JSON.stringify(saved));
+    });
+    try {
+      return JSON.parse(String(db.prepare("SELECT value FROM meta WHERE key = 'setting:agent_limits'").get()?.value));
+    } finally {
+      db.close();
+      cleanup();
+    }
+  };
+  const scout = { scout: { runs: 4 } };
+  assert.deepEqual(limitsAfter({ runs: 16, tokens: 600_000, agents: scout }), { agents: scout });
+  assert.deepEqual(limitsAfter({ runs: 40, tokens: 600_000 }), { runs: 40 });
+  assert.deepEqual(limitsAfter({ runs: 16, tokens: 0 }), { tokens: 0 });
+});

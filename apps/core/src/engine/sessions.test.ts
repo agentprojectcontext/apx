@@ -263,6 +263,40 @@ test("the owner sets the breaker's limits, and 0 turns a limit off", async () =>
   store.settings.write("agent_limits", {});
 });
 
+test("the token limit counts fresh tokens: input read from the provider's cache is not spent again", async () => {
+  const { store } = env.core;
+  const root = store.threads.create({ kind: "loose", title: "cached chain", agent_ids: ["roby"] });
+  const add = async (trigger: "a2a" | "user", usage?: { input: number; output: number; cached?: number }) => {
+    await new Promise((r) => setTimeout(r, 2));
+    const r = store.runs.create({
+      thread_id: root.id,
+      agent_id: "roby",
+      trigger,
+      input: { origin: { kind: "user" }, text: "x" },
+      deadline_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+    store.runs.setState(usage ? store.runs.patch(r, { usage }) : r, "completed");
+  };
+  await add("user");
+  // A helper reading a codebase: 470k sent over its calls, 390k of it from the cache.
+  await add("a2a", { input: 470_000, cached: 390_000, output: 9_000 });
+  await add("a2a", { input: 360_000, cached: 310_000, output: 6_000 });
+  assert.equal(store.runs.unattended([root.id]).tokens, 145_000);
+  await env.client.call("agents.set_limits", { runs: 0, tokens: 140_000 });
+  assert.match(tripped(store, root.id) ?? "", /spent 145k tokens/);
+  await env.client.call("agents.set_limits", { runs: 0, tokens: 150_000 });
+  assert.equal(tripped(store, root.id), undefined);
+  store.settings.write("agent_limits", {});
+});
+
+test("limits set back to the defaults are not saved, so a later default reaches them", async () => {
+  const { store } = env.core;
+  await env.client.call("agents.set_limits", { runs: 40, tokens: MAX_UNATTENDED_TOKENS });
+  assert.deepEqual(store.settings.read("agent_limits"), { runs: 40 });
+  await env.client.call("agents.set_limits", { runs: MAX_UNATTENDED_RUNS, tokens: MAX_UNATTENDED_TOKENS });
+  assert.deepEqual(store.settings.read("agent_limits"), {});
+});
+
 test("policy follows the thread: every turn in a sub-thread works under the agents above it", async () => {
   const { callersOf } = await import("./ancestry.ts");
   const { store } = env.core;

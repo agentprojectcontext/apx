@@ -110,8 +110,12 @@ export type StepHit = {
 
 const LIVE = ["submitted", "working", "input-required"] as const;
 
-/** Tokens a run spent; a run without usage counts as zero. */
-const runTokens = raw<number>`coalesce(json_extract(usage, '$.input'), 0) + coalesce(json_extract(usage, '$.output'), 0)`;
+/**
+ * Fresh tokens a run spent: its input less what the provider read from its cache, plus its output. Every model call
+ * of a turn sends the whole conversation again, mostly cached, so counting that would charge it once per call. A run
+ * without usage counts as zero.
+ */
+const runTokens = raw<number>`max(coalesce(json_extract(usage, '$.input'), 0) - coalesce(json_extract(usage, '$.cached'), 0), 0) + coalesce(json_extract(usage, '$.output'), 0)`;
 
 export function runsRepo({ one, all, run }: Sql, bus: Bus) {
   const emit = (r: RunRecord) => bus.emit({ type: "run.updated", run: publicRun(r) });
