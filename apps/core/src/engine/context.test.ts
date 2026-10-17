@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { LogEntry } from "../domain/threads.ts";
 import type { ChatItem } from "../providers/types.ts";
-import { frameInput, projectHistory, repair, systemPrompt, turnInput } from "./context.ts";
+import { frameInput, projectHistory, repair, systemPrompt, turnInput, workerPrompt } from "./context.ts";
 
 const call = (id: string, name = "browser_text"): ChatItem => ({
   role: "assistant",
@@ -187,4 +187,16 @@ test("the owner's channel turn says the channel and the app are one chat, and wh
   assert.match(owner("whatsapp"), /whatsapp and the app are this one chat/);
   assert.doesNotMatch(owner("whatsapp"), /send_file/);
   assert.doesNotMatch(turnInput({ origin: { kind: "user" }, text: "hola", now: new Date(0) }), /this one chat/);
+});
+
+test("an unreadable source is a blocker in the shared rules, not 'not verifiable'", () => {
+  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+    typeof systemPrompt
+  >[0];
+  const blocker = /cannot read.*blocker.*never "not verifiable"/s;
+  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /ask_owner for access/);
+  assert.match(systemPrompt(agent, { kind: "home" }, "es"), blocker);
+  const worker = workerPrompt({ name: "Helper", instructions: "audit" }, { name: "Roby" }, "es");
+  assert.match(worker, /blockers first/);
+  assert.match(worker, blocker);
 });
