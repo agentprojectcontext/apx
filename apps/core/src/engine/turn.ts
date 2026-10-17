@@ -384,7 +384,16 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
   const asked = askedSkill(turn.input.text, available);
   const picking = asked ? Promise.resolve(askedPick(asked)) : deps.skills?.pick(turn.input.text, available);
   const recalled = remembers
-    ? await recallFor(store, deps.memory.search, agent.id, thread, turn.input.text, ctxState, from)
+    ? await recallFor(
+        store,
+        deps.memory.search,
+        agent.id,
+        thread,
+        turn.input.text,
+        ctxState,
+        from,
+        turn.input.origin.kind === "agent",
+      )
     : {};
   const picked = await picking;
   // A plugin's context is for the owner's own turns only (not other agents', apps' or contacts'), as outside data.

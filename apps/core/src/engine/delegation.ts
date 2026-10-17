@@ -114,9 +114,13 @@ export function createDelegations(deps: {
   }
 
   /** Updates the sub-thread card in the caller's answer, through its live display when it is still being written. */
-  function settleCard(parent: RunRecord, child: RunRecord, answer: string): void {
+  function updateCard(
+    parent: RunRecord,
+    child: RunRecord,
+    next: (p: Extract<Part, { type: "subthread" }>) => Part,
+  ): void {
     const match = (p: Part) => p.type === "subthread" && p.thread_id === child.thread_id;
-    const card = (p: Part): Part => (p.type === "subthread" ? reportCard(p, child, answer) : p);
+    const card = (p: Part): Part => (p.type === "subthread" ? next(p) : p);
     const display = deps.live.get(parent.id);
     const shown = display?.message.parts.find(match);
     if (display && shown) {
@@ -130,6 +134,33 @@ export function createDelegations(deps: {
     const parts = [...msg.parts];
     parts[index] = card(part);
     store.messages.setPart({ ...msg, parts }, index);
+  }
+
+  const settleCard = (parent: RunRecord, child: RunRecord, answer: string) =>
+    updateCard(parent, child, (p) => reportCard(p, child, answer));
+
+  /**
+   * Starts the thread's queued delegations while it has free slots; one whose caller is gone is canceled instead.
+   * Stopping the caller cancels them on its own (engine `cancel`), before any slot frees.
+   */
+  function release(parentThreadId: string): void {
+    while (store.runs.activeDelegations(parentThreadId) < MAX_ACTIVE_DELEGATIONS) {
+      const next = store.runs.nextHeld(parentThreadId);
+      if (!next) return;
+      const caller = next.parent_run_id ? store.runs.get(next.parent_run_id) : undefined;
+      if (!caller || !store.threads.get(parentThreadId)) {
+        const done = store.runs.setState(next, "canceled", "canceled before it started");
+        store.threads.patch(next.thread_id, { state: "canceled" });
+        if (caller) settleCard(caller, done, answerOf(done));
+        continue;
+      }
+      // Its time to work starts now, not when it was queued.
+      store.runs.setDeadline(next.id, new Date(Date.now() + A2A_DEADLINE_MS).toISOString());
+      const started = store.runs.setState(next, "submitted");
+      store.threads.patch(next.thread_id, { state: "submitted" });
+      updateCard(caller, started, (p) => ({ ...p, state: "working" }));
+      deps.kick(next.thread_id);
+    }
   }
 
   /** A free session name under `parentId`, from what the caller asked for (or the agent's name). */
@@ -199,8 +230,8 @@ export function createDelegations(deps: {
       const spentOwn = agentTripped(store, parentThread.id, to.id, worker?.name ?? to.name);
       if (spentOwn)
         return `refused: ${spentOwn}. Give this work to another agent (list_agents shows what each has left), or tell the owner.`;
-      if (store.runs.activeDelegations(parentThread.id) >= MAX_ACTIVE_DELEGATIONS)
-        return `refused: ${MAX_ACTIVE_DELEGATIONS} delegations are already running from this thread; wait for their results.`;
+      // Past the cap it waits in a durable queue rather than being refused: a refusal was easy to drop. See DECISIONS.md#d-096
+      const queued = store.runs.activeDelegations(parentThread.id) >= MAX_ACTIVE_DELEGATIONS;
       deps.live.set(from.run.id, from.display);
       const who = worker?.name ?? to.name;
       const name = existing?.session ?? sessionName(parentThread.id, req.session ?? who);
@@ -228,7 +259,7 @@ export function createDelegations(deps: {
         thread_id: sub.id,
         agent_id: to.id,
         title: task.slice(0, 120),
-        state: "working",
+        state: queued ? "queued" : "working",
         ...(worker ? { worker: worker.name } : {}),
       });
       const child = store.runs.create({
@@ -248,7 +279,13 @@ export function createDelegations(deps: {
         parent_run_id: from.run.id,
         depth: from.run.depth + 1,
         deadline_at: new Date(Date.now() + A2A_DEADLINE_MS).toISOString(),
+        ...(queued ? { state: "queued" as const } : {}),
       });
+      if (queued) {
+        // A session still answering an earlier task keeps showing that it works.
+        if (store.threads.get(sub.id)?.state !== "working") store.threads.patch(sub.id, { state: "queued" });
+        return `queued: ${MAX_ACTIVE_DELEGATIONS} delegations are running from this thread; ${who} starts this one (session "${name}") when one finishes. Its result comes back like the others: do not delegate it again.`;
+      }
       let timer: ReturnType<typeof setTimeout> | undefined;
       const done = new Promise<RunRecord | undefined>((resolve) => {
         inline.set(child.id, { caller: from.run.id, resolve });
@@ -281,6 +318,8 @@ export function createDelegations(deps: {
       }
       const answer = answerOf(child);
       settleCard(parent, child, answer);
+      const from = store.threads.get(child.thread_id)?.parent_id;
+      if (from) release(from);
       if (waiting) {
         inline.delete(child.id);
         waiting.resolve(child);
@@ -289,6 +328,8 @@ export function createDelegations(deps: {
       // A cascade cancel is the owner's decision: it wakes nobody.
       if (child.state !== "canceled") deps.deliver(parent, child, answer);
     },
+
+    release,
 
     /** The caller's turn ended while it was still waiting: its children report back later as new inputs. */
     callerEnded(callerRunId: string): void {

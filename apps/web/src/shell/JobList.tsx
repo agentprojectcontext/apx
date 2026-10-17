@@ -7,6 +7,7 @@ import { client } from "../data/client.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 
 const STATE_KEY: Record<Job["state"], MessageKey> = {
+  queued: "job.state.queued",
   submitted: "job.state.queued",
   working: "job.state.working",
   "input-required": "job.state.waiting",

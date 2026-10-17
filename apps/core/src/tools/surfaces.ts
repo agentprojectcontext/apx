@@ -4,6 +4,7 @@ import { SurfaceOrigin, type SurfaceSummary } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
+import { widgetScriptError } from "./widget-syntax.ts";
 
 const MAX_HTML = 400_000;
 
@@ -49,6 +50,8 @@ export function surfaceTools(store: Store): Tool[] {
       deadlineMs: 10_000,
       title: (a) => `Made the widget ${String(a.title ?? a.name)}`,
       async run(a, ctx) {
+        const broken = await widgetScriptError(a.html.slice(0, MAX_HTML));
+        if (broken) return broken;
         const surface = await ctx.call("surfaces.show", {
           name: slug(a.name),
           title: a.title.slice(0, 120) || a.name,
@@ -119,6 +122,8 @@ export function surfaceTools(store: Store): Tool[] {
           html = html.replace(e.old, () => e.new);
         }
         if (html.length > MAX_HTML) return `refused: the widget would pass ${MAX_HTML} characters`;
+        const broken = await widgetScriptError(html);
+        if (broken) return broken;
         const surface = await ctx.call("surfaces.show", {
           name: s.name,
           title: a.title?.trim().slice(0, 120) || s.title,

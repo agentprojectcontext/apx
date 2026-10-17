@@ -135,7 +135,7 @@ export function ChatMessage({
                 style={({ pressed }) => [s.subthread, pressed && { backgroundColor: theme.fill }]}
               >
                 <View style={s.subthreadHead}>
-                  {isWorking(part.state) ? (
+                  {isWorking(part.state) || part.state === "queued" ? (
                     <Spinner size={14} />
                   ) : (
                     <Icon name={part.state === "failed" ? "X" : "Check"} size={14} color={theme.fgSubtle} />

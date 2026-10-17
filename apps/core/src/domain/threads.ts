@@ -396,7 +396,7 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
           .selectFrom("runs")
           .select("id")
           .where("thread_id", "in", ids)
-          .where("state", "in", ["submitted", "working", "input-required"])
+          .where("state", "in", ["queued", "submitted", "working", "input-required"])
           .limit(1),
       );
       const job = one(
