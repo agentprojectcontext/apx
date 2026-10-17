@@ -320,11 +320,9 @@
 }
 
 /* ── Account row ───────────────────────────────────────────────────────────── */
+/* Alone in the sidebar foot, whose top border already sets it apart. */
 .account {
   flex: none;
-  margin-top: 6px;
-  padding: 6px 0 0;
-  border-top: 1px solid var(--apx-border);
 }
 .sidebar.is-rail .sidebar__scroll {
   scrollbar-width: none;
