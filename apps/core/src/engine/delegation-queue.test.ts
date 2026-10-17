@@ -3,40 +3,84 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Part } from "@apx/protocol";
+import type { RunRecord } from "../domain/runs.ts";
+import type { Store } from "../domain/store.ts";
 import type { AssistantItem, ChatItem } from "../providers/types.ts";
 import { MAX_ACTIVE_DELEGATIONS } from "./limits.ts";
-import { say, scriptedLlm, startCore, texts } from "./testkit.ts";
+import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 const PARTS = Array.from({ length: MAX_ACTIVE_DELEGATIONS + 1 }, (_, i) => `part-${i + 1}`);
+const FIVE = Array.from({ length: MAX_ACTIVE_DELEGATIONS + 2 }, (_, i) => `part-${i + 1}`);
 
-/** Scout holds each part until the test lets it answer (or its turn is stopped). */
-function gated() {
+/** One delegate call of the fan-out: the session it names and the key its task carries. */
+type Ask = { session: string; key: string };
+
+type GateOpts = {
+  /** The fan-out, in order (default: one session per part of PARTS). */
+  asks?: Ask[];
+  /** More keys Scout may be asked about outside the fan-out. */
+  keys?: string[];
+  /** Keys whose turn fails once let go. */
+  fail?: string[];
+  /** Keys whose turn asks the owner first, and waits. */
+  askOwner?: string[];
+  /** The caller's turn stays open after the fan-out until it is stopped. */
+  holdCaller?: boolean;
+};
+
+const ofParts = (parts: string[]): Ask[] => parts.map((p) => ({ session: p, key: p }));
+
+/** Scout holds each key until the test lets it answer (or its turn is stopped). */
+function gated(o: GateOpts = {}) {
+  const asks = o.asks ?? ofParts(PARTS);
+  const keys = [...new Set([...asks.map((a) => a.key), ...(o.keys ?? [])])];
   const gates = new Map<string, () => void>();
   const waits = new Map<string, Promise<void>>();
-  for (const p of PARTS) waits.set(p, new Promise<void>((r) => gates.set(p, r)));
+  for (const k of keys) waits.set(k, new Promise<void>((r) => gates.set(k, r)));
   const asked: string[] = [];
+  const at = { now: 0, peak: 0 };
   const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
+    // Made only where it is awaited: a rejection nobody waits for fails the test.
+    const aborted = () =>
+      new Promise<void>((_, reject) => {
+        if (req.signal.aborted) reject(req.signal.reason);
+        req.signal.addEventListener("abort", () => reject(req.signal.reason), { once: true });
+      });
     if (system.startsWith("You are Scout")) {
-      const part = PARTS.find((p) => said.includes(p)) ?? "";
-      asked.push(part);
-      const aborted = new Promise<void>((_, reject) =>
-        req.signal.addEventListener("abort", () => reject(req.signal.reason), { once: true }),
-      );
-      await Promise.race([waits.get(part), aborted]);
-      return say(`Scout's findings on ${part}.`);
+      // The task it was given last (a resumed turn's last words are APX's note, not the task).
+      const task = req.messages.findLast((m) => m.role === "user" && /look into [\w-]+/.test(String(m.content)));
+      const key = String(task?.content ?? said).match(/look into ([\w-]+)/)?.[1] ?? "";
+      if (o.askOwner?.includes(key) && !afterTool) {
+        asked.push(key);
+        return callTool(`q-${key}`, "ask_owner", {
+          question: `Which environment should the ${key} audit cover, staging or production?`,
+        });
+      }
+      asked.push(key);
+      at.peak = Math.max(at.peak, ++at.now);
+      try {
+        await Promise.race([waits.get(key), aborted()]);
+      } finally {
+        at.now--;
+      }
+      if (o.fail?.includes(key)) throw new Error(`the provider refused the ${key} request`);
+      return say(`Scout's findings on ${key}.`);
     }
     if (said.includes("<delegation_result")) return say(`Noted: ${said.match(/part-\d/)?.[0] ?? "?"}`);
-    if (afterTool) return say("Fanned out.");
+    if (afterTool) {
+      if (o.holdCaller) await aborted();
+      return say("Fanned out.");
+    }
     if (said.includes("fan out")) {
       const message: AssistantItem = {
         role: "assistant",
         content: null,
-        tool_calls: PARTS.map((p, i) => ({
+        tool_calls: asks.map((a, i) => ({
           id: `d${i}`,
           type: "function",
           function: {
             name: "delegate",
-            arguments: JSON.stringify({ agent: "scout", session: p, task: `look into ${p}`, wait_s: 0 }),
+            arguments: JSON.stringify({ agent: "scout", session: a.session, task: `look into ${a.key}`, wait_s: 0 }),
           },
         })),
       };
@@ -44,7 +88,11 @@ function gated() {
     }
     return say("ok");
   });
-  return { llm, asked, open: (p: string) => gates.get(p)?.() };
+  const open = (k: string) => gates.get(k)?.();
+  const openAll = () => {
+    for (const k of keys) open(k);
+  };
+  return { llm, asked, at, open, openAll };
 }
 
 const until = async (what: string, ok: () => boolean, ms = 5000) => {
@@ -54,27 +102,43 @@ const until = async (what: string, ok: () => boolean, ms = 5000) => {
     await new Promise((r) => setTimeout(r, 20));
   }
 };
+const pause = (ms = 100) => new Promise((r) => setTimeout(r, ms));
 
 type Env = Awaited<ReturnType<typeof startCore>>;
 const sessions = (env: Env, parent: string) =>
   env.core.store.threads.sessions(parent).map((t) => ({ t, run: env.core.store.runs.list(t.id, 1)[0] }));
+const session = (env: Env, parent: string, name: string) => {
+  const s = sessions(env, parent).find((x) => x.t.session === name);
+  assert.ok(s, `session ${name}`);
+  return s;
+};
 const cards = (env: Env, parent: string) =>
   env.core.store.messages
     .list(parent)
     .flatMap((m) => m.parts)
     .filter((p): p is Extract<Part, { type: "subthread" }> => p.type === "subthread");
 
-async function fanOut(env: Env) {
+async function fanOut(env: Env, done = true) {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "audit" });
   await env.client.call("threads.send", { thread: t.id, text: "fan out" });
-  await until("the caller's turn", () => env.core.store.runs.list(t.id, 1)[0]?.state === "completed");
+  if (done) await until("the caller's turn", () => env.core.store.runs.list(t.id, 1)[0]?.state === "completed");
   return t.id;
 }
 
-test("a delegation past the cap is queued, starts when one finishes, and its result reaches the caller", async () => {
-  const g = gated();
+async function withCore(o: GateOpts, body: (env: Env, g: ReturnType<typeof gated>) => Promise<void>) {
+  const g = gated(o);
   const env = await startCore({ llm: g.llm });
   try {
+    await body(env, g);
+  } finally {
+    g.openAll();
+    await env.core.close();
+    env.cleanup();
+  }
+}
+
+test("a delegation past the cap is queued, starts when one finishes, and its result reaches the caller", async () => {
+  await withCore({}, async (env, g) => {
     const parent = await fanOut(env);
     const subs = sessions(env, parent);
     assert.equal(subs.length, PARTS.length);
@@ -97,7 +161,7 @@ test("a delegation past the cap is queued, starts when one finishes, and its res
     await until("the queued one starting", () => g.asked.length === PARTS.length);
     assert.equal(cards(env, parent).find((c) => c.thread_id === waiting.t.id)?.state, "working");
 
-    for (const p of PARTS) g.open(p);
+    g.openAll();
     const done = await env.settle(waiting.t.id);
     assert.equal(done.runs[0]?.state, "completed");
     await until("every result delivered", () => {
@@ -110,43 +174,74 @@ test("a delegation past the cap is queued, starts when one finishes, and its res
       .map((r) => (r.input?.origin.kind === "delegation_result" ? r.input.origin.thread_id : ""));
     assert.ok(delivered.includes(waiting.t.id), "the queued one reports back like the others");
     assert.equal(cards(env, parent).find((c) => c.thread_id === waiting.t.id)?.state, "completed");
-  } finally {
-    for (const p of PARTS) g.open(p);
-    await env.core.close();
-    env.cleanup();
-  }
+  });
 });
 
 test("stopping the caller's thread cancels a queued delegation instead of starting it", async () => {
-  const g = gated();
-  const env = await startCore({ llm: g.llm });
-  try {
+  await withCore({}, async (env, g) => {
     const parent = await fanOut(env);
     await until("three at work", () => g.asked.length === MAX_ACTIVE_DELEGATIONS);
     const waiting = sessions(env, parent).find((s) => s.run?.state === "queued");
     assert.ok(waiting);
     await env.client.call("threads.cancel", { thread: parent });
     await until("every session ended", () => sessions(env, parent).every((s) => s.run?.state === "canceled"));
-    await new Promise((r) => setTimeout(r, 100));
+    await pause();
     assert.equal(g.asked.length, MAX_ACTIVE_DELEGATIONS, "the queued one never started");
     assert.equal(cards(env, parent).find((c) => c.thread_id === waiting.t.id)?.state, "canceled");
     assert.ok(!env.core.store.runs.list(parent, 20).some((r) => r.trigger === "a2a_result"), "nobody is woken");
-  } finally {
-    for (const p of PARTS) g.open(p);
-    await env.core.close();
-    env.cleanup();
-  }
+  });
 });
 
-test("a queued delegation survives a restart and still waits for a free slot", async () => {
-  const llm = scriptedLlm((_req, { system, said }) => {
-    if (system.startsWith("You are Scout")) return say(`Scout's findings on ${said.match(/part-\d/)?.[0] ?? "?"}.`);
-    if (said.includes("<delegation_result")) return say(`Noted: ${said.match(/part-\d/)?.[0] ?? "?"}`);
-    return say("ok");
+test("stopping the caller's turn while it is still working cancels its queued delegations", async () => {
+  await withCore({ asks: ofParts(FIVE), holdCaller: true }, async (env, g) => {
+    const parent = await fanOut(env, false);
+    await until("three at work", () => g.asked.length === MAX_ACTIVE_DELEGATIONS);
+    await until("two queued", () => sessions(env, parent).filter((s) => s.run?.state === "queued").length === 2);
+    assert.equal(env.core.store.runs.list(parent, 1)[0]?.state, "working", "the caller is mid-turn");
+    await env.client.call("threads.cancel", { thread: parent });
+    await until("every session ended", () => sessions(env, parent).every((s) => s.run?.state === "canceled"));
+    await pause();
+    assert.equal(g.asked.length, MAX_ACTIVE_DELEGATIONS, "no queued one started");
+    assert.equal(env.core.store.runs.list(parent, 1)[0]?.state, "canceled");
   });
-  // ── before the restart: three delegations cut mid-work and one queued, as a killed process leaves them ──
-  const first = await startCore({ llm });
-  const { store } = first.core;
+});
+
+test("jobs.cancel on a queued delegation ends it for whoever waits on it", async () => {
+  await withCore({}, async (env, g) => {
+    const parent = await fanOut(env);
+    await until("three at work", () => g.asked.length === MAX_ACTIVE_DELEGATIONS);
+    const waiting = sessions(env, parent).find((s) => s.run?.state === "queued");
+    assert.ok(waiting?.run);
+    const waited = env.core.engine.wait(waiting.run.id, 3000);
+    assert.deepEqual(await env.client.call("jobs.cancel", { job: waiting.run.id }), { canceled: true });
+    assert.equal((await waited)?.state, "canceled");
+    assert.equal(cards(env, parent).find((c) => c.thread_id === waiting.t.id)?.state, "canceled");
+    g.open("part-1");
+    await until("part-1 done", () => session(env, parent, "part-1").run?.state === "completed");
+    await pause();
+    assert.equal(g.asked.length, MAX_ACTIVE_DELEGATIONS, "the canceled one never started");
+  });
+});
+
+test("a slot freed by a failed or canceled delegation starts the oldest queued one", async () => {
+  await withCore({ asks: ofParts(FIVE), fail: ["part-1"] }, async (env, g) => {
+    const parent = await fanOut(env);
+    await until("three at work", () => g.asked.length === MAX_ACTIVE_DELEGATIONS);
+    g.open("part-1");
+    await until("part-1 failed", () => session(env, parent, "part-1").run?.state === "failed");
+    await until("the next one starting", () => g.asked.length === MAX_ACTIVE_DELEGATIONS + 1);
+    assert.equal(g.asked.at(-1), "part-4", "the oldest goes first");
+    assert.equal(session(env, parent, "part-5").run?.state, "queued");
+
+    await env.client.call("threads.cancel", { thread: session(env, parent, "part-2").t.id });
+    await until("the last one starting", () => g.asked.length === FIVE.length);
+    assert.equal(g.asked.at(-1), "part-5");
+    assert.ok(g.at.peak <= MAX_ACTIVE_DELEGATIONS, `at most ${MAX_ACTIVE_DELEGATIONS} at once (saw ${g.at.peak})`);
+  });
+});
+
+/** Seeds a delegation per state, as a killed process leaves them: the caller's turn already ended. */
+function seedCut(store: Store, states: Array<"working" | "input-required" | "queued">) {
   const deadline = new Date(Date.now() + 60_000).toISOString();
   const parentThread = store.threads.create({ kind: "loose", title: "parent", agent_ids: ["roby"] });
   let parent = store.runs.create({
@@ -157,7 +252,8 @@ test("a queued delegation survives a restart and still waits for a free slot", a
     deadline_at: deadline,
   });
   parent = store.runs.setState(store.runs.setState(parent, "working"), "completed");
-  const delegated = PARTS.map((p, i) => {
+  const delegated = states.map((state, i) => {
+    const p = `part-${i + 1}`;
     const sub = store.threads.create({
       kind: "a2a",
       title: `Roby → Scout: ${p}`,
@@ -165,8 +261,8 @@ test("a queued delegation survives a restart and still waits for a free slot", a
       parent_id: parentThread.id,
       session: p,
     });
-    const queued = i === PARTS.length - 1;
-    const run = store.runs.create({
+    const queued = state === "queued";
+    let run: RunRecord = store.runs.create({
       thread_id: sub.id,
       agent_id: "scout",
       trigger: "a2a",
@@ -179,7 +275,11 @@ test("a queued delegation survives a restart and still waits for a free slot", a
       deadline_at: deadline,
       ...(queued ? { state: "queued" as const } : {}),
     });
-    if (!queued) store.runs.setState(run, "working");
+    if (!queued) {
+      run = store.runs.setState(store.runs.setState(run, "working"), state);
+      // What the cut turn had read: a resumed one carries on from it.
+      store.modelLog.append(sub.id, run.id, [{ role: "user", content: `look into ${p}` }]);
+    }
     return { sub, run };
   });
   const msg = store.messages.add({
@@ -195,9 +295,19 @@ test("a queued delegation survives a restart and still waits for a free slot", a
     })),
   });
   store.runs.patch(parent, { message_id: msg.id });
+  return { parentThread, delegated };
+}
+
+test("a queued delegation survives a restart and still waits for a free slot", async () => {
+  const llm = scriptedLlm((_req, { system, said }) => {
+    if (system.startsWith("You are Scout")) return say(`Scout's findings on ${said.match(/part-\d/)?.[0] ?? "?"}.`);
+    if (said.includes("<delegation_result")) return say(`Noted: ${said.match(/part-\d/)?.[0] ?? "?"}`);
+    return say("ok");
+  });
+  const first = await startCore({ llm });
+  const { parentThread, delegated } = seedCut(first.core.store, ["working", "working", "working", "queued"]);
   await first.core.close();
 
-  // ── after the restart ──
   const second = await startCore({ llm, home: first.home });
   try {
     const last = delegated.at(-1);
