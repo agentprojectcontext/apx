@@ -85,13 +85,24 @@ export const scratchRoot = (home: string) =>
 
 /**
  * A folder an agent may use (`off`: one it may not, inside one it may; `lent`: the owner let it read there for one
- * call). The first is where relative paths start.
+ * call; `anywhere`: every path the roots before it leave but APX's home, for an agent that acts outside on its own).
+ * The first is where relative paths start.
  */
-export type Root = { dir: string; write: boolean; scratch: boolean; off?: boolean; lent?: boolean };
+export type Root = {
+  dir: string;
+  write: boolean;
+  scratch: boolean;
+  off?: boolean;
+  lent?: boolean;
+  anywhere?: { home: string };
+};
 
-/** A thread as the folder rule sees it; `lent`: folders outside its own the owner let this one call read. */
+/**
+ * A thread as the folder rule sees it; `lent`: folders outside its own the owner let this one call read; `anywhere`:
+ * its agent may read and change any folder but APX's home (DECISIONS.md#d-102).
+ */
 export type FolderThread = Parameters<typeof workDir>[2] &
-  Parameters<typeof scratchDir>[2] & { lent?: readonly string[] | undefined };
+  Parameters<typeof scratchDir>[2] & { lent?: readonly string[] | undefined; anywhere?: boolean | undefined };
 type Thread = FolderThread;
 
 /** The folders the owner added to a thread's project for its agents to read and never change. */
@@ -130,6 +141,8 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
     ...sharedRoots(home),
     // Last, so other chats' temp folders stay closed even inside a folder lent for one call.
     ...(thread.lent ?? []).map((dir) => ({ dir, write: false, scratch: false, lent: true })),
+    // Last of all: the project's read-only folders and other chats' temp folders keep their own rule.
+    ...(thread.anywhere ? [{ dir: path.parse(home).root, write: true, scratch: false, anywhere: { home } }] : []),
   ];
 }
 
@@ -229,10 +242,11 @@ export function judge(roots: Root[], file: string, from: string, o: JudgeOptions
   const name = o.name ?? file;
   const at = path.resolve(from, expandHome(file));
   const lands = physical(from, expandHome(file));
-  const root = roots.find((r) => insideReal(r.dir, lands));
-  if (!root || root.off || root.lent) {
-    // A folder lent for one call never opens APX's home inside it.
-    if (o.home && insideReal(o.home, lands)) return { refused: refusal.apx(name) };
+  const root = roots.find((r) => r.anywhere || insideReal(r.dir, lands));
+  if (!root || root.off || root.lent || root.anywhere) {
+    // A folder lent for one call, or every folder, never opens APX's home inside it.
+    const apx = o.home ?? root?.anywhere?.home;
+    if (apx && insideReal(apx, lands)) return { refused: refusal.apx(name) };
   }
   if (!root || root.off) {
     if (o.write) return { refused: refusal.unwritable(name) };
@@ -242,7 +256,7 @@ export function judge(roots: Root[], file: string, from: string, o: JudgeOptions
     return { refused: refusal.outside(name), ...offer };
   }
   if (o.write && !root.write) return { refused: refusal.readOnly(name) };
-  return { at, base: root.dir, scratch: root.scratch, write: root.write };
+  return { at, base: root.anywhere ? path.parse(lands).root : root.dir, scratch: root.scratch, write: root.write };
 }
 
 /** The nearest folder on disk holding a path: itself when it is one, else the folder of the file it names. */

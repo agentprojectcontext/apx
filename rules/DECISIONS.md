@@ -1240,3 +1240,15 @@ step, or as its next turn there when that turn cannot take them (an outside harn
 that chat's state from the task, so the words join a running turn even when the client asked to queue; `interrupt`
 still stops it first. An @mention of anyone else is a consult, as D-073 says; the task's own agent is not asked twice.
 A task nobody has keeps the old behaviour: the agent of its conversation answers there, since no work chat exists.
+
+<a id="d-102"></a>
+## D-102 — 2026-10-17 — An agent that acts outside on its own works in any folder but APX's home
+The super-agent on total autonomy, in Home (a chat with no project), was asked to make a video in another project's
+folder and refused itself three times: D-099 kept every read outside a chat with no project refused, and every write
+outside the agent's folders refused, whatever its autonomy. That contradicted rule 10, where total autonomy is the
+owner's choice to be asked nothing, and left the agent that is meant to do anything unable to touch the owner's other
+projects. Now, when an agent's rule for acting outside is `auto` (total autonomy, or that rule set on its own), each
+call runs with every folder open (`thread.anywhere`: a last root after the others): it reads and writes anywhere, in a
+project or not, with no card and nothing kept. APX's home stays refused, other chats' temp folders stay closed and a
+project's read-only folders stay read-only, since those roots come first. Outside harnesses (Claude Code, Codex) keep
+their own sandboxes; this is the folder rule of APX's tools.

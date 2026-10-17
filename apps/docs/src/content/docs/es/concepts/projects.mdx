@@ -127,8 +127,11 @@ APX guarda la lista en su base de datos, no en `.apc/`, así que un repo no pued
 Cuando un agente lee fuera de sus carpetas en un proyecto (un `ls ..` para mirar alrededor, un archivo de otro checkout
 al lado), no se queda trabado: el chat muestra una tarjeta, **Fausto quiere leer** y la carpeta, con **Solo esta vez**
 (esa llamada lee ahí), **Permitir leerla en este proyecto** (la carpeta pasa a ser de solo lectura, con los controles de
-arriba) y **No**. Un agente con autonomía total lee sin tarjeta, y no se suma nada. Escribir fuera de sus carpetas
-sigue rechazado, igual que leer en un chat sin proyecto.
+arriba) y **No**. Escribir fuera de sus carpetas sigue rechazado, igual que leer en un chat sin proyecto.
+
+Un agente con autonomía total (o con su regla **Actuar afuera en tu nombre** en **Sin preguntar**) lee y cambia cualquier carpeta de la
+computadora, en un chat de proyecto o en uno sin proyecto, sin tarjeta, y no se suma nada. Dos cosas siguen cerradas
+igual: la carpeta propia de APX, y las carpetas de solo lectura del proyecto, que lee y nunca cambia.
 
 ## El proyecto base
 

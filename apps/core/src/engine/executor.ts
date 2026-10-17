@@ -193,8 +193,9 @@ export function createExecutor(o: {
   };
 
   /**
-   * The thread a call runs with: the folders outside the agent's own it would read lent to it for this call, once the
-   * owner lets it (a card: once, or for good as read-only folders of the project) or its rules let it read outside.
+   * The thread a call runs with: every folder when its rules let it act outside, else the folders outside its own it
+   * would read lent to it for this call, once the owner lets it (a card: once, or for good as the project's read-only
+   * folders).
    */
   const lend = async (
     tool: Tool,
@@ -204,13 +205,17 @@ export function createExecutor(o: {
     callId: string,
     run: RunRecord,
   ): Promise<{ thread: Thread } | { card: string; text: string }> => {
-    const folders = thread.project_id ? (tool.outside?.(args, { agent, thread }) ?? []) : [];
     const rule = outsideRule(agent);
+    // Acting outside on its own (total autonomy): any folder but APX's home, in a project or not (DECISIONS.md#d-102).
+    if (rule === "auto") {
+      const open: Thread & { anywhere: true } = { ...thread, anywhere: true };
+      return { thread: open };
+    }
+    const folders = thread.project_id ? (tool.outside?.(args, { agent, thread }) ?? []) : [];
     // `off`: the tool's own check refuses it, as before.
     if (!folders.length || rule === "off") return { thread };
     const lent: Thread & { lent: string[] } = { ...thread, lent: folders };
-    if (rule === "auto" || o.inputs.takeGrant(thread.id, agent.id, name, raw, folderBinding(folders)))
-      return { thread: lent };
+    if (o.inputs.takeGrant(thread.id, agent.id, name, raw, folderBinding(folders))) return { thread: lent };
     const answer = await o.inputs.ask({
       run,
       agent,

@@ -123,6 +123,33 @@ test("total autonomy reads outside without a card and adds nothing", async () =>
   }
 });
 
+test("total autonomy reads and changes any folder, in a chat with no project too, never APX's own", async () => {
+  await env.client.call("agents.update", { agent: "fausto", autonomy: "total" });
+  const made = path.join(northwind, "docs", "made.md");
+  try {
+    for (const inProject of [true, false]) {
+      const write = await run({ name: "shell", args: { command: `echo hi > ${made}; cat ${made}` } }, { inProject });
+      assert.equal(write.input, undefined);
+      assert.match(write.said, /exit 0[\s\S]*hi/, `in a project: ${inProject}`);
+      fs.rmSync(made);
+      const file = await run({ name: "file_write", args: { path: made, content: "from file_write\n" } }, { inProject });
+      assert.equal(file.input, undefined);
+      assert.equal(fs.readFileSync(made, "utf8"), "from file_write\n", `in a project: ${inProject}`);
+      fs.rmSync(made);
+      const apx = await run({ name: "file_read", args: { path: path.join(env.home, "apx.db") } }, { inProject });
+      assert.match(apx.said, /APX's own folder/);
+    }
+    assert.equal(folders(), undefined);
+    // The owner's read-only folders keep their rule.
+    await env.client.call("projects.update", { project, read_only_folders: [path.join(northwind, "docs")] });
+    const ro = await run({ name: "shell", args: { command: "touch ../docs/new.md" } });
+    assert.match(ro.said, /refused: .*read-only folder/);
+  } finally {
+    await env.client.call("projects.update", { project, read_only_folders: [] });
+    await env.client.call("agents.update", { agent: "fausto", autonomy: "standard" });
+  }
+});
+
 test("a chat with no project, and APX's own folder, keep the refusal and raise no card", async () => {
   const alone = await run({ name: "shell", args: { command: `ls ${northwind}` } }, { inProject: false });
   assert.equal(alone.input, undefined);

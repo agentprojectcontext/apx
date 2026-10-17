@@ -115,7 +115,7 @@ test("a path is readable or refused the same way through file_read and shell, wr
       assert.equal(!("refused" in r), readable, `${how} ${p}: ${JSON.stringify(r)}`);
       if ("refused" in r) assert.equal(r.offer, sibling, `${how} ${p} offers the folder holding it`);
     }
-    // Through the agent on total autonomy, a read outside runs lent for that call (DECISIONS.md#d-099).
+    // Through the agent on total autonomy, a read outside runs with every folder open (DECISIONS.md#d-102).
     assert.doesNotMatch(await call("file_read", { path: p }), /refused:/, `file_read ${p}`);
     for (const [how, a] of forms) assert.doesNotMatch(await call("shell", a), /refused:/, `${how} ${p}`);
   }
@@ -125,7 +125,9 @@ test("a path is readable or refused the same way through file_read and shell, wr
   const p = `${out}/b.txt`;
   assert.deepEqual(folderAccess(store, env.home, t, p), { refused: refusal.outside(p), offer: sibling });
   assert.doesNotMatch(refusal.outside(p), /ask_owner/);
-  assert.match(await call("file_write", { path: p, content: "x" }), /outside the folders you can change: write in/);
+  // On total autonomy it writes there too.
+  assert.match(await call("file_write", { path: p, content: "x" }), /^replaced /);
+  assert.equal(fs.readFileSync(path.join(sibling, "b.txt"), "utf8"), "x");
 });
 
 test("a read-only folder is read, never changed", () => {

@@ -225,7 +225,8 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agentedit.risk.write": "Cambiar cosas del proyecto",
   "agentedit.risk.writeHint": "Editar archivos, guardar recuerdos, delegar. Sólo dentro de la carpeta del proyecto.",
   "agentedit.risk.outside": "Actuar afuera en tu nombre",
-  "agentedit.risk.outsideHint": "Mandar mensajes, publicar, hacer clic en webs, usar tus sesiones.",
+  "agentedit.risk.outsideHint":
+    "Mandar mensajes, publicar, hacer clic en webs, usar tus sesiones, trabajar en otras carpetas.",
   "agentedit.risk.irreversible": "Irreversible",
   "agentedit.risk.irreversibleHint": "Borrar y darle permisos a otros agentes.",
   "agentedit.ruleOwn": "Propia de este agente",
@@ -248,7 +249,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agentedit.autonomyEdits": "Acepta ediciones",
   "agentedit.autonomyEditsHint": "Como la anterior, y escribe y corre comandos en su carpeta sin preguntar.",
   "agentedit.autonomyTotal": "Total",
-  "agentedit.autonomyTotalHint": "Actúa sin preguntar, incluso lo que no se puede deshacer.",
+  "agentedit.autonomyTotalHint": "Actúa sin preguntar, incluso lo que no se puede deshacer, en cualquier carpeta.",
   "agentedit.fromProjectTag": "Del proyecto",
   "agentedit.summary": "Queda así:",
   "agentedit.adjust": "Ajustar por caso",

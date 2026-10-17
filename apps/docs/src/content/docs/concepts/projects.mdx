@@ -128,8 +128,11 @@ list in its database, not in `.apc/`, so a repo can't widen what its agents read
 When an agent reads outside its folders in a project (an `ls ..` as a first look, a file in a sibling checkout), it
 doesn't hit a dead end: the chat shows a card, **Fausto wants to read** and the folder, with **Only this time** (that
 one call reads there), **Allow reading it in this project** (the folder becomes a read-only folder, with the checks
-above) and **No**. An agent on total autonomy reads without a card, and nothing is added. Writes outside its folders
-are still refused, and so are reads in a chat with no project.
+above) and **No**. Writes outside its folders are still refused, and so are reads in a chat with no project.
+
+An agent on total autonomy (or whose rule **Act outside in your name** is **Without asking**) reads and changes any folder on the
+computer, in a project chat or in one with no project, with no card, and nothing is added. Two things stay closed even
+then: APX's own folder, and the project's read-only folders, which it reads and never changes.
 
 ## The base project
 
