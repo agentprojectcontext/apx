@@ -374,7 +374,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     home: config.home,
     store,
     log,
-    version: identity.version,
+    // A checkout's package.json holds a placeholder: its commit tells one checkout from another.
+    version: identity.version === "0.0.0" ? `0.0.0+${identity.code_sha.slice(0, 12)}` : identity.version,
     channel: telemetryChannel(config),
     sink: opts.telemetrySink ?? (config.telemetry ? telemetrySink(config.telemetry) : undefined),
   });
