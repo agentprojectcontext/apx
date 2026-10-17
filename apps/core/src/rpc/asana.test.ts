@@ -109,7 +109,7 @@ test("Asana tools are conditional, writes require owner authority and request sc
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
     const asana = createAsana({ secrets: env.core.secrets, offIn: (p) => p === "off" });
-    const tools = asanaTools(asana);
+    const tools = asanaTools(asana, env.core.store);
     assert.equal(tools[1]?.confirm({}), "always");
     assert.equal(
       methods["asana.write"].params.safeParse({ request: { operation: "create_task", name: "No destination" } })
@@ -128,6 +128,12 @@ test("Asana tools are conditional, writes require owner authority and request sc
     env.core.secrets.set("asana-token", TOKEN);
     assert.equal(asana.usable("off"), false);
     assert.equal(asana.usable("on"), true);
+    // Not offered in a chat an outside app started, which the handler refuses.
+    const mine = env.core.store.threads.create({ kind: "loose", title: "t", agent_ids: ["roby"] });
+    const theirs = env.core.store.threads.create({ kind: "loose", title: "t", agent_ids: ["roby"] });
+    env.core.store.threads.mergeContext(theirs.id, { client: "external" });
+    assert.equal(tools[0]?.when?.(mine), true);
+    assert.equal(tools[0]?.when?.(theirs), false);
     assert.equal(
       methods["asana.read"].params.safeParse({ request: { operation: "task", task: "../users" } }).success,
       false,

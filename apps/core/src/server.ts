@@ -246,7 +246,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     store,
     config.home,
     () => listening,
-    [...imessageTools(imessage), ...googleTools(google), ...asanaTools(asana), ...(opts.extraTools ?? [])],
+    [...imessageTools(imessage), ...googleTools(google), ...asanaTools(asana, store), ...(opts.extraTools ?? [])],
     config.runtimeSkills.homes,
   );
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
