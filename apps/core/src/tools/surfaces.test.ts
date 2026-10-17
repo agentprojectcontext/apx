@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { surfaceTools } from "./surfaces.ts";
+import type { ToolContext } from "./types.ts";
 
 const widget = (connect?: string[]) => ({
   name: "btc-live",
@@ -154,8 +156,43 @@ test("a widget whose inline script does not parse is refused with its line; othe
   const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "mixed")?.id ?? "";
 
   // An edit that breaks a script is refused and the stored widget stays as it was.
-  assert.match(await said(t.id, "break the script"), /refused: the script at line 1 \(column \d+\).*does not parse/);
+  assert.match(
+    await said(t.id, "break the script"),
+    /refused: the script at line 1 \(column \d+\).*does not parse.*call edit_widget again/,
+  );
   const kept = await env.client.call("surfaces.get", { surface: id });
   assert.equal(kept.version, 1);
   assert.ok(kept.html.includes("let x = 1;"));
+});
+
+test("a widget is not saved when the turn stopped while its scripts were checked", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "stopped" });
+  await said(t.id, "live widget");
+  const before = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "btc-live");
+  const saved: string[] = [];
+  const ctx = {
+    thread: { id: t.id },
+    signal: AbortSignal.abort(),
+    call: async (m: string) => {
+      saved.push(m);
+      throw new Error("nothing may be saved");
+    },
+    upsertPart: () => {},
+  } as unknown as ToolContext;
+  const tools = surfaceTools(env.core.store);
+  const run = (name: string, args: object) =>
+    (tools.find((x) => x.name === name) as unknown as { run(a: object, c: ToolContext): Promise<string> }).run(
+      args,
+      ctx,
+    );
+  const html = '<p></p><script type="module">export const a = 1;</script>';
+  assert.match(await run("show_widget", { name: "never-saved", title: "Never", html }), /stopped: .*nothing changed/);
+  assert.match(
+    await run("edit_widget", { name: "btc-live", edits: [{ old: "<div id=p></div>", new: html }] }),
+    /stopped: .*nothing changed/,
+  );
+  assert.deepEqual(saved, []);
+  const list = (await env.client.call("surfaces.list", {})).surfaces;
+  assert.ok(!list.some((s) => s.name === "never-saved"));
+  assert.equal(list.find((s) => s.name === "btc-live")?.version, before?.version);
 });

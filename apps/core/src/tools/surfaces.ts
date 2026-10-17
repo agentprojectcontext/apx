@@ -7,6 +7,8 @@ import { defineTool, type Tool, type ToolContext } from "./types.ts";
 import { widgetScriptError } from "./widget-syntax.ts";
 
 const MAX_HTML = 400_000;
+/** The turn stopped while the script check ran: saving now would change a widget after the call was given up. */
+const STOPPED = "stopped: the turn was canceled before the widget was saved; nothing changed.";
 
 const slug = (name: string) =>
   name
@@ -50,8 +52,9 @@ export function surfaceTools(store: Store): Tool[] {
       deadlineMs: 10_000,
       title: (a) => `Made the widget ${String(a.title ?? a.name)}`,
       async run(a, ctx) {
-        const broken = await widgetScriptError(a.html.slice(0, MAX_HTML));
+        const broken = await widgetScriptError(a.html.slice(0, MAX_HTML), "show_widget", ctx.signal);
         if (broken) return broken;
+        if (ctx.signal.aborted) return STOPPED;
         const surface = await ctx.call("surfaces.show", {
           name: slug(a.name),
           title: a.title.slice(0, 120) || a.name,
@@ -122,8 +125,9 @@ export function surfaceTools(store: Store): Tool[] {
           html = html.replace(e.old, () => e.new);
         }
         if (html.length > MAX_HTML) return `refused: the widget would pass ${MAX_HTML} characters`;
-        const broken = await widgetScriptError(html);
+        const broken = await widgetScriptError(html, "edit_widget", ctx.signal);
         if (broken) return broken;
+        if (ctx.signal.aborted) return STOPPED;
         const surface = await ctx.call("surfaces.show", {
           name: s.name,
           title: a.title?.trim().slice(0, 120) || s.title,

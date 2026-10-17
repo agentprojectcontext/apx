@@ -273,3 +273,12 @@ the refusal tells the model what to do instead; an agent's final answer in a tas
 raise the owner's attention. `ask_owner withdraw=<id>` ends the agent's own open question as `withdrawn` without
 telling the owner anything new; its card and tray entry close. Where: `apps/core/src/domain/owner-question.ts`,
 `tools/owner.ts`, `engine/inputs.ts`, `engine/office.ts`, `rpc/tasks.ts`.
+
+<a id="widget-module-check"></a>
+### A widget's module scripts are checked by a child process, not in-process
+`show_widget` and `edit_widget` refuse inline scripts that do not parse. Classic scripts compile with `vm.Script` and are
+never run. Module scripts go to `node --check --input-type=module` on stdin: `vm.SourceTextModule` needs a Node flag,
+and stripping `import`/`export` to fit `vm.Script` would be unsound. The child is the core's own binary, so under the
+desktop app it is Electron with `ELECTRON_RUN_AS_NODE=1` inherited (checked with Electron 42: exit 1 and a
+`SyntaxError:` line for a broken module, exit 0 for a good one). It runs off the event loop, all module scripts at once,
+for at most 3 seconds, and any failure to run it passes the script. Where: `apps/core/src/tools/widget-syntax.ts`.

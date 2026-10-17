@@ -1128,8 +1128,11 @@ adapter breaks every handle the core did not name with a zero-width space, the e
 D-013 gives an agent's first turn the owner's standing global notes. In a delegated turn (input origin `agent`) that
 put a dozen notes from unrelated projects in front of a helper handed one narrow task. Now a helper's first turn gets
 its project's notes and its own, and a global note only when a match shares at least two distinctive words with the
-task text; notes of other projects were never visible. The word test is deliberate: search by meaning fuses ranks and
-exposes no score to filter on. The owner's direct turns keep D-013 as it was.
+task text, not counting words every task and owner note use (owner, project, agent, task, repo…); notes of other
+projects were never visible. The word test is deliberate: search by meaning fuses ranks and exposes no score to filter
+on, so a helper loses meaning-only and cross-language recall of global notes (a note that shares no word with the task
+is not shown, whatever its meaning). The search asks for three times the usual hits before the filter, so unrelated
+global ones do not crowd out the rest. The owner's direct turns keep D-013 as it was.
 
 <a id="d-096"></a>
 ## D-096 — 2026-10-17 — A delegation past the cap waits in a queue instead of being refused

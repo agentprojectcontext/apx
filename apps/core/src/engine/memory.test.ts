@@ -241,3 +241,33 @@ test("a delegated turn gets its project's and its own notes, and global ones onl
   assert.match(text, /invoice totals in euros/, "a global note that shares words with the task");
   assert.doesNotMatch(text, /sip-call-ai|monkey cave|cobalt/, "no unrelated global note, none from another project");
 });
+
+test("a delegated turn ignores global notes that only share the owner's generic words with the task", async () => {
+  const store = env.core.store;
+  const byWords = async (o: { query: string; limit: number }) => store.memories.list(o);
+  const task =
+    "The owner wants the landing project audited: check the hero copy in the project repo. Task for the agent: user-facing text.";
+  store.memories.add({ scope: "global", text: "The owner keeps a sip-call-ai side project.", source: "owner" });
+  store.memories.add({
+    scope: "global",
+    text: "The owner's landing hero copy must stay under twelve words.",
+    source: "owner",
+  });
+  const helper = await recallFor(store, byWords, "scout", { project_id: project }, task, {}, 0, true);
+  assert.match(helper.text ?? "", /hero copy must stay/, "a global note about the task's own subject");
+  assert.doesNotMatch(helper.text ?? "", /sip-call-ai/, "sharing owner and project is not being about the task");
+});
+
+test("a delegated turn still recalls a related global note ranked behind five unrelated ones", async () => {
+  const store = env.core.store;
+  const note = (text: string) => store.memories.add({ scope: "global", text, source: "owner" });
+  const ranked = [
+    ...[1, 2, 3, 4, 5].map((i) => note(`The owner project agent task repo check note number ${i}.`)),
+    note("Gadolinium deploys need the vault unlocked."),
+  ];
+  const search = async (o: { limit: number }) => ranked.slice(0, o.limit);
+  const task = "The owner project agent task repo check: gadolinium deploys vault";
+  const helper = await recallFor(store, search, "scout", { project_id: project }, task, {}, 0, true);
+  assert.match(helper.text ?? "", /vault unlocked/, "the related note is past the first five hits");
+  assert.doesNotMatch(helper.text ?? "", /note number/);
+});
