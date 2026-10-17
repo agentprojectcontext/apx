@@ -1,4 +1,4 @@
-// Public rooms (a Discord server's channels the owner listed). Every message there is kept in the room's chat, so the
+// Public rooms (a Discord server's channels, Telegram groups the owner listed). Every message there is kept in the room's chat, so the
 // agent knows what the room was talking about when it is called; whether it answers depends on the room's mode, who
 // called it, a cheap model's judgment ("useful" rooms) and the room's limits. Answers are sealed turns, the owner's
 // too: the room is public. See DECISIONS.md#d-041
@@ -243,7 +243,7 @@ export function createRooms(deps: {
         channel: {
           id: cfg.id,
           conversation: room.id,
-          message: p.m.external_id,
+          message: p.m.ref ?? p.m.external_id,
           person_id: who.id,
           name: who.name,
           role: who.owner ? "owner" : "contact",

@@ -1,4 +1,5 @@
 // The composer's calls: attachments, dictation and the chat's own model.
+import nodePath from "node:path";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
 import { badRequest, errorMessage, notFound, unauthorized, unavailable } from "../errors.ts";
@@ -31,7 +32,11 @@ export function composerHandlers(deps: {
         const where = deps.locate(thread, path);
         if ("refused" in where) throw new Error(`refused: ${where.refused}`);
         const m = saveLocalAttachment(deps.home, store, where.base, thread.id, where.at, document);
-        return { media: { id: m.id, kind: m.kind, mime: m.mime, bytes: m.bytes, name: m.name } };
+        const rel = nodePath.relative(where.base, where.at).split(nodePath.sep).join("/");
+        return {
+          media: { id: m.id, kind: m.kind, mime: m.mime, bytes: m.bytes, name: m.name },
+          ...(document && { source: { path: rel, ...(where.scratch && { scratch: true }) } }),
+        };
       } catch (err) {
         throw badRequest(errorMessage(err));
       }

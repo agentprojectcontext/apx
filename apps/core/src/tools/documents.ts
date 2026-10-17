@@ -24,14 +24,14 @@ export function documentTool() {
           .at(-1)
       }`,
     async run(a, ctx) {
-      const { media: m } = await ctx.call("media.attach", { path: a.path, document: true });
+      const { media: m, source } = await ctx.call("media.attach", { path: a.path, document: true });
       ctx.upsertPart((p) => p.type === "file" && p.media_id === m.id, {
         type: "file",
         media_id: m.id,
         mime: m.mime,
         name: m.name,
         bytes: m.bytes,
-        document: { title: a.title ?? m.name.slice(0, 120), format: a.format },
+        document: { title: a.title ?? m.name.slice(0, 120), format: a.format, ...(source && { source }) },
       });
       return `Document ${m.name} (${m.bytes} bytes) opened as ${a.format} in this chat's side panel; a saved snapshot, not an app.`;
     },

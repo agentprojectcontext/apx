@@ -1,17 +1,25 @@
-import type { CoreEvent, Message, Part } from "@apx/protocol";
+import type { CoreEvent, DocumentSource, Message, Part } from "@apx/protocol";
 
 export type DocumentPart = Extract<Part, { type: "file" }> & {
   document: NonNullable<Extract<Part, { type: "file" }>["document"]>;
 };
 
 /** What a document panel needs to show one: from a chat's message, or from `documents.list`. */
-export type DocRef = { media_id: string; name: string; title: string; format: "markdown" | "text" };
+export type DocRef = {
+  media_id: string;
+  name: string;
+  title: string;
+  format: "markdown" | "text";
+  /** The file it was read from, in the chat's folder (older documents do not say). */
+  source?: DocumentSource;
+};
 
 export const docRef = (part: DocumentPart): DocRef => ({
   media_id: part.media_id,
   name: part.name,
   title: part.document.title,
   format: part.document.format,
+  ...(part.document.source && { source: part.document.source }),
 });
 
 /**

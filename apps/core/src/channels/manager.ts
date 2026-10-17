@@ -524,6 +524,7 @@ export function createChannels(deps: {
           l.qr = code;
         },
         receipt: (externalId, state) => delivery.receipt(config.id, externalId, state),
+        room: (g) => sawGroup(config.id, g),
         identified: ({ account, owner }) => {
           l.account = account;
           if (!owner) return;
@@ -604,10 +605,32 @@ export function createChannels(deps: {
     });
   }
 
-  /** The rooms of a running channel's servers, to pick from; none where the platform has no rooms. */
+  /** The groups a channel's bot reported being in (Telegram cannot list them), newest first. */
+  const groupsKey = (id: string) => `channel_groups:${id}`;
+  function seenGroups(id: string): Array<{ id: string; name: string }> {
+    try {
+      const v = JSON.parse(store.settings.get(groupsKey(id)) ?? "[]") as unknown;
+      return Array.isArray(v) ? (v as Array<{ id: string; name: string }>) : [];
+    } catch {
+      return [];
+    }
+  }
+  function sawGroup(id: string, g: { id: string; name: string; left?: boolean }): void {
+    const known = seenGroups(id);
+    const name =
+      g.name
+        .replace(/[\p{Cc}\p{Cf}]/gu, "")
+        .trim()
+        .slice(0, 80) || g.id;
+    if (!g.left && known[0]?.id === g.id && known[0].name === name) return;
+    const rest = known.filter((x) => x.id !== g.id);
+    store.settings.set(groupsKey(id), JSON.stringify(g.left ? rest : [{ id: g.id, name }, ...rest].slice(0, 100)));
+  }
+
+  /** The rooms of a running channel's servers (or the groups its bot reported), to pick from. */
   async function serverRooms(id: string): Promise<ServerRoom[]> {
     const l = live.get(id);
-    if (!l?.adapter.rooms) return [];
+    if (!l?.adapter.rooms) return seenGroups(id).map((g) => ({ ...g, server: "", writable: true }));
     if (l.status !== "running") throw new Error(`${l.config.label} is not running`);
     return l.adapter.rooms();
   }
@@ -639,6 +662,7 @@ export function createChannels(deps: {
         }
         if (!config) {
           secrets.set(tokenName(id), null);
+          store.settings.set(groupsKey(id), "[]");
           await live
             .get(id)
             ?.adapter.forget?.()

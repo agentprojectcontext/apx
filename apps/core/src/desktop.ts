@@ -1,10 +1,11 @@
-// What the owner's machine does with a file outside APX: show it in Finder (Explorer, the file manager) or move it to
-// the system trash, where it can still be recovered. Paths go as arguments or environment, never inside a script.
+// What the owner's machine does with a file outside APX: show it in Finder (Explorer, the file manager), open it in its
+// default app or move it to the system trash, where it can still be recovered. Paths go as arguments or environment, never inside a script.
 import { execFile } from "node:child_process";
 import path from "node:path";
 
 export type DesktopOps = {
   reveal(abs: string): Promise<void>;
+  open(abs: string): Promise<void>;
   trash(abs: string): Promise<void>;
 };
 
@@ -18,6 +19,12 @@ export const systemDesktop: DesktopOps = {
     if (process.platform === "darwin") return run("open", ["-R", abs]);
     if (process.platform === "win32") return run("explorer.exe", [`/select,${abs}`]).catch(() => {});
     return run("xdg-open", [path.dirname(abs)]);
+  },
+  open(abs) {
+    if (process.platform === "darwin") return run("open", [abs]);
+    // `start` is a cmd builtin; its first quoted argument is the window title.
+    if (process.platform === "win32") return run("cmd.exe", ["/c", "start", '""', abs]);
+    return run("xdg-open", [abs]);
   },
   trash(abs) {
     if (process.platform === "darwin")
