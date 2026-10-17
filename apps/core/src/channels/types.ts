@@ -66,6 +66,11 @@ export type AdapterIO = {
   reaction?(r: InboundReaction): void;
   /** A message we sent (by the platform's id) reached their device, or was seen. */
   receipt?(externalId: string, state: "delivered" | "read"): void;
+  /**
+   * A group the bot is in, seen in an update, for a platform that cannot list them (Telegram); `left` when it was
+   * removed from it. Offered in the rooms picker.
+   */
+  room?(r: { id: string; name: string; left?: boolean }): void;
   /** Connected as this account; `owner` is the owner's own address on it (a linked device is the owner). */
   identified?(who: { account: string; owner?: string }): void;
   signal: AbortSignal;
@@ -97,7 +102,10 @@ export interface ChannelAdapter {
    * them, so the first answer may be empty.
    */
   presence?(externalIds: string[]): Record<string, Presence>;
-  /** The rooms of the servers the bot is in (to pick from instead of typing ids), and whether it may write in each. */
+  /**
+   * The rooms of the servers the bot is in (to pick from instead of typing ids), and whether it may write in each. A
+   * platform without it offers the groups it reported through `io.room`.
+   */
   rooms?(): Promise<ServerRoom[]>;
   /**
    * Asks the platform to send these messages again, for files that never arrived (WhatsApp: the owner's phone resends

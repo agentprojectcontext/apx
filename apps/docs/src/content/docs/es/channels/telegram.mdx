@@ -99,6 +99,41 @@ o con `apx pairing ok <código>`. Podés cambiar a **Avisarme**, **Contestar** o
 Las personas aprobadas son contactos: sus chats están sellados (sin tools, sin nada de tu memoria). Aparecen en
 **Personas en Telegram**, donde las podés bloquear u olvidar.
 
+## Grupos
+
+El bot también puede atender grupos de Telegram, como un bot de Discord atiende salas de un servidor. Los grupos son
+opcionales: uno que no está en la lista no existe para APX, así que no se lee ni se guarda, aunque el bot esté ahí.
+
+<Steps>
+
+1. En **@BotFather**, mandá `/mybots`, elegí tu bot y después **Bot Settings › Group Privacy › Turn off**. Con la
+   privacidad activa, Telegram solo le pasa al bot los mensajes del grupo que lo @mencionan o le responden, así que
+   **Siempre** y **Cuando sirve** nunca verían el resto. Desactivarla vale para los grupos a los que el bot entra
+   después: si ya está en uno, sacalo y volvé a agregarlo.
+
+2. Agregá el bot al grupo y escribí algo ahí con el canal conectado. Telegram no deja listar los grupos de un bot,
+   así que APX los aprende de lo que llega: que lo agreguen, o cualquier mensaje.
+
+3. En **Configuración › Canales**, en **Grupos**, elegí el grupo en **Agregar un grupo donde está el bot…**. Escribir
+   su ID (un número negativo, `-100…` en un supergrupo) queda como alternativa.
+
+</Steps>
+
+Cada grupo tiene los mismos modos, palabras que lo llaman, notas, reglas y límites que una sala de Discord (ver
+[Salas del servidor](/es/channels/discord-slack/#salas-del-servidor)). En **Cuando lo llaman**, lo llama una
+@mención del bot, un comando dirigido a él (`/help@tu_bot`) o una respuesta a uno de sus mensajes. Las respuestas van
+al grupo, como respuesta al mensaje que contestan, y solo mencionan a las personas que nombra un turno tuyo.
+
+<Aside type="caution" title="Los grupos son públicos, así que sus turnos van sellados">
+En un grupo el agente contesta sin memoria y sin nada tuyo, aunque seas vos quien escribe. Los chats privados con el
+bot no cambian.
+</Aside>
+
+<Aside type="note">
+Cuando Telegram convierte un grupo en supergrupo (por ejemplo, al hacer admin a alguien), su ID cambia: volvé a
+elegirlo de la lista y quitá el viejo.
+</Aside>
+
 ## Un bot por proyecto
 
 El panel configura un bot de Telegram. Si querés un bot aparte para un proyecto, agregalo desde la terminal con su

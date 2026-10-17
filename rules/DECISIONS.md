@@ -1111,7 +1111,20 @@ fields on any change, so most installs held the old defaults as if the owner cho
 equal to a former default (16, 600k), and saving now keeps only what differs from the defaults, so a later default
 reaches everyone who never touched it while a limit the owner picked stays.
 
-## D-094 — 2026-10-17 — A helper's turn recalls its project and the task, not the owner's whole notebook
+<a id="d-094"></a>
+## D-094 — 2026-10-17 — Telegram groups are rooms, learned from what arrives
+A Telegram bot added to a group was silent unless the group was ignored entirely: its messages were marked not private
+and had no room, so they were dropped. Groups are now rooms exactly like a Discord server's channels (D-041): deny by
+default, a mode per group, sealed public turns, answers in the group as a reply. Called means an @mention of the bot, a
+command addressed to it or a reply to its message. The Bot API has no call that lists a bot's chats, so the adapter
+reports every group it sees (a message, or `my_chat_member` when it is added or removed) through `io.room`, and the
+manager keeps them per channel in settings for the rooms picker; an unlisted group's messages are reported but never
+handed over, so nothing of it is stored. Telegram pings any `@username` written in a message, so in a group the
+adapter breaks every handle the core did not name with a zero-width space, the equivalent of Discord's
+`allowed_mentions`. A group upgraded to a supergroup changes id: the owner picks it again.
+
+<a id="d-095"></a>
+## D-095 — 2026-10-17 — A helper's turn recalls its project and the task, not the owner's whole notebook
 D-013 gives an agent's first turn the owner's standing global notes. In a delegated turn (input origin `agent`) that
 put a dozen notes from unrelated projects in front of a helper handed one narrow task. Now a helper's first turn gets
 its project's notes and its own, and a global note only when a match shares at least two distinctive words with the
