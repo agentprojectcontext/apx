@@ -11,6 +11,7 @@ import {
   listedThreads,
   pinnedFirst,
   standsAlone,
+  unreadListed,
 } from "./groupThreads.ts";
 
 const thread = (id: string, extra: Partial<Thread> = {}): Thread =>
@@ -177,6 +178,8 @@ test("a chat's delegated chats hang under it, newest first, in every view, and n
       .sort(),
     ["a", "ccc", "dddd", "home"],
   );
+  const unread = { ...threads, ccc: { ...threads.ccc, unread: 2 }, dddd: { ...threads.dddd, unread: 1 } };
+  assert.deepEqual(unreadListed(unread, {}).sort(), ["ccc", "dddd"], "a delegated chat's unread goes too");
 });
 
 test("a chat delegated into a project from Home is listed in that project, and only under Home in the Inbox", () => {

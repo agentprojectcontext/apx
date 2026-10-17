@@ -23,7 +23,7 @@ import {
   groupByAgent,
   groupByProject,
   groupByTime,
-  listedThreads,
+  unreadListed,
 } from "./groupThreads.ts";
 import { ActivityView, TreeView } from "./InboxViews.tsx";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
@@ -61,13 +61,7 @@ export function InboxList() {
   );
   const archived = useMemo(() => archivedThreads(threads, { projectId, query }), [threads, projectId, query]);
   // The chats the Inbox counts as unread, in this project when one is open.
-  const unreadIds = useMemo(
-    () =>
-      listedThreads(threads, { projectId, routines })
-        .filter((th) => th.unread > 0)
-        .map((th) => th.id),
-    [threads, routines, projectId],
-  );
+  const unreadIds = useMemo(() => unreadListed(threads, { projectId, routines }), [threads, routines, projectId]);
   const title = projectId
     ? t("inbox.projectChats", { project: findProject(projects, projectId)?.name ?? t("project.fallback") })
     : t("nav.inbox");
