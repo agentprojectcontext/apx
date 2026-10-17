@@ -399,6 +399,8 @@ export function createEngine(deps: {
         });
       }
       for (const threadId of store.runs.queuedThreads()) kick(threadId);
+      // After the resumed delegations are admitted, so they hold their slots first.
+      for (const threadId of store.runs.heldParents()) delegations.release(threadId);
     },
     /** Shutdown: stops every running turn (left open, so the next boot resumes it) and waits for them to finish writing. */
     async stop(): Promise<void> {

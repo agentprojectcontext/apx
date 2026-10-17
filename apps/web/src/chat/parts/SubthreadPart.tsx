@@ -8,6 +8,7 @@ import { type MessageKey, useT } from "../../i18n/index.ts";
 import { go } from "../../shell/nav.ts";
 
 const STATE: Record<RunState, { status: NonNullable<SubthreadCardProps["status"]>; label: MessageKey }> = {
+  queued: { status: "waiting", label: "run.queued" },
   submitted: { status: "running", label: "run.submitted" },
   working: { status: "running", label: "run.working" },
   "input-required": { status: "waiting", label: "run.waiting" },
