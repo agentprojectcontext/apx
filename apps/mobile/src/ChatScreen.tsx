@@ -210,6 +210,7 @@ export function ChatScreen({
                   agents={data.agents}
                   waiting={live.state === "input-required"}
                   respond={live.respond}
+                  goOn={(thread, mode) => live.client.call("threads.go_on", { thread, mode })}
                   {...(onOpenThread ? { openThread: onOpenThread } : {})}
                 />
               )

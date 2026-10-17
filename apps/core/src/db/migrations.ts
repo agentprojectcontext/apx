@@ -726,4 +726,13 @@ export const MIGRATIONS: readonly string[] = [
   -- A question whose options the owner may pick several of.
   ALTER TABLE pending_inputs ADD COLUMN multi INTEGER;
   `,
+  `
+  -- The unattended limits count fresh tokens now and their defaults grew (engine/limits.ts). Settings saved both
+  -- fields on any change, so a value still equal to the former default (16 turns, 600k tokens) follows the new one;
+  -- a limit the owner chose stays.
+  UPDATE meta SET value = json_remove(value, '$.runs')
+    WHERE key = 'setting:agent_limits' AND json_extract(value, '$.runs') = 16;
+  UPDATE meta SET value = json_remove(value, '$.tokens')
+    WHERE key = 'setting:agent_limits' AND json_extract(value, '$.tokens') = 600000;
+  `,
 ];

@@ -4,7 +4,7 @@ import { expect, open, rpc, test } from "./kit.ts";
 type Limits = { runs: number; tokens: number };
 
 test("the owner changes the limits on agents working on their own in Config › Agents", async ({ page }) => {
-  await rpc("agents.set_limits", { runs: 16, tokens: 600_000 });
+  await rpc("agents.set_limits", { runs: 30, tokens: 1_500_000 });
   await open(page);
   await page.keyboard.press("ControlOrMeta+k");
   await page
@@ -19,7 +19,7 @@ test("the owner changes the limits on agents working on their own in Config › 
   await expect(dialog.getByRole("heading", { name: "Cuando los agentes trabajan solos" })).toBeVisible();
 
   const tokens = dialog.getByRole("spinbutton", { name: "Tokens sin vos" });
-  await expect(tokens).toHaveValue("600");
+  await expect(tokens).toHaveValue("1500");
   await tokens.fill("2000");
   await tokens.press("Enter");
   await expect.poll(async () => (await rpc<Limits>("agents.limits")).tokens).toBe(2_000_000);
@@ -33,7 +33,7 @@ test("the owner changes the limits on agents working on their own in Config › 
   await expect(runs).toHaveCount(0);
   await expect.poll(() => rpc<Limits>("agents.limits")).toMatchObject({ runs: 0, tokens: 0 });
   await dialog.getByRole("switch", { name: "Quitar los límites" }).click();
-  await expect(dialog.getByRole("spinbutton", { name: "Tokens sin vos" })).toHaveValue("600");
+  await expect(dialog.getByRole("spinbutton", { name: "Tokens sin vos" })).toHaveValue("1500");
 
-  await rpc("agents.set_limits", { runs: 16, tokens: 600_000 });
+  await rpc("agents.set_limits", { runs: 30, tokens: 1_500_000 });
 });
