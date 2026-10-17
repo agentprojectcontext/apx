@@ -216,3 +216,28 @@ test("a forgotten note leaves every turn, is not saved again by an agent, and th
   await env.client.call("memory.remove", { id: note.id, forever: true });
   assert.equal(env.core.store.memories.get(note.id), undefined);
 });
+
+test("a delegated turn gets its project's and its own notes, and global ones only when the task shares words", async () => {
+  const store = env.core.store;
+  const byWords = async (o: { query: string; limit: number }) => store.memories.list(o);
+  const note = (scope: "global" | "project" | "agent", text: string, project_id?: string) =>
+    store.memories.add({ scope, text, source: "owner", project_id, agent_id: scope === "agent" ? "scout" : undefined });
+  const q = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-mem-q-")));
+  fs.writeFileSync(path.join(q, "AGENTS.md"), "# Other\n");
+  const other = (await env.client.call("projects.register", { path: q })).project.id;
+  note("project", "Zebrafish billing runs on the staging cluster.", project);
+  note("project", "Zebrafish billing in the other project uses cobalt.", other);
+  note("agent", "Scout writes reports in tables.");
+  note("global", "The owner keeps a sip-call-ai side project.");
+  note("global", "The owner named the monkey cave project after a trip.");
+  note("global", "The owner reviews zebrafish invoices every Friday and wants invoice totals in euros.");
+  const ask = "Audit the zebrafish invoice totals for billing";
+  const direct = await recallFor(store, byWords, "scout", { project_id: project }, ask, {}, 0);
+  assert.match(direct.text ?? "", /sip-call-ai/, "the owner's direct turn keeps every standing global note");
+  const helper = await recallFor(store, byWords, "scout", { project_id: project }, ask, {}, 0, true);
+  const text = helper.text ?? "";
+  assert.match(text, /staging cluster/, "the helper's project");
+  assert.match(text, /reports in tables/, "its own notes");
+  assert.match(text, /invoice totals in euros/, "a global note that shares words with the task");
+  assert.doesNotMatch(text, /sip-call-ai|monkey cave|cobalt/, "no unrelated global note, none from another project");
+});

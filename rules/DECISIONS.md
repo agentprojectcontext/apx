@@ -1122,3 +1122,11 @@ manager keeps them per channel in settings for the rooms picker; an unlisted gro
 handed over, so nothing of it is stored. Telegram pings any `@username` written in a message, so in a group the
 adapter breaks every handle the core did not name with a zero-width space, the equivalent of Discord's
 `allowed_mentions`. A group upgraded to a supergroup changes id: the owner picks it again.
+
+<a id="d-095"></a>
+## D-095 — 2026-10-17 — A helper's turn recalls its project and the task, not the owner's whole notebook
+D-013 gives an agent's first turn the owner's standing global notes. In a delegated turn (input origin `agent`) that
+put a dozen notes from unrelated projects in front of a helper handed one narrow task. Now a helper's first turn gets
+its project's notes and its own, and a global note only when a match shares at least two distinctive words with the
+task text; notes of other projects were never visible. The word test is deliberate: search by meaning fuses ranks and
+exposes no score to filter on. The owner's direct turns keep D-013 as it was.
