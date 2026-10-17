@@ -36,6 +36,17 @@ export const world = {
   telegram: async (from: { id: number; name: string }, text: string) => {
     await fetch(`${control}/tg/message`, { method: "POST", body: JSON.stringify({ from, text }) });
   },
+  /** Someone writing in a Telegram group the bot is in; `mention` @mentions the bot. */
+  telegramGroup: async (
+    from: { id: number; name: string; username?: string },
+    chat: { id: number; title: string },
+    text: string,
+    mention?: string,
+  ) => {
+    const at = mention ? text.indexOf(mention) : -1;
+    const extra = at >= 0 ? { entities: [{ type: "mention", offset: at, length: mention?.length ?? 0 }] } : {};
+    await post(`${control}/tg/message`, { from, text, chat: { ...chat, type: "supergroup" }, extra });
+  },
   /** Someone writing to the Discord or Slack bot in a direct message, and what the bot sent them. */
   dm: async (channel: "dc" | "sl", from: { id: string; name: string }, text: string) => {
     await post(`${control}/${channel}/message`, { from, text });
