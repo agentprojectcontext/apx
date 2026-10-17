@@ -15,15 +15,20 @@ const MATCHES = 5;
 const SHOWN_CAP = 200;
 /** A global note comes into a delegated turn only when it shares this many distinctive words with the task. */
 const GLOBAL_SHARED_WORDS = 2;
+/** Words every task and every owner note use; sharing them says nothing about the subject. */
+const GENERIC = new Set(
+  "owner owners dueno project projects proyecto proyectos user usuario agent agents agente task tasks tarea repo check revisar".split(
+    " ",
+  ),
+);
 
 const plain = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
-/** True when the note shares enough distinctive words (same prefix rule as the search) with the task. */
+/** True when the note shares enough distinctive words (same prefix rule as the search, generic words aside) with the task. */
 function relatedToTask(note: Memory, task: string): boolean {
-  const words = [...(ftsQuery(task, 40) ?? "").matchAll(/"([^"]+)"(\*)?/g)].map((m) => ({
-    w: m[1] as string,
-    prefix: !!m[2],
-  }));
+  const words = [...(ftsQuery(task, 40) ?? "").matchAll(/"([^"]+)"(\*)?/g)]
+    .map((m) => ({ w: m[1] as string, prefix: !!m[2] }))
+    .filter(({ w }) => !GENERIC.has(w));
   const have = plain(note.text).match(/[\p{L}\p{N}]{3,}/gu) ?? [];
   const shared = words.filter(({ w, prefix }) => have.some((h) => (prefix ? h.startsWith(w) : h === w)));
   return shared.length >= GLOBAL_SHARED_WORDS;
@@ -31,8 +36,8 @@ function relatedToTask(note: Memory, task: string): boolean {
 
 /**
  * `from`: the oldest model log seq still in the model's view. `delegated`: a helper's turn, which is about the task
- * it was handed: no standing global notes, and a global match only when it shares words with the task. Returns the block and, when something changed, the
- * bookkeeping to store once the input's seq is known.
+ * it was handed: no standing global notes, and a global match only when it shares words with the task.
+ * Returns the block and, when something changed, the bookkeeping to store once the input's seq is known.
  */
 export async function recallFor(
   store: Store,
@@ -66,8 +71,9 @@ export async function recallFor(
     add(store.memories.list({ view, scope: "agent", agent_id: agentId, limit: STANDING }));
   }
   if (text.trim()) {
-    const found = await search({ view, query: text.slice(0, 2000), limit: MATCHES });
-    add(delegated ? found.filter((m) => m.scope !== "global" || relatedToTask(m, text)) : found);
+    // Delegated: the filter drops global hits, so ask for more first or unrelated ones would crowd out the rest.
+    const found = await search({ view, query: text.slice(0, 2000), limit: delegated ? MATCHES * 3 : MATCHES });
+    add(delegated ? found.filter((m) => m.scope !== "global" || relatedToTask(m, text)).slice(0, MATCHES) : found);
   }
   const block = notesText(notes);
   // The first turn records the agent even with nothing to show, so its standing notes are not looked up again.
