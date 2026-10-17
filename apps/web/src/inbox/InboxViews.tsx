@@ -1,6 +1,6 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { AgentAvatar, ContextMenu, EngineIcon, Icons, ProjectTile, Spinner, Tooltip } from "@apx/ui";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { KindIcon } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { shortWhen } from "../common/format.ts";
@@ -56,12 +56,15 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
   const engines = useData((s) => s.engines);
   const engineLabel = (id: string) => engines.find((e) => e.id === id)?.label ?? id;
   const [open, setOpen] = useState<Record<string, boolean>>({});
-  // Unread chats repeat on top: in the tree they can sit under "N more".
+  // Unread chats repeat on top: in the tree they can sit under "N more". The one opened from there stays while it is
+  // open, though opening it read it: the row does not vanish from under the click.
+  const onTop = useRef(new Set<string>());
   const unread = [
     ...new Map(trees.flatMap((tr) => tr.agents.flatMap((b) => b.threads)).map((th) => [th.id, th])).values(),
   ]
-    .filter((th) => th.unread > 0)
+    .filter((th) => th.unread > 0 || (th.id === selected && onTop.current.has(th.id)))
     .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
+  onTop.current = new Set(unread.map((th) => th.id));
   return (
     <>
       {unread.length > 0 && (

@@ -33,6 +33,12 @@ test("Árbol: los chats sin leer se repiten arriba, aunque queden bajo «Ver má
   // Its branch keeps it where it was: hidden until "more".
   const branch = page.locator(".tree__agent").filter({ hasText: "Arriba 4" });
   await expect(branch.locator(".tree__session", { hasText: "Arriba 0" })).toHaveCount(0);
+  // Opening it reads it: from now on the core says so. It stays on top while open, then leaves.
+  await page.unroute("**/rpc/threads.list");
   await top.locator(".tree__session").click();
+  // Loaded, the chat marks itself read.
+  await expect(page.getByText(/^Chat con /)).toBeVisible();
   await expect(top.locator(".tree__session.is-selected")).toHaveCount(1);
+  await page.locator(".tree__session", { hasText: "Arriba 4" }).first().click();
+  await expect(page.locator(".tree__unreadlist")).toHaveCount(0);
 });
