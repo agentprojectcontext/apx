@@ -42,3 +42,27 @@ test("Árbol: los chats sin leer se repiten arriba, aunque queden bajo «Ver má
   await page.locator(".tree__session", { hasText: "Arriba 4" }).first().click();
   await expect(page.locator(".tree__unreadlist")).toHaveCount(0);
 });
+
+test("Árbol: una sesión de Claude Code sin leer se muestra con su motor, no con el agente que la aloja", async ({
+  page,
+}) => {
+  const { id } = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Revisión" });
+  await page.route("**/rpc/threads.list", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.result.threads = body.result.threads.map((thread: { id: string }) =>
+      thread.id === id
+        ? { ...thread, engine: "claude", kind: "code", cwd: "~/work/acme", unread: 1 }
+        : { ...thread, unread: 0 },
+    );
+    await route.fulfill({ response, json: body });
+  });
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, "#view=inbox");
+  const row = page.locator(".tree__unreadlist .tree__session");
+  await expect(row).toHaveCount(1);
+  await expect(row.locator(".apx-engine--claude")).toHaveCount(1);
+  await expect(row.locator(".apx-blob, .apx-avatar")).toHaveCount(0);
+  await expect(row.locator(".tree__sessionwho")).toHaveText("Claude Code");
+});

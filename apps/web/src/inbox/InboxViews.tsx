@@ -178,6 +178,7 @@ export function SessionRow({
   label?: string | undefined;
 }) {
   const t = useT();
+  const engine = useEngineLabel(thread.engine);
   return (
     <ContextMenu items={threadMenu(thread, { t, agent })}>
       <button
@@ -190,8 +191,14 @@ export function SessionRow({
         {thread.pinned && <PinMark />}
         <ChannelMark thread={thread} />
         <RoutineMark thread={thread} />
-        {withAgent && <AgentAvatar name={agent?.name ?? ""} blob={blobOf(agent)} size={16} animated={false} />}
-        {withAgent && <span className="tree__sessionwho">{agent?.name ?? thread.agent_ids[0]}</span>}
+        {/* An engine session is the engine's (Claude Code, Codex), not the agent's that hosts it. */}
+        {withAgent &&
+          (thread.engine ? (
+            <EngineIcon engine={thread.engine} tile size={16} />
+          ) : (
+            <AgentAvatar name={agent?.name ?? ""} blob={blobOf(agent)} size={16} animated={false} />
+          ))}
+        {withAgent && <span className="tree__sessionwho">{engine ?? agent?.name ?? thread.agent_ids[0]}</span>}
         {/* Under its task, a chat's title only repeats the task's: what was said last tells them apart. */}
         <span className="tree__sessiontitle">
           {label ?? chatLabel(thread, agent, withAgent ? thread.title : t("chat.new"))}
