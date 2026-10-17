@@ -38,12 +38,18 @@ export function browserTools(store: Store, home: string): Tool[] {
     if (!ctx.see) return;
     const shot = await ctx.call("browser.screenshot", { tab }).catch(() => undefined);
     if (!shot) return;
-    const m = saveUpload(home, store, {
-      name: "tab.jpg",
-      mime: shot.mime,
-      bytes: Buffer.from(shot.data, "base64"),
-      thread: ctx.thread.id,
-    });
+    // A picture that cannot be kept (too big, empty, not the image it claims) leaves the tree alone.
+    let m: { id: string; mime: string };
+    try {
+      m = saveUpload(home, store, {
+        name: "tab.jpg",
+        mime: shot.mime,
+        bytes: Buffer.from(shot.data, "base64"),
+        thread: ctx.thread.id,
+      });
+    } catch {
+      return;
+    }
     ctx.see({ media_id: m.id, mime: m.mime });
   };
   const card = async (ctx: ToolContext, tab: string, state: "agent" | "handoff" | "user" | "done", reason?: string) => {

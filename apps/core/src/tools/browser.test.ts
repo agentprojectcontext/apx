@@ -15,6 +15,8 @@ let desktop: ApxSocket;
 const snapshots: number[] = [];
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
 const holds: Array<{ run: string; tabs: string[] }> = [];
+/** What the fake tab's screenshot returns next. */
+let shot = JPEG;
 
 before(async () => {
   env = await startCore({ llm });
@@ -35,7 +37,7 @@ before(async () => {
       return { url: "https://example.com/", title: "Example", tree: 'button "Send" [e1]', refs: 1, truncated: false };
     }
     if (method === "browser.screenshot")
-      return { mime: "image/jpeg", data: JPEG.toString("base64"), bytes: JPEG.length };
+      return { mime: "image/jpeg", data: shot.toString("base64"), bytes: shot.length };
     throw new Error(`unknown ${method}`);
   });
 });
@@ -64,6 +66,20 @@ test("browser_snapshot shows the model a picture of the tab, not the chat", asyn
   assert.equal(shown.images?.[0]?.mime, "image/jpeg");
   const parts = (await env.client.call("threads.get", { thread })).messages.flatMap((m) => m.parts);
   assert.ok(!parts.some((p) => p.type === "image"), "the picture is for the model only");
+});
+
+test("a picture that cannot be kept leaves browser_snapshot with the page's tree", async () => {
+  shot = Buffer.from("not a jpeg at all");
+  try {
+    const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    await env.client.call("threads.send", { thread, text: "wait and look" });
+    await env.settle(thread);
+    const call = llm.calls.at(-1);
+    assert.match(String(call?.messages.findLast((m) => m.role === "tool")?.content), /Send/);
+    assert.ok(!call?.messages.some((m) => m.role === "user" && m.images?.length), "no picture travels");
+  } finally {
+    shot = JPEG;
+  }
 });
 
 test("the turn holds the tab it used while it runs and lets it go when it ends", async () => {
