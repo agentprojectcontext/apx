@@ -462,6 +462,7 @@ export const en = {
   "chat.theAgent": "The agent",
   "chat.agentWorking": "{name} is working…",
   "chat.agentWaiting": "{name} is waiting for you",
+  "chat.agentQueued": "Queued: {name} starts once one of the running delegations finishes",
   "tools.working": "Working · action {n}",
   "tools.waiting": "Waiting for you · action {n}",
   "tools.summary": "Actions 1–{n} of {n}",

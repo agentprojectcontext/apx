@@ -101,6 +101,8 @@ export function createDelegations(deps: {
   live: Map<string, Display>;
   /** Admits the result as a new input on the caller's thread. */
   deliver(parent: RunRecord, child: RunRecord, answer: string): void;
+  /** The engine's end of a run (its waiters, then this module's `childEnded`). */
+  ended(run: RunRecord): void;
 }) {
   const { store } = deps;
   /** Child run → the caller still waiting for it inside its turn. */
@@ -139,28 +141,52 @@ export function createDelegations(deps: {
   const settleCard = (parent: RunRecord, child: RunRecord, answer: string) =>
     updateCard(parent, child, (p) => reportCard(p, child, answer));
 
+  /** Tells the owner, once per run, that the breaker holds a queued delegation; going on (or writing) starts it. */
+  function holdQueued(parentThreadId: string, run: RunRecord, who: string): void {
+    const seen = store.threads.context(parentThreadId).queue_held ?? [];
+    if (seen.includes(run.id)) return;
+    store.threads.mergeContext(parentThreadId, { queue_held: [...seen.slice(-20), run.id] });
+    const notice = heldNotice(store, parentThreadId, who, (run.input?.text ?? "").slice(0, 120), run.agent_id);
+    if (notice) store.messages.add({ thread_id: parentThreadId, author: { kind: "system" }, parts: [notice] });
+  }
+
   /**
-   * Starts the thread's queued delegations while it has free slots; one whose caller is gone is canceled instead.
-   * Stopping the caller cancels them on its own (engine `cancel`), before any slot frees.
+   * Starts the thread's queued delegations, oldest first, while it has free slots and the breaker lets them; one
+   * whose caller is gone is canceled instead. Stopping the caller cancels them on its own (engine `cancel`).
+   * Returns how many it started.
    */
-  function release(parentThreadId: string): void {
-    while (store.runs.activeDelegations(parentThreadId) < MAX_ACTIVE_DELEGATIONS) {
-      const next = store.runs.nextHeld(parentThreadId);
-      if (!next) return;
+  function release(parentThreadId: string): number {
+    let started = 0;
+    for (const next of store.runs.held(parentThreadId)) {
+      if (store.runs.activeDelegations(parentThreadId) >= MAX_ACTIVE_DELEGATIONS) break;
+      // Ending one below can release others first.
+      if (store.runs.get(next.id)?.state !== "queued") continue;
       const caller = next.parent_run_id ? store.runs.get(next.parent_run_id) : undefined;
       if (!caller || !store.threads.get(parentThreadId)) {
-        const done = store.runs.setState(next, "canceled", "canceled before it started");
         store.threads.patch(next.thread_id, { state: "canceled" });
-        if (caller) settleCard(caller, done, answerOf(done));
+        deps.ended(store.runs.setState(next, "canceled", "canceled before it started"));
+        continue;
+      }
+      // Its turn counts against the breaker once it starts, so it is checked again now (DECISIONS.md#d-096).
+      const who = store.threads.context(next.thread_id).worker?.name ?? store.agents.get(next.agent_id)?.name ?? "";
+      if (tripped(store, parentThreadId)) {
+        holdQueued(parentThreadId, next, who);
+        break;
+      }
+      if (agentTripped(store, parentThreadId, next.agent_id, who)) {
+        holdQueued(parentThreadId, next, who);
         continue;
       }
       // Its time to work starts now, not when it was queued.
       store.runs.setDeadline(next.id, new Date(Date.now() + A2A_DEADLINE_MS).toISOString());
-      const started = store.runs.setState(next, "submitted");
-      store.threads.patch(next.thread_id, { state: "submitted" });
-      updateCard(caller, started, (p) => ({ ...p, state: "working" }));
+      const run = store.runs.setState(next, "submitted");
+      if (store.threads.get(next.thread_id)?.state !== "working")
+        store.threads.patch(next.thread_id, { state: "submitted" });
+      updateCard(caller, run, (p) => ({ ...p, state: "working" }));
       deps.kick(next.thread_id);
+      started++;
     }
+    return started;
   }
 
   /** A free session name under `parentId`, from what the caller asked for (or the agent's name). */
@@ -304,11 +330,17 @@ export function createDelegations(deps: {
       return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.`;
     },
 
-    /** A delegated run ended: settle its card, then hand the answer to the waiting caller or deliver it later. */
+    /**
+     * A run in a sub-thread ended: a slot may be free, whether or not a delegation started it. A delegated one has
+     * its card settled, then its answer goes to the waiting caller or is delivered later.
+     */
     childEnded(child: RunRecord): void {
-      if (!child.parent_run_id) return;
-      const parent = store.runs.get(child.parent_run_id);
-      if (!parent) return;
+      const from = TERMINAL.has(child.state) ? store.threads.get(child.thread_id)?.parent_id : undefined;
+      const parent = child.parent_run_id ? store.runs.get(child.parent_run_id) : undefined;
+      if (!parent) {
+        if (from) release(from);
+        return;
+      }
       const waiting = inline.get(child.id);
       // Cut off by APX shutting down: it resumes on the next boot and reports then. A caller still waiting is let go.
       if (!TERMINAL.has(child.state)) {
@@ -318,7 +350,6 @@ export function createDelegations(deps: {
       }
       const answer = answerOf(child);
       settleCard(parent, child, answer);
-      const from = store.threads.get(child.thread_id)?.parent_id;
       if (from) release(from);
       if (waiting) {
         inline.delete(child.id);

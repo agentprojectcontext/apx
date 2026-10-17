@@ -8,7 +8,8 @@ import { loadTasks, tasksLoaded, useTasks } from "../../data/tasks.ts";
 import { useLanguage, useT } from "../../i18n/index.ts";
 import type { NodeInfo } from "./TeamCanvas.tsx";
 
-const LIVE: ReadonlySet<Run["state"]> = new Set(["submitted", "working", "input-required"]);
+/** Runs that keep an agent off idle: a delegation queued for a slot shows as work in flight (DECISIONS.md#d-096). */
+const LIVE: ReadonlySet<Run["state"]> = new Set(["queued", "submitted", "working", "input-required"]);
 
 /**
  * What an agent's own model runs on, for the icon (the whole ref, so "openrouter/anthropic/…" still shows Claude's

@@ -108,8 +108,9 @@ export type StepHit = {
   started_at: string;
 };
 
-const RUNNING = ["submitted", "working", "input-required"] as const;
-const LIVE = ["queued", ...RUNNING] as const;
+const LIVE = ["queued", "submitted", "working", "input-required"] as const;
+/** What holds one of a thread's delegation slots: waiting for the owner does not (DECISIONS.md#d-096). */
+const AT_WORK = ["submitted", "working"] as const;
 
 /**
  * Fresh tokens a run spent: its input less what the provider read from its cache, plus its output. Every model call
@@ -203,9 +204,9 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .where("state", "in", ["submitted", "queued"]),
       ).map((r) => r.id);
     },
-    /** The oldest delegation from this thread waiting for a slot. */
-    nextHeld(parentThreadId: string): RunRecord | undefined {
-      const r = one(
+    /** The delegations from this thread waiting for a slot, oldest first. */
+    held(parentThreadId: string): RunRecord[] {
+      return all(
         qb
           .selectFrom("runs as r")
           .innerJoin("threads as t", "t.id", "r.thread_id")
@@ -213,10 +214,8 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .where("t.parent_id", "=", parentThreadId)
           .where("r.state", "=", "queued")
           .orderBy("r.created_at")
-          .orderBy(raw`r.rowid`)
-          .limit(1),
-      );
-      return r ? toRun(r) : undefined;
+          .orderBy(raw`r.rowid`),
+      ).map(toRun);
     },
     /** Threads with delegations waiting for a slot. */
     heldParents(): string[] {
@@ -261,6 +260,8 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .select((eb) => [eb.fn.countAll<number>().as("n"), raw<number>`coalesce(sum(${runTokens}), 0)`.as("t")])
           .where("thread_id", "in", threadIds)
           .where("trigger", "in", ["a2a", "a2a_result", "system"])
+          // A queued delegation counts once it starts, when the breaker is checked again.
+          .where("state", "!=", "queued")
           .$if(agentId !== undefined, (q) => q.where("agent_id", "=", agentId ?? ""))
           .where("created_at", ">", [String(last?.at ?? ""), after ?? ""].sort().at(-1) ?? ""),
       );
@@ -301,7 +302,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         output: Number(r.o),
       }));
     },
-    /** Delegations from this thread admitted or running (not those waiting for a slot). */
+    /** Runs in this thread's sub-threads admitted or at work (not those queued or waiting for the owner). */
     activeDelegations(parentThreadId: string): number {
       const r = one(
         qb
@@ -309,7 +310,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .innerJoin("threads as t", "t.id", "r.thread_id")
           .select((eb) => eb.fn.countAll<number>().as("n"))
           .where("t.parent_id", "=", parentThreadId)
-          .where("r.state", "in", RUNNING),
+          .where("r.state", "in", AT_WORK),
       );
       return Number(r?.n ?? 0);
     },

@@ -160,6 +160,7 @@ export function createEngine(deps: {
     store,
     kick,
     live,
+    ended,
     deliver: (parent, child, answer) => {
       const agent = store.agents.get(child.agent_id);
       const name = store.threads.context(child.thread_id).worker?.name ?? agent?.name ?? child.agent_id;
@@ -209,6 +210,10 @@ export function createEngine(deps: {
     hold: (runId) => {
       const clock = active.get(runId)?.clock;
       clock?.pause();
+      // A delegation waiting for the owner gives its slot to a queued one (DECISIONS.md#d-096).
+      const run = store.runs.get(runId);
+      const from = run ? store.threads.get(run.thread_id)?.parent_id : undefined;
+      if (from) delegations.release(from);
       return () => clock?.resume();
     },
     ...(deps.inputWaits ? { waits: deps.inputWaits } : {}),
@@ -232,7 +237,11 @@ export function createEngine(deps: {
     });
     if (store.threads.get(a.thread_id)?.state !== "working") store.threads.patch(a.thread_id, { state: "submitted" });
     // After the caller's transaction commits: the turn must never run on a row that could still roll back.
-    queueMicrotask(() => kick(a.thread_id));
+    queueMicrotask(() => {
+      kick(a.thread_id);
+      // The owner writing starts a new breaker window: delegations it held may start.
+      if (a.trigger === "user") delegations.release(a.thread_id);
+    });
     return run;
   }
 
@@ -338,6 +347,8 @@ export function createEngine(deps: {
   return {
     admit,
     cancel,
+    /** Starts the thread's queued delegations that fit (after the owner lets agents go on); how many it started. */
+    release: (threadId: string) => delegations.release(threadId),
     /** Hands owner text to the thread's running turn when its loop can take it mid-turn (ours); else undefined. */
     steer(threadId: string, text: string): RunRecord | undefined {
       for (const [runId, a] of active) {
@@ -379,10 +390,11 @@ export function createEngine(deps: {
       jobs.reconcile();
       const interrupted = recoverInterrupted(store);
       if (interrupted.length) log.warn({ runs: interrupted.length }, "closed runs interrupted by the last restart");
+      const cut: RunRecord[] = [];
       for (const { run, resume } of interrupted) {
         // The resumed turn settles the caller's card and reports to it; the cut one wakes nobody.
         if (!resume || !run.input) {
-          ended(run);
+          cut.push(run);
           continue;
         }
         admit({
@@ -398,6 +410,8 @@ export function createEngine(deps: {
           resume_of: run.id,
         });
       }
+      // Only once the resumed ones hold their slots: a slot a cut delegation frees must not let a queued one in too.
+      for (const run of cut) ended(run);
       for (const threadId of store.runs.queuedThreads()) kick(threadId);
       // After the resumed delegations are admitted, so they hold their slots first.
       for (const threadId of store.runs.heldParents()) delegations.release(threadId);

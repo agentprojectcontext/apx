@@ -471,6 +471,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "chat.theAgent": "El agente",
   "chat.agentWorking": "{name} está trabajando…",
   "chat.agentWaiting": "{name} te espera",
+  "chat.agentQueued": "En cola: {name} empieza cuando termine una de las delegaciones en curso",
   "tools.working": "Trabajando · acción {n}",
   "tools.waiting": "Esperándote · acción {n}",
   "tools.summary": "Acciones 1–{n} de {n}",
