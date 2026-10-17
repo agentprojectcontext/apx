@@ -355,9 +355,16 @@ export const go = {
   inbox() {
     nav.set({ view: "inbox" });
   },
-  /** Open a project. `threadId` picks the chat shown in its Chats tab. */
-  project(projectId: string, tab: ProjectTab = "overview", threadId?: string) {
-    nav.set((s) => ({ view: "project", projectId, projectTab: tab, threadId: threadId ?? s.threadId }));
+  /** Open a project. Without `tab`, a project opened from another keeps its tab; `threadId` picks the chat in Chats. */
+  project(projectId: string, tab?: ProjectTab, threadId?: string) {
+    nav.set((s) => ({
+      view: "project",
+      projectId,
+      projectTab: tab ?? (s.view === "project" ? s.projectTab : "overview"),
+      threadId: threadId ?? s.threadId,
+      // The task open beside the list belongs to the project it was opened in.
+      ...(s.projectId !== projectId ? { taskId: undefined } : {}),
+    }));
   },
   projectTab(tab: ProjectTab) {
     nav.set({ projectTab: tab });

@@ -78,7 +78,7 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
       notify(t("project.new.imported", { name: r.project.name, count: r.chats.length }), "info");
       await bootstrap().catch(() => {});
       onClose();
-      go.project(r.project.id);
+      go.project(r.project.id, "overview");
     } catch (err) {
       notify(String(err instanceof Error ? err.message : err), "error");
     } finally {
@@ -100,7 +100,7 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
     notify(t("setup.project.added", { name: project.name }), "info");
     await bootstrap().catch(() => {});
     onClose();
-    go.project(project.id);
+    go.project(project.id, "overview");
   };
   const submitOnEnter = (e: KeyboardEvent) => e.key === "Enter" && void add();
   return (

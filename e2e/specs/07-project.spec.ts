@@ -12,6 +12,14 @@ test("the imported project shows its team", async ({ page }) => {
   await expect(page.getByText("Ops").first()).toBeVisible();
 });
 
+test("another project opened from the sidebar keeps the tab that was open", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: /^Northwind/ }).click();
+  await page.getByRole("tab", { name: "Memoria" }).click();
+  await page.getByRole("button", { name: /^acme/i }).click();
+  await expect(page.getByRole("tab", { name: "Memoria" })).toHaveAttribute("aria-selected", "true");
+});
+
 test("the imported project keeps its notes and its routine, which came in off", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: /^Northwind/ }).click();
