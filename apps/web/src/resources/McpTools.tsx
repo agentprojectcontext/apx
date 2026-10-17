@@ -4,17 +4,19 @@ import { useEffect, useState } from "react";
 import { approveMcpTool, listApprovals, mcpPermissions, revokeApproval, setMcpToolMode } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { serverApproval } from "./serverId.ts";
 
 type Permission = { name: string; key: string; permanent: boolean; approved: boolean };
 type Mode = "ask" | "all" | "some";
 
 const ofServer = (s: McpServerStatus) => (g: ToolApproval) => {
-  try {
-    const [scope, project, name] = JSON.parse(g.server) as string[];
-    return scope === s.scope && name === s.name && project === (s.scope === "project" ? (s.project_id ?? "") : "");
-  } catch {
-    return false;
-  }
+  const id = serverApproval(g.server);
+  return (
+    !!id &&
+    id.scope === s.scope &&
+    id.name === s.name &&
+    id.project === (s.scope === "project" ? (s.project_id ?? "") : "")
+  );
 };
 
 /**

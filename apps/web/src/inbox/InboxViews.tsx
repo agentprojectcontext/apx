@@ -56,15 +56,19 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
   const engines = useData((s) => s.engines);
   const engineLabel = (id: string) => engines.find((e) => e.id === id)?.label ?? id;
   const [open, setOpen] = useState<Record<string, boolean>>({});
-  // Unread chats repeat on top: in the tree they can sit under "N more". The one opened from there stays while it is
-  // open, read by then, so the row clicked does not jump away.
-  const wasUnread = useRef(new Set<string>());
-  const unread = [
+  // Unread chats repeat on top: in the tree they can sit under "N more". One opened while unread stays while it is
+  // open, read by then, so the row clicked does not jump away; a chat already open that gets an answer does not.
+  const listed = [
     ...new Map(trees.flatMap((tr) => tr.agents.flatMap((b) => b.threads)).map((th) => [th.id, th])).values(),
-  ]
-    .filter((th) => th.unread > 0 || (th.id === selected && wasUnread.current.has(th.id)))
+  ];
+  const opened = useRef<{ selected: string | undefined; kept: string | undefined }>({ selected, kept: undefined });
+  if (opened.current.selected !== selected) {
+    const wasUnread = listed.some((th) => th.id === selected && th.unread > 0);
+    opened.current = { selected, kept: wasUnread ? selected : undefined };
+  }
+  const unread = listed
+    .filter((th) => th.unread > 0 || th.id === opened.current.kept)
     .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
-  wasUnread.current = new Set(unread.map((th) => th.id));
   const unreadCount = unread.filter((th) => th.unread > 0).length;
   return (
     <>
