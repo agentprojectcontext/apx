@@ -467,6 +467,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "tools.computer.done": "Controló el equipo · {n} acciones",
   "tools.failed.one": "falló",
   "tools.failed.other": "fallaron",
+  "run.queued": "En cola",
   "run.submitted": "Enviado",
   "run.working": "Trabajando",
   "run.waiting": "Esperando",

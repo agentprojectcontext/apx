@@ -212,7 +212,8 @@ export const EngineStatus = z.object({
 });
 export type EngineStatus = z.infer<typeof EngineStatus>;
 
-export const RunState = z.enum(["submitted", "working", "input-required", "completed", "failed", "canceled"]);
+/** `queued`: a delegation past the cap of its caller's thread, waiting for one of them to end (DECISIONS.md#d-096). */
+export const RunState = z.enum(["queued", "submitted", "working", "input-required", "completed", "failed", "canceled"]);
 export type RunState = z.infer<typeof RunState>;
 export const TERMINAL_RUN_STATES: readonly RunState[] = ["completed", "failed", "canceled"];
 

@@ -1,8 +1,9 @@
 // An OpenAI-compatible model on localhost: it answers at once and always the same way, so a test can read the reply
 // ("Got it: <the last line you wrote>"). Streams like a real one when asked. It calls two tools: "start a worker"
 // delegates to a worker, which answers with a long report ("start two workers" delegates twice in one turn, "start a
-// worker in <project id>" into that project); "make a note file" runs a command that needs the owner's OK; "show a
-// widget" makes one; "open a report" writes one and opens it as a document. It also
+// worker in <project id>" into that project, "start four slow workers" four at once, each taking a few seconds, so one
+// waits for a slot); "make a note file" runs a command that needs the owner's OK; "show a widget" makes one; "open a
+// report" writes one and opens it as a document. It also
 // embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -40,6 +41,19 @@ const REPORT = [
 
 /** An answer with a shell block the owner can run from the chat. */
 const SUGGESTION = "Run this in the project:\n\n```bash\necho e2e-suggested-$((6*7))\n```";
+
+/** How long a slow worker takes to answer. */
+const SLOW_MS = 2500;
+
+/** Four delegations in one step: past the three at once from a thread, the fourth is queued. */
+function fanOut(messages: Message[], said: string): Array<{ name: string; arguments: string }> | undefined {
+  if (!/^start four slow workers/i.test(said) || messages.at(-1)?.role === "tool") return undefined;
+  const worker = { name: "Slow researcher", instructions: "Check the part you are given." };
+  return [1, 2, 3, 4].map((n) => ({
+    name: "delegate",
+    arguments: JSON.stringify({ worker, task: `check part ${n}`, wait_s: 0 }),
+  }));
+}
 
 /** A tool call to make instead of answering, if the conversation asks for one. */
 function toolCall(messages: Message[], said: string): { name: string; arguments: string } | undefined {
@@ -129,15 +143,19 @@ export async function fakeLlm() {
       const said = lastWords(body.messages ?? []);
       calls.push({ model: body.model ?? "", said });
       const system = String(body.messages?.[0]?.content ?? "");
+      const slow = system.startsWith("You are Slow researcher, a worker");
       const text = system.startsWith("You are Researcher, a worker")
         ? REPORT
-        : /^suggest a command/i.test(said)
-          ? SUGGESTION
-          : `Got it: ${said || "(nothing)"}`;
+        : slow
+          ? "Part checked."
+          : /^suggest a command/i.test(said)
+            ? SUGGESTION
+            : `Got it: ${said || "(nothing)"}`;
       const usage = { prompt_tokens: 120, completion_tokens: 8, total_tokens: 128 };
       const call = toolCall(body.messages ?? [], said);
-      if (call) {
-        const tool_calls = [{ id: `call-${calls.length}`, type: "function", function: call }];
+      const wanted = fanOut(body.messages ?? [], said) ?? (call ? [call] : undefined);
+      if (wanted) {
+        const tool_calls = wanted.map((c, i) => ({ id: `call-${calls.length}-${i}`, type: "function", function: c }));
         if (!body.stream) {
           res.writeHead(200, { "content-type": "application/json" });
           return res.end(
@@ -159,23 +177,27 @@ export async function fakeLlm() {
         res.write(`data: ${JSON.stringify({ id: "fake", choices: [], usage })}\n\n`);
         return res.end("data: [DONE]\n\n");
       }
-      if (!body.stream) {
-        res.writeHead(200, { "content-type": "application/json" });
-        return res.end(
-          JSON.stringify({
-            id: "fake",
-            choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: "stop" }],
-            usage,
-          }),
-        );
-      }
-      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
-      const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
-      for (const part of text.match(/[\s\S]{1,12}/g) ?? [text])
-        send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
-      send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
-      send({ id: "fake", choices: [], usage });
-      res.end("data: [DONE]\n\n");
+      const answer = () => {
+        if (!body.stream) {
+          res.writeHead(200, { "content-type": "application/json" });
+          return res.end(
+            JSON.stringify({
+              id: "fake",
+              choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: "stop" }],
+              usage,
+            }),
+          );
+        }
+        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
+        const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
+        for (const part of text.match(/[\s\S]{1,12}/g) ?? [text])
+          send({ id: "fake", choices: [{ index: 0, delta: { content: part }, finish_reason: null }] });
+        send({ id: "fake", choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+        send({ id: "fake", choices: [], usage });
+        res.end("data: [DONE]\n\n");
+      };
+      if (slow) setTimeout(answer, SLOW_MS);
+      else answer();
     });
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));

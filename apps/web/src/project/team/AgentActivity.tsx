@@ -18,6 +18,7 @@ const TRIGGER: Record<Run["trigger"], MessageKey> = {
 const STATE_TONE = { completed: "brand", failed: "danger", canceled: "neutral" } as const;
 /** A run's state in the owner's words. */
 export const RUN_STATE: Record<Run["state"], MessageKey> = {
+  queued: "usage.state.submitted",
   submitted: "usage.state.submitted",
   working: "usage.state.working",
   "input-required": "usage.state.waiting",

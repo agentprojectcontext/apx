@@ -458,6 +458,7 @@ export const en = {
   "tools.computer.done": "Controlled the computer · {n} actions",
   "tools.failed.one": "failed",
   "tools.failed.other": "failed",
+  "run.queued": "Queued",
   "run.submitted": "Sent",
   "run.working": "Working",
   "run.waiting": "Waiting",
