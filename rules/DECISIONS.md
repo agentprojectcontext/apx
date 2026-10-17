@@ -1228,3 +1228,15 @@ each under its version. Asking in that chat is an ordinary turn: its input (neve
 the version, its branch and the commit range to read (`git log` in a checkout, the compare page otherwise), about 300
 characters. No tool was added: the agent's shell and web reading already reach the commits. `APX_WHATS_NEW=off` turns
 the chat off; test cores start with it off.
+
+<a id="d-101"></a>
+## D-101 — 2026-10-17 — The owner writing in a task's conversation reaches its agent's work chat, not a turn there
+D-048 moved a task's work into its agent's own chat, but the task's conversation still took `threads.send` like any
+chat: the owner writing there started a turn of the assigned agent in it. A developer agent working a task in its chat
+(delegation results arriving) got a second turn in the task's conversation, and both edited the same git worktree
+until one noticed and stopped. Now, when the task has an agent, the owner's words there are the owner's comment on the
+task and go to that agent's chat for the task (opened if it has none yet): into the turn working there at its next
+step, or as its next turn there when that turn cannot take them (an outside harness, attachments). The owner cannot see
+that chat's state from the task, so the words join a running turn even when the client asked to queue; `interrupt`
+still stops it first. An @mention of anyone else is a consult, as D-073 says; the task's own agent is not asked twice.
+A task nobody has keeps the old behaviour: the agent of its conversation answers there, since no work chat exists.

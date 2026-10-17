@@ -8,9 +8,21 @@ import { mentioned } from "./office.ts";
 import { pickUpTasks } from "./task-work.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
+// The bridge task's first step waits here, so its work chat is mid-turn while the owner writes on the task.
+let releaseBridge: () => void = () => {};
+const bridgeHeld = new Promise<void>((r) => {
+  releaseBridge = r;
+});
+
 // Vera and Roby keep mentioning each other: only the owner's @mentions ask anyone (DECISIONS.md#d-078).
-const llm = scriptedLlm((req, { said, afterTool }) => {
+const llm = scriptedLlm(async (req, { said, afterTool }) => {
   const system = String(req.messages[0]?.content);
+  const steer = req.messages.find((m) => m.role === "user" && String(m.content).startsWith("[The owner adds"));
+  if (steer) return say(`Steered: ${String(steer.content).split("\n")[1]}`);
+  if (said.includes("Rebuild the desktop bridge") && !afterTool) {
+    await bridgeHeld;
+    return callTool("b1", "task_list", {});
+  }
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 120)}`);
   if (said.includes("make a task")) return callTool("t1", "task_create", { title: "Draft the launch post" });
   if (said.includes("peek at the other")) return callTool("t2", "task_list", {});
@@ -60,6 +72,7 @@ before(async () => {
   project = (await env.client.call("projects.register", { path: repo })).project.id;
 });
 after(async () => {
+  releaseBridge();
   await env.core.close();
   env.cleanup();
   fs.rmSync(repo, { recursive: true, force: true });
@@ -140,6 +153,53 @@ test("an @mention of the task's own agent asks it in its chat for the task, and 
   assert.ok(vera.runs.length > before, "the mention ran in her chat for the task");
   assert.ok(texts(vera.messages).includes("@vera also the dark mode"));
   assert.deepEqual(env.core.store.threads.children(t.thread_id), [], "nobody was consulted");
+});
+
+test("the owner writing in a task's conversation reaches its agent's working turn, never a second turn", async () => {
+  const t = await env.client.call("tasks.create", { title: "Rebuild the desktop bridge", project, assignee: "vera" });
+  const work = env.core.store.threads.byTask(t.id)[0]?.id ?? "";
+  const vera = () =>
+    [t.thread_id, ...env.core.store.threads.byTask(t.id).map((s) => s.id)]
+      .flatMap((id) => env.core.store.runs.list(id))
+      .filter((r) => r.agent_id === "vera");
+  for (let i = 0; i < 200 && vera()[0]?.state !== "working"; i++) await new Promise((r) => setTimeout(r, 10));
+  const working = vera()[0];
+  assert.equal(working?.state, "working");
+  const sent = await env.client.call("threads.send", {
+    thread: t.thread_id,
+    text: "@roby check the bridge's tests too, and use the staging config",
+    mode: "steer",
+  });
+  // One working turn for Vera on this task: her chat's, which takes the owner's words.
+  assert.equal(sent.run?.id, working?.id);
+  assert.deepEqual(
+    vera().map((r) => r.id),
+    [working?.id],
+  );
+  releaseBridge();
+  const { sessions } = await settleTask(t.id);
+  assert.deepEqual(
+    sessions.map((s) => s.id),
+    [work],
+  );
+  assert.deepEqual(env.core.store.runs.list(t.thread_id), [], "nothing ran in the task's conversation");
+  assert.equal(vera().length, 1);
+  const chat = await env.client.call("threads.get", { thread: work });
+  assert.ok(texts(chat.messages).includes("@roby check the bridge's tests too, and use the staging config"));
+  assert.ok(texts(chat.messages).some((x) => x.startsWith("Steered: @roby check the bridge")));
+  // The words stay on the task as the owner's comment, and the @mention of a teammate is still a consult.
+  const conversation = await env.client.call("threads.get", { thread: t.thread_id });
+  assert.ok(
+    conversation.messages.some(
+      (m) =>
+        m.author.kind === "user" &&
+        texts([m]).includes("@roby check the bridge's tests too, and use the staging config"),
+    ),
+  );
+  assert.deepEqual(
+    env.core.store.threads.children(t.thread_id).map((id) => env.core.store.threads.get(id)?.agent_ids[0]),
+    ["roby"],
+  );
 });
 
 test("an agent's @mention in a task comment summons nobody", async () => {
