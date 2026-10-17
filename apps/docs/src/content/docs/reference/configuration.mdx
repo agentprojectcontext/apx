@@ -76,6 +76,7 @@ The process environment always wins over the file. The core reads it when it sta
 | `APX_SECRETS` | Keychain on macOS, file elsewhere | `file` keeps secrets in `<home>/secrets.json` on macOS too. |
 | `APX_UPDATES` | on | `off` stops looking for a newer APX; `app` only says one is out (the desktop app sets it for its core, and installs updates itself). |
 | `APX_RELEASES` | `agentprojectcontext/apx` | The GitHub repository whose releases announce a newer bundle. `off` stops it. |
+| `APX_TELEMETRY` | on | `off` sends nothing to the APX project, not even the install steps. `DO_NOT_TRACK=1` and `CI` do the same. See [Privacy and telemetry](/reference/privacy/). |
 | `APX_APP` | `~/.apx/v2/app` | Where the install script puts the bundle (its versions and `current`). |
 | `APX_AGENT_NAME` | a random one | Home's name on a fresh install. |
 | `APX_LLM_TIMEOUT_MS` | `45000` | How long the core waits for the first byte of a model's answer. |
