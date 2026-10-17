@@ -36,6 +36,26 @@ export function workDir(
 }
 
 /**
+ * Why a `cwd` an agent gave is not a folder to run in (a worktree removed since), or undefined: said plainly, never as
+ * a refusal, so the agent does not read it as a permission it lacks.
+ */
+export function missingCwd(
+  store: Store,
+  home: string,
+  thread: Parameters<typeof workDir>[2],
+  cwd: string | undefined,
+): string | undefined {
+  if (cwd === undefined) return undefined;
+  const base = workDir(store, home, thread);
+  const at = path.resolve(base, expandHome(cwd));
+  // The folder it works in is made on first use.
+  if (at === base) return undefined;
+  const stat = fs.statSync(at, { throwIfNoEntry: false });
+  if (!stat) return `${cwd} does not exist`;
+  return stat.isDirectory() ? undefined : `${cwd} is not a folder`;
+}
+
+/**
  * Where an outside agent (Claude, Codex, an ACP agent) works: a code thread's folder, else APX's side of the project,
  * never the project's own folder (its settings there would apply unchecked), else APX's work folder.
  */

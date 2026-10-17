@@ -9,7 +9,16 @@ import type { Store } from "../domain/store.ts";
 import { commandShell } from "../processes.ts";
 import { namedPaths } from "./command-paths.ts";
 import { readsOnly } from "./command-reads.ts";
-import { type Access, folderAccess, type JudgeOptions, judge, type Root, refusal, rootsOf } from "./folders.ts";
+import {
+  type Access,
+  folderAccess,
+  type JudgeOptions,
+  judge,
+  missingCwd,
+  type Root,
+  refusal,
+  rootsOf,
+} from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool } from "./types.ts";
 
@@ -179,6 +188,8 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
       confirm: (a) => commandRisk(a.command, apxPort()),
       // A command that could only be refused is not put to the owner.
       check(a, ctx) {
+        const missing = missingCwd(store, home, ctx.thread, a.cwd);
+        if (missing) throw new Error(missing);
         const r = commandFolder(store, home, ctx.thread, a);
         if ("refused" in r) throw new Error(`refused: ${r.refused}`);
       },
@@ -198,7 +209,7 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
         if (a.command.includes(home) || /\.apx(2\b|\/v2\b)/.test(a.command))
           return "refused: APX's own folder is off limits";
         if (cwd === base) fs.mkdirSync(base, { recursive: true });
-        else if (!fs.existsSync(cwd)) return `no folder ${a.cwd} in the project`;
+        else if (!fs.existsSync(cwd)) return `${a.cwd} does not exist`;
         const r = await ctx.runCommand({
           command: a.command,
           cwd,

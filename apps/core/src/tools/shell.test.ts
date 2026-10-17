@@ -122,6 +122,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
     return callTool("s7", "shell", { command: "find /Volumes/disk -type d -name audit -print" });
   if (said.includes("touch please")) return callTool("s4", "shell", { command: "touch made-by-agent" });
   if (said.includes("escape please")) return callTool("s5", "shell", { command: "ls", cwd: "../.." });
+  if (said.includes("gone please")) return callTool("s8", "shell", { command: "ls", cwd: "gone-tree" });
   return say("ok");
 });
 
@@ -242,6 +243,14 @@ test("a cwd outside the project folder is refused", async () => {
   await env.client.call("threads.send", { thread: t, text: "escape please" });
   await env.settle(t);
   assert.match(lastSeen(), /refused: \.\.\/\.\. is outside the folders you can read/);
+});
+
+test("a cwd that no longer exists is said plainly, not as a refusal", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "gone please" });
+  await env.settle(t);
+  assert.match(lastSeen(), /gone-tree does not exist/);
+  assert.doesNotMatch(lastSeen(), /refused/);
 });
 
 test("a folder that is a symlink pointing outside the project is refused", async () => {
