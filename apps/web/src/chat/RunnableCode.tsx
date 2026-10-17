@@ -1,5 +1,5 @@
 import type { TerminalInfo, Thread } from "@apx/protocol";
-import { type CodeRenderer, IconButton, Icons } from "@apx/ui";
+import { IconButton, Icons } from "@apx/ui";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
@@ -10,18 +10,7 @@ import { asksSecret, screenText } from "../panel/terminalText.ts";
 import { go } from "../shell/nav.ts";
 import { CopyButton } from "./MessageActions.tsx";
 
-const SHELL_LANGS: ReadonlySet<string> = new Set(["bash", "sh", "zsh", "shell", "console", "fish"]);
 const MAX_OUTPUT = 64 * 1024;
-
-/** A fenced shell block an agent wrote gets run and copy buttons (in the chat's folder, or else APX's work folder). */
-export function runnableCode(thread: Thread, messageId: string): CodeRenderer {
-  return (code, lang, pre) =>
-    lang && SHELL_LANGS.has(lang) && code.trim() ? (
-      <RunnableCode thread={thread} messageId={messageId} code={code} pre={pre} />
-    ) : (
-      pre
-    );
-}
 
 // One terminal.list per chat for every block in it, to find again the run a block already had.
 const listed = new Map<string, Promise<TerminalInfo[]>>();
@@ -41,7 +30,7 @@ const terminalsOf = (thread: string) => {
  * The block as a card; running it opens a terminal of its own whose output shows in a card below, read-only. What
  * it asks (a password) is typed in that terminal in the side panel; when it ends, the agent that wrote it is told.
  */
-function RunnableCode({
+export function RunnableCode({
   thread,
   messageId,
   code,

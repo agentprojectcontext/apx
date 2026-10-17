@@ -1,5 +1,5 @@
 import { Button, EmptyState, Icons, Skeleton } from "@apx/ui";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { usePageVisible } from "../common/useInView.ts";
 import { loadThread, markRead } from "../data/actions.ts";
 import { threadAgent } from "../data/identity.ts";
@@ -10,8 +10,11 @@ import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ChatHeader } from "./ChatHeader.tsx";
 import { ChatComposer } from "./composer/ChatComposer.tsx";
-import { ScreenLive } from "./ScreenLive.tsx";
 import { Transcript } from "./Transcript.tsx";
+
+// Computer use shows only in the desktop app: the browser never loads it.
+const ScreenLive = lazy(() => import("./ScreenLive.tsx").then((m) => ({ default: m.ScreenLive })));
+const COMPUTER = Boolean(window.apxDesktop?.onComputerActivity);
 
 export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean; compact?: boolean }) {
   const t = useT();
@@ -102,7 +105,11 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
       ) : (
         <ChatComposer key={thread.id} thread={thread} agent={agent} />
       )}
-      <ScreenLive />
+      {COMPUTER && (
+        <Suspense fallback={null}>
+          <ScreenLive />
+        </Suspense>
+      )}
     </section>
   );
 }

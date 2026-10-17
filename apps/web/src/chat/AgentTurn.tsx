@@ -9,6 +9,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { copyableQuote } from "./CopyableQuote.tsx";
+import { runnableCode } from "./codeRunner.tsx";
 import { linkMenu } from "./LinkMenu.tsx";
 import { MessageActions } from "./MessageActions.tsx";
 import { BrowserPart } from "./parts/BrowserPart.tsx";
@@ -20,7 +21,6 @@ import { NoticePart } from "./parts/NoticePart.tsx";
 import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { SubthreadPart } from "./parts/SubthreadPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
-import { runnableCode } from "./RunnableCode.tsx";
 import { taskCodeSpan } from "./TaskChip.tsx";
 
 // A widget's frame loads with the first message that has one, not with the chat.
