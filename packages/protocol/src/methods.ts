@@ -2,6 +2,7 @@
 // Adding a method = one entry here + one handler in apps/core/src/rpc. Every client gets the types for free.
 import { z } from "zod";
 import { appMethods } from "./app-methods.ts";
+import { asanaMethods } from "./asana-methods.ts";
 import { browserMethods } from "./browser.ts";
 import { deviceMethods } from "./device-methods.ts";
 import { telemetryMethods } from "./telemetry-methods.ts";
@@ -87,6 +88,7 @@ export const methods = {
   },
   ...browserMethods,
   ...appMethods,
+  ...asanaMethods,
   ...deviceMethods,
   ...threadMethods,
   ...terminalMethods,

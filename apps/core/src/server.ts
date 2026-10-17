@@ -45,6 +45,7 @@ import { createHarnesses, type Harness } from "./harness/index.ts";
 import { readIdentity } from "./identity.ts";
 import { createIdleTrim } from "./idle-memory.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
+import { createAsana } from "./integrations/asana.ts";
 import { createGoogle } from "./integrations/google.ts";
 import { GOOGLE, googleAt } from "./integrations/google-oauth.ts";
 import { createLog, type Log } from "./log.ts";
@@ -84,6 +85,7 @@ import { skillsFor } from "./skills/skills.ts";
 import { createTelemetry } from "./telemetry.ts";
 import { type TelemetrySink, telemetrySink } from "./telemetry-sink.ts";
 import { createTerminals } from "./terminal/terminals.ts";
+import { asanaTools } from "./tools/asana.ts";
 import { googleTools } from "./tools/google.ts";
 import { imessageTools } from "./tools/imessage.ts";
 import type { Tool } from "./tools/types.ts";
@@ -94,6 +96,8 @@ const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main
 
 /** What tests swap: the model, harnesses, extra tools, channel adapters and the scheduler's clock. */
 export type CoreOptions = {
+  /** Asana transport; tests record REST requests without contacting an account. */
+  asanaFetch?: typeof fetch;
   quiet?: boolean;
   llm?: Llm;
   harnesses?: Partial<Record<HarnessId, Harness>>;
@@ -222,11 +226,16 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     // An integration is off where the owner turned it off, and in a project that takes none of their globals.
     offIn: (project, id) => !integrationsOff.takesGlobals(project) || integrationsOff.offIn(project).includes(id),
   });
+  const asana = createAsana({
+    secrets,
+    fetch: opts.asanaFetch,
+    offIn: (project) => !integrationsOff.takesGlobals(project) || integrationsOff.offIn(project).includes("asana"),
+  });
   const tools = builtinTools(
     store,
     config.home,
     () => listening,
-    [...imessageTools(imessage), ...googleTools(google), ...(opts.extraTools ?? [])],
+    [...imessageTools(imessage), ...googleTools(google), ...asanaTools(asana), ...(opts.extraTools ?? [])],
     config.runtimeSkills.homes,
   );
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
@@ -410,6 +419,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       extensions,
       mcp,
       google,
+      asana,
       providers,
       secrets,
       chatgpt: { login: chatgpt, v1Home: config.v1.home },
