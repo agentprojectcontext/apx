@@ -1110,3 +1110,15 @@ figure providers bill near full price for, and the defaults are 30 turns and 1.5
 fields on any change, so most installs held the old defaults as if the owner chose them: a migration drops a saved value
 equal to a former default (16, 600k), and saving now keeps only what differs from the defaults, so a later default
 reaches everyone who never touched it while a limit the owner picked stays.
+
+<a id="d-094"></a>
+## D-094 — 2026-10-17 — Telegram groups are rooms, learned from what arrives
+A Telegram bot added to a group was silent unless the group was ignored entirely: its messages were marked not private
+and had no room, so they were dropped. Groups are now rooms exactly like a Discord server's channels (D-041): deny by
+default, a mode per group, sealed public turns, answers in the group as a reply. Called means an @mention of the bot, a
+command addressed to it or a reply to its message. The Bot API has no call that lists a bot's chats, so the adapter
+reports every group it sees (a message, or `my_chat_member` when it is added or removed) through `io.room`, and the
+manager keeps them per channel in settings for the rooms picker; an unlisted group's messages are reported but never
+handed over, so nothing of it is stored. Telegram pings any `@username` written in a message, so in a group the
+adapter breaks every handle the core did not name with a zero-width space, the equivalent of Discord's
+`allowed_mentions`. A group upgraded to a supergroup changes id: the owner picks it again.
