@@ -148,6 +148,11 @@ binaria o de más de 1 MB combinado produce un fallo explícito; stderr no se co
 termina el proceso y hay un límite absoluto de diez minutos, además del deadline de APX. En POSIX se termina el
 grupo de procesos; Windows usa `taskkill /T /F` para terminar el árbol.
 
+Los lanzadores `.cmd` y `.bat` de Windows no son compatibles: APX nunca habilita un shell para ejecutar un shim.
+Si la detección encuentra uno, el motor queda no disponible y se rechaza la ejecución antes de iniciar el proceso.
+Usá un ejecutable nativo. La detección y ejecución en Windows siguen sin verificar; una instalación mediante
+un shim de npm no garantiza que el motor pueda ejecutarse.
+
 ## Lo que sigue
 
 <CardGrid>

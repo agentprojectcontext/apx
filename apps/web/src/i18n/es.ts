@@ -905,6 +905,12 @@ export const es: Partial<Record<MessageKey, string>> = {
   "appearance.look.minimal": "Minimal",
   "appearance.look.classic": "Clásico v1",
   "engine.loggedIn": "Sesión iniciada",
+  "engine.authOnInvocation": "Autenticación verificada al ejecutar",
+  "engine.detail.oneshot": "CLI de una ejecución · autenticación verificada al ejecutar; sin permisos por herramienta",
+  "engine.detail.oneshot_missing":
+    "Instalá el CLI headless; una instalación solo gráfica no puede devolver una respuesta",
+  "engine.detail.oneshot_windows_shim":
+    "Los shims .cmd/.bat de Windows no son compatibles; instalá un ejecutable nativo",
   "engine.noSession": "Sin sesión",
   "engine.install": "Instalar",
   "engine.kind.cli": "Sesión externa · CLI",

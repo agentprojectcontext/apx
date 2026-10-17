@@ -48,6 +48,23 @@ test("a local server needs no key; a built-in provider can be removed", async ()
   assert.ok(!after.providers.some((p) => p.id === "fake"));
 });
 
+test("harness ids cannot be added as providers", async () => {
+  for (const id of ["claude", "codex", "native", "acp", "aider", "antigravity"]) {
+    await assert.rejects(
+      env.client.call("providers.set", {
+        id,
+        provider: { transport: "openai-chat", base_url: "https://acme.test/v1" },
+        api_key: "test-key",
+      }),
+      (e: unknown) => e instanceof ApxError && e.code === "bad_request" && /reserved/.test(e.message),
+    );
+    assert.ok(!(await env.client.call("providers.list", {})).providers.some((p) => p.id === id));
+    assert.equal(env.core.secrets.resolve(`secret://${id}`), undefined);
+    await env.client.call("providers.set", { id, provider: null, api_key: "ignored-on-delete" });
+    assert.equal(env.core.secrets.resolve(`secret://${id}`), undefined);
+  }
+});
+
 test("only the owner manages providers", async () => {
   const agent = new ApxClient({ url: env.core.url, actor: "agent" });
   await assert.rejects(

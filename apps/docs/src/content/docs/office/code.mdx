@@ -144,6 +144,10 @@ combined output fail explicitly; stderr is not copied into errors. A turn's canc
 10-minute absolute invocation limit in addition to APX's run deadline. On POSIX, termination targets the process
 group; Windows uses `taskkill /T /F` to terminate the process tree.
 
+Windows `.cmd` and `.bat` launchers are not supported: APX never enables a shell to run a shim. If discovery
+returns one, the engine is unavailable and invocation is refused before spawning. Use a native executable instead.
+Windows discovery and execution remain unverified; do not assume an npm shim installation is runnable.
+
 ## Next
 
 <CardGrid>

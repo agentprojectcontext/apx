@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { harnessOf, isCliRef } from "../domain/refs.ts";
-import { type OneshotId, oneshotHarness, oneshotStatus } from "./oneshot.ts";
+import { isWindowsShim, type OneshotId, oneshotHarness, oneshotStatus } from "./oneshot.ts";
 import type { TurnIO } from "./types.ts";
 
 const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-oneshot-test-")));
@@ -22,8 +22,22 @@ test("discovery does not confuse a GUI installation with headless availability o
     const found = await oneshotStatus(id, async () => process.execPath);
     assert.equal(found.installed, true);
     assert.equal(found.logged_in, false);
+    assert.equal(found.auth, "on_invocation");
+    assert.equal(found.detail_code, "oneshot");
   }
 });
+test("Windows command shims are unavailable instead of failing at spawn", async () => {
+  for (const suffix of [".cmd", ".BAT"]) {
+    const binary = `C:\\cli\\agy${suffix}`;
+    assert.equal(isWindowsShim(binary, "win32"), true);
+    const status = await oneshotStatus("antigravity", async () => binary, "win32");
+    assert.equal(status.installed, false);
+    assert.equal(status.detail_code, "oneshot_windows_shim");
+  }
+  assert.equal(isWindowsShim("C:\\cli\\agy.exe", "win32"), false);
+  assert.equal(isWindowsShim("/opt/agy.cmd", "linux"), false);
+});
+
 function setup(id: OneshotId, mode = "echo", approved = true) {
   const events: string[] = [];
   const harness = oneshotHarness(id, {
@@ -52,6 +66,12 @@ function setup(id: OneshotId, mode = "echo", approved = true) {
 }
 
 for (const id of ["aider", "antigravity"] as const) {
+  test(`${id} rejects model option injection before approval or spawn`, async () => {
+    const { harness, io, events } = setup(id);
+    io.models = [`${id}/--dangerously-skip-permissions`];
+    await assert.rejects(harness.run(io), /model must not start/);
+    assert.deepEqual(events, []);
+  });
   test(`${id} routes as a CLI and invokes a real child without a shell, with prompt and text history`, async () => {
     assert.equal(harnessOf(`${id}/acme-model`), id);
     assert.equal(isCliRef(id), true);

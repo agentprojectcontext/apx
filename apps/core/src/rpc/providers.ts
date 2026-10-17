@@ -54,11 +54,14 @@ export function providerHandlers(
     },
     "providers.list": () => ({ providers: list() }),
     "providers.set": ({ id, provider, api_key }) => {
-      if (api_key) secrets.set(id, api_key);
+      if (provider && ["claude", "codex", "native", "acp", "aider", "antigravity"].includes(id)) {
+        throw badRequest(`Provider id ${id} is reserved for a harness`);
+      }
       if (!provider) {
         providers.set(id, null);
         return { providers: list() };
       }
+      if (api_key) secrets.set(id, api_key);
       const current = providers.all().find((p) => p.id === id);
       providers.set(id, {
         transport: provider.transport,

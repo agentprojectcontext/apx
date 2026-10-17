@@ -15,14 +15,23 @@ export const ONESHOT = {
 export type OneshotId = keyof typeof ONESHOT;
 const MAX_BYTES = 1_000_000;
 
-export async function oneshotStatus(id: OneshotId, lookup = which) {
-  const installed = Boolean(await lookup(ONESHOT[id].binary));
+export function isWindowsShim(binary: string, platform: string = process.platform): boolean {
+  return platform === "win32" && /\.(cmd|bat)$/i.test(binary);
+}
+
+export async function oneshotStatus(id: OneshotId, lookup = which, platform: string = process.platform) {
+  const binary = await lookup(ONESHOT[id].binary);
+  const shim = Boolean(binary && isWindowsShim(binary, platform));
+  const installed = Boolean(binary) && !shim;
   return {
     installed,
     logged_in: false,
-    detail: installed
-      ? "One-shot CLI · authentication is checked on invocation; no per-tool permission bridge"
-      : `Install ${ONESHOT[id].binary}; a GUI-only installation cannot return an answer`,
+    auth: "on_invocation" as const,
+    detail_code: shim
+      ? ("oneshot_windows_shim" as const)
+      : installed
+        ? ("oneshot" as const)
+        : ("oneshot_missing" as const),
   };
 }
 
@@ -42,8 +51,11 @@ export function oneshotHarness(
       const ref = io.models[0] ?? id;
       const { model, effort } = parseRef(ref);
       if (effort) throw new Error(`${id} does not support reasoning effort selection`);
+      if (model?.startsWith("-")) throw new Error(`${id} model must not start with '-'`);
       const binary = deps.binary ? await deps.binary() : await which(ONESHOT[id].binary);
       if (!binary) throw new Error(`${ONESHOT[id].binary} is not installed on this machine`);
+      if (isWindowsShim(binary))
+        throw new Error("Windows .cmd/.bat CLI shims are unsupported; install a native executable");
       const callId = `${io.run.id}-oneshot`;
       const cwd = deps.cwd(io);
       // These CLIs do not have a reliable session protocol: replay text history, never invent a session id.

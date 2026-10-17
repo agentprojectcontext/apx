@@ -86,8 +86,7 @@ export function EngineSessions() {
       setResuming(undefined);
     }
   };
-  const oneshot = engineId === "aider" || engineId === "antigravity";
-  const ready = Boolean(engine?.installed && (engine.logged_in || oneshot));
+  const ready = Boolean(engine?.installed && (engine.logged_in || engine.auth === "on_invocation"));
   const label = engine?.label ?? engineId;
 
   return (
