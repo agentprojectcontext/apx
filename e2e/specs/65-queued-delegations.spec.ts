@@ -19,9 +19,18 @@ test("a fourth delegation shows as queued, then runs once one of the three ends"
   const cards = mainChat.locator(".apx-subthread");
   await expect(cards).toHaveCount(4);
   await expect(cards.getByText("En cola", { exact: true })).toHaveCount(1);
+
   const side = page.getByRole("complementary", { name: "Panel lateral" });
   await expect(side.getByText("Activos (4)")).toBeVisible();
   await expect(side.locator(".processes__row").getByText("En cola", { exact: true })).toHaveCount(1);
+
+  // Opening the queued session says it starts once a slot frees (a delegated session is read-only: no composer).
+  await cards
+    .filter({ hasText: "En cola" })
+    .getByRole("button", { name: /^Abrir conversación con/ })
+    .click();
+  await expect(page.getByText(/^En cola: .+ empieza cuando termine una de las delegaciones en curso$/)).toBeVisible();
+  await side.getByRole("button", { name: "Volver a procesos del chat" }).click();
 
   await expect(side.getByText("Terminados (4)")).toBeVisible({ timeout: 15_000 });
   await expect(cards.getByText("En cola", { exact: true })).toHaveCount(0);
