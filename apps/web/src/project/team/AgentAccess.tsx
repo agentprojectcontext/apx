@@ -28,6 +28,7 @@ import { aheadLabel, shortWhen } from "../../common/format.ts";
 import { listSkills } from "../../data/resources.ts";
 import { useData } from "../../data/state.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
+import { serverLabel } from "../../resources/serverId.ts";
 import { type Draft, effectiveRule, type GrantChange, grantId } from "./editor/draft.ts";
 
 type Catalog = Result<"agents.tools">["tools"];
@@ -294,7 +295,7 @@ export function GrantsPage({
   // Matches what the row shows: the tool, its server and the condition, a pending edit included.
   const matches = (g: ToolApproval) =>
     !query ||
-    [g.tool, g.server, changes[grantId(g.key, g.agent_id)]?.condition ?? g.condition ?? ""].some((s) =>
+    [g.tool, serverLabel(g.server), changes[grantId(g.key, g.agent_id)]?.condition ?? g.condition ?? ""].some((s) =>
       s.toLowerCase().includes(query),
     );
   const mine = grants.filter((g) => g.agent_id === agent.id && matches(g));
@@ -376,7 +377,7 @@ function GrantRow({
       <div className="agentedit__granttext">
         <div className="agentedit__grantname">
           <code>{g.tool}</code>
-          {g.server !== "apx" && <span className="agentedit__chip">{g.server}</span>}
+          {g.server !== "apx" && <span className="agentedit__chip">{serverLabel(g.server)}</span>}
           {condition && <span className="agentedit__chip">{t("agentedit.onlyFor", { condition })}</span>}
           {g.key.endsWith(STRICT_APPROVAL) && <span className="agentedit__hint">{t("agentedit.strict")}</span>}
         </div>
