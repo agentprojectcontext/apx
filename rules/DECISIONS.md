@@ -1156,8 +1156,8 @@ An audit of one checkout against a sibling one failed because the sibling was ou
 could not read it, and the only way in was a relative path one tool let through. The owner now adds read-only folders
 to a project (Project settings, `projects.update` `read_only_folders`, `apx projects folders`). They are roots of the
 one folder rule (`tools/folders.ts`), after the folder the agent works in and its temp folder, so `file_read` and
-`shell` read there and every write is refused with the read-only refusal; the first root holding a path decides, so a
-parent of the project's folder leaves the project writable. A shell command is judged path by path: what it reads (a
+`shell` read there and every write is refused with the read-only refusal; the first root holding a path decides. A
+folder holding the project's own cannot be one: listed as read-only it told an agent its own folder could not change. A shell command is judged path by path: what it reads (a
 source, a script it runs, `git -C <dir> log`) may be in one, what it writes (a redirection, the target of `cp`/`mv`/
 `rsync`, `sed -i`, `git -C <dir> commit`, any other program run there as its cwd) may not, and a word whose place only
 the shell knows (`$X`, `{a,b}`, `$(…)`) may not write while the project has one. That is a static reading of the

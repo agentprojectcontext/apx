@@ -161,6 +161,8 @@ export function checkReadOnly(home: string, project: { path?: string | undefined
     if ([scratchRoot(home), "/tmp", "/private/tmp", os.tmpdir()].some((t) => isInside(at, real(t))))
       throw new Error(`${given} holds the system's temp folders`);
     if (own && isInside(own, at)) throw new Error(`${given} is already in the project's folder`);
+    // Listed as read-only, a folder holding the project reads to its agents as if their own folder could not change.
+    if (own && isInside(at, own)) throw new Error(`${given} holds the project's folder`);
     if (!out.some((o) => real(o) === at)) out.push(dir);
   }
   return out;

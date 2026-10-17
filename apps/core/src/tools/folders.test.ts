@@ -259,21 +259,14 @@ test("a read-only folder must be an absolute folder on disk, apart from APX's ho
   await refused(repo, /already in the project's folder/);
   await refused(path.join(repo, "docs"), /already in the project's folder/);
   assert.equal(env.core.store.projects.get(project)?.read_only_folders, undefined, "nothing kept from a refusal");
-  // A parent of the project's folder is fine: the project's folder still comes first and stays writable.
+  // Nor a folder holding the project's: listed as read-only, it reads as if the agent's own folder could not change.
   const outer = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-outer-")));
   try {
-    const inner = path.join(outer, "app");
-    const nested = (await env.client.call("projects.create", { path: inner })).project.id;
-    await env.client.call("projects.update", { project: nested, read_only_folders: [outer] });
-    const roots = rootsOf(env.core.store, env.home, { id: "t_p", project_id: nested });
-    assert.deepEqual(judge(roots, "a.txt", inner, { write: true }), {
-      at: path.join(inner, "a.txt"),
-      base: inner,
-      scratch: false,
-      write: true,
-    });
-    const b = path.join(outer, "b.txt");
-    assert.deepEqual(judge(roots, b, inner, { write: true }), { refused: refusal.readOnly(b) });
+    const nested = (await env.client.call("projects.create", { path: path.join(outer, "app") })).project.id;
+    await assert.rejects(
+      env.client.call("projects.update", { project: nested, read_only_folders: [outer] }),
+      /holds the project's folder/,
+    );
   } finally {
     fs.rmSync(outer, { recursive: true, force: true });
   }

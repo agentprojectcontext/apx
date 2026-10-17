@@ -73,21 +73,22 @@ async function run(
   return { thread, input, said: lastSeen() };
 }
 
-const ls = { name: "shell", args: { command: "pwd; ls .." } };
+const ls = { name: "shell", args: { command: "pwd; ls ../docs" } };
 
 test("a read outside the project's folder asks the owner with a folder card instead of being refused", async () => {
   const { input } = await run(ls, { decision: "deny" });
   assert.ok(input, "a card");
-  assert.deepEqual(input.folders, [northwind]);
+  const docs = path.join(northwind, "docs");
+  assert.deepEqual(input.folders, [docs]);
   assert.deepEqual(input.approval_scopes, ["once", "project"]);
-  assert.equal(input.prompt, `Fausto quiere leer ${northwind}`);
+  assert.equal(input.prompt, `Fausto quiere leer ${docs}`);
   assert.match(lastSeen(), /not run: the owner declined/);
   assert.equal(folders(), undefined);
 });
 
 test("once lets that call read there and keeps nothing; the next read asks again", async () => {
   const { said } = await run(ls, { decision: "approve" });
-  assert.match(said, /exit 0[\s\S]*docs/);
+  assert.match(said, /exit 0[\s\S]*plan\.md/);
   assert.equal(folders(), undefined);
   const again = await run({ name: "file_read", args: { path: "../docs/plan.md" } }, { decision: "approve" });
   assert.deepEqual(again.input?.folders, [path.join(northwind, "docs")], "file_read asks the same way");
@@ -97,8 +98,8 @@ test("once lets that call read there and keeps nothing; the next read asks again
 
 test("allowing it in the project adds a read-only folder; the call runs and later reads ask nothing", async () => {
   const { thread, said } = await run(ls, { decision: "approve", scope: "project" });
-  assert.match(said, /exit 0[\s\S]*docs/);
-  assert.deepEqual(folders(), [northwind]);
+  assert.match(said, /exit 0[\s\S]*plan\.md/);
+  assert.deepEqual(folders(), [path.join(northwind, "docs")]);
   const settled = (await env.client.call("threads.get", { thread })).messages.flatMap((m) => m.parts);
   assert.ok(settled.some((p) => p.type === "input" && p.approval_scope === "project"));
   const next = await run({ name: "file_read", args: { path: "../docs/plan.md" } });
@@ -115,7 +116,7 @@ test("total autonomy reads outside without a card and adds nothing", async () =>
   try {
     const { input, said } = await run(ls);
     assert.equal(input, undefined);
-    assert.match(said, /exit 0[\s\S]*docs/);
+    assert.match(said, /exit 0[\s\S]*plan\.md/);
     assert.equal(folders(), undefined);
   } finally {
     await env.client.call("agents.update", { agent: "fausto", autonomy: "standard" });
@@ -148,6 +149,13 @@ test("a folder that cannot be kept (a home holding APX's) is offered for this ca
   );
   await env.client.call("runs.respond", { input: input?.id ?? "", decision: "deny" });
   await env.settle(thread);
+  assert.equal(folders(), undefined);
+});
+
+test("the folder holding the project is lent for one call, never kept: it would read as the project's own", async () => {
+  const { input } = await run({ name: "shell", args: { command: "ls .." } }, { decision: "deny" });
+  assert.deepEqual(input?.folders, [northwind]);
+  assert.deepEqual(input?.approval_scopes, ["once"]);
   assert.equal(folders(), undefined);
 });
 
