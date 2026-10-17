@@ -10,12 +10,13 @@ Measured on a fresh install: the secretary, a new chat, default settings, no ski
 
 | Part | Budget | Now (2026-10-17) |
 |---|---|---|
-| System prompt | 6,500 chars (about 1,450 tokens) | 6,471 chars, about 1,450 tokens |
-| Tool definitions (44, without the browser) | 28,000 chars (about 6,700 tokens) | 27,974 chars, about 6,700 tokens |
+| System prompt | 6,500 chars (about 1,450 tokens) | 6,402 chars, about 1,450 tokens |
+| Tool definitions (44, without the browser) | 28,000 chars (about 6,700 tokens) | 27,982 chars, about 6,700 tokens |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
 
-`apps/core/src/engine/prompt-budget.test.ts` fails past the budget. Raising it is allowed with a reason in the commit
-and the numbers here updated; trimming something else first is better.
+`apps/core/src/engine/prompt-budget.test.ts` fails past the budget; it fixes the temp folder and the build it names,
+so every machine measures the same. Raising it is allowed with a reason in the commit and the numbers here updated;
+trimming something else first is better.
 
 How to stay within it:
 
