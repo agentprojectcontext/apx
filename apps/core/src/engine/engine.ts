@@ -160,6 +160,7 @@ export function createEngine(deps: {
     store,
     kick,
     live,
+    ended,
     deliver: (parent, child, answer) => {
       const agent = store.agents.get(child.agent_id);
       const name = store.threads.context(child.thread_id).worker?.name ?? agent?.name ?? child.agent_id;

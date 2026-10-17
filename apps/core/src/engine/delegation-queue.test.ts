@@ -240,6 +240,52 @@ test("a slot freed by a failed or canceled delegation starts the oldest queued o
   });
 });
 
+test("a turn in a session that no delegation started frees its slot when it ends", async () => {
+  const asks = ofParts(["part-1", "part-2", "part-3", "part-4"]);
+  await withCore({ asks, keys: ["side"] }, async (env, g) => {
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "audit" });
+    const side = env.core.store.threads.create({
+      kind: "a2a",
+      title: "Side session",
+      agent_ids: ["scout", "roby"],
+      parent_id: t.id,
+      session: "side",
+    });
+    env.core.engine.admit({
+      thread_id: side.id,
+      agent_id: "scout",
+      trigger: "user",
+      origin: { kind: "user" },
+      text: "look into side",
+    });
+    await until("the side turn working", () => g.asked.includes("side"));
+    await env.client.call("threads.send", { thread: t.id, text: "fan out" });
+    await until("the caller's turn", () => env.core.store.runs.list(t.id, 1)[0]?.state === "completed");
+    await until("two delegations at work", () => g.asked.length === 3);
+    assert.equal(sessions(env, t.id).filter((s) => s.run?.state === "queued").length, 2);
+    g.open("side");
+    await until("one queued starting once the side turn ends", () => g.asked.length === 4);
+    assert.equal(g.asked.at(-1), "part-3");
+  });
+});
+
+test("a queued task for a session still at work leaves that session showing it works", async () => {
+  const asks = [...ofParts(["part-1", "part-2", "part-3"]), { session: "part-1", key: "extra" }];
+  await withCore({ asks }, async (env, g) => {
+    const parent = await fanOut(env);
+    await until("three at work", () => g.asked.length === MAX_ACTIVE_DELEGATIONS);
+    const busy = session(env, parent, "part-1");
+    const extra = env.core.store.runs.list(busy.t.id, 5).find((r) => r.state === "queued");
+    assert.ok(extra, "the second task for part-1 is queued");
+    g.open("part-2");
+    await until("the extra task released", () => env.core.store.runs.get(extra.id)?.state !== "queued");
+    assert.equal(env.core.store.threads.get(busy.t.id)?.state, "working", "the session still shows it works");
+    g.open("part-1");
+    g.open("extra");
+    await until("the extra task done", () => env.core.store.runs.get(extra.id)?.state === "completed");
+  });
+});
+
 /** Seeds a delegation per state, as a killed process leaves them: the caller's turn already ended. */
 function seedCut(store: Store, states: Array<"working" | "input-required" | "queued">) {
   const deadline = new Date(Date.now() + 60_000).toISOString();

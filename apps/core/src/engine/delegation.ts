@@ -101,6 +101,8 @@ export function createDelegations(deps: {
   live: Map<string, Display>;
   /** Admits the result as a new input on the caller's thread. */
   deliver(parent: RunRecord, child: RunRecord, answer: string): void;
+  /** The engine's end of a run (its waiters, then this module's `childEnded`). */
+  ended(run: RunRecord): void;
 }) {
   const { store } = deps;
   /** Child run → the caller still waiting for it inside its turn. */
@@ -149,15 +151,15 @@ export function createDelegations(deps: {
       if (!next) return;
       const caller = next.parent_run_id ? store.runs.get(next.parent_run_id) : undefined;
       if (!caller || !store.threads.get(parentThreadId)) {
-        const done = store.runs.setState(next, "canceled", "canceled before it started");
         store.threads.patch(next.thread_id, { state: "canceled" });
-        if (caller) settleCard(caller, done, answerOf(done));
+        deps.ended(store.runs.setState(next, "canceled", "canceled before it started"));
         continue;
       }
       // Its time to work starts now, not when it was queued.
       store.runs.setDeadline(next.id, new Date(Date.now() + A2A_DEADLINE_MS).toISOString());
       const started = store.runs.setState(next, "submitted");
-      store.threads.patch(next.thread_id, { state: "submitted" });
+      if (store.threads.get(next.thread_id)?.state !== "working")
+        store.threads.patch(next.thread_id, { state: "submitted" });
       updateCard(caller, started, (p) => ({ ...p, state: "working" }));
       deps.kick(next.thread_id);
     }
@@ -304,11 +306,17 @@ export function createDelegations(deps: {
       return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.`;
     },
 
-    /** A delegated run ended: settle its card, then hand the answer to the waiting caller or deliver it later. */
+    /**
+     * A run in a sub-thread ended: a slot may be free, whether or not a delegation started it. A delegated one has
+     * its card settled, then its answer goes to the waiting caller or is delivered later.
+     */
     childEnded(child: RunRecord): void {
-      if (!child.parent_run_id) return;
-      const parent = store.runs.get(child.parent_run_id);
-      if (!parent) return;
+      const from = TERMINAL.has(child.state) ? store.threads.get(child.thread_id)?.parent_id : undefined;
+      const parent = child.parent_run_id ? store.runs.get(child.parent_run_id) : undefined;
+      if (!parent) {
+        if (from) release(from);
+        return;
+      }
       const waiting = inline.get(child.id);
       // Cut off by APX shutting down: it resumes on the next boot and reports then. A caller still waiting is let go.
       if (!TERMINAL.has(child.state)) {
@@ -318,7 +326,6 @@ export function createDelegations(deps: {
       }
       const answer = answerOf(child);
       settleCard(parent, child, answer);
-      const from = store.threads.get(child.thread_id)?.parent_id;
       if (from) release(from);
       if (waiting) {
         inline.delete(child.id);
