@@ -63,8 +63,8 @@ export function scratchDir(store: Store, home: string, thread: { id: string; par
 export const scratchRoot = (home: string) =>
   path.join(os.tmpdir(), `apx-scratch-${createHash("sha256").update(home).digest("hex").slice(0, 8)}`);
 
-/** A folder an agent may use. The first is where relative paths start. */
-export type Root = { dir: string; write: boolean; scratch: boolean };
+/** A folder an agent may use (`off`: one it may not, inside one it may). The first is where relative paths start. */
+export type Root = { dir: string; write: boolean; scratch: boolean; off?: boolean };
 
 type Thread = Parameters<typeof workDir>[2] & Parameters<typeof scratchDir>[2];
 
@@ -73,15 +73,43 @@ export function readOnlyFolders(store: Store, thread: { project_id?: string | un
   return (thread.project_id && store.projects.get(thread.project_id)?.read_only_folders) || [];
 }
 
+/** The system's temp folders, shared scratch space for commands (`/tmp/out.txt`), unless one holds APX's home. */
+export function tempAreas(home: string): string[] {
+  const out: string[] = [];
+  for (const dir of ["/tmp", "/private/tmp", os.tmpdir()]) {
+    if (!fs.existsSync(dir) || isInside(real(dir), real(home))) continue;
+    if (!out.some((o) => real(o) === real(dir))) out.push(dir);
+  }
+  return out;
+}
+
+/** After a thread's own folders: other chats' temp folders stay closed, then the system's temp folders are scratch. */
+function sharedRoots(home: string): Root[] {
+  return [
+    { dir: scratchRoot(home), write: false, scratch: true, off: true },
+    ...tempAreas(home).map((dir) => ({ dir, write: true, scratch: true })),
+  ];
+}
+
 /**
  * The folders of a thread's agent: where it works and its temp folder, both writable, then its project's read-only
- * folders. The first that holds a path decides, so a read-only parent of the work folder leaves the work folder writable.
+ * folders, then the system's temp folders. The first that holds a path decides, so a read-only parent of the work
+ * folder leaves the work folder writable, and a read-only folder in /tmp stays read-only.
  */
 export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
   return [
     { dir: workDir(store, home, thread), write: true, scratch: false },
     { dir: scratchDir(store, home, thread), write: true, scratch: true },
     ...readOnlyFolders(store, thread).map((dir) => ({ dir, write: false, scratch: false })),
+    ...sharedRoots(home),
+  ];
+}
+
+/** The same folders for an outside agent, which works in harnessDir instead of the project's folder. */
+export function harnessRoots(store: Store, home: string, thread: Thread): Root[] {
+  return [
+    { dir: harnessDir(store, home, thread), write: true, scratch: false },
+    ...rootsOf(store, home, thread).slice(1),
   ];
 }
 
@@ -101,6 +129,9 @@ export function checkReadOnly(home: string, project: { path?: string | undefined
     if (!fs.statSync(dir, { throwIfNoEntry: false })?.isDirectory()) throw new Error(`${given} is not a folder here`);
     const at = real(dir);
     if (isInside(at, apx) || isInside(apx, at)) throw new Error(`${given} holds or is inside APX's own folder`);
+    // Read-only there would lock every chat's temp folder.
+    if ([scratchRoot(home), "/tmp", "/private/tmp", os.tmpdir()].some((t) => isInside(at, real(t))))
+      throw new Error(`${given} holds the system's temp folders`);
     if (own && isInside(own, at)) throw new Error(`${given} is already in the project's folder`);
     if (!out.some((o) => real(o) === at)) out.push(dir);
   }
@@ -116,19 +147,60 @@ export const refusal = {
     `${p} is outside the folders you can read. If the task needs it, ask the owner with ask_owner to add it as a read-only folder of the project.`,
   unwritable: (p: string) =>
     `${p} is outside the folders you can change: write in the folder you work in or your temp folder.`,
-  readOnly: (p: string) =>
-    `${p} is in a read-only folder: write your changes in the folder you work in or your temp folder.`,
+  readOnly: (p: string) => `${p} is in a read-only folder: it can be read, never changed.`,
+  /** Outside a project there is no read-only folder to add. */
+  alone: (p: string) => `${p} is outside the folders you can read: the folder you work in and your temp folder.`,
+  apx: (p: string) => `${p} is in APX's own folder, which no agent may use.`,
+  unknown: (what: string) =>
+    `cannot tell where ${what} writes, and this project has read-only folders: name the path plainly.`,
 };
 
 /**
- * The rule itself: `file` (relative to `from`, `~` for the user's home) once links are resolved, in a root or not.
- * `name` is the path as the agent wrote it, for the refusal.
+ * Where a path really lands, as the system resolves it: each link followed before the `..` after it is applied
+ * (`l/../x`, with `l` a link, lands beside the link's target, not beside `l`).
  */
-export function judge(roots: Root[], file: string, from: string, write = false, name = file): Access {
+export function physical(from: string, file: string): string {
+  let cur = real(path.isAbsolute(file) ? path.parse(file).root : from);
+  let exists = true;
+  for (const part of file.split(/[\\/]+/)) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      cur = path.dirname(cur);
+      continue;
+    }
+    cur = path.join(cur, part);
+    if (!exists) continue;
+    try {
+      if (fs.lstatSync(cur).isSymbolicLink()) cur = real(cur);
+    } catch {
+      exists = false;
+    }
+  }
+  return cur;
+}
+
+export type JudgeOptions = {
+  write?: boolean;
+  /** The path as the agent wrote it, for the refusal. */
+  name?: string;
+  /** APX's home, refused in its own words. */
+  home?: string;
+  /** Whether the thread is in a project, where the owner can add a read-only folder. */
+  project?: boolean;
+};
+
+/** The rule itself: `file` (relative to `from`, `~` for the user's home) once links are resolved, in a root or not. */
+export function judge(roots: Root[], file: string, from: string, o: JudgeOptions = {}): Access {
+  const name = o.name ?? file;
   const at = path.resolve(from, expandHome(file));
-  const root = roots.find((r) => insideReal(r.dir, at));
-  if (!root) return { refused: write ? refusal.unwritable(name) : refusal.outside(name) };
-  if (write && !root.write) return { refused: refusal.readOnly(name) };
+  const lands = physical(from, expandHome(file));
+  const root = roots.find((r) => insideReal(r.dir, lands));
+  if (!root || root.off) {
+    if (o.home && insideReal(o.home, lands)) return { refused: refusal.apx(name) };
+    if (o.write) return { refused: refusal.unwritable(name) };
+    return { refused: o.project === false ? refusal.alone(name) : refusal.outside(name) };
+  }
+  if (o.write && !root.write) return { refused: refusal.readOnly(name) };
   return { at, base: root.dir, scratch: root.scratch, write: root.write };
 }
 
@@ -144,12 +216,13 @@ export function folderAccess(
   o: { cwd?: string | undefined; write?: boolean } = {},
 ): Access {
   const roots = rootsOf(store, home, thread);
+  const where = { home, project: Boolean(thread.project_id) };
   let from = roots[0]?.dir ?? home;
   if (o.cwd !== undefined) {
-    const dir = judge(roots, o.cwd, from);
+    const dir = judge(roots, o.cwd, from, where);
     if ("refused" in dir) return dir;
     from = dir.at;
   }
   const name = o.cwd === undefined || path.isAbsolute(file) ? file : path.join(o.cwd, file);
-  return judge(roots, file, from, o.write, name);
+  return judge(roots, file, from, { ...where, write: o.write ?? false, name });
 }

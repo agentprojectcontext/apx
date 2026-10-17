@@ -19,7 +19,7 @@ const calls: Record<string, [string, object]> = {
   "write new": ["file_write", { path: "pages/new.html", content: "<p>$1</p>\n<p>$1</p>\n" }],
   "edit new": ["file_edit", { path: "pages/new.html", old: "$1", new: "$2", all: true }],
   escape: ["file_write", { path: "../outside.txt", content: "no" }],
-  absolute: ["file_write", { path: "/tmp/apx-absolute.txt", content: "no" }],
+  absolute: ["file_write", { path: "/apx-absolute.txt", content: "no" }],
   git: ["file_write", { path: ".git/config", content: "no" }],
   "read page": ["file_read", { path: "pages/btc.html", offset: 2, limit: 1 }],
   "read binary": ["file_read", { path: "pages/blob.bin" }],
@@ -118,13 +118,13 @@ test("an agent writes and edits a file in the folder it works in, never outside 
   assert.match(await said(t.id, "edit all"), /replaced 2 occurrences/);
   assert.equal(fs.readFileSync(file, "utf8"), "<h1>BTC $&2</h1>\n<p>$3</p>\n<p>$3</p>\n");
   for (const [ask, why] of [
-    ["escape", /outside the folder/],
+    ["escape", /APX's own folder/],
     ["absolute", /outside the folder/],
     ["git", /\.git folder is off limits/],
   ] as const)
     assert.match(await said(t.id, ask), why);
   assert.equal(fs.existsSync(path.join(env.home, "outside.txt")), false);
-  assert.equal(fs.existsSync("/tmp/apx-absolute.txt"), false);
+  assert.equal(fs.existsSync("/apx-absolute.txt"), false);
 });
 
 test("file tools take shell's cwd: a relative path in a worktree lands in it, never in the root checkout", async () => {
@@ -143,8 +143,8 @@ test("file tools take shell's cwd: a relative path in a worktree lands in it, ne
   assert.equal(fs.readFileSync(path.join(root, "docs", "spec.md"), "utf8"), "root\n");
   assert.equal(fs.existsSync(path.join(root, "docs", "new.md")), false);
   for (const [ask, why] of [
-    ["tree escape", /outside the folder/],
-    ["cwd outside", /outside the folder/],
+    ["tree escape", /APX's own folder/],
+    ["cwd outside", /APX's own folder/],
     ["cwd missing", /no folder no-such-tree/],
     ["cwd git", /\.git folder is off limits/],
   ] as const)
@@ -224,7 +224,7 @@ test("an agent reads a text file by lines, as data; a binary one or one outside 
   assert.match(page, /pages\/btc\.html: lines 2-2 of 4 \(more: offset=3\)/);
   assert.match(page, /<file path="pages\/btc\.html" trust="untrusted">\ntwo\n<\/file>/);
   assert.match(await said(t.id, "read binary"), /is not a text file/);
-  assert.match(await said(t.id, "read outside"), /outside the folder/);
+  assert.match(await said(t.id, "read outside"), /APX's own folder/);
 });
 
 test("an agent that reads an image file sees it", async () => {

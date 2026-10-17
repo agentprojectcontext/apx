@@ -16,12 +16,12 @@ const fake = (id: "claude" | "codex"): Harness => ({
     // "probe [...]" asks the core about each of its own tool calls, as Claude Code's canUseTool does.
     const probe = /^probe (.*)$/s.exec(String(io.input.content).split("\n").at(-1) ?? "");
     if (probe) {
-      const asked = JSON.parse(probe[1] ?? "[]") as Array<{ kind: string; path: string }>;
+      const asked = JSON.parse(probe[1] ?? "[]") as Array<{ kind: string; path?: string; command?: string }>;
       const said: boolean[] = [];
-      for (const [i, a] of asked.entries())
-        said.push(
-          await io.approve({ callId: `${io.run.id}-p${i}`, title: a.kind, kind: a.kind, input: { path: a.path } }),
-        );
+      for (const [i, a] of asked.entries()) {
+        const input = a.command === undefined ? { path: a.path } : { command: a.command };
+        said.push(await io.approve({ callId: `${io.run.id}-p${i}`, title: a.kind, kind: a.kind, input }));
+      }
       return { text: JSON.stringify(said), model: `${id}/model`, sessionId: "probe" };
     }
     io.onText("thinking…");
@@ -320,4 +320,37 @@ test("an outside agent reads its project's read-only folders without asking and 
   const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
   assert.equal(answer?.type === "text" ? answer.text : "", "[true,true,false,false]");
   fs.rmSync(ref, { recursive: true, force: true });
+});
+
+test("an outside agent's commands follow the shell tool's folder rule: they read a read-only folder, never write it", async () => {
+  const t0 = await session("claude");
+  const ref = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
+  const away = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
+  await env.client.call("projects.update", { project: t0.project_id ?? "", read_only_folders: [ref] });
+  // Total autonomy: nothing is put to the owner, so only the folder rule says no.
+  await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+  try {
+    const commands: Array<[string, boolean]> = [
+      [`cat ${ref}/a.ts`, true],
+      [`cp ${ref}/a.ts ./a.ts`, true],
+      [`git -C ${ref} log --oneline`, true],
+      ["ls", true],
+      [`touch ${ref}/x`, false],
+      [`cp a.ts ${ref}/a.ts`, false],
+      [`cd ${ref} && npm install`, false],
+      [`echo x > $(echo ${ref})/y`, false],
+      [`cat ${away}/secret.txt`, false],
+    ];
+    const asks = commands.map(([command]) => ({ kind: "execute", command }));
+    await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });
+    const t = await env.settle(t0.id);
+    const answer = t.messages.at(-1)?.parts.find((p) => p.type === "text");
+    const said = JSON.parse(answer?.type === "text" ? answer.text : "[]") as boolean[];
+    for (const [i, [command, allowed]] of commands.entries()) assert.equal(said[i], allowed, command);
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+    await env.client.call("projects.update", { project: t0.project_id ?? "", read_only_folders: [] });
+    fs.rmSync(ref, { recursive: true, force: true });
+    fs.rmSync(away, { recursive: true, force: true });
+  }
 });

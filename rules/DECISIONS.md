@@ -1157,11 +1157,16 @@ could not read it, and the only way in was a relative path one tool let through.
 to a project (Project settings, `projects.update` `read_only_folders`, `apx projects folders`). They are roots of the
 one folder rule (`tools/folders.ts`), after the folder the agent works in and its temp folder, so `file_read` and
 `shell` read there and every write is refused with the read-only refusal; the first root holding a path decides, so a
-parent of the project's folder leaves the project writable. A shell command in one is judged by whether it writes, not
-by where its arguments point (each path it names is judged by the rule). Each turn's input names them (not the
+parent of the project's folder leaves the project writable. A shell command is judged path by path: what it reads (a
+source, a script it runs, `git -C <dir> log`) may be in one, what it writes (a redirection, the target of `cp`/`mv`/
+`rsync`, `sed -i`, `git -C <dir> commit`, any other program run there as its cwd) may not, and a word whose place only
+the shell knows (`$X`, `{a,b}`, `$(…)`) may not write while the project has one. That is a static reading of the
+command, not a sandbox: a script that builds a path as it runs is not caught, and the docs say so. The system's temp
+folders are scratch space beside them (never one holding APX's home, nor other chats' temp folders), so a folder that
+holds them cannot be read-only. Each turn's input names them (not the
 system prompt). They are kept in APX's database like autonomy (D-072), never in `.apc/`: a folder someone else wrote
 cannot widen what its agents read. A folder must be absolute, on disk, outside APX's home and not holding it (its
 database and secrets), and not inside the project's own folder (already writable there). Outside agents: Claude Code
 and ACP agents ask APX about each of their tools, and reads in these folders now run without asking while any change
-there is refused; Codex's sandbox already reads anywhere and its `additionalDirectories` would make a folder writable,
+there is refused (their commands judged as the shell tool's); Codex's sandbox already reads anywhere and its `additionalDirectories` would make a folder writable,
 so it is not given them. The base project has none yet.

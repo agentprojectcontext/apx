@@ -372,7 +372,7 @@ test("a file from the folder the agent works in goes with the message, as a docu
   await env.settle("home");
   assert.match(
     String(llm.calls.at(-1)?.messages.at(-1)?.content),
-    /not sent: \.\.\/secrets\.index\.json is outside the folder/,
+    /not sent: \.\.\/secrets\.index\.json is in APX's own folder/,
   );
   assert.equal(tg.filesTo(MAG.id).length, 1);
 });

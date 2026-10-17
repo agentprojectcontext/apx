@@ -30,7 +30,7 @@ import { askedSkill } from "../skills/picker.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
-import { harnessDir, readOnlyFolders, scratchDir } from "../tools/folders.ts";
+import { harnessDir, harnessRoots, readOnlyFolders, scratchDir } from "../tools/folders.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
 import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
 import { inherit, withProjectAutonomy } from "../tools/policy.ts";
@@ -237,6 +237,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     apxPort: deps.apxPort,
     workDir: harnessDir(store, deps.home, thread),
     readOnly: readOnlyFolders(store, thread),
+    roots: harnessRoots(store, deps.home, thread),
     delegate: (to, task, waitMs) => deps.delegate({ run, agent, display }, to, task, waitMs),
   });
   const io = (): TurnIO => ({

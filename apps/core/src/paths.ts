@@ -18,7 +18,7 @@ export function expandHome(p: string, home = os.homedir()): string {
 export function isInside(root: string, p: string): boolean {
   const r = path.resolve(root);
   const target = path.resolve(r, p);
-  return target === r || target.startsWith(`${r}${path.sep}`);
+  return target === r || target.startsWith(r.endsWith(path.sep) ? r : `${r}${path.sep}`);
 }
 
 /** The real location of a path that may not exist yet: its nearest existing ancestor resolved, the rest appended. */

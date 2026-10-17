@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
-import { harnessDir, judge, refusal, rootsOf, scratchDir, workDir } from "./folders.ts";
+import { harnessDir, judge, refusal, rootsOf, scratchDir, scratchRoot, tempAreas, workDir } from "./folders.ts";
 import { commandFolder } from "./shell.ts";
 
 // The owner's message is the call to make: `{"name": "file_read", "args": {...}}`.
@@ -115,7 +115,7 @@ test("a read-only folder is read, never changed", () => {
   ];
   const file = path.join(sibling, "b.txt");
   assert.deepEqual(judge(roots, file, repo), { at: file, base: sibling, scratch: false, write: false });
-  assert.deepEqual(judge(roots, file, repo, true), { refused: refusal.readOnly(file) });
+  assert.deepEqual(judge(roots, file, repo, { write: true }), { refused: refusal.readOnly(file) });
 });
 
 test("ordinary commands name no folder they may not use; ones that leave it through any door are refused", async () => {
@@ -135,6 +135,12 @@ test("ordinary commands name no folder they may not use; ones that leave it thro
     "ls # ../elsewhere",
     'for f in src/*; do echo "$f"; done',
     `ls ${repo}/src`,
+    "cat /etc/hosts",
+    "cd $(git rev-parse --show-toplevel) && ls",
+    "cd `git rev-parse --show-toplevel` && ls",
+    `rg "${sibling}/" src`,
+    `grep -rn "${sibling}" src`,
+    "ls src >&2 2>/dev/null",
   ])
     assert.ok(!("refused" in verdict(c)), c);
   for (const c of [
@@ -150,8 +156,9 @@ test("ordinary commands name no folder they may not use; ones that leave it thro
     "ls $HOME/work",
     'cat "../a dir/b"',
     "ls ../*",
-    "cat /etc/hosts",
     "head -n 1 src/../../x",
+    "cp x /usr/local/bin/y",
+    "cat ~root/.ssh/id_rsa",
   ])
     assert.ok("refused" in verdict(c), c);
 });
@@ -184,7 +191,10 @@ test("a project's read-only folders are read by file_read and shell, never chang
       /Read-only folders \(read with file tools or shell, never change\): /,
     );
     const sub = { id: "t_sub", parent_id: t.id, project_id: project };
-    assert.deepEqual(rootsOf(env.core.store, env.home, sub).at(-1), { dir: ref, write: false, scratch: false });
+    assert.deepEqual(
+      rootsOf(env.core.store, env.home, sub).find((r) => !r.write),
+      { dir: ref, write: false, scratch: false },
+    );
 
     assert.equal(await call("file_write", { path: file, content: "x" }), `refused: ${refusal.readOnly(file)}`);
     assert.equal(await call("file_edit", { path: file, old: "old", new: "x" }), `refused: ${refusal.readOnly(file)}`);
@@ -219,6 +229,9 @@ test("a read-only folder must be an absolute folder on disk, apart from APX's ho
   fs.mkdirSync(path.join(env.home, "projects"), { recursive: true });
   await refused(path.join(env.home, "projects"), /APX's own folder/);
   await refused(path.dirname(env.home), /APX's own folder/);
+  // Nor the system's temp folders, where every chat keeps its own.
+  await refused(path.dirname(scratchRoot(env.home)), /APX's own folder|temp folders/);
+  await refused("/", /APX's own folder|temp folders/);
   await refused(repo, /already in the project's folder/);
   await refused(path.join(repo, "docs"), /already in the project's folder/);
   assert.equal(env.core.store.projects.get(project)?.read_only_folders, undefined, "nothing kept from a refusal");
@@ -229,15 +242,149 @@ test("a read-only folder must be an absolute folder on disk, apart from APX's ho
     const nested = (await env.client.call("projects.create", { path: inner })).project.id;
     await env.client.call("projects.update", { project: nested, read_only_folders: [outer] });
     const roots = rootsOf(env.core.store, env.home, { id: "t_p", project_id: nested });
-    assert.deepEqual(judge(roots, "a.txt", inner, true), {
+    assert.deepEqual(judge(roots, "a.txt", inner, { write: true }), {
       at: path.join(inner, "a.txt"),
       base: inner,
       scratch: false,
       write: true,
     });
     const b = path.join(outer, "b.txt");
-    assert.deepEqual(judge(roots, b, inner, true), { refused: refusal.readOnly(b) });
+    assert.deepEqual(judge(roots, b, inner, { write: true }), { refused: refusal.readOnly(b) });
   } finally {
     fs.rmSync(outer, { recursive: true, force: true });
   }
+});
+
+test("in a project with a read-only folder, commands read it freely and only writes into it are refused", async () => {
+  const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
+  const ref = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ro-")));
+  fs.mkdirSync(path.join(ref, "sub"));
+  fs.writeFileSync(path.join(ref, "f"), "old\n");
+  fs.writeFileSync(path.join(ref, "script.mjs"), "console.log(1)\n");
+  fs.symlinkSync(path.join(ref, "sub"), path.join(repo, "l"));
+  const thread = { id: "t_ro", project_id: project };
+  const verdict = (command: string, cwd?: string) =>
+    commandFolder(env.core.store, env.home, thread, { command, ...(cwd ? { cwd } : {}) });
+  const RO = ref;
+  const rel = `../${path.basename(ref)}`;
+  try {
+    await env.client.call("projects.update", { project, read_only_folders: [ref] });
+    for (const c of [
+      `cp ${RO}/f ./f`,
+      `cp -r ${RO}/sub ./copy`,
+      `rsync -a ${RO}/ ./mirror/`,
+      `cat ${RO}/f > out.txt`,
+      `cd ${RO} && ls`,
+      `cd ${RO}`,
+      `ls ${RO} 2>/dev/null`,
+      `cat ${RO}/f | jq .`,
+      `cat ${RO}/f | sort`,
+      `sed -n 1,5p ${RO}/f`,
+      `diff ${RO}/f ./f`,
+      `git -C ${RO} diff HEAD~1`,
+      `git -C ${RO} log`,
+      `rg foo ${RO}`,
+      `node ${RO}/script.mjs`,
+      `cat ${rel}/f >&2`,
+      `cd ${RO} && git log --oneline | head > ${repo}/log.txt`,
+      `cd ${RO} && cat f > /dev/null`,
+      "cd $(git rev-parse --show-toplevel) && ls",
+    ])
+      assert.ok(!("refused" in verdict(c)), c);
+    assert.ok(!("refused" in verdict("ls -la", RO)), "a read in it as the cwd");
+    const refusedRO = [
+      `touch ${RO}/x`,
+      `touch ${rel}/x`,
+      `cp a ${RO}/x`,
+      `mv ${RO}/f ./f`,
+      `echo x > ${RO}/o`,
+      `echo x >> ${rel}/o`,
+      `sed -i s/a/b/ ${RO}/f`,
+      `sed -i.bak -e s/a/b/ ${RO}/f`,
+      `cat f | tee -a ${RO}/log`,
+      `cd ${RO} && touch x`,
+      `cd ${RO} && npm install`,
+      `cd ${RO} && git reset HEAD`,
+      `git -C ${RO} commit -m x`,
+      `git -C ${RO} checkout main`,
+      `rm ${RO}/f`,
+      `mkdir ${RO}/d`,
+      `chmod +x ${RO}/f`,
+      `find ${RO} -name '*.tmp' -delete`,
+      `find ${RO} -exec rm {} +`,
+      `rsync -a ./x ${RO}/`,
+      `ln -s x ${RO}/l`,
+      `sh -c "touch ${RO}/x"`,
+      "touch l/../x",
+      `touch ~+/${rel}/x`,
+      `touch $PWD/${rel}/a`,
+      `curl -s https://example.com -o ${RO}/page.html`,
+    ];
+    for (const c of refusedRO) {
+      const r = verdict(c);
+      assert.ok("refused" in r && /read-only folder/.test(r.refused), `${c}: ${JSON.stringify(r)}`);
+    }
+    for (const [c, cwd] of [
+      ["touch new.txt", RO],
+      ["npm install", RO],
+    ] as const) {
+      const r = verdict(c, cwd);
+      assert.ok("refused" in r && /read-only folder/.test(r.refused), `${c} in ${cwd}: ${JSON.stringify(r)}`);
+    }
+    // Words whose place is only known when the shell runs cannot write while there is a read-only folder to protect.
+    for (const c of [
+      `touch {${RO}/x,y}`,
+      "cp a ~-/x",
+      "touch $OLDPWD/x",
+      `touch \`echo ${RO}\`/x`,
+      `touch $(echo ${RO})/x`,
+      "cd $X && touch y",
+      "echo hi > $OUT",
+      `find ${RO} | xargs rm`,
+    ]) {
+      const r = verdict(c);
+      assert.ok("refused" in r && /cannot tell where/.test(r.refused), `${c}: ${JSON.stringify(r)}`);
+    }
+    assert.deepEqual(verdict(`touch ${RO}/x`), { refused: refusal.readOnly(`${RO}/x`) });
+    assert.doesNotMatch(refusal.readOnly("x"), /write your changes in the folder you work in/);
+  } finally {
+    await env.client.call("projects.update", { project, read_only_folders: [] });
+    fs.unlinkSync(path.join(repo, "l"));
+    fs.rmSync(ref, { recursive: true, force: true });
+  }
+  // Without a read-only folder there is nothing to protect: the owner is asked as before (commandRisk), not refused.
+  for (const c of ["echo hi > $OUT", "touch {a,b}", "cd $X && touch y"]) assert.ok(!("refused" in verdict(c)), c);
+});
+
+test("system temp folders are scratch space, except APX's own chats' temp folders", () => {
+  // A home on no temp folder, like the owner's (never created: only compared against).
+  const home = path.join(path.parse(os.tmpdir()).root, "apx-home-nowhere");
+  const areas = tempAreas(home);
+  assert.ok(areas.length > 0);
+  const own = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-own-")));
+  const roots = [
+    { dir: own, write: true, scratch: false },
+    { dir: scratchRoot(home), write: false, scratch: true, off: true },
+    ...areas.map((dir) => ({ dir, write: true, scratch: true })),
+  ];
+  try {
+    for (const p of ["/tmp/out.txt", path.join(os.tmpdir(), "build", "a.js")])
+      assert.equal("refused" in judge(roots, p, own, { write: true }), false, p);
+    const other = path.join(scratchRoot(home), "t_other", "a.txt");
+    assert.equal("refused" in judge(roots, other, own), true, "another chat's temp folder");
+    // A temp folder that holds APX's home (a throwaway core's) is not shared scratch.
+    assert.equal(tempAreas(path.join(os.tmpdir(), "apx-x")).includes(os.tmpdir()), false);
+  } finally {
+    fs.rmSync(own, { recursive: true, force: true });
+  }
+});
+
+test("a refusal outside every folder names a next step that exists", async () => {
+  const r = commandFolder(env.core.store, env.home, { id: "t_loose" }, { command: `cat ${sibling}/b.txt` });
+  assert.ok("refused" in r && !/ask_owner/.test(r.refused), JSON.stringify(r));
+  assert.match(r.refused, /outside the folders you can read/);
+  const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
+  const apx = path.join(env.home, "apx.db");
+  const roots = rootsOf(env.core.store, env.home, { id: "t_x", project_id: project });
+  assert.deepEqual(judge(roots, apx, repo, { home: env.home, project: true }), { refused: refusal.apx(apx) });
 });
