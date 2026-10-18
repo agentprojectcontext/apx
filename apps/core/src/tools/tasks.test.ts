@@ -6,6 +6,10 @@ import { boardText } from "./tasks.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(String(req.messages.at(-1)?.content));
+  if (said.startsWith("tool: ")) {
+    const { name, args } = JSON.parse(said.slice(6)) as { name: string; args: object };
+    return callTool("task", name, args);
+  }
   if (said.startsWith("create: ")) return callTool("make", "task_create", { title: said.slice(8) });
   if (said.startsWith("for ann: ")) return callTool("make", "task_create", { title: said.slice(9), person: "Ann" });
   return callTool("list", "task_list", JSON.parse(said) as object);
@@ -58,6 +62,22 @@ test("task titles by the owner or their agents read plainly; a contact's request
 test("a task an agent leaves with nobody on it says it will not start, so the agent assigns it or asks", async () => {
   const said = await list("create: Fix the new chat picker");
   assert.match(said, /created task_\w+ in backlog, with nobody on it: it will not start\. Assign it/);
+});
+
+test("task tools report that assigned work with no description is waiting, never started", async () => {
+  const invoke = (name: string, args: object) => list(`tool: ${JSON.stringify({ name, args })}`);
+  const created = await invoke("task_create", { title: "Waiting specification", assignee: "vera" });
+  assert.match(created, /It has not started: add a non-empty description with task_update/);
+  assert.doesNotMatch(created, /starts on it now/);
+  const id = /created (task_\w+)/.exec(created)?.[1];
+  assert.ok(id);
+  const updated = await invoke("task_update", { task: id, assignee: "vera", description: " \t " });
+  assert.match(updated, /It has not started: add a non-empty description with task_update/);
+  assert.deepEqual(env.core.store.threads.byTask(id), []);
+  const pending = await env.client.call("tasks.create", { title: "Unassigned specification" });
+  const assigned = await invoke("task_update", { task: pending.id, assignee: "vera" });
+  assert.match(assigned, /It has not started/);
+  assert.deepEqual(env.core.store.threads.byTask(pending.id), []);
 });
 
 test("a board too long to show whole keeps promises, dates, waits and recent moves on their lines, the rest counted", () => {

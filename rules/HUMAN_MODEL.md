@@ -129,6 +129,9 @@ notice when there is no text. Tools that touch core state call protocol methods 
   visibility before ranking limits, requires every named agent as a participant, and includes archived history.
   Participants can read delegated chats by session name as well as thread id or title.
   A named agent can retrieve unavailable context through the existing `delegate` path before asking the owner.
+- **Task assignment** (`rpc/tasks.ts`, `engine/task-work.ts`): an assigned task waits without automatic work until
+  its description contains non-whitespace text. Completing the description starts work if it never began;
+  later edits do not restart it. Unassigned ideas remain valid. Hourly pickup skips incomplete descriptions.
 - **Task conversations** (`rpc/tasks.ts`, `engine/office.ts`): `tasks.comment` persists a comment and admits named
   agents in the task's own chat. Replies can mention teammates, with a bounded chain and the same project scope
   for names and exact ids. `@owner`, `@human` or the owner's name requests attention without an agent turn;

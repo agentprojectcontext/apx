@@ -114,6 +114,8 @@ function field<T>(name: string, check: () => T): T {
   }
 }
 
+const UNSPECIFIED = "It has not started: add a non-empty description with task_update to start the assigned agent.";
+
 /** What an agent is told when the task it gave waits for the owner: this chat's chain is paused (DECISIONS.md#d-082). */
 const PAUSED = (who: string) =>
   `It has not started: agents here reached the owner's limit for working on their own, so ${who} starts on it once the owner lets them go on (they were told). Do not assign it again.`;
@@ -178,7 +180,7 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "Create a task on this project's board: a clear title, what done looks like (description) and who does it (assignee: an agent id, who starts at once). A promise between the owner and a contact is a commitment: give the person, who owes it and the due date; the owner is reminded that day.",
+        "Create a task on this project's board: a clear title, what done looks like (description) and who does it (assignee: an agent id, who starts once the description is non-empty). A promise between the owner and a contact is a commitment: give the person, who owes it and the due date; the owner is reminded that day.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
@@ -202,6 +204,7 @@ export function taskTools(store: Store): Tool[] {
         // A task with nobody on it never starts: say so while the agent can still fix it.
         if (!t.assignee && t.kind === "task")
           return `created ${t.id} in ${t.status}${under}, with nobody on it: it will not start. Assign it with task_update (the agent who does it, or yourself), or ask the owner who should.`;
+        if (t.assignee && !t.description.trim()) return `created ${t.id} in ${t.status}${under}. ${UNSPECIFIED}`;
         // Its close reports back to this chat (DECISIONS.md#d-076): no need to watch the board for it.
         const back =
           t.assignee !== ctx.agent.id && ctx.thread.kind !== "a2a"
@@ -232,8 +235,9 @@ export function taskTools(store: Store): Tool[] {
       title: (a) => `Updated the task ${String(a.task ?? "")}`,
       async run({ task, ...c }, ctx) {
         const t = await ctx.call("tasks.update", { task, ...c });
-        const paused = c.assignee && t.assignee && waits(t.id, ctx) ? ` ${PAUSED(t.assignee)}` : "";
-        return `updated: ${taskLines([t], (x) => line(x))}${paused}`;
+        const pending = t.assignee && !t.description.trim() && t.chats === 0 ? ` ${UNSPECIFIED}` : "";
+        const paused = !pending && t.assignee && waits(t.id, ctx) ? ` ${PAUSED(t.assignee)}` : "";
+        return `updated: ${taskLines([t], (x) => line(x))}${pending}${paused}`;
       },
     }),
     defineTool({

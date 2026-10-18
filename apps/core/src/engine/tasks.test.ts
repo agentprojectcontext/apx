@@ -84,7 +84,11 @@ after(async () => {
 });
 
 test("a task keeps its history: created, moved, assigned, done, reopened", async () => {
-  const t = await env.client.call("tasks.create", { title: "Ship the newsletter", project });
+  const t = await env.client.call("tasks.create", {
+    title: "Ship the newsletter",
+    description: "Send the weekly newsletter.",
+    project,
+  });
   assert.equal(t.status, "backlog");
   await env.client.call("tasks.update", { task: t.id, status: "doing" });
   await env.client.call("tasks.update", { task: t.id, assignee: "vera" });
@@ -143,7 +147,12 @@ test("an @mention of a teammate is a consult shown as a card on the task; the co
 });
 
 test("an @mention of the task's own agent asks it in its chat for the task, and its answer is a comment", async () => {
-  const t = await env.client.call("tasks.create", { title: "Pick the colors", project, assignee: "vera" });
+  const t = await env.client.call("tasks.create", {
+    title: "Pick the colors",
+    description: "Choose the light and dark palettes.",
+    project,
+    assignee: "vera",
+  });
   await settleTask(t.id);
   const before = (await env.client.call("threads.get", { thread: (await settleTask(t.id)).sessions[0]?.id ?? "" })).runs
     .length;
@@ -161,7 +170,12 @@ test("an @mention of the task's own agent asks it in its chat for the task, and 
 });
 
 test("the owner writing in a task's conversation reaches its agent's working turn, never a second turn", async () => {
-  const t = await env.client.call("tasks.create", { title: "Rebuild the desktop bridge", project, assignee: "vera" });
+  const t = await env.client.call("tasks.create", {
+    title: "Rebuild the desktop bridge",
+    description: "Update the bridge protocol.",
+    project,
+    assignee: "vera",
+  });
   const work = env.core.store.threads.byTask(t.id)[0]?.id ?? "";
   const vera = () =>
     [t.thread_id, ...env.core.store.threads.byTask(t.id).map((s) => s.id)]
@@ -216,7 +230,12 @@ const workRuns = (task: string) =>
     .sort((a, b) => a.started_at.localeCompare(b.started_at));
 
 test("the owner writing on a task whose work chat is idle starts its next turn there, words and all", async () => {
-  const t = await env.client.call("tasks.create", { title: "Tidy the changelog", project, assignee: "vera" });
+  const t = await env.client.call("tasks.create", {
+    title: "Tidy the changelog",
+    description: "Group entries by release.",
+    project,
+    assignee: "vera",
+  });
   const { sessions } = await settleTask(t.id);
   const work = sessions[0]?.id ?? "";
   const before = workRuns(t.id).length;
@@ -237,6 +256,7 @@ test("the owner writing on a task whose work chat is idle starts its next turn t
 test("interrupting from a task stops the work chat's turn and starts one with the owner's words", async () => {
   const t = await env.client.call("tasks.create", {
     title: "Translate the onboarding guide",
+    description: "Translate the guide into Spanish.",
     project,
     assignee: "vera",
   });
@@ -263,7 +283,12 @@ test("interrupting from a task stops the work chat's turn and starts one with th
 });
 
 test("files the owner attaches on a task reach the work chat's turn", async () => {
-  const t = await env.client.call("tasks.create", { title: "Review the logo", project, assignee: "vera" });
+  const t = await env.client.call("tasks.create", {
+    title: "Review the logo",
+    description: "Check the attached logo.",
+    project,
+    assignee: "vera",
+  });
   const { sessions } = await settleTask(t.id);
   const work = sessions[0]?.id ?? "";
   const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
@@ -306,7 +331,12 @@ test("an agent's @mention in a task comment summons nobody", async () => {
 });
 
 test("a task an agent makes while working a task is its subtask, listed on it", async () => {
-  const t = await env.client.call("tasks.create", { title: "Launch: make a task for it", project, assignee: "vera" });
+  const t = await env.client.call("tasks.create", {
+    title: "Launch: make a task for it",
+    description: "Create a draft task for the launch.",
+    project,
+    assignee: "vera",
+  });
   await settleTask(t.id);
   const { subtasks } = await env.client.call("tasks.get", { task: t.id });
   assert.deepEqual(
@@ -365,6 +395,7 @@ test("the hourly pickup starts only tasks assigned since it began, the most pres
   const assigned = (title: string, priority: "urgent" | "low") =>
     store.tasks.create({
       title,
+      description: "Resolve the documentation issue.",
       project_id: project,
       assignee: "vera",
       status: "todo",
