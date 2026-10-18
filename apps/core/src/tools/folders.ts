@@ -135,6 +135,36 @@ export function readOnlyFolders(store: Store, thread: { project_id?: string | un
   return (thread.project_id && store.projects.get(thread.project_id)?.read_only_folders) || [];
 }
 
+/**
+ * The project's linked git worktrees, wherever they sit (`git worktree add ../x`): the same repository, so the same
+ * project (DECISIONS.md#d-106). Only for a thread working in the project's own folder: one kept to a worktree stays in it.
+ */
+export function projectWorktrees(store: Store, thread: Thread): string[] {
+  if (thread.cwd || !thread.project_id) return [];
+  const p = store.projects.get(thread.project_id);
+  if (!p?.path || !p.present) return [];
+  const dir = path.join(p.path, ".git", "worktrees");
+  let names: string[];
+  try {
+    names = fs.readdirSync(dir);
+  } catch {
+    return [];
+  }
+  const out: string[] = [];
+  for (const name of names) {
+    let gitdir: string;
+    try {
+      gitdir = fs.readFileSync(path.join(dir, name, "gitdir"), "utf8").trim();
+    } catch {
+      continue;
+    }
+    const tree = path.dirname(path.resolve(dir, name, gitdir));
+    // A worktree removed by hand leaves its entry behind until `git worktree prune`.
+    if (fs.existsSync(path.join(tree, ".git")) && !isInside(p.path, tree)) out.push(tree);
+  }
+  return out;
+}
+
 /** The system's temp folders, shared scratch space for commands (`/tmp/out.txt`), unless one holds APX's home. */
 export function tempAreas(home: string): string[] {
   const out: string[] = [];
@@ -162,6 +192,7 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
   return [
     { dir: workDir(store, home, thread), write: true, scratch: false },
     { dir: scratchDir(store, home, thread), write: true, scratch: true },
+    ...projectWorktrees(store, thread).map((dir) => ({ dir, write: true, scratch: false })),
     ...readOnlyFolders(store, thread).map((dir) => ({ dir, write: false, scratch: false })),
     ...sharedRoots(home),
     // Last, so other chats' temp folders stay closed even inside a folder lent for one call.

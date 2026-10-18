@@ -1323,6 +1323,11 @@ Stored values move once in a migration (rule 14; there is no `doctor` yet, as D-
 An agent file in someone's repository is not APX's to rewrite, so the APC sync reads the old names the same way;
 reading `ask` as the default would have let that agent act unasked.
 
+A project's linked git worktrees count as the project wherever they sit (`git worktree add ../northwind-issue-7`):
+the same repository, so writing there in Auto needs no card. They are found from the project's `.git/worktrees`,
+not by a parent folder. A thread kept to one folder (a code thread, a session in a worktree) still keeps to it.
+
+<a id="d-107"></a>
 ## D-107 — 2026-10-17 — An agent hands its files to MCP tools by reference; APX never publishes them for a link
 An agent drew carousel slides (kept only as `med_` ids in the media store, which agents may not read) and could not
 attach them to a draft on a remote MCP server: its upload tool took a public `url`, `base64`, or a `path` the server
