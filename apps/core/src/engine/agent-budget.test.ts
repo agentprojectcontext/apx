@@ -11,7 +11,11 @@ const llm = scriptedLlm((_req, { said, afterTool }) => {
   if (said.includes("ask vera")) return callTool("v1", "delegate", { agent: "vera", task: "check the invoices" });
   if (said.includes("who can help")) return callTool("l1", "list_agents", {});
   if (said.includes("give scout a task"))
-    return callTool("t1", "task_create", { title: "Recount the invoices", assignee: "scout" });
+    return callTool("t1", "task_create", {
+      title: "Recount the invoices",
+      description: "Verify the invoice totals.",
+      assignee: "scout",
+    });
   return say("ok");
 });
 

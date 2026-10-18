@@ -104,6 +104,20 @@ test("an agent answering another agent cannot start waiting work by completing i
   await env.client.call("tasks.close", { task: t.id, state: "dropped" });
 });
 
+for (const state of ["done", "dropped"] as const) {
+  test(`an agent answering another agent may complete a ${state} task without starting work`, async () => {
+    const t = await env.client.call("tasks.create", { title: "Closed specification", assignee: "roby" });
+    await env.client.call("tasks.close", { task: t.id, state });
+    waitingTask = t.id;
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    await env.client.call("threads.send", { thread: chat.id, text: "request completion" });
+    await env.settle(chat.id);
+    assert.equal(env.core.store.tasks.get(t.id)?.description, "Write the implementation plan.");
+    assert.equal(env.core.store.tasks.get(t.id)?.state, state);
+    assert.deepEqual(sessions(t.id), []);
+  });
+}
+
 test("automatic starts and pickup skip incomplete legacy tasks without consuming pickup slots", () => {
   const store = env.core.store;
   const create = (description: string | undefined) =>

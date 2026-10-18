@@ -167,7 +167,10 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       const unassign =
         moving && keeper && store.agents.get(keeper)?.project_id && store.agents.get(keeper)?.project_id !== target;
       const completing =
-        !cur.description.trim() && Boolean(c.description?.trim()) && store.threads.byTask(cur.id).length === 0;
+        cur.state === "open" &&
+        !cur.description.trim() &&
+        Boolean(c.description?.trim()) &&
+        store.threads.byTask(cur.id).length === 0;
       const starting = !unassign && keeper && (keeper !== cur.assignee || completing);
       if (starting) refuseHandOn(ctx);
       const changed = store.tx(() => {
