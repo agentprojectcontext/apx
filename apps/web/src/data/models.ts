@@ -151,18 +151,34 @@ export function effortLabel(effort: string): string {
   return isKey(key) ? t(key) : effort.charAt(0).toUpperCase() + effort.slice(1);
 }
 
-/** "Router", "<model>", or "<model> → router". */
-export function choiceLabel(choice: ModelChoice, catalog: readonly CatalogEngine[]): string {
-  if (!choice.model) return t("models.router");
+/** A configured route, not a prediction of which candidate will answer a turn. */
+export function choiceLabel(choice: ModelChoice, catalog: readonly CatalogEngine[], config?: ModelsConfig): string {
+  if (!choice.model) {
+    const first = config?.router.chain[0];
+    return first
+      ? t(config.router.rules.length ? "models.routerRulesFirst" : "models.routerFirst", {
+          model: shortRef(first, catalog),
+        })
+      : t(config?.router.rules.length ? "models.routerRules" : "models.router");
+  }
   const m = shortRef(choice.model, catalog);
   return choice.router ? t("models.withRouter", { model: m }) : m;
+}
+
+/** The picker keeps inheritance distinct from an explicit router or model choice. */
+export function effectiveChoice(
+  own: ModelChoice | null | undefined,
+  inherited: ModelChoice | undefined,
+  config: ModelsConfig | undefined,
+): ModelChoice {
+  return own ?? inherited ?? config?.default ?? { router: true };
 }
 
 /** What an agent runs on: the router, or its own model (with the router if it fails). */
 export function agentChoiceLabel(
   choice: ModelChoice | undefined,
-  _config: ModelsConfig | undefined,
+  config: ModelsConfig | undefined,
   catalog: readonly CatalogEngine[],
 ): string {
-  return choice?.model ? choiceLabel(choice, catalog) : t("models.router");
+  return choiceLabel(effectiveChoice(choice, undefined, config), catalog, config);
 }

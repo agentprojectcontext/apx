@@ -8,7 +8,7 @@ import { sendDirect } from "../../data/channels.ts";
 import { setThreadModel } from "../../data/composer.ts";
 import { draftOf, keepDraft } from "../../data/drafts.ts";
 import { isPending } from "../../data/identity.ts";
-import { choiceLabel, splitRef, useModels } from "../../data/models.ts";
+import { choiceLabel, effectiveChoice, splitRef, useModels } from "../../data/models.ts";
 import { isNewChat } from "../../data/newChat.ts";
 import { notify } from "../../data/notices.ts";
 import { useData } from "../../data/state.ts";
@@ -250,13 +250,15 @@ export function ChatComposer({
 function ChatModel({ thread, agent }: { thread: Thread; agent: Agent | undefined }) {
   const t = useT();
   const catalog = useModels((s) => s.catalog);
+  const config = useModels((s) => s.config);
   const own = thread.model_choice;
-  const effective = own ?? agent?.model_choice;
-  const text = effective?.model ? choiceLabel(effective, catalog) : t("composer.auto");
+  const effective = effectiveChoice(own, agent?.model_choice, config);
+  const text = choiceLabel(effective, catalog, config);
   return (
     <ModelChoicePicker
       label={t("composer.modelOfChat")}
       value={own ?? null}
+      {...(agent?.model_choice ? { inherited: agent.model_choice } : {})}
       text={text}
       align="start"
       className={`composer__model${own ? " is-own" : ""}`}
