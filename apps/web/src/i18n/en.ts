@@ -989,7 +989,7 @@ export const en = {
   "models.routerRules": "Router · Rules",
   "models.installDefault": "Install default",
   "models.useDefault": "Use install default",
-  "models.currentChoice": "In use: {model}",
+  "models.currentChoice": "Configured choice: {model}",
   "models.inheritedChoice": "{source} · {model}",
   "models.router": "Router",
   "models.routerOnly": "Use only the router",

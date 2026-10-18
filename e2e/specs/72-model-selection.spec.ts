@@ -21,7 +21,7 @@ test("agents and chats distinguish inheritance, primary models and explicit rout
     await expect(chat).toHaveText("custom/fake-2");
     await chat.click();
     const picker = page.locator(".mchoice");
-    await expect(picker.getByRole("status")).toContainText("En uso: custom/fake-2");
+    await expect(picker.getByRole("status")).toContainText("Selección configurada: custom/fake-2");
     await expect(
       picker.locator(".mchoice__fallback:not([role])").filter({ hasText: "El modelo del agente" }),
     ).toContainText("En uso");

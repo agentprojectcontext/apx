@@ -995,7 +995,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "models.routerRules": "Router · Reglas",
   "models.installDefault": "Predeterminado de la instalación",
   "models.useDefault": "Usar predeterminado",
-  "models.currentChoice": "En uso: {model}",
+  "models.currentChoice": "Selección configurada: {model}",
   "models.inheritedChoice": "{source} · {model}",
   "models.router": "Router",
   "models.routerOnly": "Dejar solo el router",
