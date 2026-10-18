@@ -3,6 +3,8 @@ import { expect, open, rpc, test } from "./kit.ts";
 
 test("an approved request shrinks to one line saying what was asked and how it ended", async ({ page }) => {
   await rpc("setup.finish", {});
+  // In manual mode a command that changes something asks; Auto would run it unasked (DECISIONS.md#d-106).
+  await rpc("agents.update", { agent: "scout", autonomy: "manual" });
   const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "scout", title: "Permisos" });
   await open(page, `#thread=${chat.id}`);
   await page.getByRole("textbox", { name: /Escribile/ }).fill("make a note file");
@@ -10,8 +12,9 @@ test("an approved request shrinks to one line saying what was asked and how it e
 
   const card = page.locator(".inputcard.is-pending");
   await expect(card).toContainText("Necesita tu OK");
-  await expect(card).toContainText("para usar shell");
+  await expect(card).toContainText("usar shell");
   await card.getByRole("button", { name: "Aceptar una vez" }).click();
+  await rpc("agents.update", { agent: "scout", autonomy: null });
 
   const line = page.locator(".inputline");
   await expect(line).toContainText("Pidió permiso para usar shell");
