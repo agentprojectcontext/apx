@@ -32,6 +32,48 @@ const message = (seq: number, author: unknown, text: string) => ({
   created_at: "2026-10-02T12:00:00.000Z",
 });
 
+test("board groups project tasks by column and marks tasks waiting for the owner", async () => {
+  const { client, calls } = recordingClient({
+    "tasks.list": {
+      tasks: [task, { ...task, id: "tsk_2", title: "Check the quote", status: "review", awaits_owner: true }],
+      columns: [
+        { id: "doing", label: "Doing" },
+        { id: "review", label: "Review" },
+        { id: "backlog", label: "Backlog" },
+      ],
+    },
+  });
+  const out = await printed(() => tasks(client, [], { project: "acme" }));
+  assert.match(out, /Doing\n {2}tsk_1 {2}Send the Acme quote {2}· april/);
+  assert.match(out, /Review\n {2}tsk_2 {2}Check the quote {2}· april {2}· waiting for you/);
+  assert.ok(!out.includes("Backlog"));
+  assert.deepEqual(calls, [["tasks.list", { project: "acme" }]]);
+});
+
+test("commitments separate what the owner owes from what other people owe", async () => {
+  const { client, calls } = recordingClient({
+    "tasks.list": {
+      tasks: [
+        { ...task, kind: "commitment", person_name: "Acme", owed_by: "owner" },
+        {
+          ...task,
+          id: "tsk_2",
+          title: "Receive the receipt",
+          kind: "commitment",
+          person_name: "Northwind",
+          owed_by: "person",
+          due_at: undefined,
+        },
+      ],
+      columns: [],
+    },
+  });
+  const out = await printed(() => tasks(client, ["commitments"], {}));
+  assert.match(out, /You owe\n {2}tsk_1 {2}Send the Acme quote {2}· Acme {2}· due /);
+  assert.match(out, /Owed to you\n {2}tsk_2 {2}Receive the receipt {2}· Northwind$/);
+  assert.deepEqual(calls, [["tasks.list", { commitments: true }]]);
+});
+
 test("edit sends only the fields given", () => {
   assert.deepEqual(taskEditOf("tsk_1", { title: "New title" }), { task: "tsk_1", title: "New title" });
   assert.deepEqual(taskEditOf("tsk_1", { agent: "roby", due: "2026-10-09", tags: " a, b ,," }), {
