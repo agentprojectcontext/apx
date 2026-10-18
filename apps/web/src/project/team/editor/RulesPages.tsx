@@ -2,7 +2,7 @@
 import {
   type Agent,
   AUTONOMY_RULES,
-  type Autonomy,
+  Autonomy,
   type Result,
   type RulePolicy,
   type ToolApproval,
@@ -17,11 +17,12 @@ import { type Draft, effectiveRule, POLICIES, RISKS } from "./draft.ts";
 type Catalog = Result<"agents.tools">["tools"];
 type PageProps = { agent: Agent; draft: Draft; edit: (patch: Partial<Draft>) => void };
 
-const AUTONOMIES: readonly Autonomy[] = ["ask", "standard", "edits", "total"];
+const AUTONOMIES: readonly Autonomy[] = Autonomy.options;
 const AUTONOMY_KEY: Record<Autonomy, MessageKey> = {
-  ask: "agentedit.autonomyAsk",
-  standard: "agentedit.autonomyStandard",
-  edits: "agentedit.autonomyEdits",
+  manual: "agentedit.autonomyManual",
+  auto: "agentedit.autonomyAuto",
+  accept_edits: "agentedit.autonomyAcceptEdits",
+  plan: "agentedit.autonomyPlan",
   total: "agentedit.autonomyTotal",
 };
 const RISK_TONE: Record<ToolRisk, string> = {

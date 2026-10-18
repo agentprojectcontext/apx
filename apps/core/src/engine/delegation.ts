@@ -8,7 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { strictestWrite, type Worker, worksInFolder } from "../domain/threads.ts";
 import { agentReply } from "../tools/agents.ts";
 import { folderInProject } from "../tools/folders.ts";
-import { withProjectAutonomy } from "../tools/policy.ts";
+import { modeOf, withProjectAutonomy } from "../tools/policy.ts";
 import { ancestors } from "./ancestry.ts";
 import { agentTripped, heldNotice, tripped } from "./breaker.ts";
 import type { Display } from "./display.ts";
@@ -56,7 +56,8 @@ export function workspaceOf(
     return `refused: ${why.startsWith("needs") ? `a folder to work in ${why}` : why}`;
   }
   const own: WritePolicy | undefined = worksInFolder(parent) ? parent.write : undefined;
-  const ceiling = own ?? (withProjectAutonomy(store, caller).autonomy === "ask" ? "ask" : "auto");
+  const mode = modeOf(withProjectAutonomy(store, caller));
+  const ceiling = own ?? (mode === "plan" ? "read-only" : mode === "manual" ? "ask" : "auto");
   return { cwd, write: strictestWrite(ceiling, req.write ?? own ?? "ask") };
 }
 
@@ -257,7 +258,7 @@ export function createDelegations(deps: {
       if (parentThread.kind === "a2a" || ancestors(store, parentThread.id).length >= MAX_DEPTH)
         return "refused: you are answering another agent, so you do it yourself and ask no one else.";
       // Sessions are stored under a slug of the name the caller gave: look them up the same way (or by id).
-      const existing = req.session
+      let existing = req.session
         ? (store.threads.session(parentThread.id, slug(req.session)) ??
           store.threads.session(parentThread.id, req.session))
         : undefined;
@@ -268,8 +269,6 @@ export function createDelegations(deps: {
       if (worker && req.agent) return "refused: give an agent or a worker, not both.";
       // A worker is the caller itself, under the worker's instructions: no self or cycle check applies.
       const toId = worker ? from.agent.id : (existing?.agent_ids[0] ?? req.agent?.id);
-      if (existing && req.project && existing.project_id !== req.project)
-        return `refused: session "${existing.session ?? existing.id}" works in another project; name a new session.`;
       if (existing && req.agent && req.agent.id !== toId)
         return `refused: session "${existing.session ?? existing.id}" is with another agent; leave agent out to continue it, or name a new session.`;
       const to = toId ? store.agents.get(toId) : undefined;
@@ -281,14 +280,23 @@ export function createDelegations(deps: {
         return "refused: you cannot delegate to yourself; complete this task directly with your own tools.";
       if (!worker && chainAgents(parentThread.id).includes(to.id))
         return `refused: ${to.name} is already part of this delegation chain (cycle).`;
+      // A session asked to work in another project, folder or write policy is left as it was, and a new one with the
+      // same agent opens there instead of a refusal (DECISIONS.md#d-106).
+      let moved: string | undefined;
+      if (existing && req.project && existing.project_id !== req.project) {
+        moved = existing.session ?? existing.id;
+        existing = undefined;
+      }
       // The project named, else this chat's, else the agent's own: its folder is where the session reads and works.
       const projectId = existing
         ? existing.project_id
         : (req.project ?? parentThread.project_id ?? (worker ? undefined : to.project_id));
       const place = workspaceOf(store, from.agent, parentThread, projectId, req);
       if (typeof place === "string") return place;
-      if (existing && place && (existing.cwd !== place.cwd || existing.write !== place.write))
-        return `refused: session "${existing.session ?? existing.id}" works in another folder or with another write policy; name a new session.`;
+      if (existing && place && (existing.cwd !== place.cwd || existing.write !== place.write)) {
+        moved = existing.session ?? existing.id;
+        existing = undefined;
+      }
       const paused = tripped(store, parentThread.id);
       if (paused) {
         holdDelegation(parentThread.id, from.agent.id, worker?.name ?? to.name, task);
@@ -302,7 +310,7 @@ export function createDelegations(deps: {
       const queued = store.runs.activeDelegations(parentThread.id) >= MAX_ACTIVE_DELEGATIONS;
       deps.live.set(from.run.id, from.display);
       const who = worker?.name ?? to.name;
-      const name = existing?.session ?? sessionName(parentThread.id, req.session ?? who);
+      const name = existing?.session ?? sessionName(parentThread.id, moved ? who : (req.session ?? who));
       let sub = existing;
       if (!sub) {
         sub = store.threads.create({
@@ -349,9 +357,11 @@ export function createDelegations(deps: {
         deadline_at: new Date(Date.now() + A2A_DEADLINE_MS).toISOString(),
         ...(queued ? { state: "queued" as const } : {}),
       });
-      const at = place
-        ? `\nIt works in ${place.cwd}, writes: ${place.write}${req.write && req.write !== place.write ? ` (${req.write} would go further than you may)` : ""}.`
-        : "";
+      const at = `${
+        place
+          ? `\nIt works in ${place.cwd}, writes: ${place.write}${req.write && req.write !== place.write ? ` (${req.write} would go further than you may)` : ""}.`
+          : ""
+      }${moved ? `\nSession "${moved}" works elsewhere, so this is a new session "${name}" without its context: continue it with session="${name}".` : ""}`;
       if (queued) {
         // A session still answering an earlier task keeps showing that it works.
         if (store.threads.get(sub.id)?.state !== "working") store.threads.patch(sub.id, { state: "queued" });

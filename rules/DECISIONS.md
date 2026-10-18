@@ -1265,3 +1265,44 @@ its caller, and the result tells it when what it asked for was capped. A separat
 path already names both the project and the folder, and the tool definitions are at their budget (PROMPT_SIZE.md).
 Continuing a session with another folder or policy is refused, as with another project. The sub-thread keeps
 `parent_id` and its run `parent_run_id`, so the result returns to the caller as any delegation's does.
+
+<a id="d-106"></a>
+## D-106 — 2026-10-17 — Five permission modes, Auto by default: agents ask only for strong actions
+Agents stopped far too often. An agent on total autonomy in Home was refused a read of another project's file; a
+marketing agent delegated work by the secretary (total) stopped on a card for a plain inspection command, because a
+delegated run took the strictest autonomy of its chain and its own project's default was `standard`; and continuing a
+session in another folder was refused with "name a new session". Modelled on Claude Code's modes and on Codex's
+workspace-write sandbox, the four autonomies become five modes, in the order the owner picks from: **Manual**
+(`manual`, every change asks, and so does a read outside the project, D-099's card), **Auto** (`auto`, the new
+default), **Accept edits** (`accept_edits`, as Auto for files; a command that changes something asks), **Plan**
+(`plan`, reads and proposes; any call that would change something is refused with "propose it in your answer", while
+`ask_owner`, `load_skill`, `recall` and `delegate` still run) and **Total** (`total`, unchanged: D-047, D-102). The
+field stays `autonomy`, in files and in the protocol.
+
+Auto, like Codex: an agent reads any path on the machine but APX's home (a last root, `reach: "read"`, after every
+other one, so other chats' temp folders stay closed and read-only folders stay read-only); writes files and runs
+commands in the folder it works in and its temp folder without asking, whatever the turn read; and asks only for strong
+actions: what acts in the owner's name (messages, posts, payments, a URL with values once outside content is in the
+turn, D-047's list), what always asks (destructive commands, APX's own API, APC files, D-089), and writing outside its
+work folder. That last one is a folder card for the call ("wants to change files in …, outside its project": Only this
+time or No; never kept, since read-only folders cannot be written), raised by `file_write`, `file_edit` and `shell`
+through the same `lend` step D-099 reads use. Outside content in the turn no longer gates a call that works in the
+agent's folder (`workspace`): only `untrusted`-level calls that act outside or keep something of the owner's (memory,
+location) still ask then. A code thread or a session in a sub-folder (a worktree) keeps to it: writing elsewhere in the
+project asks for that call, which D-104 needs. Codex's sandbox writes in Auto and Accept edits, read-only in Manual and
+Plan. Known limit: the shell rule is a static reading of the command (D-097), not a sandbox, and a word only the shell
+can place (`$X`) is no longer refused just because every folder is readable; `curl -X POST` in the work folder runs
+in Auto as it did under `edits`.
+
+Delegation: a helper works in its caller's mode, not the strictest of the chain: the top of the chain sets the mode,
+each agent below keeps its own rules by case over it, and a rule that turns a risk off anywhere up the chain stays off
+(the old `strictestRules` is gone). Tools are still the ones every agent in the chain may use, so a caller's tool list
+still narrows its helpers. The trade: a helper whose own mode is Manual, asked by an agent on Total, acts as Total;
+an agent meant never to change anything says so with `rules: write=off` (or its caller's mode is Plan). Delegating to a
+session that works in another project, folder or write policy now opens a new session with the same agent there
+(`<name>-2`), and the result says it has none of the old session's context. Every refusal names a next step.
+
+Stored values move once in a migration (rule 14; there is no `doctor` yet, as D-024 says): `ask` → `manual`,
+`standard` and `edits` → `auto` (Auto covers what `edits` did), for projects, the base project and APX's own agents.
+An agent file in someone's repository is not APX's to rewrite, so the APC sync reads the old names the same way;
+reading `ask` as the default would have let that agent act unasked.

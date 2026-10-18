@@ -8,12 +8,15 @@ export const Id = z.string().min(1).max(128);
 export const ProjectKind = z.enum(["personal", "app", "company", "software", "other"]);
 
 /**
- * `ask`: every call that changes something waits for the owner. `standard`: high-impact calls wait while untrusted
- * content is in context. `edits`: as standard, but writing files and running commands in the folder it works in never
- * wait, unless they always do (destructive ones, APC files). `total`: nothing waits (DECISIONS.md#d-047, #d-072).
+ * An agent's permission mode, in the order the owner picks from (DECISIONS.md#d-106). `manual`: every call that changes
+ * something waits for the owner. `auto` (the default): reads anywhere but APX's home, writes and runs commands in the
+ * folder it works in and its temp folder, and asks only for strong actions. `accept_edits`: as auto, but a command that
+ * changes something asks. `plan`: reads and proposes, changes nothing. `total`: nothing waits (DECISIONS.md#d-047).
  */
-export const Autonomy = z.enum(["ask", "standard", "edits", "total"]);
+export const Autonomy = z.enum(["manual", "auto", "accept_edits", "plan", "total"]);
 export type Autonomy = z.infer<typeof Autonomy>;
+/** The mode of an agent and a project that set none. */
+export const DEFAULT_AUTONOMY: Autonomy = "auto";
 
 /**
  * What a tool call does, by risk: reads; changes the project (files, memory, delegating); acts outside in the owner's
@@ -35,9 +38,10 @@ export type AgentRules = z.infer<typeof AgentRules>;
 
 /** What each autonomy amounts to per risk, as the editor shows it before an agent sets rules of its own. */
 export const AUTONOMY_RULES: Record<Autonomy, Required<AgentRules>> = {
-  ask: { read: "auto", write: "ask", outside: "ask", irreversible: "ask" },
-  standard: { read: "auto", write: "auto", outside: "ask", irreversible: "ask" },
-  edits: { read: "auto", write: "auto", outside: "ask", irreversible: "ask" },
+  manual: { read: "auto", write: "ask", outside: "ask", irreversible: "ask" },
+  auto: { read: "auto", write: "auto", outside: "ask", irreversible: "ask" },
+  accept_edits: { read: "auto", write: "auto", outside: "ask", irreversible: "ask" },
+  plan: { read: "auto", write: "off", outside: "off", irreversible: "off" },
   total: { read: "auto", write: "auto", outside: "auto", irreversible: "auto" },
 };
 
@@ -46,7 +50,7 @@ export const BaseProject = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().max(500).optional(),
   kind: ProjectKind.optional(),
-  /** How far its agents go on their own when they set nothing themselves. Absent = standard. */
+  /** How far its agents go on their own when they set nothing themselves. Absent = auto. */
   autonomy: Autonomy.optional(),
 });
 export type BaseProject = z.infer<typeof BaseProject>;

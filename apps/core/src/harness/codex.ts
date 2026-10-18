@@ -4,20 +4,20 @@ import path from "node:path";
 import { Codex, type ModelReasoningEffort } from "@openai/codex-sdk";
 import { worksInFolder } from "../domain/threads.ts";
 import { codexImageDir, imagesIn } from "../services/codex-images.ts";
+import { modeOf } from "../tools/policy.ts";
 import { harnessEnv } from "./env.ts";
 import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } from "./types.ts";
 import { linkedWorktreeWritableDirs } from "./worktree.ts";
 
 const READ_ONLY_NOTE =
-  "[APX: this turn is read-only: outside content is in this session, or this agent asks before acting. Say so if a change is needed: the owner can make it, start a new chat, or let the agent accept edits.]";
+  "[APX: this turn is read-only: this agent works in manual or plan mode, or the thread does not let it write. Say so if a change is needed: the owner can make it, or switch the agent to Auto.]";
 
 /** Whether Codex may edit and run commands in the folder this turn. See DECISIONS.md#d-057 */
 export function codexWrites(io: Pick<TurnIO, "thread" | "agent" | "outside">): boolean {
   if (!worksInFolder(io.thread) || io.thread.write !== "auto") return false;
-  const autonomy = io.agent.autonomy ?? "standard";
-  // Accepting edits is what Codex's workspace-write sandbox does: its folder, whatever the session read.
-  if (autonomy === "total" || autonomy === "edits") return true;
-  return autonomy !== "ask" && !io.outside();
+  // Auto and accepting edits are what Codex's workspace-write sandbox does: its folder, whatever the session read.
+  const mode = modeOf(io.agent);
+  return mode === "total" || mode === "auto" || mode === "accept_edits";
 }
 
 /** More than this in one turn is a batch the owner asked for in files, not in the chat. */
@@ -51,7 +51,7 @@ export function codexHarness(opts: {
         const madeBefore = new Set(io.sessionId ? imagesIn(codexImageDir(env, io.sessionId)) : []);
         // Codex cannot ask mid-turn: in a code thread it writes only when the thread's policy is "auto", and then its
         // OS sandbox keeps commands and edits inside the folder (the UI says so when the policy is chosen). An agent
-        // that asks first, or outside content in the session, keeps it reading unless the owner chose total autonomy.
+        // in manual or plan mode keeps it reading (DECISIONS.md#d-106).
         const writes = codexWrites(io);
         const workingDirectory = opts.cwd(io);
         // Its own sandbox keeps .git read-only; in a linked worktree git writes outside the folder too.

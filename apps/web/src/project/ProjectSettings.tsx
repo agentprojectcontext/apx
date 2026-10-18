@@ -1,5 +1,5 @@
 import "../styles/screens.css";
-import type { Autonomy, ProjectKind } from "@apx/protocol";
+import { Autonomy, DEFAULT_AUTONOMY, type ProjectKind } from "@apx/protocol";
 import { Button, Dialog, Field, Icons, Input, Select, type SelectOption, Textarea } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
 import type { ProjectEntry } from "../data/identity.ts";
@@ -11,8 +11,8 @@ import { go } from "../shell/nav.ts";
 import { ReadOnlyFolders } from "./ReadOnlyFolders.tsx";
 
 const KINDS: readonly ProjectKind[] = ["personal", "app", "company", "software", "other"];
-/** How far agents with none of their own go here, strictest first (DECISIONS.md#d-072). */
-const AUTONOMY: readonly Autonomy[] = ["ask", "standard", "edits", "total"];
+/** The mode agents with none of their own work in here, in the owner's order (DECISIONS.md#d-106). */
+const AUTONOMY: readonly Autonomy[] = Autonomy.options;
 const NONE = "~none";
 
 /** A project's kind as its name ("Company"); a kind written by hand shows as it is. */
@@ -64,7 +64,7 @@ export function ProjectSettings({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [kind, setKind] = useState<string>(NONE);
-  const [autonomy, setAutonomy] = useState<Autonomy>("standard");
+  const [autonomy, setAutonomy] = useState<Autonomy>(DEFAULT_AUTONOMY);
   const [busy, setBusy] = useState(false);
   const [newProject, setNewProject] = useState(false);
   // Filled once per opening: the project list refreshing while it is open must not undo what the owner typed.
@@ -78,7 +78,7 @@ export function ProjectSettings({
     setName(full.name);
     setDescription(full.description ?? "");
     setKind(full.kind ?? NONE);
-    setAutonomy(full.autonomy ?? "standard");
+    setAutonomy(full.autonomy ?? DEFAULT_AUTONOMY);
     setSeeded(true);
   }, [open, full, seeded]);
 
@@ -102,7 +102,9 @@ export function ProjectSettings({
       ...(name.trim() !== full.name ? { name: name.trim() } : {}),
       ...(description.trim() !== (full.description ?? "") ? { description: description.trim() || null } : {}),
       ...(kind !== (full.kind ?? NONE) && (kindValue === null || KINDS.includes(kindValue)) ? { kind: kindValue } : {}),
-      ...(autonomy !== (full.autonomy ?? "standard") ? { autonomy: autonomy === "standard" ? null : autonomy } : {}),
+      ...(autonomy !== (full.autonomy ?? DEFAULT_AUTONOMY)
+        ? { autonomy: autonomy === DEFAULT_AUTONOMY ? null : autonomy }
+        : {}),
     };
     const done = project.isDefault ? await updateBase(patch) : await updateProject({ project: full.id, ...patch });
     setBusy(false);

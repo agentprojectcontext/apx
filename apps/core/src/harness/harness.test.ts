@@ -271,16 +271,17 @@ test("what an engine session read from outside stays with it: its next turns sta
   assert.equal(seen.at(-1)?.outside, true);
 });
 
-test("Codex writes in an auto code chat only when the agent may act and nothing from outside is in the session", async () => {
+test("Codex writes in an auto code chat in auto, accept edits and total, whatever the session read; never in manual or plan", async () => {
   const { codexWrites } = await import("./codex.ts");
   const thread = { cwd: "/work/acme", write: "auto" } as unknown as TurnIO["thread"];
   const io = (autonomy: string, outside: boolean) =>
     ({ thread, agent: { autonomy }, outside: () => outside }) as unknown as TurnIO;
-  assert.equal(codexWrites(io("standard", false)), true);
-  assert.equal(codexWrites(io("standard", true)), false);
-  assert.equal(codexWrites(io("ask", false)), false);
+  assert.equal(codexWrites(io("auto", false)), true);
+  assert.equal(codexWrites(io("auto", true)), true, "outside content only gates strong actions");
+  assert.equal(codexWrites(io("manual", false)), false);
+  assert.equal(codexWrites(io("plan", false)), false);
   assert.equal(codexWrites(io("total", true)), true);
-  assert.equal(codexWrites(io("edits", true)), true, "accepting edits writes whatever the session read");
+  assert.equal(codexWrites(io("accept_edits", true)), true);
   assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "ask" } } as TurnIO), false);
 });
 

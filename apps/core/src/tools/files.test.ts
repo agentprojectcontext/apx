@@ -117,8 +117,8 @@ test("an agent writes and edits a file in the folder it works in, never outside 
   assert.match(await said(t.id, "edit twice"), /found 2 times .*nothing changed/);
   assert.match(await said(t.id, "edit all"), /replaced 2 occurrences/);
   assert.equal(fs.readFileSync(file, "utf8"), "<h1>BTC $&2</h1>\n<p>$3</p>\n<p>$3</p>\n");
-  // Outside its folders only on standard autonomy: on total it may write anywhere but APX's home (DECISIONS.md#d-102).
-  await env.client.call("agents.update", { agent: "roby", autonomy: "standard" });
+  // Fenced in by its own rule it is refused outside its folders; on total it writes anywhere but APX's home (DECISIONS.md#d-102).
+  await env.client.call("agents.update", { agent: "roby", autonomy: "auto", rules: { outside: "off" } });
   try {
     for (const [ask, why] of [
       ["escape", /APX's own folder/],
@@ -127,7 +127,7 @@ test("an agent writes and edits a file in the folder it works in, never outside 
     ] as const)
       assert.match(await said(t.id, ask), why);
   } finally {
-    await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
+    await env.client.call("agents.update", { agent: "roby", autonomy: "total", rules: null });
   }
   assert.equal(fs.existsSync(path.join(env.home, "outside.txt")), false);
   assert.equal(fs.existsSync("/apx-absolute.txt"), false);

@@ -123,8 +123,8 @@ test("the owner sets an agent's autonomy: kept for a global agent, written to a 
   const { agents } = await env.client.call("agents.list", {});
   const boss = agents.find((a) => a.project_id === project && a.slug === "boss");
   assert.ok(boss);
-  assert.equal((await env.client.call("agents.update", { agent: boss.id, autonomy: "ask" })).autonomy, "ask");
-  assert.match(fs.readFileSync(path.join(repo, ".apc", "agents", "boss.md"), "utf8"), /^autonomy: ask$/m);
+  assert.equal((await env.client.call("agents.update", { agent: boss.id, autonomy: "manual" })).autonomy, "manual");
+  assert.match(fs.readFileSync(path.join(repo, ".apc", "agents", "boss.md"), "utf8"), /^autonomy: manual$/m);
 });
 
 test("install: a parent that is skipped never adopts a member; the member hangs under hang_under", async () => {

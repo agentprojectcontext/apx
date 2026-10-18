@@ -21,6 +21,8 @@ after(async () => {
 });
 
 test("an ACP agent's session runs the turn: model picked, its edit asks the owner, its tool shown, session kept", async () => {
+  // In manual mode its edit asks; auto would let it edit its folder unasked (DECISIONS.md#d-106).
+  await env.client.call("agents.update", { agent: "scout", autonomy: "manual" });
   // The executable is node itself; the agent's args point at the fake.
   const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acp-")));
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
@@ -38,7 +40,7 @@ test("an ACP agent's session runs the turn: model picked, its edit asks the owne
     await new Promise((r) => setTimeout(r, 20));
   }
   assert.equal(inputs[0]?.tool, "edit");
-  assert.match(inputs[0]?.prompt ?? "", /para usar Edit notes.md/);
+  assert.match(inputs[0]?.prompt ?? "", /usar Edit notes.md/);
   await env.client.call("runs.respond", { input: inputs[0]?.id ?? "", decision: "approve" });
   const done = await env.client.call("runs.wait", { run: sent.run.id, timeout_s: 10 });
   assert.equal(done.state, "completed");

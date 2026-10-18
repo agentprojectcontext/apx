@@ -24,7 +24,9 @@ const MAX_TIMER_MS = 2 ** 31 - 1;
 export type InputWaits = { turn: number; external: number };
 
 /** What a folder card's "once" answer is kept under, when it comes after the turn stopped waiting. */
-export const folderBinding = (folders: string[]) => `folders:${folders.join("\n")}`;
+/** The grant a folder card gives for one call; one to change files there never doubles as one to read them. */
+export const folderBinding = (folders: string[], write = false) =>
+  `${write ? "write-folders" : "folders"}:${folders.join("\n")}`;
 
 const partOf = (r: InputRecord): Part => ({
   type: "input",
@@ -75,11 +77,11 @@ export function createInputs(deps: {
     let text: string;
     if (r.kind === "question") text = `You asked the owner: "${r.prompt}". Their answer: ${r.answer ?? "(empty)"}`;
     else if (r.state === "approved") {
-      const binding = r.approval?.key ?? (r.folders ? folderBinding(r.folders) : undefined);
+      const binding = r.approval?.key ?? (r.folders ? folderBinding(r.folders, r.folders_write) : undefined);
       if (r.tool && (!r.approval_scope || r.approval_scope === "once"))
         store.approvals.grantOnce(r.thread_id, r.agent_id, r.tool, r.args ?? {}, binding, r.approval?.server);
       const what = r.folders
-        ? `let you read ${r.folders.join(", ")}${r.approval_scope === "project" ? " in this project from now on" : " for that call"}`
+        ? `let you ${r.folders_write ? "change files in" : "read"} ${r.folders.join(", ")}${r.approval_scope === "project" ? " in this project from now on" : " for that call"}`
         : `approved ${r.tool} (${r.detail ?? r.prompt})`;
       text = `The owner ${what}, but your earlier turn had already ended, so it did not run. If it is still needed, call it again with the same arguments: it will run without asking.${r.answer ? ` Their note: ${r.answer}` : ""}`;
     } else
@@ -152,8 +154,9 @@ export function createInputs(deps: {
       change?: FileChange | undefined;
       options?: string[] | undefined;
       multi?: boolean | undefined;
-      /** A folder card: the folders outside the agent's own the call would read. */
+      /** A folder card: the folders outside the agent's own the call would read, or change (`write`). */
       folders?: string[] | undefined;
+      write?: boolean | undefined;
       /** Claude Code or Codex: its call to our tool has a shorter deadline. */
       external: boolean;
       /** Stays open after the turn stops waiting, instead of counting as no answer. */
@@ -176,7 +179,12 @@ export function createInputs(deps: {
         change: o.change,
         options: o.options,
         multi: o.multi,
-        folders: o.folders && { dirs: o.folders, keep: keepable(o.run.thread_id, o.folders) },
+        // A folder to change is lent for the call only: a read-only folder of the project would not let it write.
+        folders: o.folders && {
+          dirs: o.folders,
+          keep: !o.write && keepable(o.run.thread_id, o.folders),
+          ...(o.write ? { write: true } : {}),
+        },
         waitMs: o.stays ? OPEN_INPUT_MS : waitMs,
       });
       const show = (r: InputRecord) => o.display.upsert((p) => p.type === "input" && p.input_id === r.id, partOf(r));

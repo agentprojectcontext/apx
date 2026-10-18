@@ -77,7 +77,7 @@ async function turn(
   });
   const io = {
     thread: { cwd, write: "auto" },
-    agent: { autonomy: opts.autonomy ?? "standard" },
+    agent: { autonomy: opts.autonomy ?? "auto" },
     outside: () => false,
     models: ["codex"],
     input: { role: "user", content: "commit it" },
@@ -119,7 +119,7 @@ test("Codex gets no git dirs in a main checkout, outside a repo, or when the tur
     assert.deepEqual(values(args, "--sandbox"), ["workspace-write"]);
     assert.deepEqual(values(args, "--add-dir"), [], cwd);
   }
-  const readOnly = await turn(fx.worktree, { autonomy: "ask" });
+  const readOnly = await turn(fx.worktree, { autonomy: "manual" });
   assert.deepEqual(values(readOnly, "--sandbox"), ["read-only"]);
   assert.deepEqual(values(readOnly, "--add-dir"), []);
 });

@@ -85,16 +85,12 @@ test("a code thread's folder and write policy are in its turn's input and in thr
   assert.equal(thread.write, "read-only");
 });
 
-test("after an approved change, the turn ends with what git sees as uncommitted", async () => {
+test("after a change, the turn ends with what git sees as uncommitted", async () => {
   const t = await env.client.call("threads.create", { kind: "code", agent_id: "roby", project_id: project });
   await env.client.call("threads.send", { thread: t.id, text: "make a file" });
-  let input = "";
-  for (let i = 0; i < 200 && !input; i++) {
-    input = (await env.client.call("runs.pending", { thread: t.id })).inputs[0]?.id ?? "";
-    await new Promise((r) => setTimeout(r, 20));
-  }
-  await env.client.call("runs.respond", { input, decision: "approve" });
   const { messages } = await env.settle(t.id);
+  // Auto makes it where it works with no card (DECISIONS.md#d-106).
+  assert.deepEqual((await env.client.call("runs.pending", { thread: t.id })).inputs, []);
   const changes = messages.at(-1)?.parts.find((p) => p.type === "changes");
   assert.ok(changes?.type === "changes");
   assert.deepEqual(changes.files, [{ path: "made.txt", status: "??" }]);

@@ -11,6 +11,8 @@ export type InputRecord = PendingInput & {
   call_id: string;
   message_id?: string;
   args?: Record<string, unknown>;
+  /** A folder card for changing files outside the agent's project, not for reading them. */
+  folders_write?: true;
 };
 
 const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
@@ -44,9 +46,13 @@ const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
 });
 
 /** The folders a folder card offers, and its answers: once, and for the project when they may be kept there. */
-function foldersOf(v: string): Pick<PendingInput, "folders" | "approval_scopes"> {
-  const f = JSON.parse(v) as { dirs: string[]; keep: boolean };
-  return { folders: f.dirs, approval_scopes: f.keep ? ["once", "project"] : ["once"] };
+function foldersOf(v: string): Pick<InputRecord, "folders" | "approval_scopes" | "folders_write"> {
+  const f = JSON.parse(v) as { dirs: string[]; keep: boolean; write?: boolean };
+  return {
+    folders: f.dirs,
+    approval_scopes: f.keep ? ["once", "project"] : ["once"],
+    ...(f.write ? { folders_write: true as const } : {}),
+  };
 }
 
 export const publicInput = ({
@@ -54,6 +60,7 @@ export const publicInput = ({
   message_id: _m,
   args: _a,
   approval: _p,
+  folders_write: _w,
   ...rest
 }: InputRecord): PendingInput => rest;
 
@@ -75,7 +82,7 @@ export function inputsRepo({ one, all, run }: Sql) {
       multi?: boolean | undefined;
       waitMs: number;
       approval?: ApprovalTarget | undefined;
-      folders?: { dirs: string[]; keep: boolean } | undefined;
+      folders?: { dirs: string[]; keep: boolean; write?: boolean } | undefined;
     }): InputRecord {
       const id = newId("inp");
       run(

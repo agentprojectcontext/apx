@@ -16,7 +16,8 @@ export type Effect = "none" | "local" | "external" | "message";
 
 /**
  * When a call waits for the owner's yes: `never`; `untrusted` = only while untrusted content (web, other agents,
- * channel messages) is in the turn's context; `ask` = unless the agent's autonomy is total; `always` = even then.
+ * channel messages) is in the turn's context; `ask` = unless the agent's mode lets it (DECISIONS.md#d-106); `always` =
+ * outside total.
  */
 export type Confirm = "never" | "untrusted" | "ask" | "always";
 
@@ -92,8 +93,8 @@ export type Tool = {
   /** This call only reads, on this machine (a shell command of known readers): its risk is read (DECISIONS.md#d-098). */
   reads?: ((args: Record<string, unknown>) => boolean) | undefined;
   /**
-   * It writes files or runs commands in the folder the agent works in: what `edits` autonomy lets run without asking,
-   * short of what always asks.
+   * It writes files or runs commands in the folder the agent works in: what auto mode lets run without asking (accept
+   * edits, only files), short of what always asks.
    */
   workspace?: true | undefined;
   /** A node capability it needs ("location"): offered only while a node lending it is connected. */

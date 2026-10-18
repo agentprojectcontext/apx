@@ -96,7 +96,7 @@ test("projects create and set send only what was given, and a wrong kind never r
   assert.match(out, /Northwind \(p_nw\)/);
   await printed(() => projects(client, ["create", "Acme", "site"], { path: "/work/acme" }));
   await printed(() => projects(client, ["set", "p_nw"], { desc: "" }));
-  await printed(() => projects(client, ["set", "p_nw"], { autonomy: "edits" }));
+  await printed(() => projects(client, ["set", "p_nw"], { autonomy: "accept_edits" }));
   await assert.rejects(projects(client, ["set", "p_nw"], { autonomy: "yolo" }), /--autonomy is one of/);
   await assert.rejects(projects(client, ["create", "X"], { kind: "shop" }), /--kind is one of/);
   await assert.rejects(projects(client, ["set", "p_nw"], {}), /usage: apx projects set/);
@@ -104,7 +104,7 @@ test("projects create and set send only what was given, and a wrong kind never r
     ["projects.create", { name: "Northwind", kind: "company", description: "Wholesale client" }],
     ["projects.create", { name: "Acme site", path: "/work/acme" }],
     ["projects.update", { project: "p_nw", description: "" }],
-    ["projects.update", { project: "p_nw", autonomy: "edits" }],
+    ["projects.update", { project: "p_nw", autonomy: "accept_edits" }],
   ]);
 });
 

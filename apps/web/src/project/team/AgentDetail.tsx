@@ -1,4 +1,4 @@
-import type { Agent } from "@apx/protocol";
+import { type Agent, Autonomy, DEFAULT_AUTONOMY } from "@apx/protocol";
 import { AgentAvatar, Button, Dialog, EngineIcon, IconButton, Icons, Menu, Tabs } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../../common/format.ts";
@@ -21,7 +21,7 @@ import { AgentRoutines } from "./AgentRoutines.tsx";
 import { engineOf } from "./useTeamInfo.tsx";
 
 /** How often it stops for the owner's yes, strictest first; "project" is none of its own (DECISIONS.md#d-072). */
-const AUTONOMY = ["ask", "standard", "edits", "total"] as const;
+const AUTONOMY = Autonomy.options;
 const FROM_PROJECT = "project";
 
 const PROFILES = ["shared", "isolated", "incognito"] as const;
@@ -88,7 +88,7 @@ export function AgentDetail({
   const inherited = useData((s) =>
     agent.project_id ? s.projects.find((p) => p.id === agent.project_id)?.autonomy : s.base.autonomy,
   );
-  const fromProject = t("team.autonomy.project", { level: t(`team.autonomy.${inherited ?? "standard"}`) });
+  const fromProject = t("team.autonomy.project", { level: t(`team.autonomy.${inherited ?? DEFAULT_AUTONOMY}`) });
 
   const facts = (
     <dl className="teamdetail__facts">

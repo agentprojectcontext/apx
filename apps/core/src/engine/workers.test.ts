@@ -26,6 +26,13 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
       project: path.join(subpathProjectRoot, "sub"),
       task: "read marker.txt",
     });
+  if (said.includes("continue it at the root") && !afterTool && subpathProjectRoot)
+    return callTool("w9", "delegate", {
+      session: "researcher",
+      project: subpathProjectRoot,
+      write: "ask",
+      task: "and the root too",
+    });
   if (said.includes("delegate through a link") && !afterTool && subpathProjectRoot)
     return callTool("w7", "delegate", { worker, project: path.join(subpathProjectRoot, "link"), task: "x" });
   if (said.includes("delegate with more writes") && !afterTool && subpathProjectRoot)
@@ -168,6 +175,24 @@ test("a path inside the project is the folder a delegation works in: relative re
   });
 });
 
+test("continuing a session in another folder opens a new one with the same helper instead of refusing", async () => {
+  await withProject(async (root, project) => {
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+    await env.client.call("threads.send", { thread: t.id, text: "delegate to a project subpath" });
+    await env.settle(t.id);
+    await env.client.call("threads.send", { thread: t.id, text: "continue it at the root" });
+    await env.settle(t.id);
+    const result = lastToolResult();
+    assert.doesNotMatch(result, /refused/);
+    assert.match(result, /Session "researcher" works elsewhere, so this is a new session "researcher-2"/);
+    const sessions = env.core.store.threads.sessions(t.id);
+    assert.deepEqual(sessions.map((s) => [s.session, s.cwd]).sort(), [
+      ["researcher", path.join(root, "sub")],
+      ["researcher-2", root],
+    ]);
+  });
+});
+
 test("a delegation's folder never leaves the project, through a link or otherwise", async () => {
   await withProject(async (_root, project) => {
     const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
@@ -199,12 +224,12 @@ test("a delegation's write policy is never looser than its caller's", async () =
     );
     assert.ok(roby && chat);
     const asked = { folder: "sub", write: "auto" } as const;
-    assert.deepEqual(workspaceOf(store, { ...roby, autonomy: "ask" }, chat, project, asked), {
+    assert.deepEqual(workspaceOf(store, { ...roby, autonomy: "manual" }, chat, project, asked), {
       cwd: path.join(root, "sub"),
       write: "ask",
     });
     assert.equal(
-      (workspaceOf(store, { ...roby, autonomy: "standard" }, chat, project, asked) as { write: string }).write,
+      (workspaceOf(store, { ...roby, autonomy: "auto" }, chat, project, asked) as { write: string }).write,
       "auto",
     );
     assert.equal((workspaceOf(store, roby, chat, project, { folder: "sub" }) as { write: string }).write, "ask");

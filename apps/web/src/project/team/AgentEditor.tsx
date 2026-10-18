@@ -1,4 +1,11 @@
-import type { Agent, Autonomy, Params, Result, ToolApproval } from "@apx/protocol";
+import {
+  type Agent,
+  type Autonomy,
+  DEFAULT_AUTONOMY,
+  type Params,
+  type Result,
+  type ToolApproval,
+} from "@apx/protocol";
 import { AgentAvatar, Button, Dialog, Icons, Kbd, NavItem, SearchField, Skeleton } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { client } from "../../data/client.ts";
@@ -113,7 +120,7 @@ export function AgentEditor({
   );
   const project = useData((s) => (agent.project_id ? s.projects.find((p) => p.id === agent.project_id) : undefined));
   const baseProject = useData((s) => s.base);
-  const projectAutonomy: Autonomy = (agent.project_id ? project?.autonomy : baseProject.autonomy) ?? "standard";
+  const projectAutonomy: Autonomy = (agent.project_id ? project?.autonomy : baseProject.autonomy) ?? DEFAULT_AUTONOMY;
   const projectName = project?.name ?? baseProject.name;
   const isSuper = agent.kind === "secretary";
 

@@ -28,14 +28,14 @@ test("agents show prints its fields and full prompt", async () => {
         browser_profile: "shared",
         source: "local",
         model_choice: { router: true },
-        autonomy: "ask",
+        autonomy: "manual",
       },
       prompt: "Answer every Northwind lead.\nKeep it short.",
     },
   });
   const out = await printed(() => agentEdit(client, ["show", "april"], {}));
   assert.deepEqual(calls, [["agents.get", { agent: "april" }]]);
-  assert.match(out, /^april {2}April\nRole: +Sales at Acme\nModel: +router\nAutonomy: +ask/);
+  assert.match(out, /^april {2}April\nRole: +Sales at Acme\nModel: +router\nAutonomy: +manual/);
   assert.match(out, /\n\nAnswer every Northwind lead\.\nKeep it short\.$/);
 });
 
@@ -65,7 +65,7 @@ test("agents set types each field from the protocol: lists, booleans, JSON, enum
         "tools=web_search, shell",
         "skills=",
         "orchestrator=true",
-        "autonomy=edits",
+        "autonomy=accept_edits",
         'rules={"write":"ask","outside":"off"}',
         "area=Sales",
       ],
@@ -77,7 +77,7 @@ test("agents set types each field from the protocol: lists, booleans, JSON, enum
       tools: ["web_search", "shell"],
       skills: [],
       orchestrator: true,
-      autonomy: "edits",
+      autonomy: "accept_edits",
       rules: { write: "ask", outside: "off" },
       area: "Sales",
     },
@@ -89,7 +89,10 @@ test("agents set types each field from the protocol: lists, booleans, JSON, enum
   });
   assert.throws(() => agentSetOf("april", ["colour=red"], undefined, read), /unknown field "colour"\. Fields: .*tools/);
   assert.throws(() => agentSetOf("april", ["orchestrator=maybe"], undefined, read), /true or false/);
-  assert.throws(() => agentSetOf("april", ["autonomy=wild"], undefined, read), /one of ask, standard, edits, total/);
+  assert.throws(
+    () => agentSetOf("april", ["autonomy=wild"], undefined, read),
+    /one of manual, auto, accept_edits, plan, total/,
+  );
   assert.throws(() => agentSetOf("april", ["rules=write"], undefined, read), /is JSON/);
   assert.throws(() => agentSetOf("april", ['rules={"write":"never"}'], undefined, read), /rules\.write/);
 });

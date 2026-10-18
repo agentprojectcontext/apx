@@ -432,7 +432,7 @@ export const appMethods = {
         name: z.string().trim().min(1).max(80).optional(),
         description: z.string().trim().max(500).nullable().optional(),
         kind: ProjectKind.nullable().optional(),
-        /** How far agents without one of their own go here; null = standard. */
+        /** How far agents without one of their own go here; null = auto. */
         autonomy: Autonomy.nullable().optional(),
       })
       .strict(),
@@ -496,7 +496,7 @@ export const appMethods = {
         name: z.string().trim().min(1).max(80).optional(),
         description: z.string().trim().max(500).nullable().optional(),
         kind: ProjectKind.nullable().optional(),
-        /** How far agents without one of their own go here; null = standard. Kept by APX, not in the folder. */
+        /** How far agents without one of their own go here; null = auto. Kept by APX, not in the folder. */
         autonomy: Autonomy.nullable().optional(),
         /** Replaces the folders its agents may only read: absolute (or "~/…"), existing, outside APX's home. */
         read_only_folders: z.array(z.string().trim().min(1).max(1024)).max(20).optional(),

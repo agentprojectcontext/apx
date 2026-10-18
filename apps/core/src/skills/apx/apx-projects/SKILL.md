@@ -20,13 +20,15 @@ apx projects create "Acme site" --path ~/work/acme-site --kind software   # in t
 apx projects register ~/work/existing-repo     # a folder that already has AGENTS.md or .apc/
 apx projects set <project-id> --name "Northwind Ltd" --desc "…"           # only what you give changes
 apx projects set <project-id> --desc ""        # an empty value removes the description
-apx projects set <project-id> --autonomy edits # how far its agents go without asking (only when the owner asks)
+apx projects set <project-id> --autonomy manual # how far its agents go without asking (only when the owner asks)
 apx projects folders add <project-id> ~/work/other-repo   # a folder its agents may read, never change (owner's OK)
 # (an agent reading outside its project raises the owner's card for that by itself: no need to run this then)
 ```
 
-- Autonomy is one of `ask`, `standard`, `edits` (writes files and runs commands in the project's folder without
-  asking; destructive and outgoing actions still ask) and `total`. Agents with none of their own take the project's.
+- The mode is one of `manual` (asks before every change), `auto` (the default: reads anywhere but APX's home, works
+  in the project without asking, asks only for messages, payments, deleting and writing outside), `accept_edits` (as
+  auto, but commands that change something ask), `plan` (reads and proposes, changes nothing) and `total`. Agents
+  with none of their own take the project's.
 
 - Kind is one of `personal`, `app`, `company`, `software`, `other`. A company gets areas and roles for its agents;
   software is a code repository.

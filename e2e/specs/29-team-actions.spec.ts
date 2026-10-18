@@ -109,12 +109,12 @@ test("in the base project the super-agent is on top and a global agent can repor
   await expect(detail.getByText("A nadie: es el super-agente, arriba de todos.")).toBeVisible();
 
   // Its autonomy is the owner's to set: with none of its own it goes as far as its project; total acts without asking.
-  const autonomy = detail.getByRole("button", { name: "Autonomía" });
-  const fromProject = "Del proyecto: Pregunta si hay contenido de afuera";
+  const autonomy = detail.getByRole("button", { name: "Modo de permisos" });
+  const fromProject = "Del proyecto: Auto: pregunta solo lo fuerte";
   await expect(autonomy).toHaveText(fromProject);
   await autonomy.click();
-  await page.getByRole("menuitem", { name: "Total: actúa sin preguntar" }).click();
-  await expect(autonomy).toHaveText("Total: actúa sin preguntar");
+  await page.getByRole("menuitem", { name: "Total: no pregunta nada" }).click();
+  await expect(autonomy).toHaveText("Total: no pregunta nada");
   const own = async () => (await rpc<{ agent: { autonomy?: string } }>("agents.get", { agent: "roby" })).agent.autonomy;
   expect(await own()).toBe("total");
   await autonomy.click();
