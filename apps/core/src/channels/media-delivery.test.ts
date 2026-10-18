@@ -122,10 +122,12 @@ test("Discord avatar returns image bytes, hides missing photos and tolerates a r
     gateway: remote.url,
   });
   t.after(() => adapter.stop());
-  assert.ok(adapter.avatar);
-  assert.deepEqual(await adapter.avatar("visible"), { mime: "image/png", data: image });
-  assert.equal(await adapter.avatar("private"), undefined);
-  assert.equal(await adapter.avatar("removed"), undefined);
+  const avatar = adapter.avatar;
+  assert.ok(avatar);
+  if (!avatar) throw new Error("Expected Discord avatar support");
+  assert.deepEqual(await avatar("visible"), { mime: "image/png", data: image });
+  assert.equal(await avatar("private"), undefined);
+  assert.equal(await avatar("removed"), undefined);
   assert.deepEqual(
     remote.received.map((r) => r.route),
     [
