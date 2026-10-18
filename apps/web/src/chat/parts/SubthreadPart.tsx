@@ -1,6 +1,7 @@
 import type { Agent, Part, RunState } from "@apx/protocol";
 import { AgentAvatar, Icons, MarkdownView, SubthreadCard, type SubthreadCardProps } from "@apx/ui";
 import { duration } from "../../common/format.ts";
+import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { blobOf } from "../../data/identity.ts";
 import { useOwnerName } from "../../data/owner.ts";
 import { useData } from "../../data/state.ts";
@@ -20,6 +21,7 @@ const STATE: Record<RunState, { status: NonNullable<SubthreadCardProps["status"]
 /** Another agent's (or a worker's) part in this answer: what it was asked, its state and the report it gave back. */
 export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "subthread" }>; from?: Agent }) {
   const t = useT();
+  const mdLabels = useMarkdownLabels();
   const target = useData((s) => s.agents[part.agent_id] ?? s.former[part.agent_id]);
   const asker = useData((s) => (part.asked_by ? (s.agents[part.asked_by] ?? s.former[part.asked_by]) : undefined));
   const ownerName = useOwnerName();
@@ -49,7 +51,7 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
       subtitle={`${askedBy} → ${name}${part.worker ? ` · ${t("subthread.worker")}` : ""}`}
       status={st.status}
       statusLabel={t(st.label)}
-      summary={part.summary ? <MarkdownView source={part.summary} size="sm" /> : undefined}
+      summary={part.summary ? <MarkdownView source={part.summary} size="sm" labels={mdLabels} /> : undefined}
       meta={part.ms !== undefined ? t("subthread.took", { time: duration(part.ms) }) : undefined}
       openLabel={t("subthread.open", { name })}
       moreLabel={t("subthread.more")}

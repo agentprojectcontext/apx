@@ -336,21 +336,80 @@
   color: var(--apx-fg-muted);
 }
 
+/* A table in its own frame: columns keep their words whole and a wide table scrolls sideways inside the frame. */
 .apx-md__table {
+  position: relative;
+  max-width: 100%;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+}
+.apx-md__scroll {
   overflow-x: auto;
+  border-radius: inherit;
 }
-.apx-md__table table {
-  width: 100%;
+.apx-md__scroll table {
+  min-width: 100%;
   border-collapse: collapse;
+  font-size: var(--apx-text-sm);
+  line-height: 1.5;
+  /* "anywhere" would let a column shrink to one letter per line; words only break when one alone is too wide. */
+  overflow-wrap: break-word;
 }
-.apx-md__table th,
-.apx-md__table td {
-  padding: 10px 12px;
+.apx-md__scroll th,
+.apx-md__scroll td {
+  min-width: 4em;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--apx-border);
   vertical-align: top;
 }
-.apx-md__table th {
-  font-weight: 600;
+.apx-md__scroll tr:last-child td {
+  border-bottom: 0;
+}
+.apx-md__scroll th {
+  font-weight: var(--apx-weight-semibold);
+  white-space: nowrap;
+  color: var(--apx-fg);
+}
+.apx-md__scroll thead tr {
+  background: var(--apx-fill);
+}
+.apx-md__scroll :is(td, th) :is(a, code) {
+  overflow-wrap: anywhere;
+}
+.apx-md__scroll--max {
+  max-height: calc(100vh - 160px);
+  overflow: auto;
+  border: 1px solid var(--apx-border);
+}
+.apx-md__scroll--max thead th {
+  position: sticky;
+  top: 0;
+  background: var(--apx-fill);
+}
+.apx-md__tablebar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 2px;
+}
+/* With a mouse the toolbar floats over the header's corner and shows on hover or focus. */
+@media (hover: hover) {
+  .apx-md__tablebar {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 1;
+    border-radius: var(--apx-radius-sm);
+    background: var(--apx-surface);
+    box-shadow: var(--apx-shadow-sm);
+  }
+  .apx-md__table:not(:hover) .apx-md__tablebar:not(:focus-within) {
+    opacity: 0;
+  }
+}
+.apx-md__dialog {
+  width: calc(100vw - 32px);
 }
 
 /* ── LiveBrowserCard ───────────────────────────────────────────────────────── */

@@ -1,6 +1,7 @@
 import type { Result } from "@apx/protocol";
 import { Button, EmptyState, Icons, MarkdownView, SegmentedControl, Skeleton } from "@apx/ui";
 import { lazy, Suspense, useEffect, useState } from "react";
+import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { client } from "../../data/client.ts";
 import { downloadFile, type FileWhere } from "../../data/files.ts";
 import { notify } from "../../data/notices.ts";
@@ -21,6 +22,7 @@ const isMarkdown = (p: string) => /\.(md|markdown|mdx)$/i.test(p);
  */
 export function TextView({ where, path }: { where: FileWhere; path: string }) {
   const t = useT();
+  const mdLabels = useMarkdownLabels();
   const [file, setFile] = useState<Read>();
   const [error, setError] = useState<string>();
   const md = isMarkdown(path);
@@ -140,7 +142,7 @@ export function TextView({ where, path }: { where: FileWhere; path: string }) {
           )}
           {md && mode !== "source" && (
             <div className="files__md">
-              <MarkdownView source={draft ?? file.text ?? ""} />
+              <MarkdownView source={draft ?? file.text ?? ""} labels={mdLabels} />
             </div>
           )}
           {file.truncated && <p className="files__more">{t("files.truncated")}</p>}

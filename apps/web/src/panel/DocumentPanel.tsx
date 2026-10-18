@@ -1,6 +1,7 @@
 import { DOCUMENT_MAX_BYTES } from "@apx/protocol/client";
 import { Button, EmptyState, IconButton, Icons, MarkdownView } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
+import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { client } from "../data/client.ts";
 import { mediaUrl } from "../data/media.ts";
 import { useData } from "../data/state.ts";
@@ -112,6 +113,7 @@ function DocumentBody({ doc }: { doc: DocRef }) {
 /** A document's text, read from its file: rendered markdown, or its source as written. */
 export function DocumentText({ doc, raw }: { doc: DocRef; raw: boolean }) {
   const t = useT();
+  const mdLabels = useMarkdownLabels();
   const [source, setSource] = useState<string>();
   const [error, setError] = useState(false);
   const [request, setRequest] = useState({ id: doc.media_id });
@@ -150,6 +152,6 @@ export function DocumentText({ doc, raw }: { doc: DocRef; raw: boolean }) {
   return raw ? (
     <pre className="documentpanel__source">{source}</pre>
   ) : (
-    <MarkdownView source={source} className="documentpanel__content" />
+    <MarkdownView source={source} className="documentpanel__content" labels={mdLabels} />
   );
 }

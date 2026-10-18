@@ -796,6 +796,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* In a table cell a long task title is cut short instead of widening its column. */
+.apx-md__scroll .taskchip {
+  max-width: 22em;
+}
 .taskchip.is-closed .taskchip__title {
   color: var(--apx-fg-muted);
   text-decoration: line-through;
