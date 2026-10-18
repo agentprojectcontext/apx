@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { type TestContext, test } from "node:test";
-import { Task } from "@apx/protocol";
+import { Task, type TaskColumn } from "@apx/protocol";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const windowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
 Object.defineProperty(globalThis, "window", {
@@ -45,6 +47,25 @@ const task = (id: string, state: "open" | "done" | "dropped" = "open") =>
     activity_at: at,
   });
 
+function boardSnapshot() {
+  let snapshot: { tasks: Record<string, Task>; columns: TaskColumn[]; ready: boolean } | undefined;
+  function Probe() {
+    snapshot = tasks.useTasks((state) => state);
+    return null;
+  }
+  renderToStaticMarkup(createElement(Probe));
+  if (!snapshot) throw new Error("Expected task board snapshot");
+  return snapshot;
+}
+
+test("task loading failure still ends the initial loading state", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  assert.equal(tasks.tasksLoaded(), false);
+  mockRpc(t, { "tasks.list": new Error("offline") });
+  await tasks.loadTasks();
+  assert.equal(tasks.tasksLoaded(), true);
+});
+
 test("task board merges open and recent closed lists, and task events update and remove records", async (t) => {
   const open = task("open");
   const done = task("done", "done");
@@ -62,8 +83,16 @@ test("task board merges open and recent closed lists, and task events update and
     ["tasks.list", { state: "done", limit: 30 }],
     ["tasks.list", { state: "dropped", limit: 20 }],
   ]);
-  tasks.taskChanged(task("updated"));
+  assert.deepEqual(boardSnapshot(), {
+    tasks: { open, done, dropped },
+    columns: [{ id: "todo", label: "To do" }],
+    ready: true,
+  });
+  const updated = { ...open, title: "Changed title" };
+  tasks.taskChanged(updated);
+  assert.deepEqual(boardSnapshot().tasks, { open: updated, done, dropped });
   tasks.taskDeleted("done");
+  assert.deepEqual(boardSnapshot().tasks, { open: updated, dropped });
   assert.equal(tasks.tasksLoaded(), true);
 });
 
@@ -79,12 +108,19 @@ test("task mutations send exact fields, update cached state, and report failed d
     "tasks.comment": {},
   });
   await tasks.createTask({ title: "Example", description: "A task" });
-  response = task("task_1", "done");
+  assert.deepEqual(boardSnapshot().tasks.task_1, response);
+  response = { ...response, title: "Updated" };
   await tasks.updateTask("task_1", { title: "Updated" });
+  assert.deepEqual(boardSnapshot().tasks.task_1, response);
+  response = { ...response, state: "done" };
   await tasks.closeTask("task_1", "done");
+  assert.deepEqual(boardSnapshot().tasks.task_1, response);
+  response = { ...response, state: "open", renegotiated: 1, due_at: "2026-02-01" };
   await tasks.settleTask("task_1", "renegotiated", "2026-02-01");
+  assert.deepEqual(boardSnapshot().tasks.task_1, response);
   assert.equal(await tasks.commentTask("task_1", "Progress"), true);
   assert.equal(await tasks.deleteTask("task_1"), true);
+  assert.equal(boardSnapshot().tasks.task_1, undefined);
   assert.deepEqual(calls, [
     ["tasks.create", { title: "Example", description: "A task" }],
     ["tasks.update", { task: "task_1", title: "Updated" }],
@@ -95,13 +131,6 @@ test("task mutations send exact fields, update cached state, and report failed d
   ]);
   mockRpc(t, { "tasks.delete": new Error("not allowed") });
   assert.equal(await tasks.deleteTask("task_1"), false);
-});
-
-test("task loading failure still ends the initial loading state", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
-  mockRpc(t, { "tasks.list": new Error("offline") });
-  await tasks.loadTasks();
-  assert.equal(tasks.tasksLoaded(), true);
 });
 
 test("one-time task lookup resolves events and detail reads normalize optional collections", async (t) => {
