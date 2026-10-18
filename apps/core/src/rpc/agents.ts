@@ -11,6 +11,7 @@ import {
   updateAgentFile,
   writeNewAgent,
 } from "../apc/write.ts";
+import { agentDirectory } from "../domain/agent-directory.ts";
 import { type AgentRecord, publicAgent, rulesText } from "../domain/agents.ts";
 import type { EngineIds } from "../domain/refs.ts";
 import type { Store } from "../domain/store.ts";
@@ -87,7 +88,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
 
   return {
     "agents.list": () => ({
-      agents: store.agents.list().map(publicAgent),
+      agents: agentDirectory(store),
       // A deleted agent's prompt and settings are gone already; what is left is who it was.
       former: store.agents.former().map(publicAgent),
     }),

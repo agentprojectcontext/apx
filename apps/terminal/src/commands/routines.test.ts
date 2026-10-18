@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 import type { Routine } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 import { editOf, findRoutine, routines } from "./routines.ts";
+import { printed, recordingClient } from "./testing.ts";
 
 const routine = {
   id: "rtn_1",
@@ -112,4 +116,130 @@ test("a routine the list does not have changes nothing", async () => {
   await assert.rejects(routines(client, ["edit", "nope", "New prompt"], {}), /no routine nope/);
   await assert.rejects(routines(client, ["rm", "digest"], {}), /give the id/);
   assert.deepEqual(calls, []);
+});
+
+test("routine edits accept every call policy and reject unsupported policies", () => {
+  for (const policy of ["always", "output", "succeeds", "fails", "never"])
+    assert.equal(editOf(routine, { call: policy }, undefined).call_model, policy);
+  for (const policy of ["sometimes", "ALWAYS", "true"])
+    assert.throws(() => editOf(routine, { call: policy }, undefined), /--call is one of/);
+});
+
+test("routine step limits preserve defaults, accept the boundaries and refuse fractional or out-of-range values", () => {
+  assert.equal("max_steps" in editOf(routine, {}, undefined), false);
+  assert.equal(editOf(routine, { maxSteps: "default" }, undefined).max_steps, null);
+  for (const limit of [5, 200]) assert.equal(editOf(routine, { maxSteps: String(limit) }, undefined).max_steps, limit);
+  for (const limit of ["", "0", "4", "201", "5.5", "NaN", "Infinity"])
+    assert.throws(() => editOf(routine, { maxSteps: limit }, undefined), /whole number from 5 to 200/);
+});
+
+test("adding a routine sends its schedule, command policies and model limit through the real protocol schema", async () => {
+  const { client, calls } = recordingClient({ "routines.set": { id: "rtn_new" } });
+  for (const [options, schedule] of [
+    [{ cron: "30 8 * * 1-5" }, { kind: "cron", cron: "30 8 * * 1-5" }],
+    [{ every: "60" }, { kind: "every", minutes: 60 }],
+    [{ at: "2026-10-19T09:00:00-03:00" }, { kind: "once", at: "2026-10-19T12:00:00.000Z" }],
+    [{}, { kind: "manual" }],
+  ] as const) {
+    const output = await printed(() =>
+      routines(client, ["add", "morning", "Read", "updates"], {
+        ...options,
+        agent: "april",
+        project: "p_acme",
+        pre: "echo ready",
+        post: "echo finished",
+        call: "succeeds",
+        maxSteps: "5",
+      }),
+    );
+    assert.deepEqual(calls.at(-1), [
+      "routines.set",
+      {
+        name: "morning",
+        agent: "april",
+        project: "p_acme",
+        schedule,
+        prompt: "Read updates",
+        pre_command: "echo ready",
+        post_command: "echo finished",
+        call_model: "succeeds",
+        max_steps: 5,
+      },
+    ]);
+    assert.match(output, /rtn_new.*next:/);
+  }
+  assert.equal(calls.length, 4);
+});
+
+test("invalid routine creation and conflicting prompt inputs make no protocol calls", async () => {
+  const { client, calls } = recordingClient({});
+  for (const [args, options, error] of [
+    [["add", "name", "prompt"], {}, /apx routines/],
+    [["add", "name"], { agent: "april" }, /apx routines/],
+    [["add", "name", "prompt"], { agent: "april", call: "bad" }, /--call/],
+    [["add", "name", "prompt"], { agent: "april", maxSteps: "201" }, /--max-steps/],
+    [["add", "name", "prompt"], { agent: "april", at: "not a date" }, /Invalid time value/],
+    [["edit", "check", "prompt"], { promptFile: "missing-file" }, /not both/],
+    [["unknown"], {}, /apx routines/],
+  ] as const)
+    await assert.rejects(routines(client, [...args], options), error);
+  assert.deepEqual(calls, []);
+});
+
+test("editing a routine reads an exact UTF-8 prompt file and preserves its existing identity and schedule", async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-routine-prompt-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const file = path.join(dir, "prompt.txt");
+  const prompt = "Revisá cambios\nKeep the next line.\n";
+  fs.writeFileSync(file, prompt);
+  const { client, calls } = recordingClient({
+    "routines.list": { routines: [routine] },
+    "routines.set": { ...routine, prompt },
+  });
+  assert.match(await printed(() => routines(client, ["edit", "check"], { promptFile: file })), /rtn_1.*saved/);
+  assert.deepEqual(calls, [
+    ["routines.list", {}],
+    ["routines.set", editOf(routine, {}, prompt)],
+  ]);
+  calls.length = 0;
+  await assert.rejects(routines(client, ["edit", "check"], { promptFile: path.join(dir, "absent") }), /ENOENT/);
+  assert.deepEqual(calls, []);
+});
+
+test("on and off change only enabled state, preserving commands at the protocol boundary", async () => {
+  for (const enabled of [true, false]) {
+    const { client, calls } = recordingClient({
+      "routines.list": { routines: [routine] },
+      "routines.set": { ...routine, enabled },
+    });
+    const output = await printed(() => routines(client, [enabled ? "on" : "off", "check"], {}));
+    assert.deepEqual(calls.at(-1), [
+      "routines.set",
+      {
+        id: routine.id,
+        name: routine.name,
+        agent: routine.agent_id,
+        project: routine.project_id,
+        schedule: routine.schedule,
+        prompt: routine.prompt,
+        enabled,
+      },
+    ]);
+    assert.match(output, enabled ? /^on, next:/ : /^off$/);
+  }
+});
+
+test("routine failures propagate without printing a saved or started result", async () => {
+  const { client, calls } = recordingClient({
+    "routines.list": { routines: [routine] },
+    "routines.run": new Error("Core is unavailable"),
+  });
+  const output = await printed(async () => {
+    await assert.rejects(routines(client, ["run", "check"], {}), /Core is unavailable/);
+  });
+  assert.equal(output, "");
+  assert.deepEqual(calls, [
+    ["routines.list", {}],
+    ["routines.run", { routine: "rtn_1" }],
+  ]);
 });

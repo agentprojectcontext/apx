@@ -104,7 +104,10 @@ export class ApxClient {
 
   /** The same client, its calls also cancelled by `signal` (a console aborting the command it is waiting on). */
   withSignal(signal: AbortSignal): ApxClient {
-    return new ApxClient({ ...this.#opts, signal });
+    return new ApxClient({
+      ...this.#opts,
+      signal: this.#opts.signal ? AbortSignal.any([this.#opts.signal, signal]) : signal,
+    });
   }
 
   /** Request/response over HTTP. Same handlers as the socket: POST /rpc/<method>. */
@@ -184,9 +187,16 @@ export class ApxSocket {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(this.url);
       this.#ws = ws;
-      const timer = setTimeout(() => reject(new Error("welcome timeout")), this.timeoutMs);
+      const timer = setTimeout(() => {
+        reject(new Error("welcome timeout"));
+        ws.close();
+      }, this.timeoutMs);
       ws.addEventListener("open", () => ws.send(JSON.stringify(hello)));
-      ws.addEventListener("error", () => reject(new Error(`socket error: ${this.url}`)));
+      ws.addEventListener("error", () => {
+        clearTimeout(timer);
+        reject(new Error("socket error"));
+        ws.close();
+      });
       ws.addEventListener("close", () => {
         clearTimeout(timer);
         if (!this.welcome) reject(new Error("socket closed before welcome"));

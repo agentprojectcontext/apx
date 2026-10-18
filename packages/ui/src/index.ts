@@ -53,6 +53,7 @@ export {
 } from "./components/IntegrationIcon";
 export { Kbd, type KbdProps } from "./components/Kbd";
 export { LiveBrowserCard, type LiveBrowserCardProps } from "./components/LiveBrowserCard";
+export { type MarkdownLabels, tableMarkdown, tableTsv } from "./components/MarkdownTable";
 export {
   type CodeRenderer,
   type LinkRenderer,

@@ -237,9 +237,25 @@ test("one tray click closes a visible quick chat even when the native click blur
 
 test("a held tray click closes the popup with stale bounds; clicking outside still dismisses it", async () => {
   await trayReady();
-  const result = await app.evaluate(async ({ BaseWindow, BrowserWindow, screen }) => {
+  await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("quick")?.click());
+  await page("quick");
+  const result = await app.evaluate(async ({ app: nativeApp, BaseWindow, BrowserWindow, screen }) => {
     const quick = BrowserWindow.getAllWindows().find((w) => w.webContents.getURL().includes("quick=1"));
     const main = BaseWindow.getAllWindows().find((w) => !(w instanceof BrowserWindow));
+    if (!quick || !main) throw new Error("main or quick window is missing");
+    const focus = async (window: import("electron").BaseWindow) => {
+      if (process.platform === "darwin") nativeApp.focus({ steal: true });
+      await new Promise<void>((resolve) => {
+        const focused = () => resolve();
+        window.once("focus", focused);
+        window.show();
+        window.focus();
+        if (window.isFocused()) {
+          window.removeListener("focus", focused);
+          resolve();
+        }
+      });
+    };
     const tray = (globalThis as unknown as { apxTestTray: import("electron").Tray }).apxTestTray;
     const originalPoint = screen.getCursorScreenPoint;
     const originalBounds = tray.getBounds;
@@ -248,24 +264,21 @@ test("a held tray click closes the popup with stale bounds; clicking outside sti
     try {
       screen.getCursorScreenPoint = () => point;
       tray.getBounds = () => ({ x: point.x + 1000, y: point.y, width: 22, height: 22 });
-      quick?.show();
-      quick?.focus();
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await focus(main);
+      await focus(quick);
       if (process.platform === "darwin") tray.emit("mouse-down", {});
-      main?.focus();
-      quick?.emit("blur");
+      await focus(main);
+      quick.emit("blur");
       await new Promise((resolve) => setTimeout(resolve, process.platform === "darwin" ? 450 : 30));
       tray.emit("click", {}, { x: point.x - 10, y: point.y, width: 22, height: 22 }, point);
       await new Promise((resolve) => setTimeout(resolve, 400));
-      const closedByTray = !quick?.isVisible();
+      const closedByTray = !quick.isVisible();
       screen.getCursorScreenPoint = () => ({ x: area.x + 50, y: area.y + 50 });
-      quick?.show();
-      quick?.focus();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      main?.focus();
-      quick?.emit("blur");
+      await focus(quick);
+      await focus(main);
+      quick.emit("blur");
       await new Promise((resolve) => setTimeout(resolve, 400));
-      return { closedByTray, closedOutside: !quick?.isVisible() };
+      return { closedByTray, closedOutside: !quick.isVisible() };
     } finally {
       screen.getCursorScreenPoint = originalPoint;
       tray.getBounds = originalBounds;
@@ -374,31 +387,37 @@ test("notifications add and clear the integrated tray indicator, menu-bar count 
 
 test("double-click opens the existing main window in front and cancels the quick popup", async () => {
   await trayReady();
-  const state = await app.evaluate(async ({ BaseWindow, BrowserWindow }) => {
+  const id = await app.evaluate(async ({ BaseWindow, BrowserWindow }) => {
     const main = BaseWindow.getAllWindows().find((w) => !(w instanceof BrowserWindow));
-    const id = main?.id;
-    main?.minimize();
+    if (!main) throw new Error("main window is missing");
+    await new Promise<void>((resolve) => {
+      main.once("minimize", resolve);
+      main.minimize();
+    });
     const tray = (globalThis as unknown as { apxTestTray: { emit: (event: string, ...args: unknown[]) => void } })
       .apxTestTray;
     tray.emit("click", {});
     tray.emit("double-click", {});
+    // The pending single-click deadline must pass without reopening the quick chat.
     await new Promise((resolve) => setTimeout(resolve, 400));
-    return {
-      ids: BaseWindow.getAllWindows()
-        .filter((w) => !(w instanceof BrowserWindow))
-        .map((w) => w.id),
-      id,
-      visible: main?.isVisible(),
-      minimized: main?.isMinimized(),
-      focused: main?.isFocused(),
-      quickVisible: BrowserWindow.getAllWindows().some(
-        (w) => w.webContents.getURL().includes("quick=1") && w.isVisible(),
-      ),
-    };
+    return main.id;
   });
-  expect(state.ids).toEqual([state.id]);
-  expect(state.visible).toBe(true);
-  expect(state.minimized).toBe(false);
-  expect(state.focused).toBe(true);
-  expect(state.quickVisible).toBe(false);
+  await expect
+    .poll(() =>
+      app.evaluate(({ BaseWindow, BrowserWindow }, id) => {
+        const main = BaseWindow.fromId(id);
+        return {
+          ids: BaseWindow.getAllWindows()
+            .filter((w) => !(w instanceof BrowserWindow))
+            .map((w) => w.id),
+          visible: main?.isVisible(),
+          minimized: main?.isMinimized(),
+          focused: main?.isFocused(),
+          quickVisible: BrowserWindow.getAllWindows().some(
+            (w) => w.webContents.getURL().includes("quick=1") && w.isVisible(),
+          ),
+        };
+      }, id),
+    )
+    .toEqual({ ids: [id], visible: true, minimized: false, focused: true, quickVisible: false });
 });

@@ -3,6 +3,7 @@ import { AgentAvatar, EngineIcon, MarkdownView, Message, MessageMeta } from "@ap
 import { lazy, type ReactNode, Suspense } from "react";
 import { DeliveryTicks, ReactionList } from "../channels/MessageMarks.tsx";
 import { isSignal } from "../channels/signal.ts";
+import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { blobOf } from "../data/identity.ts";
 import { baseRef, effortLabel, splitRef } from "../data/models.ts";
 import { useData } from "../data/state.ts";
@@ -60,6 +61,7 @@ export function AgentTurn({
   actions?: ReactNode;
 }) {
   const t = useT();
+  const mdLabels = useMarkdownLabels();
   const tools = showTools ? message.parts.filter((p): p is ToolPart => p.type === "tool") : [];
   const waiting = useData((s) => (message.run_id ? s.runs[message.run_id]?.state === "input-required" : false));
   const skills = showSkills ? message.parts.find((p): p is SkillsPick => p.type === "skills") : undefined;
@@ -131,6 +133,7 @@ export function AgentTurn({
               </Suspense>
             ) : part.type === "text" ? (
               <MarkdownView
+                labels={mdLabels}
                 source={part.text}
                 renderLink={linkMenu}
                 renderCode={runnableCode(thread, message.id)}

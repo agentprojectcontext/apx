@@ -47,20 +47,25 @@ jobs:
           else
             pnpm check:commits "$HEAD_SHA" --not origin/release/v2
           fi
+      - name: Browser for headless core tests and the end-to-end run
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Electron GTK runtime and window manager for native transition tests
+        run: sudo apt-get install --no-install-recommends -y libgtk-3-0t64 openbox
+      - name: Mobile test dependencies (its own install)
+        working-directory: apps/mobile
+        run: npm ci --no-audit --no-fund
       - name: Preflight (private terms, schema, lint, typecheck, unit tests)
         run: pnpm preflight
-      - name: Mobile (its own install; types and pairing logic)
+      - name: Mobile types
         working-directory: apps/mobile
-        run: npm ci --no-audit --no-fund && npm run typecheck && npm test
-      - name: Browser for the end-to-end run
-        run: pnpm exec playwright install --with-deps chromium
-      - name: End to end (Playwright, sandboxed core)
-        run: pnpm e2e
-      - name: Desktop end to end (Electron under a virtual display)
-        run: |
-          node apps/desktop/node_modules/electron/install.js
-          pnpm --filter @apx/desktop build
-          xvfb-run -a pnpm exec playwright test --project desktop
+        run: npm run typecheck
+      - name: Android bundle (Metro and native module resolution)
+        working-directory: apps/mobile
+        run: npx expo export --platform android --output-dir "$RUNNER_TEMP/apx-mobile-export"
+      - name: Desktop runtime
+        run: node apps/desktop/node_modules/electron/install.js
+      - name: Function coverage (unit, browser and desktop, with sandboxed cores)
+        run: pnpm test:coverage:all
       - name: Lightness budgets
         run: node --no-warnings scripts/perf.ts
       - name: Keep the reports
@@ -72,8 +77,42 @@ jobs:
             playwright-report/
             test-results/
             e2e/.out/
+            coverage/unit/functions.json
+            coverage/unit/functions.md
+            coverage/all/functions.json
+            coverage/all/functions.md
           if-no-files-found: ignore
           retention-days: 14
+
+  unit-portability:
+    name: Unit tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      APX_SECRETS: file
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Browser for headless core tests
+        run: pnpm exec playwright install chromium
+      - name: Mobile test dependencies (its own install)
+        working-directory: apps/mobile
+        run: npm ci --no-audit --no-fund
+      - name: Preflight including each package's test command
+        run: pnpm preflight
+      - name: Mobile types
+        working-directory: apps/mobile
+        run: npm run typecheck
 
   # Optional: when verify fails on main, an agent reads the reports and opens a pull request with a fix. Off until the
   # repo sets the variable APX_AUTOFIX=true and the secret ANTHROPIC_API_KEY (see rules/TESTING.md#ci).

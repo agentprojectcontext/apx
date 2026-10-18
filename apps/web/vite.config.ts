@@ -20,6 +20,7 @@ export default defineConfig({
     "import.meta.env.VITE_APX_CHANNEL": JSON.stringify(process.env.APX_CHANNEL ?? ""),
   },
   build: {
+    sourcemap: process.env.APX_TEST_COVERAGE === "1",
     // Agent avatars stay files: fetched and cached as images, never inlined as base64 into the first script.
     assetsInlineLimit: (file) => (file.endsWith(".webp") ? false : undefined),
     // What the first page imports is one chunk: otherwise each module a lazy screen also uses becomes a small chunk

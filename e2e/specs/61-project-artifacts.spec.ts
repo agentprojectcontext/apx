@@ -74,6 +74,8 @@ test("a document opens beside the Artifacts list, and from there in its chat", a
       panel.locator(".documentpanel__content").getByRole("heading", { name: "Northwind guide" }),
     ).toBeVisible();
   } finally {
+    // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
+    await page.goto("about:blank");
     await env.core.close();
     env.cleanup();
   }

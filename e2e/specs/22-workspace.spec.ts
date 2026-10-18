@@ -67,8 +67,8 @@ test("a project chat shows its folder's changes, files and a terminal, and can w
   await expect(panel.getByText("El agente no corrió comandos en este chat")).toBeVisible();
   await panel.getByRole("button", { name: "Nueva terminal" }).click();
   await expect(panel.locator(".term__xterm .xterm")).toBeVisible();
-  // Keys typed before the shell prints its prompt can be lost.
-  await expect(panel.locator(".term__xterm")).toContainText("$", { timeout: 15_000 });
+  // Keys typed before the shell prints its prompt can be lost. Root test containers use # instead of $.
+  await expect(panel.locator(".term__xterm")).toContainText(/[$#]/, { timeout: 15_000 });
   await page.keyboard.type("echo e2e-$((6*7))");
   await page.keyboard.press("Enter");
   await expect(panel.locator(".term__xterm")).toContainText("e2e-42", { timeout: 15_000 });

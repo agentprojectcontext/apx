@@ -91,13 +91,20 @@ app.whenReady().then(() => {
     // Behind the panel, the theme's own color: a pixel the panel does not cover never shows white.
     backgroundColor: "#1a1a19",
   });
-  const openMain = () => {
-    if (win.isMinimized()) win.restore();
+  const foregroundMain = () => {
     // Steal focus so a double-click on the tray brings APX above other apps on every display.
     if (process.platform === "darwin") app.focus({ steal: true });
     win.show();
     win.moveTop();
     win.focus();
+  };
+  const openMain = () => {
+    if (win.isMinimized()) {
+      // Restoring is asynchronous: focus after the native window finishes its transition.
+      win.removeListener("restore", foregroundMain);
+      win.once("restore", foregroundMain);
+      win.restore();
+    } else foregroundMain();
   };
   // Closing the window hides it — its browser tabs and the core link stay alive; the Dock, the menu-bar icon or
   // opening APX again bring it back, and Quit ends it.

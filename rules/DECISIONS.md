@@ -894,6 +894,12 @@ moved on). Each close reports once (`close_reported` on the task's conversation)
 reports again. The wake counts against the unattended limits of the creator's conversation: past them the report
 is kept for its next turn and the owner sees the paused notice, as for a delegation's result.
 
+Corrections are explicit: `tasks.close` / `task_close` with `state: "open"`, `rework: true` and a nonblank `note`
+reopens a closed, assigned task and admits a turn in its existing work chat. The reopen, visible reason and run link
+are persisted together. Scope and hand-off permissions still apply; active task work or paused agent limits refuse
+the request without changing the task, so it can be retried after the blocker is cleared. Plain reopening and
+ordinary updates never request corrections. A subsequent delivery uses the same close-report path above.
+
 <a id="d-077"></a>
 ## D-077 — 2026-10-14 — A delegate names who owns the rest; the caller asks them
 Amends D-074. With one hop, a delegate asked for something that is another agent's work could not ask them, so it
@@ -1323,6 +1329,11 @@ Stored values move once in a migration (rule 14; there is no `doctor` yet, as D-
 An agent file in someone's repository is not APX's to rewrite, so the APC sync reads the old names the same way;
 reading `ask` as the default would have let that agent act unasked.
 
+A project's linked git worktrees count as the project wherever they sit (`git worktree add ../northwind-issue-7`):
+the same repository, so writing there in Auto needs no card. They are found from the project's `.git/worktrees`,
+not by a parent folder. A thread kept to one folder (a code thread, a session in a worktree) still keeps to it.
+
+<a id="d-107"></a>
 ## D-107 — 2026-10-17 — An agent hands its files to MCP tools by reference; APX never publishes them for a link
 An agent drew carousel slides (kept only as `med_` ids in the media store, which agents may not read) and could not
 attach them to a draft on a remote MCP server: its upload tool took a public `url`, `base64`, or a `path` the server

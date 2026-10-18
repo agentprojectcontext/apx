@@ -1,6 +1,7 @@
 import { Fragment, type ReactElement, type ReactNode } from "react";
 import { cx } from "../cx";
 import { MENTION } from "../mention";
+import { MARKDOWN_LABELS, type MarkdownLabels, MarkdownTable, type TableAlign } from "./MarkdownTable";
 
 export interface MarkdownViewProps {
   /** Markdown source: paragraphs, headings, lists, quotes, code, emphasis, safe links and pipe tables. Raw HTML stays text. */
@@ -15,6 +16,8 @@ export interface MarkdownViewProps {
   renderQuote?: QuoteRenderer;
   /** Replaces an inline `code` span (an id the app knows, shown as a link to it); `code` is the ready element. */
   renderCodeSpan?: CodeSpanRenderer;
+  /** Names of the table toolbar's controls (copy, maximize), translated by the app; English by default. */
+  labels?: Partial<MarkdownLabels> | undefined;
 }
 
 export type LinkRenderer = (href: string, link: ReactElement, key: string) => ReactNode;
@@ -29,7 +32,7 @@ type Block =
   | { kind: "ul" | "ol"; items: string[] }
   | { kind: "code"; text: string; lang?: string | undefined }
   | { kind: "quote"; blocks: Block[] }
-  | { kind: "table"; headers: string[]; rows: string[][]; align: ("left" | "center" | "right")[] };
+  | { kind: "table"; headers: string[]; rows: string[][]; align: TableAlign[] };
 
 function tableCells(line: string): string[] {
   const cells = line
@@ -81,8 +84,8 @@ function parseBlocks(src: string): Block[] {
       separator.every((s) => /^:?-{3,}:?$/.test(s))
     ) {
       flush();
-      const align = separator.map((s): "left" | "center" | "right" =>
-        s.endsWith(":") ? (s.startsWith(":") ? "center" : "right") : "left",
+      const align = separator.map(
+        (s): TableAlign => (s.endsWith(":") ? (s.startsWith(":") ? "center" : "right") : "left"),
       );
       const rows: string[][] = [];
       i++;
@@ -206,16 +209,28 @@ export function MarkdownView({
   renderCode,
   renderQuote,
   renderCodeSpan,
+  labels,
 }: MarkdownViewProps) {
   const blocks = parseBlocks(source);
+  const root = cx("apx-md", `apx-md--${size}`, className);
   return (
-    <div className={cx("apx-md", `apx-md--${size}`, className)}>
-      {renderBlocks(blocks, "b", { renderLink, renderCode, renderQuote, renderCodeSpan })}
+    <div className={root}>
+      {renderBlocks(blocks, "b", {
+        renderLink,
+        renderCode,
+        renderQuote,
+        renderCodeSpan,
+        root,
+        labels: { ...MARKDOWN_LABELS, ...labels },
+      })}
     </div>
   );
 }
 
-type Renderers = Pick<MarkdownViewProps, "renderLink" | "renderCode" | "renderQuote" | "renderCodeSpan">;
+type Renderers = Pick<MarkdownViewProps, "renderLink" | "renderCode" | "renderQuote" | "renderCodeSpan"> & {
+  root: string;
+  labels: MarkdownLabels;
+};
 
 function renderBlocks(blocks: Block[], prefix: string, r: Renderers): ReactNode[] {
   const spans: InlineRenderers = { link: r.renderLink, codeSpan: r.renderCodeSpan };
@@ -244,7 +259,7 @@ function renderBlocks(blocks: Block[], prefix: string, r: Renderers): ReactNode[
     }
     if (b.kind === "table")
       return (
-        <div key={k} className="apx-md__table">
+        <MarkdownTable key={k} source={b} labels={r.labels} className={r.root}>
           <table>
             <thead>
               <tr>
@@ -270,7 +285,7 @@ function renderBlocks(blocks: Block[], prefix: string, r: Renderers): ReactNode[
               ))}
             </tbody>
           </table>
-        </div>
+        </MarkdownTable>
       );
     const List = b.kind;
     return (

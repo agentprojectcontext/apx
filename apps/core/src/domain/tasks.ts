@@ -61,6 +61,21 @@ export function boardScope(
   return { project };
 }
 
+/** New tasks stay in the caller's scope; the global super-agent may use the assignee's project by default. */
+export function taskProject(
+  store: Store,
+  agent: { id: string; thread_id: string } | undefined,
+  request: { project?: string | undefined; assignee?: string | undefined },
+): string | undefined {
+  const scope = boardScope(store, agent);
+  if (scope) {
+    if (request.project !== undefined && request.project !== scope.project)
+      throw unauthorized("an agent creates tasks only in its own project");
+    return scope.project;
+  }
+  return request.project ?? (agent && request.assignee ? store.agents.get(request.assignee)?.project_id : undefined);
+}
+
 /** A task the caller may see and change. */
 export function visibleTask(store: Store, id: string, scope: { project: string | undefined } | undefined): Task {
   const t = store.tasks.get(id);
@@ -345,6 +360,10 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       const task = repo.get(id) as Task;
       emit(task);
       return task;
+    },
+    /** Links a correction request to the durable turn that will work on it. */
+    reworkStarted(id: string, by: string, runId: string, threadId: string): void {
+      event(id, "update", by, { rework_run_id: runId, rework_thread_id: threadId });
     },
     /** A comment or a turn in its conversation: the task moved, without changing it. */
     touched(id: string, by: string, op: "comment" | "update" = "comment"): void {

@@ -83,17 +83,20 @@ test("a cancelled question exits 1 and prints nothing; a wrong key gets no answe
   }
 });
 
-test("from a checkout, ssh runs a wrapper that hands Electron the app's folder; it goes away with the login", async (t) => {
-  if (process.platform === "win32") return t.skip("the wrapper is a shell script");
-  if (process.platform === "linux") return t.skip("Linux uses the Node helper, checkout or not");
-  const pass = await openAskpass({ ask: async () => "x", exe: "/opt/Acme Apps/electron", appDir: "/work/it's/apx" });
+test("from a checkout, ssh runs a wrapper that hands Electron the app's folder; it goes away with the login", async () => {
+  const pass = await openAskpass({
+    ask: async () => "x",
+    exe: "/opt/Acme Apps/electron",
+    appDir: "/work/it's/apx",
+    platform: "darwin",
+  });
   const wrapper = pass.env.SSH_ASKPASS ?? "";
   try {
     assert.match(
       fs.readFileSync(wrapper, "utf8"),
       /^#!\/bin\/sh\nexec '\/opt\/Acme Apps\/electron' '\/work\/it'\\''s\/apx' "\$@"\n$/,
     );
-    assert.equal(fs.statSync(wrapper).mode & 0o777, 0o700);
+    if (process.platform !== "win32") assert.equal(fs.statSync(wrapper).mode & 0o777, 0o700);
   } finally {
     pass.close();
   }
@@ -101,8 +104,7 @@ test("from a checkout, ssh runs a wrapper that hands Electron the app's folder; 
   assert.equal(fs.existsSync(pass.env.APX_ASKPASS ?? ""), false);
 });
 
-test("on Linux ssh runs the app as Node over a small helper: the question and the answer make the same round trip", async (t) => {
-  if (process.platform === "win32") return t.skip("the helper is a shell script");
+test("on Linux ssh runs the app as Node over a small helper: the question and the answer make the same round trip", async () => {
   const asked: string[] = [];
   const pass = await openAskpass({
     ask: async (p) => {
@@ -116,8 +118,11 @@ test("on Linux ssh runs the app as Node over a small helper: the question and th
     const helper = nodeHelper(dir, process.execPath);
     const run = (env: Record<string, string>) =>
       new Promise<{ code: number; out: string }>((resolve) =>
-        execFile(helper, ["ops@box's password: "], { env: { ...process.env, ...env } }, (err, out) =>
-          resolve({ code: err ? Number(err.code ?? 1) : 0, out }),
+        execFile(
+          process.platform === "win32" ? process.execPath : helper,
+          [...(process.platform === "win32" ? [path.join(dir, "askpass.cjs")] : []), "ops@box's password: "],
+          { env: { ...process.env, ...env, ...(process.platform === "win32" ? { NODE_OPTIONS: "" } : {}) } },
+          (err, out) => resolve({ code: err ? Number(err.code ?? 1) : 0, out }),
         ),
       );
     assert.deepEqual(await run(pass.env), { code: 0, out: "s3cret\n" });

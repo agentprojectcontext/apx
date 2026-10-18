@@ -402,7 +402,9 @@ test("quiet hours cross midnight; inside them notices arrive without sound", () 
 });
 
 test("a confirmation left unanswered in the app follows the owner to Telegram, silently in quiet hours", async () => {
-  await env.client.call("notices.set", { inputs_after_s: 1, quiet_from: "00:00", quiet_to: "23:59" });
+  const hour = new Date().getHours();
+  const hhmm = (h: number) => `${String(h % 24).padStart(2, "0")}:00`;
+  await env.client.call("notices.set", { inputs_after_s: 1, quiet_from: hhmm(hour + 23), quiet_to: hhmm(hour + 2) });
   const before = tg.messagesTo(OWNER.id).length;
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
   await env.client.call("threads.send", { thread: t.id, text: "launch the probe" });

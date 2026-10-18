@@ -2,7 +2,16 @@
 import { type Task, TaskKind, TaskPriority, TaskTag } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
-import { boardScope, checkAssignee, checkColumn, checkSettle, dueOf, personOf, visibleTask } from "../domain/tasks.ts";
+import {
+  boardScope,
+  checkAssignee,
+  checkColumn,
+  checkSettle,
+  dueOf,
+  personOf,
+  taskProject,
+  visibleTask,
+} from "../domain/tasks.ts";
 import { CallError } from "../errors.ts";
 import { fromTeam, inlineName, untrusted } from "./result.ts";
 import { type CheckContext, defineTool, type Tool } from "./types.ts";
@@ -180,18 +189,19 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "Create a task on this project's board: a clear title, what done looks like (description) and who does it (assignee: an agent id, who starts once the description is non-empty). A promise between the owner and a contact is a commitment: give the person, who owes it and the due date; the owner is reminded that day.",
+        "Create a task; assignee starts once description is non-empty. Global: infer project from assignee. Promises need person, owed_by, due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
         assignee: z.string().max(80).optional(),
+        project: z.string().min(1).max(80).optional().describe("project id; super-agent only"),
         status: z.string().max(40).optional(),
         ...shapeArgs,
         ...commitmentArgs,
       }),
       effect: "local",
       confirm: handsOff,
-      check: (a, ctx) => checkNamed(a, a.due_at, scopeOf(ctx)?.project),
+      check: (a, ctx) => checkNamed(a, a.due_at, taskProject(store, { id: ctx.agent.id, thread_id: ctx.thread.id }, a)),
       deadlineMs: 5_000,
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
@@ -257,11 +267,12 @@ export function taskTools(store: Store): Tool[] {
     }),
     defineTool({
       name: "task_close",
-      description: "Close a task as done (or dropped, saying why), or open it again.",
+      description: "Close a task, or reopen it. Request corrections with state:open, rework:true and a note.",
       args: z.object({
         task: z.string().min(1).max(64),
         state: z.enum(["done", "dropped", "open"]),
         note: z.string().max(2000).optional(),
+        rework: z.boolean().optional(),
       }),
       effect: "local",
       check: (a, ctx) => void taskOf(a.task, ctx),

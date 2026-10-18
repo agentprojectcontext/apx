@@ -9,6 +9,7 @@ import { ownerIdentity } from "../domain/owner.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { type HeldTask, previewOf } from "../domain/threads.ts";
+import { badRequest, conflict } from "../errors.ts";
 import { taskWords } from "../tools/tasks.ts";
 import { agentTrip, heldNotice, trip } from "./breaker.ts";
 import { reportCard } from "./delegation.ts";
@@ -129,19 +130,62 @@ export function startTaskWork(
   return ask(store, admit, task, agentId, text, asker, author);
 }
 
+/** Reopens a delivery and records the correction request and its run together, or leaves it unchanged. */
+export function reworkTask(store: Store, admit: AdmitFn, task: Task, note: string | undefined, asker: Asker): Task {
+  if (task.state === "open") throw conflict("rework requires a closed task");
+  if (!task.assignee) throw badRequest("rework requires an assignee");
+  const reason = note?.trim();
+  if (!reason) throw badRequest("rework requires a note explaining the corrections");
+  const sessions = store.threads.byTask(task.id);
+  const threads = [task.thread_id, ...sessions.flatMap((s) => store.threads.family(s.id))];
+  if (store.threads.busy(threads)) throw conflict("task work is still active: wait for it to finish before rework");
+  if (asker.kind === "agent" && (trip(store, asker.thread_id) || agentTrip(store, asker.thread_id, task.assignee)))
+    throw conflict("rework is paused by agent limits: ask the owner to let the chain continue first");
+  const agentId = task.assignee;
+  const by = asker.kind === "owner" ? "owner" : asker.id;
+  const author: Author = asker.kind === "owner" ? { kind: "user" } : { kind: "agent", id: asker.id };
+  return store.tx(() => {
+    const reopened = store.tasks.change(task.id, { state: "open", awaits_owner: false }, by, reason) as Task;
+    addComment(store, reopened, author, `Corrections requested:\n\n${reason}`, by);
+    const run = ask(store, admit, reopened, agentId, `Corrections requested:\n\n${reason}`, asker, author);
+    store.tasks.reworkStarted(task.id, by, run.id, run.thread_id);
+    return store.tasks.get(task.id) as Task;
+  });
+}
+
 /**
  * The owner's comment's @mentions. The task's own agent answers in its chat for the task (its answer comes back as a
  * comment); anyone else answers in a consult of its own, so a teammate asked once does not get a whole chat on the task.
  * An agent's @mention summons nobody: it asks with `delegate`, whose answer comes back to it (DECISIONS.md#d-078).
  */
 export function askMentioned(store: Store, admit: AdmitFn, task: Task, text: string): RunRecord[] {
-  return mentioned(store, text, task.project_id).flatMap((a) => {
+  const who = mentioned(store, text, task.project_id);
+  if (!who.length) return [];
+  const asked = ownerWordsSinceReply(store, task.thread_id) || text;
+  return who.flatMap((a) => {
     const run =
       a.id === task.assignee
-        ? ask(store, admit, task, a.id, text, OWNER, { kind: "user" })
-        : consult(store, admit, task, a, text);
+        ? ask(store, admit, task, a.id, asked, OWNER, { kind: "user" })
+        : consult(store, admit, task, a, asked);
     return run ? [run] : [];
   });
+}
+
+/**
+ * The owner's comments since anyone else last spoke on the task, oldest first: a bare "@name" after a question asks
+ * that question, not just the name.
+ */
+function ownerWordsSinceReply(store: Store, threadId: string): string {
+  const words: string[] = [];
+  for (const m of store.messages.list(threadId, 20).reverse()) {
+    if (m.author.kind !== "user") break;
+    const text = m.parts
+      .map((p) => (p.type === "text" ? p.text : ""))
+      .join("\n")
+      .trim();
+    if (text) words.unshift(text);
+  }
+  return words.join("\n\n").slice(-4000);
 }
 
 /** The owner's comment's @mentions of anyone but the task's own agent, each answered in a consult. */

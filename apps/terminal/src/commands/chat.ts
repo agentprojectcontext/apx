@@ -102,62 +102,68 @@ export async function chat(client: ApxClient, text: string, o: ChatOptions): Pro
   if (!text) throw new Error('usage: apx chat "<text>" [--agent <id> | --thread <id>] [--new] [--detach]');
   const thread = await pickThread(client, o);
   const socket = await client.connect();
-  const printed = new Set<string>();
-  let runId: string | undefined;
-  let messageId: string | undefined;
-  const early = new Map<string, string>();
-  let finish: (state: string) => void = () => {};
-  const done = new Promise<string>((resolve) => {
-    finish = resolve;
-  });
-  socket.onEvent((frame) => {
-    const ev = CoreEvent.safeParse(frame.payload);
-    if (!ev.success) return;
-    const e = ev.data;
-    if (e.type === "run.updated" && e.run.thread_id === thread) {
-      // A turn that ran out of steps completed without finishing: said so in its end line.
-      const end = e.run.end_reason === "step_limit" ? `${e.run.state} (out of steps)` : e.run.state;
-      if (e.run.ended_at) early.set(e.run.id, end);
-      if (e.run.id === runId && e.run.ended_at) finish(end);
+  try {
+    const printed = new Set<string>();
+    let runId: string | undefined;
+    let messageId: string | undefined;
+    const early = new Map<string, string>();
+    let finish: (state: string) => void = () => {};
+    const done = new Promise<string>((resolve) => {
+      finish = resolve;
+    });
+    socket.onEvent((frame) => {
+      const ev = CoreEvent.safeParse(frame.payload);
+      if (!ev.success) return;
+      const e = ev.data;
+      if (e.type === "run.updated" && e.run.thread_id === thread) {
+        // A turn that ran out of steps completed without finishing: said so in its end line.
+        const end = e.run.end_reason === "step_limit" ? `${e.run.state} (out of steps)` : e.run.state;
+        if (e.run.ended_at) early.set(e.run.id, end);
+        if (e.run.id === runId && e.run.ended_at) finish(end);
+      }
+      if (e.type === "message.created" && e.message.run_id && e.message.run_id === runId) messageId = e.message.id;
+      const parts =
+        e.type === "message.part" && e.thread_id === thread && e.message_id === messageId
+          ? [{ msg: e.message_id, i: e.index, part: e.part }]
+          : (e.type === "message.created" || e.type === "message.updated") &&
+              e.message.thread_id === thread &&
+              e.message.run_id === runId
+            ? e.message.parts.map((part, i) => ({ msg: e.message.id, i, part }))
+            : [];
+      for (const { msg, i, part } of parts) {
+        const out = line(part);
+        const key = `${msg}:${i}:${out}`;
+        if (!out || printed.has(key)) continue;
+        printed.add(key);
+        console.log(out);
+      }
+    });
+    const mode = o.interrupt ? "interrupt" : o.steer ? "steer" : "queue";
+    const sent = await socket.call("threads.send", { thread, text, mode });
+    if (sent.steered) {
+      console.log(`steered into the running turn ${sent.run.id} · thread ${thread}`);
+      return;
     }
-    if (e.type === "message.created" && e.message.run_id && e.message.run_id === runId) messageId = e.message.id;
-    const parts =
-      e.type === "message.part" && e.thread_id === thread && e.message_id === messageId
-        ? [{ msg: e.message_id, i: e.index, part: e.part }]
-        : (e.type === "message.created" || e.type === "message.updated") &&
-            e.message.thread_id === thread &&
-            e.message.run_id === runId
-          ? e.message.parts.map((part, i) => ({ msg: e.message.id, i, part }))
-          : [];
-    for (const { msg, i, part } of parts) {
-      const out = line(part);
-      const key = `${msg}:${i}:${out}`;
-      if (!out || printed.has(key)) continue;
-      printed.add(key);
-      console.log(out);
+    runId = sent.run.id;
+    if (o.detach) {
+      console.log(`sent · run ${runId} · thread ${thread}`);
+      return;
     }
-  });
-  const mode = o.interrupt ? "interrupt" : o.steer ? "steer" : "queue";
-  const sent = await socket.call("threads.send", { thread, text, mode });
-  if (sent.steered) {
-    console.log(`steered into the running turn ${sent.run.id} · thread ${thread}`);
+    const endedEarly = early.get(runId);
+    if (endedEarly) finish(endedEarly);
+    const state = await Promise.race([
+      done,
+      socket.closed.then(() => {
+        throw new Error("socket closed before the run ended");
+      }),
+    ]);
+    const { messages } = await socket.call("threads.get", { thread });
+    const answer = messages.filter((m) => m.run_id === runId).at(-1);
+    const textPart = answer?.parts.findLast((p) => p.type === "text");
+    if (textPart?.type === "text") console.log(`\n${textPart.text}`);
+    console.log(`— ${state}${answer?.model ? ` · ${answer.model}` : ""} · thread ${thread}`);
+    if (!state.startsWith("completed")) process.exitCode = 1;
+  } finally {
     socket.close();
-    return;
   }
-  runId = sent.run.id;
-  if (o.detach) {
-    console.log(`sent · run ${runId} · thread ${thread}`);
-    socket.close();
-    return;
-  }
-  const endedEarly = early.get(runId);
-  if (endedEarly) finish(endedEarly);
-  const state = await done;
-  const { messages } = await socket.call("threads.get", { thread });
-  const answer = messages.filter((m) => m.run_id === runId).at(-1);
-  const textPart = answer?.parts.findLast((p) => p.type === "text");
-  if (textPart?.type === "text") console.log(`\n${textPart.text}`);
-  console.log(`— ${state}${answer?.model ? ` · ${answer.model}` : ""} · thread ${thread}`);
-  socket.close();
-  if (!state.startsWith("completed")) process.exitCode = 1;
 }

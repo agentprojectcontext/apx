@@ -167,7 +167,9 @@ export function gaps(
   const out: Array<{ start: string; end: string }> = [];
   let cursor = Date.parse(o.from);
   for (const [s, e] of busy) {
-    if (s - cursor >= need) out.push({ start: iso(cursor), end: iso(Math.min(s, end)) });
+    if (cursor >= end) break;
+    const until = Math.min(s, end);
+    if (until - cursor >= need) out.push({ start: iso(cursor), end: iso(until) });
     cursor = Math.max(cursor, e);
     if (out.length >= o.limit) return out;
   }

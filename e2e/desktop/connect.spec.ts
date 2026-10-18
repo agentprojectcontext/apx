@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
+import { installFakeSsh } from "../fake-ssh.ts";
 import { world } from "../specs/kit.ts";
 
 const root = path.resolve(import.meta.dirname, "../..");
@@ -138,10 +139,9 @@ test("the panel runs the app menu's About, update and connection items (Windows 
 });
 
 test("a server that only takes a password asks for it in the terminal view, then this app's key logs in and opens it", async () => {
-  test.skip(process.platform === "win32", "the fake ssh is a shell script");
   fs.rmSync(path.join(home, "desktop", "connection.json"), { force: true });
   const state = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-ssh-"));
-  fs.writeFileSync(path.join(state, "ssh"), FAKE_SSH, { mode: 0o755 });
+  installFakeSsh(state, FAKE_SSH);
   const app = await launch({ PATH: `${state}${path.delimiter}${process.env.PATH ?? ""}`, FAKE_SSH_STATE: state });
   try {
     const chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));

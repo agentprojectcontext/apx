@@ -27,6 +27,8 @@ test("un enlace del agente a Config › Escritorio es un botón que abre esa sec
     await go.click();
     await expect(page.getByRole("dialog").getByRole("heading", { name: "Escritorio", exact: true })).toBeVisible();
   } finally {
+    // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
+    await page.goto("about:blank");
     await env.core.close();
     env.cleanup();
   }

@@ -1,5 +1,5 @@
-// Tasks. The owner sees and changes every one; an agent only those of its thread's project and the global ones, and
-// what it creates goes to its thread's project. Giving a task to an agent starts its work in that agent's chat for the
+// Tasks. Scoped agents use their thread's project and global tasks; the global super-agent may choose any project.
+// Giving a task to an agent starts its work in that agent's chat for the
 // task, and the owner's comment that @mentions its agent asks it there (its answer comes back as a comment) and anyone
 // else in a consult shown on the task as a card (task-work.ts). A task an agent creates from a chat about a task is its
 // subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079).
@@ -17,13 +17,14 @@ import {
   dueOf,
   personOf,
   tagsOf,
+  taskProject,
   visibleTask,
 } from "../domain/tasks.ts";
 import { ancestors } from "../engine/ancestry.ts";
 import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
 import { reportClose } from "../engine/task-report.ts";
-import { type Asker, addComment, askMentioned, startTaskWork } from "../engine/task-work.ts";
+import { type Asker, addComment, askMentioned, reworkTask, startTaskWork } from "../engine/task-work.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
@@ -115,8 +116,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
     },
     "tasks.create": (p, ctx) => {
       checkColumn(store, p.status);
-      const scope = agentScope(ctx);
-      const project = scope ? scope.project : p.project;
+      const project = taskProject(store, ctx.agent, p);
       checkAssignee(store, p.assignee, project);
       if (p.assignee) refuseHandOn(ctx);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
@@ -196,8 +196,14 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       if (changed.assignee && starting) startTaskWork(store, engine.admit, changed, changed.assignee, askerOf(ctx));
       return changed;
     },
-    "tasks.close": ({ task, state, note }, ctx) => {
-      visible(task, ctx);
+    "tasks.close": ({ task, state, note, rework }, ctx) => {
+      const cur = visible(task, ctx);
+      if (rework) {
+        if (state !== "open") throw badRequest("rework requires state:open");
+        refuseHandOn(ctx);
+        checkAssignee(store, cur.assignee, cur.project_id);
+        return reworkTask(store, engine.admit, cur, note, askerOf(ctx));
+      }
       const t = store.tasks.change(
         task,
         { state, ...(state !== "open" ? { awaits_owner: false } : {}) },

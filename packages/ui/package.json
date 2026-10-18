@@ -28,6 +28,7 @@
     "README.md"
   ],
   "scripts": {
+    "test": "node scripts/build.mjs && node --test \"test/*.test.ts\"",
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "blobs": "node scripts/export-blobs.mjs"

@@ -6,12 +6,31 @@ import {
   desktopAssetFor,
   fetchReleases,
   newerReleases,
+  nodeOs,
   parseSha256,
   platformOf,
   releaseChanges,
+  targetOf,
 } from "./releases.ts";
 
 const asset = (name: string) => ({ name, browser_download_url: `https://example.com/${name}` });
+
+test("release targets select the requested platform and arch, or use this machine only when unset", () => {
+  for (const [os, platform] of [
+    ["linux", "linux"],
+    ["mac", "darwin"],
+    ["win", "win32"],
+  ] as const) {
+    for (const arch of ["x64", "arm64"] as const) {
+      assert.deepEqual(targetOf(`${os}-${arch}`, "unsupported", "unknown"), { os, arch });
+      assert.equal(nodeOs({ os, arch }), platform);
+      assert.deepEqual(targetOf(undefined, platform, arch), { os, arch });
+    }
+  }
+  for (const spec of ["linux", "linux-ia32", "freebsd-x64", "linux-x64-extra", "mac-arm64-"])
+    assert.equal(targetOf(spec, "linux", "x64"), undefined, spec);
+  assert.equal(targetOf(undefined, "freebsd", "x64"), undefined);
+});
 
 test("versions compare by x.y.z, a dev build by the tag it came from", () => {
   assert.ok(compareVersions("2.1.10", "2.1.9") > 0);

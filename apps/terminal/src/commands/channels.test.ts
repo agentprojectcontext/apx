@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { channels, contacts } from "./channels.ts";
+import { channels, contacts, pairing } from "./channels.ts";
 import { printed, recordingClient } from "./testing.ts";
 
 const person = (id: string, name: string) => ({ id, name, role: "contact", addresses: [], created_at: "" });
@@ -82,4 +82,75 @@ test("supervise finds the contact by name; suggestions are listed, sent with the
       ["contacts.suggestions.discard", { id: "sug_1" }],
     ],
   );
+});
+
+test("pairing lists pending requests and explains an empty queue", async () => {
+  const pending = recordingClient({
+    "pairing.list": { requests: [{ code: "123456", channel: "telegram-main", name: "Alex", text: "Hello" }] },
+  });
+  assert.equal(await printed(() => pairing(pending.client, [])), "123456  telegram-main  Alex: Hello");
+  assert.deepEqual(pending.calls, [["pairing.list", {}]]);
+  const empty = recordingClient({ "pairing.list": { requests: [] } });
+  assert.equal(await printed(() => pairing(empty.client, [])), "(nobody waiting)");
+});
+
+test("pairing decisions keep owner, contact and denial distinct and forward the complete contact name", async () => {
+  for (const [sub, decision] of [
+    ["me", "owner"],
+    ["ok", "contact"],
+    ["no", "deny"],
+  ] as const) {
+    const { client, calls } = recordingClient({
+      "pairing.respond": decision === "deny" ? {} : { person: { name: "Alex Acme" } },
+    });
+    const rest = decision === "contact" ? ["Alex", "Acme"] : [];
+    const output = await printed(() => pairing(client, [sub, "123456", ...rest]));
+    assert.deepEqual(calls, [
+      ["pairing.respond", { code: "123456", decision, ...(rest.length ? { name: "Alex Acme" } : {}) }],
+    ]);
+    assert.equal(output, decision === "deny" ? "dropped" : "linked to Alex Acme");
+  }
+});
+
+test("malformed pairing commands change nothing and core refusals never print a linked result", async () => {
+  const empty = recordingClient({});
+  for (const args of [["unknown", "123456"], ["ok"], ["me"], ["no"]])
+    await assert.rejects(pairing(empty.client, args), /apx pairing/);
+  assert.deepEqual(empty.calls, []);
+  const denied = recordingClient({ "pairing.respond": new Error("Code expired") });
+  assert.equal(
+    await printed(async () => {
+      await assert.rejects(pairing(denied.client, ["ok", "123456"]), /Code expired/);
+    }),
+    "",
+  );
+  assert.deepEqual(denied.calls, [["pairing.respond", { code: "123456", decision: "contact" }]]);
+});
+
+test("blocking and unblocking preserve a contact's name; deleting uses only its exact id", async () => {
+  const { client, calls } = recordingClient({
+    "contacts.list": {
+      persons: [
+        {
+          ...person("per_1", "Alex Acme"),
+          addresses: [{ channel: "telegram-main", external_id: "123", label: "@alex" }],
+        },
+      ],
+    },
+    "contacts.set": person("per_1", "Alex Acme"),
+    "contacts.remove": { removed: true },
+  });
+  for (const [command, role] of [
+    ["block", "blocked"],
+    ["unblock", "contact"],
+  ]) {
+    const output = await printed(() => contacts(client, [command as string, "per_1"]));
+    assert.match(output, /Alex Acme.*telegram-main:@alex/);
+    assert.deepEqual(calls.at(-2), ["contacts.set", { id: "per_1", name: "Alex Acme", role }]);
+  }
+  await printed(() => contacts(client, ["rm", "per_1"]));
+  assert.deepEqual(calls.at(-2), ["contacts.remove", { id: "per_1" }]);
+  calls.length = 0;
+  await assert.rejects(contacts(client, ["block", "missing"]), /no person missing/);
+  assert.deepEqual(calls, [["contacts.list", {}]]);
 });

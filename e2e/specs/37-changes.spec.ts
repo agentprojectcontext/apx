@@ -109,6 +109,8 @@ test("cambios: lista unificada, diff expandible en vivo, historial y registros a
     await expect(code.locator(".diff__line--ctx")).toContainText(["Current after timeout"]);
   } finally {
     advance();
+    // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
+    await page.goto("about:blank");
     await env.core.close();
     env.cleanup();
   }
@@ -137,6 +139,8 @@ test("cambios: los archivos de la carpeta temporal se listan aparte, con su diff
     await scratch.getByRole("button", { name: /draft\.py/ }).click();
     await expect(scratch.locator(".diff__line--add")).toContainText("print(42)");
   } finally {
+    // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
+    await page.goto("about:blank");
     await env.core.close();
     env.cleanup();
   }

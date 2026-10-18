@@ -116,6 +116,12 @@ notice when there is no text. Tools that touch core state call protocol methods 
   `agy` receives only the file-reading instruction in argv. A single external step represents the unmediated CLI,
   never per-tool control. The engine persists outcomes; the process has cancellation and an absolute ten-minute
   deadline. CLI discovery does not claim authentication, and GUI-only Antigravity is not runnable.
+- **Adding a harness** touches every place that names one, or it shows half-done: its id in `HarnessId`
+  (`packages/protocol/src/domain.ts`); its entry in the registry (`harness/index.ts`) with its status for the setup
+  screen; its kind and login copy in `apps/web/src/config/ExternalSection.tsx` (both languages in `i18n`); its
+  **official mark** in `packages/ui` (`acp-marks.ts` for a coding agent, `provider-marks.ts` for a model API, from the
+  maker's own site or registry, never redrawn) plus its id in `engineBrand`, or the panel shows the neutral bot; and
+  the engines page in `apps/docs` (English and Spanish).
 - **Memory and long threads** (D-013): notes live in `memories` (FTS5) and reach a turn in its `[memory]` block
   (`engine/recall.ts`); `.apc/memory.md` joins `AGENTS.md` in the system prompt. After each run `engine/upkeep.ts`
   titles new chats and, when the history gets long, summarizes older turns into a new epoch that
@@ -132,6 +138,16 @@ notice when there is no text. Tools that touch core state call protocol methods 
 - **Task assignment** (`rpc/tasks.ts`, `engine/task-work.ts`): an assigned task waits without automatic work until
   its description contains non-whitespace text. Completing the description starts work if it never began;
   later edits do not restart it. Unassigned ideas remain valid. Hourly pickup skips incomplete descriptions.
+- **Cross-project tasks** (`domain/tasks.ts`, `rpc/tasks.ts`, `tools/tasks.ts`): outside any project, the super-agent's
+  `task_create` uses the assignee's project by default, or an explicit project id. Ordinary agents and a super-agent
+  inside a project keep their thread's scope. To have a destination project's orchestrator prepare the task instead,
+  use `delegate` with that agent and project, asking for an unassigned task and its id; the caller then uses
+  `task_update` to assign it. Delegates still start no task work (D-079); both flows use the existing router methods.
+  `agents.list` adds directory metadata without changing the stored `orchestrator` flag: global/project scope, project
+  name (null if unavailable), resolved project orchestrator (null if none), and whether this entry is that orchestrator.
+  Discovery and imported-chat routing share `domain/agent-directory.ts`: explicit marks take precedence, then a root's
+  role, then a sole root; explicit opt-outs are respected. The selection source is returned so inferred heads are never
+  presented as explicit configuration. `list_agents` and the terminal's MCP directory display these distinctions.
 - **Task conversations** (`rpc/tasks.ts`, `engine/office.ts`): `tasks.comment` persists a comment and admits named
   agents in the task's own chat. Replies can mention teammates, with a bounded chain and the same project scope
   for names and exact ids. `@owner`, `@human` or the owner's name requests attention without an agent turn;

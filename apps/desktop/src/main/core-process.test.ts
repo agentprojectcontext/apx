@@ -52,7 +52,8 @@ test("an embedded child gets its explicit local target; stop is idempotent and w
   else process.env.APX_TOKEN = oldToken;
   try {
     const file = path.join(dir, "starts");
-    await until(() => fs.existsSync(file));
+    // The child appends one line: wait for its newline, not just the file, or the read can see it half written.
+    await until(() => fs.existsSync(file) && fs.readFileSync(file, "utf8").endsWith("\n"));
     assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")), {
       home: dir,
       port: "17440",

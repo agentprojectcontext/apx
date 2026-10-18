@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { test } from "node:test";
 import { commandShell, findGitBash, processStart, spawnCommand, stopTree } from "./processes.ts";
 
@@ -51,13 +52,49 @@ test("Windows without Git Bash runs PowerShell with the command encoded, quotes 
   assert.equal(commandShell("win32", { PATH: "C:\\PS7" }, has("C:\\PS7\\pwsh.exe")).file, "C:\\PS7\\pwsh.exe");
 });
 
-test("a command's tree is stopped, and its start time names it while it runs", async (t) => {
-  if (process.platform === "win32") return t.skip("covered by the Unix run");
-  const child = spawnCommand("sleep 30 & sleep 30", { cwd: process.cwd(), env: {}, stdio: "ignore" });
+test("the chosen shell executes a command and returns its output", async () => {
+  const child = spawnCommand("echo apx-ready", {
+    cwd: process.cwd(),
+    env: { ...process.env } as Record<string, string>,
+    stdio: "pipe",
+  });
+  let output = "";
+  child.stdout?.on("data", (bytes: Buffer) => {
+    output += bytes.toString();
+  });
+  const code = await new Promise((resolve, reject) => {
+    child.once("close", resolve);
+    child.once("error", reject);
+  });
+  assert.equal(code, 0);
+  assert.match(output, /apx-ready/);
+});
+
+test("a command's tree is stopped, and its start time names it while it runs", { timeout: 20_000 }, async () => {
+  const child = spawn(
+    process.execPath,
+    [
+      "-e",
+      'const { spawn } = require("node:child_process"); const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" }); console.log(child.pid); setInterval(() => {}, 1000);',
+    ],
+    { detached: process.platform !== "win32", stdio: ["ignore", "pipe", "ignore"], windowsHide: true },
+  );
   const pid = child.pid as number;
-  assert.ok(await processStart(pid));
-  const closed = new Promise((r) => child.on("close", r));
-  stopTree(pid, { graceMs: 0 });
-  await closed;
-  assert.equal(await processStart(pid), undefined);
+  assert.ok(child.stdout);
+  const descendant = await new Promise<number>((resolve, reject) => {
+    child.stdout?.once("data", (bytes: Buffer) => resolve(Number(bytes.toString().trim())));
+    child.once("error", reject);
+  });
+  try {
+    assert.ok(Number.isInteger(descendant) && descendant > 0);
+    assert.ok(await processStart(pid));
+    assert.ok(await processStart(descendant));
+    const closed = new Promise((r) => child.on("close", r));
+    stopTree(pid, { graceMs: 0 });
+    await closed;
+    assert.equal(await processStart(pid), undefined);
+    assert.equal(await processStart(descendant), undefined);
+  } finally {
+    stopTree(pid, { graceMs: 0 });
+  }
 });

@@ -5,7 +5,8 @@
 // waits for a slot; "start a worker and keep going" hands one off and takes a while to answer, so the worker's result
 // waits behind that turn); "make a note file" runs a command that needs the owner's OK; "look around the parent
 // folder" reads outside the project's folder (a folder card); "show a widget" makes one; "open a
-// report" writes one and opens it as a document. It also
+// report" writes one and opens it as a document; "show a table for task_…" answers with a wide table whose last
+// column holds that task's chip. It also
 // embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -43,6 +44,22 @@ const REPORT = [
 
 /** An answer with a shell block the owner can run from the chat. */
 const SUGGESTION = "Run this in the project:\n\n```bash\necho e2e-suggested-$((6*7))\n```";
+
+/** A review table like an agent's: short columns first, a task chip and long text in the last one. */
+function reviewTable(said: string): string | undefined {
+  const m = /^show a table(?: for (task_[0-9a-f]+))?/i.exec(said);
+  if (!m) return undefined;
+  const task = m[1] ? `\`${m[1]}\`` : "a task";
+  return [
+    "I reviewed the open issues:",
+    "",
+    "| Issue | Classification | Priority | Assigned agent | Result |",
+    "|---|---|:---:|---|---|",
+    `| #112 | Confirmed bug | High | Fausto | Created ${task}, with the steps to reproduce it and the logs from the last three runs |`,
+    "| #113 | Question | Low | Roby | Answered in the thread with a link to the routines guide |",
+    "| #114 | Duplicate | Low | Roby | Closed as a duplicate of #112 |",
+  ].join("\n");
+}
 
 /** How long a slow worker takes to answer. */
 const SLOW_MS = 2500;
@@ -170,7 +187,7 @@ export async function fakeLlm() {
           ? "Part checked."
           : /^suggest a command/i.test(said)
             ? SUGGESTION
-            : `Got it: ${said || "(nothing)"}`;
+            : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`);
       const usage = { prompt_tokens: 120, completion_tokens: 8, total_tokens: 128 };
       const call = toolCall(body.messages ?? [], said);
       const wanted = fanOut(body.messages ?? [], said) ?? (call ? [call] : undefined);

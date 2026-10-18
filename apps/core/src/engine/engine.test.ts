@@ -4,9 +4,28 @@ import type { CoreEvent } from "@apx/protocol";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
+let delegationGate:
+  | { started: ReturnType<typeof Promise.withResolvers<void>>; finish: ReturnType<typeof Promise.withResolvers<void>> }
+  | undefined;
+
 const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (system.startsWith("You are Scout")) return say("Found 3 sources about A2A.");
   if (system.startsWith("You are Vera")) {
+    if (said.includes("hold delegation")) {
+      const gate = delegationGate;
+      assert.ok(gate);
+      req.signal.throwIfAborted();
+      gate.started.resolve();
+      await new Promise<void>((resolve, reject) => {
+        const aborted = () => reject(req.signal.reason);
+        req.signal.addEventListener("abort", aborted, { once: true });
+        void gate.finish.promise.then(() => {
+          req.signal.removeEventListener("abort", aborted);
+          resolve();
+        });
+      });
+      return say("Design ready.");
+    }
     if (said.includes("latest version")) return say("Notes drafted. The latest version is Scout's work: ask scout.");
     if (said.includes("chart widget") && !afterTool)
       return callTool("v1", "show_widget", { name: "vera-chart", title: "Chart", html: "<b>1</b>" });
@@ -23,7 +42,11 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
     return say("Both answered.");
   }
   if (said.includes("delegate and wait") && !afterTool)
-    return callTool("c5", "delegate", { agent: "vera", task: "design the panel", wait_s: 30 });
+    return callTool("c5", "delegate", {
+      agent: "vera",
+      task: delegationGate ? "hold delegation" : "design the panel",
+      wait_s: 30,
+    });
   if (said.includes("delegate slowly") && !afterTool)
     return callTool("c3", "delegate", { agent: "vera", task: "design something", wait_s: 0 });
   if (said.includes("ask vera for a chart") && !afterTool)
@@ -363,43 +386,70 @@ async function subthreadOf(thread: string): Promise<string> {
   return card.thread_id;
 }
 
-test("a new message that cuts the turn leaves what it delegated working, and its result comes back", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "keep delegated" });
-  await env.client.call("threads.send", { thread: t.id, text: "delegate and wait" });
-  await new Promise((r) => setTimeout(r, 100));
-  await env.client.call("threads.send", { thread: t.id, text: "and one more thing", mode: "interrupt" });
-  const until = Date.now() + 5000;
-  let got = await env.client.call("threads.get", { thread: t.id });
-  while (
-    Date.now() < until &&
-    !(got.runs.some((r) => r.trigger === "a2a_result") && got.runs.every((r) => r.ended_at))
-  ) {
-    await new Promise((r) => setTimeout(r, 40));
-    got = await env.client.call("threads.get", { thread: t.id });
+test("a new message that cuts the turn leaves what it delegated working, and its result comes back", {
+  timeout: 10_000,
+}, async () => {
+  const gate = { started: Promise.withResolvers<void>(), finish: Promise.withResolvers<void>() };
+  delegationGate = gate;
+  try {
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "keep delegated" });
+    await env.client.call("threads.send", { thread: t.id, text: "delegate and wait" });
+    await gate.started.promise;
+    await env.client.call("threads.send", { thread: t.id, text: "and one more thing", mode: "interrupt" });
+    const activeChild = await env.client.call("threads.get", { thread: await subthreadOf(t.id) });
+    assert.deepEqual(
+      activeChild.runs.map((r) => r.state),
+      ["working"],
+    );
+    gate.finish.resolve();
+    const until = Date.now() + 5000;
+    let got = await env.client.call("threads.get", { thread: t.id });
+    while (
+      Date.now() < until &&
+      !(got.runs.some((r) => r.trigger === "a2a_result") && got.runs.every((r) => r.ended_at))
+    ) {
+      await new Promise((r) => setTimeout(r, 40));
+      got = await env.client.call("threads.get", { thread: t.id });
+    }
+    const child = await env.client.call("threads.get", { thread: await subthreadOf(t.id) });
+    assert.deepEqual(
+      child.runs.map((r) => r.state),
+      ["completed"],
+      "the delegated work was not canceled",
+    );
+    assert.ok(
+      texts(got.messages).some((x) => x.includes("Vera finished")),
+      "its result woke the chat",
+    );
+  } finally {
+    gate.finish.resolve();
+    delegationGate = undefined;
   }
-  const child = await env.client.call("threads.get", { thread: await subthreadOf(t.id) });
-  assert.deepEqual(
-    child.runs.map((r) => r.state),
-    ["completed"],
-    "the delegated work was not canceled",
-  );
-  assert.ok(
-    texts(got.messages).some((x) => x.includes("Vera finished")),
-    "its result woke the chat",
-  );
 });
 
-test("stopping a turn on purpose cancels what it delegated too", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "stop delegated" });
-  await env.client.call("threads.send", { thread: t.id, text: "delegate and wait" });
-  await new Promise((r) => setTimeout(r, 100));
-  await env.client.call("threads.cancel", { thread: t.id });
-  await env.settle(t.id);
-  const child = await env.settle(await subthreadOf(t.id));
-  assert.deepEqual(
-    child.runs.map((r) => r.state),
-    ["canceled"],
-  );
+test("stopping a turn on purpose cancels what it delegated too", { timeout: 10_000 }, async () => {
+  const gate = { started: Promise.withResolvers<void>(), finish: Promise.withResolvers<void>() };
+  delegationGate = gate;
+  try {
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "stop delegated" });
+    await env.client.call("threads.send", { thread: t.id, text: "delegate and wait" });
+    await gate.started.promise;
+    await env.client.call("threads.cancel", { thread: t.id });
+    await env.settle(t.id);
+    const child = await env.settle(await subthreadOf(t.id));
+    assert.deepEqual(
+      child.runs.map((r) => r.state),
+      ["canceled"],
+    );
+    assert.ok(child.runs.every((r) => r.ended_at));
+    assert.equal(
+      (await env.client.call("threads.get", { thread: t.id })).runs.some((r) => r.trigger === "a2a_result"),
+      false,
+    );
+  } finally {
+    gate.finish.resolve();
+    delegationGate = undefined;
+  }
 });
 
 test("an empty answer is shown as a notice, never as a made-up 'done'", async () => {

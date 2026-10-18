@@ -3,6 +3,7 @@ import { z } from "zod";
 import { composerMethods } from "./composer-methods.ts";
 import {
   Agent,
+  AgentListing,
   AgentRules,
   ApprovalScope,
   Author,
@@ -246,7 +247,7 @@ export const appMethods = {
   "agents.list": {
     params: z.object({}).strict(),
     /** `former`: agents archived or deleted, so the chats they spoke in still show their name and face. */
-    result: z.object({ agents: z.array(Agent), former: z.array(Agent).default([]) }),
+    result: z.object({ agents: z.array(AgentListing), former: z.array(Agent).default([]) }),
     effect: false,
   },
   /**

@@ -19,12 +19,50 @@ pnpm check:schema                  # apps/core/src/db/schema.ts matches the migr
 
 ## 3. Tests
 ```bash
-pnpm test                          # node:test in every package that has *.test.ts, plus scripts/*.test.ts
+pnpm exec playwright install chromium   # required by the headless core test; CI also installs OS dependencies
+npm --prefix apps/mobile ci         # separate Expo install, including native component test dependencies
+pnpm test                          # quality gate, workspace tests (UI included), mobile logic and React tests, scripts
+pnpm check:tests                   # AST lint: disabled/exclusive/empty tests and unawaited Node assertions
+pnpm test:coverage                 # all unit suites, then coverage/unit/functions.json and functions.md
+pnpm test:coverage:all             # unit + browser + desktop execution, then coverage/all/ reports
+pnpm test:coverage:strict          # fails if any inventoried function was not executed
+pnpm test:coverage:all:strict      # the same requirement after unit, browser and desktop execution
 node --test apps/core/src/server.test.ts
 ```
 Rules: tests never touch the real home — pass a temp `home` to `createCore` (see `server.test.ts`); bind
 `127.0.0.1` with port `0`; run offline (no network, no keys, no live core). No `test.skip`/`todo`: fix or delete
 with a reason in the commit body.
+
+The quality gate also rejects `t.skip()`, aliased test controls, conditional skip options, `only`, `fixme`,
+literal-only assertions and empty callbacks. It parses TypeScript rather than matching comments or fixtures.
+Promise assertions must be awaited or returned, including Jest's chained `.resolves` and `.rejects` matchers.
+`typescript-parser` pins the TypeScript 5 parser for this lint and coverage inventory: the TypeScript 7 compiler
+used by the workspace does not expose that parser through its default export.
+
+Coverage includes tracked and new non-ignored JavaScript/TypeScript sources, including modules never imported.
+It merges function execution across processes and maps compiled UI functions back through the build's source maps.
+Mobile React tests run with Jest Expo and React Native Testing Library; Babel instrumentation supplies original
+TSX function declarations, including nested callbacks, to the same inventory. Never-loaded native screens remain
+explicit zeroes. Tests replace only hardware and transport boundaries; React, hooks and the shared SDK execute.
+The all-suites command builds browser source maps, collects Chromium function counters, and includes the sandbox
+core and Electron processes. On Linux without a display it runs desktop tests under `xvfb-run` and Openbox
+(CI installs both): native focus and minimization checks need a window manager as well as a display server.
+Electron also needs the GTK 3 runtime (`libgtk-3-0` on Debian, `libgtk-3-0t64` on Ubuntu 24.04); the Chromium
+dependency installer may supply GTK 4 without GTK 3, so CI installs Electron's runtime explicitly.
+The headless browser test disables Chromium's sandbox only when the test process runs as root in a disposable
+container; production browser launches retain it. On macOS, desktop coverage uses `caffeinate` for the test
+process so the display does not sleep. Start native window tests in an unlocked graphical session with an
+awake display; a sleeping or locked display cannot supply reliable native focus events.
+The coverage sandbox picks separate loopback ports so parallel checkouts do not collide; `E2E_PORT`,
+`E2E_CONTROL_PORT` and `E2E_WA_PORT` override them when debugging.
+Reports identify each unexecuted function by file and line. An executed function still needs meaningful assertions;
+unit coverage does not replace Playwright or a real phone. The default coverage command fails on suite failures;
+the separate strict command additionally requires every inventoried function to execute. CI runs all suites with
+coverage and keeps the JSON and Markdown reports.
+Build text and source maps are snapshotted before each suite, so a concurrent app build cannot silently erase
+browser execution from the report. Missing mappings for repository build counters fail collection.
+CI also runs preflight and mounted mobile tests on macOS and Windows; Linux runs browser and desktop E2E too.
+Package test globs use double quotes so Node receives the same pattern in POSIX shells and Windows cmd.exe.
 
 ## 4. Real path
 ```bash
@@ -39,7 +77,7 @@ While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.ap
 ## 5. All at once
 ```bash
 pnpm preflight                     # check:private, check:schema, lint, typecheck, unit tests
-pnpm verify                        # preflight, then end to end (web and desktop), then lightness budgets (what CI runs)
+pnpm verify                        # preflight, all-suite execution coverage, then lightness budgets
 ```
 
 ## 5a. End to end (Playwright)
@@ -65,10 +103,15 @@ through `world.whatsapp`), so the real adapter runs with no test path in the pro
 ## 5a'. Mobile
 ```bash
 cd apps/mobile && npm install && npm run typecheck && npm test
+npm run test:unit                       # pure logic under node:test
+npm run test:ui                         # React hooks and native components under Jest Expo
 npx expo export --platform android     # Metro bundles the app: proof it resolves, without a device
 ```
 It installs outside the pnpm workspace (React Native never weighs on the rest). On a device: pair it from
 Config › Devices with the core listening on the network (`APX_HOST=0.0.0.0` and `APX_TOKEN`, or Tailscale).
+Jest Expo, its Jest version, Jest types and React Native Testing Library are development dependencies required to
+exercise mounted hooks, component events and effect cleanup. Plain Node tests cannot execute React Native's
+native modules or TSX screens. Their install does not change production dependency versions.
 
 ## 5b. Lightness
 ```bash

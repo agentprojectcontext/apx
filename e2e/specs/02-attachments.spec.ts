@@ -82,6 +82,8 @@ test("adjuntos usuario y agente muestran imágenes y descargan archivos después
     await expect(page.getByRole("img", { name: "Agent copy: ticket.png", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /^Agent copy: receipt.pdf/ })).toBeVisible();
   } finally {
+    // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
+    await page.goto("about:blank");
     await env.core.close();
     env.cleanup();
   }

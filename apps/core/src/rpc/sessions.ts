@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ApcSync } from "../apc/sync.ts";
+import { projectOrchestrator } from "../domain/agent-directory.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import type { Store } from "../domain/store.ts";
 import { summary } from "../domain/surfaces.ts";
@@ -73,16 +74,8 @@ export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionD
       }
     return createProject(deps.apc, deps.home, { name, path: cwd }).project;
   };
-  /** The project's orchestrator: the head of its team, the one its chats go to until an agent of their area takes them. */
-  const headOf = (projectId: string) => {
-    const team = store.agents.list().filter((a) => a.project_id === projectId);
-    const heads = team.filter((a) => !a.parent || !team.some((b) => b.slug === a.parent));
-    return (
-      team.find((a) => a.orchestrator) ??
-      heads.find((a) => a.orchestrator !== false && /orchestr|orquest|lead|líder|lider/i.test(`${a.role} ${a.name}`)) ??
-      (heads.length === 1 ? heads[0] : undefined)
-    );
-  };
+  const headOf = (projectId: string) =>
+    projectOrchestrator(store.agents.list().filter((a) => a.project_id === projectId))?.agent;
   const imported = (thread: string) => {
     const t = store.threads.get(thread);
     if (!t) throw notFound(`thread ${thread}`);
