@@ -35,16 +35,30 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     return say("Review ready.");
   }
   if (said.includes("hand the goal")) {
-    if (!afterTool) return callTool("r1", "task_create", { title: "Ship the goal", assignee: "vera" });
+    if (!afterTool)
+      return callTool("r1", "task_create", {
+        title: "Ship the goal",
+        description: "Deliver the requested goal.",
+        assignee: "vera",
+      });
     return say(last);
   }
   if (said.includes("hand waiting goals")) {
     if (tools < 2)
-      return callTool(`w${tools}`, "task_create", { title: `Waiting goal ${tools + 1}`, assignee: "vera" });
+      return callTool(`w${tools}`, "task_create", {
+        title: `Waiting goal ${tools + 1}`,
+        description: "Deliver the requested goal.",
+        assignee: "vera",
+      });
     return say("Both handed off.");
   }
   if (said.includes("hand paused goals")) {
-    if (tools < 2) return callTool(`p${tools}`, "task_create", { title: `Paused goal ${tools + 1}`, assignee: "vera" });
+    if (tools < 2)
+      return callTool(`p${tools}`, "task_create", {
+        title: `Paused goal ${tools + 1}`,
+        description: "Deliver the requested goal.",
+        assignee: "vera",
+      });
     return say("Both handed off.");
   }
   if (said.includes("note an idea")) {
@@ -266,6 +280,7 @@ test("how deep agents hand tasks on is the breaker's: no fixed depth stops a sta
   const from = store.threads.create({ kind: "loose", title: "deep", agent_ids: ["roby"] });
   const task = store.tasks.create({
     title: "Deep work",
+    description: "Deliver the requested goal.",
     assignee: "vera",
     status: "todo",
     thread_id: store.threads.create({ kind: "task", title: "Deep work", agent_ids: ["vera"] }).id,

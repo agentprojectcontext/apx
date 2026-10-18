@@ -170,8 +170,18 @@ test("an agent's task comment that asks the owner with a stand-in is refused and
 });
 
 test("an agent's final answer in a task with a note to the owner posts but does not ask for them", async () => {
-  const quiet = await env.client.call("tasks.create", { title: "Quiet check", project, assignee: "vera" });
-  const loud = await env.client.call("tasks.create", { title: "Loud check", project, assignee: "vera" });
+  const quiet = await env.client.call("tasks.create", {
+    title: "Quiet check",
+    description: "Check without asking the owner.",
+    project,
+    assignee: "vera",
+  });
+  const loud = await env.client.call("tasks.create", {
+    title: "Loud check",
+    description: "Ask the owner for approval.",
+    project,
+    assignee: "vera",
+  });
   const settled = async (task: string) => {
     for (let i = 0; i < 200; i++) {
       const { sessions } = await env.client.call("tasks.get", { task });

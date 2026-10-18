@@ -118,7 +118,7 @@ export function startTaskWork(
   asker: Asker,
 ): RunRecord | undefined {
   // How far agents hand work on is the breaker's, as the owner set it (DECISIONS.md#d-082).
-  if (task.state !== "open" || !store.agents.get(agentId)) return undefined;
+  if (task.state !== "open" || !task.description.trim() || !store.agents.get(agentId)) return undefined;
   if (asker.kind === "agent" && (trip(store, asker.thread_id) || agentTrip(store, asker.thread_id, agentId))) {
     hold(store, task, agentId, asker);
     return undefined;
@@ -335,6 +335,7 @@ export function pickUpTasks(store: Store, admit: AdmitFn): RunRecord[] {
     .filter(
       (t) =>
         t.assignee &&
+        t.description.trim() &&
         !held.has(t.id) &&
         t.status !== "review" &&
         store.agents.get(t.assignee) &&

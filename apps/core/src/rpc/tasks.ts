@@ -162,11 +162,17 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       const moving = project !== undefined && (project ?? undefined) !== cur.project_id;
       const target = moving ? (project ?? undefined) : cur.project_id;
       checkAssignee(store, c.assignee, target);
-      if (c.assignee && c.assignee !== cur.assignee) refuseHandOn(ctx);
       // Its agent stays only if it can work there.
       const keeper = c.assignee !== undefined ? c.assignee : cur.assignee;
       const unassign =
         moving && keeper && store.agents.get(keeper)?.project_id && store.agents.get(keeper)?.project_id !== target;
+      const completing =
+        cur.state === "open" &&
+        !cur.description.trim() &&
+        Boolean(c.description?.trim()) &&
+        store.threads.byTask(cur.id).length === 0;
+      const starting = !unassign && keeper && (keeper !== cur.assignee || completing);
+      if (starting) refuseHandOn(ctx);
       const changed = store.tx(() => {
         noticeTaskWaiting(store, cur, c.awaits_owner ?? cur.awaits_owner);
         if (moving) store.threads.moveTo(cur.thread_id, target);
@@ -186,9 +192,8 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
           by(ctx),
         ) as Task;
       });
-      // A new agent on it starts its work in its own chat for the task (the one before keeps its chat, listed there).
-      if (changed.assignee && changed.assignee !== cur.assignee)
-        startTaskWork(store, engine.admit, changed, changed.assignee, askerOf(ctx));
+      // Completing a waiting task starts it too; editing one already worked never starts another turn.
+      if (changed.assignee && starting) startTaskWork(store, engine.admit, changed, changed.assignee, askerOf(ctx));
       return changed;
     },
     "tasks.close": ({ task, state, note, rework }, ctx) => {

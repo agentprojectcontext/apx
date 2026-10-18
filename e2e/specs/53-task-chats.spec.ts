@@ -16,6 +16,7 @@ test("a task's chats are one row under the task in the tree, by activity and by 
   const id = (name: string) => ids[name] ?? "";
   const task = await rpc<{ id: string }>("tasks.create", {
     title: "Build the stats panel",
+    description: "Build the statistics dashboard panel with all metrics.",
     project: project.id,
     assignee: id("Bea"),
   });
