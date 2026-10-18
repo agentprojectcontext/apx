@@ -8,6 +8,30 @@ const servers = [
   { name: "github", scope: "global" },
 ];
 
+test("tool descriptions filter by name and print shell-safe invocation arguments", async () => {
+  const { client, calls } = recordingClient({
+    "mcp.list": { servers: [{ name: "owner's notes", scope: "project", project_id: "acme" }] },
+    "mcp.describe": {
+      tools: [
+        { name: "read", description: "Read notes", inputSchema: { type: "object", properties: {} } },
+        { name: "write", description: "Write notes", inputSchema: { type: "object" } },
+      ],
+    },
+  });
+  const out = await printed(() => mcpCommand(client, ["tools", "owner's notes", "read"], { project: "acme" }));
+  assert.match(out, /Read notes/);
+  assert.ok(!out.includes("Write notes"));
+  assert.ok(out.includes(`apx mcp run 'owner'"'"'s notes' 'read' '<json>' --project 'acme' --scope project`));
+  assert.deepEqual(calls, [
+    ["mcp.list", { project: "acme" }],
+    ["mcp.describe", { scope: "project", server: "owner's notes", project: "acme" }],
+  ]);
+  await assert.rejects(
+    mcpCommand(client, ["tools", "owner's notes", "missing"], { project: "acme" }),
+    /MCP tool missing not found/,
+  );
+});
+
 test("apx mcps logs finds the server and prints its last lines, cleaned", async () => {
   const at = "2026-10-11T12:00:00.000Z";
   const { client, calls } = recordingClient({
