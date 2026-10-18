@@ -515,6 +515,7 @@ export const en = {
     "Widgets the agent builds in this chat show here. Pin one to keep it on the project's board too.",
   "app.notFound": "App not found",
   "app.removed": "It may have been removed from apps.",
+  "widget.sub": "Widget of {project} · made by {author} · {name}",
   "app.sub": "App of {project} · made by {author} · {name}",
   "app.remove": "Remove from apps",
   "share.copied": "Link copied.",

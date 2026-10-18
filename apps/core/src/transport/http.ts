@@ -2,6 +2,12 @@ import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import { type ClientScope, methodOpen } from "@apx/protocol";
+import {
+  injectSurfaceHead,
+  surfaceLayoutCss,
+  WIDGET_KIT_CSS,
+  WIDGET_TOKENS,
+} from "../../../../packages/surfaces/src/widget-kit.ts";
 import type { Log } from "../log.ts";
 import { isInside } from "../paths.ts";
 import type { Dispatch } from "../rpc/router.ts";
@@ -51,7 +57,9 @@ function serveStatic(dist: string, pathname: string, res: ServerResponse): boole
 }
 
 export type PublicPages = {
-  artifact(token: string): { title: string; html: string; connect?: string[] | undefined } | undefined;
+  artifact(
+    token: string,
+  ): { title: string; html: string; app?: boolean | undefined; connect?: string[] | undefined } | undefined;
 };
 
 /**
@@ -61,12 +69,16 @@ export type PublicPages = {
 const artifactCsp = (connect: string[] = []) =>
   `sandbox allow-scripts allow-popups; default-src 'self' data: blob: 'unsafe-inline'; connect-src ${connect.length ? connect.join(" ") : "'none'"}; frame-ancestors *`;
 
-function artifactPage(title: string, html: string): string {
+function artifactPage(title: string, html: string, app = false): string {
   const esc = title.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`);
-  const doc = /<html[\s>]/i.test(html)
-    ? html
-    : `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc}</title><style>:root{--apx-bg:#faf9f7;--apx-surface:#fff;--apx-fg:#1c1b19;--apx-fg-muted:#6f6b63;--apx-border:#e6e3dc;--apx-brand:#1f9d63}@media (prefers-color-scheme:dark){:root{--apx-bg:#1b1a18;--apx-surface:#252421;--apx-fg:#ecebe7;--apx-fg-muted:#9b978d;--apx-border:#34322e;--apx-brand:#3fbf84}}body{margin:0;padding:16px;background:var(--apx-bg);color:var(--apx-fg);font:14px/1.45 system-ui,sans-serif}</style></head><body>${html}</body></html>`;
-  return doc;
+  return injectSurfaceHead(
+    html,
+    `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc}</title>
+<style>:root{${WIDGET_TOKENS.light};color-scheme:light}@media(prefers-color-scheme:dark){:root{${WIDGET_TOKENS.dark};color-scheme:dark}}
+body{margin:0;padding:var(--apx-page-padding);background:var(--apx-bg);color:var(--apx-fg);font:14px/1.5 var(--apx-font-sans);display:flow-root}*{box-sizing:border-box}
+${WIDGET_KIT_CSS}
+${surfaceLayoutCss(app ? "app" : "widget")}</style>`,
+  );
 }
 
 /** Which paired device a key belongs to (undefined: not a device's, or revoked). */
@@ -149,7 +161,7 @@ export function httpHandler(
         "content-security-policy": artifactCsp(page.connect),
         "cache-control": "no-store",
       });
-      res.end(artifactPage(page.title, page.html));
+      res.end(artifactPage(page.title, page.html, page.app));
       return;
     }
     if (req.method === "GET" && webDist && serveStatic(webDist, url.pathname, res)) return;

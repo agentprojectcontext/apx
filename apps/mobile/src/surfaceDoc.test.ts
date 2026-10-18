@@ -20,3 +20,10 @@ test("only this page's prompts, after a real touch, reach the agent", () => {
   assert.equal(readSurfaceMessage(msg({ text: "other page", gesture: true }), "n2"), undefined);
   assert.equal(readSurfaceMessage("not json", "n1"), undefined);
 });
+
+test("mobile apps fill the viewport while widgets retain their safe inset", () => {
+  const app = surfaceDoc('<main class="apx-widget">Example</main>', { mode: "dark", nonce: "n", layout: "app" });
+  assert.match(app, /--apx-content-width:none;--apx-page-padding:0px/);
+  const widget = surfaceDoc('<main class="apx-widget">Example</main>', { mode: "dark", nonce: "n" });
+  assert.match(widget, /--apx-content-width:1100px;--apx-page-padding:clamp/);
+});

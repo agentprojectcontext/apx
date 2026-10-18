@@ -45,7 +45,12 @@ gets the types. There is no other way into a handler.
 
 - `packages/protocol` ← used by everything. Isomorphic: no Node-only imports.
 - `packages/ui` ← web (and desktop through web). React + Base UI + CSS tokens.
-- `packages/surfaces` ← placement types shared by the surface hosts (the host itself is `apps/web/src/surfaces`).
+- `packages/surfaces` ← placement types and an inline CSS kit shared by panel, mobile and public widget hosts.
+  The stored app flag controls layout in every host: widgets keep a 16–24px inset even when maximized;
+  declared apps use zero inset and no kit width cap. Height fitting and view do not change the saved type; kit classes opt into
+  APX typography, cards and responsive controls.
+  The bundled `apx-widgets` skill includes the starter. Agent `edit_widget` changes app/pin flags through
+  `surfaces.update` without reading or replacing HTML; metadata-only changes preserve the content version and share link. No stylesheet requests or extra sandbox permissions.
 - `apps/core`: `transport → rpc → engine (turns) → harness / providers / tools → domain (one repository per
   aggregate over SQLite)`; `nodes/` routes capability calls to the desktop; `channels/` adapts the messaging apps
   (Telegram, WhatsApp, Discord, Slack, iMessage, email, Signal, Matrix, Mattermost) and enters through `threads.send`.

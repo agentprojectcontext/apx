@@ -387,7 +387,7 @@ export async function listen(
       {
         artifact: (t) => {
           const s = d.store.surfaces.byShareToken(t);
-          return s ? { title: s.title, html: s.html, connect: s.connect } : undefined;
+          return s ? { title: s.title, html: s.html, app: s.app, connect: s.connect } : undefined;
         },
       },
       (token) => d.store.clients.byToken(token),

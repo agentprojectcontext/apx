@@ -8,7 +8,7 @@ import { ShareMenu } from "../surfaces/ShareMenu.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 import { openWidgetChat } from "../surfaces/WidgetChat.tsx";
 
-/** An installed app (a surface with app=true) filling the main area. */
+/** A maximized surface; its saved app flag controls padding, independently of this view. */
 export function AppScreen() {
   const t = useT();
   const appId = useNav((s) => s.appId);
@@ -47,7 +47,7 @@ export function AppScreen() {
           <div className="appscreen__title">{app.title}</div>
           <div className="appscreen__sub">
             {author && <AgentAvatar name={author.name} blob={blobOf(author)} size={14} animated={false} />}
-            {t("app.sub", {
+            {t(app.app ? "app.sub" : "widget.sub", {
               project: projectName(projects, app.project_id),
               author: author?.name ?? app.created_by,
               name: app.name,
@@ -74,13 +74,13 @@ export function AppScreen() {
         <Button
           size="sm"
           variant="ghost"
-          leadingIcon={<Icons.Trash2 size={14} />}
+          leadingIcon={app.app ? <Icons.Trash2 size={14} /> : <Icons.AppWindow size={14} />}
           onClick={async () => {
-            await setSurfaceFlags(app.id, { app: false });
-            back();
+            await setSurfaceFlags(app.id, { app: !app.app });
+            if (app.app) back();
           }}
         >
-          {t("app.remove")}
+          {t(app.app ? "app.remove" : "widget.installApp")}
         </Button>
       </header>
       <div className="appscreen__body">

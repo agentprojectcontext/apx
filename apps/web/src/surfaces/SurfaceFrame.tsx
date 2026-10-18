@@ -1,5 +1,6 @@
 import { EmptyState, Icons, Skeleton, useApx } from "@apx/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { SurfaceLayout } from "../../../../packages/surfaces/src/widget-kit.ts";
 import { loadSurfaceDoc, surfacePrompt } from "../data/actions.ts";
 import { widgetMedia } from "../data/media.ts";
 import { useData } from "../data/state.ts";
@@ -27,6 +28,7 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
   const t = useT();
   const summary = useData((s) => s.surfaces[surfaceId]);
   const doc = useData((s) => s.surfaceDocs[surfaceId]);
+  const layout: SurfaceLayout = (summary?.app ?? doc?.app) ? "app" : "widget";
   const { mode } = useApx();
   const wrap = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -90,12 +92,15 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
   }, [nonce, maxHeight, surfaceId, version]);
 
   const srcdoc = useMemo(
-    () => (doc && theme ? buildSrcdoc(doc.html, { theme, mode, nonce, connect: doc.connect }) : undefined),
-    [doc, theme, mode, nonce],
+    () => (doc && theme ? buildSrcdoc(doc.html, { theme, mode, nonce, connect: doc.connect, layout }) : undefined),
+    [doc, theme, mode, nonce, layout],
   );
 
   return (
-    <div ref={wrap} className={fit === "fill" ? "surfaceframe surfaceframe--fill" : "surfaceframe"}>
+    <div
+      ref={wrap}
+      className={`surfaceframe${fit === "fill" ? " surfaceframe--fill" : ""}${layout === "app" ? " surfaceframe--app" : ""}`}
+    >
       {srcdoc ? (
         <iframe
           ref={frame}

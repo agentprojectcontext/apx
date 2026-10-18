@@ -1,16 +1,17 @@
+import {
+  injectSurfaceHead,
+  type SurfaceLayout,
+  surfaceLayoutCss,
+  WIDGET_KIT_CSS,
+  WIDGET_TOKENS,
+} from "../../../packages/surfaces/src/widget-kit.ts";
+
 // A surface's HTML as the phone shows it: the panel's strict CSP (inline code only, no network), the phone's light or
 // dark colors, and a window.apx bridge that speaks to the app through ReactNativeWebView. Pure: tested under node:test.
 
 /** Widgets are self-contained (the show_widget contract): inline code only, no network. */
 export const SURFACE_CSP =
   "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:";
-
-/** The few --apx-* tokens widgets use, as the design system's minimal look sets them (packages/ui tokens.css). */
-const TOKENS = {
-  light:
-    "--apx-bg:#faf9f7;--apx-surface:#ffffff;--apx-fill:#efeeea;--apx-fg:#161616;--apx-fg-muted:#5f5e5a;--apx-border:#e7e5e0;--apx-brand:#1a9460;--apx-danger:#d23c3c;--apx-font-sans:system-ui,-apple-system,sans-serif;--apx-font-mono:ui-monospace,Menlo,monospace;",
-  dark: "--apx-bg:#161615;--apx-surface:#1e1e1d;--apx-fill:#272726;--apx-fg:#ededeb;--apx-fg-muted:#a6a59f;--apx-border:#2c2c2a;--apx-brand:#3ec98b;--apx-danger:#f06464;--apx-font-sans:system-ui,-apple-system,sans-serif;--apx-font-mono:ui-monospace,Menlo,monospace;",
-} as const;
 
 function bridge(nonce: string): string {
   return `(function(){
@@ -25,17 +26,20 @@ window.sendPrompt=sendPrompt;
 })();`;
 }
 
-export function surfaceDoc(html: string, opts: { mode: "light" | "dark"; nonce: string }): string {
+export function surfaceDoc(
+  html: string,
+  opts: { layout?: SurfaceLayout; mode: "light" | "dark"; nonce: string },
+): string {
   const head = `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="${SURFACE_CSP}">
-<style>:root{${TOKENS[opts.mode]}}
+<style>:root{${WIDGET_TOKENS[opts.mode]}}
 html{color-scheme:${opts.mode}}
 html,body{margin:0;background:var(--apx-bg);color:var(--apx-fg);font-family:var(--apx-font-sans);font-size:15px;line-height:1.45}
-body{padding:12px}*{box-sizing:border-box}</style>
+body{padding:var(--apx-page-padding);display:flow-root}*{box-sizing:border-box}
+${WIDGET_KIT_CSS}
+${surfaceLayoutCss(opts.layout)}</style>
 <script>${bridge(opts.nonce)}</script>`;
-  if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => `${m}${head}`);
-  if (/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i, (m) => `${m}<head>${head}</head>`);
-  return `<!doctype html><html><head>${head}</head><body>${html}</body></html>`;
+  return injectSurfaceHead(html, head);
 }
 
 /** A message from the page, if it is this page's (its nonce) and well formed; a prompt only after a real touch. */

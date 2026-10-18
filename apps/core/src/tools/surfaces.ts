@@ -33,13 +33,16 @@ export function surfaceTools(store: Store): Tool[] {
     defineTool({
       name: "show_widget",
       description:
-        "Show a widget in the chat: self-contained HTML (inline CSS/JS/SVG), themed with the CSS vars --apx-bg, --apx-surface, --apx-fg, --apx-fg-muted, --apx-border, --apx-brand. It reaches no network except the origins in connect (https or wss). Project media loads by reference, not inlined: data-apx-src='clip.mp4' or 'media:ID' on img/video, or apx.media(ref). Update a widget by showing its name again or in part with edit_widget; never a second widget for the same thing. pin puts it on the project's board, app lists it as a fullscreen app. A page to share (an artifact) is a widget too, never an HTML file on disk. window.apx.sendPrompt(text) writes to this chat.",
+        "Load apx-widgets before creating or restyling. Show self-contained HTML with inline CSS/JS/SVG; APX injects its themed CSS kit. Network only to declared connect origins (https/wss). Project media: data-apx-src='clip.mp4' or 'media:ID' on img/video, or apx.media(ref). Reuse the same name to replace it, or edit_widget for partial edits. pin adds it to the project board; app lists it fullscreen. Shared pages are widgets too, never HTML files on disk. window.apx.sendPrompt(text) writes to this chat.",
       args: z.object({
         name: z.string().describe("stable kebab-case name, e.g. monthly-sales"),
         title: z.string().describe("human title"),
         html: z.string().describe("full HTML body"),
         pin: z.boolean().optional(),
-        app: z.boolean().optional(),
+        app: z
+          .boolean()
+          .optional()
+          .describe("Declare an app: no host padding in any view; also lists it in Apps. Omit for a padded widget."),
         connect: z
           .array(SurfaceOrigin)
           .max(5)
@@ -102,14 +105,17 @@ export function surfaceTools(store: Store): Tool[] {
     defineTool({
       name: "edit_widget",
       description:
-        "Change part of an existing widget without rewriting it: each edit replaces `old` (it must appear exactly once in the widget's HTML, spaces included) with `new`; all edits apply together or none does. The owner sees the new version at once wherever the widget is open. Read it first with read_widget when you do not have its HTML at hand.",
+        "Edit a widget by name: exact old/new HTML edits, title, or app/pin flags. app:false converts to a padded widget; app:true declares a full-bleed app. Flags alone preserve HTML, version and public link; no HTML read needed. HTML edits must match once; read_widget first if needed. All changes apply together or none does.",
       args: z.object({
         name: z.string(),
         edits: z
           .array(z.object({ old: z.string().min(1), new: z.string() }))
           .min(1)
-          .max(20),
-        title: z.string().optional().describe("a new title, if it changes"),
+          .max(20)
+          .optional(),
+        title: z.string().trim().min(1).max(120).optional(),
+        app: z.boolean().optional(),
+        pin: z.boolean().optional(),
       }),
       effect: "local",
       deadlineMs: 10_000,
@@ -117,8 +123,20 @@ export function surfaceTools(store: Store): Tool[] {
       async run(a, ctx) {
         const s = find(ctx, a.name);
         if (!s) return `no widget named ${a.name}: make it with show_widget, or list them with read_widget.`;
+        const flags = {
+          ...(a.app === undefined ? {} : { app: a.app }),
+          ...(a.pin === undefined ? {} : { pinned: a.pin }),
+        };
+        if (!a.edits && a.title === undefined) {
+          if (a.app === undefined && a.pin === undefined) return "provide edits, title, app or pin; nothing changed.";
+          if (ctx.signal.aborted) return STOPPED;
+          const surface = await ctx.call("surfaces.update", { surface: s.id, ...flags });
+          card(ctx, surface);
+          return `widget "${surface.name}" v${surface.version}: ${surface.app ? "app" : "widget"}, ${surface.pinned ? "pinned" : "not pinned"}; HTML unchanged.`;
+        }
+        const edits = a.edits ?? [];
         let html = s.html;
-        for (const [i, e] of a.edits.entries()) {
+        for (const [i, e] of edits.entries()) {
           const count = html.split(e.old).length - 1;
           if (count !== 1)
             return `edit ${i + 1}: old ${count ? `appears ${count} times` : "was not found"}; nothing changed. Copy it exactly from read_widget${count ? ", with more context around it" : ""}.`;
@@ -133,9 +151,10 @@ export function surfaceTools(store: Store): Tool[] {
           title: a.title?.trim().slice(0, 120) || s.title,
           html,
           thread: ctx.thread.id,
+          ...flags,
         });
         card(ctx, surface);
-        return `widget "${surface.name}" is now v${surface.version} (${a.edits.length} edit${a.edits.length === 1 ? "" : "s"}).`;
+        return `widget "${surface.name}" is now v${surface.version} (${edits.length} edit${edits.length === 1 ? "" : "s"}).`;
       },
     }),
   ];

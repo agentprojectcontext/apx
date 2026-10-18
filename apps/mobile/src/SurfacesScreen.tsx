@@ -62,8 +62,8 @@ function SurfaceView({ surface, client, onBack }: { surface: Surface; client: Ap
   // A widget is drawn in the app's scheme.
   const nonce = useMemo(() => Math.random().toString(36).slice(2) + Date.now().toString(36), []);
   const html = useMemo(
-    () => surfaceDoc(surface.html, { mode: theme.scheme, nonce }),
-    [surface.html, nonce, theme.scheme],
+    () => surfaceDoc(surface.html, { mode: theme.scheme, nonce, layout: surface.app ? "app" : "widget" }),
+    [surface.html, surface.app, nonce, theme.scheme],
   );
   const last = useRef(0);
   return (
