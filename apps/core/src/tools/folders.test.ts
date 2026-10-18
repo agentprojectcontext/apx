@@ -205,7 +205,7 @@ test("a project's read-only folders are read by file_read and shell, never chang
     assert.deepEqual(set.project.read_only_folders, [ref], "kept once, as written");
 
     assert.match(await call("file_read", { path: file }), /old/);
-    assert.match(await call("shell", { command: `rg -n old ${ref}` }), /v1\.txt/);
+    assert.match(await call("shell", { command: `grep -rn old ${ref}` }), /v1\.txt/);
     assert.match(await call("shell", { command: `cat v1.txt`, cwd: ref }), /old/);
     // The turn says where they are, beside the folder it works in; a delegated sub-chat of the project reads them too.
     const said = JSON.stringify(llm.calls.at(-1)?.messages);
