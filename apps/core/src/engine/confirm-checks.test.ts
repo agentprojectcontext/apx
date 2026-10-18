@@ -13,7 +13,7 @@ before(async () => {
   env = await startCore({ llm });
   await env.client.call("agents.create", { slug: "clerk", name: "Clerk" });
   // An agent that asks before every change: each task call would wait for the owner.
-  await env.client.call("agents.update", { agent: "clerk", autonomy: "ask" });
+  await env.client.call("agents.update", { agent: "clerk", autonomy: "manual" });
 });
 after(async () => {
   await env.core.close();

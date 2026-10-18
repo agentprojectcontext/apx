@@ -229,3 +229,51 @@ test("unattended limits saved at the former defaults follow the new ones; limits
   assert.deepEqual(limitsAfter({ runs: 40, tokens: 600_000 }), { runs: 40 });
   assert.deepEqual(limitsAfter({ runs: 16, tokens: 0 }), { tokens: 0 });
 });
+
+test("stored modes take the five modes' names: ask is manual, standard and edits are auto, total stays", () => {
+  const { db, cleanup } = upgradeFrom("The five permission modes", (db) => {
+    const project = db.prepare("INSERT INTO projects (id, name, created_at, autonomy) VALUES (?, ?, '2026-10-01', ?)");
+    const rows: Array<[string, string | null]> = [
+      ["p_ask", "ask"],
+      ["p_std", "standard"],
+      ["p_edits", "edits"],
+      ["p_total", "total"],
+      ["p_none", null],
+    ];
+    for (const [id, a] of rows) project.run(id, id, a);
+    db.prepare("INSERT INTO meta (key, value) VALUES ('setting:base_project', ?)").run(
+      JSON.stringify({ name: "Home", autonomy: "ask" }),
+    );
+    const agent = db.prepare(
+      "INSERT INTO agents (id, name, kind, created_at, extra) VALUES (?, ?, 'agent', '2026-10-01', ?)",
+    );
+    agent.run("a_ask", "Ann", JSON.stringify({ autonomy: "ask", tools: ["shell"] }));
+    agent.run("a_edits", "Bo", JSON.stringify({ autonomy: "edits" }));
+    agent.run("a_none", "Cy", null);
+  });
+  try {
+    const rows = db.prepare("SELECT id, autonomy FROM projects ORDER BY id").all() as {
+      id: string;
+      autonomy: string | null;
+    }[];
+    assert.deepEqual(Object.fromEntries(rows.map((r) => [r.id, r.autonomy])), {
+      p_ask: "manual",
+      p_edits: "auto",
+      p_none: null,
+      p_std: "auto",
+      p_total: "total",
+    });
+    const base = JSON.parse(
+      String(db.prepare("SELECT value FROM meta WHERE key = 'setting:base_project'").get()?.value),
+    );
+    assert.deepEqual(base, { name: "Home", autonomy: "manual" });
+    const extra = (id: string) =>
+      (db.prepare("SELECT extra FROM agents WHERE id = ?").get(id) as { extra: string | null }).extra;
+    assert.deepEqual(JSON.parse(extra("a_ask") ?? ""), { autonomy: "manual", tools: ["shell"] });
+    assert.deepEqual(JSON.parse(extra("a_edits") ?? ""), { autonomy: "auto" });
+    assert.equal(extra("a_none"), null);
+  } finally {
+    db.close();
+    cleanup();
+  }
+});

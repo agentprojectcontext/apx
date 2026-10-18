@@ -8,6 +8,18 @@ import type { Log } from "../log.ts";
 import { listField, textField } from "./frontmatter.ts";
 import { type ApcAgent, isApcProject, readAgents, readProject } from "./read.ts";
 
+/**
+ * An agent file's `autonomy:`, with the names files written before the five modes used (DECISIONS.md#d-106): a file in
+ * someone's repository is not APX's to rewrite, and reading `ask` as the default would let that agent act unasked.
+ */
+const FILE_MODES: Record<string, string> = {
+  ask: "manual",
+  standard: "auto",
+  edits: "auto",
+  "accept edits": "accept_edits",
+};
+const modeOfFile = (v: string | undefined) => (v === undefined ? v : (FILE_MODES[v.trim().toLowerCase()] ?? v));
+
 const DEBOUNCE_MS = 400;
 
 export const projectIdOf = (apcId: string) => `p_${apcId}`;
@@ -101,7 +113,7 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
             tools: a.tools,
             aliases: a.aliases,
             emoji: a.emoji,
-            autonomy: textField(a.fields.autonomy ?? a.fields.Autonomy),
+            autonomy: modeOfFile(textField(a.fields.autonomy ?? a.fields.Autonomy)),
             area: textField(a.fields.area ?? a.fields.Area),
             personality: textField(a.fields.personality ?? a.fields.Personality),
             orchestrator: textField(a.fields.orchestrator ?? a.fields.Orchestrator),

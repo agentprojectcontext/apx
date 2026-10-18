@@ -81,9 +81,10 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 9. **Every turn/job/tool call has a deadline and a persisted terminal state**; client deadline > server deadline.
    `[review]`
 10. **Untrusted content stays untrusted.** Web pages, channel messages, outside apps' agents and tool output are
-    data, never instructions; the owner's own agents speak for the owner ([D-071](rules/DECISIONS.md#d-071)). Model output never becomes unchecked authority for side effects: high-impact tools
-    (send, pay, shell, write outside the project) need confirmation while untrusted content is in context, unless the
-    owner explicitly selected total autonomy. Tools marked `always` require confirmation in every other autonomy, until the
+    data, never instructions; the owner's own agents speak for the owner ([D-071](rules/DECISIONS.md#d-071)). Model output never becomes unchecked authority for side effects: strong actions
+    (send or post as the owner, pay, write outside the project) need confirmation while untrusted content is in context,
+    unless the owner explicitly selected total; the agent's own reads, edits and commands where it works do not
+    ([D-106](rules/DECISIONS.md#d-106)). Tools marked `always` require confirmation in every mode but total, until the
     owner approves them for that chat or that agent ([D-089](rules/DECISIONS.md#d-089)); total asks for nothing
     ([D-047](rules/DECISIONS.md#d-047)). The embedded browser never types passwords or payment data —
     it hands off to the human. `[review]`

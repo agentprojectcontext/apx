@@ -31,6 +31,8 @@ before(async () => {
   fs.writeFileSync(path.join(repo, "readme.md"), "app\n");
   project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   await env.client.call("agents.create", { slug: "fausto", name: "Fausto" });
+  // Asking before a read outside is manual mode's; auto reads anywhere but APX's home (DECISIONS.md#d-106).
+  await env.client.call("agents.update", { agent: "fausto", autonomy: "manual" });
 });
 after(async () => {
   await env.core.close();
@@ -75,7 +77,7 @@ async function run(
 
 const ls = { name: "shell", args: { command: "pwd; ls ../docs" } };
 
-test("a read outside the project's folder asks the owner with a folder card instead of being refused", async () => {
+test("manual: a read outside the project's folder asks the owner with a folder card instead of being refused", async () => {
   const { input } = await run(ls, { decision: "deny" });
   assert.ok(input, "a card");
   const docs = path.join(northwind, "docs");
@@ -119,7 +121,7 @@ test("total autonomy reads outside without a card and adds nothing", async () =>
     assert.match(said, /exit 0[\s\S]*plan\.md/);
     assert.equal(folders(), undefined);
   } finally {
-    await env.client.call("agents.update", { agent: "fausto", autonomy: "standard" });
+    await env.client.call("agents.update", { agent: "fausto", autonomy: "manual" });
   }
 });
 
@@ -146,7 +148,7 @@ test("total autonomy reads and changes any folder, in a chat with no project too
     assert.match(ro.said, /refused: .*read-only folder/);
   } finally {
     await env.client.call("projects.update", { project, read_only_folders: [] });
-    await env.client.call("agents.update", { agent: "fausto", autonomy: "standard" });
+    await env.client.call("agents.update", { agent: "fausto", autonomy: "manual" });
   }
 });
 
@@ -184,6 +186,70 @@ test("the folder holding the project is lent for one call, never kept: it would 
   assert.deepEqual(input?.folders, [northwind]);
   assert.deepEqual(input?.approval_scopes, ["once"]);
   assert.equal(folders(), undefined);
+});
+
+test("auto reads another project's file and runs a reading command there with no card", async () => {
+  await env.client.call("agents.update", { agent: "fausto", autonomy: "auto" });
+  const other = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acme-")));
+  fs.writeFileSync(path.join(other, "brief.md"), "acme brief\n");
+  try {
+    for (const inProject of [true, false]) {
+      const read = await run({ name: "file_read", args: { path: path.join(other, "brief.md") } }, { inProject });
+      assert.equal(read.input, undefined, `in a project: ${inProject}`);
+      assert.match(read.said, /acme brief/);
+      const ls = await run({ name: "shell", args: { command: "ls", cwd: other } }, { inProject });
+      assert.equal(ls.input, undefined);
+      assert.match(ls.said, /exit 0[\s\S]*brief\.md/);
+    }
+    // APX's own folder stays closed, and nothing was kept as a read-only folder.
+    const apx = await run({ name: "file_read", args: { path: path.join(env.home, "apx.db") } });
+    assert.match(apx.said, /APX's own folder/);
+    assert.equal(folders(), undefined);
+  } finally {
+    fs.rmSync(other, { recursive: true, force: true });
+    await env.client.call("agents.update", { agent: "fausto", autonomy: "manual" });
+  }
+});
+
+test("auto asks once before writing outside its project, and the card never keeps the folder", async () => {
+  await env.client.call("agents.update", { agent: "fausto", autonomy: "auto" });
+  const made = path.join(northwind, "docs", "made.md");
+  const write = { name: "file_write", args: { path: made, content: "outside\n" } };
+  try {
+    const no = await run(write, { decision: "deny" });
+    assert.deepEqual(no.input?.folders, [path.join(northwind, "docs")]);
+    assert.deepEqual(no.input?.approval_scopes, ["once"]);
+    assert.match(no.input?.prompt ?? "", /quiere cambiar archivos en .*fuera de su proyecto/);
+    assert.equal(fs.existsSync(made), false);
+    const yes = await run(write, { decision: "approve" });
+    assert.match(yes.said, /created/);
+    assert.equal(fs.readFileSync(made, "utf8"), "outside\n");
+    // A command writing there asks the same way; inside the project it runs with no card.
+    const cmd = await run({ name: "shell", args: { command: `echo hi > ${made}` } }, { decision: "deny" });
+    assert.deepEqual(cmd.input?.folders, [path.join(northwind, "docs")]);
+    const inside = await run({ name: "shell", args: { command: "touch made-inside" } });
+    assert.equal(inside.input, undefined);
+    assert.ok(fs.existsSync(path.join(repo, "made-inside")));
+    assert.equal(folders(), undefined);
+  } finally {
+    fs.rmSync(made, { force: true });
+    await env.client.call("agents.update", { agent: "fausto", autonomy: "manual" });
+  }
+});
+
+test("plan reads anywhere and changes nothing, with no card", async () => {
+  await env.client.call("agents.update", { agent: "fausto", autonomy: "plan" });
+  try {
+    const read = await run({ name: "file_read", args: { path: path.join(northwind, "docs", "plan.md") } });
+    assert.equal(read.input, undefined);
+    assert.match(read.said, /the plan/);
+    const write = await run({ name: "file_write", args: { path: "notes.md", content: "x" } });
+    assert.equal(write.input, undefined);
+    assert.match(write.said, /not run: .*plan mode.*proposal in your answer/);
+    assert.equal(fs.existsSync(path.join(repo, "notes.md")), false);
+  } finally {
+    await env.client.call("agents.update", { agent: "fausto", autonomy: "manual" });
+  }
 });
 
 test("a refusal never sends the agent to ask_owner for a folder", () => {

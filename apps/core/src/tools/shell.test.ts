@@ -224,25 +224,46 @@ test("a walk over a whole disk is refused before the owner is asked", async () =
   assert.equal((await env.client.call("runs.pending", { thread: t })).inputs.length, 0);
 });
 
-test("a command that changes something waits for the owner", async () => {
-  const t = await thread();
-  await env.client.call("threads.send", { thread: t, text: "touch please" });
-  let inputs: Awaited<ReturnType<typeof env.client.call<"runs.pending">>>["inputs"] = [];
-  for (let i = 0; i < 100 && !inputs.length; i++) {
-    inputs = (await env.client.call("runs.pending", { thread: t })).inputs;
-    await new Promise((r) => setTimeout(r, 20));
+test("manual: a command that changes something waits for the owner", async () => {
+  await env.client.call("agents.update", { agent: "roby", autonomy: "manual" });
+  try {
+    const t = await thread();
+    await env.client.call("threads.send", { thread: t, text: "touch please" });
+    let inputs: Awaited<ReturnType<typeof env.client.call<"runs.pending">>>["inputs"] = [];
+    for (let i = 0; i < 100 && !inputs.length; i++) {
+      inputs = (await env.client.call("runs.pending", { thread: t })).inputs;
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    assert.equal(inputs[0]?.tool, "shell");
+    await env.client.call("runs.respond", { input: inputs[0]?.id ?? "", decision: "deny" });
+    await env.settle(t);
+    assert.match(lastSeen(), /not run: the owner declined/);
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null });
   }
-  assert.equal(inputs[0]?.tool, "shell");
-  await env.client.call("runs.respond", { input: inputs[0]?.id ?? "", decision: "deny" });
-  await env.settle(t);
-  assert.match(lastSeen(), /not run: the owner declined/);
 });
 
-test("a cwd outside the project folder is refused", async () => {
+test("auto: a command that changes something where the agent works runs without a card", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "touch please" });
+  await env.settle(t);
+  assert.deepEqual((await env.client.call("runs.pending", { thread: t })).inputs, []);
+  assert.match(lastSeen(), /exit 0/);
+});
+
+test("auto reads in a cwd outside its folders; manual, in a chat with no project, is refused with what to do", async () => {
   const t = await thread();
   await env.client.call("threads.send", { thread: t, text: "escape please" });
   await env.settle(t);
-  assert.match(lastSeen(), /refused: \.\.\/\.\. is outside the folders you can read/);
+  assert.match(lastSeen(), /exit 0/);
+  await env.client.call("agents.update", { agent: "roby", autonomy: "manual" });
+  try {
+    await env.client.call("threads.send", { thread: t, text: "escape please" });
+    await env.settle(t);
+    assert.match(lastSeen(), /refused: \.\.\/\.\. is outside the folders you can read: .*Tell the owner/);
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+  }
 });
 
 test("a cwd that no longer exists is said plainly, not as a refusal", async () => {

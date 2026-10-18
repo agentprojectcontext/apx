@@ -395,7 +395,7 @@ test("an agent that asks the owner for a tool cannot hand it to another one", as
   const e = await setup();
   try {
     await e.client.call("agents.create", { slug: "reader", name: "Reader" });
-    await e.client.call("agents.update", { agent: "roby", autonomy: "ask" });
+    await e.client.call("agents.update", { agent: "roby", autonomy: "manual" });
     const roby = await chat(e);
     await e.client.call("threads.send", { thread: roby.id, text: "grant" });
     // On autonomy ask the owner confirms the grant itself.

@@ -112,7 +112,7 @@ Usage:
                            Projects are folders with AGENTS.md / .apc/; their agents come from those files
   apx projects create "<Name>" [--path <folder>] [--kind personal|app|company|software|other] [--desc "…"]
                            A new project: in that folder (made if missing), else in a folder of its own in APX's home
-  apx projects set <project> [--name "…"] [--kind …] [--desc "…"] [--autonomy ask|standard|edits|total]
+  apx projects set <project> [--name "…"] [--kind …] [--desc "…"] [--autonomy manual|auto|accept_edits|plan|total]
                            Rename it, change its kind or description, or how far its agents go without asking
   apx projects folders list|add|rm <project> [folder]
                            Folders its agents may read and never change (another checkout, docs)

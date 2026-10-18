@@ -104,9 +104,9 @@ export const scratchRoot = (home: string) =>
   path.join(os.tmpdir(), `apx-scratch-${createHash("sha256").update(home).digest("hex").slice(0, 8)}`);
 
 /**
- * A folder an agent may use (`off`: one it may not, inside one it may; `lent`: the owner let it read there for one
- * call; `anywhere`: every path the roots before it leave but APX's home, for an agent that acts outside on its own).
- * The first is where relative paths start.
+ * A folder an agent may use (`off`: one it may not, inside one it may; `lent`: the owner let it use it for one call;
+ * `anywhere`: every path the roots before it leave but APX's home, readable, and writable for an agent that acts
+ * outside on its own). The first is where relative paths start.
  */
 export type Root = {
   dir: string;
@@ -118,11 +118,16 @@ export type Root = {
 };
 
 /**
- * A thread as the folder rule sees it; `lent`: folders outside its own the owner let this one call read; `anywhere`:
- * its agent may read and change any folder but APX's home (DECISIONS.md#d-102).
+ * A thread as the folder rule sees it; `lent`: folders outside its own the owner let this one call read, or change
+ * with `lentWrite`; `reach`: its agent may read (`read`) or also change (`all`) any folder but APX's home
+ * (DECISIONS.md#d-102, #d-106).
  */
 export type FolderThread = Parameters<typeof workDir>[2] &
-  Parameters<typeof scratchDir>[2] & { lent?: readonly string[] | undefined; anywhere?: boolean | undefined };
+  Parameters<typeof scratchDir>[2] & {
+    lent?: readonly string[] | undefined;
+    lentWrite?: boolean | undefined;
+    reach?: "read" | "all" | undefined;
+  };
 type Thread = FolderThread;
 
 /** The folders the owner added to a thread's project for its agents to read and never change. */
@@ -160,9 +165,11 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
     ...readOnlyFolders(store, thread).map((dir) => ({ dir, write: false, scratch: false })),
     ...sharedRoots(home),
     // Last, so other chats' temp folders stay closed even inside a folder lent for one call.
-    ...(thread.lent ?? []).map((dir) => ({ dir, write: false, scratch: false, lent: true })),
+    ...(thread.lent ?? []).map((dir) => ({ dir, write: thread.lentWrite === true, scratch: false, lent: true })),
     // Last of all: the project's read-only folders and other chats' temp folders keep their own rule.
-    ...(thread.anywhere ? [{ dir: path.parse(home).root, write: true, scratch: false, anywhere: { home } }] : []),
+    ...(thread.reach
+      ? [{ dir: path.parse(home).root, write: thread.reach === "all", scratch: false, anywhere: { home } }]
+      : []),
   ];
 }
 
@@ -212,13 +219,16 @@ export type Access =
 /** Every refusal says what to do next, the same from every tool: it lands in context each time, so it stays short. */
 export const refusal = {
   outside: (p: string) =>
-    `${p} is outside the folders you can read: the folder you work in, your temp folder and the project's read-only folders.`,
+    `${p} is outside the folders you can read: the folder you work in, your temp folder and the project's read-only folders. Work with what is there, or tell the owner which folder you need and why.`,
   unwritable: (p: string) =>
-    `${p} is outside the folders you can change: write in the folder you work in or your temp folder.`,
-  readOnly: (p: string) => `${p} is in a read-only folder: it can be read, never changed.`,
+    `${p} is outside the folders you can change: write in the folder you work in or your temp folder, and tell the owner where it went.`,
+  readOnly: (p: string) =>
+    `${p} is in a read-only folder: it can be read, never changed. Write in the folder you work in or your temp folder instead.`,
   /** Outside a project there is no read-only folder to add. */
-  alone: (p: string) => `${p} is outside the folders you can read: the folder you work in and your temp folder.`,
-  apx: (p: string) => `${p} is in APX's own folder, which no agent may use.`,
+  alone: (p: string) =>
+    `${p} is outside the folders you can read: the folder you work in and your temp folder. Tell the owner which folder you need: in Auto mode an agent reads any folder.`,
+  apx: (p: string) =>
+    `${p} is in APX's own folder, which no agent may use. Ask APX through its tools (list_agents, recall, search_chats) instead.`,
   unknown: (what: string) =>
     `cannot tell where ${what} writes, and this project has read-only folders: name the path plainly.`,
 };
@@ -275,7 +285,11 @@ export function judge(roots: Root[], file: string, from: string, o: JudgeOptions
     const offer = o.project && o.home && !root ? { offer: holding(lands) } : {};
     return { refused: refusal.outside(name), ...offer };
   }
-  if (o.write && !root.write) return { refused: refusal.readOnly(name) };
+  if (o.write && !root.write)
+    // Anywhere but its folders is readable only: the owner is offered the folder holding the path for this call.
+    return root.anywhere
+      ? { refused: refusal.unwritable(name), offer: holding(lands) }
+      : { refused: refusal.readOnly(name) };
   return { at, base: root.anywhere ? path.parse(lands).root : root.dir, scratch: root.scratch, write: root.write };
 }
 

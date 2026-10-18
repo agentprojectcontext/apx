@@ -85,8 +85,8 @@ export function boardText(tasks: Task[], where: (t: Task) => string | undefined,
 
 /**
  * Writing on the board is the owner's own record and runs even with outside content in the turn. Handing work to a
- * teammate (an assignee, an @mention) does too, like `delegate`: the turn it starts works under that agent's own
- * autonomy and the strictest one asking for it (DECISIONS.md#d-073).
+ * teammate (an assignee, an @mention) does too, like `delegate`: the turn it starts works in the mode of whoever
+ * asked for it (DECISIONS.md#d-073, #d-106).
  */
 const handsOff = "never" as const;
 

@@ -51,7 +51,8 @@ async function carefulAgent(client: ApxClient): Promise<string> {
   await client.call("projects.register", { path: root });
   const { agents } = await client.call("agents.list", {});
   const a = agents.find((x) => x.name === "Careful");
-  assert.equal(a?.autonomy, "ask");
+  // A file written before the five modes keeps asking (DECISIONS.md#d-106).
+  assert.equal(a?.autonomy, "manual");
   return a.id;
 }
 

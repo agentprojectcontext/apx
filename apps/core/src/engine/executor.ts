@@ -16,7 +16,7 @@ import type { TurnIO } from "../harness/index.ts";
 import { insideReal } from "../paths.ts";
 import type { Root } from "../tools/folders.ts";
 import { MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
-import { authorize, decide, outsideRule } from "../tools/policy.ts";
+import { authorize, decide, reachOf } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk, judgeCommand } from "../tools/shell.ts";
 import type { CheckContext, Confirm, Tool, ToolContext } from "../tools/types.ts";
@@ -193,9 +193,9 @@ export function createExecutor(o: {
   };
 
   /**
-   * The thread a call runs with: every folder when its rules let it act outside, else the folders outside its own it
-   * would read lent to it for this call, once the owner lets it (a card: once, or for good as the project's read-only
-   * folders).
+   * The thread a call runs with, by how far its agent reaches (DECISIONS.md#d-106): every folder, every folder to read,
+   * or its own; and the folders outside those the call needs lent to it for this call once the owner lets it (a card:
+   * once, or for good as the project's read-only folders when it only reads).
    */
   const lend = async (
     tool: Tool,
@@ -205,28 +205,31 @@ export function createExecutor(o: {
     callId: string,
     run: RunRecord,
   ): Promise<{ thread: Thread } | { card: string; text: string }> => {
-    const rule = outsideRule(agent);
-    // Acting outside on its own (total autonomy): any folder but APX's home, in a project or not (DECISIONS.md#d-102).
-    if (rule === "auto") {
-      const open: Thread & { anywhere: true } = { ...thread, anywhere: true };
-      return { thread: open };
-    }
-    const folders = thread.project_id ? (tool.outside?.(args, { agent, thread }) ?? []) : [];
-    // `off`: the tool's own check refuses it, as before.
-    if (!folders.length || rule === "off") return { thread };
-    const lent: Thread & { lent: string[] } = { ...thread, lent: folders };
-    if (o.inputs.takeGrant(thread.id, agent.id, name, raw, folderBinding(folders))) return { thread: lent };
+    const reach = reachOf(agent);
+    if (reach === "all") return { thread: { ...thread, reach: "all" } as Thread };
+    if (reach === "fenced") return { thread };
+    // Reading anywhere, what a call may still need lent is a folder to change; asking to read, only in a project.
+    const write = reach === "read";
+    const base = (write ? { ...thread, reach: "read" } : thread) as Thread;
+    const folders =
+      write || thread.project_id
+        ? (tool.outside?.(args, { agent, thread: { ...base, lentWrite: write } as Thread }) ?? [])
+        : [];
+    if (!folders.length) return { thread: base };
+    const lent = { ...base, lent: folders, ...(write ? { lentWrite: true } : {}) } as Thread;
+    if (o.inputs.takeGrant(thread.id, agent.id, name, raw, folderBinding(folders, write))) return { thread: lent };
     const answer = await o.inputs.ask({
       run,
       agent,
       display,
       callId,
       kind: "confirm",
-      prompt: folderPrompt(store, agent.name, folders),
+      prompt: folderPrompt(store, agent.name, folders, write),
       tool: name,
       args: raw,
       detail: describe(args),
       folders,
+      write,
       external: o.external(),
       stays: true,
       signal,
@@ -267,7 +270,15 @@ export function createExecutor(o: {
       return { ok: false, text: parsed.error };
     }
     const args = parsed.args;
-    // A read outside the agent's folders asks the owner to let it, instead of being refused (DECISIONS.md#d-099).
+    const decision = authorize(tool, args, agent, untrusted);
+    if (decision.kind === "deny") {
+      card("error", "turned off");
+      return {
+        ok: false,
+        text: `not run: ${decision.reason}. Do not retry it; tell the owner or continue without it.`,
+      };
+    }
+    // A path outside the agent's folders asks the owner to let it, instead of being refused (DECISIONS.md#d-099).
     const lent = await lend(tool, name, args, raw, callId, run);
     if ("card" in lent) {
       card("error", lent.card);
@@ -290,14 +301,6 @@ export function createExecutor(o: {
           ? "this command is not a plain read (see [workspace] in the turn's context for what runs)"
           : "only actions that read may run here";
       return { ok: false, text: `refused: this code thread is read-only; ${why}` };
-    }
-    const decision = authorize(tool, args, agent, untrusted);
-    if (decision.kind === "deny") {
-      card("error", "turned off");
-      return {
-        ok: false,
-        text: `not run: ${decision.reason}. Do not retry it; tell the owner or continue without it.`,
-      };
     }
     // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089).
     const target = level === "always" && tool.approval ? strictApproval(tool.approval) : tool.approval;

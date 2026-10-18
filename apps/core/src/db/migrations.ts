@@ -745,4 +745,18 @@ export const MIGRATIONS: readonly string[] = [
   -- {dirs, keep}, keep when they may become read-only folders of the project.
   ALTER TABLE pending_inputs ADD COLUMN folders TEXT;
   `,
+  `
+  -- The five permission modes (DECISIONS.md#d-106): ask is manual; standard and accepting edits, which auto now
+  -- covers, are auto. Projects, the base project and APX's own agents keep the mode they had in the new names.
+  UPDATE projects SET autonomy = CASE autonomy WHEN 'ask' THEN 'manual' WHEN 'standard' THEN 'auto' WHEN 'edits' THEN 'auto' END
+    WHERE autonomy IN ('ask', 'standard', 'edits');
+  UPDATE meta SET value = json_set(value, '$.autonomy',
+      CASE json_extract(value, '$.autonomy') WHEN 'ask' THEN 'manual' ELSE 'auto' END)
+    WHERE key = 'setting:base_project' AND json_valid(value)
+      AND json_extract(value, '$.autonomy') IN ('ask', 'standard', 'edits');
+  UPDATE agents SET extra = json_set(extra, '$.autonomy',
+      CASE lower(json_extract(extra, '$.autonomy')) WHEN 'ask' THEN 'manual' ELSE 'auto' END)
+    WHERE extra IS NOT NULL AND json_valid(extra)
+      AND lower(json_extract(extra, '$.autonomy')) IN ('ask', 'standard', 'edits');
+  `,
 ];

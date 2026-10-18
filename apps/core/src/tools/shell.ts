@@ -94,7 +94,8 @@ export function judgeCommand(
   cwd: string,
   o: Omit<JudgeOptions, "write" | "name"> & { userHome?: string } = {},
 ): { refused: string } | undefined {
-  const locked = roots.some((r) => !r.write && !r.off);
+  // Reading anywhere is not a folder to protect: only a read-only folder the owner named (or one lent) is.
+  const locked = roots.some((r) => !r.write && !r.off && !r.anywhere);
   const unknown = (what: string) => (locked ? { refused: refusal.unknown(what) } : undefined);
   let from: string | undefined = cwd;
   let old: string | undefined;

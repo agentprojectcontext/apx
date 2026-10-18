@@ -1,5 +1,5 @@
 // apx threads / runs / agents / secrets: reading and steering what the core holds.
-import { ApprovalScope, type Author, Autonomy, type Message, ProjectKind } from "@apx/protocol";
+import { ApprovalScope, type Author, Autonomy, DEFAULT_AUTONOMY, type Message, ProjectKind } from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
 /** Who wrote a message, in one word: the agent's id, or the author's kind. */
@@ -192,7 +192,7 @@ export async function projects(client: ApxClient, [sub, arg, ...more]: string[],
       ...(autonomy ? { autonomy } : {}),
     });
     console.log(
-      `${r.project.name} (${r.project.id})${r.project.kind ? ` · ${r.project.kind}` : ""} · autonomy ${r.project.autonomy ?? "standard"}`,
+      `${r.project.name} (${r.project.id})${r.project.kind ? ` · ${r.project.kind}` : ""} · mode ${r.project.autonomy ?? DEFAULT_AUTONOMY}`,
     );
     return;
   }

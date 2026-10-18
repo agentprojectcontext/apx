@@ -64,6 +64,11 @@ const PLANS: Record<string, Plan[]> = {
     () => ({ name: "task_create", args: { title: "Check the page", assignee: agents.Free ?? "" } }),
     (last) => ({ name: "task_comment", args: { task: /created (\S+) in/.exec(last)?.[1] ?? "", text: "@free look" } }),
   ],
+  "ask careful": [() => ({ name: "delegate", args: { agent: "Careful", task: "check it, then stamp it" } })],
+  "check it, then stamp it": [
+    () => ({ name: "shell", args: { command: "ls -la" } }),
+    () => ({ name: "shell", args: { command: "touch stamped.txt" } }),
+  ],
   "clean up": [() => ({ name: "read_page", args: {} }), () => ({ name: "shell", args: { command: "rm -rf scratch" } })],
 };
 
@@ -91,6 +96,8 @@ before(async () => {
     ["Steady", "standard"],
     ["Free", "total"],
     ["Builder", ""],
+    // Written before the five modes: `ask` is manual (DECISIONS.md#d-106).
+    ["Careful", "ask"],
   ] as const)
     fs.writeFileSync(
       path.join(root, ".apc", "agents", `${name.toLowerCase()}.md`),
@@ -119,15 +126,11 @@ const ran = (runId: string) =>
     .filter((s) => s.state === "ok")
     .map((s) => s.tool);
 
-test("standard: with a web page in the turn, low-impact tools run and writing a file waits for the owner", async () => {
+test("auto: with a web page in the turn, low-impact tools and writing a file in the project run unasked", async () => {
   const t = await chat("Steady");
   const sent = await env.client.call("threads.send", { thread: t.id, text: "busy day" });
-  let input: { id: string; tool?: string | undefined } | undefined;
-  for (let i = 0; i < 200 && !input; i++) {
-    input = (await env.client.call("runs.pending", { thread: t.id })).inputs[0];
-    if (!input) await new Promise((r) => setTimeout(r, 20));
-  }
-  assert.equal(input?.tool, "file_write");
+  const { messages } = await env.settle(t.id);
+  assert.deepEqual(asked(messages), []);
   assert.deepEqual(ran(sent.run.id), [
     "read_page",
     "remember",
@@ -136,18 +139,15 @@ test("standard: with a web page in the turn, low-impact tools run and writing a 
     "task_close",
     "send_file",
     "open_document",
+    "file_write",
   ]);
-  await env.client.call("runs.respond", { input: input?.id ?? "", decision: "approve" });
-  const { messages } = await env.settle(t.id);
-  assert.deepEqual(asked(messages), ["file_write"]);
-  assert.equal(ran(sent.run.id).at(-1), "file_write");
   assert.equal(fs.readFileSync(path.join(root, "notes.md"), "utf8"), "from the page\n");
   // The note saved with the page in the turn is kept as outside content.
   const { memories } = await env.client.call("memory.list", { query: "short answers" });
   assert.equal(memories[0]?.tainted, true);
 });
 
-test("standard: with a web page in the turn, a URL that carries values waits for the owner; a plain one does not", async () => {
+test("auto: with a web page in the turn, a URL that carries values waits for the owner; a plain one does not", async () => {
   const t = await chat("Steady");
   await env.client.call("threads.send", { thread: t.id, text: "send it out" });
   let input: { id: string; tool?: string | undefined } | undefined;
@@ -161,7 +161,7 @@ test("standard: with a web page in the turn, a URL that carries values waits for
   assert.match(JSON.stringify(messages), /collect\?d=/);
 });
 
-test("standard: a destructive command still waits for the owner", async () => {
+test("auto: a destructive command still waits for the owner", async () => {
   fs.mkdirSync(path.join(root, "scratch"), { recursive: true });
   const t = await chat("Steady");
   await env.client.call("threads.send", { thread: t.id, text: "clean up" });
@@ -213,10 +213,10 @@ test("standard: an agent cannot rewrite its own APC file without the owner, even
   fs.unlinkSync(path.join(root, "cfg"));
 });
 
-test("edits on the project: an agent with none of its own writes and builds with a page in the turn; rm -rf still asks", async () => {
+test("auto on the project: an agent with none of its own writes and builds with a page in the turn; rm -rf still asks", async () => {
   fs.mkdirSync(path.join(root, "scratch"), { recursive: true });
-  const set = await env.client.call("projects.update", { project, autonomy: "edits" });
-  assert.equal(set.project.autonomy, "edits");
+  const set = await env.client.call("projects.update", { project, autonomy: "auto" });
+  assert.equal(set.project.autonomy, "auto");
   assert.doesNotMatch(fs.readFileSync(path.join(root, ".apc", "project.json"), "utf8"), /autonomy/, "kept by APX");
   const t = await chat("Builder");
   const sent = await env.client.call("threads.send", { thread: t.id, text: "build it" });
@@ -234,9 +234,9 @@ test("edits on the project: an agent with none of its own writes and builds with
 
   // An agent's own autonomy comes first, and null gives it back to the project.
   const file = path.join(root, ".apc", "agents", "builder.md");
-  const own = await env.client.call("agents.update", { agent: agents.Builder ?? "", autonomy: "standard" });
-  assert.equal(own.autonomy, "standard");
-  assert.match(fs.readFileSync(file, "utf8"), /^autonomy: standard$/m);
+  const own = await env.client.call("agents.update", { agent: agents.Builder ?? "", autonomy: "manual" });
+  assert.equal(own.autonomy, "manual");
+  assert.match(fs.readFileSync(file, "utf8"), /^autonomy: manual$/m);
   const back = await env.client.call("agents.update", { agent: agents.Builder ?? "", autonomy: null });
   assert.equal(back.autonomy, undefined);
   assert.doesNotMatch(fs.readFileSync(file, "utf8"), /autonomy/);
@@ -249,4 +249,27 @@ test("standard: with a page in the turn, giving a teammate a task or @mentioning
   const { messages } = await env.settle(t.id);
   assert.deepEqual(asked(messages), []);
   assert.deepEqual(ran(sent.run.id), ["read_page", "task_create", "task_comment"]);
+});
+
+test("a helper asked by an agent on total works in its caller's mode: its commands run with no card", async () => {
+  const t = await chat("Free");
+  await env.client.call("threads.send", { thread: t.id, text: "ask careful" });
+  await env.settle(t.id, 8000);
+  const sub = env.core.store.threads.sessions(t.id)[0];
+  assert.ok(sub, "a session with Careful");
+  await env.settle(sub.id, 8000);
+  assert.deepEqual(asked(env.core.store.messages.list(sub.id)), []);
+  assert.ok(fs.existsSync(path.join(root, "stamped.txt")), "its command ran");
+  // On its own, in manual mode, the same command waits for the owner.
+  const own = await chat("Careful");
+  await env.client.call("threads.send", { thread: own.id, text: "check it, then stamp it" });
+  let input: { id: string; tool?: string | undefined } | undefined;
+  for (let i = 0; i < 200 && !input; i++) {
+    input = (await env.client.call("runs.pending", { thread: own.id })).inputs[0];
+    if (!input) await new Promise((r) => setTimeout(r, 20));
+  }
+  assert.equal(input?.tool, "shell");
+  await env.client.call("runs.respond", { input: input?.id ?? "", decision: "deny" });
+  await env.settle(own.id);
+  fs.rmSync(path.join(root, "stamped.txt"), { force: true });
 });

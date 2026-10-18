@@ -24,8 +24,12 @@ const en: typeof es = {
 export const confirmPrompt = (store: Store, why: ConfirmWhy, agent: string, tool: string) =>
   (store.settings.get("owner_language") === "en" ? en : es)[why](agent, tool);
 
-/** The question of a folder card: an agent wants to read folders outside its own. */
-export const folderPrompt = (store: Store, agent: string, folders: string[]) =>
-  store.settings.get("owner_language") === "en"
-    ? `${agent} wants to read ${folders.join(", ")}`
-    : `${agent} quiere leer ${folders.join(", ")}`;
+/** The question of a folder card: an agent wants to read folders outside its own, or (`write`) change files there. */
+export const folderPrompt = (store: Store, agent: string, folders: string[], write = false) => {
+  const where = folders.join(", ");
+  if (store.settings.get("owner_language") === "en")
+    return write
+      ? `${agent} wants to change files in ${where}, outside its project`
+      : `${agent} wants to read ${where}`;
+  return write ? `${agent} quiere cambiar archivos en ${where}, fuera de su proyecto` : `${agent} quiere leer ${where}`;
+};

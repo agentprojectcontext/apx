@@ -83,13 +83,14 @@ test("a delegated run gets only the tools every caller may use, and the strictes
   const tools = [tool("browser_open"), tool("show_widget"), tool("read_output")];
   const base = { role: "", kind: "agent", browser_profile: "shared", source: "local", prompt: "" } as const;
   const child: AgentRecord = { ...base, id: "c", name: "Child", autonomy: "total" };
-  const caller: AgentRecord = { ...base, id: "p", name: "Caller", tools: ["browser"], autonomy: "ask" };
+  const caller: AgentRecord = { ...base, id: "p", name: "Caller", tools: ["browser"], autonomy: "manual" };
   const r = inherit(child, [caller], tools);
   assert.deepEqual(
     r.tools.map((t) => t.name),
     ["browser_open", "read_output"],
   );
-  assert.equal(r.agent.autonomy, "ask");
+  // It works in its caller's mode (DECISIONS.md#d-106).
+  assert.equal(r.agent.autonomy, "manual");
 });
 
 test("the breaker stops unattended chains and an owner's message resets it", async () => {

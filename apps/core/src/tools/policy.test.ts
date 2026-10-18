@@ -77,81 +77,109 @@ test("tools: a list naming nothing APX knows does not strip the agent of every t
   );
 });
 
-test("autonomy: ask confirms every call that changes something; total confirms nothing, not even 'always'", () => {
+test("manual asks before every call that changes something; total confirms nothing, not even 'always'", () => {
   const open = tool("x", "external", "untrusted");
   const read = tool("y");
   const always = tool("z", "local", "always");
-  assert.equal(authorize(open, {}, agent({ autonomy: "ask" }), false).kind, "confirm");
-  assert.equal(authorize(read, {}, agent({ autonomy: "ask" }), true).kind, "allow");
+  assert.equal(authorize(open, {}, agent({ autonomy: "manual" }), false).kind, "confirm");
+  assert.equal(authorize(read, {}, agent({ autonomy: "manual" }), true).kind, "allow");
   assert.equal(authorize(open, {}, agent({ autonomy: "total" }), true).kind, "allow");
   assert.equal(authorize(always, {}, agent({ autonomy: "total" }), false).kind, "allow");
   assert.equal(authorize(always, {}, agent({ autonomy: "total" }), true).kind, "allow");
   assert.equal(authorize(always, {}, agent(), false).kind, "confirm");
 });
 
-test("ask-level calls wait unless the agent's autonomy is total", () => {
-  const cmd = tool("cmd", "external", "ask");
-  assert.equal(authorize(cmd, {}, agent(), false).kind, "confirm");
-  assert.equal(authorize(cmd, {}, agent({ autonomy: "total" }), false).kind, "allow");
-  assert.equal(authorize(cmd, {}, agent({ autonomy: "total" }), true).kind, "allow");
-  assert.equal(authorize(cmd, {}, agent(), true).kind, "confirm");
+const write = defineTool({ ...base("file_write", "local", "untrusted"), workspace: true });
+const command = defineTool({ ...base("shell", "external", "ask"), workspace: true });
+const destroy = defineTool({ ...base("shell", "external", "always"), workspace: true });
+const send = tool("message_contact", "message", "untrusted");
+const post = tool("post_it", "external", "ask");
+
+test("auto, the default: writes and commands where it works run, outside content or not; strong actions ask", () => {
+  for (const a of [agent(), agent({ autonomy: "auto" })]) {
+    assert.equal(authorize(write, {}, a, true).kind, "allow");
+    assert.equal(authorize(command, {}, a, true).kind, "allow");
+    assert.equal(authorize(command, {}, a, false).kind, "allow");
+    assert.equal(authorize(destroy, {}, a, false).kind, "confirm");
+    // Sending in the owner's name asks once outside content is in the turn, and a call that asks for itself asks.
+    assert.equal(authorize(send, {}, a, true).kind, "confirm");
+    assert.equal(authorize(send, {}, a, false).kind, "allow");
+    assert.equal(authorize(post, {}, a, false).kind, "confirm");
+  }
 });
 
-test("edits: writing and commands in its folder run with outside content in the turn; sends and 'always' still wait", () => {
-  const edits = agent({ autonomy: "edits" });
-  const write = defineTool({ ...base("file_write", "local", "untrusted"), workspace: true });
-  const command = defineTool({ ...base("shell", "local", "ask"), workspace: true });
-  const destroy = defineTool({ ...base("shell", "local", "always"), workspace: true });
-  const send = tool("message_contact", "message", "untrusted");
+test("accept edits: file edits where it works run; a command that changes something asks", () => {
+  const edits = agent({ autonomy: "accept_edits" });
   assert.equal(authorize(write, {}, edits, true).kind, "allow");
-  assert.equal(authorize(command, {}, edits, true).kind, "allow");
+  assert.equal(authorize(command, {}, edits, false).kind, "confirm");
   assert.equal(authorize(destroy, {}, edits, false).kind, "confirm");
   assert.equal(authorize(send, {}, edits, true).kind, "confirm");
-  // Standard still asks for both.
-  assert.equal(authorize(write, {}, agent(), true).kind, "confirm");
-  assert.equal(authorize(command, {}, agent(), false).kind, "confirm");
 });
 
-test("a delegated run takes the strictest autonomy up its chain, edits between standard and total", () => {
+test("plan: reads run, anything that changes something is refused with what to do instead", () => {
+  const plan = agent({ autonomy: "plan" });
+  assert.equal(authorize(tool("read_it"), {}, plan, true).kind, "allow");
+  for (const t of [write, command, send, post]) {
+    const d = authorize(t, {}, plan, false);
+    assert.equal(d.kind, "deny", t.name);
+    assert.match(d.kind === "deny" ? d.reason : "", /proposal in your answer/);
+  }
+  // It still asks the owner and hands reading work to a helper.
+  assert.equal(authorize(tool("ask_owner", "message"), {}, plan, false).kind, "allow");
+  assert.equal(authorize(tool("delegate", "message"), {}, plan, false).kind, "allow");
+});
+
+test("a delegated run works in its caller's mode, not the strictest of the chain", () => {
   const all = [tool("x")];
-  assert.equal(inherit(agent({ autonomy: "total" }), [agent({ autonomy: "edits" })], all).agent.autonomy, "edits");
-  assert.equal(inherit(agent({ autonomy: "edits" }), [agent()], all).agent.autonomy, "standard");
-  assert.equal(inherit(agent({ autonomy: "edits" }), [agent({ autonomy: "total" })], all).agent.autonomy, "edits");
+  const total = agent({ id: "top", autonomy: "total" });
+  assert.equal(inherit(agent({ id: "h" }), [total], all).agent.autonomy, "total");
+  assert.equal(
+    inherit(agent({ id: "h", autonomy: "total" }), [agent({ id: "c", autonomy: "manual" })], all).agent.autonomy,
+    "manual",
+  );
+  // Down a chain the top caller's mode reaches every helper (callers nearest first).
+  assert.equal(
+    inherit(agent({ id: "h" }), [agent({ id: "mid", autonomy: "manual" }), total], all).agent.autonomy,
+    "total",
+  );
+  // A helper set to manual runs a command its caller on total would not stop for.
+  const helper = inherit(agent({ id: "h", autonomy: "manual" }), [total], [command]).agent;
+  assert.equal(authorize(command, {}, helper, true).kind, "allow");
 });
 
-test("standard autonomy: high-impact calls wait only while untrusted content is in context", () => {
-  const send = tool("send", "message", "untrusted");
+test("auto: high-impact calls wait only while untrusted content is in context", () => {
   assert.equal(authorize(send, {}, agent(), false).kind, "allow");
   assert.equal(authorize(send, {}, agent(), true).kind, "confirm");
   assert.equal(authorize(tool("open", "external"), {}, agent(), true).kind, "allow");
 });
 
-test("rules: an agent's own rule for a risk wins over its autonomy, and off takes the tools away", () => {
-  const send = tool("send_it", "message");
-  const write = tool("write_it", "local", "ask");
+test("rules: an agent's own rule for a risk wins over its mode, and off takes the tools away", () => {
+  const sendIt = tool("send_it", "message");
+  const writeIt = tool("write_it", "local", "ask");
   const wipe = tool("wipe_it", "local", "always");
   const read = tool("read_it");
   const ruled = agent({ autonomy: "total", rules: { outside: "ask", irreversible: "off", write: "auto" } });
-  assert.equal(authorize(send, {}, ruled, false).kind, "confirm");
+  assert.equal(authorize(sendIt, {}, ruled, false).kind, "confirm");
   assert.equal(authorize(wipe, {}, ruled, false).kind, "deny");
-  assert.equal(authorize(write, {}, agent({ autonomy: "ask", rules: { write: "auto" } }), true).kind, "allow");
+  assert.equal(authorize(writeIt, {}, agent({ autonomy: "manual", rules: { write: "auto" } }), true).kind, "allow");
   assert.equal(authorize(read, {}, ruled, true).kind, "allow");
   assert.deepEqual(
-    allowedTools(ruled, [send, wipe, read, tool("ask_owner")]).map((t) => t.name),
+    allowedTools(ruled, [sendIt, wipe, read, tool("ask_owner")]).map((t) => t.name),
     ["send_it", "read_it", "ask_owner"],
   );
 });
 
-test("rules: a delegated run never gets looser rules than its own autonomy from its caller", () => {
-  const caller = agent({ id: "boss", rules: { outside: "auto" } });
-  const worker = agent({ id: "w", autonomy: "ask" });
-  const { agent: run } = inherit(worker, [caller], []);
+test("rules: a delegated helper keeps its own rules over its caller's mode, and an off above stays off", () => {
+  const caller = agent({ id: "boss", autonomy: "total", rules: { outside: "auto" } });
+  const { agent: run } = inherit(agent({ id: "w", rules: { outside: "ask" } }), [caller], []);
+  assert.equal(run.autonomy, "total");
   assert.equal(run.rules?.outside, "ask");
-  const strict = inherit(agent({ id: "w2", rules: { write: "auto" } }), [agent({ rules: { write: "off" } })], []);
+  assert.equal(inherit(agent({ id: "w2" }), [caller], []).agent.rules?.outside, "auto");
+  const strict = inherit(agent({ id: "w3", rules: { write: "auto" } }), [agent({ rules: { write: "off" } })], []);
   assert.equal(strict.agent.rules?.write, "off");
 });
 
-test("shell: a command that only reads here never waits, outside content in the turn or not, in any autonomy", () => {
+test("shell: a command that only reads here never waits, outside content in the turn or not, in any mode", () => {
   const shell = shellTools({} as never, "/nonexistent-apx-home", () => 7440).find((t) => t.name === "shell");
   assert.ok(shell);
   const run = (command: string, a: AgentRecord) => authorize(shell, { command }, a, true).kind;
@@ -164,12 +192,21 @@ test("shell: a command that only reads here never waits, outside content in the 
     "find apps/mobile/src -name '*.tsx' | sort",
     "pwd; git status --short; ls ..",
   ];
-  for (const autonomy of ["ask", "standard", "edits"] as const)
+  for (const autonomy of ["manual", "auto", "accept_edits", "plan"] as const)
     for (const c of reads) assert.equal(run(c, agent({ autonomy })), "allow", `${autonomy}: ${c}`);
   // The owner's own rule for reads still holds.
   assert.equal(run(reads[0] as string, agent({ rules: { read: "ask" } })), "confirm");
-  // Anything that reaches the network, writes or is unknown asks as before.
-  for (const c of ["curl -s https://example.com", "gh pr list", "git fetch origin", "rm notes.txt", "ls > listing.txt"])
-    assert.equal(run(c, agent()), "confirm", c);
-  assert.equal(run("git push origin main", agent({ autonomy: "edits" })), "confirm");
+  // Anything that reaches the network, writes or is unknown runs in auto and asks in manual and accepting edits.
+  for (const c of [
+    "curl -s https://example.com",
+    "gh pr list",
+    "git fetch origin",
+    "rm notes.txt",
+    "ls > listing.txt",
+  ]) {
+    assert.equal(run(c, agent()), "allow", c);
+    assert.equal(run(c, agent({ autonomy: "manual" })), "confirm", c);
+    assert.equal(run(c, agent({ autonomy: "accept_edits" })), "confirm", c);
+  }
+  assert.equal(run("git push origin main", agent()), "confirm");
 });

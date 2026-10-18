@@ -1,5 +1,5 @@
 // The one place that decides whether an agent's tool call runs, waits for the owner, or is refused.
-import { type AgentRules, AUTONOMY_RULES, type RulePolicy, ToolRisk } from "@apx/protocol";
+import { type AgentRules, type Autonomy, DEFAULT_AUTONOMY, type RulePolicy, ToolRisk } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { SUPER_AGENT_TOOLS } from "./agent-set.ts";
@@ -7,6 +7,9 @@ import type { Confirm, Effect, Tool } from "./types.ts";
 
 /** Why the owner is asked: always, outside content in the turn, the action's kind, or an agent that asks for all. */
 export type ConfirmWhy = "always" | "untrusted" | "needs_ok" | "asks_every" | "rule";
+
+/** The mode an agent works in: its own, else its project's (withProjectAutonomy), else the default. */
+export const modeOf = (agent: Pick<AgentRecord, "autonomy">): Autonomy => agent.autonomy ?? DEFAULT_AUTONOMY;
 export type Decision =
   | { kind: "allow" }
   | { kind: "confirm"; why: ConfirmWhy; reason: string }
@@ -98,18 +101,24 @@ const BRIDGE = new Set(["mcp_search", "mcp_call"]);
 
 /**
  * `untrusted` is whether text from outside (web pages, other agents, channel messages) is in the turn's context:
- * then a model may be acting on someone else's instructions, so high-impact calls wait for the owner.
+ * then a model may be acting on someone else's instructions, so strong actions wait for the owner.
  */
 export function authorize(tool: Tool, args: Record<string, unknown>, agent: AgentRecord, untrusted: boolean): Decision {
+  // Plan mode still asks the owner, loads skills and hands reading work to a helper (who works in plan mode too).
+  if (modeOf(agent) === "plan" && PLAN_KEEPS.has(tool.name) && agent.rules?.[toolRisk(tool)] !== "off")
+    return { kind: "allow" };
   // A call that only reads here is risk read whatever the tool may do otherwise (DECISIONS.md#d-098).
   return decide(tool.confirm(args), tool.reads?.(args) ? "none" : tool.effect, agent, untrusted, tool.workspace);
 }
 
+const PLAN_KEEPS = new Set([...ALWAYS, "delegate", "list_agents", "list_sessions"]);
+
 const OUTSIDE = "content from outside (web, another agent or a message) is in this turn";
 
 /**
- * The rule itself, for APX's tools and for what external agents ask to do with theirs. `workspace`: the call writes
- * files or runs a command in the folder the agent works in.
+ * The rule itself, for APX's tools and for what external agents ask to do with theirs (DECISIONS.md#d-106).
+ * `workspace`: the call writes files or runs a command in the folder the agent works in, where the folder rule
+ * already keeps it.
  */
 export function decide(
   level: Confirm,
@@ -118,41 +127,54 @@ export function decide(
   untrusted: boolean,
   workspace = false,
 ): Decision {
-  // The agent's own rule for this risk is the owner's explicit choice, over its autonomy (DECISIONS.md#d-090).
+  const mode = modeOf(agent);
+  if (mode === "plan" && effect !== "none")
+    return {
+      kind: "deny",
+      reason: `${agent.name} works in plan mode: it reads and proposes, and changes nothing. Write the change as a proposal in your answer; the owner switches the mode to apply it`,
+    };
+  // The agent's own rule for this risk is the owner's explicit choice, over its mode (DECISIONS.md#d-090).
   const risk = riskOf(level, effect);
   const rule = agent.rules?.[risk];
   if (rule === "off") return { kind: "deny", reason: `${agent.name}'s rules turn off this kind of action` };
   if (rule === "auto") return { kind: "allow" };
   if (rule === "ask")
     return { kind: "confirm", why: "rule", reason: `${agent.name}'s rules ask before this kind of action` };
-  const autonomy = agent.autonomy ?? "standard";
-  // Total autonomy is the owner's explicit choice: nothing waits for them, not even `always` (DECISIONS.md#d-047).
-  if (autonomy === "total") return { kind: "allow" };
+  // Total is the owner's explicit choice: nothing waits for them, not even `always` (DECISIONS.md#d-047).
+  if (mode === "total") return { kind: "allow" };
   if (level === "always") return { kind: "confirm", why: "always", reason: "this is a high-impact action" };
-  // Accepting edits: the agent's own work in its folder goes on, outside content or not (DECISIONS.md#d-072).
-  if (autonomy === "edits" && workspace) return { kind: "allow" };
-  if (level === "ask")
-    return untrusted
-      ? { kind: "confirm", why: "untrusted", reason: OUTSIDE }
-      : { kind: "confirm", why: "needs_ok", reason: `${agent.name} needs your OK for this kind of action` };
-  if (autonomy === "ask" && effect !== "none")
+  if (mode === "manual" && effect !== "none")
     return {
       kind: "confirm",
       why: "asks_every",
       reason: `${agent.name} asks before every action that changes something`,
     };
+  // Its own work where it works goes on, outside content or not: the folder rule keeps it there. Accepting edits, a
+  // command that changes something still asks.
+  if (workspace && (mode === "auto" || effect === "local")) return { kind: "allow" };
+  if (level === "ask")
+    return untrusted
+      ? { kind: "confirm", why: "untrusted", reason: OUTSIDE }
+      : { kind: "confirm", why: "needs_ok", reason: `${agent.name} needs your OK for this kind of action` };
+  // Outside content gates what acts in the owner's name or keeps something of theirs, not files and commands here.
   if (level === "untrusted" && untrusted) return { kind: "confirm", why: "untrusted", reason: OUTSIDE };
   return { kind: "allow" };
 }
 
 /**
- * How a read outside the agent's folders goes (DECISIONS.md#d-099): its rule for acting outside, else its autonomy's;
- * `auto` (total autonomy) reads without a card, `ask` shows one, `off` keeps the refusal.
+ * How far an agent's files reach outside the folders it works in (DECISIONS.md#d-106): `all` reads and writes any
+ * folder but APX's home (total, or its own rule to act outside on its own); `read` reads anywhere but APX's home and
+ * asks before writing outside; `card` asks before reading outside (manual, or its own rule to ask before acting
+ * outside); `fenced` keeps to its folders (its own rule turns acting outside off).
  */
-export const outsideRule = (agent: AgentRecord): RulePolicy =>
-  agent.rules?.outside ?? AUTONOMY_RULES[agent.autonomy ?? "standard"].outside;
-
-const STRICTNESS = { ask: 0, standard: 1, edits: 2, total: 3 } as const;
+export function reachOf(agent: AgentRecord): "all" | "read" | "card" | "fenced" {
+  const own = agent.rules?.outside;
+  const mode = modeOf(agent);
+  if (own === "auto" || (mode === "total" && !own)) return "all";
+  if (own === "off") return "fenced";
+  if (own === "ask" || mode === "manual") return "card";
+  return "read";
+}
 
 /** An agent with no autonomy of its own goes as far as its project says (the base project's, for a global one). */
 export function withProjectAutonomy(store: Store, agent: AgentRecord): AgentRecord {
@@ -164,8 +186,10 @@ export function withProjectAutonomy(store: Store, agent: AgentRecord): AgentReco
 }
 
 /**
- * A delegated run works with no more than whoever asked for it: only the tools every agent up the chain may use,
- * and the strictest autonomy among them.
+ * A delegated run works in its caller's mode, not its own (DECISIONS.md#d-106): the owner's agents act for the owner,
+ * so a helper asked by an agent on total does not stop for what its caller would not. Down the chain from the top,
+ * each keeps its own rules over the mode it gets, and a rule turning a risk off anywhere above stays off. Tools are
+ * the ones every agent up the chain may use.
  */
 export function inherit(
   agent: AgentRecord,
@@ -174,31 +198,29 @@ export function inherit(
 ): { agent: AgentRecord; tools: Tool[]; allows: (name: string) => boolean } {
   const filters = [agent, ...callers].map((a) => toolFilter(a, tools));
   const allows = (name: string) => filters.every((f) => f(name));
-  let autonomy = agent.autonomy ?? "standard";
-  for (const c of callers) {
-    const a = c.autonomy ?? "standard";
-    if (STRICTNESS[a] < STRICTNESS[autonomy]) autonomy = a;
+  // Callers come nearest first: the top of the chain sets the mode, each one below adds its own rules.
+  let autonomy = modeOf(agent);
+  let rules: AgentRules = { ...agent.rules };
+  const chain = [...callers].reverse();
+  if (chain.length) {
+    const top = chain[0] as AgentRecord;
+    autonomy = modeOf(top);
+    rules = { ...top.rules };
+    for (const a of [...chain.slice(1), agent]) rules = narrowed(rules, a.rules);
   }
-  const rules = strictestRules([agent, ...callers]);
   return {
-    agent: { ...agent, autonomy, ...(rules ? { rules } : {}) },
+    agent: { ...agent, autonomy, ...(Object.keys(rules).length ? { rules } : {}) },
     tools: tools.filter((t) => allows(t.name)),
     allows,
   };
 }
 
-const RULE_STRICTNESS: Record<RulePolicy, number> = { off: 0, ask: 1, auto: 2 };
-
-/**
- * Per risk that any of them set a rule for, the strictest they would each apply (a rule, else what their autonomy
- * amounts to): a caller's rule never loosens what the agent it delegates to would do on its own.
- */
-function strictestRules(agents: AgentRecord[]): AgentRules | undefined {
+/** The rules a caller passed down, under an agent's own: its own win, except over a risk the caller turned off. */
+function narrowed(above: AgentRules, own: AgentRules | undefined): AgentRules {
   const out: AgentRules = {};
   for (const risk of ToolRisk.options) {
-    if (!agents.some((a) => a.rules?.[risk])) continue;
-    const each = agents.map((a) => a.rules?.[risk] ?? AUTONOMY_RULES[a.autonomy ?? "standard"][risk]);
-    out[risk] = each.reduce((m, p) => (RULE_STRICTNESS[p] < RULE_STRICTNESS[m] ? p : m));
+    const p: RulePolicy | undefined = above[risk] === "off" ? "off" : (own?.[risk] ?? above[risk]);
+    if (p) out[risk] = p;
   }
-  return Object.keys(out).length ? out : undefined;
+  return out;
 }

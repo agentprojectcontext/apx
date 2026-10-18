@@ -173,7 +173,7 @@ test("after 60 actions in one turn the owner is asked whether to go on, and the 
     await settle(thread);
     assert.ok(calls.filter((c) => c === "computer.snapshot").length - before > 60, "and goes on once allowed");
   } finally {
-    await owner.call("agents.update", { agent: "roby", autonomy: "standard" });
+    await owner.call("agents.update", { agent: "roby", autonomy: "auto" });
   }
 });
 
@@ -196,6 +196,6 @@ test("the emergency stop ends the turn using the computer, that time only", asyn
     await settle(next);
     assert.equal(calls.length - again, 1);
   } finally {
-    await owner.call("agents.update", { agent: "roby", autonomy: "standard" });
+    await owner.call("agents.update", { agent: "roby", autonomy: "auto" });
   }
 });
