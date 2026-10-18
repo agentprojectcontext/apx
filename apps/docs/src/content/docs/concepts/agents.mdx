@@ -64,7 +64,7 @@ role: Product manager
 description: Owns the Acme Store roadmap and hands out the work.
 icon: orbita
 area: product
-autonomy: standard
+autonomy: auto
 personality: Warm and direct. Numbers first, then the plan.
 tools: agents, tasks, widgets, browser, memory
 skills: weekly-report
@@ -86,7 +86,7 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `emoji` | An optional emoji, kept with the agent (files written by other tools often have one). |
 | `parent` | The slug of the agent it reports to. Leave it out and the agent reports to Home. |
 | `area` | The area it belongs to, for the org chart (`product`, `engineering`…). |
-| `autonomy` | `ask`, `standard` (the default) or `total`. See [Autonomy and safety](/concepts/autonomy/). |
+| `autonomy` | Its permission mode: `manual`, `auto` (the default), `accept_edits`, `plan` or `total`. See [Autonomy and safety](/concepts/autonomy/). |
 | `personality` | How it sounds, apart from what it does. Up to 1,000 characters. |
 | `orchestrator` | `true` marks the agent that runs the team: it goes on top of the chart and gets the project's work first. `false` says it is not, whatever its role suggests; left out, the head is guessed by role (orchestrator, CEO, lead). |
 | `rules` | Its own rule per kind of action, over its autonomy: `read`, `write`, `outside` or `irreversible`, each `auto`, `ask` or `off` (`rules: write=auto, outside=ask`). A kind left out follows the autonomy. |
@@ -212,8 +212,8 @@ APX keeps delegation on a leash:
 | Time a delegated run may work | 10 minutes |
 | Turns agents start on their own without you | 30, or 1,500,000 fresh tokens (what a provider reads from its cache does not count), then the chain pauses until you write |
 
-A delegated run never has more power than whoever asked for it: it only gets the tools every agent up the chain may
-use, and the strictest autonomy among them.
+A delegated run works in the mode of whoever asked for it, keeping its own rules by case, and only gets the tools
+every agent up the chain may use.
 
 A delegation can work in one folder of a project, such as a git worktree: the caller names the project by a path
 inside it, and the helper's relative paths and commands start there, never outside the project (a link out of it is

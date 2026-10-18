@@ -65,7 +65,7 @@ role: Product manager
 description: Owns the Acme Store roadmap and hands out the work.
 icon: orbita
 area: product
-autonomy: standard
+autonomy: auto
 personality: Warm and direct. Numbers first, then the plan.
 tools: agents, tasks, widgets, browser, memory
 skills: weekly-report
@@ -91,7 +91,7 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `emoji` | Un emoji opcional que se guarda con el agente (los archivos de otras herramientas suelen traer uno). |
 | `parent` | El slug del agente al que reporta. Si no está, reporta a Home. |
 | `area` | El área a la que pertenece, para el organigrama (`product`, `engineering`…). |
-| `autonomy` | `ask`, `standard` (por defecto) o `total`. Mirá [Autonomía y seguridad](/es/concepts/autonomy/). |
+| `autonomy` | Su modo de permisos: `manual`, `auto` (por defecto), `accept_edits`, `plan` o `total`. Mirá [Autonomía y seguridad](/es/concepts/autonomy/). |
 | `personality` | Cómo suena, aparte de lo que hace. Hasta 1.000 caracteres. |
 | `orchestrator` | `true` marca al agente que dirige el equipo: va arriba del organigrama y recibe primero el trabajo del proyecto. `false` dice que no lo es, sugiera lo que sugiera su rol; sin el campo, se adivina por el rol (orquestador, CEO, lead). |
 | `rules` | Su propia regla por tipo de acción, por encima de su autonomía: `read`, `write`, `outside` o `irreversible`, cada una `auto`, `ask` u `off` (`rules: write=auto, outside=ask`). Un tipo que no aparece sigue a la autonomía. |
@@ -218,8 +218,8 @@ APX mantiene la delegación con correa:
 | Tiempo que puede trabajar una delegación | 10 minutos |
 | Turnos que los agentes arrancan solos sin vos | 30, o 1.500.000 tokens nuevos (lo leído de la caché no cuenta); después la cadena se pausa hasta que escribas |
 
-Una delegación nunca tiene más poder que quien la pidió: sólo recibe las herramientas que todos los agentes de la
-cadena pueden usar, y la autonomía más estricta entre ellos.
+Una delegación trabaja en el modo de quien la pidió, con sus propias reglas por caso, y sólo recibe las herramientas
+que todos los agentes de la cadena pueden usar.
 
 Una delegación puede trabajar en una carpeta de un proyecto, como un worktree de git: quien la pide nombra el proyecto
 con una ruta dentro de él, y las rutas relativas y los comandos del ayudante arrancan ahí, nunca fuera del proyecto (un
