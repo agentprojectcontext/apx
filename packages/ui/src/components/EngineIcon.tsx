@@ -7,7 +7,7 @@ import type { ProviderBrand } from "../provider-marks";
 
 export type EngineBrand = keyof typeof ENGINE_MARKS | AcpBrand | ProviderBrand;
 
-/** An ACP agent's engine id ("acp:qwen", "qwen-code") → its mark. */
+/** A coding agent's engine id ("acp:qwen", "qwen-code", "aider") → its mark. */
 const ACP_IDS: Record<string, AcpBrand> = {
   opencode: "opencode",
   "opencode-zen": "opencode",
@@ -32,6 +32,7 @@ const ACP_IDS: Record<string, AcpBrand> = {
   amp: "amp",
   kilo: "kilo",
   poolside: "poolside",
+  aider: "aider",
 };
 
 /** Model APIs by the words in their id or a model's name. */
@@ -47,7 +48,7 @@ const PROVIDER_WORDS: Array<[string, ProviderBrand]> = [
 
 /**
  * The brand behind an engine, provider or model id: `claude`, `claude-code` → claude; `anthropic` → anthropic;
- * `codex`, `chatgpt` (the plan, signed in as Codex) → codex; `gemini`, `google` → gemini; `openai`, `gpt-…` → openai;
+ * `codex`, `chatgpt` (the plan, signed in as Codex) → codex; `gemini`, `google` → gemini; `antigravity`, `agy` → antigravity; `openai`, `gpt-…` → openai;
  * `ollama`, `groq`, `openrouter`… → their own mark; an ACP agent (`acp:opencode`, `acp:qwen`…) or OpenCode Zen → its
  * mark. Anything else has no mark.
  */
@@ -59,6 +60,7 @@ export function engineBrand(id: string | undefined): EngineBrand | undefined {
   if (k.includes("claude")) return "claude";
   if (k.includes("codex") || k === "chatgpt") return "codex";
   if (k.includes("gemini") || k === "google") return "gemini";
+  if (k.includes("antigravity") || k === "agy") return "antigravity";
   const word = PROVIDER_WORDS.find(([w]) => k.includes(w));
   if (word) return word[1];
   if (k.includes("openai") || k.startsWith("gpt")) return "openai";
@@ -225,6 +227,37 @@ function Mark({ brand, tile, gid }: { brand: keyof typeof ENGINE_MARKS; tile: bo
         </>
       ) : (
         star
+      );
+    }
+    case "antigravity": {
+      const m = ENGINE_MARKS.antigravity;
+      // The arch masks the soft colour glows, as in the official mark; it reads on light and dark alike.
+      const arch = (
+        <>
+          <defs>
+            <mask id={`${gid}m`} maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+              <path d={m.d} fill="#fff" />
+            </mask>
+            {m.glows.map((g, i) => (
+              <filter key={g.d.slice(0, 24)} id={`${gid}b${i}`} x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation={g.blur} />
+              </filter>
+            ))}
+          </defs>
+          <g mask={`url(#${gid}m)`}>
+            {m.glows.map((g, i) => (
+              <path key={g.d.slice(0, 24)} d={g.d} fill={g.fill} filter={`url(#${gid}b${i})`} />
+            ))}
+          </g>
+        </>
+      );
+      return tile ? (
+        <>
+          <circle cx="12" cy="12" r="12" fill="#fff" />
+          <g transform="translate(4.2 4.2) scale(0.65)">{arch}</g>
+        </>
+      ) : (
+        arch
       );
     }
     default: {

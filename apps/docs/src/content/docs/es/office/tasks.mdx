@@ -80,6 +80,18 @@ principal recibe su informe en el chat donde creó la tarea y te cuenta lo que i
 cierra la suya, no se despierta a nadie. Ese turno cuenta para los [turnos que los agentes arrancan solos sin
 vos](/es/concepts/agents/): pasado el límite, el informe espera a que escribas en ese chat.
 
+### Pedir correcciones
+
+Reabrir por sí solo no arranca trabajo. Para rechazar una entrega y pedirle correcciones al mismo responsable, un
+agente usa `task_close` con `state: "open"`, `rework: true` y una `note` que explique qué corregir. Los clientes del
+protocolo usan los mismos campos en `tasks.close`.
+
+La tarea debe estar cerrada y asignada. El pedido conserva su identidad, columna, historial y chat de trabajo,
+registra el motivo y la nueva ejecución, y devuelve el resultado al coordinador original cuando el responsable
+vuelve a cerrarla. Si todavía hay trabajo activo o los límites de agentes están pausados, se rechaza el pedido sin
+cambiar la tarea: esperá a que termine el trabajo o pedile al dueño que permita continuar la cadena y volvé a
+intentarlo. Las actualizaciones comunes y las reaperturas administrativas nunca arrancan una corrección.
+
 ## Subtareas
 
 Una tarea puede nombrar una tarea madre, así "Lanzamiento de primavera" agrupa las fotos de Vera y la página de

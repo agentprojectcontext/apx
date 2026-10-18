@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { KeyboardAvoidingView, Pressable, type StyleProp, Text, TextInput, type TextStyle, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ago, dueWhen } from "../format";
-import type { Task, TaskUsage, Thread, Workspace } from "../hooks/useWorkspace";
+import { useTaskDetail } from "../hooks/useTaskDetail";
+import type { Task, Workspace } from "../hooks/useWorkspace";
 import { type Key, t } from "../i18n";
 import type { TaskEvent } from "../protocol";
-import type { TaskComment } from "../tasks/comments";
 import { columnName, KIND_KEY, PRIORITY_KEY, type TaskPatch, type TaskPriority, taskValues } from "../tasks/fields";
 import { type HistoryKey, historyLines } from "../tasks/history";
 import { CommentBox, Comments } from "../tasks/TaskComments";
@@ -78,29 +78,12 @@ export function TaskDetailPage({
   const type = useType();
   const theme = useTheme();
   const s = useStyles();
-  const [detail, setDetail] = useState<{
-    events: TaskEvent[];
-    comments: TaskComment[];
-    sessions: Thread[];
-    usage?: TaskUsage[];
-  }>();
   const [work, setWork] = useState(false);
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState<string>();
   const [menu, setMenu] = useState(false);
   const [tab, setTab] = useState<"comments" | "history">("comments");
-  const taskId = task?.id;
-  const activity = task?.activity_at;
-  const { detail: load } = actions;
-  const reload = useCallback(() => {
-    if (!taskId) return;
-    void load(taskId)
-      .then(setDetail)
-      .catch(() => setDetail((now) => now ?? { events: [], comments: [], sessions: [] }));
-  }, [load, taskId]);
-  // Read again whenever the task moves (a comment, a change from elsewhere).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: activity is the signal to reload, not an input.
-  useEffect(reload, [reload, activity]);
+  const { detail, reload } = useTaskDetail(task?.id, task?.activity_at, actions.detail);
   if (!task)
     return (
       <View style={s.page}>

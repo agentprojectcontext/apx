@@ -310,7 +310,12 @@ export function useWorkspace(creds: Creds) {
     let attempt = 0;
     const connect = async (): Promise<void> => {
       try {
-        socket = await client.connect();
+        const connected = await client.connect();
+        if (stopped) {
+          connected.close();
+          return;
+        }
+        socket = connected;
         attempt = 0;
         setOnline(true);
         socket.onEvent((frame) => {
@@ -356,6 +361,7 @@ export function useWorkspace(creds: Creds) {
         await socket.closed;
         if (!stopped) setOnline(false);
       } catch {
+        if (stopped) return;
         setOnline(false);
       }
       if (!stopped) {
@@ -391,11 +397,16 @@ export function useWorkspace(creds: Creds) {
   const readNotice = useCallback(
     async (notice: Notice) => {
       await rpc(client, "notifications.read", { ids: [notice.id] }).catch(() => undefined);
-      setData((d) => ({
-        ...d,
-        unread: Math.max(0, d.unread - (notice.read_at ? 0 : 1)),
-        notices: d.notices.map((n) => (n.id === notice.id ? { ...n, read_at: new Date().toISOString() } : n)),
-      }));
+      setData((d) => {
+        const current = d.notices.find((item) => item.id === notice.id) ?? notice;
+        return {
+          ...d,
+          unread: Math.max(0, d.unread - (current.read_at ? 0 : 1)),
+          notices: d.notices.map((n) =>
+            n.id === notice.id ? { ...n, read_at: n.read_at ?? new Date().toISOString() } : n,
+          ),
+        };
+      });
     },
     [client],
   );

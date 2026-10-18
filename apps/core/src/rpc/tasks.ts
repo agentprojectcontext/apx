@@ -24,7 +24,7 @@ import { ancestors } from "../engine/ancestry.ts";
 import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
 import { reportClose } from "../engine/task-report.ts";
-import { type Asker, addComment, askMentioned, startTaskWork } from "../engine/task-work.ts";
+import { type Asker, addComment, askMentioned, reworkTask, startTaskWork } from "../engine/task-work.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
@@ -191,8 +191,14 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
         startTaskWork(store, engine.admit, changed, changed.assignee, askerOf(ctx));
       return changed;
     },
-    "tasks.close": ({ task, state, note }, ctx) => {
-      visible(task, ctx);
+    "tasks.close": ({ task, state, note, rework }, ctx) => {
+      const cur = visible(task, ctx);
+      if (rework) {
+        if (state !== "open") throw badRequest("rework requires state:open");
+        refuseHandOn(ctx);
+        checkAssignee(store, cur.assignee, cur.project_id);
+        return reworkTask(store, engine.admit, cur, note, askerOf(ctx));
+      }
       const t = store.tasks.change(
         task,
         { state, ...(state !== "open" ? { awaits_owner: false } : {}) },

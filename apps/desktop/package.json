@@ -9,7 +9,7 @@
     "build": "node scripts/build.ts",
     "dev": "node scripts/build.ts && electron .",
     "typecheck": "tsc -p .",
-    "test": "node --test 'src/**/*.test.ts'"
+    "test": "node --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@apx/protocol": "workspace:*"

@@ -263,11 +263,12 @@ export function taskTools(store: Store): Tool[] {
     }),
     defineTool({
       name: "task_close",
-      description: "Close a task as done (or dropped, saying why), or open it again.",
+      description: "Close a task, or reopen it. Request corrections with state:open, rework:true and a note.",
       args: z.object({
         task: z.string().min(1).max(64),
         state: z.enum(["done", "dropped", "open"]),
         note: z.string().max(2000).optional(),
+        rework: z.boolean().optional(),
       }),
       effect: "local",
       check: (a, ctx) => void taskOf(a.task, ctx),

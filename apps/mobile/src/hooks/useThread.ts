@@ -21,21 +21,24 @@ import { APP_CLIENT } from "../appInfo";
 import { isNewChat } from "../chat/newChat";
 import { isWorking } from "./chatSelectors";
 
-function upsert(messages: Message[], message: Message): Message[] {
+function upsert(messages: Message[], message: Message, matchOptimistic = true): Message[] {
   const realText =
-    message.author.kind === "user" ? message.parts.find((part) => part.type === "text")?.text : undefined;
-  return [
-    ...messages.filter(
-      (item) =>
-        item.id !== message.id &&
-        !(
-          realText &&
-          item.id.startsWith("local_") &&
-          item.parts.some((part) => part.type === "text" && part.text === realText)
-        ),
-    ),
-    message,
-  ].sort((a, b) => a.seq - b.seq);
+    matchOptimistic &&
+    !message.id.startsWith("local_") &&
+    !messages.some((item) => item.id === message.id) &&
+    message.author.kind === "user"
+      ? message.parts.find((part) => part.type === "text")?.text
+      : undefined;
+  // A streamed acknowledgement replaces one pending send, never every send with the same words.
+  const optimistic = realText
+    ? messages.find(
+        (item) =>
+          item.id.startsWith("local_") && item.parts.some((part) => part.type === "text" && part.text === realText),
+      )
+    : undefined;
+  return [...messages.filter((item) => item.id !== message.id && item.id !== optimistic?.id), message].sort(
+    (a, b) => a.seq - b.seq,
+  );
 }
 
 /** Subscribe before loading, fold streamed messages, and reconnect after interruptions. */
@@ -66,8 +69,10 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
       try {
         const result = await client.call("threads.get", { thread: threadId });
         if (stopped || requestVersion !== loadVersion) return;
-        if (requestStateVersion === stateVersion) setState(result.thread.state);
-        setThread(result.thread);
+        if (requestStateVersion === stateVersion) {
+          setState(result.thread.state);
+          setThread(result.thread);
+        }
         setUsage(usageOf(result.runs));
         setMessages((current) => {
           let merged = [...result.messages, ...current.filter((message) => message.id.startsWith("local_"))];
@@ -76,7 +81,15 @@ function useThreadFeed(client: ApxClient, threadId: string, onUnpair: () => void
         });
         setError("");
       } catch (err) {
-        if (!stopped) setError(err instanceof Error ? err.message : String(err));
+        if (stopped) return;
+        if (err instanceof ApxError && err.code === "unauthorized") {
+          stopped = true;
+          socket?.close();
+          setOnline(false);
+          onUnpair();
+          return;
+        }
+        setError(err instanceof Error ? err.message : String(err));
       }
     };
     reload.current = load;
@@ -203,9 +216,10 @@ export function useThread(creds: Creds, threadId: string, onUnpair: () => void) 
           upsert(
             current.filter((message) => message.id !== local.id),
             result.message,
+            false,
           ),
         );
-        setState("submitted");
+        setState((current) => (isWorking(current) ? current : "submitted"));
         setError("");
       } catch (err) {
         setMessages((current) => current.filter((message) => message.id !== local.id));

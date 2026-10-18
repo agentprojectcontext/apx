@@ -116,6 +116,12 @@ notice when there is no text. Tools that touch core state call protocol methods 
   `agy` receives only the file-reading instruction in argv. A single external step represents the unmediated CLI,
   never per-tool control. The engine persists outcomes; the process has cancellation and an absolute ten-minute
   deadline. CLI discovery does not claim authentication, and GUI-only Antigravity is not runnable.
+- **Adding a harness** touches every place that names one, or it shows half-done: its id in `HarnessId`
+  (`packages/protocol/src/domain.ts`); its entry in the registry (`harness/index.ts`) with its status for the setup
+  screen; its kind and login copy in `apps/web/src/config/ExternalSection.tsx` (both languages in `i18n`); its
+  **official mark** in `packages/ui` (`acp-marks.ts` for a coding agent, `provider-marks.ts` for a model API, from the
+  maker's own site or registry, never redrawn) plus its id in `engineBrand`, or the panel shows the neutral bot; and
+  the engines page in `apps/docs` (English and Spanish).
 - **Memory and long threads** (D-013): notes live in `memories` (FTS5) and reach a turn in its `[memory]` block
   (`engine/recall.ts`); `.apc/memory.md` joins `AGENTS.md` in the system prompt. After each run `engine/upkeep.ts`
   titles new chats and, when the history gets long, summarizes older turns into a new epoch that

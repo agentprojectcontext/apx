@@ -11,18 +11,24 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   /** The browser in a window of its own (true) or back in the side panel (false). */
   popOutBrowser: (open: boolean) => ipcRenderer.send("browser:popout", open === true),
   browserPoppedOut: (): boolean => ipcRenderer.sendSync("browser:popout-state") === true,
-  onBrowserPopout: (listener: (open: boolean) => void) =>
-    ipcRenderer.on("browser:popout", (_e, open: unknown) => listener(open === true)),
+  onBrowserPopout: (listener: (open: boolean) => void) => {
+    const on = (_e: unknown, open: unknown) => listener(open === true);
+    ipcRenderer.on("browser:popout", on);
+    return () => ipcRenderer.removeListener("browser:popout", on);
+  },
   installedBrowsers: (): Promise<unknown> => ipcRenderer.invoke("browser:installed"),
   /** `browser` undefined = the system's default browser. */
   openExternal: (url: string, browser?: string): Promise<unknown> =>
     ipcRenderer.invoke("browser:open-external", String(url), typeof browser === "string" ? browser : undefined),
   openMain: (threadId?: string) =>
     ipcRenderer.send("quick:open-main", typeof threadId === "string" ? threadId : undefined),
-  onOpenThread: (listener: (threadId: string) => void) =>
-    ipcRenderer.on("nav:thread", (_e, id: unknown) => {
+  onOpenThread: (listener: (threadId: string) => void) => {
+    const on = (_e: unknown, id: unknown) => {
       if (typeof id === "string") listener(id);
-    }),
+    };
+    ipcRenderer.on("nav:thread", on);
+    return () => ipcRenderer.removeListener("nav:thread", on);
+  },
   applyDesktopPrefs: (prefs: { shortcut: string; launchAtLogin: boolean; computerUse?: boolean }) =>
     ipcRenderer.send("desktop:prefs", prefs),
   /** Computer use: what macOS allows APX, where the owner allows it, and the live view of what an agent works on. */

@@ -9,6 +9,7 @@ import { ownerIdentity } from "../domain/owner.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { type HeldTask, previewOf } from "../domain/threads.ts";
+import { badRequest, conflict } from "../errors.ts";
 import { taskWords } from "../tools/tasks.ts";
 import { agentTrip, heldNotice, trip } from "./breaker.ts";
 import { reportCard } from "./delegation.ts";
@@ -127,6 +128,29 @@ export function startTaskWork(
   const author: Author =
     asker.kind === "agent" ? { kind: "agent", id: asker.id } : ownWords ? { kind: "user" } : { kind: "system" };
   return ask(store, admit, task, agentId, text, asker, author);
+}
+
+/** Reopens a delivery and records the correction request and its run together, or leaves it unchanged. */
+export function reworkTask(store: Store, admit: AdmitFn, task: Task, note: string | undefined, asker: Asker): Task {
+  if (task.state === "open") throw conflict("rework requires a closed task");
+  if (!task.assignee) throw badRequest("rework requires an assignee");
+  const reason = note?.trim();
+  if (!reason) throw badRequest("rework requires a note explaining the corrections");
+  const sessions = store.threads.byTask(task.id);
+  const threads = [task.thread_id, ...sessions.flatMap((s) => store.threads.family(s.id))];
+  if (store.threads.busy(threads)) throw conflict("task work is still active: wait for it to finish before rework");
+  if (asker.kind === "agent" && (trip(store, asker.thread_id) || agentTrip(store, asker.thread_id, task.assignee)))
+    throw conflict("rework is paused by agent limits: ask the owner to let the chain continue first");
+  const agentId = task.assignee;
+  const by = asker.kind === "owner" ? "owner" : asker.id;
+  const author: Author = asker.kind === "owner" ? { kind: "user" } : { kind: "agent", id: asker.id };
+  return store.tx(() => {
+    const reopened = store.tasks.change(task.id, { state: "open", awaits_owner: false }, by, reason) as Task;
+    addComment(store, reopened, author, `Corrections requested:\n\n${reason}`, by);
+    const run = ask(store, admit, reopened, agentId, `Corrections requested:\n\n${reason}`, asker, author);
+    store.tasks.reworkStarted(task.id, by, run.id, run.thread_id);
+    return store.tasks.get(task.id) as Task;
+  });
 }
 
 /**

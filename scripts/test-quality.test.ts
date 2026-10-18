@@ -75,3 +75,13 @@ test("test lint reports exact source lines for actionable diagnostics", () => {
     { file: "sample.spec.ts", line: 3, reason: "disabled or exclusive test: skip" },
   ]);
 });
+
+test("Jest promise matchers must be awaited or returned, including chained resolves and rejects", () => {
+  for (const matcher of ["rejects.toThrow()", "resolves.toEqual(result)"]) {
+    assert.deepEqual(reasons(`test("racy", () => { expect(work()).${matcher}; });`), [
+      "async assertion must be awaited or returned",
+    ]);
+    assert.deepEqual(reasons(`test("awaited", async () => { await expect(work()).${matcher}; });`), []);
+    assert.deepEqual(reasons(`test("returned", () => expect(work()).${matcher});`), []);
+  }
+});

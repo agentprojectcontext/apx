@@ -56,7 +56,7 @@ declare global {
       /** Whether the browser is in its own window right now. */
       browserPoppedOut?(): boolean;
       /** The main window hears when the browser window opens or closes. */
-      onBrowserPopout?(listener: (open: boolean) => void): void;
+      onBrowserPopout?(listener: (open: boolean) => void): () => void;
       /** The browsers installed on this computer (Chrome, Safari, Firefox…). */
       installedBrowsers?(): Promise<Array<{ id: string; name: string }>>;
       /** Opens a web page in the system's default browser, or in an installed one by id. */
@@ -64,7 +64,7 @@ declare global {
       /** From the quick window: bring the main window up, on this chat. */
       openMain?(threadId?: string): void;
       /** The main window is told to open a chat (asked from the quick window). */
-      onOpenThread?(listener: (threadId: string) => void): void;
+      onOpenThread?(listener: (threadId: string) => void): () => void;
       /** Runs one of the app menu's items: Windows and Linux show no menu bar for them. */
       menuAction?(id: "about" | "update" | "change-connection"): void;
       /** Applies the desktop settings (shortcut, start at login, computer use) in the shell. */

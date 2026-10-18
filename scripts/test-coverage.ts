@@ -4,12 +4,19 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript-parser";
+import { missingSourceMaps, snapshotSourceMaps } from "./coverage-maps.ts";
 import { checkTests, repositoryFiles, testFiles } from "./test-quality.ts";
 
 type V8Function = { functionName: string; ranges: { startOffset: number; endOffset: number; count: number }[] };
 type V8Script = { url: string; functions: V8Function[] };
 export type FunctionCoverage = { name: string; line: number; covered: boolean };
 export type FileCoverage = { file: string; loaded: boolean; functions: FunctionCoverage[] };
+export type InstrumentedCoverage = {
+  path: string;
+  fnMap: Record<string, { decl: { start: { line: number; column: number } } }>;
+  f: Record<string, number>;
+  s: Record<string, number>;
+};
 type SourceFunction = FunctionCoverage & { start: number; end: number };
 export type CoverageSourceMap = { url: string; text: string; sources: string[]; mappings: string; sourceRoot?: string };
 type Mapping = {
@@ -115,6 +122,7 @@ export function coverageReport(
   files: { file: string; text: string }[],
   scripts: V8Script[],
   sourceMaps: CoverageSourceMap[] = [],
+  instrumented: InstrumentedCoverage[] = [],
 ): FileCoverage[] {
   const inventory = new Map(
     files.map(({ file, text }) => [
@@ -187,6 +195,19 @@ export function coverageReport(
       own(target, offset, range.count > 0);
     }
   }
+  // Expo's Babel instrumentation retains nested TSX callbacks that V8's transformed-file maps omit.
+  for (const entry of instrumented) {
+    const file = path.relative(root, entry.path).split(path.sep).join("/");
+    const source = inventory.get(file);
+    if (!source) continue;
+    source.loaded ||= Object.values(entry.s).some((count) => count > 0);
+    for (const [id, fn] of Object.entries(entry.fnMap)) {
+      if (!(entry.f[id] && entry.f[id] > 0)) continue;
+      const { line, column } = fn.decl.start;
+      const start = source.lines[line - 1];
+      if (start !== undefined) own(file, start + column, true);
+    }
+  }
   return [...inventory]
     .map(([file, source]) => ({
       file,
@@ -231,6 +252,42 @@ export function coverageMarkdown(report: FileCoverage[]): string {
   return `${lines.join("\n")}\n`;
 }
 
+async function runE2ESuites(root: string, raw: string, snapshot: (directory: string) => void): Promise<boolean> {
+  let failed = false;
+  const ports = await sandboxPorts();
+  const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+  const run = (command: string, args: string[]) => {
+    const result = spawnSync(command, args, {
+      cwd: root,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+      env: { ...process.env, ...ports, APX_TEST_COVERAGE: "1", APX_TEST_COVERAGE_DIR: raw, NODE_V8_COVERAGE: raw },
+      timeout: 15 * 60_000,
+    });
+    if (result.status !== 0) {
+      failed = true;
+      if (result.error) console.error(result.error.message);
+    }
+  };
+  run(pnpm, ["build:web"]);
+  snapshot(path.join(root, "apps/web/dist"));
+  snapshot(path.join(root, "packages/ui/dist"));
+  run(pnpm, ["exec", "playwright", "test", "--project", "chromium"]);
+  run(pnpm, ["--filter", "@apx/desktop", "build"]);
+  snapshot(path.join(root, "apps/desktop/dist"));
+  const desktop = ["exec", "playwright", "test", "--project", "desktop"];
+  if (process.platform === "linux" && !process.env.DISPLAY) {
+    // Xvfb supplies a display; a window manager supplies real focus and minimization transitions.
+    const launch =
+      'command -v openbox >/dev/null || { echo "Install openbox for desktop window tests" >&2; exit 1; }; openbox >/dev/null 2>&1 & exec "$@"';
+    run("xvfb-run", ["-a", "sh", "-c", launch, "apx-desktop", pnpm, ...desktop]);
+  } else if (process.platform === "darwin") {
+    // Native focus assertions need an awake display for the lifetime of the test process.
+    run("caffeinate", ["-d", "-i", pnpm, ...desktop]);
+  } else run(pnpm, desktop);
+  return failed;
+}
+
 async function main() {
   const root = path.resolve(import.meta.dirname, "..");
   const includeE2E = process.argv.includes("--e2e");
@@ -245,7 +302,10 @@ async function main() {
     return;
   }
   const allTests = testFiles(root).filter(
-    (file) => file.includes(".test.") && !file.startsWith(path.join(root, "e2e")),
+    (file) =>
+      file.includes(".test.") &&
+      !file.startsWith(path.join(root, "e2e")) &&
+      !file.startsWith(path.join(root, "apps/mobile/test")),
   );
   const groups = new Map<string, string[]>();
   for (const file of allTests) {
@@ -256,12 +316,19 @@ async function main() {
     groups.set(area, group);
   }
   let failed = false;
+  const sourceMaps = new Map<string, CoverageSourceMap>();
+  const snapshot = (directory: string) => {
+    if (!fs.existsSync(directory)) return;
+    for (const map of snapshotSourceMaps(directory)) sourceMaps.set(map.url, map);
+    fs.writeFileSync(path.join(output, "source-maps.json"), JSON.stringify([...sourceMaps.values()]));
+  };
   // UI tests consume the public build, including JSX and the design-system export boundary.
   const build = spawnSync(process.execPath, ["scripts/build.mjs"], {
     cwd: path.join(root, "packages/ui"),
     stdio: "inherit",
   });
   if (build.status !== 0) failed = true;
+  snapshot(path.join(root, "packages/ui/dist"));
   for (const [area, files] of groups) {
     console.log(`\nCoverage: ${area} (${files.length} files)`);
     const cwd = area === "scripts" ? root : path.join(root, area);
@@ -280,53 +347,48 @@ async function main() {
       if (run.error) console.error(run.error.message);
     }
   }
-  if (includeE2E) {
-    const ports = await sandboxPorts();
-    const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-    const run = (command: string, args: string[]) => {
-      const result = spawnSync(command, args, {
-        cwd: root,
-        stdio: "inherit",
-        shell: process.platform === "win32",
-        env: { ...process.env, ...ports, APX_TEST_COVERAGE: "1", APX_TEST_COVERAGE_DIR: raw, NODE_V8_COVERAGE: raw },
-        timeout: 15 * 60_000,
-      });
-      if (result.status !== 0) {
-        failed = true;
-        if (result.error) console.error(result.error.message);
-      }
-    };
-    run(pnpm, ["build:web"]);
-    run(pnpm, ["exec", "playwright", "test", "--project", "chromium"]);
-    run(pnpm, ["--filter", "@apx/desktop", "build"]);
-    const desktop = ["exec", "playwright", "test", "--project", "desktop"];
-    if (process.platform === "linux" && !process.env.DISPLAY) {
-      // Xvfb supplies a display; a window manager supplies real focus and minimization transitions.
-      const launch =
-        'command -v openbox >/dev/null || { echo "Install openbox for desktop window tests" >&2; exit 1; }; openbox >/dev/null 2>&1 & exec "$@"';
-      run("xvfb-run", ["-a", "sh", "-c", launch, "apx-desktop", pnpm, ...desktop]);
-    } else run(pnpm, desktop);
+  const nativeOutput = path.join(output, "mobile");
+  const mobile = spawnSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    ["run", "test:ui", "--", "--coverage", "--coverageDirectory", nativeOutput],
+    {
+      cwd: path.join(root, "apps/mobile"),
+      env: { ...process.env, NODE_V8_COVERAGE: undefined },
+      stdio: "inherit",
+      shell: process.platform === "win32",
+      timeout: 5 * 60_000,
+    },
+  );
+  if (mobile.status !== 0) {
+    failed = true;
+    if (mobile.error) console.error(mobile.error.message);
   }
+  if (includeE2E) failed = (await runE2ESuites(root, raw, snapshot)) || failed;
   const scripts: V8Script[] = [];
   for (const entry of fs.readdirSync(raw)) {
     if (!entry.endsWith(".json")) continue;
     const data = JSON.parse(fs.readFileSync(path.join(raw, entry), "utf8")) as { result: V8Script[] };
     scripts.push(...data.result);
   }
-  const sourceMaps: CoverageSourceMap[] = [];
-  for (const url of new Set(
-    scripts.map((s) => s.url).filter((url) => url.startsWith("file:") && url.includes("/dist/")),
-  )) {
-    const file = fileURLToPath(url);
-    if (!fs.existsSync(`${file}.map`)) continue;
-    const map = JSON.parse(fs.readFileSync(`${file}.map`, "utf8")) as Omit<CoverageSourceMap, "url" | "text">;
-    sourceMaps.push({ ...map, url, text: fs.readFileSync(file, "utf8") });
+  const savedMaps = [...sourceMaps.values()];
+  const missingMaps = missingSourceMaps(
+    root,
+    scripts.map((script) => script.url),
+    savedMaps,
+  );
+  if (missingMaps.length) {
+    failed = true;
+    console.error(`Coverage source maps missing: ${missingMaps.join(", ")}`);
   }
   const files = sourceFiles(root).map((file) => ({
     file: path.relative(root, file).split(path.sep).join("/"),
     text: fs.readFileSync(file, "utf8"),
   }));
-  const report = coverageReport(root, files, scripts, sourceMaps);
+  const mobileReport = path.join(nativeOutput, "coverage-final.json");
+  const instrumented: InstrumentedCoverage[] = fs.existsSync(mobileReport)
+    ? Object.values(JSON.parse(fs.readFileSync(mobileReport, "utf8")))
+    : [];
+  const report = coverageReport(root, files, scripts, savedMaps, instrumented);
   fs.writeFileSync(
     path.join(output, "functions.json"),
     `${JSON.stringify({ testsPassed: !failed, suites: includeE2E ? ["unit", "web", "desktop"] : ["unit"], files: report }, null, 2)}\n`,

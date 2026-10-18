@@ -361,6 +361,10 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       emit(task);
       return task;
     },
+    /** Links a correction request to the durable turn that will work on it. */
+    reworkStarted(id: string, by: string, runId: string, threadId: string): void {
+      event(id, "update", by, { rework_run_id: runId, rework_thread_id: threadId });
+    },
     /** A comment or a turn in its conversation: the task moved, without changing it. */
     touched(id: string, by: string, op: "comment" | "update" = "comment"): void {
       run(qb.updateTable("tasks").set({ activity_at: now() }).where("id", "=", id));

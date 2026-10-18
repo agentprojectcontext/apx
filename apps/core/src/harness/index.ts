@@ -1,4 +1,5 @@
 // The harness registry: which engine runs an agent's turns, and what the setup screen shows about each one.
+// A new harness also needs its id, setup copy, official mark and docs: see HUMAN_MODEL.md#4b-the-agent-loop.
 
 import { randomBytes } from "node:crypto";
 import fs from "node:fs";

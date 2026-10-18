@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { ChildProcess } from "node:child_process";
+import { type ChildProcess, type SpawnOptions, spawn } from "node:child_process";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import http from "node:http";
@@ -45,6 +45,10 @@ before(async () => {
   browser = createHeadlessBrowser({
     dir,
     chrome,
+    // Chromium cannot start its sandbox as root in a disposable test container.
+    // Keep this exception at the test's process boundary; production keeps its sandbox.
+    spawn: ((command: string, args: readonly string[], options: SpawnOptions) =>
+      spawn(command, [...args, ...(process.getuid?.() === 0 ? ["--no-sandbox"] : [])], options)) as typeof spawn,
     blockedPorts: () => new Set([apxPort]),
     onChange: (t) => seen.push(t),
   });
