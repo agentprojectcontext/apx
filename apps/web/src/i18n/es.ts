@@ -524,6 +524,7 @@ export const es: Partial<Record<MessageKey, string>> = {
     "Los widgets que arme el agente en este chat aparecen acá. Fijalos para tenerlos también en el tablero del proyecto.",
   "app.notFound": "App no encontrada",
   "app.removed": "Puede que la hayan quitado de apps.",
+  "widget.sub": "Widget de {project} · hecho por {author} · {name}",
   "app.sub": "App de {project} · hecha por {author} · {name}",
   "app.remove": "Quitar de apps",
   "share.copied": "Enlace copiado.",

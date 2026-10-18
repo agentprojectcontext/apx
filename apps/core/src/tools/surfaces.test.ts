@@ -17,6 +17,17 @@ const calls: Record<string, object | [string, object]> = {
   "bad origin": widget(["http://api.binance.com/v3"]),
   "as an app": { ...widget(), app: true, pin: true },
   "plain update": { ...widget(), app: false, pin: false },
+  "make a widget": ["edit_widget", { name: "conversion", app: false }],
+  "make an app": ["edit_widget", { name: "conversion", app: true }],
+  "unpin converted": ["edit_widget", { name: "conversion", pin: false }],
+  "bad conversion edit": [
+    "edit_widget",
+    { name: "conversion", app: false, edits: [{ old: "missing text", new: "x" }] },
+  ],
+  "published conversion edit": [
+    "edit_widget",
+    { name: "conversion", app: false, edits: [{ old: "Original", new: "Updated" }] },
+  ],
   "list widgets": ["read_widget", {}],
   "read it": ["read_widget", { name: "btc-live" }],
   "edit it": ["edit_widget", { name: "btc-live", edits: [{ old: "<div id=p></div>", new: "<div id=price>$&</div>" }] }],
@@ -191,8 +202,49 @@ test("a widget is not saved when the turn stopped while its scripts were checked
     await run("edit_widget", { name: "btc-live", edits: [{ old: "<div id=p></div>", new: html }] }),
     /stopped: .*nothing changed/,
   );
+  assert.match(await run("edit_widget", { name: "btc-live", app: false }), /stopped: .*nothing changed/);
   assert.deepEqual(saved, []);
   const list = (await env.client.call("surfaces.list", {})).surfaces;
   assert.ok(!list.some((s) => s.name === "never-saved"));
   assert.equal(list.find((s) => s.name === "btc-live")?.version, before?.version);
+});
+
+test("an agent converts a published app to a widget without reading or replacing its large HTML", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "conversion" });
+  const original = await env.client.call("surfaces.show", {
+    name: "conversion",
+    title: "Original",
+    html: `<p>Original ${"Long content ".repeat(3000)}</p>`,
+    app: true,
+    pinned: true,
+    thread: t.id,
+    connect: ["https://api.example.com"],
+  });
+  await env.client.call("surfaces.share", { surface: original.id, shared: true });
+  const before = await env.client.call("surfaces.get", { surface: original.id });
+  assert.match(await said(t.id, "make a widget"), /widget, pinned; HTML unchanged/);
+  const converted = await env.client.call("surfaces.get", { surface: original.id });
+  assert.equal(converted.app, false);
+  assert.equal(converted.pinned, true);
+  for (const key of ["id", "html", "version", "title", "thread_id", "project_id", "created_by", "share_path"] as const)
+    assert.equal(converted[key], before[key], key);
+  assert.deepEqual(converted.connect, before.connect);
+  const { messages } = await env.settle(t.id);
+  const part = messages.at(-1)?.parts.find((p) => p.type === "surface");
+  assert.equal(part?.type === "surface" && part.version, before.version);
+
+  assert.match(await said(t.id, "unpin converted"), /widget, not pinned; HTML unchanged/);
+  assert.match(await said(t.id, "make an app"), /app, not pinned; HTML unchanged/);
+  assert.match(await said(t.id, "bad conversion edit"), /nothing changed/);
+  assert.equal((await env.client.call("surfaces.get", { surface: original.id })).app, true);
+  assert.match(await said(t.id, "published conversion edit"), /published/);
+  const kept = await env.client.call("surfaces.get", { surface: original.id });
+  assert.equal(kept.app, true);
+  assert.equal(kept.html, before.html);
+  assert.equal(kept.version, before.version);
+
+  const { project } = await env.client.call("projects.create", { name: "Northwind conversions" });
+  const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project.id });
+  assert.match(await said(other.id, "make a widget"), /no widget named conversion/);
+  assert.equal((await env.client.call("surfaces.get", { surface: original.id })).app, true);
 });

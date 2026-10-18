@@ -1,0 +1,52 @@
+<main class="apx-widget apx-stack">
+  <header class="apx-row">
+    <div class="apx-stack">
+      <p class="apx-eyebrow">APX · Workspace</p>
+      <h1>Project overview</h1>
+      <p class="apx-muted">Sample snapshot. Filter the work below.</p>
+    </div>
+    <span class="apx-badge" data-tone="brand">Sample data</span>
+  </header>
+  <section class="apx-grid" aria-label="Summary">
+    <article class="apx-card apx-stack"><h2>Open work</h2><p class="apx-stat">3</p><p class="apx-muted">Across two areas</p></article>
+    <article class="apx-card apx-stack"><h2>Ready</h2><p class="apx-stat">1</p><p class="apx-muted">Waiting for review</p></article>
+    <article class="apx-card apx-stack"><h2>Next milestone</h2><p class="apx-stat">Friday</p><p class="apx-muted">Interface review</p></article>
+  </section>
+  <section class="apx-toolbar" aria-label="Filters">
+    <label class="apx-field">Search<input id="search" type="search" placeholder="Find work…"></label>
+    <label class="apx-field">Status<select id="status"><option value="all">All</option><option value="Open">Open</option><option value="Ready">Ready</option></select></label>
+    <button id="reset" type="button">Reset filters</button>
+  </section>
+  <p id="count" class="apx-muted" role="status"></p>
+  <section id="work" class="apx-stack" aria-label="Work items">
+    <article class="apx-card apx-stack" data-status="Open"><div class="apx-row"><h2>Refine the dashboard</h2><span class="apx-badge">Open</span></div><p class="apx-muted">Design · Clarify the next action and leave room around the content.</p></article>
+    <article class="apx-card apx-stack" data-status="Ready"><div class="apx-row"><h2>Review the first release</h2><span class="apx-badge" data-tone="brand">Ready</span></div><p class="apx-muted">Product · Check the responsive layout and keyboard navigation.</p></article>
+    <article class="apx-card apx-stack" data-status="Open"><div class="apx-row"><h2>Write the quick guide</h2><span class="apx-badge">Open</span></div><p class="apx-muted">Product · Explain the workflow with one concrete example.</p></article>
+  </section>
+  <p id="empty" class="apx-muted" hidden>No matching work. Try another filter.</p>
+</main>
+<script>
+const search = document.getElementById('search');
+const status = document.getElementById('status');
+const items = [...document.querySelectorAll('#work > article')];
+function filter() {
+  const query = search.value.trim().toLocaleLowerCase();
+  let visible = 0;
+  for (const item of items) {
+    const matches = item.textContent.toLocaleLowerCase().includes(query) &&
+      (status.value === 'all' || item.dataset.status === status.value);
+    item.hidden = !matches;
+    if (matches) visible++;
+  }
+  document.getElementById('count').textContent = `${visible} of ${items.length} items`;
+  document.getElementById('empty').hidden = visible !== 0;
+}
+search.addEventListener('input', filter);
+status.addEventListener('change', filter);
+document.getElementById('reset').addEventListener('click', () => {
+  search.value = '';
+  status.value = 'all';
+  filter();
+});
+filter();
+</script>

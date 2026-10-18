@@ -1,3 +1,10 @@
+import {
+  injectSurfaceHead,
+  type SurfaceLayout,
+  surfaceLayoutCss,
+  WIDGET_KIT_CSS,
+} from "../../../../packages/surfaces/src/widget-kit.ts";
+
 // Builds the iframe document for a surface: theme tokens, a strict CSP and the window.apx bridge.
 
 /**
@@ -73,17 +80,23 @@ document.addEventListener("DOMContentLoaded",function(){size();if(window.ResizeO
 
 export function buildSrcdoc(
   html: string,
-  opts: { theme: string; mode: "light" | "dark"; nonce: string; connect?: readonly string[] | undefined },
+  opts: {
+    layout?: SurfaceLayout;
+    theme: string;
+    mode: "light" | "dark";
+    nonce: string;
+    connect?: readonly string[] | undefined;
+  },
 ): string {
   const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp(opts.connect)}">
 <style>${opts.theme}
 html{color-scheme:${opts.mode}}
 html,body{margin:0;background:transparent;color:var(--apx-fg);font-family:var(--apx-font-sans);font-size:14px;line-height:1.45}
-body{padding:0;display:flow-root}*{box-sizing:border-box}</style>
+body{padding:0;display:flow-root}*{box-sizing:border-box}
+${WIDGET_KIT_CSS}
+${surfaceLayoutCss(opts.layout)}</style>
 <script>${bridge(opts.nonce)}</script>`;
   // A stylesheet or font from the web never loads here (the CSP), and a blocked one can hold the page unpainted.
   html = html.replace(/<link\b[^>]*\bhref\s*=\s*["']?(?:https?:)?\/\/[^>]*>/gi, "");
-  if (/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i, (m) => `${m}${head}`);
-  if (/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i, (m) => `${m}<head>${head}</head>`);
-  return `<!doctype html><html><head>${head}</head><body>${html}</body></html>`;
+  return injectSurfaceHead(html, head);
 }

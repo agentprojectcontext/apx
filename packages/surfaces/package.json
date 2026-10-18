@@ -8,7 +8,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "test": "node --test 'src/**/*.test.ts'"
   },
   "dependencies": {
     "zod": "^4.6.5"

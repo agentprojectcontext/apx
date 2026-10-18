@@ -297,19 +297,29 @@
 /* ── Surfaces ──────────────────────────────────────────────────────────────── */
 .surfaceframe {
   width: 100%;
+  box-sizing: border-box;
+  padding: clamp(16px, 2vw, 24px);
+}
+.surfaceframe--app {
+  padding: 0;
 }
 .surfaceframe--fill {
   height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 .surfaceframe__iframe {
   display: block;
   width: 100%;
   border: 0;
   background: transparent;
-  color-scheme: normal;
+  color-scheme: inherit;
 }
 .surfaceframe--fill .surfaceframe__iframe {
-  height: 100%;
+  height: 0;
+  min-height: 0;
+  flex: 1;
 }
 
 /* The skills picked by meaning for a turn: small chips over the answer, beside the avatar's column. */

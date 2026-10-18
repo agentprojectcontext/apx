@@ -89,7 +89,7 @@
 .appscreen__body {
   flex: 1;
   min-height: 0;
-  padding: 16px 20px;
+  padding: 0;
 }
 
 /* System notices in a turn (interrupted, fallback engine, no answer): quiet, never styled as the agent's words. */
