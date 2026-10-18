@@ -21,7 +21,11 @@ export function snapshotSourceMaps(directory: string): CoverageSourceMap[] {
 export function missingSourceMaps(root: string, urls: string[], maps: CoverageSourceMap[]): string[] {
   const saved = new Set(maps.map((map) => map.url));
   const missing = new Set<string>();
-  for (const url of urls) {
+  const referenced = maps.flatMap((map) => {
+    const base = map.sourceRoot ? new URL(`${map.sourceRoot.replace(/\/$/, "")}/`, map.url) : new URL(map.url);
+    return map.sources.map((source) => new URL(source, base).href);
+  });
+  for (const url of [...urls, ...referenced]) {
     if (!url.startsWith("file:") || saved.has(url)) continue;
     const file = path.relative(root, fileURLToPath(url)).split(path.sep).join("/");
     if (/^(apps\/(web|desktop)|packages\/ui)\/dist\/.*\.[cm]?js$/.test(file)) missing.add(file);

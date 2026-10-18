@@ -62,3 +62,23 @@ test("an orphaned source map is rejected rather than paired with different gener
   fs.writeFileSync(path.join(root, "missing.js.map"), JSON.stringify({ sources: [], mappings: "" }));
   assert.throws(() => snapshotSourceMaps(root), { code: "ENOENT" });
 });
+
+test("a browser map cannot silently drop a referenced library build's missing map", () => {
+  const root = path.resolve("work");
+  const url = pathToFileURL(path.join(root, "apps/web/dist/main.js")).href;
+  assert.deepEqual(
+    missingSourceMaps(
+      root,
+      [url],
+      [
+        {
+          url,
+          text: "function View() {}",
+          sources: ["../../../packages/ui/dist/view.js"],
+          mappings: "AAAA",
+        },
+      ],
+    ),
+    ["packages/ui/dist/view.js"],
+  );
+});

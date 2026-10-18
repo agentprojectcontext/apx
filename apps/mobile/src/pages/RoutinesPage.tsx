@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, Text, View } from "react-native";
+import { useRoutineRuns } from "../hooks/useRoutineRuns";
 import type { Routine, Workspace } from "../hooks/useWorkspace";
 import { t } from "../i18n";
 import type { RoutineRun } from "../protocol";
@@ -24,19 +25,7 @@ const BAR: Record<ReturnType<typeof runOutcome> | "none", { color: ColorKey; hei
   failed: { color: "danger", height: 18 },
 };
 
-/** A routine's recent runs, read again when its latest run starts or ends. */
-export function useRoutineRuns(routine: Routine, load: RoutineActions["runs"], limit = 14) {
-  const [runs, setRuns] = useState<RoutineRun[]>([]);
-  const latest = `${routine.last?.run_id}:${routine.last?.state}`;
-  const reload = useCallback(() => {
-    void load(routine.id, limit)
-      .then(setRuns)
-      .catch(() => undefined);
-  }, [load, routine.id, limit]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `latest` is the signal to read the runs again.
-  useEffect(reload, [reload, latest]);
-  return runs;
-}
+export { useRoutineRuns } from "../hooks/useRoutineRuns";
 
 export function RoutinesPage({
   data,
