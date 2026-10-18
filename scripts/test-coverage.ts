@@ -4,6 +4,7 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript-parser";
+import { missingSourceMaps, snapshotSourceMaps } from "./coverage-maps.ts";
 import { checkTests, repositoryFiles, testFiles } from "./test-quality.ts";
 
 type V8Function = { functionName: string; ranges: { startOffset: number; endOffset: number; count: number }[] };
@@ -251,6 +252,42 @@ export function coverageMarkdown(report: FileCoverage[]): string {
   return `${lines.join("\n")}\n`;
 }
 
+async function runE2ESuites(root: string, raw: string, snapshot: (directory: string) => void): Promise<boolean> {
+  let failed = false;
+  const ports = await sandboxPorts();
+  const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+  const run = (command: string, args: string[]) => {
+    const result = spawnSync(command, args, {
+      cwd: root,
+      stdio: "inherit",
+      shell: process.platform === "win32",
+      env: { ...process.env, ...ports, APX_TEST_COVERAGE: "1", APX_TEST_COVERAGE_DIR: raw, NODE_V8_COVERAGE: raw },
+      timeout: 15 * 60_000,
+    });
+    if (result.status !== 0) {
+      failed = true;
+      if (result.error) console.error(result.error.message);
+    }
+  };
+  run(pnpm, ["build:web"]);
+  snapshot(path.join(root, "apps/web/dist"));
+  snapshot(path.join(root, "packages/ui/dist"));
+  run(pnpm, ["exec", "playwright", "test", "--project", "chromium"]);
+  run(pnpm, ["--filter", "@apx/desktop", "build"]);
+  snapshot(path.join(root, "apps/desktop/dist"));
+  const desktop = ["exec", "playwright", "test", "--project", "desktop"];
+  if (process.platform === "linux" && !process.env.DISPLAY) {
+    // Xvfb supplies a display; a window manager supplies real focus and minimization transitions.
+    const launch =
+      'command -v openbox >/dev/null || { echo "Install openbox for desktop window tests" >&2; exit 1; }; openbox >/dev/null 2>&1 & exec "$@"';
+    run("xvfb-run", ["-a", "sh", "-c", launch, "apx-desktop", pnpm, ...desktop]);
+  } else if (process.platform === "darwin") {
+    // Native focus assertions need an awake display for the lifetime of the test process.
+    run("caffeinate", ["-d", "-i", pnpm, ...desktop]);
+  } else run(pnpm, desktop);
+  return failed;
+}
+
 async function main() {
   const root = path.resolve(import.meta.dirname, "..");
   const includeE2E = process.argv.includes("--e2e");
@@ -279,12 +316,19 @@ async function main() {
     groups.set(area, group);
   }
   let failed = false;
+  const sourceMaps = new Map<string, CoverageSourceMap>();
+  const snapshot = (directory: string) => {
+    if (!fs.existsSync(directory)) return;
+    for (const map of snapshotSourceMaps(directory)) sourceMaps.set(map.url, map);
+    fs.writeFileSync(path.join(output, "source-maps.json"), JSON.stringify([...sourceMaps.values()]));
+  };
   // UI tests consume the public build, including JSX and the design-system export boundary.
   const build = spawnSync(process.execPath, ["scripts/build.mjs"], {
     cwd: path.join(root, "packages/ui"),
     stdio: "inherit",
   });
   if (build.status !== 0) failed = true;
+  snapshot(path.join(root, "packages/ui/dist"));
   for (const [area, files] of groups) {
     console.log(`\nCoverage: ${area} (${files.length} files)`);
     const cwd = area === "scripts" ? root : path.join(root, area);
@@ -319,50 +363,22 @@ async function main() {
     failed = true;
     if (mobile.error) console.error(mobile.error.message);
   }
-  if (includeE2E) {
-    const ports = await sandboxPorts();
-    const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-    const run = (command: string, args: string[]) => {
-      const result = spawnSync(command, args, {
-        cwd: root,
-        stdio: "inherit",
-        shell: process.platform === "win32",
-        env: { ...process.env, ...ports, APX_TEST_COVERAGE: "1", APX_TEST_COVERAGE_DIR: raw, NODE_V8_COVERAGE: raw },
-        timeout: 15 * 60_000,
-      });
-      if (result.status !== 0) {
-        failed = true;
-        if (result.error) console.error(result.error.message);
-      }
-    };
-    run(pnpm, ["build:web"]);
-    run(pnpm, ["exec", "playwright", "test", "--project", "chromium"]);
-    run(pnpm, ["--filter", "@apx/desktop", "build"]);
-    const desktop = ["exec", "playwright", "test", "--project", "desktop"];
-    if (process.platform === "linux" && !process.env.DISPLAY) {
-      // Xvfb supplies a display; a window manager supplies real focus and minimization transitions.
-      const launch =
-        'command -v openbox >/dev/null || { echo "Install openbox for desktop window tests" >&2; exit 1; }; openbox >/dev/null 2>&1 & exec "$@"';
-      run("xvfb-run", ["-a", "sh", "-c", launch, "apx-desktop", pnpm, ...desktop]);
-    } else if (process.platform === "darwin") {
-      // Native focus assertions need an awake display for the lifetime of the test process.
-      run("caffeinate", ["-d", "-i", pnpm, ...desktop]);
-    } else run(pnpm, desktop);
-  }
+  if (includeE2E) failed = (await runE2ESuites(root, raw, snapshot)) || failed;
   const scripts: V8Script[] = [];
   for (const entry of fs.readdirSync(raw)) {
     if (!entry.endsWith(".json")) continue;
     const data = JSON.parse(fs.readFileSync(path.join(raw, entry), "utf8")) as { result: V8Script[] };
     scripts.push(...data.result);
   }
-  const sourceMaps: CoverageSourceMap[] = [];
-  for (const url of new Set(
-    scripts.map((s) => s.url).filter((url) => url.startsWith("file:") && url.includes("/dist/")),
-  )) {
-    const file = fileURLToPath(url);
-    if (!fs.existsSync(`${file}.map`)) continue;
-    const map = JSON.parse(fs.readFileSync(`${file}.map`, "utf8")) as Omit<CoverageSourceMap, "url" | "text">;
-    sourceMaps.push({ ...map, url, text: fs.readFileSync(file, "utf8") });
+  const savedMaps = [...sourceMaps.values()];
+  const missingMaps = missingSourceMaps(
+    root,
+    scripts.map((script) => script.url),
+    savedMaps,
+  );
+  if (missingMaps.length) {
+    failed = true;
+    console.error(`Coverage source maps missing: ${missingMaps.join(", ")}`);
   }
   const files = sourceFiles(root).map((file) => ({
     file: path.relative(root, file).split(path.sep).join("/"),
@@ -372,7 +388,7 @@ async function main() {
   const instrumented: InstrumentedCoverage[] = fs.existsSync(mobileReport)
     ? Object.values(JSON.parse(fs.readFileSync(mobileReport, "utf8")))
     : [];
-  const report = coverageReport(root, files, scripts, sourceMaps, instrumented);
+  const report = coverageReport(root, files, scripts, savedMaps, instrumented);
   fs.writeFileSync(
     path.join(output, "functions.json"),
     `${JSON.stringify({ testsPassed: !failed, suites: includeE2E ? ["unit", "web", "desktop"] : ["unit"], files: report }, null, 2)}\n`,
