@@ -23,15 +23,69 @@ async function tools(t: TestContext, answers: Record<string, unknown>) {
 }
 
 test("outside-app MCP lists agents through the protocol and explains an empty crew", async (t) => {
-  for (const agents of [[], [{ id: "roby", name: "Roby", role: "Builder", project_id: "acme" }]]) {
+  for (const agents of [
+    [],
+    [
+      {
+        id: "roby",
+        name: "Roby",
+        role: "Builder",
+        project_id: "acme",
+        scope: "project",
+        project_name: "Acme",
+        project_orchestrator: null,
+        is_orchestrator: false,
+      },
+    ],
+  ]) {
     const { invoke, calls } = await tools(t, { "agents.list": { agents } });
     const result = await invoke("apx_agents");
     assert.deepEqual(result.content, [
-      { type: "text", text: agents.length ? "- roby: Roby — Builder (project acme)" : "no agents" },
+      {
+        type: "text",
+        text: agents.length
+          ? "- roby: Roby — Builder [Project: Acme (id: acme)] · Orchestrator: none · Is orchestrator: no"
+          : "no agents",
+      },
     ]);
     assert.equal(result.isError, false);
     assert.deepEqual(calls, [["agents.list", {}]]);
   }
+});
+
+test("outside-app MCP distinguishes global agents and resolved project orchestrators", async (t) => {
+  const { invoke } = await tools(t, {
+    "agents.list": {
+      agents: [
+        {
+          id: "global",
+          name: "Assistant",
+          scope: "global",
+          project_name: null,
+          project_orchestrator: null,
+          is_orchestrator: false,
+        },
+        {
+          id: "lead",
+          name: "Lead",
+          project_id: "acme",
+          project_name: "Acme",
+          scope: "project",
+          project_orchestrator: { id: "lead", name: "Lead", selection: "marked" },
+          is_orchestrator: true,
+        },
+      ],
+    },
+  });
+  const result = await invoke("apx_agents");
+  assert.deepEqual(result.content, [
+    {
+      type: "text",
+      text:
+        "- global: Assistant [Global: no fixed project] · Orchestrator: not applicable · Is orchestrator: no\n" +
+        "- lead: Lead [Project: Acme (id: acme)] · Orchestrator: Lead (id: lead, Explicit mark) · Is orchestrator: yes",
+    },
+  ]);
 });
 
 test("outside-app MCP creates a loose chat, sends the question and returns only that run's agent answer", async (t) => {

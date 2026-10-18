@@ -129,6 +129,16 @@ notice when there is no text. Tools that touch core state call protocol methods 
   visibility before ranking limits, requires every named agent as a participant, and includes archived history.
   Participants can read delegated chats by session name as well as thread id or title.
   A named agent can retrieve unavailable context through the existing `delegate` path before asking the owner.
+- **Cross-project tasks** (`domain/tasks.ts`, `rpc/tasks.ts`, `tools/tasks.ts`): outside any project, the super-agent's
+  `task_create` uses the assignee's project by default, or an explicit project id. Ordinary agents and a super-agent
+  inside a project keep their thread's scope. To have a destination project's orchestrator prepare the task instead,
+  use `delegate` with that agent and project, asking for an unassigned task and its id; the caller then uses
+  `task_update` to assign it. Delegates still start no task work (D-079); both flows use the existing router methods.
+  `agents.list` adds directory metadata without changing the stored `orchestrator` flag: global/project scope, project
+  name (null if unavailable), resolved project orchestrator (null if none), and whether this entry is that orchestrator.
+  Discovery and imported-chat routing share `domain/agent-directory.ts`: explicit marks take precedence, then a root's
+  role, then a sole root; explicit opt-outs are respected. The selection source is returned so inferred heads are never
+  presented as explicit configuration. `list_agents` and the terminal's MCP directory display these distinctions.
 - **Task conversations** (`rpc/tasks.ts`, `engine/office.ts`): `tasks.comment` persists a comment and admits named
   agents in the task's own chat. Replies can mention teammates, with a bounded chain and the same project scope
   for names and exact ids. `@owner`, `@human` or the owner's name requests attention without an agent turn;

@@ -204,6 +204,21 @@ export const Agent = z.object({
 });
 export type Agent = z.infer<typeof Agent>;
 
+/** Resolved directory metadata; the stored orchestrator flag above remains unchanged. */
+export const AgentListing = Agent.extend({
+  scope: z.enum(["global", "project"]),
+  project_name: z.string().nullable(),
+  project_orchestrator: z
+    .object({
+      id: Id,
+      name: z.string(),
+      selection: z.enum(["marked", "role", "sole_head"]),
+    })
+    .nullable(),
+  is_orchestrator: z.boolean(),
+});
+export type AgentListing = z.infer<typeof AgentListing>;
+
 /** What the setup and Config → Motores show: installed → logged in → usable. */
 export const EngineStatus = z.object({
   /** "native", "claude", "codex" or an ACP agent ("acp:opencode"). */

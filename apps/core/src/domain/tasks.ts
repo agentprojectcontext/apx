@@ -61,6 +61,21 @@ export function boardScope(
   return { project };
 }
 
+/** New tasks stay in the caller's scope; the global super-agent may use the assignee's project by default. */
+export function taskProject(
+  store: Store,
+  agent: { id: string; thread_id: string } | undefined,
+  request: { project?: string | undefined; assignee?: string | undefined },
+): string | undefined {
+  const scope = boardScope(store, agent);
+  if (scope) {
+    if (request.project !== undefined && request.project !== scope.project)
+      throw unauthorized("an agent creates tasks only in its own project");
+    return scope.project;
+  }
+  return request.project ?? (agent && request.assignee ? store.agents.get(request.assignee)?.project_id : undefined);
+}
+
 /** A task the caller may see and change. */
 export function visibleTask(store: Store, id: string, scope: { project: string | undefined } | undefined): Task {
   const t = store.tasks.get(id);

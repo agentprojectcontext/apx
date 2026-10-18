@@ -18,21 +18,20 @@ export function agentTools(store: Store): Tool[] {
   return [
     defineTool({
       name: "list_agents",
-      description: "List agents with their ids and projects. Optional filter by project name or text in name/role.",
+      description: "List agents, scope, project and its orchestrator. Filter by project or name/role.",
       args: z.object({ query: z.string().optional().describe("project name or text to match (optional)") }),
       effect: "none",
       deadlineMs: 5_000,
       title: () => "Looked up agents",
       async run(a, ctx) {
         const q = (a.query ?? "").toLowerCase();
-        const [{ agents }, { projects }] = await Promise.all([
-          ctx.call("agents.list", {}),
-          ctx.call("projects.list", {}),
-        ]);
-        const names = new Map(projects.map((p) => [p.id, p.name]));
+        const { agents } = await ctx.call("agents.list", {});
         const rows = agents
-          .map((x) => ({ ...x, project: x.project_id ? (names.get(x.project_id) ?? "") : "" }))
-          .filter((x) => !q || `${x.name} ${x.role} ${x.project}`.toLowerCase().includes(q))
+          .filter(
+            (x) =>
+              !q ||
+              `${x.id} ${x.name} ${x.role} ${x.project_name ?? ""} ${x.project_id ?? ""}`.toLowerCase().includes(q),
+          )
           .slice(0, 40);
         // What agents may still do on their own here, so work goes to someone with budget left.
         const budget = budgetLeft(
@@ -42,7 +41,18 @@ export function agentTools(store: Store): Tool[] {
         );
         const lines = rows.map((x) => {
           const own = budget.agents.get(x.id);
-          return `- ${x.name} (id: ${x.id})${x.project ? ` [${x.project}]` : ""}${x.role ? `: ${x.role}` : ""}${own ? ` · own budget used: ${own}` : ""}`;
+          const place =
+            x.scope === "project"
+              ? `Project: ${x.project_name ?? "Unknown"} (id: ${x.project_id})`
+              : "Global: no fixed project";
+          const head = x.project_orchestrator;
+          const source = head
+            ? { marked: "Explicit mark", role: "Role inference", sole_head: "Sole head inference" }[head.selection]
+            : "";
+          const relation = head
+            ? `Orchestrator: ${head.name} (id: ${head.id}, ${source})`
+            : `Orchestrator: ${x.scope === "global" ? "not applicable" : "none"}`;
+          return `- ${x.name} (id: ${x.id}) [${place}]${x.role ? `: ${x.role}` : ""} · ${relation} · Is orchestrator: ${x.is_orchestrator ? "yes" : "no"}${own ? ` · own budget used: ${own}` : ""}`;
         });
         if (!lines.length) return "no agents match";
         return [

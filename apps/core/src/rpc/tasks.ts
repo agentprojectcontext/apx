@@ -1,5 +1,5 @@
-// Tasks. The owner sees and changes every one; an agent only those of its thread's project and the global ones, and
-// what it creates goes to its thread's project. Giving a task to an agent starts its work in that agent's chat for the
+// Tasks. Scoped agents use their thread's project and global tasks; the global super-agent may choose any project.
+// Giving a task to an agent starts its work in that agent's chat for the
 // task, and the owner's comment that @mentions its agent asks it there (its answer comes back as a comment) and anyone
 // else in a consult shown on the task as a card (task-work.ts). A task an agent creates from a chat about a task is its
 // subtask; an agent answering another one gives nobody work (DECISIONS.md#d-079).
@@ -17,6 +17,7 @@ import {
   dueOf,
   personOf,
   tagsOf,
+  taskProject,
   visibleTask,
 } from "../domain/tasks.ts";
 import { ancestors } from "../engine/ancestry.ts";
@@ -115,8 +116,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
     },
     "tasks.create": (p, ctx) => {
       checkColumn(store, p.status);
-      const scope = agentScope(ctx);
-      const project = scope ? scope.project : p.project;
+      const project = taskProject(store, ctx.agent, p);
       checkAssignee(store, p.assignee, project);
       if (p.assignee) refuseHandOn(ctx);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);

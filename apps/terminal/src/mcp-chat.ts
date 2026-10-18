@@ -38,10 +38,22 @@ export function registerChatTools(server: McpServer, client: ApxClient): void {
         const { agents } = await client.call("agents.list", {});
         return text(
           agents
-            .map(
-              (a) =>
-                `- ${a.id}: ${a.name}${a.role ? ` — ${a.role}` : ""}${a.project_id ? ` (project ${a.project_id})` : ""}`,
-            )
+            .map((a) => {
+              const place =
+                a.scope === "project"
+                  ? `Project: ${a.project_name ?? "Unknown"} (id: ${a.project_id})`
+                  : "Global: no fixed project";
+              const head = a.project_orchestrator;
+              const source = head
+                ? { marked: "Explicit mark", role: "Role inference", sole_head: "Sole head inference" }[head.selection]
+                : "";
+              const relation = head
+                ? `${head.name} (id: ${head.id}, ${source})`
+                : a.scope === "global"
+                  ? "not applicable"
+                  : "none";
+              return `- ${a.id}: ${a.name}${a.role ? ` — ${a.role}` : ""} [${place}] · Orchestrator: ${relation} · Is orchestrator: ${a.is_orchestrator ? "yes" : "no"}`;
+            })
             .join("\n") || "no agents",
         );
       } catch (err) {
