@@ -23,11 +23,13 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
   const target = useData((s) => s.agents[part.agent_id] ?? s.former[part.agent_id]);
   const asker = useData((s) => (part.asked_by ? (s.agents[part.asked_by] ?? s.former[part.asked_by]) : undefined));
   const ownerName = useOwnerName();
-  // A delegate that ran out of steps reported progress, not a result: it does not show as done.
+  // A delegate that ran out of steps or time reported progress, not a result: it shows as neither done nor failed.
   const st =
     part.end_reason === "step_limit"
       ? { status: "waiting" as const, label: "usage.state.stepLimit" as const }
-      : STATE[part.state];
+      : part.end_reason === "deadline"
+        ? { status: "waiting" as const, label: "usage.state.outOfTime" as const }
+        : STATE[part.state];
   const name = part.worker ?? target?.name ?? part.agent_id;
   // A consult on a task names who asked; a delegation's asker is the message's author.
   const askedBy =

@@ -80,8 +80,10 @@ export function AgentActivity({ agent }: { agent: Agent }) {
                     {r.error && r.state === "failed" ? ` · ${r.error.slice(0, 80)}` : ""}
                   </span>
                 </span>
-                {r.end_reason === "step_limit" ? (
-                  <Badge tone="warning">{t("usage.state.stepLimit")}</Badge>
+                {r.end_reason === "step_limit" || r.end_reason === "deadline" ? (
+                  <Badge tone="warning">
+                    {t(r.end_reason === "step_limit" ? "usage.state.stepLimit" : "usage.state.outOfTime")}
+                  </Badge>
                 ) : (
                   <Badge tone={STATE_TONE[r.state as keyof typeof STATE_TONE] ?? "neutral"}>
                     {t(RUN_STATE[r.state])}
