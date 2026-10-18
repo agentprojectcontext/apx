@@ -13,6 +13,7 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
   let socket: ApxSocket | undefined;
   let stopped = false;
   let attempt = 0;
+  let retry: ReturnType<typeof setTimeout> | undefined;
   const deps: PhoneDeps = {
     async location() {
       const perm = await Location.requestForegroundPermissionsAsync();
@@ -29,6 +30,10 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
   const loop = async (): Promise<void> => {
     try {
       socket = await client.connect("node", [...PHONE_CAPS]);
+      if (stopped) {
+        socket.close();
+        return;
+      }
       attempt = 0;
       socket.onRequest((method, params) => handlePhoneRequest(method, params, deps));
       await socket.closed;
@@ -36,11 +41,12 @@ export function startPhoneNode(creds: Creds, photo: PhoneDeps["photo"]): () => v
       // the core is not reachable now
     }
     if (stopped) return;
-    setTimeout(() => void loop(), RETRY_MS[Math.min(attempt++, RETRY_MS.length - 1)]);
+    retry = setTimeout(() => void loop(), RETRY_MS[Math.min(attempt++, RETRY_MS.length - 1)]);
   };
   void loop();
   return () => {
     stopped = true;
+    clearTimeout(retry);
     socket?.close();
   };
 }

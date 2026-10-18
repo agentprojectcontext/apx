@@ -157,7 +157,10 @@ export async function send(
   } catch (e) {
     data.set((s) => ({
       messages: { ...s.messages, [threadId]: (s.messages[threadId] ?? []).filter((m) => m.id !== local.id) },
-      threads: patchThread(s.threads, threadId, { state: "idle" }),
+      threads:
+        !busy && s.threads[threadId]?.state === "submitted"
+          ? patchThread(s.threads, threadId, { state: "idle" })
+          : s.threads,
     }));
     notify(t("error.send", { error: errText(e) }));
     throw e;
