@@ -4,8 +4,41 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { missingSourceMaps, snapshotSourceMaps } from "./coverage-maps.ts";
+import { missingSourceMaps, readCoveragePayloads, snapshotSourceMaps } from "./coverage-maps.ts";
 import { coverageReport } from "./test-coverage.ts";
+
+test("browser counters keep their temporary bundle mappings after the bundle has been removed", (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-coverage-browser-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const raw = path.join(root, "raw");
+  fs.mkdirSync(raw);
+  const text = "function Button() { return 1; }";
+  const url = pathToFileURL(path.join(root, "removed-bundle.js")).href;
+  const source = pathToFileURL(path.join(root, "packages/ui/src/Button.tsx")).href;
+  const functions = [{ functionName: "Button", ranges: [{ startOffset: 0, endOffset: text.length, count: 1 }] }];
+  fs.writeFileSync(path.join(raw, "node.json"), JSON.stringify({ result: [{ url: "node:fs", functions: [] }] }));
+  fs.writeFileSync(
+    path.join(raw, "browser.json"),
+    JSON.stringify({
+      result: [{ url, functions }],
+      sourceMaps: [{ url, text, sources: [source], mappings: "AAAA" }],
+    }),
+  );
+  fs.writeFileSync(path.join(raw, "ignored.txt"), "Not coverage");
+  const { scripts, sourceMaps } = readCoveragePayloads(raw);
+  assert.equal(scripts.length, 2);
+  assert.equal(sourceMaps.length, 1);
+  assert.deepEqual(coverageReport(root, [{ file: "packages/ui/src/Button.tsx", text }], scripts, sourceMaps), [
+    { file: "packages/ui/src/Button.tsx", loaded: true, functions: [{ name: "Button", line: 1, covered: true }] },
+  ]);
+});
+
+test("invalid coverage payloads fail instead of silently dropping counters", (t) => {
+  const raw = fs.mkdtempSync(path.join(os.tmpdir(), "apx-coverage-invalid-"));
+  t.after(() => fs.rmSync(raw, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(raw, "broken.json"), "{");
+  assert.throws(() => readCoveragePayloads(raw), SyntaxError);
+});
 
 test("saved build mappings still report original execution after another build replaces dist", (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-coverage-maps-"));

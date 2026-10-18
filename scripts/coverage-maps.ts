@@ -1,7 +1,22 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { CoverageSourceMap } from "./test-coverage.ts";
+import type { CoverageSourceMap, V8Script } from "./test-coverage.ts";
+
+export function readCoveragePayloads(directory: string): { scripts: V8Script[]; sourceMaps: CoverageSourceMap[] } {
+  const scripts: V8Script[] = [];
+  const sourceMaps: CoverageSourceMap[] = [];
+  for (const entry of fs.readdirSync(directory)) {
+    if (!entry.endsWith(".json")) continue;
+    const data = JSON.parse(fs.readFileSync(path.join(directory, entry), "utf8")) as {
+      result: V8Script[];
+      sourceMaps?: CoverageSourceMap[];
+    };
+    scripts.push(...data.result);
+    sourceMaps.push(...(data.sourceMaps ?? []));
+  }
+  return { scripts, sourceMaps };
+}
 
 /** Keep generated text and mappings together before another build can replace dist/. */
 export function snapshotSourceMaps(directory: string): CoverageSourceMap[] {

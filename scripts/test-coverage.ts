@@ -4,12 +4,12 @@ import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript-parser";
-import { missingSourceMaps, snapshotSourceMaps } from "./coverage-maps.ts";
+import { missingSourceMaps, readCoveragePayloads, snapshotSourceMaps } from "./coverage-maps.ts";
 import { sourceMapResolver } from "./coverage-source-map.ts";
 import { checkTests, repositoryFiles, testFiles } from "./test-quality.ts";
 
 type V8Function = { functionName: string; ranges: { startOffset: number; endOffset: number; count: number }[] };
-type V8Script = { url: string; functions: V8Function[] };
+export type V8Script = { url: string; functions: V8Function[] };
 export type FunctionCoverage = { name: string; line: number; covered: boolean };
 export type FileCoverage = { file: string; loaded: boolean; functions: FunctionCoverage[] };
 export type InstrumentedCoverage = {
@@ -296,7 +296,7 @@ async function main() {
       ["--test", ...files.map((file) => path.relative(cwd, path.join(root, file)))],
       {
         cwd,
-        env: { ...process.env, NODE_V8_COVERAGE: raw },
+        env: { ...process.env, NODE_V8_COVERAGE: raw, APX_UI_TEST_COVERAGE_DIR: raw },
         stdio: "inherit",
         timeout: 10 * 60_000,
       },
@@ -323,13 +323,10 @@ async function main() {
     if (mobile.error) console.error(mobile.error.message);
   }
   if (includeE2E) failed = (await runE2ESuites(root, raw, snapshot)) || failed;
-  const scripts: V8Script[] = [];
-  for (const entry of fs.readdirSync(raw)) {
-    if (!entry.endsWith(".json")) continue;
-    const data = JSON.parse(fs.readFileSync(path.join(raw, entry), "utf8")) as { result: V8Script[] };
-    scripts.push(...data.result);
-  }
+  const { scripts, sourceMaps: browserMaps } = readCoveragePayloads(raw);
+  for (const map of browserMaps) sourceMaps.set(map.url, map);
   const savedMaps = [...sourceMaps.values()];
+  fs.writeFileSync(path.join(output, "source-maps.json"), JSON.stringify(savedMaps));
   const missingMaps = missingSourceMaps(
     root,
     scripts.map((script) => script.url),
