@@ -215,8 +215,15 @@ APX mantiene la delegación con correa:
 |---|---|
 | Cuántos niveles se anidan | 2 (tu agente → un ayudante → el ayudante del ayudante) |
 | Delegaciones a la vez desde un chat | 3 |
-| Tiempo que puede trabajar una delegación | 10 minutos |
+| Tiempo que una delegación puede pasar sin avanzar | 6 minutos; un comando que sigue corriendo cuenta como avance |
+| Tiempo que puede trabajar una sola delegación, avance o no | 2 horas |
 | Turnos que los agentes arrancan solos sin vos | 30, o 1.500.000 tokens nuevos (lo leído de la caché no cuenta); después la cadena se pausa hasta que escribas |
+
+Una delegación que se queda sin pasos o sin tiempo no se pierde. Lo que reportó es un informe de avance, no un
+resultado, y APX la hace seguir una vez en la misma sesión, que conserva su contexto; te llega un aviso en el chat (y en
+el canal donde vive ese chat) que dice qué agente llegó a qué límite y qué hizo hasta ahora, con un botón para abrir la
+sesión y, mientras APX la hace seguir, otro para detenerla. Si vuelve a cortarse, el agente que la pidió recibe el informe y decide: delegar sólo lo que falta
+en la misma sesión, o avisarte. Ese agente también puede detener una sesión que arrancó mientras sigue trabajando.
 
 Una delegación nunca tiene más poder que quien la pidió: sólo recibe las herramientas que todos los agentes de la
 cadena pueden usar, y la autonomía más estricta entre ellos.
