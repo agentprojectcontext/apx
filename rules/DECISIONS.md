@@ -1322,3 +1322,25 @@ Stored values move once in a migration (rule 14; there is no `doctor` yet, as D-
 `standard` and `edits` → `auto` (Auto covers what `edits` did), for projects, the base project and APX's own agents.
 An agent file in someone's repository is not APX's to rewrite, so the APC sync reads the old names the same way;
 reading `ask` as the default would have let that agent act unasked.
+
+## D-107 — 2026-10-17 — An agent hands its files to MCP tools by reference; APX never publishes them for a link
+An agent drew carousel slides (kept only as `med_` ids in the media store, which agents may not read) and could not
+attach them to a draft on a remote MCP server: its upload tool took a public `url`, `base64`, or a `path` the server
+reads on its own disk. Now an MCP argument may name a file of the agent's: a bare `med_` id of its chat, or
+`apx-file:<path or med_ id>` for a path in its folders. The MCP adapter (`mcp/file-args.ts`, called from the tool's
+`run`) replaces it with what the field takes, judged from the field's name, then its JSON schema (`contentEncoding`,
+`format: uri`), then its description: base64 (a data URL when the field asks for one) for a server elsewhere, within
+the smallest size its description names and its `maxLength`, never over 20 MB; a real path for a server on this
+computer, a kept file copied into the chat's temp folder first so the server never reads APX's home. A field that only
+takes a public link, or a path on a remote server, is refused with the base64 field to use. One file in an object
+fills its empty `mime_type`/`file_name` fields. The step keeps the reference, not the bytes; the tool's `check` stops
+a reference to nothing before the owner is asked; a call carrying a file waits for the owner while untrusted content
+is in the turn, even for a tool that claims to only read (rule 10). The conversion happens in the core where the call
+already runs, so there is no new method or route (rule 1), and `mcp_call`'s description grew by one sentence, outside
+the default turn's budget (rule 23). An agent copies a kept file into a file of its own with `file_write`'s `media`
+argument instead of a new tool: the default tool definitions are at their budget.
+A short-lived public URL for large files (video) was left out. The core's exposure is the tailnet (`tailscale serve`),
+not the internet; a public link needs Tailscale Funnel, which would put the core's port on the internet, and serving
+one file from it would be a second HTTP route outside the protocol. A third-party host would publish the owner's
+files. So a field that wants a URL is the service's to solve: an upload link it hands out through one of its tools,
+which the agent fills with `curl -T` from its temp folder.

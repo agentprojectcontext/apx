@@ -35,6 +35,10 @@ const MIME: Record<string, string> = {
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 };
 
+/** A file's type by its extension. */
+export const mimeOf = (name: string): string =>
+  MIME[path.extname(name).slice(1).toLowerCase()] ?? "application/octet-stream";
+
 /** Takes a bounded snapshot; subsequent edits or deletion cannot break the chat attachment. */
 export function saveLocalAttachment(
   home: string,
@@ -73,7 +77,7 @@ export function saveLocalAttachment(
       }
     }
     const name = path.basename(file);
-    const mime = MIME[path.extname(name).slice(1).toLowerCase()] ?? "application/octet-stream";
+    const mime = mimeOf(name);
     return saveUpload(home, store, { name, mime, bytes, thread }, MAX_BYTES);
   } finally {
     fs.closeSync(fd);

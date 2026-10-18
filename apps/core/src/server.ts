@@ -51,6 +51,7 @@ import { createGoogle } from "./integrations/google.ts";
 import { GOOGLE, googleAt } from "./integrations/google-oauth.ts";
 import { createLog, type Log } from "./log.ts";
 import { mcpConfig } from "./mcp/config.ts";
+import { agentFiles } from "./mcp/file-args.ts";
 import { createMcp } from "./mcp/manager.ts";
 import { createCatalog } from "./models/catalog.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
@@ -265,7 +266,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       },
       `tool:${as.run.id}:${as.callId}:${randomUUID()}`,
     );
-  const mcp = createMcp({ store, secrets, log });
+  const mcp = createMcp({ store, secrets, log, files: (thread) => agentFiles(store, config.home, thread) });
   const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
   const upkeep = createUpkeep({ store, llm, log });
   const services = createServices({

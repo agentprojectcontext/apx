@@ -69,7 +69,7 @@ export function mcpBridge(servers: string[], load: () => Promise<Tool[]>): Tool[
     }),
     defineTool({
       name: MCP_CALL,
-      description: `Run an MCP tool found with ${MCP_SEARCH}: its exact name and its arguments.`,
+      description: `Run an MCP tool found with ${MCP_SEARCH}: its exact name and its arguments. To pass a file, give the value apx-file:<path> or a med_ id of this chat: APX sends it as that field takes it (base64, or a path to a local server).`,
       args: z.object({
         tool: z.string().min(1).max(64).describe("the tool's name as mcp_search gave it (mcp_…)"),
         args: z.record(z.string(), z.unknown()).optional().describe("its arguments, as its schema says"),

@@ -108,3 +108,24 @@ So agents don't get those tools directly. While any server is on and approved, t
 The same one-line answer then costs **11,838 tokens**, and the list of tools stays the same from call to call, which
 keeps the model provider's prompt cache warm. Approvals, confirmations and the tool cards in the chat work exactly as
 if the agent had called the tool directly.
+
+## Files and images in MCP tools
+
+An agent can hand one of its files to an MCP tool: an image it drew, something you attached in the chat, or a file in
+the folders it works in. In the tool's arguments it writes the file's media id (`med_…`) or `apx-file:<path>`, and
+APX sends the file the way that field takes it:
+
+- To a server that runs **elsewhere** (an `http(s)` URL), the field gets the file's contents in base64, within what the
+  field says it accepts ("images under 8 MB") and never more than 20 MB. The file's type and name fill the tool's
+  `mime_type` and `file_name` fields when it has them and the agent left them empty.
+- To a server that runs **on this computer** (a command), a path field gets a real path. A drawing or an attachment is
+  first copied into the chat's temp folder, so the server never reads APX's own folder.
+- A field that only takes a public link, or a path a remote server would read on its own disk, is refused with the
+  field to use instead. APX does not publish your files to get a link: for a large video, the service needs its own
+  way to receive it (an upload link it hands out, then `curl` from the agent's temp folder).
+
+The step keeps the reference, never the file's contents. Sending a file out waits for your OK while the turn has
+outside content in it, even through a tool that says it only reads.
+
+An agent can also copy a drawing or an attachment into a file of its own (`file_write` with `media`), for its shell,
+its skills or another tool.

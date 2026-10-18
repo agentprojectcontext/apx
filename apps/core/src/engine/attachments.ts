@@ -2,13 +2,11 @@
 // chose the file, not its words), images as a line (pixels go separately), and copies in the chat's temp folder for
 // file tools.
 import fs from "node:fs";
-import path from "node:path";
 import type { Thread } from "@apx/protocol";
 import type { Attachment } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { insideReal } from "../paths.ts";
+import { mediaToTemp } from "../services/media-temp.ts";
 import { ATTACHMENT_TEXT_CHARS, isReadable } from "../services/uploads.ts";
-import { scratchDir } from "../tools/folders.ts";
 import { untrusted } from "../tools/result.ts";
 
 /** A file name as plain text in the prompt: it cannot open a tag or a bracket of its own. */
@@ -18,20 +16,8 @@ const nameOf = (name: string) => name.replace(/[[\]<>\r\n]/g, " ").slice(0, 120)
 function localFile(store: Store, home: string, thread: Thread, id: string, name: string): string | undefined {
   const media = store.media.get(id);
   if (!media || media.service || (media.thread_id && media.thread_id !== thread.id)) return undefined;
-  const base = scratchDir(store, home, thread);
-  const folder = path.join(base, "attachments");
   try {
-    fs.mkdirSync(folder, { recursive: true });
-    if (fs.lstatSync(folder).isSymbolicLink() || !insideReal(base, folder)) return undefined;
-    const dir = fs.mkdtempSync(path.join(folder, "upload-"));
-    const safeName = path
-      .basename(name.replaceAll("\\", "/"))
-      .replace(/[^a-zA-Z0-9._-]/g, "_")
-      .slice(0, 120);
-    const file = path.join(dir, safeName && ![".", ".."].includes(safeName) ? safeName : "attachment");
-    if (!insideReal(base, file)) return undefined;
-    fs.copyFileSync(media.path, file, fs.constants.COPYFILE_EXCL);
-    return file;
+    return mediaToTemp(store, home, thread, media, "attachments", name);
   } catch {
     return undefined;
   }

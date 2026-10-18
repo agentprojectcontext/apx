@@ -14,6 +14,7 @@ import { cap, untrusted } from "../tools/result.ts";
 import { type Confirm, type Effect, invalidArguments, type Tool } from "../tools/types.ts";
 import { type McpTool, mcpApproval, serverApprovalId } from "./approval.ts";
 import { ARGS_SECRET, type McpDef, mcpConfig } from "./config.ts";
+import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./file-args.ts";
 import { createStderrLogs } from "./logs.ts";
 
 const CONNECT_MS = 20_000;
@@ -80,7 +81,23 @@ function mcpConfirm(readOnly: boolean, destructive: boolean | undefined, scope: 
 /** MCP tool names become `mcp_<server>_<tool>`, within what every model accepts. */
 const toolName = (server: string, tool: string) => `mcp_${server}_${tool}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
 
-export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
+/** Whether a failed check only trips on file references (`apx-file:…`, med_ ids), which are filled in at run. */
+function onlyRefs(error: z.ZodError, raw: Record<string, unknown>): boolean {
+  const at = (path: PropertyKey[]) =>
+    path.reduce<unknown>(
+      (v, k) => (v && typeof v === "object" ? (v as Record<PropertyKey, unknown>)[k] : undefined),
+      raw,
+    );
+  return error.issues.every((i) => refOf(at(i.path)) !== undefined);
+}
+
+export function createMcp(deps: {
+  store: Store;
+  secrets: Secrets;
+  log: Log;
+  /** The files an agent of a thread may hand to a tool (file-args.ts); without it, references are refused. */
+  files?: (thread: Thread) => OpenFile;
+}) {
   const config = mcpConfig(deps.store);
   const conns = new Map<string, Conn>();
   const stderr = createStderrLogs();
@@ -231,17 +248,33 @@ export function createMcp(deps: { store: Store; secrets: Secrets; log: Log }) {
       description: `[${d.name}] ${t.description ?? label}`.slice(0, 1024),
       parameters: t.inputSchema,
       effect,
-      confirm: () => confirm,
+      // Sending the owner's files out waits for them while outside content is in the turn, even for a read-only tool.
+      confirm: (args) => (confirm === "never" && hasFileRefs(args) ? "untrusted" : confirm),
       deadlineMs: CALL_MS + 5_000,
       parse(raw) {
         if (!check) return { ok: true, args: raw };
         const r = check.safeParse(raw);
-        return r.success
-          ? { ok: true, args: r.data as Record<string, unknown> }
+        if (r.success) return { ok: true, args: r.data as Record<string, unknown> };
+        return onlyRefs(r.error, raw)
+          ? { ok: true, args: raw }
           : { ok: false, error: invalidArguments(t.name, r.error) };
       },
+      check(args, ctx) {
+        const refs = fileRefs(args);
+        if (!refs.length) return;
+        if (!deps.files) throw new Error("files cannot be passed to MCP tools here");
+        const open = deps.files(ctx.thread);
+        for (const ref of refs) open(ref);
+      },
       title: () => `${d.name}: ${label}`,
-      async run(args, ctx) {
+      async run(given, ctx) {
+        let args = given;
+        if (hasFileRefs(given)) {
+          if (!deps.files) throw new Error("files cannot be passed to MCP tools here");
+          args = fillFileArgs(given, t.inputSchema, { remote: Boolean(d.url), open: deps.files(ctx.thread) });
+          const filled = check?.safeParse(args);
+          if (filled && !filled.success) throw new Error(invalidArguments(t.name, filled.error));
+        }
         const r = await invoke(d, t, args, ctx.signal, ctx.thread.project_id);
         const text =
           (r.content ?? [])
