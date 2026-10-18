@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -406,4 +407,23 @@ test("a refusal outside every folder names a next step that exists", async () =>
   const apx = path.join(env.home, "apx.db");
   const roots = rootsOf(env.core.store, env.home, { id: "t_x", project_id: project });
   assert.deepEqual(judge(roots, apx, repo, { home: env.home, project: true }), { refused: refusal.apx(apx) });
+});
+
+test("a linked git worktree of the project beside its folder is the project's, unless the thread keeps to one", async (t) => {
+  const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: "ignore" });
+  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-wt-")));
+  t.after(() => fs.rmSync(base, { recursive: true, force: true }));
+  const main = path.join(base, "northwind");
+  const beside = path.join(base, "northwind-issue-7");
+  fs.mkdirSync(main);
+  git(main, "init", "-q");
+  git(main, "-c", "user.name=Acme", "-c", "user.email=user@example.com", "commit", "-q", "--allow-empty", "-m", "init");
+  git(main, "worktree", "add", "-q", beside);
+  const project = (await env.client.call("projects.register", { path: main, init: true })).project.id;
+  const file = path.join(beside, "a.txt");
+  const roots = rootsOf(env.core.store, env.home, { id: "t_wt", project_id: project });
+  const r = judge(roots, file, main, { write: true, home: env.home, project: true });
+  assert.ok(!("refused" in r) && r.write, JSON.stringify(r));
+  const kept = rootsOf(env.core.store, env.home, { id: "t_wt2", project_id: project, cwd: main });
+  assert.ok("refused" in judge(kept, file, main, { write: true, home: env.home, project: true }));
 });
