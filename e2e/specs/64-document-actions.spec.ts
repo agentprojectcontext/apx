@@ -34,6 +34,8 @@ test("a document names its file and offers its folder, open apart and download w
   await panel.getByRole("button", { name: /Todos los documentos/ }).click();
   const row = panel.locator(".documentpanel__row");
   const actions = row.locator(".documentpanel__rowactions");
+  // The click that opened the list can leave the pointer over its first row.
+  await page.mouse.move(0, 0);
   await expect(actions).toHaveCSS("opacity", "0");
   await row.hover();
   await expect(actions).toHaveCSS("opacity", "1");
