@@ -50,7 +50,7 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
       project: project.id,
     });
     taskId = task.id;
-    await env.client.call("tasks.create", { title: "Second Northwind task", project: project.id });
+    await env.client.call("tasks.create", { title: "Second Northwind task", description: "desc", project: project.id });
     const health = await env.client.call("system.health", {});
     expect(health.code_sha).toBeTruthy();
     await page.goto(env.core.url);

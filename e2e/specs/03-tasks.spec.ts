@@ -33,7 +33,7 @@ test("tasks: imported, created, opened and done", async ({ page }) => {
 
 test("a commitment: a new date agreed keeps it open, then it is marked kept", async ({ page }) => {
   const ana = await rpc<{ id: string }>("contacts.set", { name: "Northwind buyer", role: "contact" });
-  const c = await rpc<{ id: string }>("tasks.create", { title: "Send Northwind the quote", person: ana.id });
+  const c = await rpc<{ id: string }>("tasks.create", { title: "Send Northwind the quote", description: "desc", person: ana.id });
   await open(page);
   await page.getByRole("button", { name: "Tareas", exact: true }).first().click();
   const view = page.getByRole("region", { name: "Tareas" });
@@ -52,7 +52,7 @@ test("a commitment: a new date agreed keeps it open, then it is marked kept", as
 });
 
 test("a task's right-click menu deletes it, after asking", async ({ page }) => {
-  const doomed = await rpc<{ id: string }>("tasks.create", { title: "Old Northwind draft" });
+  const doomed = await rpc<{ id: string }>("tasks.create", { title: "Old Northwind draft", description: "desc" });
   await open(page);
   await page.getByRole("button", { name: "Tareas", exact: true }).first().click();
   const view = page.getByRole("region", { name: "Tareas" });
