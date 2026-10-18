@@ -49,8 +49,8 @@ jobs:
           fi
       - name: Browser for headless core tests and the end-to-end run
         run: pnpm exec playwright install --with-deps chromium
-      - name: Window manager for native focus and minimization tests
-        run: sudo apt-get install --no-install-recommends -y openbox
+      - name: Electron GTK runtime and window manager for native transition tests
+        run: sudo apt-get install --no-install-recommends -y libgtk-3-0t64 openbox
       - name: Preflight (private terms, schema, lint, typecheck, unit tests)
         run: pnpm preflight
       - name: Mobile (its own install; types and pairing logic)

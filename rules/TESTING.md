@@ -42,6 +42,8 @@ It merges function execution across processes and maps compiled UI functions bac
 The all-suites command builds browser source maps, collects Chromium function counters, and includes the sandbox
 core and Electron processes. On Linux without a display it runs desktop tests under `xvfb-run` and Openbox
 (CI installs both): native focus and minimization checks need a window manager as well as a display server.
+Electron also needs the GTK 3 runtime (`libgtk-3-0` on Debian, `libgtk-3-0t64` on Ubuntu 24.04); the Chromium
+dependency installer may supply GTK 4 without GTK 3, so CI installs Electron's runtime explicitly.
 The coverage sandbox picks separate loopback ports so parallel checkouts do not collide; `E2E_PORT`,
 `E2E_CONTROL_PORT` and `E2E_WA_PORT` override them when debugging.
 Reports identify each unexecuted function by file and line. An executed function still needs meaningful assertions;
