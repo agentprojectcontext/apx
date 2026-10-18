@@ -201,6 +201,12 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await expect(page.getByRole("main").getByText("On it.", { exact: true })).toBeVisible();
     await page.locator(".chat__task").click();
     await expect(page.getByRole("complementary", { name: task.title })).toBeVisible();
+    // A consult's card opens its chat from the task too, where no chat is open beside it.
+    await page
+      .getByRole("complementary", { name: task.title })
+      .getByRole("button", { name: "Abrir conversación con Roby" })
+      .click();
+    await expect(page.locator(".chat__header")).toContainText("Roby");
   } finally {
     await page.goto("about:blank");
     // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
