@@ -1,4 +1,9 @@
 // Hardware boundaries absent in Jest's process; app state and media decisions remain real.
+jest.mock("expo", () => ({
+  ...jest.requireActual("expo"),
+  isRunningInExpoGo: () => false,
+}));
+
 jest.mock("expo-audio", () => ({
   createAudioPlayer: jest.fn(() => ({
     currentTime: 0,

@@ -31,7 +31,10 @@ export function transport(options: { holdWelcome?: boolean } = {}) {
     "channels.list": { channels: [] },
     "memory.settings": { total: 0 },
   };
-  jest.spyOn(Crypto, "randomUUID").mockImplementation(() => `test-request-${Math.random()}`);
+  let requestId = 0;
+  jest
+    .spyOn(Crypto, "randomUUID")
+    .mockImplementation(() => `f89d0356-6cca-4cc0-88ee-${String(++requestId).padStart(12, "0")}`);
   const fetch = jest.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = new URL(String(input));
     expect(url.origin).toBe(credentials.url);
