@@ -894,6 +894,12 @@ moved on). Each close reports once (`close_reported` on the task's conversation)
 reports again. The wake counts against the unattended limits of the creator's conversation: past them the report
 is kept for its next turn and the owner sees the paused notice, as for a delegation's result.
 
+Corrections are explicit: `tasks.close` / `task_close` with `state: "open"`, `rework: true` and a nonblank `note`
+reopens a closed, assigned task and admits a turn in its existing work chat. The reopen, visible reason and run link
+are persisted together. Scope and hand-off permissions still apply; active task work or paused agent limits refuse
+the request without changing the task, so it can be retried after the blocker is cleared. Plain reopening and
+ordinary updates never request corrections. A subsequent delivery uses the same close-report path above.
+
 <a id="d-077"></a>
 ## D-077 — 2026-10-14 — A delegate names who owns the rest; the caller asks them
 Amends D-074. With one hop, a delegate asked for something that is another agent's work could not ask them, so it

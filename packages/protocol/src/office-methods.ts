@@ -110,7 +110,9 @@ export const officeMethods = {
   },
   /** Done, dropped, or open again. */
   "tasks.close": {
-    params: z.object({ task: Id, state: TaskState, note: z.string().max(2000).optional() }).strict(),
+    params: z
+      .object({ task: Id, state: TaskState, note: z.string().max(2000).optional(), rework: z.boolean().optional() })
+      .strict(),
     result: Task,
     effect: true,
   },
