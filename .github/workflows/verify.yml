@@ -51,11 +51,14 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Electron GTK runtime and window manager for native transition tests
         run: sudo apt-get install --no-install-recommends -y libgtk-3-0t64 openbox
+      - name: Mobile test dependencies (its own install)
+        working-directory: apps/mobile
+        run: npm ci --no-audit --no-fund
       - name: Preflight (private terms, schema, lint, typecheck, unit tests)
         run: pnpm preflight
-      - name: Mobile (its own install; types and pairing logic)
+      - name: Mobile types
         working-directory: apps/mobile
-        run: npm ci --no-audit --no-fund && npm run typecheck && npm test
+        run: npm run typecheck
       - name: Android bundle (Metro and native module resolution)
         working-directory: apps/mobile
         run: npx expo export --platform android --output-dir "$RUNNER_TEMP/apx-mobile-export"

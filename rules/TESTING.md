@@ -20,7 +20,8 @@ pnpm check:schema                  # apps/core/src/db/schema.ts matches the migr
 ## 3. Tests
 ```bash
 pnpm exec playwright install chromium   # required by the headless core test; CI also installs OS dependencies
-pnpm test                          # quality gate, workspace tests (UI included), mobile logic, scripts
+npm --prefix apps/mobile ci         # separate Expo install, including native component test dependencies
+pnpm test                          # quality gate, workspace tests (UI included), mobile logic and React tests, scripts
 pnpm check:tests                   # AST lint: disabled/exclusive/empty tests and unawaited Node assertions
 pnpm test:coverage                 # all unit suites, then coverage/unit/functions.json and functions.md
 pnpm test:coverage:all             # unit + browser + desktop execution, then coverage/all/ reports
@@ -34,11 +35,15 @@ with a reason in the commit body.
 
 The quality gate also rejects `t.skip()`, aliased test controls, conditional skip options, `only`, `fixme`,
 literal-only assertions and empty callbacks. It parses TypeScript rather than matching comments or fixtures.
+Promise assertions must be awaited or returned, including Jest's chained `.resolves` and `.rejects` matchers.
 `typescript-parser` pins the TypeScript 5 parser for this lint and coverage inventory: the TypeScript 7 compiler
 used by the workspace does not expose that parser through its default export.
 
 Coverage includes tracked and new non-ignored JavaScript/TypeScript sources, including modules never imported.
 It merges function execution across processes and maps compiled UI functions back through the build's source maps.
+Mobile React tests run with Jest Expo and React Native Testing Library; Babel instrumentation supplies original
+TSX function declarations, including nested callbacks, to the same inventory. Never-loaded native screens remain
+explicit zeroes. Tests replace only hardware and transport boundaries; React, hooks and the shared SDK execute.
 The all-suites command builds browser source maps, collects Chromium function counters, and includes the sandbox
 core and Electron processes. On Linux without a display it runs desktop tests under `xvfb-run` and Openbox
 (CI installs both): native focus and minimization checks need a window manager as well as a display server.
@@ -94,10 +99,15 @@ through `world.whatsapp`), so the real adapter runs with no test path in the pro
 ## 5a'. Mobile
 ```bash
 cd apps/mobile && npm install && npm run typecheck && npm test
+npm run test:unit                       # pure logic under node:test
+npm run test:ui                         # React hooks and native components under Jest Expo
 npx expo export --platform android     # Metro bundles the app: proof it resolves, without a device
 ```
 It installs outside the pnpm workspace (React Native never weighs on the rest). On a device: pair it from
 Config › Devices with the core listening on the network (`APX_HOST=0.0.0.0` and `APX_TOKEN`, or Tailscale).
+Jest Expo, its Jest version, Jest types and React Native Testing Library are development dependencies required to
+exercise mounted hooks, component events and effect cleanup. Plain Node tests cannot execute React Native's
+native modules or TSX screens. Their install does not change production dependency versions.
 
 ## 5b. Lightness
 ```bash

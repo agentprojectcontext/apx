@@ -91,7 +91,10 @@ export function scanTestSource(file: string, text: string): TestFinding[] {
         )
           add(callback, "empty test callback");
       }
-      if (assertions.has(names[0] ?? "") && (names.at(-1) === "rejects" || names.at(-1) === "doesNotReject")) {
+      if (
+        assertions.has(names[0] ?? "") &&
+        (names.at(-1) === "doesNotReject" || names.includes("rejects") || names.includes("resolves"))
+      ) {
         let parent: ts.Node = node.parent;
         while (ts.isParenthesizedExpression(parent) || ts.isVoidExpression(parent)) parent = parent.parent;
         if (ts.isExpressionStatement(parent)) add(node, "async assertion must be awaited or returned");

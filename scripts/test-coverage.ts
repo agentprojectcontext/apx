@@ -10,6 +10,12 @@ type V8Function = { functionName: string; ranges: { startOffset: number; endOffs
 type V8Script = { url: string; functions: V8Function[] };
 export type FunctionCoverage = { name: string; line: number; covered: boolean };
 export type FileCoverage = { file: string; loaded: boolean; functions: FunctionCoverage[] };
+export type InstrumentedCoverage = {
+  path: string;
+  fnMap: Record<string, { decl: { start: { line: number; column: number } } }>;
+  f: Record<string, number>;
+  s: Record<string, number>;
+};
 type SourceFunction = FunctionCoverage & { start: number; end: number };
 export type CoverageSourceMap = { url: string; text: string; sources: string[]; mappings: string; sourceRoot?: string };
 type Mapping = {
@@ -115,6 +121,7 @@ export function coverageReport(
   files: { file: string; text: string }[],
   scripts: V8Script[],
   sourceMaps: CoverageSourceMap[] = [],
+  instrumented: InstrumentedCoverage[] = [],
 ): FileCoverage[] {
   const inventory = new Map(
     files.map(({ file, text }) => [
@@ -187,6 +194,19 @@ export function coverageReport(
       own(target, offset, range.count > 0);
     }
   }
+  // Expo's Babel instrumentation retains nested TSX callbacks that V8's transformed-file maps omit.
+  for (const entry of instrumented) {
+    const file = path.relative(root, entry.path).split(path.sep).join("/");
+    const source = inventory.get(file);
+    if (!source) continue;
+    source.loaded ||= Object.values(entry.s).some((count) => count > 0);
+    for (const [id, fn] of Object.entries(entry.fnMap)) {
+      if (!(entry.f[id] && entry.f[id] > 0)) continue;
+      const { line, column } = fn.decl.start;
+      const start = source.lines[line - 1];
+      if (start !== undefined) own(file, start + column, true);
+    }
+  }
   return [...inventory]
     .map(([file, source]) => ({
       file,
@@ -245,7 +265,10 @@ async function main() {
     return;
   }
   const allTests = testFiles(root).filter(
-    (file) => file.includes(".test.") && !file.startsWith(path.join(root, "e2e")),
+    (file) =>
+      file.includes(".test.") &&
+      !file.startsWith(path.join(root, "e2e")) &&
+      !file.startsWith(path.join(root, "apps/mobile/test")),
   );
   const groups = new Map<string, string[]>();
   for (const file of allTests) {
@@ -279,6 +302,22 @@ async function main() {
       failed = true;
       if (run.error) console.error(run.error.message);
     }
+  }
+  const nativeOutput = path.join(output, "mobile");
+  const mobile = spawnSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    ["run", "test:ui", "--", "--coverage", "--coverageDirectory", nativeOutput],
+    {
+      cwd: path.join(root, "apps/mobile"),
+      env: { ...process.env, NODE_V8_COVERAGE: undefined },
+      stdio: "inherit",
+      shell: process.platform === "win32",
+      timeout: 5 * 60_000,
+    },
+  );
+  if (mobile.status !== 0) {
+    failed = true;
+    if (mobile.error) console.error(mobile.error.message);
   }
   if (includeE2E) {
     const ports = await sandboxPorts();
@@ -329,7 +368,11 @@ async function main() {
     file: path.relative(root, file).split(path.sep).join("/"),
     text: fs.readFileSync(file, "utf8"),
   }));
-  const report = coverageReport(root, files, scripts, sourceMaps);
+  const mobileReport = path.join(nativeOutput, "coverage-final.json");
+  const instrumented: InstrumentedCoverage[] = fs.existsSync(mobileReport)
+    ? Object.values(JSON.parse(fs.readFileSync(mobileReport, "utf8")))
+    : [];
+  const report = coverageReport(root, files, scripts, sourceMaps, instrumented);
   fs.writeFileSync(
     path.join(output, "functions.json"),
     `${JSON.stringify({ testsPassed: !failed, suites: includeE2E ? ["unit", "web", "desktop"] : ["unit"], files: report }, null, 2)}\n`,

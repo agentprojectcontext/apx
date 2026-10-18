@@ -115,3 +115,54 @@ test("outer function calls do not count an uninvoked nested callback as covered"
     [true, false],
   );
 });
+
+test("native Babel counters map exact declarations and keep uninvoked nested callbacks uncovered", () => {
+  const file = "apps/mobile/src/hooks/example.ts";
+  const text = "export function outer() { return () => 1; }\nexport const unused = () => 2;";
+  const report = coverageReport(
+    "/work",
+    [{ file, text }],
+    [],
+    [],
+    [
+      {
+        path: `/work/${file}`,
+        fnMap: {
+          "0": { decl: { start: { line: 1, column: text.indexOf("outer") } } },
+          "1": { decl: { start: { line: 1, column: text.indexOf("() =>") } } },
+          "2": { decl: { start: { line: 2, column: 22 } } },
+        },
+        f: { "0": 3, "1": 0, "2": 0 },
+        s: { "0": 3 },
+      },
+    ],
+  );
+  assert.equal(report[0]?.loaded, true);
+  assert.deepEqual(
+    report[0]?.functions.map((fn) => [fn.name, fn.covered]),
+    [
+      ["outer", true],
+      ["(anonymous)", false],
+      ["unused", false],
+    ],
+  );
+});
+
+test("native collection of an untouched TSX module does not count it as loaded or its functions as called", () => {
+  const file = "apps/mobile/src/View.tsx";
+  const report = coverageReport(
+    "/work",
+    [{ file, text: "export function View() { return <View />; }" }],
+    [],
+    [],
+    [
+      {
+        path: `/work/${file}`,
+        fnMap: { "0": { decl: { start: { line: 1, column: 0 } } } },
+        f: { "0": 0 },
+        s: { "0": 0 },
+      },
+    ],
+  );
+  assert.deepEqual(report, [{ file, loaded: false, functions: [{ name: "View", line: 1, covered: false }] }]);
+});
