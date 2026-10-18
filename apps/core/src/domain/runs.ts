@@ -44,6 +44,10 @@ export type Origin =
       end_reason?: RunEndReason;
       /** Its calls with an effect as APX recorded them (`actionsOf`), absent on runs older than the field. */
       actions?: string[];
+      /** The session's name, to continue it with its context. */
+      session?: string;
+      /** APX already continued it once after a limit cut it short (DECISIONS.md#d-105). */
+      continued?: boolean;
     };
 
 /** A file or image the owner attached to the message that started the run. */
@@ -56,6 +60,8 @@ export type RunInput = {
   reply_to?: ThreadContext["reply_to"] | null;
   /** This run picks up the turn a restart of APX cut off (that run's id); such a run is never resumed again. */
   resume_of?: string;
+  /** A delegated run APX started to go on with one a limit cut short (that run's id); never continued again. */
+  continues?: string;
 };
 export type RunRecord = Run & { input?: RunInput; message_id?: string };
 

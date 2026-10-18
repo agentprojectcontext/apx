@@ -136,6 +136,8 @@ export function createExecutor(o: {
   ): Promise<Result<M>>;
   delegate: ToolContext["delegate"];
   jobs: Jobs;
+  /** Work in progress the turn waits on: its idle deadline is held until the returned function is called. */
+  busy?: (() => () => void) | undefined;
   /** APX's own port: a command that reaches it always asks. */
   apxPort: () => number;
   /** Where an outside agent works (harnessDir): its tools are checked against this folder. */
@@ -182,12 +184,15 @@ export function createExecutor(o: {
     }
     const stop = () => o.jobs.cancel(job.id);
     const timer = setTimeout(stop, c.timeoutMs);
+    // A long command (a render, a build) is the turn at work, bounded by its own timeout (DECISIONS.md#d-105).
+    const idle = o.busy?.();
     signal.addEventListener("abort", stop, { once: true });
     try {
       const ended = await done;
       return { job: ended, output: o.jobs.read(job.id, undefined, FOREGROUND_OUTPUT_CHARS).output };
     } finally {
       clearTimeout(timer);
+      idle?.();
       signal.removeEventListener("abort", stop);
     }
   };

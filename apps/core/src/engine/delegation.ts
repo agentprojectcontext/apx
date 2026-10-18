@@ -5,14 +5,14 @@ import type { Part, Thread, WritePolicy } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { strictestWrite, type Worker, worksInFolder } from "../domain/threads.ts";
+import { previewOf, strictestWrite, type Worker, worksInFolder } from "../domain/threads.ts";
 import { agentReply } from "../tools/agents.ts";
 import { folderInProject } from "../tools/folders.ts";
 import { withProjectAutonomy } from "../tools/policy.ts";
 import { ancestors } from "./ancestry.ts";
 import { agentTripped, heldNotice, tripped } from "./breaker.ts";
 import type { Display } from "./display.ts";
-import { A2A_DEADLINE_MS, MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
+import { MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
 
 export type Caller = { run: RunRecord; agent: AgentRecord; display: Display };
 
@@ -78,15 +78,34 @@ export function reportCard(p: Extract<Part, { type: "subthread" }>, child: RunRe
   };
 }
 
-/** How a delegated run ended, for its caller: a completed run that ran out of steps did not finish. */
-export const endedAs = (run: Pick<RunRecord, "state" | "end_reason">): string =>
-  run.end_reason === "step_limit" ? "out_of_steps" : run.state;
+/** A run a limit cut short (its steps or its time): what it gave is a progress report, not a result. */
+export const cutShort = (run: Pick<RunRecord, "end_reason">): boolean =>
+  run.end_reason === "step_limit" || run.end_reason === "deadline";
 
-/** Said to the caller beside a delegated answer that ran out of steps, so it never reads as the result. */
-export const endNote = (run: Pick<RunRecord, "end_reason">): string =>
-  run.end_reason === "step_limit"
-    ? "It ran out of steps before finishing: this is a progress report, not its final result. What it says is left is not done; to go on, delegate only the rest in its session, or tell the owner; never record it as a verdict.\n"
+/** How a delegated run ended, for its caller: a run that ran out of steps or time did not finish. */
+export const endedAs = (run: Pick<RunRecord, "state" | "end_reason">): string =>
+  run.end_reason === "step_limit" ? "out_of_steps" : run.end_reason === "deadline" ? "out_of_time" : run.state;
+
+/**
+ * Said to the caller beside a delegated answer a limit cut short, so it never reads as the result, with the way to
+ * go on in the same session.
+ */
+export const endNote = (
+  run: Pick<RunRecord, "end_reason">,
+  how: { session?: string | undefined; continued?: boolean | undefined } = {},
+): string => {
+  if (!cutShort(run)) return "";
+  const what = run.end_reason === "step_limit" ? "steps" : "time";
+  const where = how.session ? `with session="${how.session}"` : "in its session";
+  const again = how.continued
+    ? " APX already continued it once on its own: ask the owner before going on again, unless what is left is small."
     : "";
+  return `It ran out of ${what} before finishing: this is a progress report, not its final result. What it says is left is not done; never record it as a verdict.${again} To go on, delegate only the rest ${where} (it keeps its context); to drop it, tell the owner.\n`;
+};
+
+/** What a continuation asks the delegate whose turn a limit cut short. */
+const continueText = (run: RunRecord) =>
+  `APX stopped your last turn on this task before you finished (${run.end_reason === "step_limit" ? "it used all its steps" : (run.error ?? "it ran out of time").replace(/^Could not finish: /, "")}). Go on from where you stopped: do only what is left, without redoing what is done, then give your final answer.`;
 
 /** The calls with an effect APX recorded in a run, and how each ended ("show_widget ok", "message_contact error ×2"). */
 export function actionsOf(store: Store, run: RunRecord): string[] {
@@ -118,6 +137,10 @@ const slug = (s: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 40) || "session";
 
+/** A session of `parentId` by the name the caller gave (stored as a slug) or by id. */
+export const sessionOf = (store: Store, parentId: string, ref: string): Thread | undefined =>
+  store.threads.session(parentId, slug(ref)) ?? store.threads.session(parentId, ref);
+
 /** The caller's card for a delegated run (settled by now), to show again when its result arrives in a new turn. */
 export function resultCard(store: Store, childRunId: string): Extract<Part, { type: "subthread" }> | undefined {
   const child = store.runs.get(childRunId);
@@ -137,6 +160,8 @@ export function createDelegations(deps: {
   deliver(parent: RunRecord, child: RunRecord, answer: string): void;
   /** The engine's end of a run (its waiters, then this module's `childEnded`). */
   ended(run: RunRecord): void;
+  /** A delegated run's first deadline in a thread, written to its row until its clock moves it. */
+  windowMs(threadId: string): number;
 }) {
   const { store } = deps;
   /** Child run → the caller still waiting for it inside its turn. */
@@ -212,7 +237,7 @@ export function createDelegations(deps: {
         continue;
       }
       // Its time to work starts now, not when it was queued.
-      store.runs.setDeadline(next.id, new Date(Date.now() + A2A_DEADLINE_MS).toISOString());
+      store.runs.setDeadline(next.id, new Date(Date.now() + deps.windowMs(next.thread_id)).toISOString());
       const run = store.runs.setState(next, "submitted");
       if (store.threads.get(next.thread_id)?.state !== "working")
         store.threads.patch(next.thread_id, { state: "submitted" });
@@ -250,6 +275,93 @@ export function createDelegations(deps: {
     if (notice) store.messages.add({ thread_id: threadId, author: { kind: "system" }, parts: [notice] });
   }
 
+  const whoDid = (run: RunRecord) =>
+    store.threads.context(run.thread_id).worker?.name ?? store.agents.get(run.agent_id)?.name ?? run.agent_id;
+
+  /**
+   * A delegated run a limit cut short, with its caller not waiting for it: the same session goes on once, with its
+   * context, unless agents are paused or it was a continuation already. The new run reports to the same caller.
+   */
+  function continueCut(parent: RunRecord, child: RunRecord): RunRecord | undefined {
+    const origin = child.input?.origin;
+    if (!cutShort(child) || child.input?.continues || origin?.kind !== "agent") return undefined;
+    const sub = store.threads.get(child.thread_id);
+    const top = sub?.parent_id;
+    if (!sub || !top || !store.threads.get(top)) return undefined;
+    if (tripped(store, top) || agentTripped(store, top, child.agent_id, whoDid(child))) return undefined;
+    const next = store.runs.create({
+      thread_id: sub.id,
+      agent_id: child.agent_id,
+      trigger: "a2a",
+      input: { origin, text: continueText(child), continues: child.id },
+      parent_run_id: parent.id,
+      depth: child.depth,
+      deadline_at: new Date(Date.now() + deps.windowMs(sub.id)).toISOString(),
+    });
+    store.messages.add({
+      thread_id: sub.id,
+      author: { kind: "system" },
+      parts: [
+        {
+          type: "notice",
+          level: "info",
+          code: "delegation.continued",
+          text: "APX continued this session after a limit stopped it.",
+        },
+      ],
+    });
+    if (store.threads.get(sub.id)?.state !== "working") store.threads.patch(sub.id, { state: "submitted" });
+    deps.kick(sub.id);
+    return next;
+  }
+
+  /**
+   * The owner hears that a delegated run hit a limit: which agent, which limit, what it reported so far, and whether
+   * APX went on with it or its caller has the report. In the caller's chat (with the session to open or stop), the
+   * tray, and their channel.
+   */
+  function limitNotice(parent: RunRecord, child: RunRecord, answer: string, continued: boolean): void {
+    const who = whoDid(child);
+    const sub = store.threads.get(child.thread_id);
+    const caller = store.agents.get(parent.agent_id)?.name ?? parent.agent_id;
+    const limit = child.end_reason === "step_limit" ? "steps" : "time";
+    const session = sub?.session ?? child.thread_id;
+    const task = (resultCard(store, child.id)?.title ?? sub?.title ?? "").slice(0, 120);
+    const sofar = previewOf(answer).slice(0, 200);
+    const text = continued
+      ? `${who} ran out of ${limit} on “${task}”; APX had it go on once in session ${session}. So far: ${sofar}`
+      : `${who} ran out of ${limit} on “${task}”. ${caller} has its report and decides how to go on. So far: ${sofar}`;
+    store.messages.add({
+      thread_id: parent.thread_id,
+      author: { kind: "system" },
+      parts: [
+        {
+          type: "notice",
+          level: "warn",
+          code: "delegation.limit",
+          text,
+          vars: {
+            variant: `${continued ? "continued" : "returned"}${limit === "steps" ? "Steps" : "Time"}`,
+            who,
+            task,
+            session,
+            caller,
+            sofar,
+            subthread: child.thread_id,
+          },
+        },
+      ],
+    });
+    store.notifications.add({
+      kind: "agent",
+      level: "warn",
+      title: who,
+      body: text,
+      thread_id: parent.thread_id,
+      ref: child.thread_id,
+    });
+  }
+
   return {
     async delegate(from: Caller, req: DelegateTo, task: string, waitMs: number): Promise<string> {
       const parentThread = store.threads.get(from.run.thread_id);
@@ -257,10 +369,7 @@ export function createDelegations(deps: {
       if (parentThread.kind === "a2a" || ancestors(store, parentThread.id).length >= MAX_DEPTH)
         return "refused: you are answering another agent, so you do it yourself and ask no one else.";
       // Sessions are stored under a slug of the name the caller gave: look them up the same way (or by id).
-      const existing = req.session
-        ? (store.threads.session(parentThread.id, slug(req.session)) ??
-          store.threads.session(parentThread.id, req.session))
-        : undefined;
+      const existing = req.session ? sessionOf(store, parentThread.id, req.session) : undefined;
       const kept = existing ? store.threads.context(existing.id).worker : undefined;
       if (existing && req.worker && !kept)
         return `refused: session "${existing.session ?? existing.id}" is with an agent, not a worker; name a new session.`;
@@ -346,7 +455,7 @@ export function createDelegations(deps: {
         },
         parent_run_id: from.run.id,
         depth: from.run.depth + 1,
-        deadline_at: new Date(Date.now() + A2A_DEADLINE_MS).toISOString(),
+        deadline_at: new Date(Date.now() + deps.windowMs(sub.id)).toISOString(),
         ...(queued ? { state: "queued" as const } : {}),
       });
       const at = place
@@ -371,7 +480,7 @@ export function createDelegations(deps: {
       inline.delete(child.id);
       const resume = `(session "${name}": delegate with session="${name}" to continue it with ${who}, who keeps the context)`;
       if (quick && TERMINAL.has(quick.state))
-        return `${agentReply(who, answerOf(quick), endedAs(quick))}\n${endNote(quick)}${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}${at}`;
+        return `${agentReply(who, answerOf(quick), endedAs(quick))}\n${endNote(quick, { session: name, continued: Boolean(quick.input?.continues) })}${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}${at}`;
       return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.${at}`;
     },
 
@@ -394,7 +503,12 @@ export function createDelegations(deps: {
         return;
       }
       const answer = answerOf(child);
-      settleCard(parent, child, answer);
+      // A caller still waiting decides itself; otherwise a run a limit cut short goes on once (DECISIONS.md#d-105).
+      const next = waiting ? undefined : continueCut(parent, child);
+      if (next) updateCard(parent, child, ({ end_reason: _cut, ...p }) => ({ ...p, state: "working" }));
+      else settleCard(parent, child, answer);
+      // A caller still waiting tells the owner in the answer it is writing; a later result may reach nobody watching.
+      if (!waiting && cutShort(child)) limitNotice(parent, child, answer, Boolean(next));
       if (from) release(from);
       if (waiting) {
         inline.delete(child.id);
@@ -402,7 +516,7 @@ export function createDelegations(deps: {
         return;
       }
       // A cascade cancel is the owner's decision: it wakes nobody.
-      if (child.state !== "canceled") deps.deliver(parent, child, answer);
+      if (!next && child.state !== "canceled") deps.deliver(parent, child, answer);
     },
 
     release,

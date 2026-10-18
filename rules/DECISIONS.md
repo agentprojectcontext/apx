@@ -1265,3 +1265,19 @@ its caller, and the result tells it when what it asked for was capped. A separat
 path already names both the project and the folder, and the tool definitions are at their budget (PROMPT_SIZE.md).
 Continuing a session with another folder or policy is refused, as with another project. The sub-thread keeps
 `parent_id` and its run `parent_run_id`, so the result returns to the caller as any delegation's does.
+
+<a id="d-105"></a>
+## D-105 — 2026-10-17 — A delegated run stops only when it stalls, and one a limit cuts short goes on once
+A delegate rendering a video was stopped at the fixed ten minutes every delegated run had, while it was still working:
+its caller read "could not finish" and the work died. Now a delegated run has the owner's turns' idle clock (it ends
+after its window without progress: a model token, a tool result, an outside engine's event) and a cap of two hours in
+all. A foreground command still running, and a caller's wait on a delegate at work, hold the idle clock: they are the
+turn at work, bounded by their own timeouts. When a limit (steps or time) cuts a delegated run short and its caller is
+not waiting for it inside its turn, APX starts one continuation in the same session, which keeps its context, reporting to the same caller;
+the owner gets a notice in the caller's chat (with the session to open or stop), the tray and the channel that chat
+lives on. The cap is per run: a continuation gets its own. A continuation cut short again, a caller still waiting inside its turn, or agents paused by the breaker go
+back to the caller instead, with the progress-report note `step_limit` had and the session to delegate "the rest" to.
+APX continues on its own once and not more: a run cut short while making progress usually needs only a little more,
+while a second cut says the task is larger than one run or is stuck, which is the caller's (and the owner's) call; the
+breaker still counts the continuation. `stop_session` lets a caller stop a session it started; it is offered only
+while one of its thread's sessions works, so the default turn's tool definitions stay within PROMPT_SIZE.md.
