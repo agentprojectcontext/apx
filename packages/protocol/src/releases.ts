@@ -22,7 +22,8 @@ export function platformOf(platform: string, arch: string): Platform | undefined
 /** A build target as `<os>-<arch>` (APX_TARGET=linux-x64), or this machine when unset. */
 export function targetOf(spec: string | undefined, platform: string, arch: string): Platform | undefined {
   if (!spec) return platformOf(platform, arch);
-  const [os, cpu] = spec.split("-");
+  const [os, cpu, ...extra] = spec.split("-");
+  if (extra.length) return undefined;
   const node = os === "mac" ? "darwin" : os === "win" ? "win32" : os;
   return platformOf(node ?? "", cpu ?? "");
 }
