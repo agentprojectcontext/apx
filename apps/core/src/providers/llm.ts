@@ -47,7 +47,12 @@ const TRANSPORTS: Record<ProviderConfig["transport"], Transport> = {
 type Target = { provider: ProviderConfig; model: string; effort?: string | undefined };
 
 /** A provider signed in rather than keyed (oauth:<name>): whether it is, and a fresh token with its headers. */
-export type SignIn = { has(): boolean; credentials(): Promise<{ token: string; headers: Record<string, string> }> };
+export type SignIn = {
+  has(): boolean;
+  credentials(): Promise<{ token: string; headers: Record<string, string> }>;
+  /** A fresh token after the API refused the current one. */
+  renew?(): Promise<{ token: string; headers: Record<string, string> }>;
+};
 
 /** The key reference of a provider that needs none (a local server). */
 export const NO_KEY = "none";
@@ -138,6 +143,7 @@ export function createLlm(opts: {
           if (failed.at(-1)?.model !== ref) failed.push({ model: ref, why: signIn ? "not signed in" : "no API key" });
           continue;
         }
+        let renewedToken = false;
         for (let attempt = 0; attempt < 2; attempt++) {
           req.signal.throwIfAborted();
           try {
@@ -166,6 +172,19 @@ export function createLlm(opts: {
             if (req.signal.aborted) throw req.signal.reason ?? err;
             last = err instanceof ProviderError ? err : new ProviderError("network", String(err));
             last.message = `${ref}: ${last.message}`;
+            // A plan's token can be refused before it says it expires: renew it once and try again.
+            if (last.kind === "auth" && signIn?.renew && !renewedToken) {
+              renewedToken = true;
+              try {
+                const c = await signIn.renew();
+                key = c.token;
+                headers = c.headers;
+                attempt--;
+                continue;
+              } catch (renewErr) {
+                last.message += ` (sign-in could not be renewed: ${renewErr instanceof Error ? renewErr.message : String(renewErr)})`;
+              }
+            }
             // Auth and a rejected request rule out the whole provider for this call; quota is often per model
             // (Gemini), so the provider's next model still gets a try.
             if (last.kind === "auth" || last.kind === "bad_request") skipped.add(t.provider.id);

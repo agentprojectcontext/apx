@@ -86,6 +86,29 @@ export function createChatgptLogin(deps: {
     return json;
   }
 
+  /** One refresh at a time; a refused refresh token ends the sign-in, so Settings asks to sign in again. */
+  function renewed(s: Stored): Promise<Stored> {
+    refreshing ??= refresh(s)
+      .catch((err: unknown) => {
+        if (err instanceof LoginError && err.relogin) {
+          deps.secrets.set(SECRET, null);
+          lastError = "the ChatGPT session expired: sign in again";
+        }
+        throw err;
+      })
+      .finally(() => {
+        refreshing = undefined;
+      });
+    return refreshing;
+  }
+
+  const credentialsOf = (s: Stored): ChatgptCredentials => {
+    const auth = authClaims(s.access_token);
+    const account = String(auth.chatgpt_account_id ?? s.account_id ?? "");
+    if (!account) throw new LoginError("the ChatGPT sign-in names no account: sign in again", true);
+    return { token: s.access_token, headers: { "chatgpt-account-id": account, originator: "apx" } };
+  };
+
   async function refresh(s: Stored): Promise<Stored> {
     const json = await token(
       new URLSearchParams({ grant_type: "refresh_token", refresh_token: s.refresh_token, client_id: CLIENT_ID }),
@@ -166,16 +189,14 @@ export function createChatgptLogin(deps: {
       let s = read();
       if (!s) throw new LoginError("ChatGPT is not connected: sign in from Settings › Engines", true);
       const exp = Number(claims(s.access_token).exp ?? 0);
-      if (exp && exp - SKEW_S <= Date.now() / 1000) {
-        refreshing ??= refresh(s).finally(() => {
-          refreshing = undefined;
-        });
-        s = await refreshing;
-      }
-      const auth = authClaims(s.access_token);
-      const account = String(auth.chatgpt_account_id ?? s.account_id ?? "");
-      if (!account) throw new LoginError("the ChatGPT sign-in names no account: sign in again", true);
-      return { token: s.access_token, headers: { "chatgpt-account-id": account, originator: "apx" } };
+      if (exp && exp - SKEW_S <= Date.now() / 1000) s = await renewed(s);
+      return credentialsOf(s);
+    },
+    /** A fresh token after the API refused the current one (it can expire before its own `exp` says). */
+    async renew(): Promise<ChatgptCredentials> {
+      const s = read();
+      if (!s) throw new LoginError("ChatGPT is not connected: sign in from Settings › Engines", true);
+      return credentialsOf(await renewed(s));
     },
     /** Starts a device sign-in: the owner types the code at the address; the core waits for it in the background. */
     async start(): Promise<DeviceCode> {

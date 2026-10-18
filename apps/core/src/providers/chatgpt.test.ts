@@ -17,6 +17,8 @@ const account = { "https://api.openai.com/auth": { chatgpt_account_id: "acct-1" 
 const seen: Array<{ url: string; headers: http.IncomingHttpHeaders; body: Record<string, unknown> }> = [];
 let polls = 0;
 let refreshes = 0;
+/** Access tokens the plan's API refuses as expired although their `exp` is still ahead. */
+const refused = new Set<string>();
 const server = http.createServer((req, res) => {
   let raw = "";
   req.on("data", (c) => {
@@ -35,11 +37,15 @@ const server = http.createServer((req, res) => {
     if (req.url === "/api/accounts/deviceauth/token")
       return ++polls < 2 ? json(403, {}) : json(200, { authorization_code: "code-1", code_verifier: "ver-1" });
     if (req.url === "/oauth/token") {
+      if (body.grant_type === "refresh_token" && body.refresh_token === "r-dead")
+        return json(400, { error: "invalid_grant" });
       if (body.grant_type === "refresh_token") refreshes++;
       const exp = Math.floor(Date.now() / 1000) + 3600;
       return json(200, { access_token: jwt({ ...account, exp }), refresh_token: `r-${refreshes}` });
     }
     if (req.url === "/codex/responses") {
+      if (refused.has(String(req.headers.authorization).replace(/^Bearer /, "")))
+        return json(401, { error: { message: "Provided authentication token is expired.", code: "token_expired" } });
       res.writeHead(200, { "content-type": "text/event-stream" });
       const send = (e: object) => res.write(`data: ${JSON.stringify(e)}\n\n`);
       const afterTool = (body.input as Array<{ type: string }>).some((i) => i.type === "function_call_output");
@@ -217,4 +223,48 @@ test("the plan's model runs in APX's loop: tools as functions, reasoning replaye
   assert.ok(
     !toInput([...messages, first.message], "gpt-6-sol").input.some((i) => (i as { type: string }).type === "reasoning"),
   );
+});
+
+test("a token the plan refuses before its expiry is renewed once and the call goes on; a refused renewal asks to sign in", async () => {
+  const signedIn = (name: string, refresh: string) => {
+    const secrets = secretsIn(name);
+    const login = createChatgptLogin({ secrets, issuer: base });
+    const token = jwt({ ...account, exp: 9_999_999_999, n: name });
+    refused.add(token);
+    const v1 = path.join(dir, `${name}.json`);
+    fs.writeFileSync(v1, JSON.stringify({ tokens: { access_token: token, refresh_token: refresh } }));
+    login.importV1(v1);
+    const llm = createLlm({
+      providers: () => [
+        { id: "chatgpt", transport: "chatgpt-responses", base_url: `${base}/codex`, key: "oauth:chatgpt", models: [] },
+      ],
+      secrets,
+      firstByteMs: 5000,
+      retryDelayMs: 1,
+      signIns: { "oauth:chatgpt": login },
+    });
+    return { login, llm, token };
+  };
+  const ask = (llm: ReturnType<typeof createLlm>) =>
+    llm.complete({
+      models: ["chatgpt/gpt-6-luna"],
+      messages: [{ role: "user", content: "how many tasks?" }],
+      tools: [],
+      signal: AbortSignal.timeout(5000),
+    });
+
+  const live = signedIn("renew", "r-live");
+  const before = refreshes;
+  const out = await ask(live.llm);
+  assert.equal(out.model, "chatgpt/gpt-6-luna");
+  assert.equal(refreshes - before, 1, "renewed once");
+  assert.notEqual((await live.login.credentials()).token, live.token, "the renewed token is kept");
+  assert.equal(live.login.status().connected, true);
+
+  const dead = signedIn("dead", "r-dead");
+  await assert.rejects(ask(dead.llm), /token_expired[\s\S]*could not be renewed/);
+  assert.equal(dead.login.has(), false, "a refused renewal ends the sign-in");
+  const status = dead.login.status();
+  assert.equal(status.connected, false);
+  assert.match(status.error ?? "", /sign in again/);
 });
