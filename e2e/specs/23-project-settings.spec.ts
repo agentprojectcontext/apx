@@ -24,8 +24,9 @@ test("a project's tabs count its agents and chats, and its settings rename it an
   await dialog.getByLabel("Nombre").fill("Northwind");
   await dialog.getByRole("combobox", { name: "Tipo" }).click();
   await page.getByRole("option", { name: /Empresa/ }).click();
-  // How far its agents go on their own: APX keeps it, the folder never does.
-  await dialog.getByRole("combobox", { name: "Autonomía de los agentes" }).click();
+  // How far its agents go on their own: APX keeps it, the folder never does. The five modes, in the owner's order.
+  await dialog.getByRole("combobox", { name: "Modo de permisos de los agentes" }).click();
+  await expect(page.getByRole("option")).toHaveText([/^Manual/, /^Auto/, /^Acepta ediciones/, /^Plan/, /^Total/]);
   await page.getByRole("option", { name: /Acepta ediciones/ }).click();
   // Another project arriving refreshes the list while the dialog is open: what was typed stays.
   const other = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-settings-other-")));
@@ -40,7 +41,7 @@ test("a project's tabs count its agents and chats, and its settings rename it an
   expect(saved).toMatchObject({ name: "Northwind", kind: "company" });
   expect(saved.autonomy).toBeUndefined();
   const listed = await rpc<{ projects: Array<{ id: string; autonomy?: string }> }>("projects.list");
-  expect(listed.projects.find((p) => p.id === project)?.autonomy).toBe("edits");
+  expect(listed.projects.find((p) => p.id === project)?.autonomy).toBe("accept_edits");
   await rpc("projects.unregister", { project: second });
 
   // The base space has no folder: its settings point at making a project from one.

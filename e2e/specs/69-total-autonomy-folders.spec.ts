@@ -30,7 +30,7 @@ test("an agent on total autonomy writes in another folder from a chat with no pr
     const parts = (await thread()).messages.flatMap((m) => m.parts);
     expect(parts.some((p) => p.type === "tool" && p.tool === "shell" && p.status === "ok")).toBe(true);
   } finally {
-    await rpc("agents.update", { agent: "ondina", autonomy: "standard" });
+    await rpc("agents.update", { agent: "ondina", autonomy: null });
     fs.rmSync(northwind, { recursive: true, force: true });
   }
 });
