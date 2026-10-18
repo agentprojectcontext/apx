@@ -159,13 +159,33 @@ export function reworkTask(store: Store, admit: AdmitFn, task: Task, note: strin
  * An agent's @mention summons nobody: it asks with `delegate`, whose answer comes back to it (DECISIONS.md#d-078).
  */
 export function askMentioned(store: Store, admit: AdmitFn, task: Task, text: string): RunRecord[] {
-  return mentioned(store, text, task.project_id).flatMap((a) => {
+  const who = mentioned(store, text, task.project_id);
+  if (!who.length) return [];
+  const asked = ownerWordsSinceReply(store, task.thread_id) || text;
+  return who.flatMap((a) => {
     const run =
       a.id === task.assignee
-        ? ask(store, admit, task, a.id, text, OWNER, { kind: "user" })
-        : consult(store, admit, task, a, text);
+        ? ask(store, admit, task, a.id, asked, OWNER, { kind: "user" })
+        : consult(store, admit, task, a, asked);
     return run ? [run] : [];
   });
+}
+
+/**
+ * The owner's comments since anyone else last spoke on the task, oldest first: a bare "@name" after a question asks
+ * that question, not just the name.
+ */
+function ownerWordsSinceReply(store: Store, threadId: string): string {
+  const words: string[] = [];
+  for (const m of store.messages.list(threadId, 20).reverse()) {
+    if (m.author.kind !== "user") break;
+    const text = m.parts
+      .map((p) => (p.type === "text" ? p.text : ""))
+      .join("\n")
+      .trim();
+    if (text) words.unshift(text);
+  }
+  return words.join("\n\n").slice(-4000);
 }
 
 /** The owner's comment's @mentions of anyone but the task's own agent, each answered in a consult. */

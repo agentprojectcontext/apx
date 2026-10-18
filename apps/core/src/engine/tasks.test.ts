@@ -142,6 +142,17 @@ test("an @mention of a teammate is a consult shown as a card on the task; the co
   );
 });
 
+test("a bare @mention after the owner's question asks that question, not just the name", async () => {
+  const t = await env.client.call("tasks.create", { title: "Check the release notes", project });
+  const quiet = await env.client.call("tasks.comment", { task: t.id, text: "Did the smoke tests pass?" });
+  assert.equal(quiet.runs.length, 0, "a comment with no @mention asks nobody");
+  const r = await env.client.call("tasks.comment", { task: t.id, text: "@vera" });
+  assert.equal(r.runs.length, 1);
+  await settleTask(t.id);
+  const input = llm.calls.find((c) => String(c.messages.at(-1)?.content).includes("Did the smoke tests pass?"));
+  assert.match(String(input?.messages.at(-1)?.content), /\nDid the smoke tests pass\?\n\n@vera\n/);
+});
+
 test("an @mention of the task's own agent asks it in its chat for the task, and its answer is a comment", async () => {
   const t = await env.client.call("tasks.create", { title: "Pick the colors", project, assignee: "vera" });
   await settleTask(t.id);
