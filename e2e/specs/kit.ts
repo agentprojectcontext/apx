@@ -1,6 +1,7 @@
 // What every spec shares: the core's protocol, the outside world (e2e/env.ts's control API), and a page that fails
 // its test on any console error or uncaught exception.
 import { test as base, expect, type Page } from "@playwright/test";
+import { startPageCoverage } from "../coverage.ts";
 
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
 const control = `http://127.0.0.1:${process.env.E2E_CONTROL_PORT ?? 7461}`;
@@ -115,6 +116,7 @@ export const test = base.extend<{ page: Page; cornerCards: boolean }>({
   // The corner cards cover what sits under them, so they start closed unless a spec is about them.
   cornerCards: [false, { option: true }],
   page: async ({ page, cornerCards }, use) => {
+    const finishCoverage = await startPageCoverage(page);
     if (!cornerCards)
       await page.addInitScript(() => {
         // It also runs in sandboxed widget frames, which have no storage.
@@ -131,7 +133,11 @@ export const test = base.extend<{ page: Page; cornerCards: boolean }>({
     page.on("response", (r) => {
       if (r.status() >= 500) errors.push(`${r.status()} ${r.request().method()} ${r.url()}`);
     });
-    await use(page);
+    try {
+      await use(page);
+    } finally {
+      await finishCoverage();
+    }
     expect(errors, "console errors").toEqual([]);
   },
 });

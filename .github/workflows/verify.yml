@@ -47,20 +47,20 @@ jobs:
           else
             pnpm check:commits "$HEAD_SHA" --not origin/release/v2
           fi
+      - name: Browser for headless core tests and the end-to-end run
+        run: pnpm exec playwright install --with-deps chromium
       - name: Preflight (private terms, schema, lint, typecheck, unit tests)
         run: pnpm preflight
       - name: Mobile (its own install; types and pairing logic)
         working-directory: apps/mobile
         run: npm ci --no-audit --no-fund && npm run typecheck && npm test
-      - name: Browser for the end-to-end run
-        run: pnpm exec playwright install --with-deps chromium
-      - name: End to end (Playwright, sandboxed core)
-        run: pnpm e2e
-      - name: Desktop end to end (Electron under a virtual display)
-        run: |
-          node apps/desktop/node_modules/electron/install.js
-          pnpm --filter @apx/desktop build
-          xvfb-run -a pnpm exec playwright test --project desktop
+      - name: Android bundle (Metro and native module resolution)
+        working-directory: apps/mobile
+        run: npx expo export --platform android --output-dir "$RUNNER_TEMP/apx-mobile-export"
+      - name: Desktop runtime
+        run: node apps/desktop/node_modules/electron/install.js
+      - name: Function coverage (unit, browser and desktop, with sandboxed cores)
+        run: pnpm test:coverage:all
       - name: Lightness budgets
         run: node --no-warnings scripts/perf.ts
       - name: Keep the reports
@@ -72,6 +72,10 @@ jobs:
             playwright-report/
             test-results/
             e2e/.out/
+            coverage/unit/functions.json
+            coverage/unit/functions.md
+            coverage/all/functions.json
+            coverage/all/functions.md
           if-no-files-found: ignore
           retention-days: 14
 

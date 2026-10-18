@@ -74,6 +74,8 @@ test("documentos: txt como Markdown, apertura explícita, fuente, descarga y rec
     await expect(panel.getByRole("cell", { name: "Ready", exact: true })).toBeVisible();
     await page.screenshot({ path: "/tmp/apx-documents.png", fullPage: true });
   } finally {
+    // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
+    await page.goto("about:blank");
     await env.core.close();
     env.cleanup();
   }

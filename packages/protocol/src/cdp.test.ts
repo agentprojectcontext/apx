@@ -1,6 +1,22 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { CdpPage, type CdpSend } from "./cdp.ts";
+import { CdpPage, type CdpSend, withTimeout } from "./cdp.ts";
+
+test("CDP deadlines reject stalled commands and preserve earlier results or failures", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const stalled = Promise.withResolvers<string>();
+  const rejected = assert.rejects(withTimeout(stalled.promise, 50), {
+    name: "ApxError",
+    code: "timeout",
+    message: "timed out after 50ms",
+  });
+  t.mock.timers.tick(50);
+  await rejected;
+  assert.equal(await withTimeout(Promise.resolve("Done"), 50), "Done");
+  const error = new Error("CDP disconnected");
+  await assert.rejects(withTimeout(Promise.reject(error), 50), (e) => e === error);
+  t.mock.timers.tick(50);
+});
 
 /** A page answering layout metrics as given; records each captureScreenshot's parameters. */
 function page(metrics: object | Error) {

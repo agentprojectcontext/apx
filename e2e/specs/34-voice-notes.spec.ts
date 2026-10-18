@@ -101,6 +101,8 @@ test("nota voz muestra volumen real, conserva audio y texto, reproduce después 
     await expect(page.locator(".transcript__files .audiopart")).toHaveCount(2);
     await expect(player.first()).toBeEnabled();
   } finally {
+    // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
+    await page.goto("about:blank");
     await env.core.close();
     env.cleanup();
     await new Promise<void>((resolve) => server.close(() => resolve()));

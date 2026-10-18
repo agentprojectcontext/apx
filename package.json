@@ -13,7 +13,13 @@
     "typecheck": "pnpm -r --if-present typecheck && tsc -p e2e",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "test": "pnpm -r --if-present test && node --test 'scripts/*.test.ts'",
+    "test": "pnpm check:tests && pnpm -r --if-present test && pnpm test:mobile && node --test 'scripts/*.test.ts'",
+    "test:mobile": "node --test 'apps/mobile/src/**/*.test.ts'",
+    "test:coverage": "node scripts/test-coverage.ts",
+    "test:coverage:all": "node scripts/test-coverage.ts --e2e",
+    "test:coverage:all:strict": "node scripts/test-coverage.ts --e2e --strict",
+    "test:coverage:strict": "node scripts/test-coverage.ts --strict",
+    "check:tests": "node scripts/test-quality.ts",
     "check:private": "node scripts/check-private-terms.ts",
     "check:commits": "node scripts/check-private-terms.ts --commits",
     "check:schema": "node --no-warnings apps/core/scripts/schema.ts --check",
@@ -24,7 +30,7 @@
     "e2e:desktop": "pnpm build:web && pnpm --filter @apx/desktop build && playwright test --project desktop",
     "perf": "pnpm build:web && node --no-warnings scripts/perf.ts",
     "tools:review": "node --no-warnings scripts/tool-review.ts",
-    "verify": "pnpm preflight && pnpm e2e && pnpm e2e:desktop && node --no-warnings scripts/perf.ts",
+    "verify": "pnpm preflight && pnpm test:coverage:all && node --no-warnings scripts/perf.ts",
     "package": "node scripts/package.ts",
     "package:mac": "node scripts/package.ts mac",
     "package:linux": "node scripts/package.ts linux",
@@ -34,6 +40,7 @@
     "@biomejs/biome": "^2.5.15",
     "@playwright/test": "^1.63.0",
     "@types/node": "^24.10.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "typescript-parser": "npm:typescript@5.9.3"
   }
 }

@@ -36,7 +36,13 @@ export function classifyPrompt(raw: string): Prompt {
  * Listens for this login's questions. `exe` is the program ssh runs (the app's executable); `appDir` is set from a
  * checkout, where that executable is Electron and needs the app's folder, so a small wrapper script names both.
  */
-export async function openAskpass(opts: { ask: Ask; exe: string; appDir?: string | undefined }): Promise<Askpass> {
+export async function openAskpass(opts: {
+  ask: Ask;
+  exe: string;
+  appDir?: string | undefined;
+  platform?: NodeJS.Platform;
+}): Promise<Askpass> {
+  const platform = opts.platform ?? process.platform;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-askpass-"));
   const endpoint =
     process.platform === "win32" ? `\\\\.\\pipe\\apx-askpass-${randomBytes(12).toString("hex")}` : path.join(dir, "s");
@@ -50,20 +56,20 @@ export async function openAskpass(opts: { ask: Ask; exe: string; appDir?: string
   // On Linux the app itself cannot be ssh's askpass: Chromium's sandbox starts before any of our code and may abort.
   // On Windows it prints a blank line before our code runs, and ssh takes that first line as the answer.
   const program =
-    process.platform === "linux"
+    platform === "linux"
       ? nodeHelper(dir, opts.exe)
-      : process.platform !== "win32" && opts.appDir
+      : platform !== "win32" && opts.appDir
         ? wrapper(dir, opts.exe, opts.appDir)
         : opts.exe;
   return {
     env: {
-      ...(process.platform === "win32" ? windowsHelper(dir, opts.exe) : {}),
+      ...(platform === "win32" ? windowsHelper(dir, opts.exe) : {}),
       SSH_ASKPASS: program,
       SSH_ASKPASS_REQUIRE: "force",
       APX_ASKPASS: endpoint,
       APX_ASKPASS_KEY: key,
       // Older Linux builds only use SSH_ASKPASS when a display is named, even when forced.
-      ...(process.platform === "linux" && !process.env.DISPLAY ? { DISPLAY: ":0" } : {}),
+      ...(platform === "linux" && !process.env.DISPLAY ? { DISPLAY: ":0" } : {}),
     },
     close() {
       server.close();

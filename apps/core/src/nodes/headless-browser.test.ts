@@ -9,10 +9,10 @@ import path from "node:path";
 import { PassThrough } from "node:stream";
 import { after, before, test } from "node:test";
 import type { TabInfo } from "@apx/protocol";
+import { chromium } from "@playwright/test";
 import { createHeadlessBrowser, findChrome } from "./headless-browser.ts";
 
-// A real Chrome is needed; where there is none (a bare CI image) the test says so and skips.
-const chrome = findChrome();
+const chrome = findChrome() ?? chromium.executablePath();
 const PAGES: Record<string, string> = {
   "/": `<html><head><title>Acme home</title></head><body><h1>Acme</h1><a href="/prices">Prices</a>
     <form action="/search"><input name="q" aria-label="Search"><input type="password" aria-label="Password"></form></body></html>`,
@@ -27,6 +27,7 @@ let browser: ReturnType<typeof createHeadlessBrowser>;
 const seen: TabInfo[][] = [];
 
 before(async () => {
+  assert.ok(fs.existsSync(chrome), "Install the browser first: pnpm exec playwright install chromium");
   srv = http.createServer((req, res) => {
     if (req.url === "/to-apx") return res.writeHead(302, { location: `http://127.0.0.1:${apxPort}/rpc` }).end();
     const page = PAGES[req.url?.split("?")[0] ?? ""];
@@ -92,9 +93,7 @@ test("CDP input and output pipe errors reject work and stop Chrome without an un
   }
 });
 
-test("with no desktop app the core drives its own headless Chrome: open, read, click, type; never a password", {
-  skip: !chrome && "no Chrome here",
-}, async () => {
+test("with no desktop app the core drives its own headless Chrome: open, read, click, type; never a password", async () => {
   assert.ok(browser.available());
   const tab = (await browser.handle("browser.open", { url: `${base}/`, by: "roby" })) as TabInfo;
   assert.equal(tab.title, "Acme home");

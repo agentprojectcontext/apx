@@ -203,6 +203,8 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await expect(page.getByRole("complementary", { name: task.title })).toBeVisible();
   } finally {
     await page.goto("about:blank");
+    // Detach the browser before stopping its server; reconnect timers must not outlive the fixture.
+    await page.goto("about:blank");
     await env.core.close();
     env.cleanup();
   }

@@ -19,12 +19,34 @@ pnpm check:schema                  # apps/core/src/db/schema.ts matches the migr
 
 ## 3. Tests
 ```bash
-pnpm test                          # node:test in every package that has *.test.ts, plus scripts/*.test.ts
+pnpm exec playwright install chromium   # required by the headless core test; CI also installs OS dependencies
+pnpm test                          # quality gate, workspace tests (UI included), mobile logic, scripts
+pnpm check:tests                   # AST lint: disabled/exclusive/empty tests and unawaited Node assertions
+pnpm test:coverage                 # all unit suites, then coverage/unit/functions.json and functions.md
+pnpm test:coverage:all             # unit + browser + desktop execution, then coverage/all/ reports
+pnpm test:coverage:strict          # fails if any inventoried function was not executed
+pnpm test:coverage:all:strict      # the same requirement after unit, browser and desktop execution
 node --test apps/core/src/server.test.ts
 ```
 Rules: tests never touch the real home — pass a temp `home` to `createCore` (see `server.test.ts`); bind
 `127.0.0.1` with port `0`; run offline (no network, no keys, no live core). No `test.skip`/`todo`: fix or delete
 with a reason in the commit body.
+
+The quality gate also rejects `t.skip()`, aliased test controls, conditional skip options, `only`, `fixme`,
+literal-only assertions and empty callbacks. It parses TypeScript rather than matching comments or fixtures.
+`typescript-parser` pins the TypeScript 5 parser for this lint and coverage inventory: the TypeScript 7 compiler
+used by the workspace does not expose that parser through its default export.
+
+Coverage includes tracked and new non-ignored JavaScript/TypeScript sources, including modules never imported.
+It merges function execution across processes and maps compiled UI functions back through the build's source maps.
+The all-suites command builds browser source maps, collects Chromium function counters, and includes the sandbox
+core and Electron processes. On Linux without a display it runs desktop tests under `xvfb-run`.
+The coverage sandbox picks separate loopback ports so parallel checkouts do not collide; `E2E_PORT`,
+`E2E_CONTROL_PORT` and `E2E_WA_PORT` override them when debugging.
+Reports identify each unexecuted function by file and line. An executed function still needs meaningful assertions;
+unit coverage does not replace Playwright or a real phone. The default coverage command fails on suite failures;
+the separate strict command additionally requires every inventoried function to execute. CI runs all suites with
+coverage and keeps the JSON and Markdown reports.
 
 ## 4. Real path
 ```bash
@@ -39,7 +61,7 @@ While developing against a scratch state, set `APX_HOME` to a temp dir so `~/.ap
 ## 5. All at once
 ```bash
 pnpm preflight                     # check:private, check:schema, lint, typecheck, unit tests
-pnpm verify                        # preflight, then end to end (web and desktop), then lightness budgets (what CI runs)
+pnpm verify                        # preflight, all-suite execution coverage, then lightness budgets
 ```
 
 ## 5a. End to end (Playwright)

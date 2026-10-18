@@ -1,0 +1,338 @@
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import net from "node:net";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import ts from "typescript-parser";
+import { checkTests, repositoryFiles, testFiles } from "./test-quality.ts";
+
+type V8Function = { functionName: string; ranges: { startOffset: number; endOffset: number; count: number }[] };
+type V8Script = { url: string; functions: V8Function[] };
+export type FunctionCoverage = { name: string; line: number; covered: boolean };
+export type FileCoverage = { file: string; loaded: boolean; functions: FunctionCoverage[] };
+type SourceFunction = FunctionCoverage & { start: number; end: number };
+export type CoverageSourceMap = { url: string; text: string; sources: string[]; mappings: string; sourceRoot?: string };
+type Mapping = {
+  generatedLine: number;
+  generatedCharacter: number;
+  sourceIndex?: number;
+  sourceLine?: number;
+  sourceCharacter?: number;
+};
+const { decodeMappings } = ts as typeof ts & { decodeMappings: (mappings: string) => Iterable<Mapping> };
+
+/** Parallel checkouts need separate sandbox listeners; explicit ports remain available for debugging. */
+export async function sandboxPorts(env: NodeJS.ProcessEnv = process.env): Promise<Record<string, string>> {
+  const ports: Record<string, string> = {};
+  const servers: net.Server[] = [];
+  try {
+    for (const name of ["E2E_PORT", "E2E_CONTROL_PORT", "E2E_WA_PORT"]) {
+      if (env[name]) {
+        ports[name] = env[name];
+        continue;
+      }
+      const server = net.createServer();
+      servers.push(server);
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(0, "127.0.0.1", resolve);
+      });
+      ports[name] = String((server.address() as net.AddressInfo).port);
+    }
+    return ports;
+  } finally {
+    await Promise.all(servers.map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
+  }
+}
+
+function lineStarts(text: string): number[] {
+  return [0, ...Array.from(text.matchAll(/\r\n?|\n/g), (match) => match.index + match[0].length)];
+}
+
+function mergeScripts(scripts: V8Script[]): V8Script[] {
+  const merged = new Map<string, Map<string, V8Function>>();
+  for (const script of scripts) {
+    const functions = merged.get(script.url) ?? new Map<string, V8Function>();
+    for (const fn of script.functions) {
+      const range = fn.ranges[0];
+      if (!range) continue;
+      const key = `${range.startOffset}:${range.endOffset}`;
+      const old = functions.get(key);
+      if (!old || range.count > (old.ranges[0]?.count ?? 0)) functions.set(key, fn);
+    }
+    merged.set(script.url, functions);
+  }
+  return [...merged].map(([url, functions]) => ({ url, functions: [...functions.values()] }));
+}
+
+function sourceFiles(root: string): string[] {
+  return repositoryFiles(root)
+    .filter(
+      (file) =>
+        !file.startsWith("e2e/") && /\.[cm]?[jt]sx?$/.test(file) && !/\.(test|spec|test-support)\.|\.d\.ts$/.test(file),
+    )
+    .map((file) => path.join(root, file));
+}
+
+function sourceFunctions(file: string, text: string): SourceFunction[] {
+  const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+  const functions: SourceFunction[] = [];
+  const visit = (node: ts.Node) => {
+    if (
+      (ts.isFunctionDeclaration(node) ||
+        ts.isFunctionExpression(node) ||
+        ts.isArrowFunction(node) ||
+        ts.isMethodDeclaration(node) ||
+        ts.isGetAccessorDeclaration(node) ||
+        ts.isSetAccessorDeclaration(node) ||
+        ts.isConstructorDeclaration(node)) &&
+      node.body
+    ) {
+      const parent = node.parent;
+      const name =
+        "name" in node && node.name
+          ? node.name.getText(source)
+          : ts.isVariableDeclaration(parent) || ts.isPropertyAssignment(parent)
+            ? parent.name.getText(source)
+            : "(anonymous)";
+      functions.push({
+        name,
+        line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+        covered: false,
+        start: node.getStart(source),
+        end: node.end,
+      });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return functions;
+}
+
+/** Union coverage across test processes; never-loaded modules remain explicit zeroes. */
+export function coverageReport(
+  root: string,
+  files: { file: string; text: string }[],
+  scripts: V8Script[],
+  sourceMaps: CoverageSourceMap[] = [],
+): FileCoverage[] {
+  const inventory = new Map(
+    files.map(({ file, text }) => [
+      file,
+      { text, lines: lineStarts(text), functions: sourceFunctions(file, text), loaded: false },
+    ]),
+  );
+  const relative = (url: string) => path.relative(root, fileURLToPath(url)).split(path.sep).join("/");
+  const own = (file: string, offset: number, covered: boolean) => {
+    const source = inventory.get(file);
+    if (!source) return;
+    source.loaded = true;
+    const containing = source.functions
+      .filter((f) => f.start <= offset && offset < f.end)
+      .sort((a, b) => a.end - a.start - (b.end - b.start))[0];
+    if (containing && covered) containing.covered = true;
+  };
+  const maps = new Map(
+    sourceMaps.map((map) => {
+      const lines = lineStarts(map.text);
+      const segments = [...decodeMappings(map.mappings)]
+        .filter((m) => m.sourceIndex !== undefined && m.sourceLine !== undefined && m.sourceCharacter !== undefined)
+        .map((m) => ({ ...m, offset: (lines[m.generatedLine] ?? 0) + m.generatedCharacter }));
+      return [map.url, { ...map, segments }];
+    }),
+  );
+  for (const script of mergeScripts(scripts)) {
+    if (!script.url.startsWith("file:")) continue;
+    let file: string;
+    try {
+      file = relative(script.url);
+    } catch {
+      continue;
+    }
+    const original = inventory.get(file);
+    if (original) original.loaded = true;
+    const map = maps.get(script.url);
+    for (const fn of script.functions) {
+      const range = fn.ranges[0];
+      if (!range || (!fn.functionName && range.startOffset === 0)) continue;
+      if (original) {
+        own(file, range.startOffset, range.count > 0);
+        continue;
+      }
+      if (!map) continue;
+      // Function tokens map inside their original declaration; generated wrappers map to no source function.
+      let low = 0,
+        high = map.segments.length;
+      while (low < high) {
+        const mid = (low + high) >>> 1;
+        if ((map.segments[mid]?.offset ?? 0) < range.startOffset) low = mid + 1;
+        else high = mid;
+      }
+      const segment = map.segments[low];
+      if (
+        !segment ||
+        segment.offset >= range.endOffset ||
+        segment.sourceIndex === undefined ||
+        segment.sourceLine === undefined ||
+        segment.sourceCharacter === undefined
+      )
+        continue;
+      const sourceName = map.sources[segment.sourceIndex];
+      if (!sourceName) continue;
+      const base = map.sourceRoot ? new URL(`${map.sourceRoot.replace(/\/$/, "")}/`, map.url) : new URL(map.url);
+      const target = relative(new URL(sourceName, base).href);
+      const source = inventory.get(target);
+      if (!source) continue;
+      const offset = (source.lines[segment.sourceLine] ?? 0) + segment.sourceCharacter;
+      own(target, offset, range.count > 0);
+    }
+  }
+  return [...inventory]
+    .map(([file, source]) => ({
+      file,
+      loaded: source.loaded,
+      functions: source.functions.map(({ name, line, covered }) => ({ name, line, covered })),
+    }))
+    .sort((a, b) => a.file.localeCompare(b.file));
+}
+
+export function coverageMarkdown(report: FileCoverage[]): string {
+  const groups = new Map<string, { covered: number; total: number; loaded: number; files: number }>();
+  for (const row of report) {
+    const area = row.file.startsWith("scripts/") ? "scripts" : row.file.split("/").slice(0, 2).join("/");
+    const stats = groups.get(area) ?? { covered: 0, total: 0, loaded: 0, files: 0 };
+    stats.files++;
+    if (row.loaded) stats.loaded++;
+    stats.total += row.functions.length;
+    stats.covered += row.functions.filter((f) => f.covered).length;
+    groups.set(area, stats);
+  }
+  const lines = [
+    "# Function execution coverage",
+    "",
+    "Runtime execution is evidence of a call, not evidence of a useful assertion. Unloaded files are included; types and declarations have no executable functions. Browser-rendered components need the E2E suite as well.",
+    "",
+    "| Area | Loaded files | Executed functions |",
+    "|---|---:|---:|",
+  ];
+  for (const [area, stats] of groups)
+    lines.push(`| ${area} | ${stats.loaded}/${stats.files} | ${stats.covered}/${stats.total} |`);
+  lines.push("", "## Unexecuted functions", "");
+  for (const row of report) {
+    const missed = row.functions.filter((f) => !f.covered);
+    if (!missed.length) continue;
+    lines.push(
+      `### ${row.file}${row.loaded ? "" : " (never loaded)"}`,
+      "",
+      ...missed.map((f) => `- L${f.line}: ${f.name}`),
+      "",
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+async function main() {
+  const root = path.resolve(import.meta.dirname, "..");
+  const includeE2E = process.argv.includes("--e2e");
+  const output = path.join(root, "coverage", includeE2E ? "all" : "unit");
+  const raw = path.join(output, "v8");
+  fs.rmSync(output, { recursive: true, force: true });
+  fs.mkdirSync(raw, { recursive: true });
+  const quality = checkTests(root);
+  if (quality.length) {
+    for (const finding of quality) console.error(`${finding.file}:${finding.line}: ${finding.reason}`);
+    process.exitCode = 1;
+    return;
+  }
+  const allTests = testFiles(root).filter(
+    (file) => file.includes(".test.") && !file.startsWith(path.join(root, "e2e")),
+  );
+  const groups = new Map<string, string[]>();
+  for (const file of allTests) {
+    const relative = path.relative(root, file);
+    const area = relative.startsWith("scripts/") ? "scripts" : relative.split(path.sep).slice(0, 2).join(path.sep);
+    const group = groups.get(area) ?? [];
+    group.push(relative);
+    groups.set(area, group);
+  }
+  let failed = false;
+  // UI tests consume the public build, including JSX and the design-system export boundary.
+  const build = spawnSync(process.execPath, ["scripts/build.mjs"], {
+    cwd: path.join(root, "packages/ui"),
+    stdio: "inherit",
+  });
+  if (build.status !== 0) failed = true;
+  for (const [area, files] of groups) {
+    console.log(`\nCoverage: ${area} (${files.length} files)`);
+    const cwd = area === "scripts" ? root : path.join(root, area);
+    const run = spawnSync(
+      process.execPath,
+      ["--test", ...files.map((file) => path.relative(cwd, path.join(root, file)))],
+      {
+        cwd,
+        env: { ...process.env, NODE_V8_COVERAGE: raw },
+        stdio: "inherit",
+        timeout: 10 * 60_000,
+      },
+    );
+    if (run.status !== 0) {
+      failed = true;
+      if (run.error) console.error(run.error.message);
+    }
+  }
+  if (includeE2E) {
+    const ports = await sandboxPorts();
+    const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+    const run = (command: string, args: string[]) => {
+      const result = spawnSync(command, args, {
+        cwd: root,
+        stdio: "inherit",
+        shell: process.platform === "win32",
+        env: { ...process.env, ...ports, APX_TEST_COVERAGE: "1", APX_TEST_COVERAGE_DIR: raw, NODE_V8_COVERAGE: raw },
+        timeout: 15 * 60_000,
+      });
+      if (result.status !== 0) {
+        failed = true;
+        if (result.error) console.error(result.error.message);
+      }
+    };
+    run(pnpm, ["build:web"]);
+    run(pnpm, ["exec", "playwright", "test", "--project", "chromium"]);
+    run(pnpm, ["--filter", "@apx/desktop", "build"]);
+    const desktop = ["exec", "playwright", "test", "--project", "desktop"];
+    if (process.platform === "linux" && !process.env.DISPLAY) run("xvfb-run", ["-a", pnpm, ...desktop]);
+    else run(pnpm, desktop);
+  }
+  const scripts: V8Script[] = [];
+  for (const entry of fs.readdirSync(raw)) {
+    if (!entry.endsWith(".json")) continue;
+    const data = JSON.parse(fs.readFileSync(path.join(raw, entry), "utf8")) as { result: V8Script[] };
+    scripts.push(...data.result);
+  }
+  const sourceMaps: CoverageSourceMap[] = [];
+  for (const url of new Set(
+    scripts.map((s) => s.url).filter((url) => url.startsWith("file:") && url.includes("/dist/")),
+  )) {
+    const file = fileURLToPath(url);
+    if (!fs.existsSync(`${file}.map`)) continue;
+    const map = JSON.parse(fs.readFileSync(`${file}.map`, "utf8")) as Omit<CoverageSourceMap, "url" | "text">;
+    sourceMaps.push({ ...map, url, text: fs.readFileSync(file, "utf8") });
+  }
+  const files = sourceFiles(root).map((file) => ({
+    file: path.relative(root, file).split(path.sep).join("/"),
+    text: fs.readFileSync(file, "utf8"),
+  }));
+  const report = coverageReport(root, files, scripts, sourceMaps);
+  fs.writeFileSync(
+    path.join(output, "functions.json"),
+    `${JSON.stringify({ testsPassed: !failed, suites: includeE2E ? ["unit", "web", "desktop"] : ["unit"], files: report }, null, 2)}\n`,
+  );
+  fs.writeFileSync(path.join(output, "functions.md"), coverageMarkdown(report));
+  const missing = report.flatMap((r) => r.functions.filter((f) => !f.covered));
+  console.log(
+    `\nFunction coverage: ${missing.length} unexecuted functions. Report: ${path.relative(root, output)}/functions.md`,
+  );
+  if (failed || (process.argv.includes("--strict") && missing.length)) process.exitCode = 1;
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

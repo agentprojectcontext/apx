@@ -29,6 +29,7 @@ playground/out/
 # e2e runs
 test-results/
 playwright-report/
+coverage/
 e2e/.out/
 
 # scratch scripts while developing e2e
