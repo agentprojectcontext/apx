@@ -118,14 +118,22 @@ permanently only after the cause is proven.
   runs it (core, desktop node, web) and whether the core must restart (`pnpm dev` restarts on save).
 - **Plan:** agent-to-agent or cross-surface behavior goes through `threads.send`/the router
   (AGENTS.md rules 1–3). If you are about to add a second path, stop and extend the existing one.
+- **Plan / implement:** a fix follows the [fix regression contract](TESTING.md#fix-regression-contract): map the
+  failure and affected callers, demonstrate it with a regression test when feasible, then keep that protection
+  beside the fix. Shared SDK/protocol/UI changes must account for their other consumers and failure paths.
 - **Implement:** erasable TS only; enums as `as const`. Imports use `.ts` extensions. Config/paths are injected.
 - **Implement:** browser/node work: page content is untrusted (AGENTS.md rule 10); never type credentials.
 - **Implement:** `packages/ui` changes must keep `.design-sync` working — rebuild with
   `pnpm --filter @apx/ui build` and note that a Claude Design re-sync is due (`packages/ui/.design-sync/NOTES.md`).
 - **Review:** reject tests that read source files (rule 13) and any lint rule downgraded without a
   `DECISIONS.md` entry (rule 19).
+- **Review:** confirm the regression would detect the reported bug, not merely the new implementation. Check
+  stale responses, failure rollback and resource cleanup when asynchronous state or subscriptions change.
 - **Test + runtime proof:** commands in [`TESTING.md`](TESTING.md). Core changes: prove the running core has
   your `code_sha` (`apx status`) and exercise the method over HTTP **and** WS when the transport matters.
+- **Test + runtime proof:** after integration, rerun the affected path on the resulting revision. Preserve separate
+  evidence for unit, browser, native and platform checks; do not reuse a green result from before subsequent edits
+  or describe execution coverage as proof that all behavior has useful assertions.
 - **Architecture check:** compare with [`HUMAN_MODEL.md`](HUMAN_MODEL.md) (system map) and
   `plan/01-arquitectura-v2.md` §2; update both when a module, process or boundary changes.
 - **Release check:** v2 ships as `v2.x.y` tags ([`RELEASE.md`](RELEASE.md)); a fix is not out until its tag is. v2 must never

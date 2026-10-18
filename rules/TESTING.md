@@ -2,6 +2,60 @@
 
 Only commands that exist. Report each level separately; anything not exercised is `UNVERIFIED`.
 
+## Fix regression contract
+
+Apply this to product fixes and test repairs (AGENTS.md rule 24). Documentation-only edits need relevant link,
+command and static checks; they do not require rerunning application suites unless executable behavior changes.
+
+1. **Map the failure before editing.** State the trigger, expected result and observed result. Trace entry point →
+   protocol/operation → state or side effect → affected clients. Find existing tests for that path and its callers;
+   an existing test file is not evidence that the broken behavior is asserted.
+2. **Prove the regression.** Prefer a focused test that fails on the old behavior for the reported reason and passes
+   with the fix. Keep the test and fix in the same change. If reproducing the original failure is unavailable or
+   unsafe, record the limitation and the strongest substitute evidence; do not claim a red run that never happened.
+3. **Assert an observable contract.** Check returned/persisted data, emitted events, visible UI, protocol arguments,
+   exit status or resource cleanup as appropriate. A successful import, render, snapshot or mock call alone does
+   not prove an action works. Mock hardware, transport and external services at their boundaries; keep the logic
+   under test real. Validate recording-client requests against the real protocol registry.
+4. **Protect the affected seam.** Add the relevant cases below, including the failure or lifecycle transition that
+   caused the bug. Extend shared contract tests and affected consumers when changing shared code; testing one
+   client alone does not establish compatibility for the others.
+5. **Repair the cause, then integrate.** Classify a failure as product behavior, an intentionally changed contract,
+   fixture/test defect or environment failure before changing expectations. For an intentional contract change,
+   explain the before/after behavior and update producers and consumers together. Preserve unrelated assertions.
+   Never resolve a red test by skipping it, swallowing its error, removing its meaningful assertion or weakening
+   a timeout, budget or gate. Synchronize on real completion/events with bounded waits instead of arbitrary sleeps.
+6. **Verify the resulting change.** Run the focused regression, affected suites and required repository gates.
+   After a merge or conflict resolution, rerun the affected path on the integrated state. Broaden or repeat checks
+   when changes, failures or unresolved risks justify it; unchanged passing suites need no repeated runs for counts.
+
+| Changed seam | Regression evidence to include when affected |
+|---|---|
+| Core / protocol / SDK | Params and result shapes, errors, persisted effects, auth/scope and idempotency; HTTP/WS parity when transport behavior changes. SDK cancellation, timeout and connection failure must settle and close resources. |
+| CLI | Exact protocol intent and meaningful output/exit status; failure cannot print success or leave sockets/processes open. Keep command quoting and fixtures portable. |
+| Web / mobile React | Mount the real hook or component, trigger the user action and assert its result plus failure recovery. Preserve drafts and unrelated/concurrent state; test duplicate submissions when the action can be repeated. |
+| Async chat / task / routine / preferences | Resolve requests out of order, switch entity or request scope, fail a later operation and unmount while pending. Old responses cannot overwrite the current entity or latest confirmed state; acknowledgements cannot erase newer live events. |
+| Subscriptions / reconnects | Remove the exact listeners, cancel timers/retries and close late connections after cleanup. Revoked credentials must stop reconnecting and unpair once. |
+| Desktop / preload | Strip native event objects, return working unsubscribe functions and test native restore/minimize/focus transitions in Electron. A renderer-only check or forced focus is not native transition proof. |
+| Test tooling / coverage | Use synthetic fixtures for inventory, assertions and mappings. Cover replaced/missing build maps and chained library maps; do not read production source in behavioral tests. |
+
+### Evidence and run isolation
+
+- Use the CI-supported Node version from `.nvmrc` and a frozen dependency install. Mobile has its own install,
+  typecheck and mounted React suite; an Android export proves bundling, not camera, audio, notifications or phone UI.
+- Run against a stable checkout. Parallel edits, branch switches or app builds can change the code/assets being
+  exercised: use an isolated checkout and sandbox ports rather than stopping another task's app or replacing its work.
+  Missing or mismatched source maps invalidate coverage evidence; do not report omitted counters as unexecuted code.
+- For native failures, check the display session, window manager and runtime dependencies. Repair the environment
+  and rerun the affected check; do not convert an environment failure into a skip or a weaker focus assertion.
+- Record the tested revision (and relevant uncommitted changes), exact commands, platform/runtime, passed/failed
+  counts and any unverified paths in the change description or local verification report. A configured CI job is
+  not a completed platform run. Evidence from before later edits is not verification of those edits.
+- Passing suites, execution coverage and meaningful regression assertions are separate evidence. The default
+  coverage command does not require every function to execute; strict coverage does. Inspect the current report
+  for changed code, add tests for uncovered changed behavior and state remaining gaps. Never infer full coverage
+  from zero skips, a historic green run or the test-quality gate. Keep reports and machine-specific logs out of rules.
+
 ## 1. Build / typecheck
 ```bash
 pnpm typecheck                     # tsc (TS 7) in every package

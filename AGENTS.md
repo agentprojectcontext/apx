@@ -122,6 +122,11 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 23. **Prompt budget.** What every model call carries (a default turn's system prompt and tool definitions) stays
     within [`rules/PROMPT_SIZE.md`](rules/PROMPT_SIZE.md): APX sends the least of the agent apps measured, keep it so.
     Per-turn context goes in the input, MCP and extension tools behind `mcp_search`. `[gate]` test.
+24. **Fixes leave regression protection.** Reproduce the failing behavior, add or strengthen a test that detects it,
+    and verify the fix plus affected callers and clients. Keep the fix and its regression together; never change
+    assertions merely to accept a regression. Follow the [fix regression contract](rules/TESTING.md#fix-regression-contract),
+    including asynchronous failure/cleanup cases and verification after integration. The behavioral requirement is
+    `[review]`; `pnpm check:tests` checks test syntax and selected weak patterns, not assertion quality or completeness.
 
 ### Code comments
 
@@ -146,6 +151,7 @@ expected `code_sha`) and the changed path is exercised for real; anything not ex
 | Which rules have a gate, high-risk changes | [`rules/GUARDRAILS_PROFILE.md`](rules/GUARDRAILS_PROFILE.md) |
 | Why something is the way it is | [`rules/DECISIONS.md`](rules/DECISIONS.md), [`rules/HISTORY.md`](rules/HISTORY.md) |
 | How to verify | [`rules/TESTING.md`](rules/TESTING.md) |
+| Fixing a bug or repairing a failing test | [`rules/TESTING.md#fix-regression-contract`](rules/TESTING.md#fix-regression-contract) |
 | Adding to the prompt or a tool | [`rules/PROMPT_SIZE.md`](rules/PROMPT_SIZE.md) |
 | Product direction | `plan/01-arquitectura-v2.md`, `plan/00-plan-maestro.md` (maintainers' checkout) |
 | Design system | [`packages/ui/.design-sync/NOTES.md`](packages/ui/.design-sync/NOTES.md), `packages/ui/src/components/*.md` |

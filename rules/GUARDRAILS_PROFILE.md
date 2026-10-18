@@ -13,7 +13,7 @@ messages or spends money on the owner's behalf).
 | Persistence | SQLite (`node:sqlite`, WAL) in `~/.apx/v2/apx.db`; append-only migrations in `apps/core/src/db/migrations.ts` |
 | Auth | loopback by default; browser origins limited to the panel's own (`transport/guard.ts`); `APX_TOKEN` required off-loopback (HTTP header or WS `?token=`); a paired device (`apx pair`, `devices.*`) carries its own token, which passes like the core's |
 | Agentic surfaces | harnesses: our own tool loop over providers (OpenAI-compatible, Anthropic Messages, ChatGPT plan), Claude Code, Codex and ACP agents; browser and computer tools via the desktop node; widgets (sandboxed iframes); delegation between agents (a2a sub-threads) |
-| Tests | `node:test` (every package, `scripts/`, mobile) and Playwright end to end (`e2e/`, web and desktop) |
+| Tests | `node:test` (packages, `scripts/`, mobile logic), Jest Expo + React Native Testing Library (mounted mobile hooks/screens), Playwright (`e2e/`, web and desktop) |
 | Lint / format | Biome 2 |
 | CI / deploy | GitHub Actions: `verify.yml` (preflight, e2e, desktop e2e, perf), `release.yml` (`v2.*` tags build installers, bundles, APK), `site.yml` (docs site) |
 
@@ -25,12 +25,15 @@ messages or spends money on the owner's behalf).
 | Typecheck | `pnpm typecheck` | Contract types across all clients; erasable TS only (rule 5) |
 | Lint | `pnpm lint` | Biome recommended + no `console` outside CLI/scripts, `import type`, no `!` assertions; dependency direction (rule 4: `domain` never imports `transport`/`rpc`/`channels`, `rpc` never imports `transport`, `packages/*` never import `apps/*`) |
 | Tests | `pnpm test` | Router, idempotency, safe bind, HTTP ≡ WS, origin/token gate, static path safety, agent runs (streaming, cancel, interrupted turns), delegation (sync + async wake-up), artifacts isolation, node routing, cookie mapping/decryption; prompt budget (rule 23: a default turn's system prompt and tools within [`PROMPT_SIZE.md`](PROMPT_SIZE.md)) |
+| Test quality | `pnpm check:tests` | AST checks for disabled/exclusive/empty tests, literal-only assertions and unobserved Node/Jest promise assertions; does not establish behavioral coverage (rule 24) |
+| Execution coverage | `pnpm test:coverage:all` | Unit, mounted mobile, browser and desktop suites must pass; repository build mappings must be present, including intermediate library maps. Reports include unexecuted functions; only `pnpm test:coverage:all:strict` also fails on remaining execution gaps |
 | Private data | `pnpm check:private` | Rule 17 — local denylist (never committed) + public shapes (phone numbers, `/Users`/`/Volumes` paths); `pnpm check:commits` runs it over commit messages and authors |
 | Schema | `pnpm check:schema` | `db/schema.ts` (the typed queries' tables) matches the migrations |
 | All | `pnpm preflight` | Private data, schema, lint, typecheck and tests; run before every push. `pnpm verify` adds e2e and perf |
 
 Convention-only today (review must catch them): no a2a side path (rule 2), untrusted content handling (rule 10),
-secrets by reference (rule 11), no tests reading source (rule 13).
+secrets by reference (rule 11), no tests reading source (rule 13), meaningful regression protection and affected
+consumer verification for fixes (rule 24; [contract](TESTING.md#fix-regression-contract)).
 CI (`verify.yml`) runs the gates on every push to `release/v2` and every pull request.
 
 No lint ratchets outstanding: every package, `packages/ui` included, gets the full rule set (the former `packages/ui`
