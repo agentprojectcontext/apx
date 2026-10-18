@@ -7,7 +7,7 @@ import type { ProviderBrand } from "../provider-marks";
 
 export type EngineBrand = keyof typeof ENGINE_MARKS | AcpBrand | ProviderBrand;
 
-/** An ACP agent's engine id ("acp:qwen", "qwen-code") → its mark. */
+/** A coding agent's engine id ("acp:qwen", "qwen-code", "antigravity") → its mark. */
 const ACP_IDS: Record<string, AcpBrand> = {
   opencode: "opencode",
   "opencode-zen": "opencode",
@@ -32,6 +32,9 @@ const ACP_IDS: Record<string, AcpBrand> = {
   amp: "amp",
   kilo: "kilo",
   poolside: "poolside",
+  antigravity: "antigravity",
+  agy: "antigravity",
+  aider: "aider",
 };
 
 /** Model APIs by the words in their id or a model's name. */
