@@ -1,5 +1,6 @@
 import { Badge, Button, Dialog, Icons, MarkdownView, SegmentedControl, Skeleton, Switch, Tag, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
+import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { projectName } from "../data/identity.ts";
 import { getSkill, type SkillInfo, saveSkill, toggleSkill } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
@@ -32,6 +33,7 @@ export function SkillDetail({
   editing?: boolean;
 }) {
   const t = useT();
+  const mdLabels = useMarkdownLabels();
   const projects = useData((s) => s.projects);
   const agents = useData((s) => s.agents);
   const [content, setContent] = useState<string>();
@@ -184,7 +186,7 @@ export function SkillDetail({
         <Skeleton height={180} />
       ) : mode === "view" ? (
         <div className="resd__doc">
-          <MarkdownView source={bodyOf(draft ?? content)} />
+          <MarkdownView source={bodyOf(draft ?? content)} labels={mdLabels} />
         </div>
       ) : (
         <Textarea
