@@ -189,6 +189,6 @@ function useDesktopBridge() {
   useEffect(() => {
     void applyDesktopPrefs();
     window.apxDesktop?.setTitleBar?.(nav.get().mode);
-    window.apxDesktop?.onOpenThread?.((id) => go.thread(id));
+    return window.apxDesktop?.onOpenThread?.((id) => go.thread(id));
   }, []);
 }
