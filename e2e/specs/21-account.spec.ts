@@ -38,3 +38,33 @@ test("time zone and language are picked by searching, Advanced names each part o
     .poll(async () => (await rpc<{ clients: Array<{ name: string }> }>("clients.list")).clients.map((c) => c.name))
     .toContain("Northwind CLI");
 });
+
+test("an API client can be restricted to browser access and revoked", async ({ page }) => {
+  await open(page);
+  await page.keyboard.press("ControlOrMeta+k");
+  await page
+    .getByRole("combobox", { name: "Buscar" })
+    .or(page.getByRole("textbox", { name: "Buscar" }))
+    .fill("cuenta");
+  await page.getByRole("option", { name: /Cuenta/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Configuración" });
+  await dialog.getByRole("button", { name: /^Tokens de API/ }).click();
+
+  await dialog.getByRole("textbox", { name: "Nombre de la app" }).fill("Northwind browser client");
+  await dialog.getByRole("checkbox", { name: "Chat" }).uncheck();
+  await dialog.getByRole("checkbox", { name: "Navegador" }).check();
+  await dialog.getByRole("button", { name: "Crear token" }).click();
+  await expect(dialog.getByText(/APX_CLIENT_TOKEN=.* apx mcp/)).toBeVisible();
+  const client = (
+    await rpc<{ clients: Array<{ id: string; name: string; scopes: string[] }> }>("clients.list")
+  ).clients.find((c) => c.name === "Northwind browser client");
+  expect(client?.scopes).toEqual(["browser"]);
+
+  await dialog.getByRole("button", { name: "Listo" }).click();
+  const clientRow = dialog.locator(".tgtoken").filter({ hasText: "Northwind browser client" });
+  await expect(clientRow.getByRole("button", { name: "Revocar" })).toBeVisible();
+  await clientRow.getByRole("button", { name: "Revocar" }).click();
+  await expect
+    .poll(async () => (await rpc<{ clients: Array<{ id: string }> }>("clients.list")).clients.map((c) => c.id))
+    .not.toContain(client?.id);
+});
