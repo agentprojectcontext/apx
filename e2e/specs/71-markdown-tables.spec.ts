@@ -5,10 +5,10 @@ import { expect, open, rpc, test } from "./kit.ts";
 test("an agent's table keeps its columns, scrolls in its frame, maximizes and copies", async ({ page, context }) => {
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await rpc("setup.finish", {});
-    const task = await rpc<{ id: string }>("tasks.create", {
-      title: "[Bug #112] Avoid automatic runs of a paused routine when the core restarts overnight",
-      description: "beschreibung test",
-    });
+  const task = await rpc<{ id: string }>("tasks.create", {
+    title: "[Bug #112] Avoid automatic runs of a paused routine when the core restarts overnight",
+    description: "beschreibung test",
+  });
   const t = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "roby", title: "Issue review" });
   // A narrow window, like the chat beside a side panel.
   await page.setViewportSize({ width: 820, height: 800 });
