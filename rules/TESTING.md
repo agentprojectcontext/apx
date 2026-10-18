@@ -44,6 +44,10 @@ core and Electron processes. On Linux without a display it runs desktop tests un
 (CI installs both): native focus and minimization checks need a window manager as well as a display server.
 Electron also needs the GTK 3 runtime (`libgtk-3-0` on Debian, `libgtk-3-0t64` on Ubuntu 24.04); the Chromium
 dependency installer may supply GTK 4 without GTK 3, so CI installs Electron's runtime explicitly.
+The headless browser test disables Chromium's sandbox only when the test process runs as root in a disposable
+container; production browser launches retain it. On macOS, desktop coverage uses `caffeinate` for the test
+process so the display does not sleep. Start native window tests in an unlocked graphical session with an
+awake display; a sleeping or locked display cannot supply reliable native focus events.
 The coverage sandbox picks separate loopback ports so parallel checkouts do not collide; `E2E_PORT`,
 `E2E_CONTROL_PORT` and `E2E_WA_PORT` override them when debugging.
 Reports identify each unexecuted function by file and line. An executed function still needs meaningful assertions;

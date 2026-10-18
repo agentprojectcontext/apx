@@ -305,6 +305,9 @@ async function main() {
       const launch =
         'command -v openbox >/dev/null || { echo "Install openbox for desktop window tests" >&2; exit 1; }; openbox >/dev/null 2>&1 & exec "$@"';
       run("xvfb-run", ["-a", "sh", "-c", launch, "apx-desktop", pnpm, ...desktop]);
+    } else if (process.platform === "darwin") {
+      // Native focus assertions need an awake display for the lifetime of the test process.
+      run("caffeinate", ["-d", "-i", pnpm, ...desktop]);
     } else run(pnpm, desktop);
   }
   const scripts: V8Script[] = [];
