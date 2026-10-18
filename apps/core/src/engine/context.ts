@@ -255,7 +255,7 @@ export function frameInput(origin: Origin, text: string): string {
     case "task_result":
       return `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nA task you created and gave to ${inlineName(origin.name)} is closed (${origin.state}); this is their report. Tell the owner what matters.`;
     case "delegation_result":
-      return `${fromTeam("delegation_result", { from: origin.name, sub_thread: origin.thread_id, state: endedAs(origin) }, text)}\n${endNote(origin)}${origin.actions ? `${actionsNote(origin.actions)}\n` : ""}This is the result of a task you delegated earlier. Tell the owner what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
+      return `${fromTeam("delegation_result", { from: origin.name, sub_thread: origin.thread_id, state: endedAs(origin) }, text)}\n${endNote(origin, origin)}${origin.actions ? `${actionsNote(origin.actions)}\n` : ""}This is the result of a task you delegated earlier. Tell the owner what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
   }
 }
 

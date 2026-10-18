@@ -4,7 +4,7 @@
 // goes through the durable outbox (delivery.ts).
 // See DECISIONS.md#d-014
 
-import type { ChannelInfo, CoreEvent, Part } from "@apx/protocol";
+import { type ChannelInfo, type CoreEvent, noticeText, type Part } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import type { OutboxRow, Presentation } from "../domain/channels.ts";
@@ -499,7 +499,31 @@ export function createChannels(deps: {
       // Agents stopped by the breaker: the owner hears it wherever they are.
       const paused = e.message.parts.find((p) => p.type === "notice" && p.code === "breaker.paused");
       if (paused?.type === "notice") notifyOwner({ text: paused.text }, "notice", e.message.thread_id);
+      const limit = e.message.parts.find((p) => p.type === "notice" && p.code === "delegation.limit");
+      if (limit?.type === "notice") limitReached(e.message.thread_id, limit);
     }
+  }
+
+  /**
+   * A delegated run hit a limit: the owner hears it on the channel their chat lives on (else wherever notices go),
+   * never in a contact's chat.
+   */
+  function limitReached(threadId: string, notice: Extract<Part, { type: "notice" }>): void {
+    const text = noticeText(notice, store.settings.get("owner_language") === "en" ? "en" : "es");
+    const thread = store.threads.get(threadId);
+    const to =
+      thread && audienceOf(store, thread).kind === "owner" ? store.threads.context(threadId).reply_to : undefined;
+    if (to && live.has(to.channel)) {
+      delivery.enqueue({
+        channel: to.channel,
+        conversation: to.conversation,
+        thread_id: threadId,
+        kind: "notice",
+        body: { text, ...(inQuietHours(noticePrefs(store)) ? { silent: true } : {}) },
+      });
+      return;
+    }
+    notifyOwner({ text }, "notice", threadId);
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────

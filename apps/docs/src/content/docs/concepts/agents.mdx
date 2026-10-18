@@ -209,8 +209,15 @@ APX keeps delegation on a leash:
 |---|---|
 | How deep delegations nest | 2 (your agent → a helper → the helper's helper) |
 | Delegations running at once from one chat | 3 |
-| Time a delegated run may work | 10 minutes |
+| Time a delegated run may go without progress | 6 minutes; a command still running counts as progress |
+| Time one delegated run may work, progress or not | 2 hours |
 | Turns agents start on their own without you | 30, or 1,500,000 fresh tokens (what a provider reads from its cache does not count), then the chain pauses until you write |
+
+A delegated run that runs out of steps or time is not lost. What it reported is a progress report, not a result, and
+APX goes on with it once in the same session, which keeps its context; you get a notice in the chat (and on the
+channel the chat lives on) saying which agent hit which limit and what it has done so far, with a button to open the
+session and, while APX keeps it going, one to stop it. If it is cut short again, the agent that asked gets the report and decides: delegate only the rest
+into the same session, or tell you. That agent can also stop a session it started while it still works.
 
 A delegated run works in the mode of whoever asked for it, keeping its own rules by case, and only gets the tools
 every agent up the chain may use.

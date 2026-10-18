@@ -17,7 +17,7 @@ import type { Display } from "./display.ts";
 import type { Hooks } from "./hooks.ts";
 import { createInputs, type InputWaits } from "./inputs.ts";
 import { createJobs } from "./jobs.ts";
-import { A2A_DEADLINE_MS } from "./limits.ts";
+import { A2A_CAP_MS } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import type { ProfileRoot } from "./profiles.ts";
 import { recoverInterrupted } from "./recovery.ts";
@@ -39,52 +39,103 @@ const AFTER_ANSWER_MS = 60_000;
 /** How often a working engine's moving deadline is written to its run (not on every streamed token). */
 const DEADLINE_WRITE_MS = 60_000;
 
-type Clock = { pause(): void; resume(): void; stop(): void; touch(): void };
-type Limit = { ms: number; idle: boolean; engine: boolean };
-type IdleWindows = { engineIdleMs?: number | undefined; turnIdleMs?: number | undefined };
+/** "6 minutes", "2 hours", "3 seconds": how long a limit is, for the reason a turn was stopped. */
+function timeSpan(ms: number): string {
+  const [n, unit] =
+    ms >= 3600_000 && ms % 3600_000 === 0
+      ? [ms / 3600_000, "hour"]
+      : ms >= 60_000
+        ? [Math.round(ms / 60_000), "minute"]
+        : [Math.max(1, Math.round(ms / 1000)), "second"];
+  return `${n} ${unit}${n === 1 ? "" : "s"}`;
+}
 
+type Clock = { pause(): void; resume(): void; stop(): void; touch(): void; busy(): () => void };
+/** `cap`: the most it may work in all, progress or not (a delegated run's). */
+type Limit = { ms: number; engine: boolean; cap?: number | undefined };
+type IdleWindows = {
+  engineIdleMs?: number | undefined;
+  turnIdleMs?: number | undefined;
+  a2aCapMs?: number | undefined;
+};
+
+/** Every turn stops after its idle window without progress; a delegated one also at its cap (DECISIONS.md#d-105). */
 function runLimit(store: Store, threadId: string, trigger: string | undefined, w: IdleWindows): Limit {
-  if (trigger === "a2a") return { ms: A2A_DEADLINE_MS, idle: false, engine: false };
+  const cap = trigger === "a2a" ? (w.a2aCapMs ?? A2A_CAP_MS) : undefined;
   return store.threads.get(threadId)?.engine
-    ? { ms: w.engineIdleMs ?? ENGINE_IDLE_MS, idle: true, engine: true }
-    : { ms: w.turnIdleMs ?? RUN_DEADLINE_MS, idle: true, engine: false };
+    ? { ms: w.engineIdleMs ?? ENGINE_IDLE_MS, engine: true, cap }
+    : { ms: w.turnIdleMs ?? RUN_DEADLINE_MS, engine: false, cap };
 }
 
 /**
- * A deadline that can be held (nested holds count): used while a turn waits for the owner. An idle clock starts
- * over on every sign of life (`touch`) and reports its new end through `moved`.
+ * A deadline that can be held (nested holds count): used while a turn waits for the owner. It starts over on every
+ * sign of life (`touch`), reports its new end through `moved` and does not run out while work it waits on is in
+ * progress (`busy`). The cap never starts over and counts only the time the turn was not held.
  */
-function pausableClock(limit: Limit, fire: () => void, moved: (at: number) => void = () => {}): Clock {
+function pausableClock(limit: Limit, fire: (capped: boolean) => void, moved: (at: number) => void = () => {}): Clock {
   let left = limit.ms;
   let since = Date.now();
+  let capLeft = limit.cap ?? 0;
+  let capSince = since;
   let holds = 0;
-  let timer: ReturnType<typeof setTimeout> | undefined = setTimeout(fire, limit.ms);
+  let timer: ReturnType<typeof setTimeout> | undefined = setTimeout(() => fire(false), limit.ms);
+  let capTimer: ReturnType<typeof setTimeout> | undefined = limit.cap
+    ? setTimeout(() => fire(true), limit.cap)
+    : undefined;
   let written = since;
+  /** Work in progress the turn waits on: no idle end meanwhile. */
+  let working = 0;
+  let stopped = false;
+  const arm = (ms: number) => {
+    clearTimeout(timer);
+    timer = working > 0 || stopped ? undefined : setTimeout(() => fire(false), ms);
+  };
   return {
     pause() {
       if (holds++ > 0) return;
       clearTimeout(timer);
+      clearTimeout(capTimer);
       timer = undefined;
-      left -= Date.now() - since;
+      capTimer = undefined;
+      const now = Date.now();
+      left -= now - since;
+      capLeft -= now - capSince;
     },
     resume() {
       if (holds === 0 || --holds > 0) return;
-      since = Date.now();
-      timer = setTimeout(fire, Math.max(left, AFTER_ANSWER_MS));
+      since = capSince = Date.now();
+      arm(Math.max(left, AFTER_ANSWER_MS));
+      if (limit.cap && !stopped) capTimer = setTimeout(() => fire(true), Math.max(capLeft, AFTER_ANSWER_MS));
     },
     stop() {
+      stopped = true;
       clearTimeout(timer);
+      clearTimeout(capTimer);
     },
     touch() {
-      if (!limit.idle || holds > 0) return;
+      if (holds > 0) return;
       const now = Date.now();
-      clearTimeout(timer);
       since = now;
       left = limit.ms;
-      timer = setTimeout(fire, limit.ms);
+      arm(limit.ms);
       if (now - written < DEADLINE_WRITE_MS) return;
       written = now;
       moved(now + limit.ms);
+    },
+    busy() {
+      working++;
+      clearTimeout(timer);
+      timer = undefined;
+      let done = false;
+      return () => {
+        if (done) return;
+        done = true;
+        // A held clock resumes with a full window: the work just ended counts as progress.
+        since = Date.now();
+        left = limit.ms;
+        if (--working > 0 || holds > 0) return;
+        arm(limit.ms);
+      };
     },
   };
 }
@@ -104,6 +155,8 @@ export type Admit = {
   parent_run_id?: string | undefined;
   /** The turn a restart cut off, which this one picks back up. */
   resume_of?: string | undefined;
+  /** A continuation of a delegated run a limit cut short is never continued again, even resumed. */
+  continues?: string | undefined;
 };
 
 export type AdmitFn = (a: Admit) => RunRecord;
@@ -134,6 +187,8 @@ export function createEngine(deps: {
   engineIdleMs?: number;
   /** How long a turn on our own loop may go without progress (tests shorten it). */
   turnIdleMs?: number;
+  /** The most a delegated run may work in all (tests shorten it). */
+  a2aCapMs?: number;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
   mcpTools?: (thread: Thread) => Promise<Tool[]>;
   /** The MCP servers a thread may reach, by name, without starting them. */
@@ -161,15 +216,18 @@ export function createEngine(deps: {
     kick,
     live,
     ended,
+    windowMs: (threadId) => runLimit(store, threadId, "a2a", deps).ms,
     deliver: (parent, child, answer) => {
       const agent = store.agents.get(child.agent_id);
       const name = store.threads.context(child.thread_id).worker?.name ?? agent?.name ?? child.agent_id;
+      const session = store.threads.get(child.thread_id)?.session;
+      const continued = Boolean(child.input?.continues);
       const paused = pausedNotice(store, parent.thread_id, name);
       if (paused) {
         // The result is kept for the caller's next turn (when the owner writes), and the owner sees why it stopped.
         store.modelLog.append(parent.thread_id, child.id, [
           systemNote(
-            `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child)}${actionsNote(actionsOf(store, child))}`,
+            `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child, { session, continued })}${actionsNote(actionsOf(store, child))}`,
           ),
         ]);
         store.messages.add({
@@ -193,6 +251,8 @@ export function createEngine(deps: {
           state: child.state,
           ...(child.end_reason ? { end_reason: child.end_reason } : {}),
           actions: actionsOf(store, child),
+          ...(session ? { session } : {}),
+          ...(continued ? { continued } : {}),
         },
         text: answer,
         depth: parent.depth,
@@ -231,6 +291,7 @@ export function createEngine(deps: {
         ...(a.attachments?.length ? { attachments: a.attachments } : {}),
         reply_to: a.reply_to !== undefined ? a.reply_to : (store.threads.context(a.thread_id).reply_to ?? null),
         ...(a.resume_of ? { resume_of: a.resume_of } : {}),
+        ...(a.continues ? { continues: a.continues } : {}),
       },
       depth: a.depth ?? 0,
       parent_run_id: a.parent_run_id,
@@ -268,14 +329,14 @@ export function createEngine(deps: {
     const limit = runLimit(deps.store, run.thread_id, run.trigger, deps);
     const clock = pausableClock(
       limit,
-      () =>
+      (capped) =>
         ac.abort(
           new DeadlineExceeded(
-            limit.engine
-              ? `the engine sent nothing for ${Math.round(limit.ms / 60_000)} minutes and was stopped`
-              : limit.idle
-                ? `the turn made no progress for ${Math.round(limit.ms / 60_000)} minutes and was stopped`
-                : "the turn ran out of time",
+            capped
+              ? `it worked the ${timeSpan(limit.cap ?? 0)} a delegated run may work and was stopped`
+              : limit.engine
+                ? `the engine sent nothing for ${timeSpan(limit.ms)} and was stopped`
+                : `the turn made no progress for ${timeSpan(limit.ms)} and was stopped`,
           ),
         ),
       (at) => deps.store.runs.setDeadline(run.id, new Date(at).toISOString()),
@@ -287,8 +348,10 @@ export function createEngine(deps: {
         steered.set(run.id, []);
         return texts;
       };
+      // Waiting on a delegate at work is the turn at work too.
+      const delegate: typeof delegations.delegate = (...a) => delegations.delegate(...a).finally(clock.busy());
       const done = await runTurn(
-        { ...deps, inputs, jobs, takeSteered, delegate: delegations.delegate, alive: clock.touch },
+        { ...deps, inputs, jobs, takeSteered, delegate, alive: clock.touch, busy: clock.busy },
         run,
         ac.signal,
       );
@@ -409,6 +472,7 @@ export function createEngine(deps: {
           depth: run.depth,
           parent_run_id: run.parent_run_id,
           resume_of: run.id,
+          continues: run.input.continues,
         });
       }
       // Only once the resumed ones hold their slots: a slot a cut delegation frees must not let a queued one in too.

@@ -79,6 +79,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "usage.state.failed": "Falló",
   "usage.state.canceled": "Cancelada",
   "usage.state.stepLimit": "Sin pasos",
+  "usage.state.outOfTime": "Sin tiempo",
   "skills.trace.title": "Skills elegidas por significado para este mensaje ({engine})",
   "skills.trace.loaded": "Cargada: su texto completo entró en el contexto de este turno",
   "skills.trace.strong":

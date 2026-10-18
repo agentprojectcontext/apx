@@ -4,6 +4,7 @@ import { useState } from "react";
 import { client } from "../../data/client.ts";
 import { notify } from "../../data/notices.ts";
 import { isKey, useT } from "../../i18n/index.ts";
+import { go as nav } from "../../shell/nav.ts";
 import { appPlace } from "../appLinks.ts";
 
 type NoticeData = Extract<Part, { type: "notice" }>;
@@ -24,9 +25,19 @@ export function NoticePart({ part }: { part: NoticeData }) {
   const linkLabel = isKey(linkKey) ? t(linkKey) : undefined;
   const open = typeof part.vars?.link === "string" && linkLabel ? appPlace(part.vars.link) : undefined;
   const thread = part.code.startsWith("breaker.") && typeof part.vars?.thread === "string" ? part.vars.thread : "";
-  const link = (thread || open) && (
+  // A delegated run that hit a limit: its session to open and, while APX keeps it going, to stop.
+  const session =
+    part.code === "delegation.limit" && typeof part.vars?.subthread === "string" ? part.vars.subthread : "";
+  const goingOn = session && String(part.vars?.variant ?? "").startsWith("continued");
+  const link = (thread || open || session) && (
     <span className="noticeline__actions">
       {thread && <GoOn thread={thread} />}
+      {session && (
+        <Button size="sm" variant="ghost" className="noticeline__link" onClick={() => nav.subthread(session)}>
+          {t("notice.delegation.limit.open")}
+        </Button>
+      )}
+      {goingOn && <StopSession thread={session} />}
       {open && (
         <Button size="sm" variant="ghost" className="noticeline__link" onClick={open}>
           {linkLabel}
@@ -91,5 +102,27 @@ function GoOn({ thread }: { thread: string }) {
         {t("notice.breaker.release")}
       </Button>
     </>
+  );
+}
+
+/** Stops a delegated session APX kept going after a limit. */
+function StopSession({ thread }: { thread: string }) {
+  const t = useT();
+  const [done, setDone] = useState<"stopped" | "ended">();
+  if (done)
+    return (
+      <span className="noticeline__done">
+        {t(done === "stopped" ? "notice.delegation.limit.stopped" : "notice.delegation.limit.ended")}
+      </span>
+    );
+  const stop = () =>
+    void client
+      .call("threads.cancel", { thread })
+      .then((r) => setDone(r.canceled ? "stopped" : "ended"))
+      .catch((e: unknown) => notify(e instanceof Error ? e.message : String(e)));
+  return (
+    <Button size="sm" variant="ghost" className="noticeline__link" onClick={stop}>
+      {t("notice.delegation.limit.stop")}
+    </Button>
   );
 }

@@ -110,6 +110,8 @@ export type TurnDeps = {
   takeSteered(): string[];
   /** The engine showed a sign of life: an outside engine's idle deadline starts over. */
   alive?: (() => void) | undefined;
+  /** The turn waits on work in progress (a command running): its idle deadline holds until the returned call. */
+  busy?: (() => () => void) | undefined;
   /** A protocol method through the router, as the agent of `as.run`. */
   call: ToolCall;
   delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number): Promise<string>;
@@ -122,6 +124,8 @@ export type ToolCall = <M extends MethodName>(
   as: { run: RunRecord; callId: string; owner?: boolean },
 ) => Promise<Result<M>>;
 
+/** What only a caller may use: a delegate asks no one (DECISIONS.md#d-074). */
+const SESSION_TOOLS = new Set(["delegate", "list_sessions", "stop_session"]);
 const MEMORY_TOOLS = new Set(["remember", "recall", "forget", "search_owner_notes"]);
 /**
  * The owner's turns on WhatsApp keep notes, write to people and rooms, and hand the rest off: a phone chat is no place
@@ -235,6 +239,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     external: () => harness !== "native",
     call: deps.call,
     jobs: deps.jobs,
+    busy: deps.busy,
     apxPort: deps.apxPort,
     workDir: harnessDir(store, deps.home, thread),
     readOnly: readOnlyFolders(store, thread),
@@ -530,7 +535,7 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   const only = handoff ? new Set([...HANDOFF_TOOLS].filter((n) => !named || named.has(n))) : named;
   const tools = policy.tools.filter(
     (t) =>
-      ((callers.length < MAX_DEPTH && !turn.worker) || (t.name !== "delegate" && t.name !== "list_sessions")) &&
+      ((callers.length < MAX_DEPTH && !turn.worker) || !SESSION_TOOLS.has(t.name)) &&
       (!only || only.has(t.name) || (t.name === MCP_SEARCH && only.has(MCP_CALL))),
   );
   return { policy, tools, mcpLate };

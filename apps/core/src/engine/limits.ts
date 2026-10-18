@@ -8,8 +8,11 @@ import type { Store } from "../domain/store.ts";
 export const MAX_DEPTH = 1;
 /** Delegations running at once from one thread; past it the next ones wait in a queue (DECISIONS.md#d-096). */
 export const MAX_ACTIVE_DELEGATIONS = 3;
-/** How long a delegated run may work. */
-export const A2A_DEADLINE_MS = 10 * 60_000;
+/**
+ * The most a delegated run may work, however steadily it makes progress: below it, it stops only after its idle
+ * window without progress, like the owner's turns (DECISIONS.md#d-105).
+ */
+export const A2A_CAP_MS = 2 * 3600_000;
 /** Turns agents may start without the owner (delegations, results waking callers) in one conversation tree,
  *  counted since the owner last wrote in it. Past it the chain pauses until they write. The owner can change it
  *  (`agents.set_limits`, setting "agent_limits"); 0 = no limit. */

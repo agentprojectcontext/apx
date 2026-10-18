@@ -34,6 +34,19 @@ export const noticeEn = {
   "notice.breaker.reset": "Restart the budget",
   "notice.breaker.release": "Let them finish this round",
   "notice.breaker.wentOn": "Agents went on",
+  "notice.delegation.limit.continuedSteps":
+    "{who} ran out of steps on “{task}”; APX had it go on once in session {session}. So far: {sofar}",
+  "notice.delegation.limit.continuedTime":
+    "{who} ran out of time on “{task}”; APX had it go on once in session {session}. So far: {sofar}",
+  "notice.delegation.limit.returnedSteps":
+    "{who} ran out of steps on “{task}”. {caller} has its report and decides how to go on. So far: {sofar}",
+  "notice.delegation.limit.returnedTime":
+    "{who} ran out of time on “{task}”. {caller} has its report and decides how to go on. So far: {sofar}",
+  "notice.delegation.limit.open": "Open session",
+  "notice.delegation.limit.stop": "Stop it",
+  "notice.delegation.limit.stopped": "Stopped",
+  "notice.delegation.limit.ended": "It had already ended",
+  "notice.delegation.continued": "APX continued this session after a limit stopped it.",
   "notice.run.interrupted": "Interrupted by a restart of APX.",
   "notice.run.resumed": "Interrupted by a restart of APX; picking it back up.",
   "notice.run.canceled": "Canceled.",
@@ -85,6 +98,19 @@ export const noticeEs: Record<NoticeKey, string> = {
   "notice.breaker.reset": "Reiniciar presupuesto",
   "notice.breaker.release": "Liberar en esta ronda",
   "notice.breaker.wentOn": "Los agentes siguieron",
+  "notice.delegation.limit.continuedSteps":
+    "{who} se quedó sin pasos con «{task}»; APX lo hizo seguir una vez en la sesión {session}. Hasta ahora: {sofar}",
+  "notice.delegation.limit.continuedTime":
+    "{who} se quedó sin tiempo con «{task}»; APX lo hizo seguir una vez en la sesión {session}. Hasta ahora: {sofar}",
+  "notice.delegation.limit.returnedSteps":
+    "{who} se quedó sin pasos con «{task}». {caller} tiene su informe y decide cómo seguir. Hasta ahora: {sofar}",
+  "notice.delegation.limit.returnedTime":
+    "{who} se quedó sin tiempo con «{task}». {caller} tiene su informe y decide cómo seguir. Hasta ahora: {sofar}",
+  "notice.delegation.limit.open": "Abrir sesión",
+  "notice.delegation.limit.stop": "Detenerla",
+  "notice.delegation.limit.stopped": "Detenida",
+  "notice.delegation.limit.ended": "Ya había terminado",
+  "notice.delegation.continued": "APX siguió esta sesión después de que un límite la detuviera.",
   "notice.run.interrupted": "Se interrumpió por un reinicio de APX.",
   "notice.run.resumed": "Se interrumpió por un reinicio de APX; lo retomo.",
   "notice.run.canceled": "Cancelado.",

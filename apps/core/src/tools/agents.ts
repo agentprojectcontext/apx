@@ -7,8 +7,12 @@ import { APX_SERVER } from "../domain/approvals.ts";
 import type { ProjectRecord } from "../domain/projects.ts";
 import type { Store } from "../domain/store.ts";
 import { budgetLeft } from "../engine/breaker.ts";
+import { sessionOf } from "../engine/delegation.ts";
 import { cap, fromTeam } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
+
+/** A session in one of these states is still at work: its caller may stop it. */
+const AT_WORK = new Set(["submitted", "working", "queued", "input-required"]);
 
 export function agentTools(store: Store): Tool[] {
   return [
@@ -162,6 +166,24 @@ export function agentTools(store: Store): Tool[] {
           return `- ${t.session ?? t.id} · ${who} · ${t.state}${t.preview ? ` · ${t.preview.slice(0, 120)}` : ""}`;
         });
         return rows.length ? fromTeam("sessions", {}, rows.join("\n")) : "no sessions yet";
+      },
+    }),
+    defineTool({
+      name: "stop_session",
+      description: "Stop a session you delegated that is still working (the owner asked, or it is no longer needed).",
+      args: z.object({ session: z.string().min(1).max(60).describe("its name or id (list_sessions)") }),
+      effect: "local",
+      deadlineMs: 10_000,
+      // Offered only while one of this thread's sessions is at work: a tool every turn would carry for nothing.
+      when: (thread) => store.threads.sessions(thread.id).some((t) => AT_WORK.has(t.state)),
+      title: (a) => `Stopped session ${String(a.session ?? "").slice(0, 60)}`,
+      async run(a, ctx) {
+        const sub = sessionOf(store, ctx.thread.id, a.session);
+        if (!sub) return `no session "${a.session}" in this thread (see list_sessions)`;
+        const r = await ctx.call("threads.cancel", { thread: sub.id });
+        return r.canceled
+          ? `session "${sub.session ?? sub.id}" stopped`
+          : `session "${sub.session ?? sub.id}" was not working`;
       },
     }),
   ];

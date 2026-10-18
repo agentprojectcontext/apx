@@ -135,7 +135,9 @@ notice when there is no text. Tools that touch core state call protocol methods 
   an `a2a_result` run. A turn resumed by an owner answer after restart retains its caller and depth, so its final
   report still returns automatically. Only the final report enters the caller's context; the child's tool log and
   progress stay in its own thread. Limits live in `engine/limits.ts` (the owner changes the unattended ones in Config ›
-  Agents); `engine/breaker.ts` pauses chains that run without the owner.
+  Agents); `engine/breaker.ts` pauses chains that run without the owner. A child stops after its idle window or its
+  cap; one a limit cut short goes on once in its session (`continueCut`) and the owner hears it (`limitNotice`: chat
+  notice, tray, the chat's channel), see [D-105](DECISIONS.md#d-105). `stop_session` lets the caller stop one.
 - **Chat processes panel** (`apps/web/src/panel/ProcessesPanel.tsx`): `threads.list { root_thread }` retrieves
   every delegated descendant without the global list cap. A2A cards open a read-only transcript beside the parent;
   maximize opens the child as the main chat. Terminal command history and recorded edits remain available without
