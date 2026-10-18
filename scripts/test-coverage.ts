@@ -300,8 +300,12 @@ async function main() {
     run(pnpm, ["exec", "playwright", "test", "--project", "chromium"]);
     run(pnpm, ["--filter", "@apx/desktop", "build"]);
     const desktop = ["exec", "playwright", "test", "--project", "desktop"];
-    if (process.platform === "linux" && !process.env.DISPLAY) run("xvfb-run", ["-a", pnpm, ...desktop]);
-    else run(pnpm, desktop);
+    if (process.platform === "linux" && !process.env.DISPLAY) {
+      // Xvfb supplies a display; a window manager supplies real focus and minimization transitions.
+      const launch =
+        'command -v openbox >/dev/null || { echo "Install openbox for desktop window tests" >&2; exit 1; }; openbox >/dev/null 2>&1 & exec "$@"';
+      run("xvfb-run", ["-a", "sh", "-c", launch, "apx-desktop", pnpm, ...desktop]);
+    } else run(pnpm, desktop);
   }
   const scripts: V8Script[] = [];
   for (const entry of fs.readdirSync(raw)) {

@@ -40,7 +40,8 @@ used by the workspace does not expose that parser through its default export.
 Coverage includes tracked and new non-ignored JavaScript/TypeScript sources, including modules never imported.
 It merges function execution across processes and maps compiled UI functions back through the build's source maps.
 The all-suites command builds browser source maps, collects Chromium function counters, and includes the sandbox
-core and Electron processes. On Linux without a display it runs desktop tests under `xvfb-run`.
+core and Electron processes. On Linux without a display it runs desktop tests under `xvfb-run` and Openbox
+(CI installs both): native focus and minimization checks need a window manager as well as a display server.
 The coverage sandbox picks separate loopback ports so parallel checkouts do not collide; `E2E_PORT`,
 `E2E_CONTROL_PORT` and `E2E_WA_PORT` override them when debugging.
 Reports identify each unexecuted function by file and line. An executed function still needs meaningful assertions;
