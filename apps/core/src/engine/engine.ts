@@ -39,6 +39,17 @@ const AFTER_ANSWER_MS = 60_000;
 /** How often a working engine's moving deadline is written to its run (not on every streamed token). */
 const DEADLINE_WRITE_MS = 60_000;
 
+/** "6 minutes", "2 hours", "3 seconds": how long a limit is, for the reason a turn was stopped. */
+function timeSpan(ms: number): string {
+  const [n, unit] =
+    ms >= 3600_000 && ms % 3600_000 === 0
+      ? [ms / 3600_000, "hour"]
+      : ms >= 60_000
+        ? [Math.round(ms / 60_000), "minute"]
+        : [Math.max(1, Math.round(ms / 1000)), "second"];
+  return `${n} ${unit}${n === 1 ? "" : "s"}`;
+}
+
 type Clock = { pause(): void; resume(): void; stop(): void; touch(): void; busy(): () => void };
 /** `cap`: the most it may work in all, progress or not (a delegated run's). */
 type Limit = { ms: number; engine: boolean; cap?: number | undefined };
@@ -316,23 +327,16 @@ export function createEngine(deps: {
     const ac = new AbortController();
     // A restart re-runs queued work with a fresh deadline: the clock starts when the run can actually work.
     const limit = runLimit(deps.store, run.thread_id, run.trigger, deps);
-    const minutes = (ms: number) => Math.max(1, Math.round(ms / 60_000));
-    const span = (ms: number) => {
-      const h = ms / 3600_000;
-      if (Number.isInteger(h)) return `${h} hour${h === 1 ? "" : "s"}`;
-      const m = minutes(ms);
-      return `${m} minute${m === 1 ? "" : "s"}`;
-    };
     const clock = pausableClock(
       limit,
       (capped) =>
         ac.abort(
           new DeadlineExceeded(
             capped
-              ? `it worked the ${span(limit.cap ?? 0)} a delegated run may work and was stopped`
+              ? `it worked the ${timeSpan(limit.cap ?? 0)} a delegated run may work and was stopped`
               : limit.engine
-                ? `the engine sent nothing for ${minutes(limit.ms)} minutes and was stopped`
-                : `the turn made no progress for ${minutes(limit.ms)} minutes and was stopped`,
+                ? `the engine sent nothing for ${timeSpan(limit.ms)} and was stopped`
+                : `the turn made no progress for ${timeSpan(limit.ms)} and was stopped`,
           ),
         ),
       (at) => deps.store.runs.setDeadline(run.id, new Date(at).toISOString()),
