@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
+import { sourceMapResolver } from "./coverage-source-map.ts";
 import { coverageMarkdown, coverageReport, sandboxPorts } from "./test-coverage.ts";
 
 test("coverage sandboxes use distinct available loopback ports and honor explicit overrides", async () => {
@@ -165,4 +166,72 @@ test("native collection of an untouched TSX module does not count it as loaded o
     ],
   );
   assert.deepEqual(report, [{ file, loaded: false, functions: [{ name: "View", line: 1, covered: false }] }]);
+});
+
+test("browser counters follow chained UI build maps to the original TSX and preserve uncalled callbacks", () => {
+  const root = "/work";
+  const browser = pathToFileURL(`${root}/apps/web/dist/view.js`).href;
+  const library = pathToFileURL(`${root}/packages/ui/dist/view.js`).href;
+  const source = "function View() { return () => 1; }";
+  const nested = source.indexOf("() =>");
+  // Generated column 24 maps to the same source column (VLQ delta 24 = wB).
+  const mappings = "AAAA,wBAAwB";
+  const report = coverageReport(
+    root,
+    [{ file: "packages/ui/src/View.tsx", text: source }],
+    [
+      {
+        url: browser,
+        functions: [
+          { functionName: "View", ranges: [{ startOffset: 0, endOffset: source.length, count: 1 }] },
+          { functionName: "", ranges: [{ startOffset: nested, endOffset: source.length - 2, count: 0 }] },
+        ],
+      },
+    ],
+    [
+      { url: browser, text: source, sources: ["../../../packages/ui/dist/view.js"], mappings },
+      { url: library, text: source, sources: ["../src/View.tsx"], mappings },
+    ],
+  );
+  assert.deepEqual(report, [
+    {
+      file: "packages/ui/src/View.tsx",
+      loaded: true,
+      functions: [
+        { name: "View", line: 1, covered: true },
+        { name: "(anonymous)", line: 1, covered: false },
+      ],
+    },
+  ]);
+});
+
+test("chained mapping honors source roots and a position between mapping tokens", () => {
+  const root = "/work";
+  const text = "function View() { return () => 1; }";
+  const browser = pathToFileURL(`${root}/apps/web/dist/view.js`).href;
+  const library = pathToFileURL(`${root}/packages/ui/dist/view.js`).href;
+  const resolve = sourceMapResolver(
+    root,
+    [{ file: "packages/ui/src/View.tsx", text }],
+    [
+      { url: browser, text, sources: ["../../../packages/ui/dist/view.js"], mappings: "AAAA,yBAAyB" },
+      { url: library, text, sources: ["View.tsx"], sourceRoot: "../src", mappings: "AAAA,wBAAwB" },
+    ],
+  );
+  assert.deepEqual(resolve(browser, 25, text.length), { file: "packages/ui/src/View.tsx", offset: 24 });
+});
+
+test("cycles and missing intermediate maps cannot invent execution in an original module", () => {
+  const first = pathToFileURL("/work/apps/web/dist/first.js").href;
+  const second = pathToFileURL("/work/apps/web/dist/second.js").href;
+  const resolve = sourceMapResolver(
+    "/work",
+    [],
+    [
+      { url: first, text: "function first() {}", sources: ["./second.js"], mappings: "AAAA" },
+      { url: second, text: "function second() {}", sources: ["./first.js"], mappings: "AAAA" },
+    ],
+  );
+  assert.equal(resolve(first, 0, 18), undefined);
+  assert.equal(resolve(pathToFileURL("/work/missing.js").href, 0, 18), undefined);
 });

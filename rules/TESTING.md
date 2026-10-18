@@ -41,6 +41,7 @@ used by the workspace does not expose that parser through its default export.
 
 Coverage includes tracked and new non-ignored JavaScript/TypeScript sources, including modules never imported.
 It merges function execution across processes and maps compiled UI functions back through the build's source maps.
+Chained maps are followed through compiled libraries to their original sources; missing intermediate maps fail collection.
 Mobile React tests run with Jest Expo and React Native Testing Library; Babel instrumentation supplies original
 TSX function declarations, including nested callbacks, to the same inventory. Never-loaded native screens remain
 explicit zeroes. Tests replace only hardware and transport boundaries; React, hooks and the shared SDK execute.

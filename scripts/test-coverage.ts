@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript-parser";
 import { missingSourceMaps, snapshotSourceMaps } from "./coverage-maps.ts";
+import { sourceMapResolver } from "./coverage-source-map.ts";
 import { checkTests, repositoryFiles, testFiles } from "./test-quality.ts";
 
 type V8Function = { functionName: string; ranges: { startOffset: number; endOffset: number; count: number }[] };
@@ -19,15 +20,6 @@ export type InstrumentedCoverage = {
 };
 type SourceFunction = FunctionCoverage & { start: number; end: number };
 export type CoverageSourceMap = { url: string; text: string; sources: string[]; mappings: string; sourceRoot?: string };
-type Mapping = {
-  generatedLine: number;
-  generatedCharacter: number;
-  sourceIndex?: number;
-  sourceLine?: number;
-  sourceCharacter?: number;
-};
-const { decodeMappings } = ts as typeof ts & { decodeMappings: (mappings: string) => Iterable<Mapping> };
-
 /** Parallel checkouts need separate sandbox listeners; explicit ports remain available for debugging. */
 export async function sandboxPorts(env: NodeJS.ProcessEnv = process.env): Promise<Record<string, string>> {
   const ports: Record<string, string> = {};
@@ -140,15 +132,7 @@ export function coverageReport(
       .sort((a, b) => a.end - a.start - (b.end - b.start))[0];
     if (containing && covered) containing.covered = true;
   };
-  const maps = new Map(
-    sourceMaps.map((map) => {
-      const lines = lineStarts(map.text);
-      const segments = [...decodeMappings(map.mappings)]
-        .filter((m) => m.sourceIndex !== undefined && m.sourceLine !== undefined && m.sourceCharacter !== undefined)
-        .map((m) => ({ ...m, offset: (lines[m.generatedLine] ?? 0) + m.generatedCharacter }));
-      return [map.url, { ...map, segments }];
-    }),
-  );
+  const resolveSource = sourceMapResolver(root, files, sourceMaps);
   for (const script of mergeScripts(scripts)) {
     if (!script.url.startsWith("file:")) continue;
     let file: string;
@@ -159,7 +143,6 @@ export function coverageReport(
     }
     const original = inventory.get(file);
     if (original) original.loaded = true;
-    const map = maps.get(script.url);
     for (const fn of script.functions) {
       const range = fn.ranges[0];
       if (!range || (!fn.functionName && range.startOffset === 0)) continue;
@@ -167,32 +150,8 @@ export function coverageReport(
         own(file, range.startOffset, range.count > 0);
         continue;
       }
-      if (!map) continue;
-      // Function tokens map inside their original declaration; generated wrappers map to no source function.
-      let low = 0,
-        high = map.segments.length;
-      while (low < high) {
-        const mid = (low + high) >>> 1;
-        if ((map.segments[mid]?.offset ?? 0) < range.startOffset) low = mid + 1;
-        else high = mid;
-      }
-      const segment = map.segments[low];
-      if (
-        !segment ||
-        segment.offset >= range.endOffset ||
-        segment.sourceIndex === undefined ||
-        segment.sourceLine === undefined ||
-        segment.sourceCharacter === undefined
-      )
-        continue;
-      const sourceName = map.sources[segment.sourceIndex];
-      if (!sourceName) continue;
-      const base = map.sourceRoot ? new URL(`${map.sourceRoot.replace(/\/$/, "")}/`, map.url) : new URL(map.url);
-      const target = relative(new URL(sourceName, base).href);
-      const source = inventory.get(target);
-      if (!source) continue;
-      const offset = (source.lines[segment.sourceLine] ?? 0) + segment.sourceCharacter;
-      own(target, offset, range.count > 0);
+      const source = resolveSource(script.url, range.startOffset, range.endOffset);
+      if (source) own(source.file, source.offset, range.count > 0);
     }
   }
   // Expo's Babel instrumentation retains nested TSX callbacks that V8's transformed-file maps omit.
