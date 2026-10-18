@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "sync:design": "node scripts/sync-design-assets.mjs",
     "test": "npm run test:unit && npm run test:ui",
-    "test:unit": "node --test 'src/**/*.test.ts'",
+    "test:unit": "node --test \"src/**/*.test.ts\"",
     "test:ui": "jest --runInBand"
   },
   "dependencies": {

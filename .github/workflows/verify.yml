@@ -84,6 +84,36 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  unit-portability:
+    name: Unit tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      APX_SECRETS: file
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Browser for headless core tests
+        run: pnpm exec playwright install chromium
+      - name: Mobile test dependencies (its own install)
+        working-directory: apps/mobile
+        run: npm ci --no-audit --no-fund
+      - name: Preflight including each package's test command
+        run: pnpm preflight
+      - name: Mobile types
+        working-directory: apps/mobile
+        run: npm run typecheck
+
   # Optional: when verify fails on main, an agent reads the reports and opens a pull request with a fix. Off until the
   # repo sets the variable APX_AUTOFIX=true and the secret ANTHROPIC_API_KEY (see rules/TESTING.md#ci).
   autofix:

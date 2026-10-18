@@ -59,6 +59,10 @@ Reports identify each unexecuted function by file and line. An executed function
 unit coverage does not replace Playwright or a real phone. The default coverage command fails on suite failures;
 the separate strict command additionally requires every inventoried function to execute. CI runs all suites with
 coverage and keeps the JSON and Markdown reports.
+Build text and source maps are snapshotted before each suite, so a concurrent app build cannot silently erase
+browser execution from the report. Missing mappings for repository build counters fail collection.
+CI also runs preflight and mounted mobile tests on macOS and Windows; Linux runs browser and desktop E2E too.
+Package test globs use double quotes so Node receives the same pattern in POSIX shells and Windows cmd.exe.
 
 ## 4. Real path
 ```bash
