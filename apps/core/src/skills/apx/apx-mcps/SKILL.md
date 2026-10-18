@@ -82,6 +82,17 @@ apx mcps logs <name> -n 50  # what it printed while starting or failing
 A change is live from the next message: nothing restarts. Its tools are reached with `mcp_search` and `mcp_call`
 from then on, not in the turn that added it.
 
+## Hand a file to a tool
+
+Put the file in the argument the tool reads it from, as its media id (`med_…`, a drawing or an attachment of this
+chat) or `apx-file:<path>` (a file in your folders). APX sends it the way that field takes it: base64 to a remote
+server (an `http(s)` URL), a real path to a local one. Pick the field by the server: an image for a remote server
+goes in its base64 field; a `path` field only works on a server that runs on this computer. A field that wants a
+public `url` cannot take your file: APX never publishes the owner's files. For a video too big for base64, use the
+service's own upload (an upload link from one of its tools, then `curl -T` from your temp folder) or ask the owner
+for a link. To use a drawing with shell or a skill, copy it out first: `file_write` with `media` and a path in your
+temp folder.
+
 ## Change, rename, remove
 
 ```bash

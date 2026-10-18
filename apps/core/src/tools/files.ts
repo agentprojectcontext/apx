@@ -8,6 +8,7 @@ import type { Store } from "../domain/store.ts";
 import { textDiff } from "../engine/changes.ts";
 import { guarded } from "../engine/paths.ts";
 import { insideReal, writeAtomic } from "../paths.ts";
+import { chatMedia } from "../services/media-temp.ts";
 import { type FolderThread, folderAccess, outsideFolders, scratchRoot } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
@@ -226,7 +227,7 @@ export function fileTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "file_write",
       description:
-        "Write a whole text file (created, or replaced); missing folders are made. Use this, not shell heredocs, to create or rewrite a file; file_edit changes a part of one.",
+        "Write a whole file (created or replaced), not via shell heredocs: `content` text, or `media` a med_ id of this chat. file_edit changes part of one.",
       args: z.object({
         path: z
           .string()
@@ -234,15 +235,21 @@ export function fileTools(store: Store, home: string): Tool[] {
           .max(500)
           .describe("relative to cwd, else to the folder you work in; or absolute in your temp folder"),
         cwd: z.string().max(500).optional(),
-        content: z.string().max(MAX_BYTES),
+        content: z.string().max(MAX_BYTES).optional(),
+        media: z.string().optional(),
       }),
       effect: "local",
       confirm,
       workspace: true,
       deadlineMs: 10_000,
       title: (a) => `Wrote ${String(a.path ?? "a file")}`,
+      check(a, ctx) {
+        if ((a.content === undefined) === (a.media === undefined)) throw new Error("give either content or media");
+        if (a.media !== undefined) chatMedia(store, ctx.thread, a.media);
+      },
       async preview(a, ctx) {
         const r = resolve(ctx.thread, a, true);
+        if (a.content === undefined) return undefined;
         if ("refused" in r || "missing" in r || (fs.existsSync(r.at) && !fs.statSync(r.at).isFile())) return undefined;
         const existed = fs.existsSync(r.at);
         return proposed(r, existed ? "M" : "A", existed ? fs.readFileSync(r.at, "utf8") : "", a.content);
@@ -253,21 +260,25 @@ export function fileTools(store: Store, home: string): Tool[] {
         if ("missing" in r) return r.missing;
         if (fs.existsSync(r.at) && fs.statSync(r.at).isDirectory()) return `refused: ${a.path} is a folder`;
         const existed = fs.existsSync(r.at);
+        const rel = path.relative(r.base, r.at);
+        if (a.media !== undefined) {
+          const m = chatMedia(store, ctx.thread, a.media);
+          fs.mkdirSync(path.dirname(r.at), { recursive: true });
+          fs.copyFileSync(m.path, r.at);
+          await noteEdit(ctx, r, { path: rel, status: existed ? "M" : "A", added: 0, removed: 0 }, "", "");
+          return `${existed ? "replaced" : "created"} ${r.at} from ${m.id} (${m.mime}, ${m.bytes} bytes)`;
+        }
+        const content = a.content ?? "";
         const before = existed ? fs.readFileSync(r.at, "utf8") : "";
-        writeAtomic(r.at, a.content);
+        writeAtomic(r.at, content);
         await noteEdit(
           ctx,
           r,
-          {
-            path: path.relative(r.base, r.at),
-            status: existed ? "M" : "A",
-            added: lineCount(a.content),
-            removed: lineCount(before),
-          },
+          { path: rel, status: existed ? "M" : "A", added: lineCount(content), removed: lineCount(before) },
           before,
-          a.content,
+          content,
         );
-        return `${existed ? "replaced" : "created"} ${r.at} (${Buffer.byteLength(a.content)} bytes)`;
+        return `${existed ? "replaced" : "created"} ${r.at} (${Buffer.byteLength(content)} bytes)`;
       },
     }),
     defineTool({

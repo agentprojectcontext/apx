@@ -111,3 +111,25 @@ Por eso los agentes no reciben esas tools directamente. Mientras haya algún ser
 La misma respuesta de una línea pasa a costar **11.838 tokens**, y la lista de tools no cambia de una llamada a otra,
 lo que mantiene caliente la caché de prompt del proveedor del modelo. Las aprobaciones, confirmaciones y tarjetas de
 tools en el chat funcionan igual que si el agente hubiera llamado la tool directamente.
+
+## Archivos e imágenes en las tools de MCP
+
+Un agente puede pasarle uno de sus archivos a una tool de MCP: una imagen que dibujó, algo que adjuntaste en el chat o
+un archivo de las carpetas donde trabaja. En los argumentos de la tool escribe el id del archivo (`med_…`) o
+`apx-file:<ruta>`, y APX manda el archivo como ese campo lo recibe:
+
+- A un servidor que corre **en otro lado** (una URL `http(s)`), el campo recibe el contenido del archivo en base64,
+  dentro de lo que el campo dice aceptar ("imágenes de menos de 8 MB") y nunca más de 20 MB. El tipo y el nombre del
+  archivo completan los campos `mime_type` y `file_name` de la tool cuando los tiene y el agente los dejó vacíos.
+- A un servidor que corre **en esta computadora** (un comando), un campo de ruta recibe una ruta real. Un dibujo o un
+  adjunto se copia antes a la carpeta temporal del chat, así el servidor nunca lee la carpeta propia de APX.
+- Un campo que solo acepta un link público, o una ruta que un servidor remoto leería en su propio disco, se rechaza
+  diciendo qué campo usar. APX no publica tus archivos para conseguir un link: para un video grande, el servicio
+  necesita su propia forma de recibirlo (un link de subida que él entregue, y después `curl` desde la carpeta temporal
+  del agente).
+
+El paso guarda la referencia, nunca el contenido del archivo. Mandar un archivo afuera espera tu OK mientras el turno
+tiene contenido de afuera, aunque sea por una tool que dice que solo lee.
+
+Un agente también puede copiar un dibujo o un adjunto a un archivo propio (`file_write` con `media`), para su shell,
+sus skills u otra tool.
