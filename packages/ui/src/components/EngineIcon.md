@@ -4,10 +4,10 @@ category: Identity
 # EngineIcon
 
 The official mark of the app or model behind an engine: Claude (Claude Code), Codex (also the ChatGPT plan, signed in
-as Codex), Gemini, OpenAI and Ollama in their colours; the model APIs (Anthropic, Groq, OpenRouter, Cerebras,
+as Codex), Gemini, Antigravity, OpenAI and Ollama in their colours; the model APIs (Anthropic, Groq, OpenRouter, Cerebras,
 DeepSeek, Mistral, LM Studio, OpenCode Zen); and the coding agents that speak the Agent Client Protocol (OpenCode,
 Qwen Code, Cursor, GitHub Copilot, goose, Kimi, Auggie, Factory Droid, Mistral Vibe, Qoder, Grok, Devin, Amp, Kilo,
-Poolside) and the one-shot CLIs (Antigravity, Aider) as one-colour marks drawn in the text colour. Used wherever an engine is named: external sessions in the
+Poolside) and Aider as one-colour marks drawn in the text colour. Used wherever an engine is named: external sessions in the
 sidebar, the chat header of a code session, provider cards, model lists and the engine picker in the composer.
 Unknown engines show a neutral bot.
 
