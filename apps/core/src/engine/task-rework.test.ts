@@ -27,7 +27,12 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
       note: "Increase the contrast",
     });
   if (said.includes("Create delivery"))
-    return callTool("create", "task_create", { title: "Delivery for rework", assignee: "vera", status: "review" });
+    return callTool("create", "task_create", {
+      title: "Delivery for rework",
+      description: "Prepare the delivery for review.",
+      assignee: "vera",
+      status: "review",
+    });
   return say("ok");
 });
 let env: Awaited<ReturnType<typeof startCore>>;
@@ -52,7 +57,12 @@ const rejects = (operation: Promise<unknown>, message: RegExp) =>
   assert.rejects(operation, (error: unknown) => error instanceof ApxError && message.test(error.message));
 
 async function closedTask(title = "Delivery") {
-  const task = await env.client.call("tasks.create", { title, assignee: "vera", status: "review" });
+  const task = await env.client.call("tasks.create", {
+    title,
+    description: "Prepare the delivery for review.",
+    assignee: "vera",
+    status: "review",
+  });
   const session = env.core.store.threads.byTask(task.id)[0];
   assert.ok(session);
   await settled(session.id, 1);
@@ -129,7 +139,11 @@ test("rework validates the reason, target state, assignee and closed-to-open tra
 });
 
 test("active work prevents rework and idempotent retries cannot admit duplicate runs", async () => {
-  const task = await env.client.call("tasks.create", { title: "Hold delivery", assignee: "vera" });
+  const task = await env.client.call("tasks.create", {
+    title: "Hold delivery",
+    description: "Prepare the delivery for review.",
+    assignee: "vera",
+  });
   const session = env.core.store.threads.byTask(task.id)[0];
   assert.ok(session);
   await env.client.call("tasks.close", { task: task.id, state: "done" });
