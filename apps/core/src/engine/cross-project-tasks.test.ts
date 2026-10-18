@@ -12,7 +12,11 @@ const orchestrator = "northwind-lead";
 const llm = scriptedLlm((req, { system, said, afterTool }) => {
   const last = String(req.messages.at(-1)?.content);
   if (system.startsWith("You are Project lead")) {
-    if (!afterTool) return callTool("prepare", "task_create", { title: "Coordinated delivery" });
+    if (!afterTool)
+      return callTool("prepare", "task_create", {
+        title: "Coordinated delivery",
+        description: "Prepare the delivery for review.",
+      });
     return say(last);
   }
   if (said === "coordinate delivery") {
@@ -93,7 +97,10 @@ function assertDestination(task: Task | undefined) {
 }
 
 test("the global super-agent's task tool infers the assignee's project and starts the right agent", async () => {
-  const { output } = await ask("roby", `create ${JSON.stringify({ title: "Direct delivery", assignee: worker })}`);
+  const { output } = await ask(
+    "roby",
+    `create ${JSON.stringify({ title: "Direct delivery", description: "Prepare the delivery for review.", assignee: worker })}`,
+  );
   assert.match(output, /starts on it now/);
   assertDestination(tasks().find((t) => t.title === "Direct delivery"));
 });
@@ -102,17 +109,26 @@ test("the router uses the same destination rule, while the owner still chooses a
   const thread = await chat("roby");
   const response = await env.core.dispatch(
     "tasks.create",
-    { title: "Router delivery", assignee: worker },
+    { title: "Router delivery", description: "Prepare the delivery for review.", assignee: worker },
     context("roby", thread.id),
     "router-create",
   );
   assert.equal(response.ok, true);
   assertDestination(tasks().find((t) => t.title === "Router delivery"));
   await assert.rejects(
-    env.client.call("tasks.create", { title: "Owner global mismatch", assignee: worker }),
+    env.client.call("tasks.create", {
+      title: "Owner global mismatch",
+      description: "Prepare the delivery for review.",
+      assignee: worker,
+    }),
     /another project/,
   );
-  const explicit = await env.client.call("tasks.create", { title: "Owner delivery", project, assignee: worker });
+  const explicit = await env.client.call("tasks.create", {
+    title: "Owner delivery",
+    project,
+    description: "Prepare the delivery for review.",
+    assignee: worker,
+  });
   assertDestination(explicit);
 });
 
@@ -149,7 +165,7 @@ test("ordinary global agents and project-bound callers gain no cross-project cre
       const title = `Refused ${agent} ${explicit}`;
       const result = await env.core.dispatch(
         "tasks.create",
-        { title, assignee: worker, ...(explicit ? { project } : {}) },
+        { title, description: "Prepare the delivery for review.", assignee: worker, ...(explicit ? { project } : {}) },
         context(agent, thread.id),
         title,
       );
@@ -167,7 +183,10 @@ test("ordinary global agents and project-bound callers gain no cross-project cre
     assert.equal(assigned.ok, false);
     assert.equal(env.core.store.tasks.get(own.id)?.assignee, undefined);
   }
-  const { output } = await ask("vera", `create ${JSON.stringify({ title: "Tool escape", assignee: worker, project })}`);
+  const { output } = await ask(
+    "vera",
+    `create ${JSON.stringify({ title: "Tool escape", description: "Prepare the delivery for review.", assignee: worker, project })}`,
+  );
   assert.match(output, /only in its own project/);
   assert.ok(!tasks().some((t) => t.title === "Tool escape"));
 });
@@ -181,7 +200,11 @@ test("global unassigned tasks and same-project assignments keep their existing s
     assert.equal(task.project_id, undefined);
     assert.equal(task.assignee, undefined);
   }
-  await ask(worker, `create ${JSON.stringify({ title: "Local delivery", assignee: worker, project })}`, project);
+  await ask(
+    worker,
+    `create ${JSON.stringify({ title: "Local delivery", description: "Prepare the delivery for review.", assignee: worker, project })}`,
+    project,
+  );
   assertDestination(tasks().find((t) => t.title === "Local delivery"));
 });
 
@@ -208,7 +231,7 @@ test("an answering orchestrator still cannot start task work through the router"
   });
   const result = await env.core.dispatch(
     "tasks.create",
-    { title: "No chained work", assignee: worker },
+    { title: "No chained work", description: "Prepare the delivery for review.", assignee: worker },
     context(orchestrator, thread.id),
     "no-chained-work",
   );
