@@ -374,31 +374,37 @@ test("notifications add and clear the integrated tray indicator, menu-bar count 
 
 test("double-click opens the existing main window in front and cancels the quick popup", async () => {
   await trayReady();
-  const state = await app.evaluate(async ({ BaseWindow, BrowserWindow }) => {
+  const id = await app.evaluate(async ({ BaseWindow, BrowserWindow }) => {
     const main = BaseWindow.getAllWindows().find((w) => !(w instanceof BrowserWindow));
-    const id = main?.id;
-    main?.minimize();
+    if (!main) throw new Error("main window is missing");
+    await new Promise<void>((resolve) => {
+      main.once("minimize", resolve);
+      main.minimize();
+    });
     const tray = (globalThis as unknown as { apxTestTray: { emit: (event: string, ...args: unknown[]) => void } })
       .apxTestTray;
     tray.emit("click", {});
     tray.emit("double-click", {});
+    // The pending single-click deadline must pass without reopening the quick chat.
     await new Promise((resolve) => setTimeout(resolve, 400));
-    return {
-      ids: BaseWindow.getAllWindows()
-        .filter((w) => !(w instanceof BrowserWindow))
-        .map((w) => w.id),
-      id,
-      visible: main?.isVisible(),
-      minimized: main?.isMinimized(),
-      focused: main?.isFocused(),
-      quickVisible: BrowserWindow.getAllWindows().some(
-        (w) => w.webContents.getURL().includes("quick=1") && w.isVisible(),
-      ),
-    };
+    return main.id;
   });
-  expect(state.ids).toEqual([state.id]);
-  expect(state.visible).toBe(true);
-  expect(state.minimized).toBe(false);
-  expect(state.focused).toBe(true);
-  expect(state.quickVisible).toBe(false);
+  await expect
+    .poll(() =>
+      app.evaluate(({ BaseWindow, BrowserWindow }, id) => {
+        const main = BaseWindow.fromId(id);
+        return {
+          ids: BaseWindow.getAllWindows()
+            .filter((w) => !(w instanceof BrowserWindow))
+            .map((w) => w.id),
+          visible: main?.isVisible(),
+          minimized: main?.isMinimized(),
+          focused: main?.isFocused(),
+          quickVisible: BrowserWindow.getAllWindows().some(
+            (w) => w.webContents.getURL().includes("quick=1") && w.isVisible(),
+          ),
+        };
+      }, id),
+    )
+    .toEqual({ ids: [id], visible: true, minimized: false, focused: true, quickVisible: false });
 });
