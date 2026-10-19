@@ -695,6 +695,9 @@ export const es: Partial<Record<MessageKey, string>> = {
   "project.settings.folderHint":
     "La usan los chats que trabajan en la carpeta, y su .apc/ guarda los agentes y la configuración.",
   "project.settings.folderMissing": "La carpeta no está en el disco ahora (se movió, o es un disco sin montar).",
+  "project.settings.agentsMdLong": "AGENTS.md largo",
+  "project.settings.agentsMdLongBody":
+    "Tiene {chars} caracteres y los agentes reciben {limit}: el principio y el final. Saben qué líneas quedaron afuera y las leen cuando las necesitan; por debajo de {limit}, tienen todas las reglas a la vista.",
   "project.settings.readOnly": "Carpetas de solo lectura",
   "project.settings.readOnlyHint":
     "Los agentes de este proyecto pueden leerlas (otro checkout, documentación) y nunca cambiarlas. Las guarda APX, no la carpeta.",

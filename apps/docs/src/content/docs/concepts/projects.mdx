@@ -38,7 +38,7 @@ the folder, show up in `git diff`, and can be read by any tool that understands 
 
 | File | What APX does with it |
 |---|---|
-| `AGENTS.md` | Project context every agent here reads. Long files are capped at 12,000 characters, keeping the head and the tail. |
+| `AGENTS.md` | Project context every agent here reads. Long files are capped at 12,000 characters, keeping the head and the tail; agents are told which lines were left out and read them when they need them, and the project's settings in the panel (and `apx projects list`) say when a file is past the cap. |
 | `.apc/project.json` | `name`, `description` and `kind`. A committed `apx_id` keeps the project's id stable; a clone or worktree next to the original gets its own. |
 | `.apc/agents/<slug>.md` | One agent each. See [Agents](/concepts/agents/). |
 | `.apc/memory.md` | Notes you write by hand. Agents always read it and never write it (capped at 6,000 characters). |

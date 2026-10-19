@@ -763,4 +763,9 @@ export const MIGRATIONS: readonly string[] = [
   -- Chat lists resolve each routine execution by its thread without scanning the execution history per row.
   CREATE INDEX routine_runs_thread ON routine_runs(thread_id);
   `,
+  `
+  -- AGENTS.md's full length when it is longer than what a project's agents get (apc/read.ts cap), so the owner sees
+  -- it; the next sync of each project fills it.
+  ALTER TABLE projects ADD COLUMN context_chars INTEGER;
+  `,
 ];

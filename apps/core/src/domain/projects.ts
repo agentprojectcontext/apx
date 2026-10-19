@@ -5,6 +5,7 @@ import { now, opt, qb, type Sql } from "./sql.ts";
 
 /** `context` is AGENTS.md and `memory` the owner's .apc/memory.md: both go to the agents, never to clients. */
 export type ProjectRecord = Project & { path?: string; context?: string; memory?: string };
+type ProjectWrite = Omit<ProjectRecord, "present" | "agents_md_chars"> & { present?: boolean; context_chars?: number };
 
 const toProject = (r: Selectable<ProjectsTable>): ProjectRecord => ({
   id: r.id,
@@ -17,6 +18,7 @@ const toProject = (r: Selectable<ProjectsTable>): ProjectRecord => ({
   ...(r.registered ? {} : { registered: false }),
   ...opt("context", r.context),
   ...opt("memory", r.memory_md),
+  ...(r.context_chars ? { agents_md_chars: r.context_chars } : {}),
   ...autonomyOf(r.autonomy),
   ...foldersOf(r.read_only_folders),
 });
@@ -97,7 +99,7 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
       return atPath(p)[0];
     },
     atPath,
-    upsert(p: Omit<ProjectRecord, "present"> & { present?: boolean }): void {
+    upsert(p: ProjectWrite): void {
       write(
         qb
           .insertInto("projects")
@@ -109,6 +111,7 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
             description: p.description ?? null,
             kind: p.kind ?? null,
             context: p.context ?? null,
+            context_chars: p.context_chars ?? null,
             memory_md: p.memory ?? null,
             present: p.present === false ? 0 : 1,
             registered: 1,
@@ -124,6 +127,7 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
                 description: eb.ref("excluded.description"),
                 kind: eb.ref("excluded.kind"),
                 context: eb.ref("excluded.context"),
+                context_chars: eb.ref("excluded.context_chars"),
                 memory_md: eb.ref("excluded.memory_md"),
                 present: eb.ref("excluded.present"),
                 registered: 1,
@@ -131,9 +135,9 @@ export function projectsRepo({ one, all, run }: Sql, changed: () => void) {
               // A reindex of unchanged files writes nothing, so it tells no client to reload.
               .where((eb) =>
                 eb.or([
-                  ...(["name", "path", "description", "kind", "context", "memory_md", "present"] as const).map((c) =>
-                    eb(eb.ref(`projects.${c}`), "is not", eb.ref(`excluded.${c}`)),
-                  ),
+                  ...(
+                    ["name", "path", "description", "kind", "context", "context_chars", "memory_md", "present"] as const
+                  ).map((c) => eb(eb.ref(`projects.${c}`), "is not", eb.ref(`excluded.${c}`))),
                   eb(
                     eb.fn.coalesce(eb.ref("excluded.blob"), eb.ref("projects.blob")),
                     "is not",

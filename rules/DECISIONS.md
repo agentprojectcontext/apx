@@ -1383,3 +1383,14 @@ run's output is the project's own, as `file_read`'s is; the reading is static, a
 kept in settings, so a core restart no longer drops them; archiving or deleting the chat ends them. Kept on purpose:
 MCP tools that act (a phone's tap can send a message in the owner's name) still ask until the owner answers "always for
 this agent", and `screen_open` still asks, since it opens pages with the owner's own logins.
+
+<a id="d-110"></a>
+## D-110 — 2026-10-19 — A capped AGENTS.md says what it left out, and the owner sees it
+A project's AGENTS.md reaches its agents capped at 12,000 characters (`AGENTS_MD_LIMIT`), head and tail kept. The cut
+was silent: a rule in the middle never reached the agents and nothing said so, to them or to the owner. The cap stays
+(every model call pays for it, rule 23); what changes is that it is visible. The cut now falls on line ends and its
+marker names the file's absolute path, the omitted lines and the `file_read` offset and limit that read them, so an
+agent can fetch the middle when it matters (the same for `.apc/memory.md` past its 6,000). The full length is kept on
+the project (`projects.context_chars`) and sent to clients as `Project.agents_md_chars` only when it is past the cap:
+the project's settings in the panel and `apx projects list` say "AGENTS.md has N characters, agents get 12,000".
+The fix for the owner is still to trim the file under the cap; the marker is the fallback, not a reason to grow it.

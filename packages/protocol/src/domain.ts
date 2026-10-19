@@ -77,6 +77,9 @@ export const Organization = z.object({ areas: z.array(OrgArea).max(40), roles: z
 export type Organization = z.infer<typeof Organization>;
 export type ProjectKind = z.infer<typeof ProjectKind>;
 
+/** How much of a project's AGENTS.md its agents get in their context; the rest they read from the file. */
+export const AGENTS_MD_LIMIT = 12_000;
+
 export const Project = z.object({
   /** False only in the optional history catalog after the owner unregisters a folder. */
   registered: z.boolean().optional(),
@@ -94,6 +97,8 @@ export const Project = z.object({
   autonomy: Autonomy.optional(),
   /** Absolute folders its agents may read and never change (another checkout, docs); kept by APX. */
   read_only_folders: z.array(z.string()).optional(),
+  /** AGENTS.md's length when it is longer than AGENTS_MD_LIMIT: its agents get the head and tail, not all of it. */
+  agents_md_chars: z.number().int().optional(),
 });
 export type Project = z.infer<typeof Project>;
 

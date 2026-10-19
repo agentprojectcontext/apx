@@ -86,6 +86,7 @@ export function createApcSync(deps: { store: Store; log: Log; engines: { has(id:
         ...(meta.description ? { description: meta.description } : {}),
         ...(meta.kind ? { kind: meta.kind } : {}),
         ...(p.context ? { context: p.context } : {}),
+        ...(p.contextChars ? { context_chars: p.contextChars } : {}),
         ...(p.memory ? { memory: p.memory } : {}),
         present: true,
       });

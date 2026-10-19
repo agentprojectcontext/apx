@@ -1,5 +1,13 @@
 // apx threads / runs / agents / secrets: reading and steering what the core holds.
-import { ApprovalScope, type Author, Autonomy, DEFAULT_AUTONOMY, type Message, ProjectKind } from "@apx/protocol";
+import {
+  AGENTS_MD_LIMIT,
+  ApprovalScope,
+  type Author,
+  Autonomy,
+  DEFAULT_AUTONOMY,
+  type Message,
+  ProjectKind,
+} from "@apx/protocol";
 import type { ApxClient } from "@apx/protocol/client";
 
 /** Who wrote a message, in one word: the agent's id, or the author's kind. */
@@ -150,8 +158,13 @@ function kindOf(kind: string | undefined): ProjectKind | undefined {
 export async function projects(client: ApxClient, [sub, arg, ...more]: string[], o: ProjectFlags = {}): Promise<void> {
   if (!sub || sub === "list") {
     const { projects } = await client.call("projects.list", {});
-    for (const p of projects)
+    for (const p of projects) {
       console.log(`${p.id.padEnd(16)} ${p.present ? " " : "!"} ${p.name.padEnd(24)} ${p.kind ?? ""}`);
+      if (p.agents_md_chars)
+        console.log(
+          `${"".padEnd(18)} AGENTS.md has ${p.agents_md_chars} chars; agents get ${AGENTS_MD_LIMIT} (start and end)`,
+        );
+    }
     return;
   }
   if (sub === "register") {

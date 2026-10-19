@@ -293,6 +293,7 @@ export interface ProjectsTable {
   registered: Generated<number>;
   autonomy: string | null;
   read_only_folders: string | null;
+  context_chars: number | null;
 }
 
 export interface RoutineRunsTable {

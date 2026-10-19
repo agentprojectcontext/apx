@@ -683,6 +683,9 @@ export const en = {
   "project.settings.folder": "Folder",
   "project.settings.folderHint": "Chats that work in the folder use it, and its .apc/ holds the agents and settings.",
   "project.settings.folderMissing": "The folder is not on disk right now (moved, or a drive that is not mounted).",
+  "project.settings.agentsMdLong": "Long AGENTS.md",
+  "project.settings.agentsMdLongBody":
+    "It has {chars} characters and agents get {limit}: its start and its end. They are told which lines are left out and read them when they need them; under {limit}, every rule is in front of them.",
   "project.settings.readOnly": "Read-only folders",
   "project.settings.readOnlyHint":
     "Agents here may read these folders (another checkout, docs) and never change them. APX keeps them, not the folder.",

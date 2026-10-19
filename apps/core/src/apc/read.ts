@@ -3,11 +3,12 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { AGENTS_MD_LIMIT } from "@apx/protocol";
 import { type Fields, listField, parseFrontmatter, textField } from "./frontmatter.ts";
 
 export const SLUG_RE = /^[a-z][a-z0-9_-]*$/;
 /** AGENTS.md is project context for its agents; past this size the head and tail are kept. */
-const AGENTS_MD_CAP = 12_000;
+const AGENTS_MD_CAP = AGENTS_MD_LIMIT;
 /** .apc/memory.md, the owner's notes for the project's agents. */
 const MEMORY_MD_CAP = 6_000;
 
@@ -22,6 +23,8 @@ export type ApcProject = {
   kind?: string | undefined;
   /** AGENTS.md, capped. */
   context?: string | undefined;
+  /** AGENTS.md's full length when it is longer than what its agents get. */
+  contextChars?: number | undefined;
   /** .apc/memory.md (written by the owner), capped. */
   memory?: string | undefined;
   /** Why .apc/project.json is there but unreadable: its name, kind and apx_id are then unknown, not absent. */
@@ -70,10 +73,34 @@ const isLink = (p: string) => {
   }
 };
 
-function cap(text: string, max = AGENTS_MD_CAP, name = "AGENTS.md"): string {
+/**
+ * The head (70%) and tail of a file past `max` characters, cut at line ends. The marker names the omitted lines and
+ * the file, so an agent can read them with file_read instead of acting without them.
+ */
+export function cap(text: string, file: string, max = AGENTS_MD_CAP): string {
   if (text.length <= max) return text;
-  const head = Math.floor(max * 0.7);
-  return `${text.slice(0, head)}\n\n[… ${text.length - max} chars of ${name} omitted …]\n\n${text.slice(-(max - head))}`;
+  const headMax = Math.floor(max * 0.7);
+  // A line end a little before the budget beats a cut mid-sentence; one long line is cut where it is.
+  const atLine = (end: number, floor: number) => {
+    const nl = text.lastIndexOf("\n", end - 1);
+    return nl >= floor ? nl + 1 : end;
+  };
+  const head = atLine(headMax, headMax * 0.8);
+  const tailMin = text.length - (max - headMax);
+  const nl = text.indexOf("\n", tailMin);
+  const tail = nl >= 0 && nl < tailMin + (max - headMax) * 0.2 ? nl + 1 : tailMin;
+  const lineOf = (i: number) => text.slice(0, i).split("\n").length;
+  const from = lineOf(head);
+  const to = lineOf(Math.max(head, tail - 1));
+  const limit = Math.min(to - from + 1, 2000);
+  return `${text.slice(0, head)}\n[… lines ${from}-${to} of ${file} (${tail - head} of its ${text.length} characters) are not shown here: read them with file_read offset=${from} limit=${limit} before acting on anything they may cover …]\n\n${text.slice(tail)}`;
+}
+
+/** A file's text for an agent's context: empty is none; a long one is capped (and keeps its line numbering). */
+function contextOf(text: string | undefined, file: string, max: number): string | undefined {
+  const body = text?.trimEnd();
+  if (!body?.trim()) return undefined;
+  return body.length > max ? cap(body, file, max) : body.trim();
 }
 
 /** Whether a folder is an APC project (has .apc/ or AGENTS.md). */
@@ -99,7 +126,7 @@ export function readProject(root: string): ApcProject {
   const id = meta.apx_id && /^[a-z0-9]{6,32}$/.test(meta.apx_id) ? meta.apx_id : pathId;
   const agentsMd = readText(path.join(abs, "AGENTS.md"));
   const apc = path.join(abs, ".apc");
-  const memoryMd = isLink(apc) ? undefined : readText(path.join(apc, "memory.md"))?.trim();
+  const memoryMd = isLink(apc) ? undefined : readText(path.join(apc, "memory.md"));
   return {
     id,
     pathId,
@@ -107,8 +134,9 @@ export function readProject(root: string): ApcProject {
     name: meta.name || path.basename(abs),
     description: meta.description,
     kind: meta.kind,
-    context: agentsMd ? cap(agentsMd.trim()) : undefined,
-    memory: memoryMd ? cap(memoryMd, MEMORY_MD_CAP, ".apc/memory.md") : undefined,
+    context: contextOf(agentsMd, path.join(abs, "AGENTS.md"), AGENTS_MD_CAP),
+    contextChars: agentsMd && agentsMd.trimEnd().length > AGENTS_MD_CAP ? agentsMd.trimEnd().length : undefined,
+    memory: contextOf(memoryMd, path.join(apc, "memory.md"), MEMORY_MD_CAP),
     metaError,
   };
 }

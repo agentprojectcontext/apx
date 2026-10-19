@@ -39,6 +39,20 @@ test("threads get shows a code thread's folder and write policy, and --json prin
   assert.equal(json.thread.cwd, "~/work/acme");
 });
 
+test("projects list says when a project's AGENTS.md is longer than what its agents get", async () => {
+  const { client } = recordingClient({
+    "projects.list": {
+      projects: [
+        { id: "p_acme", name: "Acme", present: true, agents_md_chars: 18_400 },
+        { id: "p_northwind", name: "Northwind", present: true },
+      ],
+    },
+  });
+  const out = await printed(() => projects(client, ["list"]));
+  assert.match(out, /AGENTS\.md has 18400 chars; agents get 12000/);
+  assert.equal(out.match(/AGENTS\.md/g)?.length, 1, "only the long one");
+});
+
 test("projects rm unregisters the project and says the folder stays", async () => {
   const { client, calls } = recordingClient({ "projects.unregister": { ok: true } });
   assert.match(await printed(() => projects(client, ["rm", "p_acme"])), /folder and files were not touched/);

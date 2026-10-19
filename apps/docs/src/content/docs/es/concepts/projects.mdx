@@ -38,7 +38,7 @@ viajan con la carpeta, aparecen en `git diff` y cualquier herramienta que entien
 
 | Archivo | Qué hace APX con él |
 |---|---|
-| `AGENTS.md` | Contexto del proyecto que leen todos sus agentes. Los archivos largos se recortan a 12.000 caracteres, conservando el principio y el final. |
+| `AGENTS.md` | Contexto del proyecto que leen todos sus agentes. Los archivos largos se recortan a 12.000 caracteres, conservando el principio y el final; los agentes saben qué líneas quedaron afuera y las leen cuando las necesitan, y la configuración del proyecto en el panel (y `apx projects list`) avisa cuando un archivo pasa el límite. |
 | `.apc/project.json` | `name`, `description` y `kind`. Un `apx_id` commiteado mantiene estable el id del proyecto; un clon o worktree al lado del original recibe uno propio. |
 | `.apc/agents/<slug>.md` | Un agente cada uno. Mirá [Agentes](/es/concepts/agents/). |
 | `.apc/memory.md` | Notas que escribís a mano. Los agentes siempre lo leen y nunca lo escriben (hasta 6.000 caracteres). |

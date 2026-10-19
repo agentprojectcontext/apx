@@ -1,7 +1,8 @@
 import "../styles/screens.css";
-import { Autonomy, DEFAULT_AUTONOMY, type ProjectKind } from "@apx/protocol";
+import { AGENTS_MD_LIMIT, Autonomy, DEFAULT_AUTONOMY, type ProjectKind } from "@apx/protocol";
 import { Button, Dialog, Field, Icons, Input, Select, type SelectOption, Textarea } from "@apx/ui";
 import { useEffect, useMemo, useState } from "react";
+import { formatNumber } from "../common/format.ts";
 import type { ProjectEntry } from "../data/identity.ts";
 import { updateBase, updateProject } from "../data/projects.ts";
 import { useData } from "../data/state.ts";
@@ -188,6 +189,16 @@ export function ProjectSettings({
               hint={missing ? t("project.settings.folderMissing") : t("project.settings.folderHint")}
             >
               <code className="projsettings__path">{full.path}</code>
+            </Field>
+          )}
+          {real?.agents_md_chars && (
+            <Field label={t("project.settings.agentsMdLong")}>
+              <p className="projsettings__note">
+                {t("project.settings.agentsMdLongBody", {
+                  chars: formatNumber(real.agents_md_chars),
+                  limit: formatNumber(AGENTS_MD_LIMIT),
+                })}
+              </p>
             </Field>
           )}
           {!project.isDefault && real && <ReadOnlyFolders project={real} />}

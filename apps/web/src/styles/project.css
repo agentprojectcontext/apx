@@ -806,6 +806,11 @@
   color: var(--apx-fg-muted);
   overflow-wrap: anywhere;
 }
+.projsettings__note {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-fg-muted);
+}
 .projsettings__folders {
   display: flex;
   flex-direction: column;
