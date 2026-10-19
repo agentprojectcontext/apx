@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { platformOf } from "../packages/protocol/src/releases.ts";
+import { desktopAssetFor, platformOf } from "../packages/protocol/src/releases.ts";
 import { buildVersion } from "./version.ts";
 
 const repo = path.resolve(import.meta.dirname, "..");
@@ -45,7 +45,6 @@ const version =
   );
 const env = { ...process.env, APX_VERSION: version };
 
-const before = new Set(fs.existsSync(out) ? fs.readdirSync(out) : []);
 step("pnpm", ["build:web"], repo, env);
 step("pnpm", ["--filter", "@apx/desktop", "build"]);
 step("node", ["apps/desktop/scripts/stage.ts"], repo, { ...env, APX_TARGET: `${os}-${arch}` });
@@ -72,7 +71,8 @@ step("node", ["apps/desktop/scripts/bundle.ts"]);
 
 // What a release attaches: the installers (each with a .sha256 the desktop app checks) and the install scripts.
 for (const f of fs.readdirSync(out)) {
-  if (!/\.(AppImage|exe|dmg|zip)$/.test(f) || before.has(f)) continue;
+  const asset = [{ name: f, url: "" }];
+  if (!desktopAssetFor(asset, version, { os, arch }) && !desktopAssetFor(asset, version, { os, arch }, "zip")) continue;
   const digest = createHash("sha256")
     .update(fs.readFileSync(path.join(out, f)))
     .digest("hex");

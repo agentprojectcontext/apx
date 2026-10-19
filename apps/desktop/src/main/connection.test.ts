@@ -5,7 +5,9 @@ import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { prepareLocalTarget, saveLocalTarget } from "../../../../packages/install/src/paths.ts";
 import {
+  applySavedLocalTarget,
   forgetConnection,
   initialConnection,
   loadConnection,
@@ -18,6 +20,43 @@ import {
   verifyLocalCore,
 } from "./connection.ts";
 import { sshArgs } from "./ssh-tunnel.ts";
+
+test("web installation retains the exact home and port after a desktop restart without environment variables", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-desktop-target-"));
+  const home = path.join(root, "core");
+  const data = path.join(root, "desktop");
+  fs.mkdirSync(home);
+  fs.writeFileSync(path.join(home, "home-id"), "same-home");
+  fs.writeFileSync(path.join(home, "core.env"), "APX_HOST=127.0.0.1\n");
+  try {
+    saveLocalTarget(data, prepareLocalTarget({ home, port: 7551, home_id: "same-home" }, "stored-token"));
+    const env: NodeJS.ProcessEnv = {};
+    applySavedLocalTarget(data, env);
+    assert.equal(env.APX_HOME, fs.realpathSync(home));
+    assert.equal(localCoreUrl(env), "http://127.0.0.1:7551");
+    assert.equal(localCoreToken(env), "stored-token");
+    if (process.platform !== "win32") assert.equal(fs.statSync(path.join(home, "core.env")).mode & 0o077, 0);
+    assert.match(fs.readFileSync(path.join(home, "core.env"), "utf8"), /APX_HOST=127.0.0.1/);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(data, "connection.json"), "utf8")).token, undefined);
+    assert.equal(initialConnection(data, env)?.mode, "local");
+    fs.writeFileSync(path.join(home, "home-id"), "different-home");
+    const previousConfig = fs.readFileSync(path.join(home, "core.env"), "utf8");
+    assert.throws(
+      () => prepareLocalTarget({ home, port: 7551, home_id: "same-home" }, "replacement-token"),
+      /identity changed/,
+    );
+    assert.equal(fs.readFileSync(path.join(home, "core.env"), "utf8"), previousConfig);
+    assert.throws(() => applySavedLocalTarget(data, {}), /another installation/);
+    assert.throws(() => saveLocalTarget(data, { home, port: 7551, home_id: "same-home" }), /identity changed/);
+    saveConnection(data, { mode: "url", url: "https://remote.example" });
+    const clientEnv: NodeJS.ProcessEnv = {};
+    applySavedLocalTarget(data, clientEnv);
+    assert.equal(clientEnv.APX_HOME, undefined);
+    assert.equal(initialConnection(data, clientEnv)?.mode, "url");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("a chosen connection is kept, read back and forgotten; a broken file means none", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-conn-"));

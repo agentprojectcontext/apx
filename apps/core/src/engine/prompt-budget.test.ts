@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { after, before, test } from "node:test";
+import { scratchDir } from "../tools/folders.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 /**
@@ -10,9 +14,9 @@ const BUDGET = { system: 6_500, tools: 28_000 };
 
 const llm = scriptedLlm(() => say("ok"));
 let env: Awaited<ReturnType<typeof startCore>>;
-// The prompt names the chat's temp folder (under the OS temp dir) and the build; both are fixed here so the
-// measure is the same on every machine.
-const FIXED = { TMPDIR: "/tmp", APX_CODE_SHA: "0123456789ab" };
+// Exercise a long native temp path, then measure its canonical spelling in the captured prompt.
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), `apx-budget-${"long-".repeat(12)}`));
+const FIXED = { TMPDIR: temp, TEMP: temp, TMP: temp, APX_CODE_SHA: "0123456789ab" };
 const saved = Object.fromEntries(Object.keys(FIXED).map((k) => [k, process.env[k]]));
 const restore = () => {
   for (const [k, v] of Object.entries(saved)) {
@@ -28,6 +32,7 @@ after(async () => {
   await env.core.close();
   env.cleanup();
   restore();
+  fs.rmSync(temp, { recursive: true, force: true });
 });
 
 test("a default turn's system prompt and tools stay within the prompt budget", async () => {
@@ -35,7 +40,10 @@ test("a default turn's system prompt and tools stay within the prompt budget", a
   await env.client.call("threads.send", { thread: t.id, text: "hola" });
   await env.settle(t.id);
   const call = llm.calls.at(-1);
-  const system = String(call?.messages[0]?.content ?? "").length;
+  const prompt = String(call?.messages[0]?.content ?? "");
+  const scratch = scratchDir(env.core.store, env.home, t);
+  assert.ok(prompt.includes(scratch), "the captured prompt names the real chat temp folder");
+  const system = prompt.replace(scratch, `/tmp/apx-scratch-01234567/${t.id}`).length;
   const tools = JSON.stringify(call?.tools ?? []).length;
   assert.ok(system <= BUDGET.system, `system prompt: ${system} chars, budget ${BUDGET.system} (rules/PROMPT_SIZE.md)`);
   assert.ok(tools <= BUDGET.tools, `tools: ${tools} chars, budget ${BUDGET.tools} (rules/PROMPT_SIZE.md)`);

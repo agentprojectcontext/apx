@@ -82,6 +82,7 @@ pnpm test:coverage:all             # unit + browser + desktop execution, then co
 pnpm test:coverage:strict          # fails if any inventoried function was not executed
 pnpm test:coverage:all:strict      # the same requirement after unit, browser and desktop execution
 node --test apps/core/src/server.test.ts
+node --test e2e/install/onboarding.test.ts  # POSIX installer against a loopback feed and a temporary home
 ```
 Rules: tests never touch the real home — pass a temp `home` to `createCore` (see `server.test.ts`); bind
 `127.0.0.1` with port `0`; run offline (no network, no keys, no live core). No `test.skip`/`todo`: fix or delete

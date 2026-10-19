@@ -11,7 +11,7 @@ import {
 import type { Log } from "../log.ts";
 import { isInside } from "../paths.ts";
 import type { Dispatch } from "../rpc/router.ts";
-import { type Gate, refuse } from "./guard.ts";
+import { type Gate, localRequest, refuse } from "./guard.ts";
 
 const MAX_BODY = 1024 * 1024;
 /** Methods that carry a file (base64): their own params cap the size, this only bounds the read. */
@@ -140,6 +140,7 @@ export function httpHandler(
         body,
         {
           transport: "http",
+          local: localRequest(req),
           role: "operator",
           // An outside app is a model, whatever it says it is.
           actor: client || header(req, "x-apx-actor") === "agent" ? "agent" : "human",

@@ -89,7 +89,7 @@
 Las apps todavía no están firmadas: la [guía de instalación](https://agentprojectcontext.github.io/apx/v2/es/start/install/)
 muestra el clic de más que piden macOS y Windows.
 
-**Desde una terminal** (el core, el comando `apx` y su servicio; sin root, los datos en `~/.apx/v2`):
+**Desde una terminal** (detecta tu sistema; sin root, los datos en `~/.apx/v2`):
 
 ```bash
 curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
@@ -99,11 +99,13 @@ curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
 irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
 ```
 
-Después `apx desktop` abre la app de escritorio (la baja la primera vez), `apx open` abre el panel en tu navegador y
-`apx setup` te guía en los primeros pasos. Se actualiza sola: la app ofrece cada versión nueva, para la app y para el
+En una computadora nueva con escritorio, instala y abre la app: ahí elegís servidor o cliente antes de arrancar un core.
+Ese camino no instala un servicio en segundo plano. Las instalaciones de servidor existentes siguen actualizándose como servidores.
+`apx desktop` también instala y abre la app; `apx open` abre el panel web. Si ya usás APX desde la web local sin app,
+el panel ofrece **Instalar y abrir**, con progreso y tu configuración actual. Se actualiza sola: la app ofrece cada versión nueva, para la app y para el
 servidor al que se conecta, con un solo botón.
 
-**En un servidor** (un VPS, un homelab, sin pantalla): la misma línea de `curl`, después
+**En un servidor** (un VPS, un homelab, sin pantalla): usá `bash -s -- --server` después del pipe (PowerShell: `-Server`), después
 `apx setup --headless --expose tailscale` (o `--expose lan`) y `apx pair` para conectar tu escritorio y tu teléfono.
 La app de escritorio también puede instalar APX en un servidor por SSH. Guía:
 [APX en un servidor](https://agentprojectcontext.github.io/apx/v2/es/devices/server/).

@@ -3,8 +3,16 @@
 
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { BROWSER_CAP, type HarnessId, TabInfo } from "@apx/protocol";
+import {
+  createDesktopInstaller,
+  type DesktopInstaller,
+  type DesktopInstallOptions,
+} from "../../../packages/install/src/desktop.ts";
+import { prepareLocalTarget } from "../../../packages/install/src/paths.ts";
+import { desktopSessionEnv } from "../../../packages/install/src/session.ts";
 import { createAccess } from "./access.ts";
 import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
@@ -128,6 +136,7 @@ export type CoreOptions = {
   unseenAfterMs?: number;
   /** Finder and the trash; tests record the calls instead. */
   desktop?: DesktopOps;
+  desktopInstaller?: DesktopInstaller;
   /** Messages on this Mac (by default only on macOS); tests pass their own, null for none. */
   imessage?: IMessageOps | null;
   /** Runs the update's commands (git, pnpm); tests answer them. */
@@ -404,6 +413,18 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     sink: opts.telemetrySink ?? (config.telemetry ? telemetrySink(config.telemetry) : undefined),
   });
 
+  const desktopInstaller =
+    opts.desktopInstaller ??
+    createDesktopInstaller({
+      platform: process.platform,
+      arch: process.arch,
+      userHome: os.homedir(),
+      env: { ...process.env },
+      feed: config.releases ?? "off",
+      session: () => desktopSessionEnv(process.platform, { ...process.env }),
+      target: () => prepareLocalTarget({ home: config.home, port: listening, home_id: identity.home_id }, config.token),
+    } satisfies DesktopInstallOptions);
+
   const dispatch = createRouter(
     coreHandlers({
       internal,
@@ -453,6 +474,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       engines: engineIds,
       tools,
       desktop: opts.desktop ?? systemDesktop,
+      desktopInstaller,
       native: config.native,
       runtimeHomes: config.runtimeSkills.homes,
       updates,
@@ -510,6 +532,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     scheduler,
     telemetry,
     async close() {
+      await desktopInstaller.close();
       useApxCommand(undefined);
       idleTrim.stop();
       terminals.closeAll();

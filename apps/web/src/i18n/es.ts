@@ -14,6 +14,19 @@ import { esTeam } from "./es-team.ts";
 import { esTelemetry } from "./es-telemetry.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
+  "desktopInstall.title": "Usá APX como aplicación de escritorio",
+  "desktopInstall.idle":
+    "Instalá en esta computadora donde corre APX. Tus chats, agentes y configuración quedan listos para usar.",
+  "desktopInstall.install": "Instalar y abrir",
+  "desktopInstall.later": "Más tarde",
+  "desktopInstall.downloading": "Descargando la app para este sistema…",
+  "desktopInstall.installing": "Instalando la aplicación de escritorio…",
+  "desktopInstall.opening": "Abriendo APX con tu configuración actual…",
+  "desktopInstall.ready":
+    "Aplicación instalada. APX se está abriendo con tu configuración actual. Si el sistema pregunta, permití abrir APX.",
+  "desktopInstall.failed": "No se pudo abrir la app. Podés reintentar; tus datos de APX siguen guardados.",
+  "desktopInstall.progress": "Progreso de descarga de la app",
+  "desktopInstall.connectionLost": "Conexión interrumpida. Reintentá para comprobar la instalación y abrir APX.",
   ...noticeEs,
   ...esHelper,
   ...esOffice,

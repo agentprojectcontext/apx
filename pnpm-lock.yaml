@@ -183,6 +183,16 @@ importers:
 
   packages/config: {}
 
+  packages/install:
+    dependencies:
+      '@apx/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+    devDependencies:
+      '@apx/config':
+        specifier: workspace:*
+        version: link:../config
+
   packages/protocol:
     dependencies:
       zod:

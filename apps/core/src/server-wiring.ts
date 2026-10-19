@@ -36,6 +36,7 @@ import { channelHandlers } from "./rpc/channels.ts";
 import { clientHandlers } from "./rpc/clients.ts";
 import { composerHandlers } from "./rpc/composer.ts";
 import { computerHandlers } from "./rpc/computer.ts";
+import { desktopInstallHandlers } from "./rpc/desktop-install.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
 import { embeddingHandlers } from "./rpc/embeddings.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
@@ -205,6 +206,7 @@ type HandlerDeps = {
   /** Every built-in tool: what an agent's editor offers. */
   tools: Parameters<typeof agentHandlers>[3];
   desktop: Parameters<typeof fileHandlers>[1];
+  desktopInstaller: Parameters<typeof desktopInstallHandlers>[0];
   /** Where Claude Code and Codex keep the owner's own sessions. */
   native: Parameters<typeof sessionHandlers>[1];
   /** Other agent apps' folders that get APX's skills for them. */
@@ -224,6 +226,7 @@ type HandlerDeps = {
 /** The handler table the router serves: one entry per protocol method. */
 export function coreHandlers(d: HandlerDeps) {
   return {
+    ...desktopInstallHandlers(d.desktopInstaller),
     ...updateHandlers(d.updates),
     ...telemetryHandlers(d.telemetry),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({

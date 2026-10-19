@@ -21,13 +21,13 @@ Nothing here needs root, and the server doesn't need Node installed: the bundle 
 Run it on the server itself (it installs where it runs), over SSH:
 
 ```bash
-curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
+curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server
 ```
 
 Or from your own computer in one line, PowerShell on Windows included:
 
 ```bash
-ssh user@server 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash'
+ssh user@server 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server'
 ```
 
 Options: `--file <bundle>` (a bundle you already have, no download), `--version <x.y.z>`, `--feed <owner/repo>`,
@@ -44,7 +44,7 @@ bash install.sh --file apx-core-<version>-linux-x64.tar.gz
 In PowerShell:
 
 ```powershell
-irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
+& ([scriptblock]::Create((irm 'https://agentprojectcontext.github.io/apx/v2/install.ps1'))) -Server
 ```
 
 Parameters: `-File <bundle>`, `-Version <x.y.z>`, `-Feed <owner/repo>`, `-NoService`, `-Uninstall`.
@@ -133,6 +133,10 @@ On Linux the core's log is in the journal: `journalctl --user -u apx -f`. On mac
 
 By default the core only answers its own machine. `apx expose` changes that:
 
+Loopback prevents direct access from the Internet; it does not isolate users of the same operating system. Without
+a token, a local process can control the core. Use a dedicated account and authentication on a shared server.
+APX manages one owner's crew: pairing a device grants operator access, not guest access.
+
 | Command | What it does |
 |---|---|
 | `apx expose tailscale` | Keeps the core on `127.0.0.1` and publishes it with `tailscale serve` at `https://<machine>.<tailnet>.ts.net`, reachable only from your tailnet. |
@@ -199,6 +203,11 @@ In the APX app, open Pair and paste the link, or enter an address and the code:
 Every device gets its own key. Revoke one with `apx devices revoke <id>` or in **Settings › Connections › Devices**.
 
 ## Updates
+
+Installing APX on the VPS through an SSH terminal does not register your computer as a node. The desktop app
+connected over SSH lends its browser to the core while that connection remains active. Screen, keyboard and mouse
+control require enabling **Computer use**. Changing connections or quitting the app stops lending those capabilities.
+Opening the server's address in a browser does not automatically lend your computer's capabilities.
 
 A bundle install updates itself. Every 6 hours (the first time a minute after it starts) the core asks the GitHub
 Releases of `agentprojectcontext/apx` whether there is a newer APX. The panel shows it in the top bar, whether you

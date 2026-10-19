@@ -74,6 +74,112 @@ test("native clients supply secure request keys for pairing over HTTP and socket
   await owner.call("devices.revoke", { id: device.id });
 });
 
+async function pairedSocket(role: "operator" | "node" = "operator") {
+  const { code } = await owner.call("devices.pair_start", {});
+  const { device, token } = await new ApxClient({ url: core.url }).call("devices.pair", {
+    code,
+    name: `Revocation ${role}`,
+  });
+  const socket = await new ApxClient({ url: core.url, token, timeoutMs: 1_000 }).connect(role, ["browser"]);
+  return { device, socket };
+}
+
+test("revoking a device denies owner calls through its already-open socket and preserves the root socket", async () => {
+  const { device, socket } = await pairedSocket();
+  const root = await owner.connect();
+  try {
+    assert.ok((await socket.call("devices.list", {})).devices.some((d) => d.id === device.id));
+    await root.call("devices.revoke", { id: device.id });
+    await assert.rejects(socket.call("devices.list", {}), /socket (?:closed|not open)/);
+    assert.ok(Array.isArray((await root.call("devices.list", {})).devices));
+  } finally {
+    socket.close();
+    root.close();
+    await Promise.all([socket.closed, root.closed]);
+  }
+});
+
+test("revoked operator sockets receive no later core events", async () => {
+  const { device, socket } = await pairedSocket();
+  const root = await owner.connect();
+  let leaked = 0;
+  socket.onEvent(() => leaked++);
+  const delivered = new Promise<void>((resolve) => root.onEvent(() => resolve()));
+  try {
+    await owner.call("devices.revoke", { id: device.id });
+    core.bus.emit({ type: "team.updated" });
+    await delivered;
+    assert.equal(leaked, 0);
+    await assert.rejects(socket.call("devices.list", {}), /socket (?:closed|not open)/);
+  } finally {
+    socket.close();
+    root.close();
+    await Promise.all([socket.closed, root.closed]);
+  }
+});
+
+test("revoked node sockets cannot publish events or keep their capabilities", async () => {
+  const { device, socket } = await pairedSocket("node");
+  let received = 0;
+  const off = core.broker.onEvent(() => received++);
+  try {
+    assert.ok(core.broker.withCap("browser"));
+    await owner.call("devices.revoke", { id: device.id });
+    socket.emit("browser", "browser.tabs", { tabs: [] });
+    await assert.rejects(socket.call("system.ping", {}), /socket (?:closed|not open)/);
+    assert.equal(received, 0);
+    assert.equal(core.broker.withCap("browser"), undefined);
+  } finally {
+    off();
+    socket.close();
+    await socket.closed;
+  }
+});
+
+test("the broker never sends a capability request to an already-revoked node", async () => {
+  const { device, socket } = await pairedSocket("node");
+  let requests = 0;
+  socket.onRequest(async () => {
+    requests++;
+    return { tabs: [] };
+  });
+  try {
+    await owner.call("devices.revoke", { id: device.id });
+    await assert.rejects(core.broker.invoke("browser", "browser.tabs", {}, 1_000), /disconnected/);
+    assert.equal(requests, 0);
+    assert.equal(core.broker.withCap("browser"), undefined);
+  } finally {
+    socket.close();
+    await socket.closed;
+  }
+});
+
+test("a revoked node cannot settle a capability call that was already in flight", async () => {
+  const { device, socket } = await pairedSocket("node");
+  let answer: ((result: unknown) => void) | undefined;
+  const requested = new Promise<void>((resolve) => {
+    socket.onRequest(() => {
+      resolve();
+      return new Promise((done) => {
+        answer = done;
+      });
+    });
+  });
+  const result = core.broker.invoke("browser", "browser.tabs", {}, 1_000);
+  const rejected = assert.rejects(result, /disconnected/);
+  try {
+    await requested;
+    await owner.call("devices.revoke", { id: device.id });
+    assert.ok(answer);
+    answer({ tabs: [] });
+    await rejected;
+    assert.equal(core.broker.withCap("browser"), undefined);
+  } finally {
+    socket.close();
+    await socket.closed;
+  }
+});
+
 test("canceling a code refuses that pairing but preserves another pending code", async () => {
   const first = await owner.call("devices.pair_start", {});
   const second = await owner.call("devices.pair_start", {});

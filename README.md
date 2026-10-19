@@ -88,7 +88,7 @@
 The apps are not signed yet: the [install guide](https://agentprojectcontext.github.io/apx/v2/start/install/) shows the
 one extra click macOS and Windows ask for.
 
-**From a terminal** (the core, the `apx` command and its service; no root, data in `~/.apx/v2`):
+**From a terminal** (detects your system; no root, data in `~/.apx/v2`):
 
 ```bash
 curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
@@ -98,11 +98,13 @@ curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
 irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
 ```
 
-Then `apx desktop` opens the desktop app (it downloads it the first time), `apx open` opens the panel in your browser,
-and `apx setup` walks you through the first steps. It updates itself: the app offers each new version, for the app and
+On a new graphical computer this installs and opens desktop setup: choose server or client before a core starts.
+That path does not register a background service. Existing server installations keep updating as servers.
+`apx desktop` also installs and opens the app; `apx open` opens the web panel. Local web users without the app see
+**Install and open**, with download progress and their existing setup. It updates itself: the app offers each new version, for the app and
 for the server it talks to, with one button.
 
-**On a server** (a VPS, a homelab, no screen): the same `curl` line, then
+**On a server** (a VPS, a homelab, no screen): use `bash -s -- --server` after the pipe (PowerShell: `-Server`), then
 `apx setup --headless --expose tailscale` (or `--expose lan`) and `apx pair` to connect your desktop and phone. The
 desktop app can also install APX on a server for you over SSH. Guide: [Run APX on a server](https://agentprojectcontext.github.io/apx/v2/devices/server/).
 

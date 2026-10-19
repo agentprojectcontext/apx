@@ -35,6 +35,9 @@ v2 is published into v1's public repo (`agentprojectcontext/apx`), which every v
 
 ## What a release carries
 
+The release starts as a draft. Only after all desktop, daemon and Android jobs upload successfully does the
+publication job expose it to update clients and announcements. Failed builds leave the draft available for repair.
+
 `release.yml` on a `v2.x.y` tag: for linux x64/arm64, win x64, mac arm64/x64 the desktop installer (AppImage, NSIS
 `.exe`, `.dmg`, plus a `.zip`), the daemon bundle `apx-core-<v>-<os>-<arch>.tar.gz`, a `.sha256` beside each,
 `install.sh` / `install.ps1`; and the Android APK. Nothing is signed yet but the APK (with the repo's
@@ -66,8 +69,8 @@ already answered is skipped. To preview it locally: `TAG=v2.x.y node scripts/iss
 
 | Who | How | Notes |
 |---|---|---|
-| New, with a desktop | the installer, then the first run (server or client) | |
-| New, a server or VM | `install.sh \| bash` (or `install.ps1`), then `apx setup --headless` | over SSH, linger needs root: install.sh uses passwordless sudo when it can, else says the command |
+| New, with a desktop | the installer or graphical install script, then first run (server or client) | no new daemon service before the choice |
+| New, a server or VM | `install.sh \| bash -s -- --server` (or `install.ps1 -Server`), then `apx setup --headless` | over SSH, linger needs root: install.sh uses passwordless sudo when it can, else says the command |
 | From the desktop, onto a server | first run › Client › SSH › "Install APX there" | sends the app's own install.sh over ssh and installs the app's version |
 | v1 user | the desktop's setup imports from `~/.apx`; on a server install.sh stops v1 and `apx import-v1` imports from its files | a v1 installed with `sudo npm` needs sudo to go |
 | Docker | `scripts/docker/Dockerfile` from a bundle | `APX_TOKEN` required; updates by image |

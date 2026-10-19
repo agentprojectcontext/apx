@@ -80,7 +80,7 @@ export type ClientOptions = {
   actor?: Actor;
   /** An outside app's client token (clients.create): it acts as a model, limited to its scopes. */
   clientToken?: string;
-  /** Cancels every call of this client, on top of each call's own deadline. */
+  /** Cancels calls and live sockets of this client, on top of each call's own deadline. */
   signal?: AbortSignal;
 };
 
@@ -134,18 +134,31 @@ export class ApxClient {
 
   /** Opens a live socket (hello → welcome), then req/res + events over one connection. */
   async connect(role: ClientRole = "operator", caps: string[] = []): Promise<ApxSocket> {
+    const signal = this.#opts.signal;
+    signal?.throwIfAborted();
     const token = this.#opts.token ? `?token=${encodeURIComponent(this.#opts.token)}` : "";
     const wsUrl = `${this.#opts.url.replace(/^http/, "ws")}/ws${token}`;
     const socket = new ApxSocket(wsUrl, this.#opts.timeoutMs, this.#opts.requestKey);
-    await socket.open({
-      t: "hello",
-      protocol: PROTOCOL_VERSION,
-      client: this.#opts.client,
-      role,
-      caps,
-      actor: this.#opts.actor,
-    });
-    return socket;
+    const abort = () => socket.close();
+    signal?.addEventListener("abort", abort, { once: true });
+    try {
+      await socket.open({
+        t: "hello",
+        protocol: PROTOCOL_VERSION,
+        client: this.#opts.client,
+        role,
+        caps,
+        actor: this.#opts.actor,
+      });
+      signal?.throwIfAborted();
+      void socket.closed.then(() => signal?.removeEventListener("abort", abort));
+      return socket;
+    } catch (error) {
+      signal?.removeEventListener("abort", abort);
+      socket.close();
+      signal?.throwIfAborted();
+      throw error;
+    }
   }
 }
 

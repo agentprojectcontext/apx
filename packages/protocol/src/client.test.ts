@@ -211,6 +211,36 @@ test("a socket handshake uses the configured client, encoded token, role and cap
   socket.close();
 });
 
+test("client cancellation closes a pending handshake and refuses an already canceled connection", async () => {
+  globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+  const controller = new AbortController();
+  const client = new ApxClient({ url: "https://core.example.com", signal: controller.signal });
+  const opening = client.connect("node", ["browser"]);
+  const denied = assert.rejects(opening, /connection changed/);
+  const wire = FakeWebSocket.latest;
+  await Promise.resolve();
+  controller.abort(new Error("connection changed"));
+  await denied;
+  assert.equal(wire.readyState, FakeWebSocket.CLOSED);
+  await assert.rejects(client.connect(), /connection changed/);
+  assert.equal(FakeWebSocket.latest, wire);
+});
+
+test("client cancellation closes an established socket and rejects its pending calls", async () => {
+  globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket;
+  const controller = new AbortController();
+  const client = new ApxClient({ url: "https://core.example.com" }).withSignal(controller.signal);
+  const opening = client.connect("node", ["browser"]);
+  await Promise.resolve();
+  FakeWebSocket.latest.receive({ t: "welcome", session: "s1" });
+  const socket = await opening;
+  const pending = assert.rejects(socket.call("system.ping", {}), /socket closed/);
+  controller.abort();
+  await pending;
+  await socket.closed;
+  assert.equal(FakeWebSocket.latest.readyState, FakeWebSocket.CLOSED);
+});
+
 test("socket calls correlate out-of-order responses, reject typed errors, and ignore malformed or unknown frames", async () => {
   const { socket, wire } = await openSocket();
   try {

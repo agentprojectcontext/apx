@@ -12,6 +12,18 @@ import { enTelemetry } from "./en-telemetry.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
+  "desktopInstall.title": "Use APX as a desktop app",
+  "desktopInstall.idle": "Install on this computer running APX. Your chats, agents and settings stay ready to use.",
+  "desktopInstall.install": "Install and open",
+  "desktopInstall.later": "Later",
+  "desktopInstall.downloading": "Downloading the app for this system…",
+  "desktopInstall.installing": "Installing the desktop app…",
+  "desktopInstall.opening": "Opening APX with your current setup…",
+  "desktopInstall.ready":
+    "Desktop installed. APX is opening with your current setup. If your system asks, allow APX to open.",
+  "desktopInstall.failed": "The desktop app could not open. Try again; your APX data is safe.",
+  "desktopInstall.progress": "Desktop download progress",
+  "desktopInstall.connectionLost": "Connection interrupted. Retry to check the installation and open APX.",
   ...noticeEn,
   ...enHelper,
   ...enOffice,

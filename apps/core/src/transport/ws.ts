@@ -7,7 +7,7 @@ import type { Identity } from "../identity.ts";
 import type { Log } from "../log.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
 import { type Dispatch, NODE_METHODS } from "../rpc/router.ts";
-import { type Gate, mayBeNode, refuse } from "./guard.ts";
+import { type Gate, localRequest, mayBeNode, refuse } from "./guard.ts";
 
 const MAX_PAYLOAD = 16 * 1024 * 1024;
 
@@ -42,30 +42,43 @@ export function attachWs(
       done(!why, 403, why);
     },
   });
-  const operators = new Set<WebSocket>();
+  const operators = new Map<WebSocket, (frame: string) => void>();
   let seq = 0;
   // One stream for core events; a client that sees a seq gap refetches instead of expecting a replay.
   bus.on((event) => {
     const frame = JSON.stringify({ t: "event", stream: "core", seq: ++seq, type: event.type, payload: event });
-    for (const ws of operators) if (ws.readyState === ws.OPEN) ws.send(frame);
+    for (const send of operators.values()) send(frame);
   });
 
   wss.on("connection", (ws, req) => {
     const canBeNode = mayBeNode(req);
     const key = new URL(req.url ?? "/", "http://core").searchParams.get("token");
-    const device = key?.startsWith("apxd_") ? deps.deviceOf?.(key) : undefined;
     let hello: HelloFrame | undefined;
     const session = randomUUID();
 
-    ws.on("close", () => {
+    const detach = () => {
       operators.delete(ws);
-      if (hello?.role === "node") {
-        broker.detach(session);
-        log.info({ session, node: hello.client.name }, "node disconnected");
-      }
+      if (hello?.role === "node") broker.detach(session);
+    };
+    const allowed = () => {
+      if (ws.readyState !== ws.OPEN) return false;
+      if (!refuse(req, gate, key)) return true;
+      // Credentials can be revoked while a socket is open; remove capability access before closing it.
+      detach();
+      ws.close(1008, "missing or bad token");
+      return false;
+    };
+    const send = (frame: object | string) => {
+      if (allowed()) ws.send(typeof frame === "string" ? frame : JSON.stringify(frame));
+    };
+
+    ws.on("close", () => {
+      detach();
+      if (hello?.role === "node") log.info({ session, node: hello.client.name }, "node disconnected");
     });
 
     ws.on("message", async (data) => {
+      if (!allowed()) return;
       let frame: ClientFrame;
       try {
         frame = ClientFrame.parse(JSON.parse(String(data)));
@@ -83,27 +96,25 @@ export function attachWs(
           return;
         }
         hello = frame;
-        if (frame.role === "operator") operators.add(ws);
+        if (frame.role === "operator") operators.set(ws, send);
         if (frame.role === "node") {
           broker.attach({
             session,
             name: frame.client.name,
             caps: frame.caps,
-            send: (f) => ws.send(JSON.stringify(f)),
+            send,
           });
         }
         log.info({ session, role: frame.role, client: frame.client.name, caps: frame.caps }, "client connected");
-        ws.send(
-          JSON.stringify({
-            t: "welcome",
-            protocol: PROTOCOL_VERSION,
-            session,
-            server: { version: identity.version, code_sha: identity.code_sha },
-            methods: methodsFor(frame),
-            limits: { max_payload: MAX_PAYLOAD },
-            auth: { role: frame.role, actor: frame.actor },
-          }),
-        );
+        send({
+          t: "welcome",
+          protocol: PROTOCOL_VERSION,
+          session,
+          server: { version: identity.version, code_sha: identity.code_sha },
+          methods: methodsFor(frame),
+          limits: { max_payload: MAX_PAYLOAD },
+          auth: { role: frame.role, actor: frame.actor },
+        });
         return;
       }
       if (!hello) {
@@ -117,13 +128,22 @@ export function attachWs(
         else broker.event(session, frame);
         return;
       }
+      const device = key?.startsWith("apxd_") ? deps.deviceOf?.(key) : undefined;
       const out = await dispatch(
         frame.method,
         frame.params,
-        { transport: "ws", role: hello.role, actor: hello.actor, session, log, ...(device ? { device } : {}) },
+        {
+          transport: "ws",
+          local: localRequest(req),
+          role: hello.role,
+          actor: hello.actor,
+          session,
+          log,
+          ...(device ? { device } : {}),
+        },
         frame.idem,
       );
-      ws.send(JSON.stringify({ t: "res", id: frame.id, ...out }));
+      send({ t: "res", id: frame.id, ...out });
     });
   });
 

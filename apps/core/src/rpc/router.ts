@@ -96,6 +96,12 @@ export function createRouter(handlers: Handlers, idemStore?: IdemStore) {
       return { ok: false, error: { code: ErrorCode.Unauthorized, message: `${method} is reserved to the owner` } };
     }
     const def = methods[method];
+    if ((def as MethodDef).local && !ctx.local) {
+      return {
+        ok: false,
+        error: { code: ErrorCode.Unauthorized, message: `${method} requires a direct local connection` },
+      };
+    }
     if (!def.effect) return invoke(method, rawParams, ctx);
     if (!idem) {
       return { ok: false, error: { code: ErrorCode.BadRequest, message: `${method} requires an idempotency key` } };

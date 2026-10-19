@@ -71,7 +71,7 @@ let repo = "";
 
 before(async () => {
   // The turn stops waiting almost at once: the question stays open for a later turn to withdraw.
-  env = await startCore({ llm, inputWaits: { turn: 150, external: 150 } });
+  env = await startCore({ llm, inputWaits: { turn: 150, external: 150 }, unseenAfterMs: 0 });
   repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-owner-q-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Northwind\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;
@@ -123,7 +123,18 @@ test("an agent withdraws its own open question: it ends withdrawn, nothing new r
   assert.match(lastToolResult(), /not found/i);
   assert.equal((await env.client.call("runs.pending", { thread: t.id })).inputs.length, 1);
 
-  const noticesBefore = (await env.client.call("notifications.list", {})).notifications.length;
+  // Completed unread chats raise their own notices, independently of a question being withdrawn.
+  const until = Date.now() + 5000;
+  let noticesBefore = 0;
+  while (Date.now() < until) {
+    const { notifications } = await env.client.call("notifications.list", {});
+    if ([t.id, other.id].every((thread) => notifications.some((n) => n.kind === "run" && n.ref === thread))) {
+      noticesBefore = notifications.length;
+      break;
+    }
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  assert.ok(noticesBefore, "both completed chats reached the attention tray before withdrawal");
   await env.client.call("threads.send", { thread: t.id, text: `${WITHDRAW}${input.id}` });
   const { messages, runs } = await env.settle(t.id);
   assert.match(lastToolResult(), new RegExp(`Question ${input.id} withdrawn`));

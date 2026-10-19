@@ -55,3 +55,18 @@ export function mayBeNode(req: IncomingMessage): boolean {
 
 const PROXY_HEADERS = ["x-forwarded-for", "forwarded", "x-real-ip", "tailscale-user-login"];
 const forwarded = (req: IncomingMessage) => PROXY_HEADERS.some((h) => req.headers[h] !== undefined);
+
+/** Loopback is necessary, but an SSH forward is indistinguishable from a direct connection. */
+export function localRequest(req: IncomingMessage): boolean {
+  if (forwarded(req)) return false;
+  const peer = req.socket.remoteAddress;
+  if (peer !== "127.0.0.1" && peer !== "::1" && peer !== "::ffff:127.0.0.1") return false;
+  const localHost = (url: string) => {
+    try {
+      return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(url).hostname);
+    } catch {
+      return false;
+    }
+  };
+  return localHost(`http://${req.headers.host ?? ""}`) && (!req.headers.origin || localHost(req.headers.origin));
+}

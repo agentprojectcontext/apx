@@ -33,6 +33,7 @@ for (const rel of [
   "apps/terminal/skills",
   "apps/web/dist",
   "packages/surfaces/src",
+  "packages/install/src",
   "examples/agents",
   "scripts/install/install.sh",
 ])
