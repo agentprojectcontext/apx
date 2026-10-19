@@ -5,6 +5,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+/**
+ * A path's real location. On Windows the system's own resolution: it also expands short 8.3 names (RUNNER~1), so a
+ * folder named either way compares equal.
+ */
+export function realpath(p: string): string {
+  return process.platform === "win32" ? fs.realpathSync.native(p) : fs.realpathSync(p);
+}
+
 /** A path under the user's home as "~/…", the way the panel shows it; any other path as it is. */
 export function tildeHome(p: string, home = os.homedir()): string {
   return p === home || p.startsWith(`${home}${path.sep}`) ? `~${p.slice(home.length)}` : p;
@@ -29,7 +37,7 @@ export function real(p: string): string {
   const rest: string[] = [];
   for (let i = 0; i < 64; i++) {
     try {
-      return path.join(fs.realpathSync(cur), ...rest.reverse());
+      return path.join(realpath(cur), ...rest.reverse());
     } catch {
       rest.push(path.basename(cur));
       const up = path.dirname(cur);

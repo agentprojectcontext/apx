@@ -7,7 +7,7 @@ import path from "node:path";
 import { parseFrontmatter, textField } from "../apc/frontmatter.ts";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
-import { isInside, tildeHome } from "../paths.ts";
+import { isInside, realpath, tildeHome } from "../paths.ts";
 import { type RuntimeHomes, runtimes, shippedNames } from "./runtimes.ts";
 
 /** The other agent apps whose skills APX reads: `~/.<app>/skills`, and `.<app>/skills` inside a project. */
@@ -98,7 +98,7 @@ function scan(
       const { fields } = parseFrontmatter(fs.readFileSync(file, "utf8"));
       const description = (textField(fields.description) ?? "").replace(/\s+/g, " ").trim();
       // A skill the owner linked in from another app's folder says whose it is (it is shared with that app).
-      const source = base.source === "owner" && isLink(dir) ? (appOf(fs.realpathSync(dir)) ?? "owner") : base.source;
+      const source = base.source === "owner" && isLink(dir) ? (appOf(realpath(dir)) ?? "owner") : base.source;
       return [{ name: textField(fields.name) ?? n, description, ...base, source, dir, copies: [] }];
     } catch {
       return [];
@@ -119,7 +119,7 @@ const isLink = (p: string) => {
 
 const realDir = (dir: string) => {
   try {
-    return fs.realpathSync(dir);
+    return realpath(dir);
   } catch {
     return dir;
   }
@@ -243,14 +243,14 @@ export function skillCatalog(skills: Skill[]): string {
 
 /** A skill's SKILL.md, or another file inside its folder (never outside it). */
 export function readSkillFile(skill: Skill, file?: string): string {
-  const root = fs.realpathSync(skill.dir);
+  const root = realpath(skill.dir);
   const inside = (p: string) => isInside(root, p);
   // Models often send an optional argument as "" or "."; both mean the skill itself.
   const name = file?.trim().replace(/^\.\/?$/, "") || "SKILL.md";
   // Checked before touching the disk (no probing for files elsewhere) and again after links are resolved.
   const asked = path.resolve(root, name);
   if (!inside(asked)) throw new Error(`${name} is outside the skill`);
-  const target = fs.realpathSync(asked);
+  const target = realpath(asked);
   if (!inside(target)) throw new Error(`${name} is outside the skill`);
   if (fs.statSync(target).isDirectory()) {
     const files = fs.readdirSync(target).filter((f) => !f.startsWith("."));

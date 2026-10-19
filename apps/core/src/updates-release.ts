@@ -15,6 +15,7 @@ import {
   parseSha256,
   type Release,
 } from "@apx/protocol";
+import { realpath } from "./paths.ts";
 import type { Runner } from "./updates.ts";
 
 export type ReleaseCheck = { newer: Release[] };
@@ -68,7 +69,7 @@ function prune(app: string, keep: string[]): void {
 /** The version `current` points at now, if any. */
 export function currentVersion(app: string): string | undefined {
   try {
-    return path.basename(fs.realpathSync(path.join(app, BUNDLE.current)));
+    return path.basename(realpath(path.join(app, BUNDLE.current)));
   } catch {
     return undefined;
   }
