@@ -41,6 +41,31 @@ test("a suggested command runs in a terminal from the chat and its end wakes the
   fs.rmSync(repo, { recursive: true, force: true });
 });
 
+test("a late attach snapshot does not undo the command's exit event", async ({ page }) => {
+  const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "scout" });
+  await page.route("**/rpc/terminal.open", async (route) => {
+    const params = route.request().postDataJSON() as { command: string };
+    await route.continue({ postData: JSON.stringify({ ...params, command: `${params.command}; sleep 1` }) });
+  });
+  await page.route("**/rpc/terminal.attach", async (route) => {
+    const response = await route.fetch();
+    const snapshot = (await response.json()) as { result: { terminal: { alive: boolean } } };
+    expect(snapshot.result.terminal.alive).toBe(true);
+    // Hold the live snapshot until the core has delivered the exit and the agent's follow-up.
+    await expect(page.locator(".transcript").getByText(/Got it: The owner ran the command you suggested/)).toBeVisible({
+      timeout: 15_000,
+    });
+    await route.fulfill({ response });
+  });
+  await open(page, `#thread=${chat.id}`);
+  await page.getByRole("textbox", { name: /^Escribile a/ }).fill("suggest a command");
+  await page.getByRole("button", { name: "Enviar" }).click();
+  await page.getByRole("button", { name: "Ejecutar en una terminal" }).click();
+  const out = page.locator(".runcode__out");
+  await expect(out.locator(".runcode__screen")).toContainText("e2e-suggested-42", { timeout: 15_000 });
+  await expect(out.getByText("Salió con 0")).toBeVisible();
+});
+
 test("in a chat with no project the block runs too, in APX's work folder", async ({ page }) => {
   await open(page, "#thread=home");
   await page.getByRole("textbox", { name: /^Escribile a/ }).fill("suggest a command");

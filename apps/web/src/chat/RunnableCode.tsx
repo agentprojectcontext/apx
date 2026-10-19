@@ -104,6 +104,8 @@ function RunOutput({ terminal }: { terminal: TerminalInfo }) {
     const add = (data: string) => setRaw((s) => (s + data).slice(-MAX_OUTPUT));
     // Output that arrives while the backlog is on its way waits behind it.
     let ready = false;
+    let exited = false;
+    let stopped = false;
     const early: string[] = [];
     const stop = watchEvents((ev) => {
       if (ev.type === "terminal.output" && ev.terminal === terminal.id) {
@@ -111,6 +113,7 @@ function RunOutput({ terminal }: { terminal: TerminalInfo }) {
         else early.push(ev.data);
       }
       if (ev.type === "terminal.exited" && ev.terminal === terminal.id) {
+        exited = true;
         setAlive(false);
         setExit(ev.exit_code);
       }
@@ -118,15 +121,24 @@ function RunOutput({ terminal }: { terminal: TerminalInfo }) {
     void client
       .call("terminal.attach", { terminal: terminal.id })
       .then((r) => {
+        if (stopped) return;
         setRaw((r.backlog + early.join("")).slice(-MAX_OUTPUT));
-        setAlive(r.terminal.alive);
-        setExit(r.terminal.exit_code);
+        // An exit event is newer than the attach snapshot, even when its response arrives last.
+        if (!exited) {
+          setAlive(r.terminal.alive);
+          setExit(r.terminal.exit_code);
+        }
       })
-      .catch(() => setRaw(early.join("")))
+      .catch(() => {
+        if (!stopped) setRaw(early.join(""));
+      })
       .finally(() => {
         ready = true;
       });
-    return stop;
+    return () => {
+      stopped = true;
+      stop();
+    };
   }, [terminal.id]);
   const screen = screenText(raw).replace(/^\n+/, "");
   // Keep the newest line in view, as a terminal does (it renders again only when output comes).
