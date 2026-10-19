@@ -13,7 +13,7 @@ import {
   visibleTask,
 } from "../domain/tasks.ts";
 import { CallError } from "../errors.ts";
-import { fromTeam, inlineName, untrusted } from "./result.ts";
+import { cap, fromTeam, inlineName, untrusted } from "./result.ts";
 import { type CheckContext, defineTool, type Tool } from "./types.ts";
 
 const line = (t: Task, project?: string) =>
@@ -149,9 +149,46 @@ export function taskTools(store: Store): Tool[] {
   };
   return [
     defineTool({
+      name: "task_get",
+      description:
+        "Read task details, history, sessions, consults, subtasks, usage and recent comments with saved evidence.",
+      args: z.object({ task: z.string().min(1).max(64) }),
+      effect: "none",
+      deadlineMs: 5_000,
+      title: () => "Read a task",
+      async run(a, ctx) {
+        const r = await ctx.call("tasks.get", { task: a.task });
+        const section = (name: string, data: unknown, budget: number) =>
+          `${name}:\n${cap(JSON.stringify(data), budget)}`;
+        const chat = (t: (typeof r.sessions)[number]) => ({
+          id: t.id,
+          title: t.title,
+          agent_ids: t.agent_ids,
+          state: t.state,
+        });
+        return untrusted(
+          "task_detail",
+          {},
+          [
+            section("Task", r.task, 2_000),
+            section("History", r.events, 1_800),
+            section("Sessions", r.sessions.map(chat), 600),
+            section("Consults", r.consults.map(chat), 600),
+            section("Subtasks", r.subtasks, 900),
+            section("Usage", r.usage, 400),
+            section(
+              `Comments (latest ${r.comments.length}${r.comments_truncated ? "; older messages omitted" : ""})`,
+              r.comments.map(({ id, author, created_at, parts }) => ({ id, author, created_at, parts })),
+              4_000,
+            ),
+          ].join("\n\n"),
+        );
+      },
+    }),
+    defineTool({
       name: "task_list",
       description:
-        'List the open tasks of this project (or yours only, or closed ones), newest activity first, with their ids, columns, project and when each last moved. Outside any project the super-agent sees every project\'s board. Commitments show who is owed ("owed to …" / "… owes it").',
+        "List this project's tasks by newest activity (default open), with ids, columns and commitments. The global super-agent sees all projects.",
       args: z.object({
         mine: z.boolean().optional(),
         state: z.enum(["open", "done", "dropped"]).optional(),
@@ -222,8 +259,7 @@ export function taskTools(store: Store): Tool[] {
     }),
     defineTool({
       name: "task_update",
-      description:
-        "Change a task: its column (status), who does it (assignee; null for nobody), title, description, whether it waits for the owner, or a commitment's person, who owes it and due date. To finish or drop it, use task_close.",
+      description: "Update task fields; assignee:null unassigns it. Finish or drop with task_close.",
       args: z.object({
         task: z.string().min(1).max(64),
         status: z.string().max(40).optional(),

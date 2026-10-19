@@ -137,7 +137,15 @@ test("one-time task lookup resolves events and detail reads normalize optional c
   const lookedUp = task("old");
   const calls = mockRpc(t, {
     "tasks.get": ({ task: id }: { task: string }) =>
-      id === "old" ? { task: lookedUp } : { task: lookedUp, events: [{ id: "ev_1" }], sessions: [] },
+      id === "old"
+        ? { task: lookedUp }
+        : {
+            task: lookedUp,
+            events: [{ id: "ev_1" }],
+            sessions: [],
+            comments: [{ id: "msg_1" }],
+            comments_truncated: true,
+          },
   });
   tasks.ensureTask("old");
   tasks.ensureTask("old");

@@ -112,13 +112,22 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       };
     },
     "tasks.get": ({ task }, ctx) => {
-      const t = visible(task, ctx);
-      const sessions = store.threads.byTask(t.id);
+      const scope = agentScope(ctx);
+      const found = store.tasks.get(task);
+      if (!found || (scope && found.project_id && found.project_id !== scope.project))
+        throw notFound("task unavailable");
+      const t = found;
+      const readable = (thread: { id: string; project_id?: string | undefined }) =>
+        (!ctx.agent || !store.threads.context(thread.id).client) &&
+        (!scope || !thread.project_id || thread.project_id === scope.project);
+      const sessions = store.threads.byTask(t.id).filter(readable);
       const consults = store.threads
         .children(t.thread_id)
         .flatMap((id) => store.threads.get(id) ?? [])
-        .filter((c) => store.threads.context(c.id).consult);
-      const all = [t.thread_id, ...sessions.map((s) => s.id), ...consults.map((c) => c.id)];
+        .filter((c) => store.threads.context(c.id).consult && readable(c));
+      const conversation = store.threads.get(t.thread_id);
+      const root = conversation && readable(conversation) ? [t.thread_id] : [];
+      const all = [...new Set([...root, ...sessions.map((s) => s.id), ...consults.map((c) => c.id)])];
       // One line per model, whichever loop ran it.
       const usage = [...Map.groupBy(store.runs.usage("", undefined, all), (u) => u.model)].map(([model, rows]) => ({
         model,
@@ -126,8 +135,21 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
         input: rows.reduce((n, r) => n + r.input, 0),
         output: rows.reduce((n, r) => n + r.output, 0),
       }));
-      const subtasks = store.tasks.list({ parent: t.id, limit: 200 }).reverse();
-      return { task: t, events: store.tasks.events(t.id), sessions, consults, subtasks, usage };
+      const subtasks = store.tasks
+        .list({ parent: t.id, limit: 200 })
+        .filter((child) => !scope || !child.project_id || child.project_id === scope.project)
+        .reverse();
+      const comments = root.length ? store.messages.list(t.thread_id, 61) : [];
+      return {
+        task: t,
+        events: store.tasks.events(t.id),
+        sessions,
+        consults,
+        subtasks,
+        usage,
+        comments: comments.slice(-60),
+        comments_truncated: comments.length > 60,
+      };
     },
     "tasks.create": (p, ctx) => {
       checkColumn(store, p.status);

@@ -154,6 +154,14 @@ Los agentes pueden abrir, mover, comentar y cerrar tareas con sus propias herram
 el tablero para Tomás" funciona en cualquier chat.
 </Aside>
 
+## Herramientas de agentes
+
+- `task_list` lista el tablero; `task_get` consulta una tarea por su ID en `task`.
+- `task_get` incluye campos, historial, sesiones de trabajo, consultas, subtareas, uso de tokens y los últimos 60 mensajes de la conversación. Las evidencias guardadas (referencias a archivos, parches y resúmenes de consultas) se conservan en su mensaje; no descarga adjuntos ni inventa pruebas faltantes.
+- Cada sección tiene un límite para el modelo, con marcas cuando se omite contenido o hay comentarios anteriores. El contenido se devuelve como datos, no como instrucciones.
+- Los agentes de proyecto pueden leer tareas de su proyecto y globales, pero no tareas ni trabajo relacionado de otros proyectos. Un ID inexistente o fuera del ámbito devuelve el mismo error seguro. La secretaria global conserva su visibilidad de todo el tablero.
+- `task_create`, `task_update`, `task_comment` y `task_close` crean y mantienen tareas; `commitment_settle` registra el resultado acordado de un compromiso.
+
 ## Lo que sigue
 
 <CardGrid>

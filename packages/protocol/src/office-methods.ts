@@ -49,6 +49,9 @@ export const officeMethods = {
     result: z.object({
       task: Task,
       events: z.array(TaskEvent),
+      /** Latest conversation messages, oldest first, including persisted evidence parts. */
+      comments: z.array(Message).default([]),
+      comments_truncated: z.boolean().default(false),
       sessions: z.array(Thread),
       consults: z.array(Thread).default([]),
       subtasks: z.array(Task).default([]),
