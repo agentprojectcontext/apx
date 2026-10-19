@@ -76,6 +76,9 @@ function teamSheet(store: Store, projectId: string | undefined, org: Organizatio
     .join("\n");
 }
 
+/** A role is a title shown in lists and on cards. */
+const ROLE_MAX = 40;
+
 export function agentSetTools(store: Store): Tool[] {
   const args = z.object({
     agent: z.string().trim().min(1).max(120).optional().describe("id or name; omit to create one"),
@@ -109,6 +112,13 @@ export function agentSetTools(store: Store): Tool[] {
         !a.agent
           ? `Created the agent ${a.name ?? a.slug ?? ""}`
           : `${a.archive ? "Archived" : changes(a as Args) ? "Changed" : "Looked at"} ${a.agent}`,
+      // Before the owner is asked: a sentence as the role fills the team's role list and every agent card.
+      check(a) {
+        if (a.role && a.role.length > ROLE_MAX)
+          throw new Error(
+            `role is a short title of a few words (like "Issue triage"), at most ${ROLE_MAX} characters: put the longer text in description`,
+          );
+      },
       async run(a, ctx) {
         let cur: AgentRecord | undefined;
         if (!a.agent && !changes(a)) {

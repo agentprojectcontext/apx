@@ -9,6 +9,10 @@ const CALLS: Record<string, [string, object]> = {
   "hire a researcher": ["agent_set", { slug: "researcher", name: "Researcher", role: "Finds sources" }],
   "hire a sentry": ["agent_set", { slug: "sentry", name: "Sentry" }],
   "hire a triager": ["agent_set", { slug: "issue-triage", role: "Issue triage" }],
+  "hire a wordy one": [
+    "agent_set",
+    { slug: "wordy", role: "APX GitHub issue triage: validate reports, classify and label issues, assign owners" },
+  ],
   "hire a tester for northwind": ["agent_set", { slug: "tester", name: "Tester", project: "northwind" }],
   "hire one for nowhere": ["agent_set", { slug: "lost", name: "Lost", project: "Nowhere" }],
   "rename the writer": ["agent_set", { agent: "acme-writer", name: "Northwind Writer", prompt: "Write short." }],
@@ -153,4 +157,10 @@ test("a new agent with no name given gets a person's name from APX's generator, 
   assert.ok(made && (AGENT_NAMES as readonly string[]).includes(made.name), made?.name);
   assert.ok(!taken.includes(made.name), `${made.name} was already in use`);
   assert.equal(made.role, "Issue triage", "the job stays the role");
+});
+
+test("a sentence as a role is sent back before the owner is asked: the longer text goes in description", async () => {
+  assert.match(await ask("hire a wordy one"), /role is a short title .*put the longer text in description/);
+  assert.equal(await agent("wordy"), undefined);
+  assert.equal((await env.client.call("runs.pending", {})).inputs.length, 0);
 });
