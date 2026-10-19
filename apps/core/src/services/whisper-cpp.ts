@@ -34,7 +34,13 @@ const freePort = () =>
 
 type Running = { model: string; url: string; child: ChildProcess; used: number; ready: Promise<string> };
 
-export function createWhisperCpp(deps: { log: Log; command?: string; idleMs?: number }) {
+export function createWhisperCpp(deps: {
+  log: Log;
+  command?: string;
+  idleMs?: number;
+  /** How the server is started; a test starts its stand-in through node on every system. */
+  spawn?: typeof spawn;
+}) {
   const command = deps.command ?? "whisper-server";
   let current: Running | undefined;
 
@@ -67,7 +73,7 @@ export function createWhisperCpp(deps: { log: Log; command?: string; idleMs?: nu
       "-t",
       String(whisperThreads()),
     ];
-    const child = spawn(bin, args, {
+    const child = (deps.spawn ?? spawn)(bin, args, {
       stdio: ["ignore", "ignore", "pipe"],
     });
     let stderr = "";
