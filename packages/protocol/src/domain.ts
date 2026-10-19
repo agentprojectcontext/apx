@@ -266,6 +266,8 @@ export const Thread = z.object({
   parent_id: Id.optional(),
   /** The task this chat works on: its agent's answers are posted back to the task as comments. */
   task_id: Id.optional(),
+  /** The routine whose execution opened this chat; stable across routine renames. */
+  routine_id: Id.optional(),
   /** An a2a sub-thread's name: its caller continues the same session (same agent, same context) by it. */
   session: z.string().optional(),
   /** Code threads: the folder the agent works in (inside its project) and what it may change there. */

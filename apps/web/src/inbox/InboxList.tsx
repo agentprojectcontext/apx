@@ -27,6 +27,7 @@ import {
 } from "./groupThreads.ts";
 import { ActivityView, TreeView } from "./InboxViews.tsx";
 import { NewChatMenu, startChat, useChatAgents } from "./NewChatMenu.tsx";
+import { RoutineBundle } from "./RoutineBundle.tsx";
 import { TaskBundle } from "./TaskBundle.tsx";
 import { ThreadRow } from "./ThreadRow.tsx";
 
@@ -170,7 +171,14 @@ export function InboxList() {
                 </button>
                 {!isCollapsed &&
                   bundleTasks(g.threads).map((entry) =>
-                    entry.kind === "task" ? (
+                    entry.kind === "routine" ? (
+                      <RoutineBundle
+                        key={`routine:${entry.routineId}`}
+                        routineId={entry.routineId}
+                        threads={entry.threads}
+                        selected={threadId}
+                      />
+                    ) : entry.kind === "task" ? (
                       <TaskBundle
                         key={entry.taskId}
                         taskId={entry.taskId}

@@ -269,7 +269,7 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 8px;
+  padding: 7px 8px;
   border: 0;
   border-radius: var(--apx-row-radius);
   background: transparent;

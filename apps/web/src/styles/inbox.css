@@ -185,3 +185,36 @@
   padding-top: 6px;
   border-top: 1px solid var(--apx-border);
 }
+
+/* Compact faces retain their column, including group and caller badges. */
+.threadavatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.threadavatar__caller {
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  border-radius: 50%;
+  background: var(--apx-bg);
+  box-shadow: 0 0 0 1px var(--apx-bg);
+}
+.threadavatar__group {
+  position: absolute;
+  right: -5px;
+  bottom: -2px;
+}
+.inbox .threadrow {
+  padding: 8px 10px;
+  gap: 10px;
+}
+.routinebundle > .tree__sessions {
+  min-width: 0;
+}
+.routinebundle .tree__agentmeta {
+  flex: none;
+  white-space: nowrap;
+}

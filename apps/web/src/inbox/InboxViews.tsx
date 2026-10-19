@@ -20,7 +20,9 @@ import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { ListedChat } from "./Delegated.tsx";
 import { type ActivityGroup, bundleTasks, type ProjectTree, type TimeBucket } from "./groupThreads.ts";
+import { RoutineBundle } from "./RoutineBundle.tsx";
 import { TaskBundle } from "./TaskBundle.tsx";
+import { ThreadAvatar } from "./ThreadAvatar.tsx";
 import { PinMark } from "./ThreadRow.tsx";
 import { threadMenu } from "./threadActions.tsx";
 
@@ -67,7 +69,7 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
     opened.current = { selected, kept: wasUnread ? selected : undefined };
   }
   const unread = listed
-    .filter((th) => th.unread > 0 || th.id === opened.current.kept)
+    .filter((th) => th.kind !== "routine" && (th.unread > 0 || th.id === opened.current.kept))
     .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
   const unreadCount = unread.filter((th) => th.unread > 0).length;
   return (
@@ -103,6 +105,15 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
             <span>{tree.name}</span>
           </div>
           {tree.agents.map((b) => {
+            if (b.routine)
+              return (
+                <RoutineBundle
+                  key={`${tree.key}:${b.agentId}`}
+                  routineId={b.routine}
+                  threads={b.threads}
+                  selected={selected}
+                />
+              );
             if (b.task)
               return (
                 <TaskBundle key={`${tree.key}:${b.agentId}`} taskId={b.task} threads={b.threads} selected={selected} />
@@ -192,12 +203,7 @@ export function SessionRow({
         <ChannelMark thread={thread} />
         <RoutineMark thread={thread} />
         {/* An engine session is the engine's (Claude Code, Codex), not the agent's that hosts it. */}
-        {withAgent &&
-          (thread.engine ? (
-            <EngineIcon engine={thread.engine} tile size={16} />
-          ) : (
-            <AgentAvatar name={agent?.name ?? ""} blob={blobOf(agent)} size={16} animated={false} />
-          ))}
+        <ThreadAvatar thread={thread} agent={agent} size={14} slot={16} />
         {withAgent && <span className="tree__sessionwho">{engine ?? agent?.name ?? thread.agent_ids[0]}</span>}
         {/* Under its task, a chat's title only repeats the task's: what was said last tells them apart. */}
         <span className="tree__sessiontitle">
@@ -222,6 +228,15 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
         <div key={g.bucket} className="activity__group">
           <div className="activity__label">{t(BUCKET[g.bucket])}</div>
           {bundleTasks(g.threads).map((entry) => {
+            if (entry.kind === "routine")
+              return (
+                <RoutineBundle
+                  key={`routine:${entry.routineId}`}
+                  routineId={entry.routineId}
+                  threads={entry.threads}
+                  selected={selected}
+                />
+              );
             if (entry.kind === "task")
               return (
                 <TaskBundle key={entry.taskId} taskId={entry.taskId} threads={entry.threads} selected={selected} />
@@ -236,11 +251,7 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
                     className={cx("activity__row", th.id === selected && "is-selected", th.unread > 0 && "is-unread")}
                     onClick={() => go.thread(th.id)}
                   >
-                    {th.engine ? (
-                      <EngineIcon engine={th.engine} tile size={28} />
-                    ) : (
-                      <AgentAvatar name={agent?.name ?? th.title} blob={blobOf(agent)} size={28} animated={false} />
-                    )}
+                    <ThreadAvatar thread={th} agent={agent} size={24} slot={28} />
                     <span className="activity__body">
                       <span className="activity__title">
                         {isWorking(th.state) && <Spinner size={12} />}

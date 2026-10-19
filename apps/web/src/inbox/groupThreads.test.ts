@@ -136,7 +136,11 @@ test("a task's chats hang under the task in the tree, whoever works them, and ar
     thread("a", { task_id: "task_1" }),
   ]);
   assert.deepEqual(
-    entries.map((e) => (e.kind === "thread" ? e.thread.id : `${e.taskId}:${e.threads.map((t) => t.id).join(",")}`)),
+    entries.map((e) =>
+      e.kind === "thread"
+        ? e.thread.id
+        : `${e.kind === "task" ? e.taskId : e.routineId}:${e.threads.map((t) => t.id).join(",")}`,
+    ),
     ["ccc", "task_1:bb,a", "x"],
   );
 });

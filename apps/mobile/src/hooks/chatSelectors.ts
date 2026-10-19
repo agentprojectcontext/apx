@@ -19,7 +19,7 @@ export function stateMark(state?: string): StateMark {
 
 export function activeThreads(threads: Thread[]): Thread[] {
   return threads
-    .filter((thread) => isWorking(thread.state) || thread.state === "input-required")
+    .filter((thread) => !thread.archived && (isWorking(thread.state) || thread.state === "input-required"))
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }
 

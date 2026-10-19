@@ -1,9 +1,10 @@
 import type { Agent, Thread } from "@apx/protocol";
-import { AgentAvatar, ContextMenu, ConversationRow, EngineIcon, Icons, Spinner, Tag } from "@apx/ui";
+import { ContextMenu, ConversationRow, Icons, Spinner, Tag } from "@apx/ui";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { shortWhen } from "../common/format.ts";
-import { blobOf, isWorking, routineName } from "../data/identity.ts";
+import { isWorking, routineName } from "../data/identity.ts";
 import { type T, useT } from "../i18n/index.ts";
+import { ThreadAvatar } from "./ThreadAvatar.tsx";
 import { threadMenu } from "./threadActions.tsx";
 
 export type ThreadRowProps = {
@@ -21,15 +22,10 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
   return (
     <ContextMenu items={threadMenu(thread, { t, agent })}>
       <ConversationRow
+        className="threadrow"
         selected={selected}
         onClick={onOpen}
-        avatar={
-          thread.engine ? (
-            <EngineIcon engine={thread.engine} tile size={36} />
-          ) : (
-            <AgentAvatar name={agent?.name ?? thread.title} blob={blobOf(agent)} size={36} animated={false} />
-          )
-        }
+        avatar={<ThreadAvatar thread={thread} agent={agent} size={32} slot={36} />}
         title={
           <>
             {thread.pinned && <PinMark />}

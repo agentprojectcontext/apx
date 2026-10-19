@@ -6,51 +6,7 @@ import { sql } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { MessagesTable, ThreadsTable } from "../db/schema.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
-
-/** What a chat's context shows outside: the model picked in its composer, the release it tells about. */
-function fromContext(context: string): Pick<Thread, "model_choice" | "release"> {
-  try {
-    const c = JSON.parse(context) as ThreadContext;
-    return {
-      ...(c.model_choice ? { model_choice: c.model_choice } : {}),
-      ...(c.release ? { release: c.release.version } : {}),
-    };
-  } catch {
-    return {};
-  }
-}
-
-const toThread = (r: Selectable<ThreadsTable>): Thread => ({
-  id: r.id,
-  kind: r.kind as Thread["kind"],
-  title: r.custom_title ?? r.title,
-  ...(r.custom_title ? { auto_title: r.title } : {}),
-  ...(r.pinned ? { pinned: true } : {}),
-  ...(r.archived ? { archived: true } : {}),
-  agent_ids: JSON.parse(r.agent_ids) as string[],
-  ...opt("project_id", r.project_id),
-  ...opt("parent_id", r.parent_id),
-  ...opt("task_id", r.task_id),
-  ...opt("session", r.session),
-  ...opt("cwd", r.cwd),
-  ...opt("engine", r.engine),
-  ...(r.write_policy ? { write: r.write_policy as NonNullable<Thread["write"]> } : {}),
-  ...(r.channel
-    ? {
-        channel: {
-          id: r.channel,
-          conversation: String(r.conversation),
-          ...opt("person_id", r.person_id),
-        },
-      }
-    : {}),
-  ...fromContext(r.context),
-  state: r.state as Thread["state"],
-  preview: r.preview,
-  unread: Number(r.unread),
-  created_at: r.created_at,
-  updated_at: r.updated_at,
-});
+import { toThread } from "./thread-projection.ts";
 
 const toMessage = (r: Selectable<MessagesTable>): Message => ({
   id: r.id,
@@ -164,6 +120,14 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
         qb
           .selectFrom("threads")
           .selectAll()
+          .select((eb) =>
+            eb
+              .selectFrom("routine_runs")
+              .select("routine_id")
+              .whereRef("thread_id", "=", "threads.id")
+              .limit(1)
+              .as("routine_id"),
+          )
           .$if(!opts.include_subthreads, (q) => q.where("parent_id", "is", null))
           .$if(!opts.include_archived, (q) => q.where("archived", "=", 0))
           // A routine's quiet runs are reached from the routine: they would crowd every other chat out of the cap.
@@ -282,7 +246,20 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       return r ? toThread(r) : undefined;
     },
     get(id: string): Thread | undefined {
-      const r = one(qb.selectFrom("threads").selectAll().where("id", "=", id));
+      const r = one(
+        qb
+          .selectFrom("threads")
+          .selectAll()
+          .select((eb) =>
+            eb
+              .selectFrom("routine_runs")
+              .select("routine_id")
+              .whereRef("thread_id", "=", "threads.id")
+              .limit(1)
+              .as("routine_id"),
+          )
+          .where("id", "=", id),
+      );
       return r ? toThread(r) : undefined;
     },
     /** The chats a task is worked in, oldest first. */

@@ -35,6 +35,8 @@ test("active work includes submitted, streaming, waiting and nested task convers
   const threads = [
     thread("idle"),
     thread("working", { state: "working" }),
+    thread("archived-working", { state: "working", archived: true }),
+    thread("archived-waiting", { state: "input-required", archived: true }),
     thread("nested", { state: "submitted", kind: "task", parent_id: "working", updated_at: "2026-01-02T00:00:00Z" }),
     thread("waiting", { state: "input-required" }),
     thread("done", { state: "completed" }),
