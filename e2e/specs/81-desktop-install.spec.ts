@@ -1,6 +1,8 @@
 import type { DesktopInstallStatus } from "../../packages/protocol/src/desktop-install.ts";
 import { expect, test } from "./kit.ts";
 
+test.use({ desktopInstallNotice: true });
+
 test("existing web users get one-click desktop installation, progress, reload recovery and retry", async ({ page }) => {
   let current: DesktopInstallStatus = { available: true, installed: false, phase: "idle", received: 0 };
   let starts = 0;

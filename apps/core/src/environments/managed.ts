@@ -60,9 +60,10 @@ export function managedVmConfig(store: Store, home: string, external?: VmPrototy
     async prepare(mode, signal, progress) {
       if (limaHome.length > 70) throw new Error("APX home is too long for Lima's SSH sockets; use a shorter APX_HOME");
       fs.mkdirSync(root, { recursive: true, mode: 0o700 });
-      const space = fs.statfsSync(root);
-      if (space.bavail * space.bsize < 6 * 1024 ** 3 && !installed())
-        throw new Error("Computer needs at least 6 GiB free disk space");
+      fs.mkdirSync(limaHome, { recursive: true, mode: 0o700 });
+      const space = fs.statfsSync(limaHome);
+      if (space.bavail * space.bsize < 26 * 1024 ** 3)
+        throw new Error("Computer needs 26 GiB free on its VM disk volume (24 GiB guest disk plus reserve)");
       if (os.totalmem() < 8 * 1024 ** 3) throw new Error("Computer needs a host with at least 8 GiB RAM");
       progress({ step: "runtime" });
       if (!fs.existsSync(binary())) executable = await installLima(root, signal, progress);

@@ -16,6 +16,7 @@ ssh:
 propagateProxyEnv: false
 user:
   name: apx
+  comment: APX
   home: /home/apx
   uid: 1000
 provision:
