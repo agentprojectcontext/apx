@@ -48,7 +48,11 @@ test("on a Mac v1's daemon and desktop are booted out and disabled, so login doe
   assert.match(launcher, /^#!\/bin\/sh\n/);
   assert.ok(launcher.includes(`ELECTRON_RUN_AS_NODE=1 exec '${deps.terminal.exe}'`));
   assert.ok(launcher.includes(`'${deps.terminal.main}' "$@"`));
-  assert.equal(fs.statSync(path.join(home, ".local", "bin", "apx")).mode & 0o777, 0o755);
+  // Windows exposes writable mode bits without POSIX ownership.
+  assert.equal(
+    fs.statSync(path.join(home, ".local", "bin", "apx")).mode & 0o777,
+    process.platform === "win32" ? 0o666 : 0o755,
+  );
   // apx2 reaches it even where v1's apx still comes first on the PATH.
   assert.equal(fs.readlinkSync(path.join(home, ".local", "bin", "apx2")), "apx");
 });

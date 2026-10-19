@@ -53,7 +53,14 @@ test("stopCore ends the core, keeps its last output and closes the log, even if 
     assert.ok(log.writableFinished);
     assert.match(fs.readFileSync(file, "utf8"), /grandchild \d+/);
   } finally {
-    if (grandchild) process.kill(grandchild);
+    if (grandchild) {
+      try {
+        process.kill(grandchild);
+      } catch (error) {
+        // Windows may already have terminated the descendant with its parent.
+        assert.equal((error as NodeJS.ErrnoException).code, "ESRCH");
+      }
+    }
   }
 });
 

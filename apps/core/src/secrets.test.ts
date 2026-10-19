@@ -17,7 +17,11 @@ test("secrets resolve by reference, list names only, and live in a 0600 file wit
       s.list().map((x) => x.name),
       ["gemini"],
     );
-    assert.equal(fs.statSync(path.join(home, "secrets.json")).mode & 0o777, 0o600);
+    // Windows reports writable mode bits, not POSIX owner/group permissions.
+    assert.equal(
+      fs.statSync(path.join(home, "secrets.json")).mode & 0o777,
+      process.platform === "win32" ? 0o666 : 0o600,
+    );
     s.set("gemini", null);
     assert.equal(s.resolve("secret://gemini"), undefined);
   } finally {

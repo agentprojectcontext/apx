@@ -61,7 +61,8 @@ test("linking the owner's own phone: a QR waits in the app, and once scanned the
   assert.equal(linked?.account, "+5491100000001");
   const { persons } = await env.client.call("contacts.list", {});
   assert.ok(persons.find((p) => p.role === "owner")?.addresses.some((a) => a.external_id === wa.owner));
-  assert.equal((fs.statSync(wa.dir).mode & 0o777).toString(8), "700", "the credentials folder is private");
+  // Windows directories expose writable/executable bits without POSIX ownership.
+  assert.equal(fs.statSync(wa.dir).mode & 0o777, process.platform === "win32" ? 0o777 : 0o700);
 });
 
 test("a person's profile picture comes from the channel, kept as media; one who shows none has none", async () => {

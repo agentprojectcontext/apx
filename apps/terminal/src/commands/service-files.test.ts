@@ -81,11 +81,15 @@ test("the Windows login entry runs the terminal's supervisor, through cmd only f
 });
 
 test("a bundle install runs through current, and its terminal finds the install it lives in", () => {
-  const b = bundleRun("/home/u/.apx/v2/app", false);
-  assert.equal(b.node, "/home/u/.apx/v2/app/current/node/bin/node");
-  assert.equal(b.core, "/home/u/.apx/v2/app/current/apps/core/src/main.ts");
-  assert.equal(bundleRun("/home/u/.apx/v2/app", true).node, "/home/u/.apx/v2/app/current/node/node.exe");
-  assert.equal(bundleAppOf("/home/u/.apx/v2/app/versions/2.1.0/apps/terminal/src"), "/home/u/.apx/v2/app");
+  const app = path.resolve("/home/u/.apx/v2/app");
+  const b = bundleRun(app, false);
+  assert.equal(b.node, path.join(app, "current", "node", "bin", "node"));
+  assert.equal(b.core, path.join(app, "current", "apps", "core", "src", "main.ts"));
+  assert.equal(bundleRun("/home/u/.apx/v2/app", true).node, path.join(app, "current", "node", "node.exe"));
+  assert.equal(
+    bundleAppOf("/home/u/.apx/v2/app/versions/2.1.0/apps/terminal/src"),
+    path.resolve("/home/u/.apx/v2/app"),
+  );
   assert.equal(bundleAppOf("/home/u/work/apx-v2/apps/terminal/src"), undefined);
   assert.ok(serviceEnv({ APX_APP: "/home/u/.apx/v2/app" }).APX_APP);
 });
@@ -97,7 +101,7 @@ test("a checkout leaves APX_APP unset; a bundle's terminal sets it, and an APX_A
   assert.equal(serviceEnv(checkout).APX_APP, undefined);
   const bundle: NodeJS.ProcessEnv = {};
   adoptBundleApp(bundle, "/home/u/.apx/v2/app/versions/2.1.0/apps/terminal/src");
-  assert.equal(bundle.APX_APP, "/home/u/.apx/v2/app");
+  assert.equal(bundle.APX_APP, path.resolve("/home/u/.apx/v2/app"));
   const given: NodeJS.ProcessEnv = { APX_APP: "/srv/apx" };
   adoptBundleApp(given, "/home/u/.apx/v2/app/versions/2.1.0/apps/terminal/src");
   assert.equal(given.APX_APP, "/srv/apx");

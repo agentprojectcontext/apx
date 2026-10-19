@@ -247,7 +247,7 @@ test("editing from APX writes the agent's file: create, edit, rename (same id) a
       parent: "quality",
     });
     const gone = await env.client.call("agents.archive", { agent: "abc123def456-qa" });
-    assert.match(gone.moved_to ?? "", /^\.apc\/agents\/\.archived\/quality-.*\.md$/);
+    assert.match((gone.moved_to ?? "").split(path.sep).join("/"), /^\.apc\/agents\/\.archived\/quality-.*\.md$/);
     assert.ok(fs.existsSync(path.join(root, gone.moved_to ?? "")), "moved, not deleted");
     const { agents } = await env.client.call("agents.list", {});
     assert.ok(!agents.some((a) => a.id === "abc123def456-qa"));
