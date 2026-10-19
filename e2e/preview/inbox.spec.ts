@@ -75,6 +75,53 @@ for (const width of [360, 1280]) {
   });
 }
 
+for (const lang of ["en", "es"]) {
+  test(`agent identity hints and delegated header editor links (${lang})`, async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 1000 });
+    await page.goto(`/?lang=${lang}`);
+    const consult = page.locator('.delegated[data-thread="consult"]');
+    const listAvatar = consult.locator(".threadavatar").first();
+    await listAvatar.getByRole("img", { name: "Researcher", exact: true }).hover();
+    await expect(page.locator(".apx-tooltip")).toHaveText("Researcher · Northwind");
+    await listAvatar.getByRole("img", { name: "Assistant", exact: true }).hover();
+    await expect(page.locator(".apx-tooltip")).toHaveText("Assistant · Default");
+    await consult.locator(":scope > .delegated__head .tree__session").click();
+    const header = page.locator(".chat__header");
+    await expect(header.getByRole("img", { name: "Researcher", exact: true })).toBeVisible();
+    await expect(header.getByRole("img", { name: "Assistant", exact: true })).toBeVisible();
+    for (const [name, project] of [
+      ["Researcher", "Northwind"],
+      ["Assistant", "Default"],
+    ]) {
+      const face = header.getByRole("button", { name: `${lang === "es" ? "Ver a" : "View"} ${name}`, exact: true });
+      await face.hover();
+      await expect(page.locator(".apx-tooltip")).toHaveText(
+        `${name} · ${project}. ${lang === "es" ? "Hacé clic para abrir el editor." : "Click to open the editor."}`,
+      );
+      await face.click();
+      await expect(page.locator(".inboxpreview__agent")).toHaveText(`${lang === "es" ? "Ver a" : "View"} ${name}`);
+    }
+    const title = header.locator(".chat__namebtn");
+    await title.hover();
+    await expect(page.locator(".apx-tooltip")).toContainText("Researcher · Northwind");
+    await title.click();
+    await expect(page.locator(".inboxpreview__agent")).toContainText("Researcher");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    await page
+      .getByRole("button", { name: /Launch team/ })
+      .first()
+      .click();
+    await expect(header.getByRole("img", { name: /Assistant/ })).toBeVisible();
+    await expect(header.getByRole("img", { name: /Researcher/ })).toBeVisible();
+    await page
+      .getByRole("button", { name: /Update the dashboard/ })
+      .first()
+      .click();
+    await expect(header.locator(".threadavatar__caller")).toHaveCount(0);
+    await expect(header.locator(".chat__agentbtn")).toHaveCount(0);
+  });
+}
+
 test("filter and search keep routines isolated from ordinary chats", async ({ page }) => {
   await page.goto("/?lang=en");
   await page.getByRole("radio", { name: "By chat", exact: true }).click();

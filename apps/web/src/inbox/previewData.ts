@@ -1,13 +1,17 @@
-import { Agent, Thread } from "@apx/protocol";
+import { Agent, Project, Thread } from "@apx/protocol";
 
 const at = new Date();
 const ago = (hours: number) => new Date(at.getTime() - hours * 3_600_000).toISOString();
-const agent = (id: string, name: string, blob: string) =>
-  Agent.parse({ id, name, blob, kind: "agent", created_at: ago(80), updated_at: ago(0) });
+export const previewProjects = [
+  Project.parse({ id: "research", name: "Northwind" }),
+  Project.parse({ id: "review", name: "Acme" }),
+];
+const agent = (id: string, name: string, blob: string, project_id?: string) =>
+  Agent.parse({ id, name, blob, project_id, kind: "agent", created_at: ago(80), updated_at: ago(0) });
 export const previewAgents = [
   agent("assistant", "Assistant", "noche"),
-  agent("researcher", "Researcher", "menta"),
-  agent("reviewer", "Reviewer", "coral"),
+  agent("researcher", "Researcher", "menta", "research"),
+  agent("reviewer", "Reviewer", "coral", "review"),
 ];
 const chat = (id: string, extra: Partial<Thread> = {}) =>
   Thread.parse({

@@ -92,6 +92,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "agent.super.owner": "Lo que sabe de vos",
   "agent.panel.gone": "Este agente ya no está",
   "agent.panel.goneBody": "Lo archivaron o se fue con su proyecto.",
+  "agent.avatarHint": "{name} · {project}",
+  "agent.editorHint": "{name} · {project}. Hacé clic para abrir el editor.",
   "agent.openPanel": "Ver a {name}",
   "agent.tab.activity": "Actividad",
   "agent.tab.routines": "Rutinas",

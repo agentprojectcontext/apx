@@ -3,10 +3,10 @@ import { AgentAvatar, ContextMenu, EngineIcon, Icons, ProjectTile, Spinner, Tool
 import { useRef, useState } from "react";
 import { KindIcon } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
+import { AgentFace } from "../common/AgentFace.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import {
-  blobOf,
   DEFAULT_PID,
   isWorking,
   projectInitial,
@@ -135,8 +135,10 @@ export function TreeView({ trees, selected }: { trees: ProjectTree[]; selected: 
                 <button type="button" className="tree__agenthead" onClick={openBranch}>
                   {b.engine ? (
                     <EngineIcon engine={b.engine} tile size={20} />
+                  ) : agent ? (
+                    <AgentFace agent={agent} size={20} />
                   ) : (
-                    <AgentAvatar name={agent?.name ?? b.agentId} blob={blobOf(agent)} size={20} animated={false} />
+                    <AgentAvatar name={b.agentId} size={20} animated={false} />
                   )}
                   <span className="tree__agentname">
                     {b.engine ? engineLabel(b.engine) : (agent?.name ?? b.agentId)}

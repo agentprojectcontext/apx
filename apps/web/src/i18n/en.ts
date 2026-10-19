@@ -89,6 +89,8 @@ export const en = {
   "agent.super.owner": "What it knows about you",
   "agent.panel.gone": "This agent is gone",
   "agent.panel.goneBody": "It was archived or left with its project.",
+  "agent.avatarHint": "{name} · {project}",
+  "agent.editorHint": "{name} · {project}. Click to open the editor.",
   "agent.openPanel": "View {name}",
   "agent.tab.activity": "Activity",
   "agent.tab.routines": "Routines",

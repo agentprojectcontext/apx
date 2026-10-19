@@ -1,14 +1,16 @@
 import type { Agent, Thread, WritePolicy } from "@apx/protocol";
-import { AgentAvatar, EngineIcon, IconButton, Icons, Menu, type MenuEntry, ProjectTile, Tag } from "@apx/ui";
+import { EngineIcon, IconButton, Icons, Menu, type MenuEntry, ProjectTile, Tag, Tooltip } from "@apx/ui";
 import { KindIcon } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
+import { useAgentHint } from "../common/AgentFace.tsx";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { compactThread } from "../data/actions.ts";
-import { blobOf, DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
+import { DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
 import { isNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { updateThread } from "../data/threadAdmin.ts";
 import { useT } from "../i18n/index.ts";
+import { ThreadAvatar } from "../inbox/ThreadAvatar.tsx";
 import { PinMark } from "../inbox/ThreadRow.tsx";
 import { threadMenu } from "../inbox/threadActions.tsx";
 import { PanelSwitcher } from "../panel/PanelSwitcher.tsx";
@@ -58,6 +60,7 @@ export function ChatHeader({
   compact?: boolean;
 }) {
   const t = useT();
+  const agentHint = useAgentHint(agent, true);
   const projects = useData((s) => s.projects);
   const project = projects.find((p) => p.id === thread.project_id);
   const tools = useNav((s) => s.tools);
@@ -81,32 +84,15 @@ export function ChatHeader({
           onClick={() => thread.parent_id && go.thread(thread.parent_id)}
         />
       )}
-      {thread.engine ? (
-        <EngineIcon engine={thread.engine} tile size={32} />
-      ) : agent ? (
-        <button
-          type="button"
-          className="chat__agentbtn"
-          aria-label={t("agent.openPanel", { name: agent.name })}
-          onClick={() => go.agent(agent.id)}
-        >
-          <AgentAvatar
-            name={agent.name}
-            blob={blobOf(agent)}
-            size={32}
-            status={sub ? undefined : "online"}
-            statusLabel={t("presence.online")}
-          />
-        </button>
-      ) : (
-        <AgentAvatar name={name} size={32} />
-      )}
+      <ThreadAvatar thread={thread} agent={agent} size={32} slot={36} editable online={!sub} />
       <div className="chat__titles">
         <div className="chat__title">
           {agent && !engine ? (
-            <button type="button" className="chat__name chat__namebtn" onClick={() => go.agent(agent.id)}>
-              {name}
-            </button>
+            <Tooltip content={agentHint}>
+              <button type="button" className="chat__name chat__namebtn" onClick={() => go.agent(agent.id)}>
+                {name}
+              </button>
+            </Tooltip>
           ) : (
             <span className="chat__name">{name}</span>
           )}
