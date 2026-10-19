@@ -6,7 +6,7 @@ import type { FileChange } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
 import { textDiff } from "../engine/changes.ts";
-import { guarded } from "../engine/paths.ts";
+import { guarded, namesApc } from "../engine/paths.ts";
 import { insideReal, writeAtomic } from "../paths.ts";
 import { chatMedia } from "../services/media-temp.ts";
 import { type FolderThread, folderAccess, outsideFolders, scratchRoot } from "./folders.ts";
@@ -32,12 +32,6 @@ const ORIGINAL_BUDGET = 2_000_000;
 const IMAGE = /\.(png|jpe?g|gif|webp)$/i;
 const AUDIO = /\.(mp3|wav|ogg|m4a|flac|aac)$/i;
 const lineCount = (s: string) => (s ? s.split("\n").length - (s.endsWith("\n") ? 1 : 0) : 0);
-
-/** A path, as written by the model, that points at APC files or AGENTS.md of the folder (absolute ones included). */
-function namesGuarded(p: string): boolean {
-  const parts = path.normalize(p).split(/[\\/]/).filter(Boolean);
-  return parts.includes(".apc") || parts.at(-1) === "AGENTS.md";
-}
 
 /** The file after a file_edit, or why it cannot be made (nothing is written then). */
 function applyEdit(
@@ -157,7 +151,7 @@ export function fileTools(store: Store, home: string): Tool[] {
     if (r.at.split(path.sep).includes(".git"))
       return { refused: "the .git folder is off limits: use git through shell" };
     // The owner was asked by the path as written: one that only lands on APC files through a link is refused.
-    if (write && !r.scratch && guarded(r.base, r.at) && !namesGuarded(named(a)))
+    if (write && !r.scratch && guarded(r.base, r.at) && !namesApc(named(a)))
       return { refused: "APC files and AGENTS.md are written only by their path from the folder's root" };
     return r;
   };
@@ -170,7 +164,7 @@ export function fileTools(store: Store, home: string): Tool[] {
     const p = named({ path: a.path, cwd: a.cwd });
     return path.isAbsolute(p) && insideReal(scratchRoot(home), p)
       ? ("never" as const)
-      : namesGuarded(p)
+      : namesApc(p)
         ? ("always" as const)
         : ("untrusted" as const);
   };
