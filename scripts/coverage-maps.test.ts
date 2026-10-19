@@ -117,12 +117,12 @@ test("a browser map cannot silently drop a referenced library build's missing ma
 });
 
 test("compiler provenance excludes only a pure runtime, never a mixed, application or unknown chunk", async (t) => {
-  const { compilerRuntimeChunks, COVERAGE_CHUNKS_FILE } = await import("./coverage-maps.ts");
+  const { compilerGeneratedChunks, COVERAGE_CHUNKS_FILE } = await import("./coverage-maps.ts");
   const { localBrowserScripts } = await import("../e2e/coverage.ts");
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "apx-coverage-provenance-"));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const manifest = path.join(directory, COVERAGE_CHUNKS_FILE);
-  assert.equal(compilerRuntimeChunks(directory).size, 0);
+  assert.equal(compilerGeneratedChunks(directory).size, 0);
   fs.writeFileSync(
     manifest,
     JSON.stringify({
@@ -136,7 +136,7 @@ test("compiler provenance excludes only a pure runtime, never a mixed, applicati
   const root = path.resolve("work");
   const names = ["helpers.js", "mixed.js", "rolldown-runtime-lookalike.js", "empty.js", "unknown.js"];
   const entries = names.map((name) => ({ url: `http://127.0.0.1:7460/assets/${name}`, functions: [] }));
-  const selected = localBrowserScripts(root, "http://127.0.0.1:7460", entries, compilerRuntimeChunks(directory));
+  const selected = localBrowserScripts(root, "http://127.0.0.1:7460", entries, compilerGeneratedChunks(directory));
   assert.deepEqual(
     selected.map((entry) => path.basename(new URL(entry.url).pathname)),
     names.slice(1),
@@ -153,9 +153,73 @@ test("compiler provenance excludes only a pure runtime, never a mixed, applicati
       .sort(),
   );
   fs.writeFileSync(manifest, "not json");
-  assert.equal(compilerRuntimeChunks(directory).size, 0);
+  assert.equal(compilerGeneratedChunks(directory).size, 0);
   assert.equal(
-    localBrowserScripts(root, "http://127.0.0.1:7460", entries, compilerRuntimeChunks(directory)).length,
+    localBrowserScripts(root, "http://127.0.0.1:7460", entries, compilerGeneratedChunks(directory)).length,
     names.length,
+  );
+});
+
+test("compiler facades omit only static plumbing while their source-bearing targets still require maps", async (t) => {
+  const { compilerGeneratedChunks, COVERAGE_CHUNKS_FILE } = await import("./coverage-maps.ts");
+  const { localBrowserScripts } = await import("../e2e/coverage.ts");
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "apx-coverage-facade-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(directory, "assets"));
+  const fixtures = {
+    "facade.js": 'import { View as v } from "./target.js"; export { v as View };',
+    "reexport.js": 'export { View } from "./target.js";',
+    "target.js": "export function View() { return 1; }",
+    "function.js": "export function hidden() {}",
+    "class.js": "export class Hidden {}",
+    "expression.js": 'import "./target.js"; run();',
+    "default.js": "export default () => 1;",
+    "constant.js": "export const answer = 1;",
+    "invalid.js": "export { ;",
+    "dynamic.js": 'import("./target.js");',
+    "empty.js": "",
+    "unknown.js": 'export { View } from "./target.js";',
+  };
+  const chunks: Record<string, unknown> = {};
+  for (const [name, code] of Object.entries(fixtures)) {
+    fs.writeFileSync(path.join(directory, "assets", name), code);
+    chunks[`assets/${name}`] = name === "target.js" ? ["/work/apps/web/src/View.tsx"] : [];
+  }
+  chunks["assets/unknown.js"] = null;
+  chunks["assets/missing.js"] = [];
+  chunks["../escape.js"] = [];
+  fs.writeFileSync(path.join(directory, COVERAGE_CHUNKS_FILE), JSON.stringify(chunks));
+  assert.deepEqual([...compilerGeneratedChunks(directory)].sort(), ["assets/facade.js", "assets/reexport.js"]);
+  const root = path.resolve("work");
+  const entries = ["facade.js", "target.js"].map((name) => ({
+    url: `http://127.0.0.1:7460/assets/${name}`,
+    functions: [],
+  }));
+  const selected = localBrowserScripts(root, "http://127.0.0.1:7460", entries, compilerGeneratedChunks(directory));
+  assert.equal(selected.length, 1);
+  const target = pathToFileURL(path.join(root, "apps/web/dist/assets/target.js")).href;
+  assert.equal(selected[0]?.url, target);
+  assert.deepEqual(
+    missingSourceMaps(
+      root,
+      selected.map((entry) => entry.url),
+      [],
+    ),
+    ["apps/web/dist/assets/target.js"],
+  );
+  assert.deepEqual(
+    missingSourceMaps(
+      root,
+      selected.map((entry) => entry.url),
+      [
+        {
+          url: target,
+          text: fixtures["target.js"],
+          sources: ["../../src/View.tsx"],
+          mappings: "AAAA",
+        },
+      ],
+    ),
+    [],
   );
 });

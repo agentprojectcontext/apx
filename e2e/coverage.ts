@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Frame, Page } from "@playwright/test";
-import { compilerRuntimeChunks } from "../scripts/coverage-maps.ts";
+import { compilerGeneratedChunks } from "../scripts/coverage-maps.ts";
 
 type BrowserScript = Awaited<ReturnType<Page["coverage"]["stopJSCoverage"]>>[number];
 
@@ -45,7 +45,7 @@ export async function startPageCoverage(page: Page): Promise<() => Promise<void>
     if (page.isClosed()) return;
     const entries = await page.coverage.stopJSCoverage();
     const root = path.resolve(import.meta.dirname, "..");
-    const generated = compilerRuntimeChunks(path.join(root, "apps/web/dist"));
+    const generated = compilerGeneratedChunks(path.join(root, "apps/web/dist"));
     const result = [...origins].flatMap((origin) => localBrowserScripts(root, origin, entries, generated));
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, `browser-${randomUUID()}.json`), JSON.stringify({ result }));
