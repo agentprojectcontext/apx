@@ -123,6 +123,8 @@ test("a limit notice follows live work, continues only a stopped session, and st
     expect(store.runs.list(sub.id)).toHaveLength(3);
   } finally {
     release.resolve();
+    // Detach the browser before stopping its server so reconnects cannot race fixture cleanup.
+    await page.goto("about:blank");
     await env.core.close();
     env.cleanup();
   }
