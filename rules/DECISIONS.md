@@ -1385,12 +1385,15 @@ MCP tools that act (a phone's tap can send a message in the owner's name) still 
 this agent", and `screen_open` still asks, since it opens pages with the owner's own logins.
 
 <a id="d-110"></a>
-## D-110 — 2026-10-19 — A capped AGENTS.md says what it left out, and the owner sees it
-A project's AGENTS.md reaches its agents capped at 12,000 characters (`AGENTS_MD_LIMIT`), head and tail kept. The cut
-was silent: a rule in the middle never reached the agents and nothing said so, to them or to the owner. The cap stays
-(every model call pays for it, rule 23); what changes is that it is visible. The cut now falls on line ends and its
-marker names the file's absolute path, the omitted lines and the `file_read` offset and limit that read them, so an
-agent can fetch the middle when it matters (the same for `.apc/memory.md` past its 6,000). The full length is kept on
-the project (`projects.context_chars`) and sent to clients as `Project.agents_md_chars` only when it is past the cap:
-the project's settings in the panel and `apx projects list` say "AGENTS.md has N characters, agents get 12,000".
-The fix for the owner is still to trim the file under the cap; the marker is the fallback, not a reason to grow it.
+## D-110 — 2026-10-19 — A project's AGENTS.md reaches its agents whole; how long it is, is the project's choice
+APX cut a project's AGENTS.md past 12,000 characters (and `.apc/memory.md` past 6,000) to its head and tail, with only
+"[… N chars omitted …]" in place of the middle: a rule there was lost and neither the agents nor the owner knew. The
+owner's call: APX does not decide how long a project's instructions are. Both files now reach the agents whole; a
+project that wants them short says so in its own rules and review (this repository's AGENTS.md does), not in code that
+cuts. They are not part of the default-turn budget (PROMPT_SIZE.md), which measures what APX itself sends.
+A safety limit stays for a file that would not fit a model's context: past 200,000 characters (`AGENTS_MD_LIMIT`,
+about 50k tokens) the head and tail are sent, cut on line ends, with a marker naming the file's path, the lines left
+out and the `file_read` offset and limit that read them. The owner is told too: the full length is kept on the project
+(`projects.context_chars`) and sent as `Project.agents_md_chars` only past the limit, shown in the project's settings
+in the panel and by `apx projects list`. `.apc/memory.md` is treated the same; no reason was found to cap the owner's
+own notes tighter than the project's instructions.

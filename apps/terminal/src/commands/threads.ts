@@ -162,7 +162,7 @@ export async function projects(client: ApxClient, [sub, arg, ...more]: string[],
       console.log(`${p.id.padEnd(16)} ${p.present ? " " : "!"} ${p.name.padEnd(24)} ${p.kind ?? ""}`);
       if (p.agents_md_chars)
         console.log(
-          `${"".padEnd(18)} AGENTS.md has ${p.agents_md_chars} chars; agents get ${AGENTS_MD_LIMIT} (start and end)`,
+          `${"".padEnd(18)} AGENTS.md has ${p.agents_md_chars} chars, past the ${AGENTS_MD_LIMIT} limit: agents get its start and end`,
         );
     }
     return;

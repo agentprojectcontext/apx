@@ -18,6 +18,11 @@ Measured on a fresh install: the secretary, a new chat, default settings, no ski
 so every machine measures the same. Raising it is allowed with a reason in the commit and the numbers here updated;
 trimming something else first is better.
 
+A project's own files (its AGENTS.md and `.apc/memory.md`) are not part of this budget: they reach its agents whole,
+and how long they are is the project's choice, kept by its own rules (this repo's AGENTS.md stays lean on purpose).
+Only past a safety limit of 200,000 characters are they cut, with a marker the agent and the owner see
+([D-110](DECISIONS.md#d-110)).
+
 How to stay within it:
 
 - A new tool earns its place (AGENTS.md rule 15). Its description says what it does and when, once; the rule that

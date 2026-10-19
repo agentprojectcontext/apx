@@ -39,17 +39,17 @@ test("threads get shows a code thread's folder and write policy, and --json prin
   assert.equal(json.thread.cwd, "~/work/acme");
 });
 
-test("projects list says when a project's AGENTS.md is longer than what its agents get", async () => {
+test("projects list says when a project's AGENTS.md is past the limit agents get whole", async () => {
   const { client } = recordingClient({
     "projects.list": {
       projects: [
-        { id: "p_acme", name: "Acme", present: true, agents_md_chars: 18_400 },
+        { id: "p_acme", name: "Acme", present: true, agents_md_chars: 250_000 },
         { id: "p_northwind", name: "Northwind", present: true },
       ],
     },
   });
   const out = await printed(() => projects(client, ["list"]));
-  assert.match(out, /AGENTS\.md has 18400 chars; agents get 12000/);
+  assert.match(out, /AGENTS\.md has 250000 chars, past the 200000 limit/);
   assert.equal(out.match(/AGENTS\.md/g)?.length, 1, "only the long one");
 });
 

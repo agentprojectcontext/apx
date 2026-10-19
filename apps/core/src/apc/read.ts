@@ -7,10 +7,6 @@ import { AGENTS_MD_LIMIT } from "@apx/protocol";
 import { type Fields, listField, parseFrontmatter, textField } from "./frontmatter.ts";
 
 export const SLUG_RE = /^[a-z][a-z0-9_-]*$/;
-/** AGENTS.md is project context for its agents; past this size the head and tail are kept. */
-const AGENTS_MD_CAP = AGENTS_MD_LIMIT;
-/** .apc/memory.md, the owner's notes for the project's agents. */
-const MEMORY_MD_CAP = 6_000;
 
 export type ApcProject = {
   /** Stable id: the committed apx_id when there is one, else derived from the path. */
@@ -21,9 +17,9 @@ export type ApcProject = {
   name: string;
   description?: string | undefined;
   kind?: string | undefined;
-  /** AGENTS.md, capped. */
+  /** AGENTS.md, whole up to the safety limit. */
   context?: string | undefined;
-  /** AGENTS.md's full length when it is longer than what its agents get. */
+  /** AGENTS.md's full length when it is past the safety limit, so its agents do not get all of it. */
   contextChars?: number | undefined;
   /** .apc/memory.md (written by the owner), capped. */
   memory?: string | undefined;
@@ -77,7 +73,7 @@ const isLink = (p: string) => {
  * The head (70%) and tail of a file past `max` characters, cut at line ends. The marker names the omitted lines and
  * the file, so an agent can read them with file_read instead of acting without them.
  */
-export function cap(text: string, file: string, max = AGENTS_MD_CAP): string {
+export function cap(text: string, file: string, max = AGENTS_MD_LIMIT): string {
   if (text.length <= max) return text;
   const headMax = Math.floor(max * 0.7);
   // A line end a little before the budget beats a cut mid-sentence; one long line is cut where it is.
@@ -96,8 +92,11 @@ export function cap(text: string, file: string, max = AGENTS_MD_CAP): string {
   return `${text.slice(0, head)}\n[… lines ${from}-${to} of ${file} (${tail - head} of its ${text.length} characters) are not shown here: read them with file_read offset=${from} limit=${limit} before acting on anything they may cover …]\n\n${text.slice(tail)}`;
 }
 
-/** A file's text for an agent's context: empty is none; a long one is capped (and keeps its line numbering). */
-function contextOf(text: string | undefined, file: string, max: number): string | undefined {
+/**
+ * A project file for its agents' context, whole: how long it is, is the project's choice. Only one past the safety
+ * limit is cut, with a marker that says so (DECISIONS.md#d-110).
+ */
+function contextOf(text: string | undefined, file: string, max = AGENTS_MD_LIMIT): string | undefined {
   const body = text?.trimEnd();
   if (!body?.trim()) return undefined;
   return body.length > max ? cap(body, file, max) : body.trim();
@@ -134,9 +133,9 @@ export function readProject(root: string): ApcProject {
     name: meta.name || path.basename(abs),
     description: meta.description,
     kind: meta.kind,
-    context: contextOf(agentsMd, path.join(abs, "AGENTS.md"), AGENTS_MD_CAP),
-    contextChars: agentsMd && agentsMd.trimEnd().length > AGENTS_MD_CAP ? agentsMd.trimEnd().length : undefined,
-    memory: contextOf(memoryMd, path.join(apc, "memory.md"), MEMORY_MD_CAP),
+    context: contextOf(agentsMd, path.join(abs, "AGENTS.md")),
+    contextChars: agentsMd && agentsMd.trimEnd().length > AGENTS_MD_LIMIT ? agentsMd.trimEnd().length : undefined,
+    memory: contextOf(memoryMd, path.join(apc, "memory.md")),
     metaError,
   };
 }

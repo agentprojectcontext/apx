@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { AGENTS_MD_LIMIT } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
@@ -401,51 +402,58 @@ test("an agent's tools and skills are set from APX: a project agent's file says 
   }
 });
 
-test("a long AGENTS.md: agents are told which lines were cut and read them; the owner sees its size", async () => {
-  // A rule in the middle of a long AGENTS.md was dropped from the agents' context without a word.
+test("a long AGENTS.md reaches its agents whole; only one past the safety limit is cut, and says so", async () => {
+  // A rule in the middle of a 16k AGENTS.md was dropped from the agents' context without a word.
   const llm = scriptedLlm((req, { system, afterTool }) => {
     if (afterTool) {
       const out = String(req.messages.at(-1)?.content ?? "");
-      return say(out.includes("Rule 51: close the issue after the push.") ? "read rule 51" : "no rule 51");
+      return say(out.includes("Rule 56: close the issue after the push.") ? "read rule 56" : "no rule 56");
     }
+    if (system.includes("Rule 56: close the issue after the push.")) return say("saw rule 56");
     const cut =
       /\[… lines (\d+)-(\d+) of (\S+) \(\d+ of its \d+ characters\) are not shown here: read them with file_read offset=(\d+) limit=(\d+)/.exec(
         system,
       );
-    if (!cut || system.includes("Rule 51:")) return say("nothing cut");
+    if (!cut) return say("rule 56 lost");
     return callTool("c1", "file_read", { path: cut[3], offset: Number(cut[4]), limit: Number(cut[5]) });
   });
   const env = await startCore({ llm });
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-longmd-"));
-  try {
-    makeProject(root);
+  const write = (width: number) => {
     const filler = (from: number, n: number) =>
-      Array.from({ length: n }, (_, i) => `Rule ${from + i}: keep the line about ${"x".repeat(150)}.`);
+      Array.from({ length: n }, (_, i) => `Rule ${from + i}: keep the line about ${"x".repeat(width)}.`);
     const text = [
       "# Northwind",
-      ...filler(1, 50),
-      "Rule 51: close the issue after the push.",
-      ...filler(52, 40),
+      ...filler(1, 55),
+      `Rule 56: close the issue after the push. ${"x".repeat(width)}`,
+      ...filler(57, 35),
       "Last rule: answer in English.",
     ].join("\n");
     fs.writeFileSync(path.join(root, "AGENTS.md"), `${text}\n`);
-    await env.client.call("projects.register", { path: root });
-    const listed = (await env.client.call("projects.list", {})).projects.find((p) => p.path === root);
-    assert.equal(listed?.agents_md_chars, text.length, "the owner sees how long it is");
-
+    return text;
+  };
+  const ask = async () => {
     const t = await env.client.call("threads.create", { kind: "agent", agent_id: "abc123def456-arch" });
     await env.client.call("threads.send", { thread: t.id, text: "hi" });
-    const got = await env.settle(t.id);
-    assert.deepEqual(got.messages.at(-1)?.parts.at(-1), { type: "text", text: "read rule 51" });
-    const system = String(llm.calls[0]?.messages[0]?.content ?? "");
-    assert.ok(system.includes("Last rule: answer in English."), "the tail is still sent");
-    assert.ok(!system.includes("Rule 51:"), "the middle is not");
+    return (await env.settle(t.id)).messages.at(-1)?.parts.at(-1);
+  };
+  const listed = async () => (await env.client.call("projects.list", {})).projects.find((p) => p.path === root);
+  try {
+    makeProject(root);
+    const text = write(150);
+    assert.ok(text.length > 12_000 && text.length < AGENTS_MD_LIMIT);
+    await env.client.call("projects.register", { path: root });
+    assert.deepEqual(await ask(), { type: "text", text: "saw rule 56" }, "a 16k AGENTS.md arrives whole");
+    assert.equal((await listed())?.agents_md_chars, undefined, "nothing to tell the owner");
 
-    // Trimmed back under the limit: nothing is cut and the size note goes away.
-    fs.writeFileSync(path.join(root, "AGENTS.md"), "# Northwind\nUse metric units.\n");
+    // Past the safety limit: head and tail, a marker naming the lines left out, and the owner is told.
+    const huge = write(2_500);
+    assert.ok(huge.length > AGENTS_MD_LIMIT);
     await env.client.call("projects.sync", { project: "p_abc123def456" });
-    const short = (await env.client.call("projects.list", {})).projects.find((p) => p.path === root);
-    assert.equal(short?.agents_md_chars, undefined);
+    assert.equal((await listed())?.agents_md_chars, huge.length);
+    assert.deepEqual(await ask(), { type: "text", text: "read rule 56" });
+    const system = String(llm.calls.at(-2)?.messages[0]?.content ?? "");
+    assert.ok(system.includes("Last rule: answer in English."), "the tail is still sent");
   } finally {
     await env.core.close();
     env.cleanup();

@@ -38,10 +38,10 @@ the folder, show up in `git diff`, and can be read by any tool that understands 
 
 | File | What APX does with it |
 |---|---|
-| `AGENTS.md` | Project context every agent here reads. Long files are capped at 12,000 characters, keeping the head and the tail; agents are told which lines were left out and read them when they need them, and the project's settings in the panel (and `apx projects list`) say when a file is past the cap. |
+| `AGENTS.md` | Project context every agent here reads, whole: how long it is, is your choice. Only a file past 200,000 characters (a safety limit) is cut to its head and tail; agents are told which lines were left out and read them when they need them, and the project's settings in the panel (and `apx projects list`) say so. |
 | `.apc/project.json` | `name`, `description` and `kind`. A committed `apx_id` keeps the project's id stable; a clone or worktree next to the original gets its own. |
 | `.apc/agents/<slug>.md` | One agent each. See [Agents](/concepts/agents/). |
-| `.apc/memory.md` | Notes you write by hand. Agents always read it and never write it (capped at 6,000 characters). |
+| `.apc/memory.md` | Notes you write by hand. Agents always read it, whole, and never write it. |
 | `.apc/skills/<name>/SKILL.md` | Skills only this project's agents get. See [Skills](/extend/skills/). |
 | `.apc/mcps.json` | `{"mcpServers": …}` for this project, with no secrets in it. Each server must be trusted before it runs. See [MCP servers](/extend/mcp/). |
 | `.apc/organization.json` | Areas and roles for a company (up to 40 areas, 200 roles). |
