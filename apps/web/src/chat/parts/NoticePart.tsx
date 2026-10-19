@@ -1,11 +1,12 @@
 import type { Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons } from "@apx/ui";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { client } from "../../data/client.ts";
 import { notify } from "../../data/notices.ts";
 import { isKey, useT } from "../../i18n/index.ts";
 import { appPlace } from "../appLinks.ts";
-import { DelegationActions } from "./DelegationActions.tsx";
+
+const DelegationActions = lazy(() => import("./DelegationActions.tsx").then((m) => ({ default: m.DelegationActions })));
 
 type NoticeData = Extract<Part, { type: "notice" }>;
 
@@ -31,7 +32,11 @@ export function NoticePart({ part }: { part: NoticeData }) {
   const link = (thread || open || session) && (
     <span className="noticeline__actions">
       {thread && <GoOn thread={thread} />}
-      {session && <DelegationActions key={session} session={session} />}
+      {session && (
+        <Suspense fallback={null}>
+          <DelegationActions key={session} session={session} />
+        </Suspense>
+      )}
       {open && (
         <Button size="sm" variant="ghost" className="noticeline__link" onClick={open}>
           {linkLabel}

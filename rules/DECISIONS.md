@@ -1296,6 +1296,12 @@ while a second cut says the task is larger than one run or is stuck, which is th
 breaker still counts the continuation. `stop_session` lets a caller stop a session it started; it is offered only
 while one of its thread's sessions works, so the default turn's tool definitions stay within PROMPT_SIZE.md.
 
+The limit notice follows the session's live state. Opening it only navigates; Continue is offered only after it
+stops, while working or queued sessions offer Stop. An owner-only `threads.send` with `continue_run` checks the
+latest stopped run atomically, preserving its caller, folder and write policy. That click authorizes only one more
+turn, including when it must wait for a delegation slot after the breaker is spent; unrelated queued work stays
+held. The continuation remains subject to its run limits and is never continued automatically again.
+
 <a id="d-106"></a>
 ## D-106 — 2026-10-17 — Five permission modes, Auto by default: agents ask only for strong actions
 Agents stopped far too often. An agent on total autonomy in Home was refused a read of another project's file; a

@@ -99,43 +99,63 @@ test("stale, busy, completed, archived and unrelated sessions cannot be continue
   }
 });
 
-test("continuation waits for a delegation slot and starts through the existing queue", async () => {
-  const { env, root, sub, stopped, parent } = await fixture();
-  try {
-    const { store } = env.core;
-    const busy = Array.from({ length: 3 }, (_, i) => {
-      const t = store.threads.create({ kind: "a2a", title: `Part ${i}`, agent_ids: ["roby"], parent_id: root.id });
-      const r = store.runs.create({
-        thread_id: t.id,
-        agent_id: "roby",
-        trigger: "a2a",
-        parent_run_id: parent.id,
-        input: { origin: { kind: "user" }, text: "Working" },
-        deadline_at: new Date(Date.now() + 60_000).toISOString(),
+for (const budget of ["none", "chain", "agent"] as const)
+  test(`continuation waits for a slot and starts even with the ${budget} budget spent`, async () => {
+    const { env, root, sub, stopped, parent } = await fixture();
+    try {
+      const { store } = env.core;
+      const busy = Array.from({ length: 3 }, (_, i) => {
+        const t = store.threads.create({ kind: "a2a", title: `Part ${i}`, agent_ids: ["roby"], parent_id: root.id });
+        const r = store.runs.create({
+          thread_id: t.id,
+          agent_id: "roby",
+          trigger: "a2a",
+          parent_run_id: parent.id,
+          input: { origin: { kind: "user" }, text: "Working" },
+          deadline_at: new Date(Date.now() + 60_000).toISOString(),
+        });
+        store.threads.patch(t.id, { state: "submitted" });
+        return { t, r };
       });
-      store.threads.patch(t.id, { state: "submitted" });
-      return { t, r };
-    });
-    const sent = await env.client.call("threads.send", {
-      thread: sub.id,
-      text: "Check the rest",
-      continue_run: stopped.id,
-    });
-    assert.equal(sent.run.state, "queued");
-    assert.equal(store.threads.get(sub.id)?.state, "queued");
-    assert.equal(store.runs.activeDelegations(root.id), 3);
-    const first = busy[0];
-    assert.ok(first);
-    await env.client.call("threads.cancel", { thread: first.t.id });
-    const result = await env.settle(sub.id);
-    assert.equal(result.runs.find((r) => r.id === sent.run.id)?.state, "completed");
-    assert.match(texts(result.messages).join("\n"), /Finished: Check the rest/);
-    assert.equal(store.runs.list(sub.id).length, 2);
-  } finally {
-    await env.core.close();
-    env.cleanup();
-  }
-});
+      if (budget === "chain") await env.client.call("agents.set_limits", { runs: 1, tokens: 0 });
+      if (budget === "agent") await env.client.call("agents.set_agent_limits", { agent: "roby", limits: { runs: 1 } });
+      const held =
+        budget !== "none"
+          ? store.runs.create({
+              thread_id: store.threads.create({ kind: "a2a", title: "Held", agent_ids: ["roby"], parent_id: root.id })
+                .id,
+              agent_id: "roby",
+              trigger: "a2a",
+              parent_run_id: parent.id,
+              state: "queued",
+              input: {
+                origin: { kind: "agent", id: "roby", name: "Roby", thread_id: root.id, run_id: parent.id },
+                text: "Wait",
+              },
+              deadline_at: new Date(Date.now() + 60_000).toISOString(),
+            })
+          : undefined;
+      const sent = await env.client.call("threads.send", {
+        thread: sub.id,
+        text: "Check the rest",
+        continue_run: stopped.id,
+      });
+      assert.equal(sent.run.state, "queued");
+      assert.equal(store.threads.get(sub.id)?.state, "queued");
+      assert.equal(store.runs.activeDelegations(root.id), 3);
+      const first = busy[0];
+      assert.ok(first);
+      await env.client.call("threads.cancel", { thread: first.t.id });
+      const result = await env.settle(sub.id);
+      assert.equal(result.runs.find((r) => r.id === sent.run.id)?.state, "completed");
+      assert.match(texts(result.messages).join("\n"), /Finished: Check the rest/);
+      assert.equal(store.runs.list(sub.id).length, 2);
+      if (held) assert.equal(store.runs.get(held.id)?.state, "queued", "the click authorizes only its own turn");
+    } finally {
+      await env.core.close();
+      env.cleanup();
+    }
+  });
 
 test("models and external clients cannot continue sessions; concurrent owner clicks start only one turn", async () => {
   const { env, sub, stopped } = await fixture();

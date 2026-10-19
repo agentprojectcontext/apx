@@ -1,24 +1,15 @@
 import type { Run, Thread } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
+import { watchDelegation } from "./delegationWatch.ts";
 import { data } from "./state.ts";
 
 const reads = new Map<string, Promise<void>>();
-const observed = new Map<string, number>();
+
+export { refetchDelegations } from "./delegationWatch.ts";
 
 export function observeDelegation(thread: string): () => void {
-  observed.set(thread, (observed.get(thread) ?? 0) + 1);
-  return () => {
-    const left = (observed.get(thread) ?? 1) - 1;
-    if (left) observed.set(thread, left);
-    else observed.delete(thread);
-  };
-}
-
-/** Sequence gaps, focus and reconnect revalidate visible notices even when their sessions were never opened. */
-export async function refetchDelegations(): Promise<void> {
-  // A deleted or inaccessible session must not take the whole panel offline during reconnect.
-  await Promise.allSettled([...observed.keys()].map((id) => refreshDelegation(id, true)));
+  return watchDelegation(thread, () => refreshDelegation(thread, true));
 }
 
 /** Read old sessions too, without replacing events received while the request was pending. */
