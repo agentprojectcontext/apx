@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fakeDesktopTrash } from "./fake-desktop-trash.ts";
+import { fakeDesktopTrash } from "../e2e/fake-desktop-trash.ts";
 
 test("the fake trash refuses traversal and symlinks outside its temp project before recording or moving", async () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "apx-fake-trash-"));
