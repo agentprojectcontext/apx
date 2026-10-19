@@ -1,6 +1,7 @@
 // One run, start to end: context in, harness loop, every tool call through one executor, an honest end state.
 import path from "node:path";
 import {
+  type Autonomy,
   COMPUTER_CAP,
   type HarnessId,
   type MethodName,
@@ -33,7 +34,7 @@ import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
 import { harnessDir, harnessRoots, readOnlyFolders, scratchDir, workDir } from "../tools/folders.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
 import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
-import { inherit, withProjectAutonomy } from "../tools/policy.ts";
+import { inherit, modeOf, withProjectAutonomy } from "../tools/policy.ts";
 import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
@@ -52,6 +53,7 @@ import {
 import { gitChanges } from "./changes.ts";
 import {
   HISTORY_BUDGET_CHARS,
+  modeBlock,
   type ProjectBrief,
   project,
   releaseBlock,
@@ -217,7 +219,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
         );
       turn.input = { ...turn.input, text: pre.prompt(turn.input.text) };
     }
-    prepared = { ...(await buildContext(deps, turn, run)), ...(await turnTools(deps, turn)) };
+    const tooling = await turnTools(deps, turn);
+    prepared = { ...(await buildContext(deps, turn, run, modeOf(tooling.policy.agent))), ...tooling };
   } catch (err) {
     return end(failRun(deps, { run, turn, display, signal, err }));
   }
@@ -364,7 +367,7 @@ function skipModel(
 }
 
 /** The model's view of the thread and this turn's framed input (with notes and the roster when they apply). */
-async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
+async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Autonomy) {
   const { store } = deps;
   const { agent, thread } = turn;
   // A contact's turn knows nothing of the owner's: no notes, no roster, no skills. An engine session is the engine
@@ -462,6 +465,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord) {
                 timeZone: ownerTimeZone(store),
                 channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
                 voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
+                mode: modeBlock(mode),
                 workspace: workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
                 release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
                 feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,

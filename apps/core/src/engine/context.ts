@@ -4,7 +4,7 @@
 // - input: this turn's item, with what changes per turn (time, roster when it changed) and the origin envelope.
 
 import { createHash } from "node:crypto";
-import type { Organization, Thread } from "@apx/protocol";
+import type { Autonomy, Organization, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Origin } from "../domain/runs.ts";
 import type { LogEntry, ReleaseContext } from "../domain/threads.ts";
@@ -193,6 +193,23 @@ export function workspaceBlock(
   return lines.length ? lines.join("\n") : undefined;
 }
 
+const MODES: Record<Autonomy, string> = {
+  auto: "Auto: read anything; edit files and run commands in your work folder and temp folders without asking. Only strong actions wait for the owner (sending or posting as them, paying, destructive commands, writing outside your folder).",
+  accept_edits:
+    "Accept edits: edit files in your work folder without asking; a command that changes something waits for the owner.",
+  manual: "Manual: every action that changes something waits for the owner.",
+  plan: "Plan: read and propose; any change is refused, so write it as a proposal in your answer.",
+  total: "Total: nothing waits for the owner.",
+};
+
+/**
+ * What the agent may do on its own in this turn's mode. APX itself shows the owner a card when a call needs their OK,
+ * so the agent never asks first (DECISIONS.md#d-106).
+ */
+export function modeBlock(mode: Autonomy): string {
+  return `${MODES[mode]} When a call needs the owner's OK, APX asks them: make the call, never ask_owner for permission.`;
+}
+
 /** The other agents in scope here (global ones and the thread's project team): whom to delegate to, or to name. */
 /** The release-notes chat's note: the version, its branch, and the commits to read to answer about a change. */
 export function releaseBlock(r: ReleaseContext | undefined): string | undefined {
@@ -308,6 +325,8 @@ export function turnInput(opts: {
   voice?: boolean | undefined;
   /** A code thread's folder and what may change there, the project's read-only folders (workspaceBlock). */
   workspace?: string | undefined;
+  /** The permission mode this turn runs in, and what waits for the owner there (modeBlock). */
+  mode?: string | undefined;
   /** In the chat that told what an update brought: which release, and where its commits are (releaseBlock). */
   release?: string | undefined;
 }): string {
@@ -324,6 +343,7 @@ export function turnInput(opts: {
       ? `[channel turn] ${ownerChannelNote(channel)}`
       : "",
     opts.voice ? `[voice] ${VOICE_STYLE}` : "",
+    opts.mode ? `[mode] ${opts.mode}` : "",
     opts.workspace ? `[workspace] ${opts.workspace}` : "",
     opts.release ? `[release notes] ${opts.release}` : "",
     opts.roster ? `[agents]\n${opts.roster}` : "",
