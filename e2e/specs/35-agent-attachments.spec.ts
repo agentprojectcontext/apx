@@ -43,8 +43,19 @@ test("agente adjunta JPG, MP4 y audio: visibles, reproducibles y descargables tr
     await expect.poll(() => audio.evaluate((el) => (el as HTMLAudioElement).currentTime)).toBeGreaterThan(0);
     await audio.evaluate((el) => (el as HTMLAudioElement).pause());
     for (const name of ["preview.jpg", "preview.mp4", "preview.wav"]) fs.unlinkSync(path.join(work, name));
+    // Resolve the image after the other media have mounted, preserving the reload's asynchronous layout.
+    await page.route("**/rpc/media.get", async (route) => {
+      const response = await route.fetch();
+      const { result } = (await response.json()) as { result: { mime: string } };
+      if (result.mime.startsWith("image/")) {
+        await expect(video).toBeVisible();
+        await expect(audio).toBeVisible();
+      }
+      await route.fulfill({ response });
+    });
     await page.reload();
     await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBe(320);
     await expect(video).toBeVisible();
     await expect(audio).toBeVisible();
     const download = page.waitForEvent("download");

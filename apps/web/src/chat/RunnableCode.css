@@ -1,0 +1,62 @@
+/* A shell block an agent wrote: a card with run and copy, and below it what the run printed. */
+.runcode {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+.runcode__card,
+.runcode__out {
+  position: relative;
+  border: 1px solid var(--apx-border-strong);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-bg);
+}
+.apx-md .runcode__card pre {
+  margin: 0;
+  padding: 10px 64px 10px 12px;
+  background: transparent;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.runcode__actions {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: flex;
+  gap: 2px;
+}
+.apx-md .runcode__screen {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px 12px 4px;
+  font-family: var(--apx-font-mono);
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: transparent;
+}
+.runcode__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 5px 4px 12px;
+}
+.runcode__status {
+  font-family: var(--apx-meta-font);
+  font-size: var(--apx-text-2xs);
+  color: var(--apx-fg-subtle);
+}
+.runcode__status.is-running {
+  color: var(--apx-brand);
+}
+.runcode__status.is-failed {
+  color: var(--apx-danger);
+}
+.runcode__shell.is-asking {
+  color: var(--apx-brand);
+  background: var(--apx-fill);
+}

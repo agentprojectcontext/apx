@@ -22,11 +22,14 @@ test("a suggested command runs in a terminal from the chat and its end wakes the
   await page.getByRole("textbox", { name: /^Escribile a/ }).fill("suggest a command");
   await page.getByRole("button", { name: "Enviar" }).click();
   await expect(page.getByText("echo e2e-suggested-$((6*7))")).toBeVisible();
+  await expect(page.locator(".runcode")).toHaveCSS("display", "flex");
+  await expect(page.locator(".runcode__card")).toHaveCSS("border-top-style", "solid");
 
   await page.getByRole("button", { name: "Ejecutar en una terminal" }).click();
   const out = page.locator(".runcode__out");
   await expect(out.locator(".runcode__screen")).toContainText("e2e-suggested-42", { timeout: 15_000 });
   await expect(out.getByText("Salió con 0")).toBeVisible({ timeout: 15_000 });
+  await expect(out.locator(".runcode__screen")).toHaveCSS("max-height", "220px");
 
   // The command ended: the agent got its output in a new turn and answered.
   await expect(page.locator(".transcript").getByText(/Got it: The owner ran the command you suggested/)).toBeVisible({
