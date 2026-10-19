@@ -48,14 +48,15 @@ export function ModelRefPicker(props: {
     <Popover
       open={open}
       onOpenChange={setOpen}
-      width={360}
+      width={560}
       label={props.label}
       trigger={trigger({ text, label: props.label, warn, warnText: t("models.notInCatalog") })}
     >
       <ModelList
         value={value}
         onPick={(ref) => {
-          setOpen(false);
+          // An add button has no current model whose effort could be edited here.
+          if (!value) setOpen(false);
           props.onChange(ref);
         }}
         onEffort={props.onChange}
@@ -86,22 +87,26 @@ export function ModelChoicePicker(props: {
   const catalog = useModels((s) => s.catalog);
   const [open, setOpen] = useState(false);
   const { value } = props;
-  const pick = (choice: ModelChoice | null) => {
-    setOpen(false);
-    props.onChange(choice);
-  };
+  const pick = props.onChange;
   const config = useModels((s) => s.config);
   const own = value?.model;
   const effective = effectiveChoice(value, props.inherited, config);
   const current = choiceLabel(effective, catalog, config);
-  const inherited = choiceLabel(effectiveChoice(null, props.inherited, config), catalog, config);
+  const inheritedChoice = effectiveChoice(null, props.inherited, config);
+  const inherited = inheritedChoice.model ? choiceLabel(inheritedChoice, catalog, config) : t("models.router");
+  const first = config?.router.chain[0];
+  const router = first
+    ? t(config?.router.rules.length ? "models.routerSummaryRules" : "models.routerSummary", {
+        model: refLabel(first, catalog),
+      })
+    : t(config?.router.rules.length ? "models.routerRules" : "models.router");
   const text = props.text ?? current;
   const warn = Boolean(effective.model) && catalog.length > 0 && !inCatalog(effective.model ?? "", catalog);
   return (
     <Popover
       open={open}
       onOpenChange={setOpen}
-      width={380}
+      width={560}
       align={props.align ?? "end"}
       label={props.label}
       trigger={trigger({
@@ -114,32 +119,14 @@ export function ModelChoicePicker(props: {
       })}
     >
       <div className="mchoice">
-        <div className="mchoice__fallback" role="status">
-          <span className="mchoice__text">
-            <span className="mchoice__title">{t("models.currentChoice", { model: current })}</span>
-            <span className="mchoice__desc">
-              {value == null
-                ? (props.none?.title ?? t("models.installDefault"))
-                : own
-                  ? t("models.ownModel")
-                  : t("models.router")}
-            </span>
-            {(effective.router || !effective.model) && (
-              <span className="mchoice__desc">{t("models.routerOnlyDesc")}</span>
-            )}
-          </span>
-        </div>
-        <div className="mchoice__label">{t("models.ownModel")}</div>
-        <ModelList
-          value={own}
-          {...(props.only ? { only: props.only } : {})}
-          onPick={(model) => pick({ model, router: own === model ? (value?.router ?? true) : true })}
-          onEffort={(model) => props.onChange({ model, router: value?.router ?? true })}
-        />
+        {effective.model && (
+          <div className="mchoice__current" role="status" title={current}>
+            {t("models.currentChoice", { model: current })}
+          </div>
+        )}
         <Fallback
           active={value != null && !own}
-          title={choiceLabel({ router: true }, catalog, config)}
-          desc={t("models.routerOnlyDesc")}
+          title={router}
           action={t("models.routerOnly")}
           onPick={() => pick({ router: true })}
         />
@@ -149,9 +136,16 @@ export function ModelChoicePicker(props: {
             source: props.none?.title ?? t("models.installDefault"),
             model: inherited,
           })}
-          desc={props.none?.desc ?? ""}
           action={props.none?.action ?? t("models.useDefault")}
           onPick={() => pick(null)}
+        />
+        <div className="mchoice__label">{t("models.ownModel")}</div>
+        <ModelList
+          value={own}
+          effortValue={effective.model}
+          {...(props.only ? { only: props.only } : {})}
+          onPick={(model) => pick({ model, router: own === model ? (value?.router ?? true) : true })}
+          onEffort={(model) => props.onChange({ model, router: effective.router })}
         />
       </div>
     </Popover>
@@ -159,13 +153,12 @@ export function ModelChoicePicker(props: {
 }
 
 /** What runs with no model of its own: a button goes back to it, or it reads "in use". */
-function Fallback(props: { active: boolean; title: string; desc: string; action: string; onPick: () => void }) {
+function Fallback(props: { active: boolean; title: string; action: string; onPick: () => void }) {
   const t = useT();
   return (
     <div className="mchoice__fallback">
-      <span className="mchoice__text">
-        <span className="mchoice__title">{props.title}</span>
-        <span className="mchoice__desc">{props.desc}</span>
+      <span className="mchoice__title" title={props.title}>
+        {props.title}
       </span>
       {props.active ? (
         <span className="mchoice__inuse">

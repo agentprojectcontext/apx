@@ -65,30 +65,36 @@ export function RefSelect({ value, onChange }: { value: ModelRef; onChange(ref: 
   );
 }
 
-/** Below a model list: the effort of the model picked, when it takes one. */
-export function EffortRow({ value, onChange }: { value: ModelRef; onChange(ref: ModelRef): void }) {
+/** Below a model list; remains visible when the model has no effort control. */
+export function EffortRow({ value, onChange }: { value?: ModelRef; onChange(ref: ModelRef): void }) {
   const t = useT();
   const catalog = useModels((s) => s.catalog);
-  const model = modelOf(value, catalog);
-  if (!model?.efforts?.length) return null;
-  const { effort } = splitRef(value);
+  const model = value ? modelOf(value, catalog) : undefined;
+  const efforts = model?.efforts ?? [];
+  const effort = value ? splitRef(value).effort : undefined;
   return (
     <div className="mlist__effort">
       <span>{t("models.effort")}</span>
       <Select
         size="sm"
         label={t("models.effort")}
+        disabled={!efforts.length}
+        placeholder={t(value ? "models.effortUnavailable" : "models.effortPickModel")}
         value={effort ?? ""}
-        options={[
-          {
-            value: "",
-            label: model.default_effort
-              ? t("models.effortDefaultIs", { effort: effortLabel(model.default_effort) })
-              : t("models.effortDefault"),
-          },
-          ...model.efforts.map((e) => ({ value: e, label: effortLabel(e) })),
-        ]}
-        onValueChange={(v) => onChange(withEffort(value, v || undefined))}
+        options={
+          efforts.length
+            ? [
+                {
+                  value: "",
+                  label: model?.default_effort
+                    ? t("models.effortDefaultIs", { effort: effortLabel(model.default_effort) })
+                    : t("models.effortDefault"),
+                },
+                ...efforts.map((e) => ({ value: e, label: effortLabel(e) })),
+              ]
+            : []
+        }
+        onValueChange={(v) => value && onChange(withEffort(value, v || undefined))}
       />
     </div>
   );
