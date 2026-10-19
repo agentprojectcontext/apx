@@ -8,6 +8,9 @@ import { say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Harness, TurnIO } from "./index.ts";
 
+/** A path as a command names it: forward slashes, which Git Bash reads on Windows too. */
+const sh = (p: string) => p.split(path.sep).join("/");
+
 const seen: Array<{ harness: string; io: TurnIO; outside: boolean }> = [];
 const fake = (id: "claude" | "codex"): Harness => ({
   id,
@@ -332,15 +335,15 @@ test("an outside agent's commands follow the shell tool's folder rule: they read
   await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
   try {
     const commands: Array<[string, boolean]> = [
-      [`cat ${ref}/a.ts`, true],
-      [`cp ${ref}/a.ts ./a.ts`, true],
-      [`git -C ${ref} log --oneline`, true],
+      [`cat ${sh(ref)}/a.ts`, true],
+      [`cp ${sh(ref)}/a.ts ./a.ts`, true],
+      [`git -C ${sh(ref)} log --oneline`, true],
       ["ls", true],
-      [`touch ${ref}/x`, false],
-      [`cp a.ts ${ref}/a.ts`, false],
-      [`cd ${ref} && npm install`, false],
-      [`echo x > $(echo ${ref})/y`, false],
-      [`cat ${away}/secret.txt`, false],
+      [`touch ${sh(ref)}/x`, false],
+      [`cp a.ts ${sh(ref)}/a.ts`, false],
+      [`cd ${sh(ref)} && npm install`, false],
+      [`echo x > $(echo ${sh(ref)})/y`, false],
+      [`cat ${sh(away)}/secret.txt`, false],
     ];
     const asks = commands.map(([command]) => ({ kind: "execute", command }));
     await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });

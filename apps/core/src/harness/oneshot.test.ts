@@ -92,7 +92,8 @@ for (const id of ["aider", "antigravity"] as const) {
       assert.equal(result.sessionId, undefined);
       assert.deepEqual(events, ["approve", "running", "ok"]);
       if (id === "aider") {
-        assert.equal(body.mode, 0o600);
+        // POSIX modes only: Windows reports fixed bits that say nothing about who may read the file.
+        if (process.platform !== "win32") assert.equal(body.mode, 0o600);
         assert.ok(body.args.includes("--no-auto-commits"));
         assert.ok(!body.args.includes(io.input.content));
         assert.equal(fs.existsSync(body.args[body.args.indexOf("--message-file") + 1]), false);
