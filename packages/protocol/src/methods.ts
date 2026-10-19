@@ -4,6 +4,7 @@ import { z } from "zod";
 import { appMethods } from "./app-methods.ts";
 import { asanaMethods } from "./asana-methods.ts";
 import { browserMethods } from "./browser.ts";
+import { desktopInstallMethods } from "./desktop-install.ts";
 import { deviceMethods } from "./device-methods.ts";
 import { environmentMethods } from "./environment-methods.ts";
 import { telemetryMethods } from "./telemetry-methods.ts";
@@ -54,6 +55,8 @@ export type MethodDef = {
   replay?: false;
   /** true → callable without the core's token (still from an allowed origin): pairing a device, whose code is the key. */
   open?: true;
+  /** Only direct loopback requests may control installation on the core's computer. */
+  local?: true;
 };
 
 export const methods = {
@@ -92,6 +95,7 @@ export const methods = {
   ...asanaMethods,
   ...deviceMethods,
   ...environmentMethods,
+  ...desktopInstallMethods,
   ...threadMethods,
   ...terminalMethods,
   ...telemetryMethods,

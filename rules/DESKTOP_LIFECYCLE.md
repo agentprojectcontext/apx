@@ -34,6 +34,30 @@ service or a remote daemon. Stopping cancels pending restart timers; a replaceme
 exit. Updating Desktop updates its bundle only. Updating a server from its panel remains an explicit server action;
 restarting the client does not implicitly update that server.
 
+## Desktop installation from a local web panel
+
+`desktop.install_status` and `desktop.install` use the ordinary protocol router. Both require a human and a direct
+loopback request; locality is checked before idempotency replay or joining another request. HTTP and WS derive
+locality from the actual peer, Host, Origin and proxy headers, never request parameters. A graphical session is
+also required; SSH sessions and headless Linux do not offer this action. A transparent SSH forward cannot be
+distinguished from a direct connection: the notice explicitly says installation happens on the computer hosting APX.
+
+The shared Node-only installer in `packages/install` streams a bounded release asset, verifies its required SHA-256,
+installs in the user's application folder and launches the app. macOS uses the release zip rather than a DMG drag
+step; Windows runs NSIS and Linux installs the AppImage and a desktop launcher. The OS may still require permission
+for an unsigned app; installation does not remove quarantine or bypass OS security. Polling resumes after a web reload;
+errors allow retry. A core restart interrupts the download; the next visit offers installation again.
+
+The explicit install action saves a private, atomic local connection containing canonical home, port and home id,
+without tokens. Desktop validates the home identity and reads its credentials from that home's `core.env`. If the
+active token came only from the environment, the explicit install action first saves it privately in `core.env`,
+preserving the other settings. The saved local target survives app restarts. An already running app receiving the local-adoption launch flag relaunches to read
+the saved target. It does not uninstall, restart or replace an existing daemon service or move domain data.
+
+A fresh graphical `install.sh`/`install.ps1` installation opens desktop setup without registering a service. Server
+mode is explicit (`--server` / `-Server`), automatic when headless, and retained for existing server installations.
+`--file` and `--no-service` remain server bundle operations. Desktop's SSH installer always passes `--server`.
+
 ## Local services
 
 `apx service` prints its local target. `APX_URL` never redirects service status, installation, restart, removal or

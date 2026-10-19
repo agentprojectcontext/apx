@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Installs (or updates) the APX daemon on Linux or macOS, without the desktop app: the core, the `apx` command and the
-# Node that runs them, as one bundle from a release. Nothing needs root.
+# Opens the desktop setup on a graphical computer; --server installs the daemon, CLI and Node. Nothing needs root.
 #
 #   curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
 #   bash install.sh --file apx-core-2.2.0-linux-x64.tar.gz      # a bundle you already have (no download)
@@ -18,6 +17,9 @@ FILE=""
 VERSION=""
 SERVICE=1
 UNINSTALL=0
+MODE=auto
+REQUESTED_DESKTOP=0
+REQUESTED_SERVER=0
 
 say() { printf '\033[1m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[33mwarning:\033[0m %s\n' "$*" >&2; }
@@ -28,18 +30,26 @@ die() {
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --file) FILE="${2:?--file needs a path}"; shift 2 ;;
+    --file) FILE="${2:?--file needs a path}"; MODE=server; shift 2 ;;
     --version) VERSION="${2:?--version needs x.y.z}"; VERSION="${VERSION#v}"; shift 2 ;;
     --feed) FEED="${2:?--feed needs owner/repo}"; shift 2 ;;
-    --no-service) SERVICE=0; shift ;;
+    --no-service) SERVICE=0; MODE=server; shift ;;
+    --server) REQUESTED_SERVER=1; shift ;;
+    --desktop) REQUESTED_DESKTOP=1; shift ;;
     --uninstall) UNINSTALL=1; shift ;;
     -h | --help)
-      echo "usage: install.sh [--file <apx-core-…tar.gz>] [--version x.y.z] [--feed owner/repo|url] [--no-service] [--uninstall]"
+      echo "usage: install.sh [--desktop|--server] [--file <apx-core-…tar.gz>] [--version x.y.z] [--feed owner/repo|url] [--no-service] [--uninstall]"
       exit 0
       ;;
     *) die "unknown option: $1 (see --help)" ;;
   esac
 done
+if [ "$REQUESTED_DESKTOP" = 1 ]; then
+  [ "$REQUESTED_SERVER" = 0 ] && [ -z "$FILE" ] && [ "$SERVICE" = 1 ] || die "--desktop cannot be combined with --server, --file or --no-service"
+  MODE=desktop
+elif [ "$REQUESTED_SERVER" = 1 ]; then
+  MODE=server
+fi
 
 case "$(uname -s)" in
   Linux) OS=linux ;;
@@ -64,6 +74,22 @@ if [ "$UNINSTALL" = 1 ]; then
   say "APX is uninstalled. Your data is still in ${APX_HOME:-$HOME/.apx/v2}"
   exit 0
 fi
+
+if [ "$MODE" = auto ]; then
+  if [ -e "$APP/current" ] && { [ ! -f "$APP/install-mode" ] || [ "$(cat "$APP/install-mode")" = server ]; }; then
+    MODE=server
+  elif [ -z "${SSH_CONNECTION:-}${SSH_TTY:-}" ] && { [ "$OS" = mac ] || [ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; }; then
+    MODE=desktop
+  else
+    MODE=server
+  fi
+fi
+if [ "$MODE" = desktop ]; then
+  [ -z "${SSH_CONNECTION:-}${SSH_TTY:-}" ] || die "desktop setup needs a local graphical session; use --server over SSH"
+  if [ "$OS" = linux ] && [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then die "no graphical session; use --server"; fi
+  SERVICE=0
+fi
+say "Install mode: $MODE"
 
 need() { command -v "$1" >/dev/null 2>&1 || die "$1 is needed (install it and run this again)"; }
 need tar
@@ -127,6 +153,11 @@ say "Installing APX $VERSION in $APP"
 mkdir -p "$WORK/unpacked" "$APP/versions"
 tar -xzf "$WORK/$NAME" -C "$WORK/unpacked"
 [ -x "$WORK/unpacked/apx/node/bin/node" ] || die "$NAME has no Node inside"
+if [ "$MODE" = desktop ] && [ -e "$APP/current" ]; then
+  say "Installing desktop without replacing the existing server"
+  APX_RELEASES="$FEED" APX_INSTALL_VERSION="$VERSION" "$WORK/unpacked/apx/node/bin/node" --disable-warning=ExperimentalWarning "$WORK/unpacked/apx/apps/terminal/src/main.ts" desktop || die "desktop setup failed; retry: apx desktop"
+  exit 0
+fi
 rm -rf "$APP/versions/$VERSION"
 mv "$WORK/unpacked/apx" "$APP/versions/$VERSION"
 ln -sfn "versions/$VERSION" "$APP/current.new"
@@ -137,6 +168,7 @@ mv -f "$APP/current.new" "$APP/current" 2>/dev/null || {
 [ -e "$APP/current" ] || die "could not make $VERSION current"
 
 # 4. APX v1: its daemon stops (two daemons would answer the same Telegram bots) and its `apx` command goes.
+if [ "$MODE" = server ]; then
 if [ -f "$HOME/.config/systemd/user/apx-daemon.service" ]; then
   say "Stopping APX v1's daemon"
   systemctl --user disable --now apx-daemon.service >/dev/null 2>&1 || true
@@ -156,6 +188,7 @@ if command -v npm >/dev/null 2>&1 && npm ls -g --depth=0 @agentprojectcontext/ap
   npm uninstall -g @agentprojectcontext/apx >/dev/null 2>&1 ||
     { command -v sudo >/dev/null 2>&1 && sudo -n npm uninstall -g @agentprojectcontext/apx >/dev/null 2>&1; } ||
     warn "APX v1's apx is still in $(dirname "$(command -v apx)"). Remove it:  sudo npm uninstall -g @agentprojectcontext/apx"
+fi
 fi
 
 # 5. The `apx` command, always through `current` so an update is picked up without touching it.
@@ -185,6 +218,14 @@ case ":$PATH:" in
     fi
     ;;
 esac
+
+printf '%s\n' "$MODE" >"$APP/install-mode"
+if [ "$FEED" != agentprojectcontext/apx ]; then export APX_RELEASES="$FEED"; fi
+if [ "$MODE" = desktop ]; then
+  say "Installing and opening APX desktop. Choose server or client in the app."
+  APX_APP="$APP" APX_INSTALL_VERSION="$VERSION" "$BIN/apx" desktop || die "desktop setup failed; retry: apx desktop"
+  exit 0
+fi
 
 # 6. The daemon as a service: started now, at login, and again if it stops (systemd user unit or launchd agent).
 if [ "$SERVICE" = 1 ]; then

@@ -6,7 +6,8 @@ import path from "node:path";
 import { CORE_ENV_FILE, parseCoreEnv } from "@apx/protocol";
 import { ApxClient } from "@apx/protocol/client";
 
-export type Connection = { mode: "local" } | { mode: "url"; url: string } | { mode: "ssh"; target: string };
+type LocalConnection = { mode: "local"; home?: string; port?: number; home_id?: string };
+export type Connection = LocalConnection | { mode: "url"; url: string } | { mode: "ssh"; target: string };
 
 const FILE = "connection.json";
 
@@ -15,8 +16,25 @@ export function loadConnection(dataDir: string): Connection | undefined {
     const c = JSON.parse(fs.readFileSync(path.join(dataDir, FILE), "utf8")) as Partial<Connection> & {
       url?: unknown;
       target?: unknown;
+      home?: unknown;
+      port?: unknown;
+      home_id?: unknown;
     };
-    if (c.mode === "local") return { mode: "local" };
+    if (c.mode === "local") {
+      if (c.home === undefined && c.port === undefined && c.home_id === undefined) return { mode: "local" };
+      if (
+        typeof c.home !== "string" ||
+        !path.isAbsolute(c.home) ||
+        typeof c.port !== "number" ||
+        !Number.isInteger(c.port) ||
+        c.port < 1 ||
+        c.port > 65535 ||
+        typeof c.home_id !== "string" ||
+        !c.home_id
+      )
+        return undefined;
+      return { mode: "local", home: c.home, port: c.port, home_id: c.home_id };
+    }
     if (c.mode === "url" && typeof c.url === "string") return { mode: "url", url: c.url };
     if (c.mode === "ssh" && typeof c.target === "string") return { mode: "ssh", target: c.target };
   } catch {}
@@ -30,6 +48,17 @@ export function saveConnection(dataDir: string, c: Connection): void {
 
 export function forgetConnection(dataDir: string): void {
   fs.rmSync(path.join(dataDir, FILE), { force: true });
+}
+
+/** A desktop installed from the local panel retains that exact installation after a restart. */
+export function applySavedLocalTarget(dataDir: string, env: NodeJS.ProcessEnv): void {
+  if (env.APX_URL || env.APX_HOME || env.APX_PORT) return;
+  const target = loadConnection(dataDir);
+  if (target?.mode !== "local" || !target.home || !target.port || !target.home_id) return;
+  const identity = fs.readFileSync(path.join(target.home, "home-id"), "utf8").trim();
+  if (identity !== target.home_id) throw new Error("The saved local APX belongs to another installation");
+  env.APX_HOME = target.home;
+  env.APX_PORT = String(target.port);
 }
 
 /** An address the owner typed: http(s) only, no path, no trailing slash. */

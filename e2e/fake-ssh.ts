@@ -4,6 +4,7 @@ import path from "node:path";
 
 /** Windows needs a real executable on PATH; a .cmd file cannot stand in for a shell-free spawn. */
 export function installFakeSsh(dir: string, unixScript: string): void {
+  fs.writeFileSync(path.join(dir, "proxy.mjs"), TCP_PROXY);
   if (process.platform !== "win32") {
     fs.writeFileSync(path.join(dir, "ssh"), unixScript, { mode: 0o755 });
     return;
@@ -30,6 +31,8 @@ const WINDOWS_SSH = `using System;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Net;
+using System.Net.Sockets;
 class FakeSsh {
   static int Main(string[] args) {
     string state = Environment.GetEnvironmentVariable("FAKE_SSH_STATE");
@@ -41,7 +44,7 @@ class FakeSsh {
     }
     if (Array.IndexOf(args, "BatchMode=yes") >= 0) {
       if (!File.Exists(Path.Combine(state, "authorized"))) return Denied();
-      if (Array.IndexOf(args, "-N") >= 0) Thread.Sleep(600000);
+      if (Array.IndexOf(args, "-N") >= 0) return Forward(args);
       return 0;
     }
     var ask = new ProcessStartInfo(Environment.GetEnvironmentVariable("SSH_ASKPASS"), "\\"ops@box's password: \\"");
@@ -61,4 +64,41 @@ class FakeSsh {
     Console.Error.WriteLine("ops@box: Permission denied (publickey,password).");
     return 255;
   }
+  static int Forward(string[] args) {
+    int localPort = Int32.Parse(args[Array.IndexOf(args, "-L") + 1].Split(':')[1]);
+    int remotePort = Int32.Parse(Environment.GetEnvironmentVariable("FAKE_SSH_CORE_PORT"));
+    var listener = new TcpListener(IPAddress.Loopback, localPort);
+    try { listener.Start(); } catch { return 255; }
+    Console.Error.WriteLine("debug1: Local forwarding listening on 127.0.0.1 port " + localPort + ".");
+    while (true) {
+      var downstream = listener.AcceptTcpClient();
+      ThreadPool.QueueUserWorkItem(delegate {
+        var upstream = new TcpClient();
+        try {
+          upstream.Connect(IPAddress.Loopback, remotePort);
+          ThreadPool.QueueUserWorkItem(delegate {
+            try { upstream.GetStream().CopyTo(downstream.GetStream()); } catch { }
+            finally { upstream.Close(); downstream.Close(); }
+          });
+          downstream.GetStream().CopyTo(upstream.GetStream());
+        } catch { }
+        finally { upstream.Close(); downstream.Close(); }
+      });
+    }
+  }
 }`;
+
+const TCP_PROXY = `import net from "node:net";
+const args = process.argv.slice(2);
+const port = Number(args[args.indexOf("-L") + 1].split(":")[1]);
+const server = net.createServer((downstream) => {
+  const upstream = net.connect({ host: "127.0.0.1", port: Number(process.env.FAKE_SSH_CORE_PORT) });
+  downstream.on("error", () => upstream.destroy());
+  upstream.on("error", () => downstream.destroy());
+  downstream.pipe(upstream).pipe(downstream);
+});
+server.on("error", () => process.exit(255));
+server.listen(port, "127.0.0.1", () => {
+  process.stderr.write("debug1: Local forwarding listening on 127.0.0.1 port " + port + ".\\n");
+});
+`;

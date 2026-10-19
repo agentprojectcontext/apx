@@ -9,6 +9,8 @@ export type CallContext = {
   actor: Actor;
   session: string | undefined;
   log: Log;
+  /** Set by the transport for direct loopback requests, never by a caller's payload. */
+  local?: boolean;
   /** Set when an outside app calls with its client token: it acts as a model, only within its scopes. */
   client?: { id: string; name: string; scopes: ClientScope[] } | undefined;
   /** Set when one of the owner's paired devices calls with its own key. */

@@ -1,0 +1,16 @@
+{
+  "name": "@apx/install",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "node --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "@apx/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@apx/config": "workspace:*"
+  }
+}

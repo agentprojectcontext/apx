@@ -53,6 +53,9 @@ gets the types. There is no other way into a handler.
 
 - `packages/protocol` ← used by everything. Isomorphic: no Node-only imports.
 - `packages/ui` ← web (and desktop through web). React + Base UI + CSS tokens.
+- `packages/install`: Node-only desktop download, checksum, installation and launch shared by core and terminal.
+  The protocol remains isomorphic. Direct local human-only `desktop.install` starts one bounded operation;
+  `desktop.install_status` reports progress. The local web panel offers this when the desktop is absent.
 - `packages/surfaces` ← placement types and an inline CSS kit shared by panel, mobile and public widget hosts.
   The stored app flag controls layout in every host: widgets keep a 16–24px inset even when maximized;
   declared apps use zero inset and no kit width cap. Height fitting and view do not change the saved type; kit classes opt into
@@ -195,7 +198,7 @@ jobs are closed, and queued runs are picked up.
 ## 5. Auth and trust
 
 - Loopback bind needs no token; any other bind **requires** `APX_TOKEN` (enforced at startup).
-- `/rpc/*` checks `Authorization: Bearer` when a token is set. Over WS the token (`?token=`), or a paired device's own, is checked when the socket upgrades.
+- `/rpc/*` checks `Authorization: Bearer` when a token is set. Over WS the token (`?token=`), or a paired device's own, is checked during upgrade and before every incoming or outgoing frame. Revoked sockets cannot call methods, receive events or lend node capabilities.
 - Trust boundaries to remember: web page content (embedded browser), channel messages, outside apps' agents,
   tool output → all untrusted data. The owner's own agents speak for the owner (DECISIONS.md#d-071).
 

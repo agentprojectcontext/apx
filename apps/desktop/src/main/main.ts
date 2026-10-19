@@ -25,7 +25,7 @@ import { installedBrowsers, isWebUrl, openExternal } from "./browser/external.ts
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
 import { type Bounds, createPopout } from "./browser/popout.ts";
 import { COMPUTER_PLATFORMS, computerPermissions, createComputer, openPrivacy } from "./computer.ts";
-import { localCoreUrl } from "./connection.ts";
+import { applySavedLocalTarget, loadConnection, localCoreUrl } from "./connection.ts";
 import { createConnector } from "./connector.ts";
 import { createCursor } from "./cursor.ts";
 import { editMenu } from "./edit-menu.ts";
@@ -40,7 +40,6 @@ import { createDesktopUpdater, type DesktopUpdate } from "./updater.ts";
 // data folder, its scheme or the single-instance lock are touched.
 if (process.env.APX_ASKPASS) process.exit(await runAskpass(process.env, process.argv));
 
-const CORE_URL = localCoreUrl();
 const WEB_URL = process.env.APX_WEB_URL ?? "http://127.0.0.1:7441";
 const DIST = import.meta.dirname;
 
@@ -52,6 +51,9 @@ const MEMORY_LIMIT_MB = 4096;
 // single-instance lock, so it never meets the owner's running APX.
 app.setPath("userData", process.env.APX_DESKTOP_DATA ?? path.join(app.getPath("appData"), "@apx", "desktop"));
 app.setName("APX");
+applySavedLocalTarget(app.getPath("userData"), process.env);
+const CORE_URL = localCoreUrl();
+const openedConnection = JSON.stringify(loadConnection(app.getPath("userData")));
 
 registerAppScheme();
 
@@ -114,7 +116,22 @@ app.whenReady().then(() => {
     win.hide();
   });
   app.on("activate", openMain);
-  app.on("second-instance", openMain);
+  app.on("second-instance", (_event, argv) => {
+    if (
+      argv.includes("--apx-adopt-local") &&
+      JSON.stringify(loadConnection(app.getPath("userData"))) !== openedConnection
+    ) {
+      quitting = true;
+      delete process.env.APX_HOME;
+      delete process.env.APX_PORT;
+      delete process.env.APX_URL;
+      delete process.env.APX_TOKEN;
+      app.relaunch();
+      app.quit();
+      return;
+    }
+    openMain();
+  });
   // Every page (the panel, the quick chat, browser tabs) gets the edit menu on a right click.
   app.on("web-contents-created", (_e, contents) => {
     contents.on("context-menu", (_ev, params) => {
@@ -261,7 +278,6 @@ app.whenReady().then(() => {
     openMain,
   });
 
-  let linked = false;
   // Computer use: off until the panel applies the owner's choice (Config › Desktop); macOS and Windows.
   let computerOn = false;
   const computer = createComputer({
@@ -307,18 +323,26 @@ app.whenReady().then(() => {
     if (computerOn && !armed) globalShortcut.register(STOP_KEYS, () => computer.stop());
     if (!computerOn && armed) globalShortcut.unregister(STOP_KEYS);
   };
-  let link: { refresh(): void; emit(type: string, payload?: unknown): void } | undefined;
+  let link: ReturnType<typeof startNodeLink> | undefined;
   const connector = createConnector({
     panel: panel.webContents,
     coreUrl: CORE_URL,
     webUrl: WEB_URL,
     dist: DIST,
     isOwnWindow: (sender) => sender === panel.webContents || popout.isPanel(sender) || quick.isQuick(sender),
+    disconnected: () => {
+      link?.stop();
+      link = undefined;
+      if (computerOn) computer.stop();
+      computerOn = false;
+      armStop();
+    },
     opened: (url, node) => {
       base = url;
       quick.start();
-      if (linked || !node) return;
-      linked = true;
+      link?.stop();
+      link = undefined;
+      if (!node) return;
       link = startNodeLink(host, node.url, () => {}, node.token, {
         on: () => computerOn && COMPUTER_PLATFORMS.includes(process.platform),
         handle: computer.handle,

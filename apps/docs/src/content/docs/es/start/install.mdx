@@ -19,6 +19,16 @@ de APX v1 no se tocan nunca. Contanos qué se rompe en [GitHub](https://github.c
 [Discord](https://discord.gg/vxdZuT5WuE).
 </Aside>
 
+Podés usar también el comando de instalación de la portada: en una computadora nueva con sesión gráfica instala y abre
+la app correspondiente a tu sistema y procesador. La app pregunta **Servidor / Cliente** antes de arrancar un core;
+este camino no registra un servicio. `--desktop` fuerza ese modo y `--server` instala el servidor directamente.
+Las instalaciones de servidor existentes conservan su modo al actualizarse.
+
+Si ya usás APX en `localhost` sin app, el panel ofrece **Instalar y abrir**. Un clic descarga con progreso, verifica
+el archivo, instala la app y la abre usando los mismos datos, puerto y configuración. No tenés que repetir el asistente.
+El aviso aparece solo en navegadores de computadora con conexión local directa y una sesión gráfica disponible.
+La instalación ocurre en la computadora donde corre APX; un túnel SSH transparente también parece local.
+
 <Tabs syncKey="install">
 <TabItem label="App de escritorio">
 
@@ -86,21 +96,23 @@ ni tener Node instalado.
 <InstallCommand labels={["macOS y Linux", "Windows"]} />
 
 Se instala en la máquina donde lo corrés. Para un servidor, corrélo ahí por SSH o desde tu computadora con
-`ssh usuario@servidor 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash'`; la app de escritorio también puede instalarlo por vos
+`ssh usuario@servidor 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server'`; la app de escritorio también puede instalarlo por vos
 ([APX en un servidor](/es/devices/server/)).
 
 El script acepta algunas opciones:
 
 | Opción | Qué hace |
 | --- | --- |
+| `--server` | Instala el core y su servicio, sin desktop. |
+| `--desktop` | Instala y abre desktop, sin servicio nuevo. |
 | `--file <bundle>` | Instala un bundle que ya tenés en vez de bajarlo. |
 | `--version <x.y.z>` | Instala esa versión en vez de la más nueva. |
 | `--feed <owner/repo>` | Busca los releases en otro repositorio. |
 | `--no-service` | Instala sin arrancar el core como servicio. |
 | `--uninstall` | Saca el servicio y el programa; tus datos quedan (mirá [Desinstalar](#desinstalar)). |
 
-Para pasar opciones por el pipe: `curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --version 2.3.0`.
-En Windows los parámetros son `-File`, `-Version`, `-Feed`, `-NoService` y `-Uninstall`.
+Para pasar opciones por el pipe: `curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server --version 2.3.0`.
+En Windows los parámetros son `-Server`, `-Desktop`, `-File`, `-Version`, `-Feed`, `-NoService` y `-Uninstall`.
 
 Queda en `~/.apx/v2/app` (una carpeta por versión y un link `current`) y arranca el core como servicio. Después
 terminás la configuración con un comando:
@@ -214,6 +226,16 @@ sin aviso, y `APX_WHATS_NEW=off` apaga el chat.
 
 Desinstalar saca el programa y su servicio. **Tus datos quedan** en `~/.apx/v2`; borrá esa carpeta vos si querés
 empezar de cero. Los archivos de APX v1 en `~/.apx` no se tocan en ningún caso.
+
+Podés usar también el comando de instalación de la portada: en una computadora nueva con sesión gráfica instala y abre
+la app correspondiente a tu sistema y procesador. La app pregunta **Servidor / Cliente** antes de arrancar un core;
+este camino no registra un servicio. `--desktop` fuerza ese modo y `--server` instala el servidor directamente.
+Las instalaciones de servidor existentes conservan su modo al actualizarse.
+
+Si ya usás APX en `localhost` sin app, el panel ofrece **Instalar y abrir**. Un clic descarga con progreso, verifica
+el archivo, instala la app y la abre usando los mismos datos, puerto y configuración. No tenés que repetir el asistente.
+El aviso aparece solo en navegadores de computadora con conexión local directa y una sesión gráfica disponible.
+La instalación ocurre en la computadora donde corre APX; un túnel SSH transparente también parece local.
 
 <Tabs syncKey="install">
 <TabItem label="App de escritorio">

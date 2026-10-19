@@ -1,5 +1,4 @@
-# Installs (or updates) the APX daemon on Windows, without the desktop app: the core, the `apx` command and the Node
-# that runs them, as one bundle from a release. Nothing needs an administrator.
+# Opens desktop setup on a graphical computer; -Server installs the daemon, CLI and Node without administrator access.
 #
 #   irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
 #   .\install.ps1 -File apx-core-2.2.0-win-x64.tar.gz      # a bundle you already have (no download)
@@ -13,6 +12,8 @@ param(
   [string]$Version = "",
   [string]$Feed = $(if ($env:APX_RELEASES) { $env:APX_RELEASES } else { "agentprojectcontext/apx" }),
   [switch]$NoService,
+  [switch]$Server,
+  [switch]$Desktop,
   [switch]$Uninstall
 )
 $ErrorActionPreference = "Stop"
@@ -41,6 +42,16 @@ if ($Uninstall) {
   Say "APX is uninstalled. Your data is still in $(Join-Path $env:USERPROFILE '.apx\v2')"
   exit 0
 }
+
+$mode = "server"
+$previous = Join-Path $App "install-mode"
+$existingServer = (Test-Path (Join-Path $App "current")) -and (-not (Test-Path $previous) -or (Get-Content $previous -Raw).Trim() -eq "server")
+if ($Server -and $Desktop) { Die "choose -Server or -Desktop" }
+if ($Desktop -and ($File -or $NoService)) { Die "-File and -NoService require server mode" }
+$graphical = [Environment]::UserInteractive -and -not $env:SSH_CONNECTION -and -not $env:SSH_TTY
+if ($Desktop -or (-not $Server -and -not $File -and -not $NoService -and -not $existingServer -and $graphical)) { $mode = "desktop" }
+if ($mode -eq "desktop" -and -not $graphical) { Die "desktop setup needs a local graphical session; use -Server" }
+Say "Install mode: $mode"
 
 $Tar = Join-Path $env:SystemRoot "System32\tar.exe"
 if (-not (Test-Path $Tar)) { Die "tar.exe is missing (Windows 10 1803 or newer has it)" }
@@ -90,6 +101,7 @@ try {
   }
 
   # 3. APX v1 first: its daemon stops (two daemons would answer the same Telegram bots) and its `apx` goes.
+  if ($mode -eq "server") {
   $runKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
   if (Get-ItemProperty -Path $runKey -Name "APXDaemon" -ErrorAction SilentlyContinue) {
     Say "Stopping APX v1's daemon"
@@ -102,10 +114,11 @@ try {
     Say "Removing APX v1's apx command (its files in .apx stay, to import them)"
     npm uninstall -g @agentprojectcontext/apx 2>$null | Out-Null
   }
+  }
 
   # 4. A running APX daemon from an earlier install stops before its files are replaced.
   $current = Join-Path $App "current"
-  if (Test-Path (Join-Path $current "node\node.exe")) {
+  if ($mode -eq "server" -and (Test-Path (Join-Path $current "node\node.exe"))) {
     & (Join-Path $current "node\node.exe") --disable-warning=ExperimentalWarning (Join-Path $current "apps\terminal\src\main.ts") service uninstall 2>$null | Out-Null
   }
 
@@ -116,6 +129,16 @@ try {
   & $Tar -xzf $Bundle -C $unpacked
   if ($LASTEXITCODE -ne 0) { Die "could not unpack $Name" }
   if (-not (Test-Path (Join-Path $unpacked "apx\node\node.exe"))) { Die "$Name has no Node inside" }
+  if ($mode -eq "desktop" -and (Test-Path $current)) {
+    Say "Installing desktop without replacing the existing server"
+    $env:APX_RELEASES = $Feed
+    $env:APX_INSTALL_VERSION = $Version
+    try {
+      & (Join-Path $unpacked "apx\node\node.exe") --disable-warning=ExperimentalWarning (Join-Path $unpacked "apx\apps\terminal\src\main.ts") desktop
+    } finally { Remove-Item Env:APX_INSTALL_VERSION -ErrorAction SilentlyContinue }
+    if ($LASTEXITCODE -ne 0) { Die "desktop setup failed; retry: apx desktop" }
+    return
+  }
   $versions = Join-Path $App "versions"
   New-Item -ItemType Directory -Force -Path $versions | Out-Null
   $target = Join-Path $versions $Version
@@ -143,6 +166,15 @@ if not defined APX_APP set "APX_APP=$App"
   }
   $env:Path = "$bin;$env:Path"
   $env:APX_APP = $App
+  Set-Content -Path $previous -Value $mode -Encoding ASCII
+  if ($Feed -ne "agentprojectcontext/apx") { $env:APX_RELEASES = $Feed }
+  if ($mode -eq "desktop") {
+    Say "Installing and opening APX desktop. Choose server or client in the app."
+    $env:APX_INSTALL_VERSION = $Version
+    try { & (Join-Path $bin "apx.cmd") desktop } finally { Remove-Item Env:APX_INSTALL_VERSION -ErrorAction SilentlyContinue }
+    if ($LASTEXITCODE -ne 0) { Die "desktop setup failed; retry: apx desktop" }
+    return
+  }
 
   # 7. The daemon at login, started again if it stops.
   if (-not $NoService) {

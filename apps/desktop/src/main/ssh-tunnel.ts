@@ -5,7 +5,7 @@ import { type ChildProcess, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import { stripVTControlCharacters } from "node:util";
 
-export type Tunnel = { url: string; stop(): void };
+export type Tunnel = { url: string; ready: Promise<void>; alive(): boolean; stop(): void };
 
 let identity: string | undefined;
 
@@ -24,12 +24,15 @@ export function sshArgs(target: string, corePort: number): string[] {
   const [hostPart, sshPort] = splitTarget(target);
   return [
     "-N",
+    "-v",
     "-o",
     "BatchMode=yes",
     "-o",
     "ExitOnForwardFailure=yes",
     "-o",
     "ServerAliveInterval=30",
+    "-o",
+    "ConnectTimeout=10",
     "-o",
     "StrictHostKeyChecking=accept-new",
     ...identityArgs(),
@@ -47,29 +50,83 @@ export function splitTarget(target: string): [string, string | undefined] {
 }
 
 /** Keeps the forward up (restarted with backoff) until stop(). */
-export function startTunnel(target: string, corePort: number, log: (line: string) => void): Tunnel {
+export function startTunnel(
+  target: string,
+  corePort: number,
+  log: (line: string) => void,
+  changed?: (ready: boolean) => void,
+  launch = (args: string[]) => spawn("ssh", args, { stdio: ["ignore", "ignore", "pipe"], windowsHide: true }),
+): Tunnel {
   let child: ChildProcess | undefined;
   let stopped = false;
+  let forwarding = false;
+  let established = false;
   let backoff = 1000;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let resolveReady: () => void = () => {};
+  let rejectReady: (error: Error) => void = () => {};
+  const ready = new Promise<void>((resolve, reject) => {
+    resolveReady = resolve;
+    rejectReady = reject;
+  });
+  const deadline = setTimeout(() => {
+    rejectReady(new Error("SSH forwarding did not become ready"));
+    stop();
+  }, 20_000);
   const start = () => {
+    if (stopped) return;
+    forwarding = false;
     const startedAt = Date.now();
-    child = spawn("ssh", sshArgs(target, corePort), { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
-    child.stderr?.on("data", (d: Buffer) => log(d.toString().trim()));
-    child.on("error", (err) => log(`ssh: ${err.message}`));
-    child.on("exit", () => {
+    let output = "";
+    child = launch(sshArgs(target, corePort));
+    child.stderr?.on("data", (d: Buffer) => {
       if (stopped) return;
+      const text = d.toString();
+      log(text.trim());
+      output = (output + text).slice(-8192);
+      if (!forwarding && output.includes(`Local forwarding listening on 127.0.0.1 port ${corePort}.`)) {
+        forwarding = true;
+        established = true;
+        clearTimeout(deadline);
+        resolveReady();
+        changed?.(true);
+      }
+    });
+    child.on("error", (err) => {
+      log(`ssh: ${err.message}`);
+      rejectReady(new Error(`SSH forwarding failed: ${err.message}`));
+      clearTimeout(deadline);
+    });
+    child.on("exit", () => {
+      const wasForwarding = forwarding;
+      forwarding = false;
+      changed?.(false);
+      if (stopped) return;
+      if (!wasForwarding && !established) {
+        clearTimeout(deadline);
+        rejectReady(new Error(`SSH could not bind local port ${corePort} or connect to the server`));
+        return;
+      }
       if (Date.now() - startedAt > 60_000) backoff = 1000;
-      setTimeout(start, backoff);
+      timer = setTimeout(start, backoff);
       backoff = Math.min(backoff * 2, 30_000);
     });
+  };
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    forwarding = false;
+    clearTimeout(deadline);
+    if (timer) clearTimeout(timer);
+    rejectReady(new Error("SSH forwarding stopped"));
+    child?.kill();
   };
   start();
   return {
     url: `http://127.0.0.1:${corePort}`,
-    stop() {
-      stopped = true;
-      child?.kill();
-    },
+    ready,
+    alive: () => forwarding && !stopped,
+    stop,
   };
 }
 
@@ -168,6 +225,7 @@ export async function remoteLinger(target: string, password: string): Promise<bo
 /** install.sh's options for the server: this app's own version when it is a release, from the same feed. */
 export function installArgs(version: string, feed: string | undefined): string[] {
   return [
+    "--server",
     ...(/^\d+\.\d+\.\d+$/.test(version) ? ["--version", version] : []),
     ...(feed && /^[\w.:/-]+$/.test(feed) ? ["--feed", feed] : []),
   ];

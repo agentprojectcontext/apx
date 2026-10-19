@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # One job opens the release so the three builds only upload to it.
+  # Keep incomplete releases invisible to clients until every platform has uploaded its files.
   open:
     if: ${{ !inputs.announce_only }}
     runs-on: ubuntu-latest
@@ -39,7 +39,7 @@ jobs:
       # still reach v2 installs, which pick the newest v2.x.y themselves. APX_V2_LATEST=true once main is v2.
       - run: |
           gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$TAG" -R "$GITHUB_REPOSITORY" \
-            --title "APX ${TAG#v}" --generate-notes --verify-tag --latest="${{ vars.APX_V2_LATEST == 'true' }}"
+            --title "APX ${TAG#v}" --generate-notes --verify-tag --draft --latest="${{ vars.APX_V2_LATEST == 'true' }}"
 
   installers:
     needs: open
@@ -168,10 +168,19 @@ jobs:
           sha256sum "$apk" > "$apk.sha256"
           gh release upload "$TAG" "$apk" "$apk.sha256" --clobber
 
-  # Once every file is attached, the release is announced on Discord with the webhook v1's releases use.
-  announce:
+  publish:
     needs: [installers, android]
-    if: ${{ always() && (inputs.announce_only || (needs.installers.result == 'success' && needs.android.result == 'success')) }}
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - run: gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest="${{ vars.APX_V2_LATEST == 'true' }}"
+
+  # Once every file is published, announce the release with v1's webhook.
+  announce:
+    needs: [publish]
+    if: ${{ always() && (inputs.announce_only || needs.publish.result == 'success') }}
     runs-on: ubuntu-latest
     env:
       TAG: ${{ inputs.tag || github.ref_name }}

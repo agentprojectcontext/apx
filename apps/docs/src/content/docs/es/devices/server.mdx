@@ -21,13 +21,13 @@ Nada de esto necesita root, y el servidor no necesita tener Node instalado: el p
 Corrélo en el servidor (se instala donde se corre), por SSH:
 
 ```bash
-curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash
+curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server
 ```
 
 O desde tu propia computadora en una sola línea, también desde PowerShell en Windows:
 
 ```bash
-ssh usuario@servidor 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash'
+ssh usuario@servidor 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server'
 ```
 
 Opciones: `--file <paquete>` (un paquete que ya tenés, sin descargar), `--version <x.y.z>`, `--feed <owner/repo>`,
@@ -44,10 +44,10 @@ bash install.sh --file apx-core-<version>-linux-x64.tar.gz
 En PowerShell:
 
 ```powershell
-irm https://agentprojectcontext.github.io/apx/v2/install.ps1 | iex
+& ([scriptblock]::Create((irm 'https://agentprojectcontext.github.io/apx/v2/install.ps1'))) -Server
 ```
 
-Parámetros: `-File <paquete>`, `-Version <x.y.z>`, `-Feed <owner/repo>`, `-NoService`, `-Uninstall`.
+Parámetros: `-Server`, `-File <paquete>`, `-Version <x.y.z>`, `-Feed <owner/repo>`, `-NoService`, `-Uninstall`.
 
 </TabItem>
 <TabItem label="Desde la app de escritorio">
@@ -135,6 +135,10 @@ En Linux, el log del core está en el journal: `journalctl --user -u apx -f`. En
 
 Por defecto el core solo le responde a su propia máquina. `apx expose` cambia eso:
 
+Loopback impide el acceso directo desde Internet; no separa a los usuarios del mismo sistema operativo. Sin token,
+un proceso local puede controlar el core. En un servidor compartido, usá una cuenta dedicada y autenticación.
+APX administra una crew del mismo dueño: vincular un dispositivo concede acceso de operador, no acceso de invitado.
+
 | Comando | Qué hace |
 |---|---|
 | `apx expose tailscale` | Deja el core en `127.0.0.1` y lo publica con `tailscale serve` en `https://<machine>.<tailnet>.ts.net`, alcanzable solo desde tu tailnet. |
@@ -203,6 +207,11 @@ In the APX app, open Pair and paste the link, or enter an address and the code:
 
 Cada dispositivo tiene su propia llave. Revocá uno con `apx devices revoke <id>` o en **Configuración › Conexiones ›
 Dispositivos**.
+
+Instalar APX en el VPS por una terminal SSH no registra tu computadora como nodo. La app de escritorio conectada
+por SSH sí presta su navegador al core mientras mantiene esa conexión. El control de pantalla, teclado y mouse
+requiere activar **Uso de la computadora**. Al cambiar conexión o cerrar la app, deja de prestar esas capacidades.
+Abrir una dirección del servidor en un navegador no presta automáticamente las capacidades de tu computadora.
 
 ## Actualizaciones
 

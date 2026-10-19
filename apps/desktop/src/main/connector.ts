@@ -11,6 +11,7 @@ import {
   type Connection,
   forgetConnection,
   initialConnection,
+  loadConnection,
   localCoreHome,
   localCoreLogFile,
   localCoreToken,
@@ -45,6 +46,8 @@ export function createConnector(opts: {
   dist: string;
   /** Whether a window asking for the core token is one of APX's own (the panel or the quick chat). */
   isOwnWindow: (sender: WebContents) => boolean;
+  /** Revoke capabilities before a connection changes or the app quits. */
+  disconnected: () => void;
   /** The panel loaded from this address; `node` is the core the desktop lends its browser to, when it can reach it. */
   opened: (url: string, node: { url: string; token: string | undefined } | undefined) => void;
 }) {
@@ -54,6 +57,8 @@ export function createConnector(opts: {
   let conn: Connection | undefined = initialConnection(dataDir);
   let core: EmbeddedCore | undefined;
   let tunnel: Tunnel | undefined;
+  let openedSsh = false;
+  let connectionRevision = 0;
   // ssh's questions waiting for the owner's answer on the first-run screen (never logged, never kept).
   const pending = new Map<string, (answer: string | undefined) => void>();
   useIdentity(appKeyPath(dataDir));
@@ -70,24 +75,27 @@ export function createConnector(opts: {
   });
 
   ipcMain.handle("connect:local", async (e, access: unknown): Promise<Answer> => {
+    const revision = connectionRevision;
     if (!onChooser(e.sender)) return { ok: false, error: "not allowed" };
     if (access !== "none" && access !== "lan" && access !== "tailscale") return { ok: false, error: "bad access" };
     // "Only this computer" undoes an earlier LAN or Tailscale choice too.
     const r = runCli(["expose", access === "none" ? "off" : access]);
     if (!r.ok) return r;
     await restartOwnCore();
-    return choose({ mode: "local" });
+    return choose({ mode: "local" }, revision);
   });
 
   ipcMain.handle("connect:url", async (e, input: unknown): Promise<Answer> => {
+    const revision = connectionRevision;
     if (!onChooser(e.sender)) return { ok: false, error: "not allowed" };
     const url = typeof input === "string" ? normalizeUrl(input) : undefined;
     if (!url) return { ok: false, reason: "badUrl" };
     if (!(await isUp(url))) return { ok: false, reason: "notReachable" };
-    return choose({ mode: "url", url });
+    return choose({ mode: "url", url }, revision);
   });
 
   ipcMain.handle("connect:ssh", async (e, input: unknown): Promise<Answer> => {
+    const revision = connectionRevision;
     if (!onChooser(e.sender)) return { ok: false, error: "not allowed" };
     if (typeof input !== "string" || !validSshTarget(input)) return { ok: false, reason: "badSsh" };
     const target = input.trim();
@@ -103,8 +111,12 @@ export function createConnector(opts: {
     if (remote === "unreachable") return { ok: false, reason: "sshFailed" };
     step(e.sender, "probe");
     // A core that answers wins, even one put there some other way than an `apx` command.
-    if (!(await sshCoreUp(target))) return { ok: false, reason: remote === "missing" ? "sshNoApx" : "sshDown" };
-    return choose({ mode: "ssh", target });
+    try {
+      if (!(await sshCoreUp(target))) return { ok: false, reason: remote === "missing" ? "sshNoApx" : "sshDown" };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+    return choose({ mode: "ssh", target }, revision);
   });
 
   // The owner's answer to the question on screen; `undefined` cancels it.
@@ -127,7 +139,11 @@ export function createConnector(opts: {
     const r = await remoteInstall(target, script, args, (line) => progress(e.sender, line));
     if (!r.ok) return r;
     step(e.sender, "connect");
-    if (!(await sshCoreUp(target, 30_000))) return { ok: false, reason: "sshDown" };
+    try {
+      if (!(await sshCoreUp(target, 30_000))) return { ok: false, reason: "sshDown" };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
     // Installed: the screen says so before the server's own setup opens (connect:ssh, once the owner goes on).
     return r.lingers ? { ok: true, ready: true } : { ok: true, ready: true, linger: r.user };
   });
@@ -187,9 +203,12 @@ export function createConnector(opts: {
 
   async function sshCoreUp(target: string, wait = 15_000): Promise<boolean> {
     const probe = startTunnel(target, corePort, () => {});
-    const up = await waitUp(probe.url, wait);
-    probe.stop();
-    return up;
+    try {
+      await probe.ready;
+      return (await waitUp(probe.url, wait)) && probe.alive();
+    } finally {
+      probe.stop();
+    }
   }
 
   /** install.sh as this build carries it (the stage copies it next to the core; a checkout has it in scripts/). */
@@ -208,12 +227,18 @@ export function createConnector(opts: {
     while (Date.now() < until && (await isUp(opts.coreUrl))) await new Promise((r) => setTimeout(r, 200));
   }
 
-  async function choose(c: Connection): Promise<Answer> {
+  async function choose(c: Connection, expectedRevision: number): Promise<Answer> {
+    if (connectionRevision !== expectedRevision) return { ok: false, error: "The connection changed" };
+    const revision = ++connectionRevision;
+    opts.disconnected();
     // A client needs no core here: the bundled one stops.
     if (c.mode !== "local") {
       await core?.stop();
       core = undefined;
     }
+    if (connectionRevision !== revision) return { ok: false, error: "The connection changed" };
+    const previous = loadConnection(dataDir);
+    if (c.mode === "local" && previous?.mode === "local" && previous.home) c = previous;
     saveConnection(dataDir, c);
     conn = c;
     await open(true);
@@ -238,41 +263,82 @@ export function createConnector(opts: {
 
   /** `firstRun`: just chosen on the first-run screen, so the panel's setup opens by saying APX is installed. */
   async function open(firstRun = false): Promise<void> {
-    if (!conn) {
+    const connection = conn;
+    const revision = connectionRevision;
+    const current = () => connectionRevision === revision;
+    if (!connection) {
       await opts.panel.loadURL(FIRST_RUN_URL);
       return;
     }
-    if (conn.mode === "local") {
+    if (connection.mode === "local") {
       // Installed, APX starts its own core unless one already answers; a checkout tries the panel's dev server first.
-      if (app.isPackaged && !core && !(await isUp(opts.coreUrl))) {
-        core = startEmbeddedCore({
-          resources: process.resourcesPath,
-          home: localCoreHome(),
-          port: corePort,
-          logFile: localCoreLogFile(),
-          cacheDir: path.join(dataDir, "compile-cache"),
-        });
-        await waitUp(opts.coreUrl);
+      if (app.isPackaged && !core) {
+        const up = await isUp(opts.coreUrl);
+        if (!current()) return;
+        if (!up) {
+          core = startEmbeddedCore({
+            resources: process.resourcesPath,
+            home: localCoreHome(),
+            port: corePort,
+            logFile: localCoreLogFile(),
+            cacheDir: path.join(dataDir, "compile-cache"),
+          });
+          await waitUp(opts.coreUrl);
+          if (!current()) return;
+        }
       }
-      if (!(await verifyLocalCore(opts.coreUrl).catch(() => false)))
+      const verified = await verifyLocalCore(opts.coreUrl).catch(() => false);
+      if (!current()) return;
+      if (!verified)
         return unreachable(
           opts.coreUrl,
           "The local daemon is unavailable or belongs to another home. Check APX_HOME and APX_PORT.",
         );
       for (const url of app.isPackaged ? [opts.coreUrl] : [opts.webUrl, opts.coreUrl]) {
-        if (await load(url, firstRun)) return opts.opened(url, { url: opts.coreUrl, token: localCoreToken() });
+        const loaded = await load(url, firstRun);
+        if (!current()) return;
+        if (loaded) return opts.opened(url, { url: opts.coreUrl, token: localCoreToken() });
       }
       return unreachable(opts.coreUrl, app.isPackaged ? `See ${localCoreLogFile()}.` : "Start it with pnpm dev.");
     }
-    if (conn.mode === "url") {
+    if (connection.mode === "url") {
       // A remote core gets this computer's browser only once the desktop pairs as a node of its own (not yet).
-      if (await load(conn.url, firstRun)) return opts.opened(conn.url, undefined);
-      return unreachable(conn.url, "");
+      const loaded = await load(connection.url, firstRun);
+      if (!current()) return;
+      if (loaded) return opts.opened(connection.url, undefined);
+      return unreachable(connection.url, "");
     }
-    tunnel ??= startTunnel(conn.target, corePort, () => {});
-    await waitUp(tunnel.url, 20_000);
-    if (await load(tunnel.url, firstRun)) return opts.opened(tunnel.url, { url: tunnel.url, token: undefined });
-    return unreachable(`${conn.target} (SSH)`, "");
+    const target = connection.target;
+    tunnel ??= startTunnel(
+      target,
+      corePort,
+      () => {},
+      (ready) => {
+        if (!openedSsh || !current()) return;
+        if (ready) void open();
+        else {
+          opts.disconnected();
+          void unreachable(`${target} (SSH)`, "The SSH tunnel disconnected.");
+        }
+      },
+    );
+    const activeTunnel = tunnel;
+    try {
+      await activeTunnel.ready;
+      if (!current()) return;
+      const up = await waitUp(activeTunnel.url, 20_000);
+      if (!current()) return;
+      if (up && activeTunnel.alive() && (await load(activeTunnel.url, firstRun)) && activeTunnel.alive()) {
+        if (!current()) return;
+        openedSsh = true;
+        return opts.opened(activeTunnel.url, { url: activeTunnel.url, token: undefined });
+      }
+      if (!current()) return;
+      return unreachable(`${target} (SSH)`, "The SSH tunnel is unavailable.");
+    } catch (error) {
+      if (!current()) return;
+      return unreachable(`${target} (SSH)`, error instanceof Error ? error.message : String(error));
+    }
   }
 
   async function load(url: string, firstRun = false): Promise<boolean> {
@@ -301,6 +367,9 @@ export function createConnector(opts: {
      * core down with the app.
      */
     async change(): Promise<void> {
+      connectionRevision++;
+      opts.disconnected();
+      openedSsh = false;
       forgetConnection(dataDir);
       conn = undefined;
       tunnel?.stop();
@@ -308,6 +377,9 @@ export function createConnector(opts: {
       await open();
     },
     stop(): void {
+      connectionRevision++;
+      opts.disconnected();
+      openedSsh = false;
       void core?.stop();
       tunnel?.stop();
     },

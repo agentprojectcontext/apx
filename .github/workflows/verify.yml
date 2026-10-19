@@ -56,6 +56,8 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Preflight (private terms, schema, lint, typecheck, unit tests)
         run: pnpm preflight
+      - name: POSIX installer onboarding
+        run: node --test e2e/install/onboarding.test.ts
       - name: Mobile types
         working-directory: apps/mobile
         run: npm run typecheck
@@ -110,6 +112,9 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Preflight including each package's test command
         run: pnpm preflight
+      - name: POSIX installer onboarding
+        if: runner.os != 'Windows'
+        run: node --test e2e/install/onboarding.test.ts
       - name: Mobile types
         working-directory: apps/mobile
         run: npm run typecheck

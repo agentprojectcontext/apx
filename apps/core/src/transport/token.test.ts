@@ -42,3 +42,18 @@ test("with a core token, an outside app's client token is enough; without either
   // The client token stands in for the core's, never for the owner: owner-only calls stay closed.
   await assert.rejects(app.call("clients.list", {}), (e: unknown) => e instanceof ApxError);
 });
+
+test("a local core without a token still accepts repeated socket calls", async () => {
+  const localHome = fs.mkdtempSync(path.join(os.tmpdir(), "apx-local-socket-"));
+  const local = await createCore(testConfig({ home: localHome }), { quiet: true });
+  const socket = await new ApxClient({ url: local.url }).connect();
+  try {
+    assert.ok(Array.isArray((await socket.call("devices.list", {})).devices));
+    assert.ok(Array.isArray((await socket.call("devices.list", {})).devices));
+  } finally {
+    socket.close();
+    await socket.closed;
+    await local.close();
+    fs.rmSync(localHome, { recursive: true, force: true });
+  }
+});

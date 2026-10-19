@@ -11,6 +11,7 @@ const owner: CallContext = {
   transport: "internal",
   session: undefined,
   log: createLog("test", true),
+  local: true,
 };
 
 function guardedRouter() {

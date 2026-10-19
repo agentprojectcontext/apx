@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
+import { saveLocalTarget } from "../../packages/install/src/paths.ts";
 import { installFakeSsh } from "../fake-ssh.ts";
 import { world } from "../specs/kit.ts";
 
@@ -30,7 +31,7 @@ const launch = (env: Record<string, string> = {}) =>
 
 /**
  * A stand-in for ssh: the server takes only a password (s3cret) until this app's key is in, then has APX (the e2e's
- * core, already on the forwarded port). The question goes through the app's real askpass; each run's arguments land
+ * core, reached through an actual TCP forward). The question goes through the app's real askpass; each run's arguments land
  * in `calls`.
  */
 const FAKE_SSH = `#!/bin/sh
@@ -40,7 +41,7 @@ case " $* " in *" -V "*) echo "OpenSSH_9.6p1, fake" >&2; exit 0 ;; esac
 case "$*" in
   *BatchMode=yes*)
     if [ -f "$state/authorized" ]; then
-      case " $* " in *" -N "*) exec sleep 600 ;; esac
+      case " $* " in *" -N "*) exec "$FAKE_SSH_NODE" "$FAKE_SSH_STATE/proxy.mjs" "$@" ;; esac
       exit 0
     fi
     echo "ops@box: Permission denied (publickey,password)." >&2
@@ -70,6 +71,56 @@ test.beforeAll(async () => {
 });
 test.afterAll(() => fs.rmSync(home, { recursive: true, force: true }));
 
+test("desktop installed from the web reopens the same core without another connection setup", async () => {
+  const dataDir = path.join(home, "installed-desktop");
+  saveLocalTarget(dataDir, {
+    home: coreHome,
+    port: Number(process.env.E2E_PORT ?? "7460"),
+    home_id: fs.readFileSync(path.join(coreHome, "home-id"), "utf8").trim(),
+  });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const app = await launch({ APX_HOME: "", APX_PORT: "", APX_DESKTOP_DATA: dataDir });
+    await windowAt(app, (url) => url.startsWith(core));
+    expect(app.windows().some((page) => page.url().includes("?connect"))).toBe(false);
+    const target = JSON.parse(fs.readFileSync(path.join(dataDir, "connection.json"), "utf8"));
+    expect(target.home).toBe(fs.realpathSync(coreHome));
+    expect(target.port).toBe(Number(process.env.E2E_PORT ?? "7460"));
+    await app.close();
+  }
+  fs.rmSync(path.join(dataDir, "connection.json"));
+});
+
+test("an explicit local handoff asks an already running desktop to relaunch into its saved target", async () => {
+  const dataDir = path.join(home, "running-desktop");
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(path.join(dataDir, "connection.json"), JSON.stringify({ mode: "url", url: core }));
+  const app = await launch({ APX_DESKTOP_DATA: dataDir });
+  await windowAt(app, (url) => url.startsWith(core));
+  saveLocalTarget(dataDir, {
+    home: coreHome,
+    port: Number(process.env.E2E_PORT ?? "7460"),
+    home_id: fs.readFileSync(path.join(coreHome, "home-id"), "utf8").trim(),
+  });
+  const actions = await app.evaluate(({ app }) => {
+    const calls: string[] = [];
+    const relaunch = app.relaunch;
+    const quit = app.quit;
+    app.relaunch = () => {
+      calls.push("relaunch");
+    };
+    app.quit = () => {
+      calls.push("quit");
+    };
+    app.emit("second-instance", {} as Electron.Event, ["APX", "--apx-adopt-local"], "", {});
+    app.relaunch = relaunch;
+    app.quit = quit;
+    return calls;
+  });
+  expect(actions).toEqual(["relaunch", "quit"]);
+  await app.close();
+  fs.rmSync(path.join(dataDir, "connection.json"));
+});
+
 test("the first run asks server or client; server opens this computer's APX and is not asked again", async () => {
   const first = await launch();
   const chooser = await question(await windowAt(first, (u) => u.startsWith("apx-app://")));
@@ -78,8 +129,8 @@ test("the first run asks server or client; server opens this computer's APX and 
   await chooser.locator("#pick-server").click();
   await expect(chooser.locator('[data-access="none"]')).toHaveAttribute("aria-pressed", "true");
   await chooser.locator("#server-go").click();
-  // Just installed: the panel's setup opens saying so.
-  await windowAt(first, (u) => u.startsWith(core) && u.includes("welcome=installed"));
+  await windowAt(first, (url) => url.startsWith(core));
+  await expect(chooser.locator(".wiz")).toContainText("APX está instalado");
   expect(JSON.parse(fs.readFileSync(path.join(home, "desktop", "connection.json"), "utf8"))).toEqual({ mode: "local" });
   await first.close();
 
@@ -102,15 +153,35 @@ test("a client address that does not answer is refused on the spot", async () =>
   await app.close();
 });
 
-test("change connection goes back to the question in the same window, and the app stays up", async () => {
+test("changing connection revokes the old desktop node before choosing a new server", async () => {
+  fs.mkdirSync(path.join(home, "desktop"), { recursive: true });
   fs.writeFileSync(path.join(home, "desktop", "connection.json"), JSON.stringify({ mode: "local" }));
   const app = await launch();
   await windowAt(app, (u) => u.startsWith(core));
+  const browserNode = async () => {
+    const health = (await (await fetch(`${core}/health`)).json()) as {
+      result: { subsystems: { browser: { detail: string } } };
+    };
+    return health.result.subsystems.browser.detail;
+  };
+  await expect.poll(browserNode).toBe("apx-desktop");
   await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.click());
-  await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
+  const chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
+  await expect.poll(browserNode).not.toBe("apx-desktop");
   expect(fs.existsSync(path.join(home, "desktop", "connection.json"))).toBe(false);
   // The checkout's core is still the one the e2e started: nothing took it down.
   expect((await fetch(`${core}/health`)).ok).toBe(true);
+  await chooser.locator("#pick-client").click();
+  await chooser.locator("#url").fill(core);
+  await chooser.locator("#client-go").click();
+  await windowAt(app, (u) => u.startsWith(core));
+  expect(await browserNode()).not.toBe("apx-desktop");
+  await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.click());
+  await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
+  await chooser.locator("#pick-server").click();
+  await chooser.locator("#server-go").click();
+  await windowAt(app, (u) => u.startsWith(core));
+  await expect.poll(browserNode).toBe("apx-desktop");
   await app.close();
 });
 
@@ -142,7 +213,13 @@ test("a server that only takes a password asks for it in the terminal view, then
   fs.rmSync(path.join(home, "desktop", "connection.json"), { force: true });
   const state = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-ssh-"));
   installFakeSsh(state, FAKE_SSH);
-  const app = await launch({ PATH: `${state}${path.delimiter}${process.env.PATH ?? ""}`, FAKE_SSH_STATE: state });
+  const app = await launch({
+    PATH: `${state}${path.delimiter}${process.env.PATH ?? ""}`,
+    FAKE_SSH_STATE: state,
+    FAKE_SSH_NODE: process.execPath,
+    FAKE_SSH_CORE_PORT: process.env.E2E_PORT ?? "7460",
+    APX_PORT: "7441",
+  });
   try {
     const chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
     await chooser.locator("#pick-client").click();
@@ -168,7 +245,7 @@ test("a server that only takes a password asks for it in the terminal view, then
     await input.fill("s3cret");
     await input.press("Enter");
     // Logged in with the key it just left there, the server's APX opens.
-    await windowAt(app, (u) => u.startsWith(core) && u.includes("welcome=installed"));
+    await windowAt(app, (u) => u.startsWith("http://127.0.0.1:7441"));
     expect(JSON.parse(fs.readFileSync(path.join(home, "desktop", "connection.json"), "utf8"))).toEqual({
       mode: "ssh",
       target: "ops@box",
@@ -186,6 +263,33 @@ test("a server that only takes a password asks for it in the terminal view, then
     await app.close();
     fs.rmSync(state, { recursive: true, force: true });
     fs.rmSync(path.join(home, "desktop", "connection.json"), { force: true });
+  }
+});
+
+test("an occupied SSH forwarding port never adopts the unrelated local core", async () => {
+  const state = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-ssh-busy-"));
+  const dataDir = path.join(home, "ssh-busy-desktop");
+  installFakeSsh(state, FAKE_SSH);
+  fs.writeFileSync(path.join(state, "authorized"), "");
+  const app = await launch({
+    PATH: `${state}${path.delimiter}${process.env.PATH ?? ""}`,
+    FAKE_SSH_STATE: state,
+    FAKE_SSH_NODE: process.execPath,
+    FAKE_SSH_CORE_PORT: process.env.E2E_PORT ?? "7460",
+    APX_DESKTOP_DATA: dataDir,
+  });
+  try {
+    const chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
+    await chooser.locator("#pick-client").click();
+    await chooser.getByRole("radio", { name: "SSH" }).click();
+    await chooser.locator("#ssh").fill("ops@box");
+    await chooser.locator("#client-go").click();
+    await expect(chooser.locator("#client-error")).toContainText("SSH could not bind");
+    expect(fs.existsSync(path.join(dataDir, "connection.json"))).toBe(false);
+    expect(app.windows().some((p) => p.url().startsWith(core))).toBe(false);
+  } finally {
+    await app.close();
+    fs.rmSync(state, { recursive: true, force: true });
   }
 });
 

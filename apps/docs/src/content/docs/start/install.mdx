@@ -18,6 +18,16 @@ never changed. Tell us what breaks on [GitHub](https://github.com/agentprojectco
 [Discord](https://discord.gg/vxdZuT5WuE).
 </Aside>
 
+You can also use the install command from the home page: on a new computer with a graphical session it installs and
+opens the app for your operating system and processor. The app asks **Server / Client** before starting a core;
+this path does not register a background service. `--desktop` forces this mode; `--server` installs the server directly.
+Existing server installations retain their mode when updated.
+
+Already using APX on `localhost` without the app? The panel offers **Install and open**. One click downloads with
+progress, verifies the file, installs the app and opens it with the same data, port and settings. Setup is not repeated.
+The offer appears only in desktop browsers over a direct local connection with an available graphical session.
+Installation runs on the computer hosting APX; a transparent SSH forward also looks local.
+
 <Tabs syncKey="install">
 <TabItem label="Desktop app">
 
@@ -83,21 +93,23 @@ needs root and you don't need Node installed.
 <InstallCommand />
 
 It installs on the machine where you run it. For a server, run it there over SSH, or from your computer with
-`ssh user@server 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash'`; the desktop app can also install it for you
+`ssh user@server 'curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server'`; the desktop app can also install it for you
 ([APX on a server](/devices/server/)).
 
 The script accepts a few options:
 
 | Option | What it does |
 | --- | --- |
+| `--server` | Installs the core and its service, without desktop. |
+| `--desktop` | Installs and opens desktop, without a new service. |
 | `--file <bundle>` | Installs a bundle you already have instead of downloading one. |
 | `--version <x.y.z>` | Installs that version instead of the newest. |
 | `--feed <owner/repo>` | Looks for releases in another repository. |
 | `--no-service` | Installs without starting the core as a service. |
 | `--uninstall` | Removes the service and the program; your data stays (see [Uninstall](#uninstall)). |
 
-To pass options through the pipe: `curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --version 2.3.0`.
-On Windows the parameters are `-File`, `-Version`, `-Feed`, `-NoService` and `-Uninstall`.
+To pass options through the pipe: `curl -fsSL https://agentprojectcontext.github.io/apx/v2/install.sh | bash -s -- --server --version 2.3.0`.
+On Windows the parameters are `-Server`, `-Desktop`, `-File`, `-Version`, `-Feed`, `-NoService` and `-Uninstall`.
 
 It lands in `~/.apx/v2/app` (one folder per version and a `current` link) and starts the core as a service. Then
 finish the setup in one command:
@@ -207,6 +219,16 @@ turns the chat off.
 
 Uninstalling removes the program and its service. **Your data stays** in `~/.apx/v2`; delete that folder yourself
 if you want to start over. APX v1's files in `~/.apx` are never touched either way.
+
+You can also use the install command from the home page: on a new computer with a graphical session it installs and
+opens the app for your operating system and processor. The app asks **Server / Client** before starting a core;
+this path does not register a background service. `--desktop` forces this mode; `--server` installs the server directly.
+Existing server installations retain their mode when updated.
+
+Already using APX on `localhost` without the app? The panel offers **Install and open**. One click downloads with
+progress, verifies the file, installs the app and opens it with the same data, port and settings. Setup is not repeated.
+The offer appears only in desktop browsers over a direct local connection with an available graphical session.
+Installation runs on the computer hosting APX; a transparent SSH forward also looks local.
 
 <Tabs syncKey="install">
 <TabItem label="Desktop app">
