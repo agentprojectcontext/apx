@@ -57,7 +57,11 @@ export function RoutineBundle({
         <Icons.Clock size={14} className="taskbundle__icon" />
         <span className="taskbundle__title">{routineName(latest)}</span>
         <ThreadAvatar thread={latest} agent={agents[latest.agent_ids[0] ?? ""]} size={14} />
-        <span className="tree__agentmeta">{t("inbox.routineBundle.runs", { n: threads.length })}</span>
+        <span className="tree__agentmeta">
+          {threads.length === 1
+            ? t("inbox.routineBundle.runs.one")
+            : t("inbox.routineBundle.runs.other", { n: threads.length })}
+        </span>
         {unread > 0 && <span className="tree__unread">{unread}</span>}
         <span className="tree__when">{shortWhen(latest.updated_at)}</span>
       </button>
