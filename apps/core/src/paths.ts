@@ -16,8 +16,10 @@ export function expandHome(p: string, home = os.homedir()): string {
 }
 
 export function isInside(root: string, p: string): boolean {
-  const r = path.resolve(root);
-  const target = path.resolve(r, p);
+  // Windows paths name the same file in any case.
+  const fold = (x: string) => (process.platform === "win32" ? x.toLowerCase() : x);
+  const r = fold(path.resolve(root));
+  const target = fold(path.resolve(path.resolve(root), p));
   return target === r || target.startsWith(r.endsWith(path.sep) ? r : `${r}${path.sep}`);
 }
 

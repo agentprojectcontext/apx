@@ -54,8 +54,11 @@ export function broadScan(command: string, home = os.homedir()): string | undefi
     for (const arg of args) {
       const expanded = arg.replace(/^(~|\$HOME|\$\{HOME\})(?=\/|$)/, home);
       if (!path.isAbsolute(expanded)) continue;
-      const at = path.resolve(expanded);
-      if (at === home || at === path.dirname(home) || MOUNTS.has(at) || MOUNTS.has(path.dirname(at))) return at;
+      // A /… path keeps its Unix meaning on Windows too (Git Bash); a drive's root is a whole disk.
+      const at = expanded.startsWith("/") ? path.posix.resolve(expanded) : path.resolve(expanded);
+      const drive = /^[a-z]:[\\/]?$/i.test(at) || (process.platform === "win32" && /^\/[a-z]\/?$/i.test(at));
+      if (drive || at === home || at === path.dirname(home) || MOUNTS.has(at) || MOUNTS.has(path.dirname(at)))
+        return at;
     }
   }
   return undefined;
@@ -124,7 +127,9 @@ export function judgeCommand(
     }
     const at = path.resolve(base ?? "/", to.path);
     const write = n.kind === "path" && n.write;
-    if (write ? SINK.test(at) : PLUMBING.test(at)) {
+    // On Windows Git Bash's /dev and /usr keep their Unix names; resolving them would invent a C:\dev.
+    const named = to.path.startsWith("/") ? path.posix.normalize(to.path) : at;
+    if (write ? SINK.test(named) : PLUMBING.test(named)) {
       if (n.kind === "cd") from = at;
       continue;
     }

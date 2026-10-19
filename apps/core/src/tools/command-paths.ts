@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { findGitBash } from "../processes.ts";
 import { gitLists } from "./git-reads.ts";
 
 /** A path as written, from where the command runs (`old`: from the folder it was in before its last `cd`). */
@@ -33,8 +34,17 @@ export type Word = {
   redirect?: "read" | "write";
   /** Not a path at all (a here-string). */
   data?: boolean;
+  /** Windows: an unquoted backslash before a name, which Git Bash drops, so only the shell knows the path. */
+  dropped?: boolean;
 };
 
+const WIN = process.platform === "win32";
+let gitRoot: string | undefined;
+/** Where Git Bash's own root (/usr, /etc…) is on disk: the folder Git for Windows is installed in. */
+function msysRoot(): string {
+  gitRoot ??= path.dirname(path.dirname(findGitBash() ?? "C:\\Program Files\\Git\\bin\\bash.exe"));
+  return gitRoot;
+}
 const blank = (): Word => ({ text: "", prose: false, unknown: false, brace: false, tilde: false });
 
 /** The text of each `$(…)` and backtick inside double-quoted text, which the shell runs too. */
@@ -110,6 +120,7 @@ export function segments(c: string): Word[][] {
     const ch = c[i] as string;
     const next = c[i + 1];
     if (ch === "\\") {
+      if (WIN && next && /[\w.~-]/.test(next)) word().dropped = true;
       if (next !== "\n") word().text += next ?? "";
       i++;
     } else if (ch === "'") {
@@ -122,7 +133,8 @@ export function segments(c: string): Word[][] {
     } else if (ch === '"') {
       let stop = i + 1;
       while (stop < c.length && c[stop] !== '"') stop += c[stop] === "\\" ? 2 : 1;
-      const inner = c.slice(i + 1, stop).replace(/\\(.)/g, "$1");
+      // Inside double quotes a backslash escapes only $ ` " \ and a newline; before anything else it stays.
+      const inner = c.slice(i + 1, stop).replace(/\\([$`"\\\n])/g, "$1");
       const it = word();
       it.text += inner;
       if (/\s/.test(inner)) it.prose = true;
@@ -214,6 +226,7 @@ const userName = () => {
 /** A word as the path it names, "unknown" when only the shell knows it, undefined when it names none (an option, a URL). */
 function toRef(w: Word, home: string): Ref | "unknown" | undefined {
   if (w.data) return undefined;
+  if (w.dropped) return "unknown";
   // Quoted words with spaces are text (a message, a pattern, a script) unless they start like a path.
   if (w.prose && !/^(\/|~\/|\.\.(\/|$))/.test(w.text)) return undefined;
   let t = w.text;
@@ -252,6 +265,17 @@ function toRef(w: Word, home: string): Ref | "unknown" | undefined {
   const glob = t.search(/[*?[]/);
   if (glob >= 0) t = t.slice(0, glob);
   if (!t) return undefined;
+  // Git Bash names a drive as /c/…; C:/… and C:\… are drive paths as written.
+  const drive = WIN ? /^\/([a-z])(?=\/|$)/i.exec(t) : null;
+  if (drive?.[1]) t = `${drive[1].toUpperCase()}:${t.slice(2) || "/"}`;
+  if (WIN && /^[a-z]:[\\/]/i.test(t)) return old ? { path: t, old } : { path: t };
+  // Any other /… is Git Bash's own root (/usr, /etc, /dev…), named as written; /tmp is the system's temp folder.
+  if (WIN && t.startsWith("/")) {
+    const top = t.split("/")[1] ?? "";
+    if (top === "tmp") return { path: path.join(os.tmpdir(), t.slice(4)) };
+    if (!top || !fs.existsSync(path.join(msysRoot(), top))) return undefined;
+    return old ? { path: t, old } : { path: t };
+  }
   if (path.isAbsolute(t)) {
     // "/api/users" in a grep is a route, not a file: only an absolute path whose top folder exists is one.
     const top = t.split("/")[1];
