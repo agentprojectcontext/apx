@@ -40,8 +40,24 @@ export const SECRET_NAME = /(KEY|TOKEN|SECRET|PASSW|CREDENTIAL|AUTH|COOKIE|SESSI
 export function commandEnv(): Record<string, string> {
   const env = childEnv();
   for (const k of Object.keys(env)) if (SECRET_NAME.test(k)) delete env[k];
-  return env;
+  return { ...NO_PROMPTS, ...env };
 }
+
+/**
+ * Nobody answers an agent's command: tools that would prompt take their default instead of aborting on a missing TTY
+ * (pnpm purging node_modules, git asking for a password or an editor, npx asking to install). pnpm skips its purge
+ * question only in CI mode, so it gets that alone, with the lockfile still updatable; a plain `CI=true` would change
+ * what every other build and test runner does. The owner's own values win.
+ */
+const NO_PROMPTS: Readonly<Record<string, string>> = {
+  pnpm_config_ci: "true",
+  pnpm_config_frozen_lockfile: "false",
+  npm_config_yes: "true",
+  GIT_TERMINAL_PROMPT: "0",
+  GIT_EDITOR: "true",
+  GIT_PAGER: "cat",
+  PAGER: "cat",
+};
 
 /** An agent harness process (Claude Code, Codex): the environment minus APX's own secrets, and who is calling. */
 export function harnessEnv(): Record<string, string> {
