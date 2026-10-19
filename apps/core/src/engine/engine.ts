@@ -151,6 +151,8 @@ export type Admit = {
   attachments?: Attachment[];
   reply_to?: RunInput["reply_to"];
   depth?: number;
+  /** A delegated continuation waits for a free slot like any other delegation. */
+  queued?: boolean;
   /** A resumed delegated turn still reports to the original caller. */
   parent_run_id?: string | undefined;
   /** The turn a restart cut off, which this one picks back up. */
@@ -284,6 +286,7 @@ export function createEngine(deps: {
     const run = store.runs.create({
       thread_id: a.thread_id,
       agent_id: a.agent_id,
+      ...(a.queued ? { state: "queued" as const } : {}),
       trigger: a.trigger,
       input: {
         origin: a.origin,
@@ -297,7 +300,8 @@ export function createEngine(deps: {
       parent_run_id: a.parent_run_id,
       deadline_at: new Date(Date.now() + runLimit(store, a.thread_id, a.trigger, deps).ms).toISOString(),
     });
-    if (store.threads.get(a.thread_id)?.state !== "working") store.threads.patch(a.thread_id, { state: "submitted" });
+    if (store.threads.get(a.thread_id)?.state !== "working")
+      store.threads.patch(a.thread_id, { state: a.queued ? "queued" : "submitted" });
     // After the caller's transaction commits: the turn must never run on a row that could still roll back.
     queueMicrotask(() => {
       kick(a.thread_id);

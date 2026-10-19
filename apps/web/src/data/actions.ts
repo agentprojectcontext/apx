@@ -3,6 +3,7 @@ import type { ApprovalScope, Message, Part, Thread } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { type Attached, setThreadModel } from "./composer.ts";
+import { refetchDelegations } from "./delegation.ts";
 import { loadEngines } from "./engines.ts";
 import { DELEGATED_SHOWN } from "./identity.ts";
 import { loadJobs } from "./jobs.ts";
@@ -112,7 +113,7 @@ export async function loadThread(id: string): Promise<void> {
 /** Re-read every thread whose transcript is in memory (after a reconnect or a seq gap). */
 export async function refetchLoaded(): Promise<void> {
   const ids = Object.keys(data.get().messages);
-  await Promise.all(ids.map((id) => loadThread(id)));
+  await Promise.all([...ids.map((id) => loadThread(id)), refetchDelegations()]);
 }
 
 /**

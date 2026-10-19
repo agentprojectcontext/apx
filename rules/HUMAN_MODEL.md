@@ -162,6 +162,9 @@ notice when there is no text. Tools that touch core state call protocol methods 
   Agents); `engine/breaker.ts` pauses chains that run without the owner. A child stops after its idle window or its
   cap; one a limit cut short goes on once in its session (`continueCut`) and the owner hears it (`limitNotice`: chat
   notice, tray, the chat's channel), see [D-105](DECISIONS.md#d-105). `stop_session` lets the caller stop one.
+  Limit notices show the session's current state. The owner can continue a stopped session through `threads.send`
+  with its latest `continue_run`: one turn in the same workspace, reporting to the same caller and waiting for a
+  delegation slot when necessary. A stale click cannot interrupt or duplicate newer work.
 - **Chat processes panel** (`apps/web/src/panel/ProcessesPanel.tsx`): `threads.list { root_thread }` retrieves
   every delegated descendant without the global list cap. A2A cards open a read-only transcript beside the parent;
   maximize opens the child as the main chat. Terminal command history and recorded edits remain available without

@@ -584,6 +584,8 @@ export const appMethods = {
          * at its next step (APX's own loop); when nothing can take it, it queues.
          */
         mode: z.enum(["queue", "interrupt", "steer"]).default("queue"),
+        /** Owner-only: continue this stopped delegated run, only if it is still the session's latest run. */
+        continue_run: Id.optional(),
         /** Files and images uploaded with media.upload, shown with the message and read by the agent. */
         attachments: z.array(Id).max(8).optional(),
       })
