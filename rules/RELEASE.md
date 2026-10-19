@@ -55,10 +55,12 @@ people who use APX. Only `feat`, `fix` and `perf` commits are shown.
 
 ## Issues a release fixes
 
-A commit that fixes a GitHub issue ends its message with a trailer, one per issue: `Issue: #105`. Do not comment on
-or close the issue by hand while the fix is only on the branch. Once the release is out and announced, `release.yml`'s
-`issues` job (`scripts/issue-replies.ts`) comments on each named issue with the version and the commits, then closes
-it; a version already answered is skipped. To preview it locally: `TAG=v2.x.y node scripts/issue-replies.ts --dry`.
+A commit that fixes a GitHub issue ends its message with a trailer, one per issue: `Issue: #105`. Once that commit
+is pushed to origin's `release/v2` (not before: a local commit or an unmerged branch has fixed nothing yet), whoever
+pushed it comments on the issue with what changed and the commit, and closes it as completed, without waiting for the
+tag. Once the release is out and announced, `release.yml`'s `issues` job (`scripts/issue-replies.ts`) still comments
+on each named issue with the version and the commits, closed ones included, and closes any left open; a version
+already answered is skipped. To preview it locally: `TAG=v2.x.y node scripts/issue-replies.ts --dry`.
 
 ## Install paths
 
