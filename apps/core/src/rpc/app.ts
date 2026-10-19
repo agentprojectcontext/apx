@@ -22,6 +22,7 @@ import { modelSettings, refProblem } from "../models/choice.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
 import { checkReadOnly } from "../tools/folders.ts";
+import { projectHelperHandlers } from "./project-helper.ts";
 import type { Handlers } from "./router.ts";
 
 export function appHandlers(deps: {
@@ -47,6 +48,7 @@ export function appHandlers(deps: {
     return p.path;
   };
   return {
+    ...projectHelperHandlers(store),
     "owner.get": () => ownerIdentity(deps.store),
     "owner.set": (patch) => saveOwnerIdentity(deps.store, patch),
     "system.import_v1": async ({ keys, skills, services }) =>

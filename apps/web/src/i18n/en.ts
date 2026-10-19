@@ -3,6 +3,7 @@ import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
 import { enEngines } from "./en-engines.ts";
 import { enFiles } from "./en-files.ts";
+import { enHelper } from "./en-helper.ts";
 import { enOffice } from "./en-office.ts";
 import { enResources } from "./en-resources.ts";
 import { enSetup } from "./en-setup.ts";
@@ -12,6 +13,7 @@ import { enTelemetry } from "./en-telemetry.ts";
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
   ...noticeEn,
+  ...enHelper,
   ...enOffice,
   ...enTeam,
   ...enChannels,

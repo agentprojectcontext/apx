@@ -1,0 +1,32 @@
+export const esHelper = {
+  "helper.reviewChange": "Revisar cambio propuesto",
+  "helper.confirm": "¿Aplicar las instrucciones propuestas?",
+  "helper.confirmBody":
+    "Revisá el antes y el después completos. Esto cambia solo el borrador sin guardar, no un agente existente ni sus permisos.",
+  "helper.before": "Antes (eliminado)",
+  "helper.after": "Después (agregado)",
+  "helper.stale": "El borrador cambió desde la revisión. Revisalo de nuevo; no se aplicó nada.",
+  "helper.gap.role": "Falta el rol",
+  "helper.gap.instructions": "Faltan instrucciones",
+  "helper.review": "Revisar contexto del proyecto",
+  "helper.body":
+    "Preparación opcional. Tus instrucciones y permisos no cambian. Podés cerrar esto y empezar a trabajar en cualquier momento.",
+  "helper.offer": "Falta contexto del proyecto o de un agente. ¿Preparamos un próximo paso concreto?",
+  "helper.enable": "Ofrecer ayuda para preparar este proyecto",
+  "helper.turnOn": "Activar ayuda proactiva",
+  "helper.turnOff": "Desactivar ayuda proactiva",
+  "helper.ready": "El contexto existente alcanza para empezar. No hacen falta más preguntas.",
+  "helper.goal": "¿Qué debería lograr este proyecto?",
+  "helper.firstResult": "¿Cuál sería un primer resultado útil?",
+  "helper.option.plan": "Un plan breve con un primer paso concreto",
+  "helper.option.prototype": "Un prototipo pequeño que funcione",
+  "helper.option.audit": "Una revisión acotada con hallazgos concretos",
+  "helper.roleMissing": "Agregá un rol en el formulario del agente para que las instrucciones sean específicas.",
+  "helper.proposal": "Instrucciones propuestas (sin aplicar)",
+  "helper.accept": "Usar estas instrucciones propuestas",
+  "helper.prepare": "Preparar resumen",
+  "helper.start": "Enviar resumen y empezar",
+  "helper.agentOffer":
+    "A este borrador le falta contexto, un rol o instrucciones. ¿Lo revisamos sin frenar la creación?",
+  "helper.agentReview": "Revisar borrador con el contexto del proyecto",
+} as const;

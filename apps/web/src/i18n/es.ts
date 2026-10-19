@@ -1,3 +1,4 @@
+import { esHelper } from "./es-helper.ts";
 // UI strings, Spanish (Rioplatense, voseo). A missing key falls back to English.
 
 import { noticeEs } from "@apx/protocol";
@@ -14,6 +15,7 @@ import { esTelemetry } from "./es-telemetry.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
   ...noticeEs,
+  ...esHelper,
   ...esOffice,
   ...esTeam,
   ...esChannels,

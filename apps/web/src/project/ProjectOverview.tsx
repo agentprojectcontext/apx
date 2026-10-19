@@ -7,6 +7,7 @@ import { useT } from "../i18n/index.ts";
 import { standsAlone } from "../inbox/groupThreads.ts";
 import { go } from "../shell/nav.ts";
 import { ProjectBoard } from "./ProjectBoard.tsx";
+import { ProjectHelper } from "./ProjectHelper.tsx";
 
 /** Overview: what runs now, the team, counts and the latest chats. All real data; nothing sampled. */
 export function ProjectOverview({ project }: { project: ProjectEntry }) {
@@ -34,6 +35,7 @@ export function ProjectOverview({ project }: { project: ProjectEntry }) {
 
   return (
     <div className="overview">
+      {!project.isDefault && <ProjectHelper key={pid} project={pid} />}
       <ProjectBoard projectId={pid} />
       {/* The rest keeps the page's width; only the board may take the whole screen. */}
       <div className="overview__grid">
