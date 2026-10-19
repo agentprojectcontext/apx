@@ -18,6 +18,9 @@ import {
 } from "./folders.ts";
 import { commandFolder } from "./shell.ts";
 
+/** A path as a command names it: forward slashes, which Git Bash reads on Windows too. */
+const sh = (p: string) => p.split(path.sep).join("/");
+
 // The owner's message is the call to make: `{"name": "file_read", "args": {...}}`.
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(String(req.messages.at(-1)?.content));
@@ -99,10 +102,10 @@ test("a path is readable or refused the same way through file_read and shell, wr
   for (const [p, readable] of table) {
     const dir = path.dirname(p);
     const forms: Array<[string, { command: string; cwd?: string }]> = [
-      ["cat", { command: `cat ${p}` }],
-      ["rg in a pipe", { command: `rg -n . ${p} | head -5` }],
-      ["cd", { command: `cd ${dir} && cat ${path.basename(p)}` }],
-      ["git -C", { command: `git -C ${dir} status --short 2>/dev/null; true` }],
+      ["cat", { command: `cat ${sh(p)}` }],
+      ["rg in a pipe", { command: `rg -n . ${sh(p)} | head -5` }],
+      ["cd", { command: `cd ${sh(dir)} && cat ${path.basename(p)}` }],
+      ["git -C", { command: `git -C ${sh(dir)} status --short 2>/dev/null; true` }],
       ["cwd", { command: `cat ${path.basename(p)}`, cwd: dir }],
     ];
     // Judged alone, every form gives the same verdict, and a read outside offers the same folder to the owner.
@@ -157,12 +160,12 @@ test("ordinary commands name no folder they may not use; ones that leave it thro
     "cat > notes.md <<'EOF'\nread ../elsewhere/x and /etc/hosts\nEOF",
     "ls # ../elsewhere",
     'for f in src/*; do echo "$f"; done',
-    `ls ${repo}/src`,
+    `ls ${sh(repo)}/src`,
     "cat /etc/hosts",
     "cd $(git rev-parse --show-toplevel) && ls",
     "cd `git rev-parse --show-toplevel` && ls",
-    `rg "${sibling}/" src`,
-    `grep -rn "${sibling}" src`,
+    `rg "${sh(sibling)}/" src`,
+    `grep -rn "${sh(sibling)}" src`,
     "ls src >&2 2>/dev/null",
   ])
     assert.ok(!("refused" in verdict(c)), c);
@@ -206,7 +209,7 @@ test("a project's read-only folders are read by file_read and shell, never chang
     assert.deepEqual(set.project.read_only_folders, [ref], "kept once, as written");
 
     assert.match(await call("file_read", { path: file }), /old/);
-    assert.match(await call("shell", { command: `grep -rn old ${ref}` }), /v1\.txt/);
+    assert.match(await call("shell", { command: `grep -rn old ${sh(ref)}` }), /v1\.txt/);
     assert.match(await call("shell", { command: `cat v1.txt`, cwd: ref }), /old/);
     // The turn says where they are, beside the folder it works in; a delegated sub-chat of the project reads them too.
     const said = JSON.stringify(llm.calls.at(-1)?.messages);
@@ -220,7 +223,7 @@ test("a project's read-only folders are read by file_read and shell, never chang
 
     assert.equal(await call("file_write", { path: file, content: "x" }), `refused: ${refusal.readOnly(file)}`);
     assert.equal(await call("file_edit", { path: file, old: "old", new: "x" }), `refused: ${refusal.readOnly(file)}`);
-    assert.match(await call("shell", { command: `touch ${ref}/new.txt` }), /refused: .*read-only folder/);
+    assert.match(await call("shell", { command: `touch ${sh(ref)}/new.txt` }), /refused: .*read-only folder/);
     assert.match(await call("shell", { command: "touch new.txt", cwd: ref }), /refused: .*read-only folder/);
     assert.equal(fs.readFileSync(file, "utf8"), "old\n");
     assert.ok(!fs.existsSync(path.join(ref, "new.txt")));
@@ -231,7 +234,7 @@ test("a project's read-only folders are read by file_read and shell, never chang
       offer: away,
     });
     // On total autonomy that read runs lent for the call, and the project keeps only what the owner gave it.
-    assert.match(await call("shell", { command: `cat ${linked}` }), /away/);
+    assert.match(await call("shell", { command: `cat ${sh(linked)}` }), /away/);
     assert.deepEqual(env.core.store.projects.get(project)?.read_only_folders, [ref]);
 
     await env.client.call("projects.update", { project, read_only_folders: [] });
@@ -290,55 +293,55 @@ test("in a project with a read-only folder, commands read it freely and only wri
   try {
     await env.client.call("projects.update", { project, read_only_folders: [ref] });
     for (const c of [
-      `cp ${RO}/f ./f`,
-      `cp -r ${RO}/sub ./copy`,
-      `rsync -a ${RO}/ ./mirror/`,
-      `cat ${RO}/f > out.txt`,
-      `cd ${RO} && ls`,
-      `cd ${RO}`,
-      `ls ${RO} 2>/dev/null`,
-      `cat ${RO}/f | jq .`,
-      `cat ${RO}/f | sort`,
-      `sed -n 1,5p ${RO}/f`,
-      `diff ${RO}/f ./f`,
-      `git -C ${RO} diff HEAD~1`,
-      `git -C ${RO} log`,
-      `rg foo ${RO}`,
-      `node ${RO}/script.mjs`,
+      `cp ${sh(RO)}/f ./f`,
+      `cp -r ${sh(RO)}/sub ./copy`,
+      `rsync -a ${sh(RO)}/ ./mirror/`,
+      `cat ${sh(RO)}/f > out.txt`,
+      `cd ${sh(RO)} && ls`,
+      `cd ${sh(RO)}`,
+      `ls ${sh(RO)} 2>/dev/null`,
+      `cat ${sh(RO)}/f | jq .`,
+      `cat ${sh(RO)}/f | sort`,
+      `sed -n 1,5p ${sh(RO)}/f`,
+      `diff ${sh(RO)}/f ./f`,
+      `git -C ${sh(RO)} diff HEAD~1`,
+      `git -C ${sh(RO)} log`,
+      `rg foo ${sh(RO)}`,
+      `node ${sh(RO)}/script.mjs`,
       `cat ${rel}/f >&2`,
-      `cd ${RO} && git log --oneline | head > ${repo}/log.txt`,
-      `cd ${RO} && cat f > /dev/null`,
+      `cd ${sh(RO)} && git log --oneline | head > ${sh(repo)}/log.txt`,
+      `cd ${sh(RO)} && cat f > /dev/null`,
       "cd $(git rev-parse --show-toplevel) && ls",
     ])
       assert.ok(!("refused" in verdict(c)), c);
     assert.ok(!("refused" in verdict("ls -la", RO)), "a read in it as the cwd");
     const refusedRO = [
-      `touch ${RO}/x`,
+      `touch ${sh(RO)}/x`,
       `touch ${rel}/x`,
-      `cp a ${RO}/x`,
-      `mv ${RO}/f ./f`,
-      `echo x > ${RO}/o`,
+      `cp a ${sh(RO)}/x`,
+      `mv ${sh(RO)}/f ./f`,
+      `echo x > ${sh(RO)}/o`,
       `echo x >> ${rel}/o`,
-      `sed -i s/a/b/ ${RO}/f`,
-      `sed -i.bak -e s/a/b/ ${RO}/f`,
-      `cat f | tee -a ${RO}/log`,
-      `cd ${RO} && touch x`,
-      `cd ${RO} && npm install`,
-      `cd ${RO} && git reset HEAD`,
-      `git -C ${RO} commit -m x`,
-      `git -C ${RO} checkout main`,
-      `rm ${RO}/f`,
-      `mkdir ${RO}/d`,
-      `chmod +x ${RO}/f`,
-      `find ${RO} -name '*.tmp' -delete`,
-      `find ${RO} -exec rm {} +`,
-      `rsync -a ./x ${RO}/`,
-      `ln -s x ${RO}/l`,
-      `sh -c "touch ${RO}/x"`,
+      `sed -i s/a/b/ ${sh(RO)}/f`,
+      `sed -i.bak -e s/a/b/ ${sh(RO)}/f`,
+      `cat f | tee -a ${sh(RO)}/log`,
+      `cd ${sh(RO)} && touch x`,
+      `cd ${sh(RO)} && npm install`,
+      `cd ${sh(RO)} && git reset HEAD`,
+      `git -C ${sh(RO)} commit -m x`,
+      `git -C ${sh(RO)} checkout main`,
+      `rm ${sh(RO)}/f`,
+      `mkdir ${sh(RO)}/d`,
+      `chmod +x ${sh(RO)}/f`,
+      `find ${sh(RO)} -name '*.tmp' -delete`,
+      `find ${sh(RO)} -exec rm {} +`,
+      `rsync -a ./x ${sh(RO)}/`,
+      `ln -s x ${sh(RO)}/l`,
+      `sh -c "touch ${sh(RO)}/x"`,
       "touch l/../x",
       `touch ~+/${rel}/x`,
       `touch $PWD/${rel}/a`,
-      `curl -s https://example.com -o ${RO}/page.html`,
+      `curl -s https://example.com -o ${sh(RO)}/page.html`,
     ];
     for (const c of refusedRO) {
       const r = verdict(c);
@@ -353,19 +356,19 @@ test("in a project with a read-only folder, commands read it freely and only wri
     }
     // Words whose place is only known when the shell runs cannot write while there is a read-only folder to protect.
     for (const c of [
-      `touch {${RO}/x,y}`,
+      `touch {${sh(RO)}/x,y}`,
       "cp a ~-/x",
       "touch $OLDPWD/x",
       `touch \`echo ${RO}\`/x`,
-      `touch $(echo ${RO})/x`,
+      `touch $(echo ${sh(RO)})/x`,
       "cd $X && touch y",
       "echo hi > $OUT",
-      `find ${RO} | xargs rm`,
+      `find ${sh(RO)} | xargs rm`,
     ]) {
       const r = verdict(c);
       assert.ok("refused" in r && /cannot tell where/.test(r.refused), `${c}: ${JSON.stringify(r)}`);
     }
-    assert.deepEqual(verdict(`touch ${RO}/x`), { refused: refusal.readOnly(`${RO}/x`) });
+    assert.deepEqual(verdict(`touch ${sh(RO)}/x`), { refused: refusal.readOnly(`${sh(RO)}/x`) });
     assert.doesNotMatch(refusal.readOnly("x"), /write your changes in the folder you work in/);
   } finally {
     await env.client.call("projects.update", { project, read_only_folders: [] });
@@ -400,7 +403,7 @@ test("system temp folders are scratch space, except APX's own chats' temp folder
 });
 
 test("a refusal outside every folder names a next step that exists", async () => {
-  const r = commandFolder(env.core.store, env.home, { id: "t_loose" }, { command: `cat ${sibling}/b.txt` });
+  const r = commandFolder(env.core.store, env.home, { id: "t_loose" }, { command: `cat ${sh(sibling)}/b.txt` });
   assert.ok("refused" in r && !/ask_owner/.test(r.refused), JSON.stringify(r));
   assert.match(r.refused, /outside the folders you can read/);
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;

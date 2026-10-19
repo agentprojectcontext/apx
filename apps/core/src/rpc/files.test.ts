@@ -8,6 +8,9 @@ import { ApxClient, ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { scratchRoot } from "../tools/folders.ts";
 
+/** Named pipes are a POSIX file kind; Windows has none to list or refuse. */
+const FIFO = process.platform !== "win32";
+
 let env: Awaited<ReturnType<typeof startCore>>;
 /** What Finder and the trash were asked to do. */
 const desktopCalls: string[] = [];
@@ -35,7 +38,7 @@ before(async () => {
   fs.symlinkSync(outside, path.join(repo, "escape"));
   fs.symlinkSync(path.join(repo, "docs"), path.join(repo, "docs-link"));
   fs.symlinkSync(path.join(repo, ".git"), path.join(repo, "gitmeta"));
-  execFileSync("mkfifo", [path.join(repo, "pipe")]);
+  if (FIFO) execFileSync("mkfifo", [path.join(repo, "pipe")]);
   project = (await env.client.call("projects.register", { path: repo })).project.id;
 });
 after(async () => {
@@ -82,7 +85,7 @@ test(".git stays hidden by any name or case; a pipe is not read (and does not ha
   assert.ok(!entries.some((e) => e.name === "gitmeta" || e.name === "pipe"));
   for (const p of ["gitmeta/config", ".GIT/config", "docs/../.Git/config"])
     await assert.rejects(env.client.call("files.read", { project, path: p }), /outside the folder/, p);
-  await assert.rejects(env.client.call("files.read", { project, path: "pipe" }), /not a file/);
+  if (FIFO) await assert.rejects(env.client.call("files.read", { project, path: "pipe" }), /not a file/);
 });
 
 test("media: images, video, audio and PDF are previewed as bytes; other files are not", async () => {
@@ -189,7 +192,7 @@ test("a file downloads whole, any kind; a folder, a pipe or a path outside does 
   assert.equal(logo.mime, "image/png");
   assert.deepEqual(Buffer.from(logo.data, "base64"), fs.readFileSync(path.join(repo, "logo.png")));
   await assert.rejects(env.client.call("files.download", { project, path: "docs" }), /not a file/);
-  await assert.rejects(env.client.call("files.download", { project, path: "pipe" }), /not a file/);
+  if (FIFO) await assert.rejects(env.client.call("files.download", { project, path: "pipe" }), /not a file/);
   await assert.rejects(env.client.call("files.download", { project, path: "escape/secret.txt" }), /outside the folder/);
 });
 
