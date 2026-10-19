@@ -1,11 +1,14 @@
 // The first run asks how APX is used on this computer (server or client); the answer is kept.
 import fs from "node:fs";
+import net, { type AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { _electron, type ElectronApplication, expect, type Page, test } from "@playwright/test";
+import { testConfig } from "../../apps/core/src/config.ts";
+import { createCore } from "../../apps/core/src/server.ts";
 import { saveLocalTarget } from "../../packages/install/src/paths.ts";
 import { installFakeSsh } from "../fake-ssh.ts";
-import { world } from "../specs/kit.ts";
+import { rpc, world } from "../specs/kit.ts";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const core = `http://127.0.0.1:${process.env.E2E_PORT ?? 7460}`;
@@ -121,24 +124,68 @@ test("an explicit local handoff asks an already running desktop to relaunch into
   fs.rmSync(path.join(dataDir, "connection.json"));
 });
 
-test("the first run asks server or client; server opens this computer's APX and is not asked again", async () => {
-  const first = await launch();
-  const chooser = await question(await windowAt(first, (u) => u.startsWith("apx-app://")));
-  await expect(chooser.locator("#pick-server")).toBeVisible();
-  await expect(chooser.locator("#pick-client")).toBeVisible();
-  await chooser.locator("#pick-server").click();
-  await expect(chooser.locator('[data-access="none"]')).toHaveAttribute("aria-pressed", "true");
-  await chooser.locator("#server-go").click();
-  await windowAt(first, (url) => url.startsWith(core));
-  await expect(chooser.locator(".wiz")).toContainText("APX está instalado");
-  expect(JSON.parse(fs.readFileSync(path.join(home, "desktop", "connection.json"), "utf8"))).toEqual({ mode: "local" });
-  await first.close();
+test("the first run asks server or client; a new server opens its installed welcome and keeps the choice", async () => {
+  const listener = net.createServer();
+  await new Promise<void>((resolve) => listener.listen(0, "127.0.0.1", resolve));
+  const port = (listener.address() as AddressInfo).port;
+  await new Promise<void>((resolve) => listener.close(() => resolve()));
+  const freshHome = path.join(home, "first-run-core");
+  const dataDir = path.join(home, "first-run-desktop");
+  const fresh = await createCore(testConfig({ home: freshHome, port, webDist: path.join(root, "apps/web/dist") }), {
+    quiet: true,
+  });
+  const env = { APX_HOME: freshHome, APX_PORT: String(port), APX_DESKTOP_DATA: dataDir };
+  let first: ElectronApplication | undefined;
+  let again: ElectronApplication | undefined;
+  try {
+    first = await launch(env);
+    const chooser = await question(await windowAt(first, (u) => u.startsWith("apx-app://")));
+    await expect(chooser.locator("#pick-server")).toBeVisible();
+    await expect(chooser.locator("#pick-client")).toBeVisible();
+    await chooser.locator("#pick-server").click();
+    await expect(chooser.locator('[data-access="none"]')).toHaveAttribute("aria-pressed", "true");
+    await chooser.locator("#server-go").click();
+    const panel = await windowAt(first, (url) => url.startsWith(fresh.url));
+    await expect(panel.locator(".wiz")).toBeVisible();
+    const language = await panel.locator("html").getAttribute("lang");
+    expect(["en", "es"]).toContain(language);
+    await expect(panel.locator(".wiz__pill")).toContainText(
+      language === "es" ? "APX está instalado" : "APX is installed",
+    );
+    expect(JSON.parse(fs.readFileSync(path.join(dataDir, "connection.json"), "utf8"))).toEqual({ mode: "local" });
+    await first.close();
+    first = undefined;
 
-  const again = await launch();
-  await windowAt(again, (u) => u.startsWith(core));
-  expect(again.windows().some((p) => p.url().startsWith("apx-app://"))).toBe(false);
-  expect(again.windows().some((p) => p.url().includes("welcome="))).toBe(false);
-  await again.close();
+    again = await launch(env);
+    const reopened = await windowAt(again, (u) => u.startsWith(fresh.url));
+    await expect(reopened.locator(".wiz")).toBeVisible();
+    await expect(reopened.locator(".wiz__pill")).not.toContainText(/APX (?:está instalado|is installed)/);
+    expect(again.windows().some((p) => p.url().startsWith("apx-app://"))).toBe(false);
+    expect(again.windows().some((p) => p.url().includes("welcome="))).toBe(false);
+  } finally {
+    await first?.close();
+    await again?.close();
+    await fresh.close();
+  }
+});
+
+test("choosing an already configured local server opens its panel without repeating setup", async () => {
+  await rpc("setup.finish");
+  fs.rmSync(path.join(home, "desktop", "connection.json"), { force: true });
+  const app = await launch();
+  try {
+    const chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
+    await chooser.locator("#pick-server").click();
+    await chooser.locator("#server-go").click();
+    const panel = await windowAt(app, (url) => url.startsWith(core));
+    await expect(panel.locator(".shell")).toBeVisible();
+    await expect(panel.locator(".wiz")).toHaveCount(0);
+    expect(JSON.parse(fs.readFileSync(path.join(home, "desktop", "connection.json"), "utf8"))).toEqual({
+      mode: "local",
+    });
+  } finally {
+    await app.close();
+  }
 });
 
 test("a client address that does not answer is refused on the spot", async () => {

@@ -171,10 +171,24 @@ jobs:
   publish:
     needs: [installers, android]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: read
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
       GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Require verification of the released commit
+        run: |
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+          run=$(gh run list -R "$GITHUB_REPOSITORY" --workflow verify.yml --branch release/v2 --commit "$sha" \
+            --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -z "$run" ]; then
+            echo "::error::No verification run exists for release commit $sha on release/v2"
+            exit 1
+          fi
+          gh run watch "$run" -R "$GITHUB_REPOSITORY" --exit-status --interval 30
       - run: gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --draft=false --latest="${{ vars.APX_V2_LATEST == 'true' }}"
 
   # Once every file is published, announce the release with v1's webhook.
