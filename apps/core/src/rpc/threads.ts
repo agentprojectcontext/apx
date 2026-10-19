@@ -1,12 +1,13 @@
 import path from "node:path";
 import type { Author, Task } from "@apx/protocol";
 import { OWNER_ID } from "../domain/persons.ts";
-import { type Attachment, publicRun } from "../domain/runs.ts";
+import { type Attachment, publicRun, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { tree } from "../engine/breaker.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
 import { goOn } from "../engine/go-on.ts";
+import { MAX_ACTIVE_DELEGATIONS } from "../engine/limits.ts";
 import { addComment, assignedTaskOf, consultMentioned, sessionFor, startHeld } from "../engine/task-work.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
@@ -240,9 +241,36 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
       return { thread: t, messages: store.messages.list(thread), runs: store.runs.list(thread).map(publicRun) };
     },
     "threads.create": (params, ctx) => createThread(store, params, ctx),
-    "threads.send": ({ thread, text, mode, attachments }, ctx) => {
+    "threads.send": ({ thread, text, mode, attachments, continue_run }, ctx) => {
       ownClientThread(thread, ctx);
-      const { agent } = threadAgent(thread);
+      const { agent, thread: target } = threadAgent(thread);
+      if (continue_run) {
+        if (ctx.actor !== "human" || ctx.client || ctx.channel)
+          throw unauthorized("only the owner can continue a stopped delegated session");
+        if (!target.parent_id || target.kind !== "a2a" || target.archived || mode !== "queue" || attachments?.length)
+          throw badRequest("continue a delegated session with a queued text message");
+        const latest = store.runs.list(thread, 1)[0];
+        if (
+          !latest ||
+          latest.id !== continue_run ||
+          !TERMINAL.has(latest.state) ||
+          ["queued", "submitted", "working", "input-required"].includes(target.state) ||
+          (latest.state === "completed" && latest.end_reason !== "step_limit" && latest.end_reason !== "deadline")
+        )
+          throw conflict("the session changed or is no longer stopped; refresh its status");
+        if (!latest.parent_run_id || !store.runs.get(latest.parent_run_id))
+          throw conflict("the session's caller is no longer available");
+        // Keep the delegated workspace, cap and result destination; the owner's click starts only one more turn.
+        return post(thread, text, { kind: "user" }, false, {
+          agent_id: latest.agent_id,
+          trigger: "a2a",
+          origin: { kind: "user" },
+          parent_run_id: latest.parent_run_id,
+          depth: latest.depth,
+          continues: latest.id,
+          queued: store.runs.activeDelegations(target.parent_id) >= MAX_ACTIVE_DELEGATIONS,
+        });
+      }
       if (attachments?.length && ctx.actor === "agent" && !ctx.channel)
         throw badRequest("only the owner or a channel attaches files");
       if (ctx.channel) {

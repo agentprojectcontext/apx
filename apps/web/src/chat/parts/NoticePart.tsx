@@ -1,11 +1,12 @@
 import type { Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons } from "@apx/ui";
-import { useState } from "react";
-import { client } from "../../data/client.ts";
-import { notify } from "../../data/notices.ts";
+import { lazy, Suspense } from "react";
 import { isKey, useT } from "../../i18n/index.ts";
-import { go as nav } from "../../shell/nav.ts";
 import { appPlace } from "../appLinks.ts";
+
+const DelegationActions = lazy(() => import("./DelegationActions.tsx").then((m) => ({ default: m.DelegationActions })));
+
+const GoOn = lazy(() => import("./GoOn.tsx").then((m) => ({ default: m.GoOn })));
 
 type NoticeData = Extract<Part, { type: "notice" }>;
 
@@ -28,16 +29,18 @@ export function NoticePart({ part }: { part: NoticeData }) {
   // A delegated run that hit a limit: its session to open and, while APX keeps it going, to stop.
   const session =
     part.code === "delegation.limit" && typeof part.vars?.subthread === "string" ? part.vars.subthread : "";
-  const goingOn = session && String(part.vars?.variant ?? "").startsWith("continued");
   const link = (thread || open || session) && (
     <span className="noticeline__actions">
-      {thread && <GoOn thread={thread} />}
-      {session && (
-        <Button size="sm" variant="ghost" className="noticeline__link" onClick={() => nav.subthread(session)}>
-          {t("notice.delegation.limit.open")}
-        </Button>
+      {thread && (
+        <Suspense fallback={null}>
+          <GoOn thread={thread} />
+        </Suspense>
       )}
-      {goingOn && <StopSession thread={session} />}
+      {session && (
+        <Suspense fallback={null}>
+          <DelegationActions key={session} session={session} />
+        </Suspense>
+      )}
       {open && (
         <Button size="sm" variant="ghost" className="noticeline__link" onClick={open}>
           {linkLabel}
@@ -80,49 +83,5 @@ export function NoticePart({ part }: { part: NoticeData }) {
         {link}
       </div>
     </ActionGroup>
-  );
-}
-
-/** A paused chain's way on: a fresh budget, or no limit until the owner writes there again (DECISIONS.md#d-081). */
-function GoOn({ thread }: { thread: string }) {
-  const t = useT();
-  const [done, setDone] = useState(false);
-  if (done) return <span className="noticeline__done">{t("notice.breaker.wentOn")}</span>;
-  const go = (mode: "reset" | "release") =>
-    void client
-      .call("threads.go_on", { thread, mode })
-      .then(() => setDone(true))
-      .catch((e: unknown) => notify(e instanceof Error ? e.message : String(e)));
-  return (
-    <>
-      <Button size="sm" variant="ghost" className="noticeline__link" onClick={() => go("reset")}>
-        {t("notice.breaker.reset")}
-      </Button>
-      <Button size="sm" variant="ghost" className="noticeline__link" onClick={() => go("release")}>
-        {t("notice.breaker.release")}
-      </Button>
-    </>
-  );
-}
-
-/** Stops a delegated session APX kept going after a limit. */
-function StopSession({ thread }: { thread: string }) {
-  const t = useT();
-  const [done, setDone] = useState<"stopped" | "ended">();
-  if (done)
-    return (
-      <span className="noticeline__done">
-        {t(done === "stopped" ? "notice.delegation.limit.stopped" : "notice.delegation.limit.ended")}
-      </span>
-    );
-  const stop = () =>
-    void client
-      .call("threads.cancel", { thread })
-      .then((r) => setDone(r.canceled ? "stopped" : "ended"))
-      .catch((e: unknown) => notify(e instanceof Error ? e.message : String(e)));
-  return (
-    <Button size="sm" variant="ghost" className="noticeline__link" onClick={stop}>
-      {t("notice.delegation.limit.stop")}
-    </Button>
   );
 }
