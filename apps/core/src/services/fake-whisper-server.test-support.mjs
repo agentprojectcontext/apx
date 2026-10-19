@@ -15,9 +15,7 @@ http
     });
     req.on("end", () => {
       res.setHeader("content-type", "application/json");
-      res.end(
-        JSON.stringify({ text: ` heard ${size > 100 ? "audio" : "nothing"}\n with ${path.basename(model)}\n` }),
-      );
+      res.end(JSON.stringify({ text: ` heard ${size > 100 ? "audio" : "nothing"}\n with ${path.basename(model)}\n` }));
     });
   })
   .listen(port, "127.0.0.1");

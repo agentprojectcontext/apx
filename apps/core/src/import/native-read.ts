@@ -198,8 +198,8 @@ export function sessionItems(
 export function writtenPages(items: NativeItem[], cwd: string): string[] {
   const root = path.resolve(cwd);
   const found = new Set<string>();
+  // POSIX paths, and on Windows C:\… with the backslashes doubled as JSON writes them.
   for (const it of items)
-    // POSIX paths, and on Windows C:\… with the backslashes doubled as JSON writes them.
     for (const t of it.tools)
       for (const m of t.detail.matchAll(/["'\s:]((?:[a-z]:[\\/]|\/|\.{0,2}[\\/]?)[\w./\\@~-]+\.html?)\b/gi)) {
         const raw = (m[1] ?? "").replace(/\\\\/g, "\\");
