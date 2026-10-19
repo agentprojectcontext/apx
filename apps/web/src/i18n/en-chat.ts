@@ -11,6 +11,8 @@ export const enChat = {
   "input.folderOnce": "Only this time",
   "input.folderKeep": "Allow reading it in this project",
   "input.folderKeepMany": "Allow reading them in this project",
+  "input.folderAlways": "Always let this agent change it",
+  "input.folderAlwaysMany": "Always let this agent change them",
   "input.folderDeny": "No",
   "input.projectScope": "In this project",
   "input.askedFolder": "Asked to read a folder",

@@ -45,12 +45,15 @@ const toInput = (r: Selectable<PendingInputsTable>): InputRecord => ({
   ...opt("answered_at", r.answered_at),
 });
 
-/** The folders a folder card offers, and its answers: once, and for the project when they may be kept there. */
+/**
+ * The folders a folder card offers, and its answers: once; to read, for the project when they may be kept there; to
+ * change, always for this agent.
+ */
 function foldersOf(v: string): Pick<InputRecord, "folders" | "approval_scopes" | "folders_write"> {
   const f = JSON.parse(v) as { dirs: string[]; keep: boolean; write?: boolean };
   return {
     folders: f.dirs,
-    approval_scopes: f.keep ? ["once", "project"] : ["once"],
+    approval_scopes: f.write ? ["once", "always"] : f.keep ? ["once", "project"] : ["once"],
     ...(f.write ? { folders_write: true as const } : {}),
   };
 }

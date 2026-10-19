@@ -1355,3 +1355,18 @@ not the internet; a public link needs Tailscale Funnel, which would put the core
 one file from it would be a second HTTP route outside the protocol. A third-party host would publish the owner's
 files. So a field that wants a URL is the service's to solve: an upload link it hands out through one of its tools,
 which the agent fills with `curl -T` from its temp folder.
+
+<a id="d-108"></a>
+## D-108 — 2026-10-19 — Auto changes the owner's other projects freely, and a folder card can let an agent write there for good
+After D-106 the cards that still stopped the owner were mostly folders: a developer moving from the APX repository to
+the folder that holds it (itself a registered project), or to a sibling worktree, got "wants to change files in …,
+outside its project" for each command, and a folder card could only say yes for that call. Now, in Auto and Accept
+edits, every registered project on disk and its linked git worktrees is writable like the agent's own folder: the owner
+registered them, so moving between them is not acting outside. They come after the project's read-only folders and
+other chats' temp folders, which keep their rule inside them, and never one holding APX's home or inside it. A thread
+kept to one folder (a code thread, a session in a worktree) still keeps to it. A folder that is not a project still
+asks, and its card now offers "Always let this agent change it": a grant for good for that agent (key
+`apx:write_folder:<dir>`, shown in its permissions with the folder as the condition, revoked there), never for other
+agents. A worktree kept under `.apc/worktree(s)/` is a checkout of the code, not APC definitions: editing it no
+longer asks as a high-impact action; `.apc`'s own files and any AGENTS.md still do. Known limit: Claude Code and
+Codex sessions keep their own folder rule (their side folder or code thread), unchanged here.

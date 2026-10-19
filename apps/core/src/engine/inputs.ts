@@ -3,7 +3,7 @@
 // wakes the agent with a new run instead of being lost.
 import type { ApprovalScope, FileChange, InputKind, Part } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
-import type { ApprovalTarget } from "../domain/approvals.ts";
+import { type ApprovalTarget, writeFolderApproval } from "../domain/approvals.ts";
 import { type InputRecord, publicInput } from "../domain/inputs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -81,7 +81,7 @@ export function createInputs(deps: {
       if (r.tool && (!r.approval_scope || r.approval_scope === "once"))
         store.approvals.grantOnce(r.thread_id, r.agent_id, r.tool, r.args ?? {}, binding, r.approval?.server);
       const what = r.folders
-        ? `let you ${r.folders_write ? "change files in" : "read"} ${r.folders.join(", ")}${r.approval_scope === "project" ? " in this project from now on" : " for that call"}`
+        ? `let you ${r.folders_write ? "change files in" : "read"} ${r.folders.join(", ")}${r.approval_scope === "project" ? " in this project from now on" : r.approval_scope === "always" ? " from now on" : " for that call"}`
         : `approved ${r.tool} (${r.detail ?? r.prompt})`;
       text = `The owner ${what}, but your earlier turn had already ended, so it did not run. If it is still needed, call it again with the same arguments: it will run without asking.${r.answer ? ` Their note: ${r.answer}` : ""}`;
     } else
@@ -250,6 +250,9 @@ export function createInputs(deps: {
         const r = store.inputs.settle(id, state, text, state === "approved" ? scope : undefined);
         if (r && state === "approved" && rec.approval)
           store.approvals.grant(rec.approval, scope, rec.thread_id, rec.agent_id);
+        if (r && scope === "always" && rec.folders_write)
+          for (const dir of rec.folders ?? [])
+            store.approvals.grant(writeFolderApproval(dir), "always", rec.thread_id, rec.agent_id);
         if (r && project && rec.folders) addReadOnly(store, deps.home, project, rec.folders);
         return r;
       });

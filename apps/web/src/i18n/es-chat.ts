@@ -13,6 +13,8 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "input.folderOnce": "Solo esta vez",
   "input.folderKeep": "Permitir leerla en este proyecto",
   "input.folderKeepMany": "Permitir leerlas en este proyecto",
+  "input.folderAlways": "Permitirle siempre a este agente cambiarla",
+  "input.folderAlwaysMany": "Permitirle siempre a este agente cambiarlas",
   "input.folderDeny": "No",
   "input.projectScope": "En este proyecto",
   "input.askedFolder": "Pidió leer una carpeta",

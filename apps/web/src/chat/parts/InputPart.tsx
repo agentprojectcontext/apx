@@ -146,6 +146,16 @@ function PendingInput({ part }: { part: InputPartData }) {
               {t(part.folders.length > 1 ? "input.folderKeepMany" : "input.folderKeep")}
             </Button>
           )}
+          {part.approval_scopes?.includes("always") && (
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => send({ decision: "approve", scope: "always" })}
+            >
+              {t(part.folders.length > 1 ? "input.folderAlwaysMany" : "input.folderAlways")}
+            </Button>
+          )}
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => send({ decision: "deny" })}>
             {t("input.folderDeny")}
           </Button>

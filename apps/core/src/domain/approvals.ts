@@ -1,5 +1,6 @@
 // Owner grants: durable for every agent or for one, or limited to one chat in this core process.
 import { createHash } from "node:crypto";
+import path from "node:path";
 import { type ApprovalScope, STRICT_APPROVAL, ToolApproval } from "@apx/protocol";
 import { z } from "zod";
 import { settingsRepo } from "./settings.ts";
@@ -34,6 +35,17 @@ export const nativeApproval = (tool: string): ApprovalTarget => ({
  * covers them, and an OK given for them never covers more than they are. DECISIONS.md#d-089
  */
 export const strictApproval = (a: ApprovalTarget): ApprovalTarget => ({ ...a, key: `${a.key}${STRICT_APPROVAL}` });
+
+/** The key prefix of a folder an agent may change for good, from a folder card's "always" (DECISIONS.md#d-108). */
+const WRITE_FOLDER = `${APX_SERVER}:write_folder:`;
+
+/** The grant letting an agent change files in a folder outside its own; the folder shows as its condition. */
+export const writeFolderApproval = (dir: string): ApprovalTarget => ({
+  key: `${WRITE_FOLDER}${dir}`,
+  server: APX_SERVER,
+  tool: "write_folder",
+  permanent: false,
+});
 
 /** A host when the text is a URL, else undefined. */
 const hostOf = (v: string): string | undefined => {
@@ -139,6 +151,10 @@ export function approvalsRepo(q: Sql) {
         ...(scope === "always" && agent ? { agent_id: agent } : {}),
         granted_at: new Date().toISOString(),
         ...(scope === "always" && thread ? { from_thread: thread } : {}),
+        // A folder grant names its folder where the owner sees and narrows grants.
+        ...(a.key.startsWith(WRITE_FOLDER) && a.key.length - WRITE_FOLDER.length <= 200
+          ? { condition: a.key.slice(WRITE_FOLDER.length) }
+          : {}),
       };
       if (scope === "session") sessions.set(sessionKey(a.key, thread), g);
       else write([...read().filter((r) => r.key !== a.key || r.agent_id !== g.agent_id), g]);
@@ -190,6 +206,14 @@ export function approvalsRepo(q: Sql) {
       write(rows);
       for (const listener of listeners) listener();
       return next;
+    },
+    /** The folders outside its own an agent may change for good; a grant narrowed by the owner covers its condition. */
+    writeFolders(agent: string): string[] {
+      return read()
+        .filter((g) => g.scope === "always" && g.key.startsWith(WRITE_FOLDER) && (!g.agent_id || g.agent_id === agent))
+        .flatMap((g) => (g.condition ? g.condition.split(",") : [g.key.slice(WRITE_FOLDER.length)]))
+        .map((d) => d.trim())
+        .filter((d) => path.isAbsolute(d));
     },
     list(thread?: string): ToolApproval[] {
       return [...read(), ...[...sessions.values()].filter((g) => !thread || g.thread_id === thread)];
