@@ -57,8 +57,13 @@ after(() => {
   browser?.close();
   srv.closeAllConnections();
   srv.close();
-  // Chrome may still hold its profile while it exits, and Windows cannot delete an open file.
-  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 50, retryDelay: 200 });
+  // Chrome may still hold its profile while it exits; Windows keeps it locked until its last helper is gone, and a
+  // temp folder left behind there is not a failure of the browser.
+  try {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 50, retryDelay: 200 });
+  } catch (err) {
+    if (process.platform !== "win32") throw err;
+  }
 });
 
 test("CDP input and output pipe errors reject work and stop Chrome without an unhandled error", async () => {

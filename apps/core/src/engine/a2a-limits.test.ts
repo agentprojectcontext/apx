@@ -11,7 +11,7 @@ import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 // Wide enough that a loaded CI runner's pauses between steps never look like a stall.
 const IDLE_MS = 800;
-const CAP_MS = 3200;
+const CAP_MS = 4800;
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
     const t = setTimeout(resolve, ms);

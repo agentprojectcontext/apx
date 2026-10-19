@@ -392,7 +392,11 @@ test("system temp folders are scratch space, except APX's own chats' temp folder
     ...areas.map((dir) => ({ dir, write: true, scratch: true })),
   ];
   try {
-    for (const p of ["/tmp/out.txt", path.join(os.tmpdir(), "build", "a.js")])
+    // /tmp is a temp folder on Unix only (on Windows it is a folder of whichever drive the path lands on).
+    for (const p of [
+      ...(process.platform === "win32" ? [] : ["/tmp/out.txt"]),
+      path.join(os.tmpdir(), "build", "a.js"),
+    ])
       assert.equal("refused" in judge(roots, p, own, { write: true }), false, p);
     const other = path.join(scratchRoot(home), "t_other", "a.txt");
     assert.equal("refused" in judge(roots, other, own), true, "another chat's temp folder");
