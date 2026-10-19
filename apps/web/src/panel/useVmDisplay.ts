@@ -17,6 +17,7 @@ export function useVmDisplay(thread: string | undefined, ready: boolean, manual:
     const host = screen.current;
     const abort = new AbortController();
     let viewer: RFB | undefined;
+    let disconnected = false;
     setState("connecting");
     setError("");
     void (async () => {
@@ -36,6 +37,7 @@ export function useVmDisplay(thread: string | undefined, ready: boolean, manual:
         if (!abort.signal.aborted) setState("connected");
       });
       viewer.addEventListener("disconnect", () => {
+        disconnected = true;
         if (!abort.signal.aborted) {
           setState("disconnected");
           setError(t("computer.connectionFailed"));
@@ -52,7 +54,7 @@ export function useVmDisplay(thread: string | undefined, ready: boolean, manual:
     });
     return () => {
       abort.abort();
-      viewer?.disconnect();
+      if (!disconnected) viewer?.disconnect();
       connection.current = null;
     };
   }, [thread, epoch, ready, t]);

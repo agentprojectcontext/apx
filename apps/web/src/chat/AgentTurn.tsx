@@ -13,8 +13,6 @@ import { copyableQuote } from "./CopyableQuote.tsx";
 import { runnableCode } from "./codeRunner.tsx";
 import { linkMenu } from "./LinkMenu.tsx";
 import { MessageActions } from "./MessageActions.tsx";
-import { BrowserPart } from "./parts/BrowserPart.tsx";
-import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { AudioPart } from "./parts/lazyAudio.tsx";
 import { type MediaBlock, mediaBlocks } from "./parts/mediaGroups.ts";
@@ -25,6 +23,8 @@ import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { taskCodeSpan } from "./TaskChip.tsx";
 
 // A widget's frame loads with the first message that has one, not with the chat.
+const ChangesPart = lazy(() => import("./parts/ChangesPart.tsx").then((m) => ({ default: m.ChangesPart })));
+const BrowserPart = lazy(() => import("./parts/BrowserPart.tsx").then((m) => ({ default: m.BrowserPart })));
 const SurfacePart = lazy(() => import("./parts/SurfacePart.tsx").then((m) => ({ default: m.SurfacePart })));
 const ChoicesPart = lazy(() => import("./parts/ChoicesPart.tsx").then((m) => ({ default: m.ChoicesPart })));
 const MediaGroup = lazy(() => import("./parts/MediaGroup.tsx"));
@@ -169,7 +169,11 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
     case "subthread":
       return <SubthreadPart part={p} from={agent} />;
     case "browser":
-      return <BrowserPart part={p} agent={agent} threadId={message.thread_id} />;
+      return (
+        <Suspense fallback={null}>
+          <BrowserPart part={p} agent={agent} threadId={message.thread_id} />
+        </Suspense>
+      );
     case "image":
       // One with a source is in its message's picture grid; one without has nothing to show.
       return null;
@@ -186,7 +190,11 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
         </Suspense>
       );
     case "changes":
-      return <ChangesPart part={p} />;
+      return (
+        <Suspense fallback={null}>
+          <ChangesPart part={p} />
+        </Suspense>
+      );
     case "choices":
       return (
         <Suspense fallback={null}>

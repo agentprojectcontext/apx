@@ -1,6 +1,7 @@
 import http from "node:http";
 import net from "node:net";
 import type { Duplex } from "node:stream";
+import { publicHttp } from "./egress-http.ts";
 import { type EgressPolicy, publicDestination, vmEgressPolicy } from "./egress-policy.ts";
 
 type Dial = (address: string, port: number) => net.Socket;
@@ -13,6 +14,14 @@ export async function createEgressProxy(
 ) {
   let closed = false;
   let requests = 0;
+  const reserve = (response: { once(event: "close", listener: () => void): unknown }) => {
+    if (closed || requests >= LIMIT) return false;
+    requests++;
+    response.once("close", () => {
+      requests--;
+    });
+    return true;
+  };
   const sockets = new Set<Duplex>();
   const destinations = new Map<net.Socket, string>();
   const track = (socket: Duplex) => {
@@ -33,71 +42,7 @@ export async function createEgressProxy(
   };
   const server = http.createServer(
     { maxHeaderSize: 16_384, requestTimeout: 30_000, headersTimeout: 10_000 },
-    (req, res) => {
-      if (closed || requests >= LIMIT) {
-        res.writeHead(503).end();
-        return;
-      }
-      requests++;
-      res.once("close", () => {
-        requests--;
-      });
-      void (async () => {
-        try {
-          const { url, address, port } = await publicDestination(req.url ?? "", policy);
-          if (url.protocol !== "http:") throw new Error("use CONNECT for HTTPS");
-          const headers: http.OutgoingHttpHeaders = { ...req.headers, host: url.host };
-          const hopHeaders = String(req.headers.connection ?? "")
-            .split(",")
-            .map((key) => key.trim().toLowerCase());
-          for (const key of [
-            ...hopHeaders,
-            "proxy-authorization",
-            "proxy-connection",
-            "connection",
-            "upgrade",
-            "keep-alive",
-            "te",
-            "trailer",
-          ])
-            delete headers[key];
-          if (closed || req.destroyed) throw new Error("proxy closed");
-          const agent = new http.Agent();
-          agent.createConnection = () => connect(address, port);
-          const remote = http.request(
-            {
-              hostname: address,
-              port,
-              method: req.method,
-              path: url.pathname + url.search,
-              headers,
-              agent,
-            },
-            (reply) => {
-              res.writeHead(reply.statusCode ?? 502, reply.headers);
-              reply.pipe(res);
-            },
-          );
-          let bytes = 0;
-          req.on("data", (chunk: Buffer) => {
-            bytes += chunk.length;
-            if (bytes > 8 * 1024 * 1024 || !policy.allowed(address))
-              remote.destroy(new Error("egress request refused"));
-          });
-          remote.on("error", () => {
-            if (!res.headersSent) res.writeHead(502);
-            res.end();
-          });
-          res.on("close", () => {
-            remote.destroy();
-            agent.destroy();
-          });
-          req.pipe(remote);
-        } catch {
-          res.writeHead(403).end("Destination refused");
-        }
-      })();
-    },
+    publicHttp(policy, connect, () => closed, reserve),
   );
   server.on("connection", (socket) => {
     if (sockets.size >= LIMIT) {
@@ -108,14 +53,10 @@ export async function createEgressProxy(
     socket.setTimeout(30_000, () => socket.destroy());
   });
   server.on("connect", (req, client, head) => {
-    if (closed || requests >= LIMIT) {
+    if (!reserve(client)) {
       client.destroy();
       return;
     }
-    requests++;
-    client.once("close", () => {
-      requests--;
-    });
     void (async () => {
       try {
         const { address, port, url } = await publicDestination(`https://${req.url ?? ""}`, policy);

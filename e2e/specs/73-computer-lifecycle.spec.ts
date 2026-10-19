@@ -1,9 +1,31 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { Page } from "@playwright/test";
 import { say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { createVmLifecycle } from "../../apps/core/src/environments/lifecycle.ts";
 import { expect, test } from "./kit.ts";
+
+async function mockVmDisplay(page: Page) {
+  await page.routeWebSocket(/\/vm-display\?/, (socket) => {
+    let handshake = 0;
+    socket.send(Buffer.from("RFB 003.008\n"));
+    socket.onMessage(() => {
+      if (handshake === 0) socket.send(Buffer.from([1, 1]));
+      if (handshake === 1) socket.send(Buffer.from([0, 0, 0, 0]));
+      if (handshake === 2) {
+        const init = Buffer.alloc(27);
+        init.writeUInt16BE(64, 0);
+        init.writeUInt16BE(64, 2);
+        init.set([32, 24, 0, 1, 0, 255, 0, 255, 0, 255, 16, 8, 0], 4);
+        init.writeUInt32BE(3, 20);
+        init.write("APX", 24);
+        socket.send(init);
+      }
+      handshake++;
+    });
+  });
+}
 
 test("Computer installs only on enable, follows APX appearance and exposes stop/restart", async ({ page }) => {
   let installed = false;
@@ -39,24 +61,7 @@ test("Computer installs only on enable, follows APX appearance and exposes stop/
   });
   try {
     await page.setViewportSize({ width: 1600, height: 1000 });
-    await page.routeWebSocket(/\/vm-display\?/, (socket) => {
-      let handshake = 0;
-      socket.send(Buffer.from("RFB 003.008\n"));
-      socket.onMessage(() => {
-        if (handshake === 0) socket.send(Buffer.from([1, 1]));
-        if (handshake === 1) socket.send(Buffer.from([0, 0, 0, 0]));
-        if (handshake === 2) {
-          const init = Buffer.alloc(27);
-          init.writeUInt16BE(64, 0);
-          init.writeUInt16BE(64, 2);
-          init.set([32, 24, 0, 1, 0, 255, 0, 255, 0, 255, 16, 8, 0], 4);
-          init.writeUInt32BE(3, 20);
-          init.write("APX", 24);
-          socket.send(init);
-        }
-        handshake++;
-      });
-    });
+    await mockVmDisplay(page);
     await env.client.call("setup.finish", {});
     await page.addInitScript((origin) => {
       if (location.origin === origin) localStorage.setItem("apx.mode", "light");
@@ -116,6 +121,84 @@ test("Computer installs only on enable, follows APX appearance and exposes stop/
     await expect(computer).toHaveCount(0);
     expect(running).toBe(true);
   } finally {
+    await page.goto("about:blank");
+    await env.core.close();
+    env.cleanup();
+  }
+});
+
+test("a late status poll cannot undo shutdown, and an optional VM error cannot block the office", async ({ page }) => {
+  let running = true;
+  const lifecycle = createVmLifecycle({
+    supported: true,
+    installed: () => true,
+    running: async () => running,
+    prepare: async () => {
+      running = true;
+    },
+    stop: async () => {
+      running = false;
+    },
+    appearance: async () => {},
+  });
+  const env = await startCore({
+    llm: scriptedLlm(() => say("ok")),
+    vmPrototype: { limaHome: "/unused", instance: "missing", lifecycle, executable: () => "/usr/bin/false" },
+  });
+  let release: () => void = () => {};
+  let hold = false;
+  let captured = false;
+  let optionalFailure = false;
+  let stoppedDisplayRequests = 0;
+  page.on("request", (request) => {
+    if (!running && request.url().endsWith("/rpc/environments.display")) stoppedDisplayRequests++;
+  });
+  try {
+    await env.client.call("setup.finish", {});
+    await env.client.call("environments.bind", { thread: "home" });
+    const stale = await env.client.call("environments.status", {});
+    await mockVmDisplay(page);
+    await page.route("**/rpc/environments.status", async (route) => {
+      if (optionalFailure) {
+        await route.fulfill({
+          json: { ok: false, error: { code: "unavailable", message: "Computer temporarily unavailable" } },
+        });
+        return;
+      }
+      if (!hold) {
+        await route.continue();
+        return;
+      }
+      hold = false;
+      captured = true;
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await route.fulfill({ json: { ok: true, result: stale } });
+    });
+    await page.goto(`${env.core.url}/#thread=home&panel=computer`);
+    const computer = page.locator(".computer");
+    await expect(computer.getByRole("button", { name: "Apagar VM", exact: true })).toBeVisible();
+    hold = true;
+    await expect.poll(() => captured).toBe(true);
+    await computer.getByRole("button", { name: "Apagar VM", exact: true }).click();
+    await expect(computer.getByRole("button", { name: "Encender VM", exact: true })).toBeVisible();
+    const oldResponse = page.waitForResponse((response) => response.url().endsWith("/rpc/environments.status"));
+    release();
+    await (await oldResponse).finished();
+    await page.evaluate(
+      () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
+    );
+    expect(stoppedDisplayRequests).toBe(0);
+    await expect(computer.getByRole("button", { name: "Apagar VM", exact: true })).toHaveCount(0);
+    await expect(computer.getByRole("button", { name: "Encender VM", exact: true })).toBeVisible();
+    optionalFailure = true;
+    await page.reload();
+    await expect(page.locator(".computer")).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Escribile a Roby…", exact: true })).toBeVisible();
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: "ignoreErrors" });
     await page.goto("about:blank");
     await env.core.close();
     env.cleanup();

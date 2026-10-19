@@ -1,9 +1,10 @@
-import { type ChildProcess, execFile, spawn } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Store } from "../domain/store.ts";
-import { conflict, unauthorized, unavailable } from "../errors.ts";
+import { conflict, unauthorized } from "../errors.ts";
 import { createHeadlessBrowser } from "../nodes/headless-browser.ts";
 import type { ComputerControl } from "./control.ts";
+import { guestExecutor, stopGuestProcesses } from "./guest-exec.ts";
 import type { VmPrototypeConfig } from "./prototype.ts";
 import { workerArgs } from "./worker.ts";
 
@@ -24,7 +25,7 @@ export function guestOperations(
   const checkDevice = (id?: string) => {
     if (id && !store.devices.get(id)) throw unauthorized("device revoked");
   };
-  const commands = new Set<ChildProcess>();
+  const { exec, close: closeCommands } = guestExecutor(binary, env);
   let busy = false;
   let active: string | undefined;
   const browser = createHeadlessBrowser({
@@ -46,39 +47,13 @@ export function guestOperations(
     },
   });
 
-  const exec = (args: string[], timeout = 10_000): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const child = execFile(binary(), args, { env, timeout, maxBuffer: 512 * 1024 }, (error, stdout) => {
-        commands.delete(child);
-        if (error) reject(unavailable("VM command failed; no command was run on the host"));
-        else resolve(stdout);
-      });
-      commands.add(child);
-    });
   const disconnect = async (final = false) => {
     if (final) browser.close();
     else browser.stop();
     tickets.clear();
-    const children = [...streams.keys(), ...commands];
+    const stopped = stopGuestProcesses(streams.keys());
     streams.clear();
-    commands.clear();
-    await Promise.all(
-      children.map(
-        (child) =>
-          new Promise<void>((resolve) => {
-            if (child.exitCode !== null || child.signalCode !== null) {
-              resolve();
-              return;
-            }
-            const deadline = setTimeout(() => child.kill("SIGKILL"), 1000);
-            child.once("close", () => {
-              clearTimeout(deadline);
-              resolve();
-            });
-            child.kill();
-          }),
-      ),
-    );
+    await Promise.all([stopped, closeCommands()]);
   };
   return {
     busy: () => busy,
@@ -96,7 +71,7 @@ export function guestOperations(
       for (const [ticket, value] of tickets) if (value.device === id) tickets.delete(ticket);
       for (const [child, device] of streams)
         if (device === id) {
-          child.kill();
+          child.kill("SIGKILL");
           streams.delete(child);
         }
     },

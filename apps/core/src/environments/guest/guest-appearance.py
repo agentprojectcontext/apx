@@ -28,9 +28,6 @@ for variant in ('light', 'dark'):
             shutil.copy2(source, frames / source.name)
     frame = 'themerc-light' if variant == 'light' else 'themerc'
     shutil.copy2(assets / 'xfwm4' / frame, frames / 'themerc')
-if marker.exists() and marker.read_text().strip() == '3' and mode_file.exists() and mode_file.read_text().strip() == mode and not reset:
-    print('APX appearance unchanged; owner preferences preserved')
-    sys.exit(0)
 for attempt in range(40):
     try:
         environment = desktop_environment()
@@ -39,6 +36,10 @@ for attempt in range(40):
         if attempt == 39:
             raise
         time.sleep(0.25)
+
+if marker.exists() and marker.read_text().strip() == '3' and mode_file.exists() and mode_file.read_text().strip() == mode and not reset:
+    print('APX appearance unchanged; owner preferences preserved')
+    sys.exit(0)
 
 def query(channel, prop, optional=False):
     result = subprocess.run(['xfconf-query', '-c', channel, '-p', prop], env=environment,

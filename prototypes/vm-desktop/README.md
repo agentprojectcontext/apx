@@ -2,9 +2,9 @@
 
 An opt-in APX desktop experiment with a real Debian VM, Xfce, Chromium and a terminal. Runtime data uses a separate scratch home. The worktree contains code only; no personal APX data is imported.
 
-Requires macOS Apple Silicon and Node 24. Lima is reused if compatible or installed privately on demand. The pinned image is verified by Lima. No host folders or SSH agents are shared. This prototype does not enforce a complete guest-to-host/LAN network policy: use dummy data only. It is not a production sandbox.
+Requires macOS Apple Silicon and Node 24. Lima is reused if compatible or installed privately on demand. The pinned image is verified by Lima. No host folders or SSH agents are shared. Commands and desktop apps run as an unprivileged worker, separately from the Lima administrator. Root-owned guest rules block direct external IPv4/IPv6 traffic. HTTP(S) uses a host-owned proxy that rejects private/special addresses and current host interfaces/networks, validates every DNS answer and pins the dialed IP. No host-wide firewall changes are required. This is a VM boundary, not protection against guest kernel or hypervisor exploits.
 
-VM work happens in `/home/apx-worker/work`; screen connections are human-only and authenticated through short-lived single-use core tickets. Default mode uses a local scripted fixture and makes no model API calls. Real-agent mode uses the normal APX native loop and provider selector, including its own ChatGPT sign-in. The model runs in the host core; shell and Chromium run inside the guest. Credentials stay in the separate core home, never in the VM.
+VM work happens in `/home/apx-worker/work`; screen connections are human-only and authenticated through short-lived single-use core tickets bound to the issuing device. Default mode uses a local scripted fixture and makes no model API calls. Real-agent mode uses the normal APX native loop and provider selector, including its own ChatGPT sign-in. The model runs in the host core; shell and Chromium run inside the guest. Credentials stay in the separate core home, never in the VM.
 
 ## Run
 
@@ -35,7 +35,7 @@ The regular core exposes the same optional lifecycle. The public installer carri
 
 The guest has 2 virtual CPUs, 4 GiB RAM and a sparse 24 GiB virtual disk. One measured session with Chromium open used approximately 1.7 GiB inside Linux; the Lima runtime occupied 2.6 GiB on the host. These are observations, not guaranteed limits or compressed download sizes. The 4 GiB VM allocation and host-app memory must both fit; 16 GiB host RAM is a reasonable initial target, not a tested minimum. Closing Computer only disconnects the viewer. Stop the VM to release its VM memory.
 
-The UI shows installation stages and runtime download progress. Installation checks platform, RAM and available disk space, has a deadline, supports cancellation and exposes recoverable errors. Shutdown cancels the bound chat’s runs, revokes display tickets, disconnects browser/screen sessions and verifies that the VM stopped before reporting memory released. VM networking still lacks full host/LAN egress isolation; this remains experimental and must use dummy data.
+The UI shows installation stages and runtime download progress. Installation checks platform, RAM and available disk space, has a deadline, supports cancellation and exposes recoverable errors. Shutdown cancels the bound chat’s runs, revokes display tickets, disconnects browser/screen sessions and verifies that the VM stopped before reporting memory released. Proxy connections fail closed when the core disconnects; the VM disk and desktop remain available. Restarting the core reconnects the protected proxy after checking the guest boundary. Screen tickets belong to the issuing device; revoking it invalidates pending tickets and closes its active display.
 
 ## Real agent
 
@@ -74,3 +74,7 @@ The lifecycle check switches light/dark appearance, checks live terminal colors 
 - Regular APX startup performs no VM downloads or boots. Owner activation installs only missing dependencies. Lima and noVNC are justified here by the real VM and RFB requirements; noVNC loads only with the Computer panel.
 
 Before a general release, independent review and complete host/LAN egress isolation remain UNVERIFIED.
+
+## Security verification
+
+On a separate protected lab with no active agent turn, run `node prototypes/vm-desktop/verify-security.ts /tmp/apx-vm-lab-example`. It checks the worker/firewall boundary, probes private destinations against a harmless host canary and verifies public HTTPS. It does not upgrade or mutate the original lab. `verify-lifecycle.ts` additionally exercises shutdown, persistent files and appearance, leaving that lab stopped. See [VERIFICATION.md](VERIFICATION.md) for the full validation scope.

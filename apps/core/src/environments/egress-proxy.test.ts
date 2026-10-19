@@ -125,3 +125,49 @@ test("closing during DNS lookup cannot open a late outbound connection", async (
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(dials, 0);
 });
+
+test("one pipelined HTTP client cannot bypass the global outbound connection budget", async () => {
+  const target = net.createServer();
+  const held = new Set<net.Socket>();
+  target.on("connection", (socket) => {
+    held.add(socket);
+    socket.once("close", () => held.delete(socket));
+  });
+  target.listen(0, "127.0.0.1");
+  await once(target, "listening");
+  let lookups = 0;
+  let dials = 0;
+  const proxy = await createEgressProxy(
+    {
+      ...policy,
+      lookup: async () => {
+        lookups++;
+        return [{ address: publicIP, family: 4 }];
+      },
+    },
+    () => {
+      dials++;
+      return net.connect(portOf(target), "127.0.0.1");
+    },
+  );
+  const client = net.connect(proxy.port, "127.0.0.1");
+  try {
+    await once(client, "connect");
+    client.write(
+      Array.from({ length: 80 }, () => "GET http://example.com/ HTTP/1.1\r\nHost: example.com\r\n\r\n").join(""),
+    );
+    const deadline = Date.now() + 2000;
+    while (lookups < 64) {
+      assert.ok(Date.now() < deadline, "pipeline was not processed");
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(lookups, 64);
+    assert.ok(dials > 0 && dials <= 63, `outbound sockets: ${dials}`);
+  } finally {
+    client.destroy();
+    await proxy.close();
+    for (const socket of held) socket.destroy();
+    await close(target);
+  }
+});

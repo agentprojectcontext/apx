@@ -80,7 +80,8 @@ export function managedVmConfig(store: Store, home: string, external?: VmPrototy
       );
       signal.throwIfAborted();
       progress({ step: "desktop" });
-      await secureGuest(run, instance, signal);
+      if (fs.existsSync(prepared)) await verifyGuest(run, instance, signal);
+      else await secureGuest(run, instance, signal);
       await egress.connect();
       signal.throwIfAborted();
       await provisionDesktop(run, instance, mode, signal, external?.demo);

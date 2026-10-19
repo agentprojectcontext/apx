@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
 import WebSocket from "ws";
+import { testConfig } from "../config.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createVmPrototype } from "../environments/prototype.ts";
+import { createCore } from "../server.ts";
 
 test("VM prototype is disabled by default over HTTP and WS; agent clients cannot acquire a screen", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
@@ -444,5 +447,70 @@ test("VM availability does not advertise browser tools to an ordinary chat witho
   } finally {
     await env.core.close();
     env.cleanup();
+  }
+});
+
+test("revoking a device invalidates pending display tickets, closes its live display and refuses existing RPC sockets", async () => {
+  const { createVmLifecycle } = await import("../environments/lifecycle.ts");
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-display-revoke-"));
+  const binary = path.join(home, "display.mjs");
+  fs.writeFileSync(binary, `#!${process.execPath}\nsetInterval(() => {}, 10000);\n`, { mode: 0o755 });
+  const lifecycle = createVmLifecycle({
+    supported: true,
+    installed: () => true,
+    running: async () => true,
+    prepare: async () => {},
+    stop: async () => {},
+    appearance: async () => {},
+  });
+  const token = "test-core-display-token";
+  const core = await createCore(
+    { ...testConfig({ home }), token },
+    {
+      quiet: true,
+      llm: scriptedLlm(() => say("ok")),
+      vmPrototype: { limaHome: path.join(home, "unused"), instance: "missing", executable: () => binary, lifecycle },
+      imessage: null,
+    },
+  );
+  const owner = new ApxClient({ url: core.url, token });
+  let display: WebSocket | undefined;
+  let socket: Awaited<ReturnType<ApxClient["connect"]>> | undefined;
+  try {
+    await owner.call("environments.bind", { thread: "home" });
+    const { code } = await owner.call("devices.pair_start", {});
+    const paired = await new ApxClient({ url: core.url }).call("devices.pair", { code, name: "Test display" });
+    const client = new ApxClient({ url: core.url, token: paired.token });
+    socket = await client.connect();
+    const live = await client.call("environments.display", { thread: "home" });
+    const pending = await socket.call("environments.display", { thread: "home" });
+    display = new WebSocket(`${core.url.replace("http:", "ws:")}/vm-display?ticket=${live.ticket}`, {
+      headers: { Origin: core.url },
+    });
+    await once(display, "open");
+    const closed = once(display, "close");
+    await owner.call("devices.revoke", { id: paired.device.id });
+    await Promise.race([
+      closed,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("revoked display remained open")), 2000).unref(),
+      ),
+    ]);
+    await assert.rejects(client.call("environments.display", { thread: "home" }), { code: "unauthorized" });
+    await assert.rejects(socket.call("environments.display", { thread: "home" }));
+    const rejected = new WebSocket(`${core.url.replace("http:", "ws:")}/vm-display?ticket=${pending.ticket}`, {
+      headers: { Origin: core.url },
+    });
+    try {
+      await assert.rejects(once(rejected, "open"), /403/);
+    } finally {
+      rejected.terminate();
+    }
+    assert.ok((await owner.call("environments.display", { thread: "home" })).ticket);
+  } finally {
+    display?.terminate();
+    socket?.close();
+    await core.close();
+    fs.rmSync(home, { recursive: true, force: true });
   }
 });

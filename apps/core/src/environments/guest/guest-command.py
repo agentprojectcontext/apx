@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 from apx_vm_session import desktop_environment
 
-state = Path("/home/apx/.local/state/apx-vm/commands")
+state = Path("/home/apx-worker/.local/state/apx-vm/commands")
 state.mkdir(parents=True, exist_ok=True, mode=0o700)
 operation = str(uuid.UUID(sys.argv[2])) if len(sys.argv) > 2 else str(uuid.uuid4())
 record = state / operation

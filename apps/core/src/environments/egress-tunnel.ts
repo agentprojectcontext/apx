@@ -45,6 +45,12 @@ export function vmEgress(limaHome: string, instance: string, run: LimaRun) {
         [
           "-F",
           path.join(limaHome, instance, "ssh.config"),
+          "-o",
+          "ControlMaster=no",
+          "-o",
+          "ControlPath=none",
+          "-o",
+          "ControlPersist=no",
           "-N",
           "-T",
           "-o",

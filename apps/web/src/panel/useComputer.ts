@@ -13,6 +13,10 @@ export function useComputer(thread: string | undefined) {
   const operating = useRef(false);
   const activeThread = useRef(thread);
   useEffect(() => {
+    if (activeThread.current !== thread) {
+      setStatus(undefined);
+      setError("");
+    }
     activeThread.current = thread;
     setBusy(false);
     generation.current++;
