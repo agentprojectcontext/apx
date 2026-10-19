@@ -85,7 +85,7 @@ test("a bundle install runs through current, and its terminal finds the install 
   const b = bundleRun(app, false);
   assert.equal(b.node, path.join(app, "current", "node", "bin", "node"));
   assert.equal(b.core, path.join(app, "current", "apps", "core", "src", "main.ts"));
-  assert.equal(bundleRun("/home/u/.apx/v2/app", true).node, path.join(app, "current", "node", "node.exe"));
+  assert.equal(bundleRun(app, true).node, path.join(app, "current", "node", "node.exe"));
   assert.equal(
     bundleAppOf("/home/u/.apx/v2/app/versions/2.1.0/apps/terminal/src"),
     path.resolve("/home/u/.apx/v2/app"),

@@ -94,7 +94,7 @@ test("agents and chats distinguish inheritance, primary models and explicit rout
     );
     try {
       await agentButton.click();
-      await picker.getByRole("option", { name: "fake-1 custom/fake-", exact: true }).click();
+      await picker.getByRole("option", { name: "fake-1 custom/fake-1", exact: true }).click();
       await expect(page.getByText(/No se pudo cambiar el modelo: Model update refused/)).toBeVisible();
       await expect(agentButton).toHaveText("custom/fake-2");
       await agentButton.click();
