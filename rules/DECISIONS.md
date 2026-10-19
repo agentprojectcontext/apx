@@ -1405,9 +1405,9 @@ APX cut a project's AGENTS.md past 12,000 characters (and `.apc/memory.md` past 
 owner's call: APX does not decide how long a project's instructions are. Both files now reach the agents whole; a
 project that wants them short says so in its own rules and review (this repository's AGENTS.md does), not in code that
 cuts. They are not part of the default-turn budget (PROMPT_SIZE.md), which measures what APX itself sends.
-A safety limit stays for a file that would not fit a model's context: past 200,000 characters (`AGENTS_MD_LIMIT`,
-about 50k tokens) the head and tail are sent, cut on line ends, with a marker naming the file's path, the lines left
-out and the `file_read` offset and limit that read them. The owner is told too: the full length is kept on the project
-(`projects.context_chars`) and sent as `Project.agents_md_chars` only past the limit, shown in the project's settings
-in the panel and by `apx projects list`. `.apc/memory.md` is treated the same; no reason was found to cap the owner's
-own notes tighter than the project's instructions.
+Both files share a safety limit of 200,000 UTF-16 code units (`AGENTS_MD_LIMIT`); this is not a guarantee that
+any content fits every model's token budget. Past it, the head and tail are sent, preferring line ends, with a marker
+naming the file's path, omitted lines and a `file_read` offset and limit. Line-based recovery is subject to the file
+tool's per-line output limit. The persisted counter and owner-facing notice cover **AGENTS.md only**: its full length
+is kept as `projects.context_chars` and sent as `Project.agents_md_chars` only past the limit, shown in project
+settings and by `apx projects list`. `.apc/memory.md` shares the cap and agent-facing marker, but has no CLI/UI notice.

@@ -79,8 +79,8 @@ export type ProjectKind = z.infer<typeof ProjectKind>;
 
 /**
  * A safety limit, not a budget: a project's AGENTS.md (and .apc/memory.md) reach its agents whole up to this many
- * characters (about 50k tokens, which every model APX runs fits). Past it, the head and tail are sent with a marker
- * naming the lines left out, and the owner is told. How long the file is, is the project's choice.
+ * UTF-16 code units. Past it, the head and tail are sent with a marker naming the lines left out.
+ * The owner-facing CLI/UI notice covers AGENTS.md only; token usage depends on the content and model.
  */
 export const AGENTS_MD_LIMIT = 200_000;
 

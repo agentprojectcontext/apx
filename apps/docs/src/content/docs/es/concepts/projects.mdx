@@ -41,7 +41,7 @@ viajan con la carpeta, aparecen en `git diff` y cualquier herramienta que entien
 | `AGENTS.md` | Contexto del proyecto que leen todos sus agentes, entero: cuánto mide lo decidís vos. Solo un archivo de más de 200.000 caracteres (un límite de seguridad) se recorta al principio y el final; los agentes saben qué líneas quedaron afuera y las leen cuando las necesitan, y la configuración del proyecto en el panel (y `apx projects list`) lo avisa. |
 | `.apc/project.json` | `name`, `description` y `kind`. Un `apx_id` commiteado mantiene estable el id del proyecto; un clon o worktree al lado del original recibe uno propio. |
 | `.apc/agents/<slug>.md` | Un agente cada uno. Mirá [Agentes](/es/concepts/agents/). |
-| `.apc/memory.md` | Notas que escribís a mano. Los agentes siempre lo leen, entero, y nunca lo escriben. |
+| `.apc/memory.md` | Notas que escribís a mano; los agentes las leen y nunca las escriben. Reciben el archivo entero hasta el mismo límite de seguridad de 200.000 caracteres; por encima, reciben el principio, el final y un marcador de omisión. El aviso de recorte del panel y la CLI cubre solo `AGENTS.md`, no estas notas. |
 | `.apc/skills/<name>/SKILL.md` | Skills que sólo reciben los agentes de este proyecto. Mirá [Skills](/es/extend/skills/). |
 | `.apc/mcps.json` | `{"mcpServers": …}` del proyecto, sin secretos adentro. Cada servidor tiene que estar aprobado antes de correr. Mirá [Servidores MCP](/es/extend/mcp/). |
 | `.apc/organization.json` | Áreas y roles de una empresa (hasta 40 áreas y 200 roles). |
