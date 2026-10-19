@@ -19,9 +19,10 @@ test("the fake trash moves top-level files but refuses the project root", async 
     fs.writeFileSync(source, "top-level content");
     await trash(source);
     assert.equal(fs.existsSync(source), false);
-    const entries = fs.readdirSync(`${record}.trash`);
-    assert.equal(entries.length, 1);
-    assert.equal(fs.readFileSync(path.join(`${record}.trash`, entries[0]), "utf8"), "top-level content");
+    const [entry, ...more] = fs.readdirSync(`${record}.trash`);
+    assert.ok(entry);
+    assert.deepEqual(more, []);
+    assert.equal(fs.readFileSync(path.join(`${record}.trash`, entry), "utf8"), "top-level content");
     assert.equal(fs.readFileSync(record, "utf8"), `${JSON.stringify(source)}\n`);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
