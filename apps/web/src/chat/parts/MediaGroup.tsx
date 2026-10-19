@@ -71,6 +71,7 @@ function ImageGrid({ parts }: { parts: ImageLike[] }) {
                   key={part.media_id ?? index}
                   part={part}
                   more={more}
+                  single={parts.length === 1}
                   wide={count === 1 && rows.length > 1}
                   onOpen={() => setOpen(index)}
                 />
@@ -84,14 +85,27 @@ function ImageGrid({ parts }: { parts: ImageLike[] }) {
   );
 }
 
-function Tile({ part, more, wide, onOpen }: { part: ImageLike; more: number; wide: boolean; onOpen: () => void }) {
+function Tile({
+  part,
+  more,
+  single,
+  wide,
+  onOpen,
+}: {
+  part: ImageLike;
+  more: number;
+  single: boolean;
+  wide: boolean;
+  onOpen: () => void;
+}) {
   const src = useImageSrc(part);
   const items = useImageMenu(src, nameOf(part), !part.media_id, onOpen);
   const cls = `mediagrid__tile${wide ? " is-wide" : ""}`;
   if (!src) return <Skeleton className={cls} />;
   return (
     <ContextMenu items={items} render={<button type="button" className={cls} onClick={onOpen} title={nameOf(part)} />}>
-      <img src={src} alt={part.type === "image" ? part.alt : part.name} loading="lazy" />
+      {/* A single tile needs the image's intrinsic size; lazy loading can leave its box at zero. */}
+      <img src={src} alt={part.type === "image" ? part.alt : part.name} loading={single ? "eager" : "lazy"} />
       {more > 0 && <span className="mediagrid__more">+{more}</span>}
     </ContextMenu>
   );

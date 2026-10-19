@@ -189,7 +189,7 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "Create a task; assignee starts once description is non-empty. Global: infer project from assignee. Promises need person, owed_by, due_at.",
+        "Subtasks: assignee+description. Delegates propose to caller. Global: assignee's project. Promises: person,owed_by,due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
@@ -205,12 +205,8 @@ export function taskTools(store: Store): Tool[] {
       deadlineMs: 5_000,
       title: (a) => `Created the task ${String(a.title ?? "").slice(0, 60)}`,
       async run(a, ctx) {
-        // An agent answering another one gives nobody work: it names who should, and its caller assigns it (D-079).
-        const answering = ctx.thread.kind === "a2a" && a.assignee;
-        const t = await ctx.call("tasks.create", answering ? { ...a, assignee: undefined } : a);
+        const t = await ctx.call("tasks.create", a);
         const under = t.parent_id ? `, a subtask of ${t.parent_id}` : "";
-        if (answering)
-          return `created ${t.id} in ${t.status}${under}, with nobody on it: you are answering another agent, so you give nobody work. Name ${a.assignee} for ${t.id} in your answer: the agent that asked you assigns it with task_update.`;
         // A task with nobody on it never starts: say so while the agent can still fix it.
         if (!t.assignee && t.kind === "task")
           return `created ${t.id} in ${t.status}${under}, with nobody on it: it will not start. Assign it with task_update (the agent who does it, or yourself), or ask the owner who should.`;

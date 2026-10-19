@@ -36,6 +36,7 @@ export const enTeam = {
   "team.new.global": "A global agent: it works in any project.",
   "team.new.project": "It joins {project}: APX writes it to the project's .apc/agents/.",
   "team.new.create": "Create agent",
+  "team.new.randomName": "Another name",
   "team.new.promptHint": "How it thinks and works. You can change it later.",
   "team.new.badName": "The name needs at least one letter.",
   "team.menu.open": "See details",

@@ -135,7 +135,10 @@ notice when there is no text. Tools that touch core state call protocol methods 
   visibility before ranking limits, requires every named agent as a participant, and includes archived history.
   Participants can read delegated chats by session name as well as thread id or title.
   A named agent can retrieve unavailable context through the existing `delegate` path before asking the owner.
-- **Task assignment** (`rpc/tasks.ts`, `engine/task-work.ts`): an assigned task waits without automatic work until
+- **Task assignment** (`rpc/tasks.ts`, `engine/task-work.ts`): subtasks created by agents need a responsible agent
+  and a non-empty description; missing fields reject the operation before a record is written. Agent calls cannot
+  clear either field. An answering delegate proposes work to its caller instead of creating an unassigned handoff.
+  For the owner's drafts, an assigned task waits without automatic work until
   its description contains non-whitespace text. Completing the description starts work if it never began;
   later edits do not restart it. Unassigned ideas remain valid. Hourly pickup skips incomplete descriptions.
 - **Cross-project tasks** (`domain/tasks.ts`, `rpc/tasks.ts`, `tools/tasks.ts`): outside any project, the super-agent's
@@ -162,6 +165,9 @@ notice when there is no text. Tools that touch core state call protocol methods 
   Agents); `engine/breaker.ts` pauses chains that run without the owner. A child stops after its idle window or its
   cap; one a limit cut short goes on once in its session (`continueCut`) and the owner hears it (`limitNotice`: chat
   notice, tray, the chat's channel), see [D-105](DECISIONS.md#d-105). `stop_session` lets the caller stop one.
+  Limit notices show the session's current state. The owner can continue a stopped session through `threads.send`
+  with its latest `continue_run`: one turn in the same workspace, reporting to the same caller and waiting for a
+  delegation slot when necessary. A stale click cannot interrupt or duplicate newer work.
 - **Chat processes panel** (`apps/web/src/panel/ProcessesPanel.tsx`): `threads.list { root_thread }` retrieves
   every delegated descendant without the global list cap. A2A cards open a read-only transcript beside the parent;
   maximize opens the child as the main chat. Terminal command history and recorded edits remain available without

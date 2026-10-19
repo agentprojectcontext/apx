@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { AGENT_NAMES } from "../../packages/protocol/src/constants.ts";
 import { expect, open, rpc, test } from "./kit.ts";
 
 test("a global agent is created from the team, edited and deleted from its right-click menu", async ({ page }) => {
@@ -11,7 +12,15 @@ test("a global agent is created from the team, edited and deleted from its right
 
   await page.getByRole("button", { name: "Agente", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Nuevo agente" });
-  await dialog.getByLabel("Nombre").fill("Northwind Analyst");
+  // It opens with a person's name from APX's generator, none the crew uses; the dice draws another.
+  const name = dialog.getByLabel("Nombre", { exact: true });
+  const drawn = await name.inputValue();
+  expect(AGENT_NAMES as readonly string[]).toContain(drawn);
+  const crew = (await rpc<{ agents: Array<{ name: string }> }>("agents.list", {})).agents.map((a) => a.name);
+  expect(crew).not.toContain(drawn);
+  await dialog.getByRole("button", { name: "Otro nombre" }).click();
+  await expect(name).not.toHaveValue(drawn);
+  await name.fill("Northwind Analyst");
   await dialog.getByLabel("Rol").fill("Reads the numbers");
   await dialog.getByRole("button", { name: "Crear agente" }).click();
   await expect(dialog).toHaveCount(0);
@@ -64,7 +73,7 @@ test("a project agent is written to .apc/agents/ and, deleted, archived with its
 
   await page.getByRole("button", { name: "Agente", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Nuevo agente" });
-  await dialog.getByLabel("Nombre").fill("Ana Pérez");
+  await dialog.getByLabel("Nombre", { exact: true }).fill("Ana Pérez");
   await expect(dialog.getByText(".apc/agents/ana-perez.md")).toBeVisible();
   await dialog.getByRole("button", { name: "Crear agente" }).click();
   await expect.poll(() => fs.existsSync(path.join(agents, "ana-perez.md"))).toBe(true);

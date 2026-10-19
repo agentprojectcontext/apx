@@ -925,15 +925,23 @@ the task, anyone else in a consult. An agent's @owner still asks for the owner's
 ## D-079 — 2026-10-15 — A task made while working a task is its subtask; an agent answering another gives nobody work
 Since D-074 an agent answering another one could not delegate, but it could still create a task with an assignee,
 whose work started at once, and that agent could delegate again: a chain through the board. Now an agent answering
-another one (a delegation's sub-thread, a consult) may create a task but not give it to anyone (`tasks.create` and
-`tasks.update` refuse an assignee from an `a2a` chat; `task_create` drops it and says to name the agent in its
-answer, so its caller assigns it, as D-077 has it name who owns the rest). A task an agent creates from a chat about a
-task (its own task chat, a consult on it, a session under one) is that task's subtask (`parent_id`) unless it names
+another one (a delegation's sub-thread, a consult) cannot give task work to anyone (`tasks.create` and
+`tasks.update` refuse an assignee from an `a2a` chat). `task_create` preserves the requested assignee: a refused
+handoff creates nothing, and the delegate proposes the work and its responsible agent to its caller instead.
+A task an agent creates from a chat about a task (its own task chat, a consult on it, a session under one) is that task's subtask (`parent_id`) unless it names
 another parent, so the work an orchestrator splits stays under the task it was given. `tasks.get` lists a task's
 `subtasks`, and the task panel shows them and the task a subtask is part of. A real run showed a caller told "assign
 it to Roby" delegating to Roby to assign it to himself, which the answering Roby could not do: the caller's note now
 says a task the delegate left for someone is assigned with `task_update`, and the refusal says an answering agent starts
 no task work, its own included.
+
+Agent-created subtasks require both an assignee and a non-empty description, checked by `tasks.create` before any
+record or conversation is written. `tasks.update` refuses to clear either through an agent call. This also applies
+to an explicit parent and to tasks created in a task's work chat or a session beneath it. Missing fields return an
+argument-specific error: there is no orphan record for a caller to forget. The owner may deliberately keep drafts
+unassigned or unspecified, and top-level agent drafts used to prepare cross-project work still follow their existing
+flow. Status-only updates and closure remain available for legacy incomplete subtasks. The existing handoff and
+spend limits still govern the assigned work; this does not start work from an answering agent.
 
 <a id="d-080"></a>
 ## D-080 — 2026-10-15 — A task chat an agent started spends against the chat it came from
@@ -1287,6 +1295,12 @@ APX continues on its own once and not more: a run cut short while making progres
 while a second cut says the task is larger than one run or is stuck, which is the caller's (and the owner's) call; the
 breaker still counts the continuation. `stop_session` lets a caller stop a session it started; it is offered only
 while one of its thread's sessions works, so the default turn's tool definitions stay within PROMPT_SIZE.md.
+
+The limit notice follows the session's live state. Opening it only navigates; Continue is offered only after it
+stops, while working or queued sessions offer Stop. An owner-only `threads.send` with `continue_run` checks the
+latest stopped run atomically, preserving its caller, folder and write policy. That click authorizes only one more
+turn, including when it must wait for a delegation slot after the breaker is spent; unrelated queued work stays
+held. The continuation remains subject to its run limits and is never continued automatically again.
 
 <a id="d-106"></a>
 ## D-106 — 2026-10-17 — Five permission modes, Auto by default: agents ask only for strong actions

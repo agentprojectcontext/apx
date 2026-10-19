@@ -229,11 +229,13 @@ export function createDelegations(deps: {
       }
       // Its turn counts against the breaker once it starts, so it is checked again now (DECISIONS.md#d-096).
       const who = store.threads.context(next.thread_id).worker?.name ?? store.agents.get(next.agent_id)?.name ?? "";
-      if (tripped(store, parentThreadId)) {
+      // The owner's Continue click authorizes this one turn, even if a slot became free after the budget ran out.
+      const authorized = next.input?.origin.kind === "user" && Boolean(next.input.continues);
+      if (!authorized && tripped(store, parentThreadId)) {
         holdQueued(parentThreadId, next, who);
-        break;
+        continue;
       }
-      if (agentTripped(store, parentThreadId, next.agent_id, who)) {
+      if (!authorized && agentTripped(store, parentThreadId, next.agent_id, who)) {
         holdQueued(parentThreadId, next, who);
         continue;
       }
