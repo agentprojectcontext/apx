@@ -95,6 +95,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
       .replace(/\bclick\b/g, "clic")
       .replace(/\btype\b/g, "escribir")}`.slice(0, 160),
   screen_open: (a) => `Abrió ${str(a.url ?? a.app)}${a.url && a.app ? ` en ${str(a.app)}` : ""}`,
+  task_get: () => "Consultó una tarea",
   task_list: () => "Revisó las tareas",
   task_create: (a) => `Creó la tarea ${str(a.title, 60)}`,
   task_update: (a) => `Actualizó la tarea ${str(a.task)}`,

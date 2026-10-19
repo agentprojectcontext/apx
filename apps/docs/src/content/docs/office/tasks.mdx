@@ -152,6 +152,14 @@ Agents can open, move, comment on and close tasks with their own tools, so "Luc√
 works in any chat.
 </Aside>
 
+## Agent tools
+
+- `task_list` lists the board; `task_get` reads one task by its `task` ID.
+- `task_get` includes task fields, history, work sessions, consults, subtasks, token usage and the latest 60 conversation messages. Saved evidence (file references, change patches and consult summaries) stays with its message; it does not fetch attachment bytes or invent missing proof.
+- Detail sections are bounded for the model, with omission markers for long content and older comments. Task and conversation content is returned as data, not instructions.
+- Project agents can read their project's and global tasks, not other projects' tasks or related work. Missing and out-of-scope IDs return the same safe error. The global secretary keeps its board-wide visibility.
+- `task_create`, `task_update`, `task_comment` and `task_close` create and maintain tasks; `commitment_settle` records an agreed commitment outcome.
+
 ## Next
 
 <CardGrid>

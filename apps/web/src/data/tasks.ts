@@ -115,11 +115,16 @@ export async function commentTask(task: string, text: string): Promise<boolean> 
 }
 
 /** A task's history, the chats and consults it was worked in, its subtasks, and the tokens they took. */
-export type TaskDetail = Omit<Result<"tasks.get">, "task">;
+export type TaskDetail = Omit<Result<"tasks.get">, "task" | "comments" | "comments_truncated">;
 
 export async function taskDetail(task: string): Promise<TaskDetail> {
   try {
-    const { task: _t, ...detail } = await client.call("tasks.get", { task });
+    const {
+      task: _t,
+      comments: _comments,
+      comments_truncated: _truncated,
+      ...detail
+    } = await client.call("tasks.get", { task });
     // A core older than this panel sends neither: its task still opens, without them.
     return { ...detail, consults: detail.consults ?? [], subtasks: detail.subtasks ?? [], usage: detail.usage ?? [] };
   } catch {
