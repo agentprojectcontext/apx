@@ -6,6 +6,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { after, test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { card, cells, failure, portrait, readTheme, rememberTheme, unreachableCore } from "./presentation.ts";
 
@@ -13,7 +14,7 @@ const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-cli-brand-"));
 after(() => fs.rmSync(home, { recursive: true, force: true }));
 
 const cli = (...args: string[]) =>
-  spawnSync(process.execPath, [new URL("./main.ts", import.meta.url).pathname, ...args], {
+  spawnSync(process.execPath, [fileURLToPath(new URL("./main.ts", import.meta.url)), ...args], {
     encoding: "utf8",
     env: { ...process.env, APX_URL: "http://127.0.0.1:1", APX_HOME: home },
     timeout: 10_000,
@@ -130,7 +131,7 @@ test("a core that cannot be reached is explained: not running, or blocked by a s
   await once(server, "listening");
   const { port } = server.address() as net.AddressInfo;
   await new Promise((resolve) => server.close(resolve));
-  const r = spawnSync(process.execPath, [new URL("./main.ts", import.meta.url).pathname, "status", "--plain"], {
+  const r = spawnSync(process.execPath, [fileURLToPath(new URL("./main.ts", import.meta.url)), "status", "--plain"], {
     encoding: "utf8",
     env: { ...process.env, APX_URL: `http://127.0.0.1:${port}`, APX_HOME: home },
     timeout: 10_000,

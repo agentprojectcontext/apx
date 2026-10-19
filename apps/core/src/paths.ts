@@ -5,6 +5,14 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+/**
+ * A path's real location. On Windows the system's own resolution: it also expands short 8.3 names (RUNNER~1), so a
+ * folder named either way compares equal.
+ */
+export function realpath(p: string): string {
+  return process.platform === "win32" ? fs.realpathSync.native(p) : fs.realpathSync(p);
+}
+
 /** A path under the user's home as "~/…", the way the panel shows it; any other path as it is. */
 export function tildeHome(p: string, home = os.homedir()): string {
   return p === home || p.startsWith(`${home}${path.sep}`) ? `~${p.slice(home.length)}` : p;
@@ -16,8 +24,10 @@ export function expandHome(p: string, home = os.homedir()): string {
 }
 
 export function isInside(root: string, p: string): boolean {
-  const r = path.resolve(root);
-  const target = path.resolve(r, p);
+  // Windows paths name the same file in any case.
+  const fold = (x: string) => (process.platform === "win32" ? x.toLowerCase() : x);
+  const r = fold(path.resolve(root));
+  const target = fold(path.resolve(path.resolve(root), p));
   return target === r || target.startsWith(r.endsWith(path.sep) ? r : `${r}${path.sep}`);
 }
 
@@ -27,7 +37,7 @@ export function real(p: string): string {
   const rest: string[] = [];
   for (let i = 0; i < 64; i++) {
     try {
-      return path.join(fs.realpathSync(cur), ...rest.reverse());
+      return path.join(realpath(cur), ...rest.reverse());
     } catch {
       rest.push(path.basename(cur));
       const up = path.dirname(cur);

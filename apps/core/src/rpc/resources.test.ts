@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 import { skillsFor } from "../skills/skills.ts";
 
 const SERVER = path.join(import.meta.dirname, "..", "mcp", "fake-server.test-support.mjs");
@@ -22,7 +23,7 @@ before(async () => {
   home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-res-"));
   skill(path.join(home, "skills"), "brief", "Writes a morning brief.");
   env = await startCore({ llm: scriptedLlm(() => say("ok")), home });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-res-repo-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-res-repo-")));
   fs.mkdirSync(path.join(repo, ".apc"), { recursive: true });
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;

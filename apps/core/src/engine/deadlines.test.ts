@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { z } from "zod";
 import type { Harness } from "../harness/types.ts";
+import { realpath } from "../paths.ts";
 import { defineTool } from "../tools/types.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
@@ -67,7 +68,7 @@ before(async () => {
     engineIdleMs: IDLE_MS,
     turnIdleMs: IDLE_MS,
   });
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-deadline-")));
+  const repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-deadline-")));
   project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
 });
 after(async () => {

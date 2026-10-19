@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
+import { realpath } from "../paths.ts";
 
 const run = promisify(execFile);
 
@@ -11,7 +12,7 @@ const SHARED_GIT_WRITES = ["objects", "refs", "logs"] as const;
 
 const realDir = (p: string): string | undefined => {
   try {
-    const real = fs.realpathSync(p);
+    const real = realpath(p);
     return fs.statSync(real).isDirectory() ? real : undefined;
   } catch {
     return undefined;

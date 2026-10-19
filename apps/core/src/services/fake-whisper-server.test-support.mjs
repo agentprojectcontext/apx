@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // A stand-in for whisper.cpp's whisper-server in tests: answers / and /inference on the port it is given.
 import http from "node:http";
+import path from "node:path";
 
 const args = process.argv.slice(2);
 const port = Number(args[args.indexOf("--port") + 1]);
@@ -14,9 +15,7 @@ http
     });
     req.on("end", () => {
       res.setHeader("content-type", "application/json");
-      res.end(
-        JSON.stringify({ text: ` heard ${size > 100 ? "audio" : "nothing"}\n with ${model.split("/").at(-1)}\n` }),
-      );
+      res.end(JSON.stringify({ text: ` heard ${size > 100 ? "audio" : "nothing"}\n with ${path.basename(model)}\n` }));
     });
   })
   .listen(port, "127.0.0.1");

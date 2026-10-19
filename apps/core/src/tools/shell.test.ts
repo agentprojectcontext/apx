@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 import { broadScan, commandRisk } from "./shell.ts";
 
 test("command risk: reading runs, changing asks, destroying always asks", () => {
@@ -279,8 +280,8 @@ test("a folder that is a symlink pointing outside the project is refused", async
   const fs = await import("node:fs");
   const os = await import("node:os");
   const path = await import("node:path");
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-link-")));
-  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-out-")));
+  const root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-link-")));
+  const outside = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-out-")));
   fs.symlinkSync(outside, path.join(root, "escape"));
   fs.mkdirSync(path.join(root, "src"));
   assert.equal(insideReal(root, "src"), true);

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test } from "node:test";
 import { printed, recordingClient } from "./testing.ts";
 import { mcps, projects, skills, threads } from "./threads.ts";
@@ -94,7 +95,7 @@ test("projects create and set send only what was given, and a wrong kind never r
     projects(client, ["create", "Northwind"], { kind: "company", desc: "Wholesale client" }),
   );
   assert.match(out, /Northwind \(p_nw\)/);
-  await printed(() => projects(client, ["create", "Acme", "site"], { path: "/work/acme" }));
+  await printed(() => projects(client, ["create", "Acme", "site"], { path: path.resolve("/work/acme") }));
   await printed(() => projects(client, ["set", "p_nw"], { desc: "" }));
   await printed(() => projects(client, ["set", "p_nw"], { autonomy: "accept_edits" }));
   await assert.rejects(projects(client, ["set", "p_nw"], { autonomy: "yolo" }), /--autonomy is one of/);
@@ -102,27 +103,35 @@ test("projects create and set send only what was given, and a wrong kind never r
   await assert.rejects(projects(client, ["set", "p_nw"], {}), /usage: apx projects set/);
   assert.deepEqual(calls, [
     ["projects.create", { name: "Northwind", kind: "company", description: "Wholesale client" }],
-    ["projects.create", { name: "Acme site", path: "/work/acme" }],
+    ["projects.create", { name: "Acme site", path: path.resolve("/work/acme") }],
     ["projects.update", { project: "p_nw", description: "" }],
     ["projects.update", { project: "p_nw", autonomy: "accept_edits" }],
   ]);
 });
 
 test("projects folders add, list and remove a read-only folder through projects.update", async () => {
-  const project = { id: "p_nw", name: "Northwind", present: true, read_only_folders: ["/work/v1"] };
+  const project = { id: "p_nw", name: "Northwind", present: true, read_only_folders: [path.resolve("/work/v1")] };
   const { client, calls } = recordingClient({
     "projects.list": { projects: [project], base: { name: "Base" } },
-    "projects.update": { project: { ...project, read_only_folders: ["/work/v1", "/work/docs"] } },
+    "projects.update": {
+      project: { ...project, read_only_folders: [path.resolve("/work/v1"), path.resolve("/work/docs")] },
+    },
   });
-  assert.equal(await printed(() => projects(client, ["folders", "list", "p_nw"])), "/work/v1");
-  assert.match(await printed(() => projects(client, ["folders", "add", "p_nw", "/work/docs"])), /\/work\/docs/);
+  assert.equal(await printed(() => projects(client, ["folders", "list", "p_nw"])), path.resolve("/work/v1"));
+  assert.equal(
+    await printed(() => projects(client, ["folders", "add", "p_nw", "/work/docs"])),
+    `${path.resolve("/work/v1")}\n${path.resolve("/work/docs")}`,
+  );
   await printed(() => projects(client, ["folders", "rm", "p_nw", "/work/v1"]));
   await assert.rejects(projects(client, ["folders", "rm", "p_nw", "/work/other"]), /not a read-only folder/);
   await assert.rejects(projects(client, ["folders", "add", "p_nw"]), /usage: apx projects folders/);
   assert.deepEqual(
     calls.filter(([m]) => m === "projects.update"),
     [
-      ["projects.update", { project: "p_nw", read_only_folders: ["/work/v1", "/work/docs"] }],
+      [
+        "projects.update",
+        { project: "p_nw", read_only_folders: [path.resolve("/work/v1"), path.resolve("/work/docs")] },
+      ],
       ["projects.update", { project: "p_nw", read_only_folders: [] }],
     ],
   );
@@ -134,7 +143,7 @@ test("skills import previews first; --yes copies the new ones, --only picks by i
     kind: "repo",
     url: "git@github.com:acme/skills.git",
   });
-  assert.deepEqual(importSource("skills", "/work"), { kind: "folder", path: "/work/skills" });
+  assert.deepEqual(importSource("skills", "/work"), { kind: "folder", path: path.resolve("/work/skills") });
   const candidate = (id: string, status: string) => ({
     id,
     name: id,
@@ -159,7 +168,7 @@ test("skills import previews first; --yes copies the new ones, --only picks by i
   assert.deepEqual(calls.at(-1), [
     "skills.import",
     {
-      source: { kind: "folder", path: "/work/pack" },
+      source: { kind: "folder", path: path.resolve("/work/pack") },
       target: "project",
       project: "p_acme",
       pick: ["pdf"],

@@ -7,10 +7,14 @@ test("the desktop app is looked for where each installer puts it", () => {
     "/Applications/APX.app",
     "/Users/user/Applications/APX.app",
   ]);
-  assert.ok(
-    desktopCandidates("win32", { LOCALAPPDATA: "C:\\Users\\u\\AppData\\Local" }, "C:\\Users\\u")[0]?.endsWith(
-      "APX.exe",
-    ),
+  const installed = [
+    "C:\\Users\\u\\AppData\\Local\\Programs\\apx\\APX.exe",
+    "C:\\Users\\u\\AppData\\Local\\Programs\\@apxdesktop\\APX.exe",
+  ];
+  assert.deepEqual(
+    desktopCandidates("win32", { LOCALAPPDATA: "C:\\Users\\u\\AppData\\Local" }, "C:\\Users\\u"),
+    installed,
   );
+  assert.deepEqual(desktopCandidates("win32", {}, "C:\\Users\\u"), installed);
   assert.deepEqual(desktopCandidates("linux", {}, "/home/u"), ["/home/u/Applications/APX.AppImage"]);
 });

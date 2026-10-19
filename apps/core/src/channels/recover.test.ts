@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
@@ -138,7 +140,7 @@ test("a chat off any channel is told so; asked again with the phone back, the fi
 test("adapter: after a restart, a message that came under someone's private id is asked again under it", async () => {
   const BOB = { phone: "5491100000003@s.whatsapp.net", name: "Bob", lid: "200000000000003@lid" };
   const fake = fakeWhatsApp();
-  const dir = fs.mkdtempSync(`${process.env.TMPDIR ?? "/tmp"}/apx-wa-`);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-wa-"));
   const got: string[] = [];
   const linked = async () => {
     const adapter = whatsappAdapter({ dir, selfOwner: true, lib: async () => fake.lib, resendWaitMs: 200 });

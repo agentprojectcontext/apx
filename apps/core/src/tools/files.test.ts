@@ -106,7 +106,7 @@ const said = async (thread: string, text: string) => {
 test("an agent writes and edits a file in the folder it works in, never outside it", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "files" });
   const file = path.join(env.home, "work", "pages", "btc.html");
-  assert.match(await said(t.id, "write it"), /created .*pages\/btc\.html \(\d+ bytes\)/);
+  assert.match(await said(t.id, "write it"), /created .*pages[\\/]btc\.html \(\d+ bytes\)/);
   assert.equal(fs.readFileSync(file, "utf8"), "<h1>BTC $1</h1>\n<p>$1</p>\n<p>$1</p>\n");
   assert.match(await said(t.id, "edit once"), /replaced 1 occurrence/);
   assert.equal(
@@ -142,8 +142,11 @@ test("file tools take shell's cwd: a relative path in a worktree lands in it, ne
   fs.mkdirSync(path.join(root, ".git"), { recursive: true });
   fs.writeFileSync(path.join(root, "docs", "spec.md"), "root\n");
   fs.writeFileSync(path.join(tree, "docs", "spec.md"), "base\n");
-  assert.match(await said(t.id, "edit in tree"), /replaced 1 occurrence in .*\.worktrees\/issue-1\/docs\/spec\.md/);
-  assert.match(await said(t.id, "write in tree"), /created .*\.worktrees\/issue-1\/docs\/new\.md/);
+  assert.match(
+    await said(t.id, "edit in tree"),
+    /replaced 1 occurrence in .*\.worktrees[\\/]issue-1[\\/]docs[\\/]spec\.md/,
+  );
+  assert.match(await said(t.id, "write in tree"), /created .*\.worktrees[\\/]issue-1[\\/]docs[\\/]new\.md/);
   assert.match(await said(t.id, "read in tree"), /lines 1-2 of 2[\s\S]*tree/);
   assert.equal(fs.readFileSync(path.join(tree, "docs", "spec.md"), "utf8"), "tree\n");
   assert.equal(fs.readFileSync(path.join(root, "docs", "spec.md"), "utf8"), "root\n");

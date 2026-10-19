@@ -4,7 +4,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { realpath } from "../paths.ts";
 import { codexHarness } from "./codex.ts";
+import { fakeProgram } from "./fake-program.test-support.ts";
 import type { TurnIO } from "./types.ts";
 import { linkedWorktreeWritableDirs } from "./worktree.ts";
 
@@ -13,7 +15,7 @@ type Fixture = { root: string; main: string; worktree: string; common: string; g
 let fx: Fixture;
 
 before(() => {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-codex-wt-")));
+  const root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-codex-wt-")));
   const env: Record<string, string> = { GIT_CONFIG_NOSYSTEM: "1" };
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !k.startsWith("GIT_")) env[k] = v;
   const git = (cwd: string, ...args: string[]) =>
@@ -41,27 +43,24 @@ after(() => fs.rmSync(fx.root, { recursive: true, force: true }));
 
 /** A `codex` that records its arguments and answers like `codex exec --experimental-json`; `makes` are files its
  * image_gen would leave in its thread's folder under CODEX_HOME. */
-function fakeCodex(makes: string[] = []): { bin: string; args(): string[] } {
+function fakeCodex(makes: string[] = []): { bin: string; env: Record<string, string>; args(): string[] } {
   const dir = fs.mkdtempSync(path.join(fx.root, "bin-"));
   const out = path.join(dir, "args.json");
-  const bin = path.join(dir, "codex");
   const events = [
     { type: "thread.started", thread_id: "thread-1" },
     { type: "turn.completed", usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 } },
   ];
-  fs.writeFileSync(
-    bin,
-    `#!/usr/bin/env node
-const fs = require("node:fs");
-fs.writeFileSync(${JSON.stringify(out)}, JSON.stringify(process.argv.slice(2)));
+  const fake = fakeProgram(
+    dir,
+    "codex",
+    `const fs = require("node:fs");
+fs.writeFileSync(${JSON.stringify(out)}, JSON.stringify(argv));
 const made = require("node:path").join(process.env.CODEX_HOME || "/nonexistent", "generated_images", "thread-1");
 for (const f of ${JSON.stringify(makes)}) { fs.mkdirSync(made, { recursive: true }); fs.writeFileSync(made + "/" + f, "x"); }
 process.stdin.resume();
-process.stdin.on("end", () => process.stdout.write(${JSON.stringify(events.map((e) => JSON.stringify(e)).join("\n"))} + "\\n"));
-`,
-    { mode: 0o755 },
+process.stdin.on("end", () => process.stdout.write(${JSON.stringify(events.map((e) => JSON.stringify(e)).join("\n"))} + "\\n"));`,
   );
-  return { bin, args: () => JSON.parse(fs.readFileSync(out, "utf8")) };
+  return { ...fake, args: () => JSON.parse(fs.readFileSync(out, "utf8")) };
 }
 
 /** One Codex turn in `cwd`, as an auto code thread: the agent's autonomy decides whether it writes. */
@@ -87,7 +86,15 @@ async function turn(
     onText() {},
     showImage: (file: string) => opts.shown?.push(file),
   } as unknown as TurnIO;
-  await harness.run(io);
+  // The harness passes the core's environment on: the stand-in's own needs go there for this turn.
+  const saved = process.env.NODE_OPTIONS;
+  Object.assign(process.env, codex.env);
+  try {
+    await harness.run(io);
+  } finally {
+    if (saved === undefined) delete process.env.NODE_OPTIONS;
+    else process.env.NODE_OPTIONS = saved;
+  }
   return codex.args();
 }
 

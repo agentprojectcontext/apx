@@ -17,7 +17,11 @@ test("secrets resolve by reference, list names only, and live in a 0600 file wit
       s.list().map((x) => x.name),
       ["gemini"],
     );
-    assert.equal(fs.statSync(path.join(home, "secrets.json")).mode & 0o777, 0o600);
+    // Windows reports writable mode bits, not POSIX owner/group permissions.
+    assert.equal(
+      fs.statSync(path.join(home, "secrets.json")).mode & 0o777,
+      process.platform === "win32" ? 0o666 : 0o600,
+    );
     s.set("gemini", null);
     assert.equal(s.resolve("secret://gemini"), undefined);
   } finally {
@@ -48,5 +52,5 @@ test("a project's own value wins over the global one there, and only there", () 
 test("each home has its own Keychain service; the default home keeps the plain one", () => {
   assert.equal(keychainService("/home/u/.apx/v2", "/home/u/.apx/v2"), "apx2");
   assert.equal(keychainService("/home/u/.apx/v2/", "/home/u/.apx/v2"), "apx2");
-  assert.equal(keychainService("/tmp/test-home", "/home/u/.apx/v2"), "apx2:/tmp/test-home");
+  assert.equal(keychainService("/tmp/test-home", "/home/u/.apx/v2"), `apx2:${path.resolve("/tmp/test-home")}`);
 });

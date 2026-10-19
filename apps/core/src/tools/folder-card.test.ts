@@ -5,8 +5,12 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import type { PendingInput } from "@apx/protocol";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 import { refusal } from "./folders.ts";
 import { commandFolder } from "./shell.ts";
+
+/** A path as a command names it: forward slashes, which Git Bash reads on Windows too. */
+const sh = (p: string) => p.split(path.sep).join("/");
 
 // The owner's message is the call to make: `{"name": "shell", "args": {...}}`.
 const llm = scriptedLlm((req, { said, afterTool }) => {
@@ -23,7 +27,7 @@ let repo: string;
 let project: string;
 before(async () => {
   env = await startCore({ llm });
-  northwind = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-northwind-")));
+  northwind = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-northwind-")));
   repo = path.join(northwind, "app");
   fs.mkdirSync(path.join(northwind, "docs"), { recursive: true });
   fs.writeFileSync(path.join(northwind, "docs", "plan.md"), "the plan\n");
@@ -130,7 +134,10 @@ test("total autonomy reads and changes any folder, in a chat with no project too
   const made = path.join(northwind, "docs", "made.md");
   try {
     for (const inProject of [true, false]) {
-      const write = await run({ name: "shell", args: { command: `echo hi > ${made}; cat ${made}` } }, { inProject });
+      const write = await run(
+        { name: "shell", args: { command: `echo hi > ${sh(made)}; cat ${sh(made)}` } },
+        { inProject },
+      );
       assert.equal(write.input, undefined);
       assert.match(write.said, /exit 0[\s\S]*hi/, `in a project: ${inProject}`);
       fs.rmSync(made);
@@ -153,7 +160,7 @@ test("total autonomy reads and changes any folder, in a chat with no project too
 });
 
 test("a chat with no project, and APX's own folder, keep the refusal and raise no card", async () => {
-  const alone = await run({ name: "shell", args: { command: `ls ${northwind}` } }, { inProject: false });
+  const alone = await run({ name: "shell", args: { command: `ls ${sh(northwind)}` } }, { inProject: false });
   assert.equal(alone.input, undefined);
   assert.match(alone.said, /refused: .*outside the folders you can read: the folder you work in and your temp folder/);
   const apx = await run({ name: "file_read", args: { path: path.join(env.home, "apx.db") } });
@@ -164,7 +171,7 @@ test("a chat with no project, and APX's own folder, keep the refusal and raise n
 test("a folder that cannot be kept (a home holding APX's) is offered for this call only", async () => {
   const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "fausto", project_id: project }))
     .id;
-  const call = { name: "shell", args: { command: `ls ${path.dirname(env.home)}` } };
+  const call = { name: "shell", args: { command: `ls ${sh(path.dirname(env.home))}` } };
   await env.client.call("threads.send", { thread, text: JSON.stringify(call) });
   let input: PendingInput | undefined;
   for (let i = 0; i < 100 && !input; i++) {
@@ -190,7 +197,7 @@ test("the folder holding the project is lent for one call, never kept: it would 
 
 test("auto reads another project's file and runs a reading command there with no card", async () => {
   await env.client.call("agents.update", { agent: "fausto", autonomy: "auto" });
-  const other = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acme-")));
+  const other = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acme-")));
   fs.writeFileSync(path.join(other, "brief.md"), "acme brief\n");
   try {
     for (const inProject of [true, false]) {
@@ -225,7 +232,7 @@ test("auto asks once before writing outside its project, and the card never keep
     assert.match(yes.said, /created/);
     assert.equal(fs.readFileSync(made, "utf8"), "outside\n");
     // A command writing there asks the same way; inside the project it runs with no card.
-    const cmd = await run({ name: "shell", args: { command: `echo hi > ${made}` } }, { decision: "deny" });
+    const cmd = await run({ name: "shell", args: { command: `echo hi > ${sh(made)}` } }, { decision: "deny" });
     assert.deepEqual(cmd.input?.folders, [path.join(northwind, "docs")]);
     const inside = await run({ name: "shell", args: { command: "touch made-inside" } });
     assert.equal(inside.input, undefined);

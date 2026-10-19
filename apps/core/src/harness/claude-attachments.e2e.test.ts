@@ -13,7 +13,8 @@ const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwA
 test("mobile uploads reach the Claude SDK subprocess as pixels and a temp-folder copy", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-image-sdk-"));
   const capture = path.join(dir, "input.json");
-  const bin = path.join(dir, "claude.cjs");
+  // A .js file: the SDK starts it through node on every system (a .cjs it would run as a native program).
+  const bin = path.join(dir, "claude.js");
   // The real SDK starts this stand-in CLI and performs its normal stream-json handshake.
   fs.writeFileSync(
     bin,
@@ -96,6 +97,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       await env.core.close();
       env.cleanup();
     }
-    fs.rmSync(dir, { recursive: true, force: true });
+    // The SDK's process may still be leaving the folder, and Windows cannot delete a folder in use.
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 50, retryDelay: 200 });
   }
 });

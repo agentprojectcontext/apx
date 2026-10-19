@@ -11,6 +11,7 @@ import type { ContextInput, Hooks } from "../engine/hooks.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { nodeChildEnv } from "../node-runtime.ts";
+import { realpath } from "../paths.ts";
 import type { Secrets } from "../secrets.ts";
 import { extSecret } from "./extensions.ts";
 
@@ -55,11 +56,11 @@ export function createPlugins(deps: {
     const plugin = ext.manifest.plugin;
     if (!plugin) return;
     // Real paths: Node checks permissions on the resolved file, so a symlinked home (/var → /private/var) must match.
-    const dir = fs.realpathSync(ext.dir);
+    const dir = realpath(ext.dir);
     const entry = path.resolve(dir, plugin.entry);
     const raw = path.join(deps.home, "extension-data", ext.id);
     fs.mkdirSync(raw, { recursive: true });
-    const data = fs.realpathSync(raw);
+    const data = realpath(raw);
     const env: Record<string, string> = {
       APX_DATA_DIR: data,
       APX_PLUGIN_NETWORK: plugin.network ? "1" : "0",
@@ -76,7 +77,7 @@ export function createPlugins(deps: {
       [
         "--permission",
         `--allow-fs-read=${dir}`,
-        `--allow-fs-read=${fs.realpathSync(RUNNER)}`,
+        `--allow-fs-read=${realpath(RUNNER)}`,
         `--allow-fs-read=${data}`,
         `--allow-fs-write=${data}`,
         RUNNER,

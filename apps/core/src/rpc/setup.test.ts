@@ -7,6 +7,7 @@ import { fakeWhatsApp } from "../channels/fake-whatsapp.test-support.ts";
 import { whatsappAdapter } from "../channels/whatsapp.ts";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { v1Schedule } from "../import/v1-setup.ts";
+import { realpath } from "../paths.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let repo = "";
@@ -34,7 +35,7 @@ before(async () => {
     },
   });
   const v1 = path.join(env.home, "v1");
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-v1repo-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-v1repo-")));
   json(path.join(repo, "AGENTS.md"), "# Acme\n");
   json(path.join(repo, ".apc", "project.json"), { name: "Acme", apx_id: "abc123def456" });
   json(path.join(repo, ".apc", "agents", "dev.md"), "---\nname: Dev\nrole: developer\n---\nYou build.\n");

@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 
 const llm = scriptedLlm((_req, { said, afterTool }) =>
   !afterTool && said.includes("run echo") ? callTool("c1", "shell", { command: "echo from-agent" }) : say("ok"),
@@ -18,7 +19,7 @@ const git = (...args: string[]) =>
 
 before(async () => {
   env = await startCore({ llm });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ws-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ws-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   fs.mkdirSync(path.join(repo, "src"));
   fs.writeFileSync(path.join(repo, "src", "app.ts"), "one\ntwo\nthree\n");
@@ -56,7 +57,12 @@ test("a project chat's Changes list what is uncommitted, each file with its diff
 test("a terminal runs the owner's commands in the chat's folder and keeps what it printed", async () => {
   const t = await env.client.call("terminal.open", { thread, cols: 80, rows: 24 });
   assert.equal(t.cwd, repo);
-  await env.client.call("terminal.input", { terminal: t.id, data: "echo ready-$((40+2)) && pwd\r" });
+  // The shell itself works out 42 (the typed line only says how), in sh or in Windows' cmd.
+  const line =
+    process.platform === "win32"
+      ? "set /a X=40+2 >nul && call echo ready-%X% && cd\r"
+      : "echo ready-$((40+2)) && pwd\r";
+  await env.client.call("terminal.input", { terminal: t.id, data: line });
   let backlog = "";
   for (let i = 0; i < 100 && !backlog.includes("ready-42"); i++) {
     await new Promise((r) => setTimeout(r, 50));

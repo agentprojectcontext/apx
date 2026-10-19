@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { Store } from "../domain/store.ts";
-import { expandHome, insideReal, isInside, real } from "../paths.ts";
+import { expandHome, insideReal, isInside, real, realpath } from "../paths.ts";
 
 /**
  * APX's own folder for a project, so one project's files never land among another's: the project's folder when APX
@@ -65,8 +65,8 @@ export function folderInProject(store: Store, projectId: string | undefined, cwd
   let root: string;
   let dir: string;
   try {
-    root = fs.realpathSync(project.path);
-    dir = fs.realpathSync(path.resolve(root, expandHome(cwd ?? ".")));
+    root = realpath(project.path);
+    dir = realpath(path.resolve(root, expandHome(cwd ?? ".")));
   } catch {
     throw new Error(`no folder ${cwd ?? project.path}`);
   }
@@ -269,9 +269,11 @@ export const refusal = {
  * (`l/../x`, with `l` a link, lands beside the link's target, not beside `l`).
  */
 export function physical(from: string, file: string): string {
-  let cur = real(path.isAbsolute(file) ? path.parse(file).root : from);
+  const root = path.isAbsolute(file) ? path.parse(file).root : "";
+  let cur = real(root || from);
   let exists = true;
-  for (const part of file.split(/[\\/]+/)) {
+  // After the root: a drive's "C:" is part of the root, never a folder name.
+  for (const part of file.slice(root.length).split(/[\\/]+/)) {
     if (!part || part === ".") continue;
     if (part === "..") {
       cur = path.dirname(cur);

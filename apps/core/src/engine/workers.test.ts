@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Part } from "@apx/protocol";
+import { realpath } from "../paths.ts";
 import { workspaceOf } from "./delegation.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
@@ -130,8 +131,8 @@ test("a late worker result shows its report above the caller's new answer", asyn
 
 /** A project with sub/marker.txt in it and a link to a folder outside it; the folders are removed after `body`. */
 async function withProject(body: (root: string, project: string) => Promise<void>) {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-delegate-subpath-")));
-  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-delegate-outside-")));
+  const root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-delegate-subpath-")));
+  const outside = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-delegate-outside-")));
   fs.mkdirSync(path.join(root, "sub"));
   fs.writeFileSync(path.join(root, "sub", "marker.txt"), "northwind marker\n");
   fs.writeFileSync(path.join(root, "AGENTS.md"), "# Project\n");

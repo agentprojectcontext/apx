@@ -5,8 +5,12 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Harness, TurnIO } from "./index.ts";
+
+/** A path as a command names it: forward slashes, which Git Bash reads on Windows too. */
+const sh = (p: string) => p.split(path.sep).join("/");
 
 const seen: Array<{ harness: string; io: TurnIO; outside: boolean }> = [];
 const fake = (id: "claude" | "codex"): Harness => ({
@@ -71,7 +75,7 @@ after(async () => {
 
 /** A Claude Code or Codex session of the owner's, in a fresh project folder. */
 async function session(engine: "claude" | "codex") {
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-harness-")));
+  const repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-harness-")));
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   return env.client.call("threads.create", { kind: "code", agent_id: "roby", project_id: project, engine });
 }
@@ -308,7 +312,7 @@ test("an external session gets an owner's attachment in its temp folder despite 
 
 test("an outside agent reads its project's read-only folders without asking and may never change them", async () => {
   const t0 = await session("claude");
-  const ref = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
+  const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
   await env.client.call("projects.update", { project: t0.project_id ?? "", read_only_folders: [ref] });
   const asks = [
     { kind: "read", path: path.join(ref, "a.ts") },
@@ -325,22 +329,22 @@ test("an outside agent reads its project's read-only folders without asking and 
 
 test("an outside agent's commands follow the shell tool's folder rule: they read a read-only folder, never write it", async () => {
   const t0 = await session("claude");
-  const ref = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
-  const away = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
+  const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
+  const away = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
   await env.client.call("projects.update", { project: t0.project_id ?? "", read_only_folders: [ref] });
   // Total autonomy: nothing is put to the owner, so only the folder rule says no.
   await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
   try {
     const commands: Array<[string, boolean]> = [
-      [`cat ${ref}/a.ts`, true],
-      [`cp ${ref}/a.ts ./a.ts`, true],
-      [`git -C ${ref} log --oneline`, true],
+      [`cat ${sh(ref)}/a.ts`, true],
+      [`cp ${sh(ref)}/a.ts ./a.ts`, true],
+      [`git -C ${sh(ref)} log --oneline`, true],
       ["ls", true],
-      [`touch ${ref}/x`, false],
-      [`cp a.ts ${ref}/a.ts`, false],
-      [`cd ${ref} && npm install`, false],
-      [`echo x > $(echo ${ref})/y`, false],
-      [`cat ${away}/secret.txt`, false],
+      [`touch ${sh(ref)}/x`, false],
+      [`cp a.ts ${sh(ref)}/a.ts`, false],
+      [`cd ${sh(ref)} && npm install`, false],
+      [`echo x > $(echo ${sh(ref)})/y`, false],
+      [`cat ${sh(away)}/secret.txt`, false],
     ];
     const asks = commands.map(([command]) => ({ kind: "execute", command }));
     await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });

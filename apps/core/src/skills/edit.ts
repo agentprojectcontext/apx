@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { SkillInfo } from "@apx/protocol";
 import type { Store } from "../domain/store.ts";
-import { writeAtomic } from "../paths.ts";
+import { realpath, writeAtomic } from "../paths.ts";
 import { NO_GLOBALS, type Skill, skillOn, skillPath, skillsOff } from "./skills.ts";
 
 /** What the panel shows about a skill, in the context it was asked from. */
@@ -62,7 +62,7 @@ export function writeSkill(o: {
     return path.dirname(file);
   }
   const dir = path.join(o.home, "skills", o.folder);
-  const real = fs.existsSync(dir) ? fs.realpathSync(dir) : dir;
+  const real = fs.existsSync(dir) ? realpath(dir) : dir;
   writeAtomic(path.join(real, "SKILL.md"), o.content);
   return dir;
 }

@@ -151,7 +151,7 @@ test("a PDF is available byte-for-byte in the chat's temp folder, with a safe na
   const at = /File in your temp folder: ([^ ]+)\. Use/.exec(input)?.[1];
   assert.ok(at);
   assert.equal(path.relative(path.join(scratchRoot(env.home), "home"), path.dirname(path.dirname(at))), "attachments");
-  assert.match(at, /\/upload-[^/]+\/receipt\.pdf$/);
+  assert.match(at, /[\\/]upload-[^\\/]+[\\/]receipt\.pdf$/);
   assert.deepEqual(fs.readFileSync(at), pdf);
   assert.equal(fs.existsSync(path.join(env.home, "work", ".apx-attachments")), false);
 });

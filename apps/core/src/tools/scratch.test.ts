@@ -8,6 +8,7 @@ import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 import { scratchRoot } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { defineTool } from "./types.ts";
@@ -47,7 +48,7 @@ let root = "";
 let agent = "";
 before(async () => {
   env = await startCore({ llm, extraTools: [readPage] });
-  root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-scratch-project-")));
+  root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-scratch-project-")));
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name: "Northwind" }));
   fs.writeFileSync(

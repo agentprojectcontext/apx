@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { methods } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createAsana } from "../integrations/asana.ts";
+import { realpath } from "../paths.ts";
 import { asanaTools } from "../tools/asana.ts";
 
 const TOKEN = "example-asana-pat";
@@ -25,7 +26,7 @@ test("native Asana lifecycle, pagination, writes and idempotency through the run
       return Response.json({ data: [{ gid: "123", name: "Acme" }], next_page: { offset: "next" } });
     },
   });
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-asana-")));
+  const repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-asana-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   try {
     const project = (await env.client.call("projects.register", { path: repo })).project.id;

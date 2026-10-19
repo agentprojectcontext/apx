@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { fakeProgram } from "../harness/fake-program.test-support.ts";
 import { createLog } from "../log.ts";
 import { CODEX_IMAGE_SERVICE, CODEX_IMAGES, createCodexImages } from "./codex-images.ts";
 import { createServices } from "./registry.ts";
@@ -13,8 +14,7 @@ const PNG = Buffer.from(
 );
 
 /** A `codex` that answers like `codex exec --experimental-json` and leaves a PNG where its image_gen would. */
-function fakeCodex(dir: string): { bin: string; prompt(): string; args(): string[] } {
-  const bin = path.join(dir, "codex");
+function fakeCodex(dir: string): { bin: string; env: Record<string, string>; prompt(): string; args(): string[] } {
   const asked = path.join(dir, "prompt.txt");
   const argv = path.join(dir, "argv.json");
   const events = [
@@ -22,26 +22,24 @@ function fakeCodex(dir: string): { bin: string; prompt(): string; args(): string
     { type: "item.completed", item: { id: "i0", type: "agent_message", text: "Done." } },
     { type: "turn.completed", usage: { input_tokens: 1, cached_input_tokens: 0, output_tokens: 1 } },
   ];
-  fs.writeFileSync(
-    bin,
-    `#!/usr/bin/env node
-const fs = require("node:fs");
+  const fake = fakeProgram(
+    dir,
+    "codex",
+    `const fs = require("node:fs");
 const path = require("node:path");
 let input = "";
 process.stdin.on("data", (c) => (input += c));
 process.stdin.on("end", () => {
   fs.writeFileSync(${JSON.stringify(asked)}, input);
-  fs.writeFileSync(${JSON.stringify(argv)}, JSON.stringify(process.argv.slice(2)));
+  fs.writeFileSync(${JSON.stringify(argv)}, JSON.stringify(argv));
   const made = path.join(process.env.CODEX_HOME, "generated_images", "thread-img");
   fs.mkdirSync(made, { recursive: true });
   fs.writeFileSync(path.join(made, "exec-1.png"), Buffer.from(${JSON.stringify(PNG.toString("base64"))}, "base64"));
   process.stdout.write(${JSON.stringify(events.map((e) => JSON.stringify(e)).join("\n"))} + "\\n");
-});
-`,
-    { mode: 0o755 },
+});`,
   );
   return {
-    bin,
+    ...fake,
     prompt: () => fs.readFileSync(asked, "utf8"),
     args: () => JSON.parse(fs.readFileSync(argv, "utf8")) as string[],
   };
@@ -61,7 +59,7 @@ async function withServices(
     codexImages: createCodexImages({
       codexPath: async () => codex.bin,
       signedIn: async () => signedIn,
-      env: () => ({ PATH: process.env.PATH ?? "", CODEX_HOME: path.join(env.home, "codex-home") }),
+      env: () => ({ PATH: process.env.PATH ?? "", CODEX_HOME: path.join(env.home, "codex-home"), ...codex.env }),
       workDir: path.join(env.home, "codex-images"),
     }),
   });

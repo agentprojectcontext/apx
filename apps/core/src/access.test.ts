@@ -39,7 +39,9 @@ test("the local network: saved with a token, and a supervised core restarts to t
   assert.deepEqual([r.mode, r.saved, r.restart_needed, r.restarting], ["local", "lan", true, true]);
   assert.equal(s.env().APX_HOST, "0.0.0.0");
   assert.ok(s.env().APX_TOKEN);
-  assert.equal((fs.statSync(path.join(s.home, "core.env")).mode & 0o777).toString(8), "600");
+  const mode = fs.statSync(path.join(s.home, "core.env")).mode & 0o777;
+  // Windows exposes the writable bit, not POSIX owner/group permissions.
+  assert.equal(mode, process.platform === "win32" ? 0o666 : 0o600);
   await new Promise((done) => setTimeout(done, 600));
   assert.equal(restarted, 1);
   s.done();

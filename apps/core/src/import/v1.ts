@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ImageDefaults, type ServiceSettings } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
+import { realpath } from "../paths.ts";
 import type { Secrets } from "../secrets.ts";
 import { jsonFile } from "./v1-data.ts";
 
@@ -70,7 +71,7 @@ export function importSkills(from: string, to: string): string[] {
     if (!SKILL_NAME.test(name) || taken(dst)) continue;
     try {
       if (!fs.existsSync(path.join(src, "SKILL.md"))) continue;
-      if (fs.lstatSync(src).isSymbolicLink()) fs.symlinkSync(fs.realpathSync(src), dst);
+      if (fs.lstatSync(src).isSymbolicLink()) fs.symlinkSync(realpath(src), dst);
       else
         fs.cpSync(src, dst, {
           recursive: true,

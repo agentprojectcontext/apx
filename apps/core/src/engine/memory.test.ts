@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { ftsQuery, looksSecret } from "../domain/memories.ts";
+import { realpath } from "../paths.ts";
 import { UNTRUSTED_MARK } from "../tools/result.ts";
 import { recallFor } from "./recall.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
@@ -32,7 +33,7 @@ let repo = "";
 let project = "";
 before(async () => {
   env = await startCore({ llm });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-mem-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-mem-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Northwind\n");
   fs.mkdirSync(path.join(repo, ".apc"));
   fs.writeFileSync(path.join(repo, ".apc", "memory.md"), "## Notes\n- The staging server is called kestrel.\n");
@@ -222,7 +223,7 @@ test("a delegated turn gets its project's and its own notes, and global ones onl
   const byWords = async (o: { query: string; limit: number }) => store.memories.list(o);
   const note = (scope: "global" | "project" | "agent", text: string, project_id?: string) =>
     store.memories.add({ scope, text, source: "owner", project_id, agent_id: scope === "agent" ? "scout" : undefined });
-  const q = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-mem-q-")));
+  const q = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-mem-q-")));
   fs.writeFileSync(path.join(q, "AGENTS.md"), "# Other\n");
   const other = (await env.client.call("projects.register", { path: q })).project.id;
   note("project", "Zebrafish billing runs on the staging cluster.", project);

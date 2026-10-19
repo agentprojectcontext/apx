@@ -18,13 +18,16 @@ import { localConnection } from "./local.ts";
 
 /** Where the installers put the app, per platform, as this machine names them. */
 export function desktopCandidates(platform: string, env: NodeJS.ProcessEnv, home = os.homedir()): string[] {
-  if (platform === "darwin") return ["/Applications/APX.app", path.join(home, "Applications", "APX.app")];
+  if (platform === "darwin") return ["/Applications/APX.app", path.posix.join(home, "Applications", "APX.app")];
   if (platform === "win32") {
-    const local = env.LOCALAPPDATA ?? path.join(home, "AppData", "Local");
+    const local = env.LOCALAPPDATA ?? path.win32.join(home, "AppData", "Local");
     // Builds before 2.2.7 installed into "@apxdesktop" (the package's name); an update keeps the folder it found.
-    return [path.join(local, "Programs", "apx", "APX.exe"), path.join(local, "Programs", "@apxdesktop", "APX.exe")];
+    return [
+      path.win32.join(local, "Programs", "apx", "APX.exe"),
+      path.win32.join(local, "Programs", "@apxdesktop", "APX.exe"),
+    ];
   }
-  return [path.join(home, "Applications", "APX.AppImage")];
+  return [path.posix.join(home, "Applications", "APX.AppImage")];
 }
 
 const detached = (cmd: string, args: string[]) =>

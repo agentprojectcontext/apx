@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { realpath } from "./paths.ts";
 
 /** An OS-released lock, independent of the listening port; never delete the file while a daemon may hold it. */
 export function acquireDaemonLock(home: string): { release(): void } {
   fs.mkdirSync(home, { recursive: true });
-  const canonical = fs.realpathSync(home);
+  const canonical = realpath(home);
   const db = new DatabaseSync(path.join(canonical, "daemon-lock.sqlite"));
   try {
     db.exec("PRAGMA busy_timeout = 0; BEGIN EXCLUSIVE");
