@@ -55,12 +55,15 @@ function applyEdit(
   return { next, count };
 }
 
+/** A file's path in a chat's parts: "/"-separated on every system, as git writes it. */
+const relPath = (base: string, at: string) => path.relative(base, at).split(path.sep).join("/");
+
 /** The patch a write would make, shown when the owner is asked to confirm it. */
 async function proposed(r: { at: string; base: string }, status: string, before: string, after: string) {
   const d = await textDiff(before, after);
   if (!d) return undefined;
   return {
-    path: path.relative(r.base, r.at),
+    path: relPath(r.base, r.at),
     status,
     added: d.added,
     removed: d.removed,
@@ -262,7 +265,7 @@ export function fileTools(store: Store, home: string): Tool[] {
         if ("missing" in r) return r.missing;
         if (fs.existsSync(r.at) && fs.statSync(r.at).isDirectory()) return `refused: ${a.path} is a folder`;
         const existed = fs.existsSync(r.at);
-        const rel = path.relative(r.base, r.at);
+        const rel = relPath(r.base, r.at);
         if (a.media !== undefined) {
           const m = chatMedia(store, ctx.thread, a.media);
           fs.mkdirSync(path.dirname(r.at), { recursive: true });
@@ -327,7 +330,7 @@ export function fileTools(store: Store, home: string): Tool[] {
           ctx,
           r,
           {
-            path: path.relative(r.base, r.at),
+            path: relPath(r.base, r.at),
             status: "M",
             added: lineCount(a.new) * times,
             removed: lineCount(a.old) * times,
