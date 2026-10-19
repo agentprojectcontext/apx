@@ -115,3 +115,47 @@ test("a browser map cannot silently drop a referenced library build's missing ma
     ["packages/ui/dist/view.js"],
   );
 });
+
+test("compiler provenance excludes only a pure runtime, never a mixed, application or unknown chunk", async (t) => {
+  const { compilerRuntimeChunks, COVERAGE_CHUNKS_FILE } = await import("./coverage-maps.ts");
+  const { localBrowserScripts } = await import("../e2e/coverage.ts");
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "apx-coverage-provenance-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const manifest = path.join(directory, COVERAGE_CHUNKS_FILE);
+  assert.equal(compilerRuntimeChunks(directory).size, 0);
+  fs.writeFileSync(
+    manifest,
+    JSON.stringify({
+      "assets/helpers.js": ["\0rolldown/runtime.js"],
+      "assets/mixed.js": ["\0rolldown/runtime.js", "/work/apps/web/src/View.tsx"],
+      "assets/rolldown-runtime-lookalike.js": ["/work/apps/web/src/View.tsx"],
+      "assets/empty.js": [],
+      "assets/unknown.js": ["\0future/runtime.js"],
+    }),
+  );
+  const root = path.resolve("work");
+  const names = ["helpers.js", "mixed.js", "rolldown-runtime-lookalike.js", "empty.js", "unknown.js"];
+  const entries = names.map((name) => ({ url: `http://127.0.0.1:7460/assets/${name}`, functions: [] }));
+  const selected = localBrowserScripts(root, "http://127.0.0.1:7460", entries, compilerRuntimeChunks(directory));
+  assert.deepEqual(
+    selected.map((entry) => path.basename(new URL(entry.url).pathname)),
+    names.slice(1),
+  );
+  assert.deepEqual(
+    missingSourceMaps(
+      root,
+      selected.map((entry) => entry.url),
+      [],
+    ),
+    names
+      .slice(1)
+      .map((name) => `apps/web/dist/assets/${name}`)
+      .sort(),
+  );
+  fs.writeFileSync(manifest, "not json");
+  assert.equal(compilerRuntimeChunks(directory).size, 0);
+  assert.equal(
+    localBrowserScripts(root, "http://127.0.0.1:7460", entries, compilerRuntimeChunks(directory)).length,
+    names.length,
+  );
+});

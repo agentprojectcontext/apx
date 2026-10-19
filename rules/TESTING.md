@@ -91,6 +91,8 @@ with a reason in the commit body.
 The quality gate also rejects `t.skip()`, aliased test controls, conditional skip options, `only`, `fixme`,
 literal-only assertions and empty callbacks. It parses TypeScript rather than matching comments or fixtures.
 Promise assertions must be awaited or returned, including Jest's chained `.resolves` and `.rejects` matchers.
+Browser coverage inventories repository source, not compiler-owned helpers. Coverage builds record each chunk's actual module IDs. Only a chunk containing exactly Rolldown's runtime module is excluded from the browser inventory; filenames alone never identify it. Mixed, application and unknown chunks retain their counters and must have source maps. Missing or invalid provenance keeps every chunk, so the mapping gate still fails closed.
+
 `typescript-parser` pins the TypeScript 5 parser for this lint and coverage inventory: the TypeScript 7 compiler
 used by the workspace does not expose that parser through its default export.
 

@@ -47,3 +47,20 @@ export function missingSourceMaps(root: string, urls: string[], maps: CoverageSo
   }
   return [...missing].sort();
 }
+
+export const COVERAGE_CHUNKS_FILE = "coverage-chunks.json";
+
+/** Only compiler-proven runtime-only chunks are outside the first-party function inventory. */
+export function compilerRuntimeChunks(directory: string): ReadonlySet<string> {
+  try {
+    const chunks: unknown = JSON.parse(fs.readFileSync(path.join(directory, COVERAGE_CHUNKS_FILE), "utf8"));
+    if (!chunks || typeof chunks !== "object" || Array.isArray(chunks)) return new Set();
+    return new Set(
+      Object.entries(chunks).flatMap(([file, modules]) =>
+        Array.isArray(modules) && modules.length === 1 && modules[0] === "\0rolldown/runtime.js" ? [file] : [],
+      ),
+    );
+  } catch {
+    return new Set();
+  }
+}
