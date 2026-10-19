@@ -38,6 +38,43 @@ for (const width of [360, 412, 1280]) {
   }
 }
 
+for (const width of [360, 1280]) {
+  test(`avatars have no badge bubble and branches end in a curve at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/?lang=en");
+    for (const view of ["Tree", "Activity", "By chat"]) {
+      await page.getByRole("radio", { name: view, exact: true }).click();
+      const consult = page.locator('.delegated[data-thread="consult"]');
+      const caller = consult.locator(".threadavatar__caller").first();
+      await expect(caller).toBeVisible();
+      await expect(caller).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+      await expect(caller).toHaveCSS("box-shadow", "none");
+      const branch = consult.locator(":scope > .delegated__list");
+      const terminal = branch.locator(":scope > :last-child");
+      await expect(terminal).toBeVisible();
+      const end = await terminal.evaluate((el) => {
+        const style = getComputedStyle(el, "::before");
+        return {
+          border: style.borderBottomWidth,
+          radius: style.borderBottomLeftRadius,
+          height: style.height,
+          pointerEvents: style.pointerEvents,
+        };
+      });
+      expect(end).toEqual({ border: "1px", radius: "7px", height: "15px", pointerEvents: "none" });
+      const row = terminal.getByRole("button", { name: /Check the sources/ });
+      await row.click();
+      await expect(page.locator("output")).toContainText("Check the sources");
+      await expect(row).toHaveClass(/is-selected/);
+      const fold = consult.getByRole("button", { name: "Hide the chats it delegated", exact: true }).first();
+      await fold.click();
+      await expect(branch).toHaveCount(0);
+      await consult.getByRole("button", { name: "Show the chats it delegated", exact: true }).first().click();
+      await expect(terminal).toBeVisible();
+    }
+  });
+}
+
 test("filter and search keep routines isolated from ordinary chats", async ({ page }) => {
   await page.goto("/?lang=en");
   await page.getByRole("radio", { name: "By chat", exact: true }).click();

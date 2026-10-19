@@ -74,8 +74,31 @@
   display: flex;
   flex-direction: column;
   margin-left: 17px;
-  padding-left: 10px;
+  padding-left: 11px;
+}
+.tree__sessions > * {
+  position: relative;
+}
+.tree__sessions > .apx-ctxmenu {
+  display: flex;
+  flex-direction: column;
+}
+.tree__sessions > *::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -11px;
   border-left: 1px solid var(--apx-border);
+  pointer-events: none;
+}
+/* Stop at the final row's center, even when that row has an expanded subtree. */
+.tree__sessions > :last-child::before {
+  bottom: auto;
+  width: 10px;
+  height: 15px;
+  border-bottom: 1px solid var(--apx-border);
+  border-bottom-left-radius: 7px;
 }
 .tree__session {
   display: flex;

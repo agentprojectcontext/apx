@@ -198,9 +198,6 @@
   position: absolute;
   right: -3px;
   bottom: -2px;
-  border-radius: 50%;
-  background: var(--apx-bg);
-  box-shadow: 0 0 0 1px var(--apx-bg);
 }
 .threadavatar__group {
   position: absolute;
