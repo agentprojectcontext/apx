@@ -269,9 +269,11 @@ export const refusal = {
  * (`l/../x`, with `l` a link, lands beside the link's target, not beside `l`).
  */
 export function physical(from: string, file: string): string {
-  let cur = real(path.isAbsolute(file) ? path.parse(file).root : from);
+  const root = path.isAbsolute(file) ? path.parse(file).root : "";
+  let cur = real(root || from);
   let exists = true;
-  for (const part of file.split(/[\\/]+/)) {
+  // After the root: a drive's "C:" is part of the root, never a folder name.
+  for (const part of file.slice(root.length).split(/[\\/]+/)) {
     if (!part || part === ".") continue;
     if (part === "..") {
       cur = path.dirname(cur);
