@@ -13,7 +13,7 @@ test("a global agent is created from the team, edited and deleted from its right
   await page.getByRole("button", { name: "Agente", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Nuevo agente" });
   // It opens with a person's name from APX's generator, none the crew uses; the dice draws another.
-  const name = dialog.getByLabel("Nombre");
+  const name = dialog.getByLabel("Nombre", { exact: true });
   const drawn = await name.inputValue();
   expect(AGENT_NAMES as readonly string[]).toContain(drawn);
   const crew = (await rpc<{ agents: Array<{ name: string }> }>("agents.list", {})).agents.map((a) => a.name);
@@ -73,7 +73,7 @@ test("a project agent is written to .apc/agents/ and, deleted, archived with its
 
   await page.getByRole("button", { name: "Agente", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Nuevo agente" });
-  await dialog.getByLabel("Nombre").fill("Ana Pérez");
+  await dialog.getByLabel("Nombre", { exact: true }).fill("Ana Pérez");
   await expect(dialog.getByText(".apc/agents/ana-perez.md")).toBeVisible();
   await dialog.getByRole("button", { name: "Crear agente" }).click();
   await expect.poll(() => fs.existsSync(path.join(agents, "ana-perez.md"))).toBe(true);
