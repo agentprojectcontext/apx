@@ -117,8 +117,9 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       if (!found || (scope && found.project_id && found.project_id !== scope.project))
         throw notFound("task unavailable");
       const t = found;
+      const owner = ctx.actor === "human" && !ctx.agent && !ctx.client && !ctx.channel;
       const readable = (thread: { id: string; project_id?: string | undefined }) =>
-        (!ctx.agent || !store.threads.context(thread.id).client) &&
+        (owner || !store.threads.context(thread.id).client) &&
         (!scope || !thread.project_id || thread.project_id === scope.project);
       const sessions = store.threads.byTask(t.id).filter(readable);
       const consults = store.threads

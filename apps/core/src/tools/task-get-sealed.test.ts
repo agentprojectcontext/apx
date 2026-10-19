@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { ApxClient } from "@apx/protocol/client";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 
 test("task_get never exposes sealed client conversations to the global secretary", async () => {
@@ -35,6 +36,20 @@ test("task_get never exposes sealed client conversations to the global secretary
     assert.equal(owner.comments.length, 1);
     assert.equal(owner.sessions.length, 1);
     assert.equal(owner.consults.length, 1);
+    const model = new ApxClient({ url: env.core.url, actor: "agent" });
+    const socket = await model.connect();
+    try {
+      for (const caller of [model, socket]) {
+        const details = await caller.call("tasks.get", { task: task.id });
+        assert.equal(details.comments.length, 0);
+        assert.equal(details.sessions.length, 0);
+        assert.equal(details.consults.length, 0);
+        assert.doesNotMatch(JSON.stringify(details), /Private customer evidence|Sealed session|Sealed consult/);
+      }
+    } finally {
+      socket.close();
+      await socket.closed;
+    }
     const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
     await env.client.call("threads.send", { thread: thread.id, text: task.id });
     await env.settle(thread.id);
