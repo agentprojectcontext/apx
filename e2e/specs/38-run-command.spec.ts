@@ -45,12 +45,13 @@ test("a late attach snapshot does not undo the command's exit event", async ({ p
   const chat = await rpc<{ id: string }>("threads.create", { kind: "loose", agent_id: "scout" });
   await page.route("**/rpc/terminal.open", async (route) => {
     const params = route.request().postDataJSON() as { command: string };
-    await route.continue({ postData: JSON.stringify({ ...params, command: `${params.command}; sleep 1` }) });
+    await route.continue({ postData: JSON.stringify({ ...params, command: `${params.command}; read -r signal` }) });
   });
   await page.route("**/rpc/terminal.attach", async (route) => {
     const response = await route.fetch();
-    const snapshot = (await response.json()) as { result: { terminal: { alive: boolean } } };
+    const snapshot = (await response.json()) as { result: { terminal: { id: string; alive: boolean } } };
     expect(snapshot.result.terminal.alive).toBe(true);
+    await rpc("terminal.input", { terminal: snapshot.result.terminal.id, data: "\r" });
     // Hold the live snapshot until the core has delivered the exit and the agent's follow-up.
     await expect(page.locator(".transcript").getByText(/Got it: The owner ran the command you suggested/)).toBeVisible({
       timeout: 15_000,
