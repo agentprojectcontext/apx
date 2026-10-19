@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>APX es un hogar de código abierto para tu propio equipo de agentes de IA, que corre en tu máquina.</b><br>
-  Un super-agente que te responde en cualquier lado, agentes por proyecto que trabajan con tus herramientas y un
+  Un superagente que te responde en cualquier lado, agentes por proyecto que trabajan con tus herramientas y un
   navegador que manejan<br>mientras mirás. En tu escritorio, tu teléfono, tus apps de mensajería y tu propio servidor.
 </p>
 
@@ -33,14 +33,14 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="apps/docs/src/assets/shots/home-hero-dark.webp">
-    <img src="apps/docs/src/assets/shots/home-hero.webp" alt="APX v2: la Bandeja con el chat del super-agente, el resumen del día y los chats de la crew por agente" width="900">
+    <img src="apps/docs/src/assets/shots/home-hero.webp" alt="APX v2: la Bandeja con el chat del superagente, el resumen del día y los chats de la crew por agente" width="900">
   </picture><br>
   <sub>La app real, con una oficina de demo (Acme Store). Cada captura está en el tema en el que estás leyendo.</sub>
 </p>
 
 ## Qué podés hacer
 
-- **Hablar con un super-agente, en todos lados.** Te responde en la app, en el teléfono, en Telegram, WhatsApp,
+- **Hablar con un superagente, en todos lados.** Te responde en la app, en el teléfono, en Telegram, WhatsApp,
   Discord, Slack o iMessage; hace el trabajo o se lo pasa al agente indicado, y te cuenta qué pasó.
 - **Tener una crew por proyecto.** Agentes con rol, área y sus propias notas, en un proyecto que puede ser un negocio,
   algo personal o un repositorio. Se delegan trabajo entre ellos y vos seguís cada paso.
@@ -76,7 +76,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="apps/docs/src/assets/shots/crew-demo-dark.webp">
-    <img src="apps/docs/src/assets/shots/crew-demo.webp" alt="Un chat, todo el crew: el super-agente le pasa la investigación a otro agente, abre la página de origen en el navegador y arma un tablero de lanzamiento interactivo" width="900">
+    <img src="apps/docs/src/assets/shots/crew-demo.webp" alt="Un chat, toda la crew: el superagente le pasa la investigación a otro agente, abre la página de origen en el navegador y arma un tablero de lanzamiento interactivo" width="900">
   </picture><br>
   <sub>Un solo pedido: Roby le pasa la investigación a Scout, abre la página de origen en el navegador al lado del chat y arma un tablero de lanzamiento.</sub>
 </p>
