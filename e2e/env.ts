@@ -48,7 +48,8 @@ const sl = await fakeSlack(E2E.slackTokens);
 const google = await fakeGoogle();
 
 const hook = path.join(root, "e2e/baileys-hook.ts");
-const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.join(root, "apps/core/src/main.ts")], {
+const desktopTrashRecord = path.join(dir, "desktop-trash.jsonl");
+const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.join(root, "e2e/start-core.ts")], {
   cwd: root,
   stdio: ["ignore", "pipe", "pipe"],
   env: {
@@ -82,6 +83,7 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     // Never the machine's own Ollama: memory's local embedding models are looked for where nothing answers.
     APX_OLLAMA_URL: "http://127.0.0.1:9",
     E2E_WA_PORT: String(E2E.whatsapp),
+    E2E_DESKTOP_TRASH_RECORD: desktopTrashRecord,
   },
 });
 const log = fs.createWriteStream(path.join(dir, "core.log"));
@@ -152,6 +154,17 @@ const control = http.createServer((req, res) => {
       return json(200, { sent: sl.messagesTo(sl.dm(user)).map((s) => ({ text: s.body.text })) });
     }
     if (req.url === "/llm/calls") return json(200, { calls: llm.calls.length });
+    if (req.url === "/desktop/trash")
+      return json(200, {
+        paths: fs.existsSync(desktopTrashRecord)
+          ? fs
+              .readFileSync(desktopTrashRecord, "utf8")
+              .trim()
+              .split("\n")
+              .filter(Boolean)
+              .map((line) => JSON.parse(line))
+          : [],
+      });
     json(404, { error: "no such control" });
   });
 });

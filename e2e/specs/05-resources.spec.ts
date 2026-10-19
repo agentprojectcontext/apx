@@ -25,6 +25,35 @@ test("variables: the imported one is listed, a new one is saved and shown with t
   await expect(page.getByText("acme-e2e-secret")).toBeHidden();
 });
 
+test("a variable value can be replaced without showing the old value, then removed", async ({ page }) => {
+  await rpc("secrets.set", { name: "NORTHWIND_REPLACE", value: "northwind-old-value" });
+  await open(page);
+  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
+  await page.getByRole("radio", { name: /^Variables/ }).click();
+  await expect(page.getByText("NORTHWIND_REPLACE")).toBeVisible();
+  await expect(page.getByText("northwind-old-value")).toBeHidden();
+
+  await page.getByRole("button", { name: "Reemplazar el valor de NORTHWIND_REPLACE" }).click();
+  const replace = page.getByRole("dialog", { name: "Reemplazar el valor de NORTHWIND_REPLACE" });
+  await replace.getByLabel("Valor").fill("northwind-new-value");
+  await replace.getByRole("button", { name: "Guardar" }).click();
+  await expect(replace).toBeHidden();
+  await expect(page.getByText("northwind-new-value")).toBeHidden();
+  await page.getByRole("button", { name: "Ver el valor de NORTHWIND_REPLACE" }).click();
+  await expect(page.getByText("northwind-new-value")).toBeVisible();
+  await expect(page.getByText("northwind-old-value")).toBeHidden();
+
+  await page.getByRole("button", { name: "Quitar NORTHWIND_REPLACE" }).click();
+  const remove = page.getByRole("dialog", { name: "¿Quitar NORTHWIND_REPLACE?" });
+  await expect(remove.getByText("El valor se borra; nada lo usa ahora.")).toBeVisible();
+  await remove.getByRole("button", { name: "Quitar" }).click();
+  await expect(remove).toBeHidden();
+  await expect(page.getByText("NORTHWIND_REPLACE")).toHaveCount(0);
+  expect((await rpc<{ secrets: Array<{ name: string }> }>("secrets.list", {})).secrets).not.toContainEqual(
+    expect.objectContaining({ name: "NORTHWIND_REPLACE" }),
+  );
+});
+
 test("a new MCP server takes a variable for its token from the + list, or a new one created right there", async ({
   page,
 }) => {
