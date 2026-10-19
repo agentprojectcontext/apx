@@ -33,6 +33,14 @@ apps/core/src/rpc/<domain>.ts handler        does the work (calls engine/, domai
 result validated against the registry → same frame shape on both transports
 ```
 
+Optional project preparation uses owner-only `projects.helper_review` and `projects.helper_set`. The core reuses
+project context, memory, open tasks and existing chats; settings keep the opt-in flag and bounded dismissal
+fingerprints, not new permissions. Context inserted into a brief or prompt proposal is escaped JSON, explicitly
+marked as untrusted reference data. The panel previews the complete before/after and asks separately before
+applying proposed instructions to an unchanged, empty agent draft. Dismissal or navigation never applies them;
+only the existing `agents.create` operation persists a new agent. Starting work uses the existing `threads.send`
+operation; preparation never blocks creation or ordinary chat.
+
 Node capabilities (`browser.*`): the handler is `apps/core/src/rpc/browser.ts`, which asks
 `apps/core/src/nodes/broker.ts` to send the same method + params to the connected desktop over its socket; the
 desktop executes it in `apps/desktop/src/main/browser/host.ts` (re-validating params and tab control) and the

@@ -507,6 +507,50 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  /** Optional, owner-only review of existing context; never changes an agent definition. */
+  "projects.helper_review": {
+    params: z
+      .object({
+        project: Id,
+        manual: z.boolean().default(false),
+        draft: z
+          .object({ role: z.string().max(500), prompt: z.string().max(50_000) })
+          .strict()
+          .optional(),
+      })
+      .strict(),
+    result: z.object({
+      enabled: z.boolean(),
+      offer: z.boolean(),
+      fingerprint: z.string(),
+      missing: z.array(z.enum(["goal", "first_result", "role", "instructions"])),
+      agent_gaps: z.array(z.object({ id: Id, name: z.string(), missing: z.array(z.enum(["role", "instructions"])) })),
+      goal: z.string(),
+      first_result: z.string(),
+      brief: z.string(),
+      recipient: Id.optional(),
+      suggested_prompt: z.string().optional(),
+    }),
+    effect: false,
+    access: "human",
+  },
+  "projects.helper_set": {
+    params: z
+      .object({
+        project: Id,
+        enabled: z.boolean().optional(),
+        goal: z.string().trim().max(2000).optional(),
+        first_result: z.string().trim().max(2000).optional(),
+        dismissed: z
+          .string()
+          .regex(/^[a-f0-9]{64}$/)
+          .optional(),
+      })
+      .strict(),
+    result: z.object({ ok: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   /** Reads the project's files again (all projects when `project` is absent). */
   "projects.sync": {
     params: z.object({ project: Id.optional() }).strict(),

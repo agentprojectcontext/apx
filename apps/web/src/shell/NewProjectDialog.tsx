@@ -40,6 +40,15 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
   const [kind, setKind] = useState<string>(NO_KIND);
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
+  const [helper, setHelper] = useState(false);
+  const enableHelper = async (project: string) => {
+    if (!helper) return;
+    try {
+      await client.call("projects.helper_set", { project, enabled: true });
+    } catch (err) {
+      notify(err instanceof Error ? err.message : String(err), "error");
+    }
+  };
   const [engine, setEngine] = useState<Engine>("codex");
   const [found, setFound] = useState<Found[] | undefined>();
   const [source, setSource] = useState("");
@@ -75,6 +84,7 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
         cwd: source,
         ...(name.trim() ? { name: name.trim() } : {}),
       });
+      await enableHelper(r.project.id);
       notify(t("project.new.imported", { name: r.project.name, count: r.chats.length }), "info");
       await bootstrap().catch(() => {});
       onClose();
@@ -97,6 +107,7 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
     });
     setBusy(false);
     if (!project) return;
+    await enableHelper(project.id);
     notify(t("setup.project.added", { name: project.name }), "info");
     await bootstrap().catch(() => {});
     onClose();
@@ -121,6 +132,10 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
       }
     >
       <div className="newproject">
+        <label>
+          <input type="checkbox" checked={helper} onChange={(e) => setHelper(e.currentTarget.checked)} />{" "}
+          {t("helper.enable")}
+        </label>
         <SegmentedControl
           label={t("project.new.where")}
           value={where}

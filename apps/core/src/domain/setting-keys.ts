@@ -63,6 +63,18 @@ const AcpAgent = z.object({
 const Channel = ChannelInfo.omit({ token_set: true, token_hint: true, status: true, error: true, account: true });
 
 export const SETTINGS = {
+  project_helper: entry(
+    z.record(
+      z.string(),
+      z.object({
+        enabled: z.boolean().optional(),
+        goal: z.string().max(2000).optional(),
+        first_result: z.string().max(2000).optional(),
+        dismissed: z.array(z.string().max(64)).max(100).optional(),
+      }),
+    ),
+    {},
+  ),
   task_columns: entry(z.array(TaskColumn).min(1), DEFAULT_COLUMNS),
   notices: entry(NoticePrefs, NoticePrefs.parse({})),
   /**
