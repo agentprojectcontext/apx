@@ -27,7 +27,10 @@ async function seen(text: string): Promise<{ input: string; system: string }> {
 
 test("an agent is told its mode in each turn's input, and that APX asks the owner for it", async () => {
   const auto = await seen("what may you do?");
-  assert.match(auto.input, /^\[mode\] Auto: read anything; edit files and run commands/m);
+  assert.match(
+    auto.input,
+    /^\[mode\] Auto: read anything; edit files and run commands in your work folder, the owner.s other projects/m,
+  );
   assert.match(auto.input, /APX asks them: make the call, never ask_owner for permission/);
   assert.doesNotMatch(auto.system, /\[mode\]/, "the mode can change, so it stays out of the cached system prompt");
 
