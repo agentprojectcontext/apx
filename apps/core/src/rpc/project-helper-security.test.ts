@@ -80,3 +80,21 @@ test("draft dismissal cannot reactivate a dismissed project offer; replaying the
     env.cleanup();
   }
 });
+
+test("helper accepts the same full custom prompt as agent creation without proposing a replacement", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  try {
+    const { project } = await env.client.call("projects.create", { name: "Acme" });
+    const prompt = "x".repeat(100_000);
+    const review = await env.client.call("projects.helper_review", {
+      project: project.id,
+      manual: true,
+      draft: { role: "Editor", prompt },
+    });
+    assert.equal(review.suggested_prompt, undefined);
+    assert.ok(!review.missing.includes("instructions"));
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});

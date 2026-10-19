@@ -99,30 +99,33 @@ export function NewProjectDialog({ onClose }: { onClose(): void }) {
     if (!ready || busy) return;
     if (where === "import") return bring();
     setBusy(true);
-    const project = await createProject({
-      ...(name.trim() ? { name: name.trim() } : {}),
-      ...(kind !== NO_KIND ? { kind: kind as ProjectKind } : {}),
-      ...(description.trim() ? { description: description.trim() } : {}),
-      ...(where === "folder" ? { path: path.trim() } : {}),
-    });
-    setBusy(false);
-    if (!project) return;
-    await enableHelper(project.id);
-    notify(t("setup.project.added", { name: project.name }), "info");
-    await bootstrap().catch(() => {});
-    onClose();
-    go.project(project.id, "overview");
+    try {
+      const project = await createProject({
+        ...(name.trim() ? { name: name.trim() } : {}),
+        ...(kind !== NO_KIND ? { kind: kind as ProjectKind } : {}),
+        ...(description.trim() ? { description: description.trim() } : {}),
+        ...(where === "folder" ? { path: path.trim() } : {}),
+      });
+      if (!project) return;
+      await enableHelper(project.id);
+      notify(t("setup.project.added", { name: project.name }), "info");
+      await bootstrap().catch(() => {});
+      onClose();
+      go.project(project.id, "overview");
+    } finally {
+      setBusy(false);
+    }
   };
   const submitOnEnter = (e: KeyboardEvent) => e.key === "Enter" && void add();
   return (
     <Dialog
       open
-      onOpenChange={(o) => !o && onClose()}
+      onOpenChange={(o) => !o && !busy && onClose()}
       title={t("project.new.title")}
       description={t("project.new.body")}
       footer={
         <>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" disabled={busy} onClick={onClose}>
             {t("common.cancel")}
           </Button>
           <Button disabled={!ready} loading={busy} onClick={() => void add()}>

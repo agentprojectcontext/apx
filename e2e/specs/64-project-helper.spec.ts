@@ -10,8 +10,23 @@ test("project helper is optional, asks only missing context and stays quiet afte
   await create.getByRole("radio", { name: "Sin carpeta" }).click();
   await create.getByRole("textbox", { name: "Nombre" }).fill("Helper storefront");
   await create.getByRole("checkbox", { name: "Ofrecer ayuda para preparar este proyecto" }).check();
+  let release: (() => void) | undefined;
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let enabling = false;
+  await page.route("**/rpc/projects.helper_set", async (route) => {
+    enabling = true;
+    await held;
+    await route.continue();
+  });
   await create.getByRole("button", { name: "Sumar" }).click();
+  await expect.poll(() => enabling).toBe(true);
+  await expect(create.getByRole("button", { name: "Sumar" })).toBeDisabled();
+  await expect(create.getByRole("button", { name: "Cancelar", exact: true })).toBeDisabled();
+  release?.();
   await expect(create).toBeHidden();
+  await page.unroute("**/rpc/projects.helper_set");
   await expect(
     page.getByText("Falta contexto del proyecto o de un agente. ¿Preparamos un próximo paso concreto?"),
   ).toBeVisible();

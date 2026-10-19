@@ -168,23 +168,30 @@ export async function send(
   }
 }
 
-export async function createThread(input: {
-  agentId: string;
-  projectId?: string;
-  title?: string;
-  /** A code thread in the project's folder, with its write policy. */
-  code?: { write: "ask" | "auto" | "read-only" };
-  /** A code session with an outside engine itself ("claude", "codex"…). */
-  engine?: string;
-}): Promise<Thread> {
-  const thread = await client.call("threads.create", {
-    kind: input.code || input.engine ? "code" : "loose",
-    agent_id: input.agentId,
-    project_id: input.projectId,
-    title: input.title,
-    ...(input.code ? { write: input.code.write } : {}),
-    ...(input.engine ? { engine: input.engine } : {}),
-  });
+export async function createThread(
+  input: {
+    agentId: string;
+    projectId?: string;
+    title?: string;
+    /** A code thread in the project's folder, with its write policy. */
+    code?: { write: "ask" | "auto" | "read-only" };
+    /** A code session with an outside engine itself ("claude", "codex"…). */
+    engine?: string;
+  },
+  idem?: string,
+): Promise<Thread> {
+  const thread = await client.call(
+    "threads.create",
+    {
+      kind: input.code || input.engine ? "code" : "loose",
+      agent_id: input.agentId,
+      project_id: input.projectId,
+      title: input.title,
+      ...(input.code ? { write: input.code.write } : {}),
+      ...(input.engine ? { engine: input.engine } : {}),
+    },
+    idem,
+  );
   data.set((s) => ({
     threads: { ...s.threads, [thread.id]: thread },
     messages: { ...s.messages, [thread.id]: s.messages[thread.id] ?? [] },

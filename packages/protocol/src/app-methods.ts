@@ -514,7 +514,7 @@ export const appMethods = {
         project: Id,
         manual: z.boolean().default(false),
         draft: z
-          .object({ role: z.string().max(500), prompt: z.string().max(50_000) })
+          .object({ role: z.string().max(500), prompt: z.string().max(100_000) })
           .strict()
           .optional(),
       })
