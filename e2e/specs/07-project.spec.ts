@@ -105,27 +105,34 @@ test("a project file can be renamed and moved to trash from its context menu", a
   const trashed = path.join(repo, "remove-me.txt");
   fs.writeFileSync(source, "rename this fixture\n");
   fs.writeFileSync(trashed, "remove this fixture\n");
-  await open(page);
-  await page.getByRole("button", { name: /^acme/i }).click();
-  await page.getByRole("tab", { name: "Archivos" }).click();
+  try {
+    await open(page);
+    await page.getByRole("button", { name: /^acme/i }).click();
+    await page.getByRole("tab", { name: "Archivos" }).click();
 
-  await page.getByRole("button", { name: "rename-me.txt" }).click({ button: "right" });
-  await page.getByRole("menuitem", { name: "Renombrar" }).click();
-  const rename = page.getByRole("dialog", { name: "Renombrar" });
-  await rename.getByRole("textbox", { name: "Nombre nuevo" }).fill("renamed.txt");
-  await rename.getByRole("button", { name: "Renombrar" }).click();
-  await expect(rename).toBeHidden();
-  await expect(page.getByRole("button", { name: "renamed.txt" })).toBeVisible();
-  expect(fs.existsSync(source)).toBe(false);
-  expect(fs.readFileSync(path.join(repo, "renamed.txt"), "utf8")).toBe("rename this fixture\n");
+    await page.getByRole("button", { name: "rename-me.txt" }).click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Renombrar" }).click();
+    const rename = page.getByRole("dialog", { name: "Renombrar" });
+    await rename.getByRole("textbox", { name: "Nombre nuevo" }).fill("renamed.txt");
+    await rename.getByRole("button", { name: "Renombrar" }).click();
+    await expect(rename).toBeHidden();
+    await expect(page.getByRole("button", { name: "renamed.txt" })).toBeVisible();
+    expect(fs.existsSync(source)).toBe(false);
+    expect(fs.readFileSync(path.join(repo, "renamed.txt"), "utf8")).toBe("rename this fixture\n");
 
-  await page.getByRole("button", { name: "remove-me.txt" }).click({ button: "right" });
-  await page.getByRole("menuitem", { name: "Mover a la papelera" }).click();
-  const confirm = page.getByRole("dialog");
-  await expect(confirm.getByRole("heading", { name: /remove-me.txt/ })).toBeVisible();
-  await confirm.getByRole("button", { name: "Mover a la papelera" }).click();
-  await expect(confirm).toBeHidden();
-  await expect(page.getByRole("button", { name: "remove-me.txt" })).toHaveCount(0);
-  expect(fs.existsSync(trashed)).toBe(false);
-  fs.rmSync(path.join(repo, "renamed.txt"));
+    await page.getByRole("button", { name: "remove-me.txt" }).click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Mover a la papelera" }).click();
+    const confirm = page.getByRole("dialog");
+    await expect(confirm.getByRole("heading", { name: /remove-me.txt/ })).toBeVisible();
+    await confirm.getByRole("button", { name: "Mover a la papelera" }).click();
+    await expect(confirm).toBeHidden();
+    await expect(page.getByRole("button", { name: "remove-me.txt" })).toHaveCount(0);
+    expect(fs.existsSync(trashed)).toBe(false);
+    const { paths } = await world.desktopTrash();
+    expect(paths).toContain(path.join(fs.realpathSync(repo), "remove-me.txt"));
+  } finally {
+    fs.rmSync(source, { force: true });
+    fs.rmSync(path.join(repo, "renamed.txt"), { force: true });
+    fs.rmSync(trashed, { force: true });
+  }
 });

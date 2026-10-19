@@ -35,6 +35,7 @@ export const world = {
       discord: string;
       slack: { bot: string; app: string };
     },
+  desktopTrash: async () => (await (await fetch(`${control}/desktop/trash`)).json()) as { paths: string[] },
   telegram: async (from: { id: number; name: string }, text: string) => {
     await fetch(`${control}/tg/message`, { method: "POST", body: JSON.stringify({ from, text }) });
   },
