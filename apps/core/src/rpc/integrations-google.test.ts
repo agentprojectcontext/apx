@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { FAKE_GOOGLE_SECRET, fakeGoogle } from "../integrations/fake-google.test-support.ts";
+import { realpath } from "../paths.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say("done");
@@ -113,7 +114,7 @@ test("events and mail come back as outside data; a draft waits for the owner's O
 });
 
 test("an integration off in a project or disconnected takes its tools away", async () => {
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-gint-")));
+  const repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-gint-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   const project = (await env.client.call("projects.register", { path: repo })).project.id;
   await env.client.call("mcp.toggle", { project, server: "gmail", on: false });

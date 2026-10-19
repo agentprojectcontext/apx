@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import type { Harness, TurnIO } from "../harness/types.ts";
+import { realpath } from "../paths.ts";
 
 const seen: TurnIO[] = [];
 const claude: Harness = {
@@ -22,7 +23,7 @@ const line = (o: unknown) => `${JSON.stringify(o)}\n`;
 
 before(async () => {
   env = await startCore({ llm: scriptedLlm(() => say("ok")), harnesses: { claude } });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-native-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-native-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   const claudeDir = path.join(env.home, "claude-home", "projects", "-work-acme");
   fs.mkdirSync(claudeDir, { recursive: true });

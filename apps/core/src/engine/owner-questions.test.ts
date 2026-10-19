@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
 import { ownerQuestionProblem } from "../domain/owner-question.ts";
+import { realpath } from "../paths.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const STAND_INS = [
@@ -71,7 +72,7 @@ let repo = "";
 before(async () => {
   // The turn stops waiting almost at once: the question stays open for a later turn to withdraw.
   env = await startCore({ llm, inputWaits: { turn: 150, external: 150 } });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-owner-q-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-owner-q-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Northwind\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;
 });

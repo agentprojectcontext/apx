@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import zlib from "node:zlib";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 import { findSkillDirs, type GitRunner, importSkills, parseRepoUrl, previewSkills } from "./import.ts";
 import { readZip, safeEntryPath } from "./zip.ts";
 
@@ -160,7 +161,7 @@ test("a folder too big to be a skills folder is refused instead of walked", () =
 });
 
 test("a project's skills land in .apc/skills, never through a link", async () => {
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(work, "repo-")));
+  const repo = realpath(fs.mkdtempSync(path.join(work, "repo-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   fs.mkdirSync(path.join(repo, ".apc"));
   const project = (await env.client.call("projects.register", { path: repo })).project.id;

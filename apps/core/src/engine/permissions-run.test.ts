@@ -7,6 +7,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import type { Message } from "@apx/protocol";
 import { z } from "zod";
+import { realpath } from "../paths.ts";
 import { untrusted } from "../tools/result.ts";
 import { defineTool } from "../tools/types.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
@@ -89,7 +90,7 @@ const agents: Record<string, string> = {};
 
 before(async () => {
   env = await startCore({ llm, extraTools: [readPage], inputWaits: { turn: 2_000, external: 2_000 } });
-  root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-perms-")));
+  root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-perms-")));
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name: "Northwind" }));
   for (const [name, autonomy] of [

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore, texts } from "../../engine/testkit.ts";
+import { realpath } from "../../paths.ts";
 
 const FAKE = path.join(import.meta.dirname, "fake-agent.test-support.mjs");
 
@@ -24,7 +25,7 @@ test("an ACP agent's session runs the turn: model picked, its edit asks the owne
   // In manual mode its edit asks; auto would let it edit its folder unasked (DECISIONS.md#d-106).
   await env.client.call("agents.update", { agent: "scout", autonomy: "manual" });
   // The executable is node itself; the agent's args point at the fake.
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acp-")));
+  const repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acp-")));
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   const t = await env.client.call("threads.create", {
     kind: "code",

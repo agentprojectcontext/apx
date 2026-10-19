@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 import {
   folderAccess,
   harnessDir,
@@ -34,8 +35,8 @@ let repo: string;
 let sibling: string;
 before(async () => {
   env = await startCore({ llm });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-folders-")));
-  sibling = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-sibling-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-folders-")));
+  sibling = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-sibling-")));
 });
 after(async () => {
   await env.core.close();
@@ -193,8 +194,8 @@ test("a project's read-only folders are read by file_read and shell, never chang
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
-  const ref = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
-  const away = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
+  const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
+  const away = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
   fs.writeFileSync(path.join(ref, "v1.txt"), "old\n");
   fs.writeFileSync(path.join(away, "x.txt"), "away\n");
   fs.symlinkSync(away, path.join(ref, "out"));
@@ -266,7 +267,7 @@ test("a read-only folder must be an absolute folder on disk, apart from APX's ho
   await refused(path.join(repo, "docs"), /already in the project's folder/);
   assert.equal(env.core.store.projects.get(project)?.read_only_folders, undefined, "nothing kept from a refusal");
   // Nor a folder holding the project's: listed as read-only, it reads as if the agent's own folder could not change.
-  const outer = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-outer-")));
+  const outer = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-outer-")));
   try {
     const nested = (await env.client.call("projects.create", { path: path.join(outer, "app") })).project.id;
     await assert.rejects(
@@ -280,7 +281,7 @@ test("a read-only folder must be an absolute folder on disk, apart from APX's ho
 
 test("in a project with a read-only folder, commands read it freely and only writes into it are refused", async () => {
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
-  const ref = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ro-")));
+  const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ro-")));
   fs.mkdirSync(path.join(ref, "sub"));
   fs.writeFileSync(path.join(ref, "f"), "old\n");
   fs.writeFileSync(path.join(ref, "script.mjs"), "console.log(1)\n");
@@ -384,7 +385,7 @@ test("system temp folders are scratch space, except APX's own chats' temp folder
   const home = path.join(path.parse(os.tmpdir()).root, "apx-home-nowhere");
   const areas = tempAreas(home);
   assert.ok(areas.length > 0);
-  const own = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-own-")));
+  const own = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-own-")));
   const roots = [
     { dir: own, write: true, scratch: false },
     { dir: scratchRoot(home), write: false, scratch: true, off: true },
@@ -414,7 +415,7 @@ test("a refusal outside every folder names a next step that exists", async () =>
 
 test("a linked git worktree of the project beside its folder is the project's, unless the thread keeps to one", async (t) => {
   const git = (cwd: string, ...args: string[]) => execFileSync("git", args, { cwd, stdio: "ignore" });
-  const base = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-wt-")));
+  const base = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-wt-")));
   t.after(() => fs.rmSync(base, { recursive: true, force: true }));
   const main = path.join(base, "northwind");
   const beside = path.join(base, "northwind-issue-7");

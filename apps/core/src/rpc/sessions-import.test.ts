@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 import { after, before, test } from "node:test";
 import zlib from "node:zlib";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 
 const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
 const line = (o: unknown) => `${JSON.stringify(o)}\n`;
@@ -35,7 +36,7 @@ let rollout = "";
 
 before(async () => {
   env = await startCore({ llm, aux: true });
-  acme = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-import-")));
+  acme = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-import-")));
   fs.mkdirSync(path.join(acme, "reel"));
   fs.writeFileSync(path.join(acme, "reel", "clip.mp4"), Buffer.from("not really a video"));
   fs.writeFileSync(path.join(acme, "reel", "look.css"), "body { color: red; }");

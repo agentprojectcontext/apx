@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 
 const llm = scriptedLlm((_req, { said, afterTool }) =>
   !afterTool && said.includes("run echo") ? callTool("c1", "shell", { command: "echo from-agent" }) : say("ok"),
@@ -18,7 +19,7 @@ const git = (...args: string[]) =>
 
 before(async () => {
   env = await startCore({ llm });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ws-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ws-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   fs.mkdirSync(path.join(repo, "src"));
   fs.writeFileSync(path.join(repo, "src", "app.ts"), "one\ntwo\nthree\n");

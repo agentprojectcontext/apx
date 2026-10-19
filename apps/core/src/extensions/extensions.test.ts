@@ -94,7 +94,8 @@ test("a changed copy, a link, APX's environment or an undeclared secret are refu
   write(manifest());
   fs.symlinkSync("/etc/hosts", path.join(src, "hosts"));
   await refused(env.client.call("extensions.install", { path: src }), /link/);
-  fs.rmSync(path.join(src, "hosts"));
+  // unlink removes the link itself; a dangling link on Windows is not a file rm can see.
+  fs.unlinkSync(path.join(src, "hosts"));
 });
 
 test("installing again restores it; removing deletes its files and secrets", async () => {

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 before(async () => {
@@ -23,7 +24,7 @@ test("an engine's list holds its own sessions only, and a CLI runs nowhere else"
     env.client.call("threads.model", { thread: ran.id, model_choice: { model: "claude", router: false } }),
     /own sessions/,
   );
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-eng-")));
+  const repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-eng-")));
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   const session = await env.client.call("threads.create", {
     kind: "code",

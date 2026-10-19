@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
+import { realpath } from "../paths.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
@@ -18,7 +19,7 @@ let repo = "";
 let project = "";
 before(async () => {
   env = await startCore({ llm });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-code-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-code-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Northwind\n");
   fs.mkdirSync(path.join(repo, "src"));
   execFileSync("git", ["init", "-q"], { cwd: repo });

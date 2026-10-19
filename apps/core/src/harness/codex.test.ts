@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { realpath } from "../paths.ts";
 import { codexHarness } from "./codex.ts";
 import { fakeProgram } from "./fake-program.test-support.ts";
 import type { TurnIO } from "./types.ts";
@@ -14,7 +15,7 @@ type Fixture = { root: string; main: string; worktree: string; common: string; g
 let fx: Fixture;
 
 before(() => {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-codex-wt-")));
+  const root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-codex-wt-")));
   const env: Record<string, string> = { GIT_CONFIG_NOSYSTEM: "1" };
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !k.startsWith("GIT_")) env[k] = v;
   const git = (cwd: string, ...args: string[]) =>

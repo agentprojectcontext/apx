@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 
 // The test config puts the other apps under APX's home: Claude in claude-home/, Codex in codex-home/, Cursor and the
 // shared folder in .cursor/ and .agents/.
@@ -35,7 +36,7 @@ before(async () => {
   skill(path.join(home, ".agents", "skills"), "shared", "Linked from the shared folder.");
   fs.symlinkSync(path.join(home, ".agents", "skills", "shared"), path.join(home, "skills", "shared"));
   env = await startCore({ llm, home });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-skill-apps-repo-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-skill-apps-repo-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
   skill(path.join(repo, ".claude", "skills"), "deploy", "Deploys Acme.");
   project = (await env.client.call("projects.register", { path: repo })).project.id;

@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import type { PendingInput } from "@apx/protocol";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 import { refusal } from "./folders.ts";
 import { commandFolder } from "./shell.ts";
 
@@ -26,7 +27,7 @@ let repo: string;
 let project: string;
 before(async () => {
   env = await startCore({ llm });
-  northwind = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-northwind-")));
+  northwind = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-northwind-")));
   repo = path.join(northwind, "app");
   fs.mkdirSync(path.join(northwind, "docs"), { recursive: true });
   fs.writeFileSync(path.join(northwind, "docs", "plan.md"), "the plan\n");
@@ -196,7 +197,7 @@ test("the folder holding the project is lent for one call, never kept: it would 
 
 test("auto reads another project's file and runs a reading command there with no card", async () => {
   await env.client.call("agents.update", { agent: "fausto", autonomy: "auto" });
-  const other = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acme-")));
+  const other = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acme-")));
   fs.writeFileSync(path.join(other, "brief.md"), "acme brief\n");
   try {
     for (const inProject of [true, false]) {

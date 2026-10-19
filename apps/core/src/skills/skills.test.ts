@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Loaded: ${String(req.messages.at(-1)?.content).slice(0, 200)}`);
@@ -108,7 +109,7 @@ test("v1 skills are copied once: folders without inner links, linked skills stay
   const to = path.join(env.home, "skills");
   assert.deepEqual(importSkills(v1, to), ["linked", "plain"]);
   assert.equal(fs.existsSync(path.join(to, "plain", "leak")), false);
-  assert.equal(fs.realpathSync(path.join(to, "linked")), fs.realpathSync(outside));
+  assert.equal(realpath(path.join(to, "linked")), realpath(outside));
   assert.match(fs.readFileSync(path.join(to, "brief-writer", "SKILL.md"), "utf8"), /one-page briefs/);
   assert.deepEqual(importSkills(v1, to), []);
   for (const n of ["linked", "plain"]) fs.rmSync(path.join(to, n), { recursive: true, force: true });

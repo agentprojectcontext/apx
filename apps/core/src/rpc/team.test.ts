@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { AGENT_NAMES } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let home = "";
@@ -22,7 +23,7 @@ before(async () => {
   );
   fs.symlinkSync("/etc", path.join(vault, "linked"));
   env = await startCore({ llm: scriptedLlm(() => say("ok")), home });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-team-repo-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-team-repo-")));
   fs.mkdirSync(path.join(repo, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(path.join(repo, ".apc", "agents", "boss.md"), "---\nname: Boss\nrole: Orchestrator\n---\n\nLead.\n");
   project = (await env.client.call("projects.register", { path: repo })).project.id;

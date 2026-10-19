@@ -97,6 +97,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
       await env.core.close();
       env.cleanup();
     }
-    fs.rmSync(dir, { recursive: true, force: true });
+    // The SDK's process may still be leaving the folder, and Windows cannot delete a folder in use.
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 50, retryDelay: 200 });
   }
 });

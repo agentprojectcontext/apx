@@ -5,10 +5,11 @@ import path from "node:path";
 import { after, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { harnessOf, isCliRef } from "../domain/refs.ts";
+import { realpath } from "../paths.ts";
 import { isWindowsShim, type OneshotId, oneshotHarness, oneshotStatus } from "./oneshot.ts";
 import type { TurnIO } from "./types.ts";
 
-const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-oneshot-test-")));
+const root = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-oneshot-test-")));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 const fixture = fileURLToPath(new URL("./fake-oneshot.test-support.mjs", import.meta.url));
 

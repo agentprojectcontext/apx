@@ -6,6 +6,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxClient, ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 import { scratchRoot } from "../tools/folders.ts";
 
 /** Named pipes are a POSIX file kind; Windows has none to list or refuse. */
@@ -25,8 +26,8 @@ let project = "";
 
 before(async () => {
   env = await startCore({ llm: scriptedLlm(() => say("ok")), desktop });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-files-repo-")));
-  outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-files-out-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-files-repo-")));
+  outside = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-files-out-")));
   fs.mkdirSync(path.join(repo, ".apc"), { recursive: true });
   fs.mkdirSync(path.join(repo, "docs"));
   fs.mkdirSync(path.join(repo, ".git"));
@@ -140,7 +141,7 @@ test("a chat browses the folder its agent works in: its project's, or else APX's
   assert.equal((await env.client.call("files.tree", { thread: inProject.id })).root, repo);
   const bare = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
   const work = await env.client.call("files.tree", { thread: bare.id });
-  assert.equal(work.root, fs.realpathSync(path.join(env.home, "work")));
+  assert.equal(work.root, realpath(path.join(env.home, "work")));
   fs.writeFileSync(path.join(work.root, "notes.md"), "Draft.\n");
   assert.equal((await env.client.call("files.read", { thread: bare.id, path: "notes.md" })).text, "Draft.\n");
   await assert.rejects(env.client.call("files.read", { thread: bare.id, path: "../x" }), /outside the folder/);
@@ -160,7 +161,7 @@ test("the base project browses APX's work folder, the one its chats work in", as
 test("a chat's temp folder is browsed apart, and what the owner keeps is copied into the chat's folder", async () => {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
   const temp = await env.client.call("files.tree", { thread: t.id, scratch: true });
-  assert.equal(temp.root, fs.realpathSync(path.join(scratchRoot(env.home), t.id)));
+  assert.equal(temp.root, realpath(path.join(scratchRoot(env.home), t.id)));
   fs.mkdirSync(path.join(temp.root, "out"));
   fs.writeFileSync(path.join(temp.root, "out", "chart.csv"), "a,b\n");
   fs.symlinkSync(outside, path.join(temp.root, "out", "escape"));

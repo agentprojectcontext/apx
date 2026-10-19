@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { ApxError } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore, texts } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Harness, TurnIO } from "./index.ts";
 
@@ -74,7 +75,7 @@ after(async () => {
 
 /** A Claude Code or Codex session of the owner's, in a fresh project folder. */
 async function session(engine: "claude" | "codex") {
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-harness-")));
+  const repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-harness-")));
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   return env.client.call("threads.create", { kind: "code", agent_id: "roby", project_id: project, engine });
 }
@@ -311,7 +312,7 @@ test("an external session gets an owner's attachment in its temp folder despite 
 
 test("an outside agent reads its project's read-only folders without asking and may never change them", async () => {
   const t0 = await session("claude");
-  const ref = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
+  const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
   await env.client.call("projects.update", { project: t0.project_id ?? "", read_only_folders: [ref] });
   const asks = [
     { kind: "read", path: path.join(ref, "a.ts") },
@@ -328,8 +329,8 @@ test("an outside agent reads its project's read-only folders without asking and 
 
 test("an outside agent's commands follow the shell tool's folder rule: they read a read-only folder, never write it", async () => {
   const t0 = await session("claude");
-  const ref = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
-  const away = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
+  const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
+  const away = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
   await env.client.call("projects.update", { project: t0.project_id ?? "", read_only_folders: [ref] });
   // Total autonomy: nothing is put to the owner, so only the folder rule says no.
   await env.client.call("agents.update", { agent: "roby", autonomy: "total" });

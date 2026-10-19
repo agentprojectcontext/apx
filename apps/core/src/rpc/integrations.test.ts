@@ -4,13 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let repo = "";
 
 before(async () => {
   env = await startCore({ llm: scriptedLlm(() => say("ok")) });
-  repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-int-")));
+  repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-int-")));
   fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
 });
 after(async () => {

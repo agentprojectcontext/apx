@@ -5,12 +5,13 @@ import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 import { oneshotHarness } from "./oneshot.ts";
 import type { TurnIO } from "./types.ts";
 
 for (const id of ["aider", "antigravity"] as const) {
   test(`${id}: threads.send persists successful and failed CLI outcomes and steps`, async () => {
-    const folder = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-cli-core-")));
+    const folder = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-cli-core-")));
     let mode = "echo";
     const fixture = fileURLToPath(new URL("./fake-oneshot.test-support.mjs", import.meta.url));
     const harness = oneshotHarness(id, { cwd: () => folder, binary: async () => process.execPath });

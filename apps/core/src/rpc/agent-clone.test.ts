@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { AGENT_NAMES } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 
 let env: Awaited<ReturnType<typeof startCore>>;
 const repos: string[] = [];
@@ -12,7 +13,7 @@ let from = "";
 let to = "";
 
 const repo = (agents: Record<string, string>) => {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-clone-")));
+  const dir = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-clone-")));
   repos.push(dir);
   fs.mkdirSync(path.join(dir, ".apc", "agents"), { recursive: true });
   for (const [slug, text] of Object.entries(agents))

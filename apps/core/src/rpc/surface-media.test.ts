@@ -5,14 +5,15 @@ import path from "node:path";
 import { test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { realpath } from "../paths.ts";
 
 /** A PNG signature and a few bytes: what an upload checks an image by. */
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 
 test("a widget loads its project's media it names, and nothing else", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
-  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-surface-media-")));
-  const other = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-surface-media-other-")));
+  const repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-surface-media-")));
+  const other = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-surface-media-other-")));
   try {
     fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Acme\n");
     fs.writeFileSync(path.join(other, "AGENTS.md"), "# Northwind\n");
