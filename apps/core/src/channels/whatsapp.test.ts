@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { UPLOAD_LIMITS } from "@apx/protocol";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
@@ -61,8 +63,8 @@ test("linking the owner's own phone: a QR waits in the app, and once scanned the
   assert.equal(linked?.account, "+5491100000001");
   const { persons } = await env.client.call("contacts.list", {});
   assert.ok(persons.find((p) => p.role === "owner")?.addresses.some((a) => a.external_id === wa.owner));
-  // Windows directories expose writable/executable bits without POSIX ownership.
-  assert.equal(fs.statSync(wa.dir).mode & 0o777, process.platform === "win32" ? 0o777 : 0o700);
+  // POSIX modes only: Windows reports fixed bits that say nothing about who may read the folder.
+  if (process.platform !== "win32") assert.equal(fs.statSync(wa.dir).mode & 0o777, 0o700);
 });
 
 test("a person's profile picture comes from the channel, kept as media; one who shows none has none", async () => {
@@ -78,7 +80,7 @@ test("a person's profile picture comes from the channel, kept as media; one who 
 
 test("codes keep coming for a few rounds while nobody scans, then linking waits for the owner", async () => {
   const fake = fakeWhatsApp();
-  const dir = fs.mkdtempSync(`${process.env.TMPDIR ?? "/tmp"}/apx-wa-`);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-wa-"));
   const adapter = whatsappAdapter({ dir, lib: async () => fake.lib });
   const codes: string[] = [];
   const states: string[] = [];
@@ -364,7 +366,7 @@ test("removing the channel unlinks the device and drops its folder", async () =>
 
 test("adapter: options go out numbered, a number back presses that option; Markdown reads as WhatsApp", async () => {
   const fake = fakeWhatsApp();
-  const dir = fs.mkdtempSync(`${process.env.TMPDIR ?? "/tmp"}/apx-wa-`);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-wa-"));
   const adapter = whatsappAdapter({ dir, selfOwner: true, lib: async () => fake.lib });
   const actions: string[] = [];
   const ac = new AbortController();

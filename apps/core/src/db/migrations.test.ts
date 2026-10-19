@@ -144,6 +144,7 @@ test("answers sent before outbox items named their message get linked and show s
       ],
     );
   } finally {
+    db.close();
     cleanup();
   }
 });
