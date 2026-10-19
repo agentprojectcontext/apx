@@ -10,8 +10,11 @@ function contained(root: string, target: string): boolean {
 export function fakeDesktopTrash(rootPath: string, record: string) {
   return async (abs: string): Promise<void> => {
     const root = fs.realpathSync(rootPath);
+    const entry = path.join(fs.realpathSync(path.dirname(abs)), path.basename(abs));
     const target = fs.realpathSync(abs);
-    if (!contained(root, target)) throw new Error("refusing to trash a path outside the e2e project");
+    if (!contained(root, entry) || !contained(root, target)) {
+      throw new Error("refusing to trash a path outside the e2e project");
+    }
 
     const fakeTrash = `${record}.trash`;
     fs.mkdirSync(fakeTrash, { recursive: true });

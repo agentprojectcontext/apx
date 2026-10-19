@@ -21,6 +21,13 @@ test("the fake trash refuses traversal and symlinks outside its temp project bef
   try {
     await assert.rejects(trash(path.join(root, "..", "outside", "secret.txt")), /outside the e2e project/);
     await assert.rejects(trash(path.join(root, "escape", "secret.txt")), /outside the e2e project/);
+    const inside = path.join(root, "inside.txt");
+    const outsideLink = path.join(outside, "inward-link");
+    fs.writeFileSync(inside, "inside content");
+    fs.symlinkSync(inside, outsideLink);
+    await assert.rejects(trash(outsideLink), /outside the e2e project/);
+    assert.equal(fs.lstatSync(outsideLink).isSymbolicLink(), true);
+    assert.equal(fs.readFileSync(inside, "utf8"), "inside content");
     assert.equal(fs.readFileSync(source, "utf8"), "keep me");
     assert.equal(fs.existsSync(record), false, "rejected paths are never recorded");
     assert.equal(fs.existsSync(fakeTrash), false, "rejected paths never create a trash destination");
