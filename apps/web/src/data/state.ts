@@ -43,6 +43,8 @@ export type DataState = {
   /** Full surface documents (html), fetched on demand. */
   surfaceDocs: Record<string, Surface>;
   tabs: TabInfo[];
+  /** The prototype's bound chat, including browser messages saved before guest tags existed. */
+  vmThread: string | null;
   /** Agent engines (native / Claude Code / Codex): installed → logged in → default. */
   engines: EngineStatus[];
   enginesLoad: EnginesLoad;
@@ -68,6 +70,7 @@ export const data = createStore<DataState>({
   surfaces: {},
   surfaceDocs: {},
   tabs: [],
+  vmThread: null,
   engines: [],
   enginesLoad: "idle",
   health: undefined,

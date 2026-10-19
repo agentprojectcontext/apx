@@ -14,6 +14,7 @@ import { audienceOf } from "./engine/audience.ts";
 import { createHooks } from "./engine/hooks.ts";
 import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
 import type { Upkeep } from "./engine/upkeep.ts";
+import type { VmPrototype } from "./environments/prototype.ts";
 import { errorMessage } from "./errors.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
@@ -38,6 +39,7 @@ import { composerHandlers } from "./rpc/composer.ts";
 import { computerHandlers } from "./rpc/computer.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
 import { embeddingHandlers } from "./rpc/embeddings.ts";
+import { environmentHandlers } from "./rpc/environments.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
 import { gitHandlers } from "./rpc/git.ts";
@@ -93,6 +95,7 @@ import { videoTools } from "./tools/video.ts";
 import { webTools } from "./tools/web.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
+import { attachVmDisplay } from "./transport/vm-display.ts";
 import { attachWs } from "./transport/ws.ts";
 import type { Updates } from "./updates.ts";
 
@@ -138,15 +141,16 @@ export function builtinTools(
   extra: Tool[] = [],
   /** The other agent apps whose skills agents may load too. */
   skillApps?: RuntimeHomes,
+  vm?: VmPrototype,
 ): Tool[] {
   const tools = [
     ...agentTools(store),
     ...agentSetTools(store),
     ...chatTools(store),
-    ...browserTools(store, home),
+    ...browserTools(store, home, vm),
     ...surfaceTools(store),
     ...ownerTools(store),
-    ...shellTools(store, home, port),
+    ...shellTools(store, home, port, vm),
     ...fileTools(store, home),
     ...messageTools(store, home),
     ...directoryTools(store),
@@ -222,8 +226,9 @@ type HandlerDeps = {
 };
 
 /** The handler table the router serves: one entry per protocol method. */
-export function coreHandlers(d: HandlerDeps) {
+export function coreHandlers(d: HandlerDeps & { vm?: VmPrototype | undefined }) {
   return {
+    ...environmentHandlers(d.store, d.vm, d.engine.cancel),
     ...updateHandlers(d.updates),
     ...telemetryHandlers(d.telemetry),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
@@ -235,9 +240,9 @@ export function coreHandlers(d: HandlerDeps) {
           : { status: "off", detail: "no desktop node connected" },
       agent: { status: "ok", detail: d.llmLabel() },
     })),
-    ...browserHandlers(d.broker, d.headless, d.bus),
+    ...browserHandlers(d.broker, d.headless, d.bus, d.vm, d.store),
     ...threadHandlers(d.store, d.engine, d.upkeep),
-    ...threadAdminHandlers(d.store, d.app.home),
+    ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
     ...runHandlers(d.store, d.engine),
     ...jobHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory),
@@ -245,12 +250,12 @@ export function coreHandlers(d: HandlerDeps) {
     ...mediaHandlers(d.services),
     ...transcriptionHandlers(d.services, d.localModels),
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),
-    ...taskHandlers(d.store, d.engine, d.app.home),
+    ...taskHandlers(d.store, d.engine, d.app.home, d.vm?.beforeDelete),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
     ...noticeHandlers(d.store, d.nudges),
     ...notificationHandlers(d.store),
     ...clientHandlers(d.store),
-    ...deviceHandlers(d.store, { addresses: d.addresses }),
+    ...deviceHandlers(d.store, { addresses: d.addresses, onRevoke: (id) => d.vm?.revokeDevice(id) }),
     ...accessHandlers(d.access),
     ...phoneHandlers(d.broker, d.store, d.app.home),
     ...computerHandlers(d.broker, d.store, d.app.home, d.engine),
@@ -370,7 +375,15 @@ export function exposedOrigins(config: Pick<CoreConfig, "host" | "publicUrl">, p
 /** HTTP + WebSocket transports over one dispatcher; resolves once the port is bound. */
 export async function listen(
   config: CoreConfig,
-  d: { dispatch: Dispatch; store: Store; log: Log; identity: Identity; broker: NodeBroker; bus: Bus },
+  d: {
+    dispatch: Dispatch;
+    store: Store;
+    log: Log;
+    identity: Identity;
+    broker: NodeBroker;
+    bus: Bus;
+    vm?: VmPrototype | undefined;
+  },
 ) {
   const allowedOrigins = originsFor(`http://${config.host}:${config.port || 7440}`, config.allowedOrigins);
   const gate: Gate = {
@@ -394,7 +407,9 @@ export async function listen(
       (token) => d.store.devices.byToken(token),
     ),
   );
+  const display = d.vm ? attachVmDisplay(server, d.vm, gate) : undefined;
   const wss = attachWs(server, {
+    streamPath: d.vm ? "/vm-display" : undefined,
     dispatch: d.dispatch,
     identity: d.identity,
     log: d.log,
@@ -408,12 +423,14 @@ export async function listen(
     server.listen(config.port, config.host, resolve);
   });
   const { port } = server.address() as AddressInfo;
+  for (const origin of originsFor(`http://${config.host}:${port}`, config.allowedOrigins)) allowedOrigins.add(origin);
   // Known once bound: a test or an APX_PORT=0 core only learns its port here.
   for (const o of exposedOrigins(config, port)) allowedOrigins.add(o);
   return {
     port,
     url: `http://${config.host}:${port}`,
     async close() {
+      display?.close();
       for (const client of wss.clients) client.terminate();
       await new Promise<void>((resolve) => wss.close(() => resolve()));
       server.closeAllConnections();

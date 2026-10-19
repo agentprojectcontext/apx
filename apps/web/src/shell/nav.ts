@@ -6,6 +6,7 @@ import { rememberSidebar } from "../data/prefs.ts";
 import type { MessageKey } from "../i18n/index.ts";
 
 export type PanelKind =
+  | "computer"
   | "browser"
   | "terminal"
   | "files"
@@ -118,6 +119,7 @@ function initialMode(): ApxMode {
 }
 
 const PANELS: readonly PanelKind[] = [
+  "computer",
   "browser",
   "terminal",
   "files",

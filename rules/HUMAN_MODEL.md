@@ -226,6 +226,13 @@ esbuild script (consumed as `dist/`). Checks: `pnpm preflight`. Details: [`TESTI
 
 ## 9. Fragile seams
 
+The optional computer (`apps/core/src/environments`) is inert at core startup. Owner-only `environments.enable` binds a native chat and starts asynchronous setup: verified private Lima runtime if missing → pinned Debian guest → desktop helpers and APX appearance. `environments.status` reports progress/errors; `environments.stop` fences new work, cancels the bound chat, revokes viewer tickets and verifies shutdown. The regular installer includes the controller/assets without downloading or booting Linux. The isolated lab (`prototypes/vm-desktop`, `pnpm vm:prototype`) uses the same lifecycle with its own Lima/core homes through `CoreOptions.vmPrototype`. A bound native chat exposes its guest shell and browser tools; external
+harnesses, routines and late MCP tools are refused. Binding survives a restart and never falls back to host
+execution if the backend is absent. A private SSH/CDP pipe reuses the core browser implementation for visible guest Chromium; browser routing checks the bound active run before any desktop-node fallback. Real mode uses the normal native provider and ChatGPT sign-in, with credentials in the scratch core only. Guest browser cards open the Computer panel. `environments.*` uses the normal registry/router; `/vm-display` carries
+only RFB bytes after a human requests a short-lived single-use ticket. It is a dummy-data prototype, with full
+human screen control and no agent/human control lease or enforced host/LAN egress isolation yet. Existing
+installations never enable or start the VM implicitly. Closing Computer disconnects its viewer; explicit shutdown releases VM RAM while keeping its disk. Light/dark desktop, terminal and bundled wallpaper follow APX; custom wallpapers remain intact. The current backend supports macOS Apple Silicon only. Runtime state and VM disks live outside the checkout.
+
 - **Node type stripping** only works for erasable syntax and for files **not** under `node_modules` — workspace
   packages resolve through symlinks to their real path, which is why `@apx/protocol` can ship `.ts`.
 - **`packages/ui` ↔ Claude Design**: `dist/` is what design-sync reads; formatting or API changes need a re-sync.

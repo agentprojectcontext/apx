@@ -170,7 +170,12 @@ export function commandFolder(
 /** How long a background job may run when the agent does not say: servers and watchers pass a longer timeout_s. */
 const BACKGROUND_S = 3600;
 
-export function shellTools(store: Store, home: string, apxPort: () => number): Tool[] {
+export function shellTools(
+  store: Store,
+  home: string,
+  apxPort: () => number,
+  vm?: { hasThread(id: string): boolean },
+): Tool[] {
   return [
     defineTool({
       name: "shell",
@@ -206,13 +211,18 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
       confirm: (a) => commandRisk(a.command, apxPort()),
       // A command that could only be refused is not put to the owner.
       check(a, ctx) {
+        if (vm?.hasThread(ctx.thread.id)) {
+          if (a.background || (a.cwd && a.cwd !== "." && a.cwd !== "/home/apx/work"))
+            throw new Error("VM prototype supports foreground commands in /home/apx/work only");
+          return;
+        }
         const missing = missingCwd(store, home, ctx.thread, a.cwd);
         if (missing) throw new Error(missing);
         const r = commandFolder(store, home, ctx.thread, a);
         if ("refused" in r) throw new Error(`refused: ${r.refused}`);
       },
       outside: (a, ctx) =>
-        missingCwd(store, home, ctx.thread, a.cwd)
+        vm?.hasThread(ctx.thread.id) || missingCwd(store, home, ctx.thread, a.cwd)
           ? []
           : outsideFolders((lent) => commandFolder(store, home, { ...ctx.thread, lent }, a)),
       workspace: true,
@@ -222,6 +232,10 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
       deadlineMs: 615_000,
       title: (a) => `Ran ${String(a.command ?? "").slice(0, 60)}`,
       async run(a, ctx) {
+        if (vm?.hasThread(ctx.thread.id)) {
+          const result = await ctx.call("environments.command", { thread: ctx.thread.id, command: a.command });
+          return `VM /home/apx/work · exit ${result.code}\n${untrusted("command_output", {}, result.output)}`;
+        }
         // Links resolved: a symlink inside the project must not run the command somewhere else.
         const where = commandFolder(store, home, ctx.thread, a);
         if ("refused" in where) return `refused: ${where.refused}`;

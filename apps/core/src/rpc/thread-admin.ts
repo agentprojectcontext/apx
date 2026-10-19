@@ -20,7 +20,7 @@ export function removeThreadFiles(home: string, files: { media: string[]; jobs: 
   for (const file of owned) if (isInside(home, file)) fs.rmSync(file, { force: true });
 }
 
-export function threadAdminHandlers(store: Store, home: string) {
+export function threadAdminHandlers(store: Store, home: string, beforeDelete?: (ids: string[]) => Promise<void>) {
   const isHome = (id: string, kind: string) => id === HOME_THREAD_ID || kind === "home";
 
   return {
@@ -42,7 +42,7 @@ export function threadAdminHandlers(store: Store, home: string) {
         ...(archived !== undefined ? { archived } : {}),
       });
     },
-    "threads.delete": ({ thread }) => {
+    "threads.delete": async ({ thread }) => {
       const t = store.threads.get(thread);
       if (!t) throw notFound(`thread ${thread}`);
       if (isHome(t.id, t.kind)) throw badRequest("Home cannot be deleted");
@@ -50,6 +50,7 @@ export function threadAdminHandlers(store: Store, home: string) {
       const ids = store.threads.family(t.id);
       // Refused rather than canceled: a turn half-way through a tool may still be changing things.
       if (store.threads.busy(ids)) throw conflict("something is running in this chat: stop it first");
+      await beforeDelete?.(ids);
       const files = store.tx(() => {
         store.notifications.dropThreads(ids);
         return store.threads.remove(ids);

@@ -16,7 +16,7 @@ const CODE_LEN = 8;
 
 export function deviceHandlers(
   store: Store,
-  opts: { addresses: () => string[]; clock?: () => number } = { addresses: () => [] },
+  opts: { addresses: () => string[]; clock?: () => number; onRevoke?: (id: string) => void } = { addresses: () => [] },
 ) {
   const clock = opts.clock ?? Date.now;
   const codes = new Map<string, number>();
@@ -69,6 +69,10 @@ export function deviceHandlers(
       if (!device) throw new CallError({ code: "not_found", message: `device ${target} not found` });
       return device;
     },
-    "devices.revoke": ({ id }) => ({ revoked: store.devices.revoke(id) }),
+    "devices.revoke": ({ id }) => {
+      const revoked = store.devices.revoke(id);
+      if (revoked) opts.onRevoke?.(id);
+      return { revoked };
+    },
   } satisfies Partial<Handlers>;
 }

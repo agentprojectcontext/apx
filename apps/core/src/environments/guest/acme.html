@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Acme workspace · VM demo</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #eef2f6; color: #172b3a; font: 15px system-ui, sans-serif; }
+  header { background: #102e35; color: white; padding: 26px 36px; display: flex; justify-content: space-between; align-items: center; }
+  header b { font-size: 22px; letter-spacing: -.7px; } header span { color: #8ad5bd; font-size: 12px; }
+  main { max-width: 1020px; margin: 35px auto; padding: 0 28px; }
+  .eyebrow { text-transform: uppercase; font-size: 11px; letter-spacing: 2px; color: #538273; }
+  h1 { font-size: 32px; margin: 8px 0 10px; letter-spacing: -1px; } p { color: #6a7e89; }
+  .cards { display: flex; gap: 16px; margin: 28px 0; } article { flex: 1; background: white; border-radius: 14px; padding: 22px; border: 1px solid #dfe8eb; }
+  article span { color: #617984; font-size: 12px; } article strong { display: block; font-size: 34px; margin-top: 8px; font-weight: 600; }
+  section { background: white; border: 1px solid #dfe8eb; border-radius: 14px; padding: 24px; }
+  h2 { font-size: 17px; margin: 0 0 18px; } table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { color: #778c96; text-align: left; font-size: 11px; font-weight: 500; } td, th { padding: 13px 8px; border-bottom: 1px solid #eef2f6; }
+  em { background: #e6f5ee; color: #20855c; border-radius: 16px; padding: 4px 10px; font-size: 11px; font-style: normal; }
+  footer { margin-top: 20px; color: #78909a; font-size: 11px; }
+</style>
+<header><b>Acme workspace</b><span>APX LAB / LINUX VM</span></header>
+<main>
+  <div class="eyebrow">Agent computer</div>
+  <h1>A workspace of its own.</h1>
+  <p>A real browser, a real terminal, a separate Linux disk. Everything here is sample data.</p>
+  <div class="cards"><article><span>Sample orders</span><strong>128</strong></article><article><span>Completed tasks</span><strong>24</strong></article><article><span>Environment</span><strong style="color:#20855c">Linux</strong></article></div>
+  <section><h2>Demo project activity</h2><table>
+    <tr><th>Task</th><th>Agent</th><th>Status</th></tr>
+    <tr><td>Prepare sample sales report</td><td>Nova</td><td><em>Ready</em></td></tr>
+    <tr><td>Open browser inside VM</td><td>Nova</td><td><em>Running here</em></td></tr>
+    <tr><td>Check Linux workspace</td><td>Nova</td><td><em>Verified</em></td></tr>
+  </table></section>
+  <footer>Prototype environment · Dummy data · No host directories mounted</footer>
+</main>
+</html>

@@ -2,6 +2,7 @@
 import path from "node:path";
 import {
   type Autonomy,
+  BROWSER_CAP,
   COMPUTER_CAP,
   type HarnessId,
   type MethodName,
@@ -81,6 +82,7 @@ import { closeTurnLog, RESUME_NOTE } from "./recovery.ts";
 import { askedPick, type SkillPicker } from "./skill-pick.ts";
 
 export type TurnDeps = {
+  vm?: import("../environments/prototype.ts").VmPrototype | undefined;
   store: Store;
   harnesses: Harnesses;
   tools: Tool[];
@@ -167,7 +169,37 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   const agent = store.agents.get(start.agent_id);
   if (!thread || !agent || !start.input)
     return store.runs.setState(start, "failed", !start.input ? "run has no input" : "thread or agent is gone");
+  const preflightFailure = (error: string) => {
+    store.messages.add({
+      thread_id: thread.id,
+      author: { kind: "agent", id: agent.id },
+      run_id: start.id,
+      parts: [
+        {
+          type: "notice",
+          level: "error",
+          code: "computer.unavailable",
+          text: "Computer is unavailable. Start it and return control to the agent, then retry.",
+          detail: error,
+        },
+      ],
+    });
+    store.threads.patch(thread.id, { state: "failed" });
+    return store.runs.setState(start, "failed", error);
+  };
   const audience = audienceOf(store, thread);
+  if (store.settings.get("vm_prototype_thread") === thread.id && !deps.vm)
+    return preflightFailure("the assigned VM backend is unavailable; host fallback is forbidden");
+  if (deps.vm?.hasThread(thread.id) && (thread.engine || start.input.origin.kind !== "user"))
+    return preflightFailure("VM prototype supports owner native chat turns only");
+  if (deps.vm?.hasThread(thread.id)) {
+    try {
+      await deps.vm.requireRunning(thread.id);
+      deps.vm.requireAgentControl(thread.id);
+    } catch (error) {
+      return preflightFailure(error instanceof Error ? error.message : String(error));
+    }
+  }
   const turn: Turn = {
     agent,
     thread,
@@ -261,7 +293,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
           skills,
           deps.profileRoots ?? [],
           deps.build,
-          scratchDir(store, deps.home, thread),
+          deps.vm?.hasThread(thread.id) ? "/home/apx/work" : scratchDir(store, deps.home, thread),
           Boolean(deps.desktopLinked?.()) && !deps.hasCap?.(COMPUTER_CAP),
         ),
     history,
@@ -288,6 +320,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
 
   try {
     const engine = enginePick(deps, turn, start, history);
+    if (deps.vm?.hasThread(thread.id) && engine.harness !== "native")
+      throw new Error("external harnesses are not supported by the VM prototype");
     const outcome = await runEngine(deps, engine, {
       io,
       input,
@@ -466,7 +500,9 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
                 channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
                 voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
                 mode: modeBlock(mode),
-                workspace: workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
+                workspace: deps.vm?.hasThread(thread.id)
+                  ? "Isolated Linux computer: /home/apx-worker/work. Shell and browser tools run as an unprivileged user in this VM; web access uses the protected proxy."
+                  : workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
                 release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
                 feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
                 // The owner's channel lands in Home: what went out on it meanwhile is what they may be answering.
@@ -493,14 +529,25 @@ function channelKindOf(store: Store, o: Origin, replyChannel?: string | null) {
   return store.settings.read("channels").find((c) => c.id === channel)?.type ?? channel;
 }
 
+const VM_BROWSER_TOOLS = new Set([
+  "browser_open",
+  "browser_navigate",
+  "browser_snapshot",
+  "browser_text",
+  "browser_click",
+  "browser_type",
+]);
+
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
 async function turnTools(deps: TurnDeps, turn: Turn) {
+  const inVm = deps.vm?.hasThread(turn.thread.id);
   const sealed = turn.audience.kind === "contact";
   const callers = callersOf(deps.store, turn.thread.id);
   // MCP tools are reached through mcp_search and mcp_call; their servers start only when one is first used.
-  const servers = !sealed && deps.mcpTools ? (deps.mcpServers?.(turn.thread) ?? []) : [];
+  const servers = !sealed && !inVm && deps.mcpTools ? (deps.mcpServers?.(turn.thread) ?? []) : [];
   let loading: Promise<Tool[]> | undefined;
   const mcpLate = () => {
+    if (inVm) return Promise.resolve([]);
     loading ??= (deps.mcpTools?.(turn.thread) ?? Promise.resolve([]))
       .catch(() => [])
       .then((all) => all.filter((t) => policy.allows(t.name) && (!only || only.has(t.name) || only.has(MCP_CALL))));
@@ -513,9 +560,10 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   const imessageOn = deps.store.settings.read("imessage").on;
   const offered = deps.tools.filter(
     (t) =>
+      (!inVm || t.name === "shell" || VM_BROWSER_TOOLS.has(t.name)) &&
       (memoryOn || !MEMORY_TOOLS.has(t.name)) &&
       (imessageOn || !IMESSAGE_TOOLS.has(t.name)) &&
-      (!t.needsCap || Boolean(deps.hasCap?.(t.needsCap))) &&
+      (!t.needsCap || (inVm && t.needsCap === BROWSER_CAP) || Boolean(deps.hasCap?.(t.needsCap))) &&
       (!t.when || t.when(turn.thread)),
   );
   // A contact's turn gets only what the owner allowed for that person (nothing by default); the owner's turns never

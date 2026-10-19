@@ -29,18 +29,26 @@ export function attachWs(
     bus: Bus;
     gate: Gate;
     deviceOf?: (token: string) => { id: string; name: string } | undefined;
+    streamPath?: string | undefined;
   },
 ) {
   const { dispatch, identity, log, broker, bus, gate } = deps;
   const wss = new WebSocketServer({
-    server,
-    path: "/ws",
+    noServer: true,
     maxPayload: MAX_PAYLOAD,
     verifyClient: ({ req }, done) => {
       const why = refuse(req, gate, new URL(req.url ?? "/", "http://core").searchParams.get("token"));
       if (why) log.warn({ origin: req.headers.origin, why }, "socket refused");
       done(!why, 403, why);
     },
+  });
+  server.on("upgrade", (req, socket, head) => {
+    const pathname = new URL(req.url ?? "/", "http://core").pathname;
+    if (pathname !== "/ws") {
+      if (pathname !== deps.streamPath) socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
   });
   const operators = new Set<WebSocket>();
   let seq = 0;

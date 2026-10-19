@@ -37,6 +37,8 @@ import { afterWorkTurn } from "./engine/task-work.ts";
 import { wakeAfterCommand } from "./engine/terminal-wake.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
+import { managedVmConfig } from "./environments/managed.ts";
+import { createVmPrototype, type VmPrototypeConfig } from "./environments/prototype.ts";
 import { errorMessage } from "./errors.ts";
 import { thisRunner, writeApxCommand } from "./harness/apx-command.ts";
 import type { CliStatus } from "./harness/detect.ts";
@@ -99,6 +101,7 @@ const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main
 
 /** What tests swap: the model, harnesses, extra tools, channel adapters and the scheduler's clock. */
 export type CoreOptions = {
+  vmPrototype?: VmPrototypeConfig;
   /** Asana transport; tests record REST requests without contacting an account. */
   asanaFetch?: typeof fetch;
   quiet?: boolean;
@@ -245,12 +248,19 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     fetch: opts.asanaFetch,
     offIn: (project) => !integrationsOff.takesGlobals(project) || integrationsOff.offIn(project).includes("asana"),
   });
+  const vm = createVmPrototype(
+    store,
+    opts.vmPrototype && !opts.vmPrototype.managed
+      ? opts.vmPrototype
+      : managedVmConfig(store, config.home, opts.vmPrototype),
+  );
   const tools = builtinTools(
     store,
     config.home,
     () => listening,
     [...imessageTools(imessage), ...googleTools(google), ...asanaTools(asana, store), ...(opts.extraTools ?? [])],
     config.runtimeSkills.homes,
+    vm,
   );
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
   // The router exists only after the engine, hence the late binding.
@@ -343,6 +353,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     { source: "owner", dir: path.join(config.home, "profiles") },
   ];
   const engine = createEngine({
+    vm,
     store,
     harnesses,
     tools,
@@ -406,6 +417,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const dispatch = createRouter(
     coreHandlers({
+      vm,
       internal,
       addresses: () => reachableAt(config.host, listening, config.publicUrl),
       terminals,
@@ -469,7 +481,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   );
   routed = dispatch;
 
-  const transport = await listen(config, { dispatch, store, log, identity, broker, bus });
+  const transport = await listen(config, { dispatch, store, log, identity, broker, bus, vm });
   listening = transport.port;
   // Agents' shells and harnesses reach this core with `apx`, whatever the owner's PATH holds.
   try {
@@ -510,6 +522,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     scheduler,
     telemetry,
     async close() {
+      await vm?.close();
       useApxCommand(undefined);
       idleTrim.stop();
       terminals.closeAll();

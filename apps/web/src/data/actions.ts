@@ -1,5 +1,6 @@
 // Every write the panel makes. Components call these; they never call the client directly.
 import type { ApprovalScope, Message, Part, Thread } from "@apx/protocol";
+import { ApxError } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { type Attached, setThreadModel } from "./composer.ts";
@@ -17,12 +18,19 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Agents, projects, threads, surfaces and browser tabs in one round. Throws if the core is unreachable. */
 export async function bootstrap(): Promise<void> {
-  const [agents, projects, threads, surfaces] = await Promise.all([
+  const [agents, projects, threads, surfaces, vmThread] = await Promise.all([
     client.call("agents.list", {}),
     client.call("projects.list", { include_unregistered: true }),
     // Archived chats too: the Inbox keeps them apart, under Archived. And a few of each chat's delegated chats.
     client.call("threads.list", { include_archived: true, delegated: DELEGATED_SHOWN }),
     client.call("surfaces.list", {}),
+    client
+      .call("environments.status", {})
+      .then((status) => (status.enabled ? (status.thread ?? null) : null))
+      .catch((error: unknown) => {
+        if (error instanceof ApxError && error.code === "unknown_method") return null;
+        return data.get().vmThread;
+      }),
   ]);
   const prev = data.get().threads;
   // Keep sub-threads opened in this session: threads.list leaves them out.
@@ -39,6 +47,7 @@ export async function bootstrap(): Promise<void> {
     threads: { ...keep, ...Object.fromEntries(threads.threads.map((t) => [t.id, t])) },
     delegated: threads.delegated ?? {},
     surfaces: Object.fromEntries(surfaces.surfaces.map((s) => [s.id, s])),
+    vmThread,
     ready: true,
   });
   for (const id of opened) void loadProjectThreads(id);

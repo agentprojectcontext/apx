@@ -20,6 +20,7 @@ const TerminalPanel = lazy(() => import("./TerminalPanel.tsx").then((m) => ({ de
 const WidgetPanel = lazy(() => import("./WidgetPanel.tsx").then((m) => ({ default: m.WidgetPanel })));
 const AgentPanel = lazy(() => import("./AgentPanel.tsx").then((m) => ({ default: m.AgentPanel })));
 const DocumentPanel = lazy(() => import("./DocumentPanel.tsx").then((m) => ({ default: m.DocumentPanel })));
+const ComputerPanel = lazy(() => import("./ComputerPanel.tsx").then((m) => ({ default: m.ComputerPanel })));
 
 /** Right column next to the chat ("side panel"). The chat header's switcher picks its kind. */
 export function SidePanel() {
@@ -50,7 +51,11 @@ export function SidePanel() {
           label={t("panel.resize")}
         />
       )}
-      {panel === "browser" ? (
+      {panel === "computer" ? (
+        <Suspense fallback={null}>
+          <ComputerPanel key={threadId} />
+        </Suspense>
+      ) : panel === "browser" ? (
         <Suspense fallback={null}>
           <BrowserPanel />
         </Suspense>

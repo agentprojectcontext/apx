@@ -50,6 +50,8 @@ export const mediaType = (name: string) => MEDIA[name.split(".").pop()?.toLowerC
 
 /** The folder a chat works in: a code session's own, its project's, or else APX's work folder. */
 export function threadFolder(store: Store, home: string, threadId: string): string {
+  if (store.settings.get("vm_prototype_thread") === threadId)
+    throw conflict("the prototype workspace is inside the VM; use its terminal");
   const t = store.threads.get(threadId);
   if (!t) throw notFound(`thread ${threadId}`);
   return workDir(store, home, t);
