@@ -135,7 +135,10 @@ notice when there is no text. Tools that touch core state call protocol methods 
   visibility before ranking limits, requires every named agent as a participant, and includes archived history.
   Participants can read delegated chats by session name as well as thread id or title.
   A named agent can retrieve unavailable context through the existing `delegate` path before asking the owner.
-- **Task assignment** (`rpc/tasks.ts`, `engine/task-work.ts`): an assigned task waits without automatic work until
+- **Task assignment** (`rpc/tasks.ts`, `engine/task-work.ts`): subtasks created by agents need a responsible agent
+  and a non-empty description; missing fields reject the operation before a record is written. Agent calls cannot
+  clear either field. An answering delegate proposes work to its caller instead of creating an unassigned handoff.
+  For the owner's drafts, an assigned task waits without automatic work until
   its description contains non-whitespace text. Completing the description starts work if it never began;
   later edits do not restart it. Unassigned ideas remain valid. Hourly pickup skips incomplete descriptions.
 - **Cross-project tasks** (`domain/tasks.ts`, `rpc/tasks.ts`, `tools/tasks.ts`): outside any project, the super-agent's
