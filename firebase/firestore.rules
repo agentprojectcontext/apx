@@ -1,8 +1,8 @@
 rules_version = '2';
 
 // APX telemetry (apps/core/src/telemetry.ts). Installs write without an account, so these rules are the whole guard:
-// only the known shapes, times stamped by the server, steps that never move once stamped, and no reads or deletes from
-// outside (the console and the report script read with the owner's credentials). See rules/DECISIONS.md#d-092.
+// only known shapes, server timestamps and immutable steps. Private readers need an administrator-issued claim;
+// authenticated readers cannot write. Console/report access continues through IAM. See rules/DECISIONS.md#d-092.
 service cloud.firestore {
   match /databases/{database}/documents {
     function isUuid(id) {
@@ -25,8 +25,12 @@ service cloud.firestore {
       return v is int && v >= 0 && v <= 1000000000000;
     }
 
+    function telemetryReader() {
+      return request.auth != null && request.auth.token.telemetry_reader == true;
+    }
+
     match /installs/{id} {
-      allow create: if isUuid(id)
+      allow create: if request.auth == null && isUuid(id)
         && request.resource.data.keys().hasOnly(['first_version', 'version', 'os', 'arch', 'channel', 'usage', 'stages', 'created', 'updated_at'])
         && request.resource.data.keys().hasAll(['first_version', 'version', 'os', 'arch', 'channel', 'stages', 'created', 'updated_at'])
         && info(request.resource.data) && short(request.resource.data.first_version, 32)
@@ -35,7 +39,7 @@ service cloud.firestore {
         && request.resource.data.stages.keys().hasOnly(['installed'])
         && request.resource.data.stages.installed == request.time;
 
-      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+      allow update: if request.auth == null && request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['version', 'os', 'arch', 'channel', 'usage', 'stages', 'updated_at'])
         && info(request.resource.data)
         && request.resource.data.updated_at == request.time
@@ -47,11 +51,12 @@ service cloud.firestore {
         && stamped(resource.data.stages, request.resource.data.stages, 'consent', true)
         && stamped(resource.data.stages, request.resource.data.stages, 'updated', true);
 
-      allow read, delete: if false;
+      allow read: if telemetryReader();
+      allow delete: if false;
 
       // One usage report per install and UTC day, sent only after the owner said yes.
       match /days/{day} {
-        allow create: if day.matches('^20[0-9]{2}-[01][0-9]-[0-3][0-9]$')
+        allow create: if request.auth == null && day.matches('^20[0-9]{2}-[01][0-9]-[0-3][0-9]$')
           && exists(/databases/$(database)/documents/installs/$(id))
           && request.resource.data.keys().hasOnly(['version', 'at', 'tokens_in', 'tokens_out', 'runs', 'projects', 'agents', 'channels', 'routines'])
           && request.resource.data.keys().hasAll(['version', 'at', 'tokens_in', 'tokens_out', 'runs', 'projects', 'agents', 'channels', 'routines'])
@@ -61,7 +66,8 @@ service cloud.firestore {
           && count(request.resource.data.runs) && count(request.resource.data.projects)
           && count(request.resource.data.agents) && count(request.resource.data.channels)
           && count(request.resource.data.routines);
-        allow read, update, delete: if false;
+        allow read: if telemetryReader();
+        allow update, delete: if false;
       }
     }
   }
