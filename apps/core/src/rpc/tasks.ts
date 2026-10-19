@@ -76,6 +76,21 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
         `assignee: you are answering ${caller}, so you start no task work, yours included: do what you can here yourself, and for a task name the agent in your answer: ${caller} assigns it`,
       );
   };
+  /** Agent-created subtasks must be executable when recorded; owner drafts remain a deliberate choice. */
+  const requireSubtaskWork = (
+    ctx: CallContext,
+    parent: string | undefined,
+    assignee: string | null | undefined,
+    description: string | undefined,
+  ): void => {
+    if (!parent || (ctx.actor !== "agent" && !ctx.agent)) return;
+    if (!assignee)
+      throw badRequest(
+        "assignee: a subtask needs a responsible agent; create it with an assignee and description, or propose the work to your caller without creating a task",
+      );
+    if (!description?.trim())
+      throw badRequest("description: a subtask needs a non-empty specification so its assigned agent can start");
+  };
   /** A close reports to the agent that created the task; from the closer's own chat for it, once that turn ends. */
   const reported = (t: Task, ctx: CallContext): Task => {
     const working = ctx.agent && store.threads.get(ctx.agent.thread_id)?.task_id === t.id;
@@ -122,6 +137,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       if (p.parent) visible(p.parent, ctx);
       const parent = p.parent ?? chatTask(ctx);
+      requireSubtaskWork(ctx, parent, p.assignee, p.description);
       const person = p.person ? personOf(store, p.person) : undefined;
       const due = dueOf(p.due_at);
       const remind = dueOf(p.remind_at);
@@ -171,6 +187,8 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
         !cur.description.trim() &&
         Boolean(c.description?.trim()) &&
         store.threads.byTask(cur.id).length === 0;
+      if (moving || c.assignee !== undefined || c.description !== undefined)
+        requireSubtaskWork(ctx, cur.parent_id, unassign ? null : keeper, c.description ?? cur.description);
       const starting = !unassign && keeper && (keeper !== cur.assignee || completing);
       if (starting) refuseHandOn(ctx);
       const changed = store.tx(() => {

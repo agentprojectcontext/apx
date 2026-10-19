@@ -30,7 +30,12 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
     return say("Stopped");
   }
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 120)}`);
-  if (said.includes("make a task")) return callTool("t1", "task_create", { title: "Draft the launch post" });
+  if (said.includes("make a task"))
+    return callTool("t1", "task_create", {
+      title: "Draft the launch post",
+      assignee: "roby",
+      description: "Write the launch draft.",
+    });
   if (said.includes("peek at the other")) return callTool("t2", "task_list", {});
   if (said.includes("ask the owner")) return say("@JULIAN please confirm the launch date.");
   if (said.includes("hand over subtask"))
@@ -357,22 +362,19 @@ test("a task an agent makes while working a task is its subtask, listed on it", 
   );
 });
 
-test("an agent answering another one makes a task but gives it to nobody: it names who, and its caller assigns", async () => {
+test("an answering agent cannot silently drop a requested assignee and leave an orphan task", async () => {
   const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
   await env.client.call("threads.send", { thread: chat.id, text: "hand over subtask" });
   await env.settle(chat.id);
   const { tasks } = await env.client.call("tasks.list", { project });
-  const made = tasks.find((x) => x.title === "Proofread the post");
-  assert.equal(made?.created_by, "vera");
-  assert.equal(made?.assignee, undefined);
-  assert.deepEqual((await env.client.call("tasks.get", { task: made?.id ?? "" })).sessions, []);
-  const told = llm.calls
-    .flatMap((c) => c.messages)
-    .find((m) => m.role === "tool" && /give nobody work/.test(String(m.content)));
-  assert.match(
-    String(told?.content),
-    /Name roby for task_\w+ in your answer: the agent that asked you assigns it with task_update\./,
+  assert.equal(
+    tasks.find((x) => x.title === "Proofread the post"),
+    undefined,
   );
+  const refusal = llm.calls
+    .flatMap((c) => c.messages)
+    .find((m) => m.role === "tool" && /so you start no task work/.test(String(m.content)));
+  assert.match(String(refusal?.content), /the agent that asked you|assigns it/);
 });
 
 test("giving a task to an agent starts it in its chat; another agent gets a new chat that knows who worked it", async () => {
