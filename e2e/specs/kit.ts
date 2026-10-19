@@ -119,10 +119,11 @@ export const test = base.extend<{ page: Page; cornerCards: boolean; desktopInsta
   desktopInstallNotice: [false, { option: true }],
   page: async ({ page, cornerCards, desktopInstallNotice }, use) => {
     if (!desktopInstallNotice) {
-      const notice = page.getByRole("complementary", { name: "Usá APX como aplicación de escritorio" });
-      await page.addLocatorHandler(notice, async () => {
-        await notice.getByRole("button", { name: "Más tarde", exact: true }).click();
-      });
+      await page.route("**/rpc/desktop.install_status", (route) =>
+        route.fulfill({
+          json: { ok: true, result: { available: true, installed: true, phase: "idle", received: 0 } },
+        }),
+      );
     }
     const finishCoverage = await startPageCoverage(page);
     if (!cornerCards)

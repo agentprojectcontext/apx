@@ -45,7 +45,8 @@ export default defineConfig(({ mode }) => {
         output: {
           codeSplitting: {
             groups: [
-              { name: "app", tags: ["$initial"] },
+              // The panel updater identifies its entry through the shared index-*.js contract.
+              { name: "index", tags: ["$initial"] },
               { name: "data", test: /apps\/web\/src\/data\//, minShareCount: 2 },
             ],
           },
