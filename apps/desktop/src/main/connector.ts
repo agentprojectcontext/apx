@@ -272,16 +272,20 @@ export function createConnector(opts: {
     }
     if (connection.mode === "local") {
       // Installed, APX starts its own core unless one already answers; a checkout tries the panel's dev server first.
-      if (app.isPackaged && !core && !(await isUp(opts.coreUrl))) {
-        core = startEmbeddedCore({
-          resources: process.resourcesPath,
-          home: localCoreHome(),
-          port: corePort,
-          logFile: localCoreLogFile(),
-          cacheDir: path.join(dataDir, "compile-cache"),
-        });
-        await waitUp(opts.coreUrl);
+      if (app.isPackaged && !core) {
+        const up = await isUp(opts.coreUrl);
         if (!current()) return;
+        if (!up) {
+          core = startEmbeddedCore({
+            resources: process.resourcesPath,
+            home: localCoreHome(),
+            port: corePort,
+            logFile: localCoreLogFile(),
+            cacheDir: path.join(dataDir, "compile-cache"),
+          });
+          await waitUp(opts.coreUrl);
+          if (!current()) return;
+        }
       }
       const verified = await verifyLocalCore(opts.coreUrl).catch(() => false);
       if (!current()) return;
