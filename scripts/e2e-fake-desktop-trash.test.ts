@@ -5,6 +5,29 @@ import path from "node:path";
 import { test } from "node:test";
 import { fakeDesktopTrash } from "../e2e/fake-desktop-trash.ts";
 
+test("the fake trash moves top-level files but refuses the project root", async () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), "apx-fake-trash-root-"));
+  const root = path.join(temp, "project");
+  const record = path.join(temp, "trash.jsonl");
+  fs.mkdirSync(root);
+  const source = path.join(root, "top-level.txt");
+  const trash = fakeDesktopTrash(root, record);
+  try {
+    await assert.rejects(trash(root), /outside the e2e project/);
+    assert.equal(fs.existsSync(record), false);
+    assert.equal(fs.existsSync(`${record}.trash`), false);
+    fs.writeFileSync(source, "top-level content");
+    await trash(source);
+    assert.equal(fs.existsSync(source), false);
+    const entries = fs.readdirSync(`${record}.trash`);
+    assert.equal(entries.length, 1);
+    assert.equal(fs.readFileSync(path.join(`${record}.trash`, entries[0]), "utf8"), "top-level content");
+    assert.equal(fs.readFileSync(record, "utf8"), `${JSON.stringify(source)}\n`);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
 test("the fake trash refuses traversal and symlinks outside its temp project before recording or moving", async () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), "apx-fake-trash-"));
   const root = path.join(temp, "project");
