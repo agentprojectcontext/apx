@@ -18,7 +18,8 @@ export function agentTools(store: Store): Tool[] {
   return [
     defineTool({
       name: "list_agents",
-      description: "List agents, scope, project and its orchestrator. Filter by project or name/role.",
+      description:
+        "List agents, scope, project and orchestrator; one match shows its instructions too. Filter by project or name/role.",
       args: z.object({ query: z.string().optional().describe("project name or text to match (optional)") }),
       effect: "none",
       deadlineMs: 5_000,
@@ -55,9 +56,12 @@ export function agentTools(store: Store): Tool[] {
           return `- ${x.name} (id: ${x.id}) [${place}]${x.role ? `: ${x.role}` : ""} · ${relation} · Is orchestrator: ${x.is_orchestrator ? "yes" : "no"}${own ? ` · own budget used: ${own}` : ""}`;
         });
         if (!lines.length) return "no agents match";
+        // One agent named: what it was told to do too, so a lead can review its team's instructions.
+        const only = rows.length === 1 && rows[0] ? store.agents.get(rows[0].id) : undefined;
         return [
           ...(budget.all ? [`Agents on their own since the owner last wrote: ${budget.all}`] : []),
           ...lines,
+          ...(only ? [`Its instructions:\n${only.prompt?.trim() || "(none)"}`] : []),
         ].join("\n");
       },
     }),

@@ -78,3 +78,42 @@ test("agent discovery exposes scope and the resolved project orchestrator withou
     env.cleanup();
   }
 });
+
+test("an agent that names one teammate in list_agents reads its instructions too; a broad list does not", async () => {
+  const env = await startCore({
+    llm: scriptedLlm((req, { said, afterTool }) =>
+      afterTool ? say(String(req.messages.at(-1)?.content)) : callTool("list", "list_agents", { query: said }),
+    ),
+  });
+  try {
+    const store = env.core.store;
+    store.projects.upsert({ id: "acme", name: "Acme" });
+    for (const [slug, prompt] of [
+      ["lead", "Split goals into tasks."],
+      ["builder", "Work in a worktree and run the tests."],
+    ] as const)
+      store.agents.upsertApc({
+        id: `acme-${slug}`,
+        slug,
+        name: slug,
+        role: "Engineering",
+        project_id: "acme",
+        prompt,
+        extra: {},
+      });
+    const listed = async (query: string) => {
+      const thread = await env.client.call("threads.create", {
+        kind: "loose",
+        agent_id: "acme-lead",
+        project_id: "acme",
+      });
+      await env.client.call("threads.send", { thread: thread.id, text: query });
+      return texts((await env.settle(thread.id)).messages).at(-1) ?? "";
+    };
+    assert.match(await listed("acme-builder"), /Its instructions:\nWork in a worktree and run the tests\./);
+    assert.doesNotMatch(await listed("Engineering"), /Its instructions/);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});
