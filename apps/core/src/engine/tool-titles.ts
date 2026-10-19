@@ -26,7 +26,8 @@ const TASK_STATE: Record<string, string> = {
 /** Spanish titles for the built-in tools, by tool name. */
 export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   video_transcript: (a) => `Miró ${str(a.url)}`,
-  pass_request: (a) => `Pasó el pedido: ${str(a.summary)}`,
+  pass_request: (a) =>
+    `${a.task === undefined ? "Revisó pedidos" : a.task ? "Actualizó pedido" : "Pasó el pedido"}: ${str(a.summary)}`,
   search_owner_notes: (a) => `Buscó «${str(a.query, 60)}» en tus notas`,
   contact_requests: () => "Revisó quién está esperando",
   answer_contact_request: (a) => (a.decision === "answer" ? `Dejó pasar a ${str(a.code)}` : `Ignoró a ${str(a.code)}`),

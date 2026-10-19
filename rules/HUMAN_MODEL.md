@@ -135,6 +135,11 @@ notice when there is no text. Tools that touch core state call protocol methods 
   visibility before ranking limits, requires every named agent as a participant, and includes archived history.
   Participants can read delegated chats by session name as well as thread id or title.
   A named agent can retrieve unavailable context through the existing `delegate` path before asking the owner.
+- **Contact requests** (`tools/contact.ts`): `pass_request` checks open requests submitted in the same contact's
+  chat before writing. When candidates exist, the agent compares their original submissions with the conversation
+  and updates the matching task by id, or explicitly creates a new, unrelated request. Owner edits and task notes
+  never enter this lookup. Updates preserve the task's conversation and prior details; only new requests count
+  against the five-waiting-requests limit. Provenance comes from existing task creation events and tool steps.
 - **Task assignment** (`rpc/tasks.ts`, `engine/task-work.ts`): subtasks created by agents need a responsible agent
   and a non-empty description; missing fields reject the operation before a record is written. Agent calls cannot
   clear either field. An answering delegate proposes work to its caller instead of creating an unassigned handoff.

@@ -8,6 +8,12 @@ const TOKEN = "123456:TEST-contacts";
 const MAG = { id: 2201, name: "Northwind Buyer" };
 
 const llm = scriptedLlm((req, { said, afterTool }) => {
+  if (
+    afterTool &&
+    said.includes("buy oat milk again") &&
+    String(req.messages.at(-1)?.content).startsWith("No task changed.")
+  )
+    return callTool("r2", "pass_request", { kind: "request", summary: "buy oat milk again", task: null });
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 120)}`);
   if (said.includes("buy oat milk"))
     return callTool("r1", "pass_request", { kind: "request", summary: "buy oat milk" });

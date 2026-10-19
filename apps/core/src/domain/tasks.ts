@@ -2,6 +2,7 @@
 // columns are a setting; "done" and "dropped" are states, never columns.
 import type { CommitmentOutcome, Task, TaskColumn, TaskEvent, TaskKind, TaskPriority, TaskState } from "@apx/protocol";
 import type { Selectable } from "kysely";
+import { sql as raw } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { TasksTable } from "../db/schema.ts";
 import { badRequest, notFound, unauthorized } from "../errors.ts";
@@ -218,6 +219,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       commitments?: boolean;
       person?: string;
       parent?: string;
+      from_thread?: string;
       limit: number;
     }): Task[] {
       let q = tasksQuery();
@@ -237,6 +239,17 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       if (o.commitments) q = q.where("tasks.person_id", "is not", null);
       if (o.person) q = q.where("tasks.person_id", "=", o.person);
       if (o.parent) q = q.where("tasks.parent_id", "=", o.parent);
+      if (o.from_thread)
+        q = q.where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom("task_events")
+              .select("task_id")
+              .whereRef("task_events.task_id", "=", "tasks.id")
+              .where("op", "=", "create")
+              .where(raw<string>`json_extract(task_events.data, '$.from_thread')`, "=", o.from_thread as string),
+          ),
+        );
       return all(q.orderBy("tasks.activity_at", "desc").limit(o.limit)).map(toTask);
     },
     create(t: {
