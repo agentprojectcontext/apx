@@ -32,3 +32,12 @@ export function findProgram(name: string, envPath = process.env.PATH ?? ""): str
     }
   return undefined;
 }
+
+/** Whether a shell finds `name` on this PATH: on Windows with any of PATHEXT's extensions (.exe, .cmd, .bat…). */
+export function onPath(name: string, envPath = process.env.PATH ?? ""): boolean {
+  const exts = process.platform === "win32" ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";") : [""];
+  return envPath
+    .split(path.delimiter)
+    .filter(Boolean)
+    .some((dir) => exts.some((e) => fs.existsSync(path.join(dir, `${name}${e.toLowerCase()}`))));
+}

@@ -9,6 +9,7 @@ import type { Store } from "../domain/store.ts";
 import { badRequest, conflict, errorMessage, unavailable } from "../errors.ts";
 import { commandEnv, SECRET_NAME } from "../harness/env.ts";
 import type { Log } from "../log.ts";
+import { onPath } from "../programs.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import { cap, untrusted } from "../tools/result.ts";
 import { type Confirm, type Effect, invalidArguments, type Tool } from "../tools/types.ts";
@@ -134,6 +135,9 @@ export function createMcp(deps: {
       });
     else {
       const env = resolve(d.env, d.values_of);
+      // Windows starts it through cmd, which hides a missing program as a closed connection: say so first.
+      const cmd = d.command ?? "";
+      if (process.platform === "win32" && !/[\\/]/.test(cmd) && !onPath(cmd)) throw new Error(`spawn ${cmd} ENOENT`);
       const stdio = new StdioClientTransport({
         command: d.command ?? "",
         args: d.args.map((a) => resolveText(a, d.values_of)),
