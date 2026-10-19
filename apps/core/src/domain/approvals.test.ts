@@ -48,3 +48,21 @@ test("a grant narrowed to a condition covers only matching calls, and one past i
   assert.ok(!store.approvals.allows(target, undefined, "ann", { path: "config/app.php" }));
   assert.equal((await env.client.call("tools.approvals", {})).approvals.filter((g) => g.agent_id === "ann").length, 0);
 });
+
+test("a grant for this chat outlives a core restart, and ends when the chat is archived", async () => {
+  const first = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const target = nativeApproval("shell");
+  const thread = (await first.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+  first.core.store.approvals.grant(target, "session", thread, "roby");
+  await first.core.close();
+  const again = await startCore({ llm: scriptedLlm(() => say("ok")), home: first.home });
+  try {
+    assert.ok(again.core.store.approvals.allows(target, thread, "roby"), "the chat's grant came back");
+    assert.ok(!again.core.store.approvals.allows(target, "th_other", "roby"), "and only for that chat");
+    await again.client.call("threads.update", { thread, archived: true });
+    assert.ok(!again.core.store.approvals.allows(target, thread, "roby"));
+  } finally {
+    await again.core.close();
+    first.cleanup();
+  }
+});

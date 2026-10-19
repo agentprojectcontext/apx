@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
-import { broadScan, commandRisk } from "./shell.ts";
+import { broadScan, commandRisk, reachesOut } from "./shell.ts";
 
 test("command risk: reading runs, changing asks, destroying always asks", () => {
   for (const c of [
@@ -297,4 +297,24 @@ test("reading the agent's own folder does not count as outside content: a write 
   await env.settle(t);
   assert.deepEqual((await env.client.call("runs.pending", { thread: t })).inputs, []);
   assert.match(lastSeen(), /Wrote|notes\.txt/);
+});
+
+test("a build or a test run's output is the project's own; a command that reaches the network brings outside text", () => {
+  for (const c of [
+    "pnpm test",
+    "pnpm --filter @apx/web build",
+    "node --test src/a.test.ts",
+    "git commit -qm x",
+    "go test ./...",
+  ])
+    assert.equal(reachesOut(c), false, c);
+  for (const c of [
+    "pnpm install",
+    "curl https://example.com",
+    "git pull",
+    "npx tsc",
+    "cd x && gh pr view 1",
+    "pip install x",
+  ])
+    assert.equal(reachesOut(c), true, c);
 });

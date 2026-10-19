@@ -84,7 +84,7 @@ async function answer(thread: string, decision: "approve" | "deny") {
 }
 const last = async (thread: string) => JSON.stringify((await owner.call("threads.get", { thread })).messages.at(-1));
 
-test("computer use exists only while the desktop lends it; looking at the screen waits for the owner", async () => {
+test("computer use exists only while the desktop lends it; in Auto a look at the screen asks nothing", async () => {
   const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
   await owner.call("threads.send", { thread, text: "list" });
   await settle(thread);
@@ -114,8 +114,8 @@ test("computer use exists only while the desktop lends it; looking at the screen
   assert.match(await last(thread), /screen_snapshot/);
 
   await owner.call("threads.send", { thread, text: "look at my screen" });
-  await answer(thread, "approve");
   await settle(thread);
+  assert.equal((await owner.call("runs.pending", { thread })).inputs.length, 0, "a look is a read: no card");
   const parts = (await owner.call("threads.get", { thread })).messages.flatMap((m) => m.parts);
   // The chat shows "controlling the computer" and the live view, not a picture per look.
   assert.ok(!parts.some((p) => p.type === "image"), "no picture of the screen lands in the chat");
@@ -127,6 +127,20 @@ test("computer use exists only while the desktop lends it; looking at the screen
   const shown = msgs.at(-1) as { role: string; images?: Array<{ mime: string }> };
   assert.equal(shown.role, "user");
   assert.equal(shown.images?.[0]?.mime, "image/jpeg");
+});
+
+test("in Manual a look at the screen waits for the owner", async () => {
+  await owner.call("agents.update", { agent: "roby", autonomy: "manual" });
+  try {
+    const thread = (await owner.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+    const before = calls.length;
+    await owner.call("threads.send", { thread, text: "look at my screen" });
+    await answer(thread, "deny");
+    await settle(thread);
+    assert.equal(calls.slice(before).includes("computer.snapshot"), false);
+  } finally {
+    await owner.call("agents.update", { agent: "roby", autonomy: "auto" });
+  }
 });
 
 test("a click always waits for the owner; denied, it never reaches the desktop", async () => {

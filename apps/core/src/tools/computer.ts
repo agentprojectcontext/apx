@@ -67,8 +67,9 @@ export function computerTools(store: Store): Tool[] {
         app: z.string().min(1).max(120).optional().describe("the app to look at, e.g. Google Chrome"),
         note: NOTE,
       }),
+      // A look changes nothing and sends nothing out: Auto takes it, Manual still asks (DECISIONS.md#d-109).
       effect: "external",
-      confirm: "ask",
+      confirm: "never",
       needsCap: COMPUTER_CAP,
       // Bounded by the owner's answer when the turn reaches its actions; the step itself has the core's own deadline.
       deadlineMs: 16 * 60_000,

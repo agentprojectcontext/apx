@@ -220,7 +220,7 @@ test("a permanent approval releases the agent's other chats already waiting on t
   }
 });
 
-test("session grants expire on restart; delayed one-shot grants persist and bind the tool contract", async () => {
+test("a chat grant outlives a restart (DECISIONS.md#d-109); delayed one-shot grants persist and bind the tool contract", async () => {
   const e = await setup();
   let next: Awaited<ReturnType<typeof startCore>> | undefined;
   try {
@@ -232,7 +232,7 @@ test("session grants expire on restart; delayed one-shot grants persist and bind
     e.core.store.approvals.grantOnce(t.id, "roby", "mcp_notes_echo", { text: "same" }, "original-contract");
     await e.core.close();
     next = await startCore({ llm: llm(), home: e.home });
-    assert.equal((await next.client.call("tools.approvals", {})).approvals.length, 0);
+    assert.equal((await next.client.call("tools.approvals", {})).approvals.length, 1);
     assert.equal(
       next.core.store.approvals.takeOnce(t.id, "roby", "mcp_notes_echo", { text: "same" }, "changed-contract"),
       false,
@@ -246,7 +246,8 @@ test("session grants expire on restart; delayed one-shot grants persist and bind
       false,
     );
     await next.client.call("threads.send", { thread: t.id, text: "read after restart" });
-    await pending(next.client, t.id);
+    await next.settle(t.id);
+    assert.equal((await next.client.call("runs.pending", { thread: t.id })).inputs.length, 0, "the chat's grant held");
   } finally {
     if (next) await next.core.close();
     else await e.core.close();

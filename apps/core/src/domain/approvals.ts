@@ -1,4 +1,4 @@
-// Owner grants: durable for every agent or for one, or limited to one chat in this core process.
+// Owner grants: durable for every agent or for one, or limited to one chat.
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { type ApprovalScope, STRICT_APPROVAL, ToolApproval } from "@apx/protocol";
@@ -111,7 +111,14 @@ export function approvalsRepo(q: Sql) {
     createHash("sha256")
       .update(JSON.stringify([thread, agent, tool, canonical(args), binding ?? ""]))
       .digest("hex");
+  const sessionKey = (key: string, thread: string) => JSON.stringify([key, thread]);
+  // "For this chat" lasts as long as the chat, a core restart included; archiving or deleting it ends it.
   const sessions = new Map<string, ToolApproval>();
+  try {
+    for (const g of ToolApproval.array().parse(JSON.parse(settings.get("tool_session_grants") ?? "[]")))
+      if (g.thread_id) sessions.set(sessionKey(g.key, g.thread_id), g);
+  } catch {}
+  const saveSessions = () => settings.set("tool_session_grants", JSON.stringify([...sessions.values()]));
   const read = (): ToolApproval[] => {
     try {
       // A grant past its date is gone: the next call asks again.
@@ -123,7 +130,6 @@ export function approvalsRepo(q: Sql) {
     }
   };
   const write = (rows: ToolApproval[]) => settings.set("tool_approvals", JSON.stringify(rows));
-  const sessionKey = (key: string, thread: string) => JSON.stringify([key, thread]);
   const repo = {
     /** Without `agent`, only grants for every agent count; a grant with a condition needs the call's `args`. */
     allows(a: ApprovalTarget, thread?: string, agent?: string, args?: unknown): boolean {
@@ -156,8 +162,10 @@ export function approvalsRepo(q: Sql) {
           ? { condition: a.key.slice(WRITE_FOLDER.length) }
           : {}),
       };
-      if (scope === "session") sessions.set(sessionKey(a.key, thread), g);
-      else write([...read().filter((r) => r.key !== a.key || r.agent_id !== g.agent_id), g]);
+      if (scope === "session") {
+        sessions.set(sessionKey(a.key, thread), g);
+        saveSessions();
+      } else write([...read().filter((r) => r.key !== a.key || r.agent_id !== g.agent_id), g]);
       for (const listener of listeners) listener();
     },
     subscribe(listener: () => void): () => void {
@@ -224,14 +232,18 @@ export function approvalsRepo(q: Sql) {
       settings.set("tool_once_grants", JSON.stringify(onceRead().filter((g) => g.binding !== key)));
       if (!agent)
         for (const [k, g] of sessions) if (g.key === key && (!thread || g.thread_id === thread)) sessions.delete(k);
+      saveSessions();
     },
     endSession(thread: string): void {
+      const before = sessions.size;
       for (const [k, g] of sessions) if (g.thread_id === thread) sessions.delete(k);
+      if (sessions.size !== before) saveSessions();
     },
     revokeServer(server: string): void {
       settings.set("tool_once_grants", JSON.stringify(onceRead().filter((g) => g.server !== server)));
       write(read().filter((g) => g.server !== server));
       for (const [k, g] of sessions) if (g.server === server) sessions.delete(k);
+      saveSessions();
     },
   };
   return repo;
