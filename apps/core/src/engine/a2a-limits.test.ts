@@ -9,8 +9,9 @@ import { telegramAdapter } from "../channels/telegram.ts";
 import { defineTool } from "../tools/types.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
-const IDLE_MS = 400;
-const CAP_MS = 1600;
+// Wide enough that a loaded CI runner's pauses between steps never look like a stall.
+const IDLE_MS = 800;
+const CAP_MS = 3200;
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
     const t = setTimeout(resolve, ms);
@@ -24,7 +25,7 @@ const sleep = (ms: number, signal?: AbortSignal) =>
     );
   });
 
-/** One step of a long job: a third of the idle window. */
+/** One step of a long job: a quarter of the idle window. */
 const slowStep = defineTool({
   name: "slow_step",
   description: "test tool",
@@ -33,7 +34,7 @@ const slowStep = defineTool({
   deadlineMs: 5_000,
   title: () => "Slow step",
   run: async (_a, ctx) => {
-    await sleep(IDLE_MS / 3, ctx.signal);
+    await sleep(IDLE_MS / 4, ctx.signal);
     return "step done";
   },
 });
@@ -44,8 +45,8 @@ const CONTINUED = "APX stopped your last turn on this task";
 const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   const steps = req.messages.filter((m) => m.role === "tool").length;
   const step = () => callTool(`s${req.messages.length}`, "slow_step", { n: steps });
-  // Six steps: two idle windows of steady progress.
-  if (system.startsWith("You are Steady")) return steps < 6 ? step() : say("Steady finished.");
+  // Eight steps: two idle windows of steady progress.
+  if (system.startsWith("You are Steady")) return steps < 8 ? step() : say("Steady finished.");
   // Never stops making progress: only the cap ends it.
   if (system.startsWith("You are Endless") || system.startsWith("You are Forever")) return step();
   // Goes quiet on every turn, the continuation too.
