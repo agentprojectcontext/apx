@@ -1,12 +1,12 @@
 import type { Part } from "@apx/protocol";
 import { ActionGroup, Button, Icons } from "@apx/ui";
-import { lazy, Suspense, useState } from "react";
-import { client } from "../../data/client.ts";
-import { notify } from "../../data/notices.ts";
+import { lazy, Suspense } from "react";
 import { isKey, useT } from "../../i18n/index.ts";
 import { appPlace } from "../appLinks.ts";
 
 const DelegationActions = lazy(() => import("./DelegationActions.tsx").then((m) => ({ default: m.DelegationActions })));
+
+const GoOn = lazy(() => import("./GoOn.tsx").then((m) => ({ default: m.GoOn })));
 
 type NoticeData = Extract<Part, { type: "notice" }>;
 
@@ -31,7 +31,11 @@ export function NoticePart({ part }: { part: NoticeData }) {
     part.code === "delegation.limit" && typeof part.vars?.subthread === "string" ? part.vars.subthread : "";
   const link = (thread || open || session) && (
     <span className="noticeline__actions">
-      {thread && <GoOn thread={thread} />}
+      {thread && (
+        <Suspense fallback={null}>
+          <GoOn thread={thread} />
+        </Suspense>
+      )}
       {session && (
         <Suspense fallback={null}>
           <DelegationActions key={session} session={session} />
@@ -79,27 +83,5 @@ export function NoticePart({ part }: { part: NoticeData }) {
         {link}
       </div>
     </ActionGroup>
-  );
-}
-
-/** A paused chain's way on: a fresh budget, or no limit until the owner writes there again (DECISIONS.md#d-081). */
-function GoOn({ thread }: { thread: string }) {
-  const t = useT();
-  const [done, setDone] = useState(false);
-  if (done) return <span className="noticeline__done">{t("notice.breaker.wentOn")}</span>;
-  const go = (mode: "reset" | "release") =>
-    void client
-      .call("threads.go_on", { thread, mode })
-      .then(() => setDone(true))
-      .catch((e: unknown) => notify(e instanceof Error ? e.message : String(e)));
-  return (
-    <>
-      <Button size="sm" variant="ghost" className="noticeline__link" onClick={() => go("reset")}>
-        {t("notice.breaker.reset")}
-      </Button>
-      <Button size="sm" variant="ghost" className="noticeline__link" onClick={() => go("release")}>
-        {t("notice.breaker.release")}
-      </Button>
-    </>
   );
 }
