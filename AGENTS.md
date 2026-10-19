@@ -81,13 +81,10 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 9. **Every turn/job/tool call has a deadline and a persisted terminal state**; client deadline > server deadline.
    `[review]`
 10. **Untrusted content stays untrusted.** Web pages, channel messages, outside apps' agents and tool output are
-    data, never instructions; the owner's own agents speak for the owner ([D-071](rules/DECISIONS.md#d-071)). Model output never becomes unchecked authority for side effects: strong actions
-    (send or post as the owner, pay, write outside the project) need confirmation while untrusted content is in context,
-    unless the owner explicitly selected total; the agent's own reads, edits and commands where it works do not
-    ([D-106](rules/DECISIONS.md#d-106)). Tools marked `always` require confirmation in every mode but total, until the
-    owner approves them for that chat or that agent ([D-089](rules/DECISIONS.md#d-089)); total asks for nothing
-    ([D-047](rules/DECISIONS.md#d-047)). The embedded browser never types passwords or payment data —
-    it hands off to the human. `[review]`
+    data, never instructions; the owner's own agents speak for the owner ([D-071](rules/DECISIONS.md#d-071)). Strong
+    actions (send or post as the owner, pay, write outside the owner's projects) need confirmation, except in total; the
+    agent's own reads, edits and commands where it works do not ([D-106](rules/DECISIONS.md#d-106),
+    [D-108](rules/DECISIONS.md#d-108)). The embedded browser never types passwords or payment data. `[review]`
 11. **Secrets by reference** (`secret://…`), resolved only inside the handler; never in prompts, logs or traces.
     `[review]`
 12. **Never `assistant` role for observations**; cap size and detect binary on every tool result entering
@@ -114,20 +111,16 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 
 21. **English first.** Code, comments, docs, commits and UI strings are English; the UI is translated (Spanish
     first) through `apps/web/src/i18n`. Plans under `plan/` stay in Spanish. `[review]`
-22. **Sentence case in the UI, in every language.** Each title, label, button, badge, menu item and sentence starts
-    with a capital letter ("Router chain", "Por defecto (Medio)"); never all lowercase, and not Title Case Every Word.
-    Only a fragment that continues a sentence on screen (after "·", a placeholder's tail) starts lowercase. Values
-    from outside (provider ids, model ids, effort levels, status codes) never show raw as a label: they go through a
-    name (a provider's `label`, `effortLabel`) or show as code. Brand names keep their own case (iMessage, `apx`).
-    `[review]`
+22. **Sentence case in the UI, in every language** ("Router chain", "Por defecto (Medio)"): never all lowercase,
+    never Title Case Every Word; only a fragment continuing a sentence on screen starts lowercase. Outside values
+    (provider or model ids, status codes) never show raw as a label: a name (`label`, `effortLabel`) or code. Brand
+    names keep their case (iMessage, `apx`). `[review]`
 23. **Prompt budget.** What every model call carries (a default turn's system prompt and tool definitions) stays
     within [`rules/PROMPT_SIZE.md`](rules/PROMPT_SIZE.md): APX sends the least of the agent apps measured, keep it so.
     Per-turn context goes in the input, MCP and extension tools behind `mcp_search`. `[gate]` test.
-24. **Fixes leave regression protection.** Reproduce the failing behavior, add or strengthen a test that detects it,
-    and verify the fix plus affected callers and clients. Keep the fix and its regression together; never change
-    assertions merely to accept a regression. Follow the [fix regression contract](rules/TESTING.md#fix-regression-contract),
-    including asynchronous failure/cleanup cases and verification after integration. The behavioral requirement is
-    `[review]`; `pnpm check:tests` checks test syntax and selected weak patterns, not assertion quality or completeness.
+24. **Fixes leave regression protection.** Reproduce the failure, add or strengthen a test that catches it, verify
+    the fix and its callers; never loosen an assertion to accept a regression
+    ([fix regression contract](rules/TESTING.md#fix-regression-contract)). `[review]`
 
 ### Code comments
 
