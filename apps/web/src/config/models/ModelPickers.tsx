@@ -1,7 +1,7 @@
 import type { CatalogEngine, ModelChoice, ModelRef } from "@apx/protocol";
 import { Button, Icons, Popover } from "@apx/ui";
 import { type ReactNode, useState } from "react";
-import { choiceLabel, inCatalog, refLabel, useModels } from "../../data/models.ts";
+import { choiceLabel, effectiveChoice, inCatalog, refLabel, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
 import { ModelList } from "./ModelList.tsx";
 
@@ -64,10 +64,7 @@ export function ModelRefPicker(props: {
   );
 }
 
-/**
- * An agent's model: the router (everyone's default), or its own model tried first with the router as fallback.
- * "Router" maps to null (no choice of its own).
- */
+/** A primary model, the router alone, or an inherited choice; inheritance is not an explicit router choice. */
 export function ModelChoicePicker(props: {
   value: ModelChoice | null;
   onChange: (choice: ModelChoice | null) => void;
@@ -78,7 +75,8 @@ export function ModelChoicePicker(props: {
   className?: string;
   /** Before the trigger text (the engine's mark in the composer). */
   icon?: ReactNode;
-  /** The footer, when null means something else than the router (a chat: "the agent's model"). */
+  /** Null inherits this choice, or the install default. */
+  inherited?: ModelChoice;
   none?: { title: string; desc: string; action: string };
   align?: "start" | "end";
   /** Which engines it offers (a CLI's own session: that CLI); by default the model APIs agents run on. */
@@ -92,9 +90,13 @@ export function ModelChoicePicker(props: {
     setOpen(false);
     props.onChange(choice);
   };
+  const config = useModels((s) => s.config);
   const own = value?.model;
-  const text = props.text ?? (own ? choiceLabel(value, catalog) : t("models.router"));
-  const warn = Boolean(own) && catalog.length > 0 && !inCatalog(own ?? "", catalog);
+  const effective = effectiveChoice(value, props.inherited, config);
+  const current = choiceLabel(effective, catalog, config);
+  const inherited = choiceLabel(effectiveChoice(null, props.inherited, config), catalog, config);
+  const text = props.text ?? current;
+  const warn = Boolean(effective.model) && catalog.length > 0 && !inCatalog(effective.model ?? "", catalog);
   return (
     <Popover
       open={open}
@@ -112,18 +114,43 @@ export function ModelChoicePicker(props: {
       })}
     >
       <div className="mchoice">
+        <div className="mchoice__fallback" role="status">
+          <span className="mchoice__text">
+            <span className="mchoice__title">{t("models.currentChoice", { model: current })}</span>
+            <span className="mchoice__desc">
+              {value == null
+                ? (props.none?.title ?? t("models.installDefault"))
+                : own
+                  ? t("models.ownModel")
+                  : t("models.router")}
+            </span>
+            {(effective.router || !effective.model) && (
+              <span className="mchoice__desc">{t("models.routerOnlyDesc")}</span>
+            )}
+          </span>
+        </div>
         <div className="mchoice__label">{t("models.ownModel")}</div>
         <ModelList
           value={own}
           {...(props.only ? { only: props.only } : {})}
-          onPick={(model) => pick({ model, router: true })}
+          onPick={(model) => pick({ model, router: own === model ? (value?.router ?? true) : true })}
           onEffort={(model) => props.onChange({ model, router: value?.router ?? true })}
         />
         <Fallback
-          active={!own}
-          title={props.none?.title ?? t("models.router")}
-          desc={props.none?.desc ?? t("models.routerOnlyDesc")}
-          action={props.none?.action ?? t("models.routerOnly")}
+          active={value != null && !own}
+          title={choiceLabel({ router: true }, catalog, config)}
+          desc={t("models.routerOnlyDesc")}
+          action={t("models.routerOnly")}
+          onPick={() => pick({ router: true })}
+        />
+        <Fallback
+          active={value == null}
+          title={t("models.inheritedChoice", {
+            source: props.none?.title ?? t("models.installDefault"),
+            model: inherited,
+          })}
+          desc={props.none?.desc ?? ""}
+          action={props.none?.action ?? t("models.useDefault")}
           onPick={() => pick(null)}
         />
       </div>

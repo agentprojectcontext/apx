@@ -44,7 +44,7 @@ test("an agent picks its own model from the list, and one button leaves it on th
     .getByRole("button", { name: /^Modelo de / })
     .first()
     .click();
-  await expect(page.getByText("En uso")).toBeVisible();
+  await expect(page.getByText("En uso", { exact: true })).toBeVisible();
   await expect(page.getByRole("checkbox", { name: /voz, imagen y embeddings/ })).toHaveCount(0);
   await page.getByRole("option", { name: /fake-2/ }).click();
   const choiceOf = async () =>
