@@ -56,7 +56,12 @@ test("a project chat's Changes list what is uncommitted, each file with its diff
 test("a terminal runs the owner's commands in the chat's folder and keeps what it printed", async () => {
   const t = await env.client.call("terminal.open", { thread, cols: 80, rows: 24 });
   assert.equal(t.cwd, repo);
-  await env.client.call("terminal.input", { terminal: t.id, data: "echo ready-$((40+2)) && pwd\r" });
+  // The shell itself works out 42 (the typed line only says how), in sh or in Windows' cmd.
+  const line =
+    process.platform === "win32"
+      ? "set /a X=40+2 >nul && call echo ready-%X% && cd\r"
+      : "echo ready-$((40+2)) && pwd\r";
+  await env.client.call("terminal.input", { terminal: t.id, data: line });
   let backlog = "";
   for (let i = 0; i < 100 && !backlog.includes("ready-42"); i++) {
     await new Promise((r) => setTimeout(r, 50));
