@@ -1,0 +1,2 @@
+# Every checkout uses LF, Windows included: generated files and fixtures compare byte for byte.
+* text=auto eol=lf
