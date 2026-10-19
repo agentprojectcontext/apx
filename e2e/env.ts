@@ -84,6 +84,7 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     APX_OLLAMA_URL: "http://127.0.0.1:9",
     E2E_WA_PORT: String(E2E.whatsapp),
     E2E_DESKTOP_TRASH_RECORD: desktopTrashRecord,
+    E2E_PROJECT_ROOT: fx.repo,
   },
 });
 const log = fs.createWriteStream(path.join(dir, "core.log"));
