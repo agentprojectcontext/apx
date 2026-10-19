@@ -130,12 +130,14 @@ export function findSkillDirs(root: string): string[] {
   let seen = 0;
   const walk = (rel: string, depth: number) => {
     if (++seen > MAX_DIRS) throw new Error("that folder holds too much: point at the skill, or the folder of skills");
-    const dir = path.join(root, rel);
+    // A skill's id is /-separated on every system, as the zip and the panel name it.
+    const dir = path.join(root, ...rel.split("/"));
     const file = fs.lstatSync(path.join(dir, "SKILL.md"), { throwIfNoEntry: false });
     if (file?.isFile()) out.push(rel || ".");
     if (depth >= MAX_DEPTH) return;
     for (const e of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)))
-      if (e.isDirectory() && !e.name.startsWith(".") && !NEVER.has(e.name)) walk(path.join(rel, e.name), depth + 1);
+      if (e.isDirectory() && !e.name.startsWith(".") && !NEVER.has(e.name))
+        walk(rel ? `${rel}/${e.name}` : e.name, depth + 1);
   };
   walk("", 0);
   return out;
