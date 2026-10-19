@@ -38,6 +38,7 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "team.new.global": "Un agente global: trabaja en cualquier proyecto.",
   "team.new.project": "Se suma a {project}: APX lo escribe en .apc/agents/ del proyecto.",
   "team.new.create": "Crear agente",
+  "team.new.randomName": "Otro nombre",
   "team.new.promptHint": "Cómo piensa y trabaja. Lo podés cambiar después.",
   "team.new.badName": "El nombre necesita al menos una letra.",
   "team.menu.open": "Ver detalle",

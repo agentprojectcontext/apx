@@ -1,8 +1,10 @@
 import type { Agent } from "@apx/protocol";
-import { Button, Dialog, Field, Input, Textarea } from "@apx/ui";
+import { randomAgentName } from "@apx/protocol/client";
+import { Button, Dialog, Field, IconButton, Icons, Input, Textarea } from "@apx/ui";
 import { useState } from "react";
 import { slugOf } from "../../common/slug.ts";
 import { type ProjectEntry, realProjectId } from "../../data/identity.ts";
+import { useData } from "../../data/state.ts";
 import { archiveAgent, createAgent } from "../../data/team.ts";
 import { useT } from "../../i18n/index.ts";
 
@@ -37,7 +39,10 @@ export function DeleteAgentDialog({ agent, onClose }: { agent: Agent; onClose():
   );
 }
 
-/** A new agent: its name, what it does and its instructions; the rest is edited afterwards like any other. */
+/**
+ * A new agent: its name (a person's, from APX's generator, none the crew uses), what it does and its instructions;
+ * the rest is edited afterwards like any other.
+ */
 export function NewAgentDialog({
   project,
   onClose,
@@ -48,7 +53,8 @@ export function NewAgentDialog({
   onCreated(a: Agent): void;
 }) {
   const t = useT();
-  const [name, setName] = useState("");
+  const taken = Object.values(useData((s) => s.agents)).map((a) => a.name);
+  const [name, setName] = useState(() => randomAgentName(taken));
   const [role, setRole] = useState("");
   const [description, setDescription] = useState("");
   const [prompt, setPrompt] = useState("");
@@ -90,7 +96,22 @@ export function NewAgentDialog({
     >
       <div className="taskform">
         <Field label={t("agent.edit.name")}>
-          {(id) => <Input id={id} autoFocus value={name} onChange={(e) => setName(e.currentTarget.value)} />}
+          {(id) => (
+            <Input
+              id={id}
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.currentTarget.value)}
+              trailing={
+                <IconButton
+                  size="sm"
+                  label={t("team.new.randomName")}
+                  icon={<Icons.Dices size={16} />}
+                  onClick={() => setName(randomAgentName([...taken, name.trim()]))}
+                />
+              }
+            />
+          )}
         </Field>
         <Field label={t("agent.edit.role")} hint={t("agent.edit.roleHint")}>
           {(id) => <Input id={id} value={role} onChange={(e) => setRole(e.currentTarget.value)} />}
