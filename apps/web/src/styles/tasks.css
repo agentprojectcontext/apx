@@ -24,11 +24,26 @@
   gap: 20px;
   min-width: 0;
 }
+/* Project tabs are clipped by their body; the list owns scrolling, not the project header. */
+.project__body > .tasks {
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+.project__body > .tasks > .tasks__main {
+  min-height: 0;
+  overflow-y: auto;
+}
 .tasks__bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+.project__body .tasks__bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--apx-bg);
 }
 .tasks__project {
   min-width: 160px;
