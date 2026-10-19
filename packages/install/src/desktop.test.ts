@@ -90,11 +90,11 @@ test("missing desktop downloads once, reports bytes, installs, and opens the sel
     assert.equal(f.requests.filter((r) => r.includes("/releases?")).length, 1);
     assert.deepEqual(fs.readFileSync(f.app), f.bytes);
     fs.accessSync(f.app, fs.constants.X_OK);
-    assert.ok(fs.readFileSync(path.join(f.home, ".local/share/applications/apx.desktop"), "utf8").includes(f.app));
-    assert.match(
-      fs.readFileSync(path.join(f.home, ".local/share/applications/apx.desktop"), "utf8"),
-      /^\[Desktop Entry\]\nType=Application\n/,
-    );
+    const launcher = fs.readFileSync(path.join(f.home, ".local/share/applications/apx.desktop"), "utf8");
+    const executable = /^Exec=(".*")$/m.exec(launcher)?.[1];
+    assert.ok(executable, "the launcher quotes its executable path");
+    assert.equal(JSON.parse(executable.replace(/\\([`$])/g, "$1")).replace(/%%/g, "%"), f.app);
+    assert.match(launcher, /^\[Desktop Entry\]\nType=Application\n/);
     const saved = JSON.parse(fs.readFileSync(path.join(f.home, "desktop/connection.json"), "utf8"));
     assert.equal(saved.home, fs.realpathSync(f.coreHome));
     assert.equal(saved.port, 7550);
