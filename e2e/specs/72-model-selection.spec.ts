@@ -46,7 +46,7 @@ test("agents and chats distinguish inheritance, primary models and explicit rout
     await expect(picker.locator(".mchoice__fallback:not([role])").filter({ hasText: /^Router · #1:/ })).toContainText(
       "En uso",
     );
-    await picker.getByRole("option", { name: /fake-2/ }).click();
+    await picker.getByRole("option", { name: /custom\/fake-2/ }).click();
     await expect.poll(choiceOf).toEqual({ model: "custom/fake-2", router: true });
     await expect(agentButton).toHaveText("custom/fake-2 · Respaldo: Router");
     await agentButton.click();
@@ -94,7 +94,7 @@ test("agents and chats distinguish inheritance, primary models and explicit rout
     );
     try {
       await agentButton.click();
-      await picker.getByRole("option", { name: /fake-1/ }).click();
+      await picker.getByRole("option", { name: /custom\/fake-1/ }).click();
       await expect(page.getByText(/No se pudo cambiar el modelo: Model update refused/)).toBeVisible();
       await expect(agentButton).toHaveText("custom/fake-2");
       await agentButton.click();
