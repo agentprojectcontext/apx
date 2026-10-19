@@ -1,8 +1,9 @@
 import type { Thread } from "@apx/protocol";
-import { AgentAvatar, Icons, Spinner } from "@apx/ui";
+import { Icons, Spinner } from "@apx/ui";
 import { useState } from "react";
+import { AgentFace } from "../common/AgentFace.tsx";
 import { shortWhen } from "../common/format.ts";
-import { blobOf, isWorking } from "../data/identity.ts";
+import { isWorking } from "../data/identity.ts";
 import { useShownAgents } from "../data/state.ts";
 import { useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
@@ -53,9 +54,7 @@ export function TaskBundle({ taskId, threads, selected }: { taskId: string; thre
           {waiting && <Icons.Hand size={12} className="tree__waiting" />}
           <span className="taskbundle__title">{title}</span>
           <span className="taskbundle__faces" aria-hidden>
-            {who.slice(0, 3).map((a) => (
-              <AgentAvatar key={a?.id} name={a?.name ?? ""} blob={blobOf(a)} size={16} animated={false} />
-            ))}
+            {who.slice(0, 3).map((a) => a && <AgentFace key={a.id} agent={a} size={16} />)}
           </span>
           <span className="tree__agentmeta">{t("inbox.taskBundle.chats", { n: threads.length })}</span>
           {unread > 0 && <span className="tree__unread">{unread}</span>}

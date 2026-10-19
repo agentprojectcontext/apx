@@ -13,11 +13,15 @@ import { type Confirm, defineTool, type Tool } from "./types.ts";
  */
 export function urlConfirm(url: unknown): Confirm {
   try {
-    return new URL(String(url)).search.length > 1 ? "untrusted" : "never";
+    const u = new URL(String(url));
+    // Values sent to this computer itself (a dev server) leave nothing with someone else.
+    return u.search.length > 1 && !LOOPBACK.test(u.hostname) ? "untrusted" : "never";
   } catch {
     return "never";
   }
 }
+
+const LOOPBACK = /^(localhost|[\w-]+\.localhost|127(\.\d{1,3}){3}|\[::1\])$/i;
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36";

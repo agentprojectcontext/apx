@@ -1,6 +1,6 @@
 import type { Thread } from "@apx/protocol";
 import { Icons } from "@apx/ui";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { loadDelegated } from "../data/actions.ts";
 import { DELEGATED_SHOWN } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
@@ -8,6 +8,7 @@ import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { delegatedByChat } from "./groupThreads.ts";
 import { SessionRow } from "./InboxViews.tsx";
+import { selectionPath } from "./selectionPath.ts";
 
 const NONE: Thread[] = [];
 
@@ -25,19 +26,31 @@ function WithDelegated({
   thread,
   selected,
   children,
+  ancestors = [],
 }: {
   thread: Thread;
   selected: string | undefined;
   children: ReactNode;
+  ancestors?: string[];
 }) {
   const t = useT();
-  const kids = useData((s) => delegatedByChat(s.threads).get(thread.id)) ?? NONE;
+  const loaded = useData((s) => s.threads);
+  const kids = delegatedByChat(loaded).get(thread.id) ?? NONE;
   const counted = useData((s) => s.delegated[thread.id] ?? 0);
   const agents = useShownAgents();
   const [open, setOpenState] = useState(() => !folded.has(thread.id) || kids.some((k) => k.id === selected));
   const [all, setAll] = useState(false);
+  const path = selectionPath(loaded, selected);
+  const active = kids.findIndex((k) => path.has(k.id));
+  useEffect(() => {
+    if (selected && active >= 0) {
+      folded.delete(thread.id);
+      setOpenState(true);
+      if (active >= DELEGATED_SHOWN) setAll(true);
+    }
+  }, [active, thread.id, selected]);
   const total = Math.max(counted, kids.length);
-  if (total === 0) return <>{children}</>;
+  if (total === 0 || ancestors.includes(thread.id)) return <>{children}</>;
   const setOpen = (next: boolean) => {
     if (next) folded.delete(thread.id);
     else folded.add(thread.id);
@@ -67,13 +80,14 @@ function WithDelegated({
       {open && (
         <div className="tree__sessions delegated__list">
           {shown.map((k) => (
-            <SessionRow
-              key={k.id}
-              thread={k}
-              agent={agents[k.agent_ids[0] ?? ""]}
-              selected={k.id === selected}
-              label={k.title.replace(CALLER, "")}
-            />
+            <ListedChat key={k.id} thread={k} selected={selected} nested ancestors={[...ancestors, thread.id]}>
+              <SessionRow
+                thread={k}
+                agent={agents[k.agent_ids[0] ?? ""]}
+                selected={k.id === selected}
+                label={k.title.replace(CALLER, "")}
+              />
+            </ListedChat>
           ))}
           {more > 0 ? (
             <button type="button" className="tree__more" onClick={showMore}>
@@ -94,8 +108,14 @@ function WithDelegated({
 }
 
 /** A row of a chat list: a delegated chat listed on its own says where it came from; any other, what it delegated. */
-export function ListedChat(props: { thread: Thread; selected: string | undefined; children: ReactNode }) {
-  return props.thread.kind === "a2a" && props.thread.parent_id ? (
+export function ListedChat(props: {
+  thread: Thread;
+  selected: string | undefined;
+  children: ReactNode;
+  nested?: boolean;
+  ancestors?: string[];
+}) {
+  return !props.nested && props.thread.kind === "a2a" && props.thread.parent_id ? (
     <DelegatedFrom parentId={props.thread.parent_id}>{props.children}</DelegatedFrom>
   ) : (
     <WithDelegated {...props} />

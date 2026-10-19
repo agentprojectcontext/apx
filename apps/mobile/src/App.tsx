@@ -10,14 +10,20 @@ import { PairScreen } from "./PairScreen";
 import { type PhotoAsk, PhotoModal } from "./PhotoModal";
 import { fromPairedCore, parseOpenLink, parsePairingLink } from "./pairing";
 import { startPhoneNode } from "./phone";
+import { InboxPreview } from "./preview/InboxPreview";
 import { ApxClient, ApxError } from "./protocol";
 import { Flasher } from "./ui/Flash";
 import { type Scheme, ThemeProvider, themes, useSystemScheme } from "./ui/theme";
 import { unpairDevice } from "./unpair";
 import { WorkspaceScreen } from "./WorkspaceScreen";
 
-/** Paired: the super-agent's chat. Not yet: the pairing screen (a QR, an apx://pair link, or typed by hand). */
 export function App() {
+  const [preview, setPreview] = useState(process.env.EXPO_PUBLIC_APX_INBOX_PREVIEW === "1");
+  return preview ? <InboxPreview exit={() => setPreview(false)} /> : <ConnectedApp />;
+}
+
+/** Paired: the super-agent's chat. Not yet: the pairing screen (a QR, an apx://pair link, or typed by hand). */
+function ConnectedApp() {
   const [creds, setCreds] = useState<Creds | null>();
   const [link, setLink] = useState<string>();
   /** The chat a scanned link asks to open. */

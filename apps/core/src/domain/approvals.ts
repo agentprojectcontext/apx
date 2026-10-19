@@ -1,5 +1,6 @@
-// Owner grants: durable for every agent or for one, or limited to one chat in this core process.
+// Owner grants: durable for every agent or for one, or limited to one chat.
 import { createHash } from "node:crypto";
+import path from "node:path";
 import { type ApprovalScope, STRICT_APPROVAL, ToolApproval } from "@apx/protocol";
 import { z } from "zod";
 import { settingsRepo } from "./settings.ts";
@@ -34,6 +35,17 @@ export const nativeApproval = (tool: string): ApprovalTarget => ({
  * covers them, and an OK given for them never covers more than they are. DECISIONS.md#d-089
  */
 export const strictApproval = (a: ApprovalTarget): ApprovalTarget => ({ ...a, key: `${a.key}${STRICT_APPROVAL}` });
+
+/** The key prefix of a folder an agent may change for good, from a folder card's "always" (DECISIONS.md#d-108). */
+const WRITE_FOLDER = `${APX_SERVER}:write_folder:`;
+
+/** The grant letting an agent change files in a folder outside its own; the folder shows as its condition. */
+export const writeFolderApproval = (dir: string): ApprovalTarget => ({
+  key: `${WRITE_FOLDER}${dir}`,
+  server: APX_SERVER,
+  tool: "write_folder",
+  permanent: false,
+});
 
 /** A host when the text is a URL, else undefined. */
 const hostOf = (v: string): string | undefined => {
@@ -99,7 +111,14 @@ export function approvalsRepo(q: Sql) {
     createHash("sha256")
       .update(JSON.stringify([thread, agent, tool, canonical(args), binding ?? ""]))
       .digest("hex");
+  const sessionKey = (key: string, thread: string) => JSON.stringify([key, thread]);
+  // "For this chat" lasts as long as the chat, a core restart included; archiving or deleting it ends it.
   const sessions = new Map<string, ToolApproval>();
+  try {
+    for (const g of ToolApproval.array().parse(JSON.parse(settings.get("tool_session_grants") ?? "[]")))
+      if (g.thread_id) sessions.set(sessionKey(g.key, g.thread_id), g);
+  } catch {}
+  const saveSessions = () => settings.set("tool_session_grants", JSON.stringify([...sessions.values()]));
   const read = (): ToolApproval[] => {
     try {
       // A grant past its date is gone: the next call asks again.
@@ -111,7 +130,6 @@ export function approvalsRepo(q: Sql) {
     }
   };
   const write = (rows: ToolApproval[]) => settings.set("tool_approvals", JSON.stringify(rows));
-  const sessionKey = (key: string, thread: string) => JSON.stringify([key, thread]);
   const repo = {
     /** Without `agent`, only grants for every agent count; a grant with a condition needs the call's `args`. */
     allows(a: ApprovalTarget, thread?: string, agent?: string, args?: unknown): boolean {
@@ -139,9 +157,15 @@ export function approvalsRepo(q: Sql) {
         ...(scope === "always" && agent ? { agent_id: agent } : {}),
         granted_at: new Date().toISOString(),
         ...(scope === "always" && thread ? { from_thread: thread } : {}),
+        // A folder grant names its folder where the owner sees and narrows grants.
+        ...(a.key.startsWith(WRITE_FOLDER) && a.key.length - WRITE_FOLDER.length <= 200
+          ? { condition: a.key.slice(WRITE_FOLDER.length) }
+          : {}),
       };
-      if (scope === "session") sessions.set(sessionKey(a.key, thread), g);
-      else write([...read().filter((r) => r.key !== a.key || r.agent_id !== g.agent_id), g]);
+      if (scope === "session") {
+        sessions.set(sessionKey(a.key, thread), g);
+        saveSessions();
+      } else write([...read().filter((r) => r.key !== a.key || r.agent_id !== g.agent_id), g]);
       for (const listener of listeners) listener();
     },
     subscribe(listener: () => void): () => void {
@@ -191,6 +215,14 @@ export function approvalsRepo(q: Sql) {
       for (const listener of listeners) listener();
       return next;
     },
+    /** The folders outside its own an agent may change for good; a grant narrowed by the owner covers its condition. */
+    writeFolders(agent: string): string[] {
+      return read()
+        .filter((g) => g.scope === "always" && g.key.startsWith(WRITE_FOLDER) && (!g.agent_id || g.agent_id === agent))
+        .flatMap((g) => (g.condition ? g.condition.split(",") : [g.key.slice(WRITE_FOLDER.length)]))
+        .map((d) => d.trim())
+        .filter((d) => path.isAbsolute(d));
+    },
     list(thread?: string): ToolApproval[] {
       return [...read(), ...[...sessions.values()].filter((g) => !thread || g.thread_id === thread)];
     },
@@ -200,14 +232,18 @@ export function approvalsRepo(q: Sql) {
       settings.set("tool_once_grants", JSON.stringify(onceRead().filter((g) => g.binding !== key)));
       if (!agent)
         for (const [k, g] of sessions) if (g.key === key && (!thread || g.thread_id === thread)) sessions.delete(k);
+      saveSessions();
     },
     endSession(thread: string): void {
+      const before = sessions.size;
       for (const [k, g] of sessions) if (g.thread_id === thread) sessions.delete(k);
+      if (sessions.size !== before) saveSessions();
     },
     revokeServer(server: string): void {
       settings.set("tool_once_grants", JSON.stringify(onceRead().filter((g) => g.server !== server)));
       write(read().filter((g) => g.server !== server));
       for (const [k, g] of sessions) if (g.server === server) sessions.delete(k);
+      saveSessions();
     },
   };
   return repo;

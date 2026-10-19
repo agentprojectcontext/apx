@@ -759,4 +759,8 @@ export const MIGRATIONS: readonly string[] = [
     WHERE extra IS NOT NULL AND json_valid(extra)
       AND lower(json_extract(extra, '$.autonomy')) IN ('ask', 'standard', 'edits');
   `,
+  `
+  -- Chat lists resolve each routine execution by its thread without scanning the execution history per row.
+  CREATE INDEX routine_runs_thread ON routine_runs(thread_id);
+  `,
 ];

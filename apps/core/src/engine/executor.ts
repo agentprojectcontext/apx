@@ -215,7 +215,8 @@ export function createExecutor(o: {
     if (reach === "fenced") return { thread };
     // Reading anywhere, what a call may still need lent is a folder to change; asking to read, only in a project.
     const write = reach === "read";
-    const base = (write ? { ...thread, reach: "read" } : thread) as Thread;
+    const granted = store.approvals.writeFolders(agent.id);
+    const base = { ...thread, ...(write ? { reach: "read" } : {}), ...(granted.length ? { granted } : {}) } as Thread;
     const folders =
       write || thread.project_id
         ? (tool.outside?.(args, { agent, thread: { ...base, lentWrite: write } as Thread }) ?? [])

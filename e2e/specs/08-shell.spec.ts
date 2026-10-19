@@ -29,6 +29,7 @@ test("a chain entry picks one of the model APIs' models; the CLIs are not offere
   await page.getByRole("button", { name: "Agregar un modelo" }).click();
   await expect(page.getByRole("option", { name: /GPT e2e/ })).toHaveCount(0);
   await page.getByRole("option", { name: /fake-2/ }).click();
+  await expect(page.getByRole("listbox", { name: "Modelos" })).toBeHidden();
   await page.getByRole("button", { name: "Guardar router" }).click();
   await expect
     .poll(async () => (await rpc<{ router: { chain: string[] } }>("models.config")).router.chain)
@@ -53,10 +54,7 @@ test("an agent picks its own model from the list, and one button leaves it on th
     )?.model_choice?.model;
   await expect.poll(choiceOf).toBe("custom/fake-2");
 
-  await page
-    .getByRole("button", { name: /^Modelo de / })
-    .first()
-    .click();
+  await expect(page.getByRole("option", { name: /fake-2/, selected: true })).toBeVisible();
   await page.getByRole("button", { name: "Dejar solo el router" }).click();
   await expect.poll(choiceOf).toBeUndefined();
   await page.keyboard.press("Escape");

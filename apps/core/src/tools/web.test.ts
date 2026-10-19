@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { test } from "node:test";
-import { bingHits, blockedAddress, braveHits, ddgHits, getPublic, pageText } from "./web.ts";
+import { bingHits, blockedAddress, braveHits, ddgHits, getPublic, pageText, urlConfirm } from "./web.ts";
 
 test("a page reads as text: title, description, headings and links kept, scripts and menus dropped", () => {
   const html = `<html><head><title>Acme &amp; Co</title><meta name="description" content="Tools for small shops"></head>
@@ -51,4 +51,12 @@ test("this machine, the local network and cloud metadata are never fetched, not 
   const port = (srv.address() as AddressInfo).port;
   await assert.rejects(getPublic(`http://127.0.0.1:${port}/`, ac.signal), /not public/);
   srv.close();
+});
+
+test("a URL carrying values waits after outside content, unless it goes to this computer itself", () => {
+  assert.equal(urlConfirm("https://example.com/?d=secret"), "untrusted");
+  assert.equal(urlConfirm("https://example.com/page"), "never");
+  for (const local of ["http://127.0.0.1:7491/?lang=en", "http://localhost:3000/?q=1", "http://app.localhost/?a=b"])
+    assert.equal(urlConfirm(local), "never", local);
+  assert.equal(urlConfirm("http://localhost.example.com/?d=1"), "untrusted");
 });

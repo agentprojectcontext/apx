@@ -27,13 +27,16 @@ export function filterCatalog(catalog: readonly CatalogEngine[], q: string, all:
  */
 export function ModelList({
   value,
+  effortValue = value,
   onPick,
   onEffort,
   only = forAgents,
 }: {
   value?: ModelRef;
+  /** An inherited model can expose effort without marking it as an explicit selection. */
+  effortValue?: ModelRef;
   onPick: (ref: ModelRef) => void;
-  /** Changes the picked model's effort (the list stays open); without it, no effort row. */
+  /** Changes the model's effort; without it, no effort control. */
   onEffort?: (ref: ModelRef) => void;
   /** Which engines it offers; by default what agents may run on (model APIs that answer now). */
   only?: (e: CatalogEngine) => boolean;
@@ -49,60 +52,62 @@ export function ModelList({
 
   return (
     <div className="mlist">
-      <SearchField
-        size="sm"
-        autoFocus
-        placeholder={t("models.search")}
-        value={q}
-        onChange={(e) => setQ(e.currentTarget.value)}
-      />
-      <div className="mlist__scroll" role="listbox" aria-label={t("models.catalog")}>
-        {groups.length === 0 && (
-          <p className="mlist__empty">
-            {load === "unavailable"
-              ? t("models.catalogUnavailable")
-              : !q.trim() && !catalog.some(only)
-                ? t("models.noEngine")
-                : t("models.noMatch")}
-          </p>
-        )}
-        {groups.map(({ engine: e, showDefault, models }) => (
-          <div key={e.id} className="mlist__group">
-            <div className="mlist__engine">
-              <EngineIcon engine={e.id} size={14} />
-              <span>{e.label}</span>
-              {!e.available && (
-                <Badge tone="warning" title={e.detail}>
-                  {t("models.unavailable")}
-                </Badge>
-              )}
-            </div>
-            {/* Only a CLI has a default model of its own; a model API runs with its model named. */}
-            {showDefault && e.kind === "harness" && (
-              <Option
-                selected={picked === e.id}
-                name={refLabel(e.id, catalog)}
-                sub={e.id}
-                onPick={() => onPick(withEffort(e.id, sameModel(e.id)))}
-              />
-            )}
-            {models.map((m) => {
-              const ref = `${e.id}/${m.id}`;
-              return (
+      <div className="mlist__catalog">
+        <SearchField
+          size="sm"
+          autoFocus
+          placeholder={t("models.search")}
+          value={q}
+          onChange={(e) => setQ(e.currentTarget.value)}
+        />
+        <div className="mlist__scroll" role="listbox" aria-label={t("models.catalog")}>
+          {groups.length === 0 && (
+            <p className="mlist__empty">
+              {load === "unavailable"
+                ? t("models.catalogUnavailable")
+                : !q.trim() && !catalog.some(only)
+                  ? t("models.noEngine")
+                  : t("models.noMatch")}
+            </p>
+          )}
+          {groups.map(({ engine: e, showDefault, models }) => (
+            <div key={e.id} className="mlist__group">
+              <div className="mlist__engine">
+                <EngineIcon engine={e.id} size={14} />
+                <span>{e.label}</span>
+                {!e.available && (
+                  <Badge tone="warning" title={e.detail}>
+                    {t("models.unavailable")}
+                  </Badge>
+                )}
+              </div>
+              {/* Only a CLI has a default model of its own; a model API runs with its model named. */}
+              {showDefault && e.kind === "harness" && (
                 <Option
-                  // Engines may list one model under two names ("Default", "Opus …").
-                  key={`${m.id}:${m.name}`}
-                  selected={picked === ref}
-                  name={m.name}
-                  sub={ref}
-                  onPick={() => onPick(withEffort(ref, sameModel(ref)))}
+                  selected={picked === e.id}
+                  name={refLabel(e.id, catalog)}
+                  sub={e.id}
+                  onPick={() => onPick(withEffort(e.id, sameModel(e.id)))}
                 />
-              );
-            })}
-          </div>
-        ))}
+              )}
+              {models.map((m) => {
+                const ref = `${e.id}/${m.id}`;
+                return (
+                  <Option
+                    // Engines may list one model under two names ("Default", "Opus …").
+                    key={`${m.id}:${m.name}`}
+                    selected={picked === ref}
+                    name={m.name}
+                    sub={ref}
+                    onPick={() => onPick(withEffort(ref, sameModel(ref)))}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
-      {value && onEffort && <EffortRow value={value} onChange={onEffort} />}
+      {onEffort && <EffortRow value={effortValue} onChange={onEffort} />}
     </div>
   );
 }

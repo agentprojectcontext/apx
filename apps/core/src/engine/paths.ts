@@ -20,6 +20,16 @@ export function pathsOf(input: unknown): string[] {
  */
 export function guarded(base: string, p: string): boolean {
   const rel = path.relative(real(base), real(path.resolve(base, p)));
-  const first = rel.split(path.sep)[0] ?? "";
-  return first === ".git" || first === ".apc" || rel === "AGENTS.md";
+  const parts = rel.split(path.sep);
+  return parts[0] === ".git" || (parts[0] === ".apc" && !CHECKOUTS.has(parts[1] ?? "")) || rel === "AGENTS.md";
+}
+
+/** Folders under `.apc` where agents keep git worktrees: a checkout of the code, not the project's APC definitions. */
+const CHECKOUTS = new Set(["worktree", "worktrees"]);
+
+/** Whether a path as written names APC definitions (a `.apc` folder that is not a worktree's) or an AGENTS.md. */
+export function namesApc(p: string): boolean {
+  const parts = path.normalize(p).split(/[\\/]/).filter(Boolean);
+  const at = parts.indexOf(".apc");
+  return (at >= 0 && !CHECKOUTS.has(parts[at + 1] ?? "")) || parts.at(-1) === "AGENTS.md";
 }

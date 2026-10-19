@@ -615,7 +615,7 @@ goes to `projects/<id>/widgets/<name>/` and the row keeps the rest.
 <a id="d-056"></a>
 ## D-056 — 2026-10-08 — Computer use ships on macOS; total autonomy clicks without asking, the turn limit still asks
 The spike passed on a real Mac (three screens, System Settings and Chrome), so computer use is a product feature,
-off until the owner turns it on in Config › Desktop. Looking asks (`ask`); clicking, typing and keys are `always`, so
+off until the owner turns it on in Config › Desktop. Looking asks (`ask`; outside Manual it no longer does, D-109); clicking, typing and keys are `always`, so
 in total autonomy they run without a question, as D-047 says for every `always` tool. What still holds in total: the
 switch itself, the two macOS permissions, the emergency stop (it ends every run using the computer, for that turn
 only), the question every 60 actions in one turn (a question, not a confirmation, so autonomy does not skip it), a
@@ -1355,3 +1355,31 @@ not the internet; a public link needs Tailscale Funnel, which would put the core
 one file from it would be a second HTTP route outside the protocol. A third-party host would publish the owner's
 files. So a field that wants a URL is the service's to solve: an upload link it hands out through one of its tools,
 which the agent fills with `curl -T` from its temp folder.
+
+<a id="d-108"></a>
+## D-108 — 2026-10-19 — Auto changes the owner's other projects freely, and a folder card can let an agent write there for good
+After D-106 the cards that still stopped the owner were mostly folders: a developer moving from the APX repository to
+the folder that holds it (itself a registered project), or to a sibling worktree, got "wants to change files in …,
+outside its project" for each command, and a folder card could only say yes for that call. Now, in Auto and Accept
+edits, every registered project on disk and its linked git worktrees is writable like the agent's own folder: the owner
+registered them, so moving between them is not acting outside. They come after the project's read-only folders and
+other chats' temp folders, which keep their rule inside them, and never one holding APX's home or inside it. A thread
+kept to one folder (a code thread, a session in a worktree) still keeps to it. A folder that is not a project still
+asks, and its card now offers "Always let this agent change it": a grant for good for that agent (key
+`apx:write_folder:<dir>`, shown in its permissions with the folder as the condition, revoked there), never for other
+agents. A worktree kept under `.apc/worktree(s)/` is a checkout of the code, not APC definitions: editing it no
+longer asks as a high-impact action; `.apc`'s own files and any AGENTS.md still do. Known limit: Claude Code and
+Codex sessions keep their own folder rule (their side folder or code thread), unchanged here.
+
+<a id="d-109"></a>
+## D-109 — 2026-10-19 — Fewer "outside content" cards: a look at the screen, a local URL, a build's output, and chat grants that last
+After D-106 and D-108, what still stopped an agent in Auto came from rule 10's "outside content in the turn". A look
+at the screen (`screen_snapshot`) asked in every mode but total (D-056): it changes nothing and sends nothing out, so
+it is now `never` with effect `external` — Auto and Accept edits take it, Manual still asks, Plan still refuses. A URL
+with a query to this computer itself (`localhost`, `127.x`, `*.localhost`, `[::1]`, a dev server) no longer counts as
+carrying values out (D-057). A shell command's output no longer marks the run as holding outside content unless the
+command may bring text in from elsewhere (a URL, a network program, an install, `npx`, a git fetch): a build or a test
+run's output is the project's own, as `file_read`'s is; the reading is static, as D-097's. Grants "for this chat" are
+kept in settings, so a core restart no longer drops them; archiving or deleting the chat ends them. Kept on purpose:
+MCP tools that act (a phone's tap can send a message in the owner's name) still ask until the owner answers "always for
+this agent", and `screen_open` still asks, since it opens pages with the owner's own logins.

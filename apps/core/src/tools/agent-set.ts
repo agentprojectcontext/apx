@@ -1,6 +1,6 @@
 // agent_set: the super-agent runs the team for the owner (create, rename, rewrite a prompt, archive), each change once
 // the owner says yes. Autonomy and models stay the owner's own (DECISIONS.md#d-060).
-import type { Organization } from "@apx/protocol";
+import { type Organization, randomAgentName } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
@@ -76,6 +76,9 @@ function teamSheet(store: Store, projectId: string | undefined, org: Organizatio
     .join("\n");
 }
 
+/** A role is a title shown in lists and on cards. */
+const ROLE_MAX = 40;
+
 export function agentSetTools(store: Store): Tool[] {
   const args = z.object({
     agent: z.string().trim().min(1).max(120).optional().describe("id or name; omit to create one"),
@@ -100,7 +103,7 @@ export function agentSetTools(store: Store): Tool[] {
     defineTool({
       name: "agent_set",
       description:
-        "Run the team: no args: team, areas, roles; only agent: read it; create one (slug, name; project: id/name, default this chat), change one (only what you give; a prompt replaces the old) or archive it.",
+        "Run the team: no args: team, areas, roles; only agent: read it; create one (slug, role; name only if the owner chose one; project: id/name, default this chat), change one (only what you give; a prompt replaces the old) or archive it.",
       args,
       effect: "local",
       confirm: (a) => (changes(a) ? "always" : "never"),
@@ -109,6 +112,13 @@ export function agentSetTools(store: Store): Tool[] {
         !a.agent
           ? `Created the agent ${a.name ?? a.slug ?? ""}`
           : `${a.archive ? "Archived" : changes(a as Args) ? "Changed" : "Looked at"} ${a.agent}`,
+      // Before the owner is asked: a sentence as the role fills the team's role list and every agent card.
+      check(a) {
+        if (a.role && a.role.length > ROLE_MAX)
+          throw new Error(
+            `role is a short title of a few words (like "Issue triage"), at most ${ROLE_MAX} characters: put the longer text in description`,
+          );
+      },
       async run(a, ctx) {
         let cur: AgentRecord | undefined;
         if (!a.agent && !changes(a)) {
@@ -161,12 +171,13 @@ export function agentSetTools(store: Store): Tool[] {
           }
         }
         if (!cur) {
-          if (!a.slug || !a.name) return "a new agent needs slug and name";
+          if (!a.slug) return "a new agent needs a slug";
           const projectId = pid;
           const made = await asOwner("agents.create", {
             ...(projectId ? { project_id: projectId } : {}),
             slug: a.slug,
-            name: a.name,
+            // A person's name from APX's generator unless the owner gave one; the job is its role.
+            name: a.name ?? randomAgentName(store.agents.list().map((x) => x.name)),
             role: a.role ?? "",
             ...(a.description ? { description: a.description } : {}),
             prompt: a.prompt ?? "",

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -50,14 +51,20 @@ const lastSeen = () => String(llm.calls.at(-1)?.messages.at(-1)?.content);
 /** Sends a call in a chat with Fausto; answers the card it raises, if any, with `decision` (and `scope`). */
 async function run(
   call: { name: string; args: object },
-  o: { thread?: string; inProject?: boolean; decision?: "approve" | "deny"; scope?: "once" | "project" } = {},
+  o: {
+    thread?: string;
+    inProject?: boolean;
+    decision?: "approve" | "deny";
+    scope?: "once" | "project" | "always";
+    agent?: string;
+  } = {},
 ) {
   const thread =
     o.thread ??
     (
       await env.client.call("threads.create", {
         kind: "loose",
-        agent_id: "fausto",
+        agent_id: o.agent ?? "fausto",
         ...(o.inProject === false ? {} : { project_id: project }),
       })
     ).id;
@@ -218,14 +225,14 @@ test("auto reads another project's file and runs a reading command there with no
   }
 });
 
-test("auto asks once before writing outside its project, and the card never keeps the folder", async () => {
+test("auto asks before writing outside its project; once never keeps the folder", async () => {
   await env.client.call("agents.update", { agent: "fausto", autonomy: "auto" });
   const made = path.join(northwind, "docs", "made.md");
   const write = { name: "file_write", args: { path: made, content: "outside\n" } };
   try {
     const no = await run(write, { decision: "deny" });
     assert.deepEqual(no.input?.folders, [path.join(northwind, "docs")]);
-    assert.deepEqual(no.input?.approval_scopes, ["once"]);
+    assert.deepEqual(no.input?.approval_scopes, ["once", "always"]);
     assert.match(no.input?.prompt ?? "", /quiere cambiar archivos en .*fuera de su proyecto/);
     assert.equal(fs.existsSync(made), false);
     const yes = await run(write, { decision: "approve" });
@@ -241,6 +248,63 @@ test("auto asks once before writing outside its project, and the card never keep
   } finally {
     fs.rmSync(made, { force: true });
     await env.client.call("agents.update", { agent: "fausto", autonomy: "manual" });
+  }
+});
+
+test("auto changes the owner's other projects and their worktrees with no card, never one in APX's home", async () => {
+  await env.client.call("agents.update", { agent: "fausto", autonomy: "auto" });
+  const acme = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-acme-")));
+  const site = path.join(acme, "site");
+  const tree = path.join(acme, "site-fix");
+  fs.mkdirSync(site);
+  const git = (...args: string[]) =>
+    execFileSync("git", ["-c", "user.name=Acme", "-c", "user.email=user@example.com", ...args], { cwd: site });
+  git("init", "-q");
+  git("commit", "-q", "--allow-empty", "-m", "init");
+  git("worktree", "add", "-q", tree);
+  const inHome = path.join(env.home, "projects", "inside");
+  fs.mkdirSync(inHome, { recursive: true });
+  try {
+    await env.client.call("projects.register", { path: site, init: true });
+    await env.client.call("projects.register", { path: inHome, init: true });
+    const write = await run({ name: "file_write", args: { path: path.join(site, "notes.md"), content: "x\n" } });
+    assert.equal(write.input, undefined, write.said);
+    assert.equal(fs.readFileSync(path.join(site, "notes.md"), "utf8"), "x\n");
+    const cmd = await run({ name: "shell", args: { command: "touch fixed.txt", cwd: tree } });
+    assert.equal(cmd.input, undefined, cmd.said);
+    assert.ok(fs.existsSync(path.join(tree, "fixed.txt")));
+    const apx = await run({ name: "file_write", args: { path: path.join(inHome, "x.md"), content: "x" } });
+    assert.match(apx.said, /APX's own folder/);
+    assert.equal(fs.existsSync(path.join(inHome, "x.md")), false);
+  } finally {
+    fs.rmSync(acme, { recursive: true, force: true });
+    await env.client.call("agents.update", { agent: "fausto", autonomy: "manual" });
+  }
+});
+
+test("always for this agent lets it change that folder from then on, and no other agent", async () => {
+  await env.client.call("agents.create", { slug: "kevin", name: "Kevin" });
+  for (const agent of ["fausto", "kevin"]) await env.client.call("agents.update", { agent, autonomy: "auto" });
+  const docs = path.join(northwind, "docs");
+  const write = (file: string) => ({ name: "file_write", args: { path: path.join(docs, file), content: "y\n" } });
+  try {
+    const first = await run(write("a.md"), { decision: "approve", scope: "always" });
+    assert.deepEqual(first.input?.folders, [docs]);
+    assert.match(first.said, /created/);
+    fs.mkdirSync(path.join(docs, "deep"));
+    const later = await run(write(path.join("deep", "b.md")));
+    assert.equal(later.input, undefined, later.said);
+    assert.equal(fs.readFileSync(path.join(docs, "deep", "b.md"), "utf8"), "y\n");
+    const other = await run(write("c.md"), { agent: "kevin", decision: "deny" });
+    assert.deepEqual(other.input?.folders, [docs]);
+    assert.equal(fs.existsSync(path.join(docs, "c.md")), false);
+    const grant = env.core.store.approvals.list().find((g) => g.tool === "write_folder");
+    assert.equal(grant?.condition, docs, "the owner sees which folder in the agent's permissions");
+  } finally {
+    for (const g of env.core.store.approvals.list()) env.core.store.approvals.revoke(g.key, undefined, g.agent_id);
+    fs.rmSync(path.join(docs, "a.md"), { force: true });
+    fs.rmSync(path.join(docs, "deep"), { recursive: true, force: true });
+    for (const agent of ["fausto", "kevin"]) await env.client.call("agents.update", { agent, autonomy: "manual" });
   }
 });
 

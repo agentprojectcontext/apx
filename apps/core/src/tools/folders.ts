@@ -127,6 +127,8 @@ export type FolderThread = Parameters<typeof workDir>[2] &
     lent?: readonly string[] | undefined;
     lentWrite?: boolean | undefined;
     reach?: "read" | "all" | undefined;
+    /** Folders outside its own the owner let this agent change for good (a folder card's "always"). */
+    granted?: readonly string[] | undefined;
   };
 type Thread = FolderThread;
 
@@ -165,6 +167,26 @@ export function projectWorktrees(store: Store, thread: Thread): string[] {
   return out;
 }
 
+/**
+ * The owner's other projects and their worktrees, to change as freely as the agent's own folder in Auto: the owner
+ * registered them, so moving between them is not acting outside (DECISIONS.md#d-108). Never one holding APX's home
+ * or inside it; a thread kept to one folder stays in it.
+ */
+export function ownerProjects(store: Store, home: string, thread: Thread): Root[] {
+  if (thread.cwd) return [];
+  const apx = real(home);
+  const out: Root[] = [];
+  for (const p of store.projects.list()) {
+    if (!p.path || !p.present || p.id === thread.project_id) continue;
+    const at = real(p.path);
+    if (isInside(at, apx) || isInside(apx, at)) continue;
+    out.push({ dir: p.path, write: true, scratch: false });
+    for (const tree of projectWorktrees(store, { id: thread.id, project_id: p.id }))
+      out.push({ dir: tree, write: true, scratch: false });
+  }
+  return out;
+}
+
 /** The system's temp folders, shared scratch space for commands (`/tmp/out.txt`), unless one holds APX's home. */
 export function tempAreas(home: string): string[] {
   const out: string[] = [];
@@ -195,6 +217,9 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
     ...projectWorktrees(store, thread).map((dir) => ({ dir, write: true, scratch: false })),
     ...readOnlyFolders(store, thread).map((dir) => ({ dir, write: false, scratch: false })),
     ...sharedRoots(home),
+    // After the read-only folders and other chats' temp folders, which keep their own rule inside these.
+    ...(thread.reach === "read" ? ownerProjects(store, home, thread) : []),
+    ...(thread.granted ?? []).map((dir) => ({ dir, write: true, scratch: false })),
     // Last, so other chats' temp folders stay closed even inside a folder lent for one call.
     ...(thread.lent ?? []).map((dir) => ({ dir, write: thread.lentWrite === true, scratch: false, lent: true })),
     // Last of all: the project's read-only folders and other chats' temp folders keep their own rule.

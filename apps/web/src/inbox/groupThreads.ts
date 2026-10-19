@@ -55,7 +55,17 @@ export const pinnedFirst = (a: Thread, b: Thread) => Number(!!b.pinned) - Number
 /** Every chat a list shows: its rows and the delegated chats under them (what "Mark all as read" reads). */
 export function listedThreads(threads: Record<string, Thread>, opts: Filter): Thread[] {
   const nested = delegatedByChat(threads);
-  return visible(threads, opts).flatMap((t) => [t, ...(nested.get(t.id) ?? [])]);
+  const seen = new Set<string>();
+  const out: Thread[] = [];
+  const pending = [...visible(threads, opts)].reverse();
+  while (pending.length) {
+    const t = pending.pop();
+    if (!t || seen.has(t.id)) continue;
+    seen.add(t.id);
+    out.push(t);
+    pending.push(...[...(nested.get(t.id) ?? [])].reverse());
+  }
+  return out;
 }
 
 /** What "Mark all as read" reads: the unread chats the list shows, delegated ones under them included. */
@@ -102,13 +112,27 @@ export function groupByProject(threads: Record<string, Thread>, projects: Projec
 }
 
 /** A row of a chat list: a chat, or (`task`) every chat the agents keep for one task, together. */
-export type ListEntry = { kind: "thread"; thread: Thread } | { kind: "task"; taskId: string; threads: Thread[] };
+export type ListEntry =
+  | { kind: "thread"; thread: Thread }
+  | { kind: "task"; taskId: string; threads: Thread[] }
+  | { kind: "routine"; routineId: string; threads: Thread[] };
 
 /** Chats agents keep for a task go together, where the task's most recent one would be; the rest stay as they are. */
 export function bundleTasks(list: Thread[]): ListEntry[] {
   const out: ListEntry[] = [];
   const tasks = new Map<string, Extract<ListEntry, { kind: "task" }>>();
+  const routines = new Map<string, Extract<ListEntry, { kind: "routine" }>>();
   for (const thread of list) {
+    if (thread.kind === "routine" && thread.routine_id) {
+      const bundle = routines.get(thread.routine_id);
+      if (bundle) bundle.threads.push(thread);
+      else {
+        const entry = { kind: "routine" as const, routineId: thread.routine_id, threads: [thread] };
+        routines.set(thread.routine_id, entry);
+        out.push(entry);
+      }
+      continue;
+    }
     if (!thread.task_id) {
       out.push({ kind: "thread", thread });
       continue;
@@ -132,6 +156,7 @@ export type AgentBranch = {
   agentId: string;
   engine?: string | undefined;
   task?: string | undefined;
+  routine?: string | undefined;
   threads: Thread[];
 };
 export type ProjectTree = { key: string; project: Project | undefined; name: string; agents: AgentBranch[] };
@@ -149,12 +174,19 @@ export function groupByAgent(threads: Record<string, Thread>, projects: Project[
       trees.set(key, tree);
     }
     // A Claude Code or Codex session belongs to that engine, and a task's chat to the task, not to the agent.
-    const agentId = t.engine ? `engine:${t.engine}` : t.task_id ? `task:${t.task_id}` : (t.agent_ids[0] ?? "");
+    const routine = t.kind === "routine" ? t.routine_id : undefined;
+    const agentId = routine
+      ? `routine:${routine}`
+      : t.engine
+        ? `engine:${t.engine}`
+        : t.task_id
+          ? `task:${t.task_id}`
+          : (t.agent_ids[0] ?? "");
     let branch = tree.agents.find((a) => a.agentId === agentId);
     if (!branch) {
       branch = {
         agentId,
-        ...(t.engine ? { engine: t.engine } : t.task_id ? { task: t.task_id } : {}),
+        ...(routine ? { routine } : t.engine ? { engine: t.engine } : t.task_id ? { task: t.task_id } : {}),
         threads: [],
       };
       tree.agents.push(branch);
@@ -183,7 +215,16 @@ export function groupByTime(threads: Record<string, Thread>, opts: Filter, now =
   };
   const order: TimeBucket[] = ["pinned", "running", "today", "yesterday", "week", "earlier"];
   const groups = new Map<TimeBucket, Thread[]>();
-  for (const t of visible(threads, opts).sort(newest)) groups.set(bucketOf(t), [...(groups.get(bucketOf(t)) ?? []), t]);
+  const orderOf = (t: Thread) => order.indexOf(bucketOf(t));
+  for (const entry of bundleTasks(visible(threads, opts).sort(pinnedFirst))) {
+    const list = entry.kind === "thread" ? [entry.thread] : entry.threads;
+    if (entry.kind === "routine") {
+      const bucket = bucketOf(list.reduce((a, b) => (orderOf(a) <= orderOf(b) ? a : b)));
+      groups.set(bucket, [...(groups.get(bucket) ?? []), ...list]);
+    } else {
+      for (const t of list) groups.set(bucketOf(t), [...(groups.get(bucketOf(t)) ?? []), t]);
+    }
+  }
   return order.flatMap((bucket) => {
     const list = groups.get(bucket);
     return list ? [{ bucket, threads: list }] : [];

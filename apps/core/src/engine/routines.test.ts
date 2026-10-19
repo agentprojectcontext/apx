@@ -73,6 +73,9 @@ test("a daily routine runs at its time once, in its own chat, and the owner hear
   assert.equal(run?.delivered, true);
   const { thread } = await env.client.call("threads.get", { thread: run?.thread_id ?? "" });
   assert.equal(thread.kind, "routine");
+  assert.equal(thread.routine_id, r.id, "a routine run exposes its stable identity on get");
+  const listed = await env.client.call("threads.list", {});
+  assert.equal(listed.threads.find((th) => th.id === thread.id)?.routine_id, r.id, "list preserves the same identity");
   assert.equal(thread.archived, undefined, "a run that told something stays in the lists");
   const input = String(llm.calls.at(-1)?.messages.at(-1)?.content);
   assert.match(input, /routine "Invoices" the owner scheduled/);

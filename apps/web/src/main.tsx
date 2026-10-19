@@ -39,10 +39,10 @@ if (isLanguage(lang)) prefs.set({ language: lang });
 const root = document.getElementById("root");
 if (!root) throw new Error("#root missing");
 // The language's texts arrive first (one small chunk): the panel never flashes keys or another language.
-void startI18n().then(() =>
-  createRoot(root).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  ),
-);
+void startI18n().then(async () => {
+  const Preview =
+    import.meta.env.DEV && import.meta.env.VITE_APX_INBOX_PREVIEW === "1"
+      ? (await import("./inbox/InboxPreview.tsx")).default
+      : undefined;
+  createRoot(root).render(<StrictMode>{Preview ? <Preview /> : <App />}</StrictMode>);
+});

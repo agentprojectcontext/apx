@@ -167,6 +167,11 @@ test("APC files named through cwd still wait for the owner; the temp folder thro
   assert.equal(write.confirm({ path: "AGENTS.md", content: "", cwd: ".worktrees/issue-1" }), "always");
   assert.equal(write.confirm({ path: "agents/a.md", content: "", cwd: ".apc" }), "always");
   assert.equal(write.confirm({ path: "docs/a.md", content: "", cwd: ".worktrees/issue-1" }), "untrusted");
+  // A worktree an agent keeps under .apc is a checkout of the code, not the project's APC definitions.
+  assert.equal(write.confirm({ path: ".apc/worktree/issue-1/src/a.ts", content: "" }), "untrusted");
+  assert.equal(write.confirm({ path: "src/a.ts", content: "", cwd: ".apc/worktrees/issue-1" }), "untrusted");
+  assert.equal(write.confirm({ path: ".apc/worktree/issue-1/AGENTS.md", content: "" }), "always");
+  assert.equal(write.confirm({ path: ".apc/agents/a.md", content: "" }), "always");
   const scratch = path.join(scratchRoot(env.home), "some-chat");
   assert.equal(write.confirm({ path: "a.md", content: "", cwd: scratch }), "never");
 });

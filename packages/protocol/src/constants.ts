@@ -257,10 +257,17 @@ export const AGENT_NAMES = [
   "Lorena",
 ] as const;
 
-/** A name from AGENT_NAMES other than `current`, at random. */
-export function randomAgentName(current?: string): string {
-  const pool = AGENT_NAMES.filter((n) => n !== current);
-  return pool[Math.floor(Math.random() * pool.length)] ?? AGENT_NAMES[0];
+/**
+ * A name from AGENT_NAMES at random, none of `avoid` (the current one, or every name the crew already uses) while any
+ * is left; past that, a name with a number ("Pia 2").
+ */
+export function randomAgentName(avoid: string | readonly string[] = []): string {
+  const taken = new Set((typeof avoid === "string" ? [avoid] : avoid).map((n) => n.trim().toLowerCase()));
+  const pool = AGENT_NAMES.filter((n) => !taken.has(n.toLowerCase()));
+  const pick = <T>(list: readonly T[]) => list[Math.floor(Math.random() * list.length)] as T;
+  if (pool.length) return pick(pool);
+  const base = pick(AGENT_NAMES);
+  for (let i = 2; ; i++) if (!taken.has(`${base} ${i}`.toLowerCase())) return `${base} ${i}`;
 }
 
 /** What a pairing QR carries: the core's addresses a device may reach, the one-time code and, maybe, the chat to open. */

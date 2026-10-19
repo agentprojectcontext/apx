@@ -80,6 +80,17 @@ export function commandRisk(command: string, apxPort?: number): Confirm {
   return readsOnly(c) ? "never" : "ask";
 }
 
+/**
+ * Whether a command may bring in text from outside this computer: a URL, a network program, an install or a git
+ * fetch. Without one, its output (a build, a test run) is the project's own, as file_read's is (DECISIONS.md#d-109).
+ */
+export function reachesOut(command: string): boolean {
+  return NETWORK.test(command);
+}
+
+const NETWORK =
+  /(\w+:\/\/|(^|[\s;&|(`])(curl|wget|ssh|scp|rsync|nc|ncat|telnet|ftp|sftp|gh|aws|gcloud|az|kubectl|docker|podman|ollama|apx)(\s|$)|\b(npm|pnpm|yarn|bun|pip3?|uv|poetry|cargo|go|gem|bundle|composer|brew|apt(-get)?)\s+(i|install|add|update|upgrade|get|fetch|sync|publish|dlx|x|create|init)\b|\b(npx|pnpx|bunx|uvx)\b|\bgit\s+(fetch|pull|clone|push|ls-remote|submodule)\b)/i;
+
 /** Programs, libraries, devices and system settings a command may read or run (`/usr/bin/env`, `/etc/hosts`). */
 const PLUMBING =
   /^\/(dev|usr|bin|sbin|opt|System|nix|etc|private\/etc|Applications|Library|proc|sys|lib|lib32|lib64|libx32|snap)(\/|$)/;
@@ -205,7 +216,7 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
           ? []
           : outsideFolders((lent) => commandFolder(store, home, { ...ctx.thread, lent }, a)),
       workspace: true,
-      local: (a) => !a.background && commandRisk(a.command, apxPort()) === "never",
+      local: (a) => !a.background && (commandRisk(a.command, apxPort()) === "never" || !reachesOut(a.command)),
       reads: (a) => commandRisk(a.command, apxPort()) === "never",
       // Covers the longest foreground wait plus the time to stop the process.
       deadlineMs: 615_000,
