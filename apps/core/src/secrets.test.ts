@@ -52,5 +52,5 @@ test("a project's own value wins over the global one there, and only there", () 
 test("each home has its own Keychain service; the default home keeps the plain one", () => {
   assert.equal(keychainService("/home/u/.apx/v2", "/home/u/.apx/v2"), "apx2");
   assert.equal(keychainService("/home/u/.apx/v2/", "/home/u/.apx/v2"), "apx2");
-  assert.equal(keychainService("/tmp/test-home", "/home/u/.apx/v2"), "apx2:/tmp/test-home");
+  assert.equal(keychainService("/tmp/test-home", "/home/u/.apx/v2"), `apx2:${path.resolve("/tmp/test-home")}`);
 });

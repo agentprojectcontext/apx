@@ -67,7 +67,9 @@ test("legacy reads refuse changed folders, traversal, metadata aliases, binaries
   fs.writeFileSync(path.join(work, ".git", "secret"), "Private");
   fs.symlinkSync(path.join(work, ".git"), path.join(work, "metadata"));
   fs.writeFileSync(path.join(work, "Binary.txt"), Buffer.from([0, 65]));
-  execFileSync("mkfifo", [path.join(work, "pipe")]);
+  // Named pipes are a POSIX file kind; Windows has none to refuse.
+  const fifo = process.platform !== "win32";
+  if (fifo) execFileSync("mkfifo", [path.join(work, "pipe")]);
   for (const file of [
     "../Private.txt",
     path.join(env.home, "Private.txt"),
@@ -76,7 +78,7 @@ test("legacy reads refuse changed folders, traversal, metadata aliases, binaries
     ".GIT/secret",
     "metadata/secret",
     "Binary.txt",
-    "pipe",
+    ...(fifo ? ["pipe"] : []),
     ".",
   ]) {
     await assert.rejects(env.client.call("files.diff", await record(file)), /outside|text file|regular file/);

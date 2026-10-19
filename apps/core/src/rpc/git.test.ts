@@ -17,6 +17,8 @@ before(async () => {
   repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-git-repo-")));
   plain = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "apx-git-plain-")));
   sh("init", "-q", "-b", "main");
+  // Git for Windows converts line endings by default; this repo keeps files byte for byte everywhere.
+  sh("config", "core.autocrlf", "false");
   sh("config", "user.name", "Acme Dev");
   sh("config", "user.email", "dev@example.com");
   sh("config", "commit.gpgsign", "false");
