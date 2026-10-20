@@ -1538,8 +1538,9 @@ review and canonical source checks still required.
 Editing the text clears its former evidence. A later supported capture can certify that same private note in place,
 using its expected revision and the current source thread and run. Repairable notes are omitted from extraction's
 duplicate hints; pending global notes cannot block private capture. The canonical handler validates the target's
-agent and project, not just the requested scope. Direct agent text edits also update provenance, so a former origin
-in another chat cannot bypass a prior fork's cutoff. Forget exclusions hide private copies by text, source quote
+agent and project, not just the requested scope. Direct agent text edits in eligible owner chats also update provenance,
+so a former origin in another chat cannot bypass a prior fork's cutoff. Workers retain the original boundary.
+Forget exclusions hide private copies by text, source quote
 or source run, including after permanent deletion of the original note.
 
 The five shared prompt rules now cover evidence already present, permitted recovery, role-appropriate delegation,

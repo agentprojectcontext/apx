@@ -82,6 +82,7 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
       const view = viewOf(ctx);
       if (view && memorySettings(store).mode === "off") throw badRequest("memory is disabled");
       if (view && store.memories.excluded(view, text)) throw badRequest("the owner asked to forget that");
+      const sourceThread = ctx.agent && store.threads.get(ctx.agent.thread_id);
       if (view && evidence?.length) {
         const quote = evidence.map((e) => e.quote).join("\n");
         const supported =
@@ -90,7 +91,7 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
             : factSupported(text, quote);
         if (!supported || !ctx.memoryReviewed?.includes(memoryClaimKey(text, evidence)))
           throw badRequest("automatic memory must say only what its source supports");
-        const thread = ctx.agent && store.threads.get(ctx.agent.thread_id);
+        const thread = sourceThread;
         if (!thread || !memoryEligibleChat(store, thread)) throw unauthorized("memory source is not eligible");
         const sourceRun = ctx.agent && store.runs.get(ctx.agent.run_id);
         if (
@@ -123,7 +124,11 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
           ...(expected_revision !== undefined ? { expectedRevision: expected_revision } : {}),
           ...(kind ? { kind } : {}),
           ...(evidence ? { evidence } : text !== m.text || !view ? { evidence: [] } : {}),
-          ...(view && ctx.agent && (evidence?.length || text !== m.text)
+          ...(view &&
+          ctx.agent &&
+          sourceThread &&
+          memoryEligibleChat(store, sourceThread) &&
+          (evidence?.length || text !== m.text)
             ? {
                 provenance: {
                   thread_id: ctx.agent.thread_id,

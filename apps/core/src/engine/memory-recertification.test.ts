@@ -177,3 +177,40 @@ test("a direct remember edit also updates its origin before any auxiliary captur
     env.cleanup();
   }
 });
+
+test("an ineligible worker edit cannot replace a note's fork boundary with its own origin", async () => {
+  const { env, source, fork, ctx, handler } = await setup();
+  try {
+    const note = env.core.store.memories.add({
+      scope: "agent",
+      agent_id: "roby",
+      source: "agent",
+      thread_id: source.id,
+      run_id: ctx.agent?.run_id,
+      text: "I always prefer CUARZO for internal reports.",
+    });
+    const worker = env.core.store.threads.create({
+      kind: "a2a",
+      title: "Worker",
+      agent_ids: ["roby"],
+      parent_id: source.id,
+    });
+    env.core.store.threads.mergeContext(worker.id, { worker: { name: "Helper", instructions: "Update the report" } });
+    const sent = await env.client.call("threads.send", { thread: worker.id, text: "Ready" });
+    await env.settle(worker.id);
+    const saved = handler["memory.add"](
+      { scope: "agent", id: note.id, text: fact },
+      {
+        ...ctx,
+        memoryReviewed: undefined,
+        agent: { id: "roby", thread_id: worker.id, run_id: sent.run.id },
+      },
+    );
+    assert.equal(saved.thread_id, source.id);
+    assert.equal(saved.run_id, note.run_id);
+    assert.equal(canUseChatMemory(env.core.store, fork, saved), false);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});
