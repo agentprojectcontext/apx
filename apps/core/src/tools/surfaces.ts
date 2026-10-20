@@ -2,7 +2,6 @@
 // it lives on its project's board; it can also be an app. Every change shows live wherever the widget is open.
 import { SurfaceOrigin, type SurfaceSummary } from "@apx/protocol";
 import { z } from "zod";
-import { declaresApp } from "../../../../packages/surfaces/src/kit.ts";
 import type { Store } from "../domain/store.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 import { widgetScriptError } from "./widget-syntax.ts";
@@ -68,7 +67,7 @@ export function surfaceTools(store: Store): Tool[] {
           thread: ctx.thread.id,
           // Where the widget lives is the owner's choice once made: an agent adds a place, never takes one away.
           ...(a.pin ? { pinned: true } : {}),
-          ...(a.app || (a.app === undefined && declaresApp(a.html)) ? { app: true } : {}),
+          ...(a.app ? { app: true } : {}),
           ...(a.connect === undefined ? {} : { connect: a.connect }),
         });
         card(ctx, surface);

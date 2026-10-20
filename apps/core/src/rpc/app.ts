@@ -6,6 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { Organization, ProjectKind } from "@apx/protocol";
+import { declaresApp } from "../../../../packages/surfaces/src/kit.ts";
 import { readOrganization, writeOrganization } from "../apc/org.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import { writeProjectMeta } from "../apc/write.ts";
@@ -213,7 +214,8 @@ export function appHandlers(deps: {
           thread_id: thread?.id,
           created_by: ctx.agent?.id ?? "owner",
           pinned: p.pinned,
-          app: p.app,
+          // A page written as an app (its apx-surface meta) is one unless the call says otherwise.
+          app: p.app ?? (declaresApp(p.html) ? true : undefined),
           connect: p.connect,
         }),
       );
