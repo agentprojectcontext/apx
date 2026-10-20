@@ -6,6 +6,80 @@ import { recallChats } from "./chat-recall.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
+test("automatic semantic recall finds an owner episode without shared words and excludes another agent", async () => {
+  const embedded: string[] = [];
+  const server = http.createServer((req, res) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", () => {
+      if (req.url === "/api/tags") {
+        res.end('{"models":[]}');
+        return;
+      }
+      const input = JSON.parse(body).input as string[];
+      embedded.push(...input);
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ embeddings: input.map(() => [1, 0, 0]) }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const llm = scriptedLlm(() => say("ok"));
+  const env = await startCore({ llm });
+  try {
+    const fact = "Presenting sketches requires plum-colored outlines.";
+    const privateFact = "The unrelated supplier account is confidential.";
+    for (const [agent, text] of [
+      ["roby", fact],
+      ["scout", privateFact],
+    ] as const) {
+      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: agent });
+      await env.client.call("threads.send", { thread: thread.id, text });
+      await env.settle(thread.id);
+      const run = env.core.store.runs.list(thread.id, 1)[0];
+      assert.ok(run);
+      const message = env.core.store.memorySources.forRun(run.id)[0];
+      assert.ok(message);
+      env.core.store.memoryWork.episode({
+        run_id: run.id,
+        thread_id: thread.id,
+        agent_id: agent,
+        project_id: null,
+        message_id: message,
+        text,
+        created_at: run.started_at,
+      });
+    }
+    await env.client.call("services.set", {
+      id: "local",
+      service: {
+        kind: "embedding",
+        dialect: "ollama-embed",
+        label: "Local",
+        enabled: true,
+        needs_key: false,
+        base_url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
+        model: "test-embedder",
+      },
+    });
+    await env.client.call("memory.set_settings", { mode: "semantic", skill_picker: false, auto_compact: false });
+    await env.client.call("memory.reindex", {});
+    assert.ok(embedded.includes(fact));
+    assert.ok(embedded.includes(privateFact));
+    const target = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    await env.client.call("threads.send", { thread: target.id, text: "What hue fits our diagrams?" });
+    await env.settle(target.id);
+    const supplied = String(llm.calls.findLast((call) => call.tools.length > 0)?.messages.at(-1)?.content);
+    assert.match(supplied, /plum-colored outlines/);
+    assert.doesNotMatch(supplied, /supplier account/);
+  } finally {
+    await env.core.close();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    env.cleanup();
+  }
+});
+
 test("semantic search cannot return a note forgotten while the embedding call waits", async () => {
   let entered = () => {},
     release = () => {};
