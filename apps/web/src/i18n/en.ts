@@ -757,6 +757,7 @@ export const en = {
   "team.enginesProfiles": "Models and profiles",
   "team.empty": "This project has no agents of its own yet. The super-agent works here from Default.",
   "team.orchestrator": "Orchestrator",
+  "team.subLead": "Team lead",
   "team.chatWith": "Chat with {name}",
   "team.noRole": "No role",
   "team.browserProfile": "Browser profile",

@@ -19,6 +19,7 @@ export * from "./office.ts";
 export * from "./releases.ts";
 export * from "./resource-methods.ts";
 export * from "./team-methods.ts";
+export * from "./team-tree.ts";
 export * from "./telemetry-methods.ts";
 export * from "./terminal-methods.ts";
 export * from "./thread-methods.ts";

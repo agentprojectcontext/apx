@@ -117,3 +117,52 @@ test("an agent that names one teammate in list_agents reads its instructions too
     env.cleanup();
   }
 });
+
+test("a marked sub-team lead leads its reports, not the project; a parent by full id resolves", async () => {
+  const env = await startCore({
+    llm: scriptedLlm((req, { said, afterTool }) =>
+      afterTool ? say(String(req.messages.at(-1)?.content)) : callTool("list", "list_agents", { query: said }),
+    ),
+  });
+  try {
+    const store = env.core.store;
+    store.projects.upsert({ id: "acme", name: "Acme" });
+    const add = (slug: string, role: string, parent?: string, orchestrator?: boolean) => {
+      store.agents.upsertApc({
+        id: `acme-${slug}`,
+        slug,
+        name: slug,
+        role,
+        project_id: "acme",
+        parent,
+        prompt: "",
+        extra: { orchestrator },
+      });
+      return `acme-${slug}`;
+    };
+    // The sub-team lead comes first, as files are read in name order: being marked must not make it the head.
+    const sub = add("ada", "Video lead", "acme-reels", true);
+    for (const w of ["w1", "w2", "w3"]) add(w, "Editor", "ada");
+    const head = add("boss", "Director", undefined, true);
+    const reels = add("reels", "Reels producer", "boss");
+    const { agents } = await env.client.call("agents.list", {});
+    const byId = new Map(agents.map((a) => [a.id, a]));
+    for (const a of agents.filter((x) => x.project_id === "acme"))
+      assert.deepEqual(a.project_orchestrator, { id: head, name: "boss", selection: "marked" }, a.id);
+    assert.equal(byId.get(sub)?.is_orchestrator, false);
+    assert.equal(byId.get(sub)?.orchestrator, true, "the stored mark is kept");
+    assert.deepEqual(byId.get(sub)?.reports_to, { id: reels, name: "reels" }, "parent by full id");
+    assert.deepEqual(byId.get(sub)?.leads, ["acme-w1", "acme-w2", "acme-w3"]);
+    assert.equal(byId.get(head)?.reports_to, null);
+
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    await env.client.call("threads.send", { thread: thread.id, text: "acme" });
+    const out = texts((await env.settle(thread.id)).messages).at(-1) ?? "";
+    assert.match(out, /id: acme-boss\).*Is orchestrator: yes/);
+    assert.match(out, /id: acme-ada\).*Orchestrator: boss.*Is orchestrator: no · Leads its team \(3 reports\)/);
+    assert.match(out, /id: acme-ada\).*Reports to: reels \(id: acme-reels\)/);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});

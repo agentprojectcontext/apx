@@ -92,7 +92,8 @@ export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
         status: status.get(a.id) ?? "idle",
         engine,
         engineLabel: engine === "inherit" ? t("team.inherit") : engineLabelOf(engine),
-        ...(a.id === leadId ? { lead: leadLabel } : {}),
+        // A marked agent under someone leads its own reports: a chip of its own, not the head's.
+        ...(a.id === leadId ? { lead: leadLabel } : a.orchestrator ? { lead: t("team.subLead") } : {}),
         ...(a.kind === "secretary" ? { superDesc } : {}),
         stats: [
           { icon: <Icons.MessageSquare />, value: counts.chats.get(a.id) ?? 0, label: t("team.stat.chats") },

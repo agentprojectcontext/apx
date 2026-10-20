@@ -186,7 +186,7 @@ export const Agent = z.object({
   model_choice: ModelChoice.optional(),
   /** The file name in .apc/agents/ for project agents. */
   slug: z.string().optional(),
-  /** Slug of the agent it reports to, inside the same project. */
+  /** The agent it reports to, inside the same project: its slug (or its full id). */
   parent: z.string().optional(),
   /** Group it belongs to in the team view ("product", "sports"). From `area:`. */
   area: z.string().optional(),
@@ -224,7 +224,12 @@ export const AgentListing = Agent.extend({
       selection: z.enum(["marked", "role", "sole_head"]),
     })
     .nullable(),
+  /** Heads the whole project; a marked agent with a parent leads only its reports. */
   is_orchestrator: z.boolean(),
+  /** The agent its `parent:` names, resolved by slug or full id; null at the top of its team. */
+  reports_to: z.object({ id: Id, name: z.string() }).nullable(),
+  /** Ids of the agents that report to it. */
+  leads: z.array(Id),
 });
 export type AgentListing = z.infer<typeof AgentListing>;
 

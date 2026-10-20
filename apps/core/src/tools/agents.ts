@@ -53,7 +53,13 @@ export function agentTools(store: Store): Tool[] {
           const relation = head
             ? `Orchestrator: ${head.name} (id: ${head.id}, ${source})`
             : `Orchestrator: ${x.scope === "global" ? "not applicable" : "none"}`;
-          return `- ${x.name} (id: ${x.id}) [${place}]${x.role ? `: ${x.role}` : ""} · ${relation} · Is orchestrator: ${x.is_orchestrator ? "yes" : "no"}${own ? ` · own budget used: ${own}` : ""}`;
+          // A marked agent under someone leads its own reports, not the project: say so, so work is routed by team.
+          const team =
+            !x.is_orchestrator && x.leads.length
+              ? ` · Leads its team (${x.leads.length} report${x.leads.length === 1 ? "" : "s"})`
+              : "";
+          const up = x.reports_to ? ` · Reports to: ${x.reports_to.name} (id: ${x.reports_to.id})` : "";
+          return `- ${x.name} (id: ${x.id}) [${place}]${x.role ? `: ${x.role}` : ""} · ${relation} · Is orchestrator: ${x.is_orchestrator ? "yes" : "no"}${team}${up}${own ? ` · own budget used: ${own}` : ""}`;
         });
         if (!lines.length) return "no agents match";
         // One agent named: what it was told to do too, so a lead can review its team's instructions.

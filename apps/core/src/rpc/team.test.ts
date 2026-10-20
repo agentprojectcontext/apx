@@ -104,6 +104,10 @@ test("moving an agent: another agent of the project, never one of its own report
   assert.equal(moved.parent, "boss");
   const root = await env.client.call("agents.update", { agent: of("security"), parent: "" });
   assert.equal(root.parent, undefined, "an empty parent makes it a root");
+  const byId = await env.client.call("agents.update", { agent: of("security"), parent: of("boss") });
+  assert.equal(byId.parent, "boss", "a full id names the same agent and the file keeps its slug");
+  await assert.rejects(env.client.call("agents.update", { agent: of("boss"), parent: of("security") }), /make a loop/);
+  await assert.rejects(env.client.call("agents.update", { agent: of("boss"), parent: of("boss") }), /not another/);
 });
 
 test("global agents report to another global agent or to the super-agent, who reports to nobody", async () => {

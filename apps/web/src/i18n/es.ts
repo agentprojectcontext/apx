@@ -770,6 +770,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "team.enginesProfiles": "Modelos y perfiles",
   "team.empty": "Este proyecto todavía no tiene agentes propios. El super-agente trabaja acá desde Default.",
   "team.orchestrator": "Orquestador",
+  "team.subLead": "Líder de equipo",
   "team.chatWith": "Chatear con {name}",
   "team.noRole": "Sin rol",
   "team.browserProfile": "Perfil del navegador",

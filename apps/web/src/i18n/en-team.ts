@@ -203,7 +203,8 @@ export const enTeam = {
   "agentedit.parent": "Reports to",
   "agentedit.parentHint": "Who it passes results and doubts to.",
   "agentedit.orchestrator": "Orchestrator",
-  "agentedit.orchestratorHint": "Heads the team: it goes on top of the chart and gets the work first.",
+  "agentedit.orchestratorHint":
+    "Leads the agents that report to it. With no parent, it heads the whole team: on top of the chart, and it gets the work first.",
   "agentedit.file": "File",
   "agentedit.fileHint": "Where this agent lives in the project.",
   "agentedit.searchTools": "Search tools",

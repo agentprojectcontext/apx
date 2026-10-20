@@ -1,7 +1,7 @@
 // Agents: list, create, edit, archive. A project agent's definition is its file (.apc/agents/<slug>.md): edits are
 // written there and read back through the index; what only APX knows (model choice, browser profile) lives in the
 // database. Global agents (no project) live in the database.
-import type { Agent, ModelChoice } from "@apx/protocol";
+import { type Agent, type ModelChoice, names, parentIn, reportsOf } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
 import {
   archiveAgentFile,
@@ -66,19 +66,22 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
   };
   /** How a parent names an agent: a project agent by its slug, a global one (which has none) by its id. */
   const keyOf = (a: AgentRecord) => (a.project_id ? a.slug : (a.slug ?? a.id));
+  const teamOf = (project_id: string | undefined) =>
+    store.agents.list().filter((a) => a.project_id === project_id && keyOf(a));
   /**
-   * A parent is another agent of the same project (globals: another global, the super-agent included), and never one
-   * of the agent's own reports (no loops). The super-agent reports to nobody.
+   * A parent is another agent of the same project (globals: another global, the super-agent included), named by its
+   * slug or full id, and never one of the agent's own reports (no loops). The super-agent reports to nobody. Returns
+   * the key the file stores (its slug), so both spellings end up the same.
    */
-  const checkParent = (cur: AgentRecord, parent: string | undefined) => {
-    if (!parent) return;
+  const parentKey = (cur: AgentRecord, parent: string | undefined): string | undefined => {
+    if (!parent) return parent;
     if (cur.kind === "secretary") throw badRequest("the super-agent reports to nobody");
-    const me = keyOf(cur);
-    const team = store.agents.list().filter((a) => a.project_id === cur.project_id && keyOf(a));
-    const byKey = new Map(team.map((a) => [keyOf(a) as string, a]));
-    if (parent === me || !byKey.has(parent)) throw badRequest(`${parent} is not another agent of this project`);
-    for (let p: string | undefined = parent, hops = 0; p && hops <= team.length; p = byKey.get(p)?.parent, hops++)
-      if (p === me) throw badRequest(`${parent} already reports to ${cur.name}: that would make a loop`);
+    const team = teamOf(cur.project_id);
+    const target = team.find((b) => names(b, parent));
+    if (!target || target.id === cur.id) throw badRequest(`${parent} is not another agent of this project`);
+    for (let p: AgentRecord | undefined = target, hops = 0; p && hops <= team.length; p = parentIn(team, p), hops++)
+      if (p.id === cur.id) throw badRequest(`${parent} already reports to ${cur.name}: that would make a loop`);
+    return keyOf(target);
   };
   const fresh = (id: string) => {
     const a = store.agents.get(id);
@@ -128,7 +131,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
             name: p.name,
             role: p.role,
             description: p.description,
-            parent: p.parent,
+            parent: (p.parent && teamOf(p.project_id).find((b) => names(b, p.parent))?.slug) || p.parent,
             icon: p.blob,
             area: p.area,
             personality: p.personality,
@@ -151,12 +154,12 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
       if (!cur) throw notFound(`agent ${p.agent}`);
       const model_choice = p.model_choice;
       checkChoice(model_choice);
-      checkParent(cur, p.parent);
+      const parent = parentKey(cur, p.parent);
       const definition = {
         name: p.name,
         role: p.role,
         description: p.description,
-        parent: p.parent,
+        parent,
         icon: p.blob,
         area: p.area,
         personality: p.personality,
@@ -174,10 +177,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
         const root = rootOf(cur.project_id);
         const slug = p.slug ?? cur.slug;
         // Its reports name it by slug: a rename moves them along, so the team chart keeps its shape.
-        const reports =
-          slug !== cur.slug
-            ? store.agents.list().filter((a) => a.project_id === cur.project_id && a.parent === cur.slug)
-            : [];
+        const reports = slug !== cur.slug ? reportsOf(teamOf(cur.project_id), cur) : [];
         onDisk(() => {
           if (slug !== cur.slug) renameAgentFile(root, cur.slug as string, slug);
           updateAgentFile(root, slug, definition, p.prompt);
@@ -193,7 +193,7 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
           ...(p.role !== undefined ? { role: p.role } : {}),
           ...(p.description !== undefined ? { description: p.description } : {}),
           ...(p.area !== undefined ? { area: p.area || undefined } : {}),
-          ...(p.parent !== undefined ? { parent: p.parent || undefined } : {}),
+          ...(parent !== undefined ? { parent: parent || undefined } : {}),
           ...(p.autonomy !== undefined ? { autonomy: p.autonomy ?? undefined } : {}),
           ...(p.orchestrator !== undefined ? { orchestrator: p.orchestrator } : {}),
           ...(p.rules !== undefined ? { rules: p.rules ?? undefined } : {}),
@@ -219,9 +219,11 @@ export function agentHandlers(store: Store, apc: ApcSync, engines: EngineIds, to
         const root = rootOf(cur.project_id);
         const slug = cur.slug;
         // Its reports move up to its own parent (or the top), as in v1: nobody points at an archived file.
-        const reports = store.agents.list().filter((a) => a.project_id === cur.project_id && a.parent === slug);
+        const team = teamOf(cur.project_id);
+        const reports = reportsOf(team, cur);
+        const up = parentIn(team, cur)?.slug ?? "";
         moved = onDisk(() => {
-          for (const r of reports) if (r.slug) updateAgentFile(root, r.slug, { parent: cur.parent ?? "" });
+          for (const r of reports) if (r.slug) updateAgentFile(root, r.slug, { parent: up });
           return archiveAgentFile(root, slug);
         });
         apc.sync(cur.project_id);
