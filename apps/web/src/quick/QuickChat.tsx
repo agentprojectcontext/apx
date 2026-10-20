@@ -1,3 +1,4 @@
+import "../styles/quick.css";
 import { AgentAvatar, IconButton, Icons, Skeleton } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { ChatComposer } from "../chat/composer/ChatComposer.tsx";

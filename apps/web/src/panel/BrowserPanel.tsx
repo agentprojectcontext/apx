@@ -1,3 +1,4 @@
+import "../styles/browser-panel.css";
 import type { TabInfo } from "@apx/protocol";
 import { BrowserTabs, EmptyState, IconButton, Icons, Menu, type MenuEntry } from "@apx/ui";
 import { useEffect, useState } from "react";

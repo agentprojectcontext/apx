@@ -31,6 +31,8 @@ test("a document names its file and offers its folder, open apart and download w
   for (const name of ["Mostrar en Finder", "Abrir en su app", "Descargar"])
     await expect(panel.getByRole("button", { name })).toBeVisible();
 
+  const desktopOffer = page.locator(".desktop-install");
+  if (await desktopOffer.isVisible()) await desktopOffer.getByRole("button", { name: "Más tarde" }).click();
   await panel.getByRole("button", { name: /Todos los documentos/ }).click();
   const row = panel.locator(".documentpanel__row");
   const actions = row.locator(".documentpanel__rowactions");
