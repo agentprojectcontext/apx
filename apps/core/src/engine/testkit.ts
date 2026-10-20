@@ -17,6 +17,7 @@ import { createCore } from "../server.ts";
 import type { TelemetrySink } from "../telemetry-sink.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Tool } from "../tools/types.ts";
+import type { RunTimers } from "./engine.ts";
 import type { InputWaits } from "./inputs.ts";
 
 export type Script = (
@@ -75,6 +76,7 @@ export async function startCore(opts: {
   engineIdleMs?: number;
   turnIdleMs?: number;
   a2aCapMs?: number;
+  runTimers?: RunTimers;
   desktop?: DesktopOps;
   /** Messages on a Mac; none by default, so a test never reads the machine's own. */
   imessage?: IMessageOps | null;
@@ -120,6 +122,7 @@ export async function startCore(opts: {
       ...(opts.engineIdleMs ? { engineIdleMs: opts.engineIdleMs } : {}),
       ...(opts.turnIdleMs ? { turnIdleMs: opts.turnIdleMs } : {}),
       ...(opts.a2aCapMs ? { a2aCapMs: opts.a2aCapMs } : {}),
+      ...(opts.runTimers ? { runTimers: opts.runTimers } : {}),
       ...(opts.desktop ? { desktop: opts.desktop } : {}),
       imessage: opts.imessage ?? null,
       ...(opts.clock ? { clock: opts.clock } : {}),

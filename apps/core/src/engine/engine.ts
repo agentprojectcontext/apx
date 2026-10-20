@@ -53,6 +53,17 @@ function timeSpan(ms: number): string {
 type Clock = { pause(): void; resume(): void; stop(): void; touch(): void; busy(): () => void };
 /** `cap`: the most it may work in all, progress or not (a delegated run's). */
 type Limit = { ms: number; engine: boolean; cap?: number | undefined };
+export type RunTimers = {
+  now(): number;
+  after(ms: number, callback: () => void): () => void;
+};
+const wallRunTimers: RunTimers = {
+  now: () => Date.now(),
+  after(ms, callback) {
+    const timer = setTimeout(callback, ms);
+    return () => clearTimeout(timer);
+  },
+};
 type IdleWindows = {
   engineIdleMs?: number | undefined;
   turnIdleMs?: number | undefined;
@@ -72,49 +83,52 @@ function runLimit(store: Store, threadId: string, trigger: string | undefined, w
  * sign of life (`touch`), reports its new end through `moved` and does not run out while work it waits on is in
  * progress (`busy`). The cap never starts over and counts only the time the turn was not held.
  */
-function pausableClock(limit: Limit, fire: (capped: boolean) => void, moved: (at: number) => void = () => {}): Clock {
+function pausableClock(
+  limit: Limit,
+  fire: (capped: boolean) => void,
+  moved: (at: number) => void = () => {},
+  timers: RunTimers = wallRunTimers,
+): Clock {
   let left = limit.ms;
-  let since = Date.now();
+  let since = timers.now();
   let capLeft = limit.cap ?? 0;
   let capSince = since;
   let holds = 0;
-  let timer: ReturnType<typeof setTimeout> | undefined = setTimeout(() => fire(false), limit.ms);
-  let capTimer: ReturnType<typeof setTimeout> | undefined = limit.cap
-    ? setTimeout(() => fire(true), limit.cap)
-    : undefined;
+  let timer: (() => void) | undefined = timers.after(limit.ms, () => fire(false));
+  let capTimer: (() => void) | undefined = limit.cap ? timers.after(limit.cap, () => fire(true)) : undefined;
   let written = since;
   /** Work in progress the turn waits on: no idle end meanwhile. */
   let working = 0;
   let stopped = false;
   const arm = (ms: number) => {
-    clearTimeout(timer);
-    timer = working > 0 || stopped ? undefined : setTimeout(() => fire(false), ms);
+    timer?.();
+    timer = working > 0 || stopped ? undefined : timers.after(ms, () => fire(false));
   };
   return {
     pause() {
       if (holds++ > 0) return;
-      clearTimeout(timer);
-      clearTimeout(capTimer);
+      timer?.();
+      capTimer?.();
       timer = undefined;
       capTimer = undefined;
-      const now = Date.now();
+      const now = timers.now();
       left -= now - since;
       capLeft -= now - capSince;
     },
     resume() {
       if (holds === 0 || --holds > 0) return;
-      since = capSince = Date.now();
+      since = capSince = timers.now();
       arm(Math.max(left, AFTER_ANSWER_MS));
-      if (limit.cap && !stopped) capTimer = setTimeout(() => fire(true), Math.max(capLeft, AFTER_ANSWER_MS));
+      if (limit.cap && !stopped) capTimer = timers.after(Math.max(capLeft, AFTER_ANSWER_MS), () => fire(true));
     },
     stop() {
       stopped = true;
-      clearTimeout(timer);
-      clearTimeout(capTimer);
+      timer?.();
+      capTimer?.();
     },
     touch() {
       if (holds > 0) return;
-      const now = Date.now();
+      const now = timers.now();
       since = now;
       left = limit.ms;
       arm(limit.ms);
@@ -124,14 +138,14 @@ function pausableClock(limit: Limit, fire: (capped: boolean) => void, moved: (at
     },
     busy() {
       working++;
-      clearTimeout(timer);
+      timer?.();
       timer = undefined;
       let done = false;
       return () => {
         if (done) return;
         done = true;
         // A held clock resumes with a full window: the work just ended counts as progress.
-        since = Date.now();
+        since = timers.now();
         left = limit.ms;
         if (--working > 0 || holds > 0) return;
         arm(limit.ms);
@@ -191,6 +205,8 @@ export function createEngine(deps: {
   turnIdleMs?: number;
   /** The most a delegated run may work in all (tests shorten it). */
   a2aCapMs?: number;
+  /** Timer source for run deadlines, independent of transports and background work. */
+  runTimers?: RunTimers;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
   mcpTools?: (thread: Thread) => Promise<Tool[]>;
   /** The MCP servers a thread may reach, by name, without starting them. */
@@ -344,6 +360,7 @@ export function createEngine(deps: {
           ),
         ),
       (at) => deps.store.runs.setDeadline(run.id, new Date(at).toISOString()),
+      deps.runTimers,
     );
     active.set(run.id, { ac, thread: run.thread_id, clock });
     try {

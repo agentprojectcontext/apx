@@ -34,7 +34,7 @@ import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { announceRelease } from "./domain/whats-new.ts";
 import { createAttention } from "./engine/attention.ts";
-import { createEngine } from "./engine/engine.ts";
+import { createEngine, type RunTimers } from "./engine/engine.ts";
 import type { InputWaits } from "./engine/inputs.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
 import { createMemoryMaintenance } from "./engine/memory-maintenance.ts";
@@ -131,6 +131,7 @@ export type CoreOptions = {
   turnIdleMs?: number;
   /** The most a delegated run may work in all (tests shorten it). */
   a2aCapMs?: number;
+  runTimers?: RunTimers;
   /** The scheduler's clock; tests move it to make routines due. */
   clock?: () => Date;
   /** How long a finished turn's chat may stay unread before the tray notices it (tests shorten it). */
@@ -371,6 +372,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     ...(opts.engineIdleMs ? { engineIdleMs: opts.engineIdleMs } : {}),
     ...(opts.turnIdleMs ? { turnIdleMs: opts.turnIdleMs } : {}),
     ...(opts.a2aCapMs ? { a2aCapMs: opts.a2aCapMs } : {}),
+    ...(opts.runTimers ? { runTimers: opts.runTimers } : {}),
     mcpTools: mcp.toolsFor,
     mcpServers: mcp.serversFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),
