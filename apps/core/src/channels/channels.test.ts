@@ -229,11 +229,32 @@ test("a confirmation answered in the app is taken out of Telegram; a press on it
     () => tg.sent.some((s) => s.method === "deleteMessage" && s.body.message_id === ask?.message_id),
     "the question deleted",
   );
-  await until(() => tg.messagesTo(OWNER.id).some((m) => /Done: probed/.test(String(m.body.text))), "probe result");
+  await until(
+    () =>
+      tg
+        .messagesTo(OWNER.id)
+        .slice(before)
+        .some((m) => /Done: probed/.test(String(m.body.text))),
+    "current probe result",
+  );
   const seen = tg.messagesTo(OWNER.id).length;
   tg.press(OWNER, allow, ask?.message_id);
-  await until(() => tg.messagesTo(OWNER.id).length > seen, "stale press answered");
-  assert.match(String(tg.messagesTo(OWNER.id).at(-1)?.body.text), /ya no está pendiente/);
+  await until(
+    () =>
+      tg
+        .messagesTo(OWNER.id)
+        .slice(seen)
+        .some((m) => /ya no está pendiente/.test(String(m.body.text))),
+    "stale press answered",
+  );
+  assert.match(
+    tg
+      .messagesTo(OWNER.id)
+      .slice(seen)
+      .map((m) => String(m.body.text))
+      .join("\n"),
+    /ya no está pendiente/,
+  );
 });
 
 test("a multi-choice question is ticked on Telegram, then sent; a question can be skipped", async () => {
