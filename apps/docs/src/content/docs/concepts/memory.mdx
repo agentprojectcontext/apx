@@ -36,16 +36,17 @@ Three ways, all visible:
 
 - **Automatic capture.** After an ordinary owner turn, the helper model can select durable preferences, corrections,
   decisions and references, and write each as a short fact in the agent's words (corrections and project decisions
-  with `Why:` and `How to apply:`). Every note keeps an exact quote of your message, with its message and chat source,
-  as evidence, and APX checks the fact against it: numbers, names and identifiers must come from the quote and a
-  negation must survive, or the note is dropped. Requests, questions and passing status updates are never kept. These notes stay in that agent's private notebook, limited to the
+  with `Why:` and `How to apply:`). Every automatic note keeps an exact quote of your message, with its message and
+  chat source, as evidence, and APX checks the fact against it: numbers, names and identifiers must come from the
+  quote, a negation must survive, and each line must mostly use the quote's own words, or the note is dropped. Requests, questions and passing status updates are never kept. These notes stay in that agent's private notebook, limited to the
   same project. Assistant promises and tool output are never evidence that an action happened. Credential discussions
   are excluded.
 - **Procedures that worked.** When a turn you started succeeds after a failed try (in that turn or the chat's
   previous one), or you then confirm it ("great, it worked"), APX writes a procedure note from the agent's own
   successful steps: which tools it used, the site or command, and where the output went. It is labeled as history,
   not an instruction, and needs no helper model. Addresses lose their query strings, and anything that looks like a
-  credential is left out; a note whose steps read a web page is marked as outside content.
+  credential is left out. Since a step's arguments may come from something an earlier step read, agents read
+  procedure notes as data, like outside content.
 
 Capture uses the helper model already configured for APX. With the helper off, no automatic notes are extracted;
 explicit `remember` and automatic chat retrieval still work. Capture jobs persist across core restarts and retries
@@ -68,8 +69,8 @@ Notes never go in the system prompt. Instead, when an agent answers in a thread:
    get space before standing notes; one oversized note cannot hide the smaller notes after it.
 2. Your turns also carry an **index of the agent's own notebook**: one short line per note not shown whole (its kind,
    date and what it is about), newest first, within 2,000 characters. A note worded unlike your message ("do it like
-   you did today") is still in view, and `recall` brings its full text. Later turns in the thread list only notes
-   saved since.
+   you did today") is still in view, and `recall` brings its full text; notes past the limit are reached by search.
+   Later turns in the thread list only notes saved or changed since.
 3. On **later turns** it gets only new matches it hasn't seen in that thread.
 4. Relevant statements from **its own earlier chats in the same project** can appear automatically, with dates and
    message IDs. Older turns of the current chat can return when they no longer fit its context, without duplicating
@@ -119,11 +120,12 @@ agent is idle. It:
 - combines duplicates, keeping their sources and the outside-content marker;
 - retires a note that a newer one corrects (only a note written before the correction);
 - once the notebook passes 40 notes, retires notes that are no longer useful, so the index stays short;
-- rewrites relative days ("today", "ayer") as the dates they meant.
+- rewrites relative days ("today", "ayer") as the dates they meant, leaving quoted commands and procedure notes as
+  they are.
 
 The helper model only names notes; APX does the rewriting itself and never changes owner notes or promotes anything to
 global memory. Contradictions, different numbers and different preferences stay separate. A pass that would forget
-more than a fifth of the notebook at once (at least one note) is refused whole. Retired notes go to **Forgotten** with
+more than a fifth of the notebook at once (at least one note) is refused whole, and that share counts per day. Retired notes go to **Forgotten** with
 the reason in their history, and revision checks reject proposals made stale by an edit or deletion.
 
 Capture and AutoDream share a **daily memory call limit**, default 20. Each request has bounded input, output and a

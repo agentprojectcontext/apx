@@ -46,7 +46,9 @@ export function memoryFragments(text: string): string[] {
   return parts;
 }
 
-const NEGATION = /\b(no|not|never|nunca|jamas|sin|without|ni|dont|doesnt|isnt|instead|rather|en vez|en lugar)\b/;
+// Read on memoryPlain text, where "don't" is "don t".
+const NEGATION =
+  /\b(no|not|never|nunca|jamas|tampoco|nada|ningun\w*|sin|without|ni|\w+n t|dont|doesnt|isnt|stop|avoid|evit\w*|deja de|instead|rather|en vez|en lugar)\b/;
 const IDENTIFIER = /[\p{L}\p{N}_~-]*(?:\d|[./@:])[\p{L}\p{N}_~./@:-]*[\p{L}\p{N}]/gu;
 const LABEL = /^\s*(why|how to apply)\s*:/i;
 const stems = (s: string) =>
@@ -77,10 +79,13 @@ export function factSupported(fact: string, quote: string): boolean {
     .filter((w) => /^\p{Lu}/u.test(w));
   if (names.some((n) => memoryPlain(n) && !q.includes(memoryPlain(n)))) return false;
   if (NEGATION.test(memoryPlain(rule)) !== NEGATION.test(q)) return false;
-  const want = stems(rule);
   const have = stems(quote);
-  const shared = [...want].filter((w) => have.has(w)).length;
-  return shared >= Math.min(2, want.size) && shared / Math.max(1, want.size) >= 0.34;
+  // The rule and each Why / How to apply line say mostly the quote's own words: no invented reasons or rules.
+  return lines.every((line, i) => {
+    const want = stems(line.replace(LABEL, ""));
+    const shared = [...want].filter((w) => have.has(w)).length;
+    return i === 0 ? shared >= Math.min(2, want.size) && shared * 2 >= want.size : shared * 2 >= want.size;
+  });
 }
 
 const DAY = 86_400_000;
@@ -89,7 +94,7 @@ const RELATIVE: Array<[RegExp, (day: (offset: number) => string) => string]> = [
   [/\b(?:esta mañana|esta tarde|esta noche|hoy)\b/gi, (d) => `el ${d(0)}`],
   [/\banoche\b/gi, (d) => `la noche del ${d(-1)}`],
   [/\bayer\b/gi, (d) => `el ${d(-1)}`],
-  [/(?<!\b(?:la|esta|una|cada)\s)\bmañana\b/gi, (d) => `el ${d(1)}`],
+  [/(?<!\b(?:la|esta|una|cada|de)\s)\bmañana\b/gi, (d) => `el ${d(1)}`],
   ...english(/(?:this morning|this afternoon|this evening|tonight|today)/, 0),
   ...english(/yesterday/, -1),
   ...english(/tomorrow/, 1),
@@ -111,6 +116,12 @@ export function absoluteDates(text: string, day: string): string {
   const base = Date.parse(`${day}T12:00:00Z`);
   if (Number.isNaN(base)) return text;
   const at = (offset: number) => new Date(base + offset * DAY).toISOString().slice(0, 10);
+  // Quoted spans (commands, addresses, the owner's words) are data, never rewritten.
+  const parts = text.split(/(`[^`\n]*`|"[^"\n]*")/);
+  return parts.map((part, i) => (i % 2 ? part : prose(part, at))).join("");
+}
+
+function prose(text: string, at: (offset: number) => string): string {
   let out = text;
   for (const [re, to] of RELATIVE)
     out = out.replace(re, (_m, offset: number, all: string) => {

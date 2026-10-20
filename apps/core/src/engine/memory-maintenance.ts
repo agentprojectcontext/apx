@@ -109,9 +109,7 @@ export function createMemoryMaintenance(deps: {
         enqueue(run, dream);
         if (dream) store.settings.set(key, new Date().toISOString());
       });
-      const zone = ownerTimeZone(store);
-      const day = new Date().toLocaleDateString("en-CA", zone ? { timeZone: zone } : {});
-      void captureProcedure(store, deps.call, run, day)
+      void captureProcedure(store, deps.call, run, ownerTimeZone(store))
         .then((saved) => saved && deps.index.schedule())
         .catch((err) =>
           log.warn(

@@ -1462,17 +1462,22 @@ as evidence".
 
 - **Synthesized capture.** The helper returns a fact in the agent's words beside the exact quote. The quote is still
   verified against the source message, and a deterministic check (`factSupported`) refuses a fact whose numbers, names
-  or identifiers are not in the quote, whose rule lost or gained a negation, or that shares too few distinctive words
-  with it. A candidate without a fact is dropped rather than stored verbatim. `memory.add` applies the same check.
+  or identifiers are not in the quote, whose rule lost or gained a negation (apostrophe forms included), or any of
+  whose lines (rule, Why, How to apply) shares fewer than half its distinctive words with it. A candidate without a fact is dropped rather than stored verbatim. `memory.add` applies the same check.
 - **Procedures.** Built from the run's own successful steps, with no model call: tool names and the argument that
   names a target (URL without its query, command, path), plus output paths named in the arguments. Tool results are
-  never read into the note (rule 10). Credential-shaped values are dropped (rule 11). Triggered when an owner run
+  never read into the note (rule 10). Credential-shaped values are dropped, checked
+  before any cut (rule 11). The note is always tainted: a step's arguments may have been steered by what an earlier
+  step read, and the tool name cannot tell. Triggered when an owner run
   recovers from a failed step, follows a failed turn in the same chat, or is confirmed by a short owner reply. Every
   quoted fragment must appear in that run's steps (`procedureSupported`), checked again in `memory.add`.
 - **Index.** Per-turn input, never the system prompt (rule 12): one hook per own note not shown whole, newest first,
   capped at 2,000 characters including the untrusted envelope. It rides in the memory block, so the existing snapshot
-  invalidation covers it; a thread shows it once and then only newer notes. Usage-based ordering is not tracked.
+  invalidation covers it; a thread shows it once and then only notes saved or changed since (by id and revision). Notes past the cap are
+  reached by search. Usage-based ordering is not tracked.
 - **AutoDream.** The helper names ids only. Supersession retires an older note in favor of a newer one; stale notes
-  go only once the notebook passes 40; relative days are rewritten by code, in the owner's time zone. A pass that
-  would forget more than a fifth of the notebook (at least one) is refused whole. Retirement is soft (`forgotten_at`,
+  go only once the notebook passes 40; relative days are rewritten by code, in the owner's time zone, outside quoted spans and never in procedure notes.
+  Past 48 notes a dream reads the newest and the oldest; a tainted note never retires another. A pass that
+  would forget more than a fifth of the notebook (at least one) is refused whole, and `memory.tidy` holds that share
+  per agent and day, so repeated calls cannot add up. Retirement is soft (`forgotten_at`,
   a `superseded:<id>` or `stale` revision) without the owner's exclusion, so the note can be brought back.

@@ -79,15 +79,23 @@ export function memoryAdminHandlers(store: Store, index: MemoryIndex, maintenanc
         throw unauthorized("private agent context required");
       const view = { agent_id: ctx.agent.id, project_id: thread.project_id };
       const live = ownNotes(store.memories, view).length;
-      if (retire.length > forgetAllowance(live))
-        throw badRequest(`a pass may forget at most ${forgetAllowance(live)} of ${live} notes`);
+      // The share is counted per day, so repeated calls cannot add up past it.
+      const key = `memory_forgets:${view.agent_id}:${view.project_id ?? ""}`;
+      const today = new Date().toISOString().slice(0, 10);
+      const spent = JSON.parse(store.settings.get(key) ?? "{}") as { day?: string; n?: number };
+      const used = spent.day === today ? (spent.n ?? 0) : 0;
+      const allowed = forgetAllowance(live + used) - used;
+      if (retire.length > allowed)
+        throw badRequest(`a pass may forget at most ${Math.max(0, allowed)} more of ${live} notes today`);
       // Stale notes go only when the notebook outgrew its target; a correction retires what it supersedes anytime.
       const retired = retire.filter((r) => (r.by || live > NOTEBOOK_TARGET) && store.memories.retire(r, view)).length;
+      if (retired) store.settings.set(key, JSON.stringify({ day: today, n: used + retired }));
       const zone = ownerTimeZone(store);
       const redated = redate.filter((r) => {
         const note = store.memories.get(r.id);
+        // The words were written when their source was said, or else at the note's last edit.
         const said = note?.evidence?.[0] && store.messages.get(note.evidence[0].message_id)?.created_at;
-        const at = new Date(said || note?.created_at || Date.now());
+        const at = new Date(said || note?.updated_at || Date.now());
         const day = at.toLocaleDateString("en-CA", zone ? { timeZone: zone } : {});
         return !!store.memories.redate(r, view, day);
       }).length;

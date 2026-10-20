@@ -503,7 +503,9 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
     /** Rewrites relative days in an agent's own note as the dates they meant (`day`: the note's own day). */
     redate(ref: { id: string; revision: number }, view: MemoryView, day: string): Memory | undefined {
       const m = repo.get(ref.id);
-      if (m?.source !== "agent" || m.scope !== "agent" || m.agent_id !== view.agent_id) return undefined;
+      // A procedure's dates and quoted steps are a record of what ran; it is never rewritten.
+      if (m?.source !== "agent" || m.scope !== "agent" || m.agent_id !== view.agent_id || m.kind === "procedure")
+        return undefined;
       if (m.project_id !== view.project_id) return undefined;
       const text = absoluteDates(m.text, day);
       if (text === m.text) return undefined;

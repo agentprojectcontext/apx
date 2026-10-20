@@ -39,17 +39,19 @@ Tres caminos, todos a la vista:
 
 - **Guardado automático.** Después de un turno común del dueño, el modelo auxiliar puede seleccionar preferencias,
   correcciones, decisiones y referencias duraderas, y escribir cada una como un hecho breve con las palabras del agente
-  (correcciones y decisiones de proyecto con `Why:` y `How to apply:`). Cada nota conserva como prueba una cita exacta
-  de tu mensaje, con su fuente, y APX controla el hecho contra ella: números, nombres e identificadores tienen que
-  salir de la cita y una negación tiene que mantenerse, o la nota se descarta. Pedidos, preguntas y avisos pasajeros nunca se guardan. Queda privada del agente y limitada al
+  (correcciones y decisiones de proyecto con `Why:` y `How to apply:`). Cada nota automática conserva como prueba una
+  cita exacta de tu mensaje, con su fuente, y APX controla el hecho contra ella: números, nombres e identificadores
+  tienen que salir de la cita, una negación tiene que mantenerse y cada línea tiene que usar sobre todo las palabras
+  de la cita, o la nota se descarta. Pedidos, preguntas y avisos pasajeros nunca se guardan. Queda privada del agente y limitada al
   mismo proyecto. Promesas del asistente y salidas de herramientas nunca prueban que una acción ocurrió. Las
   conversaciones sobre credenciales quedan excluidas.
 - **Procedimientos que funcionaron.** Cuando un turno que empezaste sale bien después de un intento fallido (en ese
   turno o en el anterior del chat), o después confirmás que anduvo ("genial, funcionó"), APX escribe una nota de
   procedimiento con los pasos exitosos del propio agente: qué herramientas usó, el sitio o el comando y dónde quedó el
   resultado. Queda marcada como historia, no como instrucción, y no necesita modelo auxiliar. Las direcciones pierden
-  sus parámetros de consulta y se deja afuera todo lo que parezca una credencial; si los pasos leyeron una página web,
-  la nota queda marcada como contenido de afuera.
+  sus parámetros de consulta y se deja afuera todo lo que parezca una credencial. Como los argumentos de un paso pueden
+  venir de algo que leyó un paso anterior, los agentes leen las notas de procedimiento como dato, igual que el
+  contenido de afuera.
 
 Usa el modelo auxiliar que ya configuraste en APX. Si está apagado, no extrae notas automáticas; `remember` y la
 recuperación automática de chats siguen funcionando. La cola persiste entre reinicios y los reintentos no duplican
@@ -73,8 +75,9 @@ Las notas nunca van en el prompt de sistema. En cambio, cuando un agente respond
    coincidencias relevantes tienen espacio antes de las notas fijas; una nota larga no tapa las siguientes.
 2. Tus turnos también traen un **índice del cuaderno del agente**: una línea corta por cada nota que no se muestra
    entera (tipo, fecha y de qué trata), las más nuevas primero, dentro de 2.000 caracteres. Así una nota escrita
-   distinto de tu mensaje ("hacelo como hiciste hoy") sigue a la vista, y `recall` trae su texto completo. Los turnos
-   siguientes del hilo listan sólo las notas guardadas desde entonces.
+   distinto de tu mensaje ("hacelo como hiciste hoy") sigue a la vista, y `recall` trae su texto completo; las que no
+   entran se encuentran buscando. Los turnos siguientes del hilo listan sólo las notas guardadas o cambiadas desde
+   entonces.
 3. En los **turnos siguientes** recibe sólo coincidencias nuevas que todavía no vio en ese hilo.
 4. Puede recuperar automáticamente frases relevantes de **sus propios chats anteriores, en el mismo proyecto**, con
    fecha y mensaje fuente. Incluye turnos antiguos del mismo chat que ya no entran en su contexto, sin duplicar los
@@ -118,11 +121,12 @@ y proyecto, cuando ese agente está libre. Hace esto:
 - une duplicados, conservando sus fuentes y la marca de contenido externo;
 - retira una nota que otra más nueva corrige (sólo si se escribió antes de la corrección);
 - cuando el cuaderno pasa de 40 notas, retira las que ya no sirven, para que el índice siga corto;
-- reescribe los días relativos ("hoy", "yesterday") como las fechas que querían decir.
+- reescribe los días relativos ("hoy", "yesterday") como las fechas que querían decir, sin tocar comandos citados
+  ni notas de procedimiento.
 
 El modelo auxiliar sólo nombra notas; APX hace la reescritura por su cuenta y nunca edita notas del dueño ni promueve
 recuerdos globales. Conserva contradicciones, números distintos y preferencias diferentes. Una pasada que olvidaría
-más de un quinto del cuaderno de una vez (al menos una nota) se rechaza entera. Las notas retiradas van a
+más de un quinto del cuaderno de una vez (al menos una nota) se rechaza entera, y ese cupo se cuenta por día. Las notas retiradas van a
 **Olvidadas** con el motivo en su historial, y se comprueban revisiones antes de aplicar una propuesta para evitar
 pisar cambios recientes.
 

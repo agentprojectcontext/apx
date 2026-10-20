@@ -39,6 +39,16 @@ test("a fact must be supported by the owner's quote: numbers, names and negation
   assert.equal(factSupported("El dueño prefiere texto y no audios por WhatsApp.", quote), false, "an invented name");
   assert.equal(factSupported("El dueño prefiere texto, no 3 audios por Telegram.", quote), false, "an invented number");
   assert.equal(factSupported("Why: no audios.", quote), false, "the rule comes first");
+  assert.equal(factSupported("Don't use tabs in this repo.", "I always want tabs in this repo"), false);
+  assert.equal(factSupported("Use tabs in this repo.", "Don't use tabs in this repo"), false, "an apostrophe negation");
+  assert.equal(
+    factSupported(
+      "Prefer tabs in this repo.\nWhy: the owner was burned by a production outage.\nHow to apply: deploy on Fridays.",
+      "Prefer tabs in this repo please",
+    ),
+    false,
+    "a reason or a rule the quote never gave",
+  );
 });
 
 test("relative days become the dates they meant, and a morning is not tomorrow", () => {
@@ -47,6 +57,12 @@ test("relative days become the dates they meant, and a morning is not tomorrow",
     "El 2026-03-10 bajé el reel; el 2026-03-11 lo subo. El 2026-03-10 falló. On 2026-03-09 it worked.",
   );
   assert.equal(absoluteDates("Reviso todo por la mañana.", "2026-03-10"), "Reviso todo por la mañana.");
+  assert.equal(absoluteDates("Llega de mañana.", "2026-03-10"), "Llega de mañana.");
+  assert.equal(
+    absoluteDates('Ran `curl https://news.example.com/today` when asked "bajalo hoy" today.', "2026-03-10"),
+    'Ran `curl https://news.example.com/today` when asked "bajalo hoy" on 2026-03-10.',
+    "quoted commands and the owner's words are data",
+  );
 });
 
 test("automatic capture saves the agent's synthesis with the owner's quote as evidence, never the raw request", async () => {
@@ -124,7 +140,7 @@ const downloader = (log: string[]) => [
 ];
 
 /** The model: on a download request it tries the reel page, then a downloader site; everything else is chat. */
-function downloadingLlm(retry: boolean) {
+function downloadingLlm(retry: boolean, url = "https://reelsaver.example.com/en/download?u=AAAA1111&token=s3cr3t") {
   return scriptedLlm((req, { system, said, afterTool }) => {
     if (system.startsWith("Extract durable")) return say('{"memories":[]}');
     if (system.startsWith("Review private")) return say('{"groups":[]}');
@@ -133,7 +149,7 @@ function downloadingLlm(retry: boolean) {
       if (!afterTool && retry) return callTool("f1", "fetch_reel", { url: reel });
       if (results < (retry ? 2 : 1))
         return callTool("d1", "download_file", {
-          url: "https://reelsaver.example.com/en/download?u=AAAA1111&token=s3cr3t",
+          url,
           path: "~/Downloads/reel-aaaa.mp4",
         });
       return say("Listo, quedó en ~/Downloads/reel-aaaa.mp4");
@@ -197,7 +213,8 @@ test("the owner confirming it worked keeps the previous turn's procedure; a 'gre
   assert.equal(confirmsSuccess("genial pero no bajó el audio"), false);
   assert.equal(confirmsSuccess("funcionó?"), false);
   const log: string[] = [];
-  const llm = downloadingLlm(false);
+  // A bare origin, as typed, is a target too.
+  const llm = downloadingLlm(false, "https://Reelsaver.example.com");
   const env = await startCore({ llm, aux: true, memoryMaintenance: true, extraTools: downloader(log) });
   try {
     const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
@@ -212,6 +229,8 @@ test("the owner confirming it worked keeps the previous turn's procedure; a 'gre
     await until(async () => (await procedures(env)).length === 1, "the confirmed procedure");
     const [note] = await procedures(env);
     assert.equal(note?.evidence?.[0]?.quote, request, "the note is about the turn that did the work");
+    assert.match(note?.text ?? "", /`download_file` `https:\/\/Reelsaver\.example\.com`/);
+    assert.equal(note?.tainted, true, "a procedure is read as data: its arguments may come from what a step read");
   } finally {
     await env.core.close();
     env.cleanup();
@@ -262,6 +281,43 @@ test("the index lists the agent's own notes once per thread, within its cap, and
     assert.match(next, /\[your notes index/);
     assert.ok(next.includes(fresh.id), "a note saved since then joins the index");
     assert.doesNotMatch(next, /ledger rule 59/, "the hooks already shown are not repeated");
+
+    const listed = /\[(mem_[0-9a-f]+)\] \(project, [^)]*\) Northwind ledger/.exec(first)?.[1] ?? "";
+    const old = env.core.store.memories.get(listed);
+    assert.ok(old);
+    await tick();
+    env.core.store.memories.edit(old.id, "Northwind ledger entries now close with a short review.", {
+      tainted: false,
+      pending: false,
+    });
+    await env.client.call("threads.send", { thread: chat.id, text: "y eso?" });
+    await env.settle(chat.id);
+    assert.match(lastInput(llm), /Northwind ledger entries now close with a short review/, "an edited note comes back");
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});
+
+test("a notebook of notes saved with outside content keeps the index within its cap", async () => {
+  const llm = scriptedLlm(() => say("ok"));
+  const env = await startCore({ llm });
+  try {
+    for (let i = 0; i < 60; i++)
+      env.core.store.memories.add({
+        scope: "agent",
+        agent_id: "roby",
+        source: "agent",
+        text: `Northwind page ${i} said its terms changed.`,
+        tainted: true,
+      });
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    await env.client.call("threads.send", { thread: chat.id, text: "hola" });
+    await env.settle(chat.id);
+    const input = lastInput(llm);
+    const block = input.slice(input.indexOf("[your notes index"), input.lastIndexOf("\n\nhola"));
+    assert.match(block, /untrusted/);
+    assert.ok(block.length <= INDEX_CHARS, `index ${block.length} chars, cap ${INDEX_CHARS}`);
   } finally {
     await env.core.close();
     env.cleanup();
@@ -339,6 +395,24 @@ test("a dream that would forget too much of the notebook at once is refused whol
     assert.ok(
       dreams.some((j) => /would forget 3 of 5 notes/.test(String(j.result))),
       JSON.stringify(dreams),
+    );
+
+    // One at a time is allowed, but the share holds for the day: a second pass cannot add to it.
+    const dream = async (id: string | undefined) => {
+      plan = JSON.stringify({ groups: [], retire: [{ id, by: newest }] });
+      env.core.store.memories.add({ scope: "agent", agent_id: "roby", source: "agent", text: `Acme aside ${id}.` });
+      await env.client.call("memory.maintenance", { dream: true });
+      await settleJobs(env);
+    };
+    await dream(notes[0]?.id);
+    await dream(notes[1]?.id);
+    const live = (await env.client.call("memory.list", { agent: "roby" })).memories.map((m) => m.id);
+    assert.equal(live.includes(notes[0]?.id ?? ""), false);
+    assert.equal(live.includes(notes[1]?.id ?? ""), true, "the second forgetting waits for another day");
+    const after = (await env.client.call("memory.status", {})).jobs.filter((j) => j.kind === "dream");
+    assert.ok(
+      after.some((j) => /more of \d+ notes today/.test(String(j.result))),
+      JSON.stringify(after),
     );
   } finally {
     await env.core.close();

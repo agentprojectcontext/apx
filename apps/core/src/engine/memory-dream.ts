@@ -5,6 +5,7 @@ import { z } from "zod";
 import { forgetAllowance, NOTEBOOK_TARGET } from "../domain/memories.ts";
 import { absoluteDates } from "../domain/memory-content.ts";
 import type { Store } from "../domain/store.ts";
+import { CallError } from "../errors.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 
 export const DREAM = [
@@ -23,8 +24,8 @@ const Plan = z.object({
 });
 
 /** What the model reads: ids, dates and texts, and whether the notebook is over its target. */
-export const dreamInput = (notes: Memory[]) => ({
-  over_target: notes.length > NOTEBOOK_TARGET,
+export const dreamInput = (notes: Memory[], total = notes.length) => ({
+  over_target: total > NOTEBOOK_TARGET,
   notes: notes.map((m) => ({ id: m.id, date: m.created_at.slice(0, 10), text: m.text })),
 });
 
@@ -44,8 +45,13 @@ export async function applyDream(
     .map((ids) => [...new Set(ids)].map((id) => byId.get(id)))
     .filter((refs): refs is Memory[] => refs.length >= 2 && refs.every(Boolean));
   const merging = new Set(groups.flatMap((g) => g.map((m) => m.id)));
+  // A note saved with outside content never retires another one, and a note retired in this pass replaces nothing.
+  const retiring = new Set((plan.retire ?? []).map((r) => r.id));
   const retire = (plan.retire ?? []).filter(
-    (r) => byId.has(r.id) && !merging.has(r.id) && (!r.by || (byId.has(r.by) && r.by !== r.id)),
+    (r) =>
+      byId.has(r.id) &&
+      !merging.has(r.id) &&
+      (!r.by || (byId.has(r.by) && r.by !== r.id && !byId.get(r.by)?.tainted && !retiring.has(r.by))),
   );
   const forgets = groups.reduce((n, g) => n + g.length - 1, 0) + retire.length;
   const allowed = forgetAllowance(notes.length);
@@ -66,7 +72,14 @@ export async function applyDream(
       const m = store.memories.get(r.id);
       return m && !m.forgotten_at ? [{ id: m.id, revision: m.revision ?? 1, ...(r.by ? { by: r.by } : {}) }] : [];
     });
-    if (live.length) retired = (await call("memory.tidy", { retire: live }, ctx)).retired;
+    // The core holds a daily share too: a refusal there ends this pass's forgetting, not the job.
+    if (live.length)
+      try {
+        retired = (await call("memory.tidy", { retire: live }, ctx)).retired;
+      } catch (err) {
+        if (!(err instanceof CallError)) throw err;
+        refused = err.message;
+      }
   }
   const redate = notes.flatMap((n) => {
     const m = store.memories.get(n.id);

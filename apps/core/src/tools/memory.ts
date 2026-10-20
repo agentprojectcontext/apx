@@ -28,8 +28,12 @@ export function hookLine(m: Memory): string {
   const used = steps.map((s) => (s[1] ?? "").replace(/^https?:\/\/([^/]+).*$/, "$1")).join(" ");
   const about = asked ? `${used} for "${asked}"` : first;
   const hook = about.replace(/\s+/g, " ").trim();
-  return `- [${m.id}] (${m.kind ?? "note"}, ${m.updated_at.slice(0, 10)}) ${hook.length > 96 ? `${hook.slice(0, 95)}…` : hook}`;
+  return `- [${m.id}] (${m.kind ?? "note"}${m.source === "owner" ? ", by the owner" : ""}, ${m.updated_at.slice(0, 10)}) ${hook.length > 96 ? `${hook.slice(0, 95)}…` : hook}`;
 }
+
+/** What wrapping notes saved with outside content adds around them (see notesText). */
+export const TAINTED_WRAP =
+  untrusted("memory_notes", { note: "saved while outside content was in context" }, "").length + 1;
 
 export function notesText(
   notes: Memory[],
@@ -42,10 +46,10 @@ export function notesText(
   let used = 0;
   for (const m of notes) {
     const l = format(m);
-    if (used + l.length > max) continue;
+    if (used + l.length + 1 > max) continue;
     (m.tainted ? tainted : clean).push(l);
     ids.push(m.id);
-    used += l.length;
+    used += l.length + 1;
   }
   const parts = [
     clean.join("\n"),
@@ -61,7 +65,7 @@ export function memoryTools(): Tool[] {
     defineTool({
       name: "remember",
       description:
-        "Save one durable fact for later threads, in your own words: a preference, a decision, a name, how something works. Never passwords, keys or codes, nor what is only true in this conversation. To correct a note, pass its id.",
+        "Save one durable fact for later threads, in your own words: a preference, decision, name, how something works. Never passwords, keys or codes, nor what is only true in this conversation. To correct a note, pass its id.",
       args: z.object({
         text: z.string().trim().min(3).max(600),
         scope: SCOPE.optional(),

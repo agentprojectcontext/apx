@@ -57,12 +57,18 @@ export async function performMemoryJob(
     store.memoryWork.finish(job.id, "completed", { saved: 0 });
     return;
   }
-  const notes = store.memories
-    .list({ view, scope: "agent", agent_id: job.agent_id, limit: DREAM_NOTES })
-    .filter(
-      (m) =>
-        m.project_id === view.project_id && m.source === "agent" && !m.pending && canUseChatMemory(store, thread, m),
-    );
+  // Past the window a dream reads the newest and the oldest notes: the stalest ones are what it may retire.
+  const notebook = () => {
+    const all = store.memories
+      .list({ view, scope: "agent", agent_id: job.agent_id, limit: 1000 })
+      .filter(
+        (m) =>
+          m.project_id === view.project_id && m.source === "agent" && !m.pending && canUseChatMemory(store, thread, m),
+      );
+    const half = DREAM_NOTES / 2;
+    return { total: all.length, notes: all.length > DREAM_NOTES ? [...all.slice(0, half), ...all.slice(-half)] : all };
+  };
+  const { total, notes } = notebook();
   const dreamKey = `memory_dream_snapshot:${job.agent_id}:${job.project_id ?? ""}`;
   const fingerprint = notes
     .map((m) => `${m.id}:${m.revision}`)
@@ -91,7 +97,9 @@ export async function performMemoryJob(
     job.agent_id,
     job.kind === "capture" ? CAPTURE : DREAM,
     JSON.stringify(
-      job.kind === "capture" ? { messages: source, existing: notes.map((m) => m.text) } : dreamInput(notes),
+      job.kind === "capture"
+        ? { messages: source, existing: notes.slice(0, 32).map((m) => m.text) }
+        : dreamInput(notes, total),
     ),
     about,
   );
@@ -118,16 +126,8 @@ export async function performMemoryJob(
   if (job.kind === "dream")
     store.settings.set(
       dreamKey,
-      store.memories
-        .list({ view, scope: "agent", agent_id: job.agent_id, limit: DREAM_NOTES })
-        .filter(
-          (m) =>
-            m.project_id === view.project_id &&
-            m.source === "agent" &&
-            !m.pending &&
-            canUseChatMemory(store, thread, m),
-        )
-        .map((m) => `${m.id}:${m.revision}`)
+      notebook()
+        .notes.map((m) => `${m.id}:${m.revision}`)
         .sort()
         .join(","),
     );

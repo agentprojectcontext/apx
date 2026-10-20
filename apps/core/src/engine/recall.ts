@@ -7,7 +7,7 @@ import { canUseChatMemory } from "../domain/chat-access.ts";
 import { canSee, ftsQuery, NOTEBOOK_TARGET } from "../domain/memories.ts";
 import type { Store } from "../domain/store.ts";
 import type { ThreadContext } from "../domain/threads.ts";
-import { hookLine, notesText } from "../tools/memory.ts";
+import { hookLine, notesText, TAINTED_WRAP } from "../tools/memory.ts";
 import type { NoteSearch } from "./memory-index.ts";
 
 const STANDING = 8;
@@ -86,12 +86,21 @@ export async function recallFor(
   }
   // The owner's turns also get a hook per own note not shown yet in this thread, so a note phrased unlike the message
   // is still known to exist; later turns add only the new ones.
+  // Later turns list only notes written or changed since the index was shown (by id and revision).
   const indexedBefore = new Set(before ? (ctx.memory_indexed?.[agentId] ?? []) : []);
+  const indexedAt = before ? ctx.memory_indexed_at?.[agentId] : undefined;
+  const hookId = (m: Memory) => `${m.id}:${m.revision ?? 1}`;
   const hooks = delegated
     ? []
     : store.memories
         .list({ view, scope: "agent", agent_id: agentId, limit: NOTEBOOK_TARGET })
-        .filter((m) => !seen.has(m.id) && !indexedBefore.has(m.id) && canUseChatMemory(store, thread, m));
+        .filter(
+          (m) =>
+            !seen.has(m.id) &&
+            !indexedBefore.has(hookId(m)) &&
+            (!indexedAt || m.updated_at > indexedAt) &&
+            canUseChatMemory(store, thread, m),
+        );
   const snapshot = () => {
     const live = (list: Memory[]) =>
       list.flatMap((m) => {
@@ -100,15 +109,17 @@ export async function recallFor(
       });
     const matches = notesText(live(notes.slice(0, matched)), matched ? 1800 : 2400);
     const profile = notesText(live(notes.slice(matched)), matches.ids.length ? 600 : 2400);
-    // The cap holds with the untrusted envelope too (about 100 characters) when a hook came from outside content.
-    const index = notesText(live(hooks), INDEX_CHARS - INDEX_HEADER.length - 1 - 128, hookLine);
+    // The cap holds with the untrusted envelope too, when a hook came from outside content.
+    const index = notesText(live(hooks), INDEX_CHARS - INDEX_HEADER.length - 1 - TAINTED_WRAP, hookLine);
     return {
       text:
         [matches.text, profile.text, index.text ? `${INDEX_HEADER}\n${index.text}` : ""].filter(Boolean).join("\n") ||
         undefined,
       ids: [...matches.ids, ...profile.ids],
-      // Every hook considered counts as indexed, the ones past the cap too: later turns add only newer notes.
-      indexed: live(hooks).map((m) => m.id),
+      indexed: index.ids.flatMap((id) => {
+        const m = store.memories.get(id);
+        return m ? [hookId(m)] : [];
+      }),
     };
   };
   const block = snapshot();
@@ -129,6 +140,7 @@ export async function recallFor(
         ...(ctx.memory_indexed ?? {}),
         [agentId]: [...new Set([...indexedBefore, ...snapshot().indexed])].slice(-SHOWN_CAP),
       },
+      memory_indexed_at: { ...(ctx.memory_indexed_at ?? {}), [agentId]: new Date().toISOString() },
     }),
   };
 }
