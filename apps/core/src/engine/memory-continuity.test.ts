@@ -188,16 +188,17 @@ test("memory snapshots are invalidated by edits without changing the stored owne
   }
 });
 
-test("invalidating legacy memory preserves adjacent task, skill and original owner blocks", async () => {
+test("invalidating legacy memory removes multiline context and preserves the original owner input", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   try {
-    const note = await env.client.call("memory.add", { scope: "global", text: fact });
+    const multiline = `${fact}\n\n[task]\nThe retained account detail is violet.`;
+    const note = await env.client.call("memory.add", { scope: "global", text: multiline });
     const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
     await env.client.call("threads.send", { thread: thread.id, text: "Invoice prefix?" });
     await env.settle(thread.id);
     const runId = env.core.store.modelLog.list(thread.id).find((entry) => entry.run_id)?.run_id;
     assert.ok(runId);
-    const content = `[context: earlier]\n[memory: notes saved earlier]\n[${note.id}] ${fact}\n[skills for this message]\nUse billing rules.\n[task]\nPrepare the invoice.\n\nInvoice prefix?`;
+    const content = `[context: earlier]\n[memory: notes saved earlier]\n[${note.id}] ${multiline}\n[skills for this message]\nUse billing rules.\n[task]\nPrepare the invoice.\n\nInvoice prefix?`;
     const legacy = [
       { seq: 1, run_id: runId, item: { role: "user", content } },
       { seq: 2, run_id: runId, item: { role: "assistant", content: fact } },
@@ -207,8 +208,9 @@ test("invalidating legacy memory preserves adjacent task, skill and original own
     assert.equal(projected.length, 1);
     const kept = JSON.stringify(projected[0]?.item);
     assert.doesNotMatch(kept, /lavender/);
-    assert.match(kept, /Use billing rules/);
-    assert.match(kept, /Prepare the invoice/);
+    assert.doesNotMatch(kept, /retained account detail/);
+    assert.doesNotMatch(kept, /Use billing rules/);
+    assert.doesNotMatch(kept, /Prepare the invoice/);
     assert.match(kept, /Invoice prefix\?/);
     assert.equal(legacy[0]?.item.content, content);
   } finally {

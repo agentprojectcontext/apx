@@ -1434,3 +1434,8 @@ deletion removes revision text and cached note responses but retains a fingerpri
 are separate records. Model-log snapshots carry dependencies: changed or forgotten notes invalidate their old turns
 and derived replies in the model projection. Summaries are invalidated on memory changes, and an in-flight summary
 cannot commit across a memory-generation change. The system prompt remains stable; dynamic context stays in input.
+
+Legacy model-log entries lack dependency offsets. Only an exact canonical input suffix proves where their injected
+context ends: stale legacy context is removed as a whole, and an unverifiable legacy run is omitted from the model
+projection. Arbitrary note text can contain blank lines or APX-like headers, so those are never treated as boundaries.
+The original chat remains readable; current turns rebuild task and skill context.
