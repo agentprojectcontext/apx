@@ -49,7 +49,15 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
       name: "deliver_report",
       description:
         "Create real CSV, PDF or Markdown deliverables. report.format (or internal_format and client_format) selects output; heading or label becomes the heading. Include the requested fields and your actual findings.",
-      args: z.object({ report: z.record(z.string(), z.union([z.string(), z.boolean()])) }),
+      args: z.object({
+        report: z
+          .object({
+            verified: z.boolean().optional(),
+            active: z.boolean().optional(),
+            sent: z.boolean().optional(),
+          })
+          .catchall(z.union([z.string(), z.boolean()])),
+      }),
       effect: "local",
       deadlineMs: 1000,
       title: () => "Deliver report",
@@ -223,7 +231,7 @@ function scoreDelivery(
     if (calls.some((c) => c.phase === "evaluation" && c.tool === "fetch_asset"))
       failures.push("repeated the known failed download path");
   }
-  if (scenario.delegate || scenario.roleSelection) {
+  if (scenario.roleSelection) {
     const delivered = calls.findLast(
       (c) => c.phase === "evaluation" && c.tool === "deliver_report" && c.delivery === deliveries.length,
     );

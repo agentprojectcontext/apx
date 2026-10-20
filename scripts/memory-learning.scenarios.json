@@ -203,7 +203,7 @@
     "name": "expired-date",
     "teach": [
       "Recordá literalmente en una nota privada: «El plazo de Acme venció ayer.». No conviertas la fecha todavía.",
-      "Siempre prefiero revisión breve para documentos Acme."
+      "Recordá literalmente en otra nota privada: «Siempre prefiero revisión breve para documentos Acme.»."
     ],
     "queries": [
       {
@@ -319,7 +319,7 @@
     "teach": [],
     "queries": [
       {
-        "text": "Delegá preparación de informe nuevo a agente del proyecto cuyo rol produzca entregables. Entrega debe incluir format Markdown y audience internal.",
+        "text": "Delegá preparación de informe nuevo a agente del proyecto cuyo rol produzca entregables. Ese agente debe crear archivo mediante deliver_report. Entrega debe incluir format Markdown y audience internal.",
         "expect": {
           "format": "markdown|md",
           "audience": "internal|intern[oa]s?"

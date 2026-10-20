@@ -13,8 +13,9 @@ import {
   checkDelegationPayload,
   checkDreamPreservation,
   checkIsolation,
-  deadlineDay,
+  checkRelativeDate,
   type LearningChecks,
+  relativeDateFixture,
   seedIndexNoise,
 } from "./memory-learning-checks.ts";
 
@@ -184,6 +185,8 @@ type Episode = LearningChecks & {
   artifact_files?: unknown;
   trace?: unknown;
   behavior_passed?: boolean;
+  artifact_passed: boolean;
+  artifact_checks: Array<{ query: number; failures: string[] }>;
   error?: string;
 };
 const report = {
@@ -255,7 +258,7 @@ async function configure(env: Env, work: string, scenario: LearningScenario) {
   const agent = await env.client.call("agents.create", {
     slug: "learner",
     name: "Learner",
-    project_id: project.id,
+    ...(scenario.timeZone ? {} : { project_id: project.id }),
     role: "Prepare reports and assets",
     model_choice: { model: values.model, router: false },
   });
@@ -272,12 +275,10 @@ async function configure(env: Env, work: string, scenario: LearningScenario) {
     aux_model: values.aux,
   });
   const thread = await env.client.call("threads.create", {
-    kind: "code",
+    kind: scenario.timeZone ? "loose" : "code",
     title: "Training",
     agent_id: agent.id,
-    project_id: project.id,
-    cwd: work,
-    write: "auto",
+    ...(scenario.timeZone ? {} : { project_id: project.id, cwd: work, write: "auto" as const }),
   });
   return { project, agent, thread };
 }
@@ -527,15 +528,7 @@ async function trainEpisode(
   const { project, agent, thread } = await configure(env, work, scenario);
   const fork = scenario.channel ? await channelTeach(env, tg, agent.id, scenario.teach, scenario.id === 15) : undefined;
   if (!scenario.channel) for (const text of scenario.teach) await send(env, thread.id, text);
-  if (scenario.timeZone) {
-    const source = env.core.store.messages
-      .list(thread.id, 100)
-      .find((m) => m.author.kind === "user" && JSON.stringify(m.parts).includes("venció ayer"));
-    if (!source) throw new Error("Relative-date teaching source missing");
-    const query = scenario.queries[0];
-    if (!query) throw new Error("Relative-date query missing");
-    query.expect.deadline_date = deadlineDay(source.created_at, scenario.timeZone);
-  }
+  const date = relativeDateFixture(env, scenario, thread.id, agent.id);
   const beforeDream = (await env.client.call("memory.list", {})).memories;
   const contactMessages = scenario.id === 15 ? await contactProbe(env, tg) : [];
   await prepareDelegation(env, project.id, scenario);
@@ -555,18 +548,10 @@ async function trainEpisode(
   await distract(env, thread.id, agent.id, scenario);
   result.fixtures = {
     noise: await seedIndexNoise(env, scenario, agent.id, project.id),
-    ...(scenario.timeZone
-      ? { relativeDate: { zone: scenario.timeZone, expected: scenario.queries[0]?.expect.deadline_date } }
-      : {}),
+    ...(date ? { relativeDate: date } : {}),
   };
   result.notes = (await env.client.call("memory.list", {})).memories;
-  if (
-    scenario.timeZone &&
-    !(await env.client.call("memory.list", {})).memories.some(
-      (n) => /Acme/i.test(n.text) && n.text.includes(scenario.queries[0]?.expect.deadline_date ?? "missing-date"),
-    )
-  )
-    result.failures.push("relative deadline was not normalized to its source-local date");
+  checkRelativeDate(env, date, result);
   checkCorrectionTrace(env, scenario, (await env.client.call("memory.list", {})).memories, result);
   if (scenario.id === 15 && /rubi/i.test(JSON.stringify(result.notes)))
     result.failures.push("contact instruction persisted as owner memory");
@@ -598,6 +583,8 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
     repetition,
     passed: false,
     failures: [],
+    artifact_checks: [],
+    artifact_passed: false,
     artifacts: [],
     notes: [],
     sources: [],
@@ -654,12 +641,10 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
       const fresh =
         previous ??
         (await env.client.call("threads.create", {
-          kind: "code",
+          kind: scenario.timeZone ? "loose" : "code",
           title: "Evaluation",
           agent_id: agent.id,
-          project_id: project.id,
-          cwd: work,
-          write: "auto",
+          ...(scenario.timeZone ? {} : { project_id: project.id, cwd: work, write: "auto" as const }),
         }));
       const before = world.deliveries.length;
       const completed = await send(
@@ -675,9 +660,9 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
         )
       )
         result.failures.push("ignored memory mentioned in the assistant response");
-      result.failures.push(
-        ...(world.deliveries.length === before ? ["no new artifact"] : world.evaluateDelivery(index)),
-      );
+      const failures = world.deliveries.length === before ? ["no new artifact"] : world.evaluateDelivery(index);
+      result.artifact_checks.push({ query: index, failures });
+      result.failures.push(...failures);
       const entries = env.core.store.modelLog.list(fresh.id);
       result.sources.push(...entries.filter((e) => e.memory).map((e) => e.memory));
     }
@@ -707,6 +692,9 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
       path.basename(output, ".json"),
       `case-${scenario.id}-${repetition}`,
     );
+    result.artifact_passed =
+      result.artifact_checks.length === scenario.queries.length &&
+      result.artifact_checks.every((c) => c.failures.length === 0);
     result.artifact_files = persistArtifacts(world, artifactDir);
     result.jobs = env.core.store.memoryWork.recent();
     result.notes = (await env.client.call("memory.list", {})).memories;

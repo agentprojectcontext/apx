@@ -94,7 +94,14 @@ test("a paired delivery creates actual CSV and PDF files, not only format labels
   }
 });
 
-for (const drift of ["none", "rediscover", "failed-path", "parent-produces", "parent-inspects"] as const)
+for (const drift of [
+  "none",
+  "rediscover",
+  "failed-path",
+  "parent-produces",
+  "parent-inspects",
+  "parent-presents",
+] as const)
   test(`delegated method scoring checks the recipient's first attempt: ${drift}`, async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-handoff-"));
     const producer = { agent: { slug: "producer" } } as ToolContext;
@@ -129,9 +136,9 @@ for (const drift of ["none", "rediscover", "failed-path", "parent-produces", "pa
         await run("prepare_asset", { route }, producer);
         await run("inspect_asset", {}, drift === "parent-inspects" ? ctx : producer);
       }
-      await run("deliver_report", { report: { verified: true, route } }, producer);
+      await run("deliver_report", { report: { verified: true, route } }, drift === "parent-presents" ? ctx : producer);
       const failures = world.evaluateDelivery(0);
-      if (drift === "none") assert.deepEqual(failures, []);
+      if (drift === "none" || drift === "parent-presents") assert.deepEqual(failures, []);
       else
         assert.match(
           failures.join("\n"),
@@ -169,6 +176,22 @@ test("the artifact tool accepts the standard Markdown extension alias", async ()
     assert.deepEqual(world.evaluateDelivery(0), []);
     assert.equal(world.files[0]?.format, "markdown");
     assert.match(fs.readFileSync(world.files[0]?.path ?? "", "utf8"), /^# Decision\n/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the delivery tool declares and enforces boolean result fields", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-flags-"));
+  try {
+    const world = learningWorld(dir, { id: 10, name: "Flags", teach: [], queries: [] });
+    const deliver = world.tools.find((t) => t.name === "deliver_report");
+    assert.ok(deliver);
+    for (const key of ["verified", "active", "sent"]) {
+      assert.equal(deliver.parse({ report: { [key]: "true" } }).ok, false);
+      assert.equal(deliver.parse({ report: { [key]: true, heading: "Result" } }).ok, true);
+      assert.equal(deliver.parse({ report: { [key]: false } }).ok, true);
+    }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

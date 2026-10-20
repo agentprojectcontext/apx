@@ -120,3 +120,35 @@ export function deadlineDay(at: string, zone: string) {
   const local = new Date(at).toLocaleDateString("en-CA", { timeZone: zone });
   return new Date(Date.parse(`${local}T00:00:00.000Z`) - 86_400_000).toISOString().slice(0, 10);
 }
+
+export function relativeDateFixture(env: Env, scenario: LearningScenario, thread: string, agent: string) {
+  if (!scenario.timeZone) return;
+  const source = env.core.store.messages
+    .list(thread, 100)
+    .find((m) => m.author.kind === "user" && JSON.stringify(m.parts).includes("venció ayer"));
+  if (!source) throw new Error("Relative-date teaching source missing");
+  const expected = deadlineDay(source.created_at, scenario.timeZone);
+  const query = scenario.queries[0];
+  if (!query) throw new Error("Relative-date query missing");
+  query.expect.deadline_date = expected;
+  const project = env.core.store.threads.get(thread)?.project_id;
+  const eligible = env.core.store.memories
+    .list({ limit: 100 })
+    .filter(
+      (n) =>
+        n.scope === "agent" && n.agent_id === agent && n.project_id === project && n.source === "agent" && !n.pending,
+    );
+  const note = eligible.find((n) => /Acme/.test(n.text) && /venci[oó]/i.test(n.text) && /\bayer\b/i.test(n.text));
+  if (eligible.length < 2 || !note)
+    throw new Error("Date fixture requires two eligible private notes including the original relative deadline");
+  return { id: note.id, source: source.id, at: source.created_at, expected, zone: scenario.timeZone };
+}
+export function checkRelativeDate(env: Env, fixture: ReturnType<typeof relativeDateFixture>, result: LearningChecks) {
+  if (!fixture) return;
+  const note = env.core.store.memories.get(fixture.id);
+  const normalized = env.core.store.memories
+    .history(fixture.id)
+    .some((v) => v.reason === "dream:dates" && v.note.text.includes(fixture.expected));
+  if (!note?.text.includes(fixture.expected) || !normalized)
+    result.failures.push("relative deadline was not normalized in place to its source-local date");
+}
