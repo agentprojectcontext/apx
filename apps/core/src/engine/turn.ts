@@ -72,7 +72,7 @@ import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
-import { memoryHistory, snapshotOf, visibleMemoryRuns } from "./memory-projection.ts";
+import { memoryHistory, snapshotOf, visibleMemoryRuns, windowRuns } from "./memory-projection.ts";
 import { ratingNote, sentMeanwhile } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
@@ -226,7 +226,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   } catch (err) {
     return end(failRun(deps, { run, turn, display, signal, err }));
   }
-  const { history, input, skills, picked, policy, tools, mcpLate } = prepared;
+  const { history, input, skills, picked, inView, policy, tools, mcpLate } = prepared;
   if (picked) display.upsert((p) => p.type === "skills", picked.part);
   let harness: HarnessId = "native";
   const startedUntrusted = [...history, input].some((m) => String(m.content ?? "").includes(UNTRUSTED_MARK));
@@ -241,6 +241,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     display,
     signal,
     untrusted: startedUntrusted,
+    inView,
     external: () => harness !== "native",
     call: deps.call,
     jobs: deps.jobs,
@@ -508,7 +509,9 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
       ...(recalled.shown ? recalled.shown(at) : {}),
     });
   const skills = sealed ? "" : skillCatalog(available);
-  return { history, input, skills, picked };
+  // A room's turn has no history of its own: only its run is in view.
+  const inView = room ? new Set([run.id]) : windowRuns(entries, from, run.id);
+  return { history, input, skills, picked, inView };
 }
 
 /** The kind of channel a message came on ("telegram"), for how the answer should look; none for the app. */

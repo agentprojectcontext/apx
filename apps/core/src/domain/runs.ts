@@ -473,8 +473,11 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       );
       return r?.output == null ? undefined : r.output;
     },
-    /** Tool calls in these threads whose tool or arguments hold every word, newest first. Results are outside text. */
-    searchSteps(words: string[], threadIds: string[], limit = 10): StepHit[] {
+    /**
+     * Tool calls in these threads whose tool or arguments hold every word, newest first. Results are outside text.
+     * `excludeRuns` (already in a model's view) are dropped before the limit.
+     */
+    searchSteps(words: string[], threadIds: string[], limit = 10, excludeRuns: string[] = []): StepHit[] {
       if (!words.length || !threadIds.length) return [];
       const haystack = raw<string>`s.tool || ' ' || s.args`;
       const like = (w: string) => `%${w.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -484,6 +487,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
           .innerJoin("runs as r", "r.id", "s.run_id")
           .select(["s.run_id", "r.thread_id", "r.agent_id", "s.tool", "s.args", "s.state", "s.result", "s.started_at"])
           .where("r.thread_id", "in", threadIds)
+          .$if(excludeRuns.length > 0, (q) => q.where("s.run_id", "not in", excludeRuns))
           .where((eb) => eb.and(words.map((w) => raw<boolean>`${haystack} like ${like(w)} escape '\\'`)))
           .orderBy("s.started_at", "desc")
           .limit(limit),
