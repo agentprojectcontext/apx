@@ -1539,3 +1539,5 @@ regressions establish infrastructure behavior; they are not evidence of real lea
 negated format matches, string success flags, missing outputs, exports without subsequent observation and automatic
 notes sourced from evaluation requests rather than prior teaching. Reports
 retain failures and model/configuration provenance; passing a finite evaluation never guarantees universal fidelity.
+Known-method handoffs check the recipient's first asset attempt, not a preliminary check by the parent; reusing a
+known failed download path also fails the evaluation. The delegated instructions remain available in episode traces.

@@ -74,8 +74,8 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
       effect: "none",
       deadlineMs: 1000,
       title: () => "Download asset",
-      async run() {
-        calls.push({ phase, tool: "fetch_asset" });
+      async run(_, ctx) {
+        calls.push({ phase, tool: "fetch_asset", agent: ctx.agent.slug });
         throw new Error("Direct download unavailable; use an export route.");
       },
     }),
@@ -87,8 +87,8 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
       effect: "none",
       deadlineMs: 1000,
       title: () => "Inspect routes",
-      async run(a) {
-        calls.push({ phase, tool: "inspect_routes", ...(a.route ? { route: a.route } : {}) });
+      async run(a, ctx) {
+        calls.push({ phase, tool: "inspect_routes", agent: ctx.agent.slug, ...(a.route ? { route: a.route } : {}) });
         return JSON.stringify({
           routes: [routes[generation]],
           ...(a.route ? { valid: a.route === routes[generation] } : {}),
@@ -118,8 +118,8 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
       effect: "none",
       deadlineMs: 1000,
       title: () => "Inspect asset",
-      async run() {
-        calls.push({ phase, tool: "inspect_asset", exists: fs.existsSync(artifact) });
+      async run(_, ctx) {
+        calls.push({ phase, tool: "inspect_asset", agent: ctx.agent.slug, exists: fs.existsSync(artifact) });
         return fs.existsSync(artifact)
           ? JSON.stringify({ exists: true, ...JSON.parse(fs.readFileSync(artifact, "utf8")) })
           : '{"exists":false}';
@@ -198,10 +198,15 @@ function scoreDelivery(
   }
   if (scenario.reuseMethod) {
     const first = calls.find(
-      (c) => c.phase === "evaluation" && ["fetch_asset", "inspect_routes", "prepare_asset"].includes(c.tool),
+      (c) =>
+        c.phase === "evaluation" &&
+        (!scenario.delegate || c.agent === "producer") &&
+        ["fetch_asset", "inspect_routes", "prepare_asset"].includes(c.tool),
     );
     if (!first || !["prepare_asset", "inspect_routes"].includes(first.tool) || first.route !== originalRoute)
       failures.push("did not reuse the confirmed method before rediscovering it");
+    if (calls.some((c) => c.phase === "evaluation" && c.tool === "fetch_asset"))
+      failures.push("repeated the known failed download path");
   }
   if (scenario.delegate || scenario.roleSelection) {
     const delivered = calls.findLast(

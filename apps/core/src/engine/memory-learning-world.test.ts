@@ -84,3 +84,41 @@ test("a paired delivery creates actual CSV and PDF files, not only format labels
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+for (const drift of ["none", "rediscover", "failed-path"] as const)
+  test(`delegated method scoring checks the recipient's first attempt: ${drift}`, async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-handoff-"));
+    const producer = { agent: { slug: "producer" } } as ToolContext;
+    try {
+      const world = learningWorld(dir, {
+        id: 18,
+        name: "Method handoff",
+        teach: [],
+        asset: "normal",
+        reuseMethod: true,
+        delegate: true,
+        queries: [{ text: "Repeat", expect: { verified: "true" } }],
+      });
+      const run = async (name: string, args: Record<string, unknown>, actor = ctx) => {
+        const tool = world.tools.find((t) => t.name === name);
+        assert.ok(tool);
+        return tool.run(args, actor);
+      };
+      const { routes } = JSON.parse(await run("inspect_routes", {}));
+      const route = routes[0];
+      await run("prepare_asset", { route });
+      await run("inspect_asset", {});
+      world.evaluate();
+      await run("inspect_routes", { route });
+      if (drift === "failed-path") await assert.rejects(() => run("fetch_asset", {}), /Direct download unavailable/);
+      await run("inspect_routes", drift === "rediscover" ? {} : { route }, producer);
+      await run("prepare_asset", { route }, producer);
+      await run("inspect_asset", {}, producer);
+      await run("deliver_report", { report: { verified: true, route } }, producer);
+      const failures = world.evaluateDelivery(0);
+      if (drift === "none") assert.deepEqual(failures, []);
+      else assert.match(failures.join("\n"), drift === "rediscover" ? /reuse the confirmed method/ : /known failed/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
