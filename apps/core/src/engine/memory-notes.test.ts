@@ -385,7 +385,15 @@ test("a dream retires a note a newer correction supersedes and writes relative d
   let plan = "{}";
   const llm = scriptedLlm((req, { system }) => {
     if (system.startsWith("Validate memory")) return supportMemoryClaims(req);
-    if (system.startsWith("Review private memory")) return say(plan);
+    if (system.startsWith("Review private memory")) {
+      const { notes } = JSON.parse(String(req.messages.at(-1)?.content));
+      const live = new Set(notes.map((n: { id: string }) => n.id));
+      const proposal = JSON.parse(plan);
+      // A later pass cannot propose a note that already left the supplied notebook.
+      return say(
+        JSON.stringify({ ...proposal, retire: proposal.retire.filter((r: { id: string }) => live.has(r.id)) }),
+      );
+    }
     if (system.startsWith("Extract durable")) return say('{"memories":[]}');
     return say("ok");
   });

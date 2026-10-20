@@ -74,10 +74,12 @@ export async function performMemoryJob(
   };
   const { total, notes } = notebook();
   const dreamKey = `memory_dream_snapshot:${job.agent_id}:${job.project_id ?? ""}`;
-  const fingerprint = notes
-    .map((m) => `${m.id}:${m.revision}`)
-    .sort()
-    .join(",");
+  const fingerprint =
+    "evidence-v1:" +
+    notes
+      .map((m) => `${m.id}:${m.revision}`)
+      .sort()
+      .join(",");
   if (job.kind === "dream" && (notes.length < 2 || store.settings.get(dreamKey) === fingerprint)) {
     store.memoryWork.finish(job.id, "completed", { merged: 0 });
     return;
@@ -112,6 +114,16 @@ export async function performMemoryJob(
     ...(thread.project_id ? { project_id: thread.project_id } : {}),
   };
   const checkpoint = job.result ? (JSON.parse(job.result) as { extracted?: string; reviewed?: string[] }) : {};
+  if (checkpoint.extracted) {
+    try {
+      if (job.kind === "capture") CaptureCandidates.parse(memoryJson(checkpoint.extracted));
+      else retirementClaims(notes, checkpoint.extracted);
+    } catch {
+      // Old checkpoints must not replay an invalid proposal forever after an upgrade.
+      store.memoryWork.checkpoint(job.id, {});
+      throw new Error("invalid memory checkpoint discarded");
+    }
+  }
   let out = checkpoint.extracted;
   if (!out) {
     if (!reserve()) return;
