@@ -39,7 +39,8 @@ export function saveLearningArtifacts(dir: string, index: number, report: Report
   const fields = ["format", "internal_format", "client_format"].filter((key) => typeof report[key] === "string");
   const chosen = fields.length ? fields : ["document"];
   return chosen.map((field) => {
-    const format = field === "document" ? "markdown" : String(report[field]).toLowerCase();
+    const requested = field === "document" ? "markdown" : String(report[field]).toLowerCase();
+    const format = requested === "md" ? "markdown" : requested;
     const csv = (s: string) => `"${s.replaceAll('"', '""')}"`;
     const body = Object.entries(report)
       .map(([key, value]) => `${key}: ${value}`)

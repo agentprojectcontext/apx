@@ -23,6 +23,9 @@ export type LearningScenario = {
   sameChat?: boolean;
   delegate?: boolean;
   roleSelection?: boolean;
+  requireRoute?: boolean;
+  noiseNotes?: number;
+  timeZone?: string;
 };
 
 export function learningWorld(dir: string, scenario: LearningScenario) {
@@ -132,6 +135,7 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
     deliveries,
     files,
     artifact,
+    originalRoute: routes[0],
     evaluate() {
       phase = "evaluation";
       if (scenario.asset === "change") generation = 1;
@@ -174,15 +178,24 @@ function scoreDelivery(
       failures.push(`unexpected ${key}: ${String(report[key])}`);
   if (query?.forbid && new RegExp(query.forbid, "i").test(JSON.stringify(report)))
     failures.push("ignored memory leaked into delivery");
+  if (scenario.requireRoute && report.route !== currentRoute) failures.push("reported route is not the current route");
   if (scenario.asset) {
     const delivery = calls.findLastIndex(
       (c) => c.phase === "evaluation" && c.tool === "deliver_report" && c.delivery === deliveries.length,
     );
     const inspection = calls.findLastIndex(
-      (c, index) => index < delivery && c.phase === "evaluation" && c.tool === "inspect_asset",
+      (c, index) =>
+        index < delivery &&
+        c.phase === "evaluation" &&
+        c.tool === "inspect_asset" &&
+        (!scenario.delegate || c.agent === "producer"),
     );
     const preparation = calls.findLastIndex(
-      (c, index) => index < delivery && c.phase === "evaluation" && c.tool === "prepare_asset",
+      (c, index) =>
+        index < delivery &&
+        c.phase === "evaluation" &&
+        c.tool === "prepare_asset" &&
+        (!scenario.delegate || c.agent === "producer"),
     );
     if (inspection < 0) failures.push("result was never inspected");
     if (report.verified === true) {
@@ -190,6 +203,8 @@ function scoreDelivery(
       if (
         !result?.valid ||
         result.route !== currentRoute ||
+        preparation < 0 ||
+        calls[preparation]?.route !== currentRoute ||
         inspection <= preparation ||
         calls[inspection]?.exists !== true
       )

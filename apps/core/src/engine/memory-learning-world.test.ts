@@ -14,6 +14,7 @@ async function exercise(o: {
   prepare?: boolean;
   format?: boolean;
   inspectAfterDelivery?: boolean;
+  route?: "correct" | "wrong" | "missing";
 }) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-world-"));
   try {
@@ -21,6 +22,7 @@ async function exercise(o: {
       id: 1,
       name: "Delivery",
       teach: [],
+      requireRoute: !!o.route,
       ...(o.format ? {} : { asset: o.missing ? "missing" : "normal" }),
       queries: [{ text: "Deliver", expect: o.format ? { format: "csv" } : { verified: "true" } }],
     });
@@ -30,12 +32,19 @@ async function exercise(o: {
       return t.run(args, ctx);
     };
     world.evaluate();
+    let route: string | undefined;
     if (o.prepare) {
       const { routes } = JSON.parse(await run("inspect_routes", {}));
-      await run("prepare_asset", { route: routes[0] });
+      route = routes[0];
+      await run("prepare_asset", { route });
     }
     if (o.inspect && !o.inspectAfterDelivery) await run("inspect_asset", {});
-    await run("deliver_report", { report: o.report });
+    await run("deliver_report", {
+      report: {
+        ...o.report,
+        ...(o.route === "correct" ? { route } : o.route === "wrong" ? { route: "invented" } : {}),
+      },
+    });
     if (o.inspectAfterDelivery) await run("inspect_asset", {});
     assert.ok(fs.readdirSync(dir).some((n) => n.startsWith("delivery-")));
     return world.evaluateDelivery(0);
@@ -85,7 +94,7 @@ test("a paired delivery creates actual CSV and PDF files, not only format labels
   }
 });
 
-for (const drift of ["none", "rediscover", "failed-path"] as const)
+for (const drift of ["none", "rediscover", "failed-path", "parent-produces", "parent-inspects"] as const)
   test(`delegated method scoring checks the recipient's first attempt: ${drift}`, async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-handoff-"));
     const producer = { agent: { slug: "producer" } } as ToolContext;
@@ -111,14 +120,56 @@ for (const drift of ["none", "rediscover", "failed-path"] as const)
       world.evaluate();
       await run("inspect_routes", { route });
       if (drift === "failed-path") await assert.rejects(() => run("fetch_asset", {}), /Direct download unavailable/);
+      if (drift === "parent-produces") {
+        await run("prepare_asset", { route });
+        await run("inspect_asset", {});
+      }
       await run("inspect_routes", drift === "rediscover" ? {} : { route }, producer);
-      await run("prepare_asset", { route }, producer);
-      await run("inspect_asset", {}, producer);
+      if (drift !== "parent-produces") {
+        await run("prepare_asset", { route }, producer);
+        await run("inspect_asset", {}, drift === "parent-inspects" ? ctx : producer);
+      }
       await run("deliver_report", { report: { verified: true, route } }, producer);
       const failures = world.evaluateDelivery(0);
       if (drift === "none") assert.deepEqual(failures, []);
-      else assert.match(failures.join("\n"), drift === "rediscover" ? /reuse the confirmed method/ : /known failed/);
+      else
+        assert.match(
+          failures.join("\n"),
+          drift === "rediscover"
+            ? /reuse the confirmed method/
+            : drift === "failed-path"
+              ? /known failed/
+              : /claimed success|never inspected/,
+        );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
+
+for (const route of ["correct", "wrong", "missing"] as const)
+  test(`learning reports must name the actual route when requested: ${route}`, async () => {
+    const failures = await exercise({ prepare: true, inspect: true, report: { verified: true }, route });
+    if (route === "correct") assert.deepEqual(failures, []);
+    else assert.match(failures.join("\n"), /reported route/);
+  });
+
+test("the artifact tool accepts the standard Markdown extension alias", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-markdown-"));
+  try {
+    const world = learningWorld(dir, {
+      id: 19,
+      name: "Markdown",
+      teach: [],
+      queries: [{ text: "Deliver Markdown", expect: { format: "markdown|md" } }],
+    });
+    const deliver = world.tools.find((t) => t.name === "deliver_report");
+    assert.ok(deliver);
+    world.evaluate();
+    await deliver.run({ report: { format: "md", heading: "Decision" } }, ctx);
+    assert.deepEqual(world.evaluateDelivery(0), []);
+    assert.equal(world.files[0]?.format, "markdown");
+    assert.match(fs.readFileSync(world.files[0]?.path ?? "", "utf8"), /^# Decision\n/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

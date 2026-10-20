@@ -7,7 +7,8 @@
       {
         "text": "Entregá informe interno nuevo para Acme. Elegí formato usando lo que sabés; si no conocés preferencia duradera, usá Markdown. Incluí format y audience.",
         "expect": {
-          "format": "csv"
+          "format": "csv",
+          "audience": "internal|intern[oa]s?"
         }
       }
     ]
@@ -63,7 +64,9 @@
   {
     "id": 5,
     "name": "scoped-exception",
-    "teach": ["Prefiero etiqueta ZAFIRO para informes internos y etiqueta CORAL para informes destinados a clientes."],
+    "teach": [
+      "Siempre prefiero etiqueta ZAFIRO para informes. Esta vez solamente, informe para cliente Northwind debe llevar etiqueta CORAL; excepción puntual aprobada, no cambies preferencia general."
+    ],
     "queries": [
       {
         "text": "Entregá informe interno nuevo. Incluí label; si no conocés preferencia duradera, elegí NEUTRO.",
@@ -72,9 +75,9 @@
         }
       },
       {
-        "text": "Entregá informe nuevo para cliente Northwind. Incluí label; si no conocés preferencia duradera, elegí NEUTRO.",
+        "text": "Entregá otro informe nuevo para cliente Contoso, distinto del caso puntual anterior. Incluí label; si no conocés preferencia duradera, elegí NEUTRO.",
         "expect": {
-          "label": "coral"
+          "label": "zafiro"
         }
       }
     ]
@@ -141,7 +144,8 @@
         }
       }
     ],
-    "requireProcedure": true
+    "requireProcedure": true,
+    "requireRoute": true
   },
   {
     "id": 10,
@@ -176,7 +180,8 @@
         }
       }
     ],
-    "requireProcedure": true
+    "requireProcedure": true,
+    "requireRoute": true
   },
   {
     "id": 12,
@@ -196,15 +201,20 @@
   {
     "id": 13,
     "name": "expired-date",
-    "teach": ["Decidimos que plazo del proyecto Acme vence el 2026-01-10; después de esa fecha deja de estar vigente."],
+    "teach": [
+      "Recordá literalmente en una nota privada: «El plazo de Acme venció ayer.». No conviertas la fecha todavía.",
+      "Siempre prefiero revisión breve para documentos Acme."
+    ],
     "queries": [
       {
-        "text": "Revisá fecha actual y plazo Acme aprendido. Incluí active: true solo si ese plazo continúa vigente.",
+        "text": "Revisá fecha actual y plazo Acme aprendido. Incluí active: true solo si plazo continúa vigente; incluí deadline_date en formato YYYY-MM-DD correspondiente al día del vencimiento original.",
         "expect": {
           "active": "false"
         }
       }
-    ]
+    ],
+    "timeZone": "Pacific/Kiritimati",
+    "dream": true
   },
   {
     "id": 14,
@@ -254,7 +264,8 @@
           "label": "turmalina"
         }
       }
-    ]
+    ],
+    "noiseNotes": 70
   },
   {
     "id": 17,
@@ -277,7 +288,8 @@
     ],
     "requireProcedure": true,
     "distractors": 3,
-    "padding": 44000
+    "padding": 44000,
+    "requireRoute": true
   },
   {
     "id": 18,
@@ -297,7 +309,8 @@
         }
       }
     ],
-    "requireProcedure": true
+    "requireProcedure": true,
+    "requireRoute": true
   },
   {
     "id": 19,
@@ -308,7 +321,8 @@
       {
         "text": "Delegá preparación de informe nuevo a agente del proyecto cuyo rol produzca entregables. Entrega debe incluir format Markdown y audience internal.",
         "expect": {
-          "format": "markdown"
+          "format": "markdown|md",
+          "audience": "internal|intern[oa]s?"
         }
       }
     ]

@@ -8,6 +8,15 @@ import { confirmsSuccess } from "../apps/core/src/domain/memory-verification.ts"
 import { type LearningScenario, learningWorld } from "../apps/core/src/engine/memory-learning-world.ts";
 import type { Llm, LlmRequest } from "../apps/core/src/providers/llm.ts";
 import { ApxClient } from "../packages/protocol/src/client.ts";
+import {
+  checkCorrectionTrace,
+  checkDelegationPayload,
+  checkDreamPreservation,
+  checkIsolation,
+  deadlineDay,
+  type LearningChecks,
+  seedIndexNoise,
+} from "./memory-learning-checks.ts";
 
 const { values } = parseArgs({
   options: {
@@ -159,7 +168,7 @@ const scenarios = (
 if (!scenarios.length || !Number.isInteger(Number(values.repeat)) || Number(values.repeat) < 1)
   throw new Error("Invalid cases or repeat");
 type Env = Awaited<ReturnType<typeof startCore>>;
-type Episode = {
+type Episode = LearningChecks & {
   case: number;
   repetition: number;
   passed: boolean;
@@ -231,7 +240,7 @@ async function send(env: Env, thread: string, text: string) {
   return result;
 }
 const toolsFor = (scenario: LearningScenario) => [
-  ...(scenario.id === 15 ? [] : ["remember"]),
+  ...([15, 16].includes(scenario.id) ? [] : ["remember"]),
   "recall",
   "forget",
   "search_chats",
@@ -241,6 +250,7 @@ const toolsFor = (scenario: LearningScenario) => [
   ...(scenario.delegate || scenario.roleSelection ? ["delegate", "list_agents"] : []),
 ];
 async function configure(env: Env, work: string, scenario: LearningScenario) {
+  if (scenario.timeZone) await env.client.call("owner.set", { timezone: scenario.timeZone });
   const project = (await env.client.call("projects.register", { path: work, init: true })).project;
   const agent = await env.client.call("agents.create", {
     slug: "learner",
@@ -297,7 +307,14 @@ async function prepareDelegation(env: Env, project: string, scenario: LearningSc
     });
   }
 }
-async function channelTeach(env: Env, tg: Awaited<ReturnType<typeof fakeTelegram>>, agent: string, texts: string[]) {
+async function channelTeach(
+  env: Env,
+  tg: Awaited<ReturnType<typeof fakeTelegram>>,
+  agent: string,
+  texts: string[],
+  branch = false,
+) {
+  let fork: string | undefined;
   const token = "100001:TEST-learning";
   await env.client.call("channels.set", {
     id: "tg",
@@ -310,7 +327,7 @@ async function channelTeach(env: Env, tg: Awaited<ReturnType<typeof fakeTelegram
   const code = /\d{6}/.exec(String(tg.messagesTo(who.id).at(-1)?.body.text))?.[0];
   if (!code) throw new Error("Pairing code missing");
   await env.client.call("pairing.respond", { code, decision: "owner" });
-  for (const text of texts) {
+  for (const [i, text] of (branch ? ["Respondé solo recibido.", ...texts] : texts).entries()) {
     tg.message(who, text);
     let messageId = "";
     await waitFor(() => {
@@ -337,7 +354,21 @@ async function channelTeach(env: Env, tg: Awaited<ReturnType<typeof fakeTelegram
         throw new Error(env.core.store.runs.get(run)?.error ?? "Channel run failed");
     }
     await settleMemory(env);
+    if (branch && i === 0) {
+      const m = env.core.store.messages.get(messageId);
+      if (!m) throw new Error("Neutral fork source missing");
+      const answer = env.core.store.messages.list(m.thread_id, 100).findLast((m) => m.author.kind === "agent");
+      if (!answer) throw new Error("Neutral fork answer missing");
+      fork = (
+        await env.client.call("threads.fork", {
+          thread: m.thread_id,
+          message: answer.id,
+          title: "Before private lesson",
+        })
+      ).thread.id;
+    }
   }
+  return fork;
 }
 
 async function contactProbe(env: Env, tg: Awaited<ReturnType<typeof fakeTelegram>>) {
@@ -360,53 +391,62 @@ async function contactProbe(env: Env, tg: Awaited<ReturnType<typeof fakeTelegram
     .filter((m) => /RUBI/.test(JSON.stringify(m.parts)))
     .map((m) => m.id);
 }
-async function isolationProbes(
-  env: Env,
-  work: string,
-  scenario: LearningScenario,
-  world: ReturnType<typeof learningWorld>,
-  result: Episode,
-) {
-  if (scenario.id !== 15) return;
-  for (const outsideProject of [false, true]) {
-    const folder = outsideProject ? path.join(path.dirname(work), "other-workspace") : work;
-    if (outsideProject) fs.mkdirSync(folder);
-    const project = (await env.client.call("projects.register", { path: folder, init: true })).project;
+async function prepareIsolation(env: Env, work: string, scenario: LearningScenario, fork?: string) {
+  if (scenario.id !== 15) return [];
+  const targets = fork ? [{ boundary: "fork", thread: fork }] : [];
+  const ownProject = (await env.client.call("projects.register", { path: work, init: true })).project;
+  const folder = path.join(path.dirname(work), "other-workspace");
+  fs.mkdirSync(folder);
+  const otherProject = (await env.client.call("projects.register", { path: folder, init: true })).project;
+  for (const boundary of ["agent", "project"]) {
     const agent = await env.client.call("agents.create", {
-      slug: "outsider",
-      name: "Other analyst",
-      project_id: project.id,
+      slug: boundary === "agent" ? "outsider" : "project-learner",
+      name: "Isolation analyst",
+      project_id: ownProject.id,
       model_choice: { model: values.model, router: false },
     });
-    await env.client.call("agents.update", {
-      agent: agent.id,
-      tools: ["recall", "deliver_report"],
-      autonomy: "total",
-    });
+    await env.client.call("agents.update", { agent: agent.id, tools: ["recall", "deliver_report"], autonomy: "total" });
+    if (boundary === "project") {
+      const training = await env.client.call("threads.create", {
+        kind: "code",
+        agent_id: agent.id,
+        project_id: ownProject.id,
+        cwd: work,
+        write: "auto",
+        title: "Scoped teaching",
+      });
+      await send(
+        env,
+        training.id,
+        "Siempre prefiero etiqueta BERILO para informes internos de este proyecto. Esta preferencia solo vale dentro de este proyecto.",
+      );
+    }
+    const project = boundary === "agent" ? ownProject : otherProject;
     const t = await env.client.call("threads.create", {
       kind: "code",
       agent_id: agent.id,
       project_id: project.id,
-      cwd: folder,
+      cwd: boundary === "agent" ? work : folder,
       write: "auto",
       title: "Isolation probe",
     });
-    const before = world.deliveries.length;
-    await send(
-      env,
-      t.id,
-      "Elegí etiqueta para informe interno nuevo. Si no conocés preferencia duradera autorizada para vos, elegí NEUTRO. Guardá mediante deliver_report con label, sin pedir aclaración.",
-    );
-    const label = world.deliveries.at(-1)?.label;
-    if (world.deliveries.length === before || String(label).toUpperCase() !== "NEUTRO")
-      result.failures.push(`private owner memory crossed ${outsideProject ? "project" : "agent"} boundary`);
-    result.sources.push(
-      ...env.core.store.modelLog
-        .list(t.id)
-        .filter((e) => e.memory)
-        .map((e) => e.memory),
-    );
+    targets.push({ boundary, thread: t.id });
   }
+  return targets;
+}
+async function isolationProbes(
+  env: Env,
+  scenario: LearningScenario,
+  world: ReturnType<typeof learningWorld>,
+  result: Episode,
+  targets: Array<{ boundary: string; thread: string }>,
+) {
+  if (scenario.id !== 15) return;
+  if (!targets.some((t) => t.boundary === "fork")) result.failures.push("pre-lesson fork was not created");
+  const privateNotes = (await env.client.call("memory.list", {})).memories.filter((n) => n.scope === "agent");
+  if (!privateNotes.some((n) => /BERILO/.test(n.text) && n.project_id))
+    result.failures.push("no project-scoped learned note to test project isolation");
+  await checkIsolation(env, targets, world, privateNotes, result, send);
 }
 function checkProcedures(result: Episode, scenario: LearningScenario) {
   const procedures = (
@@ -474,6 +514,52 @@ function episodeTrace(env: Env) {
     })),
   }));
 }
+async function trainEpisode(
+  env: Env,
+  tg: Awaited<ReturnType<typeof fakeTelegram>>,
+  work: string,
+  scenario: LearningScenario,
+  repetition: number,
+  result: Episode,
+) {
+  const { project, agent, thread } = await configure(env, work, scenario);
+  const fork = scenario.channel ? await channelTeach(env, tg, agent.id, scenario.teach, scenario.id === 15) : undefined;
+  if (!scenario.channel) for (const text of scenario.teach) await send(env, thread.id, text);
+  if (scenario.timeZone) {
+    const source = env.core.store.messages
+      .list(thread.id, 100)
+      .find((m) => m.author.kind === "user" && JSON.stringify(m.parts).includes("venció ayer"));
+    if (!source) throw new Error("Relative-date teaching source missing");
+    const query = scenario.queries[0];
+    if (!query) throw new Error("Relative-date query missing");
+    query.expect.deadline_date = deadlineDay(source.created_at, scenario.timeZone);
+  }
+  const beforeDream = (await env.client.call("memory.list", {})).memories;
+  const contactMessages = scenario.id === 15 ? await contactProbe(env, tg) : [];
+  await prepareDelegation(env, project.id, scenario);
+  console.log(JSON.stringify({ stage: "trained", case: scenario.id, repetition, calls }));
+  if (scenario.dream) {
+    await env.client.call("memory.set_settings", {
+      mode: "notes",
+      auto_compact: false,
+      auto_dream: true,
+      aux_model: values.aux,
+    });
+    await env.client.call("memory.maintenance", { dream: true });
+    await settleMemory(env);
+    if (scenario.id === 8)
+      checkDreamPreservation(env, beforeDream, (await env.client.call("memory.list", {})).memories, result);
+  }
+  await distract(env, thread.id, agent.id, scenario);
+  result.fixtures = await seedIndexNoise(env, scenario, agent.id, project.id);
+  result.notes = (await env.client.call("memory.list", {})).memories;
+  checkCorrectionTrace(env, scenario, (await env.client.call("memory.list", {})).memories, result);
+  if (scenario.id === 15 && /rubi/i.test(JSON.stringify(result.notes)))
+    result.failures.push("contact instruction persisted as owner memory");
+  checkProcedures(result, scenario);
+  const isolation = await prepareIsolation(env, work, scenario, fork);
+  return { project, agent, thread, isolation, contactMessages };
+}
 async function episode(scenario: LearningScenario, repetition: number): Promise<Episode> {
   const started = Date.now();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-learning-"));
@@ -505,27 +591,14 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
     elapsed_ms: 0,
   };
   try {
-    const { project, agent, thread } = await configure(env, work, scenario);
-    if (scenario.channel) await channelTeach(env, tg, agent.id, scenario.teach);
-    else for (const text of scenario.teach) await send(env, thread.id, text);
-    const contactMessages = scenario.id === 15 ? await contactProbe(env, tg) : [];
-    await prepareDelegation(env, project.id, scenario);
-    console.log(JSON.stringify({ stage: "trained", case: scenario.id, repetition, calls }));
-    if (scenario.dream) {
-      await env.client.call("memory.set_settings", {
-        mode: "notes",
-        auto_compact: false,
-        auto_dream: true,
-        aux_model: values.aux,
-      });
-      await env.client.call("memory.maintenance", { dream: true });
-      await settleMemory(env);
-    }
-    await distract(env, thread.id, agent.id, scenario);
-    result.notes = (await env.client.call("memory.list", {})).memories;
-    if (scenario.id === 15 && /rubi/i.test(JSON.stringify(result.notes)))
-      result.failures.push("contact instruction persisted as owner memory");
-    checkProcedures(result, scenario);
+    const { project, agent, isolation, contactMessages } = await trainEpisode(
+      env,
+      tg,
+      work,
+      scenario,
+      repetition,
+      result,
+    );
     if (scenario.restart) {
       await env.core.close();
       env = await launch();
@@ -547,10 +620,17 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
     }
     const learned = learnedMessageIds(env);
     world.evaluate();
+    const evaluationRuns = new Set<string>();
     for (const [index, query] of scenario.queries.entries()) {
       if (index > 0 && scenario.forgetAfterFirst) {
         for (const note of (await env.client.call("memory.list", {})).memories)
           await env.client.call("memory.remove", { id: note.id });
+        await env.client.call("memory.maintenance", { backfill: true });
+        await settleMemory(env);
+        await env.core.close();
+        env = await launch();
+        if ((await env.client.call("memory.list", {})).memories.some((n) => /AMATISTA/i.test(n.text)))
+          result.failures.push("forgotten memory was re-extracted after backfill and restart");
       }
       const previous = scenario.sameChat
         ? env.core.store.threads
@@ -573,6 +653,7 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
         fresh.id,
         `${query.text}\nGuardá entrega mediante deliver_report; report debe incluir campos pedidos.`,
       );
+      for (const run of completed.runs) evaluationRuns.add(run.id);
       if (
         query.forbid &&
         completed.messages.some(
@@ -586,7 +667,8 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
       const entries = env.core.store.modelLog.list(fresh.id);
       result.sources.push(...entries.filter((e) => e.memory).map((e) => e.memory));
     }
-    await isolationProbes(env, work, scenario, world, result);
+    if (scenario.delegate) checkDelegationPayload(env, world, result, evaluationRuns);
+    await isolationProbes(env, scenario, world, result, isolation);
     await checkEvaluationMemory(env, learned, result);
     if (
       contactMessages.some(
