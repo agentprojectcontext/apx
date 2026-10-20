@@ -1481,3 +1481,13 @@ as evidence".
   would forget more than a fifth of the notebook (at least one) is refused whole, and `memory.tidy` holds that share
   per agent and day, so repeated calls cannot add up. Retirement is soft (`forgotten_at`,
   a `superseded:<id>` or `stale` revision) without the owner's exclusion, so the note can be brought back.
+
+<a id="d-113"></a>
+## D-113 — 2026-10-20 — The owner's channel turns count for automatic memory
+D-111 limited capture, episodes, own-chat recall and (D-112) procedure notes to app-originated turns, so what the
+owner said on Telegram or WhatsApp, where most use happens, was never remembered. `ownerOrigin` (domain/runs.ts) is
+now the one test: a `user` origin, or a `channel` origin with role `owner`. Admission stamps the owner's message id on
+both, and `memorySources` reads the same rule in SQL. The owner's own channel chat (`owner_thread: "own"`) is eligible
+like Home; contacts, rooms, external clients, subthreads, workers and engine sessions stay excluded. A closing word the
+channel keeps without a turn ("buenísimo") reaches memory through `ownerReplied`, so a confirmation there can still
+leave a procedure note.

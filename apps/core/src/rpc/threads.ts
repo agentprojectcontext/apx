@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { Author, Task } from "@apx/protocol";
 import { OWNER_ID } from "../domain/persons.ts";
-import { type Attachment, publicRun, TERMINAL } from "../domain/runs.ts";
+import { type Attachment, ownerOrigin, publicRun, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { tree } from "../engine/breaker.ts";
@@ -139,7 +139,7 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         run: publicRun(
           engine.admit({
             ...admit,
-            origin: admit.origin?.kind === "user" ? { ...admit.origin, message_id: message.id } : admit.origin,
+            origin: ownerOrigin(admit.origin) ? { ...admit.origin, message_id: message.id } : admit.origin,
             thread_id: threadId,
             text,
           }),

@@ -3,6 +3,7 @@ import { canRecallOwnChat, memoryEligibleChat } from "../domain/chat-access.ts";
 import { ftsQuery, type MemoryView, memorySensitive } from "../domain/memories.ts";
 import { isMemoryGreeting } from "../domain/memory-content.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
+import { ownerOrigin } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { snippetOf } from "../domain/threads.ts";
 import { cap, fromTeam } from "../tools/result.ts";
@@ -92,12 +93,12 @@ export async function recallChats(
         const text = textOf(m);
         const sourceRun = store.memorySources.runFor(m.id);
         const run = sourceRun ? store.runs.get(sourceRun) : undefined;
-        const origin = run?.input?.origin.kind;
+        const fromOwner = ownerOrigin(run?.input?.origin);
         if (
           m.author.kind !== "user" ||
           text.trim().length < 12 ||
           isMemoryGreeting(text) ||
-          origin !== "user" ||
+          !fromOwner ||
           run?.state !== "completed" ||
           (sourceRun && options.excludeRuns?.has(sourceRun)) ||
           !liveAgent ||

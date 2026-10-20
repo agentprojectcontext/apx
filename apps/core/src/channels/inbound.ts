@@ -55,6 +55,8 @@ export function createInbound(deps: {
   answeredHere(inputId: string, at: { channel: string; conversation: string }, by: "button" | "text"): void;
   /** Replaces the buttons under a message sent on a channel; false when the channel cannot. */
   setButtons(channel: string, conversation: string, ref: string, buttons: Presentation["buttons"]): Promise<boolean>;
+  /** The owner's words kept without a turn (a closing "genial, funcionó"): memory may still learn from them. */
+  ownerReplied?: (messageId: string) => void;
 }) {
   const { store, log, call, delivery } = deps;
   const recent = new Map<string, number[]>();
@@ -158,6 +160,7 @@ export function createInbound(deps: {
       return "done";
     if (!attachments.length && closesChat(thread.id, text)) {
       const kept = keepQuiet(thread.id, cfg.id, owner ? undefined : person, text.trim());
+      if (owner) deps.ownerReplied?.(kept);
       theirLast(thread.id, cfg.id, m, kept);
       const emoji = cfg.closers === "react" ? reactionFor(text) : undefined;
       if (emoji && (await deps.react(cfg.id, m.conversation, m.ref ?? m.external_id, emoji).catch(() => false)))

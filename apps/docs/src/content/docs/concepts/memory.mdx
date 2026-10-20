@@ -42,7 +42,7 @@ Three ways, all visible:
   same project. Assistant promises and tool output are never evidence that an action happened. Credential discussions
   are excluded.
 - **Procedures that worked.** When a turn you started succeeds after a failed try (in that turn or the chat's
-  previous one), or you then confirm it ("great, it worked"), APX writes a procedure note from the agent's own
+  previous one), or you then confirm it ("great, it worked", even as a closing word on a channel that gets no answer), APX writes a procedure note from the agent's own
   successful steps: which tools it used, the site or command, and where the output went. It is labeled as history,
   not an instruction, and needs no helper model. Addresses lose their query strings, and anything that looks like a
   credential is left out. Since a step's arguments may come from something an earlier step read, agents read
@@ -50,8 +50,9 @@ Three ways, all visible:
 
 Capture uses the helper model already configured for APX. With the helper off, no automatic notes are extracted;
 explicit `remember` and automatic chat retrieval still work. Capture jobs persist across core restarts and retries
-cannot create another copy of the same note. Contacts, rooms, external-client chats, subthreads, workers and direct
-engine sessions are excluded from automatic capture and recall.
+cannot create another copy of the same note. What you write on a channel as the owner (Telegram, WhatsApp…) counts
+the same as what you write in the app. Contacts, rooms, external-client chats, subthreads, workers and direct engine
+sessions are excluded from automatic capture and recall.
 
 Agents can't edit or remove the notes you wrote. And some notes wait for you:
 

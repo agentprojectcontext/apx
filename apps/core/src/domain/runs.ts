@@ -20,6 +20,8 @@ export type Origin =
       person_id: string;
       name: string;
       role: "owner" | "contact";
+      /** The message it came in as; stamped for the owner's, which memory may quote. */
+      message_id?: string;
     }
   /** A routine the owner scheduled: its prompt is the owner's own words. */
   | { kind: "routine"; id: string; name: string }
@@ -49,6 +51,10 @@ export type Origin =
       /** APX already continued it once after a limit cut it short (DECISIONS.md#d-105). */
       continued?: boolean;
     };
+
+/** The owner speaking: from the app, or on a channel as the owner (never a contact). */
+export const ownerOrigin = (o: Origin | undefined): o is Extract<Origin, { kind: "user" | "channel" }> =>
+  o?.kind === "user" || (o?.kind === "channel" && o.role === "owner");
 
 /** A file or image the owner attached to the message that started the run. */
 export type Attachment = { media_id: string; kind: "image" | "audio" | "file"; mime: string; name: string };

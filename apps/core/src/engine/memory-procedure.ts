@@ -1,9 +1,10 @@
 // Procedure notes: how an agent did something that worked, written from its own successful tool steps (no model
 // call), so "do it like you did today" finds the site, command and output it used. They are history, never orders.
+import { memoryEligibleChat } from "../domain/chat-access.ts";
 import { memorySensitive } from "../domain/memories.ts";
 import { memoryPlain } from "../domain/memory-content.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
-import type { RunRecord, Step } from "../domain/runs.ts";
+import { ownerOrigin, type RunRecord, type Step } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 
@@ -113,43 +114,73 @@ const failedSomewhere = (store: Store, run: RunRecord) =>
   run.state === "failed" || store.runs.steps(run.id).some((s) => s.state === "error");
 
 /**
+ * The owner's latest turn in a thread that did something, if it ended well within the hour before `at` (for a
+ * confirmation, which may come after a "how's it going" in between).
+ */
+function workedBefore(store: Store, threadId: string, at: string, skip?: string): RunRecord | undefined {
+  const worked = store.runs
+    .list(threadId, 6)
+    .filter((r) => r.id !== skip && r.started_at <= at && ownerOrigin(r.input?.origin))
+    .slice(0, 3)
+    .find((r) => store.runs.steps(r.id).some(acted));
+  const since = worked && Date.parse(at) - Date.parse(worked.ended_at ?? worked.started_at);
+  return worked?.state === "completed" && since !== undefined && since < RECENT_MS ? worked : undefined;
+}
+
+/**
  * The run whose way of working deserves a note after `run` ended: `run` itself when it succeeded after failures (in
  * it or in the chat's previous turn), or the previous turn when this message confirms it worked.
  */
 export function procedureRun(store: Store, run: RunRecord): RunRecord | undefined {
   const message = store.memorySources.forRun(run.id)[0];
   const said = message ? store.messages.get(message) : undefined;
-  const earlier = store.runs.list(run.thread_id, 6).filter((r) => r.id !== run.id && r.started_at <= run.started_at);
-  const mine = earlier.filter((r) => r.agent_id === run.agent_id && r.input?.origin.kind === "user");
-  const previous = mine[0];
-  // A confirmation is about the latest turn that did something, even with a "how's it going" in between.
-  const since = (r: RunRecord) => Date.parse(run.started_at) - Date.parse(r.ended_at ?? r.started_at);
-  if (said && confirmsSuccess(textOf(said))) {
-    const worked = mine.slice(0, 3).find((r) => store.runs.steps(r.id).some(acted));
-    return worked?.state === "completed" && since(worked) < RECENT_MS ? worked : undefined;
-  }
+  if (said && confirmsSuccess(textOf(said))) return workedBefore(store, run.thread_id, run.started_at, run.id);
+  const previous = store.runs
+    .list(run.thread_id, 6)
+    .find(
+      (r) =>
+        r.id !== run.id &&
+        r.started_at <= run.started_at &&
+        r.agent_id === run.agent_id &&
+        ownerOrigin(r.input?.origin),
+    );
   const steps = store.runs.steps(run.id);
   const lastError = steps.findLastIndex((s) => s.state === "error");
   const recovered = lastError >= 0 && steps.slice(lastError + 1).some(acted);
-  const retried = !!previous && since(previous) < RECENT_MS && failedSomewhere(store, previous) && steps.some(acted);
+  const retried =
+    !!previous &&
+    Date.parse(run.started_at) - Date.parse(previous.ended_at ?? previous.started_at) < RECENT_MS &&
+    failedSomewhere(store, previous) &&
+    steps.some(acted);
   return recovered || retried ? run : undefined;
 }
 
 /** Saves the procedure note for what `run` points at, once per run; returns whether a note was written. */
-export async function captureProcedure(
-  store: Store,
-  call: InternalCall,
-  run: RunRecord,
-  timeZone?: string,
-): Promise<boolean> {
+export function captureProcedure(store: Store, call: InternalCall, run: RunRecord, timeZone?: string) {
+  const source = procedureRun(store, run);
+  return source ? saveProcedure(store, call, source, timeZone) : Promise.resolve(false);
+}
+
+/**
+ * An owner reply that got no turn of its own (a closing "genial, funcionó" on a channel) still confirms the work
+ * before it.
+ */
+export function captureConfirmed(store: Store, call: InternalCall, messageId: string, timeZone?: string) {
+  const message = store.messages.get(messageId);
+  if (message?.author.kind !== "user" || !confirmsSuccess(textOf(message))) return Promise.resolve(false);
+  const source = workedBefore(store, message.thread_id, message.created_at);
+  return source ? saveProcedure(store, call, source, timeZone) : Promise.resolve(false);
+}
+
+async function saveProcedure(store: Store, call: InternalCall, source: RunRecord, timeZone?: string): Promise<boolean> {
   const settings = memorySettings(store);
   if (settings.mode === "off" || settings.auto_capture === false) return false;
-  const source = procedureRun(store, run);
-  const thread = source && store.threads.get(source.thread_id);
+  const thread = store.threads.get(source.thread_id);
   // Dated by when the work ran, which a later confirmation does not change.
-  const day = source && new Date(source.started_at).toLocaleDateString("en-CA", timeZone ? { timeZone } : {});
-  const note = source && day && procedureOf(store, source, day);
-  if (!source || !thread || !note) return false;
+  const day = new Date(source.started_at).toLocaleDateString("en-CA", timeZone ? { timeZone } : {});
+  const note = procedureOf(store, source, day);
+  if (!thread || !note || !memoryEligibleChat(store, thread) || !thread.agent_ids.includes(source.agent_id))
+    return false;
   const view = { agent_id: source.agent_id, project_id: thread.project_id };
   const steps = note.text.split("\n")[1];
   const known = store.memories

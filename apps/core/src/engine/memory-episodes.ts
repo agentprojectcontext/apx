@@ -2,7 +2,7 @@ import { memoryEligibleChat } from "../domain/chat-access.ts";
 import { memorySensitive } from "../domain/memories.ts";
 import { isMemoryGreeting } from "../domain/memory-content.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
-import type { RunRecord } from "../domain/runs.ts";
+import { ownerOrigin, type RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 
 const textOf = (m: { parts: Array<{ type: string; text?: string }> }) =>
@@ -12,7 +12,7 @@ export function memoryEpisodeSource(store: Store, run: RunRecord) {
   const thread = store.threads.get(run.thread_id);
   if (
     run.state !== "completed" ||
-    run.input?.origin.kind !== "user" ||
+    !ownerOrigin(run.input?.origin) ||
     !thread ||
     !memoryEligibleChat(store, thread) ||
     !thread.agent_ids.includes(run.agent_id) ||

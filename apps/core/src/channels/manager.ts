@@ -87,6 +87,8 @@ export function createChannels(deps: {
   draft?: (threadId: string, agentId: string, signal?: AbortSignal) => Promise<Draft>;
   /** How long a supervised contact's quick messages may keep coming before one draft answers them (tests shorten it). */
   suggestBurstMs?: number;
+  /** The owner's words kept without a turn, for memory (memory-maintenance.ts ownerReplied). */
+  ownerReplied?: (messageId: string) => void;
 }) {
   const retryMs = deps.retryMs ?? RETRY_MS;
   const { store, secrets, log } = deps;
@@ -218,6 +220,7 @@ export function createChannels(deps: {
     suggestions,
     react: reactOn,
     answeredHere: cards.answeredHere,
+    ...(deps.ownerReplied ? { ownerReplied: deps.ownerReplied } : {}),
     setButtons: async (id, conversation, ref, buttons) => {
       const l = live.get(id);
       if (l?.status !== "running" || !l.adapter.setButtons) return false;

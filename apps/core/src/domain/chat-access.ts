@@ -1,5 +1,6 @@
 import type { Memory, Thread } from "@apx/protocol";
 import type { AgentRecord } from "./agents.ts";
+import { OWNER_ID } from "./persons.ts";
 import type { Store } from "./store.ts";
 
 export function canReadChat(store: Store, agent: AgentRecord, thread: Thread): boolean {
@@ -25,7 +26,7 @@ export function canRecallOwnChat(
     thread.agent_ids.includes(agent.id) &&
     canReadChat(store, agent, thread) &&
     !thread.engine &&
-    !thread.channel &&
+    ownersOrNone(thread) &&
     !thread.parent_id &&
     !context.room &&
     !context.client &&
@@ -33,9 +34,14 @@ export function canRecallOwnChat(
   );
 }
 
+/** A chat on a channel counts as the owner's own only when the person there is the owner (rooms are excluded apart). */
+const ownersOrNone = (thread: Thread) => !thread.channel || thread.channel.person_id === OWNER_ID;
+
 export function memoryEligibleChat(store: Store, thread: Thread): boolean {
   const context = store.threads.context(thread.id);
-  return !thread.engine && !thread.channel && !thread.parent_id && !context.room && !context.client && !context.worker;
+  return (
+    !thread.engine && ownersOrNone(thread) && !thread.parent_id && !context.room && !context.client && !context.worker
+  );
 }
 
 /** A fork inherits the knowledge at its branch point, not later memories from sibling conversations. */

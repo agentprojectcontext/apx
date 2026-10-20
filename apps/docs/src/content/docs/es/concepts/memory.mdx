@@ -46,7 +46,7 @@ Tres caminos, todos a la vista:
   mismo proyecto. Promesas del asistente y salidas de herramientas nunca prueban que una acción ocurrió. Las
   conversaciones sobre credenciales quedan excluidas.
 - **Procedimientos que funcionaron.** Cuando un turno que empezaste sale bien después de un intento fallido (en ese
-  turno o en el anterior del chat), o después confirmás que anduvo ("genial, funcionó"), APX escribe una nota de
+  turno o en el anterior del chat), o después confirmás que anduvo ("genial, funcionó", aunque sea un cierre en un canal que no recibe respuesta), APX escribe una nota de
   procedimiento con los pasos exitosos del propio agente: qué herramientas usó, el sitio o el comando y dónde quedó el
   resultado. Queda marcada como historia, no como instrucción, y no necesita modelo auxiliar. Las direcciones pierden
   sus parámetros de consulta y se deja afuera todo lo que parezca una credencial. Como los argumentos de un paso pueden
@@ -55,8 +55,9 @@ Tres caminos, todos a la vista:
 
 Usa el modelo auxiliar que ya configuraste en APX. Si está apagado, no extrae notas automáticas; `remember` y la
 recuperación automática de chats siguen funcionando. La cola persiste entre reinicios y los reintentos no duplican
-notas. Contactos, salas, clientes externos, subhilos, workers y sesiones directas de motor quedan excluidos del
-recuerdo y guardado automáticos.
+notas. Lo que escribís como dueño en un canal (Telegram, WhatsApp…) cuenta igual que lo que escribís en la app.
+Contactos, salas, clientes externos, subhilos, workers y sesiones directas de motor quedan excluidos del recuerdo y
+guardado automáticos.
 
 Los agentes no pueden editar ni borrar las notas que escribiste vos. Y algunas notas te esperan:
 

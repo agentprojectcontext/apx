@@ -2,14 +2,14 @@ import { randomUUID } from "node:crypto";
 import { memoryEligibleChat } from "../domain/chat-access.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
-import type { RunRecord } from "../domain/runs.ts";
+import { ownerOrigin, type RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import { memoryEpisodeSource, recordMemoryEpisode } from "./memory-episodes.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { performMemoryJob } from "./memory-job.ts";
-import { captureProcedure } from "./memory-procedure.ts";
+import { captureConfirmed, captureProcedure } from "./memory-procedure.ts";
 import type { Upkeep } from "./upkeep.ts";
 
 export function createMemoryMaintenance(deps: {
@@ -28,7 +28,7 @@ export function createMemoryMaintenance(deps: {
     const thread = store.threads.get(run.thread_id);
     return (
       run.state === "completed" &&
-      run.input?.origin.kind === "user" &&
+      ownerOrigin(run.input?.origin) &&
       !!thread &&
       thread.agent_ids.includes(run.agent_id) &&
       store.agents.list().some((a) => a.id === run.agent_id) &&
@@ -119,6 +119,17 @@ export function createMemoryMaintenance(deps: {
         );
       deps.index.schedule();
       void drain();
+    },
+    /** The owner said something that started no turn (a closing "genial, funcionó" on a channel). */
+    ownerReplied(messageId: string) {
+      void captureConfirmed(store, deps.call, messageId, ownerTimeZone(store))
+        .then((saved) => saved && deps.index.schedule())
+        .catch((err) =>
+          log.warn(
+            { message: messageId, error: err instanceof Error ? err.message : "UnknownError" },
+            "procedure note failed",
+          ),
+        );
     },
     async maintain(backfill = false, dream = false) {
       let queued = 0;
