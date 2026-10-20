@@ -59,9 +59,52 @@ const stems = (s: string) =>
       .map((w) => w.slice(0, 5)),
   );
 
+// Clause breaks a swap crosses ("PDF for internal reports and CSV for clients"), on the raw text.
+const CLAUSE = /[,;:.!?()\n]+|\s(?:y|e|and|but|pero|while|mientras|whereas)\s/iu;
+// Three-letter function words; any other short word may be what the owner paired (PDF, CSV, ops).
+const FILLER = new Set(
+  "por con los las les del que sin una uno mas muy hay ese esa eso son fue era sus mis tus the and for you are not but was can its our has had any all too who why how via per out off yes now".split(
+    " ",
+  ),
+);
+const clauseTerms = (s: string) =>
+  s
+    .split(CLAUSE)
+    .map(
+      (c) =>
+        new Set(
+          memoryPlain(c)
+            .split(" ")
+            .filter((w) => w.length >= 4 || (w.length === 3 && !FILLER.has(w)))
+            .map((w) => w.slice(0, 5)),
+        ),
+    )
+    .filter((c) => c.size);
+
+/**
+ * Whether `line` re-pairs what the quote said apart: two of its clauses each join terms from the same two quote
+ * clauses ("CSV for internal reports, PDF for clients" against the reverse). One clause joining them is a summary.
+ */
+function swapsPairs(line: string, quote: string): boolean {
+  const q = clauseTerms(quote);
+  const home = (w: string) => {
+    const at = q.flatMap((c, i) => (c.has(w) ? [i] : []));
+    return at.length === 1 ? at[0] : undefined;
+  };
+  const joined = new Set<string>();
+  for (const clause of clauseTerms(line)) {
+    const homes = [...new Set([...clause].map(home))].filter((i) => i !== undefined).sort((a, b) => a - b);
+    const pairs = homes.flatMap((a, i) => homes.slice(i + 1).map((b) => `${a}:${b}`));
+    if (pairs.some((p) => joined.has(p))) return true;
+    for (const p of pairs) joined.add(p);
+  }
+  return false;
+}
+
 /**
  * An automatic note says the owner's fact in the agent's words, but only what the quote supports: every number,
- * name and identifier comes from the quote, negations survive, and the rule shares its distinctive words.
+ * name and identifier comes from the quote, negations survive, paired terms stay paired, and the rule shares its
+ * distinctive words.
  */
 export function factSupported(fact: string, quote: string): boolean {
   const q = memoryPlain(quote);
@@ -79,6 +122,7 @@ export function factSupported(fact: string, quote: string): boolean {
     .filter((w) => /^\p{Lu}/u.test(w));
   if (names.some((n) => memoryPlain(n) && !q.includes(memoryPlain(n)))) return false;
   if (NEGATION.test(memoryPlain(rule)) !== NEGATION.test(q)) return false;
+  if (lines.some((l) => swapsPairs(l.replace(LABEL, ""), quote))) return false;
   const have = stems(quote);
   // The rule and each Why / How to apply line say mostly the quote's own words: no invented reasons or rules.
   return lines.every((line, i) => {

@@ -51,6 +51,27 @@ test("a fact must be supported by the owner's quote: numbers, names and negation
   );
 });
 
+test("a fact that swaps what the owner paired is not supported", () => {
+  const quote = "Prefiero PDF para informes internos y CSV para clientes";
+  assert.equal(factSupported("El dueño prefiere PDF para informes internos y CSV para clientes.", quote), true);
+  assert.equal(factSupported("Prefiero CSV para informes internos y PDF para clientes", quote), false);
+  assert.equal(
+    factSupported(
+      "Send invoices to finance and contracts to legal.",
+      "Send contracts to finance and invoices to legal",
+    ),
+    false,
+  );
+  assert.equal(
+    factSupported(
+      "The owner deploys acme on Mondays, northwind on Fridays.",
+      "Deploy acme on Mondays and northwind on Fridays",
+    ),
+    true,
+    "rewording keeps the pairs in order",
+  );
+});
+
 test("relative days become the dates they meant, and a morning is not tomorrow", () => {
   assert.equal(
     absoluteDates("Hoy bajé el reel; mañana lo subo. Esta mañana falló. Yesterday it worked.", "2026-03-10"),
@@ -80,6 +101,12 @@ test("automatic capture saves the agent's synthesis with the owner's quote as ev
               message_id: source.id,
               quote: "prefiero texto porque en el trabajo",
               fact: "El dueño trabaja en Northwind y prefiere texto.",
+            },
+            {
+              kind: "user",
+              message_id: source.id,
+              quote: "No me mandes audios por Telegram, prefiero texto",
+              fact: "El dueño no quiere texto por Telegram, prefiere audios.",
             },
           ],
         }),
