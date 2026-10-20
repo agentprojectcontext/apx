@@ -553,8 +553,20 @@ async function trainEpisode(
       checkDreamPreservation(env, beforeDream, (await env.client.call("memory.list", {})).memories, result);
   }
   await distract(env, thread.id, agent.id, scenario);
-  result.fixtures = await seedIndexNoise(env, scenario, agent.id, project.id);
+  result.fixtures = {
+    noise: await seedIndexNoise(env, scenario, agent.id, project.id),
+    ...(scenario.timeZone
+      ? { relativeDate: { zone: scenario.timeZone, expected: scenario.queries[0]?.expect.deadline_date } }
+      : {}),
+  };
   result.notes = (await env.client.call("memory.list", {})).memories;
+  if (
+    scenario.timeZone &&
+    !(await env.client.call("memory.list", {})).memories.some(
+      (n) => /Acme/i.test(n.text) && n.text.includes(scenario.queries[0]?.expect.deadline_date ?? "missing-date"),
+    )
+  )
+    result.failures.push("relative deadline was not normalized to its source-local date");
   checkCorrectionTrace(env, scenario, (await env.client.call("memory.list", {})).memories, result);
   if (scenario.id === 15 && /rubi/i.test(JSON.stringify(result.notes)))
     result.failures.push("contact instruction persisted as owner memory");
