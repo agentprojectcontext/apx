@@ -173,6 +173,7 @@ type Episode = {
   run_usage?: unknown;
   jobs?: unknown;
   artifact_files?: unknown;
+  trace?: unknown;
   behavior_passed?: boolean;
   error?: string;
 };
@@ -461,6 +462,18 @@ async function checkEvaluationMemory(env: Env, learned: Set<string>, result: Epi
   if (notes.some((n) => n.evidence?.some((e) => !learned.has(e.message_id))))
     result.failures.push("evaluation request was promoted to durable memory");
 }
+function episodeTrace(env: Env) {
+  return env.core.store.threads.list({ include_subthreads: true, limit: null }).map((thread) => ({
+    thread: thread.id,
+    messages: env.core.store.messages.list(thread.id, 100),
+    runs: env.core.store.runs.list(thread.id).map((run) => ({
+      id: run.id,
+      state: run.state,
+      error: run.error,
+      steps: env.core.store.runs.steps(run.id),
+    })),
+  }));
+}
 async function episode(scenario: LearningScenario, repetition: number): Promise<Episode> {
   const started = Date.now();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-learning-"));
@@ -603,6 +616,7 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
     result.notes = (await env.client.call("memory.list", {})).memories;
     result.artifacts = world.deliveries;
     result.actions = world.calls;
+    result.trace = episodeTrace(env);
     await env.core.close();
     await tg.close();
     env.cleanup();
