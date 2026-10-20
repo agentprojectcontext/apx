@@ -36,7 +36,7 @@ export function createMemoryMaintenance(deps: {
   function enqueue(run: RunRecord, dream = false, manual = false): boolean {
     const thread = store.threads.get(run.thread_id);
     if (!thread || !eligible(run)) return false;
-    const capture = memoryEpisodeSource(store, run).length > 0;
+    const capture = memorySettings(store).auto_capture !== false && memoryEpisodeSource(store, run).length > 0;
     store.tx(() => {
       recordMemoryEpisode(store, run);
       if (capture)

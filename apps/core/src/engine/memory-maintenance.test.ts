@@ -36,6 +36,45 @@ test("discarded owner messages keep scan checkpoints without creating empty capt
   }
 });
 
+test("disabled capture keeps historical recall without queueing work and resumes for new turns", async () => {
+  const llm = scriptedLlm(() => say("ok"));
+  const env = await startCore({ llm, memoryMaintenance: true });
+  try {
+    await env.client.call("memory.set_settings", {
+      mode: "notes",
+      skill_picker: false,
+      auto_compact: false,
+      auto_capture: false,
+      auto_dream: false,
+    });
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    await env.client.call("threads.send", { thread: thread.id, text: "Northwind archives use violet labels." });
+    await env.settle(thread.id);
+    const first = env.core.store.runs.list(thread.id, 1)[0];
+    assert.ok(first);
+    assert.equal(env.core.store.memoryWork.searchEpisodes("Northwind", [thread.id]).length, 1);
+    assert.equal((await env.client.call("memory.maintenance", { backfill: true })).queued, 0);
+    assert.deepEqual((await env.client.call("memory.status", {})).jobs, []);
+    await env.client.call("memory.set_settings", {
+      mode: "notes",
+      skill_picker: false,
+      auto_compact: false,
+      auto_capture: true,
+      auto_dream: false,
+    });
+    await env.client.call("threads.send", { thread: thread.id, text: "Northwind invoices use amber labels." });
+    await env.settle(thread.id);
+    const jobs = (await env.client.call("memory.status", {})).jobs;
+    assert.equal(jobs.length, 1);
+    assert.equal(jobs[0]?.kind, "capture");
+    assert.notEqual(jobs[0]?.id, `capture:${first.id}`);
+    assert.equal(env.core.store.memoryWork.searchEpisodes("Northwind", [thread.id]).length, 2);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});
+
 test("episode, capture, dream and its timestamp roll back together before indexing starts", async () => {
   const llm = scriptedLlm(() => say("ok"));
   const env = await startCore({ llm });
