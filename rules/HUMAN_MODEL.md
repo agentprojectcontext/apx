@@ -145,7 +145,7 @@ notice when there is no text. Tools that touch core state call protocol methods 
   independently of capture; bounded overlapping embeddings retain individual topics in long owner messages.
   `engine/memory-maintenance.ts` drains durable `memory_work` jobs:
   grounded private capture (up to three owner turns, literal sources and a separate semantic review) and idle AutoDream
-  (`engine/memory-dream.ts`: merge, retire superseded or stale notes, absolute dates, a forget-share guard), through
+  (`engine/memory-dream.ts`: bounded source evidence, reviewed retirement, unambiguous local dates and a forget-share guard), through
   the same router as tools. `engine/memory-procedure.ts` writes procedure history only after owner confirmation or a complete file readback;
   `domain/memory-verification.ts` rechecks that evidence at the canonical write. Successful and failed attempts stay separate, and
   `engine/recall.ts` adds an index of the agent's own notes to owner turns. Notes have revisions,

@@ -1527,6 +1527,13 @@ content can support retirement; disagreement between the notes is not itself an 
 Internal certificates bind both note revisions and texts. The canonical handler retains private
 scope, taint, snapshot revisions, notebook and daily forget-share guards. Concurrent edits do not become processed
 merely because they appeared after the model read its snapshot. Exact duplicate consolidation remains deterministic.
+Dream proposals read bounded literal source excerpts as historical data, so a correction omitted from a short
+summary remains available. Unknown note identifiers reject the proposal before checkpointing; invalid legacy
+checkpoints are discarded within the existing retry and call budgets. A policy-versioned fingerprint makes
+existing notebooks eligible for that review. Relative dates use the owner's local source day only when the
+sources agree on that day; mixed-day or missing sources stay unchanged rather than guessing an anchor.
+Sharing a previously cited source does not deduplicate a new assertion: exact fact text does, with semantic
+review and canonical source checks still required.
 
 The five shared prompt rules now cover evidence already present, permitted recovery, role-appropriate delegation,
 known methods in handoffs and scoped memory with supported reasons. Dynamic memory stays in turn input; no new tool,
