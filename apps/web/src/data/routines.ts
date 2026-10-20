@@ -9,6 +9,7 @@ type State = { routines: Routine[]; ready: boolean };
 const store = createStore<State>({ routines: [], ready: false });
 
 export const useRoutines = <T>(select: (s: State) => T): T => useSlice(store, select);
+export const routinesLoaded = () => store.get().ready;
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const fail = (e: unknown) => notify(t("error.routines", { error: errText(e) }));

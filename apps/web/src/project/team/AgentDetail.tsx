@@ -4,10 +4,10 @@ import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../../common/format.ts";
 import { AgentModelPicker } from "../../config/models/AgentModelPicker.tsx";
 import { setAgentBrowserProfile } from "../../data/actions.ts";
-import { client } from "../../data/client.ts";
 import { PROFILE_KEY } from "../../data/engines.ts";
 import { blobOf, DEFAULT_PID } from "../../data/identity.ts";
 import { useOrg } from "../../data/org.ts";
+import { activeProfileName, loadProfiles, useProfiles } from "../../data/profiles.ts";
 import { useRoutines } from "../../data/routines.ts";
 import { useData } from "../../data/state.ts";
 import { useTasks } from "../../data/tasks.ts";
@@ -332,20 +332,10 @@ function AgentPrompt({ agent, onEdit }: { agent: Agent; onEdit(): void }) {
 function SuperAgentLinks() {
   const t = useT();
   const lang = useLanguage();
-  const [profile, setProfile] = useState<string | null>();
+  const profile = useProfiles((s) => activeProfileName(s, lang));
   useEffect(() => {
-    let live = true;
-    void client
-      .call("profiles.list", {})
-      .then((r) => {
-        const p = r.profiles.find((x) => x.id === r.active.id);
-        if (live) setProfile(p ? (p.name[lang] ?? p.name.en) : null);
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [lang]);
+    void loadProfiles({ quiet: true });
+  }, []);
   return (
     <div className="teamdetail__super">
       <button type="button" className="teamdetail__superlink" onClick={() => go.config("profile")}>

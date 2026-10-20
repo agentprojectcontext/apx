@@ -1,7 +1,7 @@
 import type { Agent, Run } from "@apx/protocol";
 import { Icons } from "@apx/ui";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { client } from "../../data/client.ts";
+import { useCallback, useEffect, useMemo } from "react";
+import { activeProfileName, loadProfiles, useProfiles } from "../../data/profiles.ts";
 import { loadRoutines, useRoutines } from "../../data/routines.ts";
 import { useData } from "../../data/state.ts";
 import { loadTasks, tasksLoaded, useTasks } from "../../data/tasks.ts";
@@ -33,7 +33,7 @@ export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
   const tasks = useTasks((s) => s.tasks);
   const routines = useRoutines((s) => s.routines);
   const routinesReady = useRoutines((s) => s.ready);
-  const [profileName, setProfileName] = useState<string | null>();
+  const profileName = useProfiles((s) => activeProfileName(s, lang));
   useEffect(() => {
     if (!tasksLoaded()) void loadTasks();
   }, []);
@@ -41,20 +41,8 @@ export function useTeamInfo(leadId: string | undefined, leadLabel: string) {
     if (!routinesReady) void loadRoutines();
   }, [routinesReady]);
   useEffect(() => {
-    let live = true;
-    void client
-      .call("profiles.list", {})
-      .then((r) => {
-        const p = r.profiles.find((x) => x.id === r.active.id);
-        if (live) setProfileName(p ? (p.name[lang] ?? p.name.en) : null);
-      })
-      .catch(() => {
-        if (live) setProfileName(null);
-      });
-    return () => {
-      live = false;
-    };
-  }, [lang]);
+    void loadProfiles({ quiet: true });
+  }, []);
 
   const counts = useMemo(() => {
     const chats = new Map<string, number>();
