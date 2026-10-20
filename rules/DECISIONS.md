@@ -1503,7 +1503,10 @@ certificate bound to the exact text and evidence. `memory.add` requires it for a
 `remember` remains the agent's immediate write path and carries no claim of automatic semantic validation.
 
 Windows with no durable lexical cue skip extraction without skipping historical indexing. Imperative use requests
-remain transient unless an explicit standing-policy cue changes their scope. Extraction and review each reserve one logical gateway call from the existing daily memory allowance. Checkpoints
+remain transient unless an explicit standing-policy cue changes their scope. Accent folding must not turn the Spanish
+imperative into a standing usage assertion, including inside a quoted fallback for the current deliverable. Both
+auxiliary prompts distinguish such fallbacks from durable preferences. Extraction and review each reserve one logical
+gateway call from the existing daily memory allowance. Checkpoints
 retain extraction and verdicts across retries and quota deferral, so a second-stage limit does not repeat extraction.
 The gateway may retry a transient transport failure; the allowance counts gateway requests, not HTTP attempts. Settings,
 source eligibility, exclusions and project boundaries are rechecked before later calls and before persistence.
@@ -1531,5 +1534,6 @@ permission or prompt-budget exception is introduced. Engine sessions remain outs
 Behavioral evaluation uses isolated homes, fresh conversations, real model decisions and temporary artifact tools.
 The live runner is opt-in, has explicit call/output caps and stores local reports outside version control. Scripted
 regressions establish infrastructure behavior; they are not evidence of real learning. Artifact scoring rejects
-negated format matches, string success flags, missing outputs and exports without subsequent observation. Reports
+negated format matches, string success flags, missing outputs, exports without subsequent observation and automatic
+notes sourced from evaluation requests rather than prior teaching. Reports
 retain failures and model/configuration provenance; passing a finite evaluation never guarantees universal fidelity.

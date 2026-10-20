@@ -448,6 +448,19 @@ function persistArtifacts(world: ReturnType<typeof learningWorld>, dir: string) 
     return { ...file, path: target };
   });
 }
+function learnedMessageIds(env: Env) {
+  return new Set(
+    env.core.store.threads
+      .list({ include_subthreads: true, limit: null })
+      .flatMap((t) => env.core.store.messages.list(t.id, 100))
+      .map((m) => m.id),
+  );
+}
+async function checkEvaluationMemory(env: Env, learned: Set<string>, result: Episode) {
+  const notes = (await env.client.call("memory.list", {})).memories;
+  if (notes.some((n) => n.evidence?.some((e) => !learned.has(e.message_id))))
+    result.failures.push("evaluation request was promoted to durable memory");
+}
 async function episode(scenario: LearningScenario, repetition: number): Promise<Episode> {
   const started = Date.now();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-learning-"));
@@ -519,6 +532,7 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
       );
       await env.client.call("agents.update", { agent: agent.id, tools: names });
     }
+    const learned = learnedMessageIds(env);
     world.evaluate();
     for (const [index, query] of scenario.queries.entries()) {
       if (index > 0 && scenario.forgetAfterFirst) {
@@ -560,6 +574,7 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
       result.sources.push(...entries.filter((e) => e.memory).map((e) => e.memory));
     }
     await isolationProbes(env, work, scenario, world, result);
+    await checkEvaluationMemory(env, learned, result);
     if (
       contactMessages.some(
         (id) => JSON.stringify(result.sources).includes(id) || JSON.stringify(result.notes).includes(id),

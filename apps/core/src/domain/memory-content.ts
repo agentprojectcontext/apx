@@ -201,13 +201,16 @@ const REQUEST =
 const TRANSIENT =
   /\b(hoy|ahora|ahi|recien|ayer|manana|esta vez|today|now|tonight|yesterday|tomorrow|this time|afk|creo que|me parece|no se|nose|i think|maybe|quizas|capaz)\b/;
 
+// The imperative "usá" is not the standing assertion "usa" after accent folding.
+const standingPlain = (text: string) => memoryPlain(text.replace(/(?<!\p{L})usá(?!\p{L})/giu, ""));
+
 /** Without a durable cue, no literal quote can pass durableMemory; avoid sending transient work to the helper. */
-export const hasDurableCue = (text: string) => POLICY.test(memoryPlain(text)) || DURABLE.test(memoryPlain(text));
+export const hasDurableCue = (text: string) => POLICY.test(memoryPlain(text)) || DURABLE.test(standingPlain(text));
 
 /** Automatic capture keeps only standing facts: requests, questions and status updates expire with their chat. */
 export function durableMemory(text: string): boolean {
   if (/[?¿]/.test(text)) return false;
   const plain = memoryPlain(text);
   if (POLICY.test(plain)) return true;
-  return DURABLE.test(plain) && !REQUEST.test(plain) && !TRANSIENT.test(plain);
+  return DURABLE.test(standingPlain(text)) && !REQUEST.test(plain) && !TRANSIENT.test(plain);
 }

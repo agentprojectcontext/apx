@@ -33,6 +33,7 @@ export const MEMORY_REVIEW = [
   "For each indexed claim return supported, contradicted or unclear. supported requires every assertion to follow from the evidence.",
   "Check who prefers what, paired assignments, conditions, exceptions, negations, scope and dates. Shared words do not establish support.",
   "Why must be stated by the owner. How to apply must not broaden a one-off request or an exception into a general rule.",
+  "Supported also requires a standing owner fact or preference. Instructions for the current deliverable, including a fallback if no preference is known, are not durable memory.",
   "Reject invented reasons, completed actions inferred from requests, and unsupported generalizations. Missing context is unclear.",
   'Return JSON only: {"verdicts":[{"index":0,"verdict":"supported|contradicted|unclear"}]}. Include each index exactly once.',
 ].join("\n");

@@ -259,4 +259,44 @@ test("an imperative use request is not a standing preference", async () => {
   assert.equal(durableMemory("Use CSV for this report."), false);
   assert.equal(durableMemory("Usá CSV siempre para informes internos."), true);
   assert.equal(durableMemory("El equipo usa CSV para informes internos."), true);
+  assert.equal(durableMemory("Incluí heading; si no conocés preferencia duradera, usá resumen."), false);
+});
+
+test("a quoted output fallback cannot become a standing preference even if the helper approves it", async () => {
+  const fallback = "Incluí heading; si no conocés preferencia duradera, usá resumen.";
+  const llm = scriptedLlm((req, { system }) => {
+    if (system.startsWith("Extract durable")) {
+      const { messages } = JSON.parse(String(req.messages.at(-1)?.content));
+      const source = messages.find((m: { text: string }) => m.text.includes(fallback));
+      return say(
+        JSON.stringify({
+          memories: source
+            ? [
+                {
+                  kind: "reference",
+                  message_id: source.id,
+                  quote: fallback,
+                  fact: "Informe debe incluir resumen si no se conocen preferencias duraderas.",
+                },
+              ]
+            : [],
+        }),
+      );
+    }
+    if (system.startsWith("Validate memory")) return say('{"verdicts":[{"index":0,"verdict":"supported"}]}');
+    return say("Understood");
+  });
+  const env = await startCore({ llm, aux: true, memoryMaintenance: true });
+  try {
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    for (const text of [preference, `Prepará informe ejecutivo nuevo. ${fallback}`]) {
+      await env.client.call("threads.send", { thread: t.id, text });
+      await env.settle(t.id);
+      await until(() => env.core.store.memoryWork.recent().every((j) => j.state === "completed"));
+    }
+    assert.equal((await env.client.call("memory.list", {})).memories.length, 0);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
 });
