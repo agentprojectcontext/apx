@@ -22,7 +22,6 @@ jobs:
     env:
       APX_SECRETS: file
       CI: "true"
-      CHROME_DEVEL_SANDBOX: /opt/google/chrome/chrome-sandbox
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,8 +51,10 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Sandboxed browser readiness
         run: |
-          test -x "$CHROME_DEVEL_SANDBOX"
-          test "$(stat -c '%u:%g:%a' "$CHROME_DEVEL_SANDBOX")" = '0:0:4755'
+          chrome=$(node --input-type=module -e 'import { chromium } from "@playwright/test"; console.log(chromium.executablePath())')
+          test -x "$chrome"
+          printf 'abi <abi/4.0>,\ninclude <tunables/global>\nprofile apx-test-chromium "%s" flags=(unconfined) {\n  userns,\n}\n' "$chrome" | sudo tee /etc/apparmor.d/apx-test-chromium >/dev/null
+          sudo apparmor_parser -r /etc/apparmor.d/apx-test-chromium
           node --test apps/core/src/nodes/headless-browser.test.ts
       - name: Electron GTK runtime and window manager for native transition tests
         run: sudo apt-get install --no-install-recommends -y libgtk-3-0t64 openbox
@@ -78,7 +79,6 @@ jobs:
     env:
       APX_SECRETS: file
       CI: "true"
-      CHROME_DEVEL_SANDBOX: /opt/google/chrome/chrome-sandbox
     steps:
       - uses: actions/checkout@v4
         with:
@@ -93,8 +93,10 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
       - name: Sandboxed browser readiness
         run: |
-          test -x "$CHROME_DEVEL_SANDBOX"
-          test "$(stat -c '%u:%g:%a' "$CHROME_DEVEL_SANDBOX")" = '0:0:4755'
+          chrome=$(node --input-type=module -e 'import { chromium } from "@playwright/test"; console.log(chromium.executablePath())')
+          test -x "$chrome"
+          printf 'abi <abi/4.0>,\ninclude <tunables/global>\nprofile apx-test-chromium "%s" flags=(unconfined) {\n  userns,\n}\n' "$chrome" | sudo tee /etc/apparmor.d/apx-test-chromium >/dev/null
+          sudo apparmor_parser -r /etc/apparmor.d/apx-test-chromium
           node --test apps/core/src/nodes/headless-browser.test.ts
       - name: Electron GTK runtime and window manager for native transition tests
         run: sudo apt-get install --no-install-recommends -y libgtk-3-0t64 openbox
