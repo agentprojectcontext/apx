@@ -18,6 +18,7 @@ import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { MemoryHistory } from "./MemoryHistory.tsx";
 
 type Filter = "project" | "agents" | "global" | "forgotten";
 
@@ -230,6 +231,7 @@ function NoteRow({ note, onChanged }: { note: Memory; onChanged: () => void }) {
       ) : (
         <div className="memory__text">{note.text}</div>
       )}
+      <MemoryHistory note={note} onChanged={onChanged} />
       <div className="memory__meta">
         {note.pending && !forgotten && (
           <Badge tone="info" title={t("memory.pendingHint")}>

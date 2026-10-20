@@ -1,9 +1,10 @@
 import type { Memory, MemorySettings } from "@apx/protocol";
 import { Button, EmptyState, Icons, Input, SegmentedControl, SettingRow, Switch } from "@apx/ui";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
+import { MemoryAutomation } from "./MemoryAutomation.tsx";
 import { ModelRefPicker } from "./models/ModelPickers.tsx";
 import { SectionHead, SubHead } from "./SectionHead.tsx";
 import { ServicesSection } from "./ServicesSection.tsx";
@@ -18,13 +19,22 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 export function MemorySection() {
   const t = useT();
   const [s, setS] = useState<State>();
+  const desired = useRef<State | undefined>(undefined);
+  const saving = useRef<Promise<unknown>>(Promise.resolve());
+  const revision = useRef(0);
   const [indexing, setIndexing] = useState(false);
   // "Chosen" with no model yet: the picker shows before anything is saved.
   const [picking, setPicking] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      setS(await client.call("memory.settings", {}));
+      await saving.current.catch(() => undefined);
+      const at = revision.current;
+      const next = await client.call("memory.settings", {});
+      if (at === revision.current) {
+        desired.current = next;
+        setS(next);
+      }
     } catch (e) {
       notify(t("error.memory", { error: errText(e) }));
     }
@@ -34,13 +44,21 @@ export function MemorySection() {
   }, [load]);
 
   const save = async (patch: Partial<MemorySettings>) => {
-    if (!s) return;
-    const { indexed: _i, total: _t, embedder: _e, ...current } = s;
+    const base = desired.current;
+    if (!base) return;
+    const next = { ...base, ...patch };
+    desired.current = next;
+    setS(next);
+    const at = ++revision.current;
+    const { indexed: _i, total: _t, embedder: _e, ...settings } = next;
+    const queued = saving.current.catch(() => undefined).then(() => client.call("memory.set_settings", settings));
+    saving.current = queued;
     try {
-      await client.call("memory.set_settings", { ...current, ...patch });
-      await load();
+      await queued;
+      if (at === revision.current) await load();
     } catch (e) {
       notify(t("error.memory", { error: errText(e) }));
+      if (at === revision.current) await load();
     }
   };
   const reindex = async () => {
@@ -93,6 +111,8 @@ export function MemorySection() {
       )}
 
       {s.mode !== "off" && <SearchTest />}
+
+      <MemoryAutomation settings={s} save={save} />
 
       <SubHead>{t("mem.skills")}</SubHead>
       <SettingRow

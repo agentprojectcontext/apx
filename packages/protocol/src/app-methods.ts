@@ -27,6 +27,7 @@ import {
   LocalEmbedding,
   LocalTranscription,
   Memory,
+  MemoryEvidence,
   MemoryScope,
   MemorySettings,
   Message,
@@ -97,7 +98,27 @@ const Sent = z.object({
   delivery: z.object({ state: OutboxState, error: z.string().optional() }),
 });
 
+const MemoryJobs = z.array(
+  z.object({
+    id: Id,
+    kind: z.string(),
+    agent_id: Id,
+    thread_id: Id,
+    state: z.string(),
+    attempts: z.number().int(),
+    updated_at: z.string(),
+    result: z.string().nullable(),
+    error: z.string().nullable(),
+  }),
+);
+
 export const appMethods = {
+  "memory.status": {
+    params: z.object({}).strict(),
+    result: z.object({ jobs: MemoryJobs }),
+    effect: false,
+    access: "human",
+  },
   ...officeMethods,
   ...teamMethods,
   ...resourceMethods,
@@ -830,6 +851,44 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  "memory.maintenance": {
+    params: z.object({ backfill: z.boolean().optional(), dream: z.boolean().optional() }).strict(),
+    result: z.object({ queued: z.number().int(), jobs: MemoryJobs }),
+    effect: true,
+    access: "human",
+  },
+  "memory.history": {
+    params: z.object({ id: Id }).strict(),
+    result: z.object({
+      versions: z.array(z.object({ revision: z.number().int(), note: Memory, reason: z.string(), at: z.string() })),
+    }),
+    effect: false,
+    access: "human",
+  },
+  "memory.undo": {
+    params: z
+      .object({
+        id: Id,
+        revision: z.number().int().positive(),
+        expected_revision: z.number().int().positive().optional(),
+      })
+      .strict(),
+    result: Memory,
+    effect: true,
+    access: "human",
+  },
+  "memory.consolidate": {
+    params: z
+      .object({
+        notes: z
+          .array(z.object({ id: Id, revision: z.number().int().positive() }))
+          .min(2)
+          .max(8),
+      })
+      .strict(),
+    result: z.object({ merged: z.boolean() }),
+    effect: true,
+  },
   /** An agent's note goes to its own thread's project (`project`) or to itself (`agent`); `id` edits one in place. */
   "memory.add": {
     params: z
@@ -839,6 +898,9 @@ export const appMethods = {
         project: Id.optional(),
         agent: Id.optional(),
         id: Id.optional(),
+        kind: Memory.shape.kind,
+        evidence: z.array(MemoryEvidence).max(8).optional(),
+        expected_revision: z.number().int().positive().optional(),
         /** Set by an agent's tool when outside content is in its turn (agents' notes default to tainted). */
         tainted: z.boolean().optional(),
       })

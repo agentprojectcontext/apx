@@ -10,8 +10,9 @@ import Shot from "../../../../components/Shot.astro";
 import Terminal from "../../../../components/Terminal.astro";
 
 La memoria en APX es un conjunto de notas cortas: "Alex prefiere los números antes que el texto", "Los deploys salen
-los viernes", "El contacto del proveedor es Northwind". Cada nota tiene un autor y un alcance, podés leerlas todas, y
-nada se escribe a tus espaldas.
+los viernes", "El contacto del proveedor es Northwind". Cada nota tiene autor y alcance. Recuperación automática,
+guardado y AutoDream tienen controles separados en **Configuración › Memoria**; las citas y cambios se ven en
+**Fuentes e historial**.
 
 ## Tres alcances, más un archivo
 
@@ -27,15 +28,22 @@ nunca lo escriben: es el lugar para reglas fijas que no querés que ningún agen
 
 ## Quién escribe las notas
 
-Dos caminos, los dos a la vista:
+Tres caminos, todos a la vista:
 
 - **Vos.** Sumás una nota en la pestaña **Memoria** de un proyecto, o con `apx memory add`. O directamente le decís a
   un agente "acordate de que…".
 - **Un agente**, con su herramienta `remember`, cuando aprende algo que vale la pena guardar. Dentro de un proyecto
   la guarda en el proyecto; si no, en las notas globales. Puede corregir sus propias notas y sacar una con `forget`.
 
-**No hay extracción silenciosa**: APX no revuelve tus chats buscando datos en segundo plano. Una nota existe porque
-vos o un agente la guardaron a propósito, y el chat muestra un paso "Remembered: …" cuando lo hace un agente.
+- **Guardado automático.** Después de un turno común del dueño, el modelo auxiliar puede seleccionar preferencias,
+  correcciones, decisiones y referencias duraderas. APX guarda únicamente una cita exacta verificada de tu mensaje,
+  con su fuente. Queda privada del agente y limitada al mismo proyecto. Promesas del asistente y salidas de herramientas
+  nunca prueban que una acción ocurrió. Las conversaciones sobre credenciales quedan excluidas.
+
+Usa el modelo auxiliar que ya configuraste en APX. Si está apagado, no extrae notas automáticas; `remember` y la
+recuperación automática de chats siguen funcionando. La cola persiste entre reinicios y los reintentos no duplican
+notas. Contactos, salas, clientes externos, subhilos, workers y sesiones directas de motor quedan excluidos del
+recuerdo y guardado automáticos.
 
 Los agentes no pueden editar ni borrar las notas que escribiste vos. Y algunas notas te esperan:
 
@@ -50,9 +58,15 @@ Los agentes no pueden editar ni borrar las notas que escribiste vos. Y algunas n
 Las notas nunca van en el prompt de sistema. En cambio, cuando un agente responde en un hilo:
 
 1. En su **primer turno** en ese hilo recibe sus notas fijas: hasta 8 de las globales y hasta 8 de su propio
-   cuaderno, las más nuevas primero, más **hasta 5 notas que coinciden con tu mensaje**.
+   cuaderno, las más nuevas primero, más **hasta 5 notas relacionadas con tu mensaje y turnos recientes**. Las
+   coincidencias relevantes tienen espacio antes de las notas fijas; una nota larga no tapa las siguientes.
 2. En los **turnos siguientes** recibe sólo coincidencias nuevas que todavía no vio en ese hilo.
-3. Cuando necesita algo puntual, busca con su herramienta `recall`.
+3. Puede recuperar automáticamente frases relevantes de **sus propios chats anteriores, en el mismo proyecto**, con
+   fecha y mensaje fuente. También funciona con chats antiguos sin modelo auxiliar. Los saludos no disparan búsquedas.
+4. Si necesita detalle, usa `recall` o `read_chat` con `around` y el ID del mensaje fuente para leer mensajes antiguos.
+
+Editar u olvidar una nota invalida las copias inyectadas y sus respuestas derivadas. También invalida resúmenes de
+compactación, evitando que reaparezca desde un resumen viejo. Los registros originales de conversación se conservan.
 
 Dejar las notas fuera del prompt de sistema mantiene idéntico el comienzo de cada pedido, así el proveedor lo puede
 cachear y cada turno sale más barato.
@@ -80,6 +94,18 @@ La misma pantalla tiene dos opciones relacionadas:
 - **Resumir los chats largos** y el **Modelo ayudante** que escribe los resúmenes y los títulos de los chats
   (Automático, Elegido o Desactivado). Mirá [Conversaciones](/es/concepts/conversations/).
 
+## AutoDream y límites
+
+**AutoDream** revisa notas privadas equivalentes después de nuevo trabajo, como máximo una vez al día por agente y
+proyecto, cuando ese agente está libre. Une duplicados sin reescribir hechos, editar notas del dueño ni promover
+recuerdos globales. Conserva contradicciones, números distintos y preferencias diferentes. Mantiene fuentes y marcas
+de contenido externo; comprueba revisiones antes de aplicar una propuesta para evitar pisar cambios recientes.
+
+Guardado y AutoDream comparten un **límite diario de llamadas de memoria**, inicialmente 20. Cada pedido limita
+entrada, salida y tiempo; llamadas y tokens aparecen en **Uso**. Cero pausa llamadas al modelo. Configuración muestra
+trabajos completados, en espera y fallidos. **Revisar chats anteriores** encola los últimos 100 turnos por chat elegible;
+**Revisar duplicados ahora** pide consolidación. La cola procesa tandas acotadas.
+
 ## Ver, confirmar y deshacer
 
 La pestaña **Memoria** de un proyecto muestra sus notas y te deja cambiar entre **Este proyecto**, **Cuadernos de
@@ -89,7 +115,10 @@ agentes**, **Sobre vos** y **Olvidadas**. Buscalas, sumá una, editá o sacá cu
 
 - Una nota **Para confirmar** tiene un botón **Confirmar** y un link al chat donde el agente la aprendió.
 - Olvidar se puede deshacer. Una nota que sacás va a **Olvidadas**, donde ningún agente la ve; **Traer de vuelta** la
-  recupera y **Borrar para siempre** la borra de verdad.
+  recupera. **Borrar para siempre** elimina la nota y el texto de sus revisiones; conserva una huella mínima y los IDs
+  fuente para impedir recrearla. Las fuentes olvidadas quedan fuera del recuerdo automático, herramientas de chats y reintentos.
+- **Fuentes e historial** muestra citas y revisiones. **Restaurar esta revisión** permite deshacer una unión o edición.
+  Los chats originales se conservan; borrar un recuerdo no borra la conversación.
 
 ## Desde la terminal
 

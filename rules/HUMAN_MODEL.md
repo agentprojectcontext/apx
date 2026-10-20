@@ -137,7 +137,11 @@ notice when there is no text. Tools that touch core state call protocol methods 
 - **Memory and long threads** (D-013): notes live in `memories` (FTS5) and reach a turn in its `[memory]` block
   (`engine/recall.ts`); `.apc/memory.md` joins `AGENTS.md` in the system prompt. After each run `engine/upkeep.ts`
   titles new chats and, when the history gets long, summarizes older turns into a new epoch that
-  `projectHistory` puts before the newest turns.
+  `projectHistory` puts before the newest turns. `engine/chat-recall.ts` retrieves literal owner messages from the
+  agent's own eligible chats in the same project. `engine/memory-maintenance.ts` drains durable `memory_work` jobs:
+  grounded private capture and idle AutoDream deduplication, through the same router as tools. Notes have revisions,
+  source evidence and reversible history; exclusions suppress forgotten sources in recall and retries. Model-log
+  snapshots record dependencies so edits invalidate old context and derived replies. See D-111.
 - **Waiting for the owner** (`engine/inputs.ts`): confirmations and `ask_owner` questions are `pending_inputs`
   rows, answered with `runs.respond` (owner only). The run's clock stops while it waits; an answer after a restart
   wakes the agent with a new run.

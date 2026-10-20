@@ -1,0 +1,121 @@
+import { randomUUID } from "node:crypto";
+import { memoryEligibleChat } from "../domain/chat-access.ts";
+import { memorySettings } from "../domain/memory-settings.ts";
+import type { RunRecord } from "../domain/runs.ts";
+import type { Store } from "../domain/store.ts";
+import type { Log } from "../log.ts";
+import type { InternalCall } from "../rpc/internal.ts";
+import type { MemoryIndex } from "./memory-index.ts";
+import { performMemoryJob } from "./memory-job.ts";
+import type { Upkeep } from "./upkeep.ts";
+
+export function createMemoryMaintenance(deps: {
+  store: Store;
+  upkeep: Upkeep;
+  call: InternalCall;
+  index: MemoryIndex;
+  log: Log;
+}) {
+  const { store, log } = deps;
+  let running: Promise<void> | undefined;
+  let stopped = false;
+  let timer: ReturnType<typeof setInterval> | undefined;
+
+  function eligible(run: RunRecord): boolean {
+    const thread = store.threads.get(run.thread_id);
+    return (
+      run.state === "completed" &&
+      run.input?.origin.kind === "user" &&
+      !!thread &&
+      thread.agent_ids.includes(run.agent_id) &&
+      store.agents.list().some((a) => a.id === run.agent_id) &&
+      memoryEligibleChat(store, thread)
+    );
+  }
+  function enqueue(run: RunRecord, dream = false, manual = false): void {
+    const thread = store.threads.get(run.thread_id);
+    if (!thread || !eligible(run)) return;
+    store.memoryWork.enqueue({
+      id: `capture:${run.id}`,
+      kind: "capture",
+      agent_id: run.agent_id,
+      thread_id: thread.id,
+      run_id: run.id,
+      ...(thread.project_id ? { project_id: thread.project_id } : {}),
+    });
+    if (dream)
+      store.memoryWork.enqueue({
+        id: `dream:${run.id}${manual ? `:${randomUUID()}` : ""}`,
+        kind: "dream",
+        agent_id: run.agent_id,
+        thread_id: thread.id,
+        run_id: run.id,
+        ...(thread.project_id ? { project_id: thread.project_id } : {}),
+      });
+  }
+  function drain(): Promise<void> {
+    if (running) return running;
+    if (stopped) return Promise.resolve();
+    running = (async () => {
+      for (const pending of store.memoryWork.pending()) {
+        if (stopped) break;
+        const job = store.memoryWork.claim(pending.id);
+        if (!job) continue;
+        try {
+          await performMemoryJob(deps, job, eligible, () => stopped);
+        } catch (err) {
+          store.memoryWork.finish(job.id, job.attempts >= 3 ? "failed" : "pending", {}, "memory maintenance failed");
+          log.warn(
+            { job: job.id, error: err instanceof Error ? err.name : "UnknownError" },
+            "memory maintenance failed",
+          );
+        }
+      }
+    })().finally(() => {
+      running = undefined;
+    });
+    return running;
+  }
+  return {
+    start() {
+      for (const thread of store.threads.list({ include_archived: false, include_subthreads: false, limit: null })) {
+        for (const run of store.runs.list(thread.id, 20))
+          if (eligible(run) && Date.parse(run.ended_at ?? run.started_at) > Date.now() - 86_400_000) enqueue(run);
+      }
+      timer = setInterval(() => void drain(), 30_000);
+      timer.unref();
+      void drain();
+    },
+    afterRun(run: RunRecord) {
+      if (!eligible(run)) return;
+      const key = `memory_dream:${run.agent_id}:${store.threads.get(run.thread_id)?.project_id ?? ""}`;
+      const last = store.settings.get(key);
+      const dream =
+        memorySettings(store).auto_dream !== false && (!last || Date.now() - Date.parse(last) >= 86_400_000);
+      enqueue(run, dream);
+      if (dream) store.settings.set(key, new Date().toISOString());
+      void drain();
+    },
+    async maintain(backfill = false, dream = false) {
+      let queued = 0;
+      if (backfill || dream)
+        for (const thread of store.threads.list({ include_archived: true, include_subthreads: false, limit: null })) {
+          if (!memoryEligibleChat(store, thread)) continue;
+          const eligibleRuns = store.runs.list(thread.id, backfill ? 100 : 20).filter(eligible);
+          const runs = backfill ? eligibleRuns : eligibleRuns.slice(0, 1);
+          for (const run of runs) {
+            enqueue(run, dream, true);
+            queued++;
+          }
+        }
+      void drain();
+      return { queued, jobs: store.memoryWork.recent() };
+    },
+    async stop() {
+      stopped = true;
+      if (timer) clearInterval(timer);
+      await running;
+    },
+  };
+}
+export type MemoryMaintenance = ReturnType<typeof createMemoryMaintenance>;

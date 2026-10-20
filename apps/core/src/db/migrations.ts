@@ -768,4 +768,58 @@ export const MIGRATIONS: readonly string[] = [
   -- it; the next sync of each project fills it.
   ALTER TABLE projects ADD COLUMN context_chars INTEGER;
   `,
+  `
+  ALTER TABLE memories ADD COLUMN revision INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE memories ADD COLUMN kind TEXT;
+  ALTER TABLE memories ADD COLUMN evidence TEXT;
+  CREATE TABLE memory_versions (
+    n INTEGER PRIMARY KEY AUTOINCREMENT, memory_id TEXT NOT NULL,
+    revision INTEGER NOT NULL, snapshot TEXT NOT NULL, reason TEXT NOT NULL, at TEXT NOT NULL
+  );
+  CREATE INDEX memory_versions_note ON memory_versions(memory_id, n);
+  CREATE TABLE memory_exclusions (
+    memory_id TEXT PRIMARY KEY, scope TEXT NOT NULL, project_id TEXT, agent_id TEXT,
+    text TEXT NOT NULL, thread_id TEXT, run_id TEXT, evidence TEXT, created_at TEXT NOT NULL
+  );
+  CREATE TABLE memory_work (
+    id TEXT PRIMARY KEY, kind TEXT NOT NULL, agent_id TEXT NOT NULL,
+    thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+    run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    project_id TEXT, state TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
+    lease_until TEXT, available_at TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+    reservation INTEGER NOT NULL DEFAULT 0, result TEXT, error TEXT
+  );
+  CREATE TABLE memory_call_reservations (n INTEGER PRIMARY KEY AUTOINCREMENT, job_id TEXT NOT NULL, day TEXT NOT NULL);
+  CREATE INDEX memory_calls_day ON memory_call_reservations(day);
+  ALTER TABLE model_log ADD COLUMN memory_snapshot TEXT;
+  CREATE INDEX runs_memory_source ON runs(json_extract(input, '$.origin.message_id'));
+  -- Older forks share run ids with the original; retain their branch boundary before enabling automatic recall.
+  UPDATE threads SET context = json_set(coalesce(context, '{}'),
+    '$.memory_family', (SELECT r.thread_id FROM model_log l JOIN runs r ON r.id = l.run_id
+      JOIN threads source ON source.id = r.thread_id WHERE l.thread_id = threads.id AND r.thread_id != threads.id
+      ORDER BY source.created_at, source.id LIMIT 1),
+    '$.memory_cutoff', (SELECT min(r.started_at) FROM model_log l JOIN runs r ON r.id = l.run_id
+      WHERE l.thread_id = threads.id AND r.thread_id != threads.id))
+    WHERE EXISTS (SELECT 1 FROM model_log l JOIN runs r ON r.id = l.run_id
+      WHERE l.thread_id = threads.id AND r.thread_id != threads.id);
+  UPDATE threads SET context = json_set(coalesce(context, '{}'), '$.memory_family', id)
+    WHERE id IN (SELECT json_extract(context, '$.memory_family') FROM threads)
+      AND json_extract(context, '$.memory_family') IS NULL;
+
+  CREATE INDEX memory_work_queue ON memory_work(state, available_at);
+  CREATE TABLE memory_episodes (
+    rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT UNIQUE NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+    thread_id TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+    agent_id TEXT NOT NULL, project_id TEXT, message_id TEXT NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    text TEXT NOT NULL, created_at TEXT NOT NULL, embedding BLOB, embedding_model TEXT
+  );
+  CREATE VIRTUAL TABLE memory_episodes_fts USING fts5(text, content='memory_episodes', content_rowid='rowid', tokenize='unicode61 remove_diacritics 2');
+  CREATE TRIGGER memory_episodes_ai AFTER INSERT ON memory_episodes BEGIN
+    INSERT INTO memory_episodes_fts(rowid,text) VALUES(new.rowid,new.text);
+  END;
+  CREATE TRIGGER memory_episodes_ad AFTER DELETE ON memory_episodes BEGIN
+    INSERT INTO memory_episodes_fts(memory_episodes_fts,rowid,text) VALUES('delete',old.rowid,old.text);
+  END;
+  `,
 ];

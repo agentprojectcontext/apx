@@ -3,7 +3,8 @@
 // Shown notes stay in the model log, so the prefix never changes; once the turn that showed the standing notes falls
 // out of the model's view (history budget), they are offered again.
 import type { Memory, Thread } from "@apx/protocol";
-import { ftsQuery } from "../domain/memories.ts";
+import { canUseChatMemory } from "../domain/chat-access.ts";
+import { canSee, ftsQuery } from "../domain/memories.ts";
 import type { Store } from "../domain/store.ts";
 import type { ThreadContext } from "../domain/threads.ts";
 import { notesText } from "../tools/memory.ts";
@@ -43,7 +44,7 @@ export async function recallFor(
   store: Store,
   search: (o: NoteSearch) => Promise<Memory[]>,
   agentId: string,
-  thread: Pick<Thread, "project_id">,
+  thread: Pick<Thread, "project_id"> & { id?: string },
   text: string,
   ctx: ThreadContext,
   from: number,
@@ -53,35 +54,59 @@ export async function recallFor(
   const since = ctx.memory_since ?? {};
   const stale = since[agentId] !== undefined && (since[agentId] as number) < from;
   const before = stale ? undefined : all[agentId];
-  const seen = new Set(before ?? []);
+  const versions = ctx.memory_versions ?? {};
+  const seen = new Set((before ?? []).filter((id) => versions[id] === (store.memories.get(id)?.revision ?? 1)));
   const view = { agent_id: agentId, project_id: thread.project_id };
   const notes: Memory[] = [];
   const add = (list: Memory[]) => {
     for (const m of list)
-      if (!seen.has(m.id)) {
+      if (!seen.has(m.id) && canUseChatMemory(store, thread, m)) {
         seen.add(m.id);
         notes.push(m);
       }
   };
+  if (text.trim()) {
+    const found = await search({
+      view,
+      query: text.slice(0, 2000),
+      exclude: [...seen],
+      limit: delegated ? MATCHES * 3 : MATCHES,
+    });
+    add(delegated ? found.filter((m) => m.scope !== "global" || relatedToTask(m, text)).slice(0, MATCHES) : found);
+  }
+  const matched = notes.length;
   if (!before) {
-    // What an agent wrote about the owner stands only once the owner confirmed it; until then it shows only on a match.
     if (delegated && thread.project_id)
       add(store.memories.list({ view, scope: "project", project_id: thread.project_id, limit: STANDING }));
     else if (!delegated) add(store.memories.list({ view, scope: "global", pending: false, limit: STANDING }));
     add(store.memories.list({ view, scope: "agent", agent_id: agentId, limit: STANDING }));
   }
-  if (text.trim()) {
-    // Delegated: the filter drops global hits, so ask for more first or unrelated ones would crowd out the rest.
-    const found = await search({ view, query: text.slice(0, 2000), limit: delegated ? MATCHES * 3 : MATCHES });
-    add(delegated ? found.filter((m) => m.scope !== "global" || relatedToTask(m, text)).slice(0, MATCHES) : found);
-  }
-  const block = notesText(notes);
+  const snapshot = () => {
+    const live = (list: Memory[]) =>
+      list.flatMap((m) => {
+        const n = store.memories.get(m.id);
+        return n && !n.forgotten_at && canSee(view, n) && canUseChatMemory(store, thread, n) ? [n] : [];
+      });
+    const matches = notesText(live(notes.slice(0, matched)), matched ? 1800 : 2400);
+    const profile = notesText(live(notes.slice(matched)), matches.ids.length ? 600 : 2400);
+    return {
+      text: [matches.text, profile.text].filter(Boolean).join("\n") || undefined,
+      ids: [...matches.ids, ...profile.ids],
+    };
+  };
+  const block = snapshot();
   // The first turn records the agent even with nothing to show, so its standing notes are not looked up again.
   if (before && !block.ids.length) return {};
   return {
-    text: block.text,
+    get text() {
+      return snapshot().text;
+    },
     shown: (at) => ({
-      memory_shown: { ...all, [agentId]: [...(before ?? []), ...block.ids].slice(-SHOWN_CAP) },
+      memory_shown: { ...all, [agentId]: [...new Set([...(before ?? []), ...snapshot().ids])].slice(-SHOWN_CAP) },
+      memory_versions: {
+        ...versions,
+        ...Object.fromEntries(snapshot().ids.map((id) => [id, store.memories.get(id)?.revision ?? 1])),
+      },
       memory_since: before ? since : { ...since, [agentId]: at },
     }),
   };

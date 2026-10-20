@@ -578,7 +578,15 @@ export const RunUsage = z.object({
 export type RunUsage = z.infer<typeof RunUsage>;
 
 /** What an auxiliary model call was for: a chat's title, a long chat's summary, a room's gate, a commit message. */
-export const AuxPurpose = z.enum(["title", "summary", "room", "commit", "suggestion"]);
+export const AuxPurpose = z.enum([
+  "title",
+  "summary",
+  "room",
+  "commit",
+  "suggestion",
+  "memory_capture",
+  "memory_dream",
+]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 
 /** What started a run. Everything enters through threads.send; this only says from where. */
@@ -704,12 +712,20 @@ export type ProviderInfo = z.infer<typeof ProviderInfo>;
  */
 export const MemoryScope = z.enum(["global", "project", "agent"]);
 export type MemoryScope = z.infer<typeof MemoryScope>;
+export const MemoryEvidence = z.object({
+  message_id: Id,
+  quote: z.string().min(3).max(2000),
+});
+export type MemoryEvidence = z.infer<typeof MemoryEvidence>;
 export const Memory = z.object({
   id: Id,
   scope: MemoryScope,
   project_id: Id.optional(),
   agent_id: Id.optional(),
   text: z.string(),
+  revision: z.number().int().positive().optional(),
+  kind: z.enum(["user", "feedback", "project", "reference"]).optional(),
+  evidence: z.array(MemoryEvidence).optional(),
   source: z.enum(["owner", "agent"]),
   /** The agent that wrote it, and the thread and run it learned it in. */
   author_agent: Id.optional(),
@@ -1109,6 +1125,10 @@ export const MemorySettings = z.object({
   skill_picker: z.boolean().default(true),
   /** Summarize long chats' older turns automatically. */
   auto_compact: z.boolean(),
+  auto_recall: z.boolean().optional(),
+  auto_capture: z.boolean().optional(),
+  auto_dream: z.boolean().optional(),
+  daily_memory_calls: z.number().int().min(0).max(200).optional(),
   /** The auxiliary model for titles and summaries: a model ref, "off", or none (the agent's own API models). */
   aux_model: z.string().max(200).optional(),
 });

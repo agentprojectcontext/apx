@@ -1,3 +1,4 @@
+import type { LogEntry } from "../domain/model-log.ts";
 // The one context builder. Three pieces, each with a rule:
 // - system: byte-stable per agent and thread (no clock, no roster), so the provider's prompt cache keeps working;
 // - history: a projection of the model log with a size budget, old tool output pruned, call/result pairs intact;
@@ -7,7 +8,7 @@ import { createHash } from "node:crypto";
 import type { Autonomy, Organization, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Origin } from "../domain/runs.ts";
-import type { LogEntry, ReleaseContext } from "../domain/threads.ts";
+import type { ReleaseContext } from "../domain/threads.ts";
 import type { AssistantItem, ChatItem } from "../providers/types.ts";
 import { RELEASE_REPO } from "../release-notes.ts";
 import { DOCUMENT_GUIDANCE } from "../tools/documents.ts";

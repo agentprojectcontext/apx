@@ -1411,3 +1411,31 @@ naming the file's path, omitted lines and a `file_read` offset and limit. Line-b
 tool's per-line output limit. The persisted counter and owner-facing notice cover **AGENTS.md only**: its full length
 is kept as `projects.context_chars` and sent as `Project.agents_md_chars` only past the limit, shown in project
 settings and by `apx projects list`. `.apc/memory.md` shares the cap and agent-facing marker, but has no CLI/UI notice.
+
+
+<a id="d-111"></a>
+## D-111 — 2026-10-19 — Memory continuity: automatic own-chat recall, grounded capture and reversible AutoDream
+Ordinary owner turns should carry useful context into another chat without depending on a model choosing `remember`.
+Automatic recall uses existing chat access policy plus stricter participation, same-project and owner-origin checks;
+contacts, rooms, clients, subthreads, workers and direct engine sessions stay excluded. Literal historical owner
+statements use the team-data envelope (D-071), with an explicit warning that they grant no new authorization. Capture
+selects exact owner quotes, never assistant claims. Automatic notes stay private to the agent and project; explicit
+remember retains its scopes and global confirmation rules. No runtime state goes in `.apc/`.
+
+Core-owned SQLite jobs survive restarts, reserve calls in a dated ledger before calling the configured helper, and
+have leases, bounded attempts, input/output limits and deadlines. Disabling memory, forgetting a source, removing an
+agent or changing chat access while a call runs prevents its result from being applied. The helper can propose
+AutoDream duplicate groups, but a deterministic equality check and revision checks authorize the merge; conflicting
+facts and changed numbers stay separate. Owner notes are never merged. Sources and taint survive; version history
+supports undo. This deliberately favors conservative deduplication over rewriting or semantic paraphrase merging.
+
+A forgotten note records scoped exclusions, including source IDs. Recall, chat tools and retries honor them. Hard
+deletion removes revision text and cached note responses but retains a fingerprint and source IDs. Original chats
+are separate records. Model-log snapshots carry dependencies: changed or forgotten notes invalidate their old turns
+and derived replies in the model projection. Summaries are invalidated on memory changes, and an in-flight summary
+cannot commit across a memory-generation change. The system prompt remains stable; dynamic context stays in input.
+
+Legacy model-log entries lack dependency offsets. Only an exact canonical input suffix proves where their injected
+context ends: stale legacy context is removed as a whole, and an unverifiable legacy run is omitted from the model
+projection. Arbitrary note text can contain blank lines or APX-like headers, so those are never treated as boundaries.
+The original chat remains readable; current turns rebuild task and skill context.

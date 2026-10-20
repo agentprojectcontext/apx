@@ -93,7 +93,13 @@ export function threadAdminHandlers(store: Store, home: string) {
         });
         store.messages.copyInto(fork.id, kept);
         store.modelLog.copyInto(thread, fork.id, cut);
+        const family = context.memory_family ?? t.id;
+        store.threads.mergeContext(thread, { memory_family: family });
         store.threads.mergeContext(fork.id, {
+          memory_family: family,
+          memory_cutoff: [context.memory_cutoff, kept.at(-1)?.created_at ?? t.created_at]
+            .filter((at): at is string => !!at)
+            .sort()[0],
           titled: true,
           model_choice: context.model_choice,
           compaction:

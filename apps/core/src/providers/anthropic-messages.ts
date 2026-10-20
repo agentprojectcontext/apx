@@ -101,7 +101,7 @@ export const anthropicMessages: Transport = async (req) => {
     { "x-api-key": req.key, "anthropic-version": "2023-06-01" },
     {
       model: req.model,
-      max_tokens: MAX_TOKENS,
+      max_tokens: req.maxOutputTokens ?? MAX_TOKENS,
       ...(system ? { system } : {}),
       messages,
       ...(req.tools.length
