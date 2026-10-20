@@ -173,17 +173,16 @@ export function emailAdapter(config: Parameters<AdapterFactory>[0], secret: stri
 
     const sender = { id: from.address, name: from.name ? `${from.name} (${from.address})` : from.address };
     const picked = options.pick(from.address, stripQuoted(m.text));
-    if (picked) io.action({ conversation: from.address, sender, data: picked });
-    else
-      io.receive({
-        // The Message-ID dedupes a mail read again (another UID, the mailbox rebuilt); the UID when it has none.
-        external_id: id ? `mid:${id.toLowerCase()}` : `uid:${state.uidvalidity ?? 0}:${uid}`,
-        conversation: from.address,
-        sender,
-        text: text.trim(),
-        private: true,
-        ...(files.length ? { files } : {}),
-      });
+    io.receive({
+      // The Message-ID dedupes a mail read again (another UID, the mailbox rebuilt); the UID when it has none.
+      external_id: id ? `mid:${id.toLowerCase()}` : `uid:${state.uidvalidity ?? 0}:${uid}`,
+      conversation: from.address,
+      sender,
+      text: text.trim(),
+      private: true,
+      ...(picked ? { action: picked } : {}),
+      ...(files.length ? { files } : {}),
+    });
   }
 
   /** The messages after the last UID read, oldest first; each one is stored before the next UID is remembered. */

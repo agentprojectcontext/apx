@@ -17,6 +17,8 @@ export type Inbound = {
   /** `handle`: the name others write to mention them (a Discord @username), where the platform has one. */
   sender: { id: string; name: string; handle?: string | undefined };
   text: string;
+  /** A button choice carried by this message; deduped with its platform id before it is handled. */
+  action?: string | undefined;
   /** Other people the message @mentions (the bot itself left out), written as @handle in `text`. */
   mentions?: Array<{ id: string; handle: string }> | undefined;
   /** A one-to-one conversation; anything else reaches the agent only as a listed room (see `room`). */

@@ -88,6 +88,10 @@ export function createInbound(deps: {
     const cfg = deps.configs().find((c) => c.id === channel);
     if (!cfg) return "ignored";
     if (!m.private) return m.room ? deps.rooms.handle(cfg, m, rowId) : "ignored";
+    if (m.action) {
+      await action(channel, { conversation: m.conversation, sender: m.sender, data: m.action });
+      return "done";
+    }
     const person = store.persons.byAddress(cfg.id, m.sender.id);
     if (!person) return stranger(cfg, m, rowId);
     if (person.role === "blocked") return "ignored";
