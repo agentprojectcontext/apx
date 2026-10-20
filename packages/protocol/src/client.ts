@@ -119,12 +119,23 @@ export class ApxClient {
     // Every call carries a key: the core uses it only for methods with effects, so the client needs no registry.
     headers["idempotency-key"] = idem ?? this.#opts.requestKey();
     const deadline = AbortSignal.timeout(clientDeadline(method, params, this.#opts.timeoutMs));
-    const res = await fetch(`${this.#opts.url}/rpc/${method}`, {
+    const url = `${this.#opts.url}/rpc/${method}`;
+    const request = {
       method: "POST",
       headers,
       body: JSON.stringify(params ?? {}),
       signal: this.#opts.signal ? AbortSignal.any([this.#opts.signal, deadline]) : deadline,
-    });
+    };
+    let res: Response;
+    try {
+      res = await fetch(url, request);
+    } catch (error) {
+      const code = (error as { cause?: { code?: unknown } } | undefined)?.cause?.code;
+      // Only a chat read is safe to repeat here; effects and one-time results must never be replayed.
+      if (method !== "threads.get" || request.signal.aborted || (code !== "ECONNRESET" && code !== "UND_ERR_SOCKET"))
+        throw error;
+      res = await fetch(url, request);
+    }
     const body = (await res.json()) as { ok: boolean; result?: unknown; error?: ApxErrorShape };
     if (!body.ok || body.error) {
       throw new ApxError(body.error ?? { code: "internal", message: `HTTP ${res.status}` });
