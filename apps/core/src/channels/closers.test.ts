@@ -51,6 +51,8 @@ test("an answer that is a reaction", () => {
   assert.equal(reactAnswer("react 😂\n"), "😂");
   assert.equal(reactAnswer("REACT to this later"), undefined);
   assert.equal(reactAnswer("I will react ❤️ soon"), undefined);
+  for (const e of ["🙌", "🦖", "👨‍💻", "🇦🇷", "👍🏽", "❤"]) assert.equal(reactAnswer(`REACT ${e}`), e, e);
+  for (const t of ["REACT ok👍", "REACT 👍👍", "REACT :)"]) assert.equal(reactAnswer(t), undefined, t);
 });
 
 test("a short stop asks the agent to stop; a sentence about stopping does not", () => {

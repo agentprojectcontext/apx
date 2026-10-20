@@ -134,6 +134,8 @@ export const discordAdapter = ((
   const rooms = new Set((config.rooms?.rooms ?? []).map((r) => r.id));
   /** Someone's direct channel with the bot, by their user id: a person's address is their id, never that channel's. */
   const dms = new Map<string, string>();
+  /** The emoji the bot put on a message (by its id), the last few hundred: Discord takes a reaction off by emoji. */
+  const reacted = new Map<string, string>();
 
   /** The direct channel with a user, opened once (Discord gives back the same one every time). */
   async function openDm(userId: string): Promise<string | undefined> {
@@ -228,6 +230,7 @@ export const discordAdapter = ((
       );
       io.receive({
         external_id: m.id,
+        ref: m.id,
         conversation: m.channel_id,
         sender: {
           id: m.author.id,
@@ -315,7 +318,7 @@ export const discordAdapter = ((
   }
 
   return {
-    caps: { typing: true, buttons: true },
+    caps: { typing: true, buttons: true, reactions: true },
     async start(io) {
       const me = await api<DcUser>("GET", "/users/@me").catch((err: unknown) => {
         throw err instanceof DcError && err.status === 401
@@ -370,6 +373,16 @@ export const discordAdapter = ((
     },
     async typing(conversation) {
       await api("POST", `/channels/${dms.get(conversation) ?? conversation}/typing`, undefined, 8000);
+    },
+    async react(conversation, ref, emoji) {
+      // Any Unicode emoji: the bot's own reaction is one per emoji, so the one it put before comes off.
+      const at = `/channels/${dms.get(conversation) ?? conversation}/messages/${ref}/reactions`;
+      const before = reacted.get(ref);
+      if (emoji) await api("PUT", `${at}/${encodeURIComponent(emoji)}/@me`, undefined, 8000);
+      if (before && before !== emoji) await api("DELETE", `${at}/${encodeURIComponent(before)}/@me`, undefined, 8000);
+      reacted.delete(ref);
+      if (emoji) reacted.set(ref, emoji);
+      if (reacted.size > 500) reacted.delete(reacted.keys().next().value as string);
     },
     async rooms() {
       const self = me ?? (await api<DcUser>("GET", "/users/@me")).id;
