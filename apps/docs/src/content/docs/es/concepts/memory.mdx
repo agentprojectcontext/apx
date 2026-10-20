@@ -49,7 +49,12 @@ Tres caminos, todos a la vista:
   fallidos en una sección aparte. Las fuentes incluyen confirmación real o referencias a escritura y lectura.
   Otros resultados todavía necesitan tu confirmación. Notas anteriores sin esa evidencia siguen siendo históricas.
   Las notas son datos, nunca instrucciones ni permiso nuevo: el agente debe revisar estado actual antes de repetir.
-  Se quitan parámetros de direcciones y valores que parezcan credenciales.
+  Se quitan parámetros de direcciones y valores que parezcan credenciales. Cada paso conserva sobre qué actuó, en
+  corto: un sitio por su host, un comando por su programa y sus flags decisivos (links como host, sin encabezados,
+  cookies ni cuerpos de pedido), un archivo relativo a la carpeta de trabajo o temporal. Las consultas (búsquedas,
+  capturas, cambios de pestaña) quedan afuera, los intentos que fallaron antes del método se listan como "Tried
+  first, failed" con un motivo corto, y el índice de notas nombra el pedido y sus pasos decisivos (por ejemplo
+  `snapinsta.to → page script → curl`).
 
 Usa el modelo auxiliar que ya configuraste en APX. Si está apagado, no extrae notas automáticas; `remember` y la
 recuperación automática de chats siguen funcionando. La cola persiste entre reinicios y los reintentos no duplican

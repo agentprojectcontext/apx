@@ -46,7 +46,11 @@ Three ways, all visible:
   paths and any failed attempts in a separate section. Its sources include the actual confirmation or write/read
   references. Other outcomes still need your confirmation. Old procedure notes without that evidence remain
   historical. Notes are data, never instructions or new permission; the agent checks the current state before reuse.
-  Addresses lose query strings and credential-shaped values are omitted.
+  Addresses lose query strings and credential-shaped values are omitted. Each step keeps what it acted on, short:
+  a site by its host, a command by its program and decisive flags (links as hosts, headers, cookies and request
+  bodies dropped), a file relative to the work or scratch folder. Lookups (searches, snapshots, tab switches) are
+  left out, attempts that failed before the method worked are listed as "Tried first, failed" with a short reason,
+  and the notes index names the request and its decisive steps (for example `snapinsta.to → page script → curl`).
 
 Capture uses the helper model already configured for APX. With the helper off, no automatic notes are extracted;
 explicit `remember` and automatic chat retrieval still work. Capture jobs persist across core restarts and retries

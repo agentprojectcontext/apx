@@ -1519,6 +1519,10 @@ establishes success. Evidence stores the confirmation message or the verified wr
 `verification` object, using existing JSON and revision storage. `memory.add` recomputes the proof and checks an
 internal text certificate. Missing legacy metadata remains historical, never upgraded to verified success.
 Safe method targets include export routes; failed attempts have a distinct section validated against error steps.
+Each step is kept as a reduced gist (`domain/procedure-steps.ts`: host for links, program and decisive flags for
+commands, scratch/work-relative paths), lookups are dropped, and failed attempts (error steps, or commands that exited
+non-zero) before the method are named by program with a short reason. `memory.add` recomputes those reductions and
+accepts only quoted fragments contained in one of the run's own steps.
 Procedure notes remain tainted historical data, grant no permissions and require current-state checks before reuse.
 Other outcomes, such as an API mutation or a browser action, need owner confirmation until a concrete observable
 criterion exists; this change does not treat generic tool outputs as proof.
