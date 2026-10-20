@@ -1,10 +1,8 @@
-import type { MemorySettings, Result } from "@apx/protocol";
+import type { MemorySettings } from "@apx/protocol";
 import { Button, Input, SettingRow, Switch } from "@apx/ui";
-import { useEffect, useState } from "react";
-import { client } from "../data/client.ts";
-import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
 import { SubHead } from "./SectionHead.tsx";
+import { useMemoryAutomation } from "./useMemoryAutomation.ts";
 
 export function MemoryAutomation({
   settings,
@@ -14,34 +12,7 @@ export function MemoryAutomation({
   save: (patch: Partial<MemorySettings>) => Promise<void>;
 }) {
   const t = useT();
-  const [jobs, setJobs] = useState<Result<"memory.status">["jobs"]>([]);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    void client
-      .call("memory.status", {})
-      .then((r) => setJobs(r.jobs))
-      .catch(() => undefined);
-  }, []);
-  useEffect(() => {
-    if (!jobs.some((job) => job.state === "pending" || job.state === "working")) return;
-    const timer = setInterval(() => {
-      void client
-        .call("memory.status", {})
-        .then((r) => setJobs(r.jobs))
-        .catch(() => undefined);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [jobs]);
-  const run = async (backfill: boolean) => {
-    setBusy(true);
-    try {
-      setJobs((await client.call("memory.maintenance", { backfill, dream: !backfill })).jobs);
-    } catch (error) {
-      notify(t("error.memory", { error: error instanceof Error ? error.message : String(error) }));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const { jobs, busy, run } = useMemoryAutomation();
   return (
     <>
       <SubHead>{t("mem.continuity")}</SubHead>
