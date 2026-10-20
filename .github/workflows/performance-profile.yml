@@ -1,0 +1,57 @@
+# Collect the first measurement on a fresh runner with syscall timings. This diagnostic never replaces verify's
+# untraced budget gate. The path-filtered push bootstraps the workflow without changing v1's default branch.
+name: Performance profile (diagnostic)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [release/v2]
+    paths: [.github/workflows/performance-profile.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    name: Core I/O profile (diagnostic)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      APX_SECRETS: file
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.11"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the measured panel
+        env:
+          APX_TEST_COVERAGE: "1"
+        run: pnpm build:web
+      - name: Install the profiler
+        run: sudo apt-get install --no-install-recommends -y strace
+      - name: Profile the first measurement
+        shell: bash
+        run: |
+          mkdir -p e2e/.out/io-profile
+          trap 'cat /proc/pressure/cpu /proc/pressure/io /sys/fs/cgroup/cpu.stat > e2e/.out/io-profile/pressure-after.txt' EXIT
+          strace --version > e2e/.out/io-profile/version.txt
+          cat /proc/pressure/cpu /proc/pressure/io /sys/fs/cgroup/cpu.stat > e2e/.out/io-profile/pressure-before.txt
+          strace --seccomp-bpf -ff -ttt -T -e trace=fsync,fdatasync -o e2e/.out/io-profile/sync \
+            node --no-warnings scripts/perf.ts 2>&1 | tee e2e/.out/io-profile/measurement.log
+      - name: Keep the profile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-measurement-profile
+          path: |
+            e2e/.out/io-profile/
+            e2e/.out/perf.json
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 7
