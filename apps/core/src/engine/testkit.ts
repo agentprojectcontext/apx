@@ -151,8 +151,10 @@ export async function startCore(opts: {
     throw new Error(`thread ${thread} never settled`);
   };
   const cleanup = () => {
-    fs.rmSync(home, { recursive: true, force: true });
-    fs.rmSync(scratchRoot(home), { recursive: true, force: true });
+    // Retry transient filesystem locks; persistent cleanup failures still fail the test.
+    const options = { recursive: true, force: true, maxRetries: 10, retryDelay: 50 };
+    fs.rmSync(home, options);
+    fs.rmSync(scratchRoot(home), options);
   };
   return { core, client, home, settle, cleanup };
 }
