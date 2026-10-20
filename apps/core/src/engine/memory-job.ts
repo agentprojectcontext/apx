@@ -1,3 +1,5 @@
+import type { Memory } from "@apx/protocol";
+import type { AuxAbout } from "../domain/aux-calls.ts";
 import { canUseChatMemory } from "../domain/chat-access.ts";
 import { NOTEBOOK_TARGET } from "../domain/memories.ts";
 import { hasDurableCue } from "../domain/memory-content.ts";
@@ -129,44 +131,10 @@ export async function performMemoryJob(
     checkpoint.extracted = out;
     store.memoryWork.checkpoint(job.id, checkpoint);
   }
-  if (job.kind === "capture" && !checkpoint.reviewed) {
-    const claims = captureCandidates(store, job, out);
-    if (!claims.length) checkpoint.reviewed = [];
-    else {
-      if (!reserve()) return;
-      const review = await upkeep.memory(
-        job.agent_id,
-        MEMORY_REVIEW,
-        JSON.stringify({ claims: claims.map((c, index) => ({ index, ...c })) }),
-        about,
-      );
-      if (!review) throw new Error("memory review unavailable");
-      const verdicts = ReviewVerdicts.parse(memoryJson(review)).verdicts;
-      checkpoint.reviewed = claims.flatMap((c, index) => {
-        const matched = verdicts.filter((v) => v.index === index);
-        return matched.length === 1 && matched[0]?.verdict === "supported" ? [memoryClaimKey(c.text, c.evidence)] : [];
-      });
-    }
-    store.memoryWork.checkpoint(job.id, checkpoint);
-  }
-  if (job.kind === "dream" && !checkpoint.reviewed) {
-    const claims = retirementClaims(notes, out);
-    if (!claims.length) checkpoint.reviewed = [];
-    else {
-      if (!reserve()) return;
-      const review = await upkeep.memory(
-        job.agent_id,
-        RETIRE_REVIEW,
-        JSON.stringify({ claims: claims.map((c, index) => ({ index, ...c })) }),
-        about,
-      );
-      if (!review) throw new Error("memory retirement review unavailable");
-      const verdicts = ReviewVerdicts.parse(memoryJson(review)).verdicts;
-      checkpoint.reviewed = claims.flatMap((c, index) => {
-        const matched = verdicts.filter((v) => v.index === index);
-        return matched.length === 1 && matched[0]?.verdict === "supported" ? [retirementKey(c.old, c.replacement)] : [];
-      });
-    }
+  if (!checkpoint.reviewed) {
+    const reviewed = await reviewJob(deps, job, notes, out, reserve, about);
+    if (!reviewed) return;
+    checkpoint.reviewed = reviewed;
     store.memoryWork.checkpoint(job.id, checkpoint);
   }
   if (stopped()) return;
@@ -192,4 +160,32 @@ export async function performMemoryJob(
   if (job.kind === "dream") store.settings.set(dreamKey, fingerprint);
   store.memoryWork.finish(job.id, "completed", job.kind === "capture" ? { saved: changed } : (pass ?? { merged: 0 }));
   index.schedule();
+}
+
+async function reviewJob(
+  { store, upkeep }: MemoryJobDeps,
+  job: MemoryWork,
+  notes: Memory[],
+  out: string,
+  reserve: () => boolean,
+  about: AuxAbout,
+): Promise<string[] | undefined> {
+  const claims =
+    job.kind === "capture"
+      ? captureCandidates(store, job, out).map((claim) => ({ claim, key: memoryClaimKey(claim.text, claim.evidence) }))
+      : retirementClaims(notes, out).map((claim) => ({ claim, key: retirementKey(claim.old, claim.replacement) }));
+  if (!claims.length) return [];
+  if (!reserve()) return;
+  const review = await upkeep.memory(
+    job.agent_id,
+    job.kind === "capture" ? MEMORY_REVIEW : RETIRE_REVIEW,
+    JSON.stringify({ claims: claims.map(({ claim }, index) => ({ index, ...claim })) }),
+    about,
+  );
+  if (!review) throw new Error("memory review unavailable");
+  const verdicts = ReviewVerdicts.parse(memoryJson(review)).verdicts;
+  return claims.flatMap(({ key }, index) => {
+    const matched = verdicts.filter((v) => v.index === index);
+    return matched.length === 1 && matched[0]?.verdict === "supported" ? [key] : [];
+  });
 }

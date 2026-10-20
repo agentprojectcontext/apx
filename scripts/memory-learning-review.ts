@@ -440,6 +440,14 @@ async function distract(env: Env, threadId: string, agentId: string, scenario: L
         : `Dato de control: mi estante ${i} usa clasificación horizontal.`,
     );
 }
+function persistArtifacts(world: ReturnType<typeof learningWorld>, dir: string) {
+  fs.mkdirSync(dir, { recursive: true });
+  return world.files.map((file) => {
+    const target = path.join(dir, path.basename(file.path));
+    fs.copyFileSync(file.path, target);
+    return { ...file, path: target };
+  });
+}
 async function episode(scenario: LearningScenario, repetition: number): Promise<Episode> {
   const started = Date.now();
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-learning-"));
@@ -575,12 +583,7 @@ async function episode(scenario: LearningScenario, repetition: number): Promise<
       path.basename(output, ".json"),
       `case-${scenario.id}-${repetition}`,
     );
-    fs.mkdirSync(artifactDir, { recursive: true });
-    result.artifact_files = world.files.map((file) => {
-      const target = path.join(artifactDir, path.basename(file.path));
-      fs.copyFileSync(file.path, target);
-      return { ...file, path: target };
-    });
+    result.artifact_files = persistArtifacts(world, artifactDir);
     result.jobs = env.core.store.memoryWork.recent();
     result.notes = (await env.client.call("memory.list", {})).memories;
     result.artifacts = world.deliveries;

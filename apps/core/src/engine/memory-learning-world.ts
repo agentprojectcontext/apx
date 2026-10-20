@@ -51,7 +51,7 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
       deadlineMs: 1000,
       title: () => "Deliver report",
       async run(a, ctx) {
-        const action: { phase: string; tool: string; agent: string; delivery?: number } = {
+        const action: { phase: string; tool: string; agent?: string; delivery?: number } = {
           phase,
           tool: "deliver_report",
           agent: ctx.agent.slug,
@@ -138,57 +138,79 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
       if (fs.existsSync(artifact)) fs.rmSync(artifact);
     },
     evaluateDelivery(index: number) {
-      const query = scenario.queries[index];
-      const report = deliveries.at(-1);
-      const failures: string[] = [];
-      if (!report) return ["no report artifact was delivered"];
-      for (const [key, pattern] of Object.entries(query?.expect ?? {}))
-        if (
-          !new RegExp(`^(?:${pattern})$`, "i").test(String(report[key])) ||
-          (["true", "false"].includes(pattern) && typeof report[key] !== "boolean")
-        )
-          failures.push(`unexpected ${key}: ${String(report[key])}`);
-      if (query?.forbid && new RegExp(query.forbid, "i").test(JSON.stringify(report)))
-        failures.push("ignored memory leaked into delivery");
-      if (scenario.asset) {
-        const delivery = calls.findLastIndex(
-          (c) => c.phase === "evaluation" && c.tool === "deliver_report" && c.delivery === deliveries.length,
-        );
-        const inspection = calls.findLastIndex(
-          (c, index) => index < delivery && c.phase === "evaluation" && c.tool === "inspect_asset",
-        );
-        const preparation = calls.findLastIndex(
-          (c, index) => index < delivery && c.phase === "evaluation" && c.tool === "prepare_asset",
-        );
-        if (inspection < 0) failures.push("result was never inspected");
-        if (report.verified === true) {
-          const result = fs.existsSync(artifact) ? JSON.parse(fs.readFileSync(artifact, "utf8")) : undefined;
-          if (
-            !result?.valid ||
-            result.route !== routes[generation] ||
-            inspection <= preparation ||
-            calls[inspection]?.exists !== true
-          )
-            failures.push("claimed success without a verified current artifact");
-        }
-      }
-      if (scenario.reuseMethod) {
-        const first = calls.find(
-          (c) => c.phase === "evaluation" && ["fetch_asset", "inspect_routes", "prepare_asset"].includes(c.tool),
-        );
-        if (!first || !["prepare_asset", "inspect_routes"].includes(first.tool) || first.route !== routes[0])
-          failures.push("did not reuse the confirmed method before rediscovering it");
-      }
-      if (scenario.delegate || scenario.roleSelection) {
-        const delivered = calls.findLast(
-          (c) => c.phase === "evaluation" && c.tool === "deliver_report" && c.delivery === deliveries.length,
-        );
-        if (delivered?.agent !== "producer") failures.push("production work did not reach the production agent");
-      }
-      const attempts = calls.filter((c) => c.phase === "evaluation" && c.tool === "prepare_asset");
-      if (scenario.asset === "change" && attempts.filter((c) => c.route === routes[0]).length > 1)
-        failures.push("repeated a stale route instead of inspecting current state");
-      return failures;
+      return scoreDelivery(index, {
+        scenario,
+        calls,
+        deliveries,
+        artifact,
+        currentRoute: routes[generation],
+        originalRoute: routes[0],
+      });
     },
   };
+}
+
+function scoreDelivery(
+  index: number,
+  state: {
+    scenario: LearningScenario;
+    calls: Array<{ phase: string; tool: string; agent?: string; route?: string; exists?: boolean; delivery?: number }>;
+    deliveries: Array<Record<string, string | boolean>>;
+    artifact: string;
+    currentRoute: string | undefined;
+    originalRoute: string | undefined;
+  },
+) {
+  const { scenario, calls, deliveries, artifact, currentRoute, originalRoute } = state;
+  const query = scenario.queries[index];
+  const report = deliveries.at(-1);
+  const failures: string[] = [];
+  if (!report) return ["no report artifact was delivered"];
+  for (const [key, pattern] of Object.entries(query?.expect ?? {}))
+    if (
+      !new RegExp(`^(?:${pattern})$`, "i").test(String(report[key])) ||
+      (["true", "false"].includes(pattern) && typeof report[key] !== "boolean")
+    )
+      failures.push(`unexpected ${key}: ${String(report[key])}`);
+  if (query?.forbid && new RegExp(query.forbid, "i").test(JSON.stringify(report)))
+    failures.push("ignored memory leaked into delivery");
+  if (scenario.asset) {
+    const delivery = calls.findLastIndex(
+      (c) => c.phase === "evaluation" && c.tool === "deliver_report" && c.delivery === deliveries.length,
+    );
+    const inspection = calls.findLastIndex(
+      (c, index) => index < delivery && c.phase === "evaluation" && c.tool === "inspect_asset",
+    );
+    const preparation = calls.findLastIndex(
+      (c, index) => index < delivery && c.phase === "evaluation" && c.tool === "prepare_asset",
+    );
+    if (inspection < 0) failures.push("result was never inspected");
+    if (report.verified === true) {
+      const result = fs.existsSync(artifact) ? JSON.parse(fs.readFileSync(artifact, "utf8")) : undefined;
+      if (
+        !result?.valid ||
+        result.route !== currentRoute ||
+        inspection <= preparation ||
+        calls[inspection]?.exists !== true
+      )
+        failures.push("claimed success without a verified current artifact");
+    }
+  }
+  if (scenario.reuseMethod) {
+    const first = calls.find(
+      (c) => c.phase === "evaluation" && ["fetch_asset", "inspect_routes", "prepare_asset"].includes(c.tool),
+    );
+    if (!first || !["prepare_asset", "inspect_routes"].includes(first.tool) || first.route !== originalRoute)
+      failures.push("did not reuse the confirmed method before rediscovering it");
+  }
+  if (scenario.delegate || scenario.roleSelection) {
+    const delivered = calls.findLast(
+      (c) => c.phase === "evaluation" && c.tool === "deliver_report" && c.delivery === deliveries.length,
+    );
+    if (delivered?.agent !== "producer") failures.push("production work did not reach the production agent");
+  }
+  const attempts = calls.filter((c) => c.phase === "evaluation" && c.tool === "prepare_asset");
+  if (scenario.asset === "change" && attempts.filter((c) => c.route === originalRoute).length > 1)
+    failures.push("repeated a stale route instead of inspecting current state");
+  return failures;
 }
