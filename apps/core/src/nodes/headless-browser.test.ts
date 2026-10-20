@@ -10,9 +10,9 @@ import { PassThrough } from "node:stream";
 import { after, before, test } from "node:test";
 import type { TabInfo } from "@apx/protocol";
 import { chromium } from "@playwright/test";
-import { createHeadlessBrowser, findChrome } from "./headless-browser.ts";
+import { createHeadlessBrowser } from "./headless-browser.ts";
 
-const chrome = findChrome() ?? chromium.executablePath();
+const chrome = chromium.executablePath();
 const PAGES: Record<string, string> = {
   "/": `<html><head><title>Acme home</title></head><body><h1>Acme</h1><a href="/prices">Prices</a>
     <form action="/search"><input name="q" aria-label="Search"><input type="password" aria-label="Password"></form></body></html>`,
