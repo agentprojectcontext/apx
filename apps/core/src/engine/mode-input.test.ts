@@ -39,7 +39,8 @@ test("an agent is told its mode in each turn's input, and that APX asks the owne
   assert.match(plan.input, /^\[mode\] Plan: read and propose/m);
 });
 
-test("the system prompt tells the agent to save what the owner corrects or repeats, in that same turn", async () => {
+test("the system prompt tells the agent to save corrections, repeats and confirmed approaches in its own words", async () => {
   const { system } = await seen("hello");
-  assert.match(system, /save with remember in that turn, always when the owner corrects you or repeats it/);
+  assert.match(system, /remember that turn, always on a correction, a repeat or a confirmed approach/);
+  assert.match(system, /in your own words: the rule, then Why: and How to apply:/);
 });

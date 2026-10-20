@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import type { Memory, MemoryEvidence, MemoryScope } from "@apx/protocol";
 import { type ExpressionBuilder, sql as raw, type Selectable } from "kysely";
 import type { Database, MemoriesTable } from "../db/schema.ts";
-import { duplicateMemory, memoryKey, sameMemory } from "./memory-content.ts";
+import { absoluteDates, duplicateMemory, memoryKey, sameMemory } from "./memory-content.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 const toMemory = (r: Selectable<MemoriesTable>): Memory => ({
@@ -181,6 +181,11 @@ export function relatedCut(scores: number[]): number {
   const median = scores.length >= 5 ? (scores[Math.floor(scores.length / 2)] ?? 0) : 0;
   return Math.max(MIN_SIMILARITY, best - NEAR_BEST, median + ABOVE_TYPICAL);
 }
+
+/** How many notes one agent keeps before consolidation retires stale ones; also the index's line limit. */
+export const NOTEBOOK_TARGET = 40;
+/** One consolidation pass never forgets more than this share of an agent's notes (at least one). */
+export const forgetAllowance = (notes: number) => Math.max(1, Math.floor(notes * 0.2));
 
 export function memoriesRepo({ one, all, run, tx }: Sql) {
   const record = (m: Memory, reason: string) =>
@@ -465,6 +470,50 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
         return true;
       });
     },
+    /**
+     * An agent's own note leaves its notebook (superseded by `by`, or stale) without the owner's exclusion: the owner
+     * can still bring it back, and its source chat stays readable.
+     */
+    retire(ref: { id: string; revision: number; by?: string | undefined }, view: MemoryView): boolean {
+      return tx(() => {
+        const m = repo.get(ref.id);
+        const by = ref.by ? repo.get(ref.by) : undefined;
+        const own = (n: Memory | undefined) =>
+          !!n &&
+          !n.forgotten_at &&
+          n.source === "agent" &&
+          n.scope === "agent" &&
+          n.agent_id === view.agent_id &&
+          n.project_id === view.project_id;
+        if (!own(m) || m?.revision !== ref.revision || ref.by === ref.id) return false;
+        // A correction supersedes only what was written before it.
+        if (ref.by && (!own(by) || (by as Memory).created_at <= (m as Memory).created_at)) return false;
+        const note = m as Memory;
+        if (!repo.history(note.id).length) record(note, "baseline");
+        run(
+          qb
+            .updateTable("memories")
+            .set({ forgotten_at: now(), revision: (note.revision ?? 1) + 1 })
+            .where("id", "=", note.id),
+        );
+        record(repo.get(note.id) as Memory, ref.by ? `superseded:${ref.by}` : "stale");
+        return true;
+      });
+    },
+    /** Rewrites relative days in an agent's own note as the dates they meant (`day`: the note's own day). */
+    redate(ref: { id: string; revision: number }, view: MemoryView, day: string): Memory | undefined {
+      const m = repo.get(ref.id);
+      if (m?.source !== "agent" || m.scope !== "agent" || m.agent_id !== view.agent_id) return undefined;
+      if (m.project_id !== view.project_id) return undefined;
+      const text = absoluteDates(m.text, day);
+      if (text === m.text) return undefined;
+      return repo.edit(m.id, text, {
+        tainted: m.tainted,
+        pending: m.pending,
+        expectedRevision: ref.revision,
+        reason: "dream:dates",
+      });
+    },
     undo(id: string, revision: number): Memory | undefined {
       return tx(() => {
         const current = repo.get(id);
@@ -573,3 +622,9 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
 }
 
 export type Memories = ReturnType<typeof memoriesRepo>;
+
+/** An agent's own live notebook in one place: what it wrote itself, newest first. */
+export const ownNotes = (memories: Memories, view: MemoryView, limit = 1000) =>
+  memories
+    .list({ view, scope: "agent", agent_id: view.agent_id, limit })
+    .filter((m) => m.project_id === view.project_id && m.source === "agent");

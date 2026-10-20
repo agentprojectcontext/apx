@@ -10,8 +10,8 @@ Measured on a fresh install: the secretary, a new chat, default settings, no ski
 
 | Part | Budget | Now (2026-10-17) |
 |---|---|---|
-| System prompt | 6,500 chars (about 1,450 tokens) | 6,486 chars, about 1,470 tokens (2026-10-19) |
-| Tool definitions (45, without the browser) | 28,000 chars (about 6,700 tokens) | 27,990 chars, about 6,700 tokens (2026-10-19) |
+| System prompt | 6,500 chars (about 1,450 tokens) | 6,469 chars, about 1,465 tokens (2026-10-20) |
+| Tool definitions (45, without the browser) | 28,000 chars (about 6,700 tokens) | 27,999 chars, about 6,700 tokens (2026-10-20) |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
 
 `apps/core/src/engine/prompt-budget.test.ts` fails past the budget; it fixes the temp folder and the build it names,
@@ -36,6 +36,20 @@ How to stay within it:
   the system prompt stays byte-stable so the provider's prompt cache keeps it.
 - `pnpm tools:review` checks that a model still picks the right tool after a description changes, and prints the
   largest tools.
+
+## Per-turn memory
+
+Notes travel in the turn's input, never the system prompt, so they do not count against the budget above; they have
+caps of their own instead, so a big notebook cannot grow every call:
+
+| Part of the `[memory]` block | Cap |
+|---|---|
+| Notes matching the message | 1,800 chars |
+| Standing notes (first turn in a thread) | 600 chars beside matches, else 2,400 |
+| Index of the agent's own notes (owner turns) | 2,000 chars, untrusted envelope included (`INDEX_CHARS` in `engine/recall.ts`) |
+
+The index is listed once per thread and then only for notes saved since, so a later turn usually adds nothing.
+`engine/memory-notes.test.ts` holds a 70-note notebook to the index cap.
 
 ## Compared with other agent apps
 

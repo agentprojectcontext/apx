@@ -29,13 +29,23 @@ never write it: it is the place for fixed rules you don't want any agent to edit
 Three ways, all visible:
 
 - **You.** Add a note in a project's **Memory** tab, or with `apx memory add`. Or just tell an agent "remember that…".
-- **An agent**, with its `remember` tool, when it learns something worth keeping. Inside a project it saves to the
-  project by default, otherwise to the global notes. It can correct its own notes and remove one with `forget`.
+- **An agent**, with its `remember` tool, when it learns something worth keeping: a correction, something you repeat,
+  or an approach you confirmed. It writes the note in its own words; for a correction or a way of working, the rule
+  first, then a `Why:` line and a `How to apply:` line. Inside a project it saves to the project by default, otherwise
+  to the global notes. It can correct its own notes and remove one with `forget`.
 
 - **Automatic capture.** After an ordinary owner turn, the helper model can select durable preferences, corrections,
-  decisions and references. APX saves only a verified, exact quote of your message, with its message and chat source.
-  These notes stay in that agent's private notebook, limited to the same project. Assistant promises and tool output
-  are never evidence that an action happened. Credential discussions are excluded.
+  decisions and references, and write each as a short fact in the agent's words (corrections and project decisions
+  with `Why:` and `How to apply:`). Every note keeps an exact quote of your message, with its message and chat source,
+  as evidence, and APX checks the fact against it: numbers, names and identifiers must come from the quote and a
+  negation must survive, or the note is dropped. These notes stay in that agent's private notebook, limited to the
+  same project. Assistant promises and tool output are never evidence that an action happened. Credential discussions
+  are excluded.
+- **Procedures that worked.** When a turn you started succeeds after a failed try (in that turn or the chat's
+  previous one), or you then confirm it ("great, it worked"), APX writes a procedure note from the agent's own
+  successful steps: which tools it used, the site or command, and where the output went. It is labeled as history,
+  not an instruction, and needs no helper model. Addresses lose their query strings, and anything that looks like a
+  credential is left out; a note whose steps read a web page is marked as outside content.
 
 Capture uses the helper model already configured for APX. With the helper off, no automatic notes are extracted;
 explicit `remember` and automatic chat retrieval still work. Capture jobs persist across core restarts and retries
@@ -56,11 +66,15 @@ Notes never go in the system prompt. Instead, when an agent answers in a thread:
 1. On its **first turn** in that thread it gets its standing notes: up to 8 of the global ones and up to 8 from its
    own notebook, newest first, plus **up to 5 notes that match your message and recent owner turns**. Relevant matches
    get space before standing notes; one oversized note cannot hide the smaller notes after it.
-2. On **later turns** it gets only new matches it hasn't seen in that thread.
-3. Relevant statements from **its own earlier chats in the same project** can appear automatically, with dates and
+2. Your turns also carry an **index of the agent's own notebook**: one short line per note not shown whole (its kind,
+   date and what it is about), newest first, within 2,000 characters. A note worded unlike your message ("do it like
+   you did today") is still in view, and `recall` brings its full text. Later turns in the thread list only notes
+   saved since.
+3. On **later turns** it gets only new matches it hasn't seen in that thread.
+4. Relevant statements from **its own earlier chats in the same project** can appear automatically, with dates and
    message IDs. Older turns of the current chat can return when they no longer fit its context, without duplicating
    visible turns. This also works on older chats without a helper model. Greetings do not trigger retrieval.
-4. Whenever it needs more detail, it searches with `recall`, or uses `read_chat` with `around` and the source message ID
+5. Whenever it needs more detail, it searches with `recall`, or uses `read_chat` with `around` and the source message ID
    to read older messages beyond the latest page.
 
 Edited or forgotten notes invalidate older injected snapshots and their derived replies. Compaction summaries are
@@ -99,10 +113,18 @@ The same screen holds two related switches:
 
 ## AutoDream and limits
 
-**AutoDream** reviews equivalent private notes after new work, at most once a day per agent and project, while that
-agent is idle. It combines duplicates without rewriting facts, changing owner notes or promoting anything to global
-memory. Contradictions, different numbers and different preferences stay separate. Merges preserve sources and the
-outside-content marker; revision checks reject proposals made stale by an edit or deletion.
+**AutoDream** reviews an agent's private notes after new work, at most once a day per agent and project, while that
+agent is idle. It:
+
+- combines duplicates, keeping their sources and the outside-content marker;
+- retires a note that a newer one corrects (only a note written before the correction);
+- once the notebook passes 40 notes, retires notes that are no longer useful, so the index stays short;
+- rewrites relative days ("today", "ayer") as the dates they meant.
+
+The helper model only names notes; APX does the rewriting itself and never changes owner notes or promotes anything to
+global memory. Contradictions, different numbers and different preferences stay separate. A pass that would forget
+more than a fifth of the notebook at once (at least one note) is refused whole. Retired notes go to **Forgotten** with
+the reason in their history, and revision checks reject proposals made stale by an edit or deletion.
 
 Capture and AutoDream share a **daily memory call limit**, default 20. Each request has bounded input, output and a
 deadline; calls and tokens appear in **Usage**. A limit of zero pauses model calls. The queue reports completed,

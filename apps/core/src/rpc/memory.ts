@@ -4,6 +4,7 @@
 import type { Memory } from "@apx/protocol";
 import { canUseChatMemory, memoryEligibleChat } from "../domain/chat-access.ts";
 import { canSee, looksSecret, type MemoryView } from "../domain/memories.ts";
+import { factSupported, procedureSupported } from "../domain/memory-content.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import type { Store } from "../domain/store.ts";
 import type { MemoryIndex } from "../engine/memory-index.ts";
@@ -80,8 +81,13 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
       if (view && memorySettings(store).mode === "off") throw badRequest("memory is disabled");
       if (view && store.memories.excluded(view, text)) throw badRequest("the owner asked to forget that");
       if (view && evidence?.length) {
-        if (evidence.length !== 1 || text !== evidence[0]?.quote)
-          throw badRequest("automatic memory must be the exact owner quote");
+        const quote = evidence[0]?.quote ?? "";
+        const supported =
+          kind === "procedure"
+            ? procedureSupported(text, store.runs.steps(ctx.agent?.run_id ?? ""))
+            : factSupported(text, quote);
+        if (evidence.length !== 1 || !supported)
+          throw badRequest("automatic memory must say only what its source supports");
         const thread = ctx.agent && store.threads.get(ctx.agent.thread_id);
         if (!thread || !memoryEligibleChat(store, thread)) throw unauthorized("memory source is not eligible");
         for (const e of evidence) {

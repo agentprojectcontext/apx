@@ -15,13 +15,19 @@ async function settleMemory(env: Awaited<ReturnType<typeof startCore>>) {
 }
 
 const fact = "Northwind invoices use the lavender prefix.";
+/** What the capture model writes from that owner message: its own words, the quote kept as evidence. */
+const note = "Every Northwind invoice uses the lavender prefix.";
 
 test("ordinary owner messages become grounded private memories and reach another chat without remember", async () => {
   const llm = scriptedLlm((req, { system }) => {
     if (system.startsWith("Extract durable")) {
       const input = JSON.parse(String(req.messages.at(-1)?.content));
       const source = input.messages.find((m: { text: string }) => m.text.includes(fact));
-      return say(JSON.stringify({ memories: source ? [{ kind: "project", message_id: source.id, quote: fact }] : [] }));
+      return say(
+        JSON.stringify({
+          memories: source ? [{ kind: "project", message_id: source.id, quote: fact, fact: note }] : [],
+        }),
+      );
     }
     if (system.startsWith("Review private memory")) return say('{"groups":[]}');
     return say("Acknowledged.");
@@ -34,14 +40,14 @@ test("ordinary owner messages become grounded private memories and reach another
     await env.client.call("memory.maintenance", {});
     await settleMemory(env);
     const notes = (await env.client.call("memory.list", {})).memories;
-    const note = notes.find((m) => m.text === fact);
-    assert.ok(note, "saved without an explicit remember call");
-    assert.equal(note.scope, "agent");
-    assert.equal(note.agent_id, "roby");
-    assert.equal(note.pending, false);
-    assert.equal(note.tainted, false);
-    assert.equal(note.evidence?.[0]?.quote, fact);
-    assert.ok(note.evidence?.[0]?.message_id);
+    const saved = notes.find((m) => m.text === note);
+    assert.ok(saved, "saved without an explicit remember call");
+    assert.equal(saved.scope, "agent");
+    assert.equal(saved.agent_id, "roby");
+    assert.equal(saved.pending, false);
+    assert.equal(saved.tainted, false);
+    assert.equal(saved.evidence?.[0]?.quote, fact);
+    assert.ok(saved.evidence?.[0]?.message_id);
     assert.equal(notes.length, 1);
 
     const b = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
@@ -56,7 +62,7 @@ test("ordinary owner messages become grounded private memories and reach another
     await env.settle(outsider.id);
     assert.doesNotMatch(String(llm.calls.findLast((c) => c.tools.length > 0)?.messages.at(-1)?.content), /lavender/);
 
-    await env.client.call("memory.remove", { id: note.id });
+    await env.client.call("memory.remove", { id: saved.id });
     await env.client.call("threads.send", { thread: b.id, text: "Remind me about the Northwind invoices prefix." });
     await env.settle(b.id);
     const after = llm.calls.findLast((c) => c.tools.length > 0);
@@ -68,11 +74,11 @@ test("ordinary owner messages become grounded private memories and reach another
     await env.client.call("memory.maintenance", { backfill: true, dream: true });
     await settleMemory(env);
     assert.equal(
-      (await env.client.call("memory.list", {})).memories.some((m) => m.text === fact),
+      (await env.client.call("memory.list", {})).memories.some((m) => m.text === note),
       false,
     );
-    await env.client.call("memory.remove", { id: note.id, forever: true });
-    assert.equal((await env.client.call("memory.history", { id: note.id })).versions.length, 0);
+    await env.client.call("memory.remove", { id: saved.id, forever: true });
+    assert.equal((await env.client.call("memory.history", { id: saved.id })).versions.length, 0);
   } finally {
     await env.core.close();
     env.cleanup();

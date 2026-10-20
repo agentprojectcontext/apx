@@ -19,13 +19,29 @@ const line = (m: Memory) =>
  * Notes as the model reads them, capped. A note saved while outside content was in the turn is wrapped as untrusted,
  * so it counts as outside content again wherever it shows up.
  */
-export function notesText(notes: Memory[], max = MEMORY_BLOCK_CHARS): { text?: string; ids: string[] } {
+/** One line per note for the index: what it is about, not all it says (recall brings the rest). */
+export function hookLine(m: Memory): string {
+  const first = m.text.split("\n")[0] ?? "";
+  const asked = m.kind === "procedure" ? /asked: "(.*)"$/.exec(first)?.[1] : undefined;
+  const steps = m.kind === "procedure" ? [...(m.text.split("\n")[1] ?? "").matchAll(/`([^`]+)`/g)].slice(0, 2) : [];
+  // A procedure's hook leads with what it used (a site by its host), then what the owner asked.
+  const used = steps.map((s) => (s[1] ?? "").replace(/^https?:\/\/([^/]+).*$/, "$1")).join(" ");
+  const about = asked ? `${used} for "${asked}"` : first;
+  const hook = about.replace(/\s+/g, " ").trim();
+  return `- [${m.id}] (${m.kind ?? "note"}, ${m.updated_at.slice(0, 10)}) ${hook.length > 96 ? `${hook.slice(0, 95)}…` : hook}`;
+}
+
+export function notesText(
+  notes: Memory[],
+  max = MEMORY_BLOCK_CHARS,
+  format: (m: Memory) => string = line,
+): { text?: string; ids: string[] } {
   const clean: string[] = [];
   const tainted: string[] = [];
   const ids: string[] = [];
   let used = 0;
   for (const m of notes) {
-    const l = line(m);
+    const l = format(m);
     if (used + l.length > max) continue;
     (m.tainted ? tainted : clean).push(l);
     ids.push(m.id);
@@ -45,7 +61,7 @@ export function memoryTools(): Tool[] {
     defineTool({
       name: "remember",
       description:
-        "Save one durable fact for later threads, in plain words: a preference, a decision, a name, how something works. Never passwords, keys or codes, nor what is only true in this conversation. To correct a note, pass its id.",
+        "Save one durable fact for later threads, in your own words: a preference, a decision, a name, how something works. Never passwords, keys or codes, nor what is only true in this conversation. To correct a note, pass its id.",
       args: z.object({
         text: z.string().trim().min(3).max(600),
         scope: SCOPE.optional(),

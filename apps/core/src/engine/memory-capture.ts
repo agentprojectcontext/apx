@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { memorySensitive } from "../domain/memories.ts";
-import { duplicateMemory } from "../domain/memory-content.ts";
+import { duplicateMemory, factSupported } from "../domain/memory-content.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import type { MemoryWork } from "../domain/memory-work.ts";
 import type { Store } from "../domain/store.ts";
@@ -14,6 +14,7 @@ const Candidates = z.object({
         kind: z.enum(["user", "feedback", "project", "reference"]),
         message_id: z.string(),
         quote: z.string().min(12).max(1500),
+        fact: z.string().trim().min(12).max(600).optional(),
       }),
     )
     .max(4),
@@ -43,12 +44,23 @@ export async function captureMemories(store: Store, call: InternalCall, job: Mem
       store.memories.excluded(view, candidate.quote, { message_id: message.id, run_id: job.run_id })
     )
       continue;
-    if (store.memories.list({ view, limit: 500 }).some((m) => duplicateMemory(m.text, candidate.quote))) continue;
+    // The note is the agent's synthesis; the quote stays as its evidence and the check that it says nothing more.
+    const text = candidate.fact;
+    if (!text || !factSupported(text, candidate.quote) || memorySensitive(text) || store.memories.excluded(view, text))
+      continue;
+    if (
+      store.memories
+        .list({ view, limit: 500 })
+        .some(
+          (m) => duplicateMemory(m.text, text) || m.evidence?.some((e) => duplicateMemory(e.quote, candidate.quote)),
+        )
+    )
+      continue;
     await call(
       "memory.add",
       {
         scope: "agent",
-        text: candidate.quote,
+        text,
         kind: candidate.kind,
         evidence: [{ message_id: message.id, quote: candidate.quote }],
         tainted: false,

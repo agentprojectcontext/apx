@@ -1,5 +1,7 @@
 import { memoryEligibleChat } from "../domain/chat-access.ts";
+import { forgetAllowance, NOTEBOOK_TARGET, ownNotes } from "../domain/memories.ts";
 import { bumpMemoryGeneration, memorySettings, saveMemorySettings } from "../domain/memory-settings.ts";
+import { ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import type { MemoryIndex } from "../engine/memory-index.ts";
 import type { MemoryMaintenance } from "../engine/memory-maintenance.ts";
@@ -65,6 +67,35 @@ export function memoryAdminHandlers(store: Store, index: MemoryIndex, maintenanc
       const merged = store.memories.consolidate(notes, { agent_id: ctx.agent.id, project_id: thread.project_id });
       if (merged) index.schedule();
       return { merged };
+    },
+    "memory.tidy": ({ retire = [], redate = [] }, ctx) => {
+      const thread = ctx.agent && store.threads.get(ctx.agent.thread_id);
+      if (
+        !ctx.agent ||
+        !store.agents.list().some((a) => a.id === ctx.agent?.id) ||
+        !thread ||
+        !memoryEligibleChat(store, thread)
+      )
+        throw unauthorized("private agent context required");
+      const view = { agent_id: ctx.agent.id, project_id: thread.project_id };
+      const live = ownNotes(store.memories, view).length;
+      if (retire.length > forgetAllowance(live))
+        throw badRequest(`a pass may forget at most ${forgetAllowance(live)} of ${live} notes`);
+      // Stale notes go only when the notebook outgrew its target; a correction retires what it supersedes anytime.
+      const retired = retire.filter((r) => (r.by || live > NOTEBOOK_TARGET) && store.memories.retire(r, view)).length;
+      const zone = ownerTimeZone(store);
+      const redated = redate.filter((r) => {
+        const note = store.memories.get(r.id);
+        const said = note?.evidence?.[0] && store.messages.get(note.evidence[0].message_id)?.created_at;
+        const at = new Date(said || note?.created_at || Date.now());
+        const day = at.toLocaleDateString("en-CA", zone ? { timeZone: zone } : {});
+        return !!store.memories.redate(r, view, day);
+      }).length;
+      if (retired || redated) {
+        invalidateMemorySummaries(store);
+        index.schedule();
+      }
+      return { retired, redated };
     },
   } satisfies Partial<Handlers>;
 }

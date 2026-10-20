@@ -48,6 +48,8 @@ export type ThreadContext = {
   memory_shown?: Record<string, string[]>;
   memory_since?: Record<string, number>;
   memory_versions?: Record<string, number>;
+  /** Own notes listed by hook in the memory index per agent (since the same turn as memory_since). */
+  memory_indexed?: Record<string, string[]>;
   /** Started by an outside app (its client id): only that app may read it or write in it. */
   client?: string;
   /** The model picked for this chat in its composer: tried before the agent's own choice. */

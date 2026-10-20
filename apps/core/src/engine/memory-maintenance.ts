@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { memoryEligibleChat } from "../domain/chat-access.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
+import { ownerTimeZone } from "../domain/owner.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
@@ -8,6 +9,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import { memoryEpisodeSource, recordMemoryEpisode } from "./memory-episodes.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { performMemoryJob } from "./memory-job.ts";
+import { captureProcedure } from "./memory-procedure.ts";
 import type { Upkeep } from "./upkeep.ts";
 
 export function createMemoryMaintenance(deps: {
@@ -107,6 +109,16 @@ export function createMemoryMaintenance(deps: {
         enqueue(run, dream);
         if (dream) store.settings.set(key, new Date().toISOString());
       });
+      const zone = ownerTimeZone(store);
+      const day = new Date().toLocaleDateString("en-CA", zone ? { timeZone: zone } : {});
+      void captureProcedure(store, deps.call, run, day)
+        .then((saved) => saved && deps.index.schedule())
+        .catch((err) =>
+          log.warn(
+            { run: run.id, error: err instanceof Error ? err.message : "UnknownError" },
+            "procedure note failed",
+          ),
+        );
       deps.index.schedule();
       void drain();
     },

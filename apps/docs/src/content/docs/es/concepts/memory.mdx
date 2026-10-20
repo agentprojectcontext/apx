@@ -32,13 +32,24 @@ Tres caminos, todos a la vista:
 
 - **Vos.** Sumás una nota en la pestaña **Memoria** de un proyecto, o con `apx memory add`. O directamente le decís a
   un agente "acordate de que…".
-- **Un agente**, con su herramienta `remember`, cuando aprende algo que vale la pena guardar. Dentro de un proyecto
-  la guarda en el proyecto; si no, en las notas globales. Puede corregir sus propias notas y sacar una con `forget`.
+- **Un agente**, con su herramienta `remember`, cuando aprende algo que vale la pena guardar: una corrección, algo
+  que repetís o una forma de hacer algo que confirmaste. Escribe la nota con sus propias palabras; para una corrección
+  o una forma de trabajar, primero la regla y después una línea `Why:` y una `How to apply:`. Dentro de un proyecto la
+  guarda en el proyecto; si no, en las notas globales. Puede corregir sus propias notas y sacar una con `forget`.
 
 - **Guardado automático.** Después de un turno común del dueño, el modelo auxiliar puede seleccionar preferencias,
-  correcciones, decisiones y referencias duraderas. APX guarda únicamente una cita exacta verificada de tu mensaje,
-  con su fuente. Queda privada del agente y limitada al mismo proyecto. Promesas del asistente y salidas de herramientas
-  nunca prueban que una acción ocurrió. Las conversaciones sobre credenciales quedan excluidas.
+  correcciones, decisiones y referencias duraderas, y escribir cada una como un hecho breve con las palabras del agente
+  (correcciones y decisiones de proyecto con `Why:` y `How to apply:`). Cada nota conserva como prueba una cita exacta
+  de tu mensaje, con su fuente, y APX controla el hecho contra ella: números, nombres e identificadores tienen que
+  salir de la cita y una negación tiene que mantenerse, o la nota se descarta. Queda privada del agente y limitada al
+  mismo proyecto. Promesas del asistente y salidas de herramientas nunca prueban que una acción ocurrió. Las
+  conversaciones sobre credenciales quedan excluidas.
+- **Procedimientos que funcionaron.** Cuando un turno que empezaste sale bien después de un intento fallido (en ese
+  turno o en el anterior del chat), o después confirmás que anduvo ("genial, funcionó"), APX escribe una nota de
+  procedimiento con los pasos exitosos del propio agente: qué herramientas usó, el sitio o el comando y dónde quedó el
+  resultado. Queda marcada como historia, no como instrucción, y no necesita modelo auxiliar. Las direcciones pierden
+  sus parámetros de consulta y se deja afuera todo lo que parezca una credencial; si los pasos leyeron una página web,
+  la nota queda marcada como contenido de afuera.
 
 Usa el modelo auxiliar que ya configuraste en APX. Si está apagado, no extrae notas automáticas; `remember` y la
 recuperación automática de chats siguen funcionando. La cola persiste entre reinicios y los reintentos no duplican
@@ -60,11 +71,15 @@ Las notas nunca van en el prompt de sistema. En cambio, cuando un agente respond
 1. En su **primer turno** en ese hilo recibe sus notas fijas: hasta 8 de las globales y hasta 8 de su propio
    cuaderno, las más nuevas primero, más **hasta 5 notas relacionadas con tu mensaje y turnos recientes**. Las
    coincidencias relevantes tienen espacio antes de las notas fijas; una nota larga no tapa las siguientes.
-2. En los **turnos siguientes** recibe sólo coincidencias nuevas que todavía no vio en ese hilo.
-3. Puede recuperar automáticamente frases relevantes de **sus propios chats anteriores, en el mismo proyecto**, con
+2. Tus turnos también traen un **índice del cuaderno del agente**: una línea corta por cada nota que no se muestra
+   entera (tipo, fecha y de qué trata), las más nuevas primero, dentro de 2.000 caracteres. Así una nota escrita
+   distinto de tu mensaje ("hacelo como hiciste hoy") sigue a la vista, y `recall` trae su texto completo. Los turnos
+   siguientes del hilo listan sólo las notas guardadas desde entonces.
+3. En los **turnos siguientes** recibe sólo coincidencias nuevas que todavía no vio en ese hilo.
+4. Puede recuperar automáticamente frases relevantes de **sus propios chats anteriores, en el mismo proyecto**, con
    fecha y mensaje fuente. Incluye turnos antiguos del mismo chat que ya no entran en su contexto, sin duplicar los
    visibles. También funciona con chats antiguos sin modelo auxiliar. Los saludos no disparan búsquedas.
-4. Si necesita detalle, usa `recall` o `read_chat` con `around` y el ID del mensaje fuente para leer mensajes antiguos.
+5. Si necesita detalle, usa `recall` o `read_chat` con `around` y el ID del mensaje fuente para leer mensajes antiguos.
 
 Editar u olvidar una nota invalida las copias inyectadas y sus respuestas derivadas. También invalida resúmenes de
 compactación, evitando que reaparezca desde un resumen viejo. Los registros originales de conversación se conservan.
@@ -97,10 +112,19 @@ La misma pantalla tiene dos opciones relacionadas:
 
 ## AutoDream y límites
 
-**AutoDream** revisa notas privadas equivalentes después de nuevo trabajo, como máximo una vez al día por agente y
-proyecto, cuando ese agente está libre. Une duplicados sin reescribir hechos, editar notas del dueño ni promover
-recuerdos globales. Conserva contradicciones, números distintos y preferencias diferentes. Mantiene fuentes y marcas
-de contenido externo; comprueba revisiones antes de aplicar una propuesta para evitar pisar cambios recientes.
+**AutoDream** revisa las notas privadas de un agente después de nuevo trabajo, como máximo una vez al día por agente
+y proyecto, cuando ese agente está libre. Hace esto:
+
+- une duplicados, conservando sus fuentes y la marca de contenido externo;
+- retira una nota que otra más nueva corrige (sólo si se escribió antes de la corrección);
+- cuando el cuaderno pasa de 40 notas, retira las que ya no sirven, para que el índice siga corto;
+- reescribe los días relativos ("hoy", "yesterday") como las fechas que querían decir.
+
+El modelo auxiliar sólo nombra notas; APX hace la reescritura por su cuenta y nunca edita notas del dueño ni promueve
+recuerdos globales. Conserva contradicciones, números distintos y preferencias diferentes. Una pasada que olvidaría
+más de un quinto del cuaderno de una vez (al menos una nota) se rechaza entera. Las notas retiradas van a
+**Olvidadas** con el motivo en su historial, y se comprueban revisiones antes de aplicar una propuesta para evitar
+pisar cambios recientes.
 
 Guardado y AutoDream comparten un **límite diario de llamadas de memoria**, inicialmente 20. Cada pedido limita
 entrada, salida y tiempo; llamadas y tokens aparecen en **Uso**. Cero pausa llamadas al modelo. Configuración muestra

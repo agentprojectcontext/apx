@@ -889,6 +889,26 @@ export const appMethods = {
     result: z.object({ merged: z.boolean() }),
     effect: true,
   },
+  /**
+   * An agent tidies its own notebook: retires notes a newer one corrects (`by`) or that went stale, and rewrites
+   * relative dates ("today") as the dates they meant. Refused when it would forget too many notes at once.
+   */
+  "memory.tidy": {
+    params: z
+      .object({
+        retire: z
+          .array(z.object({ id: Id, revision: z.number().int().positive(), by: Id.optional() }))
+          .max(8)
+          .optional(),
+        redate: z
+          .array(z.object({ id: Id, revision: z.number().int().positive() }))
+          .max(32)
+          .optional(),
+      })
+      .strict(),
+    result: z.object({ retired: z.number().int(), redated: z.number().int() }),
+    effect: true,
+  },
   /** An agent's note goes to its own thread's project (`project`) or to itself (`agent`); `id` edits one in place. */
   "memory.add": {
     params: z

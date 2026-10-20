@@ -724,7 +724,8 @@ export const Memory = z.object({
   agent_id: Id.optional(),
   text: z.string(),
   revision: z.number().int().positive().optional(),
-  kind: z.enum(["user", "feedback", "project", "reference"]).optional(),
+  /** `procedure`: how the agent did something that worked, kept as history (never as an instruction). */
+  kind: z.enum(["user", "feedback", "project", "reference", "procedure"]).optional(),
   evidence: z.array(MemoryEvidence).optional(),
   source: z.enum(["owner", "agent"]),
   /** The agent that wrote it, and the thread and run it learned it in. */

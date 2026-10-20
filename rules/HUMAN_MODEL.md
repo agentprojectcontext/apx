@@ -142,9 +142,12 @@ notice when there is no text. Tools that touch core state call protocol methods 
   Visible sources are excluded before search limits. `engine/memory-episodes.ts` checkpoints historical indexing
   independently of capture; bounded overlapping embeddings retain individual topics in long owner messages.
   `engine/memory-maintenance.ts` drains durable `memory_work` jobs:
-  grounded private capture and idle AutoDream deduplication, through the same router as tools. Notes have revisions,
+  grounded private capture (a fact in the agent's words, checked against the owner's quote) and idle AutoDream
+  (`engine/memory-dream.ts`: merge, retire superseded or stale notes, absolute dates, a forget-share guard), through
+  the same router as tools. `engine/memory-procedure.ts` writes procedure notes from a run's successful steps, and
+  `engine/recall.ts` adds an index of the agent's own notes to owner turns. Notes have revisions,
   source evidence and reversible history; exclusions suppress forgotten sources in recall and retries. Model-log
-  snapshots record dependencies so edits invalidate old context and derived replies. See D-111.
+  snapshots record dependencies so edits invalidate old context and derived replies. See D-111, D-112.
 - **Waiting for the owner** (`engine/inputs.ts`): confirmations and `ask_owner` questions are `pending_inputs`
   rows, answered with `runs.respond` (owner only). The run's clock stops while it waits; an answer after a restart
   wakes the agent with a new run.

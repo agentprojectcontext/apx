@@ -210,7 +210,11 @@ test("an interrupted capture resumes once after restart without duplicate memori
   const llm = scriptedLlm((req, { system }) => {
     if (system.startsWith("Extract durable")) {
       const source = JSON.parse(String(req.messages.at(-1)?.content)).messages[0];
-      return say(JSON.stringify({ memories: [{ kind: "project", message_id: source.id, quote: source.text }] }));
+      return say(
+        JSON.stringify({
+          memories: [{ kind: "project", message_id: source.id, quote: source.text, fact: source.text }],
+        }),
+      );
     }
     if (system.startsWith("Review private")) return say('{"groups":[]}');
     return say("ok");

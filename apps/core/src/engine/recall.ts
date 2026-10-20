@@ -4,14 +4,17 @@
 // out of the model's view (history budget), they are offered again.
 import type { Memory, Thread } from "@apx/protocol";
 import { canUseChatMemory } from "../domain/chat-access.ts";
-import { canSee, ftsQuery } from "../domain/memories.ts";
+import { canSee, ftsQuery, NOTEBOOK_TARGET } from "../domain/memories.ts";
 import type { Store } from "../domain/store.ts";
 import type { ThreadContext } from "../domain/threads.ts";
-import { notesText } from "../tools/memory.ts";
+import { hookLine, notesText } from "../tools/memory.ts";
 import type { NoteSearch } from "./memory-index.ts";
 
 const STANDING = 8;
 const MATCHES = 5;
+/** The index of the agent's own notes: one hook line each, within this many characters (rules/PROMPT_SIZE.md). */
+export const INDEX_CHARS = 2000;
+const INDEX_HEADER = "[your notes index: one line each; recall its words for the whole note]";
 /** Ids remembered as shown, per agent: older ones may be shown again (they left the context long ago). */
 const SHOWN_CAP = 200;
 /** A global note comes into a delegated turn only when it shares this many distinctive words with the task. */
@@ -81,6 +84,14 @@ export async function recallFor(
     else if (!delegated) add(store.memories.list({ view, scope: "global", pending: false, limit: STANDING }));
     add(store.memories.list({ view, scope: "agent", agent_id: agentId, limit: STANDING }));
   }
+  // The owner's turns also get a hook per own note not shown yet in this thread, so a note phrased unlike the message
+  // is still known to exist; later turns add only the new ones.
+  const indexedBefore = new Set(before ? (ctx.memory_indexed?.[agentId] ?? []) : []);
+  const hooks = delegated
+    ? []
+    : store.memories
+        .list({ view, scope: "agent", agent_id: agentId, limit: NOTEBOOK_TARGET })
+        .filter((m) => !seen.has(m.id) && !indexedBefore.has(m.id) && canUseChatMemory(store, thread, m));
   const snapshot = () => {
     const live = (list: Memory[]) =>
       list.flatMap((m) => {
@@ -89,14 +100,20 @@ export async function recallFor(
       });
     const matches = notesText(live(notes.slice(0, matched)), matched ? 1800 : 2400);
     const profile = notesText(live(notes.slice(matched)), matches.ids.length ? 600 : 2400);
+    // The cap holds with the untrusted envelope too (about 100 characters) when a hook came from outside content.
+    const index = notesText(live(hooks), INDEX_CHARS - INDEX_HEADER.length - 1 - 128, hookLine);
     return {
-      text: [matches.text, profile.text].filter(Boolean).join("\n") || undefined,
+      text:
+        [matches.text, profile.text, index.text ? `${INDEX_HEADER}\n${index.text}` : ""].filter(Boolean).join("\n") ||
+        undefined,
       ids: [...matches.ids, ...profile.ids],
+      // Every hook considered counts as indexed, the ones past the cap too: later turns add only newer notes.
+      indexed: live(hooks).map((m) => m.id),
     };
   };
   const block = snapshot();
   // The first turn records the agent even with nothing to show, so its standing notes are not looked up again.
-  if (before && !block.ids.length) return {};
+  if (before && !block.ids.length && !block.indexed.length) return {};
   return {
     get text() {
       return snapshot().text;
@@ -108,6 +125,10 @@ export async function recallFor(
         ...Object.fromEntries(snapshot().ids.map((id) => [id, store.memories.get(id)?.revision ?? 1])),
       },
       memory_since: before ? since : { ...since, [agentId]: at },
+      memory_indexed: {
+        ...(ctx.memory_indexed ?? {}),
+        [agentId]: [...new Set([...indexedBefore, ...snapshot().indexed])].slice(-SHOWN_CAP),
+      },
     }),
   };
 }
