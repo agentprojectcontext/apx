@@ -104,6 +104,24 @@
   font-weight: var(--apx-weight-medium);
 }
 
+.chatprocesses {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 5px;
+  border: 0;
+  border-radius: var(--apx-row-radius);
+  background: var(--apx-fill-hover);
+  color: var(--apx-brand);
+  font: inherit;
+  font-size: var(--apx-text-xs);
+  vertical-align: middle;
+}
+button.chatprocesses {
+  cursor: pointer;
+}
+
 /* An engine's sessions on this Mac, below those started in APX. */
 .engine__native {
   margin-top: 12px;

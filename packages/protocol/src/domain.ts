@@ -655,6 +655,9 @@ export const Job = z.object({
   title: z.string(),
   state: RunState,
   thread_id: Id,
+  /** Display provenance even when the owning chat is not loaded by the operator. */
+  thread_title: z.string().optional(),
+  agent_name: z.string().optional(),
   /** The thread that started it (a delegation's caller). */
   parent_thread_id: Id.optional(),
   agent_id: Id.optional(),

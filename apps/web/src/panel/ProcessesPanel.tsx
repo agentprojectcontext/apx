@@ -88,7 +88,7 @@ export function ProcessesPanel() {
   const done = (children ?? []).map((th) => threads[th.id] ?? th).filter((th) => !going(th.state));
   const own = rootThread && going(rootThread.state) ? rootThread : undefined;
   const ownAgent = own && threadAgent(own, agents);
-  const activeCount = (own ? 1 : 0) + queued.length + active.length;
+  const activeCount = (own ? 1 : 0) + queued.length + active.length + jobs.running.length;
   const row = (th: Thread) => {
     const agent = threadAgent(th, agents);
     return (

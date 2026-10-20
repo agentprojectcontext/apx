@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { KindIcon } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { AgentFace } from "../common/AgentFace.tsx";
+import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import {
@@ -212,6 +213,7 @@ export function SessionRow({
           {label ?? chatLabel(thread, agent, withAgent ? thread.title : t("chat.new"))}
         </span>
         <CodeMark thread={thread} />
+        <ChatProcesses thread={thread.id} />
         {thread.unread > 0 && <span className="tree__unread">{thread.unread}</span>}
         <span className="tree__when">{shortWhen(thread.updated_at)}</span>
       </button>
@@ -261,6 +263,7 @@ export function ActivityView({ groups, selected }: { groups: ActivityGroup[]; se
                         {th.pinned && <PinMark />}
                         <RoutineMark thread={th} />
                         <span className="activity__text">{chatLabel(th, agent, t("chat.new"))}</span>
+                        <ChatProcesses thread={th.id} />
                       </span>
                       <span className="activity__meta">
                         <ProjectTile tone={projectTone(th.project_id ?? DEFAULT_PID)} size={10} />

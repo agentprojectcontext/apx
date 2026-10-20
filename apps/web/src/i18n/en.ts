@@ -368,6 +368,8 @@ export const en = {
   "running.finished": "Finished ({n})",
   "job.output": "Show output",
   "job.openChat": "Open the chat",
+  "job.startedIn": "From {origin}",
+  "chat.activeProcesses": "Active processes: {n}",
   "job.exit": "exit {code}",
   "job.noOutput": "(no output yet)",
   "job.open": "View transcript",

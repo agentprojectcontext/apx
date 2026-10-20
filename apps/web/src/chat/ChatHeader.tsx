@@ -3,6 +3,7 @@ import { EngineIcon, IconButton, Icons, Menu, type MenuEntry, ProjectTile, Tag, 
 import { KindIcon } from "../channels/KindIcon.tsx";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
 import { useAgentHint } from "../common/AgentFace.tsx";
+import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
 import { compactThread } from "../data/actions.ts";
 import { DEFAULT_PID, projectName, projectTone } from "../data/identity.ts";
@@ -97,6 +98,7 @@ export function ChatHeader({
             <span className="chat__name">{name}</span>
           )}
           {engine && <Tag kind="role">{t("engine.direct")}</Tag>}
+          <ChatProcesses thread={thread.id} onOpen={go.processes} />
           {!sub && !engine && agent?.kind === "secretary" && <Tag kind="role">{t("agent.super")}</Tag>}
           {!sub && !engine && agent && agent.kind !== "secretary" && agent.role && <Tag kind="role">{agent.role}</Tag>}
         </div>
