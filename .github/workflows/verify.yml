@@ -130,13 +130,20 @@ jobs:
           APX_TEST_COVERAGE: "1"
         run: pnpm build:web
       - name: Lightness budgets
+        id: perf
+        run: node --no-warnings scripts/perf.ts
+      - name: Diagnose a failed performance run
+        if: failure() && steps.perf.outcome == 'failure'
+        env:
+          PERF_DIAGNOSTICS: "1"
+          PERF_PORT: "7471"
         run: node --no-warnings scripts/perf.ts
       - name: Keep the performance report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: perf-reports
-          path: e2e/.out/perf.json
+          path: e2e/.out/perf*.json
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 14
