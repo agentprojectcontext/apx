@@ -446,6 +446,8 @@ async function isolationProbes(
   const privateNotes = (await env.client.call("memory.list", {})).memories.filter((n) => n.scope === "agent");
   if (!privateNotes.some((n) => /BERILO/.test(n.text) && n.project_id))
     result.failures.push("no project-scoped learned note to test project isolation");
+  for (const id of new Set(targets.flatMap((t) => env.core.store.threads.get(t.thread)?.agent_ids ?? [])))
+    await env.client.call("agents.update", { agent: id, tools: ["recall", "deliver_report"] });
   await checkIsolation(env, targets, world, privateNotes, result, send);
 }
 function checkProcedures(result: Episode, scenario: LearningScenario) {
