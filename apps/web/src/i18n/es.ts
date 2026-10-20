@@ -1130,6 +1130,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "memory.reason.dream": "Consolidación AutoDream",
   "memory.reason.undo": "Revisión restaurada",
   "memory.reason.saved": "Guardado",
+  "memory.reason.cleanup": "Retirada por la limpieza de capturas",
   "memory.view": "Qué notas",
   "memory.filter.project": "Este proyecto",
   "memory.filter.agents": "Cuadernos de agentes",

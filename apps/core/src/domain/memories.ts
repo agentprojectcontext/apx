@@ -513,6 +513,42 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
         return true;
       });
     },
+    /**
+     * Notes background capture saved and nobody changed since: evidence-backed facts (never procedures), still at
+     * their first revision. The owner's, imported and `remember` notes carry no evidence.
+     */
+    untouchedCaptures(): Memory[] {
+      return all(
+        qb
+          .selectFrom("memories")
+          .selectAll()
+          .where("source", "=", "agent")
+          .where("scope", "=", "agent")
+          .where("forgotten_at", "is", null)
+          .where("revision", "=", 1)
+          .where("kind", "in", ["user", "feedback", "project", "reference"])
+          .where(raw<boolean>`json_valid(evidence) AND json_array_length(evidence) > 0`)
+          .orderBy("n"),
+      )
+        .map(toMemory)
+        .filter((m) => repo.history(m.id).every((v) => v.reason === "created"));
+    },
+    /** Takes an untouched captured note out like `retire` does: no exclusion, restorable from the forgotten list. */
+    retireCapture(ref: { id: string; revision: number }, reason: string): boolean {
+      return tx(() => {
+        const note = repo.get(ref.id);
+        if (!note || note.forgotten_at || note.revision !== ref.revision || !note.evidence?.length) return false;
+        if (!repo.history(note.id).length) record(note, "baseline");
+        run(
+          qb
+            .updateTable("memories")
+            .set({ forgotten_at: now(), revision: (note.revision ?? 1) + 1 })
+            .where("id", "=", note.id),
+        );
+        record(repo.get(note.id) as Memory, reason);
+        return true;
+      });
+    },
     /** Rewrites relative days in an agent's own note as the dates they meant (`day`: the note's own day). */
     redate(ref: { id: string; revision: number }, view: MemoryView, day: string): Memory | undefined {
       const m = repo.get(ref.id);

@@ -1122,6 +1122,7 @@ export const en = {
   "memory.reason.dream": "AutoDream consolidation",
   "memory.reason.undo": "Revision restored",
   "memory.reason.saved": "Saved",
+  "memory.reason.cleanup": "Retired by capture cleanup",
   "memory.view": "Which notes",
   "memory.filter.project": "This project",
   "memory.filter.agents": "Agents' notebooks",

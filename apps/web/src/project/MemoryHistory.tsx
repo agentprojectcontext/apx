@@ -45,7 +45,9 @@ export function MemoryHistory({ note, onChanged }: { note: Memory; onChanged: ()
                     ? "memory.reason.dream"
                     : v.reason === "undo"
                       ? "memory.reason.undo"
-                      : "memory.reason.saved",
+                      : v.reason === "capture-cleanup"
+                        ? "memory.reason.cleanup"
+                        : "memory.reason.saved",
                 )}
                 <p>{v.note.text}</p>
                 {!note.forgotten_at && v.revision !== note.revision && (

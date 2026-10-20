@@ -30,6 +30,7 @@ import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
 import { coreLogSink } from "./core-log.ts";
 import { openDb } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
+import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { announceRelease } from "./domain/whats-new.ts";
@@ -497,6 +498,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     store.idempotency,
   );
   routed = dispatch;
+  const cleanup = cleanUpCapturedNotes(store);
+  if (cleanup) log.info(cleanup, "captured memory cleanup: retired noisy automatic notes");
   memoryMaintenance.start();
 
   const transport = await listen(config, { dispatch, store, log, identity, broker, bus });

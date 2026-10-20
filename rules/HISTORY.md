@@ -63,6 +63,18 @@ navigation resolves at `dom-ready`.
 while the window is not painting; waiting for full `load` timed out on ad-heavy sites. Each hung a tool call.
 **Where:** `apps/desktop/src/main/browser/host.ts` (`open`, `#load`), `apps/desktop/src/main/browser/cdp.ts` (`screenshot`).
 
+## Memory
+
+<a id="memory-capture-cleanup"></a>
+### A one-time startup cleanup retires v2.7.0's noisy captured notes
+**Rule:** on its first start, a core retires each captured note (agent scope, evidence, not a procedure, still at
+revision 1) whose evidence fails today's `durableMemory` or `factSupported`, records that it ran
+(`setting:memory_capture_cleanup`) and never runs again. **Why:** v2.7.0 captured without the durability filter and
+saved temporary owner requests verbatim; the filter stops new ones but cannot clean saved ones. Retiring is
+`forgotten_at` plus a history entry, no exclusion: Bring back restores a note, and the owner can teach it again.
+**Where:** `apps/core/src/domain/memory-capture-cleanup.ts`, called from `server.ts`. Delete it (keep the setting
+key) once no install older than 2.7.1 needs upgrading.
+
 ## Agent engine
 
 <a id="system-notes-as-user"></a>
