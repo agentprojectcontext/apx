@@ -1508,6 +1508,8 @@ imperative into a standing usage assertion, including inside a quoted fallback f
 auxiliary prompts distinguish such fallbacks from durable preferences. Extraction and review each reserve one logical
 gateway call from the existing daily memory allowance. Checkpoints
 retain extraction and verdicts across retries and quota deferral, so a second-stage limit does not repeat extraction.
+Capture checks owner-message identifiers before checkpointing. Unknown source references are retried within the same
+attempt and call budgets; invalid legacy references discard their checkpoint instead of completing silently without a note.
 The gateway may retry a transient transport failure; the allowance counts gateway requests, not HTTP attempts. Settings,
 source eligibility, exclusions and project boundaries are rechecked before later calls and before persistence.
 

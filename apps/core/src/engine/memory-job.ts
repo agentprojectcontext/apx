@@ -12,7 +12,7 @@ import type { InternalCall } from "../rpc/internal.ts";
 import { captureCandidates, captureMemories, captureNeedsEvidence, captureNotebook } from "./memory-capture.ts";
 import { applyDream, DREAM, type DreamPass, dreamInput, retirementClaims } from "./memory-dream.ts";
 import type { MemoryIndex } from "./memory-index.ts";
-import { CaptureCandidates, MEMORY_REVIEW, memoryJson, RETIRE_REVIEW, ReviewVerdicts } from "./memory-review.ts";
+import { captureProposal, MEMORY_REVIEW, memoryJson, RETIRE_REVIEW, ReviewVerdicts } from "./memory-review.ts";
 import type { Upkeep } from "./upkeep.ts";
 
 const CAPTURE = [
@@ -22,7 +22,7 @@ const CAPTURE = [
   "For each, write the note in your own words as a short self-contained fact in the quote's language, naming only what the quote says. For feedback and project kinds: the rule first; Why only when the owner stated a reason, How to apply only when the evidence supports it. Preserve scope and exceptions. Keep negations and numbers exact.",
   'Return JSON only: {"memories":[{"kind":"user|feedback|project|reference","message_id":"id","quote":"exact owner substring that supports it","fact":"the note"}]}.',
   "Use at most 4 exact evidence quotes from at most 3 supplied owner turns when context is needed. Return evidence: [{message_id, quote}] instead of the single source fields then. Never add missing reasons. No duplicates; empty memories is valid.",
-  "Keep fact text in the original evidence language. Do not translate it.",
+  "Keep fact text in the original evidence language; never translate. Copy message_id verbatim. Return only JSON.",
 ].join("\n");
 
 /** A dream reads a little past the notebook target, so it can tell when stale notes should go. */
@@ -117,7 +117,7 @@ export async function performMemoryJob(
   const checkpoint = job.result ? (JSON.parse(job.result) as { extracted?: string; reviewed?: string[] }) : {};
   if (checkpoint.extracted) {
     try {
-      if (job.kind === "capture") CaptureCandidates.parse(memoryJson(checkpoint.extracted));
+      if (job.kind === "capture") captureProposal(checkpoint.extracted, source);
       else retirementClaims(notes, checkpoint.extracted);
     } catch {
       // Old checkpoints must not replay an invalid proposal forever after an upgrade.
@@ -145,7 +145,7 @@ export async function performMemoryJob(
       about,
     );
     if (!out) throw new Error("memory extraction unavailable");
-    if (job.kind === "capture") CaptureCandidates.parse(memoryJson(out));
+    if (job.kind === "capture") captureProposal(out, source);
     else retirementClaims(notes, out);
     checkpoint.extracted = out;
     store.memoryWork.checkpoint(job.id, checkpoint);

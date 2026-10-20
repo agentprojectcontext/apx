@@ -18,6 +18,13 @@ export type CaptureCandidate = z.infer<typeof CaptureCandidates>["memories"][num
 export const candidateEvidence = (c: CaptureCandidate) =>
   c.evidence ?? (c.message_id && c.quote ? [{ message_id: c.message_id, quote: c.quote }] : []);
 export const memoryJson = (text: string): unknown => JSON.parse(text.replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, ""));
+export function captureProposal(text: string, sources: readonly { id: string }[]) {
+  const proposal = CaptureCandidates.parse(memoryJson(text));
+  const known = new Set(sources.map((source) => source.id));
+  if (proposal.memories.some((candidate) => candidateEvidence(candidate).some((entry) => !known.has(entry.message_id))))
+    throw new Error("unknown memory source in capture proposal");
+  return proposal;
+}
 export const ReviewVerdicts = z.object({
   verdicts: z
     .array(
