@@ -23,6 +23,8 @@ export type AdapterCaps = {
   buttons: boolean;
   /** Puts an emoji on a message (`react`). */
   reactions?: boolean;
+  /** The emoji the platform is known to take as a reaction; `react` falls back to the closest when one is refused. */
+  reactionSet?: readonly string[];
   /**
    * The channel is the owner's own account (WhatsApp on their own phone): a stranger never gets a pairing code from
    * it; their request is only listed for the owner to approve.

@@ -254,10 +254,12 @@ export function createChannels(deps: {
    */
   async function reactInstead(run: RunRecord, to: { channel: string; conversation: string }, emoji: string) {
     const last = theirLast(run.thread_id, to);
+    let refused: string | undefined;
     const ok =
       last &&
       (await reactOn(to.channel, to.conversation, last.ref, emoji).catch((err: unknown) => {
-        log.warn({ run: run.id, err: errorMessage(err, 200) }, "channel reaction not sent");
+        refused = errorMessage(err, 200);
+        log.warn({ run: run.id, err: refused }, "channel reaction not sent");
         return false;
       }));
     hideWords(run.message_id);
@@ -267,7 +269,8 @@ export function createChannels(deps: {
     }
     // Words instead would be a stray emoji in their chat: nothing goes, and the owner hears why.
     const where = store.threads.get(run.thread_id)?.title ?? to.channel;
-    const text = channelTexts(store).reactFailed(emoji, where);
+    const texts = channelTexts(store);
+    const text = refused ? texts.reactRefused(emoji, where, refused) : texts.reactFailed(emoji, where);
     deps.attention({ kind: "channel", level: "warn", title: where, body: text, thread_id: run.thread_id });
   }
 

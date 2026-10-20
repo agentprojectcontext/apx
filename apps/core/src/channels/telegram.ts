@@ -66,8 +66,41 @@ type TgUpdate = {
 /** The chats that are groups (rooms); "channel" is a broadcast the bot only posts in. */
 const GROUP_TYPES = new Set(["group", "supergroup"]);
 
-/** Bots may only use Telegram's fixed set of reactions: the closest one of those for an emoji it lacks. */
-const TG_REACTION: Record<string, string> = { "❤️": "❤", "😂": "🤣", "👋": "👍" };
+/** The only emoji a bot may react with (the Bot API's standard reactions, written without variation selectors). */
+export const TELEGRAM_REACTIONS: readonly string[] = (
+  "❤ 👍 👎 🔥 🥰 👏 😁 🤔 🤯 😱 🤬 😢 🎉 🤩 🤮 💩 🙏 👌 🕊 🤡 🥱 🥴 😍 🐳 ❤\u200d🔥 🌚 🌭 💯 🤣 ⚡ 🍌 🏆 💔 🤨 😐 🍓 🍾 " +
+  "💋 🖕 😈 😴 😭 🤓 👻 👨\u200d💻 👀 🎃 🙈 😇 😨 🤝 ✍ 🤗 🫡 🎅 🎄 ☃ 💅 🤪 🗿 🆒 💘 🙉 🦄 😘 💊 🙊 😎 👾 🤷\u200d♂ " +
+  "🤷 🤷\u200d♀ 😡"
+).split(" ");
+const TG_ALLOWED = new Set(TELEGRAM_REACTIONS);
+
+/** Stand-ins for emoji Telegram refuses (allowed one: the emoji it stands for); any other becomes a thumbs-up. */
+const TG_CLOSEST: Record<string, string> = Object.fromEntries(
+  Object.entries({
+    "👏": "🙌",
+    "👌": "✅ ✔ ☑ 🆗",
+    "👍": "💪 👋 👆",
+    "😁": "😀 😃 😄 😊 🙂 😉 😅",
+    "🤣": "😆 😂",
+    "🎉": "🥳 🎊",
+    "🤩": "✨ 🌟 ⭐",
+    "🥰": "🫶",
+    "🙏": "🤞",
+    "😱": "😮 😲",
+    "🤔": "😕 🧐",
+    "😢": "😞 😔 🥲",
+    "😡": "😠",
+    "🔥": "🚀",
+    "❤": "💙 💚 💛 💜 🧡 🖤 🤍 💕 💖 💗 💞",
+  }).flatMap(([to, from]) => from.split(" ").map((f) => [f, to])),
+);
+
+/** The allowed reaction closest to `emoji`, for when Telegram refuses it ("" stays "": it takes the reaction off). */
+export function telegramReaction(emoji: string): string {
+  const bare = emoji.replace(/\uFE0F/g, "");
+  if (!bare || TG_ALLOWED.has(bare)) return bare;
+  return TG_CLOSEST[bare] ?? "👍";
+}
 type TgReply<T> = {
   ok: boolean;
   result?: T;
@@ -438,7 +471,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   }
 
   return {
-    caps: { typing: true, buttons: true, reactions: true },
+    caps: { typing: true, buttons: true, reactions: true, reactionSet: TELEGRAM_REACTIONS },
     async start(io) {
       me = await api<{ id: number; username?: string }>("getMe", {}).catch((err: unknown) => {
         throw err instanceof TgError && (err.code === 401 || err.code === 404)
@@ -506,16 +539,22 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
       return res.ok ? { mime: "image/jpeg", data: Buffer.from(await res.arrayBuffer()) } : undefined;
     },
     async react(conversation, ref, emoji) {
-      const shown = TG_REACTION[emoji] ?? emoji;
-      await api(
-        "setMessageReaction",
-        {
-          chat_id: Number(conversation),
-          message_id: Number(ref),
-          reaction: shown ? [{ type: "emoji", emoji: shown }] : [],
-        },
-        8000,
-      );
+      const put = (e: string) =>
+        api(
+          "setMessageReaction",
+          { chat_id: Number(conversation), message_id: Number(ref), reaction: e ? [{ type: "emoji", emoji: e }] : [] },
+          8000,
+        );
+      // The agent picks any emoji: it goes as chosen, and the closest allowed one only when Telegram refuses it.
+      const bare = emoji.replace(/\uFE0F/g, "");
+      const first = TG_ALLOWED.has(bare) ? bare : emoji;
+      try {
+        await put(first);
+      } catch (err) {
+        const closest = telegramReaction(emoji);
+        if (!(err instanceof TgError && err.message.includes("REACTION_INVALID")) || closest === first) throw err;
+        await put(closest);
+      }
     },
     async setButtons(conversation, ref, buttons) {
       await api(
