@@ -5,7 +5,7 @@ import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
-import { recordMemoryEpisode } from "./memory-episodes.ts";
+import { memoryEpisodeSource, recordMemoryEpisode } from "./memory-episodes.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { performMemoryJob } from "./memory-job.ts";
 import type { Upkeep } from "./upkeep.ts";
@@ -33,28 +33,32 @@ export function createMemoryMaintenance(deps: {
       memoryEligibleChat(store, thread)
     );
   }
-  function enqueue(run: RunRecord, dream = false, manual = false): void {
+  function enqueue(run: RunRecord, dream = false, manual = false): boolean {
     const thread = store.threads.get(run.thread_id);
-    if (!thread || !eligible(run)) return;
-    recordMemoryEpisode(store, run);
-    deps.index.schedule();
-    store.memoryWork.enqueue({
-      id: `capture:${run.id}`,
-      kind: "capture",
-      agent_id: run.agent_id,
-      thread_id: thread.id,
-      run_id: run.id,
-      ...(thread.project_id ? { project_id: thread.project_id } : {}),
+    if (!thread || !eligible(run)) return false;
+    const capture = memoryEpisodeSource(store, run).length > 0;
+    store.tx(() => {
+      recordMemoryEpisode(store, run);
+      if (capture)
+        store.memoryWork.enqueue({
+          id: `capture:${run.id}`,
+          kind: "capture",
+          agent_id: run.agent_id,
+          thread_id: thread.id,
+          run_id: run.id,
+          ...(thread.project_id ? { project_id: thread.project_id } : {}),
+        });
+      if (dream)
+        store.memoryWork.enqueue({
+          id: `dream:${run.id}${manual ? `:${randomUUID()}` : ""}`,
+          kind: "dream",
+          agent_id: run.agent_id,
+          thread_id: thread.id,
+          run_id: run.id,
+          ...(thread.project_id ? { project_id: thread.project_id } : {}),
+        });
     });
-    if (dream)
-      store.memoryWork.enqueue({
-        id: `dream:${run.id}${manual ? `:${randomUUID()}` : ""}`,
-        kind: "dream",
-        agent_id: run.agent_id,
-        thread_id: thread.id,
-        run_id: run.id,
-        ...(thread.project_id ? { project_id: thread.project_id } : {}),
-      });
+    return capture || dream;
   }
   function drain(): Promise<void> {
     if (running) return running;
@@ -81,11 +85,11 @@ export function createMemoryMaintenance(deps: {
   }
   return {
     start() {
-      deps.index.schedule();
       for (const thread of store.threads.list({ include_archived: false, include_subthreads: false, limit: null })) {
         for (const run of store.runs.list(thread.id, 20))
           if (eligible(run) && Date.parse(run.ended_at ?? run.started_at) > Date.now() - 86_400_000) enqueue(run);
       }
+      deps.index.schedule();
       timer = setInterval(() => {
         deps.index.schedule();
         void drain();
@@ -99,8 +103,11 @@ export function createMemoryMaintenance(deps: {
       const last = store.settings.get(key);
       const dream =
         memorySettings(store).auto_dream !== false && (!last || Date.now() - Date.parse(last) >= 86_400_000);
-      enqueue(run, dream);
-      if (dream) store.settings.set(key, new Date().toISOString());
+      store.tx(() => {
+        enqueue(run, dream);
+        if (dream) store.settings.set(key, new Date().toISOString());
+      });
+      deps.index.schedule();
       void drain();
     },
     async maintain(backfill = false, dream = false) {
@@ -111,10 +118,10 @@ export function createMemoryMaintenance(deps: {
           const eligibleRuns = store.runs.list(thread.id, backfill ? 100 : 20).filter(eligible);
           const runs = backfill ? eligibleRuns : eligibleRuns.slice(0, 1);
           for (const run of runs) {
-            enqueue(run, dream, true);
-            queued++;
+            if (enqueue(run, dream, true)) queued++;
           }
         }
+      if (backfill || dream) deps.index.schedule();
       void drain();
       return { queued, jobs: store.memoryWork.recent() };
     },
