@@ -249,6 +249,7 @@ test("every long-running method gives its server time to finish and other method
     ["media.image", {}, 720_000],
     ["media.speak", {}, 150_000],
     ["media.transcribe", {}, 190_000],
+    ["media.upload", {}, 120_000],
     ["surfaces.media", {}, 120_000],
     ["memory.reindex", {}, 600_000],
     ["sessions.projects", {}, 60_000],

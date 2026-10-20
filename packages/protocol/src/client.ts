@@ -53,6 +53,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "media.image") return 12 * 60_000;
   if (method === "media.speak") return 150_000;
   if (method === "media.transcribe") return 190_000;
+  // Base64 uploads need time to cross a slow connection to a remote core.
+  if (method === "media.upload") return 120_000;
   // A widget's video can be 15 MB, base64 over a slow link to a remote core.
   if (method === "surfaces.media") return 120_000;
   // Indexing every note by meaning may take a while on a local model.

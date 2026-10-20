@@ -24,11 +24,16 @@ export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 // 5 MB is the largest image every provider takes (Anthropic's limit).
 export const UPLOAD_LIMITS = {
   imageBytes: 5 * 1024 * 1024,
-  fileBytes: 2 * 1024 * 1024,
+  fileBytes: 20 * 1024 * 1024,
   audioBytes: 10 * 1024 * 1024,
   /** What someone sends on a channel (a video, a document) is kept up to this size, to play or download. */
   channelBytes: 50 * 1024 * 1024,
 } as const;
+
+/** Base64 expansion of the largest composer upload, plus room for its JSON envelope. */
+export const FILE_PAYLOAD_BYTES =
+  Math.ceil((Math.max(UPLOAD_LIMITS.fileBytes, UPLOAD_LIMITS.audioBytes, UPLOAD_LIMITS.imageBytes) * 4) / 3) +
+  64 * 1024;
 
 /** Maximum UTF-8 document snapshot rendered in the side panel. */
 export const DOCUMENT_MAX_BYTES = 400_000;

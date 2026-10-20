@@ -11,7 +11,7 @@ export function AttachChips({ chips, onRemove }: { chips: Chip[]; onRemove(key: 
       {chips.map((c) => (
         <li
           key={c.key}
-          className={`attchip${c.media?.kind === "audio" ? " is-audio" : ""}${c.error ? " is-error" : ""}${c.media ? "" : " is-loading"}`}
+          className={`attchip${c.media?.kind === "audio" ? " is-audio" : ""}${c.error ? " is-error" : ""}${c.media || c.error ? "" : " is-loading"}`}
           title={c.error ?? c.name}
         >
           {c.media?.kind === "audio" ? (
@@ -29,7 +29,11 @@ export function AttachChips({ chips, onRemove }: { chips: Chip[]; onRemove(key: 
               )}
             </span>
           )}
-          {c.media?.kind !== "audio" && <span className="attchip__name">{c.error ?? c.name}</span>}
+          {c.media?.kind !== "audio" && (
+            <span className="attchip__name" role={c.error ? "alert" : undefined}>
+              {c.error ?? c.name}
+            </span>
+          )}
           {!c.media && !c.error && <Icons.LoaderCircle size={12} className="attchip__spin" />}
           <IconButton
             size="sm"

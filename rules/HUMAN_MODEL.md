@@ -83,6 +83,8 @@ playable beside their words, even if transcription fails; `media.transcribe` can
 Agents share local project files through `send_file` → `media.attach`: a snapshot, at most 20 MB, scoped to
 their running owner's chat and work folder. Images appear inline; video/audio files play and download in the
 panel. Attachments survive changes to the source file and a chat reload.
+Composer uploads accept files and videos up to 20 MB, images up to 5 MB and audio up to 10 MB.
+HTTP and WebSocket payload bounds include base64 expansion; remote uploads have a two-minute client deadline.
 Agents open long reports, plans and reusable text documents with `open_document` after writing the file.
 It extends `media.attach` with bounded UTF-8 validation (400,000 bytes, `.md`/`.markdown`/`.txt`), uses the same
 owner-run/work-folder boundary, and persists a file part with document presentation metadata. The web/desktop

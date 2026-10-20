@@ -44,6 +44,25 @@ beforeEach(() => {
 
 afterEach(() => jest.restoreAllMocks());
 
+test("videos and documents over 2 MB upload within the shared 20 MB file limit", async () => {
+  const alert = jest.spyOn(Alert, "alert");
+  const hook = await renderHook(() => useAttachments(client, "thr_chat"));
+  for (const [name, mime, size] of [
+    ["clip.mp4", "video/mp4", 5_333_561],
+    ["report.pdf", "application/pdf", 20 * 1024 * 1024],
+  ] as const) {
+    await act(async () => {
+      const uploaded = await hook.result.current.upload(`file://${name}`, name, mime, size);
+      expect(uploaded).toEqual(expect.objectContaining({ id: "med_saved", kind: "file", name, mime }));
+    });
+  }
+  expect(alert).not.toHaveBeenCalled();
+  expect(mockUploadCall).toHaveBeenCalledTimes(2);
+  expect(hook.result.current.items).toHaveLength(2);
+  expect(hook.result.current.uploading).toBe(false);
+  await hook.unmount();
+});
+
 test("uploads a selected image with chat scope and take drains only uploaded media ids", async () => {
   const hook = await renderHook(() => useAttachments(client, "thr_chat"));
   let uploaded: unknown;
@@ -81,7 +100,7 @@ test("rejects oversized files before reading and reports upload failures without
   const hook = await renderHook(() => useAttachments(client, undefined));
   await act(async () => {
     expect(
-      await hook.result.current.upload("file://huge", "huge.pdf", "application/pdf", 2 * 1024 * 1024 + 1),
+      await hook.result.current.upload("file://huge", "huge.pdf", "application/pdf", 20 * 1024 * 1024 + 1),
     ).toBeUndefined();
   });
   expect(mockBase64).not.toHaveBeenCalled();

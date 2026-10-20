@@ -26,8 +26,13 @@ export const composerMethods = {
       .object({
         name: z.string().trim().min(1).max(200),
         mime: z.string().max(100),
-        /** base64; audio up to 10 MB, images up to 5 MB, other files up to 2 MB. */
-        data: z.string().max(Math.ceil((UPLOAD_LIMITS.audioBytes * 4) / 3) + 8),
+        /** Base64; per-kind decoded limits are enforced when storing the upload. */
+        data: z
+          .string()
+          .max(
+            Math.ceil((Math.max(UPLOAD_LIMITS.fileBytes, UPLOAD_LIMITS.audioBytes, UPLOAD_LIMITS.imageBytes) * 4) / 3) +
+              8,
+          ),
         thread: Id.optional(),
       })
       .strict(),

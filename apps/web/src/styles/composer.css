@@ -183,6 +183,9 @@
 .attchip.is-error {
   border-color: var(--apx-danger);
   color: var(--apx-danger);
+  max-width: 100%;
+  height: auto;
+  min-height: 36px;
 }
 .attchip__thumb {
   width: 28px;
@@ -202,6 +205,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.attchip.is-error .attchip__name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding-block: 6px;
 }
 .attchip__spin {
   flex: none;

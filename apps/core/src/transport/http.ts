@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import { type ClientScope, methodOpen } from "@apx/protocol";
+import { type ClientScope, FILE_PAYLOAD_BYTES, methodOpen } from "@apx/protocol";
 import {
   injectSurfaceHead,
   surfaceLayoutCss,
@@ -22,7 +22,7 @@ const FILE_METHODS: ReadonlySet<string> = new Set([
   "skills.preview",
   "skills.import",
 ]);
-const MAX_FILE_BODY = 16 * 1024 * 1024;
+const MAX_FILE_BODY = FILE_PAYLOAD_BYTES;
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
