@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import type { ToolContext } from "../tools/types.ts";
-import { learningWorld } from "./memory-learning-world.ts";
+import { type LearningScenario, learningWorld } from "./memory-learning-world.ts";
 
 const ctx = { agent: { slug: "learner" } } as ToolContext;
 async function exercise(o: {
@@ -196,3 +196,64 @@ test("the delivery tool declares and enforces boolean result fields", () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+for (const variant of ["producer", "parent-summary", "parent-only", "wrong-producer", "review-only"] as const)
+  test(`production scoring evaluates the responsible agent's artifact: ${variant}`, async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-producer-"));
+    try {
+      const world = learningWorld(dir, {
+        id: 19,
+        name: "Production role",
+        teach: [],
+        roleSelection: true,
+        queries: [{ text: "Have the producer create the file", expect: { format: "markdown", audience: "internal" } }],
+      });
+      const deliver = world.tools.find((tool) => tool.name === "deliver_report");
+      assert.ok(deliver);
+      const report = { format: "Markdown", audience: "internal" };
+      world.evaluate();
+      if (variant !== "parent-only")
+        await deliver.run({ report: { ...report, ...(variant === "wrong-producer" ? { format: "CSV" } : {}) } }, {
+          agent: { slug: variant === "review-only" ? "lead" : "producer" },
+        } as ToolContext);
+      if (["parent-summary", "parent-only", "wrong-producer"].includes(variant))
+        await deliver.run({ report: { ...report, heading: "Delivery summary" } }, ctx);
+      const failures = world.evaluateDelivery(0);
+      if (variant === "producer" || variant === "parent-summary") assert.deepEqual(failures, []);
+      else assert.match(failures.join("\n"), variant === "wrong-producer" ? /unexpected format/ : /production agent/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+for (const heading of [
+  "Decisión",
+  "Decisión: aprobar",
+  "Decision — approve",
+  "Decisión - aprobar",
+  "Decisión—aprobar",
+  "Decisión-aprobar",
+  "No decisión",
+  "Resumen decisión",
+  "Decisiones",
+])
+  test(`confirmed-style scoring respects heading word boundaries: ${heading}`, async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-heading-"));
+    try {
+      const scenarios = JSON.parse(
+        fs.readFileSync(new URL("../../../../scripts/memory-learning.scenarios.json", import.meta.url), "utf8"),
+      ) as LearningScenario[];
+      const scenario = scenarios.find((entry) => entry.id === 2);
+      assert.ok(scenario);
+      const world = learningWorld(dir, scenario);
+      world.evaluate();
+      const deliver = world.tools.find((tool) => tool.name === "deliver_report");
+      assert.ok(deliver);
+      await deliver.run({ report: { heading } }, ctx);
+      if (["No decisión", "Resumen decisión", "Decisiones"].includes(heading))
+        assert.match(world.evaluateDelivery(0).join("\n"), /unexpected heading/);
+      else assert.deepEqual(world.evaluateDelivery(0), []);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });

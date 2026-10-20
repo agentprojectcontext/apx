@@ -175,9 +175,19 @@ function scoreDelivery(
 ) {
   const { scenario, calls, deliveries, artifact, currentRoute, originalRoute } = state;
   const query = scenario.queries[index];
-  const report = deliveries.at(-1);
+  const delivered = scenario.roleSelection
+    ? calls.findLast(
+        (call) => call.phase === "evaluation" && call.tool === "deliver_report" && call.agent === "producer",
+      )?.delivery
+    : deliveries.length;
+  const report = delivered ? deliveries[delivered - 1] : undefined;
   const failures: string[] = [];
-  if (!report) return ["no report artifact was delivered"];
+  if (!report)
+    return [
+      scenario.roleSelection
+        ? "production work did not reach the production agent"
+        : "no report artifact was delivered",
+    ];
   for (const [key, pattern] of Object.entries(query?.expect ?? {}))
     if (
       !new RegExp(`^(?:${pattern})$`, "i").test(String(report[key])) ||
@@ -189,7 +199,7 @@ function scoreDelivery(
   if (scenario.requireRoute && report.route !== currentRoute) failures.push("reported route is not the current route");
   if (scenario.asset) {
     const delivery = calls.findLastIndex(
-      (c) => c.phase === "evaluation" && c.tool === "deliver_report" && c.delivery === deliveries.length,
+      (c) => c.phase === "evaluation" && c.tool === "deliver_report" && c.delivery === delivered,
     );
     const inspection = calls.findLastIndex(
       (c, index) =>
@@ -230,12 +240,6 @@ function scoreDelivery(
       failures.push("did not reuse the confirmed method before rediscovering it");
     if (calls.some((c) => c.phase === "evaluation" && c.tool === "fetch_asset"))
       failures.push("repeated the known failed download path");
-  }
-  if (scenario.roleSelection) {
-    const delivered = calls.findLast(
-      (c) => c.phase === "evaluation" && c.tool === "deliver_report" && c.delivery === deliveries.length,
-    );
-    if (delivered?.agent !== "producer") failures.push("production work did not reach the production agent");
   }
   const attempts = calls.filter((c) => c.phase === "evaluation" && c.tool === "prepare_asset");
   if (scenario.asset === "change" && attempts.filter((c) => c.route === originalRoute).length > 1)

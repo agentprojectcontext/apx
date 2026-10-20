@@ -24,7 +24,7 @@
       {
         "text": "Prepará informe ejecutivo nuevo. Incluí heading con aquello que debe abrirlo; si no conocés preferencia duradera, usá resumen.",
         "expect": {
-          "heading": "decisi[oó]n(?: .*)?|decision(?: .*)?"
+          "heading": "decisi[oó]n(?:[\\s:—–-].*)?"
         }
       }
     ]
