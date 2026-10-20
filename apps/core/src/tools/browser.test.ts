@@ -14,7 +14,11 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
     return { ...callTool(`l${looks}`, "browser_snapshot", { tab: "t1" }), model };
   if (afterTool)
     return { ...say(`Done: ${String(req.messages.findLast((m) => m.role === "tool")?.content).slice(0, 200)}`), model };
-  if (said.includes("wait and look")) return { ...callTool("w1", "browser_snapshot", { tab: "t1", wait_s: 1 }), model };
+  if (said.includes("look"))
+    return {
+      ...callTool("w1", "browser_snapshot", { tab: "t1", ...(said.includes("wait") ? { wait_s: 1 } : {}) }),
+      model,
+    };
   return { ...say("ok"), model };
 });
 
@@ -67,7 +71,7 @@ test("browser_snapshot waits the seconds asked before reading the page", async (
 
 test("browser_snapshot shows the model a picture of the tab, not the chat", async () => {
   const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
-  await env.client.call("threads.send", { thread, text: "wait and look" });
+  await env.client.call("threads.send", { thread, text: "look" });
   await env.settle(thread);
   const shown = llm.calls.at(-1)?.messages.at(-1) as { role: string; images?: Array<{ mime: string }> };
   assert.equal(shown.role, "user");
@@ -81,7 +85,7 @@ test("a model not known to read images gets the snapshot's text alone", async ()
     model = m;
     try {
       const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
-      await env.client.call("threads.send", { thread, text: "wait and look" });
+      await env.client.call("threads.send", { thread, text: "look" });
       await env.settle(thread);
       const call = llm.calls.at(-1);
       assert.match(String(call?.messages.findLast((m) => m.role === "tool")?.content), /Send/, m);
@@ -113,7 +117,7 @@ test("a picture that cannot be kept leaves browser_snapshot with the page's tree
   shot = Buffer.from("not a jpeg at all");
   try {
     const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
-    await env.client.call("threads.send", { thread, text: "wait and look" });
+    await env.client.call("threads.send", { thread, text: "look" });
     await env.settle(thread);
     const call = llm.calls.at(-1);
     assert.match(String(call?.messages.findLast((m) => m.role === "tool")?.content), /Send/);
@@ -126,7 +130,7 @@ test("a picture that cannot be kept leaves browser_snapshot with the page's tree
 test("the turn holds the tab it used while it runs and lets it go when it ends", async () => {
   holds.length = 0;
   const thread = (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
-  await env.client.call("threads.send", { thread, text: "wait and look" });
+  await env.client.call("threads.send", { thread, text: "look" });
   await env.settle(thread);
   for (let i = 0; i < 50 && holds.length < 2; i++) await new Promise((r) => setTimeout(r, 20));
   const run = holds[0]?.run ?? "";

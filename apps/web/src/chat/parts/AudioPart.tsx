@@ -1,3 +1,4 @@
+import "../../styles/audio.css";
 import type { Part } from "@apx/protocol";
 import { Icons } from "@apx/ui";
 import { useRef, useState } from "react";
