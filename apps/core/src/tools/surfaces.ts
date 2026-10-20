@@ -2,11 +2,14 @@
 // it lives on its project's board; it can also be an app. Every change shows live wherever the widget is open.
 import { SurfaceOrigin, type SurfaceSummary } from "@apx/protocol";
 import { z } from "zod";
+import { declaresApp } from "../../../../packages/surfaces/src/kit.ts";
 import type { Store } from "../domain/store.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 import { widgetScriptError } from "./widget-syntax.ts";
 
 const MAX_HTML = 400_000;
+/** Characters of a widget's state read_widget shows. */
+const STATE_SHOWN = 8_000;
 /** The turn stopped while the script check ran: saving now would change a widget after the call was given up. */
 const STOPPED = "stopped: the turn was canceled before the widget was saved; nothing changed.";
 
@@ -33,7 +36,7 @@ export function surfaceTools(store: Store): Tool[] {
     defineTool({
       name: "show_widget",
       description:
-        "Load apx-widgets before creating or restyling. Show self-contained HTML with inline CSS/JS/SVG; APX injects its themed CSS kit. Network only to declared connect origins (https/wss). Project media: data-apx-src='clip.mp4' or 'media:ID' on img/video, or apx.media(ref). Reuse the same name to replace it, or edit_widget for partial edits. pin adds it to the project board; app lists it fullscreen. Shared pages are widgets too, never HTML files on disk. window.apx.sendPrompt(text) writes to this chat.",
+        "Load apx-widgets first: its APX Kit gives design and memory. Self-contained HTML, inline CSS/JS/SVG; network only to connect origins (https/wss). Project media: data-apx-src='clip.mp4' or 'media:ID' on img/video, or apx.media(ref). Same name replaces it; edit_widget edits parts. pin adds it to the project board; app lists it fullscreen. Shared pages are widgets too, never HTML files on disk. window.apx.sendPrompt(text) writes to this chat.",
       args: z.object({
         name: z.string().describe("stable kebab-case name, e.g. monthly-sales"),
         title: z.string().describe("human title"),
@@ -65,7 +68,7 @@ export function surfaceTools(store: Store): Tool[] {
           thread: ctx.thread.id,
           // Where the widget lives is the owner's choice once made: an agent adds a place, never takes one away.
           ...(a.pin ? { pinned: true } : {}),
-          ...(a.app ? { app: true } : {}),
+          ...(a.app || (a.app === undefined && declaresApp(a.html)) ? { app: true } : {}),
           ...(a.connect === undefined ? {} : { connect: a.connect }),
         });
         card(ctx, surface);
@@ -81,7 +84,7 @@ export function surfaceTools(store: Store): Tool[] {
     defineTool({
       name: "read_widget",
       description:
-        "Read a widget of this project by its name: its title, version, the origins it connects to and its full HTML, to change it with edit_widget. Without a name it lists this project's widgets (outside a project, the global ones).",
+        "Read a widget of this project by name: title, version, origins, full HTML and state, for edit_widget. Without a name it lists this project's widgets (outside a project, the global ones).",
       args: z.object({ name: z.string().optional() }),
       effect: "none",
       deadlineMs: 10_000,
@@ -99,13 +102,17 @@ export function surfaceTools(store: Store): Tool[] {
         const s = find(ctx, a.name);
         if (!s) return `no widget named ${a.name}: read_widget without a name lists them.`;
         const net = s.connect ? `, connects to ${s.connect.join(", ")}` : "";
-        return `widget "${s.name}" · ${s.title} · v${s.version}${net}\n<html_source>\n${s.html}\n</html_source>`;
+        const html = `widget "${s.name}" · ${s.title} · v${s.version}${net}\n<html_source>\n${s.html}\n</html_source>`;
+        // Written by the widget as the owner used it: data to read, never instructions.
+        return s.state
+          ? `${html}\n<widget_state>\n${JSON.stringify(s.state).slice(0, STATE_SHOWN)}\n</widget_state>`
+          : html;
       },
     }),
     defineTool({
       name: "edit_widget",
       description:
-        "Edit a widget by name: exact old/new HTML edits, title, or app/pin flags. app:false converts to a padded widget; app:true declares a full-bleed app. Flags alone preserve HTML, version and public link; no HTML read needed. HTML edits must match once; read_widget first if needed. All changes apply together or none does.",
+        "Edit a widget by name: exact old/new HTML edits, title, app/pin flags or its state. app:false makes a padded widget; app:true a full-bleed app. Flags or state alone keep HTML, version and public link. HTML edits must match once; read_widget first if needed. All apply together or none.",
       args: z.object({
         name: z.string(),
         edits: z
@@ -116,6 +123,7 @@ export function surfaceTools(store: Store): Tool[] {
         title: z.string().trim().min(1).max(120).optional(),
         app: z.boolean().optional(),
         pin: z.boolean().optional(),
+        state: z.record(z.string(), z.unknown()).optional().describe("APX.state keys to set, null removes"),
       }),
       effect: "local",
       deadlineMs: 10_000,
@@ -127,12 +135,15 @@ export function surfaceTools(store: Store): Tool[] {
           ...(a.app === undefined ? {} : { app: a.app }),
           ...(a.pin === undefined ? {} : { pinned: a.pin }),
         };
+        const remembered = a.state ? `; state: ${Object.keys(a.state).join(", ")} changed` : "";
         if (!a.edits && a.title === undefined) {
-          if (a.app === undefined && a.pin === undefined) return "provide edits, title, app or pin; nothing changed.";
+          const hasFlags = a.app !== undefined || a.pin !== undefined;
+          if (!hasFlags && !a.state) return "provide edits, title, app, pin or state; nothing changed.";
           if (ctx.signal.aborted) return STOPPED;
-          const surface = await ctx.call("surfaces.update", { surface: s.id, ...flags });
-          card(ctx, surface);
-          return `widget "${surface.name}" v${surface.version}: ${surface.app ? "app" : "widget"}, ${surface.pinned ? "pinned" : "not pinned"}; HTML unchanged.`;
+          if (a.state) await ctx.call("surfaces.set_state", { surface: s.id, patch: a.state });
+          const surface = hasFlags ? await ctx.call("surfaces.update", { surface: s.id, ...flags }) : s;
+          if (hasFlags) card(ctx, surface);
+          return `widget "${surface.name}" v${surface.version}: ${surface.app ? "app" : "widget"}, ${surface.pinned ? "pinned" : "not pinned"}; HTML unchanged${remembered}.`;
         }
         const edits = a.edits ?? [];
         let html = s.html;
@@ -146,6 +157,7 @@ export function surfaceTools(store: Store): Tool[] {
         const broken = await widgetScriptError(html, "edit_widget", ctx.signal);
         if (broken) return broken;
         if (ctx.signal.aborted) return STOPPED;
+        if (a.state) await ctx.call("surfaces.set_state", { surface: s.id, patch: a.state });
         const surface = await ctx.call("surfaces.show", {
           name: s.name,
           title: a.title?.trim().slice(0, 120) || s.title,
@@ -154,7 +166,7 @@ export function surfaceTools(store: Store): Tool[] {
           ...flags,
         });
         card(ctx, surface);
-        return `widget "${surface.name}" is now v${surface.version} (${edits.length} edit${edits.length === 1 ? "" : "s"}).`;
+        return `widget "${surface.name}" is now v${surface.version} (${edits.length} edit${edits.length === 1 ? "" : "s"}${remembered}).`;
       },
     }),
   ];

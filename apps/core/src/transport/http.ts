@@ -23,6 +23,8 @@ const FILE_METHODS: ReadonlySet<string> = new Set([
   "skills.import",
 ]);
 const MAX_FILE_BODY = FILE_PAYLOAD_BYTES;
+/** The kit's path in any minor version a page names (kit@1.js, kit@1.2.js). */
+const KIT_URL = /^\/_apx\/kit@1(?:\.\d+){0,2}\.js$/;
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -60,6 +62,8 @@ export type PublicPages = {
   artifact(
     token: string,
   ): { title: string; html: string; app?: boolean | undefined; connect?: string[] | undefined } | undefined;
+  /** The APX Kit's source, for pages opened outside APX that load it by its path. */
+  kit?(): string;
 };
 
 /**
@@ -163,6 +167,11 @@ export function httpHandler(
         "cache-control": "no-store",
       });
       res.end(artifactPage(page.title, page.html, page.app));
+      return;
+    }
+    if (req.method === "GET" && KIT_URL.test(url.pathname) && pages?.kit) {
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache" });
+      res.end(pages.kit());
       return;
     }
     if (req.method === "GET" && webDist && serveStatic(webDist, url.pathname, res)) return;

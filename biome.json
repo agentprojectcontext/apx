@@ -13,6 +13,7 @@
       "!packages/ui/playground",
       "!plan",
       "!**/*.html",
+      "!packages/surfaces/src/kit/apx-kit.js",
       "!packages/ui/.design-sync",
       "!apps/mobile/package-lock.json"
     ]

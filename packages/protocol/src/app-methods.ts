@@ -56,6 +56,7 @@ import {
   ServiceTest,
   Surface,
   SurfaceOrigin,
+  SurfaceState,
   SurfaceSummary,
   Thread,
   ToolApproval,
@@ -1733,6 +1734,15 @@ export const appMethods = {
     result: SurfaceSummary,
     effect: true,
     access: "human",
+  },
+  /**
+   * Changes what a widget remembers (APX.state): `patch` keys are set, a null removes one; `replace` starts from empty.
+   * Refused past SURFACE_STATE_MAX characters of JSON. The page and its version stay as they are.
+   */
+  "surfaces.set_state": {
+    params: z.object({ surface: Id, patch: SurfaceState, replace: z.boolean().optional() }).strict(),
+    result: z.object({ state: SurfaceState }),
+    effect: true,
   },
   /** A widget's sendPrompt(): the text goes to the thread that owns the surface, as the user. */
   "surfaces.prompt": {

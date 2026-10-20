@@ -1,5 +1,5 @@
 // Every write the panel makes. Components call these; they never call the client directly.
-import type { ApprovalScope, Message, Part, Thread } from "@apx/protocol";
+import type { ApprovalScope, Message, Part, SurfaceState, Thread } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { type Attached, setThreadModel } from "./composer.ts";
@@ -271,8 +271,11 @@ export async function markRead(threadId: string): Promise<void> {
 
 export async function loadSurfaceDoc(id: string): Promise<void> {
   try {
-    const doc = await client.call("surfaces.get", { surface: id });
-    data.set((s) => ({ surfaceDocs: { ...s.surfaceDocs, [id]: doc } }));
+    const { state, ...doc } = await client.call("surfaces.get", { surface: id });
+    data.set((s) => ({
+      surfaceDocs: { ...s.surfaceDocs, [id]: doc },
+      surfaceStates: { ...s.surfaceStates, [id]: state ?? {} },
+    }));
   } catch (e) {
     notify(t("error.loadWidget", { error: errText(e) }));
   }
@@ -310,6 +313,16 @@ export async function respond(
 }
 
 /** A widget's sendPrompt(): the text goes to the thread that owns the surface. */
+/** A widget changed what it remembers; the core's surface.state event brings the result to every open copy. */
+export async function setSurfaceState(id: string, patch: SurfaceState): Promise<void> {
+  try {
+    const { state } = await client.call("surfaces.set_state", { surface: id, patch });
+    data.set((s) => ({ surfaceStates: { ...s.surfaceStates, [id]: state } }));
+  } catch (e) {
+    notify(t("error.widgetState", { error: errText(e) }));
+  }
+}
+
 export async function surfacePrompt(id: string, text: string): Promise<void> {
   try {
     await client.call("surfaces.prompt", { surface: id, text: text.slice(0, 4000) });

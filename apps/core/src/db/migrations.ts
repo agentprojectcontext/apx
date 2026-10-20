@@ -834,4 +834,6 @@ export const MIGRATIONS: readonly string[] = [
   );
   UPDATE memory_episodes SET embedding = NULL, embedding_model = NULL;
   `,
+  // What a widget remembers between openings and versions (a JSON object written by the widget or its agent).
+  `ALTER TABLE surfaces ADD COLUMN state TEXT;`,
 ];

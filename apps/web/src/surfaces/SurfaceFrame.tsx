@@ -1,7 +1,8 @@
+import { SURFACE_STATE_MAX, type SurfaceState } from "@apx/protocol";
 import { EmptyState, Icons, Skeleton, useApx } from "@apx/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SurfaceLayout } from "../../../../packages/surfaces/src/widget-kit.ts";
-import { loadSurfaceDoc, surfacePrompt } from "../data/actions.ts";
+import { loadSurfaceDoc, setSurfaceState, surfacePrompt } from "../data/actions.ts";
 import { widgetMedia } from "../data/media.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -12,6 +13,10 @@ import { buildSrcdoc, themeCss } from "./srcdoc.ts";
 const PROMPT_GAP_MS = 1500;
 /** Distinct media files one widget may ask for while it is open. */
 const MEDIA_MAX = 40;
+/** A widget's state changes are merged and saved at most this often, whatever it sends. */
+const STATE_GAP_MS = 500;
+/** An app shown inline (in a chat) gets a window of its own height: it fills its viewport rather than grow. */
+const APP_INLINE_H = 640;
 
 export type SurfaceFrameProps = {
   surfaceId: string;
@@ -38,6 +43,10 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
   const lastPrompt = useRef(0);
   const asked = useRef(new Set<string>());
   const version = doc?.version;
+  const remembered = useData((s) => s.surfaceStates[surfaceId]);
+  const rememberedRef = useRef(remembered);
+  rememberedRef.current = remembered;
+  const pendingState = useRef<{ patch: SurfaceState; timer: ReturnType<typeof setTimeout> } | null>(null);
 
   const stale = !doc || (summary != null && summary.version > doc.version);
   // biome-ignore lint/correctness/useExhaustiveDependencies: refetch when the summary version moves
@@ -76,6 +85,22 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
           .catch((err: unknown) => reply({ error: err instanceof Error ? err.message : "media unavailable" }));
         return;
       }
+      if (m.kind === "state" && isPatch((m as { patch?: unknown }).patch)) {
+        const patch = (m as { patch: SurfaceState }).patch;
+        if (JSON.stringify(patch).length > SURFACE_STATE_MAX) return;
+        const queued = pendingState.current;
+        if (queued) Object.assign(queued.patch, patch);
+        else
+          pendingState.current = {
+            patch: { ...patch },
+            timer: setTimeout(() => {
+              const done = pendingState.current;
+              pendingState.current = null;
+              if (done) void setSurfaceState(surfaceId, done.patch);
+            }, STATE_GAP_MS),
+          };
+        return;
+      }
       if (m.kind === "height" && typeof m.height === "number" && Number.isFinite(m.height)) {
         setHeight(Math.max(40, Math.min(maxHeight, Math.round(m.height))));
       } else if (m.kind === "prompt" && typeof m.text === "string" && m.text.trim()) {
@@ -91,10 +116,32 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
     return () => window.removeEventListener("message", onMessage);
   }, [nonce, maxHeight, surfaceId, version]);
 
+  // A change still waiting when the widget closes is saved, not lost.
+  useEffect(
+    () => () => {
+      const queued = pendingState.current;
+      pendingState.current = null;
+      if (!queued) return;
+      clearTimeout(queued.timer);
+      void setSurfaceState(surfaceId, queued.patch);
+    },
+    [surfaceId],
+  );
+
+  // What it remembers, changed elsewhere (its agent, another open copy), reaches the running page without a reload.
+  useEffect(() => {
+    if (remembered) frame.current?.contentWindow?.postMessage({ apx: nonce, kind: "state", state: remembered }, "*");
+  }, [remembered, nonce]);
+
+  // The state is read when the frame is built, never a reason to rebuild it.
   const srcdoc = useMemo(
-    () => (doc && theme ? buildSrcdoc(doc.html, { theme, mode, nonce, connect: doc.connect, layout }) : undefined),
+    () =>
+      doc && theme
+        ? buildSrcdoc(doc.html, { theme, mode, nonce, connect: doc.connect, layout, state: rememberedRef.current })
+        : undefined,
     [doc, theme, mode, nonce, layout],
   );
+  const frameHeight = layout === "app" ? Math.min(maxHeight, APP_INLINE_H) : height;
 
   return (
     <div
@@ -108,7 +155,7 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
           sandbox="allow-scripts"
           srcDoc={srcdoc}
           className="surfaceframe__iframe"
-          style={fit === "fill" ? undefined : { height }}
+          style={fit === "fill" ? undefined : { height: frameHeight }}
         />
       ) : summary || doc ? (
         <Skeleton shape="block" height={fit === "fill" ? "100%" : 120} />
@@ -118,3 +165,5 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
     </div>
   );
 }
+
+const isPatch = (v: unknown): v is SurfaceState => typeof v === "object" && v !== null && !Array.isArray(v);

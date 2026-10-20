@@ -21,6 +21,7 @@ import type { Catalog } from "../models/catalog.ts";
 import { modelSettings, refProblem } from "../models/choice.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
+import { withKit } from "../surface-kit.ts";
 import { checkReadOnly } from "../tools/folders.ts";
 import { projectHelperHandlers } from "./project-helper.ts";
 import type { Handlers } from "./router.ts";
@@ -187,7 +188,13 @@ export function appHandlers(deps: {
     "surfaces.get": ({ surface }) => {
       const s = store.surfaces.get(surface);
       if (!s) throw notFound(`surface ${surface}`);
-      return s;
+      return { ...s, html: withKit(s.html) };
+    },
+    "surfaces.set_state": ({ surface, patch, replace }) => {
+      if (Object.keys(patch).length > 200) throw badRequest("at most 200 keys per change");
+      const state = store.surfaces.setState(surface, patch, replace);
+      if (!state) throw notFound(`surface ${surface}`);
+      return { state };
     },
     "surfaces.show": (p, ctx) => {
       const threadId = p.thread ?? ctx.agent?.thread_id;

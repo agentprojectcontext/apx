@@ -68,6 +68,7 @@ import { threadHandlers } from "./rpc/threads.ts";
 import { transcriptionHandlers } from "./rpc/transcription.ts";
 import type { Secrets } from "./secrets.ts";
 import type { RuntimeHomes } from "./skills/runtimes.ts";
+import { kitSource, withKit } from "./surface-kit.ts";
 import type { Telemetry } from "./telemetry.ts";
 import { agentSetTools } from "./tools/agent-set.ts";
 import { agentTools } from "./tools/agents.ts";
@@ -394,8 +395,9 @@ export async function listen(
       {
         artifact: (t) => {
           const s = d.store.surfaces.byShareToken(t);
-          return s ? { title: s.title, html: s.html, app: s.app, connect: s.connect } : undefined;
+          return s ? { title: s.title, html: withKit(s.html), app: s.app, connect: s.connect } : undefined;
         },
+        kit: kitSource,
       },
       (token) => d.store.clients.byToken(token),
       (token) => d.store.devices.byToken(token),

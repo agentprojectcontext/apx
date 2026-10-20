@@ -8,6 +8,7 @@ import type {
   Project,
   Run,
   Surface,
+  SurfaceState,
   SurfaceSummary,
   TabInfo,
   Thread,
@@ -40,8 +41,10 @@ export type DataState = {
   threadLoad: Record<string, LoadState>;
   runs: Record<string, Run>;
   surfaces: Record<string, SurfaceSummary>;
-  /** Full surface documents (html), fetched on demand. */
+  /** Full surface documents (html), fetched on demand; without their state, which changes apart. */
   surfaceDocs: Record<string, Surface>;
+  /** What each open surface remembers (APX.state), kept live by surface.state events. */
+  surfaceStates: Record<string, SurfaceState>;
   tabs: TabInfo[];
   /** Agent engines (native / Claude Code / Codex): installed → logged in → default. */
   engines: EngineStatus[];
@@ -67,6 +70,7 @@ export const data = createStore<DataState>({
   runs: {},
   surfaces: {},
   surfaceDocs: {},
+  surfaceStates: {},
   tabs: [],
   engines: [],
   enginesLoad: "idle",

@@ -1261,6 +1261,11 @@ export const McpServerStatus = z.object({
 export type McpServerStatus = z.infer<typeof McpServerStatus>;
 
 /** One primitive for widgets, sidebar panels and fullscreen apps. */
+/** Most a widget's state may hold, as JSON characters. */
+export const SURFACE_STATE_MAX = 64_000;
+/** A widget's state: JSON values by key. */
+export const SurfaceState = z.record(z.string().min(1).max(100), z.unknown());
+export type SurfaceState = z.infer<typeof SurfaceState>;
 /** An origin a widget may read live data from: https or wss, a host and maybe a port, nothing else. */
 export const SurfaceOrigin = z
   .string()
@@ -1284,7 +1289,9 @@ export const Surface = z.object({
   share_path: z.string().optional(),
   /** Origins it may connect to for live data (shown to the owner); absent: no network at all. */
   connect: z.array(SurfaceOrigin).max(5).optional(),
+  /** What it remembers (APX.state): kept across openings and new versions, read and written by it and its agent. */
+  state: SurfaceState.optional(),
 });
 export type Surface = z.infer<typeof Surface>;
-export const SurfaceSummary = Surface.omit({ html: true });
+export const SurfaceSummary = Surface.omit({ html: true, state: true });
 export type SurfaceSummary = z.infer<typeof SurfaceSummary>;

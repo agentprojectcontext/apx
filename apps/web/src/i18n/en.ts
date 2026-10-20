@@ -68,6 +68,7 @@ export const en = {
   "error.loadWidget": "Could not load the widget: {error}",
   "error.updateWidget": "Could not update the widget: {error}",
   "error.widgetPrompt": "The widget could not send the message: {error}",
+  "error.widgetState": "The widget could not save what it remembers: {error}",
   "error.browserControl": "Could not change who controls the tab: {error}",
   "error.navigate": "Could not navigate: {error}",
   "error.reload": "Could not reload: {error}",

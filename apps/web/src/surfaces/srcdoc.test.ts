@@ -37,3 +37,13 @@ test("links to the web are left out: they never load here, and one held back wou
   assert.match(doc, /<link rel="icon" href="data:,">/);
   assert.match(doc, /<p>Hi<\/p>/);
 });
+
+test("the frame starts in the panel's mode and with what the widget remembered, which cannot break out of its script", () => {
+  const doc = buildSrcdoc("<p>Hi</p>", { ...opts, state: { note: "</script><img src=x onerror=alert(1)>", n: 2 } });
+  assert.match(doc, /setAttribute\("data-ax-mode","dark"\)/);
+  assert.doesNotMatch(doc, /<\/script><img/);
+  const bridge = /<script>([\s\S]*?)<\/script>/.exec(doc)?.[1] ?? "";
+  const initial = /var ST=(\{.*?\}),subs=/.exec(bridge)?.[1] ?? "";
+  assert.deepEqual(JSON.parse(initial), { note: "</script><img src=x onerror=alert(1)>", n: 2 });
+  assert.match(bridge, /window\.apx=Object\.freeze\(\{host:"apx",sendPrompt:sendPrompt,media:media,state:state\}\)/);
+});

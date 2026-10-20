@@ -71,6 +71,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "error.loadWidget": "No se pudo cargar el widget: {error}",
   "error.updateWidget": "No se pudo actualizar el widget: {error}",
   "error.widgetPrompt": "El widget no pudo enviar el mensaje: {error}",
+  "error.widgetState": "El widget no pudo guardar lo que recuerda: {error}",
   "error.browserControl": "No se pudo cambiar el control: {error}",
   "error.navigate": "No se pudo navegar: {error}",
   "error.reload": "No se pudo recargar: {error}",
