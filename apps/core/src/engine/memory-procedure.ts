@@ -28,6 +28,9 @@ const RECENT_MS = 3_600_000;
 /** Owner replies that say the previous turn's work did what they wanted. */
 const CONFIRMS =
   /^(genial|perfecto|perfect|excelente|joya|buen[ií]simo|b[aá]rbaro|funcion[oó]|anduvo|sali[oó] bien|great|awesome|it works|it worked|works|worked|nice)\b/;
+/** Read on memoryPlain text, where "didn't" is "didn t": a "great" over any of these is a complaint, not a yes. */
+const COMPLAINS =
+  /\b(pero|but|aunque|however|sin embargo|no|not|nada|nothing|nunca|never|ningun\w*|\w+n t|didnt|doesnt|dont|isnt|wasnt|fall\w*|fail\w*|falt\w*|missing|todavia|still|sigue|igual|error\w*|roto|broke\w*|mal)\b/;
 
 /** Never kept in a note: credentials, and commands or addresses that carry one. */
 const unsafe = (v: string) =>
@@ -37,15 +40,10 @@ const unsafe = (v: string) =>
 const textOf = (m: { parts: Array<{ type: string; text?: string }> }) =>
   m.parts.flatMap((p) => (p.type === "text" ? [p.text ?? ""] : [])).join("\n");
 
-/** A short reply confirming success ("genial, funcionó"), not a question or a "great, but…". */
+/** A short reply confirming success ("genial, funcionó"), not a question, a "great, but…" or a "great, it failed". */
 export function confirmsSuccess(text: string): boolean {
   const plain = memoryPlain(text);
-  return (
-    text.length <= 120 &&
-    !/[?¿]/.test(text) &&
-    CONFIRMS.test(plain) &&
-    !/\b(pero|but|aunque|however|sin embargo)\b/.test(plain)
-  );
+  return text.length <= 120 && !/[?¿]/.test(text) && CONFIRMS.test(plain) && !COMPLAINS.test(plain);
 }
 
 /**

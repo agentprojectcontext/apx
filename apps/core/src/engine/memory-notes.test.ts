@@ -212,6 +212,21 @@ test("the owner confirming it worked keeps the previous turn's procedure; a 'gre
   assert.equal(confirmsSuccess("Perfecto!"), true);
   assert.equal(confirmsSuccess("genial pero no bajó el audio"), false);
   assert.equal(confirmsSuccess("funcionó?"), false);
+  assert.equal(confirmsSuccess("buenísimo"), true);
+  for (const complaint of [
+    "Genial, no funcionó",
+    "genial, no anda",
+    "perfecto, falla igual",
+    "joya, no hizo nada",
+    "bárbaro, no sirvió",
+    "excelente, falta el audio",
+    "great, it didn't work",
+    "great, it didn’t work",
+    "nice, still doesn't work",
+    "awesome, it fails",
+    "works? no",
+  ])
+    assert.equal(confirmsSuccess(complaint), false, complaint);
   const log: string[] = [];
   // A bare origin, as typed, is a target too.
   const llm = downloadingLlm(false, "https://Reelsaver.example.com");
@@ -224,6 +239,10 @@ test("the owner confirming it worked keeps the previous turn's procedure; a 'gre
     await env.settle(chat.id);
     await settleJobs(env);
     assert.equal((await procedures(env)).length, 0, "a clean run with no confirmation is not a procedure yet");
+    await env.client.call("threads.send", { thread: chat.id, text: "Genial, no funcionó" });
+    await env.settle(chat.id);
+    await settleJobs(env);
+    assert.equal((await procedures(env)).length, 0, "a positive opener over a complaint confirms nothing");
     await env.client.call("threads.send", { thread: chat.id, text: "genial, funcionó" });
     await env.settle(chat.id);
     await until(async () => (await procedures(env)).length === 1, "the confirmed procedure");
