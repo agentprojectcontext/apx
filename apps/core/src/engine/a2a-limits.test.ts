@@ -1,8 +1,9 @@
 // A delegated run works while it makes progress, stops at its cap, and when a limit cuts it short it is not lost:
 // APX goes on once in the same session, the owner hears which agent hit which limit, and the caller can stop it.
 import assert from "node:assert/strict";
-import { after, before, type TestContext, test } from "node:test";
+import { after, afterEach, before, beforeEach, type TestContext, test } from "node:test";
 import type { Part } from "@apx/protocol";
+import type { ApxSocket } from "@apx/protocol/client";
 import { z } from "zod";
 import { fakeTelegram } from "../channels/fake-telegram.test-support.ts";
 import { telegramAdapter } from "../channels/telegram.ts";
@@ -76,9 +77,14 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
 });
 
 let env: Awaited<ReturnType<typeof startCore>>;
+let operator: ApxSocket;
 before(async () => {
   env = await startCore({ llm, extraTools: [slowStep], turnIdleMs: IDLE_MS, a2aCapMs: CAP_MS });
 });
+beforeEach(async () => {
+  operator = await env.client.connect("operator");
+});
+afterEach(() => operator?.close());
 after(async () => {
   await env.core.close();
   env.cleanup();
@@ -96,8 +102,8 @@ async function until<T>(get: () => T | undefined | false, what: string, ms = 15_
 
 /** The owner's chat with the caller, after it delegated: the chat and the session it opened. */
 async function delegated(text: string) {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: text });
-  await env.client.call("threads.send", { thread: t.id, text });
+  const t = await operator.call("threads.create", { kind: "loose", agent_id: "roby", title: text });
+  await operator.call("threads.send", { thread: t.id, text });
   const sub = await until(() => env.core.store.threads.sessions(t.id)[0], "the session");
   return { thread: t.id, sub: sub.id };
 }
@@ -133,9 +139,9 @@ test("a delegated run that keeps making progress works past its idle window", as
 });
 
 test("a caller waiting on a delegate at work is held too, past its own idle window", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "inline steady" });
-  await env.client.call("threads.send", { thread: t.id, text: "delegate steady inline" });
-  const { runs } = await env.settle(t.id, 15_000);
+  const t = await operator.call("threads.create", { kind: "loose", agent_id: "roby", title: "inline steady" });
+  await operator.call("threads.send", { thread: t.id, text: "delegate steady inline" });
+  const runs = await ended(t.id, 1);
   assert.equal(runs[0]?.state, "completed", runs[0]?.error);
   assert.equal(runs[0]?.end_reason, "normal");
   const reply = llm.calls.flatMap((c) => c.messages).findLast((m) => m.role === "tool" && m.tool_call_id === "d1");
@@ -226,9 +232,9 @@ test("cut short twice, the caller gets a progress report with the way to continu
 });
 
 test("a caller still waiting gets the progress report itself, and APX neither goes on nor adds a notice", async () => {
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "inline" });
-  await env.client.call("threads.send", { thread: t.id, text: "delegate quiet inline" });
-  await env.settle(t.id, 15_000);
+  const t = await operator.call("threads.create", { kind: "loose", agent_id: "roby", title: "inline" });
+  await operator.call("threads.send", { thread: t.id, text: "delegate quiet inline" });
+  await ended(t.id, 1);
   const sub = env.core.store.threads.sessions(t.id)[0]?.id ?? "";
   assert.equal(runsOf(sub).length, 1);
   const reply = String(
@@ -253,7 +259,7 @@ test("the caller can stop a session it started, and the tool is offered only whi
       )?.tools,
     );
   assert.doesNotMatch(offered("delegate forever"), /stop_session/);
-  await env.client.call("threads.send", { thread, text: "stop forever" });
+  await operator.call("threads.send", { thread, text: "stop forever" });
   const [run] = await ended(sub, 1);
   assert.equal(run?.state, "canceled");
   assert.match(offered("stop forever"), /stop_session/);
