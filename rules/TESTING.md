@@ -179,7 +179,8 @@ going over fails. Raising a budget is a regression: it needs a reason in the com
 
 ## CI
 `.github/workflows/verify.yml` runs `preflight`, `e2e`, the desktop e2e (under xvfb) and `perf` on every push to
-`release/v2`, every `v*` tag and every pull request; reports (Playwright HTML, failed-test snapshots, `e2e/.out/perf.json`) are kept 14 days. Its
+`release/v2` and every pull request; release tags build installers and publication requires verification of the exact
+commit on `release/v2`, without running the full suite again for the tag; reports (Playwright HTML, failed-test snapshots, `e2e/.out/perf.json`) are kept 14 days. Its
 `autofix` job is off by default: with the repo variable `APX_AUTOFIX=true` and the secret `ANTHROPIC_API_KEY`, a
 failure on main hands the reports to an agent that fixes the cause and opens a pull request (never merged on its
 own, never by weakening a gate).

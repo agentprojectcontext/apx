@@ -37,7 +37,8 @@ v2 is published into v1's public repo (`agentprojectcontext/apx`), which every v
 
 The release starts as a draft. After all desktop, daemon and Android jobs upload successfully, the publication
 job waits for the `verify.yml` run on `release/v2` for that exact tag commit to pass, then exposes it to update
-clients and announcements. Failed builds or verification leave the draft available for repair.
+clients and announcements. Failed builds or verification leave the draft available for repair. Tags build the
+release artifacts; verification runs on the branch commit once, rather than duplicating the same suites for its tag.
 
 `release.yml` on a `v2.x.y` tag: for linux x64/arm64, win x64, mac arm64/x64 the desktop installer (AppImage, NSIS
 `.exe`, `.dmg`, plus a `.zip`), the daemon bundle `apx-core-<v>-<os>-<arch>.tar.gz`, a `.sha256` beside each,

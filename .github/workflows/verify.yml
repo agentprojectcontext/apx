@@ -1,13 +1,12 @@
-# Every push to release/v2 (v2's branch in the public repo, where main is v1), every release tag and every pull
-# request: the repo gates (preflight), the whole app end to end
+# Every push to release/v2 and every pull request: the repo gates (preflight), the whole app end to end
 # in its own sandbox (Playwright against e2e/env.ts: temp home, fake model, emulated Telegram) and the lightness
 # budgets (scripts/perf.ts). Reports are kept as artifacts.
+# Release tags build installers; publication requires this workflow to pass for the exact branch commit.
 name: verify
 
 on:
   push:
     branches: [release/v2]
-    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
