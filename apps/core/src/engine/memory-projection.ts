@@ -30,12 +30,18 @@ export function snapshotOf(
   };
 }
 
+/** The runs whose turns are in the projected model history, and the current one. */
+export function windowRuns(entries: LogEntry[], from: number, currentRun: string): Set<string> {
+  const runs = new Set([currentRun]);
+  for (const entry of entries) if (entry.seq >= from && entry.run_id) runs.add(entry.run_id);
+  return runs;
+}
+
 /** Avoid re-injecting original turns or source fragments that remain in the projected model history. */
 export function visibleMemoryRuns(store: Store, entries: LogEntry[], from: number, currentRun: string): Set<string> {
-  const runs = new Set([currentRun]);
+  const runs = windowRuns(entries, from, currentRun);
   for (const entry of entries) {
     if (entry.seq < from) continue;
-    if (entry.run_id) runs.add(entry.run_id);
     const item = entry.item as ChatItem;
     const snapshot = entry.memory;
     if (!snapshot || typeof item.content !== "string" || !item.content.slice(snapshot.start).startsWith(HEADER))

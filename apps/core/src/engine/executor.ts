@@ -127,6 +127,8 @@ export function createExecutor(o: {
   signal: AbortSignal;
   /** Whether untrusted text is already in the context when the turn starts (history or the input itself). */
   untrusted: boolean;
+  /** The thread's runs in the model's projected history, and this one (ToolContext.inView). */
+  inView?: ReadonlySet<string>;
   /** The harness running the turn reaches tools over a deadline-bound call (Claude Code, Codex). */
   external: () => boolean;
   call<M extends MethodName>(
@@ -350,6 +352,7 @@ export function createExecutor(o: {
       run,
       signal,
       untrusted: () => untrusted,
+      ...(o.inView ? { inView: () => o.inView as ReadonlySet<string> } : {}),
       approvalFor: (n) => byName.get(n)?.approval,
       approvalTools: () => [...byName.values()].filter((t) => t.approval).map((t) => t.name),
       // What this agent may run without asking, with no outside content in the turn: by its autonomy, or by an

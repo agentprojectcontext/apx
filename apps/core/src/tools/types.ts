@@ -28,6 +28,8 @@ export type ToolContext = {
   signal: AbortSignal;
   /** Whether outside content (web, another agent, a message) is in this turn's context right now. */
   untrusted(): boolean;
+  /** This thread's runs already in the model's view (projected history and this run): search skips what it sees. */
+  inView?(): ReadonlySet<string>;
   /** The owner-approvable tools of this turn (MCP), by name: what an agent may hand to another one. */
   approvalFor?(name: string): ApprovalTarget | undefined;
   approvalTools?(): string[];

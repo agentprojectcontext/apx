@@ -348,3 +348,42 @@ test("read_chat expands an old message beyond the latest page and honors forgott
     isolated.cleanup();
   }
 });
+
+test("search reaches this chat's own earlier steps outside the model's view, without repeating the visible window", async () => {
+  const model = scriptedLlm((req, { said, afterTool }) => {
+    if (afterTool) return say(String(req.messages.at(-1)?.content));
+    if (said === "how did snapinsta work") return callTool("h1", "search_chats", { query: "snapinsta" });
+    return say("noted");
+  });
+  const isolated = await startCore({ llm: model });
+  try {
+    const store = isolated.core.store;
+    // A run of this same chat whose model history is gone from the projection (older than the window).
+    const old = store.runs.create({
+      thread_id: "home",
+      agent_id: "roby",
+      trigger: "user",
+      input: { origin: { kind: "user" }, text: "download this reel" },
+      deadline_at: new Date(Date.now() + 60_000).toISOString(),
+    });
+    store.runs.setState(old, "completed");
+    store.runs.beginStep(old.id, {
+      call_id: "o1",
+      tool: "browser_open",
+      args: { url: "https://snapinsta.example.com/reel" },
+      effect: "none",
+    });
+    store.runs.endStep(old.id, "o1", "ok", "Page opened");
+    // A turn still in view: its words and its own search must not come back as found.
+    await isolated.client.call("threads.send", { thread: "home", text: "how did snapinsta work" });
+    await isolated.settle("home");
+    await isolated.client.call("threads.send", { thread: "home", text: "how did snapinsta work" });
+    const text = texts((await isolated.settle("home")).messages).at(-1) ?? "";
+    assert.match(text, /\[Home · chat home\] .* Roby called browser_open .*snapinsta\.example\.com.* → Page opened/);
+    assert.doesNotMatch(text, /called search_chats/, "steps of visible runs are already in context");
+    assert.doesNotMatch(text, /Owner: how did snapinsta work/, "messages of visible runs are already in context");
+  } finally {
+    await isolated.core.close();
+    isolated.cleanup();
+  }
+});

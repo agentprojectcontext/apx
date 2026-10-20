@@ -220,3 +220,38 @@ test("episode scan skips discarded batches, rolls back interrupted progress and 
     env.cleanup();
   }
 });
+
+test("recall brings back how the agent did an earlier request: its completed tool calls, not failed or secret ones", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("Downloaded it.")) });
+  try {
+    const old = await source(env, "Download the Acme launch reel from Instagram for me.");
+    const store = env.core.store;
+    const step = (id: string, tool: string, args: Record<string, unknown>, state: "ok" | "error") => {
+      store.runs.beginStep(old.run.id, { call_id: id, tool, args, effect: "none" });
+      store.runs.endStep(old.run.id, id, state, state === "ok" ? "done" : "failed");
+    };
+    step("a", "browser_open", { url: "https://downloader.example.com" }, "error");
+    step("b", "browser_open", { url: "https://snapinsta.example.com" }, "ok");
+    step("c", "browser_type", { text: "password hunter2" }, "ok");
+    step("d", "browser_click", { ref: "download" }, "ok");
+    const target = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    const snapshot = await recallChats(
+      store,
+      indexWith([old.episode]),
+      "roby",
+      target,
+      "download the reel like before",
+    );
+    const text = snapshot?.render() ?? "";
+    assert.match(
+      text,
+      /"your_actions":\["browser_open \{\\"url\\":\\"https:\/\/snapinsta\.example\.com\\"\}","browser_click/,
+    );
+    assert.match(text, /tool calls you made for them then/);
+    assert.doesNotMatch(text, /downloader\.example\.com/, "a failed call is not how it was done");
+    assert.doesNotMatch(text, /hunter2/);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});
