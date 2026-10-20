@@ -1,4 +1,4 @@
-import type { MemoryEvidence } from "@apx/protocol";
+import type { Memory, MemoryEvidence } from "@apx/protocol";
 import { memorySensitive } from "../domain/memories.ts";
 import { duplicateMemory, durableMemory, factSupported } from "../domain/memory-content.ts";
 import { evidenceIsLive, memoryClaimKey } from "../domain/memory-evidence.ts";
@@ -8,6 +8,17 @@ import type { Store } from "../domain/store.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import { CaptureCandidates, candidateEvidence, memoryJson } from "./memory-review.ts";
 
+/** Only this notebook can deduplicate a private capture; pending global notes cannot certify it. */
+export function captureNotebook(store: Store, job: Pick<MemoryWork, "agent_id" | "project_id">): Memory[] {
+  const view = { agent_id: job.agent_id, project_id: job.project_id ?? undefined };
+  return store.memories
+    .list({ view, scope: "agent", agent_id: job.agent_id, project_id: view.project_id, limit: 500 })
+    .filter((m) => m.project_id === (job.project_id ?? undefined));
+}
+
+export const captureNeedsEvidence = (note: Memory) =>
+  note.source === "agent" && !note.evidence?.length && !note.pending;
+
 export function captureCandidates(store: Store, job: MemoryWork, out: string) {
   const run = store.runs.get(job.run_id);
   if (!run) return [];
@@ -16,6 +27,8 @@ export function captureCandidates(store: Store, job: MemoryWork, out: string) {
     kind: "user" | "feedback" | "project" | "reference";
     text: string;
     evidence: MemoryEvidence[];
+    id?: string;
+    expected_revision?: number;
   }> = [];
   for (const candidate of CaptureCandidates.parse(memoryJson(out)).memories) {
     const evidence = candidateEvidence(candidate);
@@ -30,8 +43,15 @@ export function captureCandidates(store: Store, job: MemoryWork, out: string) {
       store.memories.excluded(view, text)
     )
       continue;
-    if (store.memories.list({ view, limit: 500 }).some((m) => duplicateMemory(m.text, text))) continue;
-    result.push({ kind: candidate.kind, text, evidence });
+    const duplicates = captureNotebook(store, job).filter((m) => duplicateMemory(m.text, text));
+    if (duplicates.some((m) => !captureNeedsEvidence(m))) continue;
+    const repair = duplicates[0];
+    result.push({
+      kind: candidate.kind,
+      text,
+      evidence,
+      ...(repair ? { id: repair.id, expected_revision: repair.revision } : {}),
+    });
   }
   return result;
 }
@@ -62,7 +82,7 @@ export async function captureMemories(
         agent: { id: job.agent_id, thread_id: job.thread_id, run_id: job.run_id },
         memoryReviewed: reviewed,
       },
-      `capture:${job.id}:${key}`,
+      `capture:${job.id}:${key}:${candidate.id ?? "new"}:${candidate.expected_revision ?? 0}`,
     );
     changed++;
   }

@@ -50,6 +50,14 @@ export function canUseChatMemory(
   current: { id?: string; project_id?: string | undefined },
   note: Memory,
 ): boolean {
+  if (note.source === "agent" && note.scope === "agent" && note.agent_id) {
+    const view = { agent_id: note.agent_id, project_id: current.project_id };
+    if (
+      store.memories.excluded(view, note.text, { run_id: note.run_id }) ||
+      note.evidence?.some((e) => store.memories.excluded(view, e.quote, { message_id: e.message_id }))
+    )
+      return false;
+  }
   if (!current.id || !note.thread_id || current.id === note.thread_id) return true;
   const context = store.threads.context(current.id);
   if (!context.memory_family || store.threads.context(note.thread_id).memory_family !== context.memory_family)

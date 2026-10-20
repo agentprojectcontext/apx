@@ -292,6 +292,7 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
         reason?: string;
         evidence?: MemoryEvidence[];
         kind?: Memory["kind"];
+        provenance?: { thread_id: string; run_id: string; author_agent: string };
       },
     ): Memory | undefined {
       return tx(() => {
@@ -309,6 +310,7 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
               revision: (previous.revision ?? 1) + 1,
               ...(o.evidence ? { evidence: JSON.stringify(o.evidence) } : {}),
               ...(o.kind ? { kind: o.kind } : {}),
+              ...(o.provenance ?? {}),
               tainted: o.tainted ? 1 : 0,
               pending: o.pending ? 1 : 0,
               updated_at: now(),

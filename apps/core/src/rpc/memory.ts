@@ -109,6 +109,12 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
         if (!m) throw notFound(`memory ${id}`);
         if (view && (m.source === "owner" || !canSee(view, m)))
           throw unauthorized("an agent can only edit notes agents wrote that it can see");
+        if (
+          view &&
+          evidence?.length &&
+          (m.scope !== "agent" || m.agent_id !== view.agent_id || m.project_id !== view.project_id || m.forgotten_at)
+        )
+          throw unauthorized("automatic evidence can only update this agent's private notebook");
         // The owner vouches for what they write; an agent's note is tainted unless its tool says the turn was clean,
         // and a note about the owner it rewrites waits for the owner again.
         const edited = store.memories.edit(id, text, {
@@ -117,6 +123,15 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
           ...(expected_revision !== undefined ? { expectedRevision: expected_revision } : {}),
           ...(kind ? { kind } : {}),
           ...(evidence ? { evidence } : text !== m.text || !view ? { evidence: [] } : {}),
+          ...(view && ctx.agent && (evidence?.length || text !== m.text)
+            ? {
+                provenance: {
+                  thread_id: ctx.agent.thread_id,
+                  run_id: ctx.agent.run_id,
+                  author_agent: ctx.agent.id,
+                },
+              }
+            : {}),
         });
         if (!edited) throw badRequest("memory changed; reload before editing");
         invalidateMemorySummaries(store);

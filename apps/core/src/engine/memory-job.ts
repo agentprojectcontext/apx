@@ -9,7 +9,7 @@ import type { MemoryWork } from "../domain/memory-work.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { InternalCall } from "../rpc/internal.ts";
-import { captureCandidates, captureMemories } from "./memory-capture.ts";
+import { captureCandidates, captureMemories, captureNeedsEvidence, captureNotebook } from "./memory-capture.ts";
 import { applyDream, DREAM, type DreamPass, dreamInput, retirementClaims } from "./memory-dream.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { CaptureCandidates, MEMORY_REVIEW, memoryJson, RETIRE_REVIEW, ReviewVerdicts } from "./memory-review.ts";
@@ -132,7 +132,13 @@ export async function performMemoryJob(
       job.kind === "capture" ? CAPTURE : DREAM,
       JSON.stringify(
         job.kind === "capture"
-          ? { messages: source, existing: notes.slice(0, 32).map((m) => m.text) }
+          ? {
+              messages: source,
+              existing: captureNotebook(store, job)
+                .filter((m) => !captureNeedsEvidence(m))
+                .slice(0, 32)
+                .map((m) => m.text),
+            }
           : dreamInput(notes, total),
       ),
       about,
