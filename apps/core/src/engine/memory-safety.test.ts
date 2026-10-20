@@ -4,6 +4,7 @@ import { openDb } from "../db/db.ts";
 import { duplicateMemory } from "../domain/memory-content.ts";
 import { qb, sql } from "../domain/sql.ts";
 import { notesText } from "../tools/memory.ts";
+import { supportMemoryClaims } from "./memory-testkit.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 function gate() {
@@ -27,6 +28,7 @@ for (const action of ["off", "archive", "delete"] as const)
     const entered = gate(),
       response = gate();
     const llm = scriptedLlm(async (req, { system }) => {
+      if (system.startsWith("Validate memory")) return supportMemoryClaims(req);
       if (system.startsWith("Extract durable")) {
         const data = JSON.parse(String(req.messages.at(-1)?.content));
         entered.release();
@@ -208,6 +210,7 @@ test("deleting an agent removes private revision text as well as live notes", as
 
 test("an interrupted capture resumes once after restart without duplicate memories", async () => {
   const llm = scriptedLlm((req, { system }) => {
+    if (system.startsWith("Validate memory")) return supportMemoryClaims(req);
     if (system.startsWith("Extract durable")) {
       const source = JSON.parse(String(req.messages.at(-1)?.content)).messages[0];
       return say(

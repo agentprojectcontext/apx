@@ -1491,3 +1491,44 @@ both, and `memorySources` reads the same rule in SQL. The owner's own channel ch
 like Home; contacts, rooms, external clients, subthreads, workers and engine sessions stay excluded. A closing word the
 channel keeps without a turn ("buenísimo") reaches memory through `ownerReplied`, so a confirmation there can still
 leave a procedure note.
+
+
+<a id="d-114"></a>
+## D-114 — 2026-10-20 — Evidence-backed learning and reviewed retirement
+D-112's lexical checks protect numbers and vocabulary, but cannot establish who prefers which format or whether a
+reason was actually stated. Capture now reads at most three eligible owner turns, anchored before the source run,
+and keeps up to four literal evidence quotes. Deterministic checks remain; a separate helper call validates each
+candidate's relationships, scope, exceptions and reasons. Only an unambiguous supported verdict receives an internal
+certificate bound to the exact text and evidence. `memory.add` requires it for automatic synthesis. Explicit
+`remember` remains the agent's immediate write path and carries no claim of automatic semantic validation.
+
+Extraction and review each reserve one logical gateway call from the existing daily memory allowance. Checkpoints
+retain extraction and verdicts across retries and quota deferral, so a second-stage limit does not repeat extraction.
+The gateway may retry a transient transport failure; the allowance counts gateway requests, not HTTP attempts. Settings,
+source eligibility, exclusions and project boundaries are rechecked before later calls and before persistence.
+
+Procedure history now requires the owner's actual positive confirmation or the narrow observable criterion that a
+complete file read exactly matches an earlier successful write to the same path. A tool's `ok` state alone never
+establishes success. Evidence stores the confirmation message or the verified write/read call IDs in an optional
+`verification` object, using existing JSON and revision storage. `memory.add` recomputes the proof and checks an
+internal text certificate. Missing legacy metadata remains historical, never upgraded to verified success.
+Safe method targets include export routes; failed attempts have a distinct section validated against error steps.
+Procedure notes remain tainted historical data, grant no permissions and require current-state checks before reuse.
+Other outcomes, such as an API mutation or a browser action, need owner confirmation until a concrete observable
+criterion exists; this change does not treat generic tool outputs as proof.
+
+AutoDream retirement receives a second semantic review for the same assertion and scope, with explicit replacement
+or supported expiry. Internal certificates bind both note revisions and texts. The canonical handler retains private
+scope, taint, snapshot revisions, notebook and daily forget-share guards. Concurrent edits do not become processed
+merely because they appeared after the model read its snapshot. Exact duplicate consolidation remains deterministic.
+
+The five shared prompt rules now cover evidence already present, permitted recovery, role-appropriate delegation,
+known methods in handoffs and scoped memory with supported reasons. Dynamic memory stays in turn input; no new tool,
+permission or prompt-budget exception is introduced. Engine sessions remain outside APX's automatic memory boundary
+(D-113); a CLI session is not an API-backed APX agent.
+
+Behavioral evaluation uses isolated homes, fresh conversations, real model decisions and temporary artifact tools.
+The live runner is opt-in, has explicit call/output caps and stores local reports outside version control. Scripted
+regressions establish infrastructure behavior; they are not evidence of real learning. Artifact scoring rejects
+negated format matches, string success flags, missing outputs and exports without subsequent observation. Reports
+retain failures and model/configuration provenance; passing a finite evaluation never guarantees universal fidelity.

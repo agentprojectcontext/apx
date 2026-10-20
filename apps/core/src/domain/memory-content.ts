@@ -180,11 +180,16 @@ export function procedureSupported(
   text: string,
   steps: Array<{ tool: string; args: Record<string, unknown>; state: string }>,
 ): boolean {
-  const fragments = [...text.matchAll(/`([^`\n]+)`/g)].map((m) => m[1] as string);
-  const said = steps
-    .filter((s) => s.state === "ok")
-    .flatMap((s) => [s.tool, ...Object.values(s.args).flatMap((v) => (typeof v === "string" ? [v] : []))]);
-  return fragments.length > 0 && fragments.every((f) => said.some((v) => v.includes(f)));
+  return (
+    text.split("\n").every((line) => {
+      const failed = line.startsWith("Failed attempts (not the successful method):");
+      const fragments = [...line.matchAll(/`([^`\n]+)`/g)].map((m) => m[1] as string);
+      const said = steps
+        .filter((s) => s.state === (failed ? "error" : "ok"))
+        .flatMap((s) => [s.tool, ...Object.values(s.args).flatMap((v) => (typeof v === "string" ? [v] : []))]);
+      return fragments.every((f) => said.some((v) => v.includes(f)));
+    }) && /`[^`\n]+`/.test(text)
+  );
 }
 
 const POLICY =
@@ -195,6 +200,9 @@ const REQUEST =
   /^((che|bueno|dale|ok|okay|genial|perfecto|y|e|pero|entonces|and|but|so|well|hey|great) )*(podes|podrias|puedes|pueden|podrian|can|could|would|will|please|porfa|por favor|tenemos que|hay que|falta|faltaria|vamos a|lets|let s|we need to|need you to|necesito que|quiero que|fijate|solucion\w*|arregl\w*|termin\w*|complet\w*|hace|hacelo|revis\w*|renombr\w*|import\w*|fix|finish|do|check|run|make|try|go)\b/;
 const TRANSIENT =
   /\b(hoy|ahora|ahi|recien|ayer|manana|esta vez|today|now|tonight|yesterday|tomorrow|this time|afk|creo que|me parece|no se|nose|i think|maybe|quizas|capaz)\b/;
+
+/** Without a durable cue, no literal quote can pass durableMemory; avoid sending transient work to the helper. */
+export const hasDurableCue = (text: string) => POLICY.test(memoryPlain(text)) || DURABLE.test(memoryPlain(text));
 
 /** Automatic capture keeps only standing facts: requests, questions and status updates expire with their chat. */
 export function durableMemory(text: string): boolean {

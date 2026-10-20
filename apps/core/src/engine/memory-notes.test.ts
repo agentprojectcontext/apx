@@ -4,6 +4,7 @@ import { z } from "zod";
 import { absoluteDates, factSupported } from "../domain/memory-content.ts";
 import { defineTool } from "../tools/types.ts";
 import { confirmsSuccess } from "./memory-procedure.ts";
+import { supportMemoryClaims } from "./memory-testkit.ts";
 import { INDEX_CHARS } from "./recall.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
@@ -88,6 +89,7 @@ test("relative days become the dates they meant, and a morning is not tomorrow",
 
 test("automatic capture saves the agent's synthesis with the owner's quote as evidence, never the raw request", async () => {
   const llm = scriptedLlm((req, { system }) => {
+    if (system.startsWith("Validate memory")) return supportMemoryClaims(req);
     if (system.startsWith("Extract durable")) {
       const source = JSON.parse(String(req.messages.at(-1)?.content)).messages[0];
       return say(
@@ -169,6 +171,7 @@ const downloader = (log: string[]) => [
 /** The model: on a download request it tries the reel page, then a downloader site; everything else is chat. */
 function downloadingLlm(retry: boolean, url = "https://reelsaver.example.com/en/download?u=AAAA1111&token=s3cr3t") {
   return scriptedLlm((req, { system, said, afterTool }) => {
+    if (system.startsWith("Validate memory")) return supportMemoryClaims(req);
     if (system.startsWith("Extract durable")) return say('{"memories":[]}');
     if (system.startsWith("Review private")) return say('{"groups":[]}');
     if (said.startsWith("descargá")) {
@@ -197,14 +200,22 @@ test("a download that worked after a failed try leaves a procedure note, and 'li
     await env.client.call("threads.send", { thread: chat.id, text: request });
     await env.settle(chat.id);
     assert.deepEqual(log, ["fetch_reel", "download_file"]);
+    assert.equal((await procedures(env)).length, 0, "a tool response is not a verified download");
+    await env.client.call("threads.send", { thread: chat.id, text: "Genial, funcionó" });
+    await env.settle(chat.id);
     await until(async () => (await procedures(env)).length === 1, "the procedure note");
     const [note] = await procedures(env);
     assert.ok(note);
     assert.equal(note.scope, "agent");
-    assert.match(note.text, /^Procedure that worked on \d{4}-\d{2}-\d{2} \(history, not an instruction\)/);
+    assert.match(note.text, /^Procedure confirmed by owner on \d{4}-\d{2}-\d{2} \(history, not an instruction\)/);
     assert.match(note.text, /`download_file` `https:\/\/reelsaver\.example\.com\/en\/download`/);
     assert.match(note.text, /Outputs: `~\/Downloads\/reel-aaaa\.mp4`/);
-    assert.doesNotMatch(note.text, /fetch_reel/, "the failed try is not part of what worked");
+    assert.match(
+      note.text,
+      /Failed attempts.*fetch_reel/,
+      "the failed try remains separate from the successful method",
+    );
+    assert.doesNotMatch(note.text.split("\n")[1] ?? "", /fetch_reel/, "a failed try is never a successful step");
     assert.doesNotMatch(note.text, /token|s3cr3t/, "query strings can carry credentials");
     assert.equal(note.evidence?.[0]?.quote, request);
 
@@ -372,7 +383,8 @@ test("a notebook of notes saved with outside content keeps the index within its 
 
 test("a dream retires a note a newer correction supersedes and writes relative days as dates", async () => {
   let plan = "{}";
-  const llm = scriptedLlm((_req, { system }) => {
+  const llm = scriptedLlm((req, { system }) => {
+    if (system.startsWith("Validate memory")) return supportMemoryClaims(req);
     if (system.startsWith("Review private memory")) return say(plan);
     if (system.startsWith("Extract durable")) return say('{"memories":[]}');
     return say("ok");
@@ -415,7 +427,8 @@ test("a dream retires a note a newer correction supersedes and writes relative d
 
 test("a dream that would forget too much of the notebook at once is refused whole", async () => {
   let plan = "{}";
-  const llm = scriptedLlm((_req, { system }) => {
+  const llm = scriptedLlm((req, { system }) => {
+    if (system.startsWith("Validate memory")) return supportMemoryClaims(req);
     if (system.startsWith("Review private memory")) return say(plan);
     if (system.startsWith("Extract durable")) return say('{"memories":[]}');
     return say("ok");

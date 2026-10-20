@@ -723,6 +723,14 @@ export type MemoryScope = z.infer<typeof MemoryScope>;
 export const MemoryEvidence = z.object({
   message_id: Id,
   quote: z.string().min(3).max(2000),
+  /** Derived by the core from the owner's confirmation or a read after a write. */
+  verification: z
+    .object({
+      kind: z.enum(["owner_confirmation", "observed_result"]),
+      criterion: z.string().min(3).max(300),
+      step_ids: z.array(z.string().min(1).max(200)).max(8).optional(),
+    })
+    .optional(),
 });
 export type MemoryEvidence = z.infer<typeof MemoryEvidence>;
 export const Memory = z.object({

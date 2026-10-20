@@ -28,10 +28,10 @@ test("the system prompt has no clock and no roster: same agent and thread, same 
   assert.match(a, /Spanish \(Rioplatense/);
   assert.match(a, /Never delegate to yourself/);
   // One rule says when to delegate, and a late hand-off carries what was found.
-  assert.equal(a.match(/^- Delegating:/gm)?.length, 1);
+  assert.equal(a.match(/^- Delegate at the start,/gm)?.length, 1);
   // Who delegates is about what the other agent has, never about the answer's form; work started is finished.
-  assert.match(a, /The answer's form \(a widget, a document, a chart\) is never a reason/);
-  assert.match(a, /once you started \(a skill loaded, the data found\), finish it/);
+  assert.match(a, /A widget, document or chart alone is no reason/);
+  assert.match(a, /Otherwise finish what you started/);
   // A chat's storage kind is never shown raw: it read as a project's name.
   assert.match(systemPrompt(agent, { kind: "loose" }, "es"), /^Thread: chat\.$/m);
   assert.doesNotMatch(a, /^- Other agents:|^- Do your own assigned task|^- Work you hand/m);
@@ -194,9 +194,12 @@ test("an unreadable source is a blocker in the shared rules, not 'not verifiable
     typeof systemPrompt
   >[0];
   const blocker = /unreadable source is a blocker.*never "not verifiable"/s;
-  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /ask_owner for access/);
+  assert.match(systemPrompt(agent, { kind: "home" }, "es"), /Never bypass denied access, a login or a usage limit/);
   assert.match(systemPrompt(agent, { kind: "home" }, "es"), /A greeting with a request is a request\./);
-  assert.match(systemPrompt(agent, { kind: "home" }, "es"), blocker);
+  assert.match(
+    systemPrompt(agent, { kind: "home" }, "es"),
+    /If blocked, report the exact error and what access is missing/,
+  );
   const worker = workerPrompt({ name: "Helper", instructions: "audit" }, { name: "Roby" }, "es");
   assert.match(worker, /blockers first/);
   assert.match(worker, blocker);

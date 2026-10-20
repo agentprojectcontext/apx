@@ -41,6 +41,9 @@ test("an agent is told its mode in each turn's input, and that APX asks the owne
 
 test("the system prompt tells the agent to save corrections, repeats and confirmed approaches in its own words", async () => {
   const { system } = await seen("hello");
-  assert.match(system, /remember that turn, always on a correction, a repeat or a confirmed approach/);
-  assert.match(system, /in your own words: the rule, then Why: and How to apply:/);
+  assert.match(
+    system,
+    /save reusable preferences, decisions and confirmed approaches with remember, in your own words/,
+  );
+  assert.match(system, /Why only if stated, How to apply only if supported/);
 });

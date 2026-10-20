@@ -143,6 +143,9 @@ test("the turn holds the tab it used while it runs and lets it go when it ends",
 
 test("the agent is told a send the owner asked for stays its own, not a hand-off", async () => {
   const system = String(llm.calls[0]?.messages[0]?.content);
-  assert.match(system, /send, post or pay stays yours/);
+  assert.match(
+    system,
+    /Authorization to send, post or pay cannot be relayed: keep that action and delegate only preparation/,
+  );
   assert.match(system, /browser_snapshot wait_s/);
 });

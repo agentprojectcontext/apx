@@ -73,7 +73,12 @@ export function createMemoryMaintenance(deps: {
         try {
           await performMemoryJob(deps, job, eligible, () => stopped);
         } catch (err) {
-          store.memoryWork.finish(job.id, job.attempts >= 3 ? "failed" : "pending", {}, "memory maintenance failed");
+          store.memoryWork.finish(
+            job.id,
+            job.attempts >= 3 ? "failed" : "pending",
+            JSON.parse(store.memoryWork.get(job.id)?.result ?? "{}"),
+            "memory maintenance failed",
+          );
           log.warn(
             { job: job.id, error: err instanceof Error ? err.name : "UnknownError" },
             "memory maintenance failed",

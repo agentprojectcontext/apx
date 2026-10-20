@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { z } from "zod";
 import { memoryEligibleChat } from "../domain/chat-access.ts";
+import { supportMemoryClaims } from "../engine/memory-testkit.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
@@ -17,6 +18,7 @@ const CONTACT_SAYS = "Prefiero que me mandes las facturas por mail, nunca por Te
 const REQUEST = "descargá este reel https://videos.example.com/reel/AAAA1111/";
 
 const llm = scriptedLlm((req, { system, said, afterTool }) => {
+  if (system.startsWith("Validate memory")) return supportMemoryClaims(req);
   if (system.startsWith("Extract durable")) {
     // A model that would keep anything it is shown, a contact's words included: the core decides what it sees.
     const input = JSON.parse(String(req.messages.at(-1)?.content));

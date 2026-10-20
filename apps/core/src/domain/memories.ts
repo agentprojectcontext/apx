@@ -474,7 +474,11 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
      * An agent's own note leaves its notebook (superseded by `by`, or stale) without the owner's exclusion: the owner
      * can still bring it back, and its source chat stays readable.
      */
-    retire(ref: { id: string; revision: number; by?: string | undefined }, view: MemoryView): boolean {
+    retire(
+      ref: { id: string; revision: number; by?: string | undefined; by_revision?: number | undefined },
+      view: MemoryView,
+      reviewed = false,
+    ): boolean {
       return tx(() => {
         const m = repo.get(ref.id);
         const by = ref.by ? repo.get(ref.by) : undefined;
@@ -485,9 +489,16 @@ export function memoriesRepo({ one, all, run, tx }: Sql) {
           n.scope === "agent" &&
           n.agent_id === view.agent_id &&
           n.project_id === view.project_id;
-        if (!own(m) || m?.revision !== ref.revision || ref.by === ref.id) return false;
+        if (!reviewed || !own(m) || m?.revision !== ref.revision || ref.by === ref.id) return false;
         // A correction supersedes only what was written before it.
-        if (ref.by && (!own(by) || (by as Memory).created_at <= (m as Memory).created_at)) return false;
+        if (
+          ref.by &&
+          (!own(by) ||
+            by?.tainted ||
+            by?.revision !== ref.by_revision ||
+            (by as Memory).created_at <= (m as Memory).created_at)
+        )
+          return false;
         const note = m as Memory;
         if (!repo.history(note.id).length) record(note, "baseline");
         run(

@@ -17,6 +17,8 @@ export type CallContext = {
   device?: { id: string; name: string } | undefined;
   /** Set when an agent's tool calls a method in-process: which agent, in which run and thread. */
   agent?: { id: string; run_id: string; thread_id: string } | undefined;
+  /** Core-only certificates bound to reviewed memory text and sources; never decoded from request params. */
+  memoryReviewed?: readonly string[] | undefined;
   /** Set by the channel manager only (never from a request): who wrote on which channel conversation. */
   channel?:
     | {

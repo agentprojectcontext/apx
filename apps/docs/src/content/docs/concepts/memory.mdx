@@ -31,22 +31,22 @@ Three ways, all visible:
 - **You.** Add a note in a project's **Memory** tab, or with `apx memory add`. Or just tell an agent "remember that…".
 - **An agent**, with its `remember` tool, when it learns something worth keeping: a correction, something you repeat,
   or an approach you confirmed. It writes the note in its own words; for a correction or a way of working, the rule
-  first, then a `Why:` line and a `How to apply:` line. Inside a project it saves to the project by default, otherwise
+  first; a `Why:` line only when you gave the reason, and `How to apply:` only when supported. Inside a project it saves to the project by default, otherwise
   to the global notes. It can correct its own notes and remove one with `forget`.
 
-- **Automatic capture.** After an ordinary owner turn, the helper model can select durable preferences, corrections,
-  decisions and references, and write each as a short fact in the agent's words (corrections and project decisions
-  with `Why:` and `How to apply:`). Every automatic note keeps an exact quote of your message, with its message and
-  chat source, as evidence, and APX checks the fact against it: numbers, names and identifiers must come from the
-  quote, a negation must survive, and each line must mostly use the quote's own words, or the note is dropped. Requests, questions and passing status updates are never kept. These notes stay in that agent's private notebook, limited to the
-  same project. Assistant promises and tool output are never evidence that an action happened. Credential discussions
-  are excluded.
-- **Procedures that worked.** When a turn you started succeeds after a failed try (in that turn or the chat's
-  previous one), or you then confirm it ("great, it worked", even as a closing word on a channel that gets no answer), APX writes a procedure note from the agent's own
-  successful steps: which tools it used, the site or command, and where the output went. It is labeled as history,
-  not an instruction, and needs no helper model. Addresses lose their query strings, and anything that looks like a
-  credential is left out. Since a step's arguments may come from something an earlier step read, agents read
-  procedure notes as data, like outside content.
+- **Automatic capture.** After an ordinary owner turn, the helper can select durable preferences, corrections,
+  decisions and references. It considers up to three eligible owner turns and keeps up to four exact supporting
+  quotes with their sources. APX checks names, numbers and negations, then asks the helper separately whether every
+  claim follows from those quotes, including paired assignments, exceptions and reasons. Unclear or contradicted
+  candidates are dropped. Reasons are never required when you did not state one. Notes stay private to that agent
+  in the same project. This review reduces mistakes; it does not guarantee that the model understands every case.
+- **Verified procedure history.** A recovered turn leaves a procedure note only when you confirm the actual work
+  ("great, it worked", including a closing channel reply), or APX observes a complete file read matching its earlier
+  write. An `ok` tool call alone is insufficient. The note keeps the successful method and safe targets, output
+  paths and any failed attempts in a separate section. Its sources include the actual confirmation or write/read
+  references. Other outcomes still need your confirmation. Old procedure notes without that evidence remain
+  historical. Notes are data, never instructions or new permission; the agent checks the current state before reuse.
+  Addresses lose query strings and credential-shaped values are omitted.
 
 Capture uses the helper model already configured for APX. With the helper off, no automatic notes are extracted;
 explicit `remember` and automatic chat retrieval still work. Capture jobs persist across core restarts and retries
@@ -124,12 +124,15 @@ agent is idle. It:
 - rewrites relative days ("today", "ayer") as the dates they meant, leaving quoted commands and procedure notes as
   they are.
 
+Retiring a note requires a separate review of the same subject and scope; a newer date alone proves nothing.
 The helper model only names notes; APX does the rewriting itself and never changes owner notes or promotes anything to
 global memory. Contradictions, different numbers and different preferences stay separate. A pass that would forget
 more than a fifth of the notebook at once (at least one note) is refused whole, and that share counts per day. Retired notes go to **Forgotten** with
 the reason in their history, and revision checks reject proposals made stale by an edit or deletion.
 
-Capture and AutoDream share a **daily memory call limit**, default 20. Each request has bounded input, output and a
+Capture and AutoDream share a **daily memory call limit**, default 20. Extraction and semantic review each consume
+one gateway request; transient transport retries can make more than one HTTP attempt. If review must wait for quota,
+the saved extraction resumes without repeating it. Each request has bounded input, output and a
 deadline; calls and tokens appear in **Usage**. A limit of zero pauses model calls. The queue reports completed,
 waiting and failed work in Settings. **Review earlier chats** queues the newest 100 turns per eligible chat;
 **Review duplicates now** requests consolidation. Queued work is processed in bounded batches, prioritizing recent

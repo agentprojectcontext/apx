@@ -144,6 +144,25 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         qb.selectFrom("runs").selectAll().where("thread_id", "=", threadId).orderBy("created_at", "desc").limit(limit),
       ).map(toRun);
     },
+    /** Memory jobs can run long after their turn; select before the anchor, not from the newest chat page. */
+    memoryWindow(anchor: RunRecord): RunRecord[] {
+      return all(
+        qb
+          .selectFrom("runs")
+          .selectAll()
+          .where("thread_id", "=", anchor.thread_id)
+          .where("agent_id", "=", anchor.agent_id)
+          .where("state", "=", "completed")
+          .where("started_at", "<=", anchor.started_at)
+          .where(raw<boolean>`rowid <= (SELECT rowid FROM runs WHERE id = ${anchor.id})`)
+          .where(raw<boolean>`(json_extract(input, '$.origin.kind') = 'user' OR
+          (json_extract(input, '$.origin.kind') = 'channel' AND json_extract(input, '$.origin.role') = 'owner'))`)
+          .orderBy("started_at", "desc")
+          .orderBy("created_at", "desc")
+          .orderBy(raw`rowid`, "desc")
+          .limit(3),
+      ).map(toRun);
+    },
     /** An agent's runs, newest first; `before` pages back by creation time. */
     byAgent(agentId: string, limit: number, before?: string): RunRecord[] {
       return all(

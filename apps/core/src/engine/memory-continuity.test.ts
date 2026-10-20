@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { duplicateMemory, durableMemory } from "../domain/memory-content.ts";
 import { memoryHistory } from "./memory-projection.ts";
+import { supportMemoryClaims } from "./memory-testkit.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 async function settleMemory(env: Awaited<ReturnType<typeof startCore>>) {
@@ -20,6 +21,7 @@ const note = "Every Northwind invoice uses the lavender prefix.";
 
 test("ordinary owner messages become grounded private memories and reach another chat without remember", async () => {
   const llm = scriptedLlm((req, { system }) => {
+    if (system.startsWith("Validate memory")) return supportMemoryClaims(req);
     if (system.startsWith("Extract durable")) {
       const input = JSON.parse(String(req.messages.at(-1)?.content));
       const source = input.messages.find((m: { text: string }) => m.text.includes(fact));
@@ -115,6 +117,7 @@ test("automatic recall reads historical own chats without an auxiliary model, bu
 
 test("autoDream consolidates equivalent notes, keeps provenance and supports undo; revisions prevent stale merges", async () => {
   const llm = scriptedLlm((req, { system }) => {
+    if (system.startsWith("Validate memory")) return supportMemoryClaims(req);
     if (system.startsWith("Review private memory")) {
       const input = JSON.parse(String(req.messages.at(-1)?.content));
       return say(JSON.stringify({ groups: [input.notes.map((m: { id: string }) => m.id)] }));
@@ -248,6 +251,7 @@ test("durable memory keeps standing facts and drops requests, questions and stat
 
 test("capture and backfill keep only durable owner statements when the model quotes every request", async () => {
   const llm = scriptedLlm((req, { system }) => {
+    if (system.startsWith("Validate memory")) return supportMemoryClaims(req);
     if (system.startsWith("Extract durable")) {
       const input = JSON.parse(String(req.messages.at(-1)?.content));
       const memories = input.messages.map((m: { id: string; text: string }) => ({

@@ -1,5 +1,6 @@
 import { memoryEligibleChat } from "../domain/chat-access.ts";
 import { forgetAllowance, NOTEBOOK_TARGET, ownNotes } from "../domain/memories.ts";
+import { retirementKey } from "../domain/memory-evidence.ts";
 import { bumpMemoryGeneration, memorySettings, saveMemorySettings } from "../domain/memory-settings.ts";
 import { ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
@@ -88,7 +89,12 @@ export function memoryAdminHandlers(store: Store, index: MemoryIndex, maintenanc
       if (retire.length > allowed)
         throw badRequest(`a pass may forget at most ${Math.max(0, allowed)} more of ${live} notes today`);
       // Stale notes go only when the notebook outgrew its target; a correction retires what it supersedes anytime.
-      const retired = retire.filter((r) => (r.by || live > NOTEBOOK_TARGET) && store.memories.retire(r, view)).length;
+      const retired = retire.filter((r) => {
+        const old = store.memories.get(r.id);
+        const replacement = r.by ? store.memories.get(r.by) : undefined;
+        const reviewed = !!old && !!ctx.memoryReviewed?.includes(retirementKey(old, replacement));
+        return (r.by || live > NOTEBOOK_TARGET) && store.memories.retire(r, view, reviewed);
+      }).length;
       if (retired) store.settings.set(key, JSON.stringify({ day: today, n: used + retired }));
       const zone = ownerTimeZone(store);
       const redated = redate.filter((r) => {

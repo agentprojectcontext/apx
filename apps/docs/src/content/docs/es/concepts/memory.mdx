@@ -34,24 +34,22 @@ Tres caminos, todos a la vista:
   un agente "acordate de que…".
 - **Un agente**, con su herramienta `remember`, cuando aprende algo que vale la pena guardar: una corrección, algo
   que repetís o una forma de hacer algo que confirmaste. Escribe la nota con sus propias palabras; para una corrección
-  o una forma de trabajar, primero la regla y después una línea `Why:` y una `How to apply:`. Dentro de un proyecto la
+  o una forma de trabajar, primero la regla; `Why:` solo si diste motivo y `How to apply:` solo cuando existe respaldo. Dentro de un proyecto la
   guarda en el proyecto; si no, en las notas globales. Puede corregir sus propias notas y sacar una con `forget`.
 
-- **Guardado automático.** Después de un turno común del dueño, el modelo auxiliar puede seleccionar preferencias,
-  correcciones, decisiones y referencias duraderas, y escribir cada una como un hecho breve con las palabras del agente
-  (correcciones y decisiones de proyecto con `Why:` y `How to apply:`). Cada nota automática conserva como prueba una
-  cita exacta de tu mensaje, con su fuente, y APX controla el hecho contra ella: números, nombres e identificadores
-  tienen que salir de la cita, una negación tiene que mantenerse y cada línea tiene que usar sobre todo las palabras
-  de la cita, o la nota se descarta. Pedidos, preguntas y avisos pasajeros nunca se guardan. Queda privada del agente y limitada al
-  mismo proyecto. Promesas del asistente y salidas de herramientas nunca prueban que una acción ocurrió. Las
-  conversaciones sobre credenciales quedan excluidas.
-- **Procedimientos que funcionaron.** Cuando un turno que empezaste sale bien después de un intento fallido (en ese
-  turno o en el anterior del chat), o después confirmás que anduvo ("genial, funcionó", aunque sea un cierre en un canal que no recibe respuesta), APX escribe una nota de
-  procedimiento con los pasos exitosos del propio agente: qué herramientas usó, el sitio o el comando y dónde quedó el
-  resultado. Queda marcada como historia, no como instrucción, y no necesita modelo auxiliar. Las direcciones pierden
-  sus parámetros de consulta y se deja afuera todo lo que parezca una credencial. Como los argumentos de un paso pueden
-  venir de algo que leyó un paso anterior, los agentes leen las notas de procedimiento como dato, igual que el
-  contenido de afuera.
+- **Guardado automático.** Después de un turno común del dueño, el auxiliar puede seleccionar preferencias,
+  correcciones, decisiones y referencias duraderas. Considera hasta tres turnos elegibles y conserva hasta cuatro
+  citas exactas con sus fuentes. APX controla nombres, números y negaciones; después pide una revisión separada de
+  relaciones, condiciones, excepciones y motivos. Descarta candidatos contradictorios o inciertos. No exige inventar
+  un motivo cuando no lo diste. Las notas quedan privadas del agente, limitadas al mismo proyecto. La revisión reduce
+  errores; no garantiza que el modelo comprenda todos los casos.
+- **Historia de procedimientos verificados.** Un turno recuperado deja nota solo si confirmás el trabajo real
+  ("genial, funcionó", incluso como cierre de canal), o APX observa una lectura completa de archivo que coincide con
+  su escritura anterior. Un `ok` de herramienta no basta. Conserva método exitoso, destinos seguros, salidas e intentos
+  fallidos en una sección aparte. Las fuentes incluyen confirmación real o referencias a escritura y lectura.
+  Otros resultados todavía necesitan tu confirmación. Notas anteriores sin esa evidencia siguen siendo históricas.
+  Las notas son datos, nunca instrucciones ni permiso nuevo: el agente debe revisar estado actual antes de repetir.
+  Se quitan parámetros de direcciones y valores que parezcan credenciales.
 
 Usa el modelo auxiliar que ya configuraste en APX. Si está apagado, no extrae notas automáticas; `remember` y la
 recuperación automática de chats siguen funcionando. La cola persiste entre reinicios y los reintentos no duplican
@@ -141,6 +139,10 @@ El índice de historial avanza separado de la extracción, aunque no quede cuota
 semántica conserva la relevancia antes que la novedad y usa la pregunta actual sin mezclar temas recientes ajenos.
 Los mensajes largos se indexan por fragmentos superpuestos para no diluir temas distintos. Recupera mensajes
 originales del dueño; `read_chat` permite ampliar sus respuestas.
+
+Extracción y revisión semántica consumen una llamada lógica cada una dentro de la cuota existente. Reintentos de
+transporte pueden generar más de una petición HTTP. Si falta cuota para revisar, conserva extracción y la retoma sin
+repetirla. Retirar una nota exige revisar misma afirmación y ámbito; una fecha más nueva no prueba reemplazo.
 
 ## Ver, confirmar y deshacer
 

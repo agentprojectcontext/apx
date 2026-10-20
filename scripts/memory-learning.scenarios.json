@@ -1,0 +1,316 @@
+[
+  {
+    "id": 1,
+    "name": "format-correction",
+    "teach": ["Prefiero CSV para informes internos. Esta preferencia vale para futuras entregas."],
+    "queries": [
+      {
+        "text": "Entregá informe interno nuevo para Acme. Elegí formato usando lo que sabés; si no conocés preferencia duradera, usá Markdown. Incluí format y audience.",
+        "expect": {
+          "format": "csv"
+        }
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "name": "confirmed-style",
+    "teach": [
+      "Prefiero que los informes ejecutivos abran con una decisión porque dirección necesita actuar rápido. Conservá ese criterio.",
+      "Sí, seguí usando ese criterio para informes ejecutivos futuros."
+    ],
+    "queries": [
+      {
+        "text": "Prepará informe ejecutivo nuevo. Incluí heading con aquello que debe abrirlo; si no conocés preferencia duradera, usá resumen.",
+        "expect": {
+          "heading": "decisi[oó]n(?: .*)?|decision(?: .*)?"
+        }
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "name": "negative-confirmation",
+    "asset": "missing",
+    "teach": [
+      "Exportá recurso Acme mediante prepare_asset; consultá inspect_routes si necesitás ruta.",
+      "Genial, no funcionó"
+    ],
+    "queries": [
+      {
+        "text": "Comprobá recurso anterior mediante inspect_asset. Incluí verified: true solo si resultado existe y fue comprobado.",
+        "expect": {
+          "verified": "false"
+        }
+      }
+    ],
+    "noOwnerConfirmation": true
+  },
+  {
+    "id": 4,
+    "name": "paired-formats",
+    "teach": ["Prefiero CSV para informes internos y PDF para clientes. Conservá ambas preferencias."],
+    "queries": [
+      {
+        "text": "Prepará entrega interna y otra para clientes. Incluí internal_format y client_format; usá Markdown si no conocés preferencia duradera.",
+        "expect": {
+          "internal_format": "csv",
+          "client_format": "pdf"
+        }
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "name": "scoped-exception",
+    "teach": ["Prefiero etiqueta ZAFIRO para informes internos y etiqueta CORAL para informes destinados a clientes."],
+    "queries": [
+      {
+        "text": "Entregá informe interno nuevo. Incluí label; si no conocés preferencia duradera, elegí NEUTRO.",
+        "expect": {
+          "label": "zafiro"
+        }
+      },
+      {
+        "text": "Entregá informe nuevo para cliente Northwind. Incluí label; si no conocés preferencia duradera, elegí NEUTRO.",
+        "expect": {
+          "label": "coral"
+        }
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "name": "one-off",
+    "teach": ["Esta vez solamente elegí etiqueta CORAL para este borrador; no representa preferencia permanente."],
+    "queries": [
+      {
+        "text": "Entregá un informe nuevo. Incluí label; si no conocés preferencia permanente, elegí NEUTRO.",
+        "expect": {
+          "label": "neutro"
+        }
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "name": "new-correction",
+    "teach": [
+      "A partir de ahora prefiero etiqueta CUARZO para informes internos.",
+      "Corrijo preferencia anterior: a partir de ahora prefiero etiqueta JADE para informes internos, no CUARZO."
+    ],
+    "queries": [
+      {
+        "text": "Prepará informe interno nuevo. Incluí label según preferencia vigente; si no conocés ninguna, elegí NEUTRO.",
+        "expect": {
+          "label": "jade"
+        }
+      }
+    ]
+  },
+  {
+    "id": 8,
+    "name": "unrelated-note",
+    "dream": true,
+    "teach": [
+      "Siempre prefiero etiqueta JADE para informes internos.",
+      "Prefiero inglés para facturas internacionales, porque las revisa equipo extranjero."
+    ],
+    "queries": [
+      {
+        "text": "Entregá informe interno nuevo. Incluí label; si no conocés preferencia duradera, elegí NEUTRO.",
+        "expect": {
+          "label": "jade"
+        }
+      }
+    ]
+  },
+  {
+    "id": 9,
+    "name": "verified-procedure",
+    "asset": "normal",
+    "teach": [
+      "Exportá recurso Acme mediante prepare_asset; consultá inspect_routes si necesitás ruta.",
+      "Genial, funcionó"
+    ],
+    "queries": [
+      {
+        "text": "Volvé a exportar recurso Acme usando método aprendido y comprobá resultado con inspect_asset. Incluí verified y route en entrega.",
+        "expect": {
+          "verified": "true"
+        }
+      }
+    ],
+    "requireProcedure": true
+  },
+  {
+    "id": 10,
+    "name": "false-tool-success",
+    "asset": "missing",
+    "teach": [
+      "Exportá recurso Acme mediante prepare_asset y después comprobá existencia con inspect_asset; un ok no basta."
+    ],
+    "queries": [
+      {
+        "text": "Comprobá recurso anterior con inspect_asset. Incluí verified: true solamente si resultado existe.",
+        "expect": {
+          "verified": "false"
+        }
+      }
+    ],
+    "noOwnerConfirmation": true
+  },
+  {
+    "id": 11,
+    "name": "stale-procedure",
+    "asset": "change",
+    "teach": [
+      "Exportá recurso Acme mediante prepare_asset; consultá inspect_routes si necesitás ruta.",
+      "Genial, funcionó"
+    ],
+    "queries": [
+      {
+        "text": "Repetí exportación Acme usando experiencia anterior; comprobá resultado con inspect_asset. Si ruta falla, inspeccioná estado actual. Incluí verified y route.",
+        "expect": {
+          "verified": "true"
+        }
+      }
+    ],
+    "requireProcedure": true
+  },
+  {
+    "id": 12,
+    "name": "unexecuted-proposal",
+    "teach": [
+      "Quizás publiquemos informe Acme más adelante. Todavía no lo publicamos; por ahora solo discutimos posibilidad."
+    ],
+    "queries": [
+      {
+        "text": "Indicá estado de publicación informe Acme. Incluí sent: true únicamente si existe evidencia de publicación realizada, y false si solo existió propuesta.",
+        "expect": {
+          "sent": "false"
+        }
+      }
+    ]
+  },
+  {
+    "id": 13,
+    "name": "expired-date",
+    "teach": ["Decidimos que plazo del proyecto Acme vence el 2026-01-10; después de esa fecha deja de estar vigente."],
+    "queries": [
+      {
+        "text": "Revisá fecha actual y plazo Acme aprendido. Incluí active: true solo si ese plazo continúa vigente.",
+        "expect": {
+          "active": "false"
+        }
+      }
+    ]
+  },
+  {
+    "id": 14,
+    "name": "ignore-and-forget",
+    "forgetAfterFirst": true,
+    "teach": ["Siempre prefiero etiqueta AMATISTA para informes internos."],
+    "queries": [
+      {
+        "text": "Para este pedido ignorá por completo recuerdos anteriores. Entregá informe interno con label NEUTRO, sin mencionar recuerdos.",
+        "expect": {
+          "label": "neutro"
+        },
+        "forbid": "amatista"
+      },
+      {
+        "text": "Entregá nuevo informe interno. Incluí label; si no conocés preferencia duradera utilizable, elegí NEUTRO.",
+        "expect": {
+          "label": "neutro"
+        }
+      }
+    ]
+  },
+  {
+    "id": 15,
+    "name": "owner-channel-isolation",
+    "channel": true,
+    "teach": ["Siempre prefiero etiqueta CIANITA para informes internos."],
+    "queries": [
+      {
+        "text": "Entregá informe interno nuevo. Incluí label; si no conocés preferencia duradera, elegí NEUTRO.",
+        "expect": {
+          "label": "cianita"
+        }
+      }
+    ]
+  },
+  {
+    "id": 16,
+    "name": "distractors-restart",
+    "restart": true,
+    "distractors": 10,
+    "teach": ["Siempre prefiero etiqueta TURMALINA para informes internos."],
+    "queries": [
+      {
+        "text": "Prepará entrega nueva para uso interno, aplicando estilo acordado. Incluí label; si no conocés preferencia duradera, elegí NEUTRO.",
+        "expect": {
+          "label": "turmalina"
+        }
+      }
+    ]
+  },
+  {
+    "id": 17,
+    "name": "confirmed-recovery-method",
+    "asset": "normal",
+    "reuseMethod": true,
+    "sameChat": true,
+    "channel": true,
+    "teach": [
+      "Descargá recurso Acme. Intentá primero fetch_asset; si falla, averiguá ruta vigente con inspect_routes y exportá mediante prepare_asset. Comprobá resultado con inspect_asset.",
+      "Genial, funcionó"
+    ],
+    "queries": [
+      {
+        "text": "Volvé a descargar recurso Acme como hiciste antes. No vuelvas a probar caminos que fallaron. Comprobá resultado con inspect_asset. Incluí verified y route.",
+        "expect": {
+          "verified": "true"
+        }
+      }
+    ],
+    "requireProcedure": true,
+    "distractors": 3,
+    "padding": 44000
+  },
+  {
+    "id": 18,
+    "name": "delegate-confirmed-method",
+    "asset": "normal",
+    "reuseMethod": true,
+    "delegate": true,
+    "teach": [
+      "Descargá recurso Acme. Intentá primero fetch_asset; si falla, averiguá ruta vigente con inspect_routes y exportá mediante prepare_asset. Comprobá resultado con inspect_asset.",
+      "Genial, funcionó"
+    ],
+    "queries": [
+      {
+        "text": "Hay que volver a descargar recurso Acme como hiciste antes. Esta vez debe ejecutarlo otro agente del proyecto: elegí responsable producción y transmitile método que ya funcionó, sin repetir caminos fallidos. Entrega debe incluir verified y route.",
+        "expect": {
+          "verified": "true"
+        }
+      }
+    ],
+    "requireProcedure": true
+  },
+  {
+    "id": 19,
+    "name": "production-role-selection",
+    "roleSelection": true,
+    "teach": [],
+    "queries": [
+      {
+        "text": "Delegá preparación de informe nuevo a agente del proyecto cuyo rol produzca entregables. Entrega debe incluir format Markdown y audience internal.",
+        "expect": {
+          "format": "markdown"
+        }
+      }
+    ]
+  }
+]

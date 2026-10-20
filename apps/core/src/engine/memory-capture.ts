@@ -1,73 +1,77 @@
-import { createHash } from "node:crypto";
-import { z } from "zod";
+import type { MemoryEvidence } from "@apx/protocol";
 import { memorySensitive } from "../domain/memories.ts";
 import { duplicateMemory, durableMemory, factSupported } from "../domain/memory-content.ts";
+import { evidenceIsLive, memoryClaimKey } from "../domain/memory-evidence.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import type { MemoryWork } from "../domain/memory-work.ts";
 import type { Store } from "../domain/store.ts";
 import type { InternalCall } from "../rpc/internal.ts";
+import { CaptureCandidates, candidateEvidence, memoryJson } from "./memory-review.ts";
 
-const Candidates = z.object({
-  memories: z
-    .array(
-      z.object({
-        kind: z.enum(["user", "feedback", "project", "reference"]),
-        message_id: z.string(),
-        quote: z.string().min(12).max(1500),
-        fact: z.string().trim().min(12).max(600).optional(),
-      }),
-    )
-    .max(4),
-});
-
-export async function captureMemories(store: Store, call: InternalCall, job: MemoryWork, out: string): Promise<number> {
+export function captureCandidates(store: Store, job: MemoryWork, out: string) {
+  const run = store.runs.get(job.run_id);
+  if (!run) return [];
   const view = { agent_id: job.agent_id, project_id: job.project_id ?? undefined };
-  const ctx = { actor: "agent" as const, agent: { id: job.agent_id, thread_id: job.thread_id, run_id: job.run_id } };
-  const textOf = (message: { parts: Array<{ type: string; text?: string }> }) =>
-    message.parts.flatMap((p) => (p.type === "text" ? [p.text ?? ""] : [])).join("\n");
-  let changed = 0;
-  for (const candidate of Candidates.parse(JSON.parse(out.replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, ""))).memories) {
-    const settings = memorySettings(store);
-    if (
-      settings.mode === "off" ||
-      settings.auto_capture === false ||
-      store.threads.get(job.thread_id)?.project_id !== view.project_id
-    )
-      break;
-    const message = store.messages.get(candidate.message_id);
-    if (
-      !message ||
-      !store.memorySources.forRun(job.run_id).includes(message.id) ||
-      message.author.kind !== "user" ||
-      !textOf(message).includes(candidate.quote) ||
-      !durableMemory(candidate.quote) ||
-      memorySensitive(candidate.quote) ||
-      store.memories.excluded(view, candidate.quote, { message_id: message.id, run_id: job.run_id })
-    )
-      continue;
-    // The note is the agent's synthesis; the quote stays as its evidence and the check that it says nothing more.
+  const result: Array<{
+    kind: "user" | "feedback" | "project" | "reference";
+    text: string;
+    evidence: MemoryEvidence[];
+  }> = [];
+  for (const candidate of CaptureCandidates.parse(memoryJson(out)).memories) {
+    const evidence = candidateEvidence(candidate);
+    const quote = evidence.map((e) => e.quote).join("\n");
     const text = candidate.fact;
-    if (!text || !factSupported(text, candidate.quote) || memorySensitive(text) || store.memories.excluded(view, text))
+    if (
+      !text ||
+      !evidenceIsLive(store, run, evidence) ||
+      !durableMemory(quote) ||
+      !factSupported(text, quote) ||
+      memorySensitive(text) ||
+      store.memories.excluded(view, text)
+    )
       continue;
     if (
       store.memories
         .list({ view, limit: 500 })
         .some(
-          (m) => duplicateMemory(m.text, text) || m.evidence?.some((e) => duplicateMemory(e.quote, candidate.quote)),
+          (m) =>
+            duplicateMemory(m.text, text) ||
+            m.evidence?.some((e) => evidence.some((source) => duplicateMemory(e.quote, source.quote))),
         )
     )
       continue;
+    result.push({ kind: candidate.kind, text, evidence });
+  }
+  return result;
+}
+
+export async function captureMemories(
+  store: Store,
+  call: InternalCall,
+  job: MemoryWork,
+  out: string,
+  reviewed: readonly string[] = [],
+): Promise<number> {
+  let changed = 0;
+  for (const candidate of captureCandidates(store, job, out)) {
+    const settings = memorySettings(store);
+    if (
+      settings.mode === "off" ||
+      settings.auto_capture === false ||
+      store.threads.get(job.thread_id)?.project_id !== (job.project_id ?? undefined)
+    )
+      break;
+    const key = memoryClaimKey(candidate.text, candidate.evidence);
+    if (!reviewed.includes(key)) continue;
     await call(
       "memory.add",
+      { scope: "agent", ...candidate, tainted: false },
       {
-        scope: "agent",
-        text,
-        kind: candidate.kind,
-        evidence: [{ message_id: message.id, quote: candidate.quote }],
-        tainted: false,
+        actor: "agent",
+        agent: { id: job.agent_id, thread_id: job.thread_id, run_id: job.run_id },
+        memoryReviewed: reviewed,
       },
-      ctx,
-      `capture:${job.id}:${message.id}:${createHash("sha256").update(candidate.quote).digest("hex")}`,
+      `capture:${job.id}:${key}`,
     );
     changed++;
   }

@@ -5,7 +5,9 @@ import type { Memory } from "@apx/protocol";
 import { canUseChatMemory, memoryEligibleChat } from "../domain/chat-access.ts";
 import { canSee, looksSecret, type MemoryView } from "../domain/memories.ts";
 import { factSupported, procedureSupported } from "../domain/memory-content.ts";
+import { evidenceIsLive, memoryClaimKey } from "../domain/memory-evidence.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
+import { procedureEvidenceIsLive } from "../domain/memory-verification.ts";
 import type { Store } from "../domain/store.ts";
 import type { MemoryIndex } from "../engine/memory-index.ts";
 import type { MemoryMaintenance } from "../engine/memory-maintenance.ts";
@@ -81,31 +83,25 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
       if (view && memorySettings(store).mode === "off") throw badRequest("memory is disabled");
       if (view && store.memories.excluded(view, text)) throw badRequest("the owner asked to forget that");
       if (view && evidence?.length) {
-        const quote = evidence[0]?.quote ?? "";
+        const quote = evidence.map((e) => e.quote).join("\n");
         const supported =
           kind === "procedure"
             ? procedureSupported(text, store.runs.steps(ctx.agent?.run_id ?? ""))
             : factSupported(text, quote);
-        if (evidence.length !== 1 || !supported)
+        if (!supported || !ctx.memoryReviewed?.includes(memoryClaimKey(text, evidence)))
           throw badRequest("automatic memory must say only what its source supports");
         const thread = ctx.agent && store.threads.get(ctx.agent.thread_id);
         if (!thread || !memoryEligibleChat(store, thread)) throw unauthorized("memory source is not eligible");
-        for (const e of evidence) {
-          const message = store.messages.get(e.message_id);
-          const original = message?.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join("\n") ?? "";
-          if (
-            !message ||
-            message.thread_id !== thread.id ||
-            !store.memorySources.forRun(ctx.agent?.run_id ?? "").includes(message.id) ||
-            message.author.kind !== "user" ||
-            !original.includes(e.quote) ||
-            store.memories.excluded(view, text, {
-              message_id: message.id,
-              ...(ctx.agent?.run_id ? { run_id: ctx.agent.run_id } : {}),
-            })
-          )
-            throw badRequest("invalid or forgotten memory evidence");
-        }
+        const sourceRun = ctx.agent && store.runs.get(ctx.agent.run_id);
+        if (
+          !sourceRun ||
+          sourceRun.agent_id !== ctx.agent?.id ||
+          sourceRun.thread_id !== thread.id ||
+          (kind === "procedure"
+            ? !procedureEvidenceIsLive(store, sourceRun, evidence)
+            : !evidenceIsLive(store, sourceRun, evidence))
+        )
+          throw badRequest("invalid or forgotten memory evidence");
         if (scope !== "agent") throw badRequest("automatic memories stay private to this agent");
       }
       if (id) {

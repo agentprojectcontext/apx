@@ -897,7 +897,14 @@ export const appMethods = {
     params: z
       .object({
         retire: z
-          .array(z.object({ id: Id, revision: z.number().int().positive(), by: Id.optional() }))
+          .array(
+            z.object({
+              id: Id,
+              revision: z.number().int().positive(),
+              by: Id.optional(),
+              by_revision: z.number().int().positive().optional(),
+            }),
+          )
           .max(8)
           .optional(),
         redate: z

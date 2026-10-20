@@ -3,6 +3,7 @@ import { expect, open, rpc, test } from "./kit.ts";
 
 test("idle chats show their active commands and each process names its origin", async ({ page }) => {
   await rpc("setup.finish");
+  const { agent } = await rpc<{ agent: { name: string } }>("agents.get", { agent: "roby" });
   const root = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Asset export" });
   const other = await rpc<Thread>("threads.create", { kind: "loose", agent_id: "roby", title: "Other export" });
   const commands = [root, root, other].map((thread, i) =>
@@ -12,7 +13,7 @@ test("idle chats show their active commands and each process names its origin", 
       thread_id: thread.id,
       thread_title: thread.title,
       agent_id: "roby",
-      agent_name: "Roby",
+      agent_name: agent.name,
       title: `render ${i}`,
       state: "working",
       trigger: "system",
@@ -47,14 +48,17 @@ test("idle chats show their active commands and each process names its origin", 
   await header.getByRole("button", { name: "Procesos activos: 2" }).click();
   const side = page.getByRole("complementary", { name: "Panel lateral" });
   await expect(side.getByText("Activos (2)")).toBeVisible();
-  await expect(side.locator(".job__origin")).toHaveText(["Desde Roby · Asset export", "Desde Roby · Asset export"]);
+  await expect(side.locator(".job__origin")).toHaveText([
+    `Desde ${agent.name} · Asset export`,
+    `Desde ${agent.name} · Asset export`,
+  ]);
   await page.locator("button.running").click();
   await page.getByRole("radio", { name: /Segundo plano/ }).click();
   const popover = page.locator(".running__list").last();
   await expect(popover.locator(".job__origin")).toHaveText([
-    "Desde Roby · Asset export",
-    "Desde Roby · Asset export",
-    "Desde Roby · Other export",
+    `Desde ${agent.name} · Asset export`,
+    `Desde ${agent.name} · Asset export`,
+    `Desde ${agent.name} · Other export`,
   ]);
   await page.screenshot({ path: test.info().outputPath("process-visibility.png") });
   await popover.locator(".job").last().getByRole("button", { name: "Abrir el chat" }).click();

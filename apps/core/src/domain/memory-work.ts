@@ -42,6 +42,9 @@ export function memoryWorkRepo({ all, one, run, tx }: Sql) {
           .onConflict((c) => c.column("id").doNothing()),
       );
     },
+    get(id: string): MemoryWork | undefined {
+      return one(qb.selectFrom("memory_work").selectAll().where("id", "=", id));
+    },
     pending(limit = 20): MemoryWork[] {
       const at = now();
       run(
@@ -112,6 +115,14 @@ export function memoryWorkRepo({ all, one, run, tx }: Sql) {
         if (changed) run(qb.insertInto("memory_call_reservations").values({ job_id: id, day: today }));
         return changed;
       });
+    },
+    checkpoint(id: string, result: object): void {
+      run(
+        qb
+          .updateTable("memory_work")
+          .set({ result: JSON.stringify(result), updated_at: now() })
+          .where("id", "=", id),
+      );
     },
     finish(id: string, state: "completed" | "failed" | "pending", result: object, error?: string): void {
       run(
