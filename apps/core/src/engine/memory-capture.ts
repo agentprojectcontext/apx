@@ -30,16 +30,7 @@ export function captureCandidates(store: Store, job: MemoryWork, out: string) {
       store.memories.excluded(view, text)
     )
       continue;
-    if (
-      store.memories
-        .list({ view, limit: 500 })
-        .some(
-          (m) =>
-            duplicateMemory(m.text, text) ||
-            m.evidence?.some((e) => evidence.some((source) => duplicateMemory(e.quote, source.quote))),
-        )
-    )
-      continue;
+    if (store.memories.list({ view, limit: 500 }).some((m) => duplicateMemory(m.text, text))) continue;
     result.push({ kind: candidate.kind, text, evidence });
   }
   return result;
