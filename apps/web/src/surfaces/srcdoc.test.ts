@@ -41,6 +41,8 @@ test("links to the web are left out: they never load here, and one held back wou
 test("the frame starts in the panel's mode and with what the widget remembered, which cannot break out of its script", () => {
   const doc = buildSrcdoc("<p>Hi</p>", { ...opts, state: { note: "</script><img src=x onerror=alert(1)>", n: 2 } });
   assert.match(doc, /setAttribute\("data-ax-mode","dark"\)/);
+  // Its forms run their own submit handlers (the frame allows forms) but none is sent anywhere.
+  assert.match(cspOf(doc), /^default-src 'none'; form-action 'none';/);
   assert.doesNotMatch(doc, /<\/script><img/);
   const bridge = /<script>([\s\S]*?)<\/script>/.exec(doc)?.[1] ?? "";
   const initial = /var ST=(\{.*?\}),subs=/.exec(bridge)?.[1] ?? "";

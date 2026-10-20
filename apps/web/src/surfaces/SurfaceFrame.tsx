@@ -26,7 +26,7 @@ export type SurfaceFrameProps = {
 };
 
 /**
- * Renders a surface's HTML in a sandboxed iframe (scripts only, opaque origin), themed with the current
+ * Renders a surface's HTML in a sandboxed iframe (scripts and in-page forms, opaque origin), themed with the current
  * --apx-* tokens. The widget talks back through postMessage: its height and window.apx.sendPrompt().
  */
 export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.surfaceMaxH }: SurfaceFrameProps) {
@@ -152,7 +152,8 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
         <iframe
           ref={frame}
           title={summary?.title ?? t("panel.widget")}
-          sandbox="allow-scripts"
+          // Forms fire their submit event for the page's own script; the CSP's form-action lets none leave.
+          sandbox="allow-scripts allow-forms"
           srcDoc={srcdoc}
           className="surfaceframe__iframe"
           style={fit === "fill" ? undefined : { height: frameHeight }}

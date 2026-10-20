@@ -270,8 +270,12 @@ test("a page written with the APX Kit is an app by its meta tag and gets the kit
   );
 
   const shared = await env.client.call("surfaces.share", { surface: id, shared: true });
-  const page = await (await fetch(new URL(shared.share_path ?? "", env.core.url))).text();
-  assert.match(page, /<script data-apx-kit>\/\*! APX Kit v1/);
+  const res = await fetch(new URL(shared.share_path ?? "", env.core.url));
+  assert.match(
+    res.headers.get("content-security-policy") ?? "",
+    /^sandbox allow-scripts allow-popups allow-forms;.*form-action 'none';/,
+  );
+  assert.match(await res.text(), /<script data-apx-kit>\/\*! APX Kit v1/);
   await env.client.call("surfaces.share", { surface: id, shared: false });
   const kit = await fetch(new URL("/_apx/kit@1.js", env.core.url));
   assert.match(kit.headers.get("content-type") ?? "", /^text\/javascript/);

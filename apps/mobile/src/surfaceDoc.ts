@@ -11,17 +11,18 @@ import {
 
 /** Widgets are self-contained (the show_widget contract): inline code only, no network. */
 export const SURFACE_CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:";
+  "default-src 'none'; form-action 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:";
 
-function bridge(nonce: string): string {
+function bridge(nonce: string, mode: "light" | "dark"): string {
   return `(function(){
 var N=${JSON.stringify(nonce)};
+document.documentElement.setAttribute("data-ax-mode",${JSON.stringify(mode)});
 function post(m){m.apx=N;window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify(m));}
 var touched=0;
 addEventListener("touchend",function(){touched=Date.now();},true);
 addEventListener("click",function(){touched=Date.now();},true);
 function sendPrompt(t){post({kind:"prompt",text:String(t),gesture:Date.now()-touched<1500});}
-window.apx=Object.freeze({sendPrompt:sendPrompt});
+window.apx=Object.freeze({host:"apx",sendPrompt:sendPrompt});
 window.sendPrompt=sendPrompt;
 })();`;
 }
@@ -38,7 +39,7 @@ html,body{margin:0;background:var(--apx-bg);color:var(--apx-fg);font-family:var(
 body{padding:var(--apx-page-padding);display:flow-root}*{box-sizing:border-box}
 ${WIDGET_KIT_CSS}
 ${surfaceLayoutCss(opts.layout)}</style>
-<script>${bridge(opts.nonce)}</script>`;
+<script>${bridge(opts.nonce, opts.mode)}</script>`;
   return injectSurfaceHead(html, head);
 }
 

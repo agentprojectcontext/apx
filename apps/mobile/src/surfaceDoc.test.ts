@@ -8,6 +8,10 @@ test("a surface gets the strict CSP, the mode's colors and the bridge, wherever 
   assert.ok(bare.includes(SURFACE_CSP));
   assert.match(bare, /--apx-bg:#161615/);
   assert.match(bare, /var N="n1"/);
+  // The APX Kit finds the phone's bridge and starts in its mode; forms run in the page and are never sent.
+  assert.match(bare, /setAttribute\("data-ax-mode","dark"\)/);
+  assert.match(bare, /window\.apx=Object\.freeze\(\{host:"apx",/);
+  assert.match(SURFACE_CSP, /form-action 'none'/);
   const full = surfaceDoc("<html><head><title>x</title></head><body></body></html>", { mode: "light", nonce: "n2" });
   assert.match(full, /<head><meta charset="utf-8">/);
   assert.equal(full.match(/<head/g)?.length, 1);

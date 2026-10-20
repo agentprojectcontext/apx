@@ -71,7 +71,7 @@ export type PublicPages = {
  * only the origins their widget declared for live data (already validated as bare https/wss origins).
  */
 const artifactCsp = (connect: string[] = []) =>
-  `sandbox allow-scripts allow-popups; default-src 'self' data: blob: 'unsafe-inline'; connect-src ${connect.length ? connect.join(" ") : "'none'"}; frame-ancestors *`;
+  `sandbox allow-scripts allow-popups allow-forms; default-src 'self' data: blob: 'unsafe-inline'; form-action 'none'; connect-src ${connect.length ? connect.join(" ") : "'none'"}; frame-ancestors *`;
 
 function artifactPage(title: string, html: string, app = false): string {
   const esc = title.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`);

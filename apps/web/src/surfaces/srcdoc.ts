@@ -16,7 +16,7 @@ import {
 const ORIGIN = /^(https|wss):\/\/[a-z0-9.-]+(:\d{1,5})?$/;
 const csp = (connect: readonly string[] = []) => {
   const origins = connect.filter((o) => ORIGIN.test(o));
-  return `default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:${origins.length ? `; connect-src ${origins.join(" ")}` : ""}`;
+  return `default-src 'none'; form-action 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:${origins.length ? `; connect-src ${origins.join(" ")}` : ""}`;
 };
 
 let tokenNames: string[] | undefined;
