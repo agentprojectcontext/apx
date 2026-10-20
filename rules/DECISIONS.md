@@ -1522,7 +1522,9 @@ Other outcomes, such as an API mutation or a browser action, need owner confirma
 criterion exists; this change does not treat generic tool outputs as proof.
 
 AutoDream retirement receives a second semantic review for the same assertion and scope, with explicit replacement
-or supported expiry. Internal certificates bind both note revisions and texts. The canonical handler retains private
+or supported expiry. Verdicts judge the proposed retirement: an explicit newer correction contradicting the old
+content can support retirement; disagreement between the notes is not itself an unsupported-retirement verdict.
+Internal certificates bind both note revisions and texts. The canonical handler retains private
 scope, taint, snapshot revisions, notebook and daily forget-share guards. Concurrent edits do not become processed
 merely because they appeared after the model read its snapshot. Exact duplicate consolidation remains deterministic.
 
