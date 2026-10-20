@@ -82,3 +82,62 @@ test("global agents have no slug: their parent is named by id", () => {
   assert.equal(at.lead?.depth, 1);
   assert.equal(at.analyst?.depth, 2, "under its parent, not under the lead");
 });
+
+const noOverlap = (l: ReturnType<typeof layoutTeam>) => {
+  for (const a of l.nodes)
+    for (const b of l.nodes)
+      if (a !== b)
+        assert.ok(Math.abs(a.x - b.x) >= NODE.w || Math.abs(a.y - b.y) >= NODE.h, `${a.id} overlaps ${b.id}`);
+};
+
+test("a parent named by its full id is that agent, as by its slug", () => {
+  const p = (slug: string, parent?: string) => ({ id: `acme-${slug}`, slug, parent, name: slug });
+  const l = layoutTeam([p("lead"), p("reels", "lead"), p("sub", "acme-reels"), p("w", "sub")], "acme-lead");
+  const at = Object.fromEntries(l.nodes.map((n) => [n.id, n]));
+  assert.equal(at["acme-sub"]?.depth, 2, "under reels, not hung under the lead");
+  assert.equal(at["acme-w"]?.depth, 3);
+});
+
+test("tidy tree: a single-child chain does not widen its row and siblings pack beside it", () => {
+  const team = [
+    m("lead"),
+    m("a", "lead"),
+    m("reels", "lead"),
+    m("z", "lead"),
+    m("sub", "reels"),
+    ...["w1", "w2", "w3", "w4"].map((w) => m(w, "sub")),
+  ];
+  const l = layoutTeam(team, "lead");
+  const at = Object.fromEntries(l.nodes.map((n) => [n.id, n]));
+  const step = NODE.w + NODE.gapX;
+  assert.equal(at.sub?.x, at.reels?.x, "one child sits right under its parent");
+  assert.equal((at.reels?.x ?? 0) - (at.a?.x ?? 0), step, "siblings side by side, no gap for the subtree below");
+  assert.equal((at.z?.x ?? 0) - (at.reels?.x ?? 0), step);
+  assert.equal(at.lead?.x, at.reels?.x, "the lead centred over its first and last child");
+  assert.equal(l.width, 4 * NODE.w + 3 * NODE.gapX, "as wide as its widest row, no wider");
+  noOverlap(l);
+});
+
+test("tidy tree: deep, banded and loose subtrees together never overlap and stay in order", () => {
+  const team = [
+    m("lead"),
+    m("big", "lead", "ops"),
+    ...Array.from({ length: 7 }, (_, i) => m(`b${i}`, "big", i % 2 ? "x" : "y")),
+    m("deep", "lead", "ops"),
+    m("d1", "deep"),
+    m("d2", "d1"),
+    m("d3", "d2"),
+    m("d3b", "d2"),
+    m("solo", "lead"),
+    m("other"),
+  ];
+  const l = layoutTeam(team, "lead");
+  noOverlap(l);
+  const row = l.nodes.filter((n) => n.depth === 1).sort((p, q) => p.x - q.x);
+  assert.deepEqual(
+    row.map((n) => n.id),
+    ["big", "deep", "other", "solo"],
+  );
+  assert.ok(Math.min(...l.nodes.map((n) => n.x)) === 0, "starts at the left edge");
+  assert.ok(Math.max(...l.nodes.map((n) => n.x + NODE.w)) === l.width);
+});

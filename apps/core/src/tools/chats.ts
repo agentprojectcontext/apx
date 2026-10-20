@@ -1,5 +1,6 @@
 // search_chats / read_chat: what was said in the owner's other chats (a channel room, another agent's thread), so an
-// agent can pick up a conversation it was not in. Owner turns only: a contact's sealed turn never gets these.
+// agent can pick up a conversation it was not in, and this chat's own turns older than the model's view. Owner turns
+// only: a contact's sealed turn never gets these.
 import type { Message, Thread } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
@@ -90,7 +91,7 @@ export function chatTools(store: Store): Tool[] {
     defineTool({
       name: "search_chats",
       description:
-        "Search what was said and done in the owner's other chats (channel rooms like a Discord #general, other agents' threads, earlier chats and your routine runs): Use topic keywords; agent names filter chat participants. Messages with every topic word, best match first, then tool calls whose tool or arguments hold them (what was published, sent or read). Then read_chat to see one in full. If unavailable, ask the named agent with delegate before asking the owner to repeat context.",
+        "Search what was said and done in the owner's chats (channel rooms like Discord #general, other agents' threads, earlier chats, routine runs, this chat before your view): Use topic keywords; agent names filter chat participants. Messages with every topic word, best match first, then tool calls whose tool or arguments hold them (what was published, sent or read). Then read_chat to see one. If unavailable, ask the named agent with delegate before asking the owner to repeat context.",
       args: z.object({
         query: z.string().min(2).describe("words to find"),
         limit: z.number().int().min(1).max(20).optional().describe("how many messages (default 10)"),
@@ -100,16 +101,22 @@ export function chatTools(store: Store): Tool[] {
       title: (a) => `Searched chats for “${a.query}”`,
       async run(a, ctx) {
         const scope = searchScope(store, ctx.agent, a.query);
-        const chats = scope.chats.filter((t) => t.id !== ctx.thread.id);
+        // This chat counts only when the turn says what of it the model already sees; that part is not searched.
+        const inView = [...(ctx.inView?.() ?? [])];
+        const others = scope.chats.filter((t) => t.id !== ctx.thread.id);
+        const chats = inView.length ? scope.chats : others;
         if (!scope.text) {
-          const rows = chats.slice(0, a.limit ?? 10).map((t) => `- ${t.title} (chat ${t.id})`);
+          const rows = others.slice(0, a.limit ?? 10).map((t) => `- ${t.title} (chat ${t.id})`);
           return rows.length
             ? untrusted("chats", { query: a.query }, rows.join("\n"))
             : "no accessible chats match; use list_agents and delegate to ask the named agent for context";
         }
         const byId = new Map(chats.map((t) => [t.id, t]));
         const rows = store.messages
-          .search(scope.text, a.limit ?? 10, [...byId.keys()])
+          .search(scope.text, a.limit ?? 10, [...byId.keys()], {
+            runs: inView,
+            messages: inView.flatMap((id) => store.memorySources.forRun(id)),
+          })
           .filter(
             ({ message: m }) =>
               !store.memories.excluded({ agent_id: ctx.agent.id, project_id: ctx.thread.project_id }, textOf(m), {
@@ -122,7 +129,7 @@ export function chatTools(store: Store): Tool[] {
             return `- [${t.title} · chat ${t.id}] ${when(m.created_at)} ${authorOf(store, m)}: ${snippet} (message ${m.id})`;
           });
         const calls = store.runs
-          .searchSteps(wordsOf(scope.text), [...byId.keys()], a.limit ?? 10)
+          .searchSteps(wordsOf(scope.text), [...byId.keys()], a.limit ?? 10, inView)
           .filter(
             (c) =>
               !store.memories.excluded(

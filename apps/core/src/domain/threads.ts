@@ -498,8 +498,16 @@ export type DocumentPart = Extract<Part, { type: "file" }> & {
 
 export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
   const repo = {
-    /** Messages whose text has every word of `query`, best match first, newest among equals. */
-    search(query: string, limit = 30, threadIds?: string[]): MessageHit[] {
+    /**
+     * Messages whose text has every word of `query`, best match first, newest among equals. `exclude` drops those
+     * already in a model's view (by id, or by the run that wrote them) before the limit.
+     */
+    search(
+      query: string,
+      limit = 30,
+      threadIds?: string[],
+      exclude: { messages?: string[]; runs?: string[] } = {},
+    ): MessageHit[] {
       const match = messageQuery(query);
       if (!match || threadIds?.length === 0) return [];
       const rows = all(
@@ -509,6 +517,16 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
           .innerJoin("messages", "messages.id", "messages_n.id")
           .selectAll("messages")
           .$if(threadIds !== undefined, (q) => q.where("messages.thread_id", "in", threadIds ?? []))
+          .$if(Boolean(exclude.messages?.length), (q) =>
+            q.where(
+              sql<boolean>`messages.id not in (select value from json_each(${JSON.stringify(exclude.messages)}))`,
+            ),
+          )
+          .$if(Boolean(exclude.runs?.length), (q) =>
+            q.where(
+              sql<boolean>`coalesce(messages.run_id, '') not in (select value from json_each(${JSON.stringify(exclude.runs)}))`,
+            ),
+          )
           .where(sql<boolean>`messages_fts MATCH ${match}`)
           .orderBy(sql`bm25(messages_fts)`)
           .orderBy("messages.created_at", "desc")

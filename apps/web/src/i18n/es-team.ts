@@ -205,7 +205,8 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "agentedit.parent": "Reporta a",
   "agentedit.parentHint": "A quién le pasa resultados y dudas.",
   "agentedit.orchestrator": "Orquestador",
-  "agentedit.orchestratorHint": "Encabeza el equipo: va arriba del organigrama y recibe el trabajo primero.",
+  "agentedit.orchestratorHint":
+    "Lidera a los agentes que le reportan. Sin superior, encabeza todo el equipo: va arriba del organigrama y recibe el trabajo primero.",
   "agentedit.file": "Archivo",
   "agentedit.fileHint": "Donde vive este agente dentro del proyecto.",
   "agentedit.searchTools": "Buscar tools",

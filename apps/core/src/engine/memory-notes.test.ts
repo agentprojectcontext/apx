@@ -181,7 +181,9 @@ test("a download that worked after a failed try leaves a procedure note, and 'li
     const index = input.slice(input.indexOf("[your notes index"));
     assert.match(
       index,
-      new RegExp(`\\[${note.id}\\] \\(procedure, [^)]*\\) download_file reelsaver\\.example\\.com for "descargá este reel`),
+      new RegExp(
+        `\\[${note.id}\\] \\(procedure, [^)]*\\) download_file reelsaver\\.example\\.com for "descargá este reel`,
+      ),
     );
   } finally {
     await env.core.close();

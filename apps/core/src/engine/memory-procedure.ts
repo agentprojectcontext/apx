@@ -64,10 +64,12 @@ function outputsOf(step: Step): string[] {
   const command = typeof step.args.command === "string" ? step.args.command : "";
   const written = [...command.matchAll(/(?:\s-o|--output|>)\s*([^\s;&|<>]+)/g)].map((m) => m[1] as string);
   const cwd = typeof step.args.cwd === "string" ? step.args.cwd.replace(/\/$/, "") : "";
-  return [...named, ...written]
-    .filter((p) => (/^[~./]/.test(p) || /\.[A-Za-z0-9]{1,5}$/.test(p)) && !/@|:\/\//.test(p) && !unsafe(p))
-    // Each part stays a literal piece of the step's arguments, so procedureSupported can check it.
-    .map((p) => (cwd && !/^[~/]/.test(p) ? `\`${target(p)}\` in \`${target(cwd)}\`` : `\`${target(p)}\``));
+  return (
+    [...named, ...written]
+      .filter((p) => (/^[~./]/.test(p) || /\.[A-Za-z0-9]{1,5}$/.test(p)) && !/@|:\/\//.test(p) && !unsafe(p))
+      // Each part stays a literal piece of the step's arguments, so procedureSupported can check it.
+      .map((p) => (cwd && !/^[~/]/.test(p) ? `\`${target(p)}\` in \`${target(cwd)}\`` : `\`${target(p)}\``))
+  );
 }
 
 /** What a run did that worked, as quoted fragments its own steps contain; undefined when nothing qualifies. */

@@ -1,4 +1,4 @@
-import { type Agent, Autonomy, DEFAULT_AUTONOMY } from "@apx/protocol";
+import { type Agent, Autonomy, DEFAULT_AUTONOMY, names, parentIn, reportsOf } from "@apx/protocol";
 import { AgentAvatar, Button, Dialog, EngineIcon, IconButton, Icons, Menu, Tabs } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { shortWhen } from "../../common/format.ts";
@@ -71,20 +71,21 @@ export function AgentDetail({
   const top = team.find((a) => a.kind === "secretary");
   // Its own reports cannot become its parent: the core refuses loops, the list does not offer them.
   const below = new Set<string>();
-  const walk = (key: string | undefined) => {
-    for (const a of team) {
-      const k = keyOf(a);
-      if (key && a.parent === key && k && !below.has(k)) {
-        below.add(k);
-        walk(k);
+  const walk = (a: Agent) => {
+    for (const r of reportsOf(team, a))
+      if (!below.has(r.id)) {
+        below.add(r.id);
+        walk(r);
       }
-    }
   };
-  walk(keyOf(agent));
-  const parents = team.filter((a) => keyOf(a) && a.id !== agent.id && !below.has(keyOf(a) as string));
+  walk(agent);
+  const parents = team.filter((a) => keyOf(a) && a.id !== agent.id && !below.has(a.id));
+  // `parent:` may name it by slug or full id; the picker speaks in keys.
+  const up = parentIn(team, agent);
+  const parentKey = (up && keyOf(up)) ?? agent.parent ?? "";
   // With no parent a global agent hangs under the super-agent; a project agent sits on top of its team.
   const noParent = !fromFile && top ? t("team.parent.toSuper", { name: top.name }) : t("team.parent.none");
-  const nameOf = (key: string | undefined) => team.find((a) => key && keyOf(a) === key)?.name ?? noParent;
+  const nameOf = (key: string | undefined) => team.find((a) => names(a, key))?.name ?? noParent;
   const inherited = useData((s) =>
     agent.project_id ? s.projects.find((p) => p.id === agent.project_id)?.autonomy : s.base.autonomy,
   );
@@ -104,8 +105,8 @@ export function AgentDetail({
               { value: "", text: noParent },
               ...parents.filter((p) => p.kind !== "secretary").map((p) => ({ value: keyOf(p) ?? "", text: p.name })),
             ]}
-            value={agent.parent ?? ""}
-            onPick={(v) => v !== (agent.parent ?? "") && setPending(v)}
+            value={parentKey}
+            onPick={(v) => v !== parentKey && setPending(v)}
           />
         )}
       </dd>

@@ -84,11 +84,11 @@ and follow up until they close. When a decision needs the owner, ask once, clear
 | `description` | What the agent is for. It is also put in front of the instructions when the body does not already say it. |
 | `icon` | The agent's blobo (`orbita`, `menta`, `cobalto`…). |
 | `emoji` | An optional emoji, kept with the agent (files written by other tools often have one). |
-| `parent` | The slug of the agent it reports to. Leave it out and the agent reports to Home. |
+| `parent` | The agent it reports to, by its slug (or its full id). Leave it out and the agent reports to Home. |
 | `area` | The area it belongs to, for the org chart (`product`, `engineering`…). |
 | `autonomy` | Its permission mode: `manual`, `auto` (the default), `accept_edits`, `plan` or `total`. See [Autonomy and safety](/concepts/autonomy/). |
 | `personality` | How it sounds, apart from what it does. Up to 1,000 characters. |
-| `orchestrator` | `true` marks the agent that runs the team: it goes on top of the chart and gets the project's work first. `false` says it is not, whatever its role suggests; left out, the head is guessed by role (orchestrator, CEO, lead). |
+| `orchestrator` | `true` marks an agent that leads the agents reporting to it. With no `parent`, it heads the whole team: it goes on top of the chart and gets the project's work first; with one, it leads only its own sub-team (a **Team lead** chip). `false` says it is not, whatever its role suggests; with no marked head, the head is guessed among agents with no parent by role (orchestrator, CEO, lead), or is the only one. |
 | `rules` | Its own rule per kind of action, over its autonomy: `read`, `write`, `outside` or `irreversible`, each `auto`, `ask` or `off` (`rules: write=auto, outside=ask`). A kind left out follows the autonomy. |
 | `tools` | Limits the agent to these tools or groups. Leave it out for every tool. |
 | `skills` | Limits which skills it is offered. Leave it out for all of them. |

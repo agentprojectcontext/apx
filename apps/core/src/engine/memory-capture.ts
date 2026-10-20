@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { memorySensitive } from "../domain/memories.ts";
-import { duplicateMemory, factSupported } from "../domain/memory-content.ts";
+import { duplicateMemory, durableMemory, factSupported } from "../domain/memory-content.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import type { MemoryWork } from "../domain/memory-work.ts";
 import type { Store } from "../domain/store.ts";
@@ -40,6 +40,7 @@ export async function captureMemories(store: Store, call: InternalCall, job: Mem
       !store.memorySources.forRun(job.run_id).includes(message.id) ||
       message.author.kind !== "user" ||
       !textOf(message).includes(candidate.quote) ||
+      !durableMemory(candidate.quote) ||
       memorySensitive(candidate.quote) ||
       store.memories.excluded(view, candidate.quote, { message_id: message.id, run_id: job.run_id })
     )

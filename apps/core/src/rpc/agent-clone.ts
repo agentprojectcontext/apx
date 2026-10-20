@@ -1,7 +1,7 @@
 // Copies agents into another project (or among the global ones): the whole definition (role, prompt, tools, skills,
 // area, personality, autonomy, model), with reports kept under their cloned boss. An agent belongs to one project,
 // so a copy is a new agent; `rename` gives each copy a name nobody on the install uses, so the two read apart.
-import { AGENT_NAMES } from "@apx/protocol";
+import { AGENT_NAMES, names } from "@apx/protocol";
 import type { ApcSync } from "../apc/sync.ts";
 import { updateAgentFile, writeNewAgent } from "../apc/write.ts";
 import { type AgentRecord, publicAgent } from "../domain/agents.ts";
@@ -61,11 +61,11 @@ export function cloneAgents(store: Store, apc: ApcSync, p: CloneParams) {
     taken.add(slug);
     return { a, name, slug };
   });
-  const newKey = new Map(plan.map((x) => [keyOf(x.a), x.slug]));
 
   const cloned = [];
   for (const { a, name, slug } of plan) {
-    const parent = (a.parent && newKey.get(a.parent)) || p.hang_under;
+    // Its parent, named by slug or full id, keeps leading it when both are cloned.
+    const parent = plan.find((x) => x.a.id !== a.id && names(x.a, a.parent))?.slug || p.hang_under;
     if (root && p.project_id) {
       try {
         writeNewAgent(root, slug, { name, role: a.role, description: a.description, parent, icon: a.blob }, a.prompt);

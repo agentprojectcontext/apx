@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { duplicateMemory } from "../domain/memory-content.ts";
+import { duplicateMemory, durableMemory } from "../domain/memory-content.ts";
 import { memoryHistory } from "./memory-projection.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
@@ -219,6 +219,62 @@ test("invalidating legacy memory removes multiline context and preserves the ori
     assert.doesNotMatch(kept, /Prepare the invoice/);
     assert.match(kept, /Invoice prefix\?/);
     assert.equal(legacy[0]?.item.content, content);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});
+
+const passing = [
+  "genial y podes terminar esa review?",
+  "completen la tarea completa ambos",
+  "solucionalo y hace que ande el scraper estare AFK",
+  "che pero por alguna razon dieron 0 leads nuevos",
+  "falta como amalgamar el diseño mas a modo mobile me parece",
+  "Bueno, tenemos que hacer una tarea que es terminar la web app mobile.",
+  "Please fix the Northwind build before lunch.",
+];
+const lasting = [
+  "Prefiero respuestas cortas y sin emojis.",
+  "Nunca hagas push a main sin preguntarme.",
+  "El repo de Acme usa pnpm y Node 24.",
+  "For Acme research I always prefer short tables.",
+];
+
+test("durable memory keeps standing facts and drops requests, questions and status updates", () => {
+  for (const text of passing) assert.equal(durableMemory(text), false, text);
+  for (const text of lasting) assert.equal(durableMemory(text), true, text);
+});
+
+test("capture and backfill keep only durable owner statements when the model quotes every request", async () => {
+  const llm = scriptedLlm((req, { system }) => {
+    if (system.startsWith("Extract durable")) {
+      const input = JSON.parse(String(req.messages.at(-1)?.content));
+      const memories = input.messages.map((m: { id: string; text: string }) => ({
+        kind: "project",
+        message_id: m.id,
+        quote: m.text,
+        // The worst case: the model repeats every message as its own "fact" too; durability is still checked.
+        fact: m.text,
+      }));
+      return say(JSON.stringify({ memories }));
+    }
+    if (system.startsWith("Review private memory")) return say('{"groups":[]}');
+    return say("Done.");
+  });
+  const env = await startCore({ llm, aux: true, memoryMaintenance: true });
+  try {
+    const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    for (const text of [...passing, ...lasting]) {
+      await env.client.call("threads.send", { thread: thread.id, text });
+      await env.settle(thread.id);
+    }
+    await env.client.call("memory.maintenance", {});
+    await settleMemory(env);
+    await env.client.call("memory.maintenance", { backfill: true });
+    await settleMemory(env);
+    const saved = (await env.client.call("memory.list", {})).memories.map((m) => m.text).sort();
+    assert.deepEqual(saved, [...lasting].sort());
   } finally {
     await env.core.close();
     env.cleanup();
