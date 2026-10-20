@@ -99,11 +99,16 @@ export function memoryAdminHandlers(store: Store, index: MemoryIndex, maintenanc
       const zone = ownerTimeZone(store);
       const redated = redate.filter((r) => {
         const note = store.memories.get(r.id);
-        // The words were written when their source was said, or else at the note's last edit.
-        const said = note?.evidence?.[0] && store.messages.get(note.evidence[0].message_id)?.created_at;
-        const at = new Date(said || note?.updated_at || Date.now());
-        const day = at.toLocaleDateString("en-CA", zone ? { timeZone: zone } : {});
-        return !!store.memories.redate(r, view, day);
+        // A synthesis can join sources from different local days. Never guess which source supplied a relative day.
+        const dates = note?.evidence?.map((e) => store.messages.get(e.message_id)?.created_at) ?? [];
+        if (dates.some((at) => !at)) return false;
+        const days = new Set(
+          (dates.length ? dates : [note?.updated_at ?? new Date().toISOString()]).map((at) =>
+            new Date(at as string).toLocaleDateString("en-CA", zone ? { timeZone: zone } : {}),
+          ),
+        );
+        const day = days.size === 1 ? [...days][0] : undefined;
+        return !!day && !!store.memories.redate(r, view, day);
       }).length;
       if (retired || redated) {
         invalidateMemorySummaries(store);
