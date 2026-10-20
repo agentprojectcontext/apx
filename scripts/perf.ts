@@ -118,6 +118,7 @@ core.stderr.on("data", (d) => {
   stderr += d;
 });
 const results: Record<string, number> = {};
+const turnSamples: Array<{ send_ms: number; wait_ms: number; total_ms: number }> = [];
 let failed = false;
 try {
   for (;;) {
@@ -155,9 +156,12 @@ try {
   for (let i = 0; i < TURNS; i++) {
     const s = performance.now();
     const { run } = await rpc<{ run: { id: string } }>("threads.send", { thread: thread.id, text: `turn ${i}` });
+    const sent = performance.now();
     const done = await rpc<{ state: string }>("runs.wait", { run: run.id, timeout_s: 30 });
     if (done.state !== "completed") throw new Error(`turn ${i} ended ${done.state}`);
-    turns.push(performance.now() - s);
+    const ended = performance.now();
+    turns.push(ended - s);
+    turnSamples.push({ send_ms: sent - s, wait_ms: ended - sent, total_ms: ended - s });
   }
   results.turn_p50_ms = pct(turns, 0.5);
   results.turn_p95_ms = pct(turns, 0.95);
@@ -181,7 +185,7 @@ try {
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(
     path.join(out, "perf.json"),
-    JSON.stringify({ at: new Date().toISOString(), results, budget }, null, 2),
+    JSON.stringify({ at: new Date().toISOString(), results, budget, turn_samples: turnSamples }, null, 2),
   );
 } catch (e) {
   console.error(e);
