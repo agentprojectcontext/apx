@@ -1,5 +1,7 @@
-// The Team view's tree: who reports to whom, laid out top-down with each parent centred over its children, and
-// siblings grouped by area. Pure (no React, no DOM) so it is tested on its own.
+// The Team view's tree: who reports to whom, laid out top-down as a tidy tree (each parent centred over its first and
+// last child, sibling subtrees packed by their contours) with siblings grouped by area. Pure (no React, no DOM) so it
+// is tested on its own.
+import { parentIn } from "@apx/protocol";
 
 export type TeamMember = {
   id: string;
@@ -24,17 +26,19 @@ export type Edge = { from: string; to: string; area: string | undefined };
 export type AreaPill = { parent: string; area: string; count: number; x: number; y: number };
 export type TeamLayout = { nodes: PlacedNode[]; edges: Edge[]; pills: AreaPill[]; width: number; height: number };
 
+/** A laid-out subtree, its own root at x 0: what it holds, and per row of cards (by y) its leftmost and rightmost x. */
+type Sub = { nodes: PlacedNode[]; edges: Edge[]; pills: AreaPill[]; rows: Map<number, { l: number; r: number }> };
+
 /**
- * Parents come from `parent:` (a slug of the same team; a global agent, which has none, is named by its id). Anyone
- * else hangs under `leadId` when given, so the team is one tree like an org chart; a loop in `parent:` is broken where
- * it closes.
+ * Parents come from `parent:` (a slug or the full id of an agent of the same team; a global agent, which has none, is
+ * named by its id). Anyone else hangs under `leadId` when given, so the team is one tree like an org chart; a loop in
+ * `parent:` is broken where it closes.
  */
 export function layoutTeam(members: TeamMember[], leadId?: string): TeamLayout {
-  const bySlug = new Map(members.map((m) => [m.slug ?? m.id, m] as const));
   const parentOf = new Map<string, string>();
   for (const m of members) {
-    const p = m.parent ? bySlug.get(m.parent) : undefined;
-    const parent = p && p.id !== m.id ? p.id : m.id !== leadId ? leadId : undefined;
+    const p = parentIn(members, m);
+    const parent = p ? p.id : m.id !== leadId ? leadId : undefined;
     if (parent && !closesLoop(parentOf, m.id, parent)) parentOf.set(m.id, parent);
   }
   const children = new Map<string, TeamMember[]>();
@@ -45,99 +49,126 @@ export function layoutTeam(members: TeamMember[], leadId?: string): TeamLayout {
   for (const list of children.values()) list.sort(byAreaThenName);
   const roots = members.filter((m) => !parentOf.has(m.id)).sort((a, b) => rank(a, leadId) - rank(b, leadId));
 
-  const width = new Map<string, number>();
-  const bands = new Map<string, Band[]>();
-  const measure = (m: TeamMember): number => {
+  const lay = (m: TeamMember, depth: number): Sub => {
     const kids = children.get(m.id) ?? [];
     // Many direct reports, none leading a team: blocks by area, packed in bands under the parent.
-    if (kids.length > BAND_AT && kids.every((k) => !children.get(k.id)?.length)) {
-      const plan = bandsOf(kids);
-      bands.set(m.id, plan);
-      const w = Math.max(NODE.w, ...plan.map((b) => b.width));
-      width.set(m.id, w);
-      for (const k of kids) width.set(k.id, NODE.w);
-      return w;
-    }
-    const w = Math.max(NODE.w, kids.reduce((sum, k) => sum + measure(k), 0) + NODE.gapX * Math.max(0, kids.length - 1));
-    width.set(m.id, w);
-    return w;
-  };
-
-  const nodes: PlacedNode[] = [];
-  const edges: Edge[] = [];
-  const pills: AreaPill[] = [];
-  const place = (m: TeamMember, x0: number, y: number, depth: number) => {
-    const w = width.get(m.id) ?? NODE.w;
-    nodes.push({ id: m.id, x: x0 + (w - NODE.w) / 2, y, depth });
-    const kids = children.get(m.id) ?? [];
-    const plan = bands.get(m.id);
-    if (plan) {
-      let by = y + NODE.h + NODE.gapY;
-      for (const band of plan) {
-        let bx = x0 + (w - band.width) / 2;
-        for (const g of band.groups) {
-          g.members.forEach((k, i) => {
-            const col = i % g.cols;
-            const row = Math.floor(i / g.cols);
-            nodes.push({
-              id: k.id,
-              x: bx + col * (NODE.w + NODE.gapX),
-              y: by + row * (NODE.h + ROW_GAP),
-              depth: depth + 1,
-            });
-            edges.push({ from: m.id, to: k.id, area: k.area });
-          });
-          if (g.area)
-            pills.push({
-              parent: m.id,
-              area: g.area,
-              count: g.members.length,
-              x: bx + g.width / 2,
-              y: by - NODE.gapY / 2,
-            });
-          bx += g.width + NODE.gapX * 2;
-        }
-        by += band.height + NODE.gapY;
+    if (kids.length > BAND_AT && kids.every((k) => !children.get(k.id)?.length)) return banded(m, kids, depth);
+    const sub: Sub = { nodes: [{ id: m.id, x: 0, y: 0, depth }], edges: [], pills: [], rows: new Map() };
+    if (kids.length) {
+      const forest = pack(
+        kids.map((k) => lay(k, depth + 1)),
+        NODE.gapX,
+      );
+      // Centred over its first and last child: one child alone sits right above it and widens nothing.
+      const mid = ((forest.at[0] ?? 0) + (forest.at.at(-1) ?? 0)) / 2;
+      const y = NODE.h + NODE.gapY;
+      merge(sub, forest.sub, -mid, y);
+      const centres = kids.map((k, i) => ({ area: k.area, cx: (forest.at[i] ?? 0) - mid + NODE.w / 2 }));
+      for (const k of kids) sub.edges.push({ from: m.id, to: k.id, area: k.area });
+      for (const group of groupsOf(centres)) {
+        if (!group.area) continue;
+        const first = group.items[0]?.cx ?? 0;
+        const last = group.items.at(-1)?.cx ?? first;
+        sub.pills.push({
+          parent: m.id,
+          area: group.area,
+          count: group.items.length,
+          x: (first + last) / 2,
+          y: NODE.h + NODE.gapY / 2,
+        });
       }
-      return;
     }
-    const total = kids.reduce((s, k) => s + (width.get(k.id) ?? NODE.w), 0) + NODE.gapX * Math.max(0, kids.length - 1);
-    let x = x0 + (w - total) / 2;
-    const centres: Array<{ area: string | undefined; cx: number }> = [];
-    for (const k of kids) {
-      const kw = width.get(k.id) ?? NODE.w;
-      centres.push({ area: k.area, cx: x + kw / 2 });
-      edges.push({ from: m.id, to: k.id, area: k.area });
-      place(k, x, y + NODE.h + NODE.gapY, depth + 1);
-      x += kw + NODE.gapX;
-    }
-    for (const group of groupsOf(centres)) {
-      if (!group.area) continue;
-      const first = group.items[0]?.cx ?? 0;
-      const last = group.items.at(-1)?.cx ?? first;
-      pills.push({
-        parent: m.id,
-        area: group.area,
-        count: group.items.length,
-        x: (first + last) / 2,
-        y: y + NODE.h + NODE.gapY / 2,
-      });
-    }
+    widen(sub.rows, 0, 0);
+    return sub;
   };
 
-  for (const r of roots) measure(r);
-  let x = 0;
-  for (const r of roots) {
-    place(r, x, 0, 0);
-    x += (width.get(r.id) ?? NODE.w) + NODE.gapX * 2;
-  }
+  const forest = pack(
+    roots.map((r) => lay(r, 0)),
+    NODE.gapX * 2,
+  );
+  const all: Sub = { nodes: [], edges: [], pills: [], rows: new Map() };
+  merge(all, forest.sub, 0, 0);
+  const left = Math.min(0, ...all.nodes.map((n) => n.x));
+  for (const n of all.nodes) n.x -= left;
+  for (const p of all.pills) p.x -= left;
   return {
-    nodes,
-    edges,
-    pills,
-    width: Math.max(NODE.w, x - NODE.gapX * 2),
-    height: nodes.length ? Math.max(...nodes.map((n) => n.y)) + NODE.h : 0,
+    nodes: all.nodes,
+    edges: all.edges,
+    pills: all.pills,
+    width: Math.max(NODE.w, ...all.nodes.map((n) => n.x + NODE.w)),
+    height: all.nodes.length ? Math.max(...all.nodes.map((n) => n.y)) + NODE.h : 0,
   };
+}
+
+/** A parent over its leaf reports in bands by area, the parent at x 0. */
+function banded(m: TeamMember, kids: TeamMember[], depth: number): Sub {
+  const plan = bandsOf(kids);
+  const w = Math.max(NODE.w, ...plan.map((b) => b.width));
+  const x0 = -(w - NODE.w) / 2;
+  const sub: Sub = { nodes: [{ id: m.id, x: 0, y: 0, depth }], edges: [], pills: [], rows: new Map() };
+  widen(sub.rows, 0, 0);
+  let by = NODE.h + NODE.gapY;
+  for (const band of plan) {
+    let bx = x0 + (w - band.width) / 2;
+    for (const g of band.groups) {
+      g.members.forEach((k, i) => {
+        const x = bx + (i % g.cols) * (NODE.w + NODE.gapX);
+        const y = by + Math.floor(i / g.cols) * (NODE.h + ROW_GAP);
+        sub.nodes.push({ id: k.id, x, y, depth: depth + 1 });
+        sub.edges.push({ from: m.id, to: k.id, area: k.area });
+        widen(sub.rows, y, x);
+      });
+      if (g.area)
+        sub.pills.push({
+          parent: m.id,
+          area: g.area,
+          count: g.members.length,
+          x: bx + g.width / 2,
+          y: by - NODE.gapY / 2,
+        });
+      bx += g.width + NODE.gapX * 2;
+    }
+    by += band.height + NODE.gapY;
+  }
+  return sub;
+}
+
+/**
+ * Subtrees side by side, each as far left as its contour allows next to the ones before it (at least `gap` apart on
+ * every row they share), so a narrow sibling tucks in beside a deep one instead of waiting for its widest row.
+ */
+function pack(subs: Sub[], gap: number): { sub: Sub; at: number[] } {
+  const out: Sub = { nodes: [], edges: [], pills: [], rows: new Map() };
+  const at: number[] = [];
+  for (const s of subs) {
+    // Every subtree has a card at y 0, so each lands right of the one before: the order stays by area and name.
+    let dx = at.length ? Number.NEGATIVE_INFINITY : 0;
+    for (const [y, row] of s.rows)
+      for (const [oy, o] of out.rows)
+        if (Math.abs(oy - y) < NODE.h + ROW_GAP) dx = Math.max(dx, o.r + NODE.w + gap - row.l);
+    at.push(dx);
+    merge(out, s, dx, 0);
+  }
+  return { sub: out, at };
+}
+
+/** Moves `from` by (dx, dy) into `into`. */
+function merge(into: Sub, from: Sub, dx: number, dy: number): void {
+  for (const n of from.nodes) into.nodes.push({ ...n, x: n.x + dx, y: n.y + dy });
+  into.edges.push(...from.edges);
+  for (const p of from.pills) into.pills.push({ ...p, x: p.x + dx, y: p.y + dy });
+  for (const [y, row] of from.rows) {
+    widen(into.rows, y + dy, row.l + dx);
+    widen(into.rows, y + dy, row.r + dx);
+  }
+}
+
+function widen(rows: Sub["rows"], y: number, x: number): void {
+  const row = rows.get(y);
+  if (row) {
+    row.l = Math.min(row.l, x);
+    row.r = Math.max(row.r, x);
+  } else rows.set(y, { l: x, r: x });
 }
 
 type Block = { area: string | undefined; members: TeamMember[]; cols: number; width: number; height: number };
