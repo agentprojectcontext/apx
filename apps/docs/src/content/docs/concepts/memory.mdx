@@ -151,6 +151,10 @@ A project's **Memory** tab shows its notes and lets you switch between **This pr
   deletes the note and its revision text; a minimal exclusion fingerprint and source IDs prevent recreation.
 - **Sources and history** shows exact quotes and revisions. **Restore this revision** can undo a merge or an edit.
   Original chats remain in conversation history; deleting a memory does not delete the conversation.
+- APX 2.7.0's automatic capture also saved passing requests and questions ("can you finish that review?") as
+  notes. The first start after updating retires the ones its agent never edited and today's capture would refuse;
+  they wait in **Forgotten**, marked *Retired by capture cleanup* in their history, and **Bring back** restores any
+  you want. Notes you or `remember` wrote are not touched, and the same fact can be taught again.
 
 ## From the terminal
 
