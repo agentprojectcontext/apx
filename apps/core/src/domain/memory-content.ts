@@ -202,7 +202,7 @@ const TRANSIENT =
   /\b(hoy|ahora|ahi|recien|ayer|manana|esta vez|today|now|tonight|yesterday|tomorrow|this time|afk|creo que|me parece|no se|nose|i think|maybe|quizas|capaz)\b/;
 
 // The imperative "usá" is not the standing assertion "usa" after accent folding.
-const standingPlain = (text: string) => memoryPlain(text.replace(/(?<!\p{L})usá(?!\p{L})/giu, ""));
+const standingPlain = (text: string) => memoryPlain(text.normalize("NFC").replace(/(?<!\p{L})usá(?!\p{L})/giu, ""));
 
 /** Without a durable cue, no literal quote can pass durableMemory; avoid sending transient work to the helper. */
 export const hasDurableCue = (text: string) => POLICY.test(memoryPlain(text)) || DURABLE.test(standingPlain(text));

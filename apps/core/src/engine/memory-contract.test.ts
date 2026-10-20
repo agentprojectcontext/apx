@@ -259,7 +259,11 @@ test("an imperative use request is not a standing preference", async () => {
   assert.equal(durableMemory("Use CSV for this report."), false);
   assert.equal(durableMemory("Usá CSV siempre para informes internos."), true);
   assert.equal(durableMemory("El equipo usa CSV para informes internos."), true);
-  assert.equal(durableMemory("Incluí heading; si no conocés preferencia duradera, usá resumen."), false);
+  for (const normalization of ["NFC", "NFD"] as const)
+    assert.equal(
+      durableMemory("Incluí heading; si no conocés preferencia duradera, usá resumen.".normalize(normalization)),
+      false,
+    );
 });
 
 test("a quoted output fallback cannot become a standing preference even if the helper approves it", async () => {
