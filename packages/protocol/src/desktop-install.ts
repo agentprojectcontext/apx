@@ -27,4 +27,12 @@ export const desktopInstallMethods = {
     local: true,
     replay: false,
   },
+  "desktop.install_cancel": {
+    params: z.object({}).strict(),
+    result: DesktopInstallStatus,
+    effect: true,
+    access: "human",
+    local: true,
+    replay: false,
+  },
 } as const satisfies Record<string, MethodDef>;

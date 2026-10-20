@@ -33,9 +33,6 @@ const ThreadDialogs = lazy(() => import("../inbox/ThreadDialogs.tsx").then((m) =
 const WidgetChatHost = lazy(() => import("../surfaces/WidgetChat.tsx").then((m) => ({ default: m.WidgetChatHost })));
 const PhoneDialog = lazy(() => import("./PhoneDialog.tsx").then((m) => ({ default: m.PhoneDialog })));
 const TasksScreen = lazy(() => import("../tasks/TasksScreen.tsx").then((m) => ({ default: m.TasksScreen })));
-const DesktopInstallNotice = lazy(() =>
-  import("./DesktopInstallNotice.tsx").then((m) => ({ default: m.DesktopInstallNotice })),
-);
 
 /** Topbar · Sidebar · main (chat workspace, a project, an app or a placeholder view). See SPEC §1. */
 export function Shell() {
@@ -118,11 +115,6 @@ export function Shell() {
         </Suspense>
       )}
       <UpdateDialogHost />
-      {!window.apxDesktop && (
-        <Suspense fallback={null}>
-          <DesktopInstallNotice />
-        </Suspense>
-      )}
       {/* Over the foot of the list column: on a phone, or with the list hidden, it would cover the composer. */}
       {layout.rail && !layout.compact && layout.listW > 0 && (
         <Suspense fallback={null}>

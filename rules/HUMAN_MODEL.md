@@ -55,7 +55,8 @@ gets the types. There is no other way into a handler.
 - `packages/ui` ← web (and desktop through web). React + Base UI + CSS tokens.
 - `packages/install`: Node-only desktop download, checksum, installation and launch shared by core and terminal.
   The protocol remains isomorphic. Direct local human-only `desktop.install` starts one bounded operation;
-  `desktop.install_status` reports progress. The local web panel offers this when the desktop is absent.
+  `desktop.install_status` reports progress and `desktop.install_cancel` aborts a download still in progress.
+  The local web panel offers this when the desktop is absent; its sidebar keeps Open desktop above the account once installed.
 - `packages/surfaces` ← placement types and an inline CSS kit shared by panel, mobile and public widget hosts.
   The stored app flag controls layout in every host: widgets keep a 16–24px inset even when maximized;
   declared apps use zero inset and no kit width cap. Height fitting and view do not change the saved type; kit classes opt into

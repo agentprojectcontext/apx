@@ -102,8 +102,23 @@ test("desktop installation is local, human-only and single-flight across HTTP an
     );
     const [raw] = await once(remote, "message");
     assert.equal(JSON.parse(String(raw)).error.code, "unauthorized");
+    remote.send(
+      JSON.stringify({ t: "req", id: "cancel", method: "desktop.install_cancel", params: {}, idem: "cancel" }),
+    );
+    const [cancelRaw] = await once(remote, "message");
+    assert.equal(JSON.parse(String(cancelRaw)).error.code, "unauthorized");
     remote.close();
     await once(remote, "close");
+    const deniedCancel = await post("desktop.install_cancel", { "x-apx-actor": "agent" });
+    assert.equal(deniedCancel.status, 401);
+    assert.equal((await post("desktop.install_cancel", { "x-forwarded-for": "100.64.0.7" })).status, 401);
+    const cancelled = await post("desktop.install_cancel");
+    assert.equal(cancelled.status, 200);
+    assert.equal(((await cancelled.json()) as { result: { phase: string } }).result.phase, "idle");
+    assert.equal((await socket.call("desktop.install", {})).phase, "downloading");
+    assert.equal((await socket.call("desktop.install_cancel", {})).phase, "idle");
+    assert.equal(downloads, 2);
+    assert.equal((await socket.call("desktop.install_status", {})).error, undefined);
   } finally {
     socket.close();
     await core.close();

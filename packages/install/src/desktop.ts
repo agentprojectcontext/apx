@@ -28,6 +28,8 @@ export function createDesktopInstaller(opts: DesktopInstallOptions) {
   let state: DesktopInstallStatus = { available: false, installed: false, phase: "idle", received: 0 };
   let running: Promise<void> | undefined;
   let controller: AbortController | undefined;
+  /** Set only by an explicit cancel, so closing the core still reports a failed download. */
+  let stop: "none" | "cancel" = "none";
   let env = opts.env;
   let checkedSession = 0;
   const candidates = opts.candidates ?? desktopCandidates(opts.platform, opts.env, opts.userHome);
@@ -45,6 +47,15 @@ export function createDesktopInstaller(opts: DesktopInstallOptions) {
   const change = (patch: Partial<DesktopInstallStatus>) => {
     state = { ...state, ...patch };
     opts.changed?.(status());
+  };
+  const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
+  const fail = (error: unknown) => {
+    if (stop === "cancel") {
+      state = { available: state.available, installed: state.installed, phase: "idle", received: 0 };
+      opts.changed?.(status());
+      return;
+    }
+    change({ phase: "failed", error: message(error) });
   };
 
   async function install(signal: AbortSignal): Promise<void> {
@@ -76,6 +87,7 @@ export function createDesktopInstaller(opts: DesktopInstallOptions) {
           fetch: fetchImpl,
           progress: (received, total) => change({ received, ...(total ? { total } : {}) }),
         });
+        signal.throwIfAborted();
         change({ phase: "installing" });
         app = await installDesktopFile(
           { platform: opts.platform, userHome: opts.userHome, env: launchEnv(env), run, found },
@@ -99,7 +111,7 @@ export function createDesktopInstaller(opts: DesktopInstallOptions) {
       );
       change({ phase: "ready" });
     } catch (error) {
-      change({ phase: "failed", error: error instanceof Error ? error.message : String(error) });
+      fail(error);
     } finally {
       if (work) fs.rmSync(work, { recursive: true, force: true });
     }
@@ -110,16 +122,25 @@ export function createDesktopInstaller(opts: DesktopInstallOptions) {
     start(): DesktopInstallStatus {
       if (running) return status();
       if (!available()) throw new Error("Desktop installation needs a local graphical session");
+      stop = "none";
       controller = new AbortController();
       const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(12 * 60_000)]);
       state = { available: true, installed: Boolean(found()), phase: "downloading", received: 0 };
       running = install(signal)
         .catch((error: unknown) => {
-          change({ phase: "failed", error: error instanceof Error ? error.message : String(error) });
+          change({ phase: "failed", error: message(error) });
         })
         .finally(() => {
           running = undefined;
         });
+      return status();
+    },
+    /** Aborts a download still in progress and returns the notice to idle. Installing or opening is left alone. */
+    async cancel(): Promise<DesktopInstallStatus> {
+      if (!running || state.phase !== "downloading") return status();
+      stop = "cancel";
+      controller?.abort();
+      await running;
       return status();
     },
     async wait(): Promise<DesktopInstallStatus> {

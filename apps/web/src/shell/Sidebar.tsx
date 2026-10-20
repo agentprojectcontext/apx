@@ -17,6 +17,9 @@ import { SidebarSection } from "./SidebarSection.tsx";
 
 // Not needed for the first paint.
 const CornerCards = lazy(() => import("./CornerCards.tsx").then((m) => ({ default: m.CornerCards })));
+const DesktopInstallNotice = lazy(() =>
+  import("./DesktopInstallNotice.tsx").then((m) => ({ default: m.DesktopInstallNotice })),
+);
 
 /** Inbox · Tasks · Resources (pinned) · Channels · Projects · External sessions · Apps · account (with Settings). `rail` = 60px icons. */
 export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
@@ -113,6 +116,11 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
       {!rail && (
         <Suspense fallback={null}>
           <CornerCards />
+        </Suspense>
+      )}
+      {!window.apxDesktop && (
+        <Suspense fallback={null}>
+          <DesktopInstallNotice rail={rail} />
         </Suspense>
       )}
       <div className="sidebar__foot">
