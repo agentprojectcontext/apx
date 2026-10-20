@@ -22,13 +22,16 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
         return say('{"verdicts":[{"index":0,"verdict":"supported"}]}');
       if (!system.startsWith("Review private memory")) return say("Understood");
       const { notes } = JSON.parse(String(req.messages.at(-1)?.content));
-      const old = notes.find((n: { text: string }) => n.text.includes("CUARZO"));
+      const old = notes.find(
+        (n: { text: string }) => n.text === "The owner always prefers CUARZO for internal reports.",
+      );
+      const paraphrase = notes.find((n: { text: string }) => n.text.startsWith("An earlier"));
       const replacement = notes.find((n: { text: string }) => n.text.includes("JADE"));
       assert.equal(replacement.evidence[0].quote, correction);
       attempts++;
       return say(
         JSON.stringify({
-          groups: [],
+          groups: [[old.id, paraphrase.id]],
           retire: [{ id: attempts === 1 ? "misspelled-note-id" : old.id, by: replacement.id }],
         }),
       );
@@ -59,8 +62,12 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
       "The owner always prefers CUARZO for internal reports.",
       "I always prefer CUARZO for internal reports.",
     );
+    const paraphrase = add(
+      "An earlier preference used CUARZO for internal reports.",
+      "I always prefer CUARZO for internal reports.",
+    );
     const replacement = add("The owner now prefers JADE for internal reports.", correction);
-    const legacyFingerprint = [old, replacement]
+    const legacyFingerprint = [old, paraphrase, replacement]
       .map((n) => `${n.id}:${n.revision}`)
       .sort()
       .join(",");
@@ -93,6 +100,7 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
     await env.client.call("memory.maintenance", {});
     await until(() => !!env.core.store.memories.get(old.id)?.forgotten_at);
     assert.equal(attempts, 2);
+    assert.equal(env.core.store.memories.get(paraphrase.id)?.forgotten_at, undefined);
     assert.equal(env.core.store.memories.get(replacement.id)?.forgotten_at, undefined);
     assert.equal(env.core.store.memories.history(old.id)[0]?.reason, `superseded:${replacement.id}`);
   } finally {

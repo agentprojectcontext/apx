@@ -3,7 +3,7 @@
 import type { Memory } from "@apx/protocol";
 import { z } from "zod";
 import { forgetAllowance, NOTEBOOK_TARGET } from "../domain/memories.ts";
-import { absoluteDates } from "../domain/memory-content.ts";
+import { absoluteDates, duplicateMemory } from "../domain/memory-content.ts";
 import { retirementKey } from "../domain/memory-evidence.ts";
 import { CallError } from "../errors.ts";
 import type { InternalCall } from "../rpc/internal.ts";
@@ -70,7 +70,8 @@ export async function applyDream(
   const byId = new Map(notes.map((m) => [m.id, m]));
   const groups = plan.groups
     .map((ids) => [...new Set(ids)].map((id) => byId.get(id)))
-    .filter((refs): refs is Memory[] => refs.length >= 2 && refs.every(Boolean));
+    .filter((refs): refs is Memory[] => refs.length >= 2 && refs.every(Boolean))
+    .filter((refs) => refs.every((n) => duplicateMemory(n.text, refs[0]?.text ?? "")));
   const merging = new Set(groups.flatMap((g) => g.map((m) => m.id)));
   // A note saved with outside content never retires another one, and a note retired in this pass replaces nothing.
   const retiring = new Set((plan.retire ?? []).map((r) => r.id));
