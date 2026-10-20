@@ -3,6 +3,7 @@ import { memoryEligibleChat } from "./chat-access.ts";
 import { memorySensitive } from "./memories.ts";
 import { memoryPlain } from "./memory-content.ts";
 import { messageText } from "./memory-evidence.ts";
+import { failedStep } from "./procedure-steps.ts";
 import { ownerOrigin, type RunRecord, type Step } from "./runs.ts";
 import type { Store } from "./store.ts";
 
@@ -19,7 +20,7 @@ const QUIET = new Set([
   "read_chat",
   "load_skill",
 ]);
-export const actedStep = (s: Step) => s.state === "ok" && !QUIET.has(s.tool);
+export const actedStep = (s: Step) => s.state === "ok" && !QUIET.has(s.tool) && !failedStep(s);
 export const confirmsSuccess = (text: string) =>
   text.length <= 120 && !/[?¿]/.test(text) && CONFIRMS.test(memoryPlain(text)) && !COMPLAINT.test(memoryPlain(text));
 

@@ -4,10 +4,11 @@
 import type { Memory } from "@apx/protocol";
 import { canUseChatMemory, memoryEligibleChat } from "../domain/chat-access.ts";
 import { canSee, looksSecret, type MemoryView } from "../domain/memories.ts";
-import { factSupported, procedureSupported } from "../domain/memory-content.ts";
+import { factSupported } from "../domain/memory-content.ts";
 import { evidenceIsLive, memoryClaimKey } from "../domain/memory-evidence.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { procedureEvidenceIsLive } from "../domain/memory-verification.ts";
+import { placesOf, procedureSupported } from "../domain/procedure-steps.ts";
 import type { Store } from "../domain/store.ts";
 import type { MemoryIndex } from "../engine/memory-index.ts";
 import type { MemoryMaintenance } from "../engine/memory-maintenance.ts";
@@ -87,7 +88,11 @@ export function memoryHandlers(store: Store, index: MemoryIndex, maintenance?: M
         const quote = evidence.map((e) => e.quote).join("\n");
         const supported =
           kind === "procedure"
-            ? procedureSupported(text, store.runs.steps(ctx.agent?.run_id ?? ""))
+            ? procedureSupported(
+                text,
+                store.runs.steps(ctx.agent?.run_id ?? ""),
+                placesOf(store, ctx.agent?.thread_id ?? ""),
+              )
             : factSupported(text, quote);
         if (!supported || !ctx.memoryReviewed?.includes(memoryClaimKey(text, evidence)))
           throw badRequest("automatic memory must say only what its source supports");

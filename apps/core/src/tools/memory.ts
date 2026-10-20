@@ -1,6 +1,7 @@
 // remember / recall / forget: an agent's notes between threads, through the memory.* methods like any client.
 import type { Memory } from "@apx/protocol";
 import { z } from "zod";
+import { stepKey, stepPairs } from "../domain/procedure-steps.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -22,13 +23,25 @@ const line = (m: Memory) =>
 /** One line per note for the index: what it is about, not all it says (recall brings the rest). */
 export function hookLine(m: Memory): string {
   const first = m.text.split("\n")[0] ?? "";
-  const asked = m.kind === "procedure" ? /asked: "(.*)"$/.exec(first)?.[1] : undefined;
-  const steps = m.kind === "procedure" ? [...(m.text.split("\n")[1] ?? "").matchAll(/`([^`]+)`/g)].slice(0, 2) : [];
-  // A procedure's hook leads with what it used (a site by its host), then what the owner asked.
-  const used = steps.map((s) => (s[1] ?? "").replace(/^https?:\/\/([^/]+).*$/, "$1")).join(" ");
-  const about = asked ? `${used} for "${asked}"` : first;
-  const hook = about.replace(/\s+/g, " ").trim();
-  return `- [${m.id}] (${m.kind ?? "note"}${m.source === "owner" ? ", by the owner" : ""}, ${m.updated_at.slice(0, 10)}) ${hook.length > 96 ? `${hook.slice(0, 95)}…` : hook}`;
+  const head = `- [${m.id}] (${m.kind ?? "note"}${m.source === "owner" ? ", by the owner" : ""}, ${m.updated_at.slice(0, 10)}) `;
+  const hook = (m.kind === "procedure" ? procedureHook(m.text) : undefined) ?? first.replace(/\s+/g, " ").trim();
+  return `${head}${hook.length > 96 ? `${hook.slice(0, 95)}…` : hook}`;
+}
+
+/** A procedure as the task the owner asked for and the decisive steps (site, programs, page script) that did it. */
+function procedureHook(text: string): string | undefined {
+  const [first = "", steps = ""] = text.split("\n");
+  const asked = /asked: "(.*)"$/.exec(first)?.[1];
+  if (!asked) return undefined;
+  const pairs = stepPairs(steps);
+  const keys = pairs.map((p) => stepKey(p.tool, p.gist)).filter((k, i, all) => k && k !== all[i - 1]);
+  const method = (keys.length ? keys : pairs.slice(0, 2).map((p) => p.tool)).join(" → ");
+  const task = asked
+    .replace(/https?:\/\/(?:www\.)?([^/\s]+)\S*/g, "<$1>")
+    .replace(/\s+/g, " ")
+    .trim();
+  const room = Math.max(24, 92 - method.length);
+  return `"${task.length > room ? `${task.slice(0, room - 1)}…` : task}": ${method}`;
 }
 
 /** What wrapping notes saved with outside content adds around them (see notesText). */

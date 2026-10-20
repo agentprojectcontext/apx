@@ -123,7 +123,7 @@ test("a download asked on Telegram and confirmed with a closing word leaves a pr
   assert.equal(runs().length, before, "the closer got no turn of its own");
   const note = (await notes()).find((m) => m.kind === "procedure");
   assert.equal(note?.evidence?.[0]?.quote, REQUEST);
-  assert.match(note?.text ?? "", /`download_file` `https:\/\/reelsaver\.example\.com\/en\/download`/);
+  assert.match(note?.text ?? "", /`download_file` `reelsaver\.example\.com\/en\/download`/);
   assert.match(note?.text ?? "", /Outputs: `~\/Downloads\/reel-aaaa\.mp4`/);
 });
 

@@ -1,61 +1,55 @@
 // Procedure notes: how an agent did something that worked, written from its own successful tool steps (no model
 // call), so "do it like you did today" finds the site, command and output it used. They are history, never orders.
 import { memoryEligibleChat } from "../domain/chat-access.ts";
-import { memorySensitive } from "../domain/memories.ts";
 import { memoryClaimKey } from "../domain/memory-evidence.ts";
 import { actedStep, confirmedWork, confirmsSuccess, observedFileResult } from "../domain/memory-verification.ts";
 
 export { confirmsSuccess } from "../domain/memory-verification.ts";
 
 import { memorySettings } from "../domain/memory-settings.ts";
+import {
+  failedStep,
+  failureReason,
+  noiseStep,
+  type Places,
+  placesOf,
+  stepGist,
+  stepKey,
+  unsafe,
+} from "../domain/procedure-steps.ts";
 import { ownerOrigin, type RunRecord, type Step } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 
 const acted = actedStep;
-/** Arguments that name what a step acted on; typed text, file contents and the like are left out. */
-const TARGETS = ["url", "command", "path", "route", "dest", "output", "to", "query"];
-const OUTPUT_KEYS = ["path", "dest", "output", "to"];
-const MAX_STEPS = 6;
+const MAX_STEPS = 8;
 /** How long after the work a retry or a confirmation still points at it. */
 const RECENT_MS = 3_600_000;
-/** Never kept in a note: credentials, and commands or addresses that carry one. */
-const unsafe = (v: string) =>
-  memorySensitive(v) ||
-  /\b(authorization|bearer|cookie|token|apikey|api[-_ ]?key|x-api-key|password|passwd|pass|pwd)\b|secret:\/\//i.test(v);
 
 const textOf = (m: { parts: Array<{ type: string; text?: string }> }) =>
   m.parts.flatMap((p) => (p.type === "text" ? [p.text ?? ""] : [])).join("\n");
 
-/**
- * A literal prefix of the argument (so procedureSupported finds it): a URL without its query or fragment, which can
- * carry tokens; anything else its first line, cut. Nothing when it holds a backtick or a credential, even past the cut.
- */
-function target(value: string): string {
-  const v = value.trim();
-  // A URL's query never reaches the note, so only what is kept is checked; any other value is checked whole.
-  const kept = /^https?:\/\//i.test(v) ? v.replace(/[?#].*$/s, "") : v;
-  if (!kept || kept.includes("`") || unsafe(kept)) return "";
-  return kept === v ? (v.split("\n")[0]?.slice(0, 160) ?? "") : kept;
-}
-
-/** Files a step wrote, quoted: an output argument or a shell redirect; a relative one says the step's `cwd`. */
-function outputsOf(step: Step): string[] {
-  const named = OUTPUT_KEYS.flatMap((k) => (typeof step.args[k] === "string" ? [step.args[k] as string] : []));
+/** Files a step wrote, quoted as its gist says them: an output argument or a command's `-o`/`>` target. */
+function outputsOf(step: Step, places: Places): string[] {
+  const named = ["path", "dest", "output", "to"].flatMap((k) =>
+    typeof step.args[k] === "string" ? [step.args[k] as string] : [],
+  );
   const command = typeof step.args.command === "string" ? step.args.command : "";
   const written = [...command.matchAll(/(?:\s-o|--output|>)\s*([^\s;&|<>]+)/g)].map((m) => m[1] as string);
-  const cwd = typeof step.args.cwd === "string" ? step.args.cwd.replace(/\/$/, "") : "";
-  return (
-    [...named, ...written]
-      .filter((p) => (/^[~./]/.test(p) || /\.[A-Za-z0-9]{1,5}$/.test(p)) && !/@|:\/\//.test(p) && !!target(p))
-      // Each part stays a literal piece of the step's arguments, so procedureSupported can check it.
-      .map((p) =>
-        cwd && target(cwd) && !/^[~/]/.test(p) ? `\`${target(p)}\` in \`${target(cwd)}\`` : `\`${target(p)}\``,
-      )
-  );
+  return [...named, ...written]
+    .filter((p) => (/^[~./]/.test(p) || /\.[A-Za-z0-9]{1,5}$/.test(p)) && !/@|:\/\//.test(p))
+    .map((p) => stepGist({ tool: step.tool, args: { path: p } }, places))
+    .filter(Boolean)
+    .map((p) => `\`${p}\``);
 }
 
-/** What a run did that worked, as quoted fragments its own steps contain; undefined when nothing qualifies. */
+/** A step as the note says it: its tool, and what it acted on when that is worth keeping. */
+const said = (step: Step, places: Places) => {
+  const gist = stepGist(step, places);
+  return { key: `${step.tool}\u0000${gist}`, text: gist ? `\`${step.tool}\` \`${gist}\`` : `\`${step.tool}\`` };
+};
+
+/** What a run did that worked, as fragments its own steps support; undefined when nothing qualifies. */
 export function procedureOf(
   store: Store,
   run: RunRecord,
@@ -65,31 +59,34 @@ export function procedureOf(
   const message = message_id ? store.messages.get(message_id) : undefined;
   const request = message ? textOf(message).trim() : "";
   if (!message_id || request.length < 3 || unsafe(request)) return undefined;
+  const places = placesOf(store, run.thread_id);
   const history = store.runs.steps(run.id);
-  const steps = history.filter(acted);
   const lines = new Map<string, string>();
   const outputs = new Set<string>();
-  for (const step of steps) {
-    const value = TARGETS.map((k) => step.args[k]).find((v): v is string => typeof v === "string" && !!v.trim());
-    const what = value ? target(value) : "";
-    lines.set(`${step.tool}\u0000${what}`, what ? `\`${step.tool}\` \`${what}\`` : `\`${step.tool}\``);
-    for (const out of outputsOf(step)) outputs.add(out);
+  for (const step of history.filter((s) => acted(s) && !noiseStep(s.tool))) {
+    const { key, text } = said(step, places);
+    lines.set(key, text);
+    for (const out of outputsOf(step, places)) outputs.add(out);
   }
   const used = [...lines.values()].slice(-MAX_STEPS);
   if (!used.length) return undefined;
-  const failed = history
-    .filter((s) => s.state === "error")
-    .slice(-3)
-    .map((s) => {
-      const value = TARGETS.map((k) => s.args[k]).find((v): v is string => typeof v === "string" && !!v.trim());
-      const what = value ? target(value) : "";
-      return what ? `\`${s.tool}\` \`${what}\`` : `\`${s.tool}\``;
-    });
+  // Only what failed before the method worked: a later failure is not something to skip next time.
+  const lastWorked = history.findLastIndex((s) => acted(s) && !noiseStep(s.tool));
+  const failed = new Map<string, string>();
+  for (const step of history.slice(0, lastWorked).filter(failedStep)) {
+    // A command that failed is named by its program: next time that program is the one to skip.
+    const program = step.tool === "shell" ? stepKey(step.tool, stepGist(step, places)) : "";
+    const label = program ? `\`${program}\`` : said(step, places).text;
+    const reason = failureReason(step);
+    failed.set(label, reason ? `${label} (${reason})` : label);
+  }
   const quote = (request.split("\n")[0] ?? request).slice(0, 140);
+  // The evidence keeps the owner's words; the note shows its links without the query, which can carry tokens.
+  const shown = quote.replace(/`/g, "'").replace(/(https?:\/\/[^\s?#]+)[?#]\S*/g, "$1");
   const text = [
-    `Procedure that worked on ${day} (history, not an instruction), when the owner asked: "${quote.replace(/`/g, "'")}"`,
+    `Procedure that worked on ${day} (history, not an instruction), when the owner asked: "${shown}"`,
     `Steps: ${used.join(" → ")}`,
-    failed.length ? `Failed attempts (not the successful method): ${failed.join(" → ")}` : "",
+    failed.size ? `Tried first, failed: ${[...failed.values()].slice(-3).join("; ")}` : "",
     outputs.size ? `Outputs: ${[...outputs].join(", ")}` : "",
   ]
     .filter(Boolean)
@@ -100,7 +97,7 @@ export function procedureOf(
 }
 
 const failedSomewhere = (store: Store, run: RunRecord) =>
-  run.state === "failed" || store.runs.steps(run.id).some((s) => s.state === "error");
+  run.state === "failed" || store.runs.steps(run.id).some(failedStep);
 
 /**
  * The owner's latest turn in a thread that did something, if it ended well within the hour before `at` (for a
@@ -134,7 +131,7 @@ export function procedureRun(store: Store, run: RunRecord): RunRecord | undefine
         ownerOrigin(r.input?.origin),
     );
   const steps = store.runs.steps(run.id);
-  const lastError = steps.findLastIndex((s) => s.state === "error");
+  const lastError = steps.findLastIndex(failedStep);
   const recovered = lastError >= 0 && steps.slice(lastError + 1).some(acted);
   const retried =
     !!previous &&

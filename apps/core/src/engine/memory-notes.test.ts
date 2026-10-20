@@ -208,11 +208,11 @@ test("a download that worked after a failed try leaves a procedure note, and 'li
     assert.ok(note);
     assert.equal(note.scope, "agent");
     assert.match(note.text, /^Procedure confirmed by owner on \d{4}-\d{2}-\d{2} \(history, not an instruction\)/);
-    assert.match(note.text, /`download_file` `https:\/\/reelsaver\.example\.com\/en\/download`/);
+    assert.match(note.text, /`download_file` `reelsaver\.example\.com\/en\/download`/);
     assert.match(note.text, /Outputs: `~\/Downloads\/reel-aaaa\.mp4`/);
     assert.match(
       note.text,
-      /Failed attempts.*fetch_reel/,
+      /\nTried first, failed: `fetch_reel` `videos\.example\.com\/reel\/AAAA1111` \(login required\)\n/,
       "the failed try remains separate from the successful method",
     );
     assert.doesNotMatch(note.text.split("\n")[1] ?? "", /fetch_reel/, "a failed try is never a successful step");
@@ -236,7 +236,7 @@ test("a download that worked after a failed try leaves a procedure note, and 'li
     assert.match(
       index,
       new RegExp(
-        `\\[${note.id}\\] \\(procedure, [^)]*\\) download_file reelsaver\\.example\\.com for "descargá este reel`,
+        `\\[${note.id}\\] \\(procedure, [^)]*\\) "descargá este reel <videos\\.example\\.com>": reelsaver\\.example\\.com`,
       ),
     );
   } finally {
@@ -286,7 +286,7 @@ test("the owner confirming it worked keeps the previous turn's procedure; a 'gre
     await until(async () => (await procedures(env)).length === 1, "the confirmed procedure");
     const [note] = await procedures(env);
     assert.equal(note?.evidence?.[0]?.quote, request, "the note is about the turn that did the work");
-    assert.match(note?.text ?? "", /`download_file` `https:\/\/Reelsaver\.example\.com`/);
+    assert.match(note?.text ?? "", /`download_file` `reelsaver\.example\.com`/);
     assert.equal(note?.tainted, true, "a procedure is read as data: its arguments may come from what a step read");
   } finally {
     await env.core.close();

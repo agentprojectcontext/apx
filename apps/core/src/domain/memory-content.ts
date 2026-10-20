@@ -175,23 +175,6 @@ function prose(text: string, at: (offset: number) => string): string {
   return out;
 }
 
-/** Every `quoted` fragment of a procedure note is a tool or an argument of one of the run's own successful steps. */
-export function procedureSupported(
-  text: string,
-  steps: Array<{ tool: string; args: Record<string, unknown>; state: string }>,
-): boolean {
-  return (
-    text.split("\n").every((line) => {
-      const failed = line.startsWith("Failed attempts (not the successful method):");
-      const fragments = [...line.matchAll(/`([^`\n]+)`/g)].map((m) => m[1] as string);
-      const said = steps
-        .filter((s) => s.state === (failed ? "error" : "ok"))
-        .flatMap((s) => [s.tool, ...Object.values(s.args).flatMap((v) => (typeof v === "string" ? [v] : []))]);
-      return fragments.every((f) => said.some((v) => v.includes(f)));
-    }) && /`[^`\n]+`/.test(text)
-  );
-}
-
 const POLICY =
   /\b(siempre|nunca|jamas|always|never|from now on|going forward|by default|por defecto|every time|whenever|cada vez que|a partir de ahora|de ahora en (mas|adelante))\b/;
 const DURABLE =
