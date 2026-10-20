@@ -1439,3 +1439,16 @@ Legacy model-log entries lack dependency offsets. Only an exact canonical input 
 context ends: stale legacy context is removed as a whole, and an unverifiable legacy run is omitted from the model
 projection. Arbitrary note text can contain blank lines or APX-like headers, so those are never treated as boundaries.
 The original chat remains readable; current turns rebuild task and skill context.
+
+Historical recall also covers completed turns of the current chat outside the projected context. Visible runs and
+source fragments are excluded before search limits; semantic relevance is not replaced by recency. The current
+question drives historical retrieval independently of unrelated recent topics. Only original owner messages are
+injected; explicit chat reads can expand their responses. Short non-informative and queued/running turns are never sources.
+
+Long owner messages are embedded as bounded overlapping literal fragments; ranking aggregates the best fragment per
+source before applying the existing relevance threshold and result limit. Only the winning original excerpt reaches
+the turn; fragment vectors survive restart and cascade with their episode.
+
+Episode indexing has a per-run transactional checkpoint and advances independently of helper extraction and daily
+model-call quotas, including discarded batches and late completions. Recent capture jobs take priority; exhausted
+quotas defer model calls until the next UTC day without blocking historical retrieval.

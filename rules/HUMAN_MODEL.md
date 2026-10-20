@@ -138,7 +138,10 @@ notice when there is no text. Tools that touch core state call protocol methods 
   (`engine/recall.ts`); `.apc/memory.md` joins `AGENTS.md` in the system prompt. After each run `engine/upkeep.ts`
   titles new chats and, when the history gets long, summarizes older turns into a new epoch that
   `projectHistory` puts before the newest turns. `engine/chat-recall.ts` retrieves literal owner messages from the
-  agent's own eligible chats in the same project. `engine/memory-maintenance.ts` drains durable `memory_work` jobs:
+  agent's own eligible chats in the same project, including old current-chat turns outside the projected context.
+  Visible sources are excluded before search limits. `engine/memory-episodes.ts` checkpoints historical indexing
+  independently of capture; bounded overlapping embeddings retain individual topics in long owner messages.
+  `engine/memory-maintenance.ts` drains durable `memory_work` jobs:
   grounded private capture and idle AutoDream deduplication, through the same router as tools. Notes have revisions,
   source evidence and reversible history; exclusions suppress forgotten sources in recall and retries. Model-log
   snapshots record dependencies so edits invalidate old context and derived replies. See D-111.

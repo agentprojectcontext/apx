@@ -30,6 +30,24 @@ export function snapshotOf(
   };
 }
 
+/** Avoid re-injecting original turns or source fragments that remain in the projected model history. */
+export function visibleMemoryRuns(store: Store, entries: LogEntry[], from: number, currentRun: string): Set<string> {
+  const runs = new Set([currentRun]);
+  for (const entry of entries) {
+    if (entry.seq < from) continue;
+    if (entry.run_id) runs.add(entry.run_id);
+    const item = entry.item as ChatItem;
+    const snapshot = entry.memory;
+    if (!snapshot || typeof item.content !== "string" || !item.content.slice(snapshot.start).startsWith(HEADER))
+      continue;
+    for (const id of snapshot.sources) {
+      const run = store.memorySources.runFor(id);
+      if (run) runs.add(run);
+    }
+  }
+  return runs;
+}
+
 /** Before dependency metadata existed, the APX header and run time identify stale injected notes. */
 function legacySnapshot(
   store: Store,

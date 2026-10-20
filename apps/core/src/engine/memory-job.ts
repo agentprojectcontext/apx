@@ -1,13 +1,12 @@
 import { z } from "zod";
 import { canUseChatMemory } from "../domain/chat-access.ts";
-import { memorySensitive } from "../domain/memories.ts";
-import { isMemoryGreeting } from "../domain/memory-content.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import type { MemoryWork } from "../domain/memory-work.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import { captureMemories } from "./memory-capture.ts";
+import { memoryEpisodeSource } from "./memory-episodes.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import type { Upkeep } from "./upkeep.ts";
 
@@ -24,11 +23,6 @@ const DREAM = [
   "Select only redundant notes stating the same fact. Preserve conflicting facts, corrections, negations and different numbers.",
   'Return JSON only: {"groups":[["note-id","duplicate-id"]]}. No rewritten facts or new memories. Empty groups is valid.',
 ].join("\n");
-const textOf = (m: { parts: Array<{ type: string; text?: string }> }) =>
-  m.parts
-    .filter((p) => p.type === "text")
-    .map((p) => p.text ?? "")
-    .join("\n");
 const json = (text: string) => JSON.parse(text.replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, ""));
 
 export type MemoryJobDeps = { store: Store; upkeep: Upkeep; call: InternalCall; index: MemoryIndex };
@@ -60,41 +54,10 @@ export async function performMemoryJob(
     return;
   }
   const view = { agent_id: job.agent_id, project_id: job.project_id ?? undefined };
-  const messages = store.memorySources
-    .forRun(job.run_id)
-    .flatMap((id) => {
-      const m = store.messages.get(id);
-      return m ? [m] : [];
-    })
-    .filter(
-      (m) =>
-        m.author.kind === "user" &&
-        textOf(m).trim().length >= 12 &&
-        !isMemoryGreeting(textOf(m)) &&
-        !memorySensitive(textOf(m)) &&
-        !store.memories.excluded(view, textOf(m), { message_id: m.id, run_id: job.run_id }),
-    );
-  const source = messages.map((m) => ({ id: m.id, text: textOf(m).slice(0, 4000) }));
+  const source = memoryEpisodeSource(store, run);
   if (job.kind === "capture" && !source.length) {
     store.memoryWork.finish(job.id, "completed", { saved: 0 });
     return;
-  }
-  if (job.kind === "capture") {
-    const first = source[0];
-    if (first)
-      store.memoryWork.episode({
-        run_id: job.run_id,
-        thread_id: thread.id,
-        agent_id: job.agent_id,
-        project_id: job.project_id,
-        message_id: first.id,
-        text: source
-          .map((m) => m.text)
-          .join("\n")
-          .slice(0, 4000),
-        created_at: run.ended_at ?? run.started_at,
-      });
-    index.schedule();
   }
   const notes = store.memories
     .list({ view, scope: "agent", agent_id: job.agent_id, limit: 32 })
@@ -111,8 +74,14 @@ export async function performMemoryJob(
     store.memoryWork.finish(job.id, "completed", { merged: 0 });
     return;
   }
-  if (!upkeep.auxModels(job.agent_id).length || !store.memoryWork.reserve(job.id, settings.daily_memory_calls ?? 20)) {
-    store.memoryWork.defer(job.id, "no auxiliary model or daily call budget exhausted");
+  if (!upkeep.auxModels(job.agent_id).length) {
+    store.memoryWork.defer(job.id, "no auxiliary model available");
+    return;
+  }
+  if (!store.memoryWork.reserve(job.id, settings.daily_memory_calls ?? 20)) {
+    const nextDay = new Date();
+    nextDay.setUTCHours(24, 0, 0, 0);
+    store.memoryWork.defer(job.id, "daily call budget exhausted", nextDay.toISOString());
     return;
   }
   const about = {

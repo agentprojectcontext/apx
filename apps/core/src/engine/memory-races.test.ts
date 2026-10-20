@@ -21,7 +21,9 @@ test("automatic semantic recall finds an owner episode without shared words and 
       const input = JSON.parse(body).input as string[];
       embedded.push(...input);
       res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ embeddings: input.map(() => [1, 0, 0]) }));
+      res.end(
+        JSON.stringify({ embeddings: input.map((text) => (text.includes("inventory") ? [0, 1, 0] : [1, 0, 0])) }),
+      );
     });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -37,19 +39,6 @@ test("automatic semantic recall finds an owner episode without shared words and 
       const thread = await env.client.call("threads.create", { kind: "loose", agent_id: agent });
       await env.client.call("threads.send", { thread: thread.id, text });
       await env.settle(thread.id);
-      const run = env.core.store.runs.list(thread.id, 1)[0];
-      assert.ok(run);
-      const message = env.core.store.memorySources.forRun(run.id)[0];
-      assert.ok(message);
-      env.core.store.memoryWork.episode({
-        run_id: run.id,
-        thread_id: thread.id,
-        agent_id: agent,
-        project_id: null,
-        message_id: message,
-        text,
-        created_at: run.started_at,
-      });
     }
     await env.client.call("services.set", {
       id: "local",
@@ -73,6 +62,44 @@ test("automatic semantic recall finds an owner episode without shared words and 
     const supplied = String(llm.calls.findLast((call) => call.tools.length > 0)?.messages.at(-1)?.content);
     assert.match(supplied, /plum-colored outlines/);
     assert.doesNotMatch(supplied, /supplier account/);
+    const original = env.core.store.threads
+      .list({ include_archived: false, limit: null })
+      .find((t) => t.id !== target.id && t.agent_ids.includes("roby") && env.core.store.runs.list(t.id, 1).length);
+    assert.ok(original);
+    const originalRun = env.core.store.runs.list(original.id, 1)[0];
+    assert.ok(originalRun);
+    const sourceId = env.core.store.memorySources.forRun(originalRun.id)[0];
+    assert.ok(sourceId);
+    for (let n = 0; n < 9; n++) {
+      await env.client.call("threads.send", {
+        thread: original.id,
+        text: `The inventory boxes belong to warehouse rack ${n}.`,
+      });
+      await env.settle(original.id);
+    }
+    await env.client.call("memory.reindex", {});
+    const history = env.core.store.modelLog.list(original.id);
+    env.core.store.threads.mergeContext(original.id, {
+      compaction: {
+        upto: history.at(-1)?.seq ?? 0,
+        summary: "Earlier work was discussed.",
+        untrusted: false,
+        runs: 1,
+        at: new Date().toISOString(),
+      },
+    });
+    for (let n = 0; n < 2; n++) {
+      await env.client.call("threads.send", { thread: original.id, text: "What hue fits our diagrams?" });
+      await env.settle(original.id);
+      const context = JSON.stringify(llm.calls.findLast((call) => call.tools.length > 0)?.messages);
+      assert.equal(
+        context.split(sourceId).length - 1,
+        1,
+        "compacted same-chat history is restored once, without re-injecting a visible source fragment",
+      );
+      assert.match(context, /plum-colored outlines/);
+      assert.doesNotMatch(context, /supplier account/);
+    }
   } finally {
     await env.core.close();
     await new Promise<void>((resolve) => server.close(() => resolve()));

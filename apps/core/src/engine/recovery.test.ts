@@ -5,13 +5,69 @@ import { test } from "node:test";
 import { z } from "zod";
 import type { ChatItem } from "../providers/types.ts";
 import { defineTool } from "../tools/types.ts";
-import { RESUME_NOTE } from "./recovery.ts";
+import { RESUME_NOTE, recoverInterrupted } from "./recovery.ts";
 import { callTool, say, scriptedLlm, startCore, texts } from "./testkit.ts";
 
 const llm = scriptedLlm((_req, { system, said }) => {
   if (system.startsWith("You are Scout")) return say("Scout's findings.");
   if (said.includes("<delegation_result")) return say("Scout came back after the restart.");
   return say("Answered after the restart.");
+});
+
+test("recovery preserves delegation dependencies when SQL returns interrupted children before their caller", async () => {
+  const env = await startCore({ llm });
+  const { store } = env.core;
+  const interrupted = store.runs.interrupted;
+  try {
+    const thread = store.threads.create({ kind: "loose", title: "Parent", agent_ids: ["roby"] });
+    const parent = store.runs.setState(
+      store.runs.create({
+        thread_id: thread.id,
+        agent_id: "roby",
+        trigger: "user",
+        input: { origin: { kind: "user" }, text: "Ask Scout" },
+        deadline_at: "2099-01-01T00:00:00Z",
+      }),
+      "working",
+    );
+    const sub = store.threads.create({
+      kind: "a2a",
+      title: "Child",
+      agent_ids: ["roby", "scout"],
+      parent_id: thread.id,
+    });
+    const child = store.runs.setState(
+      store.runs.create({
+        thread_id: sub.id,
+        agent_id: "scout",
+        trigger: "a2a",
+        parent_run_id: parent.id,
+        input: {
+          origin: { kind: "agent", id: "roby", name: "Roby", thread_id: thread.id, run_id: parent.id },
+          text: "Look this up",
+        },
+        deadline_at: "2099-01-01T00:00:00Z",
+      }),
+      "working",
+    );
+    // Query order is unspecified. Keep all recovery writes real while exercising child-first delivery.
+    store.runs.interrupted = () => [child, parent];
+    const recovered = recoverInterrupted(store);
+    assert.deepEqual(
+      recovered.map((r) => [r.run.id, r.resume]),
+      [
+        [child.id, true],
+        [parent.id, true],
+      ],
+    );
+    assert.match(JSON.stringify(store.modelLog.forRun(parent.id)), /Scout.*still going/);
+    assert.equal(store.runs.get(child.id)?.state, "failed");
+    assert.equal(store.runs.get(parent.id)?.state, "failed");
+  } finally {
+    store.runs.interrupted = interrupted;
+    await env.core.close();
+    env.cleanup();
+  }
 });
 
 test("a restart closes a cut turn (effect unknown for a started tool), resumes it, runs queued work and wakes the caller", async () => {

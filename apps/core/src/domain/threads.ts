@@ -517,7 +517,7 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         snippet: snippetOf(message.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join(" "), query),
       }));
     },
-    recall(query: string, threadIds: string[], limit = 20): Message[] {
+    recall(query: string, threadIds: string[], limit = 20, excludeMessages: string[] = []): Message[] {
       const match = ftsQuery(query, 12);
       if (!match || !threadIds.length) return [];
       return all(
@@ -528,6 +528,7 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
           .selectAll("messages")
           .where(sql<boolean>`messages.thread_id in (select value from json_each(${JSON.stringify(threadIds)}))`)
           .where(sql<string>`json_extract(messages.author, '$.kind')`, "=", "user")
+          .where(sql<boolean>`messages.id not in (select value from json_each(${JSON.stringify(excludeMessages)}))`)
           .where(sql<boolean>`messages_fts MATCH ${match}`)
           .orderBy(sql`bm25(messages_fts)`)
           .orderBy("messages.created_at", "desc")

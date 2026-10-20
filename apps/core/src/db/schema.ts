@@ -160,6 +160,16 @@ export interface MemoryCallReservationsTable {
   day: string;
 }
 
+export interface MemoryEpisodeScansTable {
+  run_id: string;
+}
+
+export interface MemoryEpisodeVectorsTable {
+  run_id: string;
+  part: Generated<number>;
+  embedding: Uint8Array;
+}
+
 export interface MemoryEpisodesTable {
   rowid: Generated<number>;
   run_id: string;
@@ -536,6 +546,8 @@ export interface Database {
   media: MediaTable;
   memories: MemoriesTable;
   memory_call_reservations: MemoryCallReservationsTable;
+  memory_episode_scans: MemoryEpisodeScansTable;
+  memory_episode_vectors: MemoryEpisodeVectorsTable;
   memory_episodes: MemoryEpisodesTable;
   memory_exclusions: MemoryExclusionsTable;
   memory_versions: MemoryVersionsTable;

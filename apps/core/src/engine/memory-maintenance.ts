@@ -5,6 +5,7 @@ import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import type { Log } from "../log.ts";
 import type { InternalCall } from "../rpc/internal.ts";
+import { recordMemoryEpisode } from "./memory-episodes.ts";
 import type { MemoryIndex } from "./memory-index.ts";
 import { performMemoryJob } from "./memory-job.ts";
 import type { Upkeep } from "./upkeep.ts";
@@ -35,6 +36,8 @@ export function createMemoryMaintenance(deps: {
   function enqueue(run: RunRecord, dream = false, manual = false): void {
     const thread = store.threads.get(run.thread_id);
     if (!thread || !eligible(run)) return;
+    recordMemoryEpisode(store, run);
+    deps.index.schedule();
     store.memoryWork.enqueue({
       id: `capture:${run.id}`,
       kind: "capture",
@@ -78,11 +81,15 @@ export function createMemoryMaintenance(deps: {
   }
   return {
     start() {
+      deps.index.schedule();
       for (const thread of store.threads.list({ include_archived: false, include_subthreads: false, limit: null })) {
         for (const run of store.runs.list(thread.id, 20))
           if (eligible(run) && Date.parse(run.ended_at ?? run.started_at) > Date.now() - 86_400_000) enqueue(run);
       }
-      timer = setInterval(() => void drain(), 30_000);
+      timer = setInterval(() => {
+        deps.index.schedule();
+        void drain();
+      }, 30_000);
       timer.unref();
       void drain();
     },

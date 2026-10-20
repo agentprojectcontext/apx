@@ -2,6 +2,7 @@ import type { Selectable } from "kysely";
 import { sql as raw } from "kysely";
 import type { MemoryWorkTable } from "../db/schema.ts";
 import { cosine, ftsQuery, relatedCut } from "./memories.ts";
+import { memoryFragments } from "./memory-content.ts";
 import { now, qb, type Sql } from "./sql.ts";
 
 export type MemoryWork = Selectable<MemoryWorkTable>;
@@ -13,6 +14,7 @@ export type MemoryEpisode = {
   message_id: string;
   text: string;
   created_at: string;
+  excerpt?: string;
 };
 
 export function memoryWorkRepo({ all, one, run, tx }: Sql) {
@@ -61,7 +63,8 @@ export function memoryWorkRepo({ all, one, run, tx }: Sql) {
             ]),
           )
           .where("attempts", "<", 3)
-          .orderBy("created_at")
+          .orderBy("created_at", "desc")
+          .orderBy("id")
           .limit(limit),
       );
     },
@@ -125,7 +128,7 @@ export function memoryWorkRepo({ all, one, run, tx }: Sql) {
           .where("id", "=", id),
       );
     },
-    defer(id: string, reason: string): void {
+    defer(id: string, reason: string, availableAt = new Date(Date.now() + 60_000).toISOString()): void {
       run(
         qb
           .updateTable("memory_work")
@@ -133,7 +136,7 @@ export function memoryWorkRepo({ all, one, run, tx }: Sql) {
             state: "pending",
             lease_until: null,
             attempts: raw`max(0, attempts - 1)`,
-            available_at: new Date(Date.now() + 60_000).toISOString(),
+            available_at: availableAt,
             error: reason,
           })
           .where("id", "=", id),
@@ -148,15 +151,40 @@ export function memoryWorkRepo({ all, one, run, tx }: Sql) {
           .limit(limit),
       );
     },
+    uncheckedEpisodes(limit = 32): string[] {
+      return all(
+        qb
+          .selectFrom("runs as r")
+          .leftJoin("memory_episode_scans as s", "s.run_id", "r.id")
+          .select("r.id")
+          .where("r.state", "=", "completed")
+          .where("s.run_id", "is", null)
+          .orderBy("r.ended_at", "desc")
+          .orderBy("r.id")
+          .limit(limit),
+      ).map((r) => r.id);
+    },
+    checkEpisode(id: string, visit: () => void): void {
+      tx(() => {
+        visit();
+        run(
+          qb
+            .insertInto("memory_episode_scans")
+            .values({ run_id: id })
+            .onConflict((c) => c.column("run_id").doNothing()),
+        );
+      });
+    },
     episode(e: MemoryEpisode): void {
+      const { excerpt: _, ...row } = e;
       run(
         qb
           .insertInto("memory_episodes")
-          .values(e)
+          .values(row)
           .onConflict((c) => c.column("run_id").doNothing()),
       );
     },
-    searchEpisodes(query: string, threadIds: string[], limit = 12): MemoryEpisode[] {
+    searchEpisodes(query: string, threadIds: string[], limit = 12, excludeRuns: string[] = []): MemoryEpisode[] {
       const match = ftsQuery(query, 12);
       if (!match || !threadIds.length) return [];
       return all(
@@ -166,6 +194,9 @@ export function memoryWorkRepo({ all, one, run, tx }: Sql) {
           .selectAll("memory_episodes")
           .where(raw<boolean>`memory_episodes.thread_id in (select value from json_each(${JSON.stringify(threadIds)}))`)
           .where(raw<boolean>`memory_episodes_fts MATCH ${match}`)
+          .where(
+            raw<boolean>`memory_episodes.run_id not in (select value from json_each(${JSON.stringify(excludeRuns)}))`,
+          )
           .orderBy(raw`bm25(memory_episodes_fts)`)
           .limit(limit),
       );
@@ -176,39 +207,69 @@ export function memoryWorkRepo({ all, one, run, tx }: Sql) {
           .selectFrom("memory_episodes")
           .select(["run_id", "text"])
           .where((eb) => eb.or([eb("embedding_model", "is", null), eb("embedding_model", "!=", model)]))
+          .orderBy("created_at", "desc")
           .limit(limit),
       );
     },
-    setEmbedding(id: string, vector: Float32Array, model: string): void {
-      run(
-        qb
-          .updateTable("memory_episodes")
-          .set({
-            embedding: new Uint8Array(vector.buffer, vector.byteOffset, vector.byteLength),
-            embedding_model: model,
-          })
-          .where("run_id", "=", id),
-      );
+    setEmbeddings(id: string, vectors: Float32Array[], model: string): void {
+      const first = vectors[0];
+      if (!first) return;
+      tx(() => {
+        run(qb.deleteFrom("memory_episode_vectors").where("run_id", "=", id));
+        run(
+          qb
+            .updateTable("memory_episodes")
+            .set({
+              embedding: new Uint8Array(first.buffer, first.byteOffset, first.byteLength),
+              embedding_model: model,
+            })
+            .where("run_id", "=", id),
+        );
+        vectors.slice(1).forEach((v, part) => {
+          run(
+            qb.insertInto("memory_episode_vectors").values({
+              run_id: id,
+              part: part + 1,
+              embedding: new Uint8Array(v.buffer, v.byteOffset, v.byteLength),
+            }),
+          );
+        });
+      });
     },
-    nearest(threadIds: string[], vector: Float32Array, model: string, limit = 8): MemoryEpisode[] {
+    nearest(
+      threadIds: string[],
+      vector: Float32Array,
+      model: string,
+      limit = 8,
+      excludeRuns: string[] = [],
+    ): MemoryEpisode[] {
       if (!threadIds.length) return [];
       const rows = all(
         qb
           .selectFrom("memory_episodes")
-          .selectAll()
+          .leftJoin("memory_episode_vectors as v", "v.run_id", "memory_episodes.run_id")
+          .selectAll("memory_episodes")
+          .select(["v.embedding as extra_embedding", "v.part as extra_part"])
           .where(raw<boolean>`thread_id in (select value from json_each(${JSON.stringify(threadIds)}))`)
           .where("embedding_model", "=", model)
-          .where("embedding", "is not", null),
+          .where(
+            raw<boolean>`memory_episodes.run_id not in (select value from json_each(${JSON.stringify(excludeRuns)}))`,
+          )
+          .where("memory_episodes.embedding", "is not", null),
       );
-      const scored = rows
-        .map((r) => {
-          const b = r.embedding as Uint8Array;
-          return {
-            r,
-            score: cosine(vector, new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength))),
-          };
-        })
-        .sort((a, b) => b.score - a.score);
+      const matches = new Map<string, { r: MemoryEpisode; score: number }>();
+      for (const { extra_embedding, extra_part, ...r } of rows) {
+        const scoreOf = (b: Uint8Array | null) =>
+          b ? cosine(vector, new Float32Array(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength))) : -Infinity;
+        const first = scoreOf(r.embedding),
+          extra = scoreOf(extra_embedding);
+        const score = Math.max(first, extra);
+        if (score > (matches.get(r.run_id)?.score ?? -Infinity)) {
+          const part = extra > first ? (extra_part ?? 0) : 0;
+          matches.set(r.run_id, { r: { ...r, excerpt: memoryFragments(r.text)[part] }, score });
+        }
+      }
+      const scored = [...matches.values()].sort((a, b) => b.score - a.score);
       const cut = relatedCut(scored.map((x) => x.score));
       return scored
         .filter((x) => x.score >= cut)

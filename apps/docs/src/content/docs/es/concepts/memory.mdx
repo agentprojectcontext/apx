@@ -62,7 +62,8 @@ Las notas nunca van en el prompt de sistema. En cambio, cuando un agente respond
    coincidencias relevantes tienen espacio antes de las notas fijas; una nota larga no tapa las siguientes.
 2. En los **turnos siguientes** recibe sólo coincidencias nuevas que todavía no vio en ese hilo.
 3. Puede recuperar automáticamente frases relevantes de **sus propios chats anteriores, en el mismo proyecto**, con
-   fecha y mensaje fuente. También funciona con chats antiguos sin modelo auxiliar. Los saludos no disparan búsquedas.
+   fecha y mensaje fuente. Incluye turnos antiguos del mismo chat que ya no entran en su contexto, sin duplicar los
+   visibles. También funciona con chats antiguos sin modelo auxiliar. Los saludos no disparan búsquedas.
 4. Si necesita detalle, usa `recall` o `read_chat` con `around` y el ID del mensaje fuente para leer mensajes antiguos.
 
 Editar u olvidar una nota invalida las copias inyectadas y sus respuestas derivadas. También invalida resúmenes de
@@ -104,7 +105,13 @@ de contenido externo; comprueba revisiones antes de aplicar una propuesta para e
 Guardado y AutoDream comparten un **límite diario de llamadas de memoria**, inicialmente 20. Cada pedido limita
 entrada, salida y tiempo; llamadas y tokens aparecen en **Uso**. Cero pausa llamadas al modelo. Configuración muestra
 trabajos completados, en espera y fallidos. **Revisar chats anteriores** encola los últimos 100 turnos por chat elegible;
-**Revisar duplicados ahora** pide consolidación. La cola procesa tandas acotadas.
+**Revisar duplicados ahora** pide consolidación. La cola procesa tandas acotadas y prioriza trabajos recientes.
+Al agotar la cuota, las llamadas esperan al próximo día UTC.
+
+El índice de historial avanza separado de la extracción, aunque no quede cuota o no haya modelo auxiliar. La búsqueda
+semántica conserva la relevancia antes que la novedad y usa la pregunta actual sin mezclar temas recientes ajenos.
+Los mensajes largos se indexan por fragmentos superpuestos para no diluir temas distintos. Recupera mensajes
+originales del dueño; `read_chat` permite ampliar sus respuestas.
 
 ## Ver, confirmar y deshacer
 

@@ -20,8 +20,7 @@ export function canRecallOwnChat(
   const context = store.threads.context(thread.id);
   const family = store.threads.context(current.id).memory_family;
   return (
-    (!family || family !== context.memory_family) &&
-    thread.id !== current.id &&
+    (thread.id === current.id || !family || family !== context.memory_family) &&
     thread.project_id === current.project_id &&
     thread.agent_ids.includes(agent.id) &&
     canReadChat(store, agent, thread) &&

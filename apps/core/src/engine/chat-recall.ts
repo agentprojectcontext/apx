@@ -28,6 +28,7 @@ export async function recallChats(
   agentId: string,
   thread: Thread,
   query: string,
+  options: { excludeRuns?: Set<string> } = {},
 ): Promise<{ render(): string | undefined } | undefined> {
   if (
     memorySettings(store).auto_recall === false ||
@@ -44,19 +45,21 @@ export async function recallChats(
     .filter((t) => canRecallOwnChat(store, agent, thread, t));
   const ids = chats.map((t) => t.id);
   if (!ids.length) return;
-  const episodes = await index.searchEpisodes(query, ids);
+  const episodes = await index.searchEpisodes(query, ids, [...(options.excludeRuns ?? [])]);
   const candidates = [
     ...episodes.flatMap((e) => {
       const message = store.messages.get(e.message_id);
-      return message ? [message] : [];
+      return message ? [{ message, excerpt: e.excerpt }] : [];
     }),
-    ...store.messages.recall(query, ids, 60),
+    ...store.messages
+      .recall(
+        query,
+        ids,
+        60,
+        [...(options.excludeRuns ?? [])].flatMap((id) => store.memorySources.forRun(id)),
+      )
+      .map((message) => ({ message, excerpt: undefined })),
   ];
-  candidates.sort(
-    (a, b) =>
-      Number(textOf(a).trim().endsWith("?")) - Number(textOf(b).trim().endsWith("?")) ||
-      b.created_at.localeCompare(a.created_at),
-  );
   return {
     render(): string | undefined {
       if (memorySettings(store).auto_recall === false || memorySettings(store).mode === "off") return;
@@ -65,16 +68,21 @@ export async function recallChats(
       const current = store.threads.get(thread.id);
       if (!current || current.project_id !== thread.project_id || !memoryEligibleChat(store, current)) return;
       for (const candidate of candidates) {
-        const m = store.messages.get(candidate.id);
+        const m = store.messages.get(candidate.message.id);
         if (!m) continue;
         const source = store.threads.get(m.thread_id);
         const liveAgent = store.agents.get(agentId);
         const text = textOf(m);
         const sourceRun = store.memorySources.runFor(m.id);
-        const origin = sourceRun ? store.runs.get(sourceRun)?.input?.origin.kind : undefined;
+        const run = sourceRun ? store.runs.get(sourceRun) : undefined;
+        const origin = run?.input?.origin.kind;
         if (
           m.author.kind !== "user" ||
+          text.trim().length < 12 ||
+          isMemoryGreeting(text) ||
           origin !== "user" ||
+          run?.state !== "completed" ||
+          (sourceRun && options.excludeRuns?.has(sourceRun)) ||
           !liveAgent ||
           !source ||
           !canRecallOwnChat(store, liveAgent, current, source) ||
@@ -95,7 +103,11 @@ export async function recallChats(
             date: m.created_at,
             author: "owner",
             text: cap(
-              snippetOf(text, [...(ftsQuery(query) ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]).join(" "), 650),
+              snippetOf(
+                candidate.excerpt && text.includes(candidate.excerpt) ? candidate.excerpt : text,
+                [...(ftsQuery(query) ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]).join(" "),
+                650,
+              ),
               650,
             ),
           }),

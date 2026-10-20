@@ -822,4 +822,16 @@ export const MIGRATIONS: readonly string[] = [
     INSERT INTO memory_episodes_fts(memory_episodes_fts,rowid,text) VALUES('delete',old.rowid,old.text);
   END;
   `,
+  `
+  CREATE TABLE memory_episode_scans (
+    run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE
+  );
+  CREATE INDEX runs_memory_completed ON runs(state, ended_at DESC, id);
+  CREATE TABLE memory_episode_vectors (
+    run_id TEXT NOT NULL REFERENCES memory_episodes(run_id) ON DELETE CASCADE,
+    part INTEGER NOT NULL, embedding BLOB NOT NULL,
+    PRIMARY KEY(run_id, part)
+  );
+  UPDATE memory_episodes SET embedding = NULL, embedding_model = NULL;
+  `,
 ];

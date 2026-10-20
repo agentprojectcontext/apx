@@ -58,7 +58,8 @@ Notes never go in the system prompt. Instead, when an agent answers in a thread:
    get space before standing notes; one oversized note cannot hide the smaller notes after it.
 2. On **later turns** it gets only new matches it hasn't seen in that thread.
 3. Relevant statements from **its own earlier chats in the same project** can appear automatically, with dates and
-   message IDs. This also works on older chats without a helper model. Greetings do not trigger retrieval.
+   message IDs. Older turns of the current chat can return when they no longer fit its context, without duplicating
+   visible turns. This also works on older chats without a helper model. Greetings do not trigger retrieval.
 4. Whenever it needs more detail, it searches with `recall`, or uses `read_chat` with `around` and the source message ID
    to read older messages beyond the latest page.
 
@@ -67,6 +68,11 @@ invalidated too, so a stale summary cannot reintroduce an old note. Original con
 
 Keeping notes out of the system prompt keeps the start of every request identical, so the provider can cache it and
 each turn costs less.
+
+Historical retrieval builds its index independently of capture and its daily quota, including old completed turns.
+Meaning-based matches keep their relevance ahead of newer word matches, using the current question rather than
+unrelated recent topics. Long messages are indexed in overlapping fragments so one topic does not hide another.
+Original owner messages are retrieved automatically; `read_chat` can expand their replies.
 
 ## Words or meaning
 
@@ -101,7 +107,8 @@ outside-content marker; revision checks reject proposals made stale by an edit o
 Capture and AutoDream share a **daily memory call limit**, default 20. Each request has bounded input, output and a
 deadline; calls and tokens appear in **Usage**. A limit of zero pauses model calls. The queue reports completed,
 waiting and failed work in Settings. **Review earlier chats** queues the newest 100 turns per eligible chat;
-**Review duplicates now** requests consolidation. Queued work is processed in bounded batches.
+**Review duplicates now** requests consolidation. Queued work is processed in bounded batches, prioritizing recent
+jobs. Exhausted daily quotas defer model calls until the next UTC day; historical retrieval continues.
 
 ## See, confirm and undo
 

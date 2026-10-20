@@ -35,3 +35,13 @@ export const duplicateMemory = (a: string, b: string) => memoryKey(a) === memory
 
 export const isMemoryGreeting = (text: string) =>
   /^(hola|hello|hi|hey|gracias|thanks|buen[oa]s?(?: d[ií]as| tardes| noches)?)[!.\s]*$/i.test(text.trim());
+
+/** Overlap preserves topic boundaries; the source is capped at 4000 characters before indexing. */
+export function memoryFragments(text: string): string[] {
+  const parts: string[] = [];
+  for (let start = 0; start < text.length; start += 640) {
+    parts.push(text.slice(start, start + 800));
+    if (start + 800 >= text.length) break;
+  }
+  return parts;
+}

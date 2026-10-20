@@ -72,7 +72,7 @@ import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
-import { memoryHistory, snapshotOf } from "./memory-projection.ts";
+import { memoryHistory, snapshotOf, visibleMemoryRuns } from "./memory-projection.ts";
 import { ratingNote, sentMeanwhile } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
@@ -380,13 +380,10 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
   const ctxState = store.threads.context(thread.id);
   // A public room's turn reads the room's latest messages instead of a history of its own.
   const room = turn.audience.kind === "contact" ? turn.audience.room : undefined;
+  const entries = memoryHistory(store, store.modelLog.list(thread.id), agent.id, thread.project_id);
   const projected = room
     ? { items: [] as ChatItem[], from: 0 }
-    : project(
-        memoryHistory(store, store.modelLog.list(thread.id), agent.id, thread.project_id),
-        HISTORY_BUDGET_CHARS,
-        ctxState.compaction,
-      );
+    : project(entries, HISTORY_BUDGET_CHARS, ctxState.compaction);
   const { from } = projected;
   const roster = rosterBlock(agent, store.agents.list(), thread);
   // A worker delegates to no one: it needs no roster.
@@ -412,7 +409,9 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
       )
     : {};
   const chats = remembers
-    ? await recallChats(store, deps.memory, agent.id, thread, memoryQuery(store, thread.id, turn.input.text))
+    ? await recallChats(store, deps.memory, agent.id, thread, turn.input.text, {
+        excludeRuns: visibleMemoryRuns(store, entries, from, run.id),
+      })
     : undefined;
   const picked = await picking;
   // A plugin's context is for the owner's own turns only (not other agents', apps' or contacts'), as outside data.

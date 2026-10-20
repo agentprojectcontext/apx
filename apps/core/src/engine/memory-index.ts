@@ -3,11 +3,13 @@
 // or down, search goes on by words alone: memory never blocks a turn.
 import type { Memory } from "@apx/protocol";
 import { canSee, fuse, type MemoryView } from "../domain/memories.ts";
+import { memoryFragments } from "../domain/memory-content.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import type { Services } from "../services/registry.ts";
+import { recordMemoryEpisode } from "./memory-episodes.ts";
 
 /** How long a turn waits for the query's vector before searching by words only. */
 const QUERY_EMBED_MS = 3000;
@@ -27,6 +29,7 @@ export type NoteSearch = {
 export function createMemoryIndex(deps: { store: Store; services: Services; log: Log }) {
   const { store, services, log } = deps;
   let indexing: Promise<{ indexed: number; total: number }> | undefined;
+  let hydration: Promise<void> | undefined;
   const ac = new AbortController();
   const semantic = () => memorySettings(store).mode === "semantic" && services.embeddingModel() !== undefined;
 
@@ -43,9 +46,50 @@ export function createMemoryIndex(deps: { store: Store; services: Services; log:
       return [current];
     });
 
+  async function hydrateAll(): Promise<void> {
+    while (memorySettings(store).mode !== "off" && memorySettings(store).auto_recall !== false) {
+      ac.signal.throwIfAborted();
+      const batch = store.memoryWork.uncheckedEpisodes(BATCH);
+      if (!batch.length) break;
+      for (const id of batch) {
+        const run = store.runs.get(id);
+        if (run) recordMemoryEpisode(store, run);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+  }
+
+  function hydrate(): Promise<void> {
+    hydration ??= hydrateAll().finally(() => {
+      hydration = undefined;
+    });
+    return hydration;
+  }
+
   async function indexAll(): Promise<{ indexed: number; total: number }> {
-    const model = services.embeddingModel();
+    await hydrate();
+    const model = memorySettings(store).mode !== "off" ? services.embeddingModel() : undefined;
     if (!model) return store.memories.counts(undefined);
+    for (;;) {
+      ac.signal.throwIfAborted();
+      const batch = store.memoryWork.unindexed(model, 4);
+      if (!batch.length) break;
+      const fragments = batch.map((n) => memoryFragments(n.text));
+      const input = fragments.flat();
+      const { vectors, model: used } = await services.embed(
+        input,
+        AbortSignal.any([ac.signal, AbortSignal.timeout(120_000)]),
+      );
+      ac.signal.throwIfAborted();
+      if (vectors.length !== input.length) throw new Error("incomplete episode embeddings");
+      let offset = 0;
+      batch.forEach((n, i) => {
+        const size = fragments[i]?.length ?? 0;
+        store.memoryWork.setEmbeddings(n.run_id, vectors.slice(offset, offset + size), used);
+        offset += size;
+      });
+      if (used !== model) break;
+    }
     for (;;) {
       ac.signal.throwIfAborted();
       const batch = store.memories.unindexed(model, BATCH);
@@ -63,21 +107,6 @@ export function createMemoryIndex(deps: { store: Store; services: Services; log:
       // A different engine answered (the first one is down): stop rather than index everything twice.
       if (used !== model) break;
     }
-    for (;;) {
-      ac.signal.throwIfAborted();
-      const batch = store.memoryWork.unindexed(model, BATCH);
-      if (!batch.length) break;
-      const { vectors, model: used } = await services.embed(
-        batch.map((n) => n.text),
-        AbortSignal.any([ac.signal, AbortSignal.timeout(120_000)]),
-      );
-      ac.signal.throwIfAborted();
-      batch.forEach((n, i) => {
-        const vector = vectors[i];
-        if (vector) store.memoryWork.setEmbedding(n.run_id, vector, used);
-      });
-      if (used !== model) break;
-    }
     return store.memories.counts(model);
   }
 
@@ -91,7 +120,7 @@ export function createMemoryIndex(deps: { store: Store; services: Services; log:
   return {
     async stop() {
       ac.abort();
-      await indexing?.catch(() => undefined);
+      await Promise.allSettled([indexing, hydration]);
     },
     /** The engine and model notes are indexed with now (none when search by meaning is off or has no engine). */
     model: (): string | undefined =>
@@ -102,17 +131,26 @@ export function createMemoryIndex(deps: { store: Store; services: Services; log:
     index,
     /** In the background after a note changes; a failure is only logged. */
     schedule(): void {
-      if (ac.signal.aborted || !semantic()) return;
-      void index().catch((err) => log.warn({ err: errorMessage(err, 200) }, "memory indexing failed"));
+      if (ac.signal.aborted || memorySettings(store).mode === "off") return;
+      void (semantic() ? index() : hydrate()).catch((err) =>
+        log.warn({ err: errorMessage(err, 200) }, "memory indexing failed"),
+      );
     },
-    async searchEpisodes(query: string, threadIds: string[]) {
-      const words = store.memoryWork.searchEpisodes(query, threadIds);
+    async searchEpisodes(query: string, threadIds: string[], excludeRuns: string[] = []) {
+      const words = store.memoryWork.searchEpisodes(query, threadIds, 12, excludeRuns);
       if (!semantic()) return words;
       try {
         const { vectors, model } = await services.embed([query], AbortSignal.timeout(QUERY_EMBED_MS));
         const vector = vectors[0];
-        const semanticRows = vector ? store.memoryWork.nearest(threadIds, vector, model) : [];
-        return [...new Map([...semanticRows, ...words].map((row) => [row.run_id, row])).values()].slice(0, 12);
+        const semanticRows = vector ? store.memoryWork.nearest(threadIds, vector, model, 8, excludeRuns) : [];
+        const seen = new Set<string>();
+        return [...semanticRows, ...words]
+          .filter((row) => {
+            if (seen.has(row.run_id)) return false;
+            seen.add(row.run_id);
+            return true;
+          })
+          .slice(0, 12);
       } catch (err) {
         log.warn({ err: errorMessage(err, 200) }, "chat recall by meaning failed; by words only");
         return words;

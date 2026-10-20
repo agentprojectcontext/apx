@@ -82,10 +82,13 @@ function stillDelegated(store: Store, run: RunRecord): string {
  */
 export function recoverInterrupted(store: Store): { run: RunRecord; resume: boolean }[] {
   const out: { run: RunRecord; resume: boolean }[] = [];
-  for (const run of store.runs.interrupted()) {
+  const interrupted = store.runs.interrupted();
+  // Snapshot dependencies before closing any child: SQL row order must not erase resumable delegations.
+  const delegated = new Map(interrupted.map((run) => [run.id, stillDelegated(store, run)]));
+  for (const run of interrupted) {
     const resume = resumable(store, run);
     const text = resume ? "Interrupted by a restart of APX; picking it back up." : "Interrupted by a restart of APX.";
-    closeTurnLog(store, run, `This turn was interrupted by a restart of APX.${stillDelegated(store, run)}`);
+    closeTurnLog(store, run, `This turn was interrupted by a restart of APX.${delegated.get(run.id) ?? ""}`);
     const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
     if (msg) {
       const parts: Part[] = msg.parts.map((p) =>
