@@ -1502,7 +1502,8 @@ candidate's relationships, scope, exceptions and reasons. Only an unambiguous su
 certificate bound to the exact text and evidence. `memory.add` requires it for automatic synthesis. Explicit
 `remember` remains the agent's immediate write path and carries no claim of automatic semantic validation.
 
-Extraction and review each reserve one logical gateway call from the existing daily memory allowance. Checkpoints
+Windows with no durable lexical cue skip extraction without skipping historical indexing. Imperative use requests
+remain transient unless an explicit standing-policy cue changes their scope. Extraction and review each reserve one logical gateway call from the existing daily memory allowance. Checkpoints
 retain extraction and verdicts across retries and quota deferral, so a second-stage limit does not repeat extraction.
 The gateway may retry a transient transport failure; the allowance counts gateway requests, not HTTP attempts. Settings,
 source eligibility, exclusions and project boundaries are rechecked before later calls and before persistence.

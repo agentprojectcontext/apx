@@ -252,3 +252,11 @@ test("transient work consumes no capture calls while its original chat remains s
     env.cleanup();
   }
 });
+
+test("an imperative use request is not a standing preference", async () => {
+  const { durableMemory } = await import("../domain/memory-content.ts");
+  assert.equal(durableMemory("Usá CSV para este informe."), false);
+  assert.equal(durableMemory("Use CSV for this report."), false);
+  assert.equal(durableMemory("Usá CSV siempre para informes internos."), true);
+  assert.equal(durableMemory("El equipo usa CSV para informes internos."), true);
+});

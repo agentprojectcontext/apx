@@ -45,7 +45,7 @@ async function exercise(o: {
 }
 
 test("learning evaluation refuses negated formats and string success flags", async () => {
-  assert.ok((await exercise({ format: true, report: { format: "not csv" } })).length);
+  await assert.rejects(() => exercise({ format: true, report: { format: "not csv" } }), /Unsupported delivery format/);
   assert.ok((await exercise({ report: { verified: "true" } })).length);
   assert.ok((await exercise({ missing: true, prepare: true, inspect: true, report: { verified: true } })).length);
 });
@@ -55,4 +55,32 @@ test("learning evaluation requires a real current artifact and a read after expo
   assert.ok((await exercise({ prepare: true, inspectAfterDelivery: true, report: { verified: true } })).length);
   assert.deepEqual(await exercise({ prepare: true, inspect: true, report: { verified: true } }), []);
   assert.deepEqual(await exercise({ format: true, report: { format: "CSV" } }), []);
+});
+
+test("a paired delivery creates actual CSV and PDF files, not only format labels", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-formats-"));
+  try {
+    const world = learningWorld(dir, {
+      id: 4,
+      name: "Paired formats",
+      teach: [],
+      queries: [{ text: "Deliver", expect: { internal_format: "csv", client_format: "pdf" } }],
+    });
+    world.evaluate();
+    const deliver = world.tools.find((t) => t.name === "deliver_report");
+    assert.ok(deliver);
+    await deliver.run({ report: { internal_format: "CSV", client_format: "PDF" } }, ctx);
+    const csv = world.files.find((f) => f.format === "csv");
+    const pdf = world.files.find((f) => f.format === "pdf");
+    assert.ok(csv);
+    assert.ok(pdf);
+    assert.match(fs.readFileSync(csv.path, "utf8"), /^"field","value"\n/);
+    const document = fs.readFileSync(pdf.path, "utf8");
+    assert.match(document, /^%PDF-1\.4\n/);
+    assert.match(document, /\/Type \/Page\b/);
+    assert.match(document, /%%EOF\n$/);
+    assert.deepEqual(world.evaluateDelivery(0), []);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

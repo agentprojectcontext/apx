@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { defineTool } from "../tools/types.ts";
+import { type LearningArtifact, saveLearningArtifacts } from "./memory-learning-artifacts.ts";
 
 export type LearningScenario = {
   id: number;
@@ -29,24 +30,41 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
   let phase = "training";
   let generation = 0;
   const routes = [randomBytes(4).toString("hex"), randomBytes(4).toString("hex")];
-  const calls: Array<{ phase: string; tool: string; route?: string; agent?: string; exists?: boolean }> = [];
+  const calls: Array<{
+    phase: string;
+    tool: string;
+    route?: string;
+    agent?: string;
+    exists?: boolean;
+    delivery?: number;
+  }> = [];
   const deliveries: Array<Record<string, string | boolean>> = [];
   const artifact = path.join(dir, "asset.json");
+  const files: LearningArtifact[] = [];
   const tools = [
     defineTool({
       name: "deliver_report",
       description:
-        "Deliver the report as a saved JSON artifact. Report keys and values describe your actual choices and findings.",
+        "Create real CSV, PDF or Markdown deliverables. report.format (or internal_format and client_format) selects output; heading or label becomes the heading. Include the requested fields and your actual findings.",
       args: z.object({ report: z.record(z.string(), z.union([z.string(), z.boolean()])) }),
       effect: "local",
       deadlineMs: 1000,
       title: () => "Deliver report",
       async run(a, ctx) {
-        calls.push({ phase, tool: "deliver_report", agent: ctx.agent.slug });
-        deliveries.push(a.report);
-        const file = path.join(dir, `delivery-${deliveries.length}.json`);
+        const action: { phase: string; tool: string; agent: string; delivery?: number } = {
+          phase,
+          tool: "deliver_report",
+          agent: ctx.agent.slug,
+        };
+        calls.push(action);
+        const index = deliveries.length + 1;
+        const outputs = saveLearningArtifacts(dir, index, a.report);
+        files.push(...outputs);
+        const file = path.join(dir, `delivery-${index}.json`);
         fs.writeFileSync(file, JSON.stringify(a.report));
-        return JSON.stringify({ saved: true, file });
+        deliveries.push(a.report);
+        action.delivery = index;
+        return JSON.stringify({ saved: true, file, outputs });
       },
     }),
     defineTool({
@@ -63,14 +81,18 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
     }),
     defineTool({
       name: "inspect_routes",
-      description: "Inspect which export routes currently work for the Acme asset.",
-      args: z.object({}),
+      description:
+        "List currently working export routes for the Acme asset, or validate a known route by passing it before reusing it.",
+      args: z.object({ route: z.string().max(80).optional() }),
       effect: "none",
       deadlineMs: 1000,
       title: () => "Inspect routes",
-      async run() {
-        calls.push({ phase, tool: "inspect_routes" });
-        return JSON.stringify({ routes: [routes[generation]] });
+      async run(a) {
+        calls.push({ phase, tool: "inspect_routes", ...(a.route ? { route: a.route } : {}) });
+        return JSON.stringify({
+          routes: [routes[generation]],
+          ...(a.route ? { valid: a.route === routes[generation] } : {}),
+        });
       },
     }),
     defineTool({
@@ -108,6 +130,7 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
     tools,
     calls,
     deliveries,
+    files,
     artifact,
     evaluate() {
       phase = "evaluation";
@@ -128,7 +151,9 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
       if (query?.forbid && new RegExp(query.forbid, "i").test(JSON.stringify(report)))
         failures.push("ignored memory leaked into delivery");
       if (scenario.asset) {
-        const delivery = calls.findLastIndex((c) => c.phase === "evaluation" && c.tool === "deliver_report");
+        const delivery = calls.findLastIndex(
+          (c) => c.phase === "evaluation" && c.tool === "deliver_report" && c.delivery === deliveries.length,
+        );
         const inspection = calls.findLastIndex(
           (c, index) => index < delivery && c.phase === "evaluation" && c.tool === "inspect_asset",
         );
@@ -151,11 +176,13 @@ export function learningWorld(dir: string, scenario: LearningScenario) {
         const first = calls.find(
           (c) => c.phase === "evaluation" && ["fetch_asset", "inspect_routes", "prepare_asset"].includes(c.tool),
         );
-        if (first?.tool !== "prepare_asset" || first.route !== routes[0])
+        if (!first || !["prepare_asset", "inspect_routes"].includes(first.tool) || first.route !== routes[0])
           failures.push("did not reuse the confirmed method before rediscovering it");
       }
       if (scenario.delegate || scenario.roleSelection) {
-        const delivered = calls.findLast((c) => c.phase === "evaluation" && c.tool === "deliver_report");
+        const delivered = calls.findLast(
+          (c) => c.phase === "evaluation" && c.tool === "deliver_report" && c.delivery === deliveries.length,
+        );
         if (delivered?.agent !== "producer") failures.push("production work did not reach the production agent");
       }
       const attempts = calls.filter((c) => c.phase === "evaluation" && c.tool === "prepare_asset");

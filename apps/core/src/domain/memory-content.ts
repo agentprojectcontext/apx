@@ -197,7 +197,7 @@ const POLICY =
 const DURABLE =
   /\b(prefiero|prefer|prefers|preferred|me gustan?|no me gustan?|i (like|love|hate|dislike)|odio|soy|me llamo|vivo en|trabajo (en|como|con)|i am|i m|my name|i live|i work|uso|usamos|usa|usan|use|uses|decidimos|we decided|the rule is|la regla es|(mi|mis|my|our|nuestr[oa]s?) (\w+ ){1,4}(es|son|is|are))\b/;
 const REQUEST =
-  /^((che|bueno|dale|ok|okay|genial|perfecto|y|e|pero|entonces|and|but|so|well|hey|great) )*(podes|podrias|puedes|pueden|podrian|can|could|would|will|please|porfa|por favor|tenemos que|hay que|falta|faltaria|vamos a|lets|let s|we need to|need you to|necesito que|quiero que|fijate|solucion\w*|arregl\w*|termin\w*|complet\w*|hace|hacelo|revis\w*|renombr\w*|import\w*|fix|finish|do|check|run|make|try|go)\b/;
+  /^((che|bueno|dale|ok|okay|genial|perfecto|y|e|pero|entonces|and|but|so|well|hey|great) )*(usa|use|utiliza|podes|podrias|puedes|pueden|podrian|can|could|would|will|please|porfa|por favor|tenemos que|hay que|falta|faltaria|vamos a|lets|let s|we need to|need you to|necesito que|quiero que|fijate|solucion\w*|arregl\w*|termin\w*|complet\w*|hace|hacelo|revis\w*|renombr\w*|import\w*|fix|finish|do|check|run|make|try|go)\b/;
 const TRANSIENT =
   /\b(hoy|ahora|ahi|recien|ayer|manana|esta vez|today|now|tonight|yesterday|tomorrow|this time|afk|creo que|me parece|no se|nose|i think|maybe|quizas|capaz)\b/;
 
