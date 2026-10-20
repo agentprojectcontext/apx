@@ -21,6 +21,44 @@ function upgradeFrom(marker: string, fill: (db: DatabaseSync) => void) {
   return { db: openDb(home), cleanup: () => fs.rmSync(home, { recursive: true, force: true }) };
 }
 
+test("legacy forks retain their source family and earliest inherited run boundary after upgrading", () => {
+  const { db, cleanup } = upgradeFrom("ALTER TABLE memories ADD COLUMN revision", (db) => {
+    const thread = db.prepare(
+      "INSERT INTO threads (id, kind, title, agent_ids, context, created_at, updated_at) VALUES (?, 'loose', 'Chat', '[]', ?, ?, ?)",
+    );
+    thread.run("th_root", '{"kept":"root"}', "2026-10-01", "2026-10-01");
+    thread.run("th_fork", '{"kept":"fork"}', "2026-10-03", "2026-10-03");
+    thread.run("th_nested", "{}", "2026-10-05", "2026-10-05");
+    thread.run("th_other", "{}", "2026-10-06", "2026-10-06");
+    const run = db.prepare(
+      "INSERT INTO runs (id, thread_id, agent_id, state, started_at, created_at) VALUES (?, ?, 'roby', 'completed', ?, ?)",
+    );
+    run.run("run_old", "th_root", "2026-10-02", "2026-10-02");
+    run.run("run_later", "th_fork", "2026-10-04", "2026-10-04");
+    const log = db.prepare("INSERT INTO model_log (thread_id, seq, run_id, item) VALUES (?, ?, ?, '{}')");
+    log.run("th_root", 1, "run_old");
+    log.run("th_fork", 1, "run_old");
+    log.run("th_fork", 2, "run_later");
+    log.run("th_nested", 1, "run_old");
+    log.run("th_nested", 2, "run_later");
+    db.prepare(
+      "INSERT INTO memories (id, scope, text, source, created_at, updated_at) VALUES ('mem_old', 'global', 'Keep invoices.', 'owner', '2026-10-01', '2026-10-01')",
+    ).run();
+  });
+  try {
+    const context = (id: string) =>
+      JSON.parse(String(db.prepare("SELECT context FROM threads WHERE id = ?").get(id)?.context ?? "null"));
+    assert.deepEqual(context("th_root"), { kept: "root", memory_family: "th_root" });
+    assert.deepEqual(context("th_fork"), { kept: "fork", memory_family: "th_root", memory_cutoff: "2026-10-02" });
+    assert.deepEqual(context("th_nested"), { memory_family: "th_root", memory_cutoff: "2026-10-02" });
+    assert.deepEqual(context("th_other"), {});
+    assert.equal(db.prepare("SELECT revision FROM memories WHERE id = 'mem_old'").get()?.revision, 1);
+  } finally {
+    db.close();
+    cleanup();
+  }
+});
+
 test("the copies an import made again go, unless someone touched them; their chats go with them", () => {
   const { db, cleanup } = upgradeFrom("CREATE TEMP TABLE import_dups", (db) => {
     const thread = db.prepare(

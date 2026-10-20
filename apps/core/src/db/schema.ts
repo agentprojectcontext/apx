@@ -149,6 +149,67 @@ export interface MemoriesTable {
   run_id: string | null;
   pending: Generated<number>;
   forgotten_at: string | null;
+  revision: Generated<number>;
+  kind: string | null;
+  evidence: string | null;
+}
+
+export interface MemoryCallReservationsTable {
+  n: Generated<number>;
+  job_id: string;
+  day: string;
+}
+
+export interface MemoryEpisodesTable {
+  rowid: Generated<number>;
+  run_id: string;
+  thread_id: string;
+  agent_id: string;
+  project_id: string | null;
+  message_id: string;
+  text: string;
+  created_at: string;
+  embedding: Uint8Array | null;
+  embedding_model: string | null;
+}
+
+export interface MemoryExclusionsTable {
+  memory_id: string;
+  scope: string;
+  project_id: string | null;
+  agent_id: string | null;
+  text: string;
+  thread_id: string | null;
+  run_id: string | null;
+  evidence: string | null;
+  created_at: string;
+}
+
+export interface MemoryVersionsTable {
+  n: Generated<number>;
+  memory_id: string;
+  revision: number;
+  snapshot: string;
+  reason: string;
+  at: string;
+}
+
+export interface MemoryWorkTable {
+  id: string;
+  kind: string;
+  agent_id: string;
+  thread_id: string;
+  run_id: string;
+  project_id: string | null;
+  state: string;
+  attempts: Generated<number>;
+  lease_until: string | null;
+  available_at: string;
+  created_at: string;
+  updated_at: string;
+  reservation: Generated<number>;
+  result: string | null;
+  error: string | null;
 }
 
 export interface MessagesTable {
@@ -179,6 +240,7 @@ export interface ModelLogTable {
   seq: Generated<number>;
   item: string;
   run_id: string | null;
+  memory_snapshot: string | null;
 }
 
 export interface NotificationsTable {
@@ -473,6 +535,11 @@ export interface Database {
   jobs: JobsTable;
   media: MediaTable;
   memories: MemoriesTable;
+  memory_call_reservations: MemoryCallReservationsTable;
+  memory_episodes: MemoryEpisodesTable;
+  memory_exclusions: MemoryExclusionsTable;
+  memory_versions: MemoryVersionsTable;
+  memory_work: MemoryWorkTable;
   messages: MessagesTable;
   messages_n: MessagesNTable;
   meta: MetaTable;

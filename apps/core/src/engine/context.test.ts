@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { LogEntry } from "../domain/threads.ts";
+import type { LogEntry } from "../domain/model-log.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { frameInput, projectHistory, repair, systemPrompt, turnInput, workerPrompt } from "./context.ts";
 

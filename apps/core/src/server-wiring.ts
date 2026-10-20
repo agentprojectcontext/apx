@@ -183,6 +183,7 @@ type HandlerDeps = {
   engine: Parameters<typeof threadHandlers>[1] & Parameters<typeof jobHandlers>[1] & Parameters<typeof taskHandlers>[1];
   upkeep: Parameters<typeof threadHandlers>[2] & Parameters<typeof gitHandlers>[1] & Pick<Upkeep, "study">;
   memory: Parameters<typeof memoryHandlers>[1];
+  memoryMaintenance: NonNullable<Parameters<typeof memoryHandlers>[2]>;
   channels: Parameters<typeof channelHandlers>[1];
   services: Parameters<typeof mediaHandlers>[0];
   scheduler: Parameters<typeof routineHandlers>[1];
@@ -243,7 +244,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...threadAdminHandlers(d.store, d.app.home),
     ...runHandlers(d.store, d.engine),
     ...jobHandlers(d.store, d.engine),
-    ...memoryHandlers(d.store, d.memory),
+    ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelHandlers(d.store, d.channels),
     ...mediaHandlers(d.services),
     ...transcriptionHandlers(d.services, d.localModels),

@@ -10,8 +10,8 @@ import Shot from "../../../components/Shot.astro";
 import Terminal from "../../../components/Terminal.astro";
 
 Memory in APX is a set of short notes: "Alex prefers numbers before prose", "Deploys go out on Fridays", "The
-supplier's contact is Northwind". Each note has an owner and a scope, you can read every one of them, and nothing gets
-written behind your back.
+supplier's contact is Northwind". Each note has an author and a scope. Automatic recall, capture and AutoDream have
+separate controls in **Settings › Memory**; saved quotes and changes are visible in **Sources and history**.
 
 ## Three scopes, plus a file
 
@@ -26,14 +26,21 @@ never write it: it is the place for fixed rules you don't want any agent to edit
 
 ## Who writes notes
 
-Two ways, both visible:
+Three ways, all visible:
 
 - **You.** Add a note in a project's **Memory** tab, or with `apx memory add`. Or just tell an agent "remember that…".
 - **An agent**, with its `remember` tool, when it learns something worth keeping. Inside a project it saves to the
   project by default, otherwise to the global notes. It can correct its own notes and remove one with `forget`.
 
-There is **no silent extraction**: APX doesn't mine your chats for facts in the background. A note exists because
-you or an agent deliberately saved it, and the chat shows a "Remembered: …" step when an agent does.
+- **Automatic capture.** After an ordinary owner turn, the helper model can select durable preferences, corrections,
+  decisions and references. APX saves only a verified, exact quote of your message, with its message and chat source.
+  These notes stay in that agent's private notebook, limited to the same project. Assistant promises and tool output
+  are never evidence that an action happened. Credential discussions are excluded.
+
+Capture uses the helper model already configured for APX. With the helper off, no automatic notes are extracted;
+explicit `remember` and automatic chat retrieval still work. Capture jobs persist across core restarts and retries
+cannot create another copy of the same note. Contacts, rooms, external-client chats, subthreads, workers and direct
+engine sessions are excluded from automatic capture and recall.
 
 Agents can't edit or remove the notes you wrote. And some notes wait for you:
 
@@ -47,9 +54,16 @@ Agents can't edit or remove the notes you wrote. And some notes wait for you:
 Notes never go in the system prompt. Instead, when an agent answers in a thread:
 
 1. On its **first turn** in that thread it gets its standing notes: up to 8 of the global ones and up to 8 from its
-   own notebook, newest first, plus **up to 5 notes that match your message**.
+   own notebook, newest first, plus **up to 5 notes that match your message and recent owner turns**. Relevant matches
+   get space before standing notes; one oversized note cannot hide the smaller notes after it.
 2. On **later turns** it gets only new matches it hasn't seen in that thread.
-3. Whenever it needs something specific, it searches with its `recall` tool.
+3. Relevant statements from **its own earlier chats in the same project** can appear automatically, with dates and
+   message IDs. This also works on older chats without a helper model. Greetings do not trigger retrieval.
+4. Whenever it needs more detail, it searches with `recall`, or uses `read_chat` with `around` and the source message ID
+   to read older messages beyond the latest page.
+
+Edited or forgotten notes invalidate older injected snapshots and their derived replies. Compaction summaries are
+invalidated too, so a stale summary cannot reintroduce an old note. Original conversation records remain readable.
 
 Keeping notes out of the system prompt keeps the start of every request identical, so the provider can cache it and
 each turn costs less.
@@ -77,6 +91,18 @@ The same screen holds two related switches:
 - **Summarize long chats** and the **Helper model** that writes the summaries and chat titles (Automatic, a model
   you choose, or Off). See [Conversations](/concepts/conversations/#compaction).
 
+## AutoDream and limits
+
+**AutoDream** reviews equivalent private notes after new work, at most once a day per agent and project, while that
+agent is idle. It combines duplicates without rewriting facts, changing owner notes or promoting anything to global
+memory. Contradictions, different numbers and different preferences stay separate. Merges preserve sources and the
+outside-content marker; revision checks reject proposals made stale by an edit or deletion.
+
+Capture and AutoDream share a **daily memory call limit**, default 20. Each request has bounded input, output and a
+deadline; calls and tokens appear in **Usage**. A limit of zero pauses model calls. The queue reports completed,
+waiting and failed work in Settings. **Review earlier chats** queues the newest 100 turns per eligible chat;
+**Review duplicates now** requests consolidation. Queued work is processed in bounded batches.
+
 ## See, confirm and undo
 
 A project's **Memory** tab shows its notes and lets you switch between **This project**, **Agents' notebooks**,
@@ -86,7 +112,10 @@ A project's **Memory** tab shows its notes and lets you switch between **This pr
 
 - A note **To confirm** has a **Confirm** button and a link to the chat where the agent learned it.
 - Forgetting is reversible. A removed note goes to **Forgotten**, where no agent sees it; **Bring back** restores
-  it and **Delete for good** really deletes it.
+  it. Forgotten sources are excluded from automatic recall, chat tools and extraction retries. **Delete for good**
+  deletes the note and its revision text; a minimal exclusion fingerprint and source IDs prevent recreation.
+- **Sources and history** shows exact quotes and revisions. **Restore this revision** can undo a merge or an edit.
+  Original chats remain in conversation history; deleting a memory does not delete the conversation.
 
 ## From the terminal
 

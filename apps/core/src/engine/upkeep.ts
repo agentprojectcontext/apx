@@ -1,20 +1,22 @@
+import type { LogEntry } from "../domain/model-log.ts";
 // Work on a thread after its turns, with a cheap auxiliary model: a title for a new chat, and compaction of a long
 // thread (older turns become one summary in a fixed shape, a new epoch of the context). Without an auxiliary model
 // the title comes from the first message and a long thread is only trimmed by the history budget.
 // See DECISIONS.md#d-013
 
 import type { AuxAbout } from "../domain/aux-calls.ts";
-import { memorySettings } from "../domain/memory-settings.ts";
+import { memoryGeneration, memorySettings } from "../domain/memory-settings.ts";
 import { harnessOf } from "../domain/refs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import type { Epoch, LogEntry } from "../domain/threads.ts";
+import type { Epoch } from "../domain/threads.ts";
 import type { Log } from "../log.ts";
 import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { UNTRUSTED_MARK } from "../tools/result.ts";
 import { HISTORY_BUDGET_CHARS } from "./context.ts";
+import { memoryHistory } from "./memory-projection.ts";
 
 /** A thread is compacted once what the model would see since the last summary passes this. */
 export const COMPACT_AT_CHARS = Math.floor(HISTORY_BUDGET_CHARS * 0.75);
@@ -188,6 +190,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
         { role: "user", content: user },
       ],
       tools: [],
+      ...(about.purpose === "memory_capture" || about.purpose === "memory_dream" ? { maxOutputTokens: 1800 } : {}),
       signal: AbortSignal.any([ac.signal, AbortSignal.timeout(o.timeoutMs ?? AUX_TIMEOUT_MS)]),
     });
     if (r.usage) store.auxCalls.add(about, r.model, r.usage);
@@ -234,9 +237,19 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     const runs = store.runs.list(threadId, 200);
     if (!runs.some((r) => r.harness === "native"))
       return { compacted: false, reason: "this thread's engine keeps and compacts its own transcript" };
+    const generation = memoryGeneration(store);
     const ctx = store.threads.context(threadId);
     const epoch = ctx.compaction;
-    const plan = planCompaction(store.modelLog.list(threadId), epoch, force);
+    const plan = planCompaction(
+      memoryHistory(
+        store,
+        store.modelLog.list(threadId),
+        runs[0]?.agent_id ?? "",
+        store.threads.get(threadId)?.project_id,
+      ),
+      epoch,
+      force,
+    );
     if (!plan) return { compacted: false, reason: "nothing old enough to summarize" };
     const previous = epoch ? `Previous summary:\n${epoch.summary}\n\n` : "";
     const out = await ask(
@@ -251,6 +264,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       log.warn({ thread: threadId }, "summary rejected: not in the fixed shape");
       return { compacted: false, reason: "the summary did not have the expected shape" };
     }
+    if (generation !== memoryGeneration(store)) return { compacted: false, reason: "memory changed during compaction" };
     const next: Epoch = {
       upto: plan.upto,
       summary,
@@ -304,6 +318,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
 
   return {
     auxModels,
+    memory: (agentId: string, system: string, user: string, about: AuxAbout) => ask(about, agentId, system, user),
     /** A one-shot answer from the auxiliary model (a room's "is this worth answering?"); none without one. */
     judge: (system: string, user: string, about: AuxAbout) => ask(about, undefined, system, user),
     /**

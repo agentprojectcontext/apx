@@ -65,6 +65,8 @@ export async function startCore(opts: {
   extraTools?: Tool[];
   /** Lets the scripted model also answer auxiliary calls (titles, summaries); off by default. */
   aux?: boolean;
+  /** Enable background extraction and consolidation only in tests that exercise them. */
+  memoryMaintenance?: boolean;
   channelAdapters?: Record<string, AdapterFactory>;
   channelRetryMs?: readonly number[];
   roomBurstMs?: number;
@@ -130,6 +132,11 @@ export async function startCore(opts: {
   if (!core.store.settings.get("model_default"))
     core.store.settings.set("model_default", JSON.stringify({ model: "fake/fake-1", router: false }));
   if (!opts.aux && !core.store.settings.get("model_aux")) core.store.settings.set("model_aux", "off");
+  core.store.settings.write("memory", {
+    ...core.store.settings.read("memory"),
+    auto_capture: opts.memoryMaintenance ?? false,
+    auto_dream: opts.memoryMaintenance ?? false,
+  });
   const client = new ApxClient({ url: core.url });
   const settle = async (
     thread: string,

@@ -9,7 +9,7 @@ import type { ThreadContext } from "./threads.ts";
 
 /** Who a run's input comes from. Stamped by the core, never parsed from text. */
 export type Origin =
-  | { kind: "user" }
+  | { kind: "user"; message_id?: string }
   | { kind: "agent"; id: string; name: string; thread_id: string; run_id: string }
   | { kind: "surface"; id: string; title: string }
   /** A message on a channel (Telegram…): from the owner, or from a contact (then it is a third party's text). */
@@ -105,6 +105,7 @@ export type Step = {
 
 /** A tool call found by search, with the run that made it. */
 export type StepHit = {
+  run_id: string;
   thread_id: string;
   agent_id: string;
   tool: string;
@@ -481,7 +482,7 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         qb
           .selectFrom("steps as s")
           .innerJoin("runs as r", "r.id", "s.run_id")
-          .select(["r.thread_id", "r.agent_id", "s.tool", "s.args", "s.state", "s.result", "s.started_at"])
+          .select(["s.run_id", "r.thread_id", "r.agent_id", "s.tool", "s.args", "s.state", "s.result", "s.started_at"])
           .where("r.thread_id", "in", threadIds)
           .where((eb) => eb.and(words.map((w) => raw<boolean>`${haystack} like ${like(w)} escape '\\'`)))
           .orderBy("s.started_at", "desc")

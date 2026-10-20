@@ -1,8 +1,10 @@
 // Memory: short notes agents keep between threads, scoped to the owner (global), a project or one agent, searched
 // with SQLite's full-text index.
-import type { Memory, MemoryScope } from "@apx/protocol";
+import { createHash } from "node:crypto";
+import type { Memory, MemoryEvidence, MemoryScope } from "@apx/protocol";
 import { type ExpressionBuilder, sql as raw, type Selectable } from "kysely";
 import type { Database, MemoriesTable } from "../db/schema.ts";
+import { duplicateMemory, memoryKey, sameMemory } from "./memory-content.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 const toMemory = (r: Selectable<MemoriesTable>): Memory => ({
@@ -11,6 +13,9 @@ const toMemory = (r: Selectable<MemoriesTable>): Memory => ({
   ...opt("project_id", r.project_id),
   ...opt("agent_id", r.agent_id),
   text: r.text,
+  revision: r.revision,
+  ...(r.kind ? { kind: r.kind as NonNullable<Memory["kind"]> } : {}),
+  ...(r.evidence ? { evidence: JSON.parse(r.evidence) as MemoryEvidence[] } : {}),
   source: r.source === "owner" ? "owner" : "agent",
   ...opt("author_agent", r.author_agent),
   ...opt("thread_id", r.thread_id),
@@ -28,7 +33,7 @@ export type MemoryView = { agent_id: string; project_id?: string | undefined };
 export const canSee = (v: MemoryView, m: Memory) =>
   m.scope === "global" ||
   (m.scope === "project" && !!v.project_id && m.project_id === v.project_id) ||
-  (m.scope === "agent" && m.agent_id === v.agent_id);
+  (m.scope === "agent" && m.agent_id === v.agent_id && (!m.project_id || m.project_id === v.project_id));
 
 const STOP = new Set(
   (
@@ -76,6 +81,13 @@ const SECRET_SHAPES = [
 /** A note must never hold a credential: memory goes into prompts. */
 export const looksSecret = (text: string) => SECRET_SHAPES.some((re) => re.test(text));
 
+/** Automatic extraction and chat recall avoid credential discussions even without a recognizable key shape. */
+export const memorySensitive = (text: string) =>
+  looksSecret(text) ||
+  /\b(password|passwd|contrase[nñ]a|credential|credencial|api[ _-]?key|access[ _-]?token|secret|secreto|2fa|otp)\b/i.test(
+    text,
+  );
+
 type Filters = {
   view?: MemoryView | undefined;
   scope?: MemoryScope | undefined;
@@ -97,7 +109,11 @@ function visibleWhere(f: Filters) {
           eb.or([
             eb("memories.scope", "=", "global"),
             eb.and([eb("memories.scope", "=", "project"), eb("memories.project_id", "=", v.project_id ?? "")]),
-            eb.and([eb("memories.scope", "=", "agent"), eb("memories.agent_id", "=", v.agent_id)]),
+            eb.and([
+              eb("memories.scope", "=", "agent"),
+              eb("memories.agent_id", "=", v.agent_id),
+              eb.or([eb("memories.project_id", "is", null), eb("memories.project_id", "=", v.project_id ?? "")]),
+            ]),
           ]),
         ]
       : [];
@@ -166,7 +182,43 @@ export function relatedCut(scores: number[]): number {
   return Math.max(MIN_SIMILARITY, best - NEAR_BEST, median + ABOVE_TYPICAL);
 }
 
-export function memoriesRepo({ one, all, run }: Sql) {
+export function memoriesRepo({ one, all, run, tx }: Sql) {
+  const record = (m: Memory, reason: string) =>
+    run(
+      qb
+        .insertInto("memory_versions")
+        .values({ memory_id: m.id, revision: m.revision ?? 1, snapshot: JSON.stringify(m), reason, at: now() }),
+    );
+  const exclude = (m: Memory) => {
+    run(
+      qb
+        .insertInto("memory_exclusions")
+        .values({
+          memory_id: m.id,
+          scope: m.scope,
+          project_id: m.project_id ?? null,
+          agent_id: m.agent_id ?? null,
+          text: m.text,
+          thread_id: m.thread_id ?? null,
+          run_id: m.run_id ?? null,
+          evidence: JSON.stringify(m.evidence ?? []),
+          created_at: now(),
+        })
+        .onConflict((oc) => oc.column("memory_id").doNothing()),
+    );
+    const sourceIds = (m.evidence ?? []).map((e) => e.message_id);
+    if (m.run_id || sourceIds.length)
+      run(
+        qb
+          .deleteFrom("memory_episodes")
+          .where((eb) =>
+            eb.or([
+              ...(m.run_id ? [eb("run_id", "=", m.run_id)] : []),
+              ...(sourceIds.length ? [eb("message_id", "in", sourceIds)] : []),
+            ]),
+          ),
+      );
+  };
   const repo = {
     get(id: string): Memory | undefined {
       const r = one(qb.selectFrom("memories").selectAll().where("id", "=", id));
@@ -184,83 +236,266 @@ export function memoriesRepo({ one, all, run }: Sql) {
       run_id?: string | undefined;
       tainted?: boolean | undefined;
       pending?: boolean | undefined;
+      kind?: Memory["kind"];
+      evidence?: MemoryEvidence[];
     }): Memory {
-      const same = one(
-        qb
-          .selectFrom("memories")
-          .select("id")
-          .where("scope", "=", m.scope)
-          .where(raw<string>`ifnull(project_id, '')`, "=", m.project_id ?? "")
-          .where(raw<string>`ifnull(agent_id, '')`, "=", m.agent_id ?? "")
-          // Both sides through SQLite's own lower(): the same text matches whatever its accents.
-          .where(raw<string>`lower(trim(text))`, "=", raw<string>`lower(trim(${m.text}))`),
-      );
-      if (same) return repo.get(same.id) as Memory;
-      const id = newId("mem");
-      const at = now();
-      run(
-        qb.insertInto("memories").values({
-          id,
-          scope: m.scope,
-          project_id: m.project_id ?? null,
-          agent_id: m.agent_id ?? null,
-          text: m.text,
-          source: m.source,
-          author_agent: m.author_agent ?? null,
-          thread_id: m.thread_id ?? null,
-          run_id: m.run_id ?? null,
-          tainted: m.tainted ? 1 : 0,
-          pending: m.pending ? 1 : 0,
-          created_at: at,
-          updated_at: at,
-        }),
-      );
-      return repo.get(id) as Memory;
+      return tx(() => {
+        const same = one(
+          qb
+            .selectFrom("memories")
+            .select("id")
+            .where("scope", "=", m.scope)
+            .where(raw<string>`ifnull(project_id, '')`, "=", m.project_id ?? "")
+            .where(raw<string>`ifnull(agent_id, '')`, "=", m.agent_id ?? "")
+            // Both sides through SQLite's own lower(): the same text matches whatever its accents.
+            .where(raw<string>`lower(trim(text))`, "=", raw<string>`lower(trim(${m.text}))`),
+        );
+        if (same) return repo.get(same.id) as Memory;
+        const id = newId("mem");
+        const at = now();
+        run(
+          qb.insertInto("memories").values({
+            id,
+            scope: m.scope,
+            project_id: m.project_id ?? null,
+            agent_id: m.agent_id ?? null,
+            text: m.text,
+            kind: m.kind ?? null,
+            evidence: m.evidence ? JSON.stringify(m.evidence) : null,
+            source: m.source,
+            author_agent: m.author_agent ?? null,
+            thread_id: m.thread_id ?? null,
+            run_id: m.run_id ?? null,
+            tainted: m.tainted ? 1 : 0,
+            pending: m.pending ? 1 : 0,
+            created_at: at,
+            updated_at: at,
+          }),
+        );
+        const saved = repo.get(id) as Memory;
+        record(saved, "created");
+        return saved;
+      });
     },
-    edit(id: string, text: string, o: { tainted: boolean; pending: boolean }): Memory | undefined {
-      // New words, new meaning: the note is indexed again.
-      run(
-        qb
-          .updateTable("memories")
-          .set({
-            text,
-            tainted: o.tainted ? 1 : 0,
-            pending: o.pending ? 1 : 0,
-            updated_at: now(),
-            embedding: null,
-            embedding_model: null,
-          })
-          .where("id", "=", id),
-      );
-      return repo.get(id);
-    },
-    /** The owner confirms a note an agent wrote about them: from now on it stands like their own. */
-    confirm(id: string): Memory | undefined {
-      run(qb.updateTable("memories").set({ pending: 0, updated_at: now() }).where("id", "=", id));
-      return repo.get(id);
-    },
-    /** Out of every turn and search, but kept: the owner can bring it back (or delete it for good). */
-    forget(id: string): boolean {
-      return (
+    edit(
+      id: string,
+      text: string,
+      o: {
+        tainted: boolean;
+        pending: boolean;
+        expectedRevision?: number;
+        reason?: string;
+        evidence?: MemoryEvidence[];
+        kind?: Memory["kind"];
+      },
+    ): Memory | undefined {
+      return tx(() => {
+        const previous = repo.get(id);
+        if (!previous || previous.forgotten_at) return undefined;
+        if (o.expectedRevision !== undefined && previous.revision !== o.expectedRevision) return undefined;
+        if (!one(qb.selectFrom("memory_versions").select("n").where("memory_id", "=", id).limit(1)))
+          record(previous, "baseline");
+        // New words, new meaning: the note is indexed again.
         run(
           qb
             .updateTable("memories")
-            .set({ forgotten_at: now() })
-            .where("id", "=", id)
-            .where("forgotten_at", "is", null),
-        ) > 0
-      );
+            .set({
+              text,
+              revision: (previous.revision ?? 1) + 1,
+              ...(o.evidence ? { evidence: JSON.stringify(o.evidence) } : {}),
+              ...(o.kind ? { kind: o.kind } : {}),
+              tainted: o.tainted ? 1 : 0,
+              pending: o.pending ? 1 : 0,
+              updated_at: now(),
+              embedding: null,
+              embedding_model: null,
+            })
+            .where("id", "=", id),
+        );
+        const saved = repo.get(id);
+        if (saved) record(saved, o.reason ?? "edited");
+        return saved;
+      });
+    },
+    /** The owner confirms a note an agent wrote about them: from now on it stands like their own. */
+    confirm(id: string): Memory | undefined {
+      const note = repo.get(id);
+      return note ? repo.edit(id, note.text, { pending: false, tainted: false, reason: "confirmed" }) : undefined;
+    },
+    /** Out of every turn and search, but kept: the owner can bring it back (or delete it for good). */
+    forget(id: string): boolean {
+      return tx(() => {
+        const note = repo.get(id);
+        if (!note || note.forgotten_at) return false;
+        if (!repo.history(id).length) record(note, "baseline");
+        exclude(note);
+        run(
+          qb
+            .updateTable("memories")
+            .set({ forgotten_at: now(), revision: (note.revision ?? 1) + 1 })
+            .where("id", "=", id),
+        );
+        record(repo.get(id) as Memory, "forgotten");
+        return true;
+      });
     },
     restore(id: string): Memory | undefined {
-      run(qb.updateTable("memories").set({ forgotten_at: null, updated_at: now() }).where("id", "=", id));
-      return repo.get(id);
+      return tx(() => {
+        const note = repo.get(id);
+        if (!note) return undefined;
+        run(qb.deleteFrom("memory_exclusions").where("memory_id", "=", id));
+        run(
+          qb
+            .updateTable("memories")
+            .set({ forgotten_at: null, updated_at: now(), revision: (note.revision ?? 1) + 1 })
+            .where("id", "=", id),
+        );
+        const saved = repo.get(id);
+        if (saved) record(saved, "restored");
+        return saved;
+      });
     },
     remove(id: string): boolean {
-      return run(qb.deleteFrom("memories").where("id", "=", id)) > 0;
+      return tx(() => {
+        const note = repo.get(id);
+        if (note) {
+          exclude(note);
+          const hash = createHash("sha256").update(memoryKey(note.text)).digest("hex");
+          run(
+            qb
+              .updateTable("memory_exclusions")
+              .set({
+                text: `sha256:${hash}`,
+                evidence: JSON.stringify((note.evidence ?? []).map((e) => ({ message_id: e.message_id, quote: "" }))),
+              })
+              .where("memory_id", "=", id),
+          );
+        }
+        run(qb.deleteFrom("memory_versions").where("memory_id", "=", id));
+        run(
+          qb
+            .deleteFrom("idempotency")
+            .where(raw<boolean>`json_valid(response) AND json_extract(response, '$.id') = ${id}`)
+            .where("method", "like", "memory.%"),
+        );
+        return run(qb.deleteFrom("memories").where("id", "=", id)) > 0;
+      });
+    },
+    history(id: string) {
+      return all(
+        qb.selectFrom("memory_versions").selectAll().where("memory_id", "=", id).orderBy("n", "desc").limit(100),
+      ).map((row) => ({
+        revision: row.revision,
+        note: JSON.parse(row.snapshot) as Memory,
+        reason: row.reason,
+        at: row.at,
+      }));
+    },
+    exclusions(view: MemoryView) {
+      return all(
+        qb
+          .selectFrom("memory_exclusions")
+          .selectAll()
+          .where((eb) =>
+            eb.or([
+              eb("scope", "=", "global"),
+              eb.and([eb("scope", "=", "project"), eb("project_id", "=", view.project_id ?? "")]),
+              eb.and([
+                eb("scope", "=", "agent"),
+                eb("agent_id", "=", view.agent_id),
+                eb.or([eb("project_id", "is", null), eb("project_id", "=", view.project_id ?? "")]),
+              ]),
+            ]),
+          ),
+      );
+    },
+    excluded(view: MemoryView, text: string, source?: { message_id?: string; run_id?: string }): boolean {
+      return repo.exclusions(view).some((m) => {
+        const evidence = JSON.parse(m.evidence ?? "[]") as MemoryEvidence[];
+        return (
+          (source?.run_id !== undefined && source.run_id === m.run_id) ||
+          (source?.message_id !== undefined && evidence.some((e) => e.message_id === source.message_id)) ||
+          (m.text.startsWith("sha256:")
+            ? m.text === `sha256:${createHash("sha256").update(memoryKey(text)).digest("hex")}`
+            : sameMemory(m.text, text)) ||
+          evidence.some((e) => sameMemory(e.quote, text))
+        );
+      });
+    },
+    consolidate(refs: Array<{ id: string; revision: number }>, view: MemoryView): boolean {
+      return tx(() => {
+        if (new Set(refs.map((r) => r.id)).size !== refs.length) return false;
+        const notes = refs.map((r) => repo.get(r.id));
+        if (
+          notes.some(
+            (m, i) =>
+              !m ||
+              m.revision !== refs[i]?.revision ||
+              m.forgotten_at ||
+              m.source !== "agent" ||
+              m.scope !== "agent" ||
+              m.agent_id !== view.agent_id ||
+              m.project_id !== view.project_id,
+          )
+        )
+          return false;
+        const ordered = (notes as Memory[]).sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+        const keep = ordered[0] as Memory;
+        if (!ordered.every((m) => duplicateMemory(keep.text, m.text))) return false;
+        const evidence = [
+          ...new Map(ordered.flatMap((m) => m.evidence ?? []).map((e) => [e.message_id + e.quote, e])).values(),
+        ];
+        const saved = repo.edit(keep.id, keep.text, {
+          tainted: ordered.some((m) => m.tainted),
+          pending: ordered.some((m) => m.pending),
+          expectedRevision: keep.revision ?? 1,
+          evidence,
+          reason: "dream",
+        });
+        if (!saved) return false;
+        for (const m of ordered.slice(1)) {
+          run(
+            qb
+              .updateTable("memories")
+              .set({ forgotten_at: now(), revision: (m.revision ?? 1) + 1 })
+              .where("id", "=", m.id),
+          );
+          record(repo.get(m.id) as Memory, `dream:${keep.id}:${saved.revision}`);
+        }
+        return true;
+      });
+    },
+    undo(id: string, revision: number): Memory | undefined {
+      return tx(() => {
+        const current = repo.get(id);
+        const previous = repo.history(id).find((v) => v.revision === revision)?.note;
+        if (!current || !previous || current.forgotten_at) return undefined;
+        const retired = all(
+          qb.selectFrom("memory_versions").select("memory_id").where("reason", "=", `dream:${id}:${current.revision}`),
+        );
+        const saved = repo.edit(id, previous.text, {
+          tainted: previous.tainted,
+          pending: previous.pending,
+          evidence: previous.evidence ?? [],
+          ...(previous.kind ? { kind: previous.kind } : {}),
+          reason: "undo",
+        });
+        for (const row of retired)
+          if (!one(qb.selectFrom("memory_exclusions").select("memory_id").where("memory_id", "=", row.memory_id)))
+            repo.restore(row.memory_id);
+        return saved;
+      });
     },
     /** An agent's own notes, when the agent is deleted for good. */
     removeAgentNotes(agentId: string): number {
-      return run(qb.deleteFrom("memories").where("scope", "=", "agent").where("agent_id", "=", agentId));
+      return tx(() => {
+        const notes = all(
+          qb.selectFrom("memories").select("id").where("scope", "=", "agent").where("agent_id", "=", agentId),
+        );
+        for (const note of notes) repo.remove(note.id);
+        run(qb.deleteFrom("memory_episodes").where("agent_id", "=", agentId));
+        return notes.length;
+      });
     },
     setEmbedding(id: string, vector: Float32Array, model: string): void {
       run(
@@ -277,6 +512,7 @@ export function memoriesRepo({ one, all, run }: Sql) {
           .selectFrom("memories")
           .select(["id", "text"])
           .where((eb) => eb.or([eb("embedding_model", "is", null), eb("embedding_model", "!=", model)]))
+          .where("forgotten_at", "is", null)
           .limit(limit),
       );
     },
@@ -324,6 +560,7 @@ export function memoriesRepo({ one, all, run }: Sql) {
               .where(raw<boolean>`memories_fts MATCH ${match}`)
               .where(visibleWhere(o))
               .orderBy(raw`bm25(memories_fts)`)
+              .orderBy("updated_at", "desc")
               .limit(o.limit),
           )
         : all(

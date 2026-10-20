@@ -51,6 +51,7 @@ import {
   sealedWeb,
 } from "./audience.ts";
 import { gitChanges } from "./changes.ts";
+import { memoryQuery, recallChats } from "./chat-recall.ts";
 import {
   HISTORY_BUDGET_CHARS,
   modeBlock,
@@ -71,6 +72,7 @@ import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
+import { memoryHistory, snapshotOf } from "./memory-projection.ts";
 import { ratingNote, sentMeanwhile } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
@@ -380,8 +382,12 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
   const room = turn.audience.kind === "contact" ? turn.audience.room : undefined;
   const projected = room
     ? { items: [] as ChatItem[], from: 0 }
-    : project(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction);
-  const { items: history, from } = projected;
+    : project(
+        memoryHistory(store, store.modelLog.list(thread.id), agent.id, thread.project_id),
+        HISTORY_BUDGET_CHARS,
+        ctxState.compaction,
+      );
+  const { from } = projected;
   const roster = rosterBlock(agent, store.agents.list(), thread);
   // A worker delegates to no one: it needs no roster.
   const rosterChanged =
@@ -399,12 +405,15 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
         deps.memory.search,
         agent.id,
         thread,
-        turn.input.text,
+        memoryQuery(store, thread.id, turn.input.text),
         ctxState,
         from,
         turn.input.origin.kind === "agent",
       )
     : {};
+  const chats = remembers
+    ? await recallChats(store, deps.memory, agent.id, thread, memoryQuery(store, thread.id, turn.input.text))
+    : undefined;
   const picked = await picking;
   // A plugin's context is for the owner's own turns only (not other agents', apps' or contacts'), as outside data.
   const o = turn.input.origin;
@@ -431,6 +440,11 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
     turn.input.attachments ?? [],
     turn.audience.kind === "contact" ? undefined : { home: deps.home, thread },
   );
+  const liveThread = store.threads.get(thread.id);
+  if (!liveThread || liveThread.project_id !== thread.project_id || !liveThread.agent_ids.includes(agent.id))
+    throw new Error("chat access changed while preparing its context");
+  const memoryBlock =
+    memorySettings(store).mode !== "off" ? [recalled.text, chats?.render()].filter(Boolean).join("\n") : "";
   const images = (turn.input.attachments ?? []).filter((a) => a.kind === "image");
   // A resumed turn already has its message in the history: it only learns why it stopped.
   const input: ChatItem & { role: "user" } = turn.input.resume_of
@@ -457,7 +471,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
                 text: files ? `${said}\n\n${files}` : said,
                 now: new Date(),
                 roster: rosterChanged ? roster.text : undefined,
-                memory: recalled.text,
+                memory: memoryBlock,
                 skills: picked?.block || undefined,
                 task: taskBlock(store, thread),
                 extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
@@ -476,7 +490,19 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
                     : undefined,
               }),
       };
-  const at = store.modelLog.append(thread.id, run.id, [input]);
+  const history = room
+    ? []
+    : project(
+        memoryHistory(store, store.modelLog.list(thread.id), agent.id, thread.project_id),
+        HISTORY_BUDGET_CHARS,
+        store.threads.context(thread.id).compaction,
+      ).items;
+  const at = store.modelLog.append(
+    thread.id,
+    run.id,
+    [input],
+    snapshotOf(store, input.content, memoryBlock, agent.id, thread.project_id),
+  );
   if (rosterChanged || recalled.shown)
     store.threads.mergeContext(thread.id, {
       ...(rosterChanged ? { roster_hash: roster.hash, roster_agent: agent.id } : {}),

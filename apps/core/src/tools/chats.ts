@@ -3,6 +3,7 @@
 import type { Message, Thread } from "@apx/protocol";
 import { z } from "zod";
 import type { AgentRecord } from "../domain/agents.ts";
+import { canReadChat as canRead } from "../domain/chat-access.ts";
 import type { Store } from "../domain/store.ts";
 import { messageQuery } from "../domain/threads.ts";
 import { cap, untrusted } from "./result.ts";
@@ -11,15 +12,6 @@ import { defineTool, type Tool } from "./types.ts";
 const MESSAGE_CHARS = 1500;
 /** A found tool call shows the head of its arguments and of its result: enough to recognise it. */
 const CALL_CHARS = 300;
-
-/** Global agents share the owner's global chats; project teams stay within their scope. */
-function canRead(store: Store, agent: AgentRecord, t: Thread): boolean {
-  const context = store.threads.context(t.id);
-  if (context.client) return false;
-  if (agent.kind === "secretary" || t.agent_ids.includes(agent.id)) return true;
-  if (agent.project_id) return t.project_id === agent.project_id;
-  return !t.project_id && !t.channel && !context.room && !t.parent_id;
-}
 
 const readableChats = (store: Store, agent: AgentRecord) =>
   store.threads
@@ -118,16 +110,33 @@ export function chatTools(store: Store): Tool[] {
         const byId = new Map(chats.map((t) => [t.id, t]));
         const rows = store.messages
           .search(scope.text, a.limit ?? 10, [...byId.keys()])
+          .filter(
+            ({ message: m }) =>
+              !store.memories.excluded({ agent_id: ctx.agent.id, project_id: ctx.thread.project_id }, textOf(m), {
+                message_id: m.id,
+                ...(m.run_id ? { run_id: m.run_id } : {}),
+              }),
+          )
           .map(({ message: m, snippet }) => {
             const t = byId.get(m.thread_id) as Thread;
-            return `- [${t.title} · chat ${t.id}] ${when(m.created_at)} ${authorOf(store, m)}: ${snippet}`;
+            return `- [${t.title} · chat ${t.id}] ${when(m.created_at)} ${authorOf(store, m)}: ${snippet} (message ${m.id})`;
           });
-        const calls = store.runs.searchSteps(wordsOf(scope.text), [...byId.keys()], a.limit ?? 10).map((c) => {
-          const t = byId.get(c.thread_id) as Thread;
-          const who = store.agents.get(c.agent_id)?.name ?? c.agent_id;
-          const result = c.result ? ` → ${cap(c.result, CALL_CHARS)}` : "";
-          return `- [${t.title} · chat ${t.id}] ${when(c.started_at)} ${who} called ${c.tool} ${cap(c.args, CALL_CHARS)}${result}`;
-        });
+        const calls = store.runs
+          .searchSteps(wordsOf(scope.text), [...byId.keys()], a.limit ?? 10)
+          .filter(
+            (c) =>
+              !store.memories.excluded(
+                { agent_id: ctx.agent.id, project_id: ctx.thread.project_id },
+                `${c.args} ${c.result ?? ""}`,
+                { run_id: c.run_id },
+              ),
+          )
+          .map((c) => {
+            const t = byId.get(c.thread_id) as Thread;
+            const who = store.agents.get(c.agent_id)?.name ?? c.agent_id;
+            const result = c.result ? ` → ${cap(c.result, CALL_CHARS)}` : "";
+            return `- [${t.title} · chat ${t.id}] ${when(c.started_at)} ${who} called ${c.tool} ${cap(c.args, CALL_CHARS)}${result}`;
+          });
         const found = [...rows, ...(calls.length ? ["Tool calls:", ...calls] : [])];
         return found.length
           ? untrusted("chats", { query: a.query }, found.join("\n"))
@@ -137,10 +146,11 @@ export function chatTools(store: Store): Tool[] {
     defineTool({
       name: "read_chat",
       description:
-        "Read the latest messages of one of the owner's chats, by its id, title (for example #general), delegation session name, or agent name (prefers their Home chat). Without one that matches, lists the chats you can read.",
+        "Read a chat by id, title, delegation session or agent (prefers Home). around expands an older message; otherwise latest. No match lists accessible chats.",
       args: z.object({
         chat: z.string().min(1).describe("the chat's id or title"),
-        limit: z.number().int().min(1).max(60).optional().describe("how many of its latest messages (default 20)"),
+        limit: z.number().int().min(1).max(60).optional().describe("how many messages (default 20)"),
+        around: z.string().optional().describe("source message id: expand older context"),
       }),
       effect: "none",
       deadlineMs: 5_000,
@@ -159,10 +169,23 @@ export function chatTools(store: Store): Tool[] {
             .map((x) => `- ${x.title} (chat ${x.id})`);
           return `no chat named "${a.chat}" that you can read. Use list_agents and delegate to ask the named agent for context. Recent chats:\n${known.join("\n")}`;
         }
-        const lines = store.messages.list(t.id, a.limit ?? 20).flatMap((m) => {
-          const text = textOf(m);
-          return text ? [`${when(m.created_at)} ${authorOf(store, m)}: ${cap(text, MESSAGE_CHARS)}`] : [];
-        });
+        const anchor = a.around ? store.messages.get(a.around) : undefined;
+        if (a.around && (!anchor || anchor.thread_id !== t.id)) return "message not found in this chat";
+        const messages = anchor
+          ? store.messages.around(t.id, anchor.seq, a.limit ?? 20)
+          : store.messages.list(t.id, a.limit ?? 20);
+        const lines = messages
+          .filter(
+            (m) =>
+              !store.memories.excluded({ agent_id: ctx.agent.id, project_id: ctx.thread.project_id }, textOf(m), {
+                message_id: m.id,
+                ...(m.run_id ? { run_id: m.run_id } : {}),
+              }),
+          )
+          .flatMap((m) => {
+            const text = textOf(m);
+            return text ? [`${when(m.created_at)} ${authorOf(store, m)}: ${cap(text, MESSAGE_CHARS)}`] : [];
+          });
         return untrusted("chat", { title: t.title, id: t.id }, lines.length ? lines.join("\n\n") : "(no messages)");
       },
     }),

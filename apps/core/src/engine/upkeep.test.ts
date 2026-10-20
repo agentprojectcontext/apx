@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
-import type { LogEntry } from "../domain/threads.ts";
+import type { LogEntry } from "../domain/model-log.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { projectHistory } from "./context.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";

@@ -37,6 +37,7 @@ import { createAttention } from "./engine/attention.ts";
 import { createEngine } from "./engine/engine.ts";
 import type { InputWaits } from "./engine/inputs.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
+import { createMemoryMaintenance } from "./engine/memory-maintenance.ts";
 import { createNoticePush } from "./engine/notice-push.ts";
 import type { ProfileRoot } from "./engine/profiles.ts";
 import { createSkillPicker } from "./engine/skill-pick.ts";
@@ -304,6 +305,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     onReady: (model) => useLocalEmbedder(services, config.ollamaUrl, model),
   });
   const memory = createMemoryIndex({ store, services, log });
+  const memoryMaintenance = createMemoryMaintenance({ store, upkeep, call: internal, index: memory, log });
   const skills = createSkillPicker({ store, services, log });
   const attention = createAttention({
     store,
@@ -375,6 +377,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     desktopLinked: () => Boolean(broker.withCap(BROWSER_CAP)),
     afterRun: (run) => {
       upkeep.afterRun(run);
+      memoryMaintenance.afterRun(run);
       channels.afterRun(run);
       scheduler.afterRun(run);
       scheduler.stalls.afterRun(run);
@@ -448,6 +451,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       engine,
       upkeep,
       memory,
+      memoryMaintenance,
       channels,
       services,
       scheduler,
@@ -490,6 +494,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     store.idempotency,
   );
   routed = dispatch;
+  memoryMaintenance.start();
 
   const transport = await listen(config, { dispatch, store, log, identity, broker, bus });
   listening = transport.port;
@@ -547,8 +552,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       plugins.close();
       await channels.stop();
       await engine.stop();
-      services.close();
       await upkeep.stop();
+      await memoryMaintenance.stop();
+      await memory.stop();
+      services.close();
       await mcp.close();
       apc.close();
       await transport.close();

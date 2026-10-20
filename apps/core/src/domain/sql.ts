@@ -13,6 +13,7 @@ export const newId = (prefix: string) => `${prefix}_${randomUUID().replaceAll("-
 /** Full-text index tables (virtual; not in the generated schema): joined by rowid, searched with MATCH. */
 interface FtsTables {
   memories_fts: { rowid: number; text: string };
+  memory_episodes_fts: { rowid: number; text: string };
   messages_fts: { rowid: number; text: string };
 }
 

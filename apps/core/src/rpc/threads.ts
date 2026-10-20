@@ -134,7 +134,17 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         store.runs.setReplyTo(into.id, store.threads.context(threadId).reply_to);
         return { message, run: publicRun(into), steered: true };
       }
-      return { message, run: publicRun(engine.admit({ ...admit, thread_id: threadId, text })) };
+      return {
+        message,
+        run: publicRun(
+          engine.admit({
+            ...admit,
+            origin: admit.origin?.kind === "user" ? { ...admit.origin, message_id: message.id } : admit.origin,
+            thread_id: threadId,
+            text,
+          }),
+        ),
+      };
     });
   }
 

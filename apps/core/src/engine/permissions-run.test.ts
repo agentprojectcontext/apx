@@ -73,9 +73,8 @@ const PLANS: Record<string, Plan[]> = {
   "clean up": [() => ({ name: "read_page", args: {} }), () => ({ name: "shell", args: { command: "rm -rf scratch" } })],
 };
 
-const llm = scriptedLlm(async (req) => {
+const llm = scriptedLlm(async (req, { said }) => {
   const lastUser = req.messages.findLastIndex((m) => m.role === "user");
-  const said = String(req.messages[lastUser]?.content ?? "");
   const plan = Object.entries(PLANS).find(([k]) => said.includes(k))?.[1];
   if (!plan) return say("Hi.");
   const done = req.messages.slice(lastUser).filter((m) => m.role === "tool");

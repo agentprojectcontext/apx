@@ -294,3 +294,57 @@ test("search finds what an agent did in its own runs, by tool and arguments, and
   );
   assert.doesNotMatch(text, /post-9c2b/);
 });
+
+test("read_chat expands an old message beyond the latest page and honors forgotten evidence", async () => {
+  let chat = "",
+    anchor = "";
+  const model = scriptedLlm((req, { afterTool }) =>
+    afterTool
+      ? say(String(req.messages.at(-1)?.content))
+      : callTool("old", "read_chat", { chat, around: anchor, limit: 4 }),
+  );
+  const isolated = await startCore({ llm: model });
+  try {
+    const source = await isolated.client.call("threads.create", {
+      kind: "loose",
+      agent_id: "roby",
+      title: "Old archive",
+    });
+    chat = source.id;
+    const fact = "Acme archived invoices use violet labels.";
+    anchor = isolated.core.store.messages.add({
+      thread_id: source.id,
+      author: { kind: "user" },
+      parts: [{ type: "text", text: fact }],
+    }).id;
+    for (let i = 0; i < 80; i++)
+      isolated.core.store.messages.add({
+        thread_id: source.id,
+        author: { kind: "user" },
+        parts: [{ type: "text", text: `Later unrelated message ${i}.` }],
+      });
+    assert.equal(
+      isolated.core.store.messages.list(source.id, 20).some((m) => m.id === anchor),
+      false,
+    );
+    const ask = async () => {
+      const current = await isolated.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      await isolated.client.call("threads.send", { thread: current.id, text: "Read the old archive anchor." });
+      await isolated.settle(current.id);
+      return texts((await isolated.client.call("threads.get", { thread: current.id })).messages).join("\n");
+    };
+    assert.match(await ask(), /violet labels/);
+    const note = isolated.core.store.memories.add({
+      scope: "agent",
+      agent_id: "roby",
+      source: "agent",
+      text: fact,
+      evidence: [{ message_id: anchor, quote: fact }],
+    });
+    await isolated.client.call("memory.remove", { id: note.id });
+    assert.doesNotMatch(await ask(), /violet labels/);
+  } finally {
+    await isolated.core.close();
+    isolated.cleanup();
+  }
+});

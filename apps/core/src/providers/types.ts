@@ -162,6 +162,7 @@ export type TransportRequest = {
   signal: AbortSignal;
   /** Stable per conversation: lets a provider's prompt cache find this chat's earlier calls. */
   cacheKey?: string | undefined;
+  maxOutputTokens?: number | undefined;
   /** Streaming: receives the text accumulated so far. */
   onText?: ((soFar: string) => void) | undefined;
   /** Silence allowed before the first byte. */
