@@ -88,6 +88,8 @@ Usage:
   apx artifacts [list] [--project <id>] [--json]   Widgets and apps agents made
   apx artifacts push <name> <file.html> [--title t] [--app] [--connect <origin,…>] [--project <id>]   Show a built page
   apx artifacts dir <name> [--project <id>]   Where a built artifact keeps its source (created if missing)
+  apx artifacts export <name> [--memory] [--out <file>] [--project <id>]   Save one as an .apxart file
+  apx artifacts import <file.apxart> [--project <id>]   Load an .apxart file into this APX
   apx sessions projects codex|claude   Claude Code or Codex projects and chats on this computer
   apx sessions import codex|claude <project> [--only <id,…>] [--name "…"]   Bring them in as an APX project
   apx sessions digest|adopt|page …     What an imported chat is about, who takes it over, its pages as widgets
@@ -251,6 +253,7 @@ function argumentsOf() {
       only: { type: "string" },
       app: { type: "boolean" },
       connect: { type: "string" },
+      memory: { type: "boolean" },
     },
   });
 }
@@ -416,6 +419,8 @@ try {
         app: values.app,
         connect: values.connect,
         json: values.json,
+        memory: values.memory,
+        out: values.out,
       });
       break;
     case "image":

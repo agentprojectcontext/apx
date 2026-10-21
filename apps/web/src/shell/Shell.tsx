@@ -28,6 +28,9 @@ const ProjectScreen = lazy(() => import("../project/ProjectScreen.tsx").then((m)
 const ResourcesScreen = lazy(() =>
   import("../project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen })),
 );
+const InstallArtifactDialog = lazy(() =>
+  import("../surfaces/InstallArtifact.tsx").then((m) => ({ default: m.InstallArtifactDialog })),
+);
 const LiveLayer = lazy(() => import("../surfaces/LiveLayer.tsx").then((m) => ({ default: m.LiveLayer })));
 const CornerCards = lazy(() => import("./CornerCards.tsx").then((m) => ({ default: m.CornerCards })));
 const CommandPalette = lazy(() => import("./CommandPalette.tsx").then((m) => ({ default: m.CommandPalette })));
@@ -87,6 +90,9 @@ export function Shell() {
           </ShellLayout.Provider>
         </main>
       </div>
+      <Suspense fallback={null}>
+        <InstallArtifactDialog />
+      </Suspense>
       {config && (
         <Suspense fallback={null}>
           <ConfigModal />

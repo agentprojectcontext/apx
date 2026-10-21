@@ -48,11 +48,12 @@ export function LiveLayer() {
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
 
-  // A page that stopped declaring apx-live (unless the owner opened it as an app), or was deleted, closes here.
+  // Closes here: a deleted page, and one that no longer earns its place (not live, and not an app any more).
   useEffect(() => {
     for (const e of entries) {
       const doc = docs[e.surface];
-      if (!summaries[e.surface] || (!e.open && doc && declaresLive(doc.html) === undefined)) dropLive(e.surface);
+      const s = summaries[e.surface];
+      if (!s || ((!e.open || !s.app) && doc && declaresLive(doc.html) === undefined)) dropLive(e.surface);
     }
   }, [entries, docs, summaries]);
 

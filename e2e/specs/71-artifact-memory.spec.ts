@@ -45,7 +45,7 @@ test("an artifact's store and database survive a reload", async ({ page: p }) =>
   expect(memory.db.tables).toContainEqual({ name: "marks", rows: 1 });
 });
 
-test("an opened app keeps running as it was left while the owner goes elsewhere, until it is closed", async ({
+test("an app keeps running as it was left while the owner goes elsewhere, until closed; a widget closes on leaving", async ({
   page: p,
 }) => {
   await rpc("setup.finish", {});
@@ -93,4 +93,64 @@ test("an opened app keeps running as it was left while the owner goes elsewhere,
   }, one.id);
   await expect.poll(() => frames(p).length).toBe(2);
   await expect.poll(marked).toBe(0);
+
+  // A widget opened full screen is a view: leaving closes it, and it never takes a place among the running apps.
+  const view = await rpc<{ id: string }>("surfaces.show", {
+    name: "dock-view",
+    title: "Dock view",
+    html: page(false),
+    app: false,
+  });
+  await p.evaluate((i) => {
+    location.hash = `app=${i}`;
+  }, view.id);
+  await expect.poll(() => frames(p).length).toBe(3);
+  await expect(p.locator(".navitem__running")).toHaveCount(2);
+  await p.evaluate(() => {
+    location.hash = "";
+  });
+  await expect.poll(() => frames(p).length).toBe(2);
+
+  // Unpinned from Apps, a running app is a widget from then on, and stops running once left.
+  await rpc("surfaces.update", { surface: two.id, app: false });
+  await expect(p.locator(".navitem__running")).toHaveCount(1);
+  await expect.poll(() => frames(p).length).toBe(1);
+});
+
+test("an .apxart file is shown for what it is before it installs, pinned and with its data as the owner chooses", async ({
+  page: p,
+}) => {
+  await rpc("setup.finish", {});
+  const made = await rpc<{ id: string }>("surfaces.show", {
+    name: "install-me",
+    title: "Install me",
+    html: page(false),
+    app: false,
+  });
+  await rpc("surfaces.store_set", { surface: made.id, patch: { reading: "r9" } });
+  const bundle = await rpc<object>("surfaces.export", { surface: made.id, memory: true });
+
+  await open(p);
+  await p.getByRole("button", { name: "Instalar artefacto" }).first().click();
+  const dialog = p.getByRole("dialog", { name: "Instalar un artefacto" });
+  await expect(dialog.getByRole("button", { name: "Instalar", exact: true })).toBeDisabled();
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: "install-me.apxart",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from(JSON.stringify(bundle)),
+  });
+  // What it is, before anything is written: a widget, bringing its cache, with a name already taken here.
+  await expect(dialog.getByText("Install me")).toBeVisible();
+  await expect(dialog.getByText("Widget", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(/Trae sus datos: caché/)).toBeVisible();
+  await expect(dialog.getByText(/Ya hay un artefacto llamado install-me/)).toBeVisible();
+  await dialog.getByRole("switch", { name: "Fijar en Apps" }).click();
+  await dialog.getByRole("button", { name: "Instalar", exact: true }).click();
+  await expect(dialog).toBeHidden();
+
+  const { surfaces } = await rpc<{ surfaces: { id: string; name: string; app: boolean }[] }>("surfaces.list");
+  const installed = surfaces.find((s) => s.name === "install-me-2");
+  expect(installed?.app).toBe(true);
+  const memory = await rpc<{ store: { keys: string[] } }>("surfaces.memory", { surface: installed?.id ?? "" });
+  expect(memory.store.keys).toEqual(["reading"]);
 });

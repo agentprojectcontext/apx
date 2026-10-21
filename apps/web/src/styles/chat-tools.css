@@ -416,11 +416,6 @@
   display: inline-flex;
   gap: 2px;
 }
-.appsdock__sep {
-  height: 1px;
-  margin: 4px 12px;
-  background: var(--apx-border);
-}
 .appsdock__launcher {
   display: flex;
   flex-direction: column;
@@ -477,4 +472,57 @@
   right: -2px;
   bottom: -2px;
   box-shadow: 0 0 0 2px var(--apx-bg);
+}
+
+/* The install dialog (InstallArtifact.tsx). */
+.install {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.install__drop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px;
+  border: 1.5px dashed var(--apx-border-strong, var(--apx-border));
+  border-radius: var(--apx-radius-md);
+  color: var(--apx-fg-muted);
+}
+.install__drop span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.install__drop[data-dragging] {
+  border-color: var(--apx-brand);
+  background: var(--apx-brand-soft);
+}
+.install__what {
+  padding: 12px 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+}
+.install__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.install__facts {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+}
+.install__error {
+  color: var(--apx-danger);
+  margin: 0;
+}
+.install__note {
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+  margin: 0;
 }

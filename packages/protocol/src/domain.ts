@@ -1328,6 +1328,11 @@ export const ArtifactManifest = z.object({
   source: z.object({ framework: z.enum(["preact", "html"]).optional(), built_at: z.string().optional() }).optional(),
 });
 export type ArtifactManifest = z.infer<typeof ArtifactManifest>;
+/**
+ * An artifact's file name ends in this, widget or app alike (the kind is in its manifest). `.apxapp` and `.apxext` are
+ * kept for the marketplace's packaged apps and extensions. See DECISIONS.md#d-118.
+ */
+export const ARTIFACT_FILE_EXT = ".apxart";
 /** One artifact as a file: its page and, only when asked, its memory (state, store, base64 database). */
 export const ArtifactBundle = z.object({
   format: z.literal("apx-artifact@1"),

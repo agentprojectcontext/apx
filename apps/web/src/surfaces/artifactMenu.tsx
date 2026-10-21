@@ -1,6 +1,7 @@
 import type { SurfaceSummary } from "@apx/protocol";
 import { Icons, type MenuEntry } from "@apx/ui";
 import { setSurfaceFlags } from "../data/actions.ts";
+import { exportArtifact } from "../data/artifacts.ts";
 import { projectName } from "../data/identity.ts";
 import { data } from "../data/state.ts";
 import type { t as tr } from "../i18n/index.ts";
@@ -9,6 +10,19 @@ import { popOut } from "./artifactWindows.ts";
 import { dropLive } from "./livePool.ts";
 import { shareEntries } from "./ShareMenu.tsx";
 import { openWidgetChat } from "./WidgetChat.tsx";
+
+/** The artifact as an .apxart file to keep, share or load in another APX: alone, or with what it remembers. */
+export function downloadEntry(s: SurfaceSummary, t: typeof tr): MenuEntry {
+  return {
+    type: "submenu",
+    label: t("artifact.download"),
+    icon: <Icons.Download size={16} />,
+    items: [
+      { label: t("artifact.downloadPlain"), onSelect: () => void exportArtifact(s.id, false) },
+      { label: t("artifact.downloadMemory"), onSelect: () => void exportArtifact(s.id, true) },
+    ],
+  };
+}
 
 /** Where an artifact is listed, named by place: its project's board and the Apps list are two different things. */
 export function placeEntries(s: SurfaceSummary, t: typeof tr, after?: { removedFromApps?: () => void }): MenuEntry[] {
@@ -42,6 +56,7 @@ export function artifactMenu(
     { label: t("widget.chatShort"), icon: <Icons.MessageSquare size={16} />, onSelect: () => void openWidgetChat(s) },
     { type: "submenu", label: t("share.share"), icon: <Icons.Share size={16} />, items: shareEntries(s, t) },
     { label: `${t("artifact.memory")}…`, icon: <Icons.Database size={16} />, onSelect: o.onMemory },
+    downloadEntry(s, t),
     { type: "separator" },
     ...placeEntries(s, t),
     ...(o.running

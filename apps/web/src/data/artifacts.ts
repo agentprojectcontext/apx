@@ -1,4 +1,5 @@
 import type { ArtifactBundle, ArtifactMemory, Params } from "@apx/protocol";
+import { ARTIFACT_FILE_EXT } from "@apx/protocol";
 import { t } from "../i18n/index.ts";
 import type { BridgeMethod } from "../surfaces/srcdoc.ts";
 import { client } from "./client.ts";
@@ -41,10 +42,10 @@ export async function clearArtifactMemory(id: string, parts: MemoryPart[]): Prom
 export async function exportArtifact(id: string, memory: boolean): Promise<boolean> {
   try {
     const bundle = await client.call("surfaces.export", { surface: id, memory });
-    const url = URL.createObjectURL(new Blob([JSON.stringify(bundle)], { type: "application/json" }));
+    const url = URL.createObjectURL(new Blob([JSON.stringify(bundle)], { type: "application/octet-stream" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${bundle.manifest.name}.apx-artifact.json`;
+    a.download = `${bundle.manifest.name}${ARTIFACT_FILE_EXT}`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     return true;
@@ -55,10 +56,15 @@ export async function exportArtifact(id: string, memory: boolean): Promise<boole
 }
 
 /** Installs an `.apx-artifact.json` file as a new artifact of the project (none: global). */
-export async function importArtifact(file: File, projectId: string | undefined): Promise<string | undefined> {
+/** Installs an artifact file here: into `projectId` (none: global), pinned to Apps or not. */
+export async function installArtifact(
+  bundle: ArtifactBundle,
+  projectId: string | undefined,
+  pin: boolean,
+): Promise<string | undefined> {
   try {
-    const bundle = JSON.parse(await file.text()) as ArtifactBundle;
-    const summary = await client.call("surfaces.import", { bundle, ...(projectId ? { project: projectId } : {}) });
+    let summary = await client.call("surfaces.import", { bundle, ...(projectId ? { project: projectId } : {}) });
+    if (summary.app !== pin) summary = await client.call("surfaces.update", { surface: summary.id, app: pin });
     data.set((s) => ({ surfaces: { ...s.surfaces, [summary.id]: summary } }));
     notify(t("artifact.imported", { title: summary.title }), "info");
     return summary.id;
@@ -66,16 +72,4 @@ export async function importArtifact(file: File, projectId: string | undefined):
     notify(t("artifact.importError", { error: errText(e) }));
     return undefined;
   }
-}
-
-/** Opens the file picker for an artifact file and imports the one chosen. */
-export function pickArtifactFile(projectId: string | undefined): void {
-  const input = document.createElement("input");
-  input.type = "file";
-  input.accept = ".json,application/json";
-  input.onchange = () => {
-    const file = input.files?.[0];
-    if (file) void importArtifact(file, projectId);
-  };
-  input.click();
 }

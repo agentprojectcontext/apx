@@ -54,12 +54,21 @@ How an artifact behaves when you leave and come back:
   most three such pages running at once, pauses them when the app window is hidden, and stops the least recent when a
   fourth opens.
 
+**Apps stay open; widgets close.** An app you open keeps running while you go elsewhere in APX, like an app on your
+desktop: come back and it is exactly as you left it, until you close it (Close app) or quit APX. Up to six run at
+once, each marked with a dot in the sidebar's Apps. A widget is a view: open it full screen, look, leave, and it
+closes. Pin a widget to Apps to make it an app. "Open in a new window" moves an app to a window of its own; the
+panel shows where it went and brings it back when that window closes.
+
 ## Export and import
 
-Menu › **Memory and export** › **Export** saves the artifact as one file, `<name>.apx-artifact.json`. By default it
-carries the page and a short description of it, **without** its memory; turn on **Include memory** to take your state,
-store and database with it (for a backup or a move to another computer). **Import artifact** on a project installs
-such a file there as a new artifact; if the name is taken it gets a number.
+An artifact travels as one **`.apxart`** file, widget or app alike. Right-click it in Apps (or its More menu) ›
+**Download (.apxart)** › **The artifact alone**, or **With what it remembers** to take your choices, cache and records
+too (for a backup or a move to another APX). **Install artifact** (the upload button in Apps, or a project board's +)
+opens a dialog: drop the file or choose it, see what it is (widget or app, what it connects to, which secrets it will
+ask for, whether it brings data), pick the project, pin it to Apps or not, and only then **Install**. If the name is
+taken there, it installs beside it with a number. From a terminal: `apx artifacts export <name> [--memory]` and
+`apx artifacts import <file.apxart>`. Files saved earlier as `.apx-artifact.json` install the same way.
 
 <Aside type="caution">
 An export that includes memory carries what you typed and the app's records. Share only exports made without memory.

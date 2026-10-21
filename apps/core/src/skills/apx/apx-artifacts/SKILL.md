@@ -26,6 +26,20 @@ Never write an artifact as a file on disk for the owner to open: the owner only 
 A report that is only read is a Markdown file with `open_document`, not an artifact. Never turn a widget into an app
 unless it behaves like one (navigation, records) and the owner agrees.
 
+## Ask what the request leaves open, with buttons
+
+Before building something the owner asked for (not a quick view you show in passing), check what their words and the
+chat already settle. Ask only what would change what you build and they did not say, with `ask_owner` and `options`
+they tap, one question per call, at most two, then build:
+
+- **Widget or app**: a view to look at, or a tool they work in and keep open (`["A widget to look at", "An app I
+  keep open"]`).
+- **Data**: fixed now, or kept fresh (and from where: a credential means the secret, see update.md).
+- **Layout of an app**: full width, or a centered column (`ax-page` inside).
+
+Said already ("an app for my balances, live from my bank") means no question: build. Unanswered, go on with the plain
+choice: a widget, data as it is now, a centered page.
+
 ## Level 1: one HTML with APX Kit
 
 ```html
@@ -54,8 +68,9 @@ brings the theme (light and dark), components, memory and the bridge to the chat
   owner wants to stand out, `<meta name="apx-style" content="aurora">` with an `ax-hero` header.
 - One primary button per view; every button works or is disabled. No data shows as no data (`ax-stat--empty`),
   never an invented number; a fixed snapshot says so.
-- Anything that deletes the owner's data asks first with `APX.confirm(text, {danger: true})`. An opened app keeps
-  running while hidden: pause its own timers and sockets with `APX.onVisible` (kit.md, "Open apps keep running").
+- Anything that deletes the owner's data asks first with `APX.confirm(text, {danger: true})`. An app keeps running
+  while hidden (a widget closes when left): pause its own timers and sockets with `APX.onVisible` (kit.md, "Open
+  apps keep running").
 - Starters: [assets/kit-widget.html](assets/kit-widget.html) (stats, chart, filterable table) and
   [assets/kit-app.html](assets/kit-app.html) (rail, views, a list it remembers, settings). Replace their sample content.
 

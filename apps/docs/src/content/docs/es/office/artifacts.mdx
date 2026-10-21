@@ -54,12 +54,22 @@ Cómo se comporta un artefacto cuando te vas y volvés:
   la mantenga viva. APX mantiene como mucho tres a la vez, las pausa cuando la ventana de la app está oculta y frena la
   menos reciente cuando se abre una cuarta.
 
+**Las apps quedan abiertas; los widgets se cierran.** Una app que abrís sigue corriendo mientras vas a otra parte de
+APX, como una app de tu escritorio: volvés y está tal cual la dejaste, hasta que la cerrás (Cerrar app) o cerrás APX.
+Corren hasta seis a la vez, cada una con un punto en Apps, en la barra lateral. Un widget es una vista: lo abrís en
+pantalla completa, lo mirás, te vas y se cierra. Fijá un widget en Apps para convertirlo en app. "Abrir en otra
+ventana" lleva una app a una ventana propia; el panel muestra dónde está y la trae de vuelta cuando cerrás esa ventana.
+
 ## Exportar e importar
 
-Menú › **Memoria y exportación** › **Exportar** guarda el artefacto en un archivo, `<nombre>.apx-artifact.json`. Por
-defecto lleva la página y una descripción corta, **sin** su memoria; activá **Incluir memoria** para llevarte el estado,
-el almacén y la base de datos (para un backup o para pasarlo a otra computadora). **Importar artefacto** en un
-proyecto instala ese archivo ahí como un artefacto nuevo; si el nombre ya existe, le suma un número.
+Un artefacto viaja como un archivo **`.apxart`**, sea widget o app. Clic derecho en Apps (o su menú Más) ›
+**Descargar (.apxart)** › **Solo el artefacto**, o **Con lo que recuerda** para llevarte también tus elecciones, la caché
+y los registros (para un backup o para pasarlo a otro APX). **Instalar artefacto** (el botón de subir en Apps, o el +
+del tablero de un proyecto) abre un diálogo: arrastrás el archivo o lo elegís, ves qué es (widget o app, a qué se
+conecta, qué secretos te va a pedir, si trae datos), elegís el proyecto, si lo fijás en Apps, y recién ahí
+**Instalar**. Si el nombre ya existe ahí, se instala al lado con un número. Desde la terminal:
+`apx artifacts export <nombre> [--memory]` y `apx artifacts import <archivo.apxart>`. Los archivos guardados antes como
+`.apx-artifact.json` se instalan igual.
 
 <Aside type="caution">
 Una exportación con memoria lleva lo que escribiste y los registros de la app. Compartí solo exportaciones sin

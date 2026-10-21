@@ -1678,22 +1678,32 @@ agents of that project may write and build there (a folder root, and the shell's
 **Bundle format for a future marketplace.** `apx-artifact@1`: a manifest (name, title, kind, version, kit, connect,
 secret keys without values, live, `data_version` for future db migrations, source), the html and, only when the owner
 asks, the memory. An upload will never carry the owner's memory: installing starts empty and asks for its own secrets.
-Nothing is uploaded yet; the format is fixed now so exports made today stay importable.
+Nothing is uploaded yet; the format is fixed now so exports made today stay importable. The file is `<name>.apxart`
+for a widget and an app alike (the kind is in the manifest): `.apxapp` and `.apxext` stay for the marketplace's packaged
+apps and extensions, which install through the extension installer; an `.apxart` is content an agent made, carried
+between installs. Installing shows what the file is before anything is written (kind, origins, secrets, data) and lets
+the owner choose the project, pin it and drop its data.
 
 <a id="d-119"></a>
-## D-119 — 2026-10-21 — An opened app keeps running until the owner closes it, like a desktop's
+## D-119 — 2026-10-21 — An app keeps running until the owner closes it; a widget closes when left
 The owner wanted apps to behave as apps: open three, go to the inbox, come back, and find each as it was left (a menu
 open, a form half filled), not reloaded from its memory. A page's own running state cannot be saved and restored by
-APX, so the page is simply not destroyed: an artifact opened full screen joins the live layer (D-118's pool, which never
+APX, so the page is simply not destroyed: an app opened full screen joins the live layer (D-118's pool, which never
 moves an iframe in the DOM, since a moved iframe reloads) and stays there until the owner closes it (Close app, the
-Apps menu) or quits APX. Widgets in a chat are untouched: they mount and unmount as before, unless they declare
-`apx-live`.
+Apps menu) or quits APX.
 
-The cost is bounded and visible. At most six opened apps run at once (the seventh closes the one seen least recently)
-and three `apx-live` pages, each kind in its own room so one never closes the other. A hidden app is told so: the kit
-pauses `APX.live`, and the skill asks pages to pause their own timers with `APX.onVisible`. The sidebar's Apps section
-works like a dock: the pinned ones always (pinned = in Apps, the existing app flag), then the ones opened and still
-running, a dot on each running one; "+" searches every artifact in the system and opens one without pinning it.
+Only apps. Kind decides it, not size: an **app** is a tool the owner works in (in the dock, running until closed, the
+page owns the whole window); a **widget** is a view of something, mostly read in a chat or on a project's board, and
+opening one full screen is only a bigger look at it, closed when the owner leaves. A widget that must keep running
+(a live price) says so itself with `apx-live`. How an app is laid out is the page's own design: one that wants a
+centered column uses `ax-page` inside; no third flag was added for "an app the size of a widget". Pinning a widget to
+Apps makes it an app from then on; unpinning one stops it running.
+
+The cost is bounded and visible. At most six apps run at once (the seventh closes the one seen least recently) and three
+`apx-live` pages, each kind in its own room so one never closes the other. A hidden app is told so: the kit pauses
+`APX.live`, and the skill asks pages to pause their own timers with `APX.onVisible`. The sidebar's Apps section works
+like a dock: every app, a dot on each running one; "+" searches every artifact in the system and opens it. Advanced
+names each running artifact's process when Chromium gives it one of its own.
 
 One copy runs at a time. Opening an app in a window of its own (a desktop window, a web popup at `/?artifact=<id>`)
 stops the copy in the panel, which shows a note with "Bring it back here"; closing that window brings it back. The

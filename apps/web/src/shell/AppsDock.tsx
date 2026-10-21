@@ -1,12 +1,12 @@
 import type { SurfaceSummary } from "@apx/protocol";
-import { ContextMenu, IconButton, Icons, Menu, NavItem, Popover, ProjectTile, SearchField } from "@apx/ui";
+import { ContextMenu, IconButton, Icons, NavItem, Popover, ProjectTile, SearchField } from "@apx/ui";
 import { useMemo, useState } from "react";
-import { pickArtifactFile } from "../data/artifacts.ts";
-import { baseName, projectName } from "../data/identity.ts";
+import { projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { ArtifactMemoryDialog } from "../surfaces/ArtifactMemory.tsx";
 import { artifactMenu } from "../surfaces/artifactMenu.tsx";
+import { openInstall } from "../surfaces/InstallArtifact.tsx";
 import { useRunningApps } from "../surfaces/livePool.ts";
 import { go, useNav } from "./nav.ts";
 import { SidebarSection } from "./SidebarSection.tsx";
@@ -15,20 +15,18 @@ import { SidebarSection } from "./SidebarSection.tsx";
 const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 /**
- * Apps in the sidebar, like a dock: the pinned ones always (an artifact listed in Apps), then the ones opened and still
- * running until closed; a dot marks each one running. "+" opens any artifact in the system without pinning it.
+ * Apps in the sidebar, like a dock: every app (an artifact listed in Apps), a dot on each one still running. "+" opens
+ * any artifact in the system; a widget opened that way is a view and closes when the owner leaves it.
  */
 export function AppsDock({ rail }: { rail: boolean }) {
   const t = useT();
   const surfaces = useData((s) => s.surfaces);
-  const projects = useData((s) => s.projects);
   const view = useNav((s) => s.view);
   const appId = useNav((s) => s.appId);
   const runningIds = useRunningApps();
   const running = useMemo(() => new Set(runningIds), [runningIds]);
   const [memoryOf, setMemoryOf] = useState<string>();
   const pinned = useMemo(() => Object.values(surfaces).filter((s) => s.app), [surfaces]);
-  const openOnly = runningIds.map((id) => surfaces[id]).filter((s): s is SurfaceSummary => Boolean(s && !s.app));
 
   const item = (a: SurfaceSummary) => (
     <ContextMenu
@@ -62,29 +60,18 @@ export function AppsDock({ rail }: { rail: boolean }) {
         title={t("nav.apps")}
         action={
           <span className="appsdock__actions">
-            <Menu
-              align="end"
-              items={[
-                { type: "label", label: t("artifact.importInto") },
-                { label: baseName(), onSelect: () => pickArtifactFile(undefined) },
-                ...projects.map((p) => ({ label: p.name, onSelect: () => pickArtifactFile(p.id) })),
-              ]}
-              trigger={
-                <IconButton
-                  size="sm"
-                  className="sidebar__add"
-                  label={t("artifact.import")}
-                  icon={<Icons.Upload size={14} />}
-                />
-              }
+            <IconButton
+              size="sm"
+              className="sidebar__add"
+              label={t("artifact.install")}
+              icon={<Icons.Upload size={14} />}
+              onClick={() => openInstall()}
             />
             <AppLauncher running={running} />
           </span>
         }
       />
       {pinned.map(item)}
-      {openOnly.length > 0 && pinned.length > 0 && <div className="appsdock__sep" aria-hidden />}
-      {openOnly.map(item)}
       {memory && <ArtifactMemoryDialog surface={memory} onClose={() => setMemoryOf(undefined)} />}
     </>
   );

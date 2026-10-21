@@ -4,7 +4,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { ArtifactMemoryButton } from "../surfaces/ArtifactMemory.tsx";
-import { placeEntries } from "../surfaces/artifactMenu.tsx";
+import { downloadEntry, placeEntries } from "../surfaces/artifactMenu.tsx";
 import { bringBack, popOut, useOutside } from "../surfaces/artifactWindows.ts";
 import { dropLive, useRunningApps } from "../surfaces/livePool.ts";
 import { ShareMenu } from "../surfaces/ShareMenu.tsx";
@@ -77,7 +77,7 @@ export function AppScreen() {
         />
         <Menu
           align="end"
-          items={placeEntries(app, t, { removedFromApps: back })}
+          items={[downloadEntry(app, t), { type: "separator" }, ...placeEntries(app, t, { removedFromApps: back })]}
           trigger={<IconButton size="sm" label={t("common.more")} icon={<Icons.Ellipsis size={16} />} />}
         />
         {running && (
@@ -107,7 +107,8 @@ export function AppScreen() {
             {t("artifact.outsideHint")}
           </EmptyState>
         ) : (
-          <SurfaceFrame surfaceId={app.id} fit="fill" open />
+          // An app keeps running when the owner leaves; a widget is a view, closed on leaving (unless apx-live).
+          <SurfaceFrame surfaceId={app.id} fit="fill" open={app.app} />
         )}
       </div>
     </section>
