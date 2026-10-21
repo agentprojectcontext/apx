@@ -4,7 +4,7 @@ import { z } from "zod";
 export const Placement = z.enum(["inline", "sidebar", "fullscreen"]);
 export type Placement = z.infer<typeof Placement>;
 
-export { declaresApp, inlineKit, KIT_PATH, usesKit } from "./kit.ts";
+export { declaresApp, declaresLive, inlineKit, KIT_PATH, parseLiveDuration, usesKit } from "./kit.ts";
 export {
   injectSurfaceHead,
   type SurfaceLayout,

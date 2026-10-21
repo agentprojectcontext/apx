@@ -413,6 +413,115 @@ ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--
   document.addEventListener('input', saveField); document.addEventListener('change', saveField);
   state.on(function (s, source) { if (source === 'remote') { restoreFields(document); window.APX && window.APX.refilter && window.APX.refilter(); } });
 
+  /* Memory beyond state, per artifact: APX.store (cached data by key), APX.live (a reading painted from the store at
+     once, then refreshed), APX.db (SQL for apps with records) and APX.fetch (an API through the core, with the
+     artifact's own secret). Inside APX the host calls the core with this artifact's id; outside, store lives in memory,
+     there is no database, and fetch is the browser's own (a secret makes it reject). */
+  var call = host && typeof host.call === 'function' ? host.call : null;
+  function cloneJson(v) { return v === undefined ? v : JSON.parse(JSON.stringify(v)); }
+  function memoryStore() {
+    var m = {};
+    var done = function (v) { return Promise.resolve(v); };
+    return {
+      persistent: false,
+      get: function (k) { return done(Object.prototype.hasOwnProperty.call(m, k) ? cloneJson(m[k]) : undefined); },
+      set: function (k, v) { if (v === undefined || v === null) delete m[k]; else m[k] = cloneJson(v); return done(); },
+      remove: function (k) { delete m[k]; return done(); },
+      keys: function () { return done(Object.keys(m)); }
+    };
+  }
+  var store = call ? {
+    persistent: true,
+    get: function (k) { k = String(k); return call('store_get', { keys: [k] }).then(function (r) { var v = r && r.values; return v && Object.prototype.hasOwnProperty.call(v, k) ? v[k] : undefined; }); },
+    set: function (k, v) { var p = {}; p[String(k)] = v === undefined ? null : v; return call('store_set', { patch: p }).then(function () {}); },
+    remove: function (k) { var p = {}; p[String(k)] = null; return call('store_set', { patch: p }).then(function () {}); },
+    keys: function () { return call('store_get', {}).then(function (r) { return Object.keys((r && r.values) || {}); }); }
+  } : memoryStore();
+
+  // Shown = the host shows the frame (live pages stay mounted while hidden) and the tab is in front.
+  var hostShown = host && typeof host.visible === 'function' ? host.visible() : true, visSubs = [];
+  function shown() { return hostShown && document.visibilityState !== 'hidden'; }
+  function fireShown() { visSubs.slice().forEach(function (f) { try { f(shown()); } catch (e) { console.error(e); } }); }
+  if (host && typeof host.onVisibility === 'function') host.onVisibility(function (v) { hostShown = !!v; fireShown(); });
+  document.addEventListener('visibilitychange', fireShown);
+  function onShown(f) { visSubs.push(f); return function () { visSubs = visSubs.filter(function (x) { return x !== f; }); }; }
+
+  /* APX.live('btc', () => APX.fetch(url).then(r => r.json()), { every: 60000, render(v, { stale, at, error }) {…} })
+     → { refresh(), stop() }. The cached reading paints first (stale: true); refreshes pause while not shown. */
+  function live(key, loader, opts) {
+    opts = opts || {};
+    var render = typeof opts.render === 'function' ? opts.render : function () {};
+    var every = opts.every > 0 ? Math.max(1000, Number(opts.every)) : 0;
+    var stopped = false, fresh = false, timer = 0, running = null, last = 0, cur, curAt;
+    function paint(v, meta) { if (stopped) return; try { render(v, meta); } catch (e) { console.error(e); } }
+    store.get(key).then(function (c) {
+      if (fresh || !c || typeof c !== 'object' || !('at' in c)) return;
+      cur = c.value; curAt = c.at; paint(cur, { stale: true, at: curAt });
+    }, function () {});
+    function schedule() {
+      clearTimeout(timer); timer = 0;
+      if (stopped || !every || !shown()) return;
+      timer = setTimeout(refresh, Math.max(0, last + every - Date.now()));
+    }
+    function refresh() {
+      if (stopped) return Promise.resolve();
+      if (running) return running;
+      running = Promise.resolve().then(loader).then(function (v) {
+        last = Date.now(); fresh = true; cur = v; curAt = last;
+        paint(v, { stale: false, at: last });
+        return store.set(key, { value: v, at: last }).catch(function (e) { console.warn('APX.live: not cached', e); });
+      }, function (err) {
+        last = Date.now();
+        paint(cur, { stale: true, at: curAt, error: (err && err.message) || String(err) });
+      }).then(function () { running = null; schedule(); });
+      return running;
+    }
+    var off = onShown(function (v) {
+      if (!v) { clearTimeout(timer); timer = 0; return; }
+      if (every && !running && Date.now() - last >= every) refresh(); else schedule();
+    });
+    refresh();
+    return { refresh: refresh, stop: function () { stopped = true; clearTimeout(timer); off(); } };
+  }
+
+  function noDb() { return Promise.reject(new Error('APX.db is only available inside APX')); }
+  var db = call ? {
+    available: true,
+    query: function (sql, params) {
+      return call('db_query', { sql: String(sql), params: params || [] }).then(function (r) {
+        return r.rows.map(function (row) { var o = {}; r.columns.forEach(function (c, i) { o[c] = row[i]; }); return o; });
+      });
+    },
+    exec: function (sql, params) {
+      return call('db_exec', { sql: String(sql), params: params || [] }).then(function (r) { return { changes: r.changes, lastId: r.last_id }; });
+    }
+  } : { available: false, query: noDb, exec: noDb };
+
+  function reply(status, headers, body) {
+    return {
+      status: status, ok: status >= 200 && status < 300, headers: headers,
+      text: function () { return Promise.resolve(body); },
+      json: function () { return Promise.resolve().then(function () { return JSON.parse(body); }); }
+    };
+  }
+  /* APX.fetch(url, { method, headers, body, secret: { name: 'token', in: 'bearer' } }) → { status, ok, headers, text(), json() } */
+  function apxFetch(url, o) {
+    o = o || {};
+    var method = o.method ? String(o.method).toUpperCase() : 'GET', body = o.body == null ? undefined : String(o.body);
+    if (call) {
+      var p = { url: String(url), method: method };
+      if (o.headers) p.headers = o.headers;
+      if (body !== undefined) p.body = body;
+      if (o.secret) p.secret = o.secret;
+      return call('fetch', p).then(function (r) { return reply(r.status, r.headers || {}, r.body || ''); });
+    }
+    if (o.secret) return Promise.reject(new Error('APX.fetch: a secret only works inside APX'));
+    return window.fetch(String(url), { method: method, headers: o.headers, body: body }).then(function (r) {
+      var h = {}; r.headers.forEach(function (v, k) { h[k] = v; });
+      return r.text().then(function (b) { return reply(r.status, h, b); });
+    });
+  }
+
   /* <ax-bars data='[{"label":"Apertura","value":11}]' total="13" tone="brand"> */
   class Bars extends HTMLElement {
     static get observedAttributes() { return ['data', 'total', 'tone']; }
@@ -679,7 +788,7 @@ ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--
 
   window.APX = Object.assign(window.APX || {}, {
     surface: surface, style: axStyle === 'aurora' ? 'aurora' : 'base', icons: Object.keys(IC),
-    kit: '1.3.0', ask: ask, state: state, setMode: setMode, toast: toast, refilter: function (el) { (el || document).querySelectorAll('[data-ax-filter]').forEach(function (s) { s._axApply ? s._axApply() : wireFilter(s); }); },
+    kit: '1.3.0', ask: ask, state: state, store: store, live: live, db: db, fetch: apxFetch, setMode: setMode, toast: toast, refilter: function (el) { (el || document).querySelectorAll('[data-ax-filter]').forEach(function (s) { s._axApply ? s._axApply() : wireFilter(s); }); },
     fmt: fmt, esc: esc,
     onData: function (fn) { document.addEventListener('apx:data', function (e) { fn(e.detail); }); }
   });

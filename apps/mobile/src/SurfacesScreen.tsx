@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { View } from "react-native";
 import { WebView } from "react-native-webview";
+import type { Params } from "../../../packages/protocol/src/index.ts";
 import { APP_CLIENT } from "./appInfo";
 import type { Creds } from "./creds";
 import { t } from "./i18n";
 import { ApxClient, type Surface } from "./protocol";
-import { readSurfaceMessage, surfaceDoc } from "./surfaceDoc";
+import { readSurfaceMessage, surfaceDoc, surfaceResult } from "./surfaceDoc";
 import { EmptyState, IconTile, ListGroup, ListRow, Screen, Spinner, SubHeader } from "./ui/kit";
 import { makeStyles, useTheme } from "./ui/theme";
 
 /** Least time between two prompts from one widget, as in the panel. */
 const PROMPT_GAP_MS = 1500;
+/** Bridge calls (store, db) one page may have waiting at once, as in the panel. */
+const CALLS_MAX = 16;
 
 type Summary = Omit<Surface, "html">;
 
@@ -66,10 +69,14 @@ function SurfaceView({ surface, client, onBack }: { surface: Surface; client: Ap
     [surface.html, surface.app, nonce, theme.scheme],
   );
   const last = useRef(0);
+  const view = useRef<WebView>(null);
+  const inFlight = useRef(0);
+  const answer = (r: Parameters<typeof surfaceResult>[1]) => view.current?.injectJavaScript(surfaceResult(nonce, r));
   return (
     <View style={styles.root}>
       <SubHeader title={surface.title} back={onBack} />
       <WebView
+        ref={view}
         style={{ backgroundColor: theme.bg }}
         originWhitelist={["about:blank"]}
         source={{ html }}
@@ -78,7 +85,24 @@ function SurfaceView({ surface, client, onBack }: { surface: Surface; client: Ap
         onShouldStartLoadWithRequest={(r) => r.url === "about:blank" || r.url.startsWith("data:")}
         setSupportMultipleWindows={false}
         onMessage={(e) => {
-          const m = readSurfaceMessage(e.nativeEvent.data, nonce);
+          const m = readSurfaceMessage(e.nativeEvent.data, nonce, surface.id);
+          if (m && "refused" in m) return answer({ id: m.refused, ok: false, error: "not allowed" });
+          if (m && "call" in m) {
+            const { id, method, params } = m.call;
+            if (inFlight.current >= CALLS_MAX) return answer({ id, ok: false, error: "too many calls at once" });
+            inFlight.current++;
+            // The core checks the params against the method's schema; the surface id is this view's own.
+            void client
+              .call(method, params as Params<typeof method>)
+              .then(
+                (value) => answer({ id, ok: true, value }),
+                (err: unknown) => answer({ id, ok: false, error: err instanceof Error ? err.message : "call failed" }),
+              )
+              .finally(() => {
+                inFlight.current--;
+              });
+            return;
+          }
           if (!m || Date.now() - last.current < PROMPT_GAP_MS) return;
           last.current = Date.now();
           void client.call("surfaces.prompt", { surface: surface.id, text: m.prompt }).catch(() => {});

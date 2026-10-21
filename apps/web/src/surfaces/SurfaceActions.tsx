@@ -3,6 +3,7 @@ import { IconButton, Icons } from "@apx/ui";
 import { setSurfaceFlags } from "../data/actions.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { ArtifactMemoryButton } from "./ArtifactMemory.tsx";
 import { linkOf, ShareMenu } from "./ShareMenu.tsx";
 import { openWidgetChat } from "./WidgetChat.tsx";
 
@@ -38,6 +39,7 @@ export function SurfaceActions({ surface }: { surface: SurfaceSummary }) {
         }}
       />
       <ShareMenu surface={surface} variant="icon" />
+      <ArtifactMemoryButton surface={surface} />
       <OpenInBrowser surface={surface} />
     </>
   );

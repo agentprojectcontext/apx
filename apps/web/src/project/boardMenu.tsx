@@ -2,6 +2,7 @@ import type { Agent, SurfaceSummary } from "@apx/protocol";
 import { AgentAvatar, Icons, type MenuEntry } from "@apx/ui";
 import { useMemo } from "react";
 import { copySurface, setSurfaceFlags } from "../data/actions.ts";
+import { pickArtifactFile } from "../data/artifacts.ts";
 import { blobOf, projectEntries, realProjectId, teamOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -88,6 +89,7 @@ export function useBoardChoices(projectId: string, mine: SurfaceSummary[]): Boar
           : [{ label: t("board.noAgents"), disabled: true }],
       },
       ...load.slice(-1),
+      { label: t("artifact.import"), icon: <Icons.Upload />, onSelect: () => pickArtifactFile(here) },
     ];
     return { menu, load, askers, ask, askerLabel };
   }, [t, agents, projects, surfaces, superAgent, projectId, mine]);

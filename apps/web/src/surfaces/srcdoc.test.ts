@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildSrcdoc } from "./srcdoc.ts";
+import { bridgeCall, buildSrcdoc } from "./srcdoc.ts";
 
 const opts = { theme: ":root{}", mode: "dark" as const, nonce: "n" };
 const cspOf = (doc: string) => /http-equiv="Content-Security-Policy" content="([^"]*)"/.exec(doc)?.[1] ?? "";
@@ -47,5 +47,23 @@ test("the frame starts in the panel's mode and with what the widget remembered, 
   const bridge = /<script>([\s\S]*?)<\/script>/.exec(doc)?.[1] ?? "";
   const initial = /var ST=(\{.*?\}),subs=/.exec(bridge)?.[1] ?? "";
   assert.deepEqual(JSON.parse(initial), { note: "</script><img src=x onerror=alert(1)>", n: 2 });
-  assert.match(bridge, /window\.apx=Object\.freeze\(\{host:"apx",sendPrompt:sendPrompt,media:media,state:state\}\)/);
+  assert.match(
+    bridge,
+    /window\.apx=Object\.freeze\(\{host:"apx",sendPrompt:sendPrompt,media:media,state:state,call:call,/,
+  );
+});
+
+test("a page reaches only its own store, database and fetch, always under the frame's surface id", () => {
+  assert.deepEqual(bridgeCall("store_get", { keys: ["btc"] }, "s1"), {
+    method: "surfaces.store_get",
+    params: { keys: ["btc"], surface: "s1" },
+  });
+  assert.deepEqual(bridgeCall("db_exec", { sql: "delete from t", surface: "other" }, "s1"), {
+    method: "surfaces.db_exec",
+    params: { sql: "delete from t", surface: "s1" },
+  });
+  assert.equal(bridgeCall("fetch", { url: "https://api.example.com" }, "s1")?.method, "surfaces.fetch");
+  for (const m of ["memory_clear", "export", "import", "surfaces.store_get", "set_state", "toString", "__proto__", 3])
+    assert.equal(bridgeCall(m, {}, "s1"), undefined, String(m));
+  for (const p of [null, "x", ["a"], undefined]) assert.equal(bridgeCall("store_get", p, "s1"), undefined);
 });

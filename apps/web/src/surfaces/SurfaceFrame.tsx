@@ -1,13 +1,16 @@
 import { SURFACE_STATE_MAX, type SurfaceState } from "@apx/protocol";
 import { EmptyState, Icons, Skeleton, useApx } from "@apx/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { declaresLive } from "../../../../packages/surfaces/src/kit.ts";
 import type { SurfaceLayout } from "../../../../packages/surfaces/src/widget-kit.ts";
 import { loadSurfaceDoc, setSurfaceState, surfacePrompt } from "../data/actions.ts";
+import { artifactCall } from "../data/artifacts.ts";
 import { widgetMedia } from "../data/media.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { LAYOUT } from "../shell/layout.ts";
-import { buildSrcdoc, themeCss } from "./srcdoc.ts";
+import { attachLive, detachLive, useLiveHeight } from "./livePool.ts";
+import { bridgeCall, buildSrcdoc, themeCss } from "./srcdoc.ts";
 
 /** Minimum gap between two sendPrompt() calls from one widget. */
 const PROMPT_GAP_MS = 1500;
@@ -16,7 +19,9 @@ const MEDIA_MAX = 40;
 /** A widget's state changes are merged and saved at most this often, whatever it sends. */
 const STATE_GAP_MS = 500;
 /** An app shown inline (in a chat) gets a window of its own height: it fills its viewport rather than grow. */
-const APP_INLINE_H = 640;
+export const APP_INLINE_H = 640;
+/** Bridge calls (store, db, fetch) one page may have waiting at once. */
+const CALLS_MAX = 16;
 
 export type SurfaceFrameProps = {
   surfaceId: string;
@@ -26,10 +31,34 @@ export type SurfaceFrameProps = {
 };
 
 /**
- * Renders a surface's HTML in a sandboxed iframe (scripts and in-page forms, opaque origin), themed with the current
- * --apx-* tokens. The widget talks back through postMessage: its height and window.apx.sendPrompt().
+ * A surface where it is shown. A page that declares apx-live is laid over this spot from the shell's live layer, so it
+ * keeps running while hidden; any other is mounted here and destroyed with it.
  */
-export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.surfaceMaxH }: SurfaceFrameProps) {
+export function SurfaceFrame(props: SurfaceFrameProps) {
+  const doc = useData((s) => s.surfaceDocs[props.surfaceId]);
+  const keepMs = useMemo(() => (doc ? declaresLive(doc.html) : undefined), [doc]);
+  if (keepMs !== undefined) return <LivePlaceholder {...props} keepMs={keepMs} />;
+  return <FrameView {...props} />;
+}
+
+export type FrameViewProps = SurfaceFrameProps & {
+  /** Whether the owner can see it now; a live page hidden by the shell is told so (APX.live pauses). */
+  visible?: boolean;
+  /** The iframe's height as laid out, for a placeholder that reserves its space. */
+  onHeight?: (height: number) => void;
+};
+
+/**
+ * Renders a surface's HTML in a sandboxed iframe (scripts and in-page forms, opaque origin), themed with the current
+ * --apx-* tokens. The widget talks back through postMessage: its height, window.apx.sendPrompt() and its bridge calls.
+ */
+export function FrameView({
+  surfaceId,
+  fit = "content",
+  maxHeight = LAYOUT.surfaceMaxH,
+  visible = true,
+  onHeight,
+}: FrameViewProps) {
   const t = useT();
   const summary = useData((s) => s.surfaces[surfaceId]);
   const doc = useData((s) => s.surfaceDocs[surfaceId]);
@@ -47,6 +76,9 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
   const rememberedRef = useRef(remembered);
   rememberedRef.current = remembered;
   const pendingState = useRef<{ patch: SurfaceState; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const inFlight = useRef(0);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
 
   const stale = !doc || (summary != null && summary.version > doc.version);
   // biome-ignore lint/correctness/useExhaustiveDependencies: refetch when the summary version moves
@@ -71,8 +103,29 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
         gesture?: unknown;
         id?: unknown;
         ref?: unknown;
+        method?: unknown;
+        params?: unknown;
       };
       if (!m || m.apx !== nonce) return;
+      if (m.kind === "call" && typeof m.id === "number") {
+        const target = e.source as Window;
+        const answer = (r: { ok: true; value: unknown } | { ok: false; error: string }) =>
+          target.postMessage({ apx: nonce, kind: "result", id: m.id, ...r }, "*");
+        const req = bridgeCall(m.method, m.params, surfaceId);
+        if (!req) return answer({ ok: false, error: "not allowed" });
+        if (inFlight.current >= CALLS_MAX) return answer({ ok: false, error: "too many calls at once" });
+        inFlight.current++;
+        // The client's deadline for the method bounds the wait; the page always gets an answer.
+        void artifactCall(req.method, req.params)
+          .then(
+            (value) => answer({ ok: true, value }),
+            (err: unknown) => answer({ ok: false, error: err instanceof Error ? err.message : "call failed" }),
+          )
+          .finally(() => {
+            inFlight.current--;
+          });
+        return;
+      }
       if (m.kind === "media" && typeof m.id === "number" && typeof m.ref === "string" && version !== undefined) {
         const target = e.source as Window;
         const reply = (r: { data: ArrayBuffer; mime: string } | { error: string }) =>
@@ -143,6 +196,14 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
   );
   const frameHeight = layout === "app" ? Math.min(maxHeight, APP_INLINE_H) : height;
 
+  const onHeightRef = useRef(onHeight);
+  onHeightRef.current = onHeight;
+  useEffect(() => onHeightRef.current?.(frameHeight), [frameHeight]);
+
+  useEffect(() => {
+    frame.current?.contentWindow?.postMessage({ apx: nonce, kind: "visibility", visible }, "*");
+  }, [visible, nonce]);
+
   return (
     <div
       ref={wrap}
@@ -156,6 +217,12 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
           sandbox="allow-scripts allow-forms"
           srcDoc={srcdoc}
           className="surfaceframe__iframe"
+          onLoad={() =>
+            frame.current?.contentWindow?.postMessage(
+              { apx: nonce, kind: "visibility", visible: visibleRef.current },
+              "*",
+            )
+          }
           style={fit === "fill" ? undefined : { height: frameHeight }}
         />
       ) : summary || doc ? (
@@ -168,3 +235,40 @@ export function SurfaceFrame({ surfaceId, fit = "content", maxHeight = LAYOUT.su
 }
 
 const isPatch = (v: unknown): v is SurfaceState => typeof v === "object" && v !== null && !Array.isArray(v);
+
+/**
+ * Where a live page shows: an empty box of the page's size that the live layer covers with the running frame. When the
+ * pool has no room (or another place holds the page) it shows the page itself, as a static one.
+ */
+function LivePlaceholder({
+  surfaceId,
+  fit = "content",
+  maxHeight = LAYOUT.surfaceMaxH,
+  keepMs,
+}: SurfaceFrameProps & { keepMs: number }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [pooled, setPooled] = useState(true);
+  const height = useLiveHeight(surfaceId);
+  const app = useData((s) => s.surfaces[surfaceId]?.app ?? s.surfaceDocs[surfaceId]?.app ?? false);
+
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const id = attachLive(surfaceId, keepMs, { el, fit, maxHeight });
+    setPooled(id !== undefined);
+    return () => {
+      if (id !== undefined) detachLive(surfaceId, id);
+    };
+  }, [surfaceId, keepMs, fit, maxHeight]);
+
+  if (!pooled) return <FrameView surfaceId={surfaceId} fit={fit} maxHeight={maxHeight} />;
+  return (
+    <div
+      ref={box}
+      className={`surfaceframe${fit === "fill" ? " surfaceframe--fill" : ""}${app ? " surfaceframe--app" : ""}`}
+      data-live-host={surfaceId}
+    >
+      {fit === "fill" ? null : <div style={{ height }} />}
+    </div>
+  );
+}

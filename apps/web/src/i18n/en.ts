@@ -561,6 +561,37 @@ export const en = {
   "share.share": "Share",
   "share.iconLabel": "Share · {state}",
 
+  // Artifact memory, export and import
+  "artifact.memory": "Memory and export",
+  "artifact.memoryTitle": "Memory · {title}",
+  "artifact.memoryHint":
+    "What this artifact keeps on this APX. Its agent reads the state; the store and database only by size.",
+  "artifact.state": "State",
+  "artifact.stateHint": "What you chose or typed in it.",
+  "artifact.stateSize": "{n} characters",
+  "artifact.store": "Store",
+  "artifact.storeHint": "Data it cached, such as its last reading.",
+  "artifact.storeSize": "{n} keys · {size}",
+  "artifact.db": "Database",
+  "artifact.dbHint": "The records an app keeps.",
+  "artifact.dbSize": "{n} tables · {size}",
+  "artifact.rows": "{n} rows",
+  "artifact.secrets": "Secret origins",
+  "artifact.secretsHint":
+    "Each secret goes only to the site it was first sent to. Clearing forgets these pins, not the secrets.",
+  "artifact.secretsSize": "{n} pinned",
+  "artifact.more": "and {n} more",
+  "artifact.includeMemory": "Include memory",
+  "artifact.export": "Export",
+  "artifact.clear": "Clear…",
+  "artifact.clearHint": "Choose what to forget. This cannot be undone.",
+  "artifact.clearConfirm": "Clear selected",
+  "artifact.import": "Import artifact",
+  "artifact.imported": "Imported “{title}”.",
+  "artifact.memoryError": "Could not read the artifact's memory: {error}",
+  "artifact.exportError": "Could not export the artifact: {error}",
+  "artifact.importError": "Could not import the artifact: {error}",
+
   // Side panel
   "panel.browser": "Browser",
   "panel.processes": "Chat processes",

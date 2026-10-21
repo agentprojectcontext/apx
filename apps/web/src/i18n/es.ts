@@ -571,6 +571,37 @@ export const es: Partial<Record<MessageKey, string>> = {
   "share.share": "Compartir",
   "share.iconLabel": "Compartir · {state}",
 
+  // Memoria, exportación e importación de artefactos
+  "artifact.memory": "Memoria y exportación",
+  "artifact.memoryTitle": "Memoria · {title}",
+  "artifact.memoryHint":
+    "Lo que este artefacto guarda en este APX. Su agente lee el estado; el almacén y la base de datos, solo por tamaño.",
+  "artifact.state": "Estado",
+  "artifact.stateHint": "Lo que elegiste o escribiste en él.",
+  "artifact.stateSize": "{n} caracteres",
+  "artifact.store": "Almacén",
+  "artifact.storeHint": "Datos que guardó, como su última lectura.",
+  "artifact.storeSize": "{n} claves · {size}",
+  "artifact.db": "Base de datos",
+  "artifact.dbHint": "Los registros que guarda una app.",
+  "artifact.dbSize": "{n} tablas · {size}",
+  "artifact.rows": "{n} filas",
+  "artifact.secrets": "Orígenes de secretos",
+  "artifact.secretsHint":
+    "Cada secreto va solo al sitio al que se mandó la primera vez. Borrar olvida estos vínculos, no los secretos.",
+  "artifact.secretsSize": "{n} vinculados",
+  "artifact.more": "y {n} más",
+  "artifact.includeMemory": "Incluir memoria",
+  "artifact.export": "Exportar",
+  "artifact.clear": "Borrar…",
+  "artifact.clearHint": "Elegí qué olvidar. No se puede deshacer.",
+  "artifact.clearConfirm": "Borrar lo elegido",
+  "artifact.import": "Importar artefacto",
+  "artifact.imported": "Se importó “{title}”.",
+  "artifact.memoryError": "No se pudo leer la memoria del artefacto: {error}",
+  "artifact.exportError": "No se pudo exportar el artefacto: {error}",
+  "artifact.importError": "No se pudo importar el artefacto: {error}",
+
   // Panel lateral
   "panel.browser": "Navegador",
   "panel.processes": "Procesos del chat",

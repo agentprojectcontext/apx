@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { declaresApp, inlineKit, usesKit } from "./kit.ts";
+import { declaresApp, declaresLive, inlineKit, parseLiveDuration, usesKit } from "./kit.ts";
 
 const KIT = "window.APX={kit:'1'};";
 
@@ -47,4 +47,22 @@ test("an app is declared by the meta tag or the html attribute, not by mentionin
   assert.ok(declaresApp('<html lang="en" data-ax-surface="app"><body></body></html>'));
   assert.equal(declaresApp('<meta name="apx-surface" content="widget">'), false);
   assert.equal(declaresApp("<p>Use data-ax-surface for apps</p>"), false);
+});
+
+test("a live page declares it with a meta tag, on or for a while after it was last seen", () => {
+  assert.equal(declaresLive('<meta name="apx-live" content="on">'), Number.POSITIVE_INFINITY);
+  assert.equal(declaresLive("<meta content=15m name=apx-live>"), 15 * 60_000);
+  assert.equal(declaresLive("<META NAME='apx-live' CONTENT='2h'>"), 2 * 3_600_000);
+  assert.equal(declaresLive('<meta name="apx-live" content="off">'), undefined);
+  assert.equal(declaresLive('<meta name="apx-live" content="soon">'), undefined);
+  assert.equal(declaresLive('<meta name="apx-live">'), undefined);
+  assert.equal(declaresLive("<p>Add apx-live to keep it running</p>"), undefined);
+  assert.equal(declaresLive('<meta name="apx-surface" content="app">'), undefined);
+});
+
+test("live durations read seconds to days; zero or anything else is not live", () => {
+  assert.equal(parseLiveDuration("30s"), 30_000);
+  assert.equal(parseLiveDuration(" 1D "), 86_400_000);
+  assert.equal(parseLiveDuration("true"), Number.POSITIVE_INFINITY);
+  for (const v of ["0m", "15", "m", "-5m", "1.5h", ""]) assert.equal(parseLiveDuration(v), undefined, v);
 });

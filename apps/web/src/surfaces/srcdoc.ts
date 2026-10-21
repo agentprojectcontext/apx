@@ -74,18 +74,23 @@ var state=Object.freeze({persistent:true,patch:patch,all:function(){return copy(
 set:one,remove:function(k){one(k,null);},on:function(f){subs.push(f);return function(){subs=subs.filter(function(x){return x!==f;});};}});
 addEventListener("pagehide",flush);
 function sendPrompt(t){var a=navigator.userActivation;post({kind:"prompt",text:String(t),gesture:!!(a&&a.isActive)});}
-var seq=0,wait={},urls={};
+var seq=0,wait={},urls={},calls={},shown=true,shownSubs=[];
+function call(method,params){return new Promise(function(ok,no){var id=++seq;calls[id]={ok:ok,no:no};
+try{post({kind:"call",id:id,method:String(method),params:params&&typeof params==="object"?params:{}});}catch(err){delete calls[id];no(err);}});}
+function onVisibility(f){shownSubs.push(f);return function(){shownSubs=shownSubs.filter(function(x){return x!==f;});};}
 function media(ref){ref=String(ref);if(!urls[ref])urls[ref]=new Promise(function(ok,no){var id=++seq;wait[id]={ok:ok,no:no};post({kind:"media",id:id,ref:ref});});return urls[ref];}
 addEventListener("message",function(e){var m=e.data;if(e.source!==parent||!m||m.apx!==N)return;
 if(m.kind==="state"&&m.state&&typeof m.state==="object"){var next=copy(m.state);if(pend)Object.keys(pend).forEach(function(k){if(pend[k]===null)delete next[k];else next[k]=pend[k];});
 if(JSON.stringify(next)!==JSON.stringify(ST)){ST=next;emit("remote");}return;}
+if(m.kind==="result"){var c=calls[m.id];if(!c)return;delete calls[m.id];if(m.ok)c.ok(m.value);else c.no(new Error(String(m.error||"call failed")));return;}
+if(m.kind==="visibility"){var v=m.visible!==false;if(v!==shown){shown=v;shownSubs.slice().forEach(function(f){try{f(v);}catch(err){console.error(err);}});}return;}
 if(m.kind!=="media")return;var w=wait[m.id];if(!w)return;delete wait[m.id];
 if(m.data instanceof ArrayBuffer)w.ok(URL.createObjectURL(new Blob([m.data],{type:String(m.mime)})));else w.no(new Error(String(m.error||"media unavailable")));});
 function attach(el,attr,prop){var ref=el.getAttribute(attr);if(!ref||el["__apx"+prop]===ref)return;el["__apx"+prop]=ref;
 media(ref).then(function(u){el.setAttribute(prop,u);var p=el.parentElement;if(el.tagName==="SOURCE"&&p&&p.load)p.load();},function(){el.setAttribute("data-apx-error","");});}
 function scan(root){if(!root.querySelectorAll)return;[["data-apx-src","src"],["data-apx-poster","poster"]].forEach(function(a){
 if(root.hasAttribute&&root.hasAttribute(a[0]))attach(root,a[0],a[1]);root.querySelectorAll("["+a[0]+"]").forEach(function(el){attach(el,a[0],a[1]);});});}
-window.apx=Object.freeze({host:"apx",sendPrompt:sendPrompt,media:media,state:state});
+window.apx=Object.freeze({host:"apx",sendPrompt:sendPrompt,media:media,state:state,call:call,visible:function(){return shown;},onVisibility:onVisibility});
 window.sendPrompt=sendPrompt;
 document.addEventListener("DOMContentLoaded",function(){scan(document);new MutationObserver(function(rs){rs.forEach(function(r){
 if(r.type==="attributes")scan(r.target);else r.addedNodes.forEach(scan);});}).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:["data-apx-src","data-apx-poster"]});});
@@ -94,6 +99,30 @@ function size(){var b=document.body;if(!b)return;var h=Math.ceil(b.scrollHeight)
 addEventListener("load",size);
 document.addEventListener("DOMContentLoaded",function(){size();if(window.ResizeObserver)new ResizeObserver(size).observe(document.body);});
 })();`;
+}
+
+/** What a page may ask the core through the bridge (APX.store, APX.db, APX.fetch), by the name it uses. */
+export const BRIDGE_METHODS = {
+  store_get: "surfaces.store_get",
+  store_set: "surfaces.store_set",
+  db_query: "surfaces.db_query",
+  db_exec: "surfaces.db_exec",
+  fetch: "surfaces.fetch",
+} as const;
+export type BridgeMethod = (typeof BRIDGE_METHODS)[keyof typeof BRIDGE_METHODS];
+
+/**
+ * A page's `call` message as the RPC the host makes, or undefined when it may not: only the allowed methods, with
+ * object params, and always on the frame's own surface (whatever id the page put in).
+ */
+export function bridgeCall(
+  method: unknown,
+  params: unknown,
+  surface: string,
+): { method: BridgeMethod; params: Record<string, unknown> } | undefined {
+  if (typeof method !== "string" || !Object.hasOwn(BRIDGE_METHODS, method)) return undefined;
+  if (typeof params !== "object" || params === null || Array.isArray(params)) return undefined;
+  return { method: BRIDGE_METHODS[method as keyof typeof BRIDGE_METHODS], params: { ...params, surface } };
 }
 
 export function buildSrcdoc(

@@ -1,6 +1,7 @@
-import { ContextMenu, Icons, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
+import { ContextMenu, IconButton, Icons, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
 import { lazy, Suspense, useEffect, useMemo } from "react";
 import { markAllRead } from "../data/actions.ts";
+import { pickArtifactFile } from "../data/artifacts.ts";
 import { loadChannels } from "../data/channels.ts";
 import { inInbox } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
@@ -99,7 +100,19 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
 
         {apps.length > 0 && (
           <>
-            <SidebarSection rail={rail} title={t("nav.apps")} />
+            <SidebarSection
+              rail={rail}
+              title={t("nav.apps")}
+              action={
+                <IconButton
+                  size="sm"
+                  className="sidebar__add"
+                  label={t("artifact.import")}
+                  icon={<Icons.Upload size={14} />}
+                  onClick={() => pickArtifactFile(undefined)}
+                />
+              }
+            />
             {apps.map((a) => (
               <NavItem
                 key={a.id}

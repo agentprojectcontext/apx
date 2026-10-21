@@ -5,6 +5,7 @@ import { useSlice } from "../data/createStore.ts";
 import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
 import { useThreadDialog } from "../data/threadAdmin.ts";
+import { useLiveEntries } from "../surfaces/livePool.ts";
 import { widgetChatOpen } from "../surfaces/widgetChatOpen.ts";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
 import { computeLayout, layoutVars } from "./layout.ts";
@@ -27,6 +28,7 @@ const ProjectScreen = lazy(() => import("../project/ProjectScreen.tsx").then((m)
 const ResourcesScreen = lazy(() =>
   import("../project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen })),
 );
+const LiveLayer = lazy(() => import("../surfaces/LiveLayer.tsx").then((m) => ({ default: m.LiveLayer })));
 const CornerCards = lazy(() => import("./CornerCards.tsx").then((m) => ({ default: m.CornerCards })));
 const CommandPalette = lazy(() => import("./CommandPalette.tsx").then((m) => ({ default: m.CommandPalette })));
 const ThreadDialogs = lazy(() => import("../inbox/ThreadDialogs.tsx").then((m) => ({ default: m.ThreadDialogs })));
@@ -51,6 +53,7 @@ export function Shell() {
   // A task opened from a chat floats over it; the Tasks screen shows its own beside the list.
   const peek = useNav((s) => s.peekTaskId != null && s.view !== "tasks");
   const widgetChat = useSlice(widgetChatOpen, (s) => s.threadId != null);
+  const live = useLiveEntries().length > 0;
   const panelWide = useNav((s) => s.panelWide);
   const layout = computeLayout(width, panelOpen, chat && threadId != null, transcript, { ...own, panelWide });
   useShortcuts();
@@ -119,6 +122,11 @@ export function Shell() {
       {layout.rail && !layout.compact && layout.listW > 0 && (
         <Suspense fallback={null}>
           <CornerCards floating />
+        </Suspense>
+      )}
+      {live && (
+        <Suspense fallback={null}>
+          <LiveLayer />
         </Suspense>
       )}
       <Toasts />
