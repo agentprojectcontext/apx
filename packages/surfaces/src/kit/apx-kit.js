@@ -171,8 +171,6 @@ ax-steps i[data-fail]{background:var(--apx-danger)}
 .ax-range{appearance:none;width:100%;height:4px;border-radius:99px;background:linear-gradient(var(--apx-accent),var(--apx-accent)) 0/var(--p,50%) 100% no-repeat,var(--apx-fill-strong);margin:8px 0;cursor:pointer}
 .ax-range::-webkit-slider-thumb{appearance:none;width:16px;height:16px;border-radius:50%;background:var(--apx-surface-raised);border:2px solid var(--apx-accent)}
 .ax-range::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:var(--apx-surface-raised);border:2px solid var(--apx-accent)}
-[data-ax-tip]{position:relative}
-[data-ax-tip]:hover::after,[data-ax-tip]:focus-visible::after{content:attr(data-ax-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);padding:4px 8px;border-radius:6px;background:var(--apx-fg);color:var(--apx-bg);font-size:11.5px;font-weight:500;white-space:nowrap;pointer-events:none;z-index:20}
 .ax-kv{display:grid;grid-template-columns:minmax(100px,max-content) minmax(0,1fr);gap:8px 20px;margin:0;font-size:13px}
 .ax-kv dt{color:var(--apx-fg-subtle)}.ax-kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
 .ax-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
@@ -788,7 +786,7 @@ ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--
 
   window.APX = Object.assign(window.APX || {}, {
     surface: surface, style: axStyle === 'aurora' ? 'aurora' : 'base', icons: Object.keys(IC),
-    kit: '1.3.0', ask: ask, state: state, store: store, live: live, db: db, fetch: apxFetch, setMode: setMode, toast: toast, refilter: function (el) { (el || document).querySelectorAll('[data-ax-filter]').forEach(function (s) { s._axApply ? s._axApply() : wireFilter(s); }); },
+    kit: '1.4.0', ask: ask, state: state, store: store, live: live, db: db, fetch: apxFetch, setMode: setMode, toast: toast, refilter: function (el) { (el || document).querySelectorAll('[data-ax-filter]').forEach(function (s) { s._axApply ? s._axApply() : wireFilter(s); }); },
     fmt: fmt, esc: esc,
     onData: function (fn) { document.addEventListener('apx:data', function (e) { fn(e.detail); }); }
   });

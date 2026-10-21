@@ -1,4 +1,4 @@
-# APX Kit 1.3 — reference
+# APX Kit 1.4 — reference
 
 Load it with one line in the page. APX inlines it wherever the artifact is shown (chat, board, Apps, phone, a published
 page): no build, no network, nothing to install.
@@ -29,11 +29,11 @@ chat. Use its classes; write your own CSS only for one-off layout (`style="--min
 | Containers | `ax-hero` (`__eyebrow`, `h1`, `p`, actions on the right) `ax-card` (`--flat`, `--tight`, `--accent`) `ax-card__head/__title/__desc` `ax-divider` `ax-details` `ax-callout` (`--warning/--danger/--brand`) `ax-empty` |
 | Data | `ax-stat` + `__label/__value/__foot` (`--empty`) `ax-delta--up/--down` `ax-progress` (`<i style="--v:62">`) `ax-table` (`.r` right-aligned) `ax-list` + `ax-item` (`__title/__sub/__body/__foot/__aside`) |
 | State | `ax-badge` (`--brand/--info/--warning/--danger/--violet`, `--dot`) `ax-live` (`data-state=stale\|error`) `ax-skeleton` |
-| Controls | `ax-btn` (`--primary/--ghost/--sm`) `ax-field` `ax-input` `ax-select` `ax-search` `ax-seg` `ax-toolbar` `ax-switch` `ax-check` (checkbox/radio) `ax-option` `ax-range` (`data-out`) `ax-textarea` |
+| Controls | `ax-btn` (`--primary/--ghost/--danger/--sm`) `ax-toggle` (`aria-pressed`, `--sm`) `ax-field` `ax-input` `ax-select` `ax-search` `ax-seg` `ax-toolbar` `ax-switch` `ax-check` (checkbox/radio) `ax-option` `ax-range` (`data-out`) `ax-textarea` |
 | Navigation | `ax-tabs` (`data-ax-tabs` + `data-tab`/`data-panel`) `ax-crumbs` `ax-pages` |
 | Identity | `ax-avatar` (`--sm/--lg/--sq`, `--tint`) `ax-avatars` `ax-agent` (`--tone`) `ax-tag` `ax-dot` |
 | Content | `ax-kv` `ol.ax-steps` (`li[data-s=done\|running\|failed]`, a vertical checklist) `ax-timeline` `ax-rank` `ax-compare` `ax-banner` `ax-file` `ax-pre` `ax-diff` (`.add/.del/.ctx`) |
-| Overlays | `details.ax-menu` + `ax-menu__list` · `dialog.ax-dialog` (`data-ax-open="#id"`, `data-ax-close`) · `data-ax-toast` / `APX.toast()` · `data-ax-tip` · `data-ax-copy` |
+| Overlays | `dialog.ax-dialog` (`data-ax-open="#id"`, `data-ax-close`) · `data-ax-toast` / `APX.toast()` · `data-ax-copy` · menus, tooltips, popovers, sheets: [below](#overlays-and-menus) |
 | Tables | `table.ax-table[data-ax-sort]` sorts when a header is clicked |
 
 ## Elements
@@ -53,6 +53,33 @@ chat. Use its classes; write your own CSS only for one-off layout (`style="--min
   plus filter more chevR chevD chevL x check clock refresh panelL panelR grid list git pin edit chat external download
   calendar alert database kanban sparkle star`. Never draw your own SVG icons; if one is missing, use text.
 
+## Overlays and menus
+
+No JavaScript needed; each one has roles, focus, Esc, arrows and click-outside built in. Floating panels flip and
+shift to stay in view and are never clipped by a scrolling or `overflow:hidden` parent.
+
+- Dropdown: `<div class="ax-dropdown"><button class="ax-btn" data-ax-dropdown>Actions</button><div class="ax-dropdown__menu" role="menu">…</div></div>`.
+  Items: `button.ax-dropdown__item` (`<ax-icon>`, label, `<kbd>` shortcut, `--danger`, `disabled`, `value`);
+  `.ax-dropdown__label` titles a group, `<hr>` separates. `role="menuitemcheckbox" aria-checked="true"` toggles and
+  stays open; `role="menuitemradio" data-group="sort"` picks one per group. `data-align="end"`, `data-side="top"` on
+  `.ax-dropdown`. A pick fires `ax:select` (bubbles) with `detail: {value, checked, group, target}`.
+- Context menu: `data-ax-context="#menu"` on any element opens that `.ax-dropdown__menu` at the pointer (right-click,
+  long press); `detail.target` is the element. `APX.openMenu(menu, elementOr{x, y})` opens one from code.
+- Tooltip: `data-ax-tip="Archive"` (`data-ax-tip-side="top|bottom|left|right"`). It names an icon-only button too.
+- Popover: `<button data-ax-popover="#filters">` + `<div class="ax-pop" id="filters">` with `ax-pop__head`
+  (`small` subtitle), `ax-pop__body`, `ax-pop__foot`; `data-ax-close` inside closes it. Put it right after its trigger.
+- Sheet: `<dialog class="ax-sheet" data-side="right|left|bottom" id="edit">` with `ax-sheet__head` (an `h2` names it),
+  `ax-sheet__body` (scrolls), `ax-sheet__foot`; open with `data-ax-open="#edit"`, close with `data-ax-close`, Esc or
+  the backdrop. `--w` sets the width.
+- Accordion: `<div class="ax-accordion" data-single>` of `<details><summary>Question</summary><p>…</p></details>`;
+  `data-single` keeps one open.
+- Combobox: `<select class="ax-select" data-ax-combobox data-placeholder="Search…">` becomes a searchable list. The
+  select keeps the value and fires `change`, so `data-ax-persist` and `data-ax-key` filters work as with a plain one.
+- Toggle: `<button class="ax-toggle" aria-pressed="false">Bold</button>`; fires `ax:toggle` `{pressed}`,
+  `data-ax-persist` remembers it.
+- `await APX.confirm("Delete 3 orders?", {title, confirm: "Delete", cancel, danger: true})` → `true`/`false`. Call it
+  from a click handler. `APX.closeOverlays()` closes every open menu and popover.
+
 ## Aurora style (optional)
 
 A second skin with a green→violet glow; same markup, only the look changes. It suits dashboards, best in dark mode.
@@ -66,7 +93,8 @@ Without it everything looks as usual (`APX.style` is `"base"` or `"aurora"`). Wi
 - `header.ax-hero` (`ax-hero__eyebrow`, `h1`, `p`, actions on the right) gets the glow; in the base style it is a plain
   card.
 - `ax-card--accent` adds a gradient line on top: use it on the 3–5 key numbers, not on every card.
-- Progress bars and `ax-bars` take the gradient (a `--tone` wins); `ax-btn--primary` turns soft green.
+- Progress bars and `ax-bars` take the gradient (a `--tone` wins); `ax-btn--primary`, pressed toggles, open menu
+  triggers and the highlighted menu item turn soft green.
 - `--apx-grad` holds the gradient. Do not mix the style with colors of your own.
 
 ## Filters without JavaScript
