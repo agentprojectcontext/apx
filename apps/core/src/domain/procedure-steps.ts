@@ -35,12 +35,13 @@ function site(url: string): string {
   }
 }
 
-/** A path from the chat's scratch folder or its work folder, said relative to it. */
+/** A path from the chat's scratch folder or its work folder, said relative to it (Windows paths too, with `/`). */
 function place(p: string, places: Places): string {
-  const scratch = p.replace(/^.*\/apx-scratch-[0-9a-f]{8}\/[^/]+(?=\/|$)/, "<scratch>");
-  if (scratch !== p) return scratch;
-  const work = places.work?.replace(/\/+$/, "");
-  return work && p.startsWith(`${work}/`) ? p.slice(work.length + 1) : p;
+  const n = p.replace(/\\/g, "/");
+  const scratch = n.replace(/^.*\/apx-scratch-[0-9a-f]{8}\/[^/]+(?=\/|$)/, "<scratch>");
+  if (scratch !== n) return scratch;
+  const work = places.work?.replace(/\\/g, "/").replace(/\/+$/, "");
+  return work && n.startsWith(`${work}/`) ? n.slice(work.length + 1) : p;
 }
 
 /** Flags whose value is a credential or a request body: dropped with it. */
@@ -65,7 +66,7 @@ function word(w: string, places: Places): string {
     const s = site(w);
     return s ? `<${s.split("/")[0]}>` : "";
   }
-  const kept = /^[~/.]|\//.test(w) ? place(w, places) : w;
+  const kept = /^[~/.]|\/|^[A-Za-z]:\\/.test(w) ? place(w, places) : w;
   return kept.length > 48 || unsafe(kept) || /[`$]/.test(kept) ? "" : kept;
 }
 
