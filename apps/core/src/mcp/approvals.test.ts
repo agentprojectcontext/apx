@@ -309,7 +309,7 @@ test("a tool that becomes destructive on reconnection cannot use its old reading
         { text: "must not run" },
         {
           agent,
-          thread,
+          thread: { ...thread, reach: "card" },
           run,
           signal: new AbortController().signal,
           untrusted: () => true,

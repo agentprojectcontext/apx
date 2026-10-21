@@ -145,7 +145,7 @@ test("an agent hands on only its chat's kept files and paths in its own folders"
   const there = (await up(other.id)).media;
   const thread = env.core.store.threads.get(mine.id);
   assert.ok(thread);
-  const open = agentFiles(env.core.store, env.home, thread);
+  const open = agentFiles(env.core.store, env.home, { ...thread, reach: "card" });
 
   const kept = open(here.id);
   assert.deepEqual([kept.name, kept.mime, kept.bytes], ["slide.png", "image/png", PNG.length]);

@@ -12,6 +12,7 @@ import { nativeApproval } from "./domain/approvals.ts";
 import type { Store } from "./domain/store.ts";
 import { audienceOf } from "./engine/audience.ts";
 import { createHooks } from "./engine/hooks.ts";
+import type { Permissions } from "./engine/permissions.ts";
 import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
 import type { Upkeep } from "./engine/upkeep.ts";
 import { errorMessage } from "./errors.ts";
@@ -76,7 +77,6 @@ import { computerTools } from "./tools/computer.ts";
 import { contactTools } from "./tools/contact.ts";
 import { directoryTools } from "./tools/directory.ts";
 import { fileTools } from "./tools/files.ts";
-import { folderAccess } from "./tools/folders.ts";
 import { limitTools } from "./tools/limits.ts";
 import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
@@ -155,7 +155,7 @@ export function builtinTools(
     ...limitTools(store),
     ...skillTools(store, { home, apps: skillApps }),
     ...memoryTools(),
-    ...mediaTools(),
+    ...mediaTools(store, home),
     ...phoneTools(),
     ...computerTools(store),
     ...taskTools(store),
@@ -171,6 +171,8 @@ export function builtinTools(
 
 type HandlerDeps = {
   store: Store;
+  /** How agents act and how far their files reach (engine/permissions.ts). */
+  permissions: Permissions;
   /** The router from inside the core (late-bound: it exists once these handlers do). */
   internal: InternalCall;
   log: Log;
@@ -309,7 +311,8 @@ export function coreHandlers(d: HandlerDeps) {
     ...composerHandlers({
       store: d.store,
       home: d.app.home,
-      locate: (thread, file) => folderAccess(d.store, d.app.home, thread, file),
+      scopeOf: (caller) => d.permissions.forCaller(caller),
+      locate: (thread, file) => d.permissions.path(thread, file),
       services: d.services,
       checkModel: (ref, session) => refProblem(ref, d.engines, session),
     }),

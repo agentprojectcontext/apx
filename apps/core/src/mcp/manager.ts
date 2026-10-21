@@ -12,7 +12,7 @@ import type { Log } from "../log.ts";
 import { onPath } from "../programs.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import { cap, untrusted } from "../tools/result.ts";
-import { type Confirm, type Effect, invalidArguments, type Tool } from "../tools/types.ts";
+import { type Confirm, type Effect, invalidArguments, type ScopedThread, type Tool } from "../tools/types.ts";
 import { type McpTool, mcpApproval, serverApprovalId } from "./approval.ts";
 import { ARGS_SECRET, type McpDef, mcpConfig } from "./config.ts";
 import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./file-args.ts";
@@ -97,7 +97,7 @@ export function createMcp(deps: {
   secrets: Secrets;
   log: Log;
   /** The files an agent of a thread may hand to a tool (file-args.ts); without it, references are refused. */
-  files?: (thread: Thread) => OpenFile;
+  files?: (thread: ScopedThread) => OpenFile;
 }) {
   const config = mcpConfig(deps.store);
   const conns = new Map<string, Conn>();

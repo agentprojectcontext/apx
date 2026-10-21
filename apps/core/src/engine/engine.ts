@@ -19,6 +19,7 @@ import { createInputs, type InputWaits } from "./inputs.ts";
 import { createJobs } from "./jobs.ts";
 import { A2A_CAP_MS } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
+import type { Permissions } from "./permissions.ts";
 import type { ProfileRoot } from "./profiles.ts";
 import { recoverInterrupted } from "./recovery.ts";
 import type { SkillPicker } from "./skill-pick.ts";
@@ -183,6 +184,8 @@ export function createEngine(deps: {
   tools: Tool[];
   log: Log;
   call: ToolCall;
+  /** How agents act and how far their files reach (engine/permissions.ts). */
+  permissions: Permissions;
   home: string;
   /** The other agent apps whose skills agents may load too. */
   skillApps?: RuntimeHomes | undefined;

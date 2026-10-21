@@ -15,7 +15,7 @@ import { SPANISH_TITLES, toolTitle } from "./tool-titles.ts";
 const setup = () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-titles-"));
   const store = createStore(openDb(home), createBus());
-  const tools = [...builtinTools(store, home, () => 0), ...imessageTools({} as IMessageOps), documentTool()];
+  const tools = [...builtinTools(store, home, () => 0), ...imessageTools({} as IMessageOps), documentTool(store, home)];
   return { store, tools };
 };
 

@@ -8,7 +8,7 @@ import path from "node:path";
 import { z } from "zod";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { Store } from "../domain/store.ts";
-import { folderAccess, workDir } from "./folders.ts";
+import { folderAccess, readsOutside, workDir } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
@@ -66,15 +66,19 @@ function sentNote(
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
 export function messageTools(store: Store, home: string): Tool[] {
-  /** Files of the folder the agent works in, copied aside as media so what goes out is what was asked for. */
-  const attach = (ctx: ToolContext, files: string[]): { ids: string[] } | { problem: string } => {
+  /**
+   * Files the agent may read, copied aside as media so what goes out is what was asked for. To the owner any of them
+   * (DECISIONS.md#d-115); to anyone else only the folder it works in, never its temp folder or one it reads anywhere.
+   */
+  const attach = (ctx: ToolContext, files: string[], toOwner: boolean): { ids: string[] } | { problem: string } => {
     const base = workDir(store, home, ctx.thread);
     const ids: string[] = [];
     for (const file of files) {
       const where = folderAccess(store, home, ctx.thread, file);
       if ("refused" in where) return { problem: where.refused };
-      // Only the work folder's files go out to someone else, not the temp folder's.
-      if (where.base !== base) return { problem: `${file} is not in the folder you work in: copy it there to send it` };
+      if (where.at.split(/[\\/]/).includes(".git")) return { problem: "the .git folder is off limits" };
+      if (!toOwner && where.base !== base)
+        return { problem: `${file} is not in the folder you work in: copy it there to send it` };
       const { at } = where;
       if (!fs.existsSync(at) || !fs.statSync(at).isFile()) return { problem: `no file ${file}` };
       const bytes = fs.statSync(at).size;
@@ -126,7 +130,7 @@ export function messageTools(store: Store, home: string): Tool[] {
     defineTool({
       name: "message_contact",
       description:
-        "Send a message to a person through APX's channels (WhatsApp, Telegram, Discord) when the owner asks: to a contact ('tell Alex…') or to the owner with to=\"me\". to: a name or id, or \"me\"; channel: whatsapp, telegram or discord (default: where they last talked); files: paths in your work folder (20 MB at most). Plain text, no Markdown, in first person as the owner's assistant, with nothing the owner did not say; it goes out at once and cannot be taken back. The result shows the end of that chat: check it before saying it went. A room (a Discord #channel) is channel_post's. Never use a phone or a browser to send.",
+        'Send a message to a person through APX\'s channels (WhatsApp, Telegram, Discord) when the owner asks: to a contact (\'tell Alex…\') or to the owner with to="me". to: a name or id, or "me"; channel: whatsapp, telegram or discord (default: where they last talked); files: paths in your work folder, any file you can read for to="me" (20 MB at most). Plain text, no Markdown, in first person as the owner\'s assistant, with nothing the owner did not say; it goes out at once and cannot be taken back. The result shows the end of that chat: check it before saying it went. A room (a Discord #channel) is channel_post\'s. Never use a phone or a browser to send.',
       args: z.object({
         to: z.string().trim().min(1).max(120),
         text: z.string().trim().min(1).max(4000),
@@ -136,13 +140,14 @@ export function messageTools(store: Store, home: string): Tool[] {
       effect: "message",
       // Words go to someone else: asked while outside content is in the turn, unless the agent's autonomy is total.
       confirm: "untrusted",
+      outside: (a, ctx) => readsOutside(store, home, ctx.thread, (a.files as string[] | undefined) ?? []),
       deadlineMs: 15_000,
       title: (a) => `Wrote to ${String(a.to ?? "a contact")}`,
       async run(a, ctx) {
         if (a.to.trim().startsWith("#")) return `not sent: ${a.to} is a room, not a person; use channel_post`;
         const who = resolve(a.to);
         if ("problem" in who) return `not sent: ${who.problem}`;
-        const files = a.files?.length ? attach(ctx, a.files) : { ids: [] };
+        const files = a.files?.length ? attach(ctx, a.files, who.id === OWNER_ID) : { ids: [] };
         if ("problem" in files) return `not sent: ${files.problem}`;
         const r = await ctx.call("channels.message", {
           person: who.id,
@@ -169,7 +174,7 @@ export function messageTools(store: Store, home: string): Tool[] {
       deadlineMs: 15_000,
       title: (a) => `Posted in #${String(a.room ?? "a room").replace(/^#/, "")}`,
       async run(a, ctx) {
-        const files = a.files?.length ? attach(ctx, a.files) : { ids: [] };
+        const files = a.files?.length ? attach(ctx, a.files, false) : { ids: [] };
         if ("problem" in files) return `not posted: ${files.problem}`;
         const r = await ctx.call("channels.post", {
           room: a.room,

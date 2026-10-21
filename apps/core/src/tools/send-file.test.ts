@@ -23,7 +23,11 @@ before(async () => {
   fs.mkdirSync(base, { recursive: true });
   const agent = env.core.store.agents.get("roby");
   assert.ok(agent);
-  assert.ok(allowedTools({ ...agent, tools: ["files"] }, mediaTools()).some((t) => t.name === "send_file"));
+  assert.ok(
+    allowedTools({ ...agent, tools: ["files"] }, mediaTools(env.core.store, env.home)).some(
+      (t) => t.name === "send_file",
+    ),
+  );
 });
 after(async () => {
   await env.core.close();

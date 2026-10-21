@@ -67,7 +67,10 @@ test("an agent works in its project's folder; an outside agent in APX's side of 
   // Its folder off this machine, a project's chat keeps to the project's side, not the folder every chat shares.
   env.core.store.projects.setPresent(inRepo, false);
   assert.deepEqual(dirs({ project_id: inRepo }), [side, side]);
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: inRepo });
+  const t = {
+    ...(await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: inRepo })),
+    reach: "card" as const,
+  };
   await env.client.call("files.tree", { thread: t.id, dir: "" });
   assert.ok(fs.statSync(side).isDirectory(), "opened in the panel, APX's side is made");
 });
@@ -75,7 +78,10 @@ test("an agent works in its project's folder; an outside agent in APX's side of 
 test("a path is readable or refused the same way through file_read and shell, written relative or absolute", async () => {
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const t = {
+    ...(await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project })),
+    reach: "card" as const,
+  };
   fs.mkdirSync(path.join(repo, "src"), { recursive: true });
   fs.writeFileSync(path.join(repo, "src", "a.txt"), "inside\n");
   fs.writeFileSync(path.join(sibling, "b.txt"), "outside\n");
@@ -147,7 +153,7 @@ test("a read-only folder is read, never changed", () => {
 
 test("ordinary commands name no folder they may not use; ones that leave it through any door are refused", async () => {
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
-  const thread = { id: "t_paths", project_id: project };
+  const thread = { id: "t_paths", project_id: project, reach: "card" as const };
   const verdict = (command: string) => commandFolder(env.core.store, env.home, thread, { command });
   for (const c of [
     "ls -la src | grep a | wc -l",
@@ -193,7 +199,10 @@ test("ordinary commands name no folder they may not use; ones that leave it thro
 test("a project's read-only folders are read by file_read and shell, never changed, until the owner removes them", async () => {
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   await env.client.call("agents.update", { agent: "roby", autonomy: "total" });
-  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
+  const t = {
+    ...(await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project })),
+    reach: "card" as const,
+  };
   const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
   const away = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
   fs.writeFileSync(path.join(ref, "v1.txt"), "old\n");
@@ -216,7 +225,7 @@ test("a project's read-only folders are read by file_read and shell, never chang
     const said = JSON.stringify(llm.calls.at(-1)?.messages);
     assert.match(said, /Read-only folders \(read with file tools or shell, never change\): /);
     assert.match(said, /Folder you work in \(yours to change\): /);
-    const sub = { id: "t_sub", parent_id: t.id, project_id: project };
+    const sub = { id: "t_sub", parent_id: t.id, project_id: project, reach: "card" as const };
     assert.deepEqual(
       rootsOf(env.core.store, env.home, sub).find((r) => !r.write),
       { dir: ref, write: false, scratch: false },
@@ -286,7 +295,7 @@ test("in a project with a read-only folder, commands read it freely and only wri
   fs.writeFileSync(path.join(ref, "f"), "old\n");
   fs.writeFileSync(path.join(ref, "script.mjs"), "console.log(1)\n");
   fs.symlinkSync(path.join(ref, "sub"), path.join(repo, "l"));
-  const thread = { id: "t_ro", project_id: project };
+  const thread = { id: "t_ro", project_id: project, reach: "card" as const };
   const verdict = (command: string, cwd?: string) =>
     commandFolder(env.core.store, env.home, thread, { command, ...(cwd ? { cwd } : {}) });
   const RO = ref;
@@ -408,12 +417,17 @@ test("system temp folders are scratch space, except APX's own chats' temp folder
 });
 
 test("a refusal outside every folder names a next step that exists", async () => {
-  const r = commandFolder(env.core.store, env.home, { id: "t_loose" }, { command: `cat ${sh(sibling)}/b.txt` });
+  const r = commandFolder(
+    env.core.store,
+    env.home,
+    { id: "t_loose", reach: "card" as const },
+    { command: `cat ${sh(sibling)}/b.txt` },
+  );
   assert.ok("refused" in r && !/ask_owner/.test(r.refused), JSON.stringify(r));
   assert.match(r.refused, /outside the folders you can read/);
   const project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
   const apx = path.join(env.home, "apx.db");
-  const roots = rootsOf(env.core.store, env.home, { id: "t_x", project_id: project });
+  const roots = rootsOf(env.core.store, env.home, { id: "t_x", project_id: project, reach: "card" as const });
   assert.deepEqual(judge(roots, apx, repo, { home: env.home, project: true }), { refused: refusal.apx(apx) });
 });
 
@@ -429,9 +443,14 @@ test("a linked git worktree of the project beside its folder is the project's, u
   git(main, "worktree", "add", "-q", beside);
   const project = (await env.client.call("projects.register", { path: main, init: true })).project.id;
   const file = path.join(beside, "a.txt");
-  const roots = rootsOf(env.core.store, env.home, { id: "t_wt", project_id: project });
+  const roots = rootsOf(env.core.store, env.home, { id: "t_wt", project_id: project, reach: "card" as const });
   const r = judge(roots, file, main, { write: true, home: env.home, project: true });
   assert.ok(!("refused" in r) && r.write, JSON.stringify(r));
-  const kept = rootsOf(env.core.store, env.home, { id: "t_wt2", project_id: project, cwd: main });
+  const kept = rootsOf(env.core.store, env.home, {
+    id: "t_wt2",
+    project_id: project,
+    cwd: main,
+    reach: "card" as const,
+  });
   assert.ok("refused" in judge(kept, file, main, { write: true, home: env.home, project: true }));
 });

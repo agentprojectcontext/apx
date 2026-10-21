@@ -7,6 +7,7 @@ import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Worker } from "../domain/threads.ts";
 import type { ToolSpec } from "../providers/types.ts";
+import type { FolderThread } from "./folders.ts";
 
 /**
  * What a call may change. Decides recovery after a crash (a `none` call can simply be dropped; anything else is
@@ -21,9 +22,12 @@ export type Effect = "none" | "local" | "external" | "message";
  */
 export type Confirm = "never" | "untrusted" | "ask" | "always";
 
+/** The thread a tool call runs in, with how far its agent reaches: made only by engine/permissions.ts. */
+export type ScopedThread = Thread & FolderThread;
+
 export type ToolContext = {
   agent: AgentRecord;
-  thread: Thread;
+  thread: ScopedThread;
   run: RunRecord;
   signal: AbortSignal;
   /** Whether outside content (web, another agent, a message) is in this turn's context right now. */
@@ -94,6 +98,8 @@ export type Tool = {
   local?: ((args: Record<string, unknown>) => boolean) | undefined;
   /** This call only reads, on this machine (a shell command of known readers): its risk is read (DECISIONS.md#d-098). */
   reads?: ((args: Record<string, unknown>) => boolean) | undefined;
+  /** This call changes only the chat's temp folder, nothing of the owner's: no mode asks for it (DECISIONS.md#d-115). */
+  scratch?: ((args: Record<string, unknown>) => boolean) | undefined;
   /**
    * It writes files or runs commands in the folder the agent works in: what auto mode lets run without asking (accept
    * edits, only files), short of what always asks.
@@ -134,6 +140,7 @@ export function defineTool<S extends Args>(def: {
   deadlineMs: number;
   local?: (args: z.output<S>) => boolean;
   reads?: (args: z.output<S>) => boolean;
+  scratch?: (args: z.output<S>) => boolean;
   workspace?: true;
   needsCap?: string;
   when?: (thread: Thread) => boolean;
@@ -165,6 +172,7 @@ export function defineTool<S extends Args>(def: {
       : {}),
     ...(def.local ? { local: (a: Record<string, unknown>) => def.local?.(a as z.output<S>) === true } : {}),
     ...(def.reads ? { reads: (a: Record<string, unknown>) => def.reads?.(a as z.output<S>) === true } : {}),
+    ...(def.scratch ? { scratch: (a: Record<string, unknown>) => def.scratch?.(a as z.output<S>) === true } : {}),
     parse(raw) {
       const r = def.args.safeParse(raw);
       if (r.success) return { ok: true, args: r.data as Record<string, unknown> };

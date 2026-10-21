@@ -11,6 +11,7 @@ import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 200)}`);
   if (said.includes("make a file")) return callTool("m1", "shell", { command: "touch made.txt" });
+  if (said.includes("write a file")) return callTool("w1", "file_write", { path: "written.txt", content: "x\n" });
   return say("ok");
 });
 
@@ -63,6 +64,11 @@ test("a read-only code thread refuses commands that change things", async () => 
   await env.settle(t.id);
   assert.match(lastSeen(), /read-only; this command is not a plain read/);
   assert.ok(!fs.existsSync(path.join(repo, "made.txt")));
+  // file_write never asks in its own folder, so its level alone let it through a read-only thread.
+  await env.client.call("threads.send", { thread: t.id, text: "write a file" });
+  await env.settle(t.id);
+  assert.match(lastSeen(), /refused: this code thread is read-only/);
+  assert.ok(!fs.existsSync(path.join(repo, "written.txt")));
 });
 
 test("a code thread's folder and write policy are in its turn's input and in threads.get, not in the system prompt", async () => {

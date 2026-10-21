@@ -275,7 +275,7 @@ test("what an engine session read from outside stays with it: its next turns sta
   assert.equal(seen.at(-1)?.outside, true);
 });
 
-test("Codex writes in an auto code chat in auto, accept edits and total, whatever the session read; never in manual or plan", async () => {
+test("Codex writes in an auto code chat in auto, accept edits and total, whatever the session read; never in manual or plan; total writes in any chat but a read-only one", async () => {
   const { codexWrites } = await import("./codex.ts");
   const thread = { cwd: "/work/acme", write: "auto" } as unknown as TurnIO["thread"];
   const io = (autonomy: string, outside: boolean) =>
@@ -286,7 +286,10 @@ test("Codex writes in an auto code chat in auto, accept edits and total, whateve
   assert.equal(codexWrites(io("plan", false)), false);
   assert.equal(codexWrites(io("total", true)), true);
   assert.equal(codexWrites(io("accept_edits", true)), true);
-  assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "ask" } } as TurnIO), false);
+  // Codex never asks: a chat that asks before writing stays read-only, except in total, where nothing waits.
+  assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "ask" } } as TurnIO), true);
+  assert.equal(codexWrites({ ...io("auto", false), thread: { ...thread, write: "ask" } } as TurnIO), false);
+  assert.equal(codexWrites({ ...io("total", false), thread: { ...thread, write: "read-only" } } as TurnIO), false);
 });
 
 test("an external session gets an owner's attachment in its temp folder despite omitting agent framing", async () => {
@@ -327,7 +330,7 @@ test("an outside agent reads its project's read-only folders without asking and 
   fs.rmSync(ref, { recursive: true, force: true });
 });
 
-test("an outside agent's commands follow the shell tool's folder rule: they read a read-only folder, never write it", async () => {
+test("an outside agent's commands follow the shell tool's folder rule and reach: total reads and writes anywhere, never a read-only folder", async () => {
   const t0 = await session("claude");
   const ref = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-ref-")));
   const away = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-away-")));
@@ -344,7 +347,10 @@ test("an outside agent's commands follow the shell tool's folder rule: they read
       [`cp a.ts ${sh(ref)}/a.ts`, false],
       [`cd ${sh(ref)} && npm install`, false],
       [`echo x > $(echo ${sh(ref)})/y`, false],
-      [`cat ${sh(away)}/secret.txt`, false],
+      // Total reaches every folder but APX's own, through Claude Code's tools as through ours (DECISIONS.md#d-115).
+      [`cat ${sh(away)}/secret.txt`, true],
+      [`touch ${sh(away)}/made.txt`, true],
+      [`cat ${sh(env.home)}/apx.db`, false],
     ];
     const asks = commands.map(([command]) => ({ kind: "execute", command }));
     await env.client.call("threads.send", { thread: t0.id, text: `probe ${JSON.stringify(asks)}` });

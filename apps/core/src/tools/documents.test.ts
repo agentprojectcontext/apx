@@ -35,7 +35,11 @@ async function present(args: object) {
 test("file-capable agents can present a UTF-8 txt as Markdown without changing its name or contents", async () => {
   const agent = env.core.store.agents.get("roby");
   assert.ok(agent);
-  assert.ok(allowedTools({ ...agent, tools: ["files"] }, mediaTools()).some((t) => t.name === "open_document"));
+  assert.ok(
+    allowedTools({ ...agent, tools: ["files"] }, mediaTools(env.core.store, env.home)).some(
+      (t) => t.name === "open_document",
+    ),
+  );
   const source = "# Informe\n\n**Decisión**\n\n| Etapa | Estado |\n| --- | --- |\n| Diseño | Listo |\n";
   fs.writeFileSync(path.join(base, "Report.TXT"), source);
   const { thread, message } = await present({ path: "Report.TXT", title: "Project report" });

@@ -40,6 +40,7 @@ import type { InputWaits } from "./engine/inputs.ts";
 import { createMemoryIndex } from "./engine/memory-index.ts";
 import { createMemoryMaintenance } from "./engine/memory-maintenance.ts";
 import { createNoticePush } from "./engine/notice-push.ts";
+import { createPermissions } from "./engine/permissions.ts";
 import type { ProfileRoot } from "./engine/profiles.ts";
 import { createSkillPicker } from "./engine/skill-pick.ts";
 import { createDrafter } from "./engine/suggest.ts";
@@ -268,13 +269,15 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   // The router exists only after the engine, hence the late binding.
   let routed: Dispatch | undefined;
   const internal = internalCaller(() => routed, log);
+  // Every permission question about an agent, from tools, outside agents and the methods tools call.
+  const permissions = createPermissions({ store, home: config.home });
   const call: ToolCall = (method, params, as) =>
     internal(
       method,
       params,
       {
         actor: as.owner ? "human" : "agent",
-        agent: { id: as.run.agent_id, run_id: as.run.id, thread_id: as.run.thread_id },
+        agent: { id: as.run.agent_id, run_id: as.run.id, thread_id: as.run.thread_id, call_id: as.callId },
       },
       `tool:${as.run.id}:${as.callId}:${randomUUID()}`,
     );
@@ -362,6 +365,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     tools,
     log,
     call,
+    permissions,
     home: config.home,
     skillApps: config.runtimeSkills.homes,
     apxPort: () => listening,
@@ -435,6 +439,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   const dispatch = createRouter(
     coreHandlers({
       internal,
+      permissions,
       addresses: () => reachableAt(config.host, listening, config.publicUrl),
       terminals,
       access: createAccess({

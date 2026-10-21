@@ -1562,3 +1562,42 @@ notes sourced from evaluation requests rather than prior teaching. Reports
 retain failures and model/configuration provenance; passing a finite evaluation never guarantees universal fidelity.
 Known-method handoffs check the recipient's first asset attempt, not a preliminary check by the parent; reusing a
 known failed download path also fails the evaluation. The delegated instructions remain available in episode traces.
+
+<a id="d-115"></a>
+## D-115 — 2026-10-21 — One permissions service: every path asks it, and a thread without reach cannot be judged
+An agent on Total was refused `send_file` of a video in another project from Home ("outside the folders you can read
+… in Auto mode an agent reads any folder"), while the same agent could read that file with `file_read`. The executor
+worked out how far the agent reached (`reachOf`) and put it on a copy of the thread for the call; `send_file` calls
+`media.attach`, which loaded the thread again from the store, without it, and judged the path with less than the
+agent may do. The same split hit `file_read` of an image or audio file and `open_document` (both go through
+`media.attach`), outside agents (Claude Code, ACP: their commands were judged on folders built from the bare thread,
+so Total could not `cat` outside its folder), Codex (its write sandbox read the agent's own mode, not its project's or
+its caller's) and delegations (the caller's own mode, not the one it acts in).
+
+`engine/permissions.ts` is now the one place that answers: the mode an agent acts in (`agentIn`: its own, else its
+project's, a helper in its callers', D-106), how far its files reach (`scope`), and what a running call was let use
+(`hold` while the tool runs, `forCaller` for a method it calls; the router's `ctx.agent` carries the call id). The
+executor, turns, harness callbacks and `media.attach` ask it; harnesses and delegations get the agent as it acts. The
+folder rule's thread type (`FolderThread`) now requires `reach`, which only that service sets: a thread read from the
+store no longer type-checks there, so the next path that forgets fails `pnpm typecheck` instead of the owner's request.
+
+The owner's other requests in the same report, all through that rule:
+- Asking instead of refusing: Manual in a chat with no project gets the folder card (only this time) for a read
+  outside, and a write outside raises the write card in every mode that asks, instead of "outside the folders you can
+  change". `send_file`, `open_document`, `make_image`'s references and `message_contact`'s files offer the card too.
+- Temp files are the agent's own: a `file_write` in the chat's temp folder, or a command run there that writes only
+  there and reaches nothing outside (`scratch` on the tool), runs unasked in every mode, plan and manual included, and
+  even in a read-only code thread; what always asks still does.
+- `message_contact` to the owner (`to: "me"`) carries any file the agent may read; to anyone else, and `channel_post`,
+  still only its work folder's. `.git` is refused there as everywhere.
+- Outside agents follow the mode like our tools: an edit where they may write is a local change (Accept edits takes it,
+  `rules.write` governs it), and a code thread's `auto` write policy no longer lets an agent on Manual or Plan edit
+  unasked. A read-only code thread now refuses `file_write`/`file_edit` too, which its confirm level let through.
+- Codex writes in any code thread but a read-only one on Total; elsewhere only in an `auto` one, as before.
+- `delegate` with a project's id or name no longer reads it as a folder relative to the core's own folder.
+
+Left as they are, and why: the board's project scope for tasks and memory scopes are about which project's data an
+agent sees, not its mode; the 60-action computer-use check is a runaway guard; the Rules editor writing all four
+rules when an agent leaves its project's mode freezes them over a later mode change (none on this machine today),
+which is a product question for that page; the owner's own Claude Code settings still apply to Claude Code's tools.
+

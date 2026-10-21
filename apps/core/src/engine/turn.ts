@@ -31,10 +31,10 @@ import { askedSkill } from "../skills/picker.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
-import { harnessDir, harnessRoots, readOnlyFolders, scratchDir, workDir } from "../tools/folders.ts";
+import { harnessDir, readOnlyFolders, scratchDir, workDir } from "../tools/folders.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
 import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
-import { inherit, modeOf, withProjectAutonomy } from "../tools/policy.ts";
+import { inherit, modeOf } from "../tools/policy.ts";
 import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
@@ -75,6 +75,7 @@ import type { MemoryIndex } from "./memory-index.ts";
 import { memoryHistory, snapshotOf, visibleMemoryRuns, windowRuns } from "./memory-projection.ts";
 import { ratingNote, sentMeanwhile } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
+import type { Permissions } from "./permissions.ts";
 import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
 import { resetLabel } from "./provider-limit.ts";
@@ -118,6 +119,8 @@ export type TurnDeps = {
   busy?: (() => () => void) | undefined;
   /** A protocol method through the router, as the agent of `as.run`. */
   call: ToolCall;
+  /** How the agent acts and how far its files reach: every permission question goes here. */
+  permissions: Permissions;
   delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number): Promise<string>;
 };
 
@@ -248,12 +251,12 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     busy: deps.busy,
     apxPort: deps.apxPort,
     workDir: harnessDir(store, deps.home, thread),
-    readOnly: readOnlyFolders(store, thread),
-    roots: harnessRoots(store, deps.home, thread),
-    delegate: (to, task, waitMs) => deps.delegate({ run, agent, display }, to, task, waitMs),
+    permissions: deps.permissions,
+    // Harnesses and delegations see the agent as it acts here (its project's and callers' mode), never its bare record.
+    delegate: (to, task, waitMs) => deps.delegate({ run, agent: policy.agent, display }, to, task, waitMs),
   });
   const io = (): TurnIO => ({
-    agent,
+    agent: policy.agent,
     thread,
     run,
     system: thread.engine
@@ -552,14 +555,15 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
     turn.audience.kind === "contact"
       ? new Set([...contactToolNames(turn.audience.person?.perms), ...(turn.web ? WEB_TOOLS : [])])
       : new Set<string>();
-  const ownAutonomy = (a: AgentRecord) => withProjectAutonomy(deps.store, a);
-  const policy = inherit(
-    ownAutonomy(turn.agent),
-    callers.map(ownAutonomy),
+  const narrowed = inherit(
+    turn.agent,
+    callers,
     sealed
       ? offered.filter((t) => forContact.has(t.name))
       : [...offered.filter((t) => !CONTACT_TOOLS.has(t.name)), ...bridge],
   );
+  // The mode it acts in comes from the one place every permission question asks; its callers narrow its tools.
+  const policy = { ...narrowed, agent: deps.permissions.agentIn(turn.agent, turn.thread.id) };
   // A worker asks no one, and keeps to the tools its caller named for it (when it named any).
   const named = turn.worker?.tools?.length ? new Set(turn.worker.tools) : undefined;
   const o = turn.input.origin;

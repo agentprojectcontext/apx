@@ -1,6 +1,6 @@
 // Computer use: the screen of the owner's computer and the app in front, when the desktop lends it (the owner turned
-// it on there). Offered only while it does. Looking asks the owner (the screen may show anything); a click or typing
-// always asks, names the app it was approved for, and the desktop refuses it if another app came to the front.
+// it on there). Offered only while it does. Looking asks only in manual (DECISIONS.md#d-109); a click or typing
+// always asks outside total, names the app it was approved for, and the desktop refuses it if another app came to the front.
 import { COMPUTER_CAP } from "@apx/protocol";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";

@@ -174,7 +174,10 @@ test("a tool that only reads still waits for the owner, while outside content is
     assert.equal(tool.confirm({ base64: "med_0123456789abcdef" }), "untrusted");
     // The schema's own check does not trip on the reference, and a reference to nothing stops before anyone is asked.
     assert.equal(tool.parse({ base64: "apx-file:missing.png" }).ok, true);
-    assert.throws(() => tool.check?.({ base64: "apx-file:missing.png" }, { agent, thread: t }), /does not exist/);
+    assert.throws(
+      () => tool.check?.({ base64: "apx-file:missing.png" }, { agent, thread: { ...t, reach: "card" } }),
+      /does not exist/,
+    );
   } finally {
     await mcp.close();
   }
