@@ -142,7 +142,7 @@ test("an .apxart file is shown for what it is before it installs, pinned and wit
   // What it is, before anything is written: a widget, bringing its cache, with a name already taken here.
   await expect(dialog.getByText("Install me")).toBeVisible();
   await expect(dialog.getByText("Widget", { exact: true })).toBeVisible();
-  await expect(dialog.getByText(/Trae sus datos: caché/)).toBeVisible();
+  await expect(dialog.getByText("Trae la última lectura guardada")).toBeVisible();
   await expect(dialog.getByText(/Ya hay un artefacto llamado install-me/)).toBeVisible();
   await dialog.getByRole("switch", { name: "Fijar en Apps" }).click();
   await dialog.getByRole("button", { name: "Instalar", exact: true }).click();

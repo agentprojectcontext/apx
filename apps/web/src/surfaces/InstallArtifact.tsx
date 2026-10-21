@@ -28,6 +28,10 @@ function closeInstall(): void {
 
 const GLOBAL = "";
 
+/** "a, b and c", in the owner's language. */
+const listed = (parts: string[], and: string) =>
+  parts.length < 2 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")}${and}${parts.at(-1)}`;
+
 /** The dialog, mounted once in the shell; it shows while openInstall's request stands. */
 export function InstallArtifactDialog() {
   const open = useSyncExternalStore(
@@ -168,7 +172,10 @@ function InstallForm({ initialProject }: { initialProject: string }) {
                 <li>
                   {memoryParts.length
                     ? t("artifact.installBrings", {
-                        parts: memoryParts.map((p) => t(`artifact.part.${p}`)).join(", "),
+                        parts: listed(
+                          memoryParts.map((p) => t(`artifact.part.${p}`)),
+                          t("artifact.and"),
+                        ),
                       })
                     : t("artifact.installEmpty")}
                 </li>
