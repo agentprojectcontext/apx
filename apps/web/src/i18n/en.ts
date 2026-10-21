@@ -589,6 +589,7 @@ export const en = {
   "artifact.clearHint": "Choose what to forget. This cannot be undone.",
   "artifact.clearConfirm": "Clear selected",
   "artifact.import": "Import artifact",
+  "artifact.importInto": "Import into",
   "artifact.imported": "Imported “{title}”.",
   "artifact.memoryError": "Could not read the artifact's memory: {error}",
   "artifact.exportError": "Could not export the artifact: {error}",

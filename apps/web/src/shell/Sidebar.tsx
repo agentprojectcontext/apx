@@ -1,9 +1,9 @@
-import { ContextMenu, IconButton, Icons, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
+import { ContextMenu, IconButton, Icons, Menu, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { pickArtifactFile } from "../data/artifacts.ts";
 import { loadChannels } from "../data/channels.ts";
-import { inInbox } from "../data/identity.ts";
+import { baseName, inInbox } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -43,6 +43,7 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
     for (const t of Object.values(threads)) if (inInbox(t, routines)) n += t.unread;
     return n;
   }, [threads, routines]);
+  const projects = useData((s) => s.projects);
   const apps = useMemo(() => Object.values(surfaces).filter((s) => s.app), [surfaces]);
   const [memoryOf, setMemoryOf] = useState<string>();
   const memorySurface = memoryOf ? surfaces[memoryOf] : undefined;
@@ -108,12 +109,21 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
               rail={rail}
               title={t("nav.apps")}
               action={
-                <IconButton
-                  size="sm"
-                  className="sidebar__add"
-                  label={t("artifact.import")}
-                  icon={<Icons.Upload size={14} />}
-                  onClick={() => pickArtifactFile(undefined)}
+                <Menu
+                  align="end"
+                  items={[
+                    { type: "label", label: t("artifact.importInto") },
+                    { label: baseName(), onSelect: () => pickArtifactFile(undefined) },
+                    ...projects.map((p) => ({ label: p.name, onSelect: () => pickArtifactFile(p.id) })),
+                  ]}
+                  trigger={
+                    <IconButton
+                      size="sm"
+                      className="sidebar__add"
+                      label={t("artifact.import")}
+                      icon={<Icons.Upload size={14} />}
+                    />
+                  }
                 />
               }
             />

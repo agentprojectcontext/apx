@@ -599,6 +599,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "artifact.clearHint": "Elegí qué olvidar. No se puede deshacer.",
   "artifact.clearConfirm": "Borrar lo elegido",
   "artifact.import": "Importar artefacto",
+  "artifact.importInto": "Importar en",
   "artifact.imported": "Se importó “{title}”.",
   "artifact.memoryError": "No se pudo leer la memoria del artefacto: {error}",
   "artifact.exportError": "No se pudo exportar el artefacto: {error}",
