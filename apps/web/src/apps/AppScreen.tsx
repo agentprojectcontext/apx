@@ -4,6 +4,7 @@ import { blobOf, projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
+import { ArtifactMemoryButton } from "../surfaces/ArtifactMemory.tsx";
 import { ShareMenu } from "../surfaces/ShareMenu.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 import { openWidgetChat } from "../surfaces/WidgetChat.tsx";
@@ -63,6 +64,7 @@ export function AppScreen() {
           {t("widget.chatShort")}
         </Button>
         <ShareMenu surface={app} />
+        <ArtifactMemoryButton surface={app} />
         <Button
           size="sm"
           variant="secondary"

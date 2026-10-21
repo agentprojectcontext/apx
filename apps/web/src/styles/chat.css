@@ -346,6 +346,11 @@ body:has(.projboard__grid.is-dragging) .livelayer__box[data-shown] {
   pointer-events: none;
 }
 /* An artifact's memory dialog (ArtifactMemory.tsx). */
+.artmem__detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
 .artmem__size {
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-sm);

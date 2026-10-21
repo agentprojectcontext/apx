@@ -52,7 +52,7 @@ function ArtifactMemoryDialog({ surface, onClose }: { surface: SurfaceSummary; o
         {
           part: "store",
           title: t("artifact.store"),
-          size: t("artifact.storeSize", {
+          size: t(memory.store.keys.length === 1 ? "artifact.storeSize.one" : "artifact.storeSize.other", {
             n: formatNumber(memory.store.keys.length),
             size: formatBytes(memory.store.bytes),
           }),
@@ -61,7 +61,7 @@ function ArtifactMemoryDialog({ surface, onClose }: { surface: SurfaceSummary; o
         {
           part: "db",
           title: t("artifact.db"),
-          size: t("artifact.dbSize", {
+          size: t(memory.db.tables.length === 1 ? "artifact.dbSize.one" : "artifact.dbSize.other", {
             n: formatNumber(memory.db.tables.length),
             size: formatBytes(memory.db.bytes),
           }),
@@ -155,32 +155,36 @@ function ArtifactMemoryDialog({ surface, onClose }: { surface: SurfaceSummary; o
             <span className="artmem__size">{parts[0]?.size}</span>
           </SettingRow>
           <SettingRow stacked title={t("artifact.store")} description={t("artifact.storeHint")}>
-            <span className="artmem__size">{parts[1]?.size}</span>
-            {memory.store.keys.length > 0 && (
-              <div className="artmem__tags">
-                {memory.store.keys.slice(0, KEYS_SHOWN).map((k) => (
-                  <Tag key={k}>{k}</Tag>
-                ))}
-                {memory.store.keys.length > KEYS_SHOWN && (
-                  <span className="artmem__more">
-                    {t("artifact.more", { n: formatNumber(memory.store.keys.length - KEYS_SHOWN) })}
-                  </span>
-                )}
-              </div>
-            )}
+            <div className="artmem__detail">
+              <span className="artmem__size">{parts[1]?.size}</span>
+              {memory.store.keys.length > 0 && (
+                <div className="artmem__tags">
+                  {memory.store.keys.slice(0, KEYS_SHOWN).map((k) => (
+                    <Tag key={k}>{k}</Tag>
+                  ))}
+                  {memory.store.keys.length > KEYS_SHOWN && (
+                    <span className="artmem__more">
+                      {t("artifact.more", { n: formatNumber(memory.store.keys.length - KEYS_SHOWN) })}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </SettingRow>
           <SettingRow stacked title={t("artifact.db")} description={t("artifact.dbHint")}>
-            <span className="artmem__size">{parts[2]?.size}</span>
-            {memory.db.tables.length > 0 && (
-              <ul className="artmem__tables">
-                {memory.db.tables.map((tb) => (
-                  <li key={tb.name}>
-                    <code>{tb.name}</code>
-                    <span>{t("artifact.rows", { n: formatNumber(tb.rows) })}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <div className="artmem__detail">
+              <span className="artmem__size">{parts[2]?.size}</span>
+              {memory.db.tables.length > 0 && (
+                <ul className="artmem__tables">
+                  {memory.db.tables.map((tb) => (
+                    <li key={tb.name}>
+                      <code>{tb.name}</code>
+                      <span>{t("artifact.rows", { n: formatNumber(tb.rows) })}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </SettingRow>
           {memory.secrets.length > 0 && (
             <SettingRow stacked title={t("artifact.secrets")} description={t("artifact.secretsHint")}>
