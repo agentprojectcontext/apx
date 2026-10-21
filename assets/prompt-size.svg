@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="920" height="600" viewBox="0 0 920 600" role="img" aria-labelledby="t d">
 <title id="t">Prompt size per model call: APX v2 vs APX v1, Hermes and OpenClaw</title>
-<desc id="d">Tokens of system prompt and tool definitions in the first model call of a fresh install. APX v2: 8.1k (1260 system, 6859 tools); Hermes: 13.0k (3956 system, 9070 tools); APX v1 (Telegram, CLI, desktop): 13.2k (4626 system, 8609 tools); OpenClaw: 13.2k (9800 system, 3411 tools); APX v1 (web chat, API, routines): 23.6k (4115 system, 19441 tools).</desc>
+<desc id="d">Tokens of system prompt and tool definitions in the first model call of a fresh install. APX v2: 8.2k (1467 system, 6728 tools); Hermes: 13.0k (3956 system, 9070 tools); APX v1 (Telegram, CLI, desktop): 13.2k (4626 system, 8609 tools); OpenClaw: 13.2k (9800 system, 3411 tools); APX v1 (web chat, API, routines): 23.6k (4115 system, 19441 tools).</desc>
 <defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2.2" height="6" fill="#171a22" fill-opacity="0.55"/></pattern><linearGradient id="bar" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7c8cff"/><stop offset="1" stop-color="#4fd1a5"/></linearGradient></defs>
 <rect width="920" height="600" rx="22" fill="#171a22"/>
 <rect x="40" y="40" width="64" height="5" rx="2.5" fill="url(#bar)"/>
@@ -32,11 +32,11 @@
 <line x1="755.0" y1="172" x2="755.0" y2="502" stroke="#ffffff" stroke-opacity="0.06"/>
 <text x="755.0" y="522" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#8a93a6" text-anchor="middle">25k</text>
 <text x="40" y="195.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="16" font-weight="700" fill="#f2f4f8" text-anchor="start">APX v2</text>
-<text x="40" y="213.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#8a93a6" text-anchor="start">50 tools</text>
-<rect x="255" y="182" width="24.2" height="24" fill="#1fa874"/>
-<path d="M281.2 182 h132.2 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-132.2 z" fill="#1fa874" fill-opacity="0.5"/>
-<text x="427.4" y="199.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#f2f4f8" text-anchor="start">8.1k</text>
-<text x="473.8" y="199.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#8a93a6" text-anchor="start">1.3k + 6.9k</text>
+<text x="40" y="213.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#8a93a6" text-anchor="start">45 tools</text>
+<rect x="255" y="182" width="29.3" height="24" fill="#1fa874"/>
+<path d="M286.3 182 h128.6 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-128.6 z" fill="#1fa874" fill-opacity="0.5"/>
+<text x="428.9" y="199.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#f2f4f8" text-anchor="start">8.2k</text>
+<text x="475.3" y="199.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#8a93a6" text-anchor="start">1.5k + 6.7k</text>
 <text x="40" y="261.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="16" font-weight="600" fill="#f2f4f8" text-anchor="start">Hermes</text>
 <text x="40" y="279.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#8a93a6" text-anchor="start">24 tools</text>
 <rect x="255" y="248" width="78.1" height="24" fill="#3b8bea"/>
@@ -66,5 +66,5 @@
 <text x="736.1" y="463.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="15" font-weight="700" fill="#f2f4f8" text-anchor="start">23.6k</text>
 <text x="792.1" y="463.0" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12" font-weight="400" fill="#8a93a6" text-anchor="start">4.1k + 19.4k</text>
 <text x="40" y="554" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12.5" font-weight="400" fill="#8a93a6" text-anchor="start">Hermes and OpenClaw send their other tools only when searched for; APX v2 does the same for MCP servers (mcp_search).</text>
-<text x="40" y="574" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12.5" font-weight="400" fill="#8a93a6" text-anchor="start">Measured 2026-10-07 by running each app's own prompt builder: APX v1 1.124.0, OpenClaw 2026.9.5, Hermes Agent.</text>
+<text x="40" y="574" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Helvetica,Arial,sans-serif" font-size="12.5" font-weight="400" fill="#8a93a6" text-anchor="start">Each app's own prompt builder: APX v2 on 2026-10-20; APX v1 1.124.0, OpenClaw 2026.9.5, Hermes Agent on 2026-10-07.</text>
 </svg>

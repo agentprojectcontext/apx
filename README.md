@@ -147,7 +147,7 @@ v2 is a ground-up rewrite with one rule: one way to do each thing.
 
 ### What every model call carries
 
-<p align="center"><img src="assets/prompt-size.svg" alt="Tokens per model call on a fresh install: APX v2 8.1k, Hermes 13.0k, APX v1 13.2k (Telegram) and 23.6k (web chat), OpenClaw 13.2k" width="760"></p>
+<p align="center"><img src="assets/prompt-size.svg" alt="Tokens per model call on a fresh install: APX v2 8.2k, Hermes 13.0k, APX v1 13.2k (Telegram) and 23.6k (web chat), OpenClaw 13.2k" width="760"></p>
 
 Every step of every turn sends the system prompt and the tool definitions again. APX v2 sends the least of the agent
 apps we measured, and a test keeps it under a budget. MCP servers' tools are found with `mcp_search` instead of being

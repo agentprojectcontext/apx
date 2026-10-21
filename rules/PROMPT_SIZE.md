@@ -54,13 +54,13 @@ The index is listed once per thread and then only for notes saved since, so a la
 ## Compared with other agent apps
 
 Size of the first model call of a fresh install, in o200k_base tokens. Each app's own prompt builder was run with
-its default configuration (not copied by hand). Measured 2026-10-07: APX v2 at this commit, APX v1 1.124.0, OpenClaw
+its default configuration (not copied by hand). Measured 2026-10-07 (APX v2 again on 2026-10-20): APX v1 1.124.0, OpenClaw
 2026.9.5 (Claude model, "full" profile, as its onboarding sets), Hermes Agent (checkout reporting 0.21.4, its default
 GLM model).
 
 | App | System prompt | Tools sent | First call |
 |---|---|---|---|
-| **APX v2** | 1,260 | 50 tools, 6,859 | **≈ 8,100** |
+| **APX v2** | 1,467 | 45 tools, 6,728 (8 more, 811, when the desktop app lends its browser) | **≈ 8,200** |
 | Hermes | 3,956 | 24 tools, 9,070 (the rest behind tool search) | ≈ 13,000 (12,000 with Claude) |
 | APX v1, Telegram / CLI / desktop | 4,626 | 39 tools, 8,609 | ≈ 13,200 |
 | OpenClaw | 9,800 | 14 tools, 3,411 (50 more behind tool search) | ≈ 13,200 (15,100 on the first turn) |
