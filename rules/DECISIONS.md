@@ -933,7 +933,7 @@ another parent, so the work an orchestrator splits stays under the task it was g
 `subtasks`, and the task panel shows them and the task a subtask is part of. A real run showed a caller told "assign
 it to Roby" delegating to Roby to assign it to himself, which the answering Roby could not do: the caller's note now
 says a task the delegate left for someone is assigned with `task_update`, and the refusal says an answering agent starts
-no task work, its own included.
+no task work, its own included. Amended by [D-120](#d-120): a consult the owner opened may hand out work.
 
 Agent-created subtasks require both an assignee and a non-empty description, checked by `tasks.create` before any
 record or conversation is written. `tasks.update` refuses to clear either through an agent call. This also applies
@@ -1709,3 +1709,17 @@ One copy runs at a time. Opening an app in a window of its own (a desktop window
 stops the copy in the panel, which shows a note with "Bring it back here"; closing that window brings it back. The
 window starts from the artifact's memory: moving the running page itself across windows would need each app to be a
 native view of its own, a larger change kept for when it is needed.
+
+<a id="d-120"></a>
+## D-120 — 2026-10-21 — An agent the owner consults on a task can create and start the tasks they ask for
+D-079 counted a consult as "an agent answering another one", so `tasks.create` and `tasks.update` refused an assignee
+there. But a consult is the owner asking: only an owner's @mention on a task opens one, at depth 0. A real run showed
+the owner @mentioning an agent on an unassigned task to turn three ideas into tasks and start them; every
+`task_create` was refused with "the agent that asked you assigns it", though no agent had asked, and the one without an
+assignee was refused as a subtask with no responsible agent. Nothing could be done.
+
+Now a consult (an `a2a` thread whose context has `consult`) is not "answering": its agent may create tasks with an
+assignee, assign them and send them back for rework, and their work starts one hop down, as from any chat of the
+owner's. Delegation is unchanged: a consult still asks nobody with `delegate` (D-074), and a delegation's sub-thread
+still gives nobody task work, so the chain D-079 closed stays closed. What a consult starts spends against the consult's
+chat, under the same limits on turns without the owner as any work an agent gives ([D-080](#d-080)).

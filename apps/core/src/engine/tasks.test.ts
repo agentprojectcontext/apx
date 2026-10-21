@@ -37,6 +37,12 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
       description: "Write the launch draft.",
     });
   if (said.includes("peek at the other")) return callTool("t2", "task_list", {});
+  if (said.includes("open the reel tasks"))
+    return callTool("t6", "task_create", {
+      title: "Cut the tools reel",
+      assignee: "vera",
+      description: "Edit the tools reel from the brief.",
+    });
   if (said.includes("ask the owner")) return say("@JULIAN please confirm the launch date.");
   if (said.includes("hand over subtask"))
     return callTool("t4", "delegate", { agent: "vera", task: "assign a subtask to roby" });
@@ -375,6 +381,21 @@ test("an answering agent cannot silently drop a requested assignee and leave an 
     .flatMap((c) => c.messages)
     .find((m) => m.role === "tool" && /so you start no task work/.test(String(m.content)));
   assert.match(String(refusal?.content), /the agent that asked you|assigns it/);
+});
+
+test("an agent the owner consults on a task can create and start the tasks the owner asks for", async () => {
+  const t = await env.client.call("tasks.create", { title: "Plan the reel series", project });
+  await env.client.call("tasks.comment", { task: t.id, text: "@roby open the reel tasks and start them" });
+  await settleTask(t.id);
+  const { subtasks } = await env.client.call("tasks.get", { task: t.id });
+  assert.deepEqual(
+    subtasks.map((s) => [s.title, s.assignee, s.created_by]),
+    [["Cut the tools reel", "vera", "roby"]],
+  );
+  const reel = subtasks[0];
+  assert.ok(reel);
+  const started = await settleTask(reel.id);
+  assert.equal(started.sessions.length, 1, "the new task's work started in its agent's chat");
 });
 
 test("giving a task to an agent starts it in its chat; another agent gets a new chat that knows who worked it", async () => {

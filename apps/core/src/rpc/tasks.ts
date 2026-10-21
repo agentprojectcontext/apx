@@ -47,10 +47,12 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       : { kind: "owner" };
 
   const visible = (id: string, ctx: CallContext): Task => visibleTask(store, id, agentScope(ctx));
-  /** The agent that asked, when this call comes from an agent answering another one (a delegation, a consult). */
+  /** The agent that asked, when this call comes from an agent answering another one (a delegation). */
   const answering = (ctx: CallContext): string | undefined => {
     const thread = ctx.agent && store.threads.get(ctx.agent.thread_id);
     if (thread?.kind !== "a2a") return undefined;
+    // A consult is the owner asking on a task, so the work they ask for may be handed out (DECISIONS.md#d-079).
+    if (store.threads.context(thread.id).consult) return undefined;
     const caller = thread.agent_ids.find((id) => id !== ctx.agent?.id);
     return (caller && store.agents.get(caller)?.name) || "the agent that asked you";
   };
