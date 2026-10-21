@@ -18,8 +18,16 @@ export function downloadEntry(s: SurfaceSummary, t: typeof tr): MenuEntry {
     label: t("artifact.download"),
     icon: <Icons.Download size={16} />,
     items: [
-      { label: t("artifact.downloadPlain"), onSelect: () => void exportArtifact(s.id, false) },
-      { label: t("artifact.downloadMemory"), onSelect: () => void exportArtifact(s.id, true) },
+      {
+        label: t("artifact.downloadPlain"),
+        icon: <Icons.File size={16} />,
+        onSelect: () => void exportArtifact(s.id, false),
+      },
+      {
+        label: t("artifact.downloadMemory"),
+        icon: <Icons.Database size={16} />,
+        onSelect: () => void exportArtifact(s.id, true),
+      },
     ],
   };
 }
