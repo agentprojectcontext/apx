@@ -57,7 +57,9 @@ test("an artifact's store and database work through the protocol, export without
     await env.client.call("secrets.set", { name: "artifact.orders.api", value: "tok_never_exported_1" });
     const bare = await env.client.call("surfaces.export", { surface: s.id });
     assert.equal(ArtifactBundle.safeParse(bare).success, true);
-    assert.deepEqual(bare.manifest, {
+    const { exported_at, ...shape } = bare.manifest;
+    assert.ok(exported_at);
+    assert.deepEqual(shape, {
       name: "orders",
       title: "Orders",
       kind: "app",
@@ -115,6 +117,46 @@ test("an artifact's store and database work through the protocol, export without
       }),
       /not one of this artifact's secrets/,
     );
+  } finally {
+    await env.core.close();
+    env.cleanup();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("an artifact's file says who made it, and an installed one keeps its maker when exported again", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-artifact-origin-"));
+  try {
+    fs.writeFileSync(path.join(root, "AGENTS.md"), "# Northwind\n");
+    const { project } = await env.client.call("projects.register", { path: root });
+    await env.client.call("owner.set", { name: "Ada" });
+    const chat = await env.client.call("threads.create", { kind: "agent", agent_id: "roby", project_id: project.id });
+    // Made by an agent in its chat (a call from an agent's turn sets created_by; here the store does it directly).
+    const s = env.core.store.surfaces.upsert({
+      name: "orders",
+      title: "Orders",
+      html: PAGE,
+      project_id: project.id,
+      thread_id: chat.id,
+      created_by: "roby",
+    });
+    const bundle = await env.client.call("surfaces.export", { surface: s.id });
+    assert.equal(bundle.manifest.author, "Ada");
+    assert.equal(bundle.manifest.agent, env.core.store.agents.get("roby")?.name);
+    const projectName = env.core.store.projects.get(project.id)?.name;
+    assert.equal(bundle.manifest.project, projectName);
+    assert.ok(bundle.manifest.exported_at);
+
+    // Installed elsewhere it keeps where it came from, and a later export still names its first maker.
+    const installed = await env.client.call("surfaces.import", { bundle });
+    assert.equal(installed.origin?.author, "Ada");
+    assert.equal(installed.origin?.project, projectName);
+    assert.equal(installed.origin?.version, bundle.manifest.version);
+    assert.ok(installed.origin?.installed_at);
+    await env.client.call("owner.set", { name: "Grace" });
+    const again = await env.client.call("surfaces.export", { surface: installed.id });
+    assert.equal(again.manifest.author, "Ada");
   } finally {
     await env.core.close();
     env.cleanup();

@@ -1,7 +1,14 @@
 // Widgets, sidebar panels and fullscreen apps: one primitive. Addressed by id; an agent updates its own by
 // stable name within a project (`upsert`).
 import { randomUUID } from "node:crypto";
-import { SURFACE_STATE_MAX, type Surface, SurfaceOrigin, SurfaceState, type SurfaceSummary } from "@apx/protocol";
+import {
+  ArtifactOrigin,
+  SURFACE_STATE_MAX,
+  type Surface,
+  SurfaceOrigin,
+  SurfaceState,
+  type SurfaceSummary,
+} from "@apx/protocol";
 import type { ExpressionBuilder, Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { Database, SurfacesTable } from "../db/schema.ts";
@@ -23,6 +30,7 @@ const toSurface = (r: Selectable<SurfacesTable>): Surface => ({
   ...(r.share_token ? { share_path: `/a/${r.share_token}` } : {}),
   ...connectOf(r.connect),
   ...stateOf(r.state),
+  ...originOf(r.origin),
 });
 
 /** The stored state, when it is still an object of JSON values (anything else reads as nothing remembered). */
@@ -31,6 +39,17 @@ function stateOf(raw: string | null): { state?: SurfaceState } {
   try {
     const parsed = SurfaceState.safeParse(JSON.parse(raw));
     return parsed.success && Object.keys(parsed.data).length ? { state: parsed.data } : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Where it was installed from, while the stored JSON still reads as one. */
+function originOf(raw: string | null): { origin?: ArtifactOrigin } {
+  if (!raw) return {};
+  try {
+    const parsed = ArtifactOrigin.safeParse(JSON.parse(raw));
+    return parsed.success ? { origin: parsed.data } : {};
   } catch {
     return {};
   }
@@ -164,6 +183,15 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       );
       emit(next);
       return summary(next);
+    },
+    /** Records where an installed artifact came from. */
+    setOrigin(id: string, origin: ArtifactOrigin): void {
+      run(
+        qb
+          .updateTable("surfaces")
+          .set({ origin: JSON.stringify(origin) })
+          .where("id", "=", id),
+      );
     },
     /** Sets the keys of `patch` (null removes one) over the current state, or over nothing with `replace`. */
     setState(id: string, patch: SurfaceState, replace = false): SurfaceState | undefined {

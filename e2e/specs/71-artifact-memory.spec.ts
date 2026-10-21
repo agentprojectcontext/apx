@@ -153,4 +153,11 @@ test("an .apxart file is shown for what it is before it installs, pinned and wit
   expect(installed?.app).toBe(true);
   const memory = await rpc<{ store: { keys: string[] } }>("surfaces.memory", { surface: installed?.id ?? "" });
   expect(memory.store.keys).toEqual(["reading"]);
+
+  // Its properties say it came from a file, and from which version.
+  await p.locator(".appsdock__icon").first().click({ button: "right" });
+  await p.getByRole("menuitem", { name: "Propiedades…" }).click();
+  const props = p.getByRole("dialog", { name: /Install me/ });
+  await expect(props.getByText("Instalado desde un archivo")).toBeVisible();
+  await expect(props.getByText("Su versión entonces")).toBeVisible();
 });

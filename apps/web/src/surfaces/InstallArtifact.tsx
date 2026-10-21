@@ -162,6 +162,13 @@ function InstallForm({ initialProject }: { initialProject: string }) {
                 </Badge>
               </div>
               <ul className="install__facts">
+                {m.author || m.agent || m.project ? (
+                  <li>
+                    {t("artifact.installMadeBy", {
+                      who: [m.author, m.agent, m.project].filter(Boolean).join(" · "),
+                    })}
+                  </li>
+                ) : null}
                 <li>
                   {m.name} · v{m.version}
                   {m.kit ? ` · APX Kit ${m.kit}` : ""}

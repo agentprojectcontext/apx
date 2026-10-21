@@ -1,9 +1,11 @@
 import { AgentAvatar, Button, EmptyState, IconButton, Icons, Menu } from "@apx/ui";
+import { useState } from "react";
 import { blobOf, projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { ArtifactMemoryButton } from "../surfaces/ArtifactMemory.tsx";
+import { ArtifactPropertiesDialog } from "../surfaces/ArtifactProperties.tsx";
 import { downloadEntry, placeEntries } from "../surfaces/artifactMenu.tsx";
 import { bringBack, popOut, useOutside } from "../surfaces/artifactWindows.ts";
 import { dropLive, useRunningApps } from "../surfaces/livePool.ts";
@@ -20,6 +22,7 @@ export function AppScreen() {
   const projects = useData((s) => s.projects);
   const outside = useOutside(appId ?? "");
   const running = useRunningApps().includes(appId ?? "");
+  const [props, setProps] = useState(false);
   // Back to whatever chat was open before the app.
   const back = () => nav.set({ view: "inbox" });
 
@@ -77,7 +80,12 @@ export function AppScreen() {
         />
         <Menu
           align="end"
-          items={[downloadEntry(app, t), { type: "separator" }, ...placeEntries(app, t, { removedFromApps: back })]}
+          items={[
+            { label: `${t("artifact.properties")}…`, icon: <Icons.Info size={16} />, onSelect: () => setProps(true) },
+            downloadEntry(app, t),
+            { type: "separator" },
+            ...placeEntries(app, t, { removedFromApps: back }),
+          ]}
           trigger={<IconButton size="sm" label={t("common.more")} icon={<Icons.Ellipsis size={16} />} />}
         />
         {running && (
@@ -92,6 +100,7 @@ export function AppScreen() {
           />
         )}
       </header>
+      {props && <ArtifactPropertiesDialog surface={app} onClose={() => setProps(false)} />}
       <div className="appscreen__body">
         {outside ? (
           <EmptyState

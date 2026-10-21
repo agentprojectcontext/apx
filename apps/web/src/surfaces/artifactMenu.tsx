@@ -56,13 +56,14 @@ export function placeEntries(s: SurfaceSummary, t: typeof tr, after?: { removedF
 export function artifactMenu(
   s: SurfaceSummary,
   t: typeof tr,
-  o: { onMemory: () => void; running: boolean },
+  o: { onMemory: () => void; onProperties: () => void; running: boolean },
 ): MenuEntry[] {
   return [
     { label: t("widget.openApp"), icon: <Icons.AppWindow size={16} />, onSelect: () => go.app(s.id) },
     { label: t("artifact.openWindow"), icon: <Icons.ExternalLink size={16} />, onSelect: () => popOut(s) },
     { label: t("widget.chatShort"), icon: <Icons.MessageSquare size={16} />, onSelect: () => void openWidgetChat(s) },
     { type: "submenu", label: t("share.share"), icon: <Icons.Share size={16} />, items: shareEntries(s, t) },
+    { label: `${t("artifact.properties")}…`, icon: <Icons.Info size={16} />, onSelect: o.onProperties },
     { label: `${t("artifact.memory")}…`, icon: <Icons.Database size={16} />, onSelect: o.onMemory },
     downloadEntry(s, t),
     { type: "separator" },

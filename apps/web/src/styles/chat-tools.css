@@ -526,3 +526,32 @@
   font-size: 13px;
   margin: 0;
 }
+
+/* An artifact's properties (ArtifactProperties.tsx). */
+.artprops__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.artprops {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.artprops > div {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+}
+.artprops dt {
+  color: var(--apx-fg-muted);
+}
+.artprops dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.artprops__head {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}

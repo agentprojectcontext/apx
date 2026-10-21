@@ -34,7 +34,13 @@ page that keeps its own `<style>` changes nothing on screen: that is not an upda
 5. A page with a socket or a timer that should keep running while out of sight gets `<meta name="apx-live"
    content="15m">`; every live page also uses `APX.live` so it opens on its last reading (below).
 6. Show it with `show_widget`, same name, the whole page. `edit_widget` is for small fixes, never for a redesign.
-7. Check before you say it is done: the new HTML has no `<style>` block of more than ~20 lines and no hex colors.
+7. Check before you say it is done, each point, and fix what fails:
+   - no `<style>` block of more than ~20 lines, no hex colors;
+   - every control the owner sets (refresh interval, filters, tabs, a chosen view) is remembered: `data-ax-persist`
+     on it, or `APX.state` in code. Closed and opened again, it must come back as they left it;
+   - data fetched from outside goes through `APX.live("reading", loader, …)`, so the page opens on its last reading
+     instead of blank and refreshes behind it;
+   - no credential in the HTML or its state (below).
    Tell the owner what changed on screen, not only that the kit was added.
 
 ## Credentials out of the page

@@ -1273,6 +1273,20 @@ export const SurfaceOrigin = z
   .max(200)
   .regex(/^(https|wss):\/\/[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(:\d{1,5})?$/);
 
+/** Where an installed artifact came from: who made it, and where, as its file said. Absent for one made here. */
+export const ArtifactOrigin = z.object({
+  /** The person whose APX it was exported from. */
+  author: z.string().max(80).optional(),
+  /** The agent that made it there. */
+  agent: z.string().max(80).optional(),
+  /** The project it belonged to there. */
+  project: z.string().max(120).optional(),
+  /** Its version when exported. */
+  version: z.number().int().min(1).optional(),
+  exported_at: z.string().max(40).optional(),
+  installed_at: z.string().max(40),
+});
+export type ArtifactOrigin = z.infer<typeof ArtifactOrigin>;
 export const Surface = z.object({
   id: Id,
   /** Stable name an agent updates by ("ventas-mes"). Unique per project (or globally when no project). */
@@ -1292,6 +1306,8 @@ export const Surface = z.object({
   connect: z.array(SurfaceOrigin).max(5).optional(),
   /** What it remembers (APX.state): kept across openings and new versions, read and written by it and its agent. */
   state: SurfaceState.optional(),
+  /** Installed from a file: who made it and where. */
+  origin: ArtifactOrigin.optional(),
 });
 export type Surface = z.infer<typeof Surface>;
 export const SurfaceSummary = Surface.omit({ html: true, state: true });
@@ -1326,6 +1342,11 @@ export const ArtifactManifest = z.object({
   /** Schema version of its database, for future migrations. */
   data_version: z.number().int().min(0).optional(),
   source: z.object({ framework: z.enum(["preact", "html"]).optional(), built_at: z.string().optional() }).optional(),
+  /** Who made it: the person whose APX exported it, its agent and its project there (kept through later exports). */
+  author: z.string().max(80).optional(),
+  agent: z.string().max(80).optional(),
+  project: z.string().max(120).optional(),
+  exported_at: z.string().max(40).optional(),
 });
 export type ArtifactManifest = z.infer<typeof ArtifactManifest>;
 /**

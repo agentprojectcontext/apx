@@ -836,4 +836,6 @@ export const MIGRATIONS: readonly string[] = [
   `,
   // What a widget remembers between openings and versions (a JSON object written by the widget or its agent).
   `ALTER TABLE surfaces ADD COLUMN state TEXT;`,
+  // Where an installed artifact came from (who made it, its agent and project there), as its file said.
+  `ALTER TABLE surfaces ADD COLUMN origin TEXT;`,
 ];

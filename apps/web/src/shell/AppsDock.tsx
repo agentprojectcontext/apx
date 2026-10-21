@@ -5,6 +5,7 @@ import { projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { ArtifactMemoryDialog } from "../surfaces/ArtifactMemory.tsx";
+import { ArtifactPropertiesDialog } from "../surfaces/ArtifactProperties.tsx";
 import { artifactMenu } from "../surfaces/artifactMenu.tsx";
 import { openInstall } from "../surfaces/InstallArtifact.tsx";
 import { useRunningApps } from "../surfaces/livePool.ts";
@@ -26,12 +27,24 @@ export function AppsDock({ rail }: { rail: boolean }) {
   const runningIds = useRunningApps();
   const running = useMemo(() => new Set(runningIds), [runningIds]);
   const [memoryOf, setMemoryOf] = useState<string>();
-  const pinned = useMemo(() => Object.values(surfaces).filter((s) => s.app), [surfaces]);
+  const [propsOf, setPropsOf] = useState<string>();
+  // Newest first: one just installed or changed shows on top.
+  const pinned = useMemo(
+    () =>
+      Object.values(surfaces)
+        .filter((s) => s.app)
+        .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+    [surfaces],
+  );
 
   const item = (a: SurfaceSummary) => (
     <ContextMenu
       key={a.id}
-      items={artifactMenu(a, t, { onMemory: () => setMemoryOf(a.id), running: running.has(a.id) })}
+      items={artifactMenu(a, t, {
+        onMemory: () => setMemoryOf(a.id),
+        onProperties: () => setPropsOf(a.id),
+        running: running.has(a.id),
+      })}
     >
       <NavItem
         collapsed={rail}
@@ -53,6 +66,7 @@ export function AppsDock({ rail }: { rail: boolean }) {
   );
 
   const memory = memoryOf ? surfaces[memoryOf] : undefined;
+  const props = propsOf ? surfaces[propsOf] : undefined;
   return (
     <>
       <SidebarSection
@@ -73,6 +87,7 @@ export function AppsDock({ rail }: { rail: boolean }) {
       />
       {pinned.map(item)}
       {memory && <ArtifactMemoryDialog surface={memory} onClose={() => setMemoryOf(undefined)} />}
+      {props && <ArtifactPropertiesDialog surface={props} onClose={() => setPropsOf(undefined)} />}
     </>
   );
 }

@@ -4,6 +4,7 @@ import type { ArtifactBundle, ArtifactManifest, Surface } from "@apx/protocol";
 import { declaresApp, declaresLive } from "../../../../packages/surfaces/src/kit.ts";
 import { artifactFetch } from "../artifact-fetch.ts";
 import { artifactMemory } from "../domain/artifact-memory.ts";
+import { ownerIdentity } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import { summary } from "../domain/surfaces.ts";
 import { badRequest, notFound, unauthorized } from "../errors.ts";
@@ -16,6 +17,18 @@ export function kitVersionOf(html: string): string | undefined {
 }
 
 export function artifactHandlers(deps: { store: Store; secrets: Secrets; home: string; fetcher?: typeof fetch }) {
+  /** Who made it, for its file: an installed one keeps its first maker; one made here names this APX's owner. */
+  const madeBy = (s: Surface): Pick<ArtifactManifest, "author" | "agent" | "project"> => {
+    if (s.origin) return { author: s.origin.author, agent: s.origin.agent, project: s.origin.project };
+    const owner = ownerIdentity(store).name;
+    const agent = s.created_by === "owner" ? undefined : store.agents.get(s.created_by)?.name;
+    const project = s.project_id ? store.projects.get(s.project_id)?.name : undefined;
+    return {
+      ...(owner ? { author: owner.slice(0, 80) } : {}),
+      ...(agent ? { agent: agent.slice(0, 80) } : {}),
+      ...(project ? { project: project.slice(0, 120) } : {}),
+    };
+  };
   const { store, secrets } = deps;
   const memory = artifactMemory({ home: deps.home });
   const surfaceOf = (id: string): Surface => {
@@ -69,6 +82,8 @@ export function artifactHandlers(deps: { store: Store; secrets: Secrets; home: s
         ...(secretKeys.length ? { secrets: secretKeys.slice(0, 20) } : {}),
         ...(declaresLive(s.html) !== undefined ? { live: true } : {}),
         ...(dataVersion !== undefined ? { data_version: dataVersion } : {}),
+        ...madeBy(s),
+        exported_at: new Date().toISOString(),
       };
       const bundle: ArtifactBundle = { format: "apx-artifact@1", manifest, html: s.html };
       if (withMemory) {
@@ -98,7 +113,15 @@ export function artifactHandlers(deps: { store: Store; secrets: Secrets; home: s
         ...(m.connect ? { connect: m.connect } : {}),
       });
       if (bundle.state && Object.keys(bundle.state).length) store.surfaces.setState(created.id, bundle.state, true);
-      return summary(created);
+      store.surfaces.setOrigin(created.id, {
+        ...(m.author ? { author: m.author } : {}),
+        ...(m.agent ? { agent: m.agent } : {}),
+        ...(m.project ? { project: m.project } : {}),
+        version: m.version,
+        ...(m.exported_at ? { exported_at: m.exported_at } : {}),
+        installed_at: new Date().toISOString(),
+      });
+      return summary(store.surfaces.get(created.id) ?? created);
     },
     "surfaces.fetch": async ({ surface, url, method, headers, body, secret }, ctx) => {
       // Only the owner's open page spends the artifact's credential; an agent's call would choose where it goes.

@@ -469,6 +469,7 @@ export interface SurfacesTable {
   share_token: string | null;
   connect: string | null;
   state: string | null;
+  origin: string | null;
 }
 
 export interface TaskEventsTable {
