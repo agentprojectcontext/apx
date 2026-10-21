@@ -28,15 +28,18 @@ export type SurfaceFrameProps = {
   /** content = auto-height (inline, panel); fill = take the parent's height (fullscreen app). */
   fit?: "content" | "fill";
   maxHeight?: number;
+  /** An app the owner opened: it keeps running, as they left it, until they close it. */
+  open?: boolean;
 };
 
 /**
- * A surface where it is shown. A page that declares apx-live is laid over this spot from the shell's live layer, so it
- * keeps running while hidden; any other is mounted here and destroyed with it.
+ * A surface where it is shown. An opened app, or a page that declares apx-live, is laid over this spot from the shell's
+ * live layer, so it keeps running while hidden; any other is mounted here and destroyed with it.
  */
 export function SurfaceFrame(props: SurfaceFrameProps) {
   const doc = useData((s) => s.surfaceDocs[props.surfaceId]);
   const keepMs = useMemo(() => (doc ? declaresLive(doc.html) : undefined), [doc]);
+  if (props.open) return <LivePlaceholder {...props} keepMs={Number.POSITIVE_INFINITY} />;
   if (keepMs !== undefined) return <LivePlaceholder {...props} keepMs={keepMs} />;
   return <FrameView {...props} />;
 }
@@ -245,6 +248,7 @@ function LivePlaceholder({
   fit = "content",
   maxHeight = LAYOUT.surfaceMaxH,
   keepMs,
+  open = false,
 }: SurfaceFrameProps & { keepMs: number }) {
   const box = useRef<HTMLDivElement>(null);
   const [pooled, setPooled] = useState(true);
@@ -254,12 +258,12 @@ function LivePlaceholder({
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
-    const id = attachLive(surfaceId, keepMs, { el, fit, maxHeight });
+    const id = attachLive(surfaceId, keepMs, { el, fit, maxHeight }, Date.now(), open);
     setPooled(id !== undefined);
     return () => {
       if (id !== undefined) detachLive(surfaceId, id);
     };
-  }, [surfaceId, keepMs, fit, maxHeight]);
+  }, [surfaceId, keepMs, fit, maxHeight, open]);
 
   if (!pooled) return <FrameView surfaceId={surfaceId} fit={fit} maxHeight={maxHeight} />;
   return (

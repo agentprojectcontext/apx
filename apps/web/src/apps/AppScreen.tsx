@@ -4,7 +4,9 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { ArtifactMemoryButton } from "../surfaces/ArtifactMemory.tsx";
-import { openArtifactWindow, placeEntries } from "../surfaces/artifactMenu.tsx";
+import { placeEntries } from "../surfaces/artifactMenu.tsx";
+import { bringBack, popOut, useOutside } from "../surfaces/artifactWindows.ts";
+import { dropLive, useRunningApps } from "../surfaces/livePool.ts";
 import { ShareMenu } from "../surfaces/ShareMenu.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 import { openWidgetChat } from "../surfaces/WidgetChat.tsx";
@@ -16,6 +18,8 @@ export function AppScreen() {
   const app = useData((s) => (appId ? s.surfaces[appId] : undefined));
   const author = useData((s) => (app ? s.agents[app.created_by] : undefined));
   const projects = useData((s) => s.projects);
+  const outside = useOutside(appId ?? "");
+  const running = useRunningApps().includes(appId ?? "");
   // Back to whatever chat was open before the app.
   const back = () => nav.set({ view: "inbox" });
 
@@ -69,16 +73,42 @@ export function AppScreen() {
           size="sm"
           label={t("artifact.openWindow")}
           icon={<Icons.ExternalLink size={14} />}
-          onClick={() => openArtifactWindow(app)}
+          onClick={() => popOut(app)}
         />
         <Menu
           align="end"
           items={placeEntries(app, t, { removedFromApps: back })}
           trigger={<IconButton size="sm" label={t("common.more")} icon={<Icons.Ellipsis size={16} />} />}
         />
+        {running && (
+          <IconButton
+            size="sm"
+            label={t("artifact.closeApp")}
+            icon={<Icons.X size={16} />}
+            onClick={() => {
+              dropLive(app.id);
+              back();
+            }}
+          />
+        )}
       </header>
       <div className="appscreen__body">
-        <SurfaceFrame surfaceId={app.id} fit="fill" />
+        {outside ? (
+          <EmptyState
+            size="lg"
+            icon={<Icons.ExternalLink />}
+            title={t("artifact.outsideTitle")}
+            action={
+              <Button size="sm" variant="secondary" onClick={() => bringBack(app.id)}>
+                {t("artifact.bringBack")}
+              </Button>
+            }
+          >
+            {t("artifact.outsideHint")}
+          </EmptyState>
+        ) : (
+          <SurfaceFrame surfaceId={app.id} fit="fill" open />
+        )}
       </div>
     </section>
   );

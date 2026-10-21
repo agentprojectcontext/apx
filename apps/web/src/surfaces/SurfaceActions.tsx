@@ -6,7 +6,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { ArtifactMemoryButton } from "./ArtifactMemory.tsx";
-import { openArtifactWindow } from "./artifactMenu.tsx";
+import { popOut } from "./artifactWindows.ts";
 import { ShareMenu } from "./ShareMenu.tsx";
 import { openWidgetChat } from "./WidgetChat.tsx";
 
@@ -57,7 +57,7 @@ function OpenInBrowser({ surface }: { surface: SurfaceSummary }) {
       size="sm"
       label={t("artifact.openWindow")}
       icon={<Icons.ExternalLink size={14} />}
-      onClick={() => openArtifactWindow(surface)}
+      onClick={() => popOut(surface)}
     />
   );
 }

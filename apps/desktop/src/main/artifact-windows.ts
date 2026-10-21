@@ -9,6 +9,8 @@ export function createArtifactWindows(opts: {
   partition: string;
   /** Web links from the artifact's page go to the system browser, as from the panel. */
   links: (wc: WebContents) => void;
+  /** The panel hears when one opens or closes, so it shows a note where the app was. */
+  changed: (id: string, open: boolean) => void;
 }) {
   const open = new Map<string, BrowserWindow>();
   return {
@@ -31,9 +33,17 @@ export function createArtifactWindows(opts: {
       });
       opts.links(win.webContents);
       win.once("ready-to-show", () => win.show());
-      win.on("closed", () => open.delete(id));
+      win.on("closed", () => {
+        open.delete(id);
+        opts.changed(id, false);
+      });
       open.set(id, win);
+      opts.changed(id, true);
       void win.loadURL(`${opts.url()}/?artifact=${encodeURIComponent(id)}`);
+    },
+    close(id: string): void {
+      const w = open.get(id);
+      if (w && !w.isDestroyed()) w.close();
     },
     /** Whether a sender is one of these windows (it may read the core's token, like the panel). */
     owns(sender: WebContents): boolean {

@@ -276,6 +276,10 @@ app.whenReady().then(() => {
     preload: path.join(DIST, "panel-preload.cjs"),
     partition: "persist:apx-ui",
     links: externalLinks,
+    changed: (id, open) => panel.webContents.send("artifact:window", id, open),
+  });
+  ipcMain.on("artifact:close-window", (e, id: unknown) => {
+    if (e.sender === panel.webContents && typeof id === "string") artifactWindows.close(id);
   });
   ipcMain.on("artifact:open-window", (e, id: unknown, title: unknown) => {
     if (e.sender !== panel.webContents || typeof id !== "string") return;

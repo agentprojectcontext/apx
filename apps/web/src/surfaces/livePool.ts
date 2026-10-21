@@ -1,10 +1,13 @@
 import { useSyncExternalStore } from "react";
 
-// The live tier: pages that declare apx-live keep running while hidden, in one overlay layer of the shell (moving an
-// iframe in the DOM reloads it, so each stays put and is laid over whichever placeholder shows it).
+// Pages kept running while hidden, in one overlay layer of the shell (moving an iframe in the DOM reloads it, so each
+// stays put and is laid over whichever placeholder shows it): apps the owner opened, until closed, and pages that
+// declare apx-live, for their keep time. See DECISIONS.md#d-119.
 
 /** Live pages kept running at once; beyond it the one seen least recently is closed. */
 export const LIVE_MAX = 3;
+/** Apps the owner opened, kept running at once; the seventh closes the one seen least recently. */
+export const OPEN_MAX = 6;
 
 export type LiveFit = "content" | "fill";
 
@@ -19,9 +22,11 @@ export type LiveEntry = {
   lastSeen: number;
   /** The frame's height as it reported it, for the placeholder to reserve. */
   height: number;
+  /** An app the owner opened: it runs until closed (or evicted by a newer one), whatever its page declares. */
+  open: boolean;
 };
 
-type Slot = Pick<LiveEntry, "surface" | "keepMs" | "lastSeen"> & { hosted: boolean };
+type Slot = Pick<LiveEntry, "surface" | "keepMs" | "lastSeen" | "open"> & { hosted: boolean };
 
 /**
  * Whether `surface` may take a host in the pool: not while another placeholder holds it (that one shows it), and when
@@ -30,24 +35,27 @@ type Slot = Pick<LiveEntry, "surface" | "keepMs" | "lastSeen"> & { hosted: boole
 export function admit(
   slots: readonly Slot[],
   surface: string,
-  max = LIVE_MAX,
+  open = false,
 ): { ok: true; evict?: string } | { ok: false } {
   const own = slots.find((s) => s.surface === surface);
   if (own) return own.hosted ? { ok: false } : { ok: true };
-  if (slots.length < max) return { ok: true };
-  const idle = slots.filter((s) => !s.hosted).sort((a, b) => a.lastSeen - b.lastSeen)[0];
+  // Opened apps and live pages each have their own room, so one kind never closes the other.
+  const kind = slots.filter((s) => s.open === open);
+  if (kind.length < (open ? OPEN_MAX : LIVE_MAX)) return { ok: true };
+  const idle = kind.filter((s) => !s.hosted).sort((a, b) => a.lastSeen - b.lastSeen)[0];
   return idle ? { ok: true, evict: idle.surface } : { ok: false };
 }
 
-/** Pages no placeholder holds whose keep time ran out. */
+/** Pages no placeholder holds whose keep time ran out; an opened app has none. */
 export function expired(slots: readonly Slot[], now: number): string[] {
-  return slots.filter((s) => !s.hosted && now - s.lastSeen > s.keepMs).map((s) => s.surface);
+  return slots.filter((s) => !s.open && !s.hosted && now - s.lastSeen > s.keepMs).map((s) => s.surface);
 }
 
 const slotOf = (e: LiveEntry): Slot => ({
   surface: e.surface,
   keepMs: e.keepMs,
   lastSeen: e.lastSeen,
+  open: e.open,
   hosted: e.host !== null,
 });
 
@@ -73,16 +81,19 @@ export function attachLive(
   keepMs: number,
   host: Omit<LiveHost, "id">,
   now = Date.now(),
+  open = false,
 ): number | undefined {
-  const verdict = admit(entries.map(slotOf), surface);
+  const own0 = entries.find((e) => e.surface === surface);
+  const verdict = admit(entries.map(slotOf), surface, own0?.open || open);
   if (!verdict.ok) return undefined;
   const id = nextHost++;
   const kept = entries.filter((e) => e.surface !== verdict.evict);
   const own = kept.find((e) => e.surface === surface);
   const entry: LiveEntry = own
-    ? { ...own, keepMs, host: { ...host, id }, lastSeen: now }
-    : { surface, keepMs, host: { ...host, id }, lastSeen: now, height: 120 };
-  set([...kept.filter((e) => e.surface !== surface), entry]);
+    ? { ...own, keepMs, host: { ...host, id }, lastSeen: now, open: own.open || open }
+    : { surface, keepMs, host: { ...host, id }, lastSeen: now, height: 120, open };
+  // In place, never moved to the end: the layer renders entries in this order, and a moved iframe reloads.
+  set(own ? kept.map((e) => (e.surface === surface ? entry : e)) : [...kept, entry]);
   return id;
 }
 
@@ -114,4 +125,10 @@ export function useLiveHeight(surface: string): number {
 /** Closes a live page at once (it stopped declaring apx-live, or it is gone). */
 export function dropLive(surface: string): void {
   if (entries.some((e) => e.surface === surface)) set(entries.filter((e) => e.surface !== surface));
+}
+
+/** The apps the owner opened that are still running, oldest first. */
+export function useRunningApps(): readonly string[] {
+  const all = useLiveEntries();
+  return all.filter((e) => e.open).map((e) => e.surface);
 }

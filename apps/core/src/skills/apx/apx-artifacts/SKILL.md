@@ -54,6 +54,8 @@ brings the theme (light and dark), components, memory and the bridge to the chat
   owner wants to stand out, `<meta name="apx-style" content="aurora">` with an `ax-hero` header.
 - One primary button per view; every button works or is disabled. No data shows as no data (`ax-stat--empty`),
   never an invented number; a fixed snapshot says so.
+- Anything that deletes the owner's data asks first with `APX.confirm(text, {danger: true})`. An opened app keeps
+  running while hidden: pause its own timers and sockets with `APX.onVisible` (kit.md, "Open apps keep running").
 - Starters: [assets/kit-widget.html](assets/kit-widget.html) (stats, chart, filterable table) and
   [assets/kit-app.html](assets/kit-app.html) (rail, views, a list it remembers, settings). Replace their sample content.
 

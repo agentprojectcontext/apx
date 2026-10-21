@@ -23,6 +23,14 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   /** An artifact in a window of its own. */
   openArtifactWindow: (id: string, title: string) =>
     ipcRenderer.send("artifact:open-window", String(id), String(title)),
+  closeArtifactWindow: (id: string) => ipcRenderer.send("artifact:close-window", String(id)),
+  onArtifactWindow: (listener: (id: string, open: boolean) => void) => {
+    const on = (_e: unknown, id: unknown, open: unknown) => {
+      if (typeof id === "string") listener(id, open === true);
+    };
+    ipcRenderer.on("artifact:window", on);
+    return () => ipcRenderer.removeListener("artifact:window", on);
+  },
   openMain: (threadId?: string) =>
     ipcRenderer.send("quick:open-main", typeof threadId === "string" ? threadId : undefined),
   onOpenThread: (listener: (threadId: string) => void) => {

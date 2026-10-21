@@ -1,0 +1,161 @@
+import type { SurfaceSummary } from "@apx/protocol";
+import { ContextMenu, IconButton, Icons, Menu, NavItem, Popover, ProjectTile, SearchField } from "@apx/ui";
+import { useMemo, useState } from "react";
+import { pickArtifactFile } from "../data/artifacts.ts";
+import { baseName, projectName } from "../data/identity.ts";
+import { useData } from "../data/state.ts";
+import { useT } from "../i18n/index.ts";
+import { ArtifactMemoryDialog } from "../surfaces/ArtifactMemory.tsx";
+import { artifactMenu } from "../surfaces/artifactMenu.tsx";
+import { useRunningApps } from "../surfaces/livePool.ts";
+import { go, useNav } from "./nav.ts";
+import { SidebarSection } from "./SidebarSection.tsx";
+
+/** Folds accents and case, so "estadisticas" finds "Estadísticas". */
+const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
+/**
+ * Apps in the sidebar, like a dock: the pinned ones always (an artifact listed in Apps), then the ones opened and still
+ * running until closed; a dot marks each one running. "+" opens any artifact in the system without pinning it.
+ */
+export function AppsDock({ rail }: { rail: boolean }) {
+  const t = useT();
+  const surfaces = useData((s) => s.surfaces);
+  const projects = useData((s) => s.projects);
+  const view = useNav((s) => s.view);
+  const appId = useNav((s) => s.appId);
+  const runningIds = useRunningApps();
+  const running = useMemo(() => new Set(runningIds), [runningIds]);
+  const [memoryOf, setMemoryOf] = useState<string>();
+  const pinned = useMemo(() => Object.values(surfaces).filter((s) => s.app), [surfaces]);
+  const openOnly = runningIds.map((id) => surfaces[id]).filter((s): s is SurfaceSummary => Boolean(s && !s.app));
+
+  const item = (a: SurfaceSummary) => (
+    <ContextMenu
+      key={a.id}
+      items={artifactMenu(a, t, { onMemory: () => setMemoryOf(a.id), running: running.has(a.id) })}
+    >
+      <NavItem
+        collapsed={rail}
+        icon={
+          <span className="appsdock__icon">
+            <ProjectTile tone="violet" icon={<Icons.LayoutGrid />} />
+            {/* The rail hides trailing content, so there the dot sits on the icon. */}
+            {rail && running.has(a.id) && <span className="navitem__running appsdock__dot" />}
+          </span>
+        }
+        label={a.title}
+        trailing={
+          !rail && running.has(a.id) ? <span className="navitem__running" title={t("artifact.running")} /> : undefined
+        }
+        active={view === "app" && appId === a.id}
+        onClick={() => go.app(a.id)}
+      />
+    </ContextMenu>
+  );
+
+  const memory = memoryOf ? surfaces[memoryOf] : undefined;
+  return (
+    <>
+      <SidebarSection
+        rail={rail}
+        title={t("nav.apps")}
+        action={
+          <span className="appsdock__actions">
+            <Menu
+              align="end"
+              items={[
+                { type: "label", label: t("artifact.importInto") },
+                { label: baseName(), onSelect: () => pickArtifactFile(undefined) },
+                ...projects.map((p) => ({ label: p.name, onSelect: () => pickArtifactFile(p.id) })),
+              ]}
+              trigger={
+                <IconButton
+                  size="sm"
+                  className="sidebar__add"
+                  label={t("artifact.import")}
+                  icon={<Icons.Upload size={14} />}
+                />
+              }
+            />
+            <AppLauncher running={running} />
+          </span>
+        }
+      />
+      {pinned.map(item)}
+      {openOnly.length > 0 && pinned.length > 0 && <div className="appsdock__sep" aria-hidden />}
+      {openOnly.map(item)}
+      {memory && <ArtifactMemoryDialog surface={memory} onClose={() => setMemoryOf(undefined)} />}
+    </>
+  );
+}
+
+/** Every artifact in the system, searchable: one click opens it (running, not pinned). */
+function AppLauncher({ running }: { running: ReadonlySet<string> }) {
+  const t = useT();
+  const surfaces = useData((s) => s.surfaces);
+  const projects = useData((s) => s.projects);
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const all = useMemo(
+    () =>
+      Object.values(surfaces)
+        .filter((s) => !q || fold(`${s.title} ${s.name}`).includes(fold(q)))
+        .sort((a, b) => a.title.localeCompare(b.title)),
+    [surfaces, q],
+  );
+  const launch = (s: SurfaceSummary) => {
+    setOpen(false);
+    setQ("");
+    go.app(s.id);
+  };
+  return (
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+      align="start"
+      width={320}
+      label={t("artifact.launcher")}
+      trigger={
+        <IconButton size="sm" className="sidebar__add" label={t("artifact.launcher")} icon={<Icons.Plus size={14} />} />
+      }
+    >
+      <div className="appsdock__launcher">
+        <SearchField
+          size="sm"
+          autoFocus
+          value={q}
+          placeholder={t("artifact.launcherSearch")}
+          onChange={(e) => setQ(e.currentTarget.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && all[0]) launch(all[0]);
+          }}
+        />
+        <div className="appsdock__list" role="listbox" aria-label={t("artifact.launcher")}>
+          {all.length === 0 && <div className="appsdock__empty">{t("artifact.launcherEmpty")}</div>}
+          {all.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              role="option"
+              aria-selected={false}
+              className="appsdock__row"
+              data-pinned={s.app || undefined}
+              onClick={() => launch(s)}
+            >
+              <Icons.LayoutGrid size={14} />
+              <span className="appsdock__name">
+                {s.title}
+                <small>
+                  {projectName(projects, s.project_id)} · {t(s.app ? "artifact.kindApp" : "artifact.kindWidget")}
+                  {s.app ? ` · ${t("artifact.pinned")}` : ""}
+                </small>
+              </span>
+              {running.has(s.id) && <span className="navitem__running" title={t("artifact.running")} />}
+            </button>
+          ))}
+        </div>
+      </div>
+    </Popover>
+  );
+}

@@ -1,22 +1,19 @@
-import { ContextMenu, IconButton, Icons, Menu, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { ContextMenu, Icons, NavItem, ResizeHandle } from "@apx/ui";
+import { lazy, Suspense, useEffect, useMemo } from "react";
 import { markAllRead } from "../data/actions.ts";
-import { pickArtifactFile } from "../data/artifacts.ts";
 import { loadChannels } from "../data/channels.ts";
-import { baseName, inInbox } from "../data/identity.ts";
+import { inInbox } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { unreadListed } from "../inbox/groupThreads.ts";
-import { ArtifactMemoryDialog } from "../surfaces/ArtifactMemory.tsx";
-import { artifactMenu } from "../surfaces/artifactMenu.tsx";
 import { AccountRow } from "./AccountRow.tsx";
+import { AppsDock } from "./AppsDock.tsx";
 import { ChannelsNav } from "./ChannelsNav.tsx";
 import { ExternalSessionsNav } from "./ExternalSessionsNav.tsx";
 import { LAYOUT } from "./layout.ts";
 import { go, useNav } from "./nav.ts";
 import { ProjectsNav } from "./ProjectsNav.tsx";
-import { SidebarSection } from "./SidebarSection.tsx";
 
 // Not needed for the first paint.
 const CornerCards = lazy(() => import("./CornerCards.tsx").then((m) => ({ default: m.CornerCards })));
@@ -28,9 +25,7 @@ const DesktopInstallNotice = lazy(() =>
 export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
   const t = useT();
   const view = useNav((s) => s.view);
-  const appId = useNav((s) => s.appId);
   const threads = useData((s) => s.threads);
-  const surfaces = useData((s) => s.surfaces);
   useEffect(() => {
     void loadChannels();
   }, []);
@@ -43,10 +38,6 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
     for (const t of Object.values(threads)) if (inInbox(t, routines)) n += t.unread;
     return n;
   }, [threads, routines]);
-  const projects = useData((s) => s.projects);
-  const apps = useMemo(() => Object.values(surfaces).filter((s) => s.app), [surfaces]);
-  const [memoryOf, setMemoryOf] = useState<string>();
-  const memorySurface = memoryOf ? surfaces[memoryOf] : undefined;
 
   return (
     <aside className={rail ? "sidebar is-rail" : "sidebar"} aria-label={t("nav.label")}>
@@ -103,44 +94,7 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
 
         <ExternalSessionsNav rail={rail} />
 
-        {apps.length > 0 && (
-          <>
-            <SidebarSection
-              rail={rail}
-              title={t("nav.apps")}
-              action={
-                <Menu
-                  align="end"
-                  items={[
-                    { type: "label", label: t("artifact.importInto") },
-                    { label: baseName(), onSelect: () => pickArtifactFile(undefined) },
-                    ...projects.map((p) => ({ label: p.name, onSelect: () => pickArtifactFile(p.id) })),
-                  ]}
-                  trigger={
-                    <IconButton
-                      size="sm"
-                      className="sidebar__add"
-                      label={t("artifact.import")}
-                      icon={<Icons.Upload size={14} />}
-                    />
-                  }
-                />
-              }
-            />
-            {apps.map((a) => (
-              <ContextMenu key={a.id} items={artifactMenu(a, t, { onMemory: () => setMemoryOf(a.id) })}>
-                <NavItem
-                  collapsed={rail}
-                  icon={<ProjectTile tone="violet" icon={<Icons.LayoutGrid />} />}
-                  label={a.title}
-                  active={view === "app" && appId === a.id}
-                  onClick={() => go.app(a.id)}
-                />
-              </ContextMenu>
-            ))}
-          </>
-        )}
-        {memorySurface && <ArtifactMemoryDialog surface={memorySurface} onClose={() => setMemoryOf(undefined)} />}
+        <AppsDock rail={rail} />
       </div>
       {!rail && (
         <Suspense fallback={null}>

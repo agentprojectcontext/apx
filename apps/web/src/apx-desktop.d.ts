@@ -63,6 +63,10 @@ declare global {
       openExternal?(url: string, browser?: string): Promise<boolean>;
       /** Opens an artifact in a desktop window of its own (one per artifact). */
       openArtifactWindow?(id: string, title: string): void;
+      /** Closes an artifact's own window; the panel shows the app again. */
+      closeArtifactWindow?(id: string): void;
+      /** An artifact's window opened or closed (by any means). */
+      onArtifactWindow?(listener: (id: string, open: boolean) => void): () => void;
       /** From the quick window: bring the main window up, on this chat. */
       openMain?(threadId?: string): void;
       /** The main window is told to open a chat (asked from the quick window). */

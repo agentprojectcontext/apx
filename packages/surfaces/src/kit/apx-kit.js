@@ -786,7 +786,7 @@ ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--
 
   window.APX = Object.assign(window.APX || {}, {
     surface: surface, style: axStyle === 'aurora' ? 'aurora' : 'base', icons: Object.keys(IC),
-    kit: '1.4.0', ask: ask, state: state, store: store, live: live, db: db, fetch: apxFetch, setMode: setMode, toast: toast, refilter: function (el) { (el || document).querySelectorAll('[data-ax-filter]').forEach(function (s) { s._axApply ? s._axApply() : wireFilter(s); }); },
+    kit: '1.4.0', ask: ask, state: state, store: store, live: live, visible: shown, onVisible: onShown, db: db, fetch: apxFetch, setMode: setMode, toast: toast, refilter: function (el) { (el || document).querySelectorAll('[data-ax-filter]').forEach(function (s) { s._axApply ? s._axApply() : wireFilter(s); }); },
     fmt: fmt, esc: esc,
     onData: function (fn) { document.addEventListener('apx:data', function (e) { fn(e.detail); }); }
   });

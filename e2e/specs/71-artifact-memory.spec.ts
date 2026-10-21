@@ -22,20 +22,12 @@ document.getElementById("save").onclick = async () => {
 
 const frames = (p: Page): Frame[] => p.frames().filter((f) => f.url().startsWith("about:srcdoc"));
 
-test("an artifact's store and database survive a reload, and only a live one keeps running out of sight", async ({
-  page: p,
-}) => {
+test("an artifact's store and database survive a reload", async ({ page: p }) => {
   await rpc("setup.finish", {});
   const live = await rpc<{ id: string }>("surfaces.show", {
     name: "memory-live",
     title: "Live",
     html: page(true),
-    app: true,
-  });
-  const plain = await rpc<{ id: string }>("surfaces.show", {
-    name: "memory-plain",
-    title: "Plain",
-    html: page(false),
     app: true,
   });
 
@@ -51,32 +43,54 @@ test("an artifact's store and database survive a reload, and only a live one kee
   );
   expect(memory.store.keys).toEqual(["reading"]);
   expect(memory.db.tables).toContainEqual({ name: "marks", rows: 1 });
+});
 
-  // Out of sight, the live page keeps its document; the plain one is closed and starts again on return.
-  const marked = (id: string) =>
-    Promise.all(frames(p).map((f) => f.evaluate((m) => (window as unknown as { mark?: string }).mark === m, id))).then(
+test("an opened app keeps running as it was left while the owner goes elsewhere, until it is closed", async ({
+  page: p,
+}) => {
+  await rpc("setup.finish", {});
+  const one = await rpc<{ id: string }>("surfaces.show", {
+    name: "dock-one",
+    title: "Dock one",
+    html: page(false),
+    app: true,
+  });
+  const two = await rpc<{ id: string }>("surfaces.show", {
+    name: "dock-two",
+    title: "Dock two",
+    html: page(false),
+    app: true,
+  });
+  const marked = () =>
+    Promise.all(frames(p).map((f) => f.evaluate(() => (window as unknown as { mark?: string }).mark === "left"))).then(
       (all) => all.filter(Boolean).length,
     );
-  for (const [id, kept] of [
-    [live.id, 1],
-    [plain.id, 0],
-  ] as const) {
-    await open(p, `#app=${id}`);
-    await expect.poll(() => frames(p).length).toBeGreaterThan(0);
-    // The page shown now is the one whose frame has no mark yet.
-    for (const f of frames(p))
-      await f.evaluate((m) => {
-        const w = window as unknown as { mark?: string };
-        w.mark ??= m;
-      }, id);
-    await p.evaluate(() => {
-      location.hash = "";
-    });
-    await expect.poll(() => marked(id)).toBe(kept);
-    await p.evaluate((i) => {
-      location.hash = `app=${i}`;
-    }, id);
-    await expect.poll(() => frames(p).length).toBeGreaterThan(0);
-    await expect.poll(() => marked(id)).toBe(kept);
-  }
+
+  await open(p, `#app=${one.id}`);
+  await expect.poll(() => frames(p).length).toBe(1);
+  await frames(p)[0]?.evaluate(() => {
+    (window as unknown as { mark: string }).mark = "left";
+  });
+  // Another app, then the inbox: the first one is still the same page when the owner comes back.
+  await p.evaluate((i) => {
+    location.hash = `app=${i}`;
+  }, two.id);
+  await expect.poll(() => frames(p).length).toBe(2);
+  await p.evaluate(() => {
+    location.hash = "";
+  });
+  await p.evaluate((i) => {
+    location.hash = `app=${i}`;
+  }, one.id);
+  await expect.poll(marked).toBe(1);
+  await expect(p.locator(".navitem__running")).toHaveCount(2);
+
+  // Closed, it is gone: opened again, it starts over from its memory.
+  await p.locator(".appscreen__head").getByRole("button", { name: "Cerrar app" }).click();
+  await expect(p.locator(".navitem__running")).toHaveCount(1);
+  await p.evaluate((i) => {
+    location.hash = `app=${i}`;
+  }, one.id);
+  await expect.poll(() => frames(p).length).toBe(2);
+  await expect.poll(marked).toBe(0);
 });

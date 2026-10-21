@@ -193,3 +193,12 @@ The app skeleton (rail, sidebar, shell, inspector, list-detail, board, settings)
 Outside APX (a plain preview in another app) the kit talks with `postMessage`: it sends `apx:ready` `{kit, title}`,
 `apx:resize` `{height}`, `apx:ask` `{text}`, `apx:surface` `{surface}`; it takes `apx:theme` `{mode}` and `apx:data`
 `{payload}` (`APX.onData(fn)`). Inside APX none of this is needed.
+
+## Open apps keep running
+
+An app the owner opens keeps running while they go elsewhere in APX (up to six, until they close it or quit APX):
+switching back shows it exactly as they left it, without reloading. So a hidden app must cost nothing: `APX.live`
+pauses by itself; pause your own timers, sockets and animations with `APX.onVisible((shown) => …)` (returns an
+unsubscribe; `APX.visible()` says it now). What must survive closing goes to `APX.state`, `APX.store` or `APX.db`.
+Anything that deletes the owner's data asks first: `if (await APX.confirm("Delete this expense?", {danger: true}))`.
+
