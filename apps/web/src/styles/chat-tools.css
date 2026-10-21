@@ -555,3 +555,9 @@
   font-size: 13px;
   font-weight: 600;
 }
+/* Creating one comes first in the launcher, apart from the list to open. */
+.appsdock__create {
+  border-bottom: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-sm) var(--apx-radius-sm) 0 0;
+  padding-bottom: 10px;
+}

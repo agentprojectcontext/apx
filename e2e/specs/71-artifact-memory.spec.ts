@@ -161,3 +161,16 @@ test("an .apxart file is shown for what it is before it installs, pinned and wit
   await expect(props.getByText("Instalado desde un archivo")).toBeVisible();
   await expect(props.getByText("Su versión entonces")).toBeVisible();
 });
+
+test("Create an artifact opens a new chat with the super-agent, its first words ready to finish", async ({
+  page: p,
+}) => {
+  await rpc("setup.finish", {});
+  await open(p);
+  await p.getByRole("button", { name: "Abrir un artefacto" }).click();
+  await p.getByRole("button", { name: /Crear un artefacto/ }).click();
+  const composer = p.getByRole("textbox", { name: /Escribile a/ }).last();
+  await expect(composer).toHaveValue("Quiero crear un artefacto: ");
+  const { threads } = await rpc<{ threads: { title?: string; agent_id?: string }[] }>("threads.list", {});
+  expect(threads.some((t) => t.title === "Artefacto nuevo")).toBe(true);
+});

@@ -633,6 +633,10 @@ export const es: Partial<Record<MessageKey, string>> = {
   "artifact.installMadeBy": "Hecho por {who}",
   "artifact.prop.yes": "Sí",
   "artifact.prop.no": "No",
+  "artifact.create": "Crear un artefacto",
+  "artifact.createHint": "Un chat nuevo con tu super-agente para pedírselo",
+  "artifact.createTitle": "Artefacto nuevo",
+  "artifact.createDraft": "Quiero crear un artefacto: ",
   "artifact.memory": "Memoria y exportación",
   "artifact.memoryTitle": "Memoria · {title}",
   "artifact.memoryHint":

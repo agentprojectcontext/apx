@@ -623,6 +623,10 @@ export const en = {
   "artifact.installMadeBy": "Made by {who}",
   "artifact.prop.yes": "Yes",
   "artifact.prop.no": "No",
+  "artifact.create": "Create an artifact",
+  "artifact.createHint": "A new chat with your super-agent to ask for it",
+  "artifact.createTitle": "New artifact",
+  "artifact.createDraft": "I want to create an artifact: ",
   "artifact.memory": "Memory and export",
   "artifact.memoryTitle": "Memory · {title}",
   "artifact.memoryHint":

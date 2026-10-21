@@ -9,6 +9,7 @@ import { ArtifactPropertiesDialog } from "../surfaces/ArtifactProperties.tsx";
 import { artifactMenu } from "../surfaces/artifactMenu.tsx";
 import { openInstall } from "../surfaces/InstallArtifact.tsx";
 import { useRunningApps } from "../surfaces/livePool.ts";
+import { createArtifact } from "../surfaces/WidgetChat.tsx";
 import { go, useNav } from "./nav.ts";
 import { SidebarSection } from "./SidebarSection.tsx";
 
@@ -123,6 +124,20 @@ function AppLauncher({ running }: { running: ReadonlySet<string> }) {
       }
     >
       <div className="appsdock__launcher">
+        <button
+          type="button"
+          className="appsdock__row appsdock__create"
+          onClick={() => {
+            setOpen(false);
+            createArtifact();
+          }}
+        >
+          <Icons.Sparkles size={14} />
+          <span className="appsdock__name">
+            {t("artifact.create")}
+            <small>{t("artifact.createHint")}</small>
+          </span>
+        </button>
         <SearchField
           size="sm"
           autoFocus
