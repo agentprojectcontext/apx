@@ -171,7 +171,7 @@ function InstallForm({ initialProject }: { initialProject: string }) {
                 ) : null}
                 <li>
                   {m.name} · v{m.version}
-                  {m.kit ? ` · APX Kit ${m.kit}` : ""}
+                  {m.kit ? ` · APX Kit v${m.kit}` : ""}
                   {m.live ? ` · ${t("artifact.installLive")}` : ""}
                 </li>
                 {m.connect?.length ? <li>{t("artifact.installConnects", { origins: m.connect.join(", ") })}</li> : null}

@@ -8,7 +8,11 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { linkOf } from "./ShareMenu.tsx";
 
-const kitOf = (html: string) => /\/_apx\/kit@(\d+(?:\.\d+){0,2})\.js/.exec(html)?.[1];
+/** The kit version a page asks for, as people read versions: kit@1.js → "v1". */
+const kitOf = (html: string) => {
+  const v = /\/_apx\/kit@(\d+(?:\.\d+){0,2})\.js/.exec(html)?.[1];
+  return v ? `v${v}` : undefined;
+};
 const when = (iso: string | undefined) => (iso ? new Date(iso).toLocaleString() : undefined);
 
 /** What an artifact is and where it came from: kind, version, maker, project, and, installed from a file, its origin. */
