@@ -27,7 +27,7 @@ test("a pinned widget lives on its project's board and is updated by its name", 
   await expect(board.getByRole("article")).toHaveCount(1);
 
   // Installed as an app, its button lights up like the pin's, and the app shows in the sidebar.
-  await tile.getByRole("button", { name: "Instalar como app" }).click();
+  await tile.getByRole("button", { name: "Fijar en Apps" }).click();
   await expect(tile.getByRole("button", { name: "Abrir como app" })).toHaveAttribute("aria-pressed", "true");
   await expect(tile.getByRole("button", { name: /^Quitar del tablero/ })).toHaveAttribute("aria-pressed", "true");
   await expect(

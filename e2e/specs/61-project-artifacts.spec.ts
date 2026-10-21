@@ -33,10 +33,10 @@ test("a project's widget opens beside the Artifacts list, painted, with its acti
   // The list stays in view beside it.
   await expect(row).toBeVisible();
   // Not an app yet: installing it from the drawer makes it one, and the same button then opens it full screen.
-  await drawer.getByRole("button", { name: "Instalar como app" }).click();
+  await drawer.getByRole("button", { name: "Fijar en Apps" }).click();
   await drawer.getByRole("button", { name: "Abrir como app" }).click();
   await expect(page.locator(".appscreen__title")).toHaveText("Comparativa con Pilot");
-  await expect(page.frameLocator(".appscreen iframe").getByText("Pintada")).toBeVisible();
+  await expect(page.frameLocator(".livelayer__box[data-shown] iframe").getByText("Pintada")).toBeVisible();
   await rpc("threads.delete", { thread: chat.id });
 });
 

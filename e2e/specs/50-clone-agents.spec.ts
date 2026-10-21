@@ -12,7 +12,7 @@ test("agents of another project are copied into this one with new names", async 
   expect(globals.length).toBeGreaterThan(0);
 
   await open(page, `#project=${project.id}&tab=team`);
-  await page.getByRole("button", { name: "Importar" }).click();
+  await page.getByRole("button", { name: "Importar", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Importar agentes" });
   await dialog.getByRole("radio", { name: "Otro proyecto" }).click();
   await expect(dialog.getByRole("switch", { name: "Ponerles nombres nuevos" })).toBeChecked();
