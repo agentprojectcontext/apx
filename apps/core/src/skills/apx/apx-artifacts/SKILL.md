@@ -83,7 +83,8 @@ it, the page never sees it. Details in [references/kit.md](references/kit.md#mem
   renaming one loses what the owner saved. When a shape must change, read the old key in code and write the new one.
 - Flags and title without touching HTML: `edit_widget({name, app: false})`, `pin`, `title`. `show_widget` only adds
   app/pin; only `edit_widget` removes them. Opening fullscreen does not make a widget an app.
-- An older widget (injected `apx-*` classes, keys in its HTML, no kit): [references/update.md](references/update.md).
+- Moving one to the kit or a new look is a redesign of the whole page, never a `<script>` tag added with
+  `edit_widget`: read [references/update.md](references/update.md) first.
 - A published artifact cannot be changed by you: make one with another name (the owner can unpublish).
 
 ## Talking back

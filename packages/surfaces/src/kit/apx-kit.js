@@ -90,7 +90,7 @@ a{color:var(--apx-fg);text-underline-offset:2px}a:hover{color:var(--apx-brand)}
 .ax-search::after{content:"";position:absolute;left:21px;top:19px;width:5px;height:1.6px;background:var(--apx-fg-subtle);transform:rotate(45deg)}
 .ax-seg{display:inline-flex;padding:3px;gap:2px;border-radius:var(--apx-radius-pill);background:var(--apx-fill)}
 .ax-seg button{height:26px;padding:0 12px;border:0;border-radius:var(--apx-radius-pill);background:transparent;color:var(--apx-fg-muted);font:inherit;font-size:12.5px;font-weight:550;cursor:pointer;white-space:nowrap}
-.ax-seg button[aria-pressed=true]{background:var(--apx-surface-raised);color:var(--apx-fg);box-shadow:0 1px 2px rgb(0 0 0 / .12)}
+.ax-seg button[aria-pressed=true]{background:var(--apx-surface-raised);color:var(--apx-fg);box-shadow:0 0 0 1px var(--apx-border),0 1px 2px rgb(0 0 0 / .16)}
 .ax-progress{height:6px;border-radius:99px;background:var(--apx-fill-strong);overflow:hidden}
 .ax-progress>i{display:block;height:100%;width:calc(var(--v,0) * 1%);background:var(--tone,var(--apx-brand));border-radius:inherit;transition:width .4s cubic-bezier(.2,0,0,1)}
 .ax-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -258,7 +258,7 @@ ax-heat{display:block;overflow-x:auto}
 :root[data-ax-style=aurora] .ax-progress>i{background:var(--tone,var(--apx-grad));background-size:calc(10000% / max(var(--v,100),1)) 100%}
 :root[data-ax-style=aurora] .ax-btn--primary{background:var(--apx-brand-soft);color:var(--apx-brand-soft-fg);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--apx-brand) 45%,transparent)}
 :root[data-ax-style=aurora] .ax-btn--primary:hover{background:color-mix(in srgb,var(--apx-brand) 26%,transparent)}
-:root[data-ax-style=aurora] .ax-seg button[aria-pressed=true]{box-shadow:inset 0 -2px 0 var(--apx-brand),0 1px 2px rgb(0 0 0 / .12)}
+:root[data-ax-style=aurora] .ax-seg button[aria-pressed=true]{background:var(--apx-brand-soft);color:var(--apx-brand-soft-fg);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--apx-brand) 45%,transparent)}
 :root[data-ax-style=aurora] .ax-live::before{box-shadow:0 0 8px var(--apx-brand)}
 :root{--apx-sidebar:#f4f3f0}:root[data-ax-mode=dark]{--apx-sidebar:#1a1a19}
 :root[data-ax-surface=app],:root[data-ax-surface=app] body{height:100%;overflow:hidden;background:var(--apx-bg)}

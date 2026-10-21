@@ -14,14 +14,27 @@ change or a new look; do not rewrite one that works just because it is old.
 - Pinned, app and published stay as they are: they are flags, not HTML. A published artifact cannot be changed by
   you: say so and offer a copy with another name.
 
-## Move it to the kit
+## Move it to the kit (a redesign, not a script tag)
 
-1. Add `<script src="/_apx/kit@1.js"></script>` and swap the old classes for the kit's (`apx-card` → `ax-card`,
-   `apx-stat` → `ax-stat__value` inside `ax-stat`, `apx-badge` → `ax-badge`, `apx-toolbar` → `ax-toolbar`). Drop the
-   page's own colors and CSS the kit now covers.
-2. Hand-written filters become `data-ax-filter` (see [kit.md](kit.md#filters-without-javascript)) with
-   `data-ax-persist` on the fields, so they are remembered.
-3. Show it again with `show_widget` and the same name (a whole new page), or `edit_widget` for a small change.
+"Update it to the new kit" means the owner should see the new look. Adding the kit's `<script>` and one class to a
+page that keeps its own `<style>` changes nothing on screen: that is not an update.
+
+1. Read the whole page (`read_widget`) and list what it shows: header, numbers, charts, tables, controls, live status.
+2. Write the page again on the kit, section by section, with the same data and logic:
+   - header → `header.ax-hero` (eyebrow, `h1`, one line, actions on the right) or `ax-header`;
+   - numbers → `ax-grid` of `ax-card ax-stat` (`--accent` on the 3–5 key ones), trends → `<ax-spark>`;
+   - charts → `<ax-chart>`, `<ax-bars>`, `<ax-donut>`, `<ax-split>`; keep a hand-drawn SVG only when no kit element
+     draws it (candlesticks, maps), and color it with `--apx-*` tones;
+   - controls → `ax-seg`, `ax-select`, `ax-btn` (one `--primary`), status → `ax-live` / `ax-badge`;
+   - tables → `table.ax-table`, lists → `ax-list`, methodology → `details.ax-details`.
+3. Delete the page's own `<style>` except a few lines of one-off layout, and every hard-coded color, gradient and
+   shadow. Keep the script's logic (fetching, sockets, math); change only how it renders.
+4. A new look the owner asked for (gradients, "the new design") is `<meta name="apx-style" content="aurora">`.
+5. A page with a socket or a timer that should keep running while out of sight gets `<meta name="apx-live"
+   content="15m">`; every live page also uses `APX.live` so it opens on its last reading (below).
+6. Show it with `show_widget`, same name, the whole page. `edit_widget` is for small fixes, never for a redesign.
+7. Check before you say it is done: the new HTML has no `<style>` block of more than ~20 lines and no hex colors.
+   Tell the owner what changed on screen, not only that the kit was added.
 
 ## Credentials out of the page
 
