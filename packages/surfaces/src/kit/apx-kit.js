@@ -141,6 +141,10 @@ ax-spark{display:block;height:var(--h,36px)}ax-spark svg{display:block;width:100
 .ax-tag{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;border-radius:7px;border:1px solid var(--apx-border);font-size:12px;color:var(--apx-fg-muted);background:var(--apx-surface);white-space:nowrap}
 .ax-tag>b{font-weight:600;color:var(--apx-fg)}
 .ax-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--tone,var(--apx-brand));flex:none}
+ax-steps{display:inline-flex;align-items:center;gap:4px;vertical-align:middle}
+ax-steps i{width:8px;height:8px;border-radius:50%;background:var(--apx-fill-strong);flex:none}
+ax-steps i[data-on]{background:var(--tone,var(--apx-brand))}
+ax-steps i[data-fail]{background:var(--apx-danger)}
 .ax-avatar{--s:32px;width:var(--s);height:var(--s);border-radius:50%;display:inline-grid;place-items:center;flex:none;font-size:calc(var(--s) * .38);font-weight:600;background:var(--tint,var(--apx-fill-strong));color:var(--apx-fg);overflow:hidden;object-fit:cover}
 .ax-avatar--sm{--s:22px}.ax-avatar--lg{--s:44px}.ax-avatar--sq{border-radius:28%}
 .ax-avatars{display:inline-flex}.ax-avatars>*{box-shadow:0 0 0 2px var(--apx-surface)}.ax-avatars>*+*{margin-left:-8px}
@@ -242,6 +246,20 @@ ax-heat{display:block;overflow-x:auto}
 .ax-heat i[data-l="2"]{background:color-mix(in srgb,var(--apx-brand) 55%,var(--apx-fill-strong))}
 .ax-heat i[data-l="3"]{background:color-mix(in srgb,var(--apx-brand) 80%,var(--apx-fill-strong))}
 .ax-heat i[data-l="4"]{background:var(--apx-brand)}
+:root{--apx-grad:linear-gradient(90deg,var(--apx-brand),var(--apx-violet))}
+.ax-hero{position:relative;background:var(--apx-surface);border:1px solid var(--apx-border);border-radius:var(--apx-radius-lg);padding:22px 24px;display:flex;flex-wrap:wrap;gap:16px 24px;justify-content:space-between;align-items:flex-start;overflow:hidden}
+.ax-hero>*{position:relative;min-width:0}
+.ax-hero__eyebrow{font-size:12.5px;font-weight:600;color:var(--apx-fg-muted)}
+.ax-hero h1{margin:2px 0 6px;font-size:26px;line-height:1.15;letter-spacing:-.02em;font-weight:700}
+.ax-hero p{margin:0;max-width:62ch;color:var(--apx-fg-muted);text-wrap:pretty}
+.ax-card--accent{position:relative;overflow:hidden}
+:root[data-ax-style=aurora] .ax-hero{border-color:var(--apx-border);background:radial-gradient(120% 140% at 0% 0%,color-mix(in srgb,var(--apx-brand) 22%,transparent),transparent 55%),radial-gradient(90% 120% at 100% 0%,color-mix(in srgb,var(--apx-violet) 24%,transparent),transparent 60%),var(--apx-surface)}
+:root[data-ax-style=aurora] .ax-card--accent::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:var(--apx-grad)}
+:root[data-ax-style=aurora] .ax-progress>i{background:var(--tone,var(--apx-grad));background-size:calc(10000% / max(var(--v,100),1)) 100%}
+:root[data-ax-style=aurora] .ax-btn--primary{background:var(--apx-brand-soft);color:var(--apx-brand-soft-fg);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--apx-brand) 45%,transparent)}
+:root[data-ax-style=aurora] .ax-btn--primary:hover{background:color-mix(in srgb,var(--apx-brand) 26%,transparent)}
+:root[data-ax-style=aurora] .ax-seg button[aria-pressed=true]{box-shadow:inset 0 -2px 0 var(--apx-brand),0 1px 2px rgb(0 0 0 / .12)}
+:root[data-ax-style=aurora] .ax-live::before{box-shadow:0 0 8px var(--apx-brand)}
 :root{--apx-sidebar:#f4f3f0}:root[data-ax-mode=dark]{--apx-sidebar:#1a1a19}
 :root[data-ax-surface=app],:root[data-ax-surface=app] body{height:100%;overflow:hidden;background:var(--apx-bg)}
 ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--s,16px);flex:none;color:inherit}ax-icon svg{width:100%;height:100%;display:block}
@@ -326,7 +344,7 @@ ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--
   var tone = function (t) { return TONES[t] || t || TONES.brand; };
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
   var LANG = document.documentElement.lang || navigator.language || 'en';
-  var T = /^es\b/i.test(LANG) ? { empty: 'Sin datos', copied: 'Copiado', now: 'recién' } : { empty: 'No data', copied: 'Copied', now: 'just now' };
+  var T = /^es\b/i.test(LANG) ? { empty: 'Sin datos', copied: 'Copiado', now: 'recién', of: ' de ', yes: 'sí', no: 'no', failed: 'falló' } : { empty: 'No data', copied: 'Copied', now: 'just now', of: ' of ', yes: 'yes', no: 'no', failed: 'failed' };
   var fmt = function (n, d) { return Number(n).toLocaleString(LANG, { maximumFractionDigits: d == null ? 1 : d }); };
   var json = function (el, attr) { try { return JSON.parse(el.getAttribute(attr) || '[]'); } catch (e) { console.warn('[apx-kit] invalid JSON in', attr, el); return []; } };
 
@@ -337,6 +355,9 @@ ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--
   function setMode(m) { root.setAttribute('data-ax-mode', m === 'dark' ? 'dark' : 'light'); }
   var mq = window.matchMedia && matchMedia('(prefers-color-scheme: dark)');
   setMode(qs.get('mode') || root.getAttribute('data-ax-mode') || (mq && mq.matches ? 'dark' : 'light'));
+  var styleMeta = document.querySelector('meta[name="apx-style"]');
+  var axStyle = qs.get('style') || root.getAttribute('data-ax-style') || (styleMeta && styleMeta.content) || 'base';
+  if (axStyle === 'aurora') root.setAttribute('data-ax-style', 'aurora'); else root.removeAttribute('data-ax-style');
   var inFrame = window.parent !== window;
   if (inFrame || qs.has('embed')) root.setAttribute('data-ax-embed', '');
   // Inside APX the host bridge (window.apx) owns prompts, sizing and state; other hosts get plain apx:* messages.
@@ -401,7 +422,7 @@ ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--
       var t = this.getAttribute('tone');
       this.innerHTML = rows.map(function (r) {
         var p = total ? (r.value / total) * 100 : 0;
-        return '<div class="ax-bar"><div class="ax-bar__label" title="' + esc(r.label) + '">' + esc(r.label) + '</div><div class="ax-bar__val"><b>' + fmt(r.value, 0) + '</b><span>' + fmt(p) + '%</span></div><div class="ax-progress" role="meter" aria-valuenow="' + r.value + '" aria-valuemax="' + total + '" aria-label="' + esc(r.label) + '"><i style="--v:' + p + ';--tone:' + tone(r.tone || t) + '"></i></div></div>';
+        return '<div class="ax-bar"><div class="ax-bar__label" title="' + esc(r.label) + '">' + esc(r.label) + '</div><div class="ax-bar__val"><b>' + fmt(r.value, 0) + '</b><span>' + fmt(p) + '%</span></div><div class="ax-progress" role="meter" aria-valuenow="' + r.value + '" aria-valuemax="' + total + '" aria-label="' + esc(r.label) + '"><i style="--v:' + p + ((r.tone || t) ? ';--tone:' + tone(r.tone || t) : '') + '"></i></div></div>';
       }).join('') || '<div class="ax-empty">' + T.empty + '</div>';
     }
   }
@@ -537,7 +558,21 @@ ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--
     document.querySelectorAll('details.ax-menu[open]').forEach(function (m) { if (!m.contains(t) || t.closest('.ax-menu__list button,.ax-menu__list a')) m.open = false; });
   });
   document.addEventListener('input', function (e) { if (e.target.classList && e.target.classList.contains('ax-range')) { var r = e.target; r.style.setProperty('--p', ((r.value - (r.min || 0)) / ((r.max || 100) - (r.min || 0))) * 100 + '%'); var o = r.dataset.out && document.querySelector(r.dataset.out); if (o) o.textContent = r.value; } });
-  [['ax-bars', Bars], ['ax-split', Split], ['ax-spark', Spark], ['ax-ago', Ago]].forEach(function (p) { if (!customElements.get(p[0])) customElements.define(p[0], p[1]); });
+  /* <ax-steps value="11101" labels="start,open,…"> · or value="3" total="5" · x = failed */
+  class Steps extends HTMLElement {
+    static get observedAttributes() { return ['value', 'total', 'labels', 'tone']; }
+    attributeChangedCallback() { this.render(); } connectedCallback() { this.render(); }
+    render() {
+      var v = (this.getAttribute('value') || '').trim(), labels = (this.getAttribute('labels') || '').split(',').map(function (s) { return s.trim(); });
+      var s = /^[01x]+$/.test(v) && v.length > 1 ? v.split('') : null;
+      if (!s) { var n = +this.getAttribute('total') || labels.filter(Boolean).length || 5, k = Math.max(0, Math.min(n, +v || 0)); s = []; for (var i = 0; i < n; i++) s.push(i < k ? '1' : '0'); }
+      var t = this.getAttribute('tone'); if (t) this.style.setProperty('--tone', tone(t));
+      var done = s.filter(function (c) { return c === '1'; }).length;
+      this.setAttribute('role', 'img'); this.setAttribute('aria-label', done + T.of + s.length);
+      this.innerHTML = s.map(function (c, i) { var l = labels[i] ? esc(labels[i]) + ' · ' + (c === '1' ? T.yes : c === 'x' ? T.failed : T.no) : ''; return '<i' + (c === '1' ? ' data-on' : c === 'x' ? ' data-fail' : '') + (l ? ' title="' + l + '"' : '') + '></i>'; }).join('');
+    }
+  }
+  [['ax-steps', Steps], ['ax-bars', Bars], ['ax-split', Split], ['ax-spark', Spark], ['ax-ago', Ago]].forEach(function (p) { if (!customElements.get(p[0])) customElements.define(p[0], p[1]); });
 
   /* Filtros declarativos:
      <div data-ax-filter>  controles: <select data-ax-key="area">, <div class="ax-seg" data-ax-key="estado">, <input data-ax-search>
@@ -643,8 +678,8 @@ ax-icon{display:inline-grid;place-items:center;width:var(--s,16px);height:var(--
   document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', bootApp) : bootApp();
 
   window.APX = Object.assign(window.APX || {}, {
-    surface: surface, icons: Object.keys(IC),
-    kit: '1.2.0', ask: ask, state: state, setMode: setMode, toast: toast, refilter: function (el) { (el || document).querySelectorAll('[data-ax-filter]').forEach(function (s) { s._axApply ? s._axApply() : wireFilter(s); }); },
+    surface: surface, style: axStyle === 'aurora' ? 'aurora' : 'base', icons: Object.keys(IC),
+    kit: '1.3.0', ask: ask, state: state, setMode: setMode, toast: toast, refilter: function (el) { (el || document).querySelectorAll('[data-ax-filter]').forEach(function (s) { s._axApply ? s._axApply() : wireFilter(s); }); },
     fmt: fmt, esc: esc,
     onData: function (fn) { document.addEventListener('apx:data', function (e) { fn(e.detail); }); }
   });
