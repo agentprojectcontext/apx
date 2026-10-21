@@ -33,3 +33,14 @@ test("titles follow the owner's language, Spanish by default", () => {
   store.settings.set("owner_language", "en");
   assert.equal(toolTitle(store, post, { room: "#apx-help" }), "Posted in #apx-help");
 });
+
+test("a skill's second file reads as that file, not as loading the skill again", () => {
+  const { store, tools } = setup();
+  const load = tools.find((t) => t.name === "load_skill");
+  assert.ok(load);
+  assert.equal(toolTitle(store, load, { name: "apx-artifacts" }), "Cargó la habilidad apx-artifacts");
+  const ref = { name: "apx-artifacts", file: "references/update.md" };
+  assert.equal(toolTitle(store, load, ref), "Leyó update.md de la habilidad apx-artifacts");
+  store.settings.set("owner_language", "en");
+  assert.equal(toolTitle(store, load, ref), "Read update.md from the skill apx-artifacts");
+});

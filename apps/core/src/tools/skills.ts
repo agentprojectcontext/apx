@@ -14,7 +14,10 @@ export function skillTools(store: Store, roots: SkillRoots): Tool[] {
       args: z.object({ name: z.string().min(1).max(64), file: z.string().max(300).optional() }),
       effect: "none",
       deadlineMs: 5_000,
-      title: (a) => `Loaded the skill ${String(a.name)}`,
+      title: (a) =>
+        a.file
+          ? `Read ${String(a.file).split(/[\\/]/).at(-1)} from the skill ${a.name}`
+          : `Loaded the skill ${String(a.name)}`,
       async run(a, ctx) {
         const skill = skillsFor(store, roots, ctx.thread.project_id).find(
           (s) => s.name.toLowerCase() === a.name.toLowerCase(),
