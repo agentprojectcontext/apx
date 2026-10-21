@@ -531,8 +531,6 @@ export const en = {
   "widget.askWaiting": "The widget shows here as soon as the agent makes it.",
   "widget.chatNoAgent": "There is no agent to keep this widget.",
   "widget.chatDraft": 'Keep editing the widget "{title}" (name: {name}): ',
-  "widget.pin": "Pin to the board",
-  "widget.unpin": "Unpin from the board",
   "widget.openApp": "Open as app",
   "widget.installApp": "Install as app",
   "widget.unavailable": "Widget not available",
@@ -562,6 +560,8 @@ export const en = {
   "share.iconLabel": "Share · {state}",
 
   // Artifact memory, export and import
+  "artifact.pinTo": "Pin to {project}'s board",
+  "artifact.unpinFrom": "Unpin from {project}'s board",
   "artifact.memory": "Memory and export",
   "artifact.memoryTitle": "Memory · {title}",
   "artifact.memoryHint":

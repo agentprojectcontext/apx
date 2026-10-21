@@ -25,7 +25,7 @@ export function ArtifactMemoryButton({ surface }: { surface: SurfaceSummary }) {
   );
 }
 
-function ArtifactMemoryDialog({ surface, onClose }: { surface: SurfaceSummary; onClose: () => void }) {
+export function ArtifactMemoryDialog({ surface, onClose }: { surface: SurfaceSummary; onClose: () => void }) {
   const t = useT();
   const [memory, setMemory] = useState<Memory>();
   const [withMemory, setWithMemory] = useState(false);

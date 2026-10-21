@@ -1,6 +1,8 @@
 import type { SurfaceSummary } from "@apx/protocol";
 import { IconButton, Icons } from "@apx/ui";
 import { setSurfaceFlags } from "../data/actions.ts";
+import { projectName } from "../data/identity.ts";
+import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { ArtifactMemoryButton } from "./ArtifactMemory.tsx";
@@ -13,6 +15,7 @@ import { openWidgetChat } from "./WidgetChat.tsx";
  */
 export function SurfaceActions({ surface }: { surface: SurfaceSummary }) {
   const t = useT();
+  const project = useData((s) => projectName(s.projects, surface.project_id));
   return (
     <>
       <IconButton
@@ -23,7 +26,7 @@ export function SurfaceActions({ surface }: { surface: SurfaceSummary }) {
       />
       <IconButton
         size="sm"
-        label={surface.pinned ? t("widget.unpin") : t("widget.pin")}
+        label={surface.pinned ? t("artifact.unpinFrom", { project }) : t("artifact.pinTo", { project })}
         icon={surface.pinned ? <Icons.PinOff size={14} /> : <Icons.Pin size={14} />}
         active={surface.pinned}
         onClick={() => void setSurfaceFlags(surface.id, { pinned: !surface.pinned })}

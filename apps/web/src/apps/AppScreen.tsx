@@ -1,10 +1,10 @@
-import { AgentAvatar, Button, EmptyState, IconButton, Icons } from "@apx/ui";
-import { setSurfaceFlags } from "../data/actions.ts";
+import { AgentAvatar, Button, EmptyState, IconButton, Icons, Menu } from "@apx/ui";
 import { blobOf, projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { ArtifactMemoryButton } from "../surfaces/ArtifactMemory.tsx";
+import { placeEntries } from "../surfaces/artifactMenu.tsx";
 import { ShareMenu } from "../surfaces/ShareMenu.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 import { openWidgetChat } from "../surfaces/WidgetChat.tsx";
@@ -65,25 +65,11 @@ export function AppScreen() {
         </Button>
         <ShareMenu surface={app} />
         <ArtifactMemoryButton surface={app} />
-        <Button
-          size="sm"
-          variant="secondary"
-          leadingIcon={app.pinned ? <Icons.PinOff size={14} /> : <Icons.Pin size={14} />}
-          onClick={() => void setSurfaceFlags(app.id, { pinned: !app.pinned })}
-        >
-          {app.pinned ? t("widget.unpin") : t("widget.pin")}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          leadingIcon={app.app ? <Icons.Trash2 size={14} /> : <Icons.AppWindow size={14} />}
-          onClick={async () => {
-            await setSurfaceFlags(app.id, { app: !app.app });
-            if (app.app) back();
-          }}
-        >
-          {t(app.app ? "app.remove" : "widget.installApp")}
-        </Button>
+        <Menu
+          align="end"
+          items={placeEntries(app, t, { removedFromApps: back })}
+          trigger={<IconButton size="sm" label={t("common.more")} icon={<Icons.Ellipsis size={16} />} />}
+        />
       </header>
       <div className="appscreen__body">
         <SurfaceFrame surfaceId={app.id} fit="fill" />

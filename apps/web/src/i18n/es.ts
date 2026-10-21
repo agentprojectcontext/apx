@@ -541,8 +541,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.askWaiting": "El widget aparece acá apenas el agente lo haga.",
   "widget.chatNoAgent": "No hay un agente para seguir este widget.",
   "widget.chatDraft": "Seguí editando el widget «{title}» (nombre: {name}): ",
-  "widget.pin": "Fijar al tablero",
-  "widget.unpin": "Quitar del tablero",
   "widget.openApp": "Abrir como app",
   "widget.installApp": "Instalar como app",
   "widget.unavailable": "Widget no disponible",
@@ -572,6 +570,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "share.iconLabel": "Compartir · {state}",
 
   // Memoria, exportación e importación de artefactos
+  "artifact.pinTo": "Fijar al tablero de {project}",
+  "artifact.unpinFrom": "Quitar del tablero de {project}",
   "artifact.memory": "Memoria y exportación",
   "artifact.memoryTitle": "Memoria · {title}",
   "artifact.memoryHint":

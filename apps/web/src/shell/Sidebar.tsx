@@ -1,5 +1,5 @@
 import { ContextMenu, IconButton, Icons, NavItem, ProjectTile, ResizeHandle } from "@apx/ui";
-import { lazy, Suspense, useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { markAllRead } from "../data/actions.ts";
 import { pickArtifactFile } from "../data/artifacts.ts";
 import { loadChannels } from "../data/channels.ts";
@@ -8,6 +8,8 @@ import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { unreadListed } from "../inbox/groupThreads.ts";
+import { ArtifactMemoryDialog } from "../surfaces/ArtifactMemory.tsx";
+import { artifactMenu } from "../surfaces/artifactMenu.tsx";
 import { AccountRow } from "./AccountRow.tsx";
 import { ChannelsNav } from "./ChannelsNav.tsx";
 import { ExternalSessionsNav } from "./ExternalSessionsNav.tsx";
@@ -42,6 +44,8 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
     return n;
   }, [threads, routines]);
   const apps = useMemo(() => Object.values(surfaces).filter((s) => s.app), [surfaces]);
+  const [memoryOf, setMemoryOf] = useState<string>();
+  const memorySurface = memoryOf ? surfaces[memoryOf] : undefined;
 
   return (
     <aside className={rail ? "sidebar is-rail" : "sidebar"} aria-label={t("nav.label")}>
@@ -114,17 +118,19 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
               }
             />
             {apps.map((a) => (
-              <NavItem
-                key={a.id}
-                collapsed={rail}
-                icon={<ProjectTile tone="violet" icon={<Icons.LayoutGrid />} />}
-                label={a.title}
-                active={view === "app" && appId === a.id}
-                onClick={() => go.app(a.id)}
-              />
+              <ContextMenu key={a.id} items={artifactMenu(a, t, { onMemory: () => setMemoryOf(a.id) })}>
+                <NavItem
+                  collapsed={rail}
+                  icon={<ProjectTile tone="violet" icon={<Icons.LayoutGrid />} />}
+                  label={a.title}
+                  active={view === "app" && appId === a.id}
+                  onClick={() => go.app(a.id)}
+                />
+              </ContextMenu>
             ))}
           </>
         )}
+        {memorySurface && <ArtifactMemoryDialog surface={memorySurface} onClose={() => setMemoryOf(undefined)} />}
       </div>
       {!rail && (
         <Suspense fallback={null}>
