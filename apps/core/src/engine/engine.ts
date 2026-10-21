@@ -238,17 +238,16 @@ export function createEngine(deps: {
     live,
     ended,
     windowMs: (threadId) => runLimit(store, threadId, "a2a", deps).ms,
-    deliver: (parent, child, answer) => {
+    deliver: (parent, child, answer, stopped) => {
       const agent = store.agents.get(child.agent_id);
       const name = store.threads.context(child.thread_id).worker?.name ?? agent?.name ?? child.agent_id;
       const session = store.threads.get(child.thread_id)?.session;
-      const continued = Boolean(child.input?.continues);
       const paused = pausedNotice(store, parent.thread_id, name);
       if (paused) {
         // The result is kept for the caller's next turn (when the owner writes), and the owner sees why it stopped.
         store.modelLog.append(parent.thread_id, child.id, [
           systemNote(
-            `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child, { session, continued })}${actionsNote(actionsOf(store, child))}`,
+            `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child, { session, stopped })}${actionsNote(actionsOf(store, child))}`,
           ),
         ]);
         store.messages.add({
@@ -273,7 +272,7 @@ export function createEngine(deps: {
           ...(child.end_reason ? { end_reason: child.end_reason } : {}),
           actions: actionsOf(store, child),
           ...(session ? { session } : {}),
-          ...(continued ? { continued } : {}),
+          ...(stopped ? { stopped } : {}),
         },
         text: answer,
         depth: parent.depth,

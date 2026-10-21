@@ -24,6 +24,8 @@ type InputPart = Extract<Part, { type: "input" }>;
 export type Respond = (input: string, answer: Answer) => Promise<void>;
 /** Lets a conversation the breaker paused go on: a fresh budget, or no limit until the owner writes there again. */
 export type GoOn = (thread: string, mode: "reset" | "release") => Promise<unknown>;
+/** Lets a delegated session a limit stopped go on with one more turn, as Continue on the web does. */
+export type ContinueSession = (session: string) => Promise<unknown>;
 type Open =
   | { kind: "text" }
   | { kind: "media"; item: MediaItem }
@@ -35,6 +37,7 @@ export function ChatMessage({
   waiting = false,
   respond,
   goOn,
+  continueSession,
   openThread,
 }: {
   message: Message;
@@ -42,6 +45,7 @@ export function ChatMessage({
   waiting?: boolean;
   respond: Respond;
   goOn?: GoOn;
+  continueSession?: ContinueSession;
   /** Opens another chat: the one a sub-thread card stands for. */
   openThread?: (id: string) => void;
 }) {
@@ -118,6 +122,12 @@ export function ChatMessage({
                 ) : null}
                 {goOn && part.code.startsWith("breaker.") && typeof part.vars?.thread === "string" ? (
                   <BreakerActions thread={part.vars.thread} goOn={goOn} />
+                ) : null}
+                {continueSession &&
+                part.code === "delegation.limit" &&
+                !String(part.vars?.variant).startsWith("continued") &&
+                typeof part.vars?.subthread === "string" ? (
+                  <DelegationContinue session={part.vars.subthread} continueSession={continueSession} />
                 ) : null}
               </View>
             );
@@ -197,6 +207,26 @@ export function ChatMessage({
       {open?.kind === "viewer" ? (
         <MediaViewer items={open.items} start={open.start} onClose={() => setOpen(undefined)} />
       ) : null}
+    </View>
+  );
+}
+
+/** Continue on a delegated session a limit stopped: one more turn, judged again by the core when pressed. */
+function DelegationContinue({ session, continueSession }: { session: string; continueSession: ContinueSession }) {
+  const s = useStyles();
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  if (done) return <Text style={s.noticeDone}>{t("delegationWentOn")}</Text>;
+  const go = () => {
+    setBusy(true);
+    continueSession(session)
+      .then(() => setDone(true))
+      .catch((e: unknown) => Alert.alert(e instanceof Error ? e.message : String(e)))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <View style={s.noticeActions}>
+      <Button size="sm" label={t("delegationContinue")} busy={busy} disabled={busy} onPress={go} />
     </View>
   );
 }

@@ -216,6 +216,11 @@ export const en = {
   breakerReset: "Restart the budget",
   breakerRelease: "Let them finish this round",
   breakerWentOn: "Agents went on",
+  delegationContinue: "Continue",
+  delegationWentOn: "It went on",
+  delegationGone: "That session has no turn to continue",
+  delegationContinuePrompt:
+    "Continue the remaining work in this session from the last progress report. Keep the existing scope and permissions; report the result to the original caller.",
   switchChat: "Switch chat",
   rtEvery: "Every {n} {unit}",
   rtEveryOne: "Every {unit}",

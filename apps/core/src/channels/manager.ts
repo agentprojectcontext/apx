@@ -505,7 +505,10 @@ export function createChannels(deps: {
       // Agents stopped by the breaker: the owner hears it wherever they are.
       const paused = e.message.parts.find((p) => p.type === "notice" && p.code === "breaker.paused");
       if (paused?.type === "notice") notifyOwner({ text: paused.text }, "notice", e.message.thread_id);
-      const limit = e.message.parts.find((p) => p.type === "notice" && p.code === "delegation.limit");
+      // A delegate APX keeps going on with is no news for the owner's phone: only a stop or a report is (DECISIONS.md#d-116).
+      const limit = e.message.parts.find(
+        (p) => p.type === "notice" && p.code === "delegation.limit" && !String(p.vars?.variant).startsWith("continued"),
+      );
       if (limit?.type === "notice") limitReached(e.message.thread_id, limit);
     }
   }

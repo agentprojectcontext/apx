@@ -35,9 +35,13 @@ export const noticeEn = {
   "notice.breaker.release": "Let them finish this round",
   "notice.breaker.wentOn": "Agents went on",
   "notice.delegation.limit.continuedSteps":
-    "{who} ran out of steps on “{task}”; APX had it go on once in session {session}. So far: {sofar}",
+    "{who} ran out of steps on “{task}” and is making progress; APX had it go on in session {session}. So far: {sofar}",
   "notice.delegation.limit.continuedTime":
-    "{who} ran out of time on “{task}”; APX had it go on once in session {session}. So far: {sofar}",
+    "{who} ran out of time on “{task}” and is making progress; APX had it go on in session {session}. So far: {sofar}",
+  "notice.delegation.limit.stoppedSteps":
+    "{who} ran out of steps on “{task}” and its last part made no progress, so APX did not go on by itself. Continue if it should. So far: {sofar}",
+  "notice.delegation.limit.stoppedTime":
+    "{who} ran out of time on “{task}” and its last part made no progress, so APX did not go on by itself. Continue if it should. So far: {sofar}",
   "notice.delegation.limit.returnedSteps":
     "{who} ran out of steps on “{task}”. {caller} has its report and decides how to go on. So far: {sofar}",
   "notice.delegation.limit.returnedTime":
@@ -110,9 +114,13 @@ export const noticeEs: Record<NoticeKey, string> = {
   "notice.breaker.release": "Liberar en esta ronda",
   "notice.breaker.wentOn": "Los agentes siguieron",
   "notice.delegation.limit.continuedSteps":
-    "{who} se quedó sin pasos con «{task}»; APX lo hizo seguir una vez en la sesión {session}. Hasta ahora: {sofar}",
+    "{who} se quedó sin pasos con «{task}» y viene avanzando; APX lo hizo seguir en la sesión {session}. Hasta ahora: {sofar}",
   "notice.delegation.limit.continuedTime":
-    "{who} se quedó sin tiempo con «{task}»; APX lo hizo seguir una vez en la sesión {session}. Hasta ahora: {sofar}",
+    "{who} se quedó sin tiempo con «{task}» y viene avanzando; APX lo hizo seguir en la sesión {session}. Hasta ahora: {sofar}",
+  "notice.delegation.limit.stoppedSteps":
+    "{who} se quedó sin pasos con «{task}» y su último tramo no avanzó, así que APX no siguió solo. Tocá Continuar si tiene que seguir. Hasta ahora: {sofar}",
+  "notice.delegation.limit.stoppedTime":
+    "{who} se quedó sin tiempo con «{task}» y su último tramo no avanzó, así que APX no siguió solo. Tocá Continuar si tiene que seguir. Hasta ahora: {sofar}",
   "notice.delegation.limit.returnedSteps":
     "{who} se quedó sin pasos con «{task}». {caller} tiene su informe y decide cómo seguir. Hasta ahora: {sofar}",
   "notice.delegation.limit.returnedTime":

@@ -221,6 +221,11 @@ export const es: Record<Key, string> = {
   breakerReset: "Reiniciar presupuesto",
   breakerRelease: "Liberar en esta ronda",
   breakerWentOn: "Los agentes siguieron",
+  delegationContinue: "Continuar",
+  delegationWentOn: "Siguió",
+  delegationGone: "Esa sesión no tiene un turno para continuar",
+  delegationContinuePrompt:
+    "Continuá el trabajo pendiente en esta sesión desde el último informe. Conservá el alcance y los permisos existentes; informá el resultado a quien te delegó.",
   switchChat: "Cambiar de chat",
   rtEvery: "Cada {n} {unit}",
   rtEveryOne: "Cada {unit}",

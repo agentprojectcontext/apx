@@ -48,8 +48,8 @@ export type Origin =
       actions?: string[];
       /** The session's name, to continue it with its context. */
       session?: string;
-      /** APX already continued it once after a limit cut it short (DECISIONS.md#d-105). */
-      continued?: boolean;
+      /** Why APX stopped going on with it after a limit cut it short (DECISIONS.md#d-116): the owner decides. */
+      stopped?: string;
     };
 
 /** The owner speaking: from the app, or on a channel as the owner (never a contact). */

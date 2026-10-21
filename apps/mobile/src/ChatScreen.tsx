@@ -211,6 +211,17 @@ export function ChatScreen({
                   waiting={live.state === "input-required"}
                   respond={live.respond}
                   goOn={(thread, mode) => live.client.call("threads.go_on", { thread, mode })}
+                  continueSession={async (session) => {
+                    const { runs } = await live.client.call("threads.get", { thread: session });
+                    const latest = [...runs].sort((a, b) => b.started_at.localeCompare(a.started_at))[0];
+                    if (!latest) throw new Error(t("delegationGone"));
+                    return live.client.call("threads.send", {
+                      thread: session,
+                      text: t("delegationContinuePrompt"),
+                      mode: "queue",
+                      continue_run: latest.id,
+                    });
+                  }}
                   {...(onOpenThread ? { openThread: onOpenThread } : {})}
                 />
               )

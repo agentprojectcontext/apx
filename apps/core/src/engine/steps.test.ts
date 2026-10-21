@@ -2,6 +2,7 @@
 // watches gets more, and a routine's own limit wins over both.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { MAX_STEPS } from "../harness/native.ts";
 import { callTool, scriptedLlm, startCore } from "./testkit.ts";
 
 // A model that never stops working: every call with tools asks for one more search.
@@ -33,7 +34,7 @@ test("a chat turn the owner watches gets the same steps as background work", asy
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
   await env.client.call("threads.send", { thread: t.id, text: "search everything" });
   await env.settle(t.id);
-  assert.equal(steps(t.id), 60);
+  assert.equal(steps(t.id), MAX_STEPS);
 });
 
 test("a routine gets the default steps, its own limit wins, and null puts the default back", async () => {
@@ -45,7 +46,7 @@ test("a routine gets the default steps, its own limit wins, and null puts the de
   };
   const r = await env.client.call("routines.set", base);
   assert.equal(r.max_steps, undefined);
-  assert.equal(await runRoutine(r.id), 60);
+  assert.equal(await runRoutine(r.id), MAX_STEPS);
 
   const own = await env.client.call("routines.set", { ...base, id: r.id, max_steps: 20 });
   assert.equal(own.max_steps, 20);

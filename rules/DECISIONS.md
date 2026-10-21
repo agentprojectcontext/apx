@@ -1601,3 +1601,19 @@ agent sees, not its mode; the 60-action computer-use check is a runaway guard; t
 rules when an agent leaves its project's mode freezes them over a later mode change (none on this machine today),
 which is a product question for that page; the owner's own Claude Code settings still apply to Claude Code's tools.
 
+<a id="d-116"></a>
+## D-116 — 2026-10-21 — 150 steps a turn, and a cut delegate goes on while it makes progress
+A turn on our own loop stopped at 60 model calls. In thirty days 19 turns hit it, all of developer agents in the last
+five (the longest real one used 141 calls), and a delegated one cut short went on once on its own; cut again, its
+caller was told to ask the owner, who had to write "continue" on WhatsApp or Telegram for work that was not stuck.
+Now a turn has 150 steps (the screen and the browser no longer need a higher one of their own), and a delegated run a
+limit cuts short goes on in the same session as a supervisor would decide: the first part always once, then each part
+while it made progress (`engine/progress.ts`: some calls worked, something with an effect got done, it did not go
+round the same calls or redo the last part's changes), up to eight parts in a row; the breaker's budgets still bound
+it all (D-080). A part that only looked things up, failed or repeated itself stops, and that is the only time the owner
+hears of it: the notice in the caller's chat carries Continue (web, desktop and now Android), the tray and the owner's
+channel get it, and the caller is told why and to tell the owner, not to go on by itself. Going on is APX's own
+business: that notice stays in the chat, quiet, and never reaches the tray or a channel. An owner's Continue starts the
+count over. Kept: 150 and not 500, since one 60-step turn already sends about 3.5 M input tokens (most cached) with a
+context near 100 k, and a loop that slipped past the checks would spend all of it before stopping.
+

@@ -1,5 +1,5 @@
 // A delegated run works while it makes progress, stops at its cap, and when a limit cuts it short it is not lost:
-// APX goes on once in the same session, the owner hears which agent hit which limit, and the caller can stop it.
+// APX goes on in the same session while each part progresses, the owner hears when it stops, and the caller can stop it.
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, type TestContext, test } from "node:test";
 import type { Part } from "@apx/protocol";
@@ -40,6 +40,19 @@ const slowStep = defineTool({
   },
 });
 
+/** One step of a build: it changes something, a different thing each time. */
+const buildStep = defineTool({
+  name: "build_step",
+  description: "test tool",
+  args: z.object({ n: z.number() }),
+  effect: "local",
+  deadlineMs: 5_000,
+  title: () => "Build step",
+  run: async (_a, ctx) => {
+    await sleep(IDLE_MS / 4, ctx.signal);
+    return "built";
+  },
+});
 const worker = (name: string) => ({ name, instructions: `${name} works on it.` });
 const CONTINUED = "APX stopped your last turn on this task";
 
@@ -50,6 +63,11 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
   if (system.startsWith("You are Steady")) return steps < 8 ? step() : say("Steady finished.");
   // Never stops making progress: only the cap ends it.
   if (system.startsWith("You are Endless") || system.startsWith("You are Forever")) return step();
+  // Builds something new at every step and finishes in its third part: progress APX keeps going on with.
+  if (system.startsWith("You are Builder")) {
+    const parts = req.messages.filter((m) => m.role === "user" && String(m.content).includes(CONTINUED)).length;
+    return parts >= 2 ? say("Builder finished.") : callTool(`b${req.messages.length}`, "build_step", { n: steps });
+  }
   // Goes quiet on every turn, the continuation too.
   if (system.startsWith("You are Quiet")) {
     await sleep(IDLE_MS * 4, req.signal);
@@ -79,7 +97,7 @@ const llm = scriptedLlm(async (req, { system, said, afterTool }) => {
 let env: Awaited<ReturnType<typeof startCore>>;
 let operator: ApxSocket;
 before(async () => {
-  env = await startCore({ llm, extraTools: [slowStep], turnIdleMs: IDLE_MS, a2aCapMs: CAP_MS });
+  env = await startCore({ llm, extraTools: [slowStep, buildStep], turnIdleMs: IDLE_MS, a2aCapMs: CAP_MS });
 });
 beforeEach(async () => {
   operator = await env.client.connect("operator");
@@ -161,13 +179,16 @@ test("a delegated run that never stops is ended at its cap, however much progres
   const [first, second] = runs;
   assert.equal(first?.end_reason, "deadline");
   assert.match(first?.error ?? "", /a delegated run may work/);
-  // Cut while making progress: APX went on once in the same session, and that one hit the cap too.
+  // APX went on once in the same session; that part only looked things up again, so APX stopped there.
   assert.equal(second?.input?.continues, first?.id);
   assert.equal(second?.end_reason, "deadline");
-  await woke(thread);
+  const result = await woke(thread);
+  const origin = result.input?.origin;
+  assert.equal(origin?.kind === "delegation_result" && origin.stopped, "it only looked things up and changed nothing");
+  assert.equal(runsOf(sub).length, 2);
   assert.deepEqual(
     notices(thread).map((n) => n.vars?.variant),
-    ["continuedTime", "returnedTime"],
+    ["continuedTime", "stoppedTime"],
   );
 });
 
@@ -192,18 +213,37 @@ test("a run cut short goes on once in the same session, with its context, and re
   const result = await woke(thread);
   assert.equal(result.input?.origin.kind === "delegation_result" && result.input.origin.state, "completed");
   assert.equal(card(thread)?.state, "completed");
-  // The owner heard that it hit its limit and that APX went on with it.
+  // The chat says it hit its limit and APX went on with it; going on is APX's own business, so nothing reaches the tray.
   const [notice] = notices(thread);
   assert.equal(notice?.vars?.variant, "continuedTime");
+  assert.equal(notice?.level, "info");
   assert.equal(notice?.vars?.who, "Napper");
   assert.equal(notice?.vars?.subthread, sub);
   const tray = env.core.store.notifications.list({ unreadOnly: true, limit: 50 }).find((n) => n.ref === sub);
-  assert.equal(tray?.kind, "agent");
-  assert.equal(tray?.thread_id, thread);
-  assert.match(tray?.body ?? "", /Napper ran out of time .* go on once in session napper/);
+  assert.equal(tray, undefined);
 });
 
-test("cut short twice, the caller gets a progress report with the way to continue, and the owner hears it", async () => {
+test("a delegate that keeps making progress goes on part after part, with no one asked", async () => {
+  const { thread, sub } = await delegated("delegate builder");
+  const [first, second, third] = await ended(sub, 3);
+  assert.equal(first?.end_reason, "deadline");
+  assert.equal(second?.input?.continues, first?.id);
+  assert.equal(third?.input?.continues, second?.id);
+  assert.equal(third?.state, "completed");
+  assert.equal(third?.end_reason, "normal");
+  const result = await woke(thread);
+  assert.equal(result.input?.origin.kind === "delegation_result" && result.input.origin.state, "completed");
+  assert.deepEqual(
+    notices(thread).map((n) => n.vars?.variant),
+    ["continuedTime", "continuedTime"],
+  );
+  assert.equal(
+    env.core.store.notifications.list({ unreadOnly: true, limit: 50 }).filter((n) => n.ref === sub).length,
+    0,
+  );
+});
+
+test("a part that made no progress stops: the caller tells the owner, who gets Continue on the notice", async () => {
   const { thread, sub } = await delegated("delegate quiet");
   const [first, second] = await ended(sub, 2);
   assert.equal(second?.input?.continues, first?.id);
@@ -213,8 +253,8 @@ test("cut short twice, the caller gets a progress report with the way to continu
   if (origin?.kind !== "delegation_result") return;
   assert.equal(origin.end_reason, "deadline");
   assert.equal(origin.session, "quiet");
-  assert.equal(origin.continued, true);
-  // A third run never starts on its own: the caller decides.
+  assert.equal(origin.stopped, "none of its calls worked");
+  // A third run never starts on its own: the owner decides.
   assert.equal(runsOf(sub).length, 2);
   const framed = llm.calls
     .flatMap((c) => c.messages)
@@ -222,12 +262,15 @@ test("cut short twice, the caller gets a progress report with the way to continu
   const text = String(framed?.content);
   assert.match(text, /state="out_of_time"/);
   assert.match(text, /ran out of time before finishing: this is a progress report, not its final result/);
-  assert.match(text, /APX already continued it once/);
-  assert.match(text, /delegate only the rest with session="quiet"/);
+  assert.match(text, /APX stopped going on with it on its own: none of its calls worked/);
+  assert.match(text, /Continue on its notice in APX/);
+  assert.doesNotMatch(text, /delegate only the rest/);
   assert.deepEqual(
     notices(thread).map((n) => n.vars?.variant),
-    ["continuedTime", "returnedTime"],
+    ["continuedTime", "stoppedTime"],
   );
+  const tray = env.core.store.notifications.list({ unreadOnly: true, limit: 50 }).find((n) => n.ref === sub);
+  assert.match(tray?.body ?? "", /Quiet ran out of time .* made no progress/);
   assert.equal(card(thread)?.end_reason, "deadline");
 });
 
@@ -243,7 +286,7 @@ test("a caller still waiting gets the progress report itself, and APX neither go
   );
   assert.match(reply, /state="out_of_time"/);
   assert.match(reply, /delegate only the rest with session="quiet"/);
-  assert.doesNotMatch(reply, /already continued/);
+  assert.doesNotMatch(reply, /APX stopped going on/);
   // The owner reads it in the answer being written, with the card: no separate notice.
   assert.equal(notices(t.id).length, 0);
   assert.equal(card(t.id)?.end_reason, "deadline");
@@ -292,10 +335,13 @@ test("the owner hears of the limit on the channel their chat lives on, in their 
   own.core.store.persons.link(own.core.store.persons.owner().id, { channel: "tg", external_id: String(OWNER) });
   const chat = await own.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "on telegram" });
   own.core.store.threads.mergeContext(chat.id, { reply_to: { channel: "tg", conversation: String(OWNER) } });
-  await own.client.call("threads.send", { thread: chat.id, text: "delegate napper" });
+  await own.client.call("threads.send", { thread: chat.id, text: "delegate quiet" });
   const sent = await until(
     () => tg.messagesTo(OWNER).find((m) => String(m.body.text).includes("se quedó sin tiempo")),
     "the notice on Telegram",
+    30_000,
   );
-  assert.match(String(sent.body.text), /^Napper se quedó sin tiempo con «Napper task»; APX lo hizo seguir una vez/);
+  assert.match(String(sent.body.text), /^Quiet se quedó sin tiempo con «Quiet task» y su último tramo no avanzó/);
+  // APX going on with it on its own (the first part) is not news for the owner's phone.
+  assert.ok(!tg.messagesTo(OWNER).some((m) => String(m.body.text).includes("viene avanzando")));
 });
