@@ -31,17 +31,20 @@ test("a widget shows in the side panel, the chat keeps a card of it, and it come
   await expect(card).toContainText("Se muestra en el panel lateral");
   await expect(transcript.locator("iframe")).toHaveCount(0);
 
-  // The side panel has its own close; the widget opens in the browser, privately at this panel's address.
+  // The side panel has its own close; the widget opens alone in a window of its own, at this panel's address.
   const head = panel.locator(".widgets__head");
   await expect(head.getByRole("button", { name: "Volver al chat" })).toHaveCount(0);
   let opens = page.waitForEvent("popup");
-  await head.getByRole("button", { name: "Abrir en el navegador · solo donde se llega a APX" }).click();
-  const surfaceId = new URL((await opens).url()).hash.replace("#app=", "");
+  await head.getByRole("button", { name: "Abrir en otra ventana" }).click();
+  const first = await opens;
+  const surfaceId = new URL(first.url()).searchParams.get("artifact") ?? "";
   expect(surfaceId).not.toBe("");
-  const shared = await rpc<{ share_path?: string }>("surfaces.share", { surface: surfaceId, shared: true });
+  // Published, it still opens in the panel's own window (with its memory), not at the public link.
+  await rpc("surfaces.share", { surface: surfaceId, shared: true });
+  await first.close();
   opens = page.waitForEvent("popup");
-  await head.getByRole("button", { name: "Abrir en el navegador", exact: true }).click();
-  expect((await opens).url()).toContain(String(shared.share_path));
+  await head.getByRole("button", { name: "Abrir en otra ventana" }).click();
+  expect(new URL((await opens).url()).searchParams.get("artifact")).toBe(surfaceId);
 
   await card.getByRole("button", { name: "Mostrar acá" }).click();
   await expect(panel).toHaveCount(0);

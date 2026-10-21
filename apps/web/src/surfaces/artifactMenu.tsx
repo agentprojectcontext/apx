@@ -10,9 +10,14 @@ import { openWidgetChat } from "./WidgetChat.tsx";
 
 /** The artifact alone in a window of its own: a desktop window in the app, a new tab or popup on the web. */
 export function openArtifactWindow(s: SurfaceSummary): void {
-  if (window.apxDesktop?.openArtifactWindow) return window.apxDesktop.openArtifactWindow(s.id, s.title);
-  const url = `${window.location.origin}/?artifact=${encodeURIComponent(s.id)}`;
-  window.open(url, `apx-artifact-${s.id}`, "popup,width=1200,height=820");
+  const desktop = window.apxDesktop?.openArtifactWindow;
+  if (desktop) desktop(s.id, s.title);
+  else
+    window.open(
+      `${window.location.origin}/?artifact=${encodeURIComponent(s.id)}`,
+      `apx-artifact-${s.id}`,
+      "popup,width=1200,height=820",
+    );
 }
 
 /** Where an artifact is listed, named by place: its project's board and the Apps list are two different things. */
