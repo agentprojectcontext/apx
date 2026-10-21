@@ -27,7 +27,7 @@ import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
 import { createInbound } from "./inbound.ts";
 import { createInputCards } from "./input-cards.ts";
-import { inputPresentation } from "./notices.ts";
+import { buttonId, inputPresentation } from "./notices.ts";
 import { createOutgoing } from "./outgoing.ts";
 import { createPoster } from "./post.ts";
 import { createRecovery } from "./recover.ts";
@@ -519,6 +519,12 @@ export function createChannels(deps: {
    */
   function limitReached(threadId: string, notice: Extract<Part, { type: "notice" }>): void {
     const text = noticeText(notice, store.settings.get("owner_language") === "en" ? "en" : "es");
+    // Stopped because it looked stuck: Continue right under the words, so the owner need not write it.
+    const session = notice.vars?.subthread;
+    const buttons =
+      String(notice.vars?.variant).startsWith("stopped") && typeof session === "string"
+        ? [{ id: buttonId.goOn(session), label: channelTexts(store).goOn }]
+        : undefined;
     const thread = store.threads.get(threadId);
     const to =
       thread && audienceOf(store, thread).kind === "owner" ? store.threads.context(threadId).reply_to : undefined;
@@ -528,11 +534,11 @@ export function createChannels(deps: {
         conversation: to.conversation,
         thread_id: threadId,
         kind: "notice",
-        body: { text, ...(inQuietHours(noticePrefs(store)) ? { silent: true } : {}) },
+        body: { text, ...(buttons ? { buttons } : {}), ...(inQuietHours(noticePrefs(store)) ? { silent: true } : {}) },
       });
       return;
     }
-    notifyOwner({ text }, "notice", threadId);
+    notifyOwner({ text, ...(buttons ? { buttons } : {}) }, "notice", threadId);
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────

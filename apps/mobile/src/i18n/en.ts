@@ -141,6 +141,7 @@ export const en = {
   inboxRoutine: "Routine",
   inboxMessage: "Message",
   inboxNotice: "Notice",
+  inboxStopped: "Stopped",
   approve: "Approve",
   approveOnce: "Approve once",
   approveSession: "Approve for this session",

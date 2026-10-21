@@ -145,6 +145,7 @@ export const es: Record<Key, string> = {
   inboxRoutine: "Rutina",
   inboxMessage: "Mensaje",
   inboxNotice: "Aviso",
+  inboxStopped: "Frenada",
   approve: "Aprobar",
   approveOnce: "Aceptar una vez",
   approveSession: "Aceptar durante esta sesión",

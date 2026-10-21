@@ -10,6 +10,7 @@ import { useVoiceNote } from "./chat/useVoiceNote";
 import type { Creds } from "./creds";
 import { dayLabel } from "./format";
 import { engineName, isWorking, routineName, threadContext } from "./hooks/chatSelectors";
+import { continueSession } from "./hooks/continueSession";
 import { useThread } from "./hooks/useThread";
 import type { Thread, Workspace } from "./hooks/useWorkspace";
 import { t } from "./i18n";
@@ -211,17 +212,7 @@ export function ChatScreen({
                   waiting={live.state === "input-required"}
                   respond={live.respond}
                   goOn={(thread, mode) => live.client.call("threads.go_on", { thread, mode })}
-                  continueSession={async (session) => {
-                    const { runs } = await live.client.call("threads.get", { thread: session });
-                    const latest = [...runs].sort((a, b) => b.started_at.localeCompare(a.started_at))[0];
-                    if (!latest) throw new Error(t("delegationGone"));
-                    return live.client.call("threads.send", {
-                      thread: session,
-                      text: t("delegationContinuePrompt"),
-                      mode: "queue",
-                      continue_run: latest.id,
-                    });
-                  }}
+                  continueSession={(session) => continueSession(live.client, session)}
                   {...(onOpenThread ? { openThread: onOpenThread } : {})}
                 />
               )

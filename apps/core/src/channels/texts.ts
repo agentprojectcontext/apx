@@ -41,6 +41,10 @@ const es = {
   roomFailed: (room: string, why: string) => `No pude responder en ${room}: ${why}`,
   notHandled: (name: string, why: string) => `No pude procesar un mensaje de ${name}: ${why}`,
   buttonFailed: (why: string) => `No pude hacerlo: ${why}`,
+  goOn: "Continuar",
+  wentOn: "Listo, sigue trabajando.",
+  goOnPrompt:
+    "Continuá el trabajo pendiente en esta sesión desde el último informe. Conservá el alcance y los permisos existentes; informá el resultado a quien te delegó.",
   stopped: "Listo, paré.",
   due: (title: string, person?: string, owedBy?: "owner" | "person") =>
     person
@@ -117,6 +121,10 @@ const en: typeof es = {
   roomFailed: (room, why) => `I couldn't answer in ${room}: ${why}`,
   notHandled: (name, why) => `I couldn't handle a message from ${name}: ${why}`,
   buttonFailed: (why) => `I couldn't do it: ${why}`,
+  goOn: "Continue",
+  wentOn: "Done, it is working again.",
+  goOnPrompt:
+    "Continue the remaining work in this session from the last progress report. Keep the existing scope and permissions; report the result to the original caller.",
   stopped: "Done, I stopped.",
   due: (title, person, owedBy) =>
     person

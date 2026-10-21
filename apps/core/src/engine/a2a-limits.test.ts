@@ -344,4 +344,18 @@ test("the owner hears of the limit on the channel their chat lives on, in their 
   assert.match(String(sent.body.text), /^Quiet se quedó sin tiempo con «Quiet task» y su último tramo no avanzó/);
   // APX going on with it on its own (the first part) is not news for the owner's phone.
   assert.ok(!tg.messagesTo(OWNER).some((m) => String(m.body.text).includes("viene avanzando")));
+  // Continue is a button under the notice: pressing it gives the session one more turn, with nothing to write.
+  const markup = sent.body.reply_markup as { inline_keyboard: Array<Array<{ text: string; callback_data: string }>> };
+  const go = markup?.inline_keyboard.flat().find((b) => b.text === "Continuar");
+  assert.ok(go, "a Continue button");
+  const sub = own.core.store.threads.sessions(chat.id)[0]?.id ?? "";
+  const before = own.core.store.runs.list(sub, 20).length;
+  tg.press({ id: OWNER, name: "Owner" }, go.callback_data);
+  await until(() => own.core.store.runs.list(sub, 20).length > before, "the session going on after the press");
+  const again = own.core.store.runs.list(sub, 1)[0];
+  assert.equal(again?.input?.origin.kind, "user");
+  await until(
+    () => tg.messagesTo(OWNER).some((m) => String(m.body.text).includes("sigue trabajando")),
+    "the press answered",
+  );
 });

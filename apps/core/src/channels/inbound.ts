@@ -559,6 +559,20 @@ export function createInbound(deps: {
         }
         return;
       }
+      if (button.kind === "continue") {
+        // The core checks again that the session's last run is the stopped one, so a second press does nothing.
+        const { runs } = await call("threads.get", { thread: button.session }, { actor: "human" });
+        const latest = runs.toSorted((x, y) => y.started_at.localeCompare(x.started_at))[0];
+        if (!latest) return;
+        await call(
+          "threads.send",
+          { thread: button.session, text: t.goOnPrompt, mode: "queue", continue_run: latest.id },
+          { actor: "human" },
+          `channel:${a.ref ?? latest.id}:go-on`,
+        );
+        reply(t.wentOn);
+        return;
+      }
       if (button.kind === "pairing") {
         await call("pairing.respond", { code: button.code, decision: button.decision }, { actor: "human" });
         reply(button.decision === "contact" ? t.approved : t.denied);
