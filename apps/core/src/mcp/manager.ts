@@ -2,6 +2,8 @@
 // tools: same argument check, same policy, results marked as outside data.
 
 import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import type { Thread } from "@apx/protocol";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { z } from "zod";
@@ -96,6 +98,8 @@ export function createMcp(deps: {
   store: Store;
   secrets: Secrets;
   log: Log;
+  /** Where a stdio server with no folder of its own starts: what it saves under a relative path lands there. */
+  workDir: string;
   /** The files an agent of a thread may hand to a tool (file-args.ts); without it, references are refused. */
   files?: (thread: ScopedThread) => OpenFile;
 }) {
@@ -117,6 +121,13 @@ export function createMcp(deps: {
     projectId && secretNames(d).some((n) => deps.secrets.has(`secret://${projectSecretName(projectId, n)}`))
       ? { ...d, values_of: projectId }
       : d;
+
+  /** Never the core's own folder, which is wherever it was started from (a checkout, the owner's home). */
+  const ownDir = (name: string) => {
+    const dir = path.join(deps.workDir, name.replace(/[^\w-]/g, "_"));
+    fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  };
 
   /** Starts a server and lists its tools, within CONNECT_MS. The caller owns the client and closes it. */
   async function connect(d: McpDef): Promise<{ client: Client; tools: McpTool[] }> {
@@ -143,7 +154,7 @@ export function createMcp(deps: {
         args: d.args.map((a) => resolveText(a, d.values_of)),
         // Only what the definition gives it, on top of an environment without credentials.
         env: { ...commandEnv(), ...env },
-        ...(d.cwd ? { cwd: d.cwd } : {}),
+        cwd: d.cwd ?? ownDir(d.name),
         stderr: "pipe",
       });
       // A server may print what it was given: its secrets and credential-like variables are masked in its log.

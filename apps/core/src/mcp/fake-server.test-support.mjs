@@ -1,4 +1,5 @@
-// A tiny MCP server for tests: a reading tool that echoes, and one that reports an env value it was given.
+// A tiny MCP server for tests: a reading tool that echoes, and one that reports an env value it was given and the
+// folder it started in.
 import fs from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -23,7 +24,10 @@ server.registerTool(
   { description: "Says whether it got its token", inputSchema: {}, annotations: { destructiveHint: false } },
   async () => ({
     content: [
-      { type: "text", text: `token=${process.env.NOTES_TOKEN ?? "none"} leaked=${process.env.OTHER_API_KEY ?? "no"}` },
+      {
+        type: "text",
+        text: `token=${process.env.NOTES_TOKEN ?? "none"} leaked=${process.env.OTHER_API_KEY ?? "no"} cwd=${process.cwd()}`,
+      },
     ],
   }),
 );

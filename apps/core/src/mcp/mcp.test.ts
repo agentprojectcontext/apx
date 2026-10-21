@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { scratchRoot } from "../tools/folders.ts";
 
 const SERVER = path.join(import.meta.dirname, "fake-server.test-support.mjs");
 
@@ -97,6 +98,10 @@ test("the owner's own servers resolve secret:// at start and get no other creden
   });
   const seen = await turn("use token");
   assert.match(seen, /token=s3cret leaked=no/);
+  // Not the core's folder: a server saving under a relative path (a screenshot) must not fill a checkout.
+  const cwd = seen.match(/cwd=(\S+)/)?.[1] ?? "";
+  assert.ok(cwd.startsWith(fs.realpathSync(scratchRoot(env.home))), cwd);
+  assert.notEqual(cwd, fs.realpathSync(process.cwd()));
   const { servers } = await env.client.call("mcp.list", {});
   assert.ok(!servers.find((s) => s.name === "mine")?.target.includes("s3cret"));
 });

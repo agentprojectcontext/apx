@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
+import path from "node:path";
 import { after, before, test } from "node:test";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createLog } from "../log.ts";
-import { scratchDir } from "../tools/folders.ts";
+import { scratchDir, scratchRoot } from "../tools/folders.ts";
 import { agentFiles } from "./file-args.ts";
 import { createMcp } from "./manager.ts";
 
@@ -162,6 +163,7 @@ test("a tool that only reads still waits for the owner, while outside content is
     store: env.core.store,
     secrets: env.core.secrets,
     log: createLog("test", true),
+    workDir: path.join(scratchRoot(env.home), "mcp"),
     files: (t) => agentFiles(env.core.store, env.home, t),
   });
   try {

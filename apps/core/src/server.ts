@@ -100,6 +100,7 @@ import { createTelemetry } from "./telemetry.ts";
 import { type TelemetrySink, telemetrySink } from "./telemetry-sink.ts";
 import { createTerminals } from "./terminal/terminals.ts";
 import { asanaTools } from "./tools/asana.ts";
+import { scratchRoot } from "./tools/folders.ts";
 import { googleTools } from "./tools/google.ts";
 import { imessageTools } from "./tools/imessage.ts";
 import type { Tool } from "./tools/types.ts";
@@ -281,7 +282,13 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       },
       `tool:${as.run.id}:${as.callId}:${randomUUID()}`,
     );
-  const mcp = createMcp({ store, secrets, log, files: (thread) => agentFiles(store, config.home, thread) });
+  const mcp = createMcp({
+    store,
+    secrets,
+    log,
+    workDir: path.join(scratchRoot(config.home), "mcp"),
+    files: (thread) => agentFiles(store, config.home, thread),
+  });
   const { hooks, plugins, extensions } = extensionStack({ store, secrets, bus, log, home: config.home });
   const upkeep = createUpkeep({ store, llm, log });
   const services = createServices({
