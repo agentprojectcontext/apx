@@ -24,7 +24,7 @@ export function NoticePart({ part }: { part: NoticeData }) {
   // A `link` (apx:settings/…) is where the owner changes what the notice is about, labelled `notice.<code>.link`.
   const linkKey = `notice.${part.code}.link`;
   const linkLabel = isKey(linkKey) ? t(linkKey) : undefined;
-  const open = typeof part.vars?.link === "string" && linkLabel ? appPlace(part.vars.link) : undefined;
+  const open = typeof part.vars?.link === "string" && linkLabel ? appPlace(part.vars.link)?.open : undefined;
   const thread = part.code.startsWith("breaker.") && typeof part.vars?.thread === "string" ? part.vars.thread : "";
   // A delegated run that hit a limit: its session to open and, while APX keeps it going, to stop.
   const session =

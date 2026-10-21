@@ -804,6 +804,16 @@ body:has(.projboard__grid.is-dragging) .livelayer__box[data-shown] {
 .apx-md__scroll .taskchip {
   max-width: 22em;
 }
+/* An agent's link into the panel reads as an action, not as plain text: brand-tinted, its place's icon first. */
+.apx-btn.applink {
+  border-color: color-mix(in srgb, var(--apx-brand) 28%, transparent);
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.apx-btn.applink:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--apx-brand) 50%, transparent);
+  background: color-mix(in srgb, var(--apx-brand) 22%, var(--apx-brand-soft));
+}
 .taskchip.is-closed .taskchip__title {
   color: var(--apx-fg-muted);
   text-decoration: line-through;

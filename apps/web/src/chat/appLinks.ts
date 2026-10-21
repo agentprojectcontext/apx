@@ -5,8 +5,18 @@ import { CONFIG_SECTIONS, type ConfigSection, go, RESOURCE_TABS, type ResourceTa
 const isIn = <T extends string>(list: readonly T[], v: string | undefined): v is T =>
   v !== undefined && (list as readonly string[]).includes(v);
 
-/** The place an `apx:` link names, as the move that opens it; undefined when it names none. */
-export function appPlace(href: string): (() => void) | undefined {
+/** A place an `apx:` link names: what it is (for its icon and hint) and the move that opens it. */
+export type AppPlace =
+  | { kind: "settings"; section: ConfigSection; open: () => void }
+  | { kind: "task"; id: string; open: () => void }
+  | { kind: "tasks"; open: () => void }
+  | { kind: "resources"; tab: ResourceTab; open: () => void }
+  | { kind: "inbox"; open: () => void }
+  | { kind: "chat"; id: string; open: () => void }
+  | { kind: "project"; id: string; open: () => void };
+
+/** The place an `apx:` link names; undefined when it names none. */
+export function appPlace(href: string): AppPlace | undefined {
   const m = /^apx:([a-z]+)(?:\/([\w-]+))?(?:\/([\w-]+))?$/i.exec(href.trim());
   if (!m) return undefined;
   const [, where = "", a, b] = m;
@@ -14,21 +24,24 @@ export function appPlace(href: string): (() => void) | undefined {
     case "settings":
     case "config": {
       const section: ConfigSection | undefined = a === undefined ? "account" : isIn(CONFIG_SECTIONS, a) ? a : undefined;
-      return section ? () => go.config(section) : undefined;
+      return section ? { kind: "settings", section, open: () => go.config(section) } : undefined;
     }
     case "tasks":
-      return a ? () => go.task(a) : () => go.view("tasks");
+      return a ? { kind: "task", id: a, open: () => go.task(a) } : { kind: "tasks", open: () => go.view("tasks") };
     case "resources": {
       const tab: ResourceTab | undefined = a === undefined ? "skills" : isIn(RESOURCE_TABS, a) ? a : undefined;
-      return tab ? () => go.resources(tab, true) : undefined;
+      return tab ? { kind: "resources", tab, open: () => go.resources(tab, true) } : undefined;
     }
     case "inbox":
-      return () => go.inbox();
+      return { kind: "inbox", open: () => go.inbox() };
     case "thread":
     case "chat":
-      return a ? () => go.inboxThread(a) : undefined;
-    case "project":
-      return a ? () => go.project(a, b === "chats" || b === "tasks" || b === "files" ? b : "overview") : undefined;
+      return a ? { kind: "chat", id: a, open: () => go.inboxThread(a) } : undefined;
+    case "project": {
+      if (!a) return undefined;
+      const tab = b === "chats" || b === "tasks" || b === "files" ? b : "overview";
+      return { kind: "project", id: a, open: () => go.project(a, tab) };
+    }
     default:
       return undefined;
   }
