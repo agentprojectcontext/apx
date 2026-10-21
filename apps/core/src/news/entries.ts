@@ -31,7 +31,7 @@ export type NewsEntry = {
 export const NEWS: readonly NewsEntry[] = [
   {
     id: "artifacts-kit",
-    since: "2.7.3",
+    since: "2.8.0",
     title: "Widgets remember and can become apps",
     applies: (f) => f.artifacts > 0,
     text:
