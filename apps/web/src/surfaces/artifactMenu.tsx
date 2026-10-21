@@ -8,6 +8,13 @@ import { go } from "../shell/nav.ts";
 import { shareEntries } from "./ShareMenu.tsx";
 import { openWidgetChat } from "./WidgetChat.tsx";
 
+/** The artifact alone in a window of its own: a desktop window in the app, a new tab or popup on the web. */
+export function openArtifactWindow(s: SurfaceSummary): void {
+  if (window.apxDesktop?.openArtifactWindow) return window.apxDesktop.openArtifactWindow(s.id, s.title);
+  const url = `${window.location.origin}/?artifact=${encodeURIComponent(s.id)}`;
+  window.open(url, `apx-artifact-${s.id}`, "popup,width=1200,height=820");
+}
+
 /** Where an artifact is listed, named by place: its project's board and the Apps list are two different things. */
 export function placeEntries(s: SurfaceSummary, t: typeof tr, after?: { removedFromApps?: () => void }): MenuEntry[] {
   const project = projectName(data.get().projects, s.project_id);
@@ -32,6 +39,7 @@ export function placeEntries(s: SurfaceSummary, t: typeof tr, after?: { removedF
 export function artifactMenu(s: SurfaceSummary, t: typeof tr, o: { onMemory: () => void }): MenuEntry[] {
   return [
     { label: t("widget.openApp"), icon: <Icons.AppWindow size={16} />, onSelect: () => go.app(s.id) },
+    { label: t("artifact.openWindow"), icon: <Icons.ExternalLink size={16} />, onSelect: () => openArtifactWindow(s) },
     { label: t("widget.chatShort"), icon: <Icons.MessageSquare size={16} />, onSelect: () => void openWidgetChat(s) },
     { type: "submenu", label: t("share.share"), icon: <Icons.Share size={16} />, items: shareEntries(s, t) },
     { label: `${t("artifact.memory")}…`, icon: <Icons.Database size={16} />, onSelect: o.onMemory },

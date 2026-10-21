@@ -4,7 +4,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { ArtifactMemoryButton } from "../surfaces/ArtifactMemory.tsx";
-import { placeEntries } from "../surfaces/artifactMenu.tsx";
+import { openArtifactWindow, placeEntries } from "../surfaces/artifactMenu.tsx";
 import { ShareMenu } from "../surfaces/ShareMenu.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 import { openWidgetChat } from "../surfaces/WidgetChat.tsx";
@@ -65,6 +65,12 @@ export function AppScreen() {
         </Button>
         <ShareMenu surface={app} />
         <ArtifactMemoryButton surface={app} />
+        <IconButton
+          size="sm"
+          label={t("artifact.openWindow")}
+          icon={<Icons.ExternalLink size={14} />}
+          onClick={() => openArtifactWindow(app)}
+        />
         <Menu
           align="end"
           items={placeEntries(app, t, { removedFromApps: back })}

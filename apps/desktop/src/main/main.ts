@@ -20,6 +20,7 @@ import {
 } from "electron";
 import { showAbout } from "./about.ts";
 import { registerAppScheme, serveAppScheme, webDist } from "./app-scheme.ts";
+import { createArtifactWindows } from "./artifact-windows.ts";
 import { runAskpass } from "./askpass.ts";
 import { installedBrowsers, isWebUrl, openExternal } from "./browser/external.ts";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
@@ -270,6 +271,17 @@ app.whenReady().then(() => {
     ownBrowserPanel(e.sender) ? openExternal(url, browser ?? undefined) : false,
   );
 
+  const artifactWindows = createArtifactWindows({
+    url: () => base,
+    preload: path.join(DIST, "panel-preload.cjs"),
+    partition: "persist:apx-ui",
+    links: externalLinks,
+  });
+  ipcMain.on("artifact:open-window", (e, id: unknown, title: unknown) => {
+    if (e.sender !== panel.webContents || typeof id !== "string") return;
+    artifactWindows.open(id, typeof title === "string" ? title : "APX");
+  });
+
   const quick = createQuick({
     url: () => base,
     preload: path.join(DIST, "panel-preload.cjs"),
@@ -329,7 +341,8 @@ app.whenReady().then(() => {
     coreUrl: CORE_URL,
     webUrl: WEB_URL,
     dist: DIST,
-    isOwnWindow: (sender) => sender === panel.webContents || popout.isPanel(sender) || quick.isQuick(sender),
+    isOwnWindow: (sender) =>
+      sender === panel.webContents || popout.isPanel(sender) || quick.isQuick(sender) || artifactWindows.owns(sender),
     disconnected: () => {
       link?.stop();
       link = undefined;

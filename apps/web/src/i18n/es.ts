@@ -547,8 +547,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.toPanel": "Mostrar en el panel lateral",
   "widget.inPanel": "Se muestra en el panel lateral",
   "widget.showHere": "Mostrar acá",
-  "widget.openBrowser": "Abrir en el navegador",
-  "widget.openBrowserLocal": "Abrir en el navegador · solo donde se llega a APX",
   "widgets.all": "Todos los widgets ({n})",
   "widgets.empty": "Sin widgets en este chat",
   "widgets.emptyBody":
@@ -572,6 +570,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   // Memoria, exportación e importación de artefactos
   "artifact.pinTo": "Fijar al tablero de {project}",
   "artifact.unpinFrom": "Quitar del tablero de {project}",
+  "artifact.openWindow": "Abrir en otra ventana",
   "artifact.memory": "Memoria y exportación",
   "artifact.memoryTitle": "Memoria · {title}",
   "artifact.memoryHint":

@@ -61,6 +61,8 @@ declare global {
       installedBrowsers?(): Promise<Array<{ id: string; name: string }>>;
       /** Opens a web page in the system's default browser, or in an installed one by id. */
       openExternal?(url: string, browser?: string): Promise<boolean>;
+      /** Opens an artifact in a desktop window of its own (one per artifact). */
+      openArtifactWindow?(id: string, title: string): void;
       /** From the quick window: bring the main window up, on this chat. */
       openMain?(threadId?: string): void;
       /** The main window is told to open a chat (asked from the quick window). */

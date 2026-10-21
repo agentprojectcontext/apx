@@ -6,7 +6,8 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { ArtifactMemoryButton } from "./ArtifactMemory.tsx";
-import { linkOf, ShareMenu } from "./ShareMenu.tsx";
+import { openArtifactWindow } from "./artifactMenu.tsx";
+import { ShareMenu } from "./ShareMenu.tsx";
 import { openWidgetChat } from "./WidgetChat.tsx";
 
 /**
@@ -48,17 +49,15 @@ export function SurfaceActions({ surface }: { surface: SurfaceSummary }) {
   );
 }
 
-/** A shared widget opens at its public link; a private one at this panel's own address, reachable only where it is. */
+/** The artifact alone in a window of its own (a desktop window in the app, a new tab on the web). */
 function OpenInBrowser({ surface }: { surface: SurfaceSummary }) {
   const t = useT();
-  const shared = linkOf(surface);
-  const url = shared ?? `${window.location.origin}/#app=${encodeURIComponent(surface.id)}`;
   return (
     <IconButton
       size="sm"
-      label={shared ? t("widget.openBrowser") : t("widget.openBrowserLocal")}
+      label={t("artifact.openWindow")}
       icon={<Icons.ExternalLink size={14} />}
-      onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+      onClick={() => openArtifactWindow(surface)}
     />
   );
 }

@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   /** `browser` undefined = the system's default browser. */
   openExternal: (url: string, browser?: string): Promise<unknown> =>
     ipcRenderer.invoke("browser:open-external", String(url), typeof browser === "string" ? browser : undefined),
+  /** An artifact in a window of its own. */
+  openArtifactWindow: (id: string, title: string) =>
+    ipcRenderer.send("artifact:open-window", String(id), String(title)),
   openMain: (threadId?: string) =>
     ipcRenderer.send("quick:open-main", typeof threadId === "string" ? threadId : undefined),
   onOpenThread: (listener: (threadId: string) => void) => {

@@ -537,8 +537,6 @@ export const en = {
   "widget.toPanel": "Show in the side panel",
   "widget.inPanel": "Showing in the side panel",
   "widget.showHere": "Show here",
-  "widget.openBrowser": "Open in the browser",
-  "widget.openBrowserLocal": "Open in the browser · only where APX is reachable",
   "widgets.all": "All widgets ({n})",
   "widgets.empty": "No widgets in this chat",
   "widgets.emptyBody":
@@ -562,6 +560,7 @@ export const en = {
   // Artifact memory, export and import
   "artifact.pinTo": "Pin to {project}'s board",
   "artifact.unpinFrom": "Unpin from {project}'s board",
+  "artifact.openWindow": "Open in a new window",
   "artifact.memory": "Memory and export",
   "artifact.memoryTitle": "Memory · {title}",
   "artifact.memoryHint":

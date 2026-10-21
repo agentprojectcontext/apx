@@ -393,3 +393,11 @@
 .inputline__state.is-denied {
   color: var(--apx-danger-soft-fg);
 }
+
+/* One artifact alone in its own window or tab (ArtifactWindow.tsx). */
+.artifactwin {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--apx-bg);
+}
