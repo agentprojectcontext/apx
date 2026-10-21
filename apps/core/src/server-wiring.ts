@@ -59,7 +59,8 @@ import { routineHandlers } from "./rpc/routines.ts";
 import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
 import { setupHandlers } from "./rpc/setup.ts";
-import { systemHandlers, telemetryHandlers, updateHandlers } from "./rpc/system.ts";
+import { artifactHandlers } from "./rpc/surfaces.ts";
+import { newsHandlers, systemHandlers, telemetryHandlers, updateHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
 import { terminalHandlers } from "./rpc/terminal.ts";
@@ -146,7 +147,7 @@ export function builtinTools(
     ...agentSetTools(store),
     ...chatTools(store),
     ...browserTools(store, home),
-    ...surfaceTools(store),
+    ...surfaceTools(store, home),
     ...ownerTools(store),
     ...shellTools(store, home, port),
     ...fileTools(store, home),
@@ -217,6 +218,8 @@ type HandlerDeps = {
   runtimeHomes: Parameters<typeof resourceHandlers>[0]["runtimeHomes"];
   updates: Updates;
   telemetry: Telemetry;
+  /** Release news the super-agent tells. */
+  news: Parameters<typeof newsHandlers>[0];
   /** The panel build being served (its entry file). */
   panel: () => string | undefined;
   /** The addresses a paired device may reach this core on. */
@@ -233,6 +236,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...desktopInstallHandlers(d.desktopInstaller),
     ...updateHandlers(d.updates),
     ...telemetryHandlers(d.telemetry),
+    ...newsHandlers(d.news),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)
@@ -277,6 +281,7 @@ export function coreHandlers(d: HandlerDeps) {
     }),
     ...providerHandlers(d.providers, d.secrets, d.chatgpt),
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
+    ...artifactHandlers({ store: d.store, secrets: d.secrets, home: d.app.home }),
     ...agentHandlers(d.store, d.apc, d.engines, d.tools),
     ...teamHandlers(d.store, d.apc, d.templateRoots, (s) => d.scheduler.nextFor(s)),
     ...fileHandlers(d.store, d.desktop, d.app.home),

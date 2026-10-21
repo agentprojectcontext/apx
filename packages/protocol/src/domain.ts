@@ -591,6 +591,7 @@ export const AuxPurpose = z.enum([
   "suggestion",
   "memory_capture",
   "memory_dream",
+  "news",
 ]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 
@@ -1295,3 +1296,56 @@ export const Surface = z.object({
 export type Surface = z.infer<typeof Surface>;
 export const SurfaceSummary = Surface.omit({ html: true, state: true });
 export type SurfaceSummary = z.infer<typeof SurfaceSummary>;
+
+/** Most an artifact's store (APX.store) may hold, as JSON bytes of every value together. */
+export const ARTIFACT_STORE_MAX = 5_000_000;
+/** Largest an artifact's database file (APX.db) may grow. */
+export const ARTIFACT_DB_MAX = 50_000_000;
+/** An artifact's own secret key (its full name is `artifact.<name>.<key>`). */
+export const ArtifactSecretKey = z
+  .string()
+  .min(1)
+  .max(60)
+  .regex(/^[a-z0-9][a-z0-9_-]*$/);
+/** What an artifact is, as a bundle names it: enough to install it again without its owner's data. */
+export const ArtifactManifest = z.object({
+  name: z
+    .string()
+    .min(1)
+    .max(60)
+    .regex(/^[a-z0-9][a-z0-9-]*$/),
+  title: z.string().min(1).max(120),
+  kind: z.enum(["widget", "app"]),
+  version: z.number().int().min(1),
+  /** The kit version its HTML loads (/_apx/kit@<version>.js). */
+  kit: z.string().max(40).optional(),
+  connect: z.array(SurfaceOrigin).max(5).optional(),
+  /** Secret keys it expects, never their values. */
+  secrets: z.array(ArtifactSecretKey).max(20).optional(),
+  live: z.boolean().optional(),
+  /** Schema version of its database, for future migrations. */
+  data_version: z.number().int().min(0).optional(),
+  source: z.object({ framework: z.enum(["preact", "html"]).optional(), built_at: z.string().optional() }).optional(),
+});
+export type ArtifactManifest = z.infer<typeof ArtifactManifest>;
+/** One artifact as a file: its page and, only when asked, its memory (state, store, base64 database). */
+export const ArtifactBundle = z.object({
+  format: z.literal("apx-artifact@1"),
+  manifest: ArtifactManifest,
+  html: z.string().min(1).max(400_000),
+  state: SurfaceState.optional(),
+  store: z.record(z.string(), z.unknown()).optional(),
+  db: z.string().optional(),
+});
+export type ArtifactBundle = z.infer<typeof ArtifactBundle>;
+/** A value bound to an artifact's SQL: what SQLite takes as a parameter. */
+export const ArtifactSqlParam = z.union([z.string(), z.number(), z.null(), z.boolean()]);
+/** What an artifact remembers, sizes only (its contents stay with it). */
+export const ArtifactMemory = z.object({
+  state_chars: z.number().int(),
+  store: z.object({ keys: z.array(z.string()), bytes: z.number().int() }),
+  db: z.object({ bytes: z.number().int(), tables: z.array(z.object({ name: z.string(), rows: z.number().int() })) }),
+  /** The origin each of its secrets was first sent to; it is sent nowhere else until the owner resets the pins. */
+  secrets: z.array(z.object({ key: z.string(), origin: z.string() })),
+});
+export type ArtifactMemory = z.infer<typeof ArtifactMemory>;

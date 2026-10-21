@@ -1,5 +1,6 @@
 export * from "./app-links.ts";
 export * from "./app-methods.ts";
+export * from "./artifact-methods.ts";
 export * from "./asana-methods.ts";
 export * from "./browser.ts";
 export * from "./composer-methods.ts";

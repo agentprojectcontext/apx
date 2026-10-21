@@ -57,6 +57,9 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "media.upload") return 120_000;
   // A widget's video can be 15 MB, base64 over a slow link to a remote core.
   if (method === "surfaces.media") return 120_000;
+  // An artifact's fetch waits up to 30 s on the outside API; a bundle may carry a 50 MB database.
+  if (method === "surfaces.fetch") return 45_000;
+  if (method === "surfaces.export" || method === "surfaces.import") return 180_000;
   // Indexing every note by meaning may take a while on a local model.
   if (method === "memory.reindex") return 10 * 60_000;
   // Listing reads every session's head; importing copies whole histories and their images.

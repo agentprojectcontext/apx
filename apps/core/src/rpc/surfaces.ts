@@ -1,0 +1,116 @@
+// surfaces.* for an artifact's own memory (store, db), its bundle and its fetch. The page never names the surface:
+// the web host passes its own id. See domain/artifact-memory.ts and artifact-fetch.ts.
+import type { ArtifactBundle, ArtifactManifest, Surface } from "@apx/protocol";
+import { declaresApp, declaresLive } from "../../../../packages/surfaces/src/kit.ts";
+import { artifactFetch } from "../artifact-fetch.ts";
+import { artifactMemory } from "../domain/artifact-memory.ts";
+import type { Store } from "../domain/store.ts";
+import { summary } from "../domain/surfaces.ts";
+import { badRequest, notFound, unauthorized } from "../errors.ts";
+import { type Secrets, splitSecretName } from "../secrets.ts";
+import type { Handlers } from "./router.ts";
+
+/** The kit version a page loads (`/_apx/kit@1.2.js` → "1.2"). */
+export function kitVersionOf(html: string): string | undefined {
+  return /<script\b[^>]*\bsrc\s*=\s*["']?\/_apx\/kit@(\d+(?:\.\d+){0,2})\.js/i.exec(html)?.[1];
+}
+
+export function artifactHandlers(deps: { store: Store; secrets: Secrets; home: string; fetcher?: typeof fetch }) {
+  const { store, secrets } = deps;
+  const memory = artifactMemory({ home: deps.home });
+  const surfaceOf = (id: string): Surface => {
+    const s = store.surfaces.get(id);
+    if (!s) throw notFound(`surface ${id}`);
+    return s;
+  };
+  const infoOf = (s: Surface) => ({
+    state_chars: s.state ? JSON.stringify(s.state).length : 0,
+    ...memory.info(s),
+  });
+  /** The secret keys this artifact has values for (its project's own and global ones), never the values. */
+  const secretKeysOf = (s: Surface) => {
+    const prefix = `artifact.${s.name}.`;
+    const keys = new Set<string>();
+    for (const { name } of secrets.list()) {
+      const { project_id, name: plain } = splitSecretName(name);
+      if (plain.startsWith(prefix) && (!project_id || project_id === s.project_id))
+        keys.add(plain.slice(prefix.length));
+    }
+    return [...keys].sort();
+  };
+
+  return {
+    "surfaces.store_get": ({ surface, keys }) => ({ values: memory.storeGet(surfaceOf(surface), keys) }),
+    "surfaces.store_set": ({ surface, patch }) => {
+      if (Object.keys(patch).length > 1000) throw badRequest("at most 1000 keys per change");
+      return memory.storeSet(surfaceOf(surface), patch);
+    },
+    "surfaces.db_query": ({ surface, sql, params }) => memory.query(surfaceOf(surface), sql, params),
+    "surfaces.db_exec": ({ surface, sql, params }) => memory.exec(surfaceOf(surface), sql, params),
+    "surfaces.memory": ({ surface }) => infoOf(surfaceOf(surface)),
+    "surfaces.memory_clear": ({ surface, parts }) => {
+      const s = surfaceOf(surface);
+      if (parts.includes("state")) store.surfaces.setState(s.id, {}, true);
+      memory.clear(s, { store: parts.includes("store"), db: parts.includes("db"), secrets: parts.includes("secrets") });
+      return infoOf(surfaceOf(surface));
+    },
+    "surfaces.export": ({ surface, memory: withMemory }) => {
+      const s = surfaceOf(surface);
+      const kit = kitVersionOf(s.html);
+      const secretKeys = secretKeysOf(s);
+      const dataVersion = memory.dataVersion(s);
+      const manifest: ArtifactManifest = {
+        name: s.name,
+        title: s.title,
+        kind: s.app ? "app" : "widget",
+        version: s.version,
+        ...(kit ? { kit } : {}),
+        ...(s.connect?.length ? { connect: s.connect } : {}),
+        ...(secretKeys.length ? { secrets: secretKeys.slice(0, 20) } : {}),
+        ...(declaresLive(s.html) !== undefined ? { live: true } : {}),
+        ...(dataVersion !== undefined ? { data_version: dataVersion } : {}),
+      };
+      const bundle: ArtifactBundle = { format: "apx-artifact@1", manifest, html: s.html };
+      if (withMemory) {
+        if (s.state) bundle.state = s.state;
+        const values = memory.storeGet(s);
+        if (Object.keys(values).length) bundle.store = values;
+        const db = memory.dump(s);
+        if (db) bundle.db = db;
+      }
+      return bundle;
+    },
+    "surfaces.import": ({ bundle, project }) => {
+      if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
+      const m = bundle.manifest;
+      let name = m.name;
+      for (let n = 2; store.surfaces.byName(project, name); n++) name = `${m.name.slice(0, 55)}-${n}`;
+      const ref = { name, project_id: project };
+      // Memory first, so a refused database leaves no artifact behind.
+      memory.load(ref, { db: bundle.db, store: bundle.store });
+      const created = store.surfaces.upsert({
+        name,
+        title: m.title,
+        html: bundle.html,
+        project_id: project,
+        created_by: "owner",
+        app: m.kind === "app" || declaresApp(bundle.html),
+        ...(m.connect ? { connect: m.connect } : {}),
+      });
+      if (bundle.state && Object.keys(bundle.state).length) store.surfaces.setState(created.id, bundle.state, true);
+      return summary(created);
+    },
+    "surfaces.fetch": async ({ surface, url, method, headers, body, secret }, ctx) => {
+      // Only the owner's open page spends the artifact's credential; an agent's call would choose where it goes.
+      if (secret && ctx.actor !== "human") throw unauthorized("only the artifact's page sends its secrets");
+      const s = surfaceOf(surface);
+      return artifactFetch(
+        s,
+        { url, method, headers, body, secret },
+        (ref, projectId) => secrets.resolveIn(ref, projectId),
+        { get: (key) => memory.pins(s)[key], set: (key, origin) => memory.pin(s, key, origin) },
+        deps.fetcher,
+      );
+    },
+  } satisfies Partial<Handlers>;
+}

@@ -21,6 +21,9 @@ const FILE_METHODS: ReadonlySet<string> = new Set([
   "media.listen",
   "skills.preview",
   "skills.import",
+  // An artifact's store holds up to 5 MB; a bundle carries its database.
+  "surfaces.store_set",
+  "surfaces.import",
 ]);
 const MAX_FILE_BODY = FILE_PAYLOAD_BYTES;
 /** The kit's path in any minor version a page names (kit@1.js, kit@1.2.js). */
