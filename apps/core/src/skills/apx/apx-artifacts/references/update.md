@@ -24,7 +24,8 @@ page that keeps its own `<style>` changes nothing on screen: that is not an upda
    - header → `header.ax-hero` (eyebrow, `h1`, one line, actions on the right) or `ax-header`;
    - numbers → `ax-grid` of `ax-card ax-stat` (`--accent` on the 3–5 key ones), trends → `<ax-spark>`;
    - charts → `<ax-chart>`, `<ax-bars>`, `<ax-donut>`, `<ax-split>`; keep a hand-drawn SVG only when no kit element
-     draws it (candlesticks, maps), and color it with `--apx-*` tones;
+     draws it (candlesticks, maps), and color it with `--apx-*` tones (a canvas reads them with
+     `getComputedStyle(document.documentElement).getPropertyValue("--apx-brand")` each time it draws, never hex);
    - controls → `ax-seg`, `ax-select`, `ax-btn` (one `--primary`), status → `ax-live` / `ax-badge`;
    - tables → `table.ax-table`, lists → `ax-list`, methodology → `details.ax-details`.
 3. Delete the page's own `<style>` except a few lines of one-off layout, and every hard-coded color, gradient and
