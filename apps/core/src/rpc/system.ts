@@ -1,6 +1,7 @@
 import { PROTOCOL_VERSION } from "@apx/protocol";
 import { coreLogFile, readCoreLog } from "../core-log.ts";
 import type { Identity } from "../identity.ts";
+import type { News } from "../news/news.ts";
 import type { Telemetry } from "../telemetry.ts";
 import type { Updates } from "../updates.ts";
 import type { Handler, Handlers } from "./router.ts";
@@ -48,5 +49,13 @@ export function telemetryHandlers(telemetry: Telemetry) {
       telemetry.seen();
       return { ok: true as const };
     },
+  } satisfies Partial<Handlers>;
+}
+
+/** Release news: what there is, and telling it now (a replay for testing, or what a start would tell). */
+export function newsHandlers(news: Pick<News, "list" | "tell">) {
+  return {
+    "system.news": () => ({ entries: news.list() }),
+    "system.news_tell": ({ ids }) => news.tell(ids),
   } satisfies Partial<Handlers>;
 }

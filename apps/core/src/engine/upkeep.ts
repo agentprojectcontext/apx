@@ -316,8 +316,12 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     return p;
   }
 
+  /** The models an agent's own turns go to, then the auxiliary one: for a short message in its own voice. */
+  const voiceModels = (agentId: string) => [...new Set([...agentModels(agentId), ...auxModels(agentId)])];
+
   return {
     auxModels,
+    voiceModels,
     memory: (agentId: string, system: string, user: string, about: AuxAbout) => ask(about, agentId, system, user),
     /** A one-shot answer from the auxiliary model (a room's "is this worth answering?"); none without one. */
     judge: (system: string, user: string, about: AuxAbout) => ask(about, undefined, system, user),
@@ -327,7 +331,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
      */
     study: (agentId: string, system: string, user: string, about: AuxAbout) =>
       ask(about, agentId, system, user, {
-        models: [...new Set([...agentModels(agentId), ...auxModels(agentId)])],
+        models: voiceModels(agentId),
         timeoutMs: STUDY_TIMEOUT_MS,
       }),
     compact: (threadId: string) => once(threadId, true),

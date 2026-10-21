@@ -222,8 +222,14 @@ Con `APX_UPDATES=off` se apagan los chequeos.
 
 La primera vez que APX arranca en una versión nueva, tu super-agente abre un chat nuevo con lo que cambió, y una
 pastilla **Ver cambios** en la barra de arriba lo abre. Esas notas viajan con la versión, así que leerlas no gasta
-tokens y funciona sin conexión; solo preguntar sobre ellas en ese chat corre un turno. Una instalación nueva arranca
-sin aviso, y `APX_WHATS_NEW=off` apaga el chat.
+tokens y funciona sin conexión; solo preguntar sobre ellas en ese chat corre un turno. Las notas son los mensajes de
+los commits, así que ese chat está en inglés. Una instalación nueva arranca sin aviso, y `APX_WHATS_NEW=off` apaga el
+chat.
+
+Cuando una versión trae algo que tu super-agente ahora puede hacer por vos (por ejemplo, actualizar tus widgets), te
+lo cuenta una vez, con sus palabras y en tu idioma, por tu canal preferido, con un botón por cada cosa que ofrece. Solo
+ese mensaje llama a un modelo, y solo cuando algo te aplica; a una instalación nueva no se le cuenta nada.
+`APX_NEWS=off` lo apaga, y `apx news` lista lo que hay.
 
 ## Desinstalar
 

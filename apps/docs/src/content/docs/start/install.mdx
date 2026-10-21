@@ -215,8 +215,13 @@ Set `APX_UPDATES=off` to stop the checks.
 
 The first time APX starts on a newer version, your super-agent opens a new chat with what changed, and a **See
 what's new** pill in the top bar opens it. Those notes travel with the build, so reading them costs no tokens and
-works offline; only asking about them in that chat runs a turn. A new install starts quiet, and `APX_WHATS_NEW=off`
-turns the chat off.
+works offline; only asking about them in that chat runs a turn. The notes are commit sentences, so that chat is in
+English. A new install starts quiet, and `APX_WHATS_NEW=off` turns the chat off.
+
+When a release brings something your super-agent can now do for you (say, update your widgets), it tells you once, in
+its own words and your language, on your preferred channel, with a button for each thing it offers. Only that message
+calls a model, and only when something applies to you; a new install is told nothing. `APX_NEWS=off` turns it off, and
+`apx news` lists what there is.
 
 ## Uninstall
 

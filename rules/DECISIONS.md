@@ -1241,7 +1241,8 @@ keeps the newest release told, so going back up is not told twice; an install th
 each under its version. Asking in that chat is an ordinary turn: its input (never the byte-stable system prompt) names
 the version, its branch and the commit range to read (`git log` in a checkout, the compare page otherwise), about 300
 characters. No tool was added: the agent's shell and web reading already reach the commits. `APX_WHATS_NEW=off` turns
-the chat off; test cores start with it off.
+the chat off; test cores start with it off. Amended by [D-117](#d-117): the chat is always in English, and news worth
+acting on reach the owner apart, in the super-agent's words.
 
 <a id="d-101"></a>
 ## D-101 — 2026-10-17 — The owner writing in a task's conversation reaches its agent's work chat, not a turn there
@@ -1617,3 +1618,64 @@ business: that notice stays in the chat, quiet, and never reaches the tray or a 
 count over. Kept: 150 and not 500, since one 60-step turn already sends about 3.5 M input tokens (most cached) with a
 context near 100 k, and a loop that slipped past the checks would spend all of it before stopping.
 
+<a id="d-117"></a>
+## D-117 — 2026-10-21 — Release news worth acting on: the super-agent tells them once, in its words, only when they apply
+D-100's chat stays as it is (written from the notes, no model call, the "See what's new" pill), but always in English:
+its body is commit sentences, which only a model could translate, and a frame in the owner's language around English
+lines read as broken. What it could not do is tell the owner what an update lets their agent do *for them* ("I can now
+upgrade your widgets"), in its own voice and language, where the owner reads it.
+
+That is now separate: entries in `apps/core/src/news/` (an id, the release that has it, a test on this install's facts
+such as "has widgets", what changed for the agent to tell, and actions: a label in English and Spanish and the prompt a
+press sends). The ones told are a setting (`news_seen`). A new install (nothing from the owner yet) knows every entry
+as a capability and is told none: the skill and the docs present them, and a new owner is not flooded. An install
+already on an entry's release when news began knows it too. On a start, the unseen entries that apply are told in one
+message: one model call on the super-agent's own API models (then the auxiliary one), no tools, 400 output tokens, a
+60-second deadline, its name and personality as the system prompt and a few hundred characters of input naming the
+entries and the owner's language. No entry applies, no call. The message goes to Home (unread, in the model log as its
+own words, so answering there is an ordinary turn) and through `notifyOwner` to the owner's preferred channel or
+phone, with buttons: one entry offers its own actions, several offer the first of each, at most three, and the model
+says how many more there are. A press is the owner's words in their chat on that channel; a channel without buttons
+numbers them, as for every notice. An entry is marked told once the message is posted; a failed model call marks
+nothing, and the next start tries again. With no API model (an agent on a CLI only) the entries go out as written, in
+English. This was a direct call, not an engine turn: a turn would bring the agent's tools and, on a CLI harness, a
+whole session, which this short message must not have.
+
+`APX_NEWS=off` stops it; test cores start with it off. `system.news` lists the entries (told, applies) and
+`system.news_tell` (the owner only) tells now: the given ones again, or the untold ones that apply; `apx news` and
+`apx news tell [id]` reach them from the terminal. Nothing was added to the system prompt or the tool definitions.
+
+<a id="d-118"></a>
+## D-118 — 2026-10-21 — Artifacts: one primitive, two kinds, three memory layers, three lifecycle tiers
+Widgets and apps were one thing already (a surface: an HTML page, kept by name per project), but the owner and the
+agent saw two words and the agent leaned towards building apps. Owner-facing, both are now **artifacts**, of kind
+**widget** (the default) or **app**; internally it stays a surface (`surfaces.*`, `show_widget`), so no table, method
+or tool was renamed and no compatibility shim exists. The skill is `apx-artifacts`: a short SKILL.md for the common
+case (one hand-written HTML with APX Kit, how to update one without losing what it remembers) and references loaded
+only when needed (kit, app, build, update). The tool says "default to a simple widget; an app only when asked or it
+must keep records" and names the kit's main classes, so a quick widget needs no skill load at all; the system prompt
+line got shorter, and the tool definitions did not grow.
+
+**Three memory layers, per artifact, none shared.** `state` (what the owner chose, ≤64,000 chars, the agent reads it),
+`store` (cached data such as the last reading, ≤5 MB, the agent sees only key names and size) and `db` (SQLite records
+for apps, ≤50 MB, the agent sees tables and row counts). They differ in who reads them and how big they get: the
+agent's context must not carry a cache, and records do not fit in a JSON column. Each artifact's store and database
+live in `<home>/artifacts/<project|global>/<name>/`, not in `apx.db`, so one app cannot grow the core's database or
+lock it. A credential never lives in the page: secrets named `artifact.<name>.<key>` are injected by the core in
+`surfaces.fetch`, only towards the artifact's `connect` origins.
+
+**Three lifecycle tiers.** Static (mounted while shown), cached (still destroyed when hidden, but `APX.live` paints the
+stored reading at once) and live (a page that declares `apx-live` stays mounted, at most three, LRU). Most artifacts
+need no running process: cached gives the "it was already there" feeling without keeping iframes alive.
+
+**Built artifacts are one HTML.** A large app is built with Preact + Vite + `vite-plugin-singlefile` and shown with
+`apx artifacts push` (a `surfaces.show` call; `project` was added as an optional param for a call without a thread).
+The host, the sandbox, the kit inlining and publishing stay the same for every artifact. Its source lives under
+`artifact-sources/<scope>/<name>`, never in the owner's project, whose repo is the owner's, and apart from its memory: the
+agents of that project may write and build there (a folder root, and the shell's APX-home rule leaves it out), while
+`artifacts/` (the database, the store, the secret pins) stays the core's alone, so an agent cannot rewrite a pin.
+
+**Bundle format for a future marketplace.** `apx-artifact@1`: a manifest (name, title, kind, version, kit, connect,
+secret keys without values, live, `data_version` for future db migrations, source), the html and, only when the owner
+asks, the memory. An upload will never carry the owner's memory: installing starts empty and asks for its own secrets.
+Nothing is uploaded yet; the format is fixed now so exports made today stay importable.

@@ -233,6 +233,39 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  // Release news the super-agent tells the owner (DECISIONS.md#d-116).
+  /** The news APX carries: whether each was told (or known from the start) and whether it applies to this owner. */
+  "system.news": {
+    params: z.object({}).strict(),
+    result: z.object({
+      entries: z.array(
+        z.object({
+          id: z.string(),
+          since: z.string(),
+          title: z.string(),
+          seen: z.boolean(),
+          applies: z.boolean(),
+          actions: z.array(z.string()),
+        }),
+      ),
+    }),
+    effect: false,
+  },
+  /**
+   * Tells news now, as a start would: the given entries even if told or not applying (a replay), else the unseen ones
+   * that apply. `voiced`: the super-agent's model wrote it; `sent`: a channel or the phone took it.
+   */
+  "system.news_tell": {
+    params: z.object({ ids: z.array(z.string().max(80)).max(20).optional() }).strict(),
+    result: z.object({
+      told: z.array(z.string()),
+      thread: z.string().optional(),
+      sent: z.boolean(),
+      voiced: z.boolean(),
+    }),
+    effect: true,
+    access: "human",
+  },
   "system.import_v1": {
     params: z
       .object({
@@ -1685,6 +1718,8 @@ export const appMethods = {
         /** Origins it may read live data from ([] removes them; absent keeps the current ones). */
         connect: z.array(SurfaceOrigin).max(5).optional(),
         thread: Id.optional(),
+        /** Without a thread (`apx artifacts push`): the project it belongs to; none makes it global. */
+        project: Id.optional(),
       })
       .strict(),
     result: SurfaceSummary,

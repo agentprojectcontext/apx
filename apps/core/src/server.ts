@@ -65,6 +65,7 @@ import { mcpConfig } from "./mcp/config.ts";
 import { agentFiles } from "./mcp/file-args.ts";
 import { createMcp } from "./mcp/manager.ts";
 import { createCatalog } from "./models/catalog.ts";
+import { createNews } from "./news/news.ts";
 import { nodeChildEnv } from "./node-runtime.ts";
 import { createNodeBroker } from "./nodes/broker.ts";
 import { createHeadlessBrowser } from "./nodes/headless-browser.ts";
@@ -166,6 +167,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   seed(store, config.agentName);
   const releases =
     opts.releases ?? (config.whatsNew ? localReleases(path.resolve(import.meta.dirname, "../../..")) : undefined);
+  // The release this install was on before this start: news it already had are not told as new.
+  const previousRelease = store.settings.get("release_seen");
   try {
     if (releases) announceRelease(store, releases);
   } catch (err) {
@@ -361,6 +364,13 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       return true;
     },
   });
+  const news = createNews({
+    store,
+    llm,
+    models: upkeep.voiceModels,
+    notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
+    log,
+  });
   // APX's own profiles, then the ones the owner installed (theirs win an id).
   const profileRoots: ProfileRoot[] = [
     { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/profiles") },
@@ -499,6 +509,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       runtimeHomes: config.runtimeSkills.homes,
       updates,
       telemetry,
+      news,
       panel: () => panelEntry(servedPanel(config)),
       profileRoots,
       // APX's own templates, then the owner's v1 vault (read-only).
@@ -527,6 +538,11 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   selfUrl = url;
   engine.start();
   await channels.start();
+  // After the channels: the message goes out on one (it waits in the outbox until that one is up).
+  if (config.news)
+    void news
+      .atBoot(previousRelease)
+      .catch((err) => log.warn({ err: errorMessage(err, 200) }, "release news not told; the next start tries again"));
   scheduler.start();
   updates.start();
   telemetry.start();
@@ -565,6 +581,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       localModels.cancel();
       headless?.close();
       scheduler.stop();
+      await news.stop();
       attention.stop();
       noticePush.stop();
       plugins.close();

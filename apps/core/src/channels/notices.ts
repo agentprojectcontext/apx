@@ -23,6 +23,8 @@ export const buttonId = {
   goOn: (session: string) => `d:${session}:go`,
   /** A reply drafted for a supervised contact: send it, answer them yourself, or drop it. */
   suggestion: (id: string, decision: SuggestionDecision) => `s:${id}:${decision}`,
+  /** One of a release news entry's actions (news/entries.ts): what it asks goes to the agent as the owner's words. */
+  news: (entry: string, n: number) => `n:${entry}:${n}`,
 };
 
 export type SuggestionDecision = "send" | "write" | "ignore";
@@ -36,7 +38,8 @@ export type Button =
   | { kind: "pairing"; code: string; decision: "contact" | "deny" }
   | { kind: "review"; person: string; decision: "answer" | "ignore" }
   | { kind: "suggestion"; id: string; decision: SuggestionDecision }
-  | { kind: "continue"; session: string };
+  | { kind: "continue"; session: string }
+  | { kind: "news"; entry: string; index: number };
 
 export function parseButton(data: string): Button | undefined {
   const [kind, ref, what] = data.split(":");
@@ -51,6 +54,7 @@ export function parseButton(data: string): Button | undefined {
   if (kind === "d" && what === "go") return { kind: "continue", session: ref };
   if (kind === "s" && (what === "send" || what === "write" || what === "ignore"))
     return { kind: "suggestion", id: ref, decision: what };
+  if (kind === "n" && /^\d+$/.test(what)) return { kind: "news", entry: ref, index: Number(what) };
   return undefined;
 }
 

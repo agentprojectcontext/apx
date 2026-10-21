@@ -72,6 +72,7 @@ export const enChat = {
   "usage.aux.room": "Room filter",
   "usage.aux.commit": "Commit messages",
   "usage.aux.suggestion": "Suggested replies",
+  "usage.aux.news": "Release news",
   "usage.state.submitted": "Queued",
   "usage.state.working": "Working",
   "usage.state.waiting": "Waiting for you",

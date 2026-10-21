@@ -74,6 +74,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "usage.aux.room": "Filtro de sala",
   "usage.aux.commit": "Mensajes de commit",
   "usage.aux.suggestion": "Respuestas sugeridas",
+  "usage.aux.news": "Novedades",
   "usage.state.submitted": "En cola",
   "usage.state.working": "Trabajando",
   "usage.state.waiting": "Te espera",

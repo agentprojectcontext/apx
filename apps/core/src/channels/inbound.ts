@@ -11,6 +11,7 @@ import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
+import { newsAction } from "../news/entries.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
@@ -578,12 +579,33 @@ export function createInbound(deps: {
         reply(button.decision === "contact" ? t.approved : t.denied);
         return;
       }
+      if (button.kind === "news") {
+        await newsButton(channel, a, button);
+        return;
+      }
       await inputButton(channel, a, button, reply);
     } catch (err) {
       const msg = errorMessage(err, 200);
       log.warn({ channel, err: msg }, "channel button not handled");
       reply(t.buttonFailed(msg));
     }
+  }
+
+  /** A release news action pressed: what it asks goes to the agent in the owner's chat there, as their words. */
+  async function newsButton(channel: string, a: InboundAction, button: Extract<Button, { kind: "news" }>) {
+    const ask = newsAction(button.entry, button.index);
+    const cfg = deps.configs().find((c) => c.id === channel);
+    if (!ask || !cfg) return;
+    const thread = ownerThread(cfg, a.conversation);
+    const name = store.persons.get(OWNER_ID)?.name ?? a.sender.name;
+    await call(
+      "threads.send",
+      { thread: thread.id, text: ask.prompt, mode: cfg.concurrency },
+      {
+        actor: "human",
+        channel: { id: cfg.id, conversation: a.conversation, person_id: OWNER_ID, name, role: "owner" },
+      },
+    );
   }
 
   /** A press on a confirmation or question's button: answer it, or tick an option of a multi-choice one. */

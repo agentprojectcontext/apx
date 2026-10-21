@@ -1,6 +1,6 @@
 // What an update brought, told by the super-agent: on the first start of a newer release, a chat of its own, unread,
 // with each new release's changes. Written from the notes the build carries (no model call); asking about them there
-// is an ordinary turn. See DECISIONS.md#d-100
+// is an ordinary turn. See DECISIONS.md#d-100 and #d-117
 import { compareVersions, type Release, type ReleaseNotes, type ReleaseSource } from "../release-notes.ts";
 import type { Store } from "./store.ts";
 import { previewOf } from "./threads.ts";
@@ -9,35 +9,17 @@ import { previewOf } from "./threads.ts";
 const SEEN_KEY = "release_seen";
 const PER_SECTION = 25;
 
-type Words = {
-  title: (v: string) => string;
-  intro: (v: string) => string;
-  sections: Record<"feat" | "fix" | "perf", string>;
-  more: (n: number) => string;
-  internal: string;
-  outro: string;
+// Always English: the notes are commit sentences, and a frame in another language around them reads broken.
+const WORDS = {
+  title: (v: string) => `What's new in APX ${v}`,
+  intro: (v: string) => `APX was updated to ${v}. This is what changed:`,
+  sections: { feat: "New", fix: "Fixed", perf: "Faster" },
+  more: (n: number) => `…and ${n} more`,
+  internal: "Internal changes only.",
+  outro: "Ask me anything about these changes.",
 };
 
-const WORDS: Record<"en" | "es", Words> = {
-  en: {
-    title: (v) => `What's new in APX ${v}`,
-    intro: (v) => `APX was updated to ${v}. This is what changed:`,
-    sections: { feat: "New", fix: "Fixed", perf: "Faster" },
-    more: (n) => `…and ${n} more`,
-    internal: "Internal changes only.",
-    outro: "Ask me anything about these changes.",
-  },
-  es: {
-    title: (v) => `Novedades de APX ${v}`,
-    intro: (v) => `APX se actualizó a la versión ${v}. Esto es lo que cambió:`,
-    sections: { feat: "Nuevo", fix: "Arreglado", perf: "Más rápido" },
-    more: (n) => `…y ${n} más`,
-    internal: "Solo cambios internos.",
-    outro: "Preguntame lo que quieras sobre estos cambios.",
-  },
-};
-
-function releaseText(r: Release, w: Words): string {
+function releaseText(r: Release, w = WORDS): string {
   const blocks = (["feat", "fix", "perf"] as const).flatMap((kind) => {
     const lines = r.changes.filter((c) => c.kind === kind).map((c) => `- ${c.text}`);
     if (!lines.length) return [];
@@ -48,8 +30,8 @@ function releaseText(r: Release, w: Words): string {
 }
 
 /** The message: one release as it is, several (an install that skipped some) each under its version, newest first. */
-export function whatsNewText(version: string, releases: Release[], language: string): string {
-  const w = language === "es" ? WORDS.es : WORDS.en;
+export function whatsNewText(version: string, releases: Release[]): string {
+  const w = WORDS;
   const body =
     releases.length === 1 && releases[0]
       ? releaseText(releases[0], w)
@@ -86,13 +68,12 @@ export function announceRelease(store: Store, source: ReleaseSource): { thread?:
   const releases = notes ? newSince(notes, version, seen) : [];
   if (!boss || !notes || !releases.length) return untold();
 
-  const language = store.settings.get("owner_language") || "es";
-  const text = whatsNewText(version, releases, language);
+  const text = whatsNewText(version, releases);
   const oldest = releases.at(-1);
   return store.tx(() => {
     const thread = store.threads.create({
       kind: "agent",
-      title: (language === "es" ? WORDS.es : WORDS.en).title(version),
+      title: WORDS.title(version),
       agent_ids: [boss.id],
     });
     store.threads.mergeContext(thread.id, {
