@@ -1320,6 +1320,7 @@ export const en = {
   "desktop.memory.quick": "Quick chat",
   "desktop.memory.tab": "Browser tab",
   "desktop.memory.page": "Page",
+  "desktop.memory.app": "App",
   "desktop.memory.helper": "Helper",
   "desktop.lead": "The APX icon opens a quick chat with your super-agent, from anywhere.",
   "desktop.onlyApp": "These settings apply in the APX desktop app.",

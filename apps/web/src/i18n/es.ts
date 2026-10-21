@@ -1331,6 +1331,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "desktop.memory.quick": "Chat rápido",
   "desktop.memory.tab": "Pestaña del navegador",
   "desktop.memory.page": "Página",
+  "desktop.memory.app": "App",
   "desktop.memory.helper": "Ayudante",
   "desktop.lead": "El ícono de APX abre un chat rápido con tu super-agente, desde cualquier lado.",
   "desktop.onlyApp": "Estos ajustes aplican en la app de escritorio de APX.",

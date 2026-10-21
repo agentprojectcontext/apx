@@ -216,6 +216,8 @@ export function FrameView({
         <iframe
           ref={frame}
           title={summary?.title ?? t("panel.widget")}
+          // The desktop app finds artifact frames by this name to count their memory in Advanced.
+          name={`apx-artifact:${summary?.title ?? surfaceId}`}
           // Forms fire their submit event for the page's own script; the CSP's form-action lets none leave.
           sandbox="allow-scripts allow-forms"
           srcDoc={srcdoc}

@@ -45,6 +45,12 @@ export function createArtifactWindows(opts: {
       const w = open.get(id);
       if (w && !w.isDestroyed()) w.close();
     },
+    /** Each open window's page, for the memory report and its artifact frames. */
+    pages(): { title: string; contents: WebContents }[] {
+      return [...open.values()]
+        .filter((w) => !w.isDestroyed())
+        .map((w) => ({ title: w.getTitle(), contents: w.webContents }));
+    },
     /** Whether a sender is one of these windows (it may read the core's token, like the panel). */
     owns(sender: WebContents): boolean {
       for (const w of open.values()) if (!w.isDestroyed() && w.webContents === sender) return true;

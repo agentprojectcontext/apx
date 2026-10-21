@@ -30,7 +30,7 @@ import { applySavedLocalTarget, loadConnection, localCoreUrl } from "./connectio
 import { createConnector } from "./connector.ts";
 import { createCursor } from "./cursor.ts";
 import { editMenu } from "./edit-menu.ts";
-import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
+import { artifactOwners, itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
 import { confirmQuit } from "./quit-confirm.ts";
@@ -499,6 +499,12 @@ app.whenReady().then(() => {
     if (quickPid) owners.set(quickPid, { kind: "quick" });
     const popoutPid = popout.processId();
     if (popoutPid) owners.set(popoutPid, { kind: "panel" });
+    // Open apps and live widgets: in the panel and in their own windows.
+    for (const page of [{ title: "", contents: panel.webContents }, ...artifactWindows.pages()]) {
+      const pid = page.contents.getOSProcessId();
+      if (page.title) owners.set(pid, { kind: "app", site: page.title });
+      for (const [p, o] of artifactOwners(page.contents.mainFrame.framesInSubtree, pid)) owners.set(p, o);
+    }
     return memoryReport(app.getAppMetrics(), owners);
   };
   const memText = memoryText(app.getLocale());
