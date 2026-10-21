@@ -71,6 +71,18 @@ export function toDay(doc: FsDoc): Day {
   return { install: parts.at(-3) ?? "", day: parts.at(-1) ?? "", version: String(f.version ?? ""), numbers };
 }
 
+/** Stages of one flush land seconds apart; a real setup or first message comes at least a tick (30 min) later. */
+const SAME_FLUSH_MS = 10_000;
+
+/** An APX that ran before it had telemetry: its first send already carried setup or a first message. */
+export function existedBefore(i: Install): boolean {
+  const installed = Date.parse(i.stages.installed ?? "");
+  return (["setup", "first_run"] as const).some((s) => {
+    const at = Date.parse(i.stages[s] ?? "");
+    return at - installed <= SAME_FLUSH_MS;
+  });
+}
+
 const tally = (xs: string[]): Array<[string, number]> => {
   const n = new Map<string, number>();
   for (const x of xs) n.set(x, (n.get(x) ?? 0) + 1);
@@ -80,6 +92,8 @@ const tally = (xs: string[]): Array<[string, number]> => {
 export function summarize(all: Install[], days: Day[], opts: { all?: boolean; now?: Date } = {}) {
   const now = opts.now ?? new Date();
   const installs = opts.all ? all : all.filter((i) => i.channel !== "source" && i.channel !== "test");
+  // The funnel counts new installs only; usage, versions and systems keep every install.
+  const fresh = installs.filter((i) => !existedBefore(i));
   const ids = new Set(installs.map((i) => i.id));
   const kept = days.filter((d) => ids.has(d.install));
   const since = (n: number) => new Date(now.getTime() - n * 86_400_000).toISOString();
@@ -99,8 +113,9 @@ export function summarize(all: Install[], days: Day[], opts: { all?: boolean; no
     byDay.set(d.day, cur);
   }
   return {
-    installs: installs.length,
-    funnel: STAGES.map((s) => ({ stage: s, installs: installs.filter((i) => i.stages[s]).length })),
+    installs: fresh.length,
+    existing: installs.length - fresh.length,
+    funnel: STAGES.map((s) => ({ stage: s, installs: fresh.filter((i) => i.stages[s]).length })),
     opt_in: { answered: answered.length, yes: answered.filter((i) => i.usage).length },
     active: { d1: activeIn(1), d7: activeIn(7), d30: activeIn(30) },
     versions: tally(installs.map((i) => i.version)),
@@ -165,7 +180,7 @@ async function read(token: string): Promise<{ installs: Install[]; days: Day[] }
 const pct = (n: number, of: number) => (of ? `${Math.round((n / of) * 100)}%` : "–");
 
 export function text(s: Summary): string {
-  const out = [`Installs: ${s.installs}`, "", "Funnel"];
+  const out = [`Installs: ${s.installs} new · ${s.existing} running before telemetry`, "", "Funnel (new installs)"];
   for (const f of s.funnel)
     out.push(`  ${f.stage.padEnd(10)} ${String(f.installs).padStart(6)}  ${pct(f.installs, s.installs)}`);
   out.push(
@@ -201,8 +216,8 @@ export function html(s: Summary): string {
 <style>body{font:14px system-ui;margin:32px;max-width:900px;color:#222}h2{margin-top:28px}table{border-collapse:collapse;width:100%}
 td,th{padding:6px 8px;border-bottom:1px solid #ddd;text-align:left}.bar{display:inline-block;height:10px;background:#3fb950;border-radius:3px}
 @media (prefers-color-scheme:dark){body{background:#111;color:#ddd}td,th{border-color:#333}}</style>
-<h1>APX telemetry</h1><p>${s.installs} installs · usage statistics ${s.opt_in.yes} of ${s.opt_in.answered} · active ${s.active.d1} today, ${s.active.d7} in 7 days, ${s.active.d30} in 30 days</p>
-<h2>Funnel</h2><table><tr><th>Step</th><th>Installs</th><th></th></tr>${s.funnel
+<h1>APX telemetry</h1><p>${s.installs} new installs · ${s.existing} running before telemetry · usage statistics ${s.opt_in.yes} of ${s.opt_in.answered} · active ${s.active.d1} today, ${s.active.d7} in 7 days, ${s.active.d30} in 30 days</p>
+<h2>Funnel (new installs)</h2><table><tr><th>Step</th><th>Installs</th><th></th></tr>${s.funnel
     .map(
       (f) =>
         `<tr><td>${f.stage}</td><td>${f.installs} (${pct(f.installs, s.installs)})</td><td>${bar(f.installs)}</td></tr>`,
