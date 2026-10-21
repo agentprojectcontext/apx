@@ -71,8 +71,9 @@ brings the theme (light and dark), components, memory and the bridge to the chat
 - Anything that deletes the owner's data asks first with `APX.confirm(text, {danger: true})`. An app keeps running
   while hidden (a widget closes when left): pause its own timers and sockets with `APX.onVisible` (kit.md, "Open
   apps keep running").
-- Starters: [assets/kit-widget.html](assets/kit-widget.html) (stats, chart, filterable table) and
-  [assets/kit-app.html](assets/kit-app.html) (rail, views, a list it remembers, settings). Replace their sample content.
+- A widget starts from [assets/kit-widget.html](assets/kit-widget.html) (stats, chart, filterable table). An app
+  always starts from a layout in [references/app.md](references/app.md) (dashboard, records or simple) and keeps its
+  shell: sidebar with "Made by" you, top bar, status bar. Replace their sample content.
 
 Every class and element: [references/kit.md](references/kit.md) (`load_skill name=apx-artifacts file=references/kit.md`).
 

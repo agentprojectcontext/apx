@@ -3,8 +3,32 @@
 An app is an artifact that fills the window and is listed in Apps. Make one only when the owner asks for an app, or
 the artifact must keep records the owner adds over time. A view of data, a chart or a form is a widget.
 
-Declare it in the page with `<meta name="apx-surface" content="app">` (or `app: true` in `show_widget`). Start from
-[../assets/kit-app.html](../assets/kit-app.html). An app too big to write by hand: [build.md](build.md).
+Declare it in the page with `<meta name="apx-surface" content="app">` (or `app: true` in `show_widget`). An app too
+big to write by hand: [build.md](build.md).
+
+## Start from a layout, never from a blank page
+
+Every app starts from one of these pages: read it with `load_skill name=apx-artifacts file=assets/<file>`, copy it
+whole, then replace its sample sections, data and words with the owner's. Keep its shell.
+
+| Starter | For | Shell |
+|---|---|---|
+| [app-dashboard.html](../assets/app-dashboard.html) | Data the owner watches: metrics, reports, monitoring | rail · sidebar · top bar · views · inspector · status bar |
+| [app-records.html](../assets/app-records.html) | Records the owner adds and edits: tasks, stock, contacts, expenses | rail · sidebar · top bar · list-detail · inspector · status bar, wired to `APX.db` |
+| [app-simple.html](../assets/app-simple.html) | A small tool with a few views | sidebar · top bar · views · status bar |
+
+What every app keeps, filled with real content:
+
+- **Sidebar**: its navigation (`ax-nav`, sections with counts) and the foot "Made by" with your own name
+  (`ax-agent`), so the owner sees who keeps it.
+- **Top bar**: the view's title with a short subtitle, its controls, and one primary action.
+- **Status bar**: one honest line: live or saved state, counts, last reading.
+- **Rail** when the app has more than one top-level section; **inspector** for the selected item's properties or the
+  last run. Drop one of these only when the app has nothing for it, not to save work.
+
+Write the owner's language in the copy; the starters are in English only as samples. Check before you show it: it
+looks like its starter (the same shell, now holding the owner's content), every view and button works, and its
+memory follows the rules below.
 
 ## Layout
 

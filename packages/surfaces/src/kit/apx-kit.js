@@ -27,6 +27,7 @@
 --apx-danger:#f06464;--apx-danger-soft:rgb(240 100 100 / .15);--apx-danger-soft-fg:#f59393;
 --apx-ring:rgb(62 201 139 / .4);--apx-shadow-sm:none}
 *,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;background:var(--apx-bg);color:var(--apx-fg);font:14px/1.5 var(--apx-font-sans);-webkit-font-smoothing:antialiased}
 :root[data-ax-embed]{background:transparent}:root[data-ax-embed] body{background:transparent}
 a{color:var(--apx-fg);text-underline-offset:2px}a:hover{color:var(--apx-brand)}
