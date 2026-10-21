@@ -21,6 +21,8 @@ export type Effect = "none" | "local" | "external" | "message";
  * outside total.
  */
 export type Confirm = "never" | "untrusted" | "ask" | "always";
+/** `url_data`: the URL carries values (a query) that outside content could have put there to send away. */
+export type UntrustedWhy = "url_data";
 
 /** The thread a tool call runs in, with how far its agent reaches: made only by engine/permissions.ts. */
 export type ScopedThread = Thread & FolderThread;
@@ -89,6 +91,8 @@ export type Tool = {
   effect: Effect;
   /** Fixed, or decided per call from the arguments (a shell command that only reads vs one that deletes). */
   confirm(args: Record<string, unknown>): Confirm;
+  /** Why an `untrusted` call waits, when the tool knows better than "outside content is in this turn". */
+  untrustedWhy?: UntrustedWhy | undefined;
   /** Longest the call may take before it is cut (the turn goes on with an error result). */
   deadlineMs: number;
   /**
@@ -137,6 +141,7 @@ export function defineTool<S extends Args>(def: {
   args: S;
   effect: Effect;
   confirm?: Confirm | ((args: z.output<S>) => Confirm);
+  untrustedWhy?: UntrustedWhy;
   deadlineMs: number;
   local?: (args: z.output<S>) => boolean;
   reads?: (args: z.output<S>) => boolean;
@@ -158,6 +163,7 @@ export function defineTool<S extends Args>(def: {
     effect: def.effect,
     confirm: (a) => (typeof def.confirm === "function" ? def.confirm(a as z.output<S>) : (def.confirm ?? "never")),
     deadlineMs: def.deadlineMs,
+    ...(def.untrustedWhy ? { untrustedWhy: def.untrustedWhy } : {}),
     ...(def.workspace ? { workspace: true as const } : {}),
     ...(def.needsCap ? { needsCap: def.needsCap } : {}),
     ...(def.when ? { when: def.when } : {}),

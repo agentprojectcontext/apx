@@ -4,10 +4,10 @@ import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { SUPER_AGENT_TOOLS } from "./agent-set.ts";
 import type { Reach } from "./folders.ts";
-import type { Confirm, Effect, Tool } from "./types.ts";
+import type { Confirm, Effect, Tool, UntrustedWhy } from "./types.ts";
 
 /** Why the owner is asked: always, outside content in the turn, the action's kind, or an agent that asks for all. */
-export type ConfirmWhy = "always" | "untrusted" | "needs_ok" | "asks_every" | "rule";
+export type ConfirmWhy = "always" | "untrusted" | "needs_ok" | "asks_every" | "rule" | UntrustedWhy;
 
 /** The mode an agent works in: its own, else its project's (withProjectAutonomy), else the default. */
 export const modeOf = (agent: Pick<AgentRecord, "autonomy">): Autonomy => agent.autonomy ?? DEFAULT_AUTONOMY;
@@ -112,8 +112,14 @@ export function authorize(tool: Tool, args: Record<string, unknown>, agent: Agen
   // Its own temp files change nothing of the owner's: no mode asks for them, only what always asks still does.
   if (tool.scratch?.(args)) return decide(level === "always" ? "always" : "never", "none", agent, untrusted);
   // A call that only reads here is risk read whatever the tool may do otherwise (DECISIONS.md#d-098).
-  return decide(level, tool.reads?.(args) ? "none" : tool.effect, agent, untrusted, tool.workspace);
+  const d = decide(level, tool.reads?.(args) ? "none" : tool.effect, agent, untrusted, tool.workspace);
+  // The tool names what outside content could do through this call, so the card says it (DECISIONS.md#d-121).
+  return d.kind === "confirm" && d.why === "untrusted" && level === "untrusted" && tool.untrustedWhy
+    ? { ...d, why: tool.untrustedWhy, reason: URL_DATA }
+    : d;
 }
+
+const URL_DATA = "the URL carries data, and content from outside (web, another agent or a message) is in this turn";
 
 const PLAN_KEEPS = new Set([...ALWAYS, "delegate", "list_agents", "list_sessions"]);
 

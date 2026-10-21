@@ -631,7 +631,8 @@ The G0 audit (plan/parity/07-seguridad.md) left holes open for the owner to deci
   through a link) and appends it to the prompt. A repo's own Claude skills and `@` imports are no longer loaded.
 - **A URL that carries values asks after outside content.** `web_read`, `browser_open` and `browser_navigate` with a
   query are `untrusted`: with a page or a message in the turn, `?d=<data>` to someone's site waits for the owner.
-  A plain URL does not. Data in the path is not caught.
+  A plain URL does not. Data in the path is not caught. Since [D-121](#d-121) the card says so, and `browser_navigate`
+  is part of `browser_open`.
 - **Plugins reach the local network only if they ask.** With `"network": true` a plugin reaches the internet; the
   private ranges (10/8, 172.16/12, 192.168/16, the tailnet's 100.64/10, fc00::/7, multicast) need
   `"local_network": true` as well, shown to the owner before turning it on.
@@ -1723,3 +1724,17 @@ assignee, assign them and send them back for rework, and their work starts one h
 owner's. Delegation is unchanged: a consult still asks nobody with `delegate` (D-074), and a delegation's sub-thread
 still gives nobody task work, so the chain D-079 closed stays closed. What a consult starts spends against the consult's
 chat, under the same limits on turns without the owner as any work an agent gives ([D-080](#d-080)).
+
+<a id="d-121"></a>
+## D-121 — 2026-10-21 — One tool opens a URL in the browser, and a URL that carries data says why it waits
+Two tools loaded a URL: `browser_open` (a new tab) and `browser_navigate` (a tab the agent had). Agents reached for
+`browser_open` each time, so a chat collected a live card per call, and the owner, seeing one ask and the other not,
+read it as a difference between the tools. It was not: both ask only for a URL with a query after outside content
+(D-057). The one that asked carried `?release=…`, and the card said only that outside content was in the turn.
+
+Now `browser_open` is the one tool. It loads the URL in the newest tab this chat's cards show that the agent may still
+drive (idle, or its own; never the owner's or another agent's), in `tab` when given, or in a new tab with `new_tab` or
+when the chat has none. A tool can name why its `untrusted` call waits (`untrustedWhy`): `web_read` and `browser_open`
+say `url_data`, and the card reads "with a URL that carries data (what follows the «?»), and content from a web page,
+another agent or a message is in this turn". The rule itself is unchanged: a query is how outside content would send
+the owner's data away, so it still waits.
