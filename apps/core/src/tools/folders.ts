@@ -99,6 +99,21 @@ export function scratchDir(store: Store, home: string, thread: { id: string; par
   return path.join(scratchRoot(home), root.id.replace(/[^\w-]/g, "_"));
 }
 
+/**
+ * Where a built artifact's source lives (one folder per artifact under it): APX's side, never the owner's repo, and
+ * apart from the artifact's memory (`artifacts/`), which only the core writes. See DECISIONS.md#d-118.
+ */
+export const artifactSources = (home: string, projectId: string | undefined) =>
+  path.join(home, "artifact-sources", projectId ?? "global");
+
+/**
+ * Whether a command names APX's own folder, leaving out this project's artifact sources, which its agents may build in.
+ */
+export function namesApxHome(command: string, home: string, projectId: string | undefined): boolean {
+  const rest = command.split(artifactSources(home, projectId)).join("");
+  return rest.includes(home) || /\.apx(2\b|\/v2\b)/.test(rest);
+}
+
 /** Every chat's temp folder sits here; one per APX home, so a test core never shares the owner's. */
 export const scratchRoot = (home: string) =>
   path.join(os.tmpdir(), `apx-scratch-${createHash("sha256").update(home).digest("hex").slice(0, 8)}`);
@@ -221,6 +236,7 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
   return [
     { dir: workDir(store, home, thread), write: true, scratch: false },
     { dir: scratchDir(store, home, thread), write: true, scratch: true },
+    { dir: artifactSources(home, thread.project_id), write: true, scratch: false },
     ...projectWorktrees(store, thread).map((dir) => ({ dir, write: true, scratch: false })),
     ...readOnlyFolders(store, thread).map((dir) => ({ dir, write: false, scratch: false })),
     ...sharedRoots(home),

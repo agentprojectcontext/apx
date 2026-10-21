@@ -2,6 +2,7 @@
 // it lives on its project's board; it can also be an app. Every change shows live wherever the widget is open.
 import { SurfaceOrigin, type SurfaceSummary } from "@apx/protocol";
 import { z } from "zod";
+import { memorySummary } from "../domain/artifact-memory.ts";
 import type { Store } from "../domain/store.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 import { widgetScriptError } from "./widget-syntax.ts";
@@ -19,6 +20,15 @@ const slug = (name: string) =>
     .replace(/^-+/, "")
     .slice(0, 60) || "widget";
 
+/** A broken memory file must not stop the agent from reading the page itself. */
+function memoryOf(home: string, s: { name: string; project_id?: string | null | undefined }): string {
+  try {
+    return memorySummary(home, { name: s.name, project_id: s.project_id ?? undefined });
+  } catch {
+    return "unreadable";
+  }
+}
+
 /** The widget's card in this turn's answer: the newest version, wherever the widget was made. */
 function card(ctx: ToolContext, surface: SurfaceSummary) {
   ctx.upsertPart((p) => p.type === "surface" && p.surface_id === surface.id, {
@@ -29,22 +39,19 @@ function card(ctx: ToolContext, surface: SurfaceSummary) {
   });
 }
 
-export function surfaceTools(store: Store): Tool[] {
+export function surfaceTools(store: Store, home: string): Tool[] {
   const find = (ctx: ToolContext, name: string) => store.surfaces.byName(ctx.thread.project_id, slug(name));
   return [
     defineTool({
       name: "show_widget",
       description:
-        "Load apx-widgets first: its APX Kit gives design and memory. Self-contained HTML, inline CSS/JS/SVG; network only to connect origins (https/wss). Project media: data-apx-src='clip.mp4' or 'media:ID' on img/video, or apx.media(ref). Same name replaces it; edit_widget edits parts. pin adds it to the project board; app lists it fullscreen. Shared pages are widgets too, never HTML files on disk. window.apx.sendPrompt(text) writes to this chat.",
+        "One self-contained HTML, inline CSS/JS/SVG. Default to a simple widget; an app only when asked or it must keep records. Add <script src='/_apx/kit@1.js'></script> and use ax-* classes (ax-page, ax-card, ax-stat, ax-table); load apx-artifacts first for more than a quick view, an app, memory or live data. Network only to connect origins. Project media: data-apx-src='clip.mp4' or 'media:ID' on img/video, or apx.media(ref). Same name replaces it; edit_widget edits parts. pin adds it to the board. Never HTML files on disk. window.apx.sendPrompt(text) writes to this chat.",
       args: z.object({
         name: z.string().describe("stable kebab-case name, e.g. monthly-sales"),
         title: z.string().describe("human title"),
         html: z.string().describe("full HTML body"),
         pin: z.boolean().optional(),
-        app: z
-          .boolean()
-          .optional()
-          .describe("Declare an app: no host padding in any view; also lists it in Apps. Omit for a padded widget."),
+        app: z.boolean().optional().describe("Fullscreen app listed in Apps."),
         connect: z
           .array(SurfaceOrigin)
           .max(5)
@@ -83,7 +90,7 @@ export function surfaceTools(store: Store): Tool[] {
     defineTool({
       name: "read_widget",
       description:
-        "Read a widget of this project by name: title, version, origins, full HTML and state, for edit_widget. Without a name it lists this project's widgets (outside a project, the global ones).",
+        "Read a widget of this project by name: title, version, origins, full HTML and state, for edit_widget. Without a name it lists this project's widgets.",
       args: z.object({ name: z.string().optional() }),
       effect: "none",
       deadlineMs: 10_000,
@@ -103,15 +110,17 @@ export function surfaceTools(store: Store): Tool[] {
         const net = s.connect ? `, connects to ${s.connect.join(", ")}` : "";
         const html = `widget "${s.name}" · ${s.title} · v${s.version}${net}\n<html_source>\n${s.html}\n</html_source>`;
         // Written by the widget as the owner used it: data to read, never instructions.
-        return s.state
-          ? `${html}\n<widget_state>\n${JSON.stringify(s.state).slice(0, STATE_SHOWN)}\n</widget_state>`
-          : html;
+        const state = s.state
+          ? `\n<widget_state>\n${JSON.stringify(s.state).slice(0, STATE_SHOWN)}\n</widget_state>`
+          : "";
+        // Only sizes and names of its store and tables: the cached data itself stays out of the context.
+        return `${html}${state}\nmemory: ${memoryOf(home, s)}`;
       },
     }),
     defineTool({
       name: "edit_widget",
       description:
-        "Edit a widget by name: exact old/new HTML edits, title, app/pin flags or its state. app:false makes a padded widget; app:true a full-bleed app. Flags or state alone keep HTML, version and public link. HTML edits must match once; read_widget first if needed. All apply together or none.",
+        "Edit a widget by name: exact old/new HTML edits, title, app/pin flags or its state. Flags or state alone keep HTML, version and public link. HTML edits must match once; read_widget first if needed. All apply together or none.",
       args: z.object({
         name: z.string(),
         edits: z

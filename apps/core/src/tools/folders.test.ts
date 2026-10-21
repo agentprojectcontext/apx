@@ -7,9 +7,11 @@ import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
 import {
+  artifactSources,
   folderAccess,
   harnessDir,
   judge,
+  namesApxHome,
   refusal,
   rootsOf,
   scratchDir,
@@ -453,4 +455,21 @@ test("a linked git worktree of the project beside its folder is the project's, u
     reach: "card" as const,
   });
   assert.ok("refused" in judge(kept, file, main, { write: true, home: env.home, project: true }));
+});
+
+test("an agent builds in its project's artifact sources, never in an artifact's memory or another project's sources", () => {
+  const store = env.core.store;
+  const t = { id: "thr_sources", project_id: "p_acme", reach: "fenced" as const };
+  const src = path.join(artifactSources(env.home, "p_acme"), "expenses", "src", "main.jsx");
+  const written = folderAccess(store, env.home, t, src, { write: true });
+  assert.ok(!("refused" in written), JSON.stringify(written));
+  const memory = path.join(env.home, "artifacts", "p_acme", "expenses", "data.sqlite");
+  assert.ok("refused" in folderAccess(store, env.home, t, memory, { write: true }));
+  const other = path.join(artifactSources(env.home, "p_other"), "expenses", "src", "main.jsx");
+  assert.ok("refused" in folderAccess(store, env.home, t, other, { write: true }));
+  // The shell's own text rule: this project's sources pass, the rest of APX's home does not.
+  const dir = sh(path.dirname(src));
+  assert.equal(namesApxHome(`cd ${dir} && npm run build`, sh(env.home), "p_acme"), false);
+  assert.equal(namesApxHome(`cd ${dir} && cat ${sh(env.home)}/apx.db`, sh(env.home), "p_acme"), true);
+  assert.equal(namesApxHome(`ls ${sh(artifactSources(env.home, "p_other"))}`, sh(env.home), "p_acme"), true);
 });

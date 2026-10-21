@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { expect, open, rpc, test } from "./kit.ts";
 
 const starter = fs.readFileSync(
-  new URL("../../apps/core/src/skills/apx/apx-widgets/assets/starter.html", import.meta.url),
+  new URL("../../apps/core/src/skills/apx/apx-artifacts/assets/starter.html", import.meta.url),
   "utf8",
 );
 

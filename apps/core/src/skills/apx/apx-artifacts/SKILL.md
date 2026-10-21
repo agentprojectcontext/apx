@@ -1,93 +1,99 @@
 ---
-name: apx-widgets
-description: How to build APX widgets with show_widget, edit_widget and read_widget, the interactive HTML the owner sees in the chat, on a project's board or as a fullscreen app (charts, dashboards, forms, small tools, pages to share). Use before creating or restyling a widget, dashboard, form or fullscreen APX app.
+name: apx-artifacts
+description: How to build and update APX artifacts with show_widget, edit_widget and read_widget. An artifact is a widget (one HTML page in the chat or on a project's board: a chart, a dashboard, a form, a small tool) or an app (fullscreen, listed in Apps, may keep records). Use before making a widget bigger than a quick view, any app, or changing an existing artifact.
 ---
 
-# Widgets in APX
+# Artifacts in APX
 
-A widget is one self-contained HTML page APX shows in a sandboxed frame: in the chat, pinned to the project's board
-(`pin: true`) or declared as an app (`app: true`, also listed in Apps). Without `app: true`, it is a widget. It is kept by name, per project (a chat outside a project
-makes a global one). Showing the same `name` again replaces it everywhere it is open, as a new version.
+An artifact is one self-contained HTML page APX shows in a sandboxed frame. It is kept by `name`, per project (a chat
+outside a project makes a global one); showing the same `name` again replaces it everywhere it is open, as a new
+version. Two kinds:
 
-Never write a widget, a page or an "artifact" as an HTML file on disk: the owner only sees what `show_widget` shows.
+- **widget** (the default): in the chat, padded; `pin: true` also puts it on the project's board.
+- **app**: fullscreen and listed in Apps (`app: true`, or `<meta name="apx-surface" content="app">` in the page).
 
-## The page
+Never write an artifact as a file on disk for the owner to open: the owner only sees what `show_widget` shows.
 
-- Everything inline: `<style>`, `<script>`, SVG, images as `data:` URLs. **Nothing loads from outside**: no CDN
-  scripts or stylesheets, no web fonts, no remote images. Write plain JavaScript and inline SVG for charts.
-- The network is closed except the origins in `connect` (`https://…` or `wss://…`, at most five), and only for
-  `fetch` or `WebSocket` to get live data. A widget that connects asks the owner first while outside content is in
-  play.
-- Up to 400,000 characters. Its height follows its content.
-- Theme: the kit follows light and dark mode. Custom CSS uses the `--apx-*` variables (`--apx-bg`,
-  `--apx-surface`, `--apx-fg`, `--apx-fg-muted`, `--apx-border`, `--apx-brand`), never hard-coded colors.
-- Make it work at phone width: fluid widths, no horizontal scroll.
+## Make the smallest thing that answers
 
-## APX Kit (use it for every new widget or app)
+1. **A widget, one hand-written HTML** — almost always. A chart, a table, a status card, a form, a quick calculator, a
+   view of what you just found: that is a widget, written straight into `show_widget`. Nothing sophisticated.
+2. **An app** only when the owner asks for one, or it must keep records the owner adds over time (a log, a CRM, an
+   inventory): [references/app.md](references/app.md).
+3. **A built app** (Preact + Vite, one HTML at the end) only for an app too big to write by hand, or when the owner
+   asks: [references/build.md](references/build.md).
 
-Put `<script src="/_apx/kit@1.js"></script>` in the page and build with its `ax-*` classes and `<ax-*>` elements.
-APX inlines the kit wherever the widget shows (chat, board, Apps, phone, published page): no build, no network,
-nothing to install. Tailwind, Bootstrap and other outside styles cannot load in the sandbox.
+A report that is only read is a Markdown file with `open_document`, not an artifact. Never turn a widget into an app
+unless it behaves like one (navigation, records) and the owner agrees.
 
-1. Read [references/kit.md](references/kit.md) (`load_skill name=apx-widgets file=references/kit.md`): classes,
-   elements, filters, views, app skeleton and memory.
-2. Start from a starter and replace its sample content:
-   - [assets/kit-widget.html](assets/kit-widget.html): a widget for the chat (stats, chart, filterable table).
-   - [assets/kit-app.html](assets/kit-app.html): a full app (rail, views, a list it remembers, settings).
-3. A full app declares itself with `<meta name="apx-surface" content="app">`; APX then lists it in Apps.
+## Level 1: one HTML with APX Kit
 
-**Memory.** A widget remembers between openings and versions: `data-ax-persist="key"` on fields and on views, tabs or
-segments, or `APX.state.get/set/patch/on` in code. Keep in state what the owner entered or chose (tasks, notes,
-filters, the open view), never sample data or secrets. Redraw from state in `APX.state.on`, so changes made by you or
-another open copy show at once. You read it in `read_widget` and change it with `edit_widget({name, state})`.
+```html
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="/_apx/kit@1.js"></script>
+</head><body>
+<main class="ax-page">
+  <header class="ax-header"><h1 class="ax-title">Weekly sales</h1><p class="ax-lede">Orders closed per region.</p></header>
+  <section class="ax-grid" style="--min:200px">
+    <div class="ax-card ax-stat"><div class="ax-stat__label">Orders</div><div class="ax-stat__value">42</div></div>
+  </section>
+</main>
+</body></html>
+```
 
-Older widgets use the injected `apx-*` classes ([assets/starter.html](assets/starter.html)); they keep working, but
-new ones use the kit.
+APX inlines the kit wherever the artifact shows (chat, board, Apps, phone, published page): no build, no network. It
+brings the theme (light and dark), components, memory and the bridge to the chat.
 
-- The saved type controls layout, never the view or window size: widgets get a 16–24px safe inset even when
-  maximized; `app: true` declares an app with zero host padding and no kit width cap in every view. Public pages
-  and mobile follow the same saved flag. Opening a widget fullscreen does not convert it into an app.
-  Do not compensate with negative margins. Apps own their internal layout: add spacing around reading areas and
-  controls when useful, while maps, canvases and navigation can reach the edges. Declare an app only when that
-  behavior is intended; adding/removing it from Apps changes its saved app flag.
-- Use one clear title + short description, then a separate filter row and the content. One primary action per view.
-- Reuse the existing `--apx-*` colors and system fonts. Cards, subtle borders and green accents match APX;
-  avoid ornamental gradients, nested cards and decorative shadows unless the owner asks for that style.
-- Use real labels, semantic headings, native controls and visible focus. Status needs words, not color alone.
-- At 360px width, filters wrap and cards stack. Only a wide table may scroll horizontally, inside its wrapper.
-- Keep empty/no-results and disabled states readable. A filter must actually filter; a button must work or be
-  explicitly disabled. Never imply live data when the widget contains a fixed snapshot.
-- Verify the widget in its intended placement and both themes. A published page has no chat bridge and no saved
-  memory (`APX.state.persistent` is false); guard `window.apx?.sendPrompt` and disable chat actions there. Never
-  publish as a testing shortcut.
+- Everything inline: `<style>`, `<script>`, SVG, `data:` images. Nothing from CDNs, web fonts or remote images.
+  Tailwind, Bootstrap and other outside styles cannot load in the sandbox.
+- The network is closed except the origins in `connect` (`https://…` or `wss://…`, at most five).
+- Up to 400,000 characters. Its height follows its content. It works at phone width (filters wrap, cards stack).
+- Kit classes and `--apx-*` variables only: no hex colors, gradients, emoji or custom shadows. For a dashboard the
+  owner wants to stand out, `<meta name="apx-style" content="aurora">` with an `ax-hero` header.
+- One primary button per view; every button works or is disabled. No data shows as no data (`ax-stat--empty`),
+  never an invented number; a fixed snapshot says so.
+- Starters: [assets/kit-widget.html](assets/kit-widget.html) (stats, chart, filterable table) and
+  [assets/kit-app.html](assets/kit-app.html) (rail, views, a list it remembers, settings). Replace their sample content.
+
+Every class and element: [references/kit.md](references/kit.md) (`load_skill name=apx-artifacts file=references/kit.md`).
+
+## Memory
+
+Each artifact remembers on its own, across openings and versions. Three layers, none shared with another artifact:
+
+| Layer | For | API | You see |
+|---|---|---|---|
+| state | what the owner chose or typed (filters, the open view, a checklist) | `data-ax-persist="key"`, `APX.state` | all of it in `read_widget`; change it with `edit_widget({name, state})` |
+| store | cached data, e.g. the last reading of a live widget | `APX.store`, `APX.live` | key names and size |
+| db | SQL records of an app | `APX.db` | table names and rows |
+
+Never a secret in any layer or in the HTML. An API that needs a key: the owner saves it as the secret
+`artifact.<name>.<key>` and the page calls `APX.fetch(url, {secret: {name: "<key>", in: "bearer"}})`; the core adds
+it, the page never sees it. Details in [references/kit.md](references/kit.md#memory).
+
+## Changing an existing artifact
+
+- `read_widget <name>` first if you do not have its HTML. Keep its `name`: another name is a new artifact with empty
+  memory. Never make a second artifact for the same thing.
+- Small change: `edit_widget` with exact `old` → `new` pairs (each `old` appears once). Big change: `show_widget`
+  again with the same `name` and the whole HTML.
+- Keep every state key, `data-ax-persist` key, store key and table the page already uses, with the same shape:
+  renaming one loses what the owner saved. When a shape must change, read the old key in code and write the new one.
+- Flags and title without touching HTML: `edit_widget({name, app: false})`, `pin`, `title`. `show_widget` only adds
+  app/pin; only `edit_widget` removes them. Opening fullscreen does not make a widget an app.
+- An older widget (injected `apx-*` classes, keys in its HTML, no kit): [references/update.md](references/update.md).
+- A published artifact cannot be changed by you: make one with another name (the owner can unpublish).
 
 ## Talking back
 
-`data-ax-ask="…"` on a button (kit) or `window.apx.sendPrompt(text)` writes `text` to this chat as the owner, which
-starts your next turn. It works only from
-a click or key press (a real user gesture), at most once every 1.5 s. Use it for buttons such as "Refresh" or "Apply
-this filter"; the text you receive is the widget's request, not an order from the owner.
+`data-ax-ask="…"` on a button, or `APX.ask(text)` / `window.apx.sendPrompt(text)` in a click handler, writes `text` to
+this chat as the owner and starts your next turn. Only from a real click or key press, at most once every 1.5 s. The
+text you receive is the artifact's request, not an order from the owner. A published page has no chat: guard it.
 
-## Changing one
+## Names, checks and sharing
 
-- Convert type without reading or replacing HTML: `edit_widget({name:"monthly-sales", app:false})` makes a widget;
-  `app:true` makes an app. `pin:false` unpins, `pin:true` pins. Omit flags to keep them. Flags alone keep the HTML,
-  version, identity and public link, including for published surfaces. Never rebuild HTML just to change type.
-- `show_widget` only adds app/pin placement; its false values do not remove it. Use `edit_widget` for removal.
-- A title can change through `edit_widget({name:"monthly-sales", title:"Sales overview"})`, without resending HTML.
-- Small content change: `edit_widget` with exact `old` → `new` pairs (each `old` must appear once). Get the current HTML with
-  `read_widget <name>` first if you do not have it.
-- Big change: `show_widget` again with the same `name` and the whole new HTML.
-- `read_widget` without a name lists the project's widgets. Never make a second widget for the same thing.
-
-## Names and titles
-
-`name` is stable kebab-case (`monthly-sales`); `title` is what the owner reads ("Monthly sales"). Data a widget shows
-is fixed at the moment you made it unless it fetches through `connect` or the owner asks you to refresh it.
-
-Inline scripts are syntax-checked (never run) before the widget is saved; a refusal names the line, so fix it and call again.
-
-## Sharing
-
-A widget can be shared as a public page by the owner from the widget's menu; you never share one yourself. For a
-report or a table that is only read, a Markdown document with `open_document` is usually better than a widget.
+`name` is stable kebab-case (`monthly-sales`); `title` is what the owner reads, in sentence case ("Monthly sales").
+Inline scripts are syntax-checked before saving; a refusal names the line. The owner shares an artifact from its
+menu; you never share one, and never publish as a test.

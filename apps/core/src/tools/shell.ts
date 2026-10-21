@@ -16,6 +16,7 @@ import {
   type JudgeOptions,
   judge,
   missingCwd,
+  namesApxHome,
   outsideFolders,
   type Root,
   refusal,
@@ -244,8 +245,7 @@ export function shellTools(store: Store, home: string, apxPort: () => number): T
         const { base, at: cwd } = where;
         const limit = a.background ? (a.timeout_s ?? BACKGROUND_S) : Math.min(a.timeout_s ?? 120, 600);
         // APX's own home (database, secrets index, job logs) is never an agent's to read or change.
-        if (a.command.includes(home) || /\.apx(2\b|\/v2\b)/.test(a.command))
-          return "refused: APX's own folder is off limits";
+        if (namesApxHome(a.command, home, ctx.thread.project_id)) return "refused: APX's own folder is off limits";
         if (cwd === base) fs.mkdirSync(base, { recursive: true });
         else if (!fs.existsSync(cwd)) return `${a.cwd} does not exist`;
         const r = await ctx.runCommand({

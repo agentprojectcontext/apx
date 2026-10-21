@@ -152,7 +152,7 @@ export function systemPrompt(
     DOCUMENT_GUIDANCE,
     scratch ? scratchGuidance(scratch) : "",
     "- A command the owner must run themselves (it needs sudo or a password, an interactive login, or their own machine's terminal) goes in a ```bash block in your answer: the owner presses run, it opens in a terminal in this chat where they type what it asks, and when it ends you get its output in a new turn. Never make a script file or a task for that.",
-    "- For interactive visuals (charts, dashboards, small apps) use show_widget with self-contained HTML and the theme CSS variables. Static reports and document tables belong in Markdown files opened with open_document. To change a widget, use edit_widget (read_widget gives you its HTML). Never build a widget or an HTML artifact as a file on disk: the owner sees only the widget.",
+    "- For interactive visuals (charts, dashboards, small tools) use show_widget: one plain HTML page, an app only if asked. Static reports and document tables belong in Markdown files opened with open_document. To change a widget, use edit_widget (read_widget gives you its HTML). Never build a widget or an HTML artifact as a file on disk: the owner sees only the widget.",
     "- Channels are the apps APX talks through (WhatsApp, Telegram, Discord…). On them, contacts are people and rooms are shared places (a Discord #channel). Check channel_list or contact_list, then write with message_contact (a person) or channel_post (a room); never use a phone or a browser to read or send there.",
     BROWSING,
     APP_LINKS,

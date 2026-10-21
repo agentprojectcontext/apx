@@ -196,7 +196,7 @@ test("a widget is not saved when the turn stopped while its scripts were checked
     },
     upsertPart: () => {},
   } as unknown as ToolContext;
-  const tools = surfaceTools(env.core.store);
+  const tools = surfaceTools(env.core.store, env.home);
   const run = (name: string, args: object) =>
     (tools.find((x) => x.name === name) as unknown as { run(a: object, c: ToolContext): Promise<string> }).run(
       args,
@@ -317,4 +317,50 @@ test("a widget remembers between openings and versions; its agent reads it as da
   assert.deepEqual(fresh, {});
   assert.equal((await env.client.call("surfaces.get", { surface: id })).state, undefined);
   off();
+});
+
+test("read_widget names what an artifact keeps in its store and database, never the cached values", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "artifact memory" });
+  await said(t.id, "kit app");
+  const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "habits")?.id ?? "";
+  assert.match(await said(t.id, "read habits"), /\nmemory: store: empty; db: no tables/);
+  await env.client.call("surfaces.store_set", { surface: id, patch: { reading: { value: "secret-looking 4821" } } });
+  await env.client.call("surfaces.db_exec", { surface: id, sql: "CREATE TABLE entries (id INTEGER PRIMARY KEY)" });
+  await env.client.call("surfaces.db_exec", { surface: id, sql: "INSERT INTO entries DEFAULT VALUES" });
+  const read = await said(t.id, "read habits");
+  assert.match(read, /\nmemory: store: 1 keys, \d+ bytes; db: entries \(1 rows\)/);
+  assert.doesNotMatch(read, /4821/);
+});
+
+test("a page pushed from the terminal lands in the project it names, never one its thread is not in", async () => {
+  const { project } = await env.client.call("projects.create", { name: "Northwind" });
+  const pushed = await env.client.call("surfaces.show", {
+    name: "expenses",
+    title: "Expenses",
+    html: "<p>built</p>",
+    project: project.id,
+  });
+  assert.equal(pushed.project_id, project.id);
+  const again = await env.client.call("surfaces.show", {
+    name: "expenses",
+    title: "Expenses",
+    html: "<p>v2</p>",
+    project: project.id,
+  });
+  assert.deepEqual([again.id, again.version], [pushed.id, pushed.version + 1]);
+  const loose = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "elsewhere" });
+  await assert.rejects(
+    env.client.call("surfaces.show", {
+      name: "expenses",
+      title: "E",
+      html: "<p></p>",
+      thread: loose.id,
+      project: project.id,
+    }),
+    /is not in project/,
+  );
+  await assert.rejects(
+    env.client.call("surfaces.show", { name: "expenses", title: "E", html: "<p></p>", project: "p_missing" }),
+    /project p_missing/,
+  );
 });

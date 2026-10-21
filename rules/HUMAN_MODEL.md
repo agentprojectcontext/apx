@@ -61,7 +61,7 @@ gets the types. There is no other way into a handler.
   The stored app flag controls layout in every host: widgets keep a 16–24px inset even when maximized;
   declared apps use zero inset and no kit width cap. Height fitting and view do not change the saved type; kit classes opt into
   APX typography, cards and responsive controls.
-  The bundled `apx-widgets` skill includes the starter. Agent `edit_widget` changes app/pin flags through
+  The bundled `apx-artifacts` skill (artifacts of kind widget or app) includes the starters. Agent `edit_widget` changes app/pin flags through
   `surfaces.update` without reading or replacing HTML; metadata-only changes preserve the content version and share link. No stylesheet requests or extra sandbox permissions.
 - `apps/core`: `transport → rpc → engine (turns) → harness / providers / tools → domain (one repository per
   aggregate over SQLite)`; `nodes/` routes capability calls to the desktop; `channels/` adapts the messaging apps

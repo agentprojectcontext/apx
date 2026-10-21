@@ -201,8 +201,12 @@ export function appHandlers(deps: {
       const threadId = p.thread ?? ctx.agent?.thread_id;
       const thread = threadId ? store.threads.get(threadId) : undefined;
       if (threadId && !thread) throw notFound(`thread ${threadId}`);
+      if (p.project && thread && thread.project_id !== p.project)
+        throw badRequest(`thread ${thread.id} is not in project ${p.project}`);
+      if (p.project && !store.projects.get(p.project)) throw notFound(`project ${p.project}`);
+      const project_id = thread ? thread.project_id : p.project;
       // A published widget is public: an agent may not change what its link shows; it makes a new one instead.
-      const current = store.surfaces.byName(thread?.project_id, p.name);
+      const current = store.surfaces.byName(project_id, p.name);
       if (current?.share_path && ctx.actor !== "human")
         throw conflict(`widget "${p.name}" is published; use another name (the owner can unpublish it)`);
       return summary(
@@ -210,7 +214,7 @@ export function appHandlers(deps: {
           name: p.name,
           title: p.title,
           html: p.html,
-          project_id: thread?.project_id,
+          project_id,
           thread_id: thread?.id,
           created_by: ctx.agent?.id ?? "owner",
           pinned: p.pinned,
