@@ -234,7 +234,7 @@ async function attempt(
         ...(o.resume ? { resume: o.resume } : {}),
         ...(o.chosen ? { model: o.chosen } : {}),
         ...(o.effort ? { effort: o.effort as "low" | "medium" | "high" | "xhigh" | "max" } : {}),
-        env: harnessEnv(),
+        env: harnessEnv(io.agent.id),
       },
     });
     for await (const m of q) {

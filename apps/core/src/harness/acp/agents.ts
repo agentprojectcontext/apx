@@ -112,6 +112,8 @@ export async function openSession(
   o: {
     binary: string;
     cwd: string;
+    /** The APX agent it runs for: its commands carry it as APX_AGENT, as ours do. */
+    apxAgent?: string | undefined;
     mcpServers?: Array<{ name: string; command: string; args: string[]; env: Array<{ name: string; value: string }> }>;
     resume?: string | undefined;
     /** Stops the setup too: a canceled turn does not wait for the agent to start. */
@@ -122,7 +124,7 @@ export async function openSession(
 ): Promise<AcpSession> {
   const child = spawn(o.binary, agent.args, {
     cwd: o.cwd,
-    env: { ...childEnv(), ...agent.env },
+    env: { ...childEnv(), ...agent.env, ...(o.apxAgent ? { APX_AGENT: o.apxAgent } : {}) },
     stdio: ["pipe", "pipe", "pipe"],
     // Its own process group: closing it also stops what it started (the MCP proxy, its shells). Not on Windows,
     // where that opens a console window; taskkill reaches the tree there.

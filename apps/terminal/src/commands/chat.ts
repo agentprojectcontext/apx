@@ -99,6 +99,12 @@ function line(p: Part): string | undefined {
 }
 
 export async function chat(client: ApxClient, text: string, o: ChatOptions): Promise<void> {
+  // Run inside an agent's command, its words would reach the other agent as the owner's, past every check: agents ask
+  // with delegate, whose answer comes back to them (DECISIONS.md#d-127).
+  if (process.env.APX_AGENT !== undefined)
+    throw new Error(
+      "apx chat speaks as the owner, so it does not run inside an agent's command. To ask another agent, use your delegate tool: its answer comes back to you, in one session per agent.",
+    );
   if (!text) throw new Error('usage: apx chat "<text>" [--agent <id> | --thread <id>] [--new] [--detach]');
   const thread = await pickThread(client, o);
   const socket = await client.connect();

@@ -44,7 +44,7 @@ export function codexHarness(opts: {
       const gate = opts.gate(io);
       try {
         const apx = { ...gate.command, default_tools_approval_mode: "approve" };
-        const env = harnessEnv();
+        const env = harnessEnv(io.agent.id);
         const codex = new Codex({
           codexPathOverride: codexPath,
           // With approval "never" Codex refuses every MCP call unless the server's tools are pre-approved; APX's gate

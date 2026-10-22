@@ -115,6 +115,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
   if (said.includes("list then write")) return callTool("l1", "shell", { command: "ls" });
   if (said.includes("echo please")) return callTool("s1", "shell", { command: "echo hi-from-shell" });
+  if (said.includes("whose please")) return callTool("s9", "shell", { command: "echo agent=$APX_AGENT" });
   if (said.includes("background please"))
     return callTool("s2", "shell", { command: "sleep 0.2 && echo bg-done", background: true });
   if (said.includes("long please")) return callTool("s3", "shell", { command: "sleep 30", background: true });
@@ -326,4 +327,11 @@ test("a build or a test run's output is the project's own; a command that reache
     "pip install x",
   ])
     assert.equal(reachesOut(c), true, c);
+});
+
+test("an agent's command says whose it is, so the apx CLI does not speak as the owner there", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "whose please" });
+  await env.settle(t);
+  assert.match(lastSeen(), /agent=roby/);
 });

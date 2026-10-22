@@ -158,6 +158,11 @@ export async function tasks(client: ApxClient, [sub, id, ...rest]: string[], opt
     return;
   }
   if (sub === "say" && id && rest.length) {
+    // From an agent's command a comment would read as the owner's and reach the task's agent: agents use task_comment.
+    if (process.env.APX_AGENT !== undefined)
+      throw new Error(
+        "apx tasks say speaks as the owner, so it does not run inside an agent's command: use task_comment.",
+      );
     const r = await client.call("tasks.comment", { task: id, text: rest.join(" ") });
     console.log(r.runs.length ? `${r.runs.length} agent(s) will answer in the task` : "commented");
     return;
