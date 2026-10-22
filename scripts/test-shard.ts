@@ -76,14 +76,21 @@ function main(): void {
   if (!index || !total || index > total) throw new Error("usage: node scripts/test-shard.ts <part>/<parts>, e.g. 2/4");
   const root = path.resolve(import.meta.dirname, "..");
   const failed: string[] = [];
-  for (const s of shard(suites(root), index, total)) {
+  const all = suites(root);
+  const step = (dir: string, command: string) => {
+    if (spawnSync(command, { cwd: path.join(root, dir), stdio: "inherit", shell: true }).status !== 0)
+      failed.push(`${dir}: ${command}`);
+  };
+  // Every package's steps before its tests run in every part: another package's tests may need what they build
+  // (the panel's import the design system's dist), as pnpm's dependency order gives them in a whole run.
+  for (const s of all) if (!("whole" in s)) for (const command of s.before) step(s.dir, command);
+  for (const s of shard(all, index, total)) {
     const cwd = path.join(root, s.dir);
     console.log(`\n${s.dir}: ${"whole" in s ? s.whole : `${s.files.length} files`}`);
-    const steps = "whole" in s ? [s.whole] : [...s.before];
-    for (const step of steps) {
-      if (spawnSync(step, { cwd, stdio: "inherit", shell: true }).status !== 0) failed.push(`${s.dir}: ${step}`);
+    if ("whole" in s) {
+      step(s.dir, s.whole);
+      continue;
     }
-    if ("whole" in s) continue;
     const run = spawnSync(process.execPath, ["--test", ...s.flags, ...s.files], { cwd, stdio: "inherit" });
     if (run.status !== 0) failed.push(s.dir);
   }
