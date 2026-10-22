@@ -86,7 +86,7 @@ export interface ChannelAdapter {
    */
   start(io: AdapterIO): Promise<{ account?: string; waiting?: boolean }>;
   stop(): Promise<void>;
-  /** The channel is removed: drop what it keeps (a linked device's credentials). */
+  /** The channel is removed: drop its persisted state, even if start was never called. */
   forget?(): Promise<void>;
   /** Text, then `files` (the presentation's media, already read). */
   send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string }>;

@@ -711,10 +711,9 @@ export function createChannels(deps: {
         if (!config) {
           secrets.set(tokenName(id), null);
           store.settings.set(groupsKey(id), "[]");
-          await live
-            .get(id)
-            ?.adapter.forget?.()
-            .catch(() => {});
+          // Disabled channels have no live adapter, but their persisted session still needs removing.
+          const adapter = l?.adapter ?? (before ? deps.factories[before.type]?.(before, undefined) : undefined);
+          await adapter?.forget?.().catch(() => {});
         }
         await stopOne(id);
         const next = configs().find((c) => c.id === id);
