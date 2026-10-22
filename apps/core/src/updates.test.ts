@@ -10,6 +10,7 @@ import { promisify } from "node:util";
 import { createLog } from "./log.ts";
 import { panelEntry } from "./server-wiring.ts";
 import { createUpdates, type Runner } from "./updates.ts";
+import { runningVersion } from "./updates-release.ts";
 
 const log = createLog("test", true);
 const checkout = () => {
@@ -239,6 +240,34 @@ test("a release update runs even when the running bundle's root no longer exists
     const result = await f.applyInProcess(path.join(f.app, "removed-bundle"));
     assert.equal(result.ok, true, result.log);
     assert.equal(fs.readFileSync(path.join(f.app, "current", "node", "bin", "node"), "utf8"), "new");
+  } finally {
+    f.done();
+  }
+});
+
+test("an update never deletes the version a core that did not restart still runs from", async () => {
+  // current is 2.0.3, but this core started at 1.9.0 and missed a restart: pruning used to delete its own folder.
+  const f = await releaseFeed();
+  const root = path.join(f.app, "versions", "1.9.0");
+  try {
+    assert.equal(runningVersion(f.app, root), "1.9.0");
+    assert.equal(runningVersion(f.app, os.tmpdir()), undefined);
+    const u = createUpdates({
+      root,
+      log,
+      enabled: true,
+      supervised: false,
+      version: "1.9.0",
+      app: f.app,
+      feed: "acme/apx",
+      platform: { os: "linux", arch: "x64" },
+      fetch: f.fakeFetch,
+      run: f.tar,
+    });
+    const r = await u.apply();
+    assert.equal(r.ok, true, r.log);
+    assert.equal(fs.readFileSync(path.join(f.app, "current", "node", "bin", "node"), "utf8"), "new");
+    assert.deepEqual(fs.readdirSync(path.join(f.app, "versions")).sort(), ["1.9.0", "2.0.3", "2.1.0"]);
   } finally {
     f.done();
   }

@@ -8,7 +8,7 @@ import path from "node:path";
 import { type Platform, platformOf, type Release, releaseChanges } from "@apx/protocol";
 import { errorMessage } from "./errors.ts";
 import type { Log } from "./log.ts";
-import { checkReleases, installRelease } from "./updates-release.ts";
+import { checkReleases, installRelease, runningVersion } from "./updates-release.ts";
 
 export type UpdateStatus = {
   /**
@@ -145,7 +145,15 @@ export function createUpdates(opts: {
     if (!next || !platform || !opts.app)
       return { ok: false, restart: false, log: status.error ?? "Nothing newer to install." };
     try {
-      const log = await installRelease({ app: opts.app, release: next, platform, fetch: fetchImpl, run: sh });
+      const running = runningVersion(opts.app, opts.root);
+      const log = await installRelease({
+        app: opts.app,
+        release: next,
+        platform,
+        fetch: fetchImpl,
+        run: sh,
+        ...(running ? { running } : {}),
+      });
       return { ok: true, restart: false, log };
     } catch (err) {
       return { ok: false, restart: false, log: errorMessage(err, 2000) };
