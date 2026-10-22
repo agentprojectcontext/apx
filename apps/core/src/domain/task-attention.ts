@@ -13,12 +13,17 @@ export function noticeTaskStalled(store: Store, task: Task, threadId: string, bo
 }
 
 /** A task in review that is the owner's to check: told once, linked to its conversation, until it leaves review. */
-export function noticeTaskReview(store: Store, task: Task): void {
+export function noticeTaskReview(store: Store, task: Task, verdict?: string): void {
+  const en = store.settings.get("owner_language") === "en";
   store.notifications.add({
     kind: "task",
     level: "info",
     title: task.title,
-    body: store.settings.get("owner_language") === "en" ? "Ready for you to review." : "Lista para que la revises.",
+    body: verdict
+      ? `${en ? "Reviewed, ready for you to close" : "Revisada, lista para que la cierres"}: ${verdict}`
+      : en
+        ? "Ready for you to review."
+        : "Lista para que la revises.",
     thread_id: task.thread_id,
     ref: `review:${task.id}`,
   });

@@ -516,6 +516,9 @@ export function createDelegations(deps: {
           ...(place ?? {}),
         });
         if (worker) store.threads.mergeContext(sub.id, { worker });
+      } else {
+        // A session asked again reads as its latest request in the lists, not the first one it was opened for.
+        store.threads.patch(sub.id, { title: `${from.agent.name} → ${who}: ${task.slice(0, 60)}` });
       }
       store.messages.add({
         thread_id: sub.id,

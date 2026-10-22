@@ -107,6 +107,7 @@ export const officeMethods = {
         start_at: z.string().max(40).nullable().optional(),
         /** Who checks it in review: "owner" or an agent (id or name); null: the owner again. */
         reviewer: z.string().max(80).nullable().optional(),
+        plan: z.string().max(4000).nullable().optional(),
         awaits_owner: z.boolean().optional(),
         person: z.string().max(80).nullable().optional(),
         owed_by: z.enum(["owner", "person"]).optional(),

@@ -1836,3 +1836,45 @@ write auto" and agents forgot. D-104's rule stays (never more than the caller); 
   settings cannot apply unchecked. A security review found that giving every delegate the real folder would have let
   those engines write there with nobody choosing it.
 - On our own loop only `read-only` is enforced per session; `ask` and `auto` are what an outside engine runs under.
+
+<a id="d-127"></a>
+## D-127 — 2026-10-22 — An agent asks other agents with delegate; `apx chat` from its commands refuses
+An agent ran `apx chat --agent … --detach` from its shell: the words reached the other agent as the owner's, in a new
+chat, with no result coming back, past the breaker, depth and permissions, and the task ran twice in parallel. `apx chat`
+is the owner's (and outside apps') way in; `delegate` is an agent's, and the only one with those checks (rule 2).
+
+An agent's commands now carry `APX_AGENT=<its id>` (our shell and jobs, and the processes of Claude Code, Codex and ACP
+sessions), and `apx chat` and `apx tasks say` refuse there, saying to use `delegate` or `task_comment`. The rest of the
+CLI (tasks, status, reading) still works from an agent's command; the owner and outside apps use both as before. It is
+a guardrail against a habit, not a boundary: the core trusts loopback as the owner, so a command that calls it directly
+still could.
+
+<a id="d-128"></a>
+## D-128 — 2026-10-22 — Fewer summaries and chats, a plan that outlives them, widgets that can go, reviews that close
+Follow-ups of the same audit (an owner who had to supervise APX to get a migration done):
+
+- **Summaries measured as the model sees them.** A chat was summarized when the raw log since the last summary passed
+  90k characters, counting every old tool output in full although the model only sees a stub of it; chats that read
+  files or pages were summarized every turn or two, each time with a new notice. The threshold now counts older tool
+  output as its stub, and a recent compaction notice (among the last 30 messages) is updated instead of repeated.
+- **A plan on the task.** `task_update plan` keeps the agent's steps and progress on the task (Markdown, 4,000 at
+  most); the `[task]` block shows it whole every turn, marked as data (an agent may have written it from what it read
+  outside), to the task's agent and to helpers delegated from its chat, so a
+  guide does not have to be uploaded again after a summary. The drawer shows it under the description.
+- **Widgets can be deleted** (`surfaces.remove`, owner only, after a confirmation in its actions): the row and its
+  memory folder go; chats keep their messages; its source files stay. A chat opened to ask for a new artifact and
+  closed with nothing written in it is deleted.
+- **One chat for release news**: each release goes on in the same chat, retitled.
+- **Reviews close the loop.** A review an agent was asked for (D-124) that does not open with "Approved" (or
+  "Aprobado") moves the task back to doing and reaches its agent in its chat as the reviewer's words (an agent's,
+  trigger `a2a`), to fix and put back in review, which asks the next round; an approval tells the owner it is ready to
+  close. Nothing is asked when the task was closed or taken out of review meanwhile, or the doer's chain is paused (the
+  owner hears instead). At most two agent review rounds per task: then the owner decides. A reviewer's @owner still
+  asks the owner. The review's chat is titled "Review: <task>".
+- **A reused session reads as its latest request** in the lists.
+- **A delegated session capped at ask asks** before changing files on our own loop too (an outside engine already ran
+  under it). The owner's own chats keep following the agent's mode: a code chat's default `ask` is for outside
+  engines (D-106).
+- **Size bounds stay out of what our loop sends** (`minLength`, `maxLength`, `minItems`, `maxItems`): arguments are
+  still checked against the full schema here, and Claude Code and Codex still read it whole. The tools budget went
+  from 27,998 to about 25,700 characters, room for what comes next.

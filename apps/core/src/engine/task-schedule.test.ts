@@ -6,6 +6,8 @@ import { pickUpTasks, startScheduled } from "./task-work.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 const llm = scriptedLlm((_req, { system, said }) => {
+  if (system.startsWith("You are Scout") && said.includes("Review task") && said.includes("Totals"))
+    return say("Needs work: the totals round down a cent.");
   if (system.startsWith("You are Scout") && said.includes("Review task")) return say("Approved: the tests pass.");
   return say("On it.");
 });
@@ -93,4 +95,33 @@ test("a task created straight in review is the owner's to check", async () => {
     .list({ unreadOnly: true, limit: 50 })
     .find((n) => n.ref === `review:${task.id}`);
   assert.ok(notice);
+});
+
+test("a review asking for changes reaches the doer as the reviewer's words; after two rounds the owner decides", async () => {
+  const store = env.core.store;
+  const task = await env.client.call("tasks.create", { title: "Totals report", assignee: "vera" });
+  const review = async () => {
+    await env.client.call("tasks.update", { task: task.id, status: "doing" });
+    await env.client.call("tasks.update", { task: task.id, status: "review", reviewer: "scout" });
+    for (const s of store.threads.sessions(task.thread_id)) await env.settle(s.id);
+    const chat = store.threads.byTask(task.id).find((t) => t.agent_ids[0] === "vera");
+    if (chat) await env.settle(chat.id);
+    return chat;
+  };
+  const chat = await review();
+  const asked = (await env.client.call("threads.get", { thread: chat?.id ?? "" })).messages.find((m) =>
+    JSON.stringify(m.parts).includes("asks for changes"),
+  );
+  assert.deepEqual(asked?.author, { kind: "agent", id: "scout" }, "the reviewer's words, not the owner's");
+  assert.match(JSON.stringify(asked?.parts), /round down a cent/);
+  assert.equal(store.tasks.get(task.id)?.status, "doing", "back to work: putting it in review again asks again");
+  await review();
+  const third = store.threads.sessions(task.thread_id).length;
+  await env.client.call("tasks.update", { task: task.id, status: "doing" });
+  await env.client.call("tasks.update", { task: task.id, status: "review" });
+  assert.equal(store.threads.sessions(task.thread_id).length, third, "no third review round");
+  assert.ok(
+    store.notifications.list({ unreadOnly: true, limit: 50 }).some((n) => n.ref === `review:${task.id}`),
+    "the owner decides",
+  );
 });

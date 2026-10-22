@@ -1,5 +1,6 @@
 // The office's moving parts that live in the engine: @mentions (an @agent the owner names in a task is asked there; see
 // task-work.ts) and the task a turn works on, shown at the top of its input.
+
 import type { Task, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { ownerIdentity } from "../domain/owner.ts";
@@ -7,10 +8,12 @@ import { ownerQuestionProblem } from "../domain/owner-question.ts";
 import type { Store } from "../domain/store.ts";
 import { noticeTaskWaiting } from "../domain/task-attention.ts";
 import { previewOf } from "../domain/threads.ts";
-import { inlineName } from "../tools/result.ts";
+import { inlineName, untrusted } from "../tools/result.ts";
 import { taskWords } from "../tools/tasks.ts";
 
 const MAX_MENTIONS = 3;
+/** As much of a plan as the task block carries: all a plan may hold (tasks.update caps it there). */
+const PLAN_CHARS = 4000;
 const MENTIONS = /(?<![\p{L}\p{N}_@])@([\p{L}\p{N}][\p{L}\p{N}_-]*)/gu;
 
 /** The agents an @mention names (by slug, name or id), in the order written; unknown names are skipped. */
@@ -79,7 +82,11 @@ export function taskBlock(
     .byTask(t.id)
     .filter((c) => c.id !== thread.id)
     .map((c) => `${name(c.agent_ids[0] ?? "")} (chat ${c.id})`);
-  const head = [`Task ${t.id}:`, taskWords(t, words), state];
+  // The plan is an agent's working note, maybe written from what it read outside: data, never the owner's words.
+  const plan = t.plan?.trim()
+    ? `Plan kept on the task:\n${untrusted("task_plan", {}, t.plan.trim().slice(0, PLAN_CHARS))}`
+    : "";
+  const head = [`Task ${t.id}:`, taskWords(t, words), state, plan].filter(Boolean);
   const lookup =
     "task_get shows its latest comments and sessions; read_chat reads a session. Read them before redoing work.";
   if (parent)
@@ -92,7 +99,7 @@ export function taskBlock(
     ...head,
     others.length ? `Worked on before by: ${[...new Set(others)].join(", ")}. ${lookup}` : "",
     "This is your chat for this task; what you say here stays here. Comment on the task with task_comment when others should know: a step done and verified, a block, something to review or decide. Two or three lines, never a transcript.",
-    "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked: the owner checks it unless you name a reviewer agent) and task_close when it is done: the answer of the turn that closes it is posted as your report to whoever created the task.",
+    "Keep its plan on the task with task_update plan (the steps, marked done as you go): it is what the next turn reads, whatever this chat forgets. Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked: the owner checks it unless you name a reviewer agent) and task_close when it is done: the answer of the turn that closes it is posted as your report to whoever created the task.",
     "Mention @owner in a task_comment or in your answer when you need the owner. To ask a teammate, use delegate: its answer comes back to you (an @mention of an agent asks no one).",
   ]
     .filter(Boolean)

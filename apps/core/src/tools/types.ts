@@ -194,7 +194,37 @@ export function invalidArguments(tool: string, error: z.ZodError): string {
   return `invalid arguments for ${tool}: ${error.issues.map((i) => `${i.path.join(".") || "(args)"}: ${i.message}`).join("; ")}`;
 }
 
+/** Length and count bounds the arguments are still checked against here (zod): sent, they only cost prompt. */
+const SIZE_KEYS = new Set(["minLength", "maxLength", "minItems", "maxItems"]);
+
+/** The JSON schema the model reads, without the size bounds every call would carry for nothing (rules/PROMPT_SIZE.md). */
+function withoutSizes(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(withoutSizes);
+  if (!node || typeof node !== "object") return node;
+  return Object.fromEntries(
+    Object.entries(node).flatMap(([k, v]) =>
+      // Inside `properties` the keys are argument names, never bounds: an argument may be called "maxLength".
+      SIZE_KEYS.has(k) && typeof v === "number" ? [] : [[k, withoutSizes(v)]],
+    ),
+  );
+}
+
 export const toSpec = (t: Tool): ToolSpec => ({
   type: "function",
   function: { name: t.name, description: t.description, parameters: t.parameters },
 });
+
+const slim = new WeakMap<object, ToolSpec>();
+
+/**
+ * A tool as our own loop sends it to the model: its schema without size bounds, still checked here. Claude Code and
+ * Codex keep the full schema, through APX's MCP server.
+ */
+export function modelSpec(spec: ToolSpec): ToolSpec {
+  let out = slim.get(spec.function.parameters);
+  if (!out || out.function.name !== spec.function.name || out.function.description !== spec.function.description) {
+    out = { ...spec, function: { ...spec.function, parameters: withoutSizes(spec.function.parameters) as object } };
+    slim.set(spec.function.parameters, out);
+  }
+  return out;
+}

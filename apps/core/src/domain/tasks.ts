@@ -157,6 +157,7 @@ const toTask = (r: Selectable<TasksTable> & { person_name: string | null; chats:
   ...opt("remind_at", r.remind_at),
   ...opt("start_at", r.start_at),
   ...opt("reviewer", r.reviewer),
+  ...opt("plan", r.plan),
   // A person removed before this fix left an id behind: shown as no person, never as the id.
   ...(r.person_id && r.person_name
     ? {
@@ -188,6 +189,7 @@ export type TaskChange = Partial<{
   remind_at: string | null;
   start_at: string | null;
   reviewer: string | null;
+  plan: string | null;
   awaits_owner: boolean;
   person_id: string | null;
   owed_by: "owner" | "person";
@@ -349,6 +351,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
             ...(c.awaits_owner !== undefined ? { awaits_owner: c.awaits_owner ? 1 : 0 } : {}),
             ...(c.start_at !== undefined ? { start_at: c.start_at } : {}),
             ...(c.reviewer !== undefined ? { reviewer: c.reviewer } : {}),
+            ...(c.plan !== undefined ? { plan: c.plan } : {}),
             updated_at: at,
             activity_at: at,
           })

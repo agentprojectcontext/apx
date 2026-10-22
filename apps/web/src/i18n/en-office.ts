@@ -408,6 +408,7 @@ export const enOffice = {
   "tasks.start": "Starts",
   "tasks.startNow": "When assigned",
   "tasks.reviewer": "Reviewed by",
+  "tasks.plan": "Agent's plan",
   "tasks.reviewerOwner": "You",
   "tasks.seeMore": "See {n} more",
   "tasks.commitment": "Commitment",

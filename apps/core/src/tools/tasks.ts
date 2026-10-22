@@ -267,6 +267,7 @@ export function taskTools(store: Store): Tool[] {
         description: z.string().max(5000).optional(),
         awaits_owner: z.boolean().optional(),
         reviewer: z.string().max(80).optional().describe('"owner" or agent'),
+        plan: z.string().max(4000).optional().describe("the steps, marked done as you go; replaces the last"),
         ...shapeArgs,
         ...commitmentArgs,
       }),

@@ -313,6 +313,16 @@ export function createExecutor(o: {
           : "only actions that read may run here";
       return { ok: false, text: `refused: this code thread is read-only; ${why}` };
     }
+    // A delegated session capped at ask (its caller could do no more) asks before changing files on our own loop too,
+    // as an outside engine does under it. The owner's own chats follow the agent's mode (DECISIONS.md#d-106).
+    const gate: typeof decision =
+      decision.kind === "allow" &&
+      thread.kind === "a2a" &&
+      worksInFolder(thread) &&
+      thread.write === "ask" &&
+      (level === "ask" || level === "always" || changesFiles)
+        ? { kind: "confirm", why: "asks_every", reason: "this session asks before changing files" }
+        : decision;
     const wide = wideOk ? undefined : fanOut(store, run, agent, name, args);
     if (wide && !o.inputs.takeGrant(thread.id, agent.id, name, raw)) {
       const answer = await o.inputs.ask({
@@ -348,9 +358,9 @@ export function createExecutor(o: {
     // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089).
     const target = level === "always" && tool.approval ? strictApproval(tool.approval) : tool.approval;
     if (
-      decision.kind === "confirm" &&
+      gate.kind === "confirm" &&
       // The owner just said yes to this very call on its folder card: manual's ask for every change is answered.
-      !(lent.asked && decision.why === "asks_every") &&
+      !(lent.asked && gate.why === "asks_every") &&
       !(target && store.approvals.allows(target, thread.id, agent.id, args)) &&
       !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key)
     ) {
@@ -360,7 +370,7 @@ export function createExecutor(o: {
         display,
         callId,
         kind: "confirm",
-        prompt: confirmPrompt(store, decision.why, agent.name, name),
+        prompt: confirmPrompt(store, gate.why, agent.name, name),
         tool: name,
         approval: target,
         args: raw,

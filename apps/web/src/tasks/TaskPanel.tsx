@@ -5,6 +5,7 @@ import {
   Button,
   IconButton,
   Icons,
+  MarkdownView,
   Menu,
   Popover,
   Select,
@@ -20,6 +21,7 @@ import { Drawer } from "../common/Drawer.tsx";
 import { shortWhen } from "../common/format.ts";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
+import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { loadThread } from "../data/actions.ts";
 import { baseName, blobOf } from "../data/identity.ts";
 import { useOwnerName } from "../data/owner.ts";
@@ -122,6 +124,7 @@ export function TaskPanel({ task, onClose, actions }: { task: Task; onClose: () 
         <StateBar task={task} detail={detail} />
         <Properties task={task} detail={detail} />
         <Description task={task} />
+        {task.plan?.trim() && <TaskPlan plan={task.plan} />}
         <Tabs
           variant="pill"
           className="taskpanel__tabs"
@@ -433,6 +436,18 @@ function Title({ task }: { task: Task }) {
         }
       }}
     />
+  );
+}
+
+/** The plan its agent keeps on the task: the steps and where it stands, read again on every turn of its work. */
+function TaskPlan({ plan }: { plan: string }) {
+  const t = useT();
+  const labels = useMarkdownLabels();
+  return (
+    <section className="taskdetail__plan" aria-label={t("tasks.plan")}>
+      <h3 className="taskdetail__planhead">{t("tasks.plan")}</h3>
+      <MarkdownView source={plan} size="sm" labels={labels} />
+    </section>
   );
 }
 

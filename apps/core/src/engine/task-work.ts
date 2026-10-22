@@ -227,12 +227,14 @@ function consult(
   task: Task,
   agent: { id: string; name: string },
   text: string,
-  how: { by?: string; trigger?: "user" | "system" } = {},
+  how: { by?: string; trigger?: "user" | "system"; review?: boolean } = {},
 ): RunRecord | undefined {
   const from = ownerIdentity(store).name || "The owner";
   const sub = store.threads.create({
     kind: "a2a",
-    title: `${from} → ${agent.name}: ${previewOf(text).slice(0, 60)}`,
+    title: how.review
+      ? `Review: ${task.title.slice(0, 80)}`
+      : `${from} → ${agent.name}: ${previewOf(text).slice(0, 60)}`,
     agent_ids: [agent.id],
     project_id: task.project_id,
     parent_id: task.thread_id,
@@ -256,7 +258,9 @@ function consult(
       },
     ],
   });
-  store.threads.mergeContext(sub.id, { consult: { task: task.id, card: card.id } });
+  store.threads.mergeContext(sub.id, {
+    consult: { task: task.id, card: card.id, ...(how.review ? { review: true } : {}) },
+  });
   // Who spoke on the task shows on its conversation, not only its first agent.
   store.threads.join(task.thread_id, agent.id);
   return admit({
@@ -268,6 +272,9 @@ function consult(
     depth: 0,
   });
 }
+
+/** Review rounds an agent reviewer gets on one task before the owner decides. */
+const MAX_REVIEW_ROUNDS = 2;
 
 /** Whether a task's start time is still ahead: its work waits until then. */
 export const startsLater = (task: Task, now = new Date()): boolean =>
@@ -314,19 +321,32 @@ function askerOfCreation(store: Store, task: Task): Asker {
  */
 export function reviewRequested(store: Store, admit: AdmitFn, task: Task): RunRecord | undefined {
   const reviewer = task.reviewer ? store.agents.get(task.reviewer) : undefined;
-  // Paused agents ask no one: the owner checks it, as when no agent is named.
-  if (!reviewer || trip(store, task.thread_id) || agentTrip(store, task.thread_id, reviewer.id)) {
+  const rounds = store.threads
+    .sessions(task.thread_id)
+    .filter((t) => store.threads.context(t.id).consult?.review).length;
+  // Paused agents ask no one, and past two rounds the owner decides: the owner checks it, as when no agent is named.
+  if (
+    !reviewer ||
+    rounds >= MAX_REVIEW_ROUNDS ||
+    trip(store, task.thread_id) ||
+    agentTrip(store, task.thread_id, reviewer.id)
+  ) {
     noticeTaskReview(store, task);
     return undefined;
   }
   store.notifications.resolve("task", `review:${task.id}`);
   const doer = task.assignee ? (store.agents.get(task.assignee)?.name ?? task.assignee) : "its agent";
-  const text = `Review task ${task.id}, done by ${doer}: check the work against what the task asks, running the checks you can (tests, the page, the data). Answer "Approved" with what you checked, or what must change and why.`;
-  return consult(store, admit, task, reviewer, text, { by: task.assignee ?? "owner", trigger: "system" });
+  const text = `Review task ${task.id}, done by ${doer}: check the work against what the task asks, running the checks you can (tests, the page, the data). Answer "Approved" (or "Aprobado") with what you checked, or what must change and why.`;
+  return consult(store, admit, task, reviewer, text, { by: task.assignee ?? "owner", trigger: "system", review: true });
 }
 
 /** A consult ended: its card in the task's conversation shows the answer; it asks no one else. */
-function afterConsult(store: Store, run: RunRecord, consulted: { task: string; card: string }): void {
+function afterConsult(
+  store: Store,
+  admit: AdmitFn,
+  run: RunRecord,
+  consulted: { task: string; card: string; review?: boolean },
+): void {
   const task = store.tasks.get(consulted.task);
   const card = store.messages.get(consulted.card);
   const answer = textOf(store, run);
@@ -342,6 +362,32 @@ function afterConsult(store: Store, run: RunRecord, consulted: { task: string; c
   if (run.state !== "completed" || !answer) return;
   // A consult answers and stops: whoever it @mentions is not asked (DECISIONS.md#d-074).
   taskCommentAttention(store, task, answer, run.agent_id);
+  if (consulted.review) reviewEnded(store, admit, store.tasks.get(task.id) ?? task, run, answer);
+}
+
+/** Reviewers are told to open with this word when nothing must change; one writing in Spanish says it there. */
+const APPROVED = /^\W*(approved|aprobad[oa])\b/i;
+
+/**
+ * A review came back: approved, the owner hears it is ready to close; with changes asked, the task's agent gets the
+ * verdict in its chat for the task, as the reviewer's words (an agent's, not the owner's), and goes on.
+ */
+function reviewEnded(store: Store, admit: AdmitFn, task: Task, run: RunRecord, verdict: string): void {
+  const reviewer = store.agents.get(run.agent_id);
+  const name = reviewer?.name ?? run.agent_id;
+  // Closed or taken out of review meanwhile: the verdict stays on its card, nobody is asked.
+  if (task.state !== "open" || task.status !== "review") return;
+  const doer = task.assignee && store.agents.get(task.assignee) ? task.assignee : undefined;
+  const paused = doer && (trip(store, task.thread_id) || agentTrip(store, task.thread_id, doer));
+  if (APPROVED.test(verdict) || !doer || paused) {
+    noticeTaskReview(store, task, `${name}: ${previewOf(verdict)}`);
+    return;
+  }
+  // Back to work, so putting it in review again asks for the next round.
+  store.tasks.change(task.id, { status: "doing" }, run.agent_id);
+  const text = `${name} reviewed the task and asks for changes:\n${verdict.slice(0, 4000)}\n\nFix what must change, check it, then put it back in review (task_update status review).`;
+  const asker: Asker = { kind: "agent", id: run.agent_id, name, thread_id: run.thread_id, run_id: run.id, depth: 1 };
+  ask(store, admit, task, doer, text, asker, { kind: "agent", id: run.agent_id });
 }
 
 /** The final answer of a run, as text. */
@@ -372,7 +418,7 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): voi
   const thread = store.threads.get(run.thread_id);
   const consulted = thread?.kind === "a2a" ? store.threads.context(thread.id).consult : undefined;
   if (consulted) {
-    afterConsult(store, run, consulted);
+    afterConsult(store, admit, run, consulted);
     return;
   }
   const task = thread?.task_id ? store.tasks.get(thread.task_id) : undefined;

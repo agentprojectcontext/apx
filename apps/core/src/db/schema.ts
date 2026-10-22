@@ -508,6 +508,7 @@ export interface TasksTable {
   renegotiated: Generated<number>;
   start_at: string | null;
   reviewer: string | null;
+  plan: string | null;
 }
 
 export interface ThreadsTable {

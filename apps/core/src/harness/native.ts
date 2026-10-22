@@ -1,8 +1,10 @@
 // The built-in loop: our model call, our tools, bounded steps. What the model says and every tool result are
 // logged as they happen.
+
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem, ModelFailure, Usage } from "../providers/types.ts";
 import { readsImages } from "../providers/vision.ts";
+import { modelSpec } from "../tools/types.ts";
 import type { Harness } from "./types.ts";
 
 /**
@@ -52,7 +54,7 @@ export function nativeHarness(llm: Llm): Harness {
         const c = await llm.complete({
           models: io.models,
           messages,
-          tools: tools && !toolsOff ? io.tools : [],
+          tools: tools && !toolsOff ? io.tools.map(modelSpec) : [],
           signal: io.signal,
           cacheKey: io.thread.id,
           onText: (s) => {

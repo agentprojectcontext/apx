@@ -843,4 +843,6 @@ export const MIGRATIONS: readonly string[] = [
   ALTER TABLE tasks ADD COLUMN start_at TEXT;
   ALTER TABLE tasks ADD COLUMN reviewer TEXT;
   `,
+  // The plan its agent keeps on the task (steps and where it stands), read again on every turn.
+  `ALTER TABLE tasks ADD COLUMN plan TEXT;`,
 ];

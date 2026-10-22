@@ -48,6 +48,11 @@ test("asking the same agent again goes on in its session instead of opening anot
     (m) => m.author.kind === "agent" && m.author.id === "roby",
   );
   assert.equal(asked.length, 2, "both requests reached the same session");
+  assert.equal(
+    env.core.store.threads.get(sessions[0]?.id ?? "")?.title,
+    "Roby → Vera: second request",
+    "it reads as the latest",
+  );
 });
 
 test("a helper delegated from a task's chat reads the task; the chat's answer is not a comment", async () => {
@@ -149,4 +154,24 @@ test("an archived session is not reused: asking again opens another", async () =
   await env.client.call("threads.send", { thread: t.id, text: "ask vera again" });
   await env.settle(t.id);
   assert.equal(store.threads.sessions(t.id).length, 2, "an archived session is not reused");
+});
+
+test("the plan an agent keeps on the task reaches every turn of its work, whatever the chat forgot", async () => {
+  const store = env.core.store;
+  const task = await env.client.call("tasks.create", { title: "Migrate invoices", assignee: "vera" });
+  await env.client.call("tasks.update", {
+    task: task.id,
+    plan: "- [x] Export the old table\n- [ ] Import into the new one",
+  });
+  assert.match(store.tasks.get(task.id)?.plan ?? "", /Import into the new one/);
+  const chat = store.threads.create({ kind: "loose", title: task.title, agent_ids: ["vera"], task_id: task.id });
+  await env.client.call("threads.send", { thread: chat.id, text: "Go on." });
+  await env.settle(chat.id);
+  const input = String(
+    llm.calls.findLast((c) => String(c.messages[0]?.content).startsWith("You are Vera"))?.messages.at(-1)?.content,
+  );
+  assert.match(
+    input,
+    /Plan kept on the task:\n<task_plan[^>]*trust="untrusted">\n- \[x\] Export the old table\n- \[ \] Import into the new one/,
+  );
 });
