@@ -75,6 +75,50 @@ test("disabled capture keeps historical recall without queueing work and resumes
   }
 });
 
+test("work queued while a maintenance pass runs is picked up when that pass ends, not by the next timer", async () => {
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let extractions = 0;
+  const llm = scriptedLlm(async (_req, { system }) => {
+    if (!system.startsWith("Extract durable")) return say("ok");
+    if (++extractions === 1) await held;
+    return say('{"memories":[]}');
+  });
+  const env = await startCore({ llm, aux: true, memoryMaintenance: true });
+  const until = async (check: () => boolean) => {
+    for (let i = 0; i < 300 && !check(); i++) await new Promise((r) => setTimeout(r, 10));
+    assert.ok(check());
+  };
+  const captures = () => env.core.store.memoryWork.recent().filter((j) => j.kind === "capture");
+  try {
+    await env.client.call("memory.set_settings", {
+      mode: "notes",
+      skill_picker: false,
+      auto_compact: false,
+      auto_dream: false,
+    });
+    for (const text of [
+      "I always prefer amber labels for Northwind invoices.",
+      "I always prefer violet labels for Northwind archives.",
+    ]) {
+      const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+      await env.client.call("threads.send", { thread: thread.id, text });
+      await env.settle(thread.id);
+      await until(() => extractions === 1);
+    }
+    assert.equal(captures().length, 2);
+    release();
+    await until(() => captures().every((j) => j.state === "completed"));
+    assert.equal(extractions, 2);
+  } finally {
+    release();
+    await env.core.close();
+    env.cleanup();
+  }
+});
+
 test("episode, capture, dream and its timestamp roll back together before indexing starts", async () => {
   const llm = scriptedLlm(() => say("ok"));
   const env = await startCore({ llm });

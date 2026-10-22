@@ -21,6 +21,7 @@ export function createMemoryMaintenance(deps: {
 }) {
   const { store, log } = deps;
   let running: Promise<void> | undefined;
+  let again = false;
   let stopped = false;
   let timer: ReturnType<typeof setInterval> | undefined;
 
@@ -63,8 +64,13 @@ export function createMemoryMaintenance(deps: {
     return capture || dream;
   }
   function drain(): Promise<void> {
-    if (running) return running;
     if (stopped) return Promise.resolve();
+    if (running) {
+      // Work queued or deferred during a pass is past that pass's snapshot: run another once it ends.
+      again = true;
+      return running;
+    }
+    again = false;
     running = (async () => {
       for (const pending of store.memoryWork.pending()) {
         if (stopped) break;
@@ -87,6 +93,7 @@ export function createMemoryMaintenance(deps: {
       }
     })().finally(() => {
       running = undefined;
+      if (again) void drain();
     });
     return running;
   }

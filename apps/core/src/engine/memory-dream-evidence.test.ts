@@ -42,7 +42,10 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
     const thread = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
     await env.client.call("threads.send", { thread: thread.id, text: "Review the notebook." });
     await env.settle(thread.id);
-    const add = (text: string, quote: string) => {
+    // A correction supersedes only notes written before it, so each note lands on a later millisecond.
+    const add = async (text: string, quote: string) => {
+      const at = Date.now();
+      while (Date.now() === at) await new Promise((r) => setTimeout(r, 1));
       const message = env.core.store.messages.add({
         thread_id: thread.id,
         author: { kind: "user" },
@@ -58,15 +61,15 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
         evidence: [{ message_id: message.id, quote }],
       });
     };
-    const old = add(
+    const old = await add(
       "The owner always prefers CUARZO for internal reports.",
       "I always prefer CUARZO for internal reports.",
     );
-    const paraphrase = add(
+    const paraphrase = await add(
       "An earlier preference used CUARZO for internal reports.",
       "I always prefer CUARZO for internal reports.",
     );
-    const replacement = add("The owner now prefers JADE for internal reports.", correction);
+    const replacement = await add("The owner now prefers JADE for internal reports.", correction);
     const legacyFingerprint = [old, paraphrase, replacement]
       .map((n) => `${n.id}:${n.revision}`)
       .sort()
@@ -98,7 +101,9 @@ test("dream reads the correction's evidence and retries unknown identifiers befo
     assert.equal(attempts, 1);
     env.core.store.memoryWork.defer(job.id, "retry", new Date(0).toISOString());
     await env.client.call("memory.maintenance", {});
-    await until(() => !!env.core.store.memories.get(old.id)?.forgotten_at);
+    await until(() => env.core.store.memoryWork.get(job.id)?.state === "completed");
+    assert.equal(JSON.parse(env.core.store.memoryWork.get(job.id)?.result ?? "{}").retired, 1);
+    assert.ok(env.core.store.memories.get(old.id)?.forgotten_at);
     assert.equal(attempts, 2);
     assert.equal(env.core.store.memories.get(paraphrase.id)?.forgotten_at, undefined);
     assert.equal(env.core.store.memories.get(replacement.id)?.forgotten_at, undefined);
