@@ -5,11 +5,13 @@ import { ChatComposer } from "../chat/composer/ChatComposer.tsx";
 import { Transcript } from "../chat/Transcript.tsx";
 import { Drawer } from "../common/Drawer.tsx";
 import { createThread, loadThread } from "../data/actions.ts";
+import { client } from "../data/client.ts";
 import { useSlice } from "../data/createStore.ts";
 import { keepDraft } from "../data/drafts.ts";
 import { secretary } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { data, useData } from "../data/state.ts";
+import { deleteThread } from "../data/threadAdmin.ts";
 import { t as tr, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { SurfaceFrame } from "./SurfaceFrame.tsx";
@@ -79,7 +81,19 @@ async function restartChat(surface: SurfaceSummary): Promise<void> {
   open.set({ surfaceId: surface.id, threadId });
 }
 
-const close = () => open.set({ surfaceId: undefined, threadId: undefined });
+/** Chats opened here to ask for a new widget: one closed before anything was written in it is not kept. */
+const asking = new Set<string>();
+
+const close = () => {
+  const { threadId } = open.get();
+  open.set({ surfaceId: undefined, threadId: undefined });
+  if (!threadId || !asking.has(threadId)) return;
+  asking.delete(threadId);
+  void client
+    .call("threads.get", { thread: threadId })
+    .then(({ messages }) => (messages.length ? undefined : deleteThread(threadId)))
+    .catch(() => undefined);
+};
 
 /**
  * Asks an agent for a new widget for a project's board: a new chat with it in that project (so it works with the
@@ -92,6 +106,7 @@ export async function askForWidget(
 ): Promise<void> {
   try {
     const thread = await createThread({ agentId, ...(projectId ? { projectId } : {}), title: words.title });
+    asking.add(thread.id);
     keepDraft(thread.id, words.draft);
     open.set({ surfaceId: undefined, threadId: thread.id });
   } catch (e) {
@@ -157,6 +172,8 @@ export function WidgetChatHost() {
             label={t("widget.chatOpen")}
             icon={<Icons.ExternalLink size={14} />}
             onClick={() => {
+              // Opened whole, it is the owner's chat now: kept even with nothing written yet.
+              asking.delete(thread.id);
               close();
               go.inboxThread(thread.id);
             }}

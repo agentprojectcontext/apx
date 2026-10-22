@@ -89,6 +89,13 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       const r = one(qb.selectFrom("surfaces").selectAll().where(named(projectId, name)));
       return r ? toSurface(r) : undefined;
     },
+    /** Deletes the widget's row; its memory folder is the caller's to remove. */
+    remove(id: string): boolean {
+      if (!repo.get(id)) return false;
+      run(qb.deleteFrom("surfaces").where("id", "=", id));
+      bus.emit({ type: "surface.deleted", surface_id: id });
+      return true;
+    },
     byShareToken(token: string): Surface | undefined {
       const r = one(qb.selectFrom("surfaces").selectAll().where("share_token", "=", token));
       return r ? toSurface(r) : undefined;

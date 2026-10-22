@@ -535,6 +535,11 @@ export const es: Partial<Record<MessageKey, string>> = {
   "widget.eyebrow": "Widget · {title}",
   "widget.connects": "Datos en vivo de {hosts}",
   "widget.chat": "Pedirle cambios a su agente",
+  "widget.delete": "Borrar widget",
+  "widget.delete.title": "¿Borrar este widget?",
+  "widget.delete.body":
+    "Se borra para siempre, con lo que recuerda. Los chats que lo mostraban conservan sus mensajes.",
+  "widget.delete.what": "Se va a borrar «{title}».",
   "widget.chatOf": "Chat del widget {title}",
   "widget.chatOpen": "Abrir el chat completo",
   "widget.chatNew": "Nueva sesión para este widget",

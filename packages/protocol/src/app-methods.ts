@@ -1763,6 +1763,16 @@ export const appMethods = {
     result: SurfaceSummary,
     effect: true,
   },
+  /**
+   * Deletes a widget for good, with what it remembers (APX.store, APX.db): the chats that showed it keep their messages.
+   * Owner only.
+   */
+  "surfaces.remove": {
+    params: z.object({ surface: Id }).strict(),
+    result: z.object({ removed: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   /** Publishes (or revokes) a surface as an artifact: a standalone page at /a/<token>, isolated from the API. */
   "surfaces.share": {
     params: z.object({ surface: Id, shared: z.boolean() }).strict(),

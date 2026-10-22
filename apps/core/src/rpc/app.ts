@@ -10,6 +10,7 @@ import { declaresApp } from "../../../../packages/surfaces/src/kit.ts";
 import { readOrganization, writeOrganization } from "../apc/org.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import { writeProjectMeta } from "../apc/write.ts";
+import { artifactDir } from "../domain/artifact-memory.ts";
 import { ownerIdentity, saveOwnerIdentity } from "../domain/owner.ts";
 import { publicProject } from "../domain/projects.ts";
 import type { EngineIds } from "../domain/refs.ts";
@@ -248,6 +249,20 @@ export function appHandlers(deps: {
       const s = store.surfaces.patch(surface, { pinned, app });
       if (!s) throw notFound(`surface ${surface}`);
       return s;
+    },
+    "surfaces.remove": ({ surface }) => {
+      const s = store.surfaces.get(surface);
+      if (!s) throw notFound(`surface ${surface}`);
+      let memory: string | undefined;
+      try {
+        memory = artifactDir(deps.home, { name: s.name, project_id: s.project_id });
+      } catch {
+        // A name from before artifact names were checked has no memory folder of its own to remove.
+      }
+      store.surfaces.remove(surface);
+      // What it remembered goes with it; its source files (an agent's work in the project) stay.
+      if (memory) fs.rmSync(memory, { recursive: true, force: true });
+      return { removed: true as const };
     },
     "surfaces.share": ({ surface, shared }) => {
       const s = store.surfaces.share(surface, shared);

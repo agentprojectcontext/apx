@@ -290,6 +290,21 @@ export async function setSurfaceFlags(id: string, flags: { pinned?: boolean; app
   }
 }
 
+/** Deletes a widget for good, with what it remembers; false when it could not. */
+export async function removeSurface(id: string): Promise<boolean> {
+  try {
+    await client.call("surfaces.remove", { surface: id });
+    data.set((s) => {
+      const { [id]: _gone, ...surfaces } = s.surfaces;
+      return { surfaces };
+    });
+    return true;
+  } catch (e) {
+    notify(t("error.updateWidget", { error: errText(e) }));
+    return false;
+  }
+}
+
 /** Copies a widget into a project (none: the base project), pinned to its board when asked. */
 export async function copySurface(id: string, projectId: string | undefined, pinned: boolean): Promise<void> {
   try {

@@ -1,6 +1,7 @@
 import type { SurfaceSummary } from "@apx/protocol";
-import { IconButton, Icons } from "@apx/ui";
-import { setSurfaceFlags } from "../data/actions.ts";
+import { Button, Dialog, IconButton, Icons } from "@apx/ui";
+import { useState } from "react";
+import { removeSurface, setSurfaceFlags } from "../data/actions.ts";
 import { projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -45,6 +46,52 @@ export function SurfaceActions({ surface }: { surface: SurfaceSummary }) {
       <ShareMenu surface={surface} variant="icon" />
       <ArtifactMemoryButton surface={surface} />
       <OpenInBrowser surface={surface} />
+      <DeleteWidget surface={surface} />
+    </>
+  );
+}
+
+/** Deletes the widget for good, after asking: it leaves every board, panel and list, with what it remembered. */
+function DeleteWidget({ surface }: { surface: SurfaceSummary }) {
+  const t = useT();
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const remove = async () => {
+    setBusy(true);
+    const ok = await removeSurface(surface.id);
+    setBusy(false);
+    if (ok) setAsking(false);
+  };
+  return (
+    <>
+      <IconButton
+        size="sm"
+        label={t("widget.delete")}
+        icon={<Icons.Trash2 size={14} />}
+        onClick={() => setAsking(true)}
+      />
+      {asking && (
+        <Dialog
+          open
+          size="sm"
+          onOpenChange={(o) => !o && setAsking(false)}
+          title={t("widget.delete.title")}
+          description={t("widget.delete.body")}
+          closeLabel={t("common.close")}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setAsking(false)}>
+                {t("common.cancel")}
+              </Button>
+              <Button variant="danger" loading={busy} onClick={() => void remove()}>
+                {t("widget.delete")}
+              </Button>
+            </>
+          }
+        >
+          {t("widget.delete.what", { title: surface.title })}
+        </Dialog>
+      )}
     </>
   );
 }

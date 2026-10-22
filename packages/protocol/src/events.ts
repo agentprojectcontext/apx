@@ -28,6 +28,8 @@ export const CoreEvent = z.discriminatedUnion("type", [
   z.object({ type: z.literal("task.deleted"), task_id: Id }),
   z.object({ type: z.literal("notification.updated"), notification: Notification }),
   z.object({ type: z.literal("surface.updated"), surface: SurfaceSummary }),
+  /** A widget the owner deleted, with what it remembered: lists drop it. */
+  z.object({ type: z.literal("surface.deleted"), surface_id: Id }),
   /** A widget's remembered state changed (the widget or its agent wrote it): open copies take it live. */
   z.object({ type: z.literal("surface.state"), surface_id: Id, state: SurfaceState }),
   /** Agents or projects changed (from any client, an agent's tool or a project's files): reload both lists. */
