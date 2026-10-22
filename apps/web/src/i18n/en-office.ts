@@ -84,6 +84,8 @@ export const enOffice = {
   "tasks.work.openConsult": "Open the consult with {name}",
   "tasks.work.consult": "Consult",
   "tasks.usage": "Usage",
+  "tasks.usage.count": "Usage · {tokens}",
+  "tasks.usage.none": "Nothing used yet",
   "tasks.subtasks": "Subtasks",
   "tasks.subtasks.show": "Show the subtasks of {title}",
   "tasks.subtasks.hide": "Hide the subtasks of {title}",

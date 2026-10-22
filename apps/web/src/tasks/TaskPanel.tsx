@@ -7,7 +7,6 @@ import {
   Icons,
   MarkdownView,
   Menu,
-  Popover,
   Select,
   Skeleton,
   Tabs,
@@ -18,7 +17,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { QuoteContext, quoteBlock } from "../chat/quote.ts";
 import { Transcript } from "../chat/Transcript.tsx";
 import { Drawer } from "../common/Drawer.tsx";
-import { shortWhen } from "../common/format.ts";
+import { formatCompact, shortWhen } from "../common/format.ts";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
 import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
@@ -129,8 +128,9 @@ export function TaskPanel({ task, onClose, actions }: { task: Task; onClose: () 
       }
     >
       <div className="taskpanel__body" ref={body}>
-        <StateBar task={task} detail={detail} />
+        <StateBar task={task} />
         <Properties task={task} detail={detail} />
+        <TaskActivity task={task} detail={detail} />
         <Description task={task} />
         {task.plan?.trim() && <TaskPlan plan={task.plan} />}
         <Tabs
@@ -171,28 +171,51 @@ export function TaskPanel({ task, onClose, actions }: { task: Task; onClose: () 
   );
 }
 
-/** The chats the task was worked in, as a count at the top that opens their list (each one opens in the inbox). */
-function TaskSessions({ task, detail }: { task: Task; detail: TaskDetail | undefined }) {
+/**
+ * Below the properties: the chats the task was worked in and what it consumed, each a button that opens its list
+ * (a session opens in the inbox).
+ */
+function TaskActivity({ task, detail }: { task: Task; detail: TaskDetail | undefined }) {
   const t = useT();
+  const [shown, setShown] = useState<"sessions" | "usage">();
   const count = (detail?.sessions.length ?? 0) + (detail?.consults.length ?? 0);
+  const tokens = detail?.usage.reduce((n, u) => n + u.input + u.output, 0) ?? 0;
+  const toggle = (which: "sessions" | "usage") => setShown((s) => (s === which ? undefined : which));
   return (
-    <Popover
-      width={320}
-      align="start"
-      label={t("tasks.work")}
-      trigger={
-        <Button size="sm" variant="ghost" leadingIcon={<Icons.MessagesSquare size={14} />}>
+    <div className="taskdetail__activity">
+      <div className="taskdetail__activitybar">
+        <Button
+          size="sm"
+          variant={shown === "sessions" ? "secondary" : "ghost"}
+          aria-expanded={shown === "sessions"}
+          leadingIcon={<Icons.MessagesSquare size={14} />}
+          onClick={() => toggle("sessions")}
+        >
           {detail ? t("tasks.work.count", { count }) : t("tasks.work.label")}
         </Button>
-      }
-    >
-      <TaskWork task={task} sessions={detail?.sessions} consults={detail?.consults} />
-    </Popover>
+        <Button
+          size="sm"
+          variant={shown === "usage" ? "secondary" : "ghost"}
+          aria-expanded={shown === "usage"}
+          leadingIcon={<Icons.Activity size={14} />}
+          onClick={() => toggle("usage")}
+        >
+          {detail?.usage.length ? t("tasks.usage.count", { tokens: formatCompact(tokens) }) : t("tasks.usage")}
+        </Button>
+      </div>
+      {shown === "sessions" && <TaskWork task={task} sessions={detail?.sessions} consults={detail?.consults} />}
+      {shown === "usage" &&
+        (detail?.usage.length ? (
+          <TaskUsage usage={detail.usage} />
+        ) : (
+          <span className="taskwork__none">{t("tasks.usage.none")}</span>
+        ))}
+    </div>
   );
 }
 
 /** Its column (how it ended, once closed: it keeps its column to go back to on reopen), and done / drop (or reopen). */
-function StateBar({ task, detail }: { task: Task; detail: TaskDetail | undefined }) {
+function StateBar({ task }: { task: Task }) {
   const t = useT();
   const columns = useTasks((s) => s.columns);
   const closed = task.state !== "open";
@@ -216,7 +239,6 @@ function StateBar({ task, detail }: { task: Task; detail: TaskDetail | undefined
         }
       />
       <ColumnHelp />
-      <TaskSessions task={task} detail={detail} />
       <span className="board__spacer" />
       {task.kind === "commitment" ? (
         <CommitmentActions task={task} />
@@ -225,14 +247,7 @@ function StateBar({ task, detail }: { task: Task; detail: TaskDetail | undefined
           <Button size="sm" leadingIcon={<Icons.Check size={14} />} onClick={() => void acceptTasks([task.id])}>
             {t("tasks.accept")}
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            leadingIcon={<Icons.X size={14} />}
-            onClick={() => void closeTask(task.id, "dropped")}
-          >
-            {t("tasks.drop")}
-          </Button>
+          <DropButton task={task} />
         </>
       ) : task.state === "open" ? (
         <>
@@ -244,14 +259,7 @@ function StateBar({ task, detail }: { task: Task; detail: TaskDetail | undefined
           >
             {t("tasks.markDone")}
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            leadingIcon={<Icons.X size={14} />}
-            onClick={() => void closeTask(task.id, "dropped")}
-          >
-            {t("tasks.drop")}
-          </Button>
+          <DropButton task={task} />
         </>
       ) : (
         <Button size="sm" variant="secondary" onClick={() => void closeTask(task.id, "open")}>
@@ -259,6 +267,20 @@ function StateBar({ task, detail }: { task: Task; detail: TaskDetail | undefined
         </Button>
       )}
     </div>
+  );
+}
+
+/** Dropping, as an icon beside the main action so the bar stays one line in a narrow panel. */
+function DropButton({ task }: { task: Task }) {
+  const t = useT();
+  return (
+    <IconButton
+      size="sm"
+      variant="outline"
+      label={t("tasks.drop")}
+      icon={<Icons.X size={14} />}
+      onClick={() => void closeTask(task.id, "dropped")}
+    />
   );
 }
 
@@ -355,11 +377,6 @@ function Properties({ task, detail }: { task: Task; detail: TaskDetail | undefin
       {detail && detail.subtasks.length > 0 && (
         <Prop label={t("tasks.subtasks")} top>
           <TaskSubtasks subtasks={detail.subtasks} />
-        </Prop>
-      )}
-      {detail && detail.usage.length > 0 && (
-        <Prop label={t("tasks.usage")} top>
-          <TaskUsage usage={detail.usage} />
         </Prop>
       )}
       {task.state === "open" && (task.status === "review" || task.reviewer) && (

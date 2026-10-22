@@ -130,10 +130,10 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
       .poll(async () => (await env.client.call("tasks.get", { task: task.id })).sessions.map((s) => s.agent_ids[0]))
       .toEqual([builder.id]);
     await expect(drawer.getByRole("button", { name: "Abrir conversación con Roby" })).toBeVisible();
-    // Its sessions, a count at the top, list Roby's consult beside Builder's chat.
+    // Under its properties, its sessions list Roby's consult beside Builder's chat; the button beside them, its usage.
     await drawer.getByRole("button", { name: /^Sesiones · 2$/ }).click();
-    await expect(page.locator(".taskwork__chat", { hasText: "Consulta" })).toContainText("Roby");
-    await page.keyboard.press("Escape");
+    await expect(drawer.locator(".taskwork__chat", { hasText: "Consulta" })).toContainText("Roby");
+    await drawer.getByRole("button", { name: /^Consumo · \d/ }).click();
     await expect(drawer.locator(".taskusage__total")).toContainText(/tokens de entrada · .* turnos/);
     expect((await env.client.call("threads.get", { thread: task.thread_id })).runs).toHaveLength(0);
     // Builder's answer when it started stays in its chat: the task shows only what answers the owner or reports.

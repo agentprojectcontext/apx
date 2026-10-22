@@ -736,3 +736,17 @@ body.is-dragging {
   font-weight: 600;
   color: var(--apx-fg-muted);
 }
+
+/* Task panel: under the properties, a rule and the buttons that open its sessions and its usage. */
+.taskdetail__activity {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--apx-border);
+}
+.taskdetail__activitybar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

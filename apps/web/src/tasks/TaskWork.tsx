@@ -1,6 +1,6 @@
 import type { Result, Task, Thread } from "@apx/protocol";
 import { AgentAvatar, Icons, Skeleton, Spinner } from "@apx/ui";
-import { formatNumber, shortWhen } from "../common/format.ts";
+import { formatCompact, formatNumber, shortWhen } from "../common/format.ts";
 import { blobOf, isWorking } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useTasks } from "../data/tasks.ts";
@@ -78,15 +78,15 @@ export function TaskUsage({ usage }: { usage: Result<"tasks.get">["usage"] }) {
     <div className="taskusage">
       <span className="taskusage__total">
         {t("tasks.usage.value", {
-          input: formatNumber(sum.input),
-          output: formatNumber(sum.output),
+          input: formatCompact(sum.input),
+          output: formatCompact(sum.output),
           runs: formatNumber(sum.runs),
         })}
       </span>
       {usage.map((u) => (
         <span key={u.model} className="taskusage__model">
           <code>{u.model}</code> ·{" "}
-          {t("tasks.usage.model", { input: formatNumber(u.input), output: formatNumber(u.output) })}
+          {t("tasks.usage.model", { input: formatCompact(u.input), output: formatCompact(u.output) })}
         </span>
       ))}
     </div>

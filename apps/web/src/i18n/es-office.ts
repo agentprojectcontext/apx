@@ -86,6 +86,8 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "tasks.work.openConsult": "Abrir la consulta a {name}",
   "tasks.work.consult": "Consulta",
   "tasks.usage": "Consumo",
+  "tasks.usage.count": "Consumo · {tokens}",
+  "tasks.usage.none": "Todavía no consumió nada",
   "tasks.subtasks": "Subtareas",
   "tasks.subtasks.show": "Mostrar las subtareas de {title}",
   "tasks.subtasks.hide": "Ocultar las subtareas de {title}",
