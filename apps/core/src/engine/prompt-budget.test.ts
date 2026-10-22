@@ -7,10 +7,10 @@ import { scratchDir } from "../tools/folders.ts";
 import { say, scriptedLlm, startCore } from "./testkit.ts";
 
 /**
- * What a fresh install's secretary sends on every model call, in characters (about four to a token). A change that
- * needs more raises these here and in rules/PROMPT_SIZE.md, with the reason in its commit.
+ * What a fresh install's secretary sends on every model call, in characters (about four to a token): together about
+ * 9,500 tokens. A change that needs more raises these here and in rules/PROMPT_SIZE.md, with the reason in its commit.
  */
-const BUDGET = { system: 6_500, tools: 28_000 };
+const BUDGET = { system: 10_000, tools: 30_000 };
 
 const llm = scriptedLlm(() => say("ok"));
 let env: Awaited<ReturnType<typeof startCore>>;

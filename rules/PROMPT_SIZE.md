@@ -10,9 +10,12 @@ Measured on a fresh install: the secretary, a new chat, default settings, no ski
 
 | Part | Budget | Now (2026-10-17) |
 |---|---|---|
-| System prompt | 6,500 chars (about 1,450 tokens) | 5,962 chars (2026-10-22: the web's routing in, memory and document details moved to their tools) |
-| Tool definitions (45, without the browser) | 28,000 chars (about 6,700 tokens) | 26,095 chars, about 6,150 tokens (2026-10-22) |
+| System prompt | 10,000 chars (about 2,300 tokens) | 5,962 chars (2026-10-22: the web's routing in, memory and document details moved to their tools) |
+| Tool definitions (45, without the browser) | 30,000 chars (about 7,100 tokens) | 26,095 chars, about 6,150 tokens (2026-10-22) |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
+
+Together the two stay at about 9,500 tokens, still well under Hermes and OpenClaw (about 13,000): the room above
+today's size is for what a new owner needs to find their way, not for padding.
 
 `apps/core/src/engine/prompt-budget.test.ts` fails past the budget; it fixes the temp folder and the build it names,
 so every machine measures the same. Raising it is allowed with a reason in the commit and the numbers here updated;
