@@ -100,15 +100,13 @@ export function boardText(tasks: Task[], where: (t: Task) => string | undefined,
 const handsOff = "never" as const;
 
 const commitmentArgs = {
-  person: z.string().max(80).optional().describe("a commitment's contact (name or id)"),
+  person: z.string().max(80).optional().describe("a commitment's contact"),
   owed_by: z.enum(["owner", "person"]).optional().describe('who promised it: "owner" (default) or "person"'),
-  due_at: z.string().max(40).optional().describe("a day (2026-10-05) or a moment (ISO)"),
+  due_at: z.string().max(40).optional().describe("2026-10-05 or an ISO moment"),
 };
 
 const shapeArgs = {
-  kind: TaskKind.optional().describe(
-    '"commitment" has a person on the other side; "errand" is something small to do on the way.',
-  ),
+  kind: TaskKind.optional().describe('"commitment": owed to or by a person; "errand": small, on the way'),
   priority: TaskPriority.optional().describe("default normal"),
   tags: z.array(TaskTag).max(12).optional().describe("short labels (client, area…)"),
 };
@@ -235,6 +233,7 @@ export function taskTools(store: Store): Tool[] {
         status: z.string().max(40).optional(),
         ...shapeArgs,
         ...commitmentArgs,
+        start_at: z.string().max(40).optional().describe("work begins"),
       }),
       effect: "local",
       confirm: handsOff,
@@ -254,7 +253,7 @@ export function taskTools(store: Store): Tool[] {
             ? " When they close it, their report comes here."
             : "";
         if (t.assignee && waits(t.id, ctx)) return `created ${t.id} in ${t.status}${under}. ${PAUSED(t.assignee)}`;
-        return `created ${t.id} in ${t.status}${under}.${t.assignee ? ` ${t.assignee} starts on it now.${back}` : ""}`;
+        return `created ${t.id} in ${t.status}${under}.${t.assignee ? ` ${t.assignee} starts on it ${t.start_at && t.start_at > new Date().toISOString() ? `at ${t.start_at}` : "now"}.${back}` : ""}`;
       },
     }),
     defineTool({
@@ -267,6 +266,7 @@ export function taskTools(store: Store): Tool[] {
         title: z.string().trim().min(3).max(200).optional(),
         description: z.string().max(5000).optional(),
         awaits_owner: z.boolean().optional(),
+        reviewer: z.string().max(80).optional().describe('"owner" or agent'),
         ...shapeArgs,
         ...commitmentArgs,
       }),

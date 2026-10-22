@@ -83,6 +83,7 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
       // Raised when a task starts waiting; later updates only clear it once it stops.
       const t = e.task;
       if (!t.awaits_owner || t.state !== "open") store.notifications.resolve("task", t.id);
+      if (t.status !== "review" || t.state !== "open") store.notifications.resolve("task", `review:${t.id}`);
       // Done, dropped or moved to a later date: the reminder is moot.
       if (t.state !== "open" || !t.due_at || t.due_at > clock().toISOString()) store.notifications.resolve("due", t.id);
     }

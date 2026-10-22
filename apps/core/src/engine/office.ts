@@ -92,7 +92,7 @@ export function taskBlock(
     ...head,
     others.length ? `Worked on before by: ${[...new Set(others)].join(", ")}. ${lookup}` : "",
     "This is your chat for this task; what you say here stays here. Comment on the task with task_comment when others should know: a step done and verified, a block, something to review or decide. Two or three lines, never a transcript.",
-    "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked) and task_close when it is done: the answer of the turn that closes it is posted as your report to whoever created the task.",
+    "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked: the owner checks it unless you name a reviewer agent) and task_close when it is done: the answer of the turn that closes it is posted as your report to whoever created the task.",
     "Mention @owner in a task_comment or in your answer when you need the owner. To ask a teammate, use delegate: its answer comes back to you (an @mention of an agent asks no one).",
   ]
     .filter(Boolean)

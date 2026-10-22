@@ -11,7 +11,7 @@ import {
   Spinner,
 } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
-import { dueLabel, shortWhen } from "../common/format.ts";
+import { aheadLabel, dueLabel, shortWhen } from "../common/format.ts";
 import { SearchSelect } from "../common/pickers/SearchSelect.tsx";
 import { useLongPressDrag } from "../common/useLongPressDrag.ts";
 import {
@@ -300,6 +300,12 @@ function TaskRow(props: {
   const projects = useData((s) => s.projects);
   const who = task.assignee ? agents[task.assignee] : undefined;
   const due = task.due_at ? dueLabel(task.due_at) : undefined;
+  // In review it says who checks it; assigned with a start still ahead, when its work begins.
+  const reviewing = task.state === "open" && task.status === "review";
+  // A reviewer since removed reads as the owner, who checks it then; never a raw id.
+  const reviewerName = (task.reviewer && agents[task.reviewer]?.name) || t("tasks.reviewerOwner");
+  const startsAt =
+    task.state === "open" && task.start_at && task.start_at > new Date().toISOString() ? task.start_at : undefined;
   const pid = task.project_id ?? DEFAULT_PID;
   const subs = props.subtasks;
   return (
@@ -360,8 +366,20 @@ function TaskRow(props: {
               )}
             </span>
             {/* Every mark goes on one line under the title, side by side: kind, who it is with, date, tags. */}
-            {(task.kind !== "task" || task.person_id || task.tags.length > 0) && (
+            {(task.kind !== "task" || task.person_id || task.tags.length > 0 || reviewing || startsAt) && (
               <span className="taskrow__sub">
+                {reviewing && (
+                  <span className="taskrow__commit">
+                    <Icons.Eye size={11} />
+                    {t("tasks.row.reviewer", { name: reviewerName })}
+                  </span>
+                )}
+                {startsAt && (
+                  <span className="taskrow__commit">
+                    <Icons.Clock size={11} />
+                    {t("tasks.row.starts", { when: aheadLabel(startsAt) })}
+                  </span>
+                )}
                 {task.kind !== "task" && (
                   <span className={`taskrow__commit is-${task.kind}`}>
                     {task.kind === "commitment" ? <Icons.Calendar size={11} /> : <Icons.MapPin size={11} />}

@@ -13,7 +13,7 @@ Las tareas son el tablero de pendientes de la oficina, compartido entre vos y tu
 ellos, y darle una a un agente alcanza para que arranque. **Tareas** en la barra lateral las muestra de todos los
 proyectos; cada proyecto tiene además su pestaña **Tareas** con **Nueva tarea**.
 
-<Shot name="tasks" alt="La pantalla de Tareas con los grupos En curso, Pendiente, En revisión y Bloqueada, cada uno con tareas, responsable y vencimiento" caption="Tareas, de todos los proyectos" />
+<Shot name="tasks" alt="La pantalla de Tareas con los grupos En curso, Pendiente, En revisión y Te espera, cada uno con tareas, responsable y vencimiento" caption="Tareas, de todos los proyectos" />
 
 ## Qué tiene una tarea
 
@@ -34,8 +34,10 @@ lista en un solo proyecto o muestra **Todos los proyectos**; este navegador recu
 
 - **En curso**: su columna es En curso, o un agente la está trabajando ahora.
 - **Pendiente**: Por planificar o Para hacer, nadie la empezó todavía.
-- **En revisión**: terminada, falta que alguien la revise.
-- **Bloqueada**: espera tu respuesta. Un agente te preguntó algo, o la marcaste con **Espera tu respuesta** desde el
+- **En revisión**: terminada, falta revisarla. La fila dice quién la revisa: **vos**, salvo que se haya nombrado a
+  un agente para revisarla (**Quién la revisa** en el panel, o un agente que lo nombra); al agente nombrado se le pide
+  la revisión enseguida, y su veredicto aparece en la tarea.
+- **Te espera**: espera tu respuesta. Un agente te preguntó algo, o la marcaste con **Espera tu respuesta** desde el
   menú de la tarea.
 - **Cerradas hace poco**: hechas o descartadas, las más nuevas primero.
 
@@ -51,7 +53,7 @@ tarea**. Ese chat es uno más del Inbox: podés abrirlo y mirar, o hablar ahí c
 3. Sus respuestas quedan en su chat. Comenta en la tarea cuando hay algo que vale la pena saber: un paso hecho y
    verificado, un bloqueo, algo para revisar. La tarea guarda esos comentarios; el chat guarda el trabajo en sí (cada
    herramienta, cada archivo). Cuando la cierra, su última respuesta se publica como su informe.
-4. Cuando necesita una decisión, te pregunta. La tarea pasa a **Bloqueada** hasta que respondas.
+4. Cuando necesita una decisión, te pregunta. La tarea pasa a **Te espera** hasta que respondas.
 
 </Steps>
 
@@ -63,6 +65,8 @@ dónde leerlo.
 <Shot name="task-drawer" alt="Una tarea abierta en su panel: título, responsable, prioridad y una conversación con comentarios del dueño y de un agente" caption="El panel de una tarea: comentarios, campos y el chat de trabajo" />
 
 Las tareas asignadas que nunca arrancaron se retoman solas: una vez por hora, las más urgentes se ponen en marcha.
+Para que una arranque más tarde (mañana a la mañana, después de una salida a producción), poné **Empieza** en su
+panel, o `apx tasks add … --start 2026-10-23T09:00`: su agente arranca a esa hora, no cuando la asignás.
 
 ### Comentarios y @menciones
 

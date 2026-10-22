@@ -13,7 +13,7 @@ Tasks are the office's to-do board, shared by you and your agents. You create th
 to an agent is enough for it to start. **Tasks** in the sidebar shows them from every project; each project has its
 own **Tasks** tab with **New task**.
 
-<Shot name="tasks" alt="The Tasks screen with groups In progress, Pending, In review and Blocked, each listing tasks with assignee and due date" caption="Tasks, across every project" />
+<Shot name="tasks" alt="The Tasks screen with groups In progress, Pending, In review and Waiting on you, each listing tasks with assignee and due date" caption="Tasks, across every project" />
 
 ## What a task has
 
@@ -34,8 +34,10 @@ project or shows **All projects**; this browser remembers the choice for the nex
 
 - **In progress**: its column is Doing, or an agent is working on it right now.
 - **Pending**: Backlog or To do, nobody started it yet.
-- **In review**: finished, waiting for someone to check it.
-- **Blocked**: waiting for your answer. An agent asked you something, or you marked it **Waits for your answer** from
+- **In review**: finished, waiting for a check. The row says who checks it: **you** unless an agent was named to
+  review it (**Reviewed by** in the drawer, or an agent naming one); an agent named is asked to review it right away,
+  and its verdict shows on the task.
+- **Waiting on you**: waiting for your answer. An agent asked you something, or you marked it **Waits for your answer** from
   the task's menu.
 - **Closed recently**: done or dropped, newest first.
 
@@ -51,7 +53,7 @@ task**. That chat is a normal chat listed in the Inbox: you can open it and watc
 3. His answers stay in his chat. He comments on the task when something is worth knowing: a step done and verified,
    a block, something to review. The task keeps those comments; the chat keeps the work itself (every tool call,
    every file). When he closes the task, his last answer is posted as his report.
-4. When he needs a decision, he asks you. The task moves to **Blocked** until you answer.
+4. When he needs a decision, he asks you. The task moves to **Waiting on you** until you answer.
 
 </Steps>
 
@@ -62,7 +64,9 @@ before, and where to read it.
 
 <Shot name="task-drawer" alt="A task open in its drawer: title, assignee, priority, and a conversation of comments from the owner and an agent" caption="A task's drawer: comments, fields and the work chat" />
 
-Assigned tasks that never started are picked up on their own: once an hour, the most pressing few get started.
+Assigned tasks that never started are picked up on their own: once an hour, the most pressing few get started. To
+have one start later (tomorrow morning, after a release), set **Starts** in its drawer, or `apx tasks add … --start
+2026-10-23T09:00`: its agent starts then, not when you assign it.
 
 ### Comments and @mentions
 

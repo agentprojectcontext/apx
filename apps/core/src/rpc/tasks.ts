@@ -25,7 +25,15 @@ import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
 import { awaitAgent } from "../engine/task-inbox.ts";
 import { reportClose } from "../engine/task-report.ts";
-import { type Asker, addComment, askMentioned, reworkTask, startTaskWork } from "../engine/task-work.ts";
+import {
+  type Asker,
+  addComment,
+  askMentioned,
+  reviewRequested,
+  reworkTask,
+  startsLater,
+  startTaskWork,
+} from "../engine/task-work.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
@@ -78,6 +86,14 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       throw badRequest(
         `assignee: you are answering ${caller}, so you start no task work, yours included: do what you can here yourself, and for a task name the agent in your answer: ${caller} assigns it`,
       );
+  };
+  /** Who checks a task in review: undefined leaves it, null (or "owner") is the owner, else an agent of its project. */
+  const reviewerOf = (reviewer: string | null | undefined, project: string | undefined): string | null | undefined => {
+    if (reviewer === undefined) return undefined;
+    if (reviewer === null || ["owner", "me", "yo", "vos"].includes(reviewer.trim().toLowerCase())) return null;
+    const found = store.agents.resolve(reviewer, project);
+    if ("error" in found) throw badRequest(`reviewer: ${found.error}`);
+    return found.agent.id;
   };
   /** Agent-created subtasks must be executable when recorded; owner drafts remain a deliberate choice. */
   const requireSubtaskWork = (
@@ -167,6 +183,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       const person = p.person ? personOf(store, p.person) : undefined;
       const due = dueOf(p.due_at);
       const remind = dueOf(p.remind_at);
+      const start = dueOf(p.start_at);
       // The task's conversation: the assignee answers there, or the super-agent until someone is assigned.
       const home = store.threads.get(HOME_THREAD_ID);
       const agent = p.assignee ?? home?.agent_ids[0] ?? "roby";
@@ -181,6 +198,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
           parent_id: parent,
           due_at: due ?? undefined,
           remind_at: remind ?? undefined,
+          start_at: start ?? undefined,
           kind: p.kind,
           priority: p.priority,
           tags: tagsOf(p.tags),
@@ -192,9 +210,10 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
         });
       });
       if (created.assignee) startTaskWork(store, engine.admit, created, created.assignee, askerOf(ctx));
+      if (created.status === "review") reviewRequested(store, engine.admit, created);
       return created;
     },
-    "tasks.update": ({ task, person, due_at, remind_at, project, tags, ...c }, ctx) => {
+    "tasks.update": ({ task, person, due_at, remind_at, start_at, reviewer, project, tags, ...c }, ctx) => {
       const cur = visible(task, ctx);
       checkColumn(store, c.status);
       // An agent keeps its tasks in its own project; the owner can move one anywhere (null = global).
@@ -204,8 +223,10 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       const moving = project !== undefined && (project ?? undefined) !== cur.project_id;
       const target = moving ? (project ?? undefined) : cur.project_id;
       checkAssignee(store, c.assignee, target);
+      const checker = reviewerOf(reviewer, target);
       // Its agent stays only if it can work there.
       const keeper = c.assignee !== undefined ? c.assignee : cur.assignee;
+      if (checker && checker === keeper) throw badRequest("reviewer: the agent doing it does not review its own work");
       const unassign =
         moving && keeper && store.agents.get(keeper)?.project_id && store.agents.get(keeper)?.project_id !== target;
       const completing =
@@ -215,7 +236,13 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
         store.threads.byTask(cur.id).length === 0;
       if (moving || c.assignee !== undefined || c.description !== undefined)
         requireSubtaskWork(ctx, cur.parent_id, unassign ? null : keeper, c.description ?? cur.description);
-      const starting = !unassign && keeper && (keeper !== cur.assignee || completing);
+      // Its start moved to now (or cleared) before its work began: it begins now.
+      const unscheduled =
+        start_at !== undefined &&
+        Boolean(cur.start_at) &&
+        !startsLater({ ...cur, start_at: dueOf(start_at) ?? undefined }) &&
+        store.threads.byTask(cur.id).length === 0;
+      const starting = !unassign && keeper && (keeper !== cur.assignee || completing || unscheduled);
       if (starting) refuseHandOn(ctx);
       const changed = store.tx(() => {
         noticeTaskWaiting(store, cur, c.awaits_owner ?? cur.awaits_owner);
@@ -232,10 +259,21 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
             ...(person && !c.kind ? { kind: "commitment" as const } : {}),
             ...(due_at !== undefined ? { due_at: dueOf(due_at) } : {}),
             ...(remind_at !== undefined ? { remind_at: dueOf(remind_at) } : {}),
+            ...(start_at !== undefined ? { start_at: dueOf(start_at) } : {}),
+            ...(checker !== undefined ? { reviewer: checker } : {}),
           },
           by(ctx),
         ) as Task;
       });
+      // Put in review (or given another checker while in review): whoever checks it hears now.
+      const reviewing = changed.state === "open" && changed.status === "review";
+      // An agent answering another one (or inside a review) asks no reviewer: no loop of reviews.
+      if (
+        reviewing &&
+        !answering(ctx) &&
+        (cur.status !== "review" || (checker !== undefined && checker !== (cur.reviewer ?? null)))
+      )
+        reviewRequested(store, engine.admit, changed);
       // Completing a waiting task starts it too; editing one already worked never starts another turn.
       if (changed.assignee && starting) startTaskWork(store, engine.admit, changed, changed.assignee, askerOf(ctx));
       return changed;

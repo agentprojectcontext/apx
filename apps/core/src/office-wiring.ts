@@ -16,7 +16,7 @@ import { createStallNotices, resetLabel } from "./engine/provider-limit.ts";
 import { createScheduler } from "./engine/routines.ts";
 import { handOwnerComments } from "./engine/task-inbox.ts";
 import { reviveStalled } from "./engine/task-stall.ts";
-import { PICKUP_EVERY_MS, pickUpTasks } from "./engine/task-work.ts";
+import { PICKUP_EVERY_MS, pickUpTasks, startScheduled } from "./engine/task-work.ts";
 import type { Log } from "./log.ts";
 
 /** A reminder noticed this late goes only to the tray: a message about it now would be noise. */
@@ -54,6 +54,8 @@ export function officeScheduler(deps: {
         pickUpTasks(store, deps.admit);
       }
       handOwnerComments(store, deps.admit, at);
+      // A task given a start time begins then, not at the next hourly pickup.
+      startScheduled(store, deps.admit, at);
       if (at.getTime() - stallsAt >= STALL_CHECK_EVERY_MS) {
         stallsAt = at.getTime();
         const { revived, told } = reviveStalled(store, deps.admit, at);

@@ -39,6 +39,10 @@ export const Task = z.object({
   due_at: z.string().optional(),
   /** When the owner is reminded; without it, when the task is due. */
   remind_at: z.string().optional(),
+  /** When its work starts: an assigned task waits until then (unset: at once). */
+  start_at: z.string().optional(),
+  /** Who checks it in review: "owner" or an agent's id. */
+  reviewer: z.string().optional(),
   /** A commitment: the person on the other side, and who owes it (the owner promised it, or the person did). */
   person_id: Id.optional(),
   person_name: z.string().optional(),

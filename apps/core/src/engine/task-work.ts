@@ -8,6 +8,7 @@ import type { Author, Task, Thread } from "@apx/protocol";
 import { ownerIdentity } from "../domain/owner.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
+import { noticeTaskReview } from "../domain/task-attention.ts";
 import { type HeldTask, previewOf } from "../domain/threads.ts";
 import { badRequest, conflict } from "../errors.ts";
 import { taskWords } from "../tools/tasks.ts";
@@ -128,6 +129,8 @@ export function startTaskWork(
 ): RunRecord | undefined {
   // How far agents hand work on is the breaker's, as the owner set it (DECISIONS.md#d-082).
   if (task.state !== "open" || !task.description.trim() || !store.agents.get(agentId)) return undefined;
+  // A start time still ahead: the office clock starts it then (startScheduled).
+  if (startsLater(task)) return undefined;
   if (asker.kind === "agent" && (trip(store, asker.thread_id) || agentTrip(store, asker.thread_id, agentId))) {
     hold(store, task, agentId, asker);
     return undefined;
@@ -224,6 +227,7 @@ function consult(
   task: Task,
   agent: { id: string; name: string },
   text: string,
+  how: { by?: string; trigger?: "user" | "system" } = {},
 ): RunRecord | undefined {
   const from = ownerIdentity(store).name || "The owner";
   const sub = store.threads.create({
@@ -248,7 +252,7 @@ function consult(
         agent_id: agent.id,
         title: task.title.slice(0, 120),
         state: "working",
-        asked_by: "owner",
+        asked_by: how.by ?? "owner",
       },
     ],
   });
@@ -258,11 +262,67 @@ function consult(
   return admit({
     thread_id: sub.id,
     agent_id: agent.id,
-    trigger: "user",
+    trigger: how.trigger ?? "user",
     origin: originOf(OWNER),
     text: question,
     depth: 0,
   });
+}
+
+/** Whether a task's start time is still ahead: its work waits until then. */
+export const startsLater = (task: Task, now = new Date()): boolean =>
+  Boolean(task.start_at && task.start_at > now.toISOString());
+
+/** Assigned tasks whose start time came and whose work never began, a few at a time (the office clock, each tick). */
+export function startScheduled(store: Store, admit: AdmitFn, now: Date): RunRecord[] {
+  // A task an agent gave while paused waits for its chain to go on, never for the clock (DECISIONS.md#d-082).
+  const held = new Set(
+    store.threads.holding().flatMap((id) => (store.threads.context(id).held ?? []).map((h) => h.task)),
+  );
+  return store.tasks
+    .list({ state: "open", limit: 500 })
+    .filter(
+      (t) =>
+        t.start_at &&
+        !startsLater(t, now) &&
+        t.status !== "review" &&
+        !held.has(t.id) &&
+        t.assignee &&
+        store.agents.get(t.assignee) &&
+        t.description.trim() &&
+        store.threads.byTask(t.id).length === 0,
+    )
+    .slice(0, PICKUP_AT_ONCE)
+    .flatMap((t) => startTaskWork(store, admit, t, t.assignee ?? "", askerOfCreation(store, t)) ?? []);
+}
+
+/** Who gave the task, for a start that comes later: the owner, or the agent and chat it was created from. */
+function askerOfCreation(store: Store, task: Task): Asker {
+  if (task.created_by === "owner") return OWNER;
+  const from = store.tasks.events(task.id).find((e) => e.op === "create")?.data;
+  const thread = typeof from?.from_thread === "string" ? from.from_thread : undefined;
+  const run = typeof from?.from_run === "string" ? from.from_run : undefined;
+  const agent = store.agents.get(task.created_by);
+  if (!thread || !run || !agent) return OWNER;
+  // The chain it came from still spends its budget: a tripped one holds it (startTaskWork).
+  return { kind: "agent", id: agent.id, name: agent.name, thread_id: thread, run_id: run, depth: 1 };
+}
+
+/**
+ * A task just put in review: an agent named to check it is asked to, in a consult shown on the task (APX asks, not
+ * the owner: no new budget window); otherwise it is the owner's to check, and their tray says so.
+ */
+export function reviewRequested(store: Store, admit: AdmitFn, task: Task): RunRecord | undefined {
+  const reviewer = task.reviewer ? store.agents.get(task.reviewer) : undefined;
+  // Paused agents ask no one: the owner checks it, as when no agent is named.
+  if (!reviewer || trip(store, task.thread_id) || agentTrip(store, task.thread_id, reviewer.id)) {
+    noticeTaskReview(store, task);
+    return undefined;
+  }
+  store.notifications.resolve("task", `review:${task.id}`);
+  const doer = task.assignee ? (store.agents.get(task.assignee)?.name ?? task.assignee) : "its agent";
+  const text = `Review task ${task.id}, done by ${doer}: check the work against what the task asks, running the checks you can (tests, the page, the data). Answer "Approved" with what you checked, or what must change and why.`;
+  return consult(store, admit, task, reviewer, text, { by: task.assignee ?? "owner", trigger: "system" });
 }
 
 /** A consult ended: its card in the task's conversation shows the answer; it asks no one else. */
@@ -354,6 +414,7 @@ export function pickUpTasks(store: Store, admit: AdmitFn): RunRecord[] {
         t.description.trim() &&
         !held.has(t.id) &&
         t.status !== "review" &&
+        !startsLater(t) &&
         store.agents.get(t.assignee) &&
         store.threads.byTask(t.id).length === 0 &&
         (assignedAt(store, t) ?? "") >= since,

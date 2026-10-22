@@ -337,6 +337,28 @@ function Properties({ task, detail }: { task: Task; detail: TaskDetail | undefin
           <TaskUsage usage={detail.usage} />
         </Prop>
       )}
+      {task.state === "open" && (task.status === "review" || task.reviewer) && (
+        <Prop label={t("tasks.reviewer")}>
+          <AgentSelect
+            size="sm"
+            value={task.reviewer}
+            projectId={task.project_id}
+            globalAgents={task.project_id ? "secretary" : "all"}
+            none={t("tasks.reviewerOwner")}
+            onChange={(id) => id !== task.reviewer && void updateTask(task.id, { reviewer: id ?? null })}
+          />
+        </Prop>
+      )}
+      {task.state === "open" && task.kind === "task" && detail && !detail.sessions.length && (
+        <Prop label={t("tasks.start")}>
+          <DueField
+            size="sm"
+            label={t("tasks.startNow")}
+            value={pickerValue(task.start_at)}
+            onChange={(v) => v !== pickerValue(task.start_at) && void updateTask(task.id, { start_at: v ?? null })}
+          />
+        </Prop>
+      )}
       <Prop label={t("commitments.due")}>
         <DueField
           size="sm"

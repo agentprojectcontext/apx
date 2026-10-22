@@ -1785,3 +1785,35 @@ the task's sessions are a count at the top that opens their list.
 **The owner's comment reaches someone.** One that names no agent is marked sent and, a minute later (so a few go
 together), the office clock hands it to the task's agent in its chat, or to the super-agent when nobody has the task;
 it then shows as delivered, and read once that turn ends. An @mention still asks at once (D-101).
+
+<a id="d-124"></a>
+## D-124 — 2026-10-22 — Review says who checks it, "Blocked" is "Waiting on you", and a task can start later
+Owners could not tell **In review** from **Blocked**: both read as "someone else's", and nobody said who reviews.
+
+**Waiting on you** (was Blocked): an agent asked the owner something or needs their decision (`awaits_owner`); it
+goes on when they answer. Only the label changed.
+
+**In review names its checker.** A task has a `reviewer`: the owner when unset, or an agent (`task_update reviewer`,
+"Reviewed by" in the drawer, `apx tasks edit --reviewer`). Put in review, the owner's tray gets one notice (it clears
+when the task leaves review); an agent named is asked to review it in a consult on the task, with the trigger `system`
+so APX asking does not start a new budget window as the owner writing would (D-081). The row reads "Reviews: …".
+
+**A task can start later.** `start_at`: an assigned task whose start is ahead does not start on assignment; the office
+clock starts it when the time comes (each tick, not the hourly pickup). Only `task_create` takes it among agent tools:
+an agent asked to plan something for tomorrow sets it there; moving it is the owner's, in the drawer or the terminal.
+The two new tool arguments fit the tools budget by shortening three descriptions (rules/PROMPT_SIZE.md).
+
+Details settled in review: the agent doing a task does not review its own work; an agent answering another one, or
+paused by the breaker, asks no reviewer (the owner checks it), so reviews cannot loop. A start the clock reaches
+starts as whoever gave the task (its creating agent's chain still spends its budget and a tripped one holds it); a
+start cleared or moved to now before the work began starts it at once; an owner's comment starts it early, as
+writing to it always does.
+
+<a id="d-125"></a>
+## D-125 — 2026-10-22 — The watcher also reports tasks set up so they cannot move, checked in code first
+A task can sit open forever with nothing wrong anyone sees: its agent was removed, it was assigned with no
+description (it never starts), it is in progress with nobody on it, its reviewer is gone, its start passed without it
+beginning, it stays open under a closed parent, or it is in progress and nothing has run on it for two days (past the
+stall revive's day, D-123). The watch routine's signals (`domain/signals.ts`) find these with plain store reads, as
+`broken_task` signals, so the model is called only when one is new and only to word it for the owner. Commitments and
+tasks waiting on the owner are left to their own signals.

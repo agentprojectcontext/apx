@@ -838,4 +838,9 @@ export const MIGRATIONS: readonly string[] = [
   `ALTER TABLE surfaces ADD COLUMN state TEXT;`,
   // Where an installed artifact came from (who made it, its agent and project there), as its file said.
   `ALTER TABLE surfaces ADD COLUMN origin TEXT;`,
+  // When a task's work starts (an assigned task waits until then), and who checks it once it is in review.
+  `
+  ALTER TABLE tasks ADD COLUMN start_at TEXT;
+  ALTER TABLE tasks ADD COLUMN reviewer TEXT;
+  `,
 ];
