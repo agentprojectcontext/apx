@@ -204,3 +204,30 @@ test("an unreadable source is a blocker in the shared rules, not 'not verifiable
   assert.match(worker, /blockers first/);
   assert.match(worker, blocker);
 });
+
+test("the web goes to the agent's own browser, a login is handed to the owner, and a declined step is not repeated", () => {
+  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+    typeof systemPrompt
+  >[0];
+  const a = systemPrompt(agent, { kind: "home" }, "es");
+  assert.match(a, /the owner's screen \(screen_\) only when they ask for their computer; never another browser/);
+  assert.match(a, /a site that blocks you is a handoff too, not a reason to switch/);
+  assert.match(a, /never drop a way that works after one failure/);
+  assert.match(a, /A step the owner declined is not repeated/);
+  assert.match(a, /Independent tool calls go together in one step/);
+  const worker = workerPrompt({ name: "Helper", instructions: "audit" }, { name: "Roby" }, "es");
+  assert.match(worker, /never another browser/);
+});
+
+test("lines a turn may leave out (computer off, temp folder) never leave a blank line inside the rules", () => {
+  const agent = { id: "roby", name: "Roby", role: "", kind: "secretary", prompt: "" } as Parameters<
+    typeof systemPrompt
+  >[0];
+  const rules = (p: string) => p.slice(p.indexOf("## Rules"), p.indexOf("\n\nThread:"));
+  for (const off of [false, true]) {
+    const p = systemPrompt(agent, { kind: "home" }, "es", undefined, "", "", undefined, "", "", off);
+    assert.doesNotMatch(rules(p), /\n\n/, `computerOff=${off}`);
+    assert.equal(p.includes("[Config › Desktop](apx:settings/desktop), where they turn it on"), off);
+  }
+  assert.doesNotMatch(workerPrompt({ name: "Helper", instructions: "audit" }, { name: "Roby" }, "es"), /\n$/);
+});

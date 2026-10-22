@@ -39,11 +39,13 @@ test("an agent is told its mode in each turn's input, and that APX asks the owne
   assert.match(plan.input, /^\[mode\] Plan: read and propose/m);
 });
 
-test("the system prompt tells the agent to save corrections, repeats and confirmed approaches in its own words", async () => {
+test("the agent is told to save confirmed approaches in its own words, and remember says how a note is written", async () => {
   const { system } = await seen("hello");
   assert.match(
     system,
     /save reusable preferences, decisions and confirmed approaches with remember, in your own words/,
   );
-  assert.match(system, /Why only if stated, How to apply only if supported/);
+  const call = llm.calls.findLast((c) => String(c.messages.at(-1)?.content).includes("hello"));
+  const remember = JSON.stringify(call?.tools?.find((t) => JSON.stringify(t).includes('"remember"')));
+  assert.match(remember, /a Why only if stated, a How to apply only if supported/);
 });
