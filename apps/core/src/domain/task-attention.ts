@@ -28,3 +28,21 @@ export function noticeTaskReview(store: Store, task: Task, verdict?: string): vo
     ref: `review:${task.id}`,
   });
 }
+
+/** An agent's proposals waiting for the owner: one notice per agent, saying how many, until they are all decided. */
+export function noticeTaskProposed(store: Store, task: Task): void {
+  const waiting = store.tasks
+    .list({ state: "open", limit: 500 })
+    .filter((t) => t.proposed && t.created_by === task.created_by).length;
+  const who = store.agents.get(task.created_by)?.name ?? task.created_by;
+  const en = store.settings.get("owner_language") === "en";
+  store.notifications.add({
+    kind: "task",
+    level: "info",
+    title: who,
+    body: en
+      ? `${waiting} proposed task${waiting === 1 ? "" : "s"} to accept or drop`
+      : `${waiting} tarea${waiting === 1 ? "" : "s"} propuesta${waiting === 1 ? "" : "s"} para aceptar o descartar`,
+    ref: `proposals:${task.created_by}`,
+  });
+}

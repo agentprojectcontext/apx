@@ -25,7 +25,7 @@ import {
 } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
-import { loadTasks, useTasks } from "../data/tasks.ts";
+import { acceptTasks, loadTasks, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { CommitmentMeta } from "./Commitments.tsx";
@@ -45,6 +45,7 @@ const GLOBAL_PEEK = 5;
 const MAX_DEPTH = 3;
 
 const GROUP_LABEL: Record<GroupId, MessageKey> = {
+  proposed: "tasks.group.proposed",
   doing: "tasks.group.doing",
   pending: "tasks.group.pending",
   review: "tasks.group.review",
@@ -253,6 +254,11 @@ export function TasksList({
                     </>
                   )}
                   <span className="tasks__groupcount">{g.items.length}</span>
+                  {g.id === "proposed" && (
+                    <Button size="sm" variant="ghost" onClick={() => void acceptTasks(g.items.map((x) => x.id))}>
+                      {t("tasks.acceptAll")}
+                    </Button>
+                  )}
                   <Help label={t(GROUP_LABEL[g.id])} align="start" width={280}>
                     {t(`tasks.help.group.${g.id}`)}
                   </Help>
@@ -374,9 +380,17 @@ function TaskRow(props: {
               task.tags.length > 0 ||
               reviewing ||
               startsAt ||
-              task.awaits_owner) && (
+              task.awaits_owner ||
+              task.proposed) && (
               <span className="taskrow__sub">
-                {task.awaits_owner && task.state === "open" ? (
+                {task.proposed && task.state === "open" ? (
+                  <span className="taskrow__commit">
+                    <Icons.Sparkles size={11} />
+                    {agents[task.created_by]
+                      ? t("tasks.row.proposedBy", { name: agents[task.created_by]?.name ?? "" })
+                      : t("tasks.row.proposed")}
+                  </span>
+                ) : task.awaits_owner && task.state === "open" ? (
                   <span className="taskrow__commit">
                     <Icons.MessageCircle size={11} />
                     {t("tasks.row.asks")}

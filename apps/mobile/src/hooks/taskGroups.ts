@@ -2,9 +2,10 @@ import type { Key } from "../i18n/index.ts";
 import type { Task } from "./useWorkspace";
 
 export type TaskFilter = "all" | "task" | "commitment";
-export type TaskGroup = { id: "doing" | "pending" | "review" | "blocked"; label: Key; tasks: Task[] };
+export type TaskGroup = { id: "proposed" | "doing" | "pending" | "review" | "blocked"; label: Key; tasks: Task[] };
 
 const ORDER: Array<Pick<TaskGroup, "id" | "label">> = [
+  { id: "proposed", label: "tasksProposed" },
   { id: "blocked", label: "tasksBlocked" },
   { id: "doing", label: "tasksDoing" },
   { id: "pending", label: "tasksPending" },
@@ -12,10 +13,11 @@ const ORDER: Array<Pick<TaskGroup, "id" | "label">> = [
 ];
 
 /**
- * Where an open task sits on the phone: what needs the owner first (a question, or a review no agent does), then its
- * board column.
+ * Where an open task sits on the phone: an agent's proposals first, then what needs the owner (a question, or a review
+ * no agent does), then its board column.
  */
 export function taskGroupOf(task: Task): TaskGroup["id"] {
+  if (task.proposed) return "proposed";
   if (task.awaits_owner || task.status === "blocked" || (task.status === "review" && !task.reviewer)) return "blocked";
   if (task.status === "review") return "review";
   if (task.status === "doing") return "doing";

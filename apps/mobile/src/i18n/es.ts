@@ -164,6 +164,7 @@ export const es: Record<Key, string> = {
   tasksDoing: "En curso",
   tasksPending: "Pendientes",
   tasksReview: "En revisión",
+  tasksProposed: "Propuestas",
   tasksBlocked: "Necesitan tu revisión",
   tasksAll: "Todas",
   tasksTasks: "Tareas",

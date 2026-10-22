@@ -73,6 +73,8 @@ export type Task = {
   awaits_owner: boolean;
   /** Who checks it in review: an agent's id; none, the owner. */
   reviewer?: string;
+  /** An agent proposed it: nothing starts until the owner accepts it. */
+  proposed?: boolean;
   /** A commitment: the person on the other side, and how it ended once closed. */
   person_name?: string;
   outcome?: "kept" | "missed" | "dropped";

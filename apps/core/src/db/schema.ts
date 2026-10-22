@@ -509,6 +509,7 @@ export interface TasksTable {
   start_at: string | null;
   reviewer: string | null;
   plan: string | null;
+  proposed: Generated<number>;
 }
 
 export interface ThreadsTable {

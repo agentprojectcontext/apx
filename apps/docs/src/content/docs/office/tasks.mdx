@@ -32,6 +32,9 @@ project or shows **All projects**; this browser remembers the choice for the nex
 
 ### How the list is grouped
 
+- **Proposed** (when there are any, on top): tasks an agent proposes and nothing starts until you accept them.
+  **Accept all** in its header, or **Accept** and **Drop** in each one's drawer. See
+  [Proposals](#proposals).
 - **Needs your review** (first): what is yours. An agent asked you something or needs your decision (it goes on when
   you answer; you also mark it so with **Waits for your answer** from its menu), or a finished task you review to
   close. Each row says which: **Asks you something** or **Reviews: You**.
@@ -104,10 +107,25 @@ start a correction run.
 
 A task can name a parent task, so "Spring launch" can hold the photos for Vera and the rates page for Tomás.
 
-<Aside type="caution" title="Partial">
-Sub-tasks exist in the core (a task created through the protocol can name its parent), but the panel still lists them
-as ordinary tasks and agents' task tools do not set a parent yet.
-</Aside>
+The list nests them under their parent. A task an agent creates while it works on a task is a sub-task of that one:
+the agent that owns a task carries it end to end, and hands a part to another agent through a sub-task, not a chat.
+
+### Proposals
+
+When an agent finishes, it may see more work: a QA pass, a review, something for another area. Work its own role
+hands out it creates and starts; the rest it **proposes**. A proposed task waits in **Proposed**, with who proposed
+it, until you accept it (it starts like any assigned task) or drop it. You get one notice per agent with how many it
+has waiting.
+
+Some tasks are proposals whatever the agent asks for:
+
+- **A wide hand-out.** When an agent hands tasks to a third agent or more in one turn (Roby splitting "check every
+  service for PHP vulnerabilities" into one task per service), they are proposed, so you pick which go ahead. The
+  **Ask before handing work to several agents** switch (Team, under **When agents work on their own**) turns this off.
+- **A hand-off chain three deep.** A sub-task of a sub-task of a sub-task is proposed, so agents cannot keep passing
+  work down on their own.
+- **Work given back up the chain.** A sub-task for an agent that created one of the tasks above it is proposed, so two
+  agents cannot ping-pong the same work.
 
 ## Commitments
 

@@ -129,8 +129,8 @@ export function startTaskWork(
 ): RunRecord | undefined {
   // How far agents hand work on is the breaker's, as the owner set it (DECISIONS.md#d-082).
   if (task.state !== "open" || !task.description.trim() || !store.agents.get(agentId)) return undefined;
-  // A start time still ahead: the office clock starts it then (startScheduled).
-  if (startsLater(task)) return undefined;
+  // A start time still ahead: the office clock starts it then (startScheduled). A proposal waits for the owner.
+  if (startsLater(task) || task.proposed) return undefined;
   if (asker.kind === "agent" && (trip(store, asker.thread_id) || agentTrip(store, asker.thread_id, agentId))) {
     hold(store, task, agentId, asker);
     return undefined;
@@ -273,6 +273,34 @@ function consult(
   });
 }
 
+/** Hand-offs above a task an agent may still add to on its own; deeper, its new task is a proposal for the owner. */
+const MAX_HANDOFF_DEPTH = 3;
+
+/**
+ * Why an agent's new task waits for the owner instead of starting: a chain of hand-offs too deep, or work given back to
+ * an agent that handed it down the same chain (two agents passing work to and fro). Undefined: it may start.
+ */
+export function proposalReason(
+  store: Store,
+  parentId: string | undefined,
+  assignee: string | undefined,
+  creator: string,
+): string | undefined {
+  const chain: Task[] = [];
+  const seen = new Set<string>();
+  for (let id = parentId; id && !seen.has(id) && chain.length <= MAX_HANDOFF_DEPTH; ) {
+    seen.add(id);
+    const t = store.tasks.get(id);
+    if (!t) break;
+    chain.push(t);
+    id = t.parent_id;
+  }
+  if (chain.length >= MAX_HANDOFF_DEPTH) return `it would be ${chain.length + 1} hand-offs deep`;
+  if (assignee && assignee !== creator && chain.some((t) => t.created_by === assignee))
+    return "it gives work back up its own chain";
+  return undefined;
+}
+
 /** Review rounds an agent reviewer gets on one task before the owner decides. */
 const MAX_REVIEW_ROUNDS = 2;
 
@@ -291,6 +319,7 @@ export function startScheduled(store: Store, admit: AdmitFn, now: Date): RunReco
     .filter(
       (t) =>
         t.start_at &&
+        !t.proposed &&
         !startsLater(t, now) &&
         t.status !== "review" &&
         !held.has(t.id) &&
@@ -460,6 +489,7 @@ export function pickUpTasks(store: Store, admit: AdmitFn): RunRecord[] {
         t.description.trim() &&
         !held.has(t.id) &&
         t.status !== "review" &&
+        !t.proposed &&
         !startsLater(t) &&
         store.agents.get(t.assignee) &&
         store.threads.byTask(t.id).length === 0 &&

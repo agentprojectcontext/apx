@@ -1,5 +1,5 @@
-// One wide request to the super-agent does not become a task per agent at once: before it gives work to a third
-// agent in a turn, the owner chooses whether it goes on or looks first and proposes a plan.
+// One wide request to the super-agent does not become work for every agent at once: tasks handed to a third agent in
+// a turn become proposals the owner picks from, and delegating to a third agent asks the owner first.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
@@ -16,6 +16,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
       description: "Check the PHP version and its known issues.",
       assignee: TEAM[done],
     });
+  if (said.includes("ask everyone") && done < 3)
+    return callTool(`d${done}`, "delegate", { agent: TEAM[done], task: "Which PHP version runs there?", wait_s: 0 });
   return say(afterTool ? "All handed out." : "Hello.");
 });
 
@@ -39,53 +41,57 @@ const until = async (check: () => boolean, what: string, ms = 5000) => {
   throw new Error(`never: ${what}`);
 };
 
-async function spread(agent = "roby") {
+async function say_(agent: string, text: string) {
   const t = await env.client.call("threads.create", { kind: "loose", agent_id: agent });
-  await env.client.call("threads.send", { thread: t.id, text: "spread the php review" });
+  await env.client.call("threads.send", { thread: t.id, text });
   return t.id;
 }
 const tasksFor = (who: string) =>
   env.core.store.tasks.list({ state: "open", limit: 500 }).filter((t) => t.assignee === who);
 
-test("the super-agent asks before giving work to a third agent, and looks first when the owner says no", async () => {
-  const before = tasksFor("nora").length;
-  const thread = await spread();
-  await until(() => env.core.store.inputs.pending(thread).length === 1, "the owner was asked");
-  const [asked] = env.core.store.inputs.pending(thread);
-  assert.match(asked?.prompt ?? "", /quiere repartir trabajo entre varios agentes/);
-  assert.match(asked?.prompt ?? "", /Nora/);
-  await env.client.call("runs.respond", { input: asked?.id ?? "", decision: "deny" });
+test("tasks the super-agent hands to a third agent and on become proposals: no card, no work until accepted", async () => {
+  const thread = await say_("roby", "spread the php review");
   await env.settle(thread);
-  assert.equal(tasksFor("nora").length, before, "the third hand-off did not run");
-  const reply = llm.calls.flatMap((c) => c.messages).find((m) => m.role === "tool" && m.tool_call_id === "t2");
-  assert.match(String(reply?.content), /Survey it in one pass/);
+  assert.equal(env.core.store.inputs.pending(thread).length, 0, "nothing stops the turn");
+  assert.equal(tasksFor("scout")[0]?.proposed, undefined, "the first two start as usual");
+  const [nora] = tasksFor("nora");
+  const [omar] = tasksFor("omar");
+  assert.equal(nora?.proposed, true);
+  assert.equal(omar?.proposed, true);
+  assert.equal(env.core.store.threads.byTask(nora?.id ?? "").length, 0, "a proposal starts nothing");
+  assert.ok(
+    env.core.store.notifications.list({ unreadOnly: true, limit: 50 }).some((n) => n.ref === "proposals:roby"),
+    "the owner hears there are proposals to decide",
+  );
+  // Accepted, it starts like any task just given.
+  const accepted = await env.client.call("tasks.update", { task: nora?.id ?? "", proposed: false });
+  assert.equal(accepted.proposed, undefined);
+  await until(() => env.core.store.threads.byTask(nora?.id ?? "").length === 1, "its work started");
 });
 
-test("approved once, the turn goes on handing work out", async () => {
-  const before = tasksFor("nora").length;
-  const thread = await spread();
+test("delegating to a third agent in one turn still asks the owner first", async () => {
+  const thread = await say_("roby", "ask everyone");
   await until(() => env.core.store.inputs.pending(thread).length === 1, "the owner was asked");
+  assert.match(env.core.store.inputs.pending(thread)[0]?.prompt ?? "", /repartir trabajo entre varios agentes/);
   await env.client.call("runs.respond", {
     input: env.core.store.inputs.pending(thread)[0]?.id ?? "",
-    decision: "approve",
+    decision: "deny",
   });
   await env.settle(thread);
-  assert.equal(tasksFor("nora").length, before + 1);
 });
 
-test("with the setting off, or for a team's own agent, nothing is asked", async () => {
+test("with the setting off, or for a team's own agent, nothing is proposed nor asked", async () => {
   await env.client.call("agents.set_fan_out_ask", { ask: false });
-  const before = tasksFor("nora").length;
-  const off = await spread();
+  const before = tasksFor("omar").length;
+  const off = await say_("roby", "spread the php review");
   await env.settle(off);
-  assert.equal(env.core.store.inputs.pending(off).length, 0);
-  assert.equal(tasksFor("nora").length, before + 1);
-  assert.equal((await env.client.call("agents.limits", {})).fan_out_ask, false);
-
+  const latest = tasksFor("omar").slice(0, tasksFor("omar").length - before);
+  assert.ok(latest.every((t) => !t.proposed));
   await env.client.call("agents.set_fan_out_ask", { ask: true });
-  const team = await spread("vera");
+  const team = await say_("vera", "spread the php review");
   await env.settle(team);
-  // Vera gives work to scout, nora and omar (three others): a team's agent splits its own work without asking.
-  assert.equal(env.core.store.inputs.pending(team).length, 0, "only the super-agent asks");
-  assert.ok(tasksFor("omar").length >= 2);
+  assert.ok(
+    tasksFor("omar").every((t) => t.created_by !== "vera" || !t.proposed),
+    "only the super-agent proposes",
+  );
 });

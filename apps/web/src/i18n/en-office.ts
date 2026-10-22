@@ -403,6 +403,13 @@ export const enOffice = {
   "tasks.group.pending": "Pending",
   "tasks.group.review": "In review",
   "tasks.group.blocked": "Needs your review",
+  "tasks.group.proposed": "Proposed",
+  "tasks.help.group.proposed":
+    "Tasks an agent proposes: nothing starts until you accept them. Accept the ones worth doing and drop the rest.",
+  "tasks.accept": "Accept",
+  "tasks.acceptAll": "Accept all",
+  "tasks.row.proposedBy": "Proposed by {name}",
+  "tasks.row.proposed": "Proposed",
   "tasks.group.closed": "Closed recently",
   "tasks.blockedTip": "Waiting for your answer",
   "tasks.row.reviewer": "Reviews: {name}",

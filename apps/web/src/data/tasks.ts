@@ -75,6 +75,11 @@ export async function updateTask(task: string, c: Omit<Params<"tasks.update">, "
   }
 }
 
+/** Accepts an agent's proposed tasks: each starts as if it had just been given. */
+export async function acceptTasks(tasks: string[]) {
+  for (const task of tasks) await updateTask(task, { proposed: false });
+}
+
 export async function closeTask(task: string, state: TaskState) {
   try {
     taskChanged(await client.call("tasks.close", { task, state }));

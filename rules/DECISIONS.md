@@ -1922,3 +1922,19 @@ current guest list (`add_attendees`/`remove_attendees`, answers kept), adds a Me
 cancels. Confirmations follow D-106's strong actions: an event only on the owner's calendar, a change to one, and a
 Doc APX writes are the owner's own and do not ask; inviting people, cancelling and sharing a file speak to others in
 the owner's name and ask; sending mail still always asks.
+
+<a id="d-131"></a>
+## D-131 — 2026-10-22 — One owner per task, hand-offs through tasks, and follow-ups an agent proposes
+**One owner per task.** The agent a task is given to carries it end to end; it uses its own workers for separate
+context and asks another agent a quick question with `delegate`. Work for another agent goes through a sub-task, not a
+chat, so it has a state, an owner and a history.
+
+**Proposed tasks.** `task_create` takes `propose`: the task is saved with `proposed`, gets no work until the owner
+accepts it (`tasks.update` with `proposed: false`, the owner only), and the owner gets one notice per proposing agent.
+An agent creates what its own role hands out and proposes the rest (QA, reviews, another area's work). The panel lists
+proposals first, with **Accept all**; the mobile app groups them the same way.
+
+**Proposals the agent did not ask for.** The fan-out check (a third agent in one turn asks first) no longer stops a wide `task_create` with a card:
+those tasks become proposals, so the owner picks which go ahead; a wide `delegate` still asks. A sub-task three
+hand-offs deep, or one for an agent that created a task above it, is a proposal too, so agents cannot pass work down
+forever or ping-pong it. Rejected: a counter on the task (it misses a chain that runs across tasks).

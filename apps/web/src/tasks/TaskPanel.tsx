@@ -26,7 +26,15 @@ import { loadThread } from "../data/actions.ts";
 import { baseName, blobOf } from "../data/identity.ts";
 import { useOwnerName } from "../data/owner.ts";
 import { useData } from "../data/state.ts";
-import { closeTask, settleTask, type TaskDetail, taskDetail, updateTask, useTasks } from "../data/tasks.ts";
+import {
+  acceptTasks,
+  closeTask,
+  settleTask,
+  type TaskDetail,
+  taskDetail,
+  updateTask,
+  useTasks,
+} from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { historyLines } from "./history.ts";
 import { mentionToken } from "./mentions.ts";
@@ -212,6 +220,20 @@ function StateBar({ task, detail }: { task: Task; detail: TaskDetail | undefined
       <span className="board__spacer" />
       {task.kind === "commitment" ? (
         <CommitmentActions task={task} />
+      ) : task.state === "open" && task.proposed ? (
+        <>
+          <Button size="sm" leadingIcon={<Icons.Check size={14} />} onClick={() => void acceptTasks([task.id])}>
+            {t("tasks.accept")}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            leadingIcon={<Icons.X size={14} />}
+            onClick={() => void closeTask(task.id, "dropped")}
+          >
+            {t("tasks.drop")}
+          </Button>
+        </>
       ) : task.state === "open" ? (
         <>
           <Button

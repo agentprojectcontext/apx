@@ -408,6 +408,13 @@ export const esOffice: Partial<Record<MessageKey, string>> = {
   "tasks.group.pending": "Pendiente",
   "tasks.group.review": "En revisión",
   "tasks.group.blocked": "Necesita tu revisión",
+  "tasks.group.proposed": "Propuestas",
+  "tasks.help.group.proposed":
+    "Tareas que un agente propone: no arrancan hasta que las aceptás. Aceptá las que sirven y descartá el resto.",
+  "tasks.accept": "Aceptar",
+  "tasks.acceptAll": "Aceptar todas",
+  "tasks.row.proposedBy": "Propone {name}",
+  "tasks.row.proposed": "Propuesta",
   "tasks.group.closed": "Cerradas hace poco",
   "tasks.blockedTip": "Espera tu respuesta",
   "tasks.row.reviewer": "Revisa: {name}",

@@ -45,6 +45,8 @@ export const Task = z.object({
   reviewer: z.string().optional(),
   /** The plan its agent keeps: steps, what is done, what is next (Markdown). It outlives any chat's summaries. */
   plan: z.string().optional(),
+  /** An agent proposed it: it waits for the owner to accept it (tasks.update proposed:false) before work starts. */
+  proposed: z.boolean().optional(),
   /** A commitment: the person on the other side, and who owes it (the owner promised it, or the person did). */
   person_id: Id.optional(),
   person_name: z.string().optional(),

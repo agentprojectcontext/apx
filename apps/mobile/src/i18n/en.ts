@@ -159,6 +159,7 @@ export const en = {
   tasksDoing: "In progress",
   tasksPending: "Pending",
   tasksReview: "In review",
+  tasksProposed: "Proposed",
   tasksBlocked: "Need your review",
   tasksAll: "All",
   tasksTasks: "Tasks",

@@ -36,7 +36,14 @@ export function stalledTasks(store: Store, now: Date): Stall[] {
   const out: Stall[] = [];
   for (const task of store.tasks.list({ state: "open", limit: 500 })) {
     const agent = task.assignee;
-    if (task.status !== "doing" || task.awaits_owner || held.has(task.id) || !agent || !store.agents.get(agent))
+    if (
+      task.status !== "doing" ||
+      task.awaits_owner ||
+      task.proposed ||
+      held.has(task.id) ||
+      !agent ||
+      !store.agents.get(agent)
+    )
       continue;
     // A subtask still open is what it waits on; its close reports back on its own.
     if (store.tasks.list({ state: "open", parent: task.id, limit: 1 }).length) continue;

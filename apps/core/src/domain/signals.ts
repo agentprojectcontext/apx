@@ -164,7 +164,7 @@ function brokenTask(
   now: number,
   open: ReadonlySet<string>,
 ): { why: string; severity: Severity; subject: string } | undefined {
-  if (isCommitment(t) || t.awaits_owner) return undefined;
+  if (isCommitment(t) || t.awaits_owner || t.proposed) return undefined;
   const agent = t.assignee ? store.agents.get(t.assignee) : undefined;
   if (t.assignee && !agent)
     return { why: "agent_gone", severity: "high", subject: "Assigned to an agent that no longer exists" };

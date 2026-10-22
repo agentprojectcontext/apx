@@ -16,7 +16,7 @@ const task = (id: string, extra: Partial<Task> = {}): Task => ({
   ...extra,
 });
 
-test("open tasks group as needing the owner first, then doing, pending and an agent's review; closed ones stay out", () => {
+test("open tasks group as an agent's proposals first, then needing the owner, then doing, pending and an agent's review; closed ones stay out", () => {
   const groups = taskGroups(
     [
       task("a", { status: "doing" }),
@@ -27,12 +27,14 @@ test("open tasks group as needing the owner first, then doing, pending and an ag
       task("e", { status: "doing", awaits_owner: true }),
       task("f", { state: "done", status: "doing" }),
       task("g", { state: "dropped" }),
+      task("p", { status: "todo", proposed: true }),
     ],
     "all",
   );
   assert.deepEqual(
     groups.map((group) => [group.id, group.tasks.map((item) => item.id)]),
     [
+      ["proposed", ["p"]],
       ["blocked", ["h", "e"]],
       ["doing", ["a"]],
       ["pending", ["c", "b"]],

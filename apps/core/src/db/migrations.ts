@@ -845,4 +845,6 @@ export const MIGRATIONS: readonly string[] = [
   `,
   // The plan its agent keeps on the task (steps and where it stands), read again on every turn.
   `ALTER TABLE tasks ADD COLUMN plan TEXT;`,
+  // A task an agent proposed: it waits for the owner to accept it before any work starts.
+  `ALTER TABLE tasks ADD COLUMN proposed INTEGER NOT NULL DEFAULT 0;`,
 ];

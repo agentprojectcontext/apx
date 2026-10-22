@@ -224,7 +224,7 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "Subtasks: assignee+description. Delegates propose to caller. Global: assignee's project. Promises: person,owed_by,due_at.",
+        "Subtasks: assignee+description. Work your role hands out: create it; reviews, QA or another area's work: propose. Delegates propose to caller. Global: assignee's project. Promises: person,owed_by,due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
@@ -234,6 +234,7 @@ export function taskTools(store: Store): Tool[] {
         ...shapeArgs,
         ...commitmentArgs,
         start_at: z.string().max(40).optional().describe("work begins"),
+        propose: z.boolean().optional().describe("a chip the owner accepts before work starts"),
       }),
       effect: "local",
       confirm: handsOff,
@@ -243,6 +244,8 @@ export function taskTools(store: Store): Tool[] {
       async run(a, ctx) {
         const t = await ctx.call("tasks.create", a);
         const under = t.parent_id ? `, a subtask of ${t.parent_id}` : "";
+        if (t.proposed)
+          return `proposed ${t.id}${under}: it starts when the owner accepts it. Tell them what you proposed and why, in one line each.`;
         // A task with nobody on it never starts: say so while the agent can still fix it.
         if (!t.assignee && t.kind === "task")
           return `created ${t.id} in ${t.status}${under}, with nobody on it: it will not start. Assign it with task_update (the agent who does it, or yourself), or ask the owner who should.`;

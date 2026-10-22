@@ -10,6 +10,7 @@ import { AgentAvatar, EmptyState, Fab, GroupLabel, PageTitle, Screen, Segmented,
 import { type ColorKey, makeStyles, useTheme } from "../ui/theme";
 
 const COLORS: Record<TaskGroup["id"], ColorKey> = {
+  proposed: "info",
   doing: "brand",
   pending: "fgSubtle",
   review: "info",

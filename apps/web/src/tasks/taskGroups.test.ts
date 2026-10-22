@@ -33,6 +33,13 @@ test("blocked wins over the column; a running turn makes a task in progress; oth
   assert.equal(groupOf(task({ state: "done", awaits_owner: true }), none), "closed");
 });
 
+test("an agent's proposal sits apart from the rest until the owner accepts it", () => {
+  const none = new Set<string>();
+  assert.equal(groupOf(task({ proposed: true }), none), "proposed");
+  assert.equal(groupOf(task({ proposed: true, awaits_owner: true }), none), "proposed");
+  assert.equal(groupOf(task({ proposed: true, state: "dropped" }), none), "closed");
+});
+
 test("groups come in a fixed order, without the empty ones, newest activity first", () => {
   const g = groupTasks(
     [
@@ -58,6 +65,11 @@ test("dropping on a group: its column, waiting for the owner, or done", () => {
   assert.deepEqual(moveTo("review", cols), { status: "review", awaits_owner: false });
   assert.deepEqual(moveTo("blocked", cols), { awaits_owner: true });
   assert.deepEqual(moveTo("closed", cols), { done: true });
+  assert.deepEqual(
+    moveTo("proposed", cols),
+    moveTo("pending", cols),
+    "proposing is an agent's: dropped there it is pending",
+  );
   assert.deepEqual(moveTo("pending", [{ id: "inbox" }, { id: "doing" }]), { status: "inbox", awaits_owner: false });
 });
 

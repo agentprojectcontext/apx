@@ -324,7 +324,10 @@ export function createExecutor(o: {
         ? { kind: "confirm", why: "asks_every", reason: "this session asks before changing files" }
         : decision;
     const wide = wideOk ? undefined : fanOut(store, run, agent, name, args);
-    if (wide && !o.inputs.takeGrant(thread.id, agent.id, name, raw)) {
+    // Tasks handed out wide become proposals the owner picks from, instead of a card that stops the turn.
+    const proposes = wide && name === "task_create";
+    if (proposes) (args as { propose?: boolean }).propose = true;
+    if (wide && !proposes && !o.inputs.takeGrant(thread.id, agent.id, name, raw)) {
       const answer = await o.inputs.ask({
         run,
         agent,
@@ -354,7 +357,7 @@ export function createExecutor(o: {
         return { ok: false, text: no.text };
       }
     }
-    if (wide) wideOk = true;
+    if (wide && !proposes) wideOk = true;
     // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089).
     const target = level === "always" && tool.approval ? strictApproval(tool.approval) : tool.approval;
     if (

@@ -7,7 +7,7 @@ import type { Author, Task } from "@apx/protocol";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
-import { noticeTaskWaiting } from "../domain/task-attention.ts";
+import { noticeTaskProposed, noticeTaskWaiting } from "../domain/task-attention.ts";
 import {
   boardScope,
   checkAssignee,
@@ -29,6 +29,7 @@ import {
   type Asker,
   addComment,
   askMentioned,
+  proposalReason,
   reviewRequested,
   reworkTask,
   startsLater,
@@ -175,7 +176,8 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       checkColumn(store, p.status);
       const project = taskProject(store, ctx.agent, p);
       checkAssignee(store, p.assignee, project);
-      if (p.assignee) refuseHandOn(ctx);
+      // A proposal starts nothing, so even an agent answering another one may make it (for the owner to decide).
+      if (p.assignee && !p.propose) refuseHandOn(ctx);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       if (p.parent) visible(p.parent, ctx);
       const parent = p.parent ?? chatTask(ctx);
@@ -184,6 +186,8 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       const due = dueOf(p.due_at);
       const remind = dueOf(p.remind_at);
       const start = dueOf(p.start_at);
+      const forced = ctx.agent ? proposalReason(store, parent, p.assignee, ctx.agent.id) : undefined;
+      const proposed = Boolean(p.propose) || Boolean(forced);
       // The task's conversation: the assignee answers there, or the super-agent until someone is assigned.
       const home = store.threads.get(HOME_THREAD_ID);
       const agent = p.assignee ?? home?.agent_ids[0] ?? "roby";
@@ -199,6 +203,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
           due_at: due ?? undefined,
           remind_at: remind ?? undefined,
           start_at: start ?? undefined,
+          proposed,
           kind: p.kind,
           priority: p.priority,
           tags: tagsOf(p.tags),
@@ -209,6 +214,10 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
           from: ctx.agent ? { thread: ctx.agent.thread_id, run: ctx.agent.run_id } : undefined,
         });
       });
+      if (proposed) {
+        noticeTaskProposed(store, created);
+        return created;
+      }
       if (created.assignee) startTaskWork(store, engine.admit, created, created.assignee, askerOf(ctx));
       if (created.status === "review") reviewRequested(store, engine.admit, created);
       return created;
@@ -224,6 +233,8 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       const target = moving ? (project ?? undefined) : cur.project_id;
       checkAssignee(store, c.assignee, target);
       const checker = reviewerOf(reviewer, target);
+      if (c.proposed === false && agentScope(ctx)) throw unauthorized("only the owner accepts a proposed task");
+      const accepting = Boolean(cur.proposed) && c.proposed === false;
       // Its agent stays only if it can work there.
       const keeper = c.assignee !== undefined ? c.assignee : cur.assignee;
       if (checker && checker === keeper) throw badRequest("reviewer: the agent doing it does not review its own work");
@@ -242,7 +253,7 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
         Boolean(cur.start_at) &&
         !startsLater({ ...cur, start_at: dueOf(start_at) ?? undefined }) &&
         store.threads.byTask(cur.id).length === 0;
-      const starting = !unassign && keeper && (keeper !== cur.assignee || completing || unscheduled);
+      const starting = !unassign && keeper && (keeper !== cur.assignee || completing || unscheduled || accepting);
       if (starting) refuseHandOn(ctx);
       const changed = store.tx(() => {
         noticeTaskWaiting(store, cur, c.awaits_owner ?? cur.awaits_owner);
