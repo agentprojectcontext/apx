@@ -15,4 +15,4 @@ Tray PNGs are rasterized at 22 × 22 and 44 × 44 (`@2x`). Electron uses these n
 
 ## File icons
 
-`file-apxart.svg`, `file-apxapp.svg` and `file-apxext.svg` are the document icons for the files APX opens (artifacts, marketplace apps, extensions): a page with a folded corner, the kind's glyph and its extension, one color each (blue, violet, green). `electron-builder.json` registers the three types with them (`fileAssociations`, plus `UTExportedTypeDeclarations` on macOS). Regenerate the `.png`, `.ico` and `.icns` with `node scripts/file-icons.ts` (the `.icns` needs macOS's `iconutil`).
+`file-apxart.webp`, `file-apxapp.webp` and `file-apxext.webp` are the document icons for the files APX opens: an open box for artifacts (blue-green), a page with an app grid for marketplace apps (violet), a page with a puzzle piece for extensions (green). They are the editable sources (1254 × 1254, transparent). `electron-builder.json` registers the three types with them (`fileAssociations`, plus `UTExportedTypeDeclarations` on macOS). Regenerate the `.png`, `.ico` and `.icns` with `node scripts/file-icons.ts` (the `.icns` needs macOS's `iconutil`).

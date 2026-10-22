@@ -1,5 +1,6 @@
-// Document icons for the files APX opens (.apxart, .apxapp, .apxext): each SVG in apps/desktop/assets rendered to the
-// sizes the systems ask for, then packed as .icns (macOS, through iconutil) and .ico (Windows, PNG entries).
+// Document icons for the files APX opens (.apxart, .apxapp, .apxext): each source image in apps/desktop/assets
+// (file-<kind>.webp) scaled to the sizes the systems ask for, then packed as .icns (macOS, through iconutil) and .ico
+// (Windows, PNG entries).
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -38,7 +39,8 @@ try {
     const png = await page.evaluate(
       async ({ source, size }) => {
         const image = new Image();
-        const url = URL.createObjectURL(new Blob([source], { type: "image/svg+xml" }));
+        const bytes = Uint8Array.from(atob(source), (c) => c.charCodeAt(0));
+        const url = URL.createObjectURL(new Blob([bytes], { type: "image/webp" }));
         try {
           image.src = url;
           await image.decode();
@@ -46,6 +48,7 @@ try {
           canvas.width = canvas.height = size;
           const context = canvas.getContext("2d");
           if (!context) throw new Error("Canvas rendering unavailable");
+          context.imageSmoothingQuality = "high";
           context.drawImage(image, 0, 0, size, size);
           return canvas.toDataURL("image/png").split(",")[1];
         } finally {
@@ -58,7 +61,7 @@ try {
     return Buffer.from(png, "base64");
   };
   for (const kind of KINDS) {
-    const source = await fs.readFile(path.join(assets, `file-${kind}.svg`), "utf8");
+    const source = (await fs.readFile(path.join(assets, `file-${kind}.webp`))).toString("base64");
     await fs.writeFile(path.join(assets, `file-${kind}.png`), await render(source, 512));
     const sizes = [...new Set([...ICO, ...ICNS.flatMap((s) => [s, s * 2])])];
     const png = new Map<number, Buffer>();
