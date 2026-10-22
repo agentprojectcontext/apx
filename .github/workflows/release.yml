@@ -79,6 +79,9 @@ jobs:
         run: cd apps/desktop && npm pkg set version="${TAG#v}"
       - name: Installer, daemon bundle and install scripts
         shell: bash
+        env:
+          # APX's Google sign-in, written into the build only (DECISIONS.md#d-130); empty in a fork.
+          APX_GOOGLE_CLIENT: ${{ secrets.APX_GOOGLE_CLIENT }}
         run: node scripts/package.ts ${{ matrix.target }}
       - name: Attach to the release
         shell: bash

@@ -1902,9 +1902,11 @@ D-103 had the owner make an OAuth client in Cloud Console, a step most owners ne
 **Desktop app** client, which Google treats as public (an installed app cannot keep a secret; its own guide says so)
 and which reaches nothing by itself: every access is a consent the owner gives in Google's page, guarded by PKCE and
 the signed one-use state of D-103, and the refresh token stays in the owner's secret store. Leaked, the pair lets
-someone show a consent page named APX, which Google's warning and the owner's own click still stand between. It is
-kept base64 in `integrations/google-client.ts` only so secret scanners do not flag a value public by design;
-`APX_GOOGLE_CLIENT` (`id:secret`) replaces it, and a core pointed at a stand-in Google never uses it. The owner's own
+someone show a consent page named APX, which Google's warning and the owner's own click still stand between. Even so it
+is not committed, nor obfuscated: Google requires the secret in the code exchange (checked: without it, "client_secret
+is missing"), so a release build writes `google-client.json` beside `build.json` from CI's `APX_GOOGLE_CLIENT` secret,
+and a checkout keeps the same file, git-ignored, at its root (Cloud Console's download works as is).
+`APX_GOOGLE_CLIENT` (`id:secret`) in the environment replaces it, and a core pointed at a stand-in Google never uses it. The owner's own
 client stays as **My own OAuth client**; each integration remembers which client signed it in (a refresh token works
 only with the client that issued it), and the owner's client is forgotten once nothing signs in with it. Rejected: a
 hosted token broker with a confidential web client (every refresh through APX's servers, a service to keep up, and

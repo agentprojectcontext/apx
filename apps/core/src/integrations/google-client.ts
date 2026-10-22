@@ -1,13 +1,15 @@
 // APX's own OAuth client for Google, so the owner signs in without making one in Cloud Console. It is a Desktop app
-// client: Google treats it as public (an installed app cannot keep a secret) and PKCE guards each sign-in, so shipping
-// it exposes no one's data. See DECISIONS.md#d-130.
+// client: Google treats its secret as public (an installed app cannot keep one) and PKCE guards each sign-in. It is
+// still kept out of the repository: a release build writes it beside build.json from CI's APX_GOOGLE_CLIENT secret, and
+// a checkout reads the same file, git-ignored, at its root. See DECISIONS.md#d-130.
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ClientCreds } from "./google-oauth.ts";
 
-/**
- * `client_id:client_secret`, base64: encoded only so secret scanners do not flag a value that is public by design.
- * Empty in a build without one: the owner then brings their own client.
- */
-const APX_CLIENT = "";
+/** The root an installed core and a checkout share: where build.json sits. */
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+export const CLIENT_FILE = "google-client.json";
 
 /** A client written as `client_id:client_secret`, or undefined when either half is missing. */
 export function clientFromPair(pair: string | undefined): ClientCreds | undefined {
@@ -18,6 +20,24 @@ export function clientFromPair(pair: string | undefined): ClientCreds | undefine
   return clientId && clientSecret ? { clientId, clientSecret } : undefined;
 }
 
-/** The client this build ships, if any. */
-export const apxGoogleClient = (): ClientCreds | undefined =>
-  APX_CLIENT ? clientFromPair(Buffer.from(APX_CLIENT, "base64").toString("utf8")) : undefined;
+/** The client in a JSON as Cloud Console downloads it (`installed`), or as the build writes it. */
+export function clientFromJson(text: string): ClientCreds | undefined {
+  try {
+    const data = JSON.parse(text) as { installed?: Record<string, unknown> } & Record<string, unknown>;
+    const c = data.installed ?? data;
+    const clientId = typeof c.client_id === "string" ? c.client_id.trim() : "";
+    const clientSecret = typeof c.client_secret === "string" ? c.client_secret.trim() : "";
+    return clientId && clientSecret ? { clientId, clientSecret } : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The client this install carries, if any: none in a build or a checkout without the file. */
+export function apxGoogleClient(root = ROOT): ClientCreds | undefined {
+  try {
+    return clientFromJson(fs.readFileSync(path.join(root, CLIENT_FILE), "utf8"));
+  } catch {
+    return undefined;
+  }
+}
