@@ -1,8 +1,15 @@
 // Official marks of the apps an integration connects, used only to say which app it is (never altered). The panel
 // loads them after its first screen (`@apx/ui/marks`); Slack's is the channel mark, already there. Path data from
-// simple-icons 13.21.0 (CC0); the marks belong to their owners. `color` null draws in the text colour: GitHub, Notion
-// and Sentry are near-black and would vanish on the dark theme.
+// simple-icons 13.21.0 (CC0); Google's are their 2026 app icons whole (gradients, masks) from thesvg.org. The marks
+// belong to their owners. `color` null draws in the text colour: GitHub, Notion and Sentry are near-black and would
+// vanish on the dark theme.
 import type { ChannelMark } from "./channel-marks";
+
+/** One element of a mark drawn whole: its tag, attributes (`{id}` stands for the icon's own prefix) and children. */
+export type MarkNode = { t: string; a: Readonly<Record<string, string>>; c?: ReadonlyArray<MarkNode> };
+/** A mark kept as its full SVG, for an icon flat paths cannot draw (gradients, masks, a blur). */
+export type MarkArt = { viewBox: string; art: ReadonlyArray<MarkNode> };
+export type IntegrationMark = ChannelMark | MarkArt;
 
 export const INTEGRATION_MARKS = {
   github: {
@@ -46,26 +53,499 @@ export const INTEGRATION_MARKS = {
     ],
   },
   "google-calendar": {
-    paths: [
+    viewBox: "0 0 192 192",
+    art: [
       {
-        d: "M18.316 5.684H24v12.632h-5.684V5.684zM5.684 24h12.632v-5.684H5.684V24zM18.316 5.684V0H1.895A1.894 1.894 0 0 0 0 1.895v16.421h5.684V5.684h12.632zm-7.207 6.25v-.065c.272-.144.5-.349.687-.617s.279-.595.279-.982c0-.379-.099-.72-.3-1.025a2.05 2.05 0 0 0-.832-.714 2.703 2.703 0 0 0-1.197-.257c-.6 0-1.094.156-1.481.467-.386.311-.65.671-.793 1.078l1.085.452c.086-.249.224-.461.413-.633.189-.172.445-.257.767-.257.33 0 .602.088.816.264a.86.86 0 0 1 .322.703c0 .33-.12.589-.36.778-.24.19-.535.284-.886.284h-.567v1.085h.633c.407 0 .748.109 1.02.327.272.218.407.499.407.843 0 .336-.129.614-.387.832s-.565.327-.924.327c-.351 0-.651-.103-.897-.311-.248-.208-.422-.502-.521-.881l-1.096.452c.178.616.505 1.082.977 1.401.472.319.984.478 1.538.477a2.84 2.84 0 0 0 1.293-.291c.382-.193.684-.458.902-.794.218-.336.327-.72.327-1.149 0-.429-.115-.797-.344-1.105a2.067 2.067 0 0 0-.881-.689zm2.093-1.931l.602.913L15 10.045v5.744h1.187V8.446h-.827l-2.158 1.557zM22.105 0h-3.289v5.184H24V1.895A1.894 1.894 0 0 0 22.105 0zm-3.289 23.5l4.684-4.684h-4.684V23.5zM0 22.105C0 23.152.848 24 1.895 24h3.289v-5.184H0v3.289z",
-        color: "#4285F4",
+        t: "path",
+        a: {
+          fill: "#bbe2ff",
+          d: "M32 36.8C32 20.894 44.894 8 60.8 8h70.4C147.106 8 160 20.894 160 36.8v30.4c0 15.906-12.894 28.8-28.8 28.8H60.8C44.894 96 32 83.106 32 67.2z",
+        },
+      },
+      {
+        t: "path",
+        a: {
+          fill: "#3c90ff",
+          d: "M19.867 49.392C17.818 33.82 29.94 20 45.645 20h100.71c15.706 0 27.827 13.82 25.778 29.392L166 96l6.133 46.608C174.182 158.18 162.061 172 146.355 172H45.645c-15.706 0-27.827-13.82-25.778-29.392L26 96z",
+        },
+      },
+      {
+        t: "mask",
+        a: {
+          id: "{id}a",
+          width: "154",
+          height: "152",
+          x: "19",
+          y: "20",
+          maskUnits: "userSpaceOnUse",
+          style: "mask-type:alpha",
+        },
+        c: [
+          {
+            t: "path",
+            a: {
+              fill: "#3c90ff",
+              d: "M19.867 49.392C17.818 33.82 29.94 20 45.645 20h100.71c15.706 0 27.827 13.82 25.778 29.392L166 96l6.133 46.608C174.182 158.18 162.061 172 146.355 172H45.645c-15.706 0-27.827-13.82-25.778-29.392L26 96z",
+            },
+          },
+        ],
+      },
+      {
+        t: "g",
+        a: {
+          mask: "url(#{id}a)",
+        },
+        c: [
+          {
+            t: "path",
+            a: {
+              fill: "url(#{id}b)",
+              d: "M0 0h166v76H0z",
+              transform: "matrix(1 0 0 -1 13 172)",
+            },
+          },
+        ],
+      },
+      {
+        t: "mask",
+        a: {
+          id: "{id}c",
+          width: "154",
+          height: "152",
+          x: "19",
+          y: "20",
+          maskUnits: "userSpaceOnUse",
+          style: "mask-type:alpha",
+        },
+        c: [
+          {
+            t: "path",
+            a: {
+              fill: "#3186ff",
+              d: "M19.867 49.392C17.818 33.82 29.94 20 45.645 20h100.71c15.706 0 27.827 13.82 25.778 29.392L166 96l6.133 46.608C174.182 158.18 162.061 172 146.355 172H45.645c-15.706 0-27.827-13.82-25.778-29.392L26 96z",
+            },
+          },
+        ],
+      },
+      {
+        t: "g",
+        a: {
+          mask: "url(#{id}c)",
+        },
+        c: [
+          {
+            t: "path",
+            a: {
+              fill: "url(#{id}d)",
+              d: "M32 27.2C32 16.596 40.596 8 51.2 8h89.6c10.604 0 19.2 8.596 19.2 19.2V96H32z",
+              filter: "url(#{id}e)",
+            },
+          },
+        ],
+      },
+      {
+        t: "path",
+        a: {
+          fill: "#fff",
+          d: "M75.353 133.336q-6.282 0-10.777-2.043t-7.61-5.465q-3.065-3.474-4.342-6.793T51.603 115a2.07 2.07 0 0 1 1.021-1.124l5.67-2.247q.714-.357 1.43-.102.714.204 1.685 2.349 1.022 2.145 2.86 4.546a14.3 14.3 0 0 0 4.495 3.728q2.606 1.328 6.435 1.328 6.18 0 9.807-3.575 3.677-3.575 3.677-9.091 0-5.976-3.882-9.194-3.881-3.269-10.266-3.269h-5.362a1.9 1.9 0 0 1-1.328-.51q-.51-.562-.511-1.277v-5.465q0-.767.51-1.277a1.82 1.82 0 0 1 1.329-.562h4.647q5.721 0 9.194-3.116t3.473-8.07q0-4.902-3.116-7.916t-8.58-3.014q-3.065 0-5.312 1.022a11.5 11.5 0 0 0-3.882 2.86 22.7 22.7 0 0 0-2.809 3.78q-1.174 1.941-1.89 2.145-.714.153-1.379-.255l-5.363-2.605q-.664-.358-.868-1.124t1.226-3.575q1.481-2.86 4.494-5.823a21 21 0 0 1 7.049-4.597q4.035-1.635 9.398-1.634 9.96 0 15.782 5.26 5.823 5.21 5.823 13.791 0 5.925-2.86 10.266-2.81 4.34-7.968 6.13v.204q6.231 1.838 9.806 6.741 3.627 4.853 3.626 11.594 0 9.654-6.742 15.834-6.74 6.18-17.57 6.18zm51.25-1.175q-.868 0-1.533-.664a2.25 2.25 0 0 1-.612-1.583V73.118l-11.492 8.274q-.614.46-1.431.307a1.96 1.96 0 0 1-1.225-.766l-3.32-4.7a1.98 1.98 0 0 1-.358-1.43q.153-.816.817-1.276l20.379-14.557q.256-.204.562-.306.307-.153.715-.153h4.291q.868 0 1.379.613.562.56.562 1.43v69.36q0 .92-.664 1.583a2 2 0 0 1-1.533.664z",
+        },
+      },
+      {
+        t: "defs",
+        a: {},
+        c: [
+          {
+            t: "linearGradient",
+            a: {
+              id: "{id}b",
+              x1: "83",
+              x2: "83",
+              y1: "76",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              {
+                t: "stop",
+                a: {
+                  stopColor: "#4fa0ff",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: "1",
+                  stopColor: "#3186ff",
+                },
+              },
+            ],
+          },
+          {
+            t: "linearGradient",
+            a: {
+              id: "{id}d",
+              x1: "89.06",
+              x2: "89.06",
+              y1: "21.75",
+              y2: "96.39",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              {
+                t: "stop",
+                a: {
+                  stopColor: "#a9a8ff",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".8",
+                  stopColor: "#3c90ff",
+                },
+              },
+            ],
+          },
+          {
+            t: "filter",
+            a: {
+              id: "{id}e",
+              width: "152",
+              height: "112",
+              x: "20",
+              y: "-4",
+              colorInterpolationFilters: "sRGB",
+              filterUnits: "userSpaceOnUse",
+            },
+            c: [
+              {
+                t: "feFlood",
+                a: {
+                  floodOpacity: "0",
+                  result: "BackgroundImageFix",
+                },
+              },
+              {
+                t: "feBlend",
+                a: {
+                  in: "SourceGraphic",
+                  in2: "BackgroundImageFix",
+                  result: "shape",
+                },
+              },
+              {
+                t: "feGaussianBlur",
+                a: {
+                  result: "effect1_foregroundBlur_37330_7673",
+                  stdDeviation: "6",
+                },
+              },
+            ],
+          },
+        ],
       },
     ],
   },
   gmail: {
-    paths: [
+    viewBox: "0 0 192 192",
+    art: [
       {
-        d: "M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z",
-        color: "#EA4335",
+        t: "path",
+        a: {
+          fill: "url(#{id}a)",
+          d: "M146 44h38v110c0 6.627-5.373 12-12 12h-20a6 6 0 0 1-6-6z",
+        },
+      },
+      {
+        t: "path",
+        a: {
+          fill: "#fc413d",
+          d: "M46 44H8v110c0 6.627 5.373 12 12 12h20a6 6 0 0 0 6-6z",
+        },
+      },
+      {
+        t: "path",
+        a: {
+          fill: "url(#{id}b)",
+          d: "M39.226 30.456c-8.033-6.752-20.018-5.714-26.77 2.319-6.752 8.032-5.714 20.017 2.319 26.77l76.078 63.949a8 8 0 0 0 10.295 0l76.078-63.95c8.032-6.752 9.07-18.737 2.318-26.77-6.752-8.032-18.737-9.07-26.769-2.318L96 78.18z",
+        },
+      },
+      {
+        t: "defs",
+        a: {},
+        c: [
+          {
+            t: "linearGradient",
+            a: {
+              id: "{id}a",
+              x1: "165",
+              x2: "165",
+              y1: "44",
+              y2: "166",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              {
+                t: "stop",
+                a: {
+                  stopColor: "#60d673",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".17",
+                  stopColor: "#42c868",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".39",
+                  stopColor: "#0ebc5f",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".62",
+                  stopColor: "#00a9bb",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".86",
+                  stopColor: "#3c90ff",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: "1",
+                  stopColor: "#3186ff",
+                },
+              },
+            ],
+          },
+          {
+            t: "linearGradient",
+            a: {
+              id: "{id}b",
+              x1: "8",
+              x2: "184",
+              y1: "46.13",
+              y2: "46.13",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              {
+                t: "stop",
+                a: {
+                  offset: ".08",
+                  stopColor: "#ff63a0",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".3",
+                  stopColor: "#fc413d",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".5",
+                  stopColor: "#fc413d",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".65",
+                  stopColor: "#fc413d",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".72",
+                  stopColor: "#fc5c30",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".86",
+                  stopColor: "#feb10c",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".91",
+                  stopColor: "#fec700",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".96",
+                  stopColor: "#ffdb0f",
+                },
+              },
+            ],
+          },
+        ],
       },
     ],
   },
   "google-drive": {
-    paths: [
+    viewBox: "0 0 192 192",
+    art: [
       {
-        d: "M12.01 1.485c-2.082 0-3.754.02-3.743.047.01.02 1.708 3.001 3.774 6.62l3.76 6.574h3.76c2.081 0 3.753-.02 3.742-.047-.005-.02-1.708-3.001-3.775-6.62l-3.76-6.574zm-4.76 1.73a789.828 789.861 0 0 0-3.63 6.319L0 15.868l1.89 3.298 1.885 3.297 3.62-6.335 3.618-6.33-1.88-3.287C8.1 4.704 7.255 3.22 7.25 3.214zm2.259 12.653-.203.348c-.114.198-.96 1.672-1.88 3.287a423.93 423.948 0 0 1-1.698 2.97c-.01.026 3.24.042 7.222.042h7.244l1.796-3.157c.992-1.734 1.85-3.23 1.906-3.323l.104-.167h-7.249z",
-        color: "#4285F4",
+        t: "mask",
+        a: {
+          id: "{id}a",
+          width: "168",
+          height: "154",
+          x: "12",
+          y: "18",
+          maskUnits: "userSpaceOnUse",
+          style: "mask-type:alpha",
+        },
+        c: [
+          {
+            t: "path",
+            a: {
+              fill: "#b43333",
+              d: "M63.09 37c14.626-25.333 51.193-25.334 65.819 0l45.033 78c14.626 25.334-3.657 57.001-32.91 57.001H50.967c-29.253 0-47.536-31.667-32.91-57.001z",
+            },
+          },
+        ],
+      },
+      {
+        t: "g",
+        a: {
+          mask: "url(#{id}a)",
+        },
+        c: [
+          {
+            t: "path",
+            a: {
+              fill: "url(#{id}b)",
+              d: "M206.905 172.02h-91.888l-19.015-32.934 45.944-79.578z",
+            },
+          },
+          {
+            t: "path",
+            a: {
+              fill: "url(#{id}c)",
+              d: "M-14.919 172.006 50.04 59.494v.002L31.032 92.422h38.02L115 172.004l-129.918.001z",
+            },
+          },
+          {
+            t: "path",
+            a: {
+              fill: "url(#{id}d)",
+              d: "M96.007-20.085 141.954 59.5l-19.011 32.928H31.048z",
+            },
+          },
+        ],
+      },
+      {
+        t: "defs",
+        a: {},
+        c: [
+          {
+            t: "linearGradient",
+            a: {
+              id: "{id}b",
+              x1: "193.6",
+              x2: "103.09",
+              y1: "165.6",
+              y2: "111.21",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              {
+                t: "stop",
+                a: {
+                  offset: ".09",
+                  stopColor: "#ffe921",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: "1",
+                  stopColor: "#fec700",
+                },
+              },
+            ],
+          },
+          {
+            t: "linearGradient",
+            a: {
+              id: "{id}c",
+              x1: "114.4",
+              x2: "15.53",
+              y1: "181.61",
+              y2: "121.8",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              {
+                t: "stop",
+                a: {
+                  offset: ".15",
+                  stopColor: "#a9a8ff",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".33",
+                  stopColor: "#6d97ff",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".48",
+                  stopColor: "#3186ff",
+                },
+              },
+            ],
+          },
+          {
+            t: "linearGradient",
+            a: {
+              id: "{id}d",
+              x1: "128.88",
+              x2: "28.7",
+              y1: "37.88",
+              y2: "84.64",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              {
+                t: "stop",
+                a: {
+                  offset: ".55",
+                  stopColor: "#0ebc5f",
+                },
+              },
+              {
+                t: "stop",
+                a: {
+                  offset: ".85",
+                  stopColor: "#78c9ff",
+                },
+              },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -85,6 +565,6 @@ export const INTEGRATION_MARKS = {
       },
     ],
   },
-} as const satisfies Record<string, ChannelMark>;
+} as const satisfies Record<string, IntegrationMark>;
 
 export type LateIntegrationBrand = keyof typeof INTEGRATION_MARKS;
