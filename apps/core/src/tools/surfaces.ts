@@ -4,10 +4,11 @@ import { SurfaceOrigin, type SurfaceSummary } from "@apx/protocol";
 import { z } from "zod";
 import { memorySummary } from "../domain/artifact-memory.ts";
 import type { Store } from "../domain/store.ts";
+import { builtFromFiles } from "./artifact-files.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 import { widgetScriptError } from "./widget-syntax.ts";
 
-const MAX_HTML = 400_000;
+export const MAX_HTML = 400_000;
 /** Characters of a widget's state read_widget shows. */
 const STATE_SHOWN = 8_000;
 /** The turn stopped while the script check ran: saving now would change a widget after the call was given up. */
@@ -30,7 +31,7 @@ function memoryOf(home: string, s: { name: string; project_id?: string | null | 
 }
 
 /** The widget's card in this turn's answer: the newest version, wherever the widget was made. */
-function card(ctx: ToolContext, surface: SurfaceSummary) {
+export function card(ctx: ToolContext, surface: SurfaceSummary) {
   ctx.upsertPart((p) => p.type === "surface" && p.surface_id === surface.id, {
     type: "surface",
     surface_id: surface.id,
@@ -64,6 +65,8 @@ export function surfaceTools(store: Store, home: string): Tool[] {
       deadlineMs: 10_000,
       title: (a) => `Made the widget ${String(a.title ?? a.name)}`,
       async run(a, ctx) {
+        const files = builtFromFiles(home, ctx.thread.project_id, slug(a.name));
+        if (files) return files;
         const broken = await widgetScriptError(a.html.slice(0, MAX_HTML), "show_widget", ctx.signal);
         if (broken) return broken;
         if (ctx.signal.aborted) return STOPPED;
@@ -153,6 +156,8 @@ export function surfaceTools(store: Store, home: string): Tool[] {
           if (hasFlags) card(ctx, surface);
           return `widget "${surface.name}" v${surface.version}: ${surface.app ? "app" : "widget"}, ${surface.pinned ? "pinned" : "not pinned"}; HTML unchanged${remembered}.`;
         }
+        const files = builtFromFiles(home, s.project_id, s.name);
+        if (files) return files;
         const edits = a.edits ?? [];
         let html = s.html;
         for (const [i, e] of edits.entries()) {

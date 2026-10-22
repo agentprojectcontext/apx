@@ -9,6 +9,7 @@ import { textDiff } from "../engine/changes.ts";
 import { guarded, namesApc } from "../engine/paths.ts";
 import { insideReal, writeAtomic } from "../paths.ts";
 import { chatMedia } from "../services/media-temp.ts";
+import { artifactOfFile, publishArtifactFile } from "./artifact-files.ts";
 import { type FolderThread, folderAccess, outsideFolders, scratchRoot } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
@@ -278,7 +279,9 @@ export function fileTools(store: Store, home: string): Tool[] {
           before,
           content,
         );
-        return `${existed ? "replaced" : "created"} ${r.at} (${Buffer.byteLength(content)} bytes)`;
+        const done = `${existed ? "replaced" : "created"} ${r.at} (${Buffer.byteLength(content)} bytes)`;
+        const artifact = artifactOfFile(home, ctx.thread.project_id, r.at);
+        return artifact ? done + (await publishArtifactFile(ctx, artifact, content)) : done;
       },
     }),
     defineTool({
@@ -334,7 +337,9 @@ export function fileTools(store: Store, home: string): Tool[] {
           text,
           next,
         );
-        return `replaced ${a.all ? count : 1} occurrence${(a.all ? count : 1) === 1 ? "" : "s"} in ${r.at}`;
+        const done = `replaced ${a.all ? count : 1} occurrence${(a.all ? count : 1) === 1 ? "" : "s"} in ${r.at}`;
+        const artifact = artifactOfFile(home, ctx.thread.project_id, r.at);
+        return artifact ? done + (await publishArtifactFile(ctx, artifact, next)) : done;
       },
     }),
   ];

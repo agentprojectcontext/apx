@@ -12,7 +12,8 @@ version. Two kinds:
 - **widget** (the default): in the chat, padded; `pin: true` also puts it on the project's board.
 - **app**: fullscreen and listed in Apps (`app: true`, or `<meta name="apx-surface" content="app">` in the page).
 
-Never write an artifact as a file on disk for the owner to open: the owner only sees what `show_widget` shows.
+Never write an artifact as a file for the owner to open: the owner sees an artifact only once APX shows it, either
+through `show_widget` or by saving its page in the artifact folder below.
 
 ## Make the smallest thing that answers
 
@@ -25,6 +26,19 @@ Never write an artifact as a file on disk for the owner to open: the owner only 
 
 A report that is only read is a Markdown file with `open_document`, not an artifact. Never turn a widget into an app
 unless it behaves like one (navigation, records) and the owner agrees.
+
+## Two ways to make one
+
+- **A quick view** (a chart, a card, a small table, under ~150 lines): write it whole into `show_widget`.
+- **Anything bigger** (every app, a dashboard, a widget you will grow): build it as files, like a project. Its folder
+  is `{{artifact_sources}}/<name>/` (`name` in kebab-case); the page is `index.html` there. Each time you save
+  `index.html` with `file_write` or `file_edit`, APX shows it as the artifact `<name>` (a new version), runs it once
+  and tells you in the result whether it started, what it threw and what it shows on screen. Fix what it reports
+  before going on. Start from a starter by copying it with the shell, not by retyping it:
+  `mkdir -p "{{artifact_sources}}/<name>" && cp "{{skill_dir}}/assets/app-records.html" "{{artifact_sources}}/<name>/index.html"`,
+  then change it piece by piece with `file_edit`; every save is shown. Once the folder has `index.html`, that file
+  is the artifact: `show_widget` and HTML edits through `edit_widget` refuse it. Keep notes or a plan beside it in
+  the same folder. (If your file tools are not APX's own, show the finished page with `show_widget` instead.)
 
 ## Ask what the request leaves open, with buttons
 

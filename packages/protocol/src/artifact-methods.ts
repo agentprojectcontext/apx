@@ -59,6 +59,22 @@ export const artifactMethods = {
     access: "human",
   },
   /**
+   * Runs a page in a throwaway headless tab, the way a host would show it (kit inlined, a bridge answered by an empty
+   * scratch memory, no network), and returns what it threw while starting. `checked` is false when no browser runs here.
+   */
+  "surfaces.check": {
+    params: z.object({ html: z.string().min(1).max(400_000) }).strict(),
+    /** `text`: what the page shows once started, for a failure it caught and only wrote on screen. */
+    result: z.object({
+      checked: z.boolean(),
+      errors: z.array(z.string()),
+      text: z.string(),
+      /** Each of an app's views, opened in turn: its label and what its panel shows. */
+      views: z.array(z.object({ view: z.string(), text: z.string() })),
+    }),
+    effect: false,
+  },
+  /**
    * An HTTP call from the artifact through the core: the url's origin must be one of its `connect`, and `secret`
    * names one of its own secrets (`artifact.<name>.<key>`), injected here and never returned. 30 s, body ≤2 MB.
    * A secret is pinned to the first origin it reaches and refused anywhere else until the owner resets the pins.

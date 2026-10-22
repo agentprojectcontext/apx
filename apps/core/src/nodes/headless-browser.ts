@@ -17,6 +17,7 @@ import {
 import { assertNavigable, CdpPage } from "@apx/protocol/cdp";
 import { ApxError } from "@apx/protocol/client";
 import { findProgram } from "../programs.ts";
+import { type PageCall, type PageCheck, runPageCheck } from "./page-check.ts";
 
 const MAX_TABS = 6;
 const NAV_TIMEOUT_MS = 10_000;
@@ -154,6 +155,8 @@ export function createHeadlessBrowser(deps: {
   const holds = createTabHolds();
   const contexts = new Map<string, string>();
   const loads = new Map<string, () => void>();
+  // A page check listens to its own tab's events.
+  const listeners = new Map<string, (m: Message) => void>();
   let lastUse = Date.now();
 
   const info = (t: Tab): TabInfo => ({ tab: t.id, url: t.url, title: t.title, profile: t.profile, control: t.control });
@@ -161,6 +164,8 @@ export function createHeadlessBrowser(deps: {
   const bySession = (s: string | undefined) => [...tabs.values()].find((t) => t.session === s);
 
   function onEvent(m: Message) {
+    const own = m.sessionId ? listeners.get(m.sessionId) : undefined;
+    if (own) return own(m);
     const tab = bySession(m.sessionId);
     if (m.method === "Fetch.requestPaused" && m.sessionId) {
       // Every document request, redirects and frames included, passes the same guard as a direct load.
@@ -391,6 +396,21 @@ export function createHeadlessBrowser(deps: {
     close: () => {
       clearInterval(sweep);
       stop();
+    },
+    /** Runs an artifact's page in a throwaway tab (no network, no cookies): the errors it threw and what it shows. */
+    async checkPage(html: string, onCall: PageCall): Promise<PageCheck> {
+      const p = await ready();
+      return runPageCheck(
+        {
+          send: (method, params, session) => p.send(method, params ?? {}, session),
+          listen: (session, fn) => {
+            listeners.set(session, fn);
+            return () => listeners.delete(session);
+          },
+        },
+        html,
+        onCall,
+      );
     },
     async handle(method: string, raw: unknown): Promise<unknown> {
       switch (method) {

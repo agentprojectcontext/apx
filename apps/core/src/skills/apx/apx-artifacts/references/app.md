@@ -6,10 +6,34 @@ the artifact must keep records the owner adds over time. A view of data, a chart
 Declare it in the page with `<meta name="apx-surface" content="app">` (or `app: true` in `show_widget`). An app too
 big to write by hand: [build.md](build.md).
 
+## Build it as a project, all of it, in this turn
+
+An app is built as files in `{{artifact_sources}}/<name>/` (see SKILL.md, "Two ways to make one"): every save of
+`index.html` shows it and reports whether it started. The owner asked once and expects the whole app, not a shell to
+fill in later.
+
+1. **Plan.** Write `PLAN.md` in the folder: every view of the app (the sidebar's sections), what each shows and does,
+   the tables and fields it keeps, and how you will know each works. Ask the owner (buttons) only what blocks the plan.
+2. **Start from a layout.** Copy the starter that fits (below) to `index.html` with the shell, rename the app, set the
+   sidebar's views from the plan, put your name in its "Made by" foot. Save: it must start without errors.
+3. **Build every view, one after another, one save each at least.** The first save is only the shell. Then, for
+   each view, a `file_edit` that gives it its real content (lists, forms, tables, charts on the owner's data), adding
+   and editing records in `APX.db`, an empty state that says what to do and offers the action, deletes behind
+   `APX.confirm`, its counts in the sidebar, its line in the status bar, and the inspector filled with the selected
+   record's properties and actions. Each save's result lists every view and what it shows: a view that reads empty
+   or only describes itself is not done. Tick it in `PLAN.md`.
+4. **Do not stop halfway, and not at the first clean save.** "Started without errors" means it loads, not that it is
+   done. No "coming soon", no empty section, no view that only says what it will do. Keep going until every view in
+   the plan works and holds the starter's depth: rail, sidebar with counts, inspector, status bar. If you must stop (a question, the turn's limit), say what is done and what is
+   next, so the next turn finishes it.
+5. **Finish with a check.** The last save starts clean, its on-screen text shows real content, and you tell the owner
+   in two lines what each view does.
+
 ## Start from a layout, never from a blank page
 
-Every app starts from one of these pages: read it with `load_skill name=apx-artifacts file=assets/<file>`, copy it
-whole, then replace its sample sections, data and words with the owner's. Keep its shell.
+Every app starts from one of these pages: copy it whole (`cp "{{skill_dir}}/assets/<file>" …`, or read it with
+`load_skill name=apx-artifacts file=assets/<file>`), then replace its sample sections, data and words with the
+owner's. Keep its shell.
 
 | Starter | For | Shell |
 |---|---|---|

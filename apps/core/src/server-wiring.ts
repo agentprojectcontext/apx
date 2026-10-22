@@ -281,7 +281,14 @@ export function coreHandlers(d: HandlerDeps) {
     }),
     ...providerHandlers(d.providers, d.secrets, d.chatgpt),
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
-    ...artifactHandlers({ store: d.store, secrets: d.secrets, home: d.app.home }),
+    ...artifactHandlers({
+      store: d.store,
+      secrets: d.secrets,
+      home: d.app.home,
+      checkPage: d.headless?.available()
+        ? (html, onCall) => d.headless?.checkPage(html, onCall) ?? Promise.resolve({ errors: [], text: "", views: [] })
+        : undefined,
+    }),
     ...agentHandlers(d.store, d.apc, d.engines, d.tools),
     ...teamHandlers(d.store, d.apc, d.templateRoots, (s) => d.scheduler.nextFor(s)),
     ...fileHandlers(d.store, d.desktop, d.app.home),

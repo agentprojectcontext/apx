@@ -1738,3 +1738,27 @@ when the chat has none. A tool can name why its `untrusted` call waits (`untrust
 say `url_data`, and the card reads "with a URL that carries data (what follows the «?»), and content from a web page,
 another agent or a message is in this turn". The rule itself is unchanged: a query is how outside content would send
 the owner's data away, so it still waits.
+
+<a id="d-122"></a>
+## D-122 — 2026-10-21 — A big artifact is built as files, shown on save and run once to see it start
+An agent asked for an app retyped a 15 KB starter through `show_widget` in one call, summarised it on the way, left
+references to elements it had dropped, and never learned the page broke when it loaded: the tool only parsed the
+scripts. Agents edit files well; retyping a whole page each time is where they lose pieces.
+
+So a big artifact is a project in `<home>/artifact-sources/<project|global>/<name>/` (D-118's folder, writable by that
+project's agents). Saving `index.html` there (or `dist/index.html`) with APX's own `file_write` or `file_edit` shows
+it as the artifact `<name>`, a new version, as `show_widget` would, and its result says how it went: refused if a
+script does not parse, otherwise shown, then run once. No tool was added and no tool text grew: the skill names the
+folder (`{{artifact_sources}}`, filled in when it loads) and the agent copies a starter there with the shell
+(`{{skill_dir}}`) instead of retyping it. `show_widget` stays for a quick view.
+
+**Run once (`surfaces.check`).** The core's headless Chrome opens the page in a throwaway tab and browser context, with
+the kit inlined, no network (fetch and WebSocket never answer, every URL is blocked) and a bridge like the panel's
+whose calls run against a scratch artifact memory in a temp folder, so the page's first schema and queries really run
+on nothing of the owner's. After two and a half seconds it returns the uncaught errors, rejected promises and console
+errors, and the text the page shows (a page that catches its own failure only says so on screen). Without Chrome the
+result says it was not run. The tab does not count against the browser's tabs and does not call Runtime.enable on
+the agent's own browsing tabs.
+
+**An app is built whole.** The skill asks for a plan file listing every view, then each view built and saved in turn
+until all work, in the same turn, with questions only when they block: the owner asks once and expects the whole app.
