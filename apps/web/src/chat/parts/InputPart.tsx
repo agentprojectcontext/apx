@@ -1,7 +1,8 @@
 import "../../styles/screens.css";
 import type { ApprovalScope, FileChange, Part } from "@apx/protocol";
-import { ActionGroup, Button, Icons } from "@apx/ui";
+import { ActionGroup, Button, Icons, MarkdownView } from "@apx/ui";
 import { Fragment, useState } from "react";
+import { useMarkdownLabels } from "../../common/useMarkdownLabels.ts";
 import { respond } from "../../data/actions.ts";
 import { type MessageKey, useT } from "../../i18n/index.ts";
 import { DiffView } from "../../panel/DiffView.tsx";
@@ -67,11 +68,12 @@ function SettledInput({ part, state }: { part: InputPartData; state: Exclude<Inp
   );
 }
 
-/** What the agent asks; a folder card shows the folders it names as code, after the words before them. */
+/** What the agent asks, as Markdown; a folder card shows the folders it names as code, after the words before them. */
 function Prompt({ part }: { part: InputPartData }) {
+  const mdLabels = useMarkdownLabels();
   const folders = part.folders ?? [];
   const at = folders[0] ? part.prompt.indexOf(folders[0]) : -1;
-  if (at < 0) return <p className="inputcard__prompt">{part.prompt}</p>;
+  if (at < 0) return <MarkdownView source={part.prompt} size="sm" className="inputcard__prompt" labels={mdLabels} />;
   return (
     <p className="inputcard__prompt">
       {part.prompt.slice(0, at)}

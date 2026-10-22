@@ -132,7 +132,7 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
     return {
       name: "ask_owner",
       arguments: JSON.stringify({
-        question: "Which days work for the Northwind review?",
+        question: "Which days work for the **Northwind** review?",
         options: ["Monday", "Tuesday", "Wednesday"],
         multi: true,
       }),
