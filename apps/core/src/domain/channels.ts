@@ -275,6 +275,21 @@ export function channelsRepo({ one, all, run }: Sql) {
         );
         return r ? toOut(r) : undefined;
       },
+      /** What went out to one conversation since `at` from chats other than `except`, newest first. */
+      sentFromOthers(channel: string, conversation: string, except: string, at: string, limit: number): OutboxRow[] {
+        return all(
+          qb
+            .selectFrom("outbox")
+            .selectAll()
+            .where("channel", "=", channel)
+            .where("conversation", "=", conversation)
+            .where("thread_id", "is not", null)
+            .where("thread_id", "!=", except)
+            .where("created_at", ">", at)
+            .orderBy("created_at", "desc")
+            .limit(limit),
+        ).map(toOut);
+      },
       /** The next time something queued is due, if anything is. */
       nextDue(): string | undefined {
         const r = one(

@@ -3,11 +3,13 @@
 // relay routine runs (one voice, a few times a day); in quiet hours the rest waits and goes together when they end;
 // past the day's cap, too soon after another about the same project or of the same kind, or of a kind the owner keeps
 // marking 👎, it stays in the tray only. Answers to the owner's own messages never come here.
+
 import type { Nudge } from "@apx/protocol";
 import { inQuietHours, noticePrefs, quietEnd } from "../domain/notices.ts";
 import { nudgeId } from "../domain/nudges.ts";
 import type { Store } from "../domain/store.ts";
 import { untrusted } from "../tools/result.ts";
+import { audienceOf } from "./audience.ts";
 
 /** How far back the owner's 👍/👎 count, and how many 👎 (with no later 👍) mute a kind. */
 const RATING_DAYS = 14;
@@ -45,14 +47,41 @@ const MEANWHILE_FIRST_MS = 12 * 3600_000;
 export function sentMeanwhile(store: Store, threadId: string, runId: string, at = new Date()): string | undefined {
   const previous = store.runs.list(threadId, 2).find((r) => r.id !== runId);
   const since = previous?.started_at ?? new Date(at.getTime() - MEANWHILE_FIRST_MS).toISOString();
-  const sent = store.nudges.sentSince(since, MEANWHILE_MAX);
-  if (!sent.length) return undefined;
-  return sent
+  const sent = store.nudges
+    .sentSince(since, MEANWHILE_MAX)
     .map((n) =>
       untrusted("sent_to_owner", { what: n.kind.replace(/^routine:/, ""), at: n.at }, n.text.slice(0, MEANWHILE_CHARS)),
-    )
-    .join("\n");
+    );
+  // A question or an OK another chat sent to the owner's channel: what they may be answering here, and where it is.
+  const to = store.threads.context(threadId).reply_to;
+  const fromChats = to
+    ? store.channels.outbox
+        .sentFromOthers(to.channel, to.conversation, threadId, since, MEANWHILE_MAX)
+        // Only the owner's own chats: what a contact's chat sent carries words (a name) the owner never wrote.
+        .filter((o) => {
+          const chat = store.threads.get(o.thread_id ?? "");
+          return Boolean(chat && audienceOf(store, chat).kind === "owner");
+        })
+        .map((o) =>
+          untrusted(
+            "sent_to_owner",
+            {
+              from_chat: o.thread_id ?? "",
+              chat_title: store.threads.get(o.thread_id ?? "")?.title.slice(0, 80) ?? "",
+              at: o.created_at ?? "",
+            },
+            (o.text ?? "").slice(0, MEANWHILE_CHARS),
+          ),
+        )
+    : [];
+  const all = [...sent, ...fromChats];
+  if (!all.length) return undefined;
+  return `${all.join("\n")}${fromChats.length ? `\n${FROM_CHATS_NOTE}` : ""}`;
 }
+
+/** Said beside what other chats sent: the owner may be answering one of them here. */
+const FROM_CHATS_NOTE =
+  "Some of these came from other chats (from_chat). If the owner is answering one, act on it there: read it with read_chat, and pass their answer to that chat's agent with delegate.";
 
 export type Offer = {
   /** What it is about, for the per-kind gap: "routine:<name>", "reminder"… */

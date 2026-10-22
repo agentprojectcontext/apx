@@ -109,6 +109,18 @@ test("a free-form Telegram reply resumes the exact delivered question from anoth
   await until(() => f.env.core.store.runs.list(project.id)[0]?.state === "completed", "resumed run");
   assert.equal(f.env.core.store.inputs.get(question.id)?.answer, "Green, please");
   assert.equal(f.env.core.store.runs.list(project.id).length, 1);
+  // Only Home talks on the owner's phone: this chat's answer stays in the app.
+  await new Promise((r) => setTimeout(r, 200));
+  assert.ok(!f.tg.messagesTo(OWNER.id).some((m) => String(m.body.text).includes("Answer received")));
+  assert.equal(f.env.core.store.threads.context(project.id).reply_to, undefined);
+
+  // What the owner writes next goes to Home, whose agent sees what that chat sent them and where it is.
+  const calls = llm.calls.length;
+  f.tg.message(OWNER, "what was that color for?");
+  await until(() => llm.calls.length > calls, "Home's turn");
+  const seen = String(llm.calls.at(-1)?.messages.at(-1)?.content);
+  assert.match(seen, new RegExp(`<sent_to_owner from_chat="${project.id}"[^>]*>\\nWhich color\\?`));
+  assert.match(seen, /pass their answer to that chat's agent with delegate/);
 });
 
 test("a question something else was sent after is not answered by the owner's next words there", async (t) => {

@@ -514,8 +514,11 @@ export function createInbound(deps: {
     const question =
       (asked ? open(asked) : undefined) ?? store.inputs.pending(threadId).find((i) => i.kind === "question");
     if (!question) return false;
-    store.threads.mergeContext(question.thread_id, { reply_to: to });
-    store.runs.setReplyTo(question.run_id, to);
+    // Answered on the phone, only Home goes on talking there; another chat keeps its conversation in the app.
+    if (store.threads.get(question.thread_id)?.kind === "home") {
+      store.threads.mergeContext(question.thread_id, { reply_to: to });
+      store.runs.setReplyTo(question.run_id, to);
+    }
     deps.answeredHere(question.id, to, "text");
     await call("runs.respond", { input: question.id, text: words }, { actor: "human" }, `channel:${rowId}:respond`);
     return true;
@@ -645,8 +648,10 @@ export function createInbound(deps: {
     }
     if (button.kind === "confirm" && a.ref) void deps.setButtons(channel, a.conversation, a.ref, []);
     const at = { channel, conversation: a.conversation };
-    store.threads.mergeContext(input.thread_id, { reply_to: at });
-    store.runs.setReplyTo(input.run_id, at);
+    if (store.threads.get(input.thread_id)?.kind === "home") {
+      store.threads.mergeContext(input.thread_id, { reply_to: at });
+      store.runs.setReplyTo(input.run_id, at);
+    }
     deps.answeredHere(input.id, at, "button");
     if (button.kind === "input") {
       await call("runs.respond", { input: input.id, decision: button.answer }, { actor: "human" });

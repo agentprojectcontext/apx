@@ -310,14 +310,24 @@ export function createChannels(deps: {
   }
 
   // ── replies, confirmations, typing ────────────────────────────────────
-  const replyTo = (runId: string) => {
+  /** Where a run's channel traffic goes: an answer only from a chat that speaks there; a question or an OK always. */
+  const replyTo = (runId: string, action = false) => {
     const run = store.runs.get(runId);
-    if (!run) return undefined;
+    if (!run || (!action && !speaksOnChannel(run.thread_id))) return undefined;
     if (run.input && "reply_to" in run.input) return run.input.reply_to ?? undefined;
     const origin = run.input?.origin;
     if (origin?.kind === "channel") return { channel: origin.channel, conversation: origin.conversation };
     return store.threads.context(run.thread_id).reply_to;
   };
+
+  /**
+   * Whose answers go out on a channel: a contact's chat, and among the owner's chats only Home, the super-agent's. Other
+   * chats reach the owner's phone only with what needs them (a question, an OK), never their whole conversation.
+   */
+  function speaksOnChannel(threadId: string): boolean {
+    const thread = store.threads.get(threadId);
+    return Boolean(thread && (audienceOf(store, thread).kind !== "owner" || thread.kind === "home"));
+  }
 
   /**
    * A run ended: its answer returns to its own destination, even if another message changed the thread's channel.
@@ -473,7 +483,7 @@ export function createChannels(deps: {
     const thread = store.threads.get(threadId);
     if (!thread || audienceOf(store, thread).kind !== "owner") return;
     const runId = store.inputs.get(part.input_id)?.run_id;
-    const to = runId ? replyTo(runId) : undefined;
+    const to = runId ? replyTo(runId, true) : undefined;
     // Asked from the app: it waits there first, then follows the owner.
     if (!to) {
       followUp(part, threadId);
@@ -526,8 +536,7 @@ export function createChannels(deps: {
         ? [{ id: buttonId.goOn(session), label: channelTexts(store).goOn }]
         : undefined;
     const thread = store.threads.get(threadId);
-    const to =
-      thread && audienceOf(store, thread).kind === "owner" ? store.threads.context(threadId).reply_to : undefined;
+    const to = thread && thread.kind === "home" ? store.threads.context(threadId).reply_to : undefined;
     if (to && live.has(to.channel)) {
       delivery.enqueue({
         channel: to.channel,
