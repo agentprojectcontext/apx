@@ -1817,3 +1817,22 @@ beginning, it stays open under a closed parent, or it is in progress and nothing
 stall revive's day, D-123). The watch routine's signals (`domain/signals.ts`) find these with plain store reads, as
 `broken_task` signals, so the model is called only when one is new and only to word it for the owner. Commitments and
 tasks waiting on the owner are left to their own signals.
+
+<a id="d-126"></a>
+## D-126 — 2026-10-22 — A delegate works in its own project, and a folder asked for goes as far as its caller may
+A reviewer delegated with a folder but no `write` got `ask`, whatever its caller could do, so prompts had to say "pass
+write auto" and agents forgot. D-104's rule stays (never more than the caller); the default and the cap change.
+
+- **A folder asked with no `write`** gets the most its caller may (`auto` for a caller in auto, `ask` for one in
+  manual or in a code thread that asks, `read-only` in plan or a read-only thread), instead of `ask`. A `write` named
+  still only narrows it.
+- **The ceiling is the strictest of three**: the caller's, the callee's own mode (its project's when it has none), and
+  the mode of the project the session works in. A super-agent in total mode does not lift a project kept to manual.
+- **A project's agent works in its own project**, wherever it is asked from: the super-agent in another project's chat
+  asking a project agent of Acme gets it working in Acme. A worker, or a global agent, works in the chat's project as
+  before; `project` named still decides.
+- **Asked for nothing, nothing changes**: no folder of its own. Our loop works in its project anyway, as far as its
+  mode lets it; an outside engine (Codex, an ACP agent) stays on APX's side of the project, where the folder's own
+  settings cannot apply unchecked. A security review found that giving every delegate the real folder would have let
+  those engines write there with nobody choosing it.
+- On our own loop only `read-only` is enforced per session; `ask` and `auto` are what an outside engine runs under.

@@ -1,7 +1,7 @@
 // The one way an agent asks another: a sub-thread with a durable child run. The caller may wait for it inside its
 // turn; past that (or when the caller's turn ends for any reason) the result comes back to the caller's thread as
 // a new input. See DECISIONS.md#d-009
-import type { Part, Thread, WritePolicy } from "@apx/protocol";
+import { DEFAULT_AUTONOMY, type Part, type Thread, type WritePolicy } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { type Origin, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -45,10 +45,12 @@ type Workspace = { cwd: string; write: WritePolicy };
 export function workspaceOf(
   store: Store,
   caller: AgentRecord,
+  callee: AgentRecord,
   parent: Thread,
   projectId: string | undefined,
   req: Pick<DelegateTo, "folder" | "write">,
 ): Workspace | undefined | string {
+  // Asked for nothing, no folder of its own: our loop works in its project anyway, an outside engine on APX's side.
   if (req.folder === undefined && !req.write) return undefined;
   let cwd: string;
   try {
@@ -58,10 +60,18 @@ export function workspaceOf(
     return `refused: ${why.startsWith("needs") ? `a folder to work in ${why}` : why}`;
   }
   const own: WritePolicy | undefined = worksInFolder(parent) ? parent.write : undefined;
-  const mode = modeOf(withProjectAutonomy(store, caller));
-  const ceiling = own ?? (mode === "plan" ? "read-only" : mode === "manual" ? "ask" : "auto");
-  return { cwd, write: strictestWrite(ceiling, req.write ?? own ?? "ask") };
+  // Never more than the caller may, the callee may, or the project it works in lets anyone (a super-agent in total
+  // mode does not lift a project kept to manual). See DECISIONS.md#d-126
+  const ceiling = strictestWrite(
+    own ?? writeOfMode(modeOf(withProjectAutonomy(store, caller))),
+    writeOfMode(modeOf(withProjectAutonomy(store, callee))),
+    writeOfMode(store.projects.get(projectId ?? "")?.autonomy ?? DEFAULT_AUTONOMY),
+  );
+  return { cwd, write: strictestWrite(ceiling, req.write ?? ceiling) };
 }
+
+/** The most a mode lets an agent change files: plan reads, manual asks, the rest go ahead. */
+const writeOfMode = (mode: string): WritePolicy => (mode === "plan" ? "read-only" : mode === "manual" ? "ask" : "auto");
 
 /** How much of an answer its card keeps: the whole report, short of a runaway one. */
 const REPORT_CHARS = 6000;
@@ -472,8 +482,9 @@ export function createDelegations(deps: {
       // The project named, else this chat's, else the agent's own: its folder is where the session reads and works.
       const projectId = existing
         ? existing.project_id
-        : (req.project ?? parentThread.project_id ?? (worker ? undefined : to.project_id));
-      const place = workspaceOf(store, from.agent, parentThread, projectId, req);
+        : // A project's agent works in its own project, wherever it is asked from; a worker or a global agent in the chat's.
+          (req.project ?? (worker ? parentThread.project_id : (to.project_id ?? parentThread.project_id)));
+      const place = workspaceOf(store, from.agent, worker ? from.agent : to, parentThread, projectId, req);
       if (typeof place === "string") return place;
       if (existing && place && (existing.cwd !== place.cwd || existing.write !== place.write)) {
         moved = existing.session ?? existing.id;
