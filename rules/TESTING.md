@@ -183,8 +183,8 @@ going over fails. Raising a budget is a regression: it needs a reason in the com
 commit on `release/v2`, without running the full suite again for the tag. Linux preflight, coverage and
 lightness budgets are separate jobs that start in parallel. Each retains its checks; coverage does not replace
 the package-specific preflight test commands. Coverage runs in parts on machines of their own (`node
-scripts/test-coverage.ts --e2e --part=unit|web|desktop`, the panel's specs in three Playwright shards with
-`--shard=i/3`); each part reports on its own machine and `coverage-report` merges those reports into the one report (`--merge`: a function ran if any part ran it). The macOS and Windows jobs run only the
+scripts/test-coverage.ts --e2e --part=unit|web|desktop`; the panel's specs stay one part, as they build on each
+other's state in one sandbox); each part reports on its own machine and `coverage-report` merges those reports into the one report (`--merge`: a function ran if any part ran it). The macOS and Windows jobs run only the
 unit tests (Linux's preflight already checks lint, types and the rest), split over several machines by `node
 scripts/test-shard.ts <part>/<parts>`, which reads each package's own `test` script and deals the files out in turn. The performance job builds the same panel with coverage source
 maps before measuring it. A failed job can be retried independently, while publication still requires every job

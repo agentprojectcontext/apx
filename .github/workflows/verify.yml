@@ -72,8 +72,8 @@ jobs:
         working-directory: apps/mobile
         run: npx expo export --platform android --output-dir "$RUNNER_TEMP/apx-mobile-export"
 
-  # The function coverage run in parts on machines of their own (the panel's end-to-end specs in three Playwright
-  # shards), merged into one report by coverage-report.
+  # The function coverage run in parts on machines of their own (unit, panel, desktop), merged into one report by
+  # coverage-report.
   coverage:
     name: Coverage (${{ matrix.name }})
     strategy:
@@ -81,9 +81,8 @@ jobs:
       matrix:
         include:
           - { name: unit, args: --part=unit }
-          - { name: panel 1 of 3, args: --part=web --shard=1/3 }
-          - { name: panel 2 of 3, args: --part=web --shard=2/3 }
-          - { name: panel 3 of 3, args: --part=web --shard=3/3 }
+          # One part: the panel's specs build on each other's state in a single sandbox, so they run in order.
+          - { name: panel, args: --part=web }
           - { name: desktop, args: --part=desktop }
     runs-on: ubuntu-latest
     timeout-minutes: 30
