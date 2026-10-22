@@ -1,5 +1,17 @@
 import type { Message, Task, TaskEvent } from "@apx/protocol";
-import { AgentAvatar, Badge, Button, Icons, Select, Skeleton, Tabs, TagInput, Textarea } from "@apx/ui";
+import {
+  AgentAvatar,
+  Badge,
+  Button,
+  IconButton,
+  Icons,
+  Menu,
+  Select,
+  Skeleton,
+  Tabs,
+  TagInput,
+  Textarea,
+} from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { QuoteContext, quoteBlock } from "../chat/quote.ts";
 import { Transcript } from "../chat/Transcript.tsx";
@@ -27,6 +39,7 @@ import {
 } from "./TaskFields.tsx";
 import { ColumnDot, ColumnHelp, columnLabel, KindHelp } from "./TaskForms.tsx";
 import { TaskParent, TaskSubtasks, TaskUsage, TaskWork } from "./TaskWork.tsx";
+import { copyItems } from "./taskActions.tsx";
 import { pickerValue, type Reminder, remindAt, reminderOf } from "./when.ts";
 
 /**
@@ -89,7 +102,21 @@ export function TaskPanel({ task, onClose, actions }: { task: Task; onClose: () 
     };
   }, [task.id, movedAt]);
   return (
-    <Drawer className="taskpanel" label={task.title} title={task.title} onClose={onClose} actions={actions}>
+    <Drawer
+      className="taskpanel"
+      label={task.title}
+      title={<Title task={task} />}
+      onClose={onClose}
+      actions={
+        <>
+          {actions}
+          <Menu
+            trigger={<IconButton size="sm" label={t("common.more")} icon={<Icons.Ellipsis size={14} />} />}
+            items={copyItems(task, t)}
+          />
+        </>
+      }
+    >
       <div className="taskpanel__body" ref={body}>
         <StateBar task={task} />
         <Properties task={task} detail={detail} />
@@ -331,6 +358,40 @@ function Prop({ label, help, top, children }: { label: string; help?: ReactNode;
       </dt>
       <dd className="taskprops__value">{children}</dd>
     </>
+  );
+}
+
+/** The title, edited in place: saved on Enter or leaving the box; Escape or an empty box keeps the old one. */
+function Title({ task }: { task: Task }) {
+  const t = useT();
+  const [draft, setDraft] = useState(task.title);
+  useEffect(() => setDraft(task.title), [task.title]);
+  const save = () => {
+    const title = draft.trim();
+    if (title && title !== task.title) void updateTask(task.id, { title });
+    else setDraft(task.title);
+  };
+  return (
+    <textarea
+      className="taskpanel__title"
+      aria-label={t("tasks.rename")}
+      rows={1}
+      maxLength={200}
+      value={draft}
+      onChange={(e) => setDraft(e.currentTarget.value.replace(/\n/g, " "))}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.blur();
+        } else if (e.key === "Escape") {
+          // The drawer stays open: Escape here only drops the edit.
+          e.preventDefault();
+          setDraft(task.title);
+          requestAnimationFrame(() => (e.target as HTMLTextAreaElement).blur());
+        }
+      }}
+    />
   );
 }
 
