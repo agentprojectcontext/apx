@@ -253,6 +253,9 @@ export function TasksList({
                     </>
                   )}
                   <span className="tasks__groupcount">{g.items.length}</span>
+                  <Help label={t(GROUP_LABEL[g.id])} align="start" width={280}>
+                    {t(`tasks.help.group.${g.id}`)}
+                  </Help>
                 </header>
                 <ul className="tasks__rows">{items.flatMap((task) => branch(task, g.id, 0))}</ul>
                 {hidden > 0 && (
@@ -366,13 +369,25 @@ function TaskRow(props: {
               )}
             </span>
             {/* Every mark goes on one line under the title, side by side: kind, who it is with, date, tags. */}
-            {(task.kind !== "task" || task.person_id || task.tags.length > 0 || reviewing || startsAt) && (
+            {(task.kind !== "task" ||
+              task.person_id ||
+              task.tags.length > 0 ||
+              reviewing ||
+              startsAt ||
+              task.awaits_owner) && (
               <span className="taskrow__sub">
-                {reviewing && (
+                {task.awaits_owner && task.state === "open" ? (
                   <span className="taskrow__commit">
-                    <Icons.Eye size={11} />
-                    {t("tasks.row.reviewer", { name: reviewerName })}
+                    <Icons.MessageCircle size={11} />
+                    {t("tasks.row.asks")}
                   </span>
+                ) : (
+                  reviewing && (
+                    <span className="taskrow__commit">
+                      <Icons.Eye size={11} />
+                      {t("tasks.row.reviewer", { name: reviewerName })}
+                    </span>
+                  )
                 )}
                 {startsAt && (
                   <span className="taskrow__commit">

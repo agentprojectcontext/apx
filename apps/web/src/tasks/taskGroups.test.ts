@@ -27,7 +27,8 @@ test("blocked wins over the column; a running turn makes a task in progress; oth
   const none = new Set<string>();
   assert.equal(groupOf(task({ status: "doing", awaits_owner: true }), none), "blocked");
   assert.equal(groupOf(task({ status: "backlog" }), new Set(["th1"])), "doing");
-  assert.equal(groupOf(task({ status: "review" }), none), "review");
+  assert.equal(groupOf(task({ status: "review" }), none), "blocked", "a review with no agent to do it is the owner's");
+  assert.equal(groupOf(task({ status: "review", reviewer: "noor" }), none), "review");
   assert.equal(groupOf(task({ status: "ideas" }), none), "pending", "an owner's own column");
   assert.equal(groupOf(task({ state: "done", awaits_owner: true }), none), "closed");
 });
@@ -35,7 +36,7 @@ test("blocked wins over the column; a running turn makes a task in progress; oth
 test("groups come in a fixed order, without the empty ones, newest activity first", () => {
   const g = groupTasks(
     [
-      task({ id: "a", status: "review" }),
+      task({ id: "a", status: "review", reviewer: "noor" }),
       task({ id: "b", status: "doing", activity_at: "2026-10-01T09:00:00Z" }),
       task({ id: "c", status: "doing", activity_at: "2026-10-01T11:00:00Z" }),
     ],

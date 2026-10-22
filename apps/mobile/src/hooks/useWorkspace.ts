@@ -71,6 +71,8 @@ export type Task = {
   thread_id: string;
   due_at?: string;
   awaits_owner: boolean;
+  /** Who checks it in review: an agent's id; none, the owner. */
+  reviewer?: string;
   /** A commitment: the person on the other side, and how it ended once closed. */
   person_name?: string;
   outcome?: "kept" | "missed" | "dropped";

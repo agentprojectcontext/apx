@@ -6,6 +6,7 @@ import { pairingChannel } from "../data/channels.ts";
 import { readNotifications, useAttention } from "../data/notifications.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "./nav.ts";
+import { noticeTask } from "./noticeTarget.ts";
 
 const KIND_ICON: Record<Notification["kind"], typeof Icons.Bell> = {
   input: Icons.Hand,
@@ -20,7 +21,9 @@ const KIND_ICON: Record<Notification["kind"], typeof Icons.Bell> = {
 /** Opens what a notice is about. A question stays in the tray until it is answered. */
 function openNotice(n: Notification): void {
   if (n.kind !== "input") void readNotifications([n.id]);
-  if (n.kind === "task" || n.kind === "due") go.view("tasks");
+  const task = noticeTask(n);
+  if (task) go.task(task);
+  else if (n.kind === "task" || n.kind === "due") go.view("tasks");
   else if (n.thread_id) go.inboxThread(n.thread_id);
   else if (n.kind === "channel" && n.ref?.startsWith("pairing:")) {
     // Someone waits to be let in: their row, lit, in the channel's own list — where it can be answered.

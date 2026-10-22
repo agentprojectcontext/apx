@@ -1878,3 +1878,47 @@ Follow-ups of the same audit (an owner who had to supervise APX to get a migrati
 - **Size bounds stay out of what our loop sends** (`minLength`, `maxLength`, `minItems`, `maxItems`): arguments are
   still checked against the full schema here, and Claude Code and Codex still read it whole. The tools budget went
   from 27,998 to about 25,700 characters, room for what comes next.
+
+<a id="d-129"></a>
+## D-129 — 2026-10-22 — The owner's phone hears Home; one session per teammate; what needs the owner is one group
+**The phone is Home's.** Answering a button on Telegram set that chat's reply route, so a project agent's whole
+conversation followed the owner to their phone. Now only Home (the super-agent) and contacts' chats answer on a
+channel; another chat of the owner's sends there only what needs them (a question, an OK) and its answers stay in the
+app, whoever answered from where. Home's turn reads what the owner's other chats sent them since its last turn, with
+the chat it came from, so a reply typed after an action reaches someone who knows what it is about and passes it on.
+
+**One session per teammate.** A new session name for an agent that already has a free session in that chat goes on
+in it, and a free session asked to work in another folder or with another policy of the same project moves there with
+its context (D-106 opened a new one). A busy session still leaves room for work in parallel; another project still
+opens another.
+
+**What needs the owner is one group, first.** "Needs your review" holds a question or decision for the owner and a
+finished task with no agent to review it; each row says which. "In review" is an agent's review. Each group's title
+has its "?" in the list. The mobile app groups the same way.
+
+<a id="d-130"></a>
+## D-130 — 2026-10-22 — APX ships its own Google sign-in; Drive joins; an event only on the owner's calendar needs no OK
+D-103 had the owner make an OAuth client in Cloud Console, a step most owners never finish. APX now ships one: a
+**Desktop app** client, which Google treats as public (an installed app cannot keep a secret; its own guide says so)
+and which reaches nothing by itself: every access is a consent the owner gives in Google's page, guarded by PKCE and
+the signed one-use state of D-103, and the refresh token stays in the owner's secret store. Leaked, the pair lets
+someone show a consent page named APX, which Google's warning and the owner's own click still stand between. It is
+kept base64 in `integrations/google-client.ts` only so secret scanners do not flag a value public by design;
+`APX_GOOGLE_CLIENT` (`id:secret`) replaces it, and a core pointed at a stand-in Google never uses it. The owner's own
+client stays as **My own OAuth client**; each integration remembers which client signed it in (a refresh token works
+only with the client that issued it), and the owner's client is forgotten once nothing signs in with it. Rejected: a
+hosted token broker with a confidential web client (every refresh through APX's servers, a service to keep up, and
+the owner's Google access leaving their machine).
+
+Until Google verifies the app, the consent page says "Google hasn't verified this app" and at most 100 accounts can
+grant it the sensitive (Calendar, Drive's `drive.file`) and restricted (Gmail, `drive.readonly`) scopes; the app must
+be **In production**, not Testing, or Google ends every grant after seven days. Lifting the cap needs Google's
+verification, and for the restricted scopes its yearly security assessment.
+
+**Google Drive** is a third part, connected on its own like Calendar and Gmail: `drive.readonly` to find and read
+files (Docs as text, Sheets as CSV, Slides as text, text files as they are; binaries are refused with their link) and
+`drive.file` to write Docs and share what APX wrote; nothing else of the owner's can be changed. Calendar edits the
+current guest list (`add_attendees`/`remove_attendees`, answers kept), adds a Meet link to an event without one, and
+cancels. Confirmations follow D-106's strong actions: an event only on the owner's calendar, a change to one, and a
+Doc APX writes are the owner's own and do not ask; inviting people, cancelling and sharing a file speak to others in
+the owner's name and ask; sending mail still always asks.

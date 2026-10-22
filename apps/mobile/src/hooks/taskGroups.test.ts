@@ -16,13 +16,14 @@ const task = (id: string, extra: Partial<Task> = {}): Task => ({
   ...extra,
 });
 
-test("open tasks group as doing, pending, review and blocked; closed ones stay out", () => {
+test("open tasks group as needing the owner first, then doing, pending and an agent's review; closed ones stay out", () => {
   const groups = taskGroups(
     [
       task("a", { status: "doing" }),
       task("b", { status: "backlog", due_at: "2026-10-09T10:00:00Z" }),
       task("c", { status: "todo", due_at: "2026-10-08T10:00:00Z" }),
-      task("d", { status: "review" }),
+      task("d", { status: "review", reviewer: "noor" }),
+      task("h", { status: "review" }),
       task("e", { status: "doing", awaits_owner: true }),
       task("f", { state: "done", status: "doing" }),
       task("g", { state: "dropped" }),
@@ -32,10 +33,10 @@ test("open tasks group as doing, pending, review and blocked; closed ones stay o
   assert.deepEqual(
     groups.map((group) => [group.id, group.tasks.map((item) => item.id)]),
     [
+      ["blocked", ["h", "e"]],
       ["doing", ["a"]],
       ["pending", ["c", "b"]],
       ["review", ["d"]],
-      ["blocked", ["e"]],
     ],
   );
 });

@@ -5,15 +5,18 @@ export type TaskFilter = "all" | "task" | "commitment";
 export type TaskGroup = { id: "doing" | "pending" | "review" | "blocked"; label: Key; tasks: Task[] };
 
 const ORDER: Array<Pick<TaskGroup, "id" | "label">> = [
+  { id: "blocked", label: "tasksBlocked" },
   { id: "doing", label: "tasksDoing" },
   { id: "pending", label: "tasksPending" },
   { id: "review", label: "tasksReview" },
-  { id: "blocked", label: "tasksBlocked" },
 ];
 
-/** Where an open task sits on the phone: waiting on the owner first, then its board column. */
+/**
+ * Where an open task sits on the phone: what needs the owner first (a question, or a review no agent does), then its
+ * board column.
+ */
 export function taskGroupOf(task: Task): TaskGroup["id"] {
-  if (task.awaits_owner || task.status === "blocked") return "blocked";
+  if (task.awaits_owner || task.status === "blocked" || (task.status === "review" && !task.reviewer)) return "blocked";
   if (task.status === "review") return "review";
   if (task.status === "doing") return "doing";
   return "pending";
