@@ -22,10 +22,10 @@ const listed = (parts: string[], and: string) =>
 export function InstallArtifactDialog() {
   const open = useInstallRequest();
   if (!open) return null;
-  return <InstallForm initialProject={open.project ?? GLOBAL} />;
+  return <InstallForm initialProject={open.project ?? GLOBAL} file={open.file} />;
 }
 
-function InstallForm({ initialProject }: { initialProject: string }) {
+function InstallForm({ initialProject, file }: { initialProject: string; file: File | undefined }) {
   const t = useT();
   const projects = useData((s) => s.projects);
   const surfaces = useData((s) => s.surfaces);
@@ -56,6 +56,10 @@ function InstallForm({ initialProject }: { initialProject: string }) {
   };
   const readRef = useRef(read);
   readRef.current = read;
+  // A file opened from the system or dropped on the window comes already chosen.
+  useEffect(() => {
+    if (file) void readRef.current(file);
+  }, [file]);
   const drop = useRef<HTMLDivElement>(null);
   // Listened on the element: the drop zone is not a control, the "Choose file" button inside it is.
   useEffect(() => {

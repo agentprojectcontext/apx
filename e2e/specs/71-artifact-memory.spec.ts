@@ -162,6 +162,44 @@ test("an .apxart file is shown for what it is before it installs, pinned and wit
   await expect(props.getByText("Su versión entonces")).toBeVisible();
 });
 
+/** Lets `files` go over `selector`, the way a drag from the system ends: a drop event carrying them. */
+async function dropFiles(p: Page, selector: string, files: { name: string; text: string }[]) {
+  await p
+    .locator(selector)
+    .first()
+    .evaluate((el, files) => {
+      const data = new DataTransfer();
+      for (const f of files) data.items.add(new File([f.text], f.name));
+      el.dispatchEvent(new DragEvent("dragover", { dataTransfer: data, bubbles: true, cancelable: true }));
+      el.dispatchEvent(new DragEvent("drop", { dataTransfer: data, bubbles: true, cancelable: true }));
+    }, files);
+}
+
+test("an .apxart dropped anywhere on the window opens the install dialog with it, never as a chat attachment", async ({
+  page: p,
+}) => {
+  await rpc("setup.finish", {});
+  const made = await rpc<{ id: string }>("surfaces.show", { name: "dropped", title: "Dropped", html: page(false) });
+  const bundle = JSON.stringify(await rpc<object>("surfaces.export", { surface: made.id, memory: false }));
+
+  await open(p);
+  // On the chat's composer, which takes other files as attachments.
+  await dropFiles(p, "textarea", [{ name: "dropped.apxart", text: bundle }]);
+  const dialog = p.getByRole("dialog", { name: "Instalar un artefacto" });
+  await expect(dialog.getByText("Dropped", { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Instalar", exact: true })).toBeEnabled();
+  await expect(p.locator(".attchip")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  await expect(dialog).toBeHidden();
+
+  // Anywhere else too; an app or extension file says it does not install from a file yet.
+  await dropFiles(p, "body", [{ name: "tools.apxext", text: "{}" }]);
+  await expect(p.getByText(/tools\.apxext es una app o extensión de APX/)).toBeVisible();
+  await expect(dialog).toBeHidden();
+  await dropFiles(p, "body", [{ name: "dropped.apxart", text: bundle }]);
+  await expect(dialog.getByText("Dropped", { exact: true })).toBeVisible();
+});
+
 test("Create an artifact opens a new chat with the super-agent, its first words ready to finish", async ({
   page: p,
 }) => {

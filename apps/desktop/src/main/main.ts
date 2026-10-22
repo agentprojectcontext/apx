@@ -32,6 +32,7 @@ import { createCursor } from "./cursor.ts";
 import { editMenu } from "./edit-menu.ts";
 import { artifactOwners, itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
+import { openedIn, openedQueue } from "./opened-files.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
 import { confirmQuit } from "./quit-confirm.ts";
 import { createUpdateMenu } from "./update-menu.ts";
@@ -61,6 +62,15 @@ registerAppScheme();
 // One APX at a time: opening it again brings the running one forward.
 const single = app.requestSingleInstanceLock();
 if (!single) app.quit();
+
+// Files opened with APX (double-click, Open with, the Dock icon): macOS sends them even before the window exists.
+let tellPanel = () => {};
+const opened = openedQueue(() => tellPanel());
+app.on("open-file", (e, file) => {
+  e.preventDefault();
+  opened.add([file]);
+});
+opened.add(openedIn(process.argv.slice(1)));
 
 let quitting = false;
 // Quitting asks first (closing the window only hides it). Set by the updater, a shutdown or a confirmed answer.
@@ -131,6 +141,7 @@ app.whenReady().then(() => {
       app.quit();
       return;
     }
+    opened.add(openedIn(argv.slice(1)));
     openMain();
   });
   // Every page (the panel, the quick chat, browser tabs) gets the edit menu on a right click.
@@ -405,6 +416,12 @@ app.whenReady().then(() => {
     );
   setMenu(updater.status());
 
+  // The panel takes opened files when it is ready and whenever it hears of more.
+  ipcMain.handle("artifact:take-opened", (e) => (e.sender === panel.webContents ? opened.take() : []));
+  tellPanel = () => {
+    openMain();
+    panel.webContents.send("artifact:file-opened");
+  };
   ipcMain.on("quick:open-main", (e, threadId: unknown) => {
     if (!quick.isQuick(e.sender)) return;
     quick.hide();

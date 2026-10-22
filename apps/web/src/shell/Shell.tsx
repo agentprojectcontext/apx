@@ -6,6 +6,7 @@ import { usePrefs } from "../data/prefs.ts";
 import { data } from "../data/state.ts";
 import { useThreadDialog } from "../data/threadAdmin.ts";
 import { useAnyLive } from "../surfaces/liveAny.ts";
+import { useApxFiles } from "../surfaces/openedFiles.ts";
 import { widgetChatOpen } from "../surfaces/widgetChatOpen.ts";
 import { ChatWorkspace } from "./ChatWorkspace.tsx";
 import { computeLayout, layoutVars } from "./layout.ts";
@@ -205,4 +206,5 @@ function useDesktopBridge() {
     window.apxDesktop?.setTitleBar?.(nav.get().mode);
     return window.apxDesktop?.onOpenThread?.((id) => go.thread(id));
   }, []);
+  useApxFiles();
 }
