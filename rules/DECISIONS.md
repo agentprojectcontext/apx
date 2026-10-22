@@ -1951,3 +1951,24 @@ each (two at most): the card shows the question and the answer, and the answer c
 from as the teammate's words (`a2a`, no new budget window), so it goes on without polling. A comment said inside a
 consult or a delegation asks no one, so answers never chain; a paused chat or agent (D-081) is not woken. `delegate`
 stays for a question that does not belong on a task.
+
+<a id="d-133"></a>
+## D-133 — 2026-10-22 — Secrets in the system's own store on Windows and Linux too
+D-010 kept values in the macOS Keychain and left Windows and Linux in `secrets.json` (0600), readable by any process of
+the user, an agent harness's sandbox included. The Google sign-in (D-130) made that file hold refresh tokens, so every
+system now has a store of its own, each through its own command with values on stdin, never on argv
+(`secrets-stores.ts`):
+- **Windows: DPAPI.** Values sealed for the user's account (`CurrentUser`, the home's service name as entropy) in one
+  `secrets.dpapi`, through Windows PowerShell's `ProtectedData` (always installed). Credential Manager is DPAPI too, but
+  caps a value at 2.5 KB, which a service account's key passes.
+- **Linux: the Secret Service** (GNOME Keyring, KWallet, KeePassXC) through `secret-tool`, attributes `service` and
+  `account` as the Keychain's.
+- **macOS: the Keychain**, unchanged.
+
+The index (`secrets.index.json`: names, dates, hints) stays a file. A store is chosen when it answers a round trip;
+otherwise (a Linux server with no keyring, PowerShell blocked) the file stays, as before. Once values went to a store,
+that store stays chosen even while it does not answer, so a core started before the keyring unlocks (a service at boot)
+shows the owner's names and finds their values once it opens, instead of falling back to an empty file; such installs
+can set `APX_SECRETS=file`. Values in `secrets.json` move to the store once at start, as D-010 did for the Keychain.
+The newer stores look up only names the index lists, so a check for a missing secret runs no command. Checked against a
+real keyring in a Linux container; the Windows store runs only against a stand-in so far.

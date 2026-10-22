@@ -21,7 +21,8 @@ APX keeps all its state in one folder: `~/.apx/v2` unless `APX_HOME` says otherw
   - **apx.db** everything the core holds: agents, threads, tasks, routines, memory, settings (SQLite)
   - core.env who can reach the core: host, port, token, public address
   - secrets.json secret values, when secrets are kept in a file (mode 600)
-  - secrets.index.json names and dates only, when they're in the macOS Keychain
+  - secrets.index.json names and dates only, when values are in the system's store
+  - secrets.dpapi values sealed for your account, on Windows
   - skills/ your global skills, one folder with a SKILL.md each
   - extensions/ installed extensions
   - profiles/ secretary profiles you added
@@ -73,7 +74,7 @@ The process environment always wins over the file. The core reads it when it sta
 | `APX_TOKEN` | none | The core's token. Without one, the core only accepts this computer. |
 | `APX_PUBLIC_URL` | none | The address devices reach this core on from outside (a VPS or a Tailscale name). It goes first in a pairing QR. |
 | `APX_ALLOWED_ORIGINS` | none | Extra origins allowed to call the core, comma separated. |
-| `APX_SECRETS` | Keychain on macOS, file elsewhere | `file` keeps secrets in `<home>/secrets.json` on macOS too. |
+| `APX_SECRETS` | the system's store | `file` keeps secrets in `<home>/secrets.json` on any system. |
 | `APX_UPDATES` | on | `off` stops looking for a newer APX; `app` only says one is out (the desktop app sets it for its core, and installs updates itself). |
 | `APX_RELEASES` | `agentprojectcontext/apx` | The GitHub repository whose releases announce a newer bundle. `off` stops it. |
 | `APX_TELEMETRY` | on | `off` sends nothing to the APX project, not even the install steps. `DO_NOT_TRACK=1` and `CI` do the same. See [Privacy and telemetry](/reference/privacy/). |
@@ -138,7 +139,9 @@ APX never puts a secret's value in a prompt, a log or a config file. Settings an
 
 - **macOS**: values go to your login Keychain, under the service `apx2` for the default home. `<home>/secrets.index.json`
   only lists names and dates.
-- **Linux, Windows, or `APX_SECRETS=file`**: values go to `<home>/secrets.json`, readable only by you.
+- **Linux**: values go to your keyring (Secret Service), under the same service.
+- **Windows**: values go to `<home>/secrets.dpapi`, sealed for your account with DPAPI.
+- **A Linux server with no keyring, or `APX_SECRETS=file`**: values go to `<home>/secrets.json`, readable only by you.
 
 Manage them in **Resources › Variables** (global or per project; a project's value wins over a global one), or with
 `apx secrets` (the value always on stdin).
