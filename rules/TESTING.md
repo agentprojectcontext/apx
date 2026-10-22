@@ -180,11 +180,16 @@ going over fails. Raising a budget is a regression: it needs a reason in the com
 ## CI
 `.github/workflows/verify.yml` runs `preflight`, `e2e`, the desktop e2e (under xvfb) and `perf` on every push to
 `release/v2` and every pull request; release tags build installers and publication requires verification of the exact
-commit on `release/v2`, without running the full suite again for the tag. Linux preflight, all-suite coverage and
+commit on `release/v2`, without running the full suite again for the tag. Linux preflight, coverage and
 lightness budgets are separate jobs that start in parallel. Each retains its checks; coverage does not replace
-the package-specific preflight test commands. The performance job builds the same panel with coverage source
+the package-specific preflight test commands. Coverage runs in parts on machines of their own (`node
+scripts/test-coverage.ts --e2e --part=unit|web|desktop`, the panel's specs in three Playwright shards with
+`--shard=i/3`); each part reports on its own machine and `coverage-report` merges those reports into the one report (`--merge`: a function ran if any part ran it). The macOS and Windows jobs run only the
+unit tests (Linux's preflight already checks lint, types and the rest), split over several machines by `node
+scripts/test-shard.ts <part>/<parts>`, which reads each package's own `test` script and deals the files out in turn. The performance job builds the same panel with coverage source
 maps before measuring it. A failed job can be retried independently, while publication still requires every job
-to pass. The existing `verify` check remains an aggregate gate requiring Linux checks and both portability jobs,
+to pass. The existing `verify` check remains an aggregate gate requiring Linux checks, every coverage part and its report, and
+every portability part,
 so branch protection that requires it still waits for every check. Reports are kept 14 days: `verify-reports` carries Playwright HTML, failed-test snapshots and coverage;
 `perf-reports` explicitly includes `e2e/.out/perf.json`, even though its directory is hidden. Its
 `autofix` job is off by default: with the repo variable `APX_AUTOFIX=true` and the secret `ANTHROPIC_API_KEY`, a
