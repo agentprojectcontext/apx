@@ -641,8 +641,9 @@ test("Gmail send with APX's client posts one UTF-8 message, never a draft", asyn
     { message: "sent-9", thread: "thread-9" },
   );
   const sent = fake.seen.at(-1);
-  assert.ok(sent?.url.endsWith("/users/me/messages/send"));
-  const raw = Buffer.from((sent?.body as { raw: string }).raw, "base64url").toString("utf8");
+  assert.ok(sent);
+  assert.ok(sent.url.endsWith("/users/me/messages/send"));
+  const raw = Buffer.from((sent.body as { raw: string }).raw, "base64url").toString("utf8");
   assert.match(raw, /^To: ana@example\.com\r\n/);
   assert.match(raw, /Subject: =\?UTF-8\?B\?/);
 });
