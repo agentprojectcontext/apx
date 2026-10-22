@@ -38,7 +38,7 @@ suma su servidor MCP como uno de tus servidores globales, así tus agentes puede
 | Brave Search | Búsqueda web | Una API key |
 | Obsidian | Leer y escribir las notas de tu bóveda | La carpeta de la bóveda |
 | Asana | Tools nativas de proyectos y tareas | Un token de acceso personal |
-| Google Calendar, Gmail | Calendario y correo nativos | Iniciar sesión con Google |
+| Google Calendar, Gmail, Google Drive | Calendario, correo y Drive nativos | Iniciar sesión con Google |
 | Linear | | Marcadas **Pronto**: necesitan un inicio de sesión que APX todavía no hace |
 
 Asana usa REST directamente, sin MCP. Creá un token personal en [Asana](https://app.asana.com/0/my-apps) y pegalo solo en el formulario.
@@ -48,6 +48,29 @@ Los listados excluyen tareas completadas por defecto; usá `completed: true` par
 Para crear una tarea, indicá un `project` de Asana o un `workspace` si no querés asociarla a un proyecto.
 `asana_write` crea o actualiza tareas (nombre, notas, estado, responsable y vencimiento), con autorización del dueño.
 El switch por proyecto controla la disponibilidad, no los permisos sobre objetos: la cuenta compartida conserva los permisos de su token.
+
+### Google
+
+Cada parte de Google se conecta por separado, así elegís a qué llegan tus agentes: **Google Calendar**, **Gmail** y
+**Google Drive**. Abrí una, hacé clic en **Iniciar sesión con Google** y aceptá en el navegador. No hace falta
+configurar nada en Google Cloud: APX trae su propio acceso a Google, un cliente de escritorio público que por sí solo no
+llega a los datos de nadie; el acceso que da Google queda en el almacén de secretos de esta computadora y lo podés quitar
+en [myaccount.google.com/permissions](https://myaccount.google.com/permissions). Si preferís un OAuth client tuyo,
+elegí **Mi propio OAuth client** en el mismo diálogo.
+
+| Parte | Qué pueden hacer los agentes | Te pregunta antes |
+|---|---|---|
+| Google Calendar | Leer eventos, buscar huecos libres, crear y cambiar eventos, sumar o quitar invitados, agregar Meet, cancelar | Invitar gente y cancelar |
+| Gmail | Enviar mails. Con tu propio cliente: además buscar y leer mails y escribir borradores | Enviar siempre pregunta; escribir un borrador pregunta |
+| Google Drive | Escribir Docs y compartirlos; buscarlos y leerlos. Con tu propio cliente: buscar y leer todo tu Drive (Docs, Sheets, Slides, archivos de texto) | Compartir |
+
+El acceso de APX le pide a Google solo lo que puede verificarse sin una auditoría de seguridad paga, así que no lee tu
+correo ni el resto de tu Drive. Para leer mails, conectá tu casilla en **Canales › Email**; para todo Gmail y Drive, usá
+tu propio OAuth client.
+
+Un evento solo en tu calendario se crea sin preguntar. Eventos, mails y archivos les llegan a los agentes como datos de
+afuera, nunca como instrucciones. Con tu propio cliente, Google muestra "Google no verificó esta app": elegí
+**Avanzado** y seguí.
 Si no sabés si una creación se completó, revisá Asana antes de repetirla: APX no reintenta las escrituras automáticamente.
 
 Los servidores basados en MCP arrancan con `npx`, así que la máquina donde corre el core necesita Node.js e internet la primera vez

@@ -155,6 +155,13 @@ export function gmailApi(g: Google) {
       return { draft: d.id ?? "", message: d.message?.id ?? "", subject };
     },
 
+    /** Sends a new message at once: what APX's own client can do, since drafts and reading need restricted scopes. */
+    async send(o: { to: string[]; cc?: string[] | undefined; subject: string; body: string }) {
+      const raw = rawMessage({ to: o.to, cc: o.cc, subject: o.subject, body: o.body });
+      const m = await g.call<GMessage>(ID, `${base()}/messages/send`, { method: "POST", body: { raw } });
+      return { message: m.id ?? "", thread: m.threadId ?? "" };
+    },
+
     async sendDraft(id: string) {
       const m = await g.call<GMessage>(ID, `${base()}/drafts/send`, { method: "POST", body: { id } });
       return { message: m.id ?? "", thread: m.threadId ?? "" };

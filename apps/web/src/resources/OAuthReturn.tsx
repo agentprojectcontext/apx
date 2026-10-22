@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
 
-const NAMES: Record<string, string> = { "google-calendar": "Google Calendar", gmail: "Gmail" };
+const NAMES: Record<string, string> = {
+  "google-calendar": "Google Calendar",
+  gmail: "Gmail",
+  "google-drive": "Google Drive",
+};
 
 // Loaded only on /oauth/google. What Google sent is read once: the code leaves the address bar right away, and
 // StrictMode's second mount reuses the same call instead of spending the code twice.

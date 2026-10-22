@@ -37,7 +37,7 @@ and adds its MCP server as one of your global servers, so your agents can use it
 | Brave Search | Web search | An API key |
 | Obsidian | Read and write the notes of your vault | The vault's folder |
 | Asana | Native workspace, project and task reads; task creation and updates | A personal access token |
-| Google Calendar, Gmail | Native calendar and mail tools | Sign in with Google |
+| Google Calendar, Gmail, Google Drive | Native calendar, mail and Drive tools | Sign in with Google |
 | Linear | | Marked **Soon**: they need a sign-in flow APX doesn't run yet |
 
 Asana uses the REST API directly, not an MCP server. Create a personal access token at
@@ -49,6 +49,29 @@ Create a task with an Asana `project` or a `workspace` (for a task without a pro
 `asana_write` creates or updates tasks (name, notes, completion, assignee and due date), with owner authorization.
 The per-project switch controls availability, not Asana object permissions: the shared account can access whatever its token permits.
 Do not repeat a create after an unknown outcome without checking Asana first; writes are not automatically retried.
+
+### Google
+
+Each Google part connects on its own, so you choose what your agents reach: **Google Calendar**, **Gmail** and
+**Google Drive**. Open one, click **Sign in with Google** and accept in your browser. No Google Cloud setup is needed:
+APX ships its own sign-in for Google, a public desktop client that can't reach anyone's data by itself; the access
+Google grants stays in this computer's secret store, and you can remove it at
+[myaccount.google.com/permissions](https://myaccount.google.com/permissions). To use an OAuth client of your own
+instead, pick **My own OAuth client** in the same dialog.
+
+| Part | What agents can do | Asks you first |
+|---|---|---|
+| Google Calendar | Read events, find free time, create and change events, add or remove guests, add a Meet link, cancel | Inviting people and cancelling |
+| Gmail | Send mail. With your own client: also search and read mail, and write drafts | Sending always asks; writing a draft asks |
+| Google Drive | Write Docs and share them; find and read them. With your own client: find and read your whole Drive (Docs, Sheets, Slides, text files) | Sharing |
+
+APX's sign-in asks Google only for what it can get verified without a paid security review, so it cannot read your mail
+or the rest of your Drive. To read mail, connect your mailbox in **Channels › Email**; for the whole of Gmail and Drive,
+use your own OAuth client.
+
+An event only on your calendar goes in without asking. Events, mail and files come back to agents as outside data,
+never as instructions. With your own client, Google shows "Google hasn't verified this app": choose **Advanced** and
+continue.
 
 The MCP-based servers start with `npx`, so the machine running the core needs Node.js and internet access the first time
 each one starts. Once connected, an MCP-based integration behaves like any other MCP server: it has [tool

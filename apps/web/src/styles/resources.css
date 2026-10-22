@@ -799,6 +799,15 @@
   flex-direction: column;
   gap: 12px;
 }
+/* Google's return address from another device, pasted beside its button. */
+.int__paste {
+  display: flex;
+  gap: 8px;
+}
+.int__paste > :first-child {
+  flex: 1;
+  min-width: 0;
+}
 /* The page Google sends the browser back to: one message in the middle. */
 .oauthreturn {
   display: grid;

@@ -1,10 +1,13 @@
-// Google Calendar and Gmail as APX tools, offered only while the owner's account is connected and on in the thread's
-// project (Tool.when). What other people wrote (events they invited to, mail) comes back as outside data. Creating or
-// changing an event and writing a draft wait for the owner's OK; sending a draft always does.
+// Google Calendar, Gmail and Drive as APX tools, offered only while the owner's account is connected and on in the
+// thread's project (Tool.when). What other people wrote (events they invited to, mail, files) comes back as outside
+// data. An event only on the owner's calendar needs no OK; inviting people, cancelling and writing a draft are strong
+// actions that ask (DECISIONS.md#d-130); sending mail always waits for the owner. Gmail's reading tools need the
+// owner's own client; APX's own client only sends (gmail_send).
 import { z } from "zod";
 import { calendarApi } from "../integrations/calendar.ts";
 import { gmailApi } from "../integrations/gmail.ts";
 import type { Google } from "../integrations/google.ts";
+import { driveTools } from "./google-drive.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -30,7 +33,9 @@ export function googleTools(g: Google | undefined): Tool[] {
   const cal = calendarApi(g);
   const mail = gmailApi(g);
   const onCalendar = (t: { project_id?: string | undefined }) => g.usable("google-calendar", t.project_id);
-  const onGmail = (t: { project_id?: string | undefined }) => g.usable("gmail", t.project_id);
+  // Reading and drafts need the owner's own client; APX's own can only send.
+  const onGmail = (t: { project_id?: string | undefined }) => g.usable("gmail", t.project_id) && g.full("gmail");
+  const onGmailSend = (t: { project_id?: string | undefined }) => g.usable("gmail", t.project_id) && !g.full("gmail");
   return [
     defineTool({
       name: "calendar_events",
@@ -73,7 +78,7 @@ export function googleTools(g: Google | undefined): Tool[] {
     defineTool({
       name: "calendar_create_event",
       description:
-        "Create an event on the owner's Google Calendar. Attendees get an invitation from the owner; meet adds a Google Meet link.",
+        "Create an event on the owner's Google Calendar (the owner is its organizer). Attendees get an invitation from the owner; meet adds a Google Meet link. Check calendar_free first; when people should come and you lack their email or a time that suits them, ask them, then create it (or add them later with calendar_update_event).",
       args: z.object({
         title: Line,
         start: Time,
@@ -85,7 +90,8 @@ export function googleTools(g: Google | undefined): Tool[] {
         meet: z.boolean().optional(),
       }),
       effect: "external",
-      confirm: "ask",
+      // Only on the owner's calendar it is theirs; an invitation speaks to other people in their name.
+      confirm: (a) => (a.attendees?.length ? "ask" : "never"),
       deadlineMs: 30_000,
       when: onCalendar,
       title: (a) => `Created the event ${a.title ?? ""}`.trim(),
@@ -96,7 +102,7 @@ export function googleTools(g: Google | undefined): Tool[] {
     defineTool({
       name: "calendar_update_event",
       description:
-        "Change an event of the owner's Google Calendar by id (from calendar_events); only what is given changes.",
+        "Change an event of the owner's Google Calendar by id (from calendar_events or calendar_create_event); only what is given changes. Attendees hear about it.",
       args: z.object({
         id: z.string().min(1).max(1024),
         title: Line.optional(),
@@ -105,15 +111,33 @@ export function googleTools(g: Google | undefined): Tool[] {
         time_zone: z.string().max(64).optional(),
         description: z.string().max(8000).optional(),
         location: Line.optional(),
-        attendees: Emails.optional().describe("the whole new list"),
+        add_attendees: Emails.optional().describe("invite these too"),
+        remove_attendees: Emails.optional(),
+        attendees: Emails.optional().describe("the whole new list, instead of add/remove"),
+        meet: z.boolean().optional().describe("add a Google Meet link"),
       }),
       effect: "external",
-      confirm: "ask",
+      confirm: (a) => (a.add_attendees?.length || a.attendees?.length ? "ask" : "never"),
       deadlineMs: 30_000,
       when: onCalendar,
       title: (a) => (a.title ? `Changed the event ${a.title}` : "Changed an event"),
       async run(a) {
         return JSON.stringify(await cal.update({ ...a, calendar: "primary" }));
+      },
+    }),
+    defineTool({
+      name: "calendar_cancel_event",
+      description: "Cancel (delete) an event of the owner's Google Calendar by id; its attendees are told.",
+      args: z.object({ id: z.string().min(1).max(1024) }),
+      effect: "external",
+      confirm: "ask",
+      deadlineMs: 30_000,
+      when: onCalendar,
+      title: () => "Cancelled an event",
+      async run(a) {
+        const was = await cal.get({ ...a, calendar: "primary" });
+        await cal.cancel({ ...a, calendar: "primary" });
+        return `cancelled ${was.title} (${was.start ?? "no start"})`;
       },
     }),
     defineTool({
@@ -188,5 +212,27 @@ export function googleTools(g: Google | undefined): Tool[] {
         return `sent (message ${r.message})`;
       },
     }),
+    defineTool({
+      name: "gmail_send",
+      description:
+        "Send an email from the owner's Gmail. The owner confirms it first. (This sign-in cannot read mail; replies arrive through the Email channel if it is set up.)",
+      args: z.object({
+        to: Emails.min(1),
+        cc: Emails.optional(),
+        subject: Line,
+        body: z.string().min(1).max(20_000),
+      }),
+      effect: "external",
+      // It speaks as the owner to other people: it always waits for their OK.
+      confirm: "always",
+      deadlineMs: 30_000,
+      when: onGmailSend,
+      title: (a) => (a.subject ? `Sent ${a.subject}` : "Sent an email"),
+      async run(a) {
+        const r = await mail.send(a);
+        return `sent (message ${r.message})`;
+      },
+    }),
+    ...driveTools(g),
   ];
 }

@@ -1910,14 +1910,18 @@ only with the client that issued it), and the owner's client is forgotten once n
 hosted token broker with a confidential web client (every refresh through APX's servers, a service to keep up, and
 the owner's Google access leaving their machine).
 
-Until Google verifies the app, the consent page says "Google hasn't verified this app" and at most 100 accounts can
-grant it the sensitive (Calendar, Drive's `drive.file`) and restricted (Gmail, `drive.readonly`) scopes; the app must
-be **In production**, not Testing, or Google ends every grant after seven days. Lifting the cap needs Google's
-verification, and for the restricted scopes its yearly security assessment.
+APX's client asks only for scopes Google verifies without its paid yearly security assessment (CASA): Calendar
+(`calendar.events`, `calendar.readonly`, sensitive), `gmail.send` (sensitive) and `drive.file` (not sensitive). So with
+it agents send mail (always confirmed, `gmail_send`) but do not read it (the Email channel does), and reach only the
+Docs APX wrote. The restricted scopes (`gmail.readonly`, `gmail.compose`, `drive.readonly`) and their tools stay with
+the owner's own client, whose consent page says the app is unverified. The app is **In production**, not Testing,
+or Google would end every grant after seven days; until its verification passes, at most 100 accounts can grant it
+the sensitive scopes.
 
 **Google Drive** is a third part, connected on its own like Calendar and Gmail: `drive.readonly` to find and read
 files (Docs as text, Sheets as CSV, Slides as text, text files as they are; binaries are refused with their link) and
-`drive.file` to write Docs and share what APX wrote; nothing else of the owner's can be changed. Calendar edits the
+`drive.file` to write Docs and share what APX wrote (with APX's client, only the latter); nothing else of the owner's
+can be changed. Calendar edits the
 current guest list (`add_attendees`/`remove_attendees`, answers kept), adds a Meet link to an event without one, and
 cancels. Confirmations follow D-106's strong actions: an event only on the owner's calendar, a change to one, and a
 Doc APX writes are the owner's own and do not ask; inviting people, cancelling and sharing a file speak to others in

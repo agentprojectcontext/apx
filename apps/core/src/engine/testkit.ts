@@ -88,6 +88,8 @@ export async function startCore(opts: {
   providers?: ProviderConfig[];
   /** A stand-in Google (sign-in and REST APIs under one address). */
   googleApi?: string;
+  /** The Google OAuth client the core ships, as `client_id:client_secret` (none: a build without one). */
+  googleClient?: string;
   asanaFetch?: typeof fetch;
   /** Where telemetry goes (a recorder); none sends nothing, like any test core. */
   telemetrySink?: TelemetrySink;
@@ -106,6 +108,7 @@ export async function startCore(opts: {
       providers,
       ...(opts.port !== undefined ? { port: opts.port } : {}),
       ...(opts.googleApi ? { googleApi: opts.googleApi } : {}),
+      ...(opts.googleClient ? { googleClient: opts.googleClient } : {}),
       ...(opts.expoPushUrl ? { expoPushUrl: opts.expoPushUrl } : {}),
     }),
     {

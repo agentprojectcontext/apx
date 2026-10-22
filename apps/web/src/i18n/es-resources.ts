@@ -273,7 +273,20 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "int.formNote":
     "Los tokens y claves se guardan de forma segura; los agentes los usan a través de su servidor y nunca los ven.",
   "int.oauthNote":
-    "Usá un OAuth client tuyo de Google Cloud Console: tipo App de escritorio, o Aplicación web con la dirección de abajo como URI de redirección autorizado. Un mismo client sirve para Calendar y Gmail.",
+    "Usá un OAuth client tuyo de Google Cloud Console: tipo App de escritorio, o Aplicación web con la dirección de abajo como URI de redirección autorizado. Un mismo client sirve para Calendar, Gmail y Drive.",
+  "int.clientApx": "Acceso de APX",
+  "int.clientOwn": "Mi propio OAuth client",
+  "int.apxNote":
+    "Iniciá sesión con tu cuenta de Google: no hace falta configurar nada en Google Cloud. APX pide solo lo que necesita esta integración y el acceso queda en esta computadora. Lo podés quitar cuando quieras en myaccount.google.com/permissions.",
+  "int.apxLimit.gmail":
+    "Con el acceso de APX, los agentes pueden enviar mails desde tu Gmail, siempre con tu OK, pero no leerlos. Para leer el correo, conectalo en Canales › Email o usá tu propio OAuth client.",
+  "int.apxLimit.drive":
+    "Con el acceso de APX, los agentes llegan solo a los Docs que escriben. Para buscar y leer el resto de tu Drive, usá tu propio OAuth client.",
+  "int.pasteLabel": "¿Iniciás sesión desde otro dispositivo?",
+  "int.pasteHint":
+    "Google te devuelve al APX de esta computadora, que este dispositivo no puede abrir. Copiá la dirección de la página que no cargó y pegala acá.",
+  "int.pasteFinish": "Terminar",
+  "int.pasteBad": "Esa dirección no trae el código de inicio de sesión de Google",
   "int.redirect": "URI de redirección",
   "int.signIn": "Iniciar sesión con Google",
   "int.signInAgain": "Iniciar sesión de nuevo",
@@ -293,6 +306,7 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "int.desc.obsidian": "Leer y escribir las notas de tu vault.",
   "int.desc.googlecalendar": "Tu calendario: eventos, tiempo libre, invitaciones.",
   "int.desc.gmail": "Buscar y leer tus mails, y escribir borradores.",
+  "int.desc.googledrive": "Buscar y leer tus archivos y Docs, y escribir Docs nuevos.",
   "int.desc.linear": "Issues, proyectos y ciclos.",
   "int.desc.asana": "Tareas y proyectos de tu workspace.",
 };

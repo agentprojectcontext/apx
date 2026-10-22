@@ -36,6 +36,7 @@ const DESC: Record<string, MessageKey> = {
   obsidian: "int.desc.obsidian",
   "google-calendar": "int.desc.googlecalendar",
   gmail: "int.desc.gmail",
+  "google-drive": "int.desc.googledrive",
   linear: "int.desc.linear",
   asana: "int.desc.asana",
 };

@@ -1,5 +1,6 @@
 // A Google on localhost for tests: the consent page (it says yes at once and sends the browser back with a code),
-// the token endpoint (PKCE checked), a calendar with one event, an inbox with one message, and drafts it records.
+// the token endpoint (PKCE checked), a calendar with one event, an inbox with one message, a Drive with one Doc, and
+// the drafts and events it is sent.
 import crypto from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -10,6 +11,7 @@ export async function fakeGoogle() {
   /** Codes handed out by the consent page, with the PKCE challenge they were asked with. */
   const codes = new Map<string, string>();
   const drafts: Array<{ raw: string; threadId?: string }> = [];
+  const created: Array<{ summary?: string; attendees?: Array<{ email: string }>; sendUpdates: string | null }> = [];
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://google.test");
     let body = "";
@@ -61,6 +63,15 @@ export async function fakeGoogle() {
             },
           ],
         });
+      if (url.pathname === "/calendar/v3/calendars/primary/events" && req.method === "POST") {
+        const event = JSON.parse(body) as { summary?: string; attendees?: Array<{ email: string }> };
+        created.push({ ...event, sendUpdates: url.searchParams.get("sendUpdates") });
+        return send(200, { id: `e${created.length + 1}`, ...event });
+      }
+      if (url.pathname === "/drive/v3/files")
+        return send(200, {
+          files: [{ id: "d1", name: "Northwind plan", mimeType: "application/vnd.google-apps.document" }],
+        });
       if (url.pathname === "/gmail/v1/users/me/messages/m1") {
         const headers = [
           { name: "From", value: "Ana <ana@example.com>" },
@@ -85,6 +96,7 @@ export async function fakeGoogle() {
   return {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
     drafts,
+    created,
     close: () => new Promise<void>((r) => server.close(() => r())),
   };
 }

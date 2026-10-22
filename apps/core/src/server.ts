@@ -59,6 +59,7 @@ import { createIdleTrim } from "./idle-memory.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
 import { createAsana } from "./integrations/asana.ts";
 import { createGoogle } from "./integrations/google.ts";
+import { apxGoogleClient, clientFromPair } from "./integrations/google-client.ts";
 import { GOOGLE, googleAt } from "./integrations/google-oauth.ts";
 import { createLog, type Log } from "./log.ts";
 import { mcpConfig } from "./mcp/config.ts";
@@ -256,6 +257,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     origin: () => `http://127.0.0.1:${listening}`,
     // An integration is off where the owner turned it off, and in a project that takes none of their globals.
     offIn: (project, id) => !integrationsOff.takesGlobals(project) || integrationsOff.offIn(project).includes(id),
+    // A stand-in Google never takes APX's real client.
+    builtin: clientFromPair(config.googleClient) ?? (config.googleApi ? undefined : apxGoogleClient()),
   });
   const asana = createAsana({
     secrets,

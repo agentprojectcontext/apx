@@ -57,7 +57,12 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
       connected: on,
       coming: false,
       off_in: on ? offIn(e.id, projects) : [],
-      oauth: { redirect_uri: google.redirectUri(), ...(account ? { account } : {}) },
+      oauth: {
+        redirect_uri: google.redirectUri(),
+        ...(account ? { account } : {}),
+        builtin: client.builtin,
+        ...(google.clientOf(e.id) ? { client: google.clientOf(e.id) } : {}),
+      },
     };
   };
   return {
@@ -136,7 +141,13 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
     "integrations.oauth_start": ({ id, values }) => {
       if (!isGoogleId(id)) throw notFound(`integration ${id} with a sign-in`);
       try {
-        return { url: google.start(id, { client_id: values?.client_id, client_secret: values?.client_secret }) };
+        return {
+          url: google.start(id, {
+            client: values?.client,
+            client_id: values?.client_id,
+            client_secret: values?.client_secret,
+          }),
+        };
       } catch (e) {
         throw badRequest(message(e));
       }

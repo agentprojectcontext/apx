@@ -355,10 +355,18 @@ export const resourceMethods = {
           /** Projects where it is turned off (it is on everywhere else). */
           off_in: z.array(Id),
           /**
-           * One the owner signs in to (Google): the address their OAuth client must allow as redirect, and the
-           * account it is connected as.
+           * One the owner signs in to (Google): the address their own OAuth client must allow as redirect, the
+           * account it is connected as, whether APX ships a client of its own (no Cloud Console needed) and which
+           * client it is signed in with.
            */
-          oauth: z.object({ redirect_uri: z.string(), account: z.string().optional() }).optional(),
+          oauth: z
+            .object({
+              redirect_uri: z.string(),
+              account: z.string().optional(),
+              builtin: z.boolean().optional(),
+              client: z.enum(["apx", "own"]).optional(),
+            })
+            .optional(),
         }),
       ),
     }),
@@ -376,8 +384,9 @@ export const resourceMethods = {
     access: "human",
   },
   /**
-   * Starts signing in to one that uses OAuth (Google): saves the OAuth client typed (a field left empty keeps the
-   * stored one) and gives the consent URL to open in a browser. Google sends the browser back to the panel's
+   * Starts signing in to one that uses OAuth (Google) and gives the consent URL to open in a browser. `values.client`
+   * picks APX's own client ("apx") or the owner's ("own": the client typed is saved, a field left empty keeps the
+   * stored one). Google sends the browser back to the panel's
    * /oauth/google page, which finishes it.
    */
   "integrations.oauth_start": {

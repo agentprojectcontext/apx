@@ -16,6 +16,7 @@ const BRANDS: Record<IntegrationBrand, true> = {
   obsidian: true,
   "google-calendar": true,
   gmail: true,
+  "google-drive": true,
   linear: true,
   asana: true,
 };
@@ -23,6 +24,7 @@ const ALIASES: Record<string, IntegrationBrand> = {
   brave: "brave-search",
   googlecalendar: "google-calendar",
   "google-mail": "gmail",
+  googledrive: "google-drive",
 };
 
 /** The integration an id names (`GitHub`, `brave_search`, `googlecalendar` all count), or undefined. */

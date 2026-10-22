@@ -267,7 +267,20 @@ export const enResources = {
   "int.whereToGet": "Where to get it",
   "int.formNote": "Tokens and keys are stored securely; agents use them through its server and never see them.",
   "int.oauthNote":
-    "Use an OAuth client of your own from Google Cloud Console: type Desktop app, or Web application with the address below as an authorized redirect URI. One client serves Calendar and Gmail.",
+    "Use an OAuth client of your own from Google Cloud Console: type Desktop app, or Web application with the address below as an authorized redirect URI. One client serves Calendar, Gmail and Drive.",
+  "int.clientApx": "APX sign-in",
+  "int.clientOwn": "My own OAuth client",
+  "int.apxNote":
+    "Sign in with your Google account: no setup in Google Cloud. APX asks only for what this integration needs, and the access stays on this computer. You can remove it any time at myaccount.google.com/permissions.",
+  "int.apxLimit.gmail":
+    "With APX's sign-in, agents can send mail from your Gmail, always with your OK, but not read it. To read mail, connect it in Channels › Email or use your own OAuth client.",
+  "int.apxLimit.drive":
+    "With APX's sign-in, agents reach only the Docs they write. To find and read the rest of your Drive, use your own OAuth client.",
+  "int.pasteLabel": "Signing in from another device?",
+  "int.pasteHint":
+    "Google sends you back to this computer's APX, which this device can't open. Copy the address of the page that failed to load and paste it here.",
+  "int.pasteFinish": "Finish",
+  "int.pasteBad": "That address doesn't carry Google's sign-in code",
   "int.redirect": "Redirect URI",
   "int.signIn": "Sign in with Google",
   "int.signInAgain": "Sign in again",
@@ -287,6 +300,7 @@ export const enResources = {
   "int.desc.obsidian": "Read and write the notes of your vault.",
   "int.desc.googlecalendar": "Your calendar: events, free time, invitations.",
   "int.desc.gmail": "Search and read your mail, and write drafts.",
+  "int.desc.googledrive": "Find and read your files and Docs, and write new Docs.",
   "int.desc.linear": "Issues, projects and cycles.",
   "int.desc.asana": "Tasks and projects of your workspace.",
 } as const;
