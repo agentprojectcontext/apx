@@ -145,6 +145,9 @@ export const enTeam = {
   "limits.none": "No limit",
   "limits.off": "Remove the limits",
   "limits.offHint": "Agents keep going on their own until they finish, however long it takes and whatever it costs.",
+  "limits.fanOut": "Ask before handing work to several agents",
+  "limits.fanOutHint":
+    "When the super-agent is about to give work to a third agent in one go, it asks you first: let it go on, or have it look itself and propose a plan.",
   "agentedit.group.general": "General",
   "agentedit.group.abilities": "Abilities",
   "agentedit.group.permissions": "Permissions",

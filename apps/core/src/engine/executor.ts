@@ -18,9 +18,10 @@ import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk, judgeCommand } from "../tools/shell.ts";
 import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
+import { fanOut, LOOK_FIRST } from "./fan-out.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
-import { confirmPrompt, folderPrompt } from "./owner-words.ts";
+import { confirmPrompt, fanOutPrompt, folderPrompt } from "./owner-words.ts";
 import { guarded, pathsOf } from "./paths.ts";
 import type { Permissions } from "./permissions.ts";
 import { toolTitle } from "./tool-titles.ts";
@@ -155,6 +156,8 @@ export function createExecutor(o: {
   };
   let untrusted = o.untrusted;
   let toolsRan = 0;
+  /** The owner let this turn hand work to many agents (engine/fan-out.ts): it is not asked again. */
+  let wideOk = false;
 
   /**
    * A command as a terminal job of this run, stopped at its timeout. Foreground: waits, and also stops when the turn
@@ -310,6 +313,38 @@ export function createExecutor(o: {
           : "only actions that read may run here";
       return { ok: false, text: `refused: this code thread is read-only; ${why}` };
     }
+    const wide = wideOk ? undefined : fanOut(store, run, agent, name, args);
+    if (wide && !o.inputs.takeGrant(thread.id, agent.id, name, raw)) {
+      const answer = await o.inputs.ask({
+        run,
+        agent,
+        display,
+        callId,
+        kind: "confirm",
+        prompt: fanOutPrompt(
+          store,
+          agent.name,
+          wide.map((id) => store.agents.get(id)?.name ?? id),
+        ),
+        tool: name,
+        args: raw,
+        detail: describe(args),
+        external: o.external(),
+        stays: true,
+        signal,
+      });
+      signal.throwIfAborted();
+      if (answer.state === "denied") {
+        card("error", "the owner wants a plan first");
+        return { ok: false, text: `${LOOK_FIRST}${answer.answer ? ` Their note: ${answer.answer}` : ""}` };
+      }
+      const no = unanswered(answer);
+      if (no) {
+        card("error", no.card);
+        return { ok: false, text: no.text };
+      }
+    }
+    if (wide) wideOk = true;
     // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089).
     const target = level === "always" && tool.approval ? strictApproval(tool.approval) : tool.approval;
     if (

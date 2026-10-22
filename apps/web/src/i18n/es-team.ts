@@ -147,6 +147,9 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
   "limits.none": "Sin límite",
   "limits.off": "Quitar los límites",
   "limits.offHint": "Los agentes siguen solos hasta terminar, tarden lo que tarden y cueste lo que cueste.",
+  "limits.fanOut": "Preguntar antes de repartir trabajo entre varios agentes",
+  "limits.fanOutHint":
+    "Cuando el superagente va a darle trabajo a un tercer agente de una vez, primero te pregunta: lo dejás seguir, o lo mira él y te propone un plan.",
   "agentedit.group.general": "General",
   "agentedit.group.abilities": "Capacidades",
   "agentedit.group.permissions": "Permisos",

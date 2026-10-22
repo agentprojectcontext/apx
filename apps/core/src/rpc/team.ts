@@ -30,7 +30,12 @@ export function teamHandlers(
       ...unattendedLimits(store),
       defaults: { runs: MAX_UNATTENDED_RUNS, tokens: MAX_UNATTENDED_TOKENS },
       agents: store.settings.read("agent_limits").agents ?? {},
+      fan_out_ask: store.settings.read("fan_out_ask"),
     }),
+    "agents.set_fan_out_ask": ({ ask }) => {
+      store.settings.write("fan_out_ask", ask);
+      return { ask: store.settings.read("fan_out_ask") };
+    },
     "agents.set_limits": (limits) => {
       saveUnattendedLimits(store, limits);
       return unattendedLimits(store);
