@@ -164,7 +164,8 @@ async function releaseFeed(o: { corrupt?: boolean } = {}) {
           ? ${JSON.stringify(`${base}/releases`)} : input, init),
       });
       const result = await u.apply();
-      process.stdout.write(JSON.stringify(result), () => process.exit(0));
+      // Ends on its own: process.exit with sockets still closing crashes Node on Windows.
+      process.stdout.write(JSON.stringify(result));
     `;
     const { stdout } = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", script], {
       env,
