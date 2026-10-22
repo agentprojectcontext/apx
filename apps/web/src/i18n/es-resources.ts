@@ -280,6 +280,20 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "int.clientOwn": "Mi propio OAuth client",
   "int.apxNote":
     "Iniciá sesión con tu cuenta de Google: no hace falta configurar nada en Google Cloud. APX pide solo lo que necesita esta integración y el acceso queda en esta computadora. Lo podés quitar cuando quieras en myaccount.google.com/permissions.",
+  "int.clientApxLimited": "Acceso de APX (limitado)",
+  "int.ownNote":
+    "Tu propio OAuth client llega a todo Gmail y Drive. Crealo una vez en Google Cloud (unos 5 minutos) y subí su JSON acá; sirve para Calendar, Gmail y Drive.",
+  "int.guide.project": "Creá un proyecto en Google Cloud.",
+  "int.guide.apis": "Activá las APIs de Gmail, Google Drive y Google Calendar.",
+  "int.guide.publish":
+    "En Google Auth Platform completá el nombre de la app y tu mail, elegí Externo y publicá la app (En producción): en Prueba, Google corta el acceso a los 7 días.",
+  "int.guide.client": "Creá un cliente de tipo App de escritorio y descargá su JSON.",
+  "int.guide.open": "Abrir",
+  "int.jsonUpload": "Subir el JSON del cliente",
+  "int.jsonBad": "Ese archivo no es el JSON de un OAuth client de Google Cloud",
+  "int.ownSaved": "Tu propio OAuth client ya está guardado: solo iniciá sesión.",
+  "int.ownSavedFor": "Ya conectaste {names} con tu propio OAuth client: solo iniciá sesión.",
+  "int.alsoLabel": "Conectar también, con el mismo inicio de sesión",
   "int.apxLimit.gmail":
     "Con el acceso de APX, los agentes pueden enviar mails desde tu Gmail, siempre con tu OK, pero no leerlos. Para leer el correo, conectalo en Canales › Email o usá tu propio OAuth client.",
   "int.apxLimit.drive":
@@ -290,12 +304,15 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "int.pasteFinish": "Terminar",
   "int.pasteBad": "Esa dirección no trae el código de inicio de sesión de Google",
   "int.redirect": "URI de redirección",
+  "int.redirectHint":
+    "Solo para un cliente de tipo Aplicación web: sumala como URI de redirección autorizada. Una App de escritorio no necesita nada.",
   "int.signIn": "Iniciar sesión con Google",
   "int.signInAgain": "Iniciar sesión de nuevo",
   "int.waiting": "Terminá de iniciar sesión en tu navegador. Esto se cierra solo cuando Google te devuelva.",
   "int.signedInAs": "Sesión iniciada como {account}",
   "oauth.working": "Terminando de iniciar sesión…",
   "oauth.doneTitle": "{name} está conectado",
+  "oauth.doneTitleMany": "{names} están conectados",
   "oauth.doneBody": "Podés cerrar esta pestaña y volver a APX.",
   "oauth.failTitle": "No se pudo terminar de iniciar sesión",
   "oauth.nothing": "Acá no hay ningún inicio de sesión para terminar.",

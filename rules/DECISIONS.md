@@ -1916,9 +1916,12 @@ APX's client asks only for scopes Google verifies without its paid yearly securi
 (`calendar.events`, `calendar.readonly`, sensitive), `gmail.send` (sensitive) and `drive.file` (not sensitive). So with
 it agents send mail (always confirmed, `gmail_send`) but do not read it (the Email channel does), and reach only the
 Docs APX wrote. The restricted scopes (`gmail.readonly`, `gmail.compose`, `drive.readonly`) and their tools stay with
-the owner's own client, whose consent page says the app is unverified. The app is **In production**, not Testing,
-or Google would end every grant after seven days; until its verification passes, at most 100 accounts can grant it
-the sensitive scopes.
+the owner's own client, whose consent page says the app is unverified. So the dialog starts Calendar on APX's client
+and Gmail and Drive on the owner's (APX's is there, marked limited), with a guide to create one in Google Cloud and the
+downloaded JSON as the way to enter it; one sign-in can connect the other parts with the same client (`also`), each
+keeping the refresh token. OpenClaw (`gog`) and Hermes ask every user for their own client too; neither ships one.
+The app is **In production**, not Testing, or Google would end every grant after seven days; until its verification
+passes, at most 100 accounts can grant it the sensitive scopes.
 
 **Google Drive** is a third part, connected on its own like Calendar and Gmail: `drive.readonly` to find and read
 files (Docs as text, Sheets as CSV, Slides as text, text files as they are; binaries are refused with their link) and

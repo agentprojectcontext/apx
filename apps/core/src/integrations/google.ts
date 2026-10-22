@@ -51,7 +51,10 @@ export function createGoogle(deps: {
   const fetchImpl = deps.fetch ?? fetch;
   const signer = stateSigner(FLOW_TTL_MS, now);
   /** Sign-ins under way, by their nonce: each finishes once. */
-  const flows = new Map<string, { id: GoogleId; kind: ClientKind; verifier: string; redirect: string; exp: number }>();
+  const flows = new Map<
+    string,
+    { id: GoogleId; also: GoogleId[]; kind: ClientKind; verifier: string; redirect: string; exp: number }
+  >();
   const access = new Map<GoogleId, { token: string; exp: number }>();
 
   const own = (): ClientCreds | undefined => {
@@ -89,12 +92,14 @@ export function createGoogle(deps: {
     full: (id: GoogleId) => g.clientOf(id) === "own",
 
     /**
-     * The consent URL for one integration. `client` "own" saves the owner's client (what is typed; empty keeps what
-     * is stored); without it, APX's own client is used when this build has one and nothing was typed.
+     * The consent URL for one integration, and for `also` in the same consent (one sign-in, one refresh token kept
+     * for each). `client` "own" saves the owner's client (what is typed; empty keeps what is stored); without it,
+     * APX's own client is used when this build has one and nothing was typed.
      */
     start(
       id: GoogleId,
       values: { client?: string | undefined; client_id?: string | undefined; client_secret?: string | undefined },
+      also: GoogleId[] = [],
     ): string {
       const typedId = values.client_id?.trim();
       const typedSecret = values.client_secret?.trim();
@@ -119,9 +124,10 @@ export function createGoogle(deps: {
       const nonce = randomUUID();
       const { verifier, challenge } = pkce();
       const redirect = redirectUri();
-      flows.set(nonce, { id, kind, verifier, redirect, exp: now() + FLOW_TTL_MS });
-      const entry = GOOGLE_INTEGRATIONS.find((x) => x.id === id);
-      const scopes = ["openid", "email", ...((kind === "apx" ? entry?.apxScopes : entry?.scopes) ?? [])];
+      const more = [...new Set(also)].filter((x) => x !== id);
+      flows.set(nonce, { id, also: more, kind, verifier, redirect, exp: now() + FLOW_TTL_MS });
+      const wanted = GOOGLE_INTEGRATIONS.filter((x) => x.id === id || more.includes(x.id));
+      const scopes = ["openid", "email", ...wanted.flatMap((e) => (kind === "apx" ? e.apxScopes : e.scopes))];
       return authUrl(endpoints, {
         clientId: c.clientId,
         redirectUri: redirect,
@@ -132,7 +138,10 @@ export function createGoogle(deps: {
     },
 
     /** The code Google sent back: a state this core signed in the last minutes, used once. */
-    async finish(code: string, state: string): Promise<{ id: GoogleId; account: string | undefined }> {
+    async finish(
+      code: string,
+      state: string,
+    ): Promise<{ id: GoogleId; also: GoogleId[]; account: string | undefined }> {
       const data = signer.verify(state);
       const flow = data?.nonce ? flows.get(data.nonce) : undefined;
       if (!data || !flow || flow.id !== data.id || flow.exp < now())
@@ -145,12 +154,14 @@ export function createGoogle(deps: {
         { ...c, code, redirectUri: flow.redirect, verifier: flow.verifier },
         fetchImpl,
       );
-      secrets.set(refreshName(flow.id), got.refreshToken);
-      store.settings.set(accountKey(flow.id), got.email ?? "");
-      store.settings.set(clientKey(flow.id), flow.kind);
-      access.delete(flow.id);
-      if (got.accessToken) access.set(flow.id, { token: got.accessToken, exp: now() + got.expiresIn * 1000 });
-      return { id: flow.id, account: got.email };
+      for (const id of [flow.id, ...flow.also]) {
+        secrets.set(refreshName(id), got.refreshToken);
+        store.settings.set(accountKey(id), got.email ?? "");
+        store.settings.set(clientKey(id), flow.kind);
+        access.delete(id);
+        if (got.accessToken) access.set(id, { token: got.accessToken, exp: now() + got.expiresIn * 1000 });
+      }
+      return { id: flow.id, also: flow.also, account: got.email };
     },
 
     /** Forgets one integration's sign-in; the owner's client goes too once no integration signs in with it. */

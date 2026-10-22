@@ -52,11 +52,15 @@ El switch por proyecto controla la disponibilidad, no los permisos sobre objetos
 ### Google
 
 Cada parte de Google se conecta por separado, así elegís a qué llegan tus agentes: **Google Calendar**, **Gmail** y
-**Google Drive**. Abrí una, hacé clic en **Iniciar sesión con Google** y aceptá en el navegador. No hace falta
-configurar nada en Google Cloud: APX trae su propio acceso a Google, un cliente de escritorio público que por sí solo no
-llega a los datos de nadie; el acceso que da Google queda en el almacén de secretos de esta computadora y lo podés quitar
-en [myaccount.google.com/permissions](https://myaccount.google.com/permissions). Si preferís un OAuth client tuyo,
-elegí **Mi propio OAuth client** en el mismo diálogo.
+**Google Drive**. El acceso que da Google queda en el almacén de secretos de esta computadora y lo podés quitar en
+[myaccount.google.com/permissions](https://myaccount.google.com/permissions).
+
+- **Calendar** arranca en **Acceso de APX**: hacé clic en **Iniciar sesión con Google** y aceptá en el navegador, sin
+  configurar nada en Google Cloud.
+- **Gmail y Drive** arrancan en **Mi propio OAuth client**, que llega a todo. El diálogo te guía para crearlo una vez en
+  Google Cloud (unos 5 minutos); después subís el JSON que te da Google. Publicá la app (**En producción**): en Prueba,
+  Google corta el acceso a los 7 días. Un mismo inicio de sesión puede conectar las otras partes, con el mismo cliente.
+- **Acceso de APX (limitado)** está también para Gmail y Drive, para enviar mails y los Docs que escribe APX.
 
 | Parte | Qué pueden hacer los agentes | Te pregunta antes |
 |---|---|---|

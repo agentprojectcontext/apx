@@ -394,6 +394,8 @@ export const resourceMethods = {
       .object({
         id: z.string().max(40),
         values: z.record(z.string().max(40), z.string().max(4000)).optional(),
+        /** Other Google parts to connect in the same consent (one sign-in for Gmail, Drive and Calendar). */
+        also: z.array(z.string().max(40)).max(5).optional(),
       })
       .strict(),
     result: z.object({ url: z.string() }),
@@ -406,7 +408,7 @@ export const resourceMethods = {
    */
   "integrations.oauth_finish": {
     params: z.object({ code: z.string().min(1).max(2000), state: z.string().min(1).max(2000) }).strict(),
-    result: z.object({ id: z.string(), account: z.string().optional() }),
+    result: z.object({ id: z.string(), also: z.array(z.string()).optional(), account: z.string().optional() }),
     effect: true,
     access: "human",
     open: true,

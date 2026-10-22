@@ -14,7 +14,7 @@ const NAMES: Record<string, string> = {
 // StrictMode's second mount reuses the same call instead of spending the code twice.
 const params = new URLSearchParams(window.location.search);
 if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
-let finishing: Promise<{ id: string; account?: string | undefined }> | undefined;
+let finishing: Promise<{ id: string; also?: string[] | undefined; account?: string | undefined }> | undefined;
 function finish() {
   const code = params.get("code");
   const state = params.get("state");
@@ -30,7 +30,7 @@ export function OAuthReturn() {
   const t = useT();
   const [state, setState] = useState<
     | { kind: "working" }
-    | { kind: "done"; id: string; account?: string | undefined }
+    | { kind: "done"; id: string; also?: string[] | undefined; account?: string | undefined }
     | { kind: "failed"; error: string }
     | { kind: "nothing" }
   >({ kind: "working" });
@@ -53,7 +53,13 @@ export function OAuthReturn() {
       {state.kind === "done" && (
         <EmptyState
           icon={<Icons.CircleCheck />}
-          title={t("oauth.doneTitle", { name: NAMES[state.id] ?? state.id })}
+          title={
+            state.also?.length
+              ? t("oauth.doneTitleMany", {
+                  names: [state.id, ...state.also].map((id) => NAMES[id] ?? id).join(", "),
+                })
+              : t("oauth.doneTitle", { name: NAMES[state.id] ?? state.id })
+          }
           action={open}
         >
           {state.account ? `${t("int.signedInAs", { account: state.account })}. ` : ""}

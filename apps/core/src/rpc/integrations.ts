@@ -138,15 +138,18 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
       mcp.drop({ scope: "global", name: e.id });
       return { connected: true as const };
     },
-    "integrations.oauth_start": ({ id, values }) => {
+    "integrations.oauth_start": ({ id, values, also }) => {
       if (!isGoogleId(id)) throw notFound(`integration ${id} with a sign-in`);
+      const more = also ?? [];
+      const unknown = more.find((x) => !isGoogleId(x));
+      if (unknown) throw badRequest(`${unknown} is not a Google integration`);
       try {
         return {
-          url: google.start(id, {
-            client: values?.client,
-            client_id: values?.client_id,
-            client_secret: values?.client_secret,
-          }),
+          url: google.start(
+            id,
+            { client: values?.client, client_id: values?.client_id, client_secret: values?.client_secret },
+            more.filter(isGoogleId),
+          ),
         };
       } catch (e) {
         throw badRequest(message(e));
@@ -155,7 +158,11 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
     "integrations.oauth_finish": async ({ code, state }) => {
       try {
         const done = await google.finish(code, state);
-        return { id: done.id, ...(done.account ? { account: done.account } : {}) };
+        return {
+          id: done.id,
+          ...(done.also.length ? { also: done.also } : {}),
+          ...(done.account ? { account: done.account } : {}),
+        };
       } catch (e) {
         throw badRequest(message(e));
       }

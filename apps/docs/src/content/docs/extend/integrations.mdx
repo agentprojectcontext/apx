@@ -53,11 +53,15 @@ Do not repeat a create after an unknown outcome without checking Asana first; wr
 ### Google
 
 Each Google part connects on its own, so you choose what your agents reach: **Google Calendar**, **Gmail** and
-**Google Drive**. Open one, click **Sign in with Google** and accept in your browser. No Google Cloud setup is needed:
-APX ships its own sign-in for Google, a public desktop client that can't reach anyone's data by itself; the access
-Google grants stays in this computer's secret store, and you can remove it at
-[myaccount.google.com/permissions](https://myaccount.google.com/permissions). To use an OAuth client of your own
-instead, pick **My own OAuth client** in the same dialog.
+**Google Drive**. The access Google grants stays in this computer's secret store, and you can remove it at
+[myaccount.google.com/permissions](https://myaccount.google.com/permissions).
+
+- **Calendar** starts on **APX sign-in**: click **Sign in with Google** and accept in your browser, with no Google
+  Cloud setup.
+- **Gmail and Drive** start on **My own OAuth client**, which reaches all of them. The dialog walks you through creating
+  it in Google Cloud once (about 5 minutes); then upload the JSON Google gives you. Publish the app (**In production**):
+  in Testing, Google ends the access after 7 days. One sign-in can connect the other parts too, with the same client.
+- **APX sign-in (limited)** is there for Gmail and Drive as well, for sending mail and the Docs APX writes.
 
 | Part | What agents can do | Asks you first |
 |---|---|---|

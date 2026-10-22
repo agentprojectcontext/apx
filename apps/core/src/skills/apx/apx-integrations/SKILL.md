@@ -32,8 +32,9 @@ The account is shared, with the usual per-project integration switches. These sw
 There is no automatic retry of a write; inspect Asana before repeating a create whose outcome is unknown.
 
 - Google's tools are APX's own and appear only while that account is connected (and, in a project, where it is on).
-  Each part (Calendar, Gmail, Drive) connects on its own: suggest only the one the owner needs. To read mail with APX's
-  sign-in, the owner connects the mailbox in Channels › Email.
+  Each part (Calendar, Gmail, Drive) connects on its own: suggest only the one the owner needs. Calendar works fully
+  with APX's sign-in; reading Gmail and all of Drive needs the owner's own OAuth client, which the dialog walks them
+  through creating (about 5 minutes) and can connect all three parts in one sign-in.
 - Scheduling with someone: look at `calendar_free`, ask the person (or the owner) for the missing email and a time that
   suits them, then create the event with `meet: true` for a call. People added later go in with
   `calendar_update_event` `add_attendees`; the event keeps its id, so change it instead of making a new one.

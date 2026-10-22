@@ -140,7 +140,7 @@ test("a sign-in finishes once, with the state this core signed; forged, altered 
   await assert.rejects(g.finish("good-code", `${body}.${sig}x`), /not valid/);
 
   const done = await g.finish("good-code", state);
-  assert.deepEqual(done, { id: "google-calendar", account: "owner@example.com" });
+  assert.deepEqual(done, { id: "google-calendar", also: [], account: "owner@example.com" });
   assert.equal(vault.get("google-calendar-refresh_token"), "rt-1", "the refresh token is a secret");
   assert.equal(g.connected("google-calendar"), true);
   assert.equal(g.connected("gmail"), false);
@@ -229,6 +229,30 @@ test("with APX's own client the owner signs in without one, and each integration
   assert.equal(g.client().client_id, "123-abc.apps.googleusercontent.com", "Gmail still signs in with it");
   g.disconnect("gmail");
   assert.equal(g.client().client_id, undefined);
+});
+
+test("one sign-in connects several Google parts: their scopes in one consent, the refresh token kept for each", async () => {
+  const { g, fake, vault } = setup();
+  const url = new URL(
+    g.start("gmail", { client: "own", client_id: "123-abc.apps.googleusercontent.com", client_secret: "s3cret" }, [
+      "google-drive",
+      "google-calendar",
+      "gmail",
+    ]),
+  );
+  const scope = url.searchParams.get("scope") ?? "";
+  for (const s of ["gmail.readonly", "drive.readonly", "calendar.events"]) assert.match(scope, new RegExp(s));
+  fake.setChallenge(url.searchParams.get("code_challenge") ?? "");
+  const done = await g.finish("good-code", url.searchParams.get("state") ?? "");
+  assert.deepEqual(done.also, ["google-drive", "google-calendar"], "the part asked for is not repeated");
+  for (const id of ["gmail", "google-drive", "google-calendar"] as const) {
+    assert.equal(g.connected(id), true);
+    assert.equal(g.clientOf(id), "own");
+    assert.equal(vault.get(`${id}-refresh_token`), "rt-1");
+  }
+  g.disconnect("gmail");
+  assert.equal(g.connected("google-drive"), true, "each part disconnects on its own");
+  assert.equal(g.client().client_id, "123-abc.apps.googleusercontent.com", "Drive still uses the owner's client");
 });
 
 test("without a client of APX's own, a sign-in with nothing typed says to bring one", () => {

@@ -274,6 +274,20 @@ export const enResources = {
   "int.clientOwn": "My own OAuth client",
   "int.apxNote":
     "Sign in with your Google account: no setup in Google Cloud. APX asks only for what this integration needs, and the access stays on this computer. You can remove it any time at myaccount.google.com/permissions.",
+  "int.clientApxLimited": "APX sign-in (limited)",
+  "int.ownNote":
+    "Your own OAuth client reaches all of Gmail and Drive. Create it once in Google Cloud (about 5 minutes) and upload its JSON here; it serves Calendar, Gmail and Drive.",
+  "int.guide.project": "Create a project in Google Cloud.",
+  "int.guide.apis": "Enable the Gmail, Google Drive and Google Calendar APIs.",
+  "int.guide.publish":
+    "In Google Auth Platform, fill in the app name and your email, choose External and publish the app (In production): in Testing, Google ends access after 7 days.",
+  "int.guide.client": "Create a client of type Desktop app and download its JSON.",
+  "int.guide.open": "Open",
+  "int.jsonUpload": "Upload the client's JSON",
+  "int.jsonBad": "That file is not an OAuth client JSON from Google Cloud",
+  "int.ownSaved": "Your own OAuth client is saved: just sign in.",
+  "int.ownSavedFor": "You already connected {names} with your own OAuth client: just sign in.",
+  "int.alsoLabel": "Connect these too, with the same sign-in",
   "int.apxLimit.gmail":
     "With APX's sign-in, agents can send mail from your Gmail, always with your OK, but not read it. To read mail, connect it in Channels › Email or use your own OAuth client.",
   "int.apxLimit.drive":
@@ -284,12 +298,15 @@ export const enResources = {
   "int.pasteFinish": "Finish",
   "int.pasteBad": "That address doesn't carry Google's sign-in code",
   "int.redirect": "Redirect URI",
+  "int.redirectHint":
+    "Only for a Web application client: add it as an authorized redirect URI. A Desktop app needs nothing.",
   "int.signIn": "Sign in with Google",
   "int.signInAgain": "Sign in again",
   "int.waiting": "Finish signing in in your browser. This closes by itself once Google sends you back.",
   "int.signedInAs": "Signed in as {account}",
   "oauth.working": "Finishing the sign-in…",
   "oauth.doneTitle": "{name} is connected",
+  "oauth.doneTitleMany": "{names} are connected",
   "oauth.doneBody": "You can close this tab and go back to APX.",
   "oauth.failTitle": "The sign-in did not finish",
   "oauth.nothing": "There is no sign-in to finish here.",
