@@ -330,7 +330,8 @@
 .resd__status.is-error .resd__dot {
   background: var(--apx-danger);
 }
-.resd__status.is-needs-approval .resd__dot {
+.resd__status.is-needs-approval .resd__dot,
+.resd__status.is-needs-sign-in .resd__dot {
   background: var(--apx-warning);
 }
 .resd__error {
@@ -391,8 +392,12 @@
 .resd__callout p {
   margin: 2px 0 0;
 }
-.resd__callout > div {
+.resd__callout > div,
+.resd__callout--line > strong {
   flex: 1;
+}
+.resd__callout--line {
+  align-items: center;
 }
 
 /* ── Variables ─────────────────────────────────────────────────────────────── */

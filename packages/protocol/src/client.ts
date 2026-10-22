@@ -40,7 +40,8 @@ function clientDeadline(method: string, params: unknown, fallback: number): numb
   if (method === "browser.handoff") return ((params as { timeout_s?: number })?.timeout_s ?? 300) * 1000 + 20_000;
   if (method === "browser.import_cookies") return 130_000;
   if (method === "mcp.call") return 180_000;
-  if (method === "mcp.describe" || method === "mcp.tools" || method === "mcp.test") return 45_000;
+  if (method === "mcp.describe" || method === "mcp.tools" || method === "mcp.test" || method === "mcp.signIn")
+    return 45_000;
   if (method === "system.import_v1") return 60_000;
   // Importing skills may clone a repository (the server gives up at 60 s).
   if (method === "skills.preview" || method === "skills.import") return 90_000;

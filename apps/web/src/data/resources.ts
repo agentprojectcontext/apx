@@ -57,6 +57,18 @@ export const testMcp = (s: McpServerStatus) =>
     client.call("mcp.test", { scope: s.scope, server: s.name, ...(s.project_id ? { project: s.project_id } : {}) }),
   );
 
+export const signInMcp = (s: McpServerStatus) =>
+  attempt(
+    async () =>
+      (
+        await client.call("mcp.signIn", {
+          scope: s.scope,
+          server: s.name,
+          ...(s.project_id ? { project: s.project_id } : {}),
+        })
+      ).server,
+  );
+
 export type McpDraft = {
   command?: string;
   args?: string[];

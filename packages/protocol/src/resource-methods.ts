@@ -428,6 +428,16 @@ export const resourceMethods = {
    * Starts a separate copy of a server and lists its tools: how long it took, or why it failed. The live connection
    * agents use is left alone. A project's server is tested only once the owner approved it (testing runs its command).
    */
+  /**
+   * The owner signs a server in: it starts now as the connection agents use (its sign-in page opens in their browser)
+   * and answers once it is ready, failed, or waits on that page. A server that asked to sign in waits for this.
+   */
+  "mcp.signIn": {
+    params: McpTarget,
+    result: z.object({ server: McpServerStatus }),
+    effect: true,
+    access: "human",
+  },
   "mcp.test": {
     params: z
       .object({ scope: z.enum(["global", "project"]), server: z.string().min(1).max(64), project: Id.optional() })

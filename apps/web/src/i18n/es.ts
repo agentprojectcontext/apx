@@ -964,6 +964,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "mcp.status.starting": "Arrancando",
   "mcp.status.disabled": "Desactivado",
   "mcp.status.needsApproval": "Necesita tu aprobación",
+  "mcp.status.needsSignIn": "Necesita que inicies sesión",
   "mcp.status.error": "Error",
   "config.router": "Router",
   "router.default": "Por defecto",

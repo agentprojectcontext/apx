@@ -132,6 +132,8 @@ export const enResources = {
   "res.approveTitle": "It comes from the project's .apc/mcps.json",
   "res.approveBody":
     "It runs a command from the repository. Check it before approving; a changed file needs approving again.",
+  "res.signIn": "Sign in",
+  "res.signInWaiting": "Finish signing in in your browser",
   "res.command": "Command",
   "res.url": "URL",
   "res.noVars": "Uses no variables.",

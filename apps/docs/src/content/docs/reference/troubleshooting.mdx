@@ -161,6 +161,8 @@ connect ECONNREFUSED 127.0.0.1:3000`}</Terminal>
 
 - **needs-approval**: a server from a project's `.apc/mcps.json` runs only once you trust that exact definition:
   `apx mcps trust <project> <server>`.
+- **needs-sign-in**: it asked you to sign in in your browser and waits for you; APX doesn't start it again by itself.
+  Click **Sign in** on it in **Resources › MCP**, or run `apx mcp signin <server>`.
 - **A missing key**: MCP servers get their secrets by reference; set them in **Resources › Variables**.
 - **Ambiguous server**: the same name exists globally and in a project. Add `--project <id>` and `--scope`.
 

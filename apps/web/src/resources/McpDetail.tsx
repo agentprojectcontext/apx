@@ -2,7 +2,7 @@ import type { McpServerStatus } from "@apx/protocol";
 import { Badge, Button, Icons, Switch } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { projectName } from "../data/identity.ts";
-import { listMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
+import { listMcp, signInMcp, testMcp, toggleMcp, trustMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
@@ -56,6 +56,21 @@ export function McpDetail({
   useEffect(() => {
     if (testRequest) void run();
   }, [testRequest]);
+  const [signingIn, setSigningIn] = useState(false);
+  const signIn = async () => {
+    setSigningIn(true);
+    await signInMcp(s);
+    setSigningIn(false);
+    await onChanged();
+  };
+  // While its sign-in page is open, the state is read again so the end of the sign-in shows by itself.
+  const waiting = s.status === "needs-sign-in" && Boolean(s.sign_in_url);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: polls while waiting, with the latest refresh
+  useEffect(() => {
+    if (!waiting) return;
+    const id = setInterval(() => void onChanged(), 3_000);
+    return () => clearInterval(id);
+  }, [waiting]);
 
   return (
     <article className="resd">
@@ -88,7 +103,7 @@ export function McpDetail({
           variant="secondary"
           leadingIcon={<Icons.FlaskConical size={14} />}
           loading={testing}
-          disabled={s.status === "needs-approval"}
+          disabled={s.status === "needs-approval" || s.status === "needs-sign-in"}
           onClick={() => void run()}
         >
           {t("res.test")}
@@ -134,6 +149,16 @@ export function McpDetail({
             }
           >
             {t("mcp.approve")}
+          </Button>
+        </div>
+      )}
+
+      {s.status === "needs-sign-in" && (
+        <div className="resd__callout resd__callout--line">
+          <Icons.LogIn size={16} />
+          <strong>{t(waiting ? "res.signInWaiting" : "mcp.status.needsSignIn")}</strong>
+          <Button size="sm" loading={signingIn} onClick={() => void signIn()}>
+            {t("res.signIn")}
           </Button>
         </div>
       )}

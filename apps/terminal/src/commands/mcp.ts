@@ -15,6 +15,7 @@ type Options = {
 
 export const MCPS_USAGE = `apx mcps [list [project]]                      MCP servers agents may use, and their state
 apx mcps tools|run|check <server> …            Its tools, run one, or test that it starts (apx mcp tools …)
+apx mcps signin <server> [--project p]         Sign in to one that asked for it (its page opens in your browser)
 apx mcps logs <server> [--project p] [-n 100]  What it printed on stderr since the core started (secrets masked)
 apx mcps trust|untrust <project> <server>      Approve a project's server as its .apc/mcps.json defines it
 apx mcps on|off <server> --project p           Turn one of your servers on or off inside a project
@@ -35,7 +36,7 @@ export async function mcpCommand(client: ApxClient, args: string[], o: Options):
   const lines = o.lines === undefined ? 100 : Number(o.lines);
   if (sub === "logs" && (!Number.isInteger(lines) || lines < 1 || lines > 300))
     throw new Error("-n is a number of lines, from 1 to 300");
-  if (sub !== "tools" && sub !== "run" && sub !== "check" && sub !== "logs") {
+  if (sub !== "tools" && sub !== "run" && sub !== "check" && sub !== "logs" && sub !== "signin") {
     await mcps(client, args, o);
     return;
   }
@@ -64,6 +65,16 @@ export async function mcpCommand(client: ApxClient, args: string[], o: Options):
       console.log(
         `(${clean(server)} printed nothing since the core started; it runs when an agent uses it or with apx mcp check)`,
       );
+    return;
+  }
+  if (sub === "signin") {
+    const { server: s } = await client.call("mcp.signIn", target);
+    if (o.json) console.log(JSON.stringify(s, null, 2));
+    else if (s.status === "ready") console.log(`${clean(server)}: signed in · ${s.tools} tools`);
+    else if (s.sign_in_url)
+      console.log(`${clean(server)}: finish signing in on the page it opened in your browser\n${s.sign_in_url}`);
+    else console.log(`${clean(server)}: ${s.status}${s.error ? `\n${clean(s.error)}` : ""}`);
+    if (s.status === "error") process.exitCode = 1;
     return;
   }
   if (sub === "check") {

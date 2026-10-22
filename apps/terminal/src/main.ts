@@ -49,6 +49,7 @@ Usage:
   apx mcp tools <server> [<tool>] [--project <id>] [--scope global|project] [--json]
   apx mcp run <server> <tool> ['{"key":"value"}'|-] [--project <id>]
   apx mcp check <server> [--project <id>]   Connection test
+  apx mcp signin <server> [--project <id>]  Sign in to a server that asked for it
   apx ping [text]         Round-trip over the live socket
 
   apx browser tabs

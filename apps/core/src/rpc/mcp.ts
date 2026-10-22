@@ -71,6 +71,14 @@ export function mcpHandlers(mcp: Mcp, store: Store, switchable: (name: string) =
       mcp.config.setOn(project, server, on);
       return { servers: mcp.status(project) };
     },
+    "mcp.signIn": async ({ scope, server, project }) => {
+      const d = mcp.find(scope, server, project);
+      if (!d) throw notFound(`MCP server ${server}`);
+      await mcp.signIn(d);
+      const s = mcp.status(project ?? d.only).find((x) => x.scope === scope && x.name === server);
+      if (!s) throw new Error("server vanished");
+      return { server: s };
+    },
     "mcp.test": async ({ scope, server, project }) => {
       const d = mcp.find(scope, server, project);
       if (!d) throw badRequest(`no ${scope} server ${server}`);

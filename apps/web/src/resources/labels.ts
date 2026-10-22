@@ -44,6 +44,7 @@ export const STATUS_KEY: Record<McpServerStatus["status"], MessageKey> = {
   starting: "mcp.status.starting",
   disabled: "mcp.status.disabled",
   "needs-approval": "mcp.status.needsApproval",
+  "needs-sign-in": "mcp.status.needsSignIn",
   error: "mcp.status.error",
 };
 
@@ -51,7 +52,7 @@ export const STATUS_KEY: Record<McpServerStatus["status"], MessageKey> = {
 export function mcpDot(s: McpServerStatus): "on" | "idle" | "off" | "error" | "warning" {
   if (s.off_here || s.status === "disabled") return "off";
   if (s.status === "error") return "error";
-  if (s.status === "needs-approval") return "warning";
+  if (s.status === "needs-approval" || s.status === "needs-sign-in") return "warning";
   if (s.status === "ready") return "on";
   return s.status === "off" || s.status === "starting" ? "idle" : "off";
 }

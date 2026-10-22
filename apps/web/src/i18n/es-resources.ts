@@ -136,6 +136,8 @@ export const esResources: Partial<Record<MessageKey, string>> = {
   "res.approveTitle": "Viene del .apc/mcps.json del proyecto",
   "res.approveBody":
     "Corre un comando del repositorio. Revisalo antes de aprobar; si el archivo cambia, hay que aprobarlo de nuevo.",
+  "res.signIn": "Iniciar sesión",
+  "res.signInWaiting": "Terminá de iniciar sesión en tu navegador",
   "res.command": "Comando",
   "res.url": "URL",
   "res.noVars": "No usa variables.",

@@ -1235,7 +1235,10 @@ export const McpServerStatus = z.object({
   enabled: z.boolean(),
   /** A project's server runs only after the owner approved this exact definition. */
   trusted: z.boolean(),
-  status: z.enum(["off", "needs-approval", "disabled", "starting", "ready", "error"]),
+  /** needs-sign-in: it asked the owner to sign in in their browser and is not started again until they do. */
+  status: z.enum(["off", "needs-approval", "disabled", "starting", "ready", "error", "needs-sign-in"]),
+  /** The page it asked the owner to open, while it still waits for them there. */
+  sign_in_url: z.string().optional(),
   tools: z.number().int(),
   /** Tool names once it has started. */
   tool_names: z.array(z.string()).default([]),

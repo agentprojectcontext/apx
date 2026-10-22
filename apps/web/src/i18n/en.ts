@@ -948,6 +948,7 @@ export const en = {
   "mcp.status.starting": "Starting",
   "mcp.status.disabled": "Disabled",
   "mcp.status.needsApproval": "Needs your approval",
+  "mcp.status.needsSignIn": "Needs you to sign in",
   "mcp.status.error": "Error",
   "config.router": "Router",
   "router.default": "Default",
