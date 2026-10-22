@@ -110,8 +110,11 @@ export const artifactSources = (home: string, projectId: string | undefined) =>
  * Whether a command names APX's own folder, leaving out this project's artifact sources, which its agents may build in.
  */
 export function namesApxHome(command: string, home: string, projectId: string | undefined): boolean {
-  const rest = command.split(artifactSources(home, projectId)).join("");
-  return rest.includes(home) || /\.apx(2\b|\/v2\b)/.test(rest);
+  // A command may write a path with either slash (Git Bash on Windows): both spellings count.
+  const both = (p: string) => [...new Set([p, p.split(path.sep).join("/"), p.split("/").join(path.sep)])];
+  let rest = command;
+  for (const src of both(artifactSources(home, projectId))) rest = rest.split(src).join("");
+  return both(home).some((h) => rest.includes(h)) || /\.apx(2\b|\/v2\b)/.test(rest);
 }
 
 /** Every chat's temp folder sits here; one per APX home, so a test core never shares the owner's. */
