@@ -15,7 +15,7 @@ import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem } from "../providers/types.ts";
 import { UNTRUSTED_MARK } from "../tools/result.ts";
-import { HISTORY_BUDGET_CHARS } from "./context.ts";
+import { FULL_OUTPUT_RUNS, HISTORY_BUDGET_CHARS } from "./context.ts";
 import { memoryHistory } from "./memory-projection.ts";
 
 /** A thread is compacted once what the model would see since the last summary passes this. */
@@ -26,6 +26,8 @@ const KEEP_CHARS = Math.floor(HISTORY_BUDGET_CHARS * 0.35);
 /** The transcript the auxiliary model reads, at most (its newest part when longer). */
 const TRANSCRIPT_CHARS = 100_000;
 const AUX_TIMEOUT_MS = 90_000;
+/** A compaction notice among this many latest messages is updated rather than repeated. */
+const RECENT_NOTICE_WINDOW = 30;
 const STUDY_TIMEOUT_MS = 180_000;
 
 export const SUMMARY_SECTIONS = ["Goal", "Facts and decisions", "Done", "Open", "References"] as const;
@@ -109,10 +111,23 @@ function groups(entries: LogEntry[]): Group[] {
   return out;
 }
 
+/** How much an older tool output weighs in the model's view, where it is a stub (context.ts `pruneOutput`). */
+const STUB_CHARS = 160;
+
+/** What a turn weighs in the model's view: past the newest turns, a long tool output is only its stub. */
+const seenSize = (g: Group, full: boolean) =>
+  full
+    ? g.size
+    : g.entries.reduce((n, e) => {
+        const m = e.item as ChatItem;
+        return n + (m.role === "tool" && m.content.length > 400 ? STUB_CHARS : JSON.stringify(e.item).length);
+      }, 0);
+
 /** Splits what came after the last summary into the part to summarize and the newest turns kept verbatim. */
 export function planCompaction(entries: LogEntry[], epoch: Epoch | undefined, force: boolean) {
   const after = groups(epoch ? entries.filter((e) => e.seq > epoch.upto) : entries);
-  const total = after.reduce((n, g) => n + g.size, 0);
+  // Measured as the model sees it: counting old tool output in full summarized chats every turn or two.
+  const total = after.reduce((n, g, i) => n + seenSize(g, i >= after.length - FULL_OUTPUT_RUNS), 0);
   if (!force && total < COMPACT_AT_CHARS) return undefined;
   let keep = 0;
   let kept = 0;
@@ -279,18 +294,20 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       memory_since: undefined,
       roster_hash: undefined,
     });
-    store.messages.add({
-      thread_id: threadId,
-      author: { kind: "system" },
-      parts: [
-        {
-          type: "notice",
-          level: "info",
-          code: "thread.compacted",
-          text: `Summarized ${plan.runs} earlier turns to keep this chat's context small. Nothing new was started.`,
-        },
-      ],
-    });
+    const notice = {
+      type: "notice" as const,
+      level: "info" as const,
+      code: "thread.compacted",
+      text: `Summarized ${next.runs} earlier turns to keep this chat's context small. Nothing new was started.`,
+    };
+    // One notice for a stretch of the chat: a recent one is brought up to date instead of adding another.
+    const recent = store.messages
+      .list(threadId, RECENT_NOTICE_WINDOW)
+      .findLast(
+        (m) => m.author.kind === "system" && m.parts.some((p) => p.type === "notice" && p.code === notice.code),
+      );
+    if (recent) store.messages.update({ ...recent, parts: [notice] });
+    else store.messages.add({ thread_id: threadId, author: { kind: "system" }, parts: [notice] });
     return { compacted: true };
   }
 

@@ -125,10 +125,33 @@ test("threads.compact folds older turns into a summary the next turn starts from
     seen.some((c) => c.includes("step 6")),
     "the newest turns stay verbatim",
   );
+  // A second summary a few turns later updates the same notice instead of adding another.
+  for (const n of [8, 9, 10, 11, 12]) {
+    await env.client.call("threads.send", { thread: t.id, text: `step ${n}` });
+    await env.settle(t.id);
+  }
+  assert.equal((await env.client.call("threads.compact", { thread: t.id })).compacted, true);
   const { messages } = await env.client.call("threads.get", { thread: t.id });
   const notices = messages.filter((m) => m.parts.some((p) => p.type === "notice" && p.code === "thread.compacted"));
   assert.equal(notices.length, 1);
   // The rejected summary was spent all the same.
   const { aux } = await env.client.call("usage.summary", { thread: t.id });
   assert.ok((aux.find((a) => a.purpose === "summary")?.calls ?? 0) >= 2);
+});
+
+test("old tool output counts as the stub the model sees: long reads alone do not summarize the chat", () => {
+  const huge = "y".repeat(COMPACT_AT_CHARS);
+  const entries: LogEntry[] = [];
+  for (let i = 0; i < 6; i++) {
+    entries.push(entry(i * 3 + 1, `r${i}`, { role: "user", content: "read the log" }));
+    entries.push(
+      entry(i * 3 + 2, `r${i}`, {
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: `c${i}`, type: "function", function: { name: "file_read", arguments: "{}" } }],
+      }),
+    );
+    entries.push(entry(i * 3 + 3, `r${i}`, { role: "tool", tool_call_id: `c${i}`, content: i < 4 ? huge : "short" }));
+  }
+  assert.equal(planCompaction(entries, undefined, false), undefined, "four huge old outputs are four stubs");
 });
