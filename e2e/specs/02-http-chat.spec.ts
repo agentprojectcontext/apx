@@ -21,6 +21,8 @@ for (const host of ["127.0.0.1", "panel.test"]) {
       if (r.url().endsWith("/rpc/threads.send")) sends.push(r.postData() ?? "");
     });
     await page.getByRole("combobox", { name: "Nuevo chat" }).first().click();
+    // These specs run last (their own browser options), when the list holds many agents: search, as an owner would.
+    await page.getByPlaceholder("Buscá un agente").fill("Scout");
     await page.getByRole("option", { name: /Scout/ }).first().click();
     const box = page.getByRole("textbox", { name: /^Escribile a/ });
     await box.fill(`HTTP first ${host}`);

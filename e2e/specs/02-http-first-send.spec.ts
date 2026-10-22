@@ -36,6 +36,8 @@ test("a failed first send restores files and retries on the created chat without
     await route.fulfill({ response });
   });
   await page.getByRole("combobox", { name: "Nuevo chat" }).first().click();
+  // These specs run last (their own browser options), when the list holds many agents: search, as an owner would.
+  await page.getByPlaceholder("Buscá un agente").fill("Scout");
   await page.getByRole("option", { name: /Scout/ }).first().click();
   await page
     .locator('input[type="file"]')
