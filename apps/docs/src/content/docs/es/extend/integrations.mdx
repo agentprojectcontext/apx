@@ -95,8 +95,10 @@ valor a vos, y cada fila dice dónde se usa.
 ### Dónde se guardan los valores
 
 - **macOS**: en tu Llavero de inicio de sesión.
-- **Linux, Windows**, o cualquier core arrancado con `APX_SECRETS=file`: en `secrets.json` dentro de la carpeta de
-  APX, legible solo por tu usuario (modo 600).
+- **Linux**: en tu llavero (GNOME Keyring, KWallet o cualquier Secret Service).
+- **Windows**: en `secrets.dpapi`, que solo tu cuenta de Windows puede descifrar.
+- Un servidor Linux sin llavero, o cualquier core arrancado con `APX_SECRETS=file`: en `secrets.json` dentro de la
+  carpeta de APX, legible solo por tu usuario (modo 600).
 
 ### Un valor propio de un proyecto
 

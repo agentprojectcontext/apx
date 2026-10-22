@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { CORE_ENV_FILE, coreEnvDefaults, parseCoreEnv, RELEASE_FEED } from "@apx/protocol";
-import type { SecretsBackend } from "./secrets.ts";
+import { type SecretsBackend, systemBackend } from "./secrets-stores.ts";
 import { TELEMETRY_SINK } from "./telemetry-sink.ts";
 
 /**
@@ -217,7 +217,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     },
     ollamaUrl: env.APX_OLLAMA_URL || "http://127.0.0.1:11434",
     providers: [...custom, ...DEFAULT_PROVIDERS],
-    secrets: env.APX_SECRETS === "file" || process.platform !== "darwin" ? "file" : "keychain",
+    secrets: env.APX_SECRETS === "file" ? "file" : systemBackend(),
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),
     agentName: env.APX_AGENT_NAME?.trim() || undefined,
     updates: env.APX_UPDATES === "off" ? "off" : env.APX_UPDATES === "app" ? "app" : "on",

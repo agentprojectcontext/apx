@@ -95,8 +95,10 @@ a value to you, and each row says where it's used.
 ### Where values are stored
 
 - **macOS**: in your login Keychain.
-- **Linux, Windows**, or any core started with `APX_SECRETS=file`: in `secrets.json` inside APX's home, readable only
-  by your user (mode 600).
+- **Linux**: in your keyring (GNOME Keyring, KWallet or any Secret Service).
+- **Windows**: in `secrets.dpapi`, which only your Windows account can decrypt.
+- A Linux server with no keyring, or any core started with `APX_SECRETS=file`: in `secrets.json` inside APX's home,
+  readable only by your user (mode 600).
 
 ### A project's own value
 

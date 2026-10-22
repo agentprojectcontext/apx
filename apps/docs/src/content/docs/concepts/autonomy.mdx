@@ -127,8 +127,10 @@ you (unless the agent is on `total`); the agent's own reads, edits and commands 
 API keys, tokens and passwords never go in a prompt, a file or a log. Agents and settings refer to them by name, as
 `secret://name`, and the value is looked up only at the moment it is used.
 
-- On macOS, values live in your login Keychain.
-- Elsewhere (or with `APX_SECRETS=file`), in `~/.apx/v2/secrets.json`, readable only by you.
+- Values live in your system's own store: the login Keychain on macOS, the keyring (Secret Service) on Linux, and a
+  file only your Windows account can decrypt (DPAPI) on Windows.
+- Without one (a Linux server with no keyring) or with `APX_SECRETS=file`, in `~/.apx/v2/secrets.json`, readable only
+  by you.
 - A project can override a global secret with its own value.
 - Claude Code and Codex sessions start with a clean environment: none of APX's variables.
 
