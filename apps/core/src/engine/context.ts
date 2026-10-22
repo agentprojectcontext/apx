@@ -15,6 +15,7 @@ import { DOCUMENT_GUIDANCE } from "../tools/documents.ts";
 import { fromTeam, inlineName, untrusted } from "../tools/result.ts";
 import { actionsNote, endedAs, endNote, REDIRECT_NOTE } from "./delegation.ts";
 import { SKIP_ANSWER } from "./routines.ts";
+import { outcomeNote } from "./run-outcome.ts";
 
 export const HISTORY_BUDGET_CHARS = 120_000;
 /** Runs (newest first) whose tool output stays whole; older output is replaced by a stub. */
@@ -270,10 +271,12 @@ export function frameInput(origin: Origin, text: string): string {
       return `${untrusted("terminal_output", { terminal: origin.terminal_id, exit_code: String(origin.exit_code ?? "none") }, text)}\nThe owner ran the command you suggested (${origin.command.slice(0, 120)}) in their terminal and it has ended; this is the end of what it printed. Go on from there: say whether it worked and what comes next.`;
     case "go_on":
       return `The owner let agents go on after a pause (${origin.mode === "reset" ? "a fresh budget" : "no limit until they write here again"}). What reached you while paused is above as system notes: carry on with it, then tell the owner what happened.`;
+    case "stalled_task":
+      return `APX: your task "${origin.title.slice(0, 120)}" (${origin.task_id}) is still open, but nothing has run on it since your last turn. Check where it stands: if part of it is yours to do, go on with it; if it waits on the owner, mark it with task_update awaits_owner=true and say what they need to do; if it is done, close it with task_close.`;
     case "task_result":
       return `${fromTeam("task_result", { task: origin.task_id, title: origin.title, from: origin.name, state: origin.state }, text)}\nA task you created and gave to ${inlineName(origin.name)} is closed (${origin.state}); this is their report. Tell the owner what matters.`;
     case "delegation_result":
-      return `${fromTeam("delegation_result", { from: origin.name, sub_thread: origin.thread_id, state: endedAs(origin) }, text)}\n${endNote(origin, origin)}${origin.actions ? `${actionsNote(origin.actions)}\n` : ""}This is the result of a task you delegated earlier. Tell the owner what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
+      return `${fromTeam("delegation_result", { from: origin.name, sub_thread: origin.thread_id, state: endedAs(origin) }, text)}\n${endNote(origin, origin)}${origin.outcome ? outcomeNote(origin.outcome) : ""}${origin.actions ? `${actionsNote(origin.actions)}\n` : ""}This is the result of a task you delegated earlier. Tell the owner what matters; do not delegate the same task again. ${REDIRECT_NOTE}`;
   }
 }
 

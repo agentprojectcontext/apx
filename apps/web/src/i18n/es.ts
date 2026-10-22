@@ -401,6 +401,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "turn.from.surface": "Desde {name}",
   "turn.from.command": "Comando terminado",
   "turn.from.goOn": "Seguir tras la pausa",
+  "turn.from.stalledTask": "Retomar una tarea frenada",
   "turn.from.other": "Próximo turno",
   "turn.queuedAfter": "En cola tras el turno en curso",
   "running.empty": "Nada corriendo ahora.",
@@ -526,6 +527,8 @@ export const es: Partial<Record<MessageKey, string>> = {
   "subthread.took": "Tardó {time}",
   "subthread.more": "Mostrar más",
   "subthread.less": "Mostrar menos",
+  "subthread.noAnswer": "Terminó sin respuesta",
+  "subthread.actionsFailed": "Fallaron algunas acciones",
 
   // Widgets, apps, compartir
   "widget.gone": "El widget “{title}” ya no existe.",

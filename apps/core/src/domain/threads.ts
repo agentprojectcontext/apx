@@ -63,6 +63,8 @@ export type ThreadContext = {
   close_reported?: number;
   /** A task chat an agent's turn started: the chat it came from, whose unattended limits its turns count against. */
   asked_from?: string;
+  /** A task chat that stalled: when APX last asked its agent to go on, and the stop since then the owner was told of. */
+  stall?: { revived_at: string; told?: string };
   /** Tasks agents gave from this chat while it was paused: each starts once the owner lets agents go on. */
   held?: HeldTask[];
   /** Queued delegations from this chat the breaker holds (run ids) whose notice the owner already saw. */

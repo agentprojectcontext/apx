@@ -432,6 +432,8 @@ const KnownPart = z.discriminatedUnion("type", [
     end_reason: RunEndReason.optional(),
     /** Who asked, when it is not the message's author (a consult on a task): an agent's id, or "owner". */
     asked_by: z.string().optional(),
+    /** A completed run that did not go well: it gave no answer, or some of its actions failed. */
+    issue: z.enum(["no_answer", "actions_failed"]).optional(),
   }),
   z.object({
     type: z.literal("browser"),
@@ -638,6 +640,7 @@ export const JobFrom = z.object({
     "job",
     "terminal",
     "go_on",
+    "stalled_task",
     "task_result",
     "delegation_result",
   ]),

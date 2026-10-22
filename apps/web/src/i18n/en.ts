@@ -392,6 +392,7 @@ export const en = {
   "turn.from.surface": "From {name}",
   "turn.from.command": "Command ended",
   "turn.from.goOn": "Go on after the pause",
+  "turn.from.stalledTask": "Resume a stalled task",
   "turn.from.other": "Next turn",
   "turn.queuedAfter": "Queued after the current turn",
   "running.empty": "Nothing running right now.",
@@ -516,6 +517,8 @@ export const en = {
   "subthread.took": "Took {time}",
   "subthread.more": "Show more",
   "subthread.less": "Show less",
+  "subthread.noAnswer": "Ended without an answer",
+  "subthread.actionsFailed": "Some actions failed",
 
   // Widgets, apps, sharing
   "widget.gone": "The widget “{title}” no longer exists.",

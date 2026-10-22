@@ -11,7 +11,7 @@ import type { Log } from "../log.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { fromTeam } from "../tools/result.ts";
 import type { Tool } from "../tools/types.ts";
-import { pausedNotice } from "./breaker.ts";
+import { agentTrip, pausedNotice, trip } from "./breaker.ts";
 import { actionsNote, actionsOf, createDelegations, endedAs, endNote } from "./delegation.ts";
 import type { Display } from "./display.ts";
 import type { Hooks } from "./hooks.ts";
@@ -22,6 +22,7 @@ import type { MemoryIndex } from "./memory-index.ts";
 import type { Permissions } from "./permissions.ts";
 import type { ProfileRoot } from "./profiles.ts";
 import { recoverInterrupted } from "./recovery.ts";
+import { droppedResult, outcomeNote } from "./run-outcome.ts";
 import type { SkillPicker } from "./skill-pick.ts";
 import { runTurn, type ToolCall } from "./turn.ts";
 
@@ -174,6 +175,8 @@ export type Admit = {
   resume_of?: string | undefined;
   /** A continuation of a delegated run a limit cut short is never continued again, even resumed. */
   continues?: string | undefined;
+  /** A result turn that gave no answer, tried once more; never retried again. */
+  retry_of?: string | undefined;
 };
 
 export type AdmitFn = (a: Admit) => RunRecord;
@@ -238,7 +241,7 @@ export function createEngine(deps: {
     live,
     ended,
     windowMs: (threadId) => runLimit(store, threadId, "a2a", deps).ms,
-    deliver: (parent, child, answer, stopped) => {
+    deliver: (parent, child, answer, stopped, outcome) => {
       const agent = store.agents.get(child.agent_id);
       const name = store.threads.context(child.thread_id).worker?.name ?? agent?.name ?? child.agent_id;
       const session = store.threads.get(child.thread_id)?.session;
@@ -247,7 +250,7 @@ export function createEngine(deps: {
         // The result is kept for the caller's next turn (when the owner writes), and the owner sees why it stopped.
         store.modelLog.append(parent.thread_id, child.id, [
           systemNote(
-            `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child, { session, stopped })}${actionsNote(actionsOf(store, child))}`,
+            `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child, { session, stopped })}${outcome ? outcomeNote(outcome) : ""}${actionsNote(actionsOf(store, child))}`,
           ),
         ]);
         store.messages.add({
@@ -273,6 +276,7 @@ export function createEngine(deps: {
           actions: actionsOf(store, child),
           ...(session ? { session } : {}),
           ...(stopped ? { stopped } : {}),
+          ...(outcome && outcome.level !== "ok" ? { outcome: { level: outcome.level, why: outcome.why } } : {}),
         },
         text: answer,
         depth: parent.depth,
@@ -313,6 +317,7 @@ export function createEngine(deps: {
         reply_to: a.reply_to !== undefined ? a.reply_to : (store.threads.context(a.thread_id).reply_to ?? null),
         ...(a.resume_of ? { resume_of: a.resume_of } : {}),
         ...(a.continues ? { continues: a.continues } : {}),
+        ...(a.retry_of ? { retry_of: a.retry_of } : {}),
       },
       depth: a.depth ?? 0,
       parent_run_id: a.parent_run_id,
@@ -381,6 +386,7 @@ export function createEngine(deps: {
       ended(done);
       // A turn APX's shutdown cut off is not over: the next boot closes and resumes it.
       if (TERMINAL.has(done.state)) deps.afterRun?.(done);
+      retryDropped(done);
     } finally {
       clock.stop();
       active.delete(run.id);
@@ -391,6 +397,25 @@ export function createEngine(deps: {
       live.delete(run.id);
       delegations.callerEnded(run.id);
     }
+  }
+
+  /** A result the agent dropped (no word, no tool) gets one more turn; a second silence is left for the owner's tray. */
+  function retryDropped(run: RunRecord): void {
+    if (!run.input || run.input.retry_of || run.input.resume_of || !droppedResult(store, run)) return;
+    // Paused, or the owner already wrote again: the result waits for that turn instead.
+    if (trip(store, run.thread_id) || agentTrip(store, run.thread_id, run.agent_id)) return;
+    if (store.runs.nextQueued(run.thread_id)) return;
+    log.warn({ run: run.id, thread: run.thread_id }, "a result turn gave no answer: trying it once more");
+    admit({
+      thread_id: run.thread_id,
+      agent_id: run.agent_id,
+      trigger: run.trigger,
+      origin: run.input.origin,
+      text: run.input.text,
+      depth: run.depth,
+      reply_to: run.input.reply_to,
+      retry_of: run.id,
+    });
   }
 
   function ended(run: RunRecord): void {

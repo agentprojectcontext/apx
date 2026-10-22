@@ -33,6 +33,8 @@ export type Origin =
   | { kind: "terminal"; terminal_id: string; command: string; exit_code: number | null }
   /** The owner let agents go on after a pause: with a fresh budget, or with no limit this round (DECISIONS.md#d-081). */
   | { kind: "go_on"; mode: "reset" | "release" }
+  /** APX found the agent's task open with nothing running on it, and asks it once to go on (engine/task-stall.ts). */
+  | { kind: "stalled_task"; task_id: string; title: string }
   /** A task an agent created and gave to another one was closed by that one (DECISIONS.md#d-076). */
   | { kind: "task_result"; task_id: string; title: string; state: "done" | "dropped"; agent_id: string; name: string }
   | {
@@ -50,6 +52,8 @@ export type Origin =
       session?: string;
       /** Why APX stopped going on with it after a limit cut it short (DECISIONS.md#d-116): the owner decides. */
       stopped?: string;
+      /** How it went when not well (`outcomeOf`): no answer, failed actions, an error. */
+      outcome?: { level: "warn" | "error"; why: string };
     };
 
 /** The owner speaking: from the app, or on a channel as the owner (never a contact). */
@@ -68,6 +72,8 @@ export type RunInput = {
   resume_of?: string;
   /** A delegated run APX started to go on with one a limit cut short (that run's id); never continued again. */
   continues?: string;
+  /** A result turn that gave no answer, tried once more (that run's id); never retried again. */
+  retry_of?: string;
 };
 export type RunRecord = Run & { input?: RunInput; message_id?: string };
 

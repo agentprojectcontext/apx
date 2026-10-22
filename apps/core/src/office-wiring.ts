@@ -1,8 +1,8 @@
 // How the office's clock reaches the owner: a routine's news and the reminders the owner asked for go to the attention
 // tray and, through the interruption budget (engine/nudges.ts), to the owner's channel, in the owner's language. A due
 // date passing only lands in the tray: the watch routine mentions overdue work in one line, never a message per task.
-// The same clock picks up, hourly, assigned tasks whose work never started. A provider limit that stops the agents is
-// told once per stall.
+// The same clock picks up, hourly, assigned tasks whose work never started, and revives tasks whose work stopped with
+// nobody on it (engine/task-stall.ts). A provider limit that stops the agents is told once per stall.
 import { channelTexts } from "./channels/texts.ts";
 import type { Presentation } from "./domain/channels.ts";
 import { ownerTimeZone } from "./domain/owner.ts";
@@ -13,11 +13,14 @@ import type { AdmitFn } from "./engine/engine.ts";
 import { createNudges } from "./engine/nudges.ts";
 import { createStallNotices, resetLabel } from "./engine/provider-limit.ts";
 import { createScheduler } from "./engine/routines.ts";
+import { reviveStalled } from "./engine/task-stall.ts";
 import { PICKUP_EVERY_MS, pickUpTasks } from "./engine/task-work.ts";
 import type { Log } from "./log.ts";
 
 /** A reminder noticed this late goes only to the tray: a message about it now would be noise. */
 const LATE_MS = 3 * 3600_000;
+/** How often tasks whose work stopped are looked for. */
+const STALL_CHECK_EVERY_MS = 10 * 60_000;
 
 export function officeScheduler(deps: {
   store: Store;
@@ -36,6 +39,7 @@ export function officeScheduler(deps: {
     ...(deps.now ? { now: deps.now } : {}),
   });
   let pickedAt = Number.NEGATIVE_INFINITY;
+  let stallsAt = Number.NEGATIVE_INFINITY;
   const scheduler = createScheduler({
     store,
     admit: deps.admit,
@@ -46,6 +50,11 @@ export function officeScheduler(deps: {
       if (at.getTime() - pickedAt >= PICKUP_EVERY_MS) {
         pickedAt = at.getTime();
         pickUpTasks(store, deps.admit);
+      }
+      if (at.getTime() - stallsAt >= STALL_CHECK_EVERY_MS) {
+        stallsAt = at.getTime();
+        const { revived, told } = reviveStalled(store, deps.admit, at);
+        if (revived || told) deps.log.info({ revived, told }, "stalled tasks");
       }
       const texts = channelTexts(store);
       const asked: Array<{ text: string; thread_id: string }> = [];

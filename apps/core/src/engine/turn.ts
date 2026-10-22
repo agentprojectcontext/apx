@@ -53,6 +53,7 @@ import {
 import { gitChanges } from "./changes.ts";
 import { memoryQuery, recallChats } from "./chat-recall.ts";
 import {
+  frameInput,
   HISTORY_BUDGET_CHARS,
   modeBlock,
   type ProjectBrief,
@@ -466,9 +467,10 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
               app: o.kind === "user",
             })
           : direct
-            ? files
-              ? `${said}\n\n${files}`
-              : said
+            ? // An engine session gets no header, but a result or outside text still says what it is and what to do.
+              o.kind === "go_on"
+              ? said
+              : frameInput(o, files ? `${said}\n\n${files}` : said)
             : turnInput({
                 origin: turn.input.origin,
                 text: files ? `${said}\n\n${files}` : said,

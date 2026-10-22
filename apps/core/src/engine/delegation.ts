@@ -14,6 +14,7 @@ import { agentTripped, heldNotice, tripped } from "./breaker.ts";
 import type { Display } from "./display.ts";
 import { MAX_ACTIVE_DELEGATIONS, MAX_DEPTH } from "./limits.ts";
 import { MAX_AUTO_PARTS, stalled } from "./progress.ts";
+import { answerOf as answered, type Outcome, outcomeNote, outcomeOf } from "./run-outcome.ts";
 
 export type Caller = { run: RunRecord; agent: AgentRecord; display: Display };
 
@@ -69,14 +70,22 @@ const tookMs = (run: RunRecord) =>
   run.ended_at ? Math.max(0, new Date(run.ended_at).getTime() - new Date(run.started_at).getTime()) : undefined;
 
 /** The card a delegated run shows once it ended: its state, what it answered and how long it took. */
-export function reportCard(p: Extract<Part, { type: "subthread" }>, child: RunRecord, answer: string): Part {
+export function reportCard(
+  p: Extract<Part, { type: "subthread" }>,
+  child: RunRecord,
+  answer: string,
+  outcome?: Outcome,
+): Part {
   const ms = tookMs(child);
+  const { issue: _was, ...card } = p;
+  const issue = outcome?.level === "warn" ? outcome.issue : undefined;
   return {
-    ...p,
+    ...card,
     state: child.state,
     summary: answer.slice(0, REPORT_CHARS),
     ...(ms !== undefined ? { ms } : {}),
     ...(child.end_reason ? { end_reason: child.end_reason } : {}),
+    ...(issue === "no_answer" || issue === "actions_failed" ? { issue } : {}),
   };
 }
 
@@ -160,7 +169,7 @@ export function createDelegations(deps: {
   live: Map<string, Display>;
   /** Admits the result as a new input on the caller's thread. */
   /** `stopped`: why APX stopped going on with a run a limit cut short, for the caller to tell the owner. */
-  deliver(parent: RunRecord, child: RunRecord, answer: string, stopped?: string): void;
+  deliver(parent: RunRecord, child: RunRecord, answer: string, stopped?: string, outcome?: Outcome): void;
   /** The engine's end of a run (its waiters, then this module's `childEnded`). */
   ended(run: RunRecord): void;
   /** A delegated run's first deadline in a thread, written to its row until its clock moves it. */
@@ -171,11 +180,12 @@ export function createDelegations(deps: {
   const inline = new Map<string, { caller: string; resolve(run: RunRecord | undefined): void }>();
 
   function answerOf(run: RunRecord): string {
-    const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
     // The last text is the answer; earlier ones are what it said before its tool calls.
-    const text = msg?.parts.findLast((p): p is Extract<Part, { type: "text" }> => p.type === "text")?.text;
-    return text ?? run.error ?? `(${run.state}, no answer)`;
+    return answered(store, run) ?? run.error ?? `(${run.state}, no answer)`;
   }
+
+  /** How a delegated run went, for its card and its caller. */
+  const outcomeFor = (run: RunRecord) => outcomeOf(run, Boolean(answered(store, run)), actionsOf(store, run));
 
   /** Updates the sub-thread card in the caller's answer, through its live display when it is still being written. */
   function updateCard(
@@ -200,8 +210,8 @@ export function createDelegations(deps: {
     store.messages.setPart({ ...msg, parts }, index);
   }
 
-  const settleCard = (parent: RunRecord, child: RunRecord, answer: string) =>
-    updateCard(parent, child, (p) => reportCard(p, child, answer));
+  const settleCard = (parent: RunRecord, child: RunRecord, answer: string, outcome: Outcome) =>
+    updateCard(parent, child, (p) => reportCard(p, child, answer, outcome));
 
   /** Tells the owner, once per run, that the breaker holds a queued delegation; going on (or writing) starts it. */
   function holdQueued(parentThreadId: string, run: RunRecord, who: string): void {
@@ -529,7 +539,7 @@ export function createDelegations(deps: {
       inline.delete(child.id);
       const resume = `(session "${name}": delegate with session="${name}" to continue it with ${who}, who keeps the context)`;
       if (quick && TERMINAL.has(quick.state))
-        return `${agentReply(who, answerOf(quick), endedAs(quick))}\n${endNote(quick, { session: name })}${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}${at}`;
+        return `${agentReply(who, answerOf(quick), endedAs(quick))}\n${endNote(quick, { session: name })}${outcomeNote(outcomeFor(quick))}${actionsNote(actionsOf(store, quick))}\n${REDIRECT_NOTE}\n${resume}${at}`;
       return `${who} keeps working in session "${name}". You will get the result in a new turn: do not wait or ask for its status; tell the owner and go on.${at}`;
     },
 
@@ -552,12 +562,13 @@ export function createDelegations(deps: {
         return;
       }
       const answer = answerOf(child);
+      const outcome = outcomeFor(child);
       // A caller still waiting decides itself; otherwise a run a limit cut short goes on while it progresses (DECISIONS.md#d-116).
       const cut = waiting ? undefined : continueCut(parent, child);
       const next = cut && "next" in cut ? cut.next : undefined;
       const stopped = cut && "stopped" in cut ? cut.stopped : undefined;
       if (next) updateCard(parent, child, ({ end_reason: _cut, ...p }) => ({ ...p, state: "working" }));
-      else settleCard(parent, child, answer);
+      else settleCard(parent, child, answer, outcome);
       // A caller still waiting tells the owner in the answer it is writing; a later result may reach nobody watching.
       if (!waiting && cutShort(child))
         limitNotice(parent, child, answer, next ? "continued" : stopped ? "stopped" : "returned");
@@ -568,7 +579,7 @@ export function createDelegations(deps: {
         return;
       }
       // A cascade cancel is the owner's decision: it wakes nobody.
-      if (!next && child.state !== "canceled") deps.deliver(parent, child, answer, stopped);
+      if (!next && child.state !== "canceled") deps.deliver(parent, child, answer, stopped, outcome);
     },
 
     release,

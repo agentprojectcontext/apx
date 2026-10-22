@@ -37,3 +37,17 @@ export const folderPrompt = (store: Store, agent: string, folders: string[], wri
       : `${agent} wants to read ${where}`;
   return write ? `${agent} quiere cambiar archivos en ${where}, fuera de su proyecto` : `${agent} quiere leer ${where}`;
 };
+
+const english = (store: Store) => store.settings.get("owner_language") === "en";
+
+/** A result turn that said nothing, even on its second try. */
+export const droppedWords = (store: Store, from: string) =>
+  english(store)
+    ? `Did not act on ${from}'s result, even after a second try. Open the chat to go on.`
+    : `No retomó el resultado de ${from}, ni en un segundo intento. Abrí el chat para seguir.`;
+
+/** A task still open with nobody working on it, after APX asked its agent once to go on. */
+export const stalledWords = (store: Store, agent: string) =>
+  english(store)
+    ? `Nobody is working on it: ${agent} was asked to go on and stopped again without closing it or saying what it waits for.`
+    : `Nadie la está trabajando: se le pidió a ${agent} que siguiera y volvió a frenar sin cerrarla ni decir qué espera.`;
