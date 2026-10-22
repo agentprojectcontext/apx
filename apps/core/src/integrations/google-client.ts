@@ -17,7 +17,8 @@ export function clientFromPair(pair: string | undefined): ClientCreds | undefine
   if (!pair || at < 1) return undefined;
   const clientId = pair.slice(0, at).trim();
   const clientSecret = pair.slice(at + 1).trim();
-  return clientId && clientSecret ? { clientId, clientSecret } : undefined;
+  // An id is a plain name (123-abc.apps.googleusercontent.com): a JSON text holds a ":" too, and is not one.
+  return /^[\w.-]+$/.test(clientId) && clientSecret ? { clientId, clientSecret } : undefined;
 }
 
 /** The client in a JSON as Cloud Console downloads it (`installed`), or as the build writes it. */

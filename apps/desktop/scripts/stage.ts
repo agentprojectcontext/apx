@@ -133,7 +133,7 @@ fs.writeFileSync(
 // out of the repository; a build without it offers only the owner's own client (DECISIONS.md#d-130).
 const google = process.env.APX_GOOGLE_CLIENT?.trim();
 const client = google
-  ? (clientFromPair(google) ?? clientFromJson(google))
+  ? (clientFromJson(google) ?? clientFromPair(google))
   : fs.existsSync(path.join(repo, CLIENT_FILE))
     ? clientFromJson(fs.readFileSync(path.join(repo, CLIENT_FILE), "utf8"))
     : undefined;

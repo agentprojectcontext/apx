@@ -32,5 +32,8 @@ test("a client needs both halves, written as id:secret or as JSON", () => {
   assert.deepEqual(clientFromPair(`${want.clientId}:${want.clientSecret}`), want);
   assert.equal(clientFromPair(want.clientId), undefined);
   assert.equal(clientFromPair(`${want.clientId}:`), undefined);
+  const downloaded = JSON.stringify({ installed: { client_id: want.clientId, client_secret: want.clientSecret } });
+  assert.equal(clientFromPair(downloaded), undefined, "Cloud Console's JSON is never split as id:secret");
+  assert.deepEqual(clientFromJson(downloaded), want);
   assert.equal(clientFromJson(JSON.stringify({ installed: { client_id: want.clientId } })), undefined);
 });
