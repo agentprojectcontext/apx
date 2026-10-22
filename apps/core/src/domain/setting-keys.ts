@@ -55,7 +55,7 @@ const AcpAgent = z.object({
   label: z.string().optional(),
   command: z.string().min(1),
   args: z.array(z.string()),
-  auth: z.string().optional(),
+  login: z.string().optional(),
   env: z.record(z.string(), z.string()).optional(),
 });
 

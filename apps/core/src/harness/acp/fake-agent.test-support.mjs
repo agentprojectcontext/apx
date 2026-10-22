@@ -1,4 +1,6 @@
-// A tiny ACP agent for tests: offers two models, asks permission to edit, reports a tool call and answers.
+// A tiny ACP agent for tests: offers two models, asks permission to edit, reports a tool call and answers. With
+// FAKE_SIGNED_OUT it is a CLI nobody signed in to, whose `authenticate` would open a browser (counted in FAKE_AUTH_LOG).
+import fs from "node:fs";
 import readline from "node:readline";
 
 const rl = readline.createInterface({ input: process.stdin });
@@ -18,6 +20,12 @@ rl.on("line", async (line) => {
   if (m.id !== undefined && !m.method) return waiting.get(m.id)?.(m.result);
   if (m.method === "initialize")
     return out({ id: m.id, result: { protocolVersion: 1, agentCapabilities: { loadSession: true } } });
+  if (m.method === "authenticate") {
+    fs.appendFileSync(process.env.FAKE_AUTH_LOG ?? "", "browser opened\n");
+    return out({ id: m.id, result: {} });
+  }
+  if (process.env.FAKE_SIGNED_OUT && (m.method === "session/new" || m.method === "session/load"))
+    return out({ id: m.id, error: { code: -32000, message: "Authentication required" } });
   if (m.method === "session/new" || m.method === "session/load")
     return out({
       id: m.id,

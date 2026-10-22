@@ -12,8 +12,11 @@ export type AcpAgent = {
   label: string;
   command: string;
   args: string[];
-  /** Auth method that reuses the CLI's own login (no prompt, no browser), tried once when a session needs auth. */
-  auth?: string;
+  /**
+   * The command that signs the CLI in, for the error a session that needs it ends with. APX never signs it in itself:
+   * its auth methods open the owner's browser, from turns and model listings nobody is watching.
+   */
+  login?: string;
   /**
    * What puts the CLI in "ask before acting" mode, so its edits and commands come to our policy as permission
    * requests. A CLI that acts without asking would bypass it.
@@ -33,7 +36,7 @@ export const KNOWN_ACP_AGENTS: AcpAgent[] = [
     },
   },
   { id: "qwen", label: "Qwen Code", command: "qwen", args: ["--acp", "--approval-mode", "default"] },
-  { id: "cursor", label: "Cursor", command: "cursor-agent", args: ["acp"], auth: "cursor_login" },
+  { id: "cursor", label: "Cursor", command: "cursor-agent", args: ["acp"], login: "cursor-agent login" },
   { id: "gemini-cli", label: "Gemini CLI", command: "gemini", args: ["--acp"] },
   // From the ACP registry (agentclientprotocol.com/registry): each shows up once its CLI is installed.
   { id: "copilot", label: "GitHub Copilot", command: "copilot", args: ["--acp"] },
@@ -51,11 +54,11 @@ export const KNOWN_ACP_AGENTS: AcpAgent[] = [
   { id: "codebuddy", label: "CodeBuddy", command: "codebuddy", args: ["--acp"] },
 ];
 
-/** Known agents plus the owner's own (`acp_agents` setting: [{id, label, command, args, auth?}]). */
+/** Known agents plus the owner's own (`acp_agents` setting: [{id, label, command, args, login?}]). */
 export function acpAgents(store: Store): AcpAgent[] {
   const byId = new Map(KNOWN_ACP_AGENTS.map((a) => [a.id, a]));
-  for (const { label, auth, env, ...a } of store.settings.read("acp_agents"))
-    byId.set(a.id, { ...a, label: label || a.id, ...(auth ? { auth } : {}), ...(env ? { env } : {}) });
+  for (const { label, login, env, ...a } of store.settings.read("acp_agents"))
+    byId.set(a.id, { ...a, label: label || a.id, ...(login ? { login } : {}), ...(env ? { env } : {}) });
   return [...byId.values()];
 }
 
@@ -177,10 +180,10 @@ export async function openSession(
     try {
       r = await open();
     } catch (err) {
-      const needsAuth = err instanceof RpcError && /auth/i.test(err.message);
-      if (!needsAuth || !agent.auth) throw err;
-      await rpc.request("authenticate", { methodId: agent.auth }, SESSION_MS);
-      r = await open();
+      if (!(err instanceof RpcError && /auth/i.test(err.message))) throw err;
+      throw new Error(
+        `${agent.label} is not signed in: ${agent.login ? `run ${agent.login}` : "sign in with its own CLI"} in a terminal, then try again`,
+      );
     }
     if (!r.sessionId) throw new Error(`${agent.label} opened no session`);
     if (o.signal?.aborted) throw o.signal.reason ?? new Error("canceled");
