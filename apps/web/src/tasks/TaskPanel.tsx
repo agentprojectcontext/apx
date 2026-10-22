@@ -17,7 +17,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { QuoteContext, quoteBlock } from "../chat/quote.ts";
 import { Transcript } from "../chat/Transcript.tsx";
 import { Drawer } from "../common/Drawer.tsx";
-import { formatCompact, shortWhen } from "../common/format.ts";
+import { shortWhen } from "../common/format.ts";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
 import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
@@ -35,6 +35,7 @@ import {
   useTasks,
 } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
+import { formatCompact } from "./compact.ts";
 import { historyLines } from "./history.ts";
 import { mentionToken } from "./mentions.ts";
 import { TaskComment } from "./TaskComment.tsx";

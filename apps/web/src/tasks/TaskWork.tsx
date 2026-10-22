@@ -1,11 +1,12 @@
 import type { Result, Task, Thread } from "@apx/protocol";
 import { AgentAvatar, Icons, Skeleton, Spinner } from "@apx/ui";
-import { formatCompact, formatNumber, shortWhen } from "../common/format.ts";
+import { formatNumber, shortWhen } from "../common/format.ts";
 import { blobOf, isWorking } from "../data/identity.ts";
 import { useData, useShownAgents } from "../data/state.ts";
 import { useTasks } from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { formatCompact } from "./compact.ts";
 
 /**
  * Everything a task was worked in, newest first: the chats of the agents that took it, and the consults of the

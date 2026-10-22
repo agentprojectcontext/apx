@@ -59,13 +59,6 @@ export function formatNumber(n: number, opts?: Intl.NumberFormatOptions): string
   return n.toLocaleString(currentLocale(), opts);
 }
 
-/** A count at a glance: "950", "12K", "2.4M" (the same letters in every language). */
-export function formatCompact(n: number): string {
-  if (n < 1000) return formatNumber(n);
-  if (n < 1_000_000) return `${formatNumber(n / 1000, { maximumFractionDigits: n < 10_000 ? 1 : 0 })}K`;
-  return `${formatNumber(n / 1_000_000, { maximumFractionDigits: 1 })}M`;
-}
-
 /** A file size: "54 B", "12 KB", "3.4 MB". */
 export function formatBytes(b: number): string {
   if (b < 1024) return `${b} B`;

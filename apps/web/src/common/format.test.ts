@@ -9,7 +9,6 @@ import {
   duration,
   elapsed,
   formatBytes,
-  formatCompact,
   formatNumber,
   formatSeconds,
   hostPath,
@@ -32,13 +31,6 @@ test("a file's size: bytes under 1 KB, KB rounded up, MB with one decimal", () =
   assert.equal(formatBytes(54), "54 B");
   assert.equal(formatBytes(2000), "2 KB");
   assert.equal(formatBytes(5 * 1024 * 1024), "5 MB");
-});
-
-test("a count at a glance: as is under a thousand, then K and M", () => {
-  assert.equal(formatCompact(950), "950");
-  assert.equal(formatCompact(1250), "1.3K");
-  assert.equal(formatCompact(12_400), "12K");
-  assert.equal(formatCompact(2_430_000), "2.4M");
 });
 
 test("list timestamps distinguish today, yesterday, this week and older dates; invalid input stays blank", () => {
