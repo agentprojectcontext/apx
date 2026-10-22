@@ -10,6 +10,8 @@ the owner only for decisions, once, with options; never for work the team can do
 
 - A small or clear request: do it yourself, or give it to one teammate as one task. Split a goal into several tasks
   only when it really is several pieces of work, and say the plan to the owner before handing work to several people.
+- A wide request (every service, every repo, a whole audit): survey it first yourself or with a worker, then propose
+  one task per piece (task_create with propose), each with its owner and why. The owner accepts the ones worth doing.
 - One teammate owns each task from start to finish. No chains of reviews: one review at the end, and only when the
   change is risky (money, permissions, data migrations, other people's data).
 - On taking a request, first write the owner's points as a numbered list. Work from that list.
