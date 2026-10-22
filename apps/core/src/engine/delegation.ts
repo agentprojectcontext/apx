@@ -449,11 +449,9 @@ export function createDelegations(deps: {
       if (parentThread.kind === "a2a" || ancestors(store, parentThread.id).length >= MAX_DEPTH)
         return "refused: you are answering another agent, so you do it yourself and ask no one else.";
       // Sessions are stored under a slug of the name the caller gave: look them up the same way (or by id).
-      let existing = req.session
-        ? sessionOf(store, parentThread.id, req.session)
-        : req.agent && !req.worker
-          ? agentSession(parentThread.id, req.agent.id, from.agent.id)
-          : undefined;
+      // One conversation per teammate: a new name for an agent that already has a free session here goes on there.
+      const own = req.agent && !req.worker ? agentSession(parentThread.id, req.agent.id, from.agent.id) : undefined;
+      let existing = req.session ? (sessionOf(store, parentThread.id, req.session) ?? own) : own;
       const kept = existing ? store.threads.context(existing.id).worker : undefined;
       if (existing && req.worker && !kept)
         return `refused: session "${existing.session ?? existing.id}" is with an agent, not a worker; name a new session.`;
@@ -487,8 +485,11 @@ export function createDelegations(deps: {
       const place = workspaceOf(store, from.agent, worker ? from.agent : to, parentThread, projectId, req);
       if (typeof place === "string") return place;
       if (existing && place && (existing.cwd !== place.cwd || existing.write !== place.write)) {
-        moved = existing.session ?? existing.id;
-        existing = undefined;
+        // Same project, another folder or policy: a free session takes it and keeps its context; a busy one is left.
+        if (store.threads.busy([existing.id])) {
+          moved = existing.session ?? existing.id;
+          existing = undefined;
+        } else existing = store.threads.workIn(existing.id, place);
       }
       const paused = tripped(store, parentThread.id);
       if (paused) {

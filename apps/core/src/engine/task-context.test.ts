@@ -17,6 +17,8 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     return say("Delegated the sizing; still working on the plan.");
   }
   if (said.includes("nobody on it")) return say("Gave it to Vera.");
+  if (said.includes("ask vera by another name") && !afterTool)
+    return callTool("rn", "delegate", { agent: "vera", session: "vera-review-pass", task: "one more look" });
   if (said.includes("ask vera again") && !afterTool)
     return callTool("ra", "delegate", { agent: "vera", task: "one more" });
   if (said.includes("ask vera twice") && done < 2)
@@ -174,4 +176,15 @@ test("the plan an agent keeps on the task reaches every turn of its work, whatev
     input,
     /Plan kept on the task:\n<task_plan[^>]*trust="untrusted">\n- \[x\] Export the old table\n- \[ \] Import into the new one/,
   );
+});
+
+test("a new session name for a teammate that already has a free session here goes on in that one", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+  await env.client.call("threads.send", { thread: t.id, text: "ask vera again" });
+  await env.settle(t.id);
+  await env.client.call("threads.send", { thread: t.id, text: "ask vera by another name" });
+  await env.settle(t.id);
+  const sessions = env.core.store.threads.sessions(t.id);
+  assert.equal(sessions.length, 1, "one conversation with Vera");
+  assert.equal(sessions[0]?.session, "vera");
 });

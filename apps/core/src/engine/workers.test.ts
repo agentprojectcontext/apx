@@ -176,7 +176,7 @@ test("a path inside the project is the folder a delegation works in: relative re
   });
 });
 
-test("continuing a session in another folder opens a new one with the same helper instead of refusing", async () => {
+test("continuing a session in another folder of the project goes on in it, now working there", async () => {
   await withProject(async (root, project) => {
     const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
     await env.client.call("threads.send", { thread: t.id, text: "delegate to a project subpath" });
@@ -185,12 +185,13 @@ test("continuing a session in another folder opens a new one with the same helpe
     await env.settle(t.id);
     const result = lastToolResult();
     assert.doesNotMatch(result, /refused/);
-    assert.match(result, /Session "researcher" works elsewhere, so this is a new session "researcher-2"/);
+    assert.match(result, new RegExp(`It works in ${root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},`));
     const sessions = env.core.store.threads.sessions(t.id);
-    assert.deepEqual(sessions.map((s) => [s.session, s.cwd]).sort(), [
-      ["researcher", path.join(root, "sub")],
-      ["researcher-2", root],
-    ]);
+    assert.deepEqual(
+      sessions.map((s) => [s.session, s.cwd]),
+      [["researcher", root]],
+      "one session, moved to the root with its context",
+    );
   });
 });
 
