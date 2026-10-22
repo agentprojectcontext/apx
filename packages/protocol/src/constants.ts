@@ -281,3 +281,12 @@ export function pairingLink(p: { code: string; urls: readonly string[]; thread?:
   if (p.thread) q.set("t", p.thread);
   return `apx://pair?${q.toString()}`;
 }
+
+/** Most a widget's state may hold, as JSON characters. */
+export const SURFACE_STATE_MAX = 64_000;
+
+/**
+ * An artifact's file name ends in this, widget or app alike (the kind is in its manifest). `.apxapp` and `.apxext` are
+ * kept for the marketplace's packaged apps and extensions. See DECISIONS.md#d-118.
+ */
+export const ARTIFACT_FILE_EXT = ".apxart";

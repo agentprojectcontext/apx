@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { setAnyLive } from "./liveAny.ts";
 
 // Pages kept running while hidden, in one overlay layer of the shell (moving an iframe in the DOM reloads it, so each
 // stays put and is laid over whichever placeholder shows it): apps the owner opened, until closed, and pages that
@@ -65,6 +66,7 @@ const subs = new Set<() => void>();
 
 function set(next: readonly LiveEntry[]): void {
   entries = next;
+  setAnyLive(next.length > 0);
   for (const f of subs) f();
 }
 

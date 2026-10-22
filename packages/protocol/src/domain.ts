@@ -1262,8 +1262,6 @@ export const McpServerStatus = z.object({
 export type McpServerStatus = z.infer<typeof McpServerStatus>;
 
 /** One primitive for widgets, sidebar panels and fullscreen apps. */
-/** Most a widget's state may hold, as JSON characters. */
-export const SURFACE_STATE_MAX = 64_000;
 /** A widget's state: JSON values by key. */
 export const SurfaceState = z.record(z.string().min(1).max(100), z.unknown());
 export type SurfaceState = z.infer<typeof SurfaceState>;
@@ -1349,11 +1347,6 @@ export const ArtifactManifest = z.object({
   exported_at: z.string().max(40).optional(),
 });
 export type ArtifactManifest = z.infer<typeof ArtifactManifest>;
-/**
- * An artifact's file name ends in this, widget or app alike (the kind is in its manifest). `.apxapp` and `.apxext` are
- * kept for the marketplace's packaged apps and extensions. See DECISIONS.md#d-118.
- */
-export const ARTIFACT_FILE_EXT = ".apxart";
 /** One artifact as a file: its page and, only when asked, its memory (state, store, base64 database). */
 export const ArtifactBundle = z.object({
   format: z.literal("apx-artifact@1"),

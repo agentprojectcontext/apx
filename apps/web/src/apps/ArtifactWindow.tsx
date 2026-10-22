@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
+import "../styles/artifacts.css";
 
 /** One artifact alone in a window or tab of its own (?artifact=<id>): no sidebar, no header, the page fills it. */
 export function ArtifactWindow({ id }: { id: string }) {

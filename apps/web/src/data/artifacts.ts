@@ -1,5 +1,5 @@
 import type { ArtifactBundle, ArtifactMemory, Params } from "@apx/protocol";
-import { ARTIFACT_FILE_EXT } from "@apx/protocol";
+import { ARTIFACT_FILE_EXT } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
 import type { BridgeMethod } from "../surfaces/srcdoc.ts";
 import { client } from "./client.ts";

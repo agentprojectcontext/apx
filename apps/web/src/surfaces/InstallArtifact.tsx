@@ -1,30 +1,16 @@
-import { ARTIFACT_FILE_EXT, ArtifactBundle } from "@apx/protocol";
+import type { ArtifactBundle } from "@apx/protocol";
+import { ARTIFACT_FILE_EXT } from "@apx/protocol/client";
 import { Badge, Button, Dialog, Field, Icons, Select, SettingRow, Switch } from "@apx/ui";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 import { installArtifact } from "../data/artifacts.ts";
 import { baseName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
+import { closeInstall, useInstallRequest } from "./installRequest.ts";
+import "../styles/artifacts.css";
 
 // Installing an .apxart file: drop or pick it, see what it is and what it asks for, choose where it goes, then install.
-
-let request: { project?: string } | undefined;
-const subs = new Set<() => void>();
-const changed = () => {
-  for (const f of subs) f();
-};
-
-/** Opens the install dialog, with `project` chosen as the destination. */
-export function openInstall(project?: string): void {
-  request = project ? { project } : {};
-  changed();
-}
-
-function closeInstall(): void {
-  request = undefined;
-  changed();
-}
 
 const GLOBAL = "";
 
@@ -34,13 +20,7 @@ const listed = (parts: string[], and: string) =>
 
 /** The dialog, mounted once in the shell; it shows while openInstall's request stands. */
 export function InstallArtifactDialog() {
-  const open = useSyncExternalStore(
-    (f) => {
-      subs.add(f);
-      return () => subs.delete(f);
-    },
-    () => request,
-  );
+  const open = useInstallRequest();
   if (!open) return null;
   return <InstallForm initialProject={open.project ?? GLOBAL} />;
 }
@@ -63,10 +43,12 @@ function InstallForm({ initialProject }: { initialProject: string }) {
     setError("");
     setFileName(file.name);
     try {
-      const parsed = ArtifactBundle.safeParse(JSON.parse(await file.text()));
-      if (!parsed.success) throw new Error(t("artifact.installNotArtifact"));
-      setBundle(parsed.data);
-      setPin(parsed.data.manifest.kind === "app");
+      // A light look here; the core checks the whole file when it installs it.
+      const raw = JSON.parse(await file.text()) as ArtifactBundle;
+      if (raw?.format !== "apx-artifact@1" || typeof raw.html !== "string" || typeof raw.manifest?.name !== "string")
+        throw new Error(t("artifact.installNotArtifact"));
+      setBundle(raw);
+      setPin(raw.manifest.kind === "app");
     } catch (e) {
       setBundle(undefined);
       setError(e instanceof Error && e.message ? e.message : t("artifact.installNotArtifact"));

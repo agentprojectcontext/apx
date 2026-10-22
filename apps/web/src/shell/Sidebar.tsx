@@ -8,7 +8,6 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { unreadListed } from "../inbox/groupThreads.ts";
 import { AccountRow } from "./AccountRow.tsx";
-import { AppsDock } from "./AppsDock.tsx";
 import { ChannelsNav } from "./ChannelsNav.tsx";
 import { ExternalSessionsNav } from "./ExternalSessionsNav.tsx";
 import { LAYOUT } from "./layout.ts";
@@ -17,6 +16,7 @@ import { ProjectsNav } from "./ProjectsNav.tsx";
 
 // Not needed for the first paint.
 const CornerCards = lazy(() => import("./CornerCards.tsx").then((m) => ({ default: m.CornerCards })));
+const AppsDock = lazy(() => import("./AppsDock.tsx").then((m) => ({ default: m.AppsDock })));
 const DesktopInstallNotice = lazy(() =>
   import("./DesktopInstallNotice.tsx").then((m) => ({ default: m.DesktopInstallNotice })),
 );
@@ -94,7 +94,9 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
 
         <ExternalSessionsNav rail={rail} />
 
-        <AppsDock rail={rail} />
+        <Suspense fallback={null}>
+          <AppsDock rail={rail} />
+        </Suspense>
       </div>
       {!rail && (
         <Suspense fallback={null}>

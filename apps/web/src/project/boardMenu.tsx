@@ -5,7 +5,7 @@ import { copySurface, setSurfaceFlags } from "../data/actions.ts";
 import { blobOf, projectEntries, realProjectId, teamOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { openInstall } from "../surfaces/InstallArtifact.tsx";
+import { openInstall } from "../surfaces/installRequest.ts";
 import { askForWidget } from "../surfaces/WidgetChat.tsx";
 
 export type BoardChoices = {

@@ -9,12 +9,14 @@ import { secureRequestKey } from "./request-key.ts";
 
 export {
   AGENT_NAMES,
+  ARTIFACT_FILE_EXT,
   DOCUMENT_MAX_BYTES,
   ErrorCode,
   PERSON_RELATIONS,
   PROTOCOL_VERSION,
   pairingLink,
   randomAgentName,
+  SURFACE_STATE_MAX,
   UPLOAD_LIMITS,
 } from "./constants.ts";
 

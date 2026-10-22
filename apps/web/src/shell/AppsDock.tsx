@@ -7,11 +7,12 @@ import { useT } from "../i18n/index.ts";
 import { ArtifactMemoryDialog } from "../surfaces/ArtifactMemory.tsx";
 import { ArtifactPropertiesDialog } from "../surfaces/ArtifactProperties.tsx";
 import { artifactMenu } from "../surfaces/artifactMenu.tsx";
-import { openInstall } from "../surfaces/InstallArtifact.tsx";
+import { openInstall } from "../surfaces/installRequest.ts";
 import { useRunningApps } from "../surfaces/livePool.ts";
 import { createArtifact } from "../surfaces/WidgetChat.tsx";
 import { go, useNav } from "./nav.ts";
 import { SidebarSection } from "./SidebarSection.tsx";
+import "../styles/artifacts.css";
 
 /** Folds accents and case, so "estadisticas" finds "Estadísticas". */
 const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();

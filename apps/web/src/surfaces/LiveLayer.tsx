@@ -4,6 +4,7 @@ import { useData } from "../data/state.ts";
 import { LAYOUT } from "../shell/layout.ts";
 import { dropLive, type LiveEntry, setLiveHeight, sweepLive, useLiveEntries } from "./livePool.ts";
 import { FrameView } from "./SurfaceFrame.tsx";
+import "../styles/artifacts.css";
 
 /** How often pages whose keep time ran out are closed. */
 const SWEEP_MS = 30_000;

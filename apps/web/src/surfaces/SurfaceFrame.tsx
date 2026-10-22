@@ -1,4 +1,5 @@
-import { SURFACE_STATE_MAX, type SurfaceState } from "@apx/protocol";
+import type { SurfaceState } from "@apx/protocol";
+import { SURFACE_STATE_MAX } from "@apx/protocol/client";
 import { EmptyState, Icons, Skeleton, useApx } from "@apx/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { declaresLive } from "../../../../packages/surfaces/src/kit.ts";

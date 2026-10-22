@@ -7,6 +7,7 @@ import { projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { linkOf } from "./ShareMenu.tsx";
+import "../styles/artifacts.css";
 
 /** The kit version a page asks for, as people read versions: kit@1.js → "v1". */
 const kitOf = (html: string) => {

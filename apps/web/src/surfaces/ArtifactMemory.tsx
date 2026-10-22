@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { formatBytes, formatNumber } from "../common/format.ts";
 import { artifactMemory, clearArtifactMemory, exportArtifact, type MemoryPart } from "../data/artifacts.ts";
 import { useT } from "../i18n/index.ts";
+import "../styles/artifacts.css";
 
 /** Store keys shown by name; the rest are counted. */
 const KEYS_SHOWN = 12;
