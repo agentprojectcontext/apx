@@ -7,6 +7,8 @@ import { previewOf } from "./threads.ts";
 
 /** The last release this install was told about (or started on). */
 const SEEN_KEY = "release_seen";
+/** The chat the release news goes in. */
+const THREAD_KEY = "whats_new_thread";
 const PER_SECTION = 25;
 
 // Always English: the notes are commit sentences, and a frame in another language around them reads broken.
@@ -71,11 +73,13 @@ export function announceRelease(store: Store, source: ReleaseSource): { thread?:
   const text = whatsNewText(version, releases);
   const oldest = releases.at(-1);
   return store.tx(() => {
-    const thread = store.threads.create({
-      kind: "agent",
-      title: WORDS.title(version),
-      agent_ids: [boss.id],
-    });
+    // One chat for the news: each release goes on in it (retitled) instead of opening another.
+    const kept = store.threads.get(store.settings.get(THREAD_KEY) ?? "");
+    const thread =
+      kept && !kept.archived && kept.agent_ids[0] === boss.id
+        ? store.threads.patch(kept.id, { title: WORDS.title(version) })
+        : store.threads.create({ kind: "agent", title: WORDS.title(version), agent_ids: [boss.id] });
+    store.settings.set(THREAD_KEY, thread.id);
     store.threads.mergeContext(thread.id, {
       release: {
         version,
@@ -94,7 +98,7 @@ export function announceRelease(store: Store, source: ReleaseSource): { thread?:
       { role: "user", content: `[APX: APX was updated to ${version}; you posted what changed for the owner.]` },
       { role: "assistant", content: text },
     ]);
-    store.threads.patch(thread.id, { preview: previewOf(text), unread: 1 });
+    store.threads.patch(thread.id, { preview: previewOf(text), unread: (thread.unread ?? 0) + 1 });
     store.settings.set(SEEN_KEY, version);
     return { thread: thread.id };
   });

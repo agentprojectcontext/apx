@@ -127,3 +127,27 @@ test("an install in use before release notes existed is told the release it star
     second.cleanup();
   }
 });
+
+test("each new release goes on in the same news chat, retitled, instead of opening another", async () => {
+  const llm = scriptedLlm(() => say("ok"));
+  const first = await startCore({ llm, releases: release("2.3.31") });
+  await first.client.call("threads.send", { thread: "home", text: "hello" });
+  await first.settle("home");
+  await first.core.close();
+  const second = await startCore({ llm, home: first.home, releases: release("2.3.32") });
+  await second.core.close();
+  const third = await startCore({ llm, home: first.home, releases: release("2.3.33") });
+  try {
+    const threads = await told(third.client);
+    assert.equal(threads.length, 1, "one chat for the news");
+    assert.equal(threads[0]?.title, "What's new in APX 2.3.33");
+    assert.equal(threads[0]?.release, "2.3.33");
+    assert.equal(threads[0]?.unread, 2, "both releases unread");
+    const { messages } = await third.client.call("threads.get", { thread: threads[0]?.id ?? "" });
+    const said = messages.map((m) => JSON.stringify(m.parts));
+    assert.ok(said.some((t) => /updated to 2\.3\.32/.test(t)) && said.some((t) => /updated to 2\.3\.33/.test(t)));
+  } finally {
+    await third.core.close();
+    third.cleanup();
+  }
+});
