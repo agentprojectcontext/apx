@@ -104,7 +104,7 @@ export function browserTools(store: Store, home: string): Tool[] {
       needsCap: BROWSER_CAP,
       name: "browser_open",
       description:
-        "Open a URL in the browser: in the tab this chat already uses (or `tab`), else a new one; `new_tab` for another beside it. The owner's embedded browser when the APX app is open (they can watch it), APX's own headless one otherwise (nobody sees it, nobody can log in for you). Returns the tab id. For reading or looking something up, web_read and web_search are faster; use the browser when a page needs JavaScript, clicks or forms, or when they failed.",
+        "Open a URL in your browser: in the tab this chat already uses (or `tab`), else a new one; `new_tab` for another beside it. The owner's embedded browser when the APX app is open (they can watch it), APX's own headless one otherwise (nobody sees it, nobody can log in for you). Returns the tab id. For reading or looking something up, web_read and web_search are faster; use the browser when a page needs JavaScript, clicks or forms, or when they failed. To browse a site this is your browser, not the owner's screen (screen_ tools are for when they ask for their computer); when a page fails, retry or browser_handoff before switching.",
       args: z.object({
         url: z.string().describe("http(s) URL"),
         tab: tabArg.optional().describe("tab id to load it in"),
@@ -253,7 +253,7 @@ export function browserTools(store: Store, home: string): Tool[] {
       needsCap: BROWSER_CAP,
       name: "browser_handoff",
       description:
-        "Hand the tab to the owner for login, password, 2FA or captcha, and wait until they finish (up to 5 min). Never ask for passwords in chat.",
+        "Hand the tab to the owner and wait until they press Done (up to 5 min), then go on in it yourself: a login, password, 2FA, captcha or a site that blocks you is a handoff, not a reason to give up or go another way. Just before it, tell the owner in one line what they must do and that you take the tab back after. Never ask for passwords in chat.",
       args: z.object({ tab: tabArg, reason: z.string().max(300).describe("what the owner must do, short") }),
       effect: "none",
       deadlineMs: (HANDOFF_S + 20) * 1000,

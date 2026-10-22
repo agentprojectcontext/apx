@@ -101,6 +101,11 @@ export function BrowserToolbar({ tab, onOpened }: { tab: TabInfo | undefined; on
           </Button>
         </>
       )}
+      {c?.kind === "idle" && draft == null && (
+        <span className="btoolbar__status">
+          <span className="btoolbar__statustext">{t("browser.free")}</span>
+        </span>
+      )}
       {c?.kind === "user" && draft == null && (
         <>
           <span className="btoolbar__status">
@@ -125,8 +130,12 @@ export function HandoffBar({ tab }: { tab: TabInfo }) {
     <div className="handoff" role="status">
       <Icons.Hand size={14} />
       <span className="handoff__text">
-        <b>{by}</b> {t("browser.handedYou")}
-        {reason ? `: ${reason}` : "."}
+        <b>
+          <AgentName id={by} />
+        </b>{" "}
+        {t("browser.handedYou")}
+        {reason ? `: ${reason.replace(/\.$/, "")}. ` : ". "}
+        {t("browser.handoffDone")}
       </span>
       <Button
         size="sm"
@@ -145,6 +154,10 @@ export function HandoffBar({ tab }: { tab: TabInfo }) {
 }
 
 /** Tabs record who drives them by agent id; people read the name. */
+function AgentName({ id }: { id: string }) {
+  return <>{useData((s) => s.agents[id]?.name) ?? id}</>;
+}
+
 function AgentUsing({ id }: { id: string }) {
   const t = useT();
   const name = useData((s) => s.agents[id]?.name);

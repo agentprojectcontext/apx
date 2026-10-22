@@ -152,7 +152,13 @@ export function createHeadlessBrowser(deps: {
   let starting: Promise<Pipe> | undefined;
   let seq = 0;
   const tabs = new Map<string, Tab>();
-  const holds = createTabHolds();
+  // A tab whose agent's turn ended is free again.
+  const holds = createTabHolds((id) => {
+    const t = tabs.get(id);
+    if (t?.control.kind !== "agent") return;
+    t.control = { kind: "idle" };
+    changed();
+  });
   const contexts = new Map<string, string>();
   const loads = new Map<string, () => void>();
   // A page check listens to its own tab's events.

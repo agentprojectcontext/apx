@@ -58,8 +58,13 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
   #handoffs = new Map<string, (ok: boolean) => void>();
   /** Calls running on each tab. */
   #busy = new Map<string, number>();
-  /** The tabs the core's running turns hold (browser.hold). */
-  #holds = createTabHolds();
+  /** The tabs the core's running turns hold (browser.hold); a tab whose agent's turn ended is free again. */
+  #holds = createTabHolds((id) => {
+    const tab = this.#tabs.get(id);
+    if (tab?.control.kind !== "agent") return;
+    tab.control = { kind: "idle" };
+    this.emit("changed");
+  });
   /** Called when a tab needs the human (handoff): the window should come forward and notify. */
   onAttention: (message: string) => void = () => {};
   /** Called whenever the visible tab changes, so the window can lay it out. */
@@ -257,6 +262,12 @@ export class BrowserHost extends EventEmitter<{ changed: [] }> {
     wc.on("will-navigate", (e) => guard(e, e.url));
     wc.on("will-redirect", (e) => guard(e, e.url));
     wc.on("will-frame-navigate", (e) => guard(e, e.url));
+    // The owner clicking or typing in a page an agent drives takes it over; the agent's own calls (busy) do not.
+    const touched = () => {
+      if (this.#tabs.get(id)?.control.kind === "agent" && !this.#busy.has(id)) this.takeControl(id);
+    };
+    wc.on("before-input-event", (_e, input) => input.type === "keyDown" && touched());
+    wc.on("before-mouse-event", (_e, mouse) => mouse.type === "mouseDown" && touched());
     for (const ev of ["did-navigate", "did-navigate-in-page", "page-title-updated", "did-stop-loading"] as const) {
       wc.on(ev as "did-stop-loading", () => this.emit("changed"));
     }
