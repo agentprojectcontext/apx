@@ -14,7 +14,8 @@ import { taskWords } from "../tools/tasks.ts";
 import { agentTrip, heldNotice, trip } from "./breaker.ts";
 import { reportCard } from "./delegation.ts";
 import type { AdmitFn } from "./engine.ts";
-import { mentioned, taskCommentAttention } from "./office.ts";
+import { mentioned, mentionsOwner, taskCommentAttention } from "./office.ts";
+import { answersOwner, ownerTurnEnded } from "./task-inbox.ts";
 import { closedIn, reportClose } from "./task-report.ts";
 
 /** How often assigned tasks that never started are looked at, and how many start each time. */
@@ -53,7 +54,15 @@ const depthOf = (asker: Asker) => (asker.kind === "owner" ? 0 : asker.depth);
 const OWNER: Asker = { kind: "owner" };
 
 /** A turn of `agentId` in its chat for the task, on what `text` asks (shown there as the asker's message). */
-function ask(store: Store, admit: AdmitFn, task: Task, agentId: string, text: string, asker: Asker, author: Author) {
+export function ask(
+  store: Store,
+  admit: AdmitFn,
+  task: Task,
+  agentId: string,
+  text: string,
+  asker: Asker,
+  author: Author,
+) {
   const thread = sessionFor(store, task, agentId);
   // Work an agent gives spends against the chat it gave it from (DECISIONS.md#d-080).
   if (asker.kind === "agent" && asker.thread_id !== thread.id && !store.threads.context(thread.id).asked_from)
@@ -162,10 +171,14 @@ export function askMentioned(store: Store, admit: AdmitFn, task: Task, text: str
   const who = mentioned(store, text, task.project_id);
   if (!who.length) return [];
   const asked = ownerWordsSinceReply(store, task.thread_id) || text;
+  const answering = (run: RunRecord) => {
+    answersOwner(store, task, run);
+    return run;
+  };
   return who.flatMap((a) => {
     const run =
       a.id === task.assignee
-        ? ask(store, admit, task, a.id, asked, OWNER, { kind: "user" })
+        ? answering(ask(store, admit, task, a.id, asked, OWNER, { kind: "user" }))
         : consult(store, admit, task, a, asked);
     return run ? [run] : [];
   });
@@ -291,8 +304,9 @@ export function addComment(store: Store, task: Task, author: Author, text: strin
 }
 
 /**
- * After a turn in a task's chat: the task moved, the turn's answer is posted to the task as its agent's comment (its
- * @mentions summon nobody), and a close in this turn reports to the creator.
+ * After a turn in a task's chat: the task moved; its answer is posted on the task when the turn closes it (the report;
+ * a close reports to the creator), answers the owner, or asks the owner (@owner). Anything else stays in the chat:
+ * agents comment on the task on purpose, with task_comment.
  */
 export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): void {
   const thread = store.threads.get(run.thread_id);
@@ -305,10 +319,12 @@ export function afterWorkTurn(store: Store, admit: AdmitFn, run: RunRecord): voi
   if (!task) return;
   const text = run.state === "completed" ? textOf(store, run) : "";
   if (run.state !== "completed") store.tasks.touched(task.id, run.agent_id, "update");
-  if (text) addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id);
+  const owners = ownerTurnEnded(store, task, run);
+  const closed = closedIn(store, store.tasks.get(task.id) ?? task, run);
+  if (text && (closed || owners || mentionsOwner(store, text)))
+    addComment(store, task, { kind: "agent", id: run.agent_id }, text, run.agent_id);
   // Closed in this turn: whoever created the task hears now, with the answer just posted as its report.
-  const now = store.tasks.get(task.id);
-  if (now && closedIn(store, now, run)) reportClose(store, admit, now.id);
+  if (closed) reportClose(store, admit, task.id);
 }
 
 /** When a task was last given to its agent (its creation with one, or the last assignment). */

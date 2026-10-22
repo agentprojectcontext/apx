@@ -19,7 +19,7 @@ import { answerOf as answered, type Outcome, outcomeNote, outcomeOf } from "./ru
 export type Caller = { run: RunRecord; agent: AgentRecord; display: Display };
 
 /**
- * Whom to ask: an agent (a new session), a session by name or id (the same agent, with its context), or both. A
+ * Whom to ask: an agent (its latest session here, else a new one), a session by name or id (the same agent, with its context), or both. A
  * worker instead of an agent is the caller itself under instructions it writes for the task.
  */
 export type DelegateTo = {
@@ -263,6 +263,26 @@ export function createDelegations(deps: {
     return started;
   }
 
+  /**
+   * The latest session this caller has with an agent in this chat: asking it again goes on there, with the context it
+   * built, instead of a new sub-thread per request. A worker's session, a task consult or an archived one is not reused.
+   */
+  function agentSession(parentId: string, agentId: string, callerId: string): Thread | undefined {
+    const latest = store.threads.sessions(parentId).find((t) => {
+      const ctx = store.threads.context(t.id);
+      return (
+        t.kind === "a2a" &&
+        !t.archived &&
+        t.agent_ids[0] === agentId &&
+        t.agent_ids.includes(callerId) &&
+        !ctx.worker &&
+        !ctx.consult
+      );
+    });
+    // One still at work keeps its task: a request made meanwhile opens another, so work asked in parallel stays parallel.
+    return latest && !store.threads.busy([latest.id]) ? latest : undefined;
+  }
+
   /** A free session name under `parentId`, from what the caller asked for (or the agent's name). */
   function sessionName(parentId: string, wanted: string): string {
     const base = slug(wanted);
@@ -419,7 +439,11 @@ export function createDelegations(deps: {
       if (parentThread.kind === "a2a" || ancestors(store, parentThread.id).length >= MAX_DEPTH)
         return "refused: you are answering another agent, so you do it yourself and ask no one else.";
       // Sessions are stored under a slug of the name the caller gave: look them up the same way (or by id).
-      let existing = req.session ? sessionOf(store, parentThread.id, req.session) : undefined;
+      let existing = req.session
+        ? sessionOf(store, parentThread.id, req.session)
+        : req.agent && !req.worker
+          ? agentSession(parentThread.id, req.agent.id, from.agent.id)
+          : undefined;
       const kept = existing ? store.threads.context(existing.id).worker : undefined;
       if (existing && req.worker && !kept)
         return `refused: session "${existing.session ?? existing.id}" is with an agent, not a worker; name a new session.`;

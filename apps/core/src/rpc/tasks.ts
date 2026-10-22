@@ -23,6 +23,7 @@ import {
 import { ancestors } from "../engine/ancestry.ts";
 import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
+import { awaitAgent } from "../engine/task-inbox.ts";
 import { reportClose } from "../engine/task-report.ts";
 import { type Asker, addComment, askMentioned, reworkTask, startTaskWork } from "../engine/task-work.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
@@ -294,6 +295,8 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
         const message = addComment(store, t, author, text, by(ctx));
         // Only the owner's @mentions ask an agent; an agent asks with `delegate` (DECISIONS.md#d-078).
         const runs = ctx.agent ? [] : askMentioned(store, engine.admit, store.tasks.get(t.id) ?? t, text);
+        // Naming no one, it waits for the task's agent (or the super-agent) to pick it up (engine/task-inbox.ts).
+        if (ctx.actor === "human" && !runs.length) awaitAgent(store, t, message.id);
         return { message, runs: runs.map(publicRun) };
       });
     },

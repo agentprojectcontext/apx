@@ -48,15 +48,17 @@ task**. That chat is a normal chat listed in the Inbox: you can open it and watc
 
 1. Lucía creates "Write the shipping rates page" in Acme Store and picks **Tomás** in **Who does it**.
 2. Tomás's chat for the task opens with the task's words and he starts: reads the project, drafts the page.
-3. Each time a turn of his ends, his answer is posted to the task as **his comment**. The task keeps the conversation
-   about the work; the chat keeps the work itself (every tool call, every file).
+3. His answers stay in his chat. He comments on the task when something is worth knowing: a step done and verified,
+   a block, something to review. The task keeps those comments; the chat keeps the work itself (every tool call,
+   every file). When he closes the task, his last answer is posted as his report.
 4. When he needs a decision, he asks you. The task moves to **Blocked** until you answer.
 
 </Steps>
 
-Open a task and its drawer shows the description, the fields, the **Conversation** (comments) and the **History**
-(who created, moved, assigned or closed it). **Open Tomás's chat for this task** jumps to where the work happens. If
-you reassign it, the new agent gets its own chat and is told who worked on it before.
+Open a task and its drawer shows the description, the fields, the **Comments** and the **History** (who created,
+moved, assigned or closed it). **Sessions** at the top counts the chats the task was worked in and opens their list,
+to jump to where the work happens. If you reassign it, the new agent gets its own chat and is told who worked on it
+before, and where to read it.
 
 <Shot name="task-drawer" alt="A task open in its drawer: title, assignee, priority, and a conversation of comments from the owner and an agent" caption="A task's drawer: comments, fields and the work chat" />
 
@@ -64,7 +66,9 @@ Assigned tasks that never started are picked up on their own: once an hour, the 
 
 ### Comments and @mentions
 
-Write in the task's **Comment** box. An `@name` asks that agent: it answers in its own chat for the task, and its
+Write in the task's **Comment** box. A comment that names no one waits a minute (so you can add another) and then
+goes to the task's agent, or to the super-agent when nobody has the task; its ticks show it sent, delivered and read.
+An `@name` asks that agent: it answers in its own chat for the task, and its
 answer comes back as a comment. Ask Vera from Lucía's task:
 
 > @Vera can you have the product photos by Thursday? This page needs them.

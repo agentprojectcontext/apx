@@ -1762,3 +1762,26 @@ the agent's own browsing tabs.
 
 **An app is built whole.** The skill asks for a plan file listing every view, then each view built and saved in turn
 until all work, in the same turn, with questions only when they block: the owner asks once and expects the whole app.
+
+<a id="d-123"></a>
+## D-123 — 2026-10-22 — Work on a task stays legible: one session per agent, deliberate comments, comments that reach someone
+A user moving a project into APX for two days kept re-uploading a guide and reminding agents where they were; on the
+owner's own office one task opened 21 chats (each `delegate` a new sub-thread, each review a new one) and its
+conversation repeated every turn's full answer. Nobody could tell what was going on without reading everything.
+
+**One session per agent.** `delegate` naming an agent with no `session` goes on in that agent's latest session under
+this chat (it keeps the context it built); naming a new `session` opens another. A worker's session and a task
+consult are never reused.
+
+**A helper knows the task.** A session delegated from a task's chat reads the task's `[task]` block too: what it is,
+where it stands, whose chat it is, and that `task_get` and `read_chat` hold the comments and sessions to read before
+redoing work. A task's own chat lists the earlier chats by id.
+
+**Comments are deliberate.** A work turn's answer stays in its chat. It is posted to the task only when the turn
+closes the task (the report, D-076) or asks the owner (@owner). Agents comment with `task_comment`, a few lines, when
+others should know: a step verified, a block, something to review or decide. The drawer's tab is **Comments**, and
+the task's sessions are a count at the top that opens their list.
+
+**The owner's comment reaches someone.** One that names no agent is marked sent and, a minute later (so a few go
+together), the office clock hands it to the task's agent in its chat, or to the super-agent when nobody has the task;
+it then shows as delivered, and read once that turn ends. An @mention still asks at once (D-101).

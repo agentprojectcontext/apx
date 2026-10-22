@@ -6,6 +6,7 @@ import {
   IconButton,
   Icons,
   Menu,
+  Popover,
   Select,
   Skeleton,
   Tabs,
@@ -118,7 +119,7 @@ export function TaskPanel({ task, onClose, actions }: { task: Task; onClose: () 
       }
     >
       <div className="taskpanel__body" ref={body}>
-        <StateBar task={task} />
+        <StateBar task={task} detail={detail} />
         <Properties task={task} detail={detail} />
         <Description task={task} />
         <Tabs
@@ -159,8 +160,28 @@ export function TaskPanel({ task, onClose, actions }: { task: Task; onClose: () 
   );
 }
 
+/** The chats the task was worked in, as a count at the top that opens their list (each one opens in the inbox). */
+function TaskSessions({ task, detail }: { task: Task; detail: TaskDetail | undefined }) {
+  const t = useT();
+  const count = (detail?.sessions.length ?? 0) + (detail?.consults.length ?? 0);
+  return (
+    <Popover
+      width={320}
+      align="start"
+      label={t("tasks.work")}
+      trigger={
+        <Button size="sm" variant="ghost" leadingIcon={<Icons.MessagesSquare size={14} />}>
+          {detail ? t("tasks.work.count", { count }) : t("tasks.work.label")}
+        </Button>
+      }
+    >
+      <TaskWork task={task} sessions={detail?.sessions} consults={detail?.consults} />
+    </Popover>
+  );
+}
+
 /** Its column (how it ended, once closed: it keeps its column to go back to on reopen), and done / drop (or reopen). */
-function StateBar({ task }: { task: Task }) {
+function StateBar({ task, detail }: { task: Task; detail: TaskDetail | undefined }) {
   const t = useT();
   const columns = useTasks((s) => s.columns);
   const closed = task.state !== "open";
@@ -184,6 +205,7 @@ function StateBar({ task }: { task: Task }) {
         }
       />
       <ColumnHelp />
+      <TaskSessions task={task} detail={detail} />
       <span className="board__spacer" />
       {task.kind === "commitment" ? (
         <CommitmentActions task={task} />
@@ -305,9 +327,6 @@ function Properties({ task, detail }: { task: Task; detail: TaskDetail | undefin
           <TaskParent id={task.parent_id} />
         </Prop>
       )}
-      <Prop label={t("tasks.work")} top>
-        <TaskWork task={task} sessions={detail?.sessions} consults={detail?.consults} />
-      </Prop>
       {detail && detail.subtasks.length > 0 && (
         <Prop label={t("tasks.subtasks")} top>
           <TaskSubtasks subtasks={detail.subtasks} />

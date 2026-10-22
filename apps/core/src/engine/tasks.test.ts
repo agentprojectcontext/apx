@@ -411,7 +411,8 @@ test("giving a task to an agent starts it in its chat; another agent gets a new 
   const opening = (await env.client.call("threads.get", { thread: vera.id })).messages[0];
   assert.equal(opening?.author.kind, "user");
   assert.deepEqual(opening?.parts, [{ type: "text", text: "Write the release notes\n\nTwo paragraphs." }]);
-  assert.equal((await commentsOf(t.thread_id))[0], "vera");
+  // A work turn's answer stays in its chat: the task's comments are what agents post there on purpose.
+  assert.deepEqual(await commentsOf(t.thread_id), []);
 
   await env.client.call("tasks.update", { task: t.id, assignee: "roby" });
   const second = await settleTask(t.id);
@@ -422,7 +423,7 @@ test("giving a task to an agent starts it in its chat; another agent gets a new 
       String(c.messages[0]?.content).startsWith("You are Roby") &&
       String(c.messages.at(-1)?.content).includes("Write the release notes\n\nTwo paragraphs."),
   );
-  assert.match(String(input?.messages.at(-1)?.content), /Worked on before in their own chats by: Vera\./);
+  assert.match(String(input?.messages.at(-1)?.content), new RegExp(`Worked on before by: Vera \\(chat ${vera.id}\\)`));
 });
 
 test("the hourly pickup starts only tasks assigned since it began, the most pressing first", async () => {

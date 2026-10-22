@@ -2,7 +2,8 @@
 // tray and, through the interruption budget (engine/nudges.ts), to the owner's channel, in the owner's language. A due
 // date passing only lands in the tray: the watch routine mentions overdue work in one line, never a message per task.
 // The same clock picks up, hourly, assigned tasks whose work never started, and revives tasks whose work stopped with
-// nobody on it (engine/task-stall.ts). A provider limit that stops the agents is told once per stall.
+// nobody on it (engine/task-stall.ts), and hands the owner's task comments that named no one to an agent
+// (engine/task-inbox.ts). A provider limit that stops the agents is told once per stall.
 import { channelTexts } from "./channels/texts.ts";
 import type { Presentation } from "./domain/channels.ts";
 import { ownerTimeZone } from "./domain/owner.ts";
@@ -13,6 +14,7 @@ import type { AdmitFn } from "./engine/engine.ts";
 import { createNudges } from "./engine/nudges.ts";
 import { createStallNotices, resetLabel } from "./engine/provider-limit.ts";
 import { createScheduler } from "./engine/routines.ts";
+import { handOwnerComments } from "./engine/task-inbox.ts";
 import { reviveStalled } from "./engine/task-stall.ts";
 import { PICKUP_EVERY_MS, pickUpTasks } from "./engine/task-work.ts";
 import type { Log } from "./log.ts";
@@ -51,6 +53,7 @@ export function officeScheduler(deps: {
         pickedAt = at.getTime();
         pickUpTasks(store, deps.admit);
       }
+      handOwnerComments(store, deps.admit, at);
       if (at.getTime() - stallsAt >= STALL_CHECK_EVERY_MS) {
         stallsAt = at.getTime();
         const { revived, told } = reviveStalled(store, deps.admit, at);

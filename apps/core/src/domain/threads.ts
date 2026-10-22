@@ -67,6 +67,9 @@ export type ThreadContext = {
   stall?: { revived_at: string; told?: string };
   /** Tasks agents gave from this chat while it was paused: each starts once the owner lets agents go on. */
   held?: HeldTask[];
+  /** On a task's conversation: the owner's comments no agent has had yet (message ids), and those handed to a turn. */
+  owner_unread?: string[];
+  owner_handed?: Array<{ run: string; messages: string[] }>;
   /** Queued delegations from this chat the breaker holds (run ids) whose notice the owner already saw. */
   queue_held?: string[];
   /** A result or report reached this chat's agent (its id) while paused: kept for its next turn, which going on starts. */
@@ -229,6 +232,12 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       return all(qb.selectFrom("threads").select("id").where(sql`json_array_length(context, '$.held')`, ">", 0)).map(
         (r) => r.id,
       );
+    },
+    /** The task conversations holding owner comments no agent has had yet (`owner_unread`). */
+    unreadByAgents(): string[] {
+      return all(
+        qb.selectFrom("threads").select("id").where(sql`json_array_length(context, '$.owner_unread')`, ">", 0),
+      ).map((r) => r.id);
     },
     /** The task chats an agent's turn in `threadId` started (`asked_from`). */
     askedFrom(threadId: string): string[] {

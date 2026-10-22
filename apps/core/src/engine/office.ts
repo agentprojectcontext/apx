@@ -62,8 +62,14 @@ export function taskCommentAttention(store: Store, task: Task, text: string, by:
  * keep it up to date. Its title and description may come from an agent (who may have read a web page), so unless the
  * owner wrote the task they arrive as outside data.
  */
-export function taskBlock(store: Store, thread: Pick<Thread, "id" | "task_id">): string | undefined {
-  const t = thread.task_id ? store.tasks.get(thread.task_id) : undefined;
+export function taskBlock(
+  store: Store,
+  thread: Pick<Thread, "id" | "task_id" | "kind" | "parent_id">,
+): string | undefined {
+  // A session delegated from a task's chat helps with that task: it reads where the task stands too.
+  const parent =
+    !thread.task_id && thread.kind === "a2a" && thread.parent_id ? store.threads.get(thread.parent_id) : undefined;
+  const t = store.tasks.get(thread.task_id ?? parent?.task_id ?? "");
   if (!t) return undefined;
   const name = (id: string) => store.agents.get(id)?.name ?? id;
   const who = t.assignee ? name(t.assignee) : "nobody";
@@ -72,15 +78,22 @@ export function taskBlock(store: Store, thread: Pick<Thread, "id" | "task_id">):
   const others = store.threads
     .byTask(t.id)
     .filter((c) => c.id !== thread.id)
-    .map((c) => name(c.agent_ids[0] ?? ""));
+    .map((c) => `${name(c.agent_ids[0] ?? "")} (chat ${c.id})`);
+  const head = [`Task ${t.id}:`, taskWords(t, words), state];
+  const lookup =
+    "task_get shows its latest comments and sessions; read_chat reads a session. Read them before redoing work.";
+  if (parent)
+    return [
+      ...head,
+      `You are helping with this task for ${name(parent.agent_ids[0] ?? "")}, whose chat for it is ${parent.id}. ${lookup}`,
+      "Your answer goes back to them. If what you found matters to everyone on the task (verified, blocked, needs a decision), also leave a short task_comment on it.",
+    ].join("\n");
   return [
-    `Task ${t.id}:`,
-    taskWords(t, words),
-    state,
-    others.length ? `Worked on before in their own chats by: ${[...new Set(others)].join(", ")}.` : "",
-    "This is your chat for this task. Your final answer is posted to the task as your comment: say in a few lines what you did, what is left or what blocks you.",
-    "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked) and task_close when it is done: the answer of the turn that closes it is your report to whoever created the task. Do not use task_comment on this task; it is for other tasks.",
-    "Mention @owner in your answer when you need the owner. To ask a teammate, use delegate: its answer comes back to you (an @mention of an agent asks no one).",
+    ...head,
+    others.length ? `Worked on before by: ${[...new Set(others)].join(", ")}. ${lookup}` : "",
+    "This is your chat for this task; what you say here stays here. Comment on the task with task_comment when others should know: a step done and verified, a block, something to review or decide. Two or three lines, never a transcript.",
+    "Keep the task up to date with task_update (doing while you work on it, review when it is ready to be checked) and task_close when it is done: the answer of the turn that closes it is posted as your report to whoever created the task.",
+    "Mention @owner in a task_comment or in your answer when you need the owner. To ask a teammate, use delegate: its answer comes back to you (an @mention of an agent asks no one).",
   ]
     .filter(Boolean)
     .join("\n");
