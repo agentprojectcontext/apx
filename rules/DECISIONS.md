@@ -1942,3 +1942,12 @@ proposals first, with **Accept all**; the mobile app groups them the same way.
 those tasks become proposals, so the owner picks which go ahead; a wide `delegate` still asks. A sub-task three
 hand-offs deep, or one for an agent that created a task above it, is a proposal too, so agents cannot pass work down
 forever or ping-pong it. Rejected: a counter on the task (it misses a chain that runs across tasks).
+
+<a id="d-132"></a>
+## D-132 — 2026-10-22 — An agent's @mention on a task asks that teammate, and the answer comes back to it
+D-078 kept agents' @mentions silent (an agent asked with `delegate`), so agents working a task asked each other in
+chats the task never showed. Now an agent's `task_comment` that @mentions teammates opens a consult on the task for
+each (two at most): the card shows the question and the answer, and the answer comes back to the chat the agent asked
+from as the teammate's words (`a2a`, no new budget window), so it goes on without polling. A comment said inside a
+consult or a delegation asks no one, so answers never chain; a paused chat or agent (D-081) is not woken. `delegate`
+stays for a question that does not belong on a task.

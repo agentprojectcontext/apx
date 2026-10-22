@@ -15,7 +15,7 @@ const bridgeHeld = new Promise<void>((r) => {
   releaseBridge = r;
 });
 
-// Vera and Roby keep mentioning each other: only the owner's @mentions ask anyone (DECISIONS.md#d-078).
+// Vera and Roby keep mentioning each other: an answer to an agent's @mention asks no one further (DECISIONS.md#d-132).
 const llm = scriptedLlm(async (req, { said, afterTool }) => {
   const system = String(req.messages[0]?.content);
   const steer = req.messages.find((m) => m.role === "user" && String(m.content).startsWith("[The owner adds"));
@@ -343,14 +343,24 @@ test("files the owner attaches on a task reach the work chat's turn", async () =
   );
 });
 
-test("an agent's @mention in a task comment summons nobody", async () => {
+test("an agent's @mention in a task comment asks that agent, and the answer comes back to the chat it asked from", async () => {
+  const store = env.core.store;
   const t = await env.client.call("tasks.create", { title: "Name the release", project });
   const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "vera", project_id: project });
   await env.client.call("threads.send", { thread: chat.id, text: `ping roby on ${t.id}` });
   await env.settle(chat.id);
-  assert.deepEqual(await commentsOf(t.thread_id), ["vera"]);
-  assert.deepEqual(env.core.store.threads.children(t.thread_id), []);
-  assert.deepEqual(await env.client.call("tasks.get", { task: t.id }).then((d) => d.sessions), []);
+  const consult = store.threads.get(store.threads.children(t.thread_id)[0] ?? "");
+  assert.equal(consult?.agent_ids[0], "roby");
+  assert.deepEqual(store.threads.context(consult?.id ?? "").consult?.asker, { agent: "vera", thread: chat.id });
+  await env.settle(consult?.id ?? "");
+  await env.settle(chat.id);
+  const back = store.messages.list(chat.id, 50).find((m) => m.author.kind === "agent" && m.author.id === "roby");
+  assert.match(JSON.stringify(back?.parts), /Roby (answered|could not answer) your question/);
+  assert.deepEqual(
+    await env.client.call("tasks.get", { task: t.id }).then((d) => d.sessions),
+    [],
+    "no chat of Vera's opens on a task that is not hers",
+  );
 });
 
 test("a task an agent makes while working a task is its subtask, listed on it", async () => {

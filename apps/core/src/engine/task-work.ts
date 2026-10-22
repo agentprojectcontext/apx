@@ -3,7 +3,7 @@
 // Assigning starts the work; the owner's @mention of its agent, or words written in the task's conversation, reach it
 // there (DECISIONS.md#d-101), and an @mention of anyone else opens a short consult
 // (the question and its answer, under the task's conversation, shown there as a card); an hourly pickup starts what was
-// assigned and never began. Agents ask each other only with `delegate` (DECISIONS.md#d-078).
+// assigned and never began. An agent's @mention on a task is a consult whose answer comes back to it (DECISIONS.md#d-132).
 import type { Author, Task, Thread } from "@apx/protocol";
 import { ownerIdentity } from "../domain/owner.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
@@ -63,8 +63,9 @@ export function ask(
   text: string,
   asker: Asker,
   author: Author,
+  into: Thread = sessionFor(store, task, agentId),
 ) {
-  const thread = sessionFor(store, task, agentId);
+  const thread = into;
   // Work an agent gives spends against the chat it gave it from (DECISIONS.md#d-080).
   if (asker.kind === "agent" && asker.thread_id !== thread.id && !store.threads.context(thread.id).asked_from)
     store.threads.mergeContext(thread.id, { asked_from: asker.thread_id });
@@ -168,7 +169,7 @@ export function reworkTask(store: Store, admit: AdmitFn, task: Task, note: strin
 /**
  * The owner's comment's @mentions. The task's own agent answers in its chat for the task (its answer comes back as a
  * comment); anyone else answers in a consult of its own, so a teammate asked once does not get a whole chat on the task.
- * An agent's @mention summons nobody: it asks with `delegate`, whose answer comes back to it (DECISIONS.md#d-078).
+ * An agent's @mentions go through `consultFromAgent` instead (DECISIONS.md#d-132).
  */
 export function askMentioned(store: Store, admit: AdmitFn, task: Task, text: string): RunRecord[] {
   const who = mentioned(store, text, task.project_id);
@@ -204,6 +205,37 @@ function ownerWordsSinceReply(store: Store, threadId: string): string {
   return words.join("\n\n").slice(-4000);
 }
 
+/** Teammates one agent's comment asks at once; more is a fan-out it should hand out as tasks instead. */
+const MAX_COMMENT_ASKS = 2;
+
+/**
+ * An agent's comment on a task @mentioning teammates: each is asked in a consult there, and its answer comes back to
+ * the asking agent's chat for the task. Said from inside a consult or a delegation, it asks no one (no chains).
+ */
+export function consultFromAgent(
+  store: Store,
+  admit: AdmitFn,
+  task: Task,
+  by: { id: string; run_id: string; thread_id: string },
+  text: string,
+): RunRecord[] {
+  const agent = store.agents.get(by.id);
+  if (!agent || task.state !== "open" || store.threads.get(by.thread_id)?.kind === "a2a") return [];
+  if (trip(store, by.thread_id) || agentTrip(store, by.thread_id, by.id)) return [];
+  const asker: Asker = {
+    kind: "agent",
+    id: agent.id,
+    name: agent.name,
+    thread_id: by.thread_id,
+    run_id: by.run_id,
+    depth: 1,
+  };
+  return mentioned(store, text, task.project_id)
+    .filter((a) => a.id !== agent.id)
+    .slice(0, MAX_COMMENT_ASKS)
+    .flatMap((a) => consult(store, admit, task, a, text, { by: agent.id, asker }) ?? []);
+}
+
 /** The owner's comment's @mentions of anyone but the task's own agent, each answered in a consult. */
 export function consultMentioned(store: Store, admit: AdmitFn, task: Task, text: string): RunRecord[] {
   return mentioned(store, text, task.project_id)
@@ -227,9 +259,9 @@ function consult(
   task: Task,
   agent: { id: string; name: string },
   text: string,
-  how: { by?: string; trigger?: "user" | "system"; review?: boolean } = {},
+  how: { by?: string; trigger?: "user" | "system"; review?: boolean; asker?: Asker } = {},
 ): RunRecord | undefined {
-  const from = ownerIdentity(store).name || "The owner";
+  const from = (how.asker?.kind === "agent" && how.asker.name) || ownerIdentity(store).name || "The owner";
   const sub = store.threads.create({
     kind: "a2a",
     title: how.review
@@ -242,7 +274,8 @@ function consult(
   });
   const who = task.assignee ? (store.agents.get(task.assignee)?.name ?? task.assignee) : "nobody";
   const question = `${text}\n\n[Asked on task ${task.id}, assigned to ${who}. Answer the question; the task's work is not yours unless it says so.]\n${taskWords(task, task.title.slice(0, 200))}`;
-  store.messages.add({ thread_id: sub.id, author: { kind: "user" }, parts: [{ type: "text", text }] });
+  const author: Author = how.asker?.kind === "agent" ? { kind: "agent", id: how.asker.id } : { kind: "user" };
+  store.messages.add({ thread_id: sub.id, author, parts: [{ type: "text", text }] });
   const card = store.messages.add({
     thread_id: task.thread_id,
     author: { kind: "agent", id: agent.id },
@@ -259,17 +292,22 @@ function consult(
     ],
   });
   store.threads.mergeContext(sub.id, {
-    consult: { task: task.id, card: card.id, ...(how.review ? { review: true } : {}) },
+    consult: {
+      task: task.id,
+      card: card.id,
+      ...(how.review ? { review: true } : {}),
+      ...(how.asker?.kind === "agent" ? { asker: { agent: how.asker.id, thread: how.asker.thread_id } } : {}),
+    },
   });
   // Who spoke on the task shows on its conversation, not only its first agent.
   store.threads.join(task.thread_id, agent.id);
   return admit({
     thread_id: sub.id,
     agent_id: agent.id,
-    trigger: how.trigger ?? "user",
-    origin: originOf(OWNER),
+    trigger: how.asker ? "a2a" : (how.trigger ?? "user"),
+    origin: originOf(how.asker ?? OWNER),
     text: question,
-    depth: 0,
+    depth: how.asker ? depthOf(how.asker) : 0,
   });
 }
 
@@ -374,7 +412,7 @@ function afterConsult(
   store: Store,
   admit: AdmitFn,
   run: RunRecord,
-  consulted: { task: string; card: string; review?: boolean },
+  consulted: { task: string; card: string; review?: boolean; asker?: { agent: string; thread: string } },
 ): void {
   const task = store.tasks.get(consulted.task);
   const card = store.messages.get(consulted.card);
@@ -388,10 +426,35 @@ function afterConsult(
   }
   if (!task) return;
   store.tasks.touched(task.id, run.agent_id, "update");
+  if (consulted.asker) answerAsker(store, admit, task, run, answer, consulted.asker);
   if (run.state !== "completed" || !answer) return;
   // A consult answers and stops: whoever it @mentions is not asked (DECISIONS.md#d-074).
   taskCommentAttention(store, task, answer, run.agent_id);
   if (consulted.review) reviewEnded(store, admit, store.tasks.get(task.id) ?? task, run, answer);
+}
+
+/** The agent that asked on the task hears the answer (or that none came) in its chat for the task, and goes on. */
+function answerAsker(
+  store: Store,
+  admit: AdmitFn,
+  task: Task,
+  run: RunRecord,
+  answer: string,
+  from: { agent: string; thread: string },
+): void {
+  const askerId = from.agent;
+  const current = store.tasks.get(task.id) ?? task;
+  if (current.state !== "open" || !store.agents.get(askerId)) return;
+  const asked = store.threads.get(from.thread);
+  const thread = asked && !asked.archived ? asked : sessionFor(store, current, askerId);
+  if (trip(store, thread.id) || agentTrip(store, thread.id, askerId)) return;
+  const name = store.agents.get(run.agent_id)?.name ?? run.agent_id;
+  const text =
+    run.state === "completed" && answer
+      ? `${name} answered your question on task ${task.id}:\n${answer.slice(0, 4000)}\n\nGo on with the task.`
+      : `${name} could not answer your question on task ${task.id} (${run.error ?? run.state}). Go on without it.`;
+  const asker: Asker = { kind: "agent", id: run.agent_id, name, thread_id: run.thread_id, run_id: run.id, depth: 1 };
+  ask(store, admit, current, askerId, text, asker, { kind: "agent", id: run.agent_id }, thread);
 }
 
 /** Reviewers are told to open with this word when nothing must change; one writing in Spanish says it there. */

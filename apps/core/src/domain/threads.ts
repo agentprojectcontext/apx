@@ -58,7 +58,8 @@ export type ThreadContext = {
   /** A worker's session: the caller's own agent, run under instructions the caller wrote for one task. */
   worker?: Worker;
   /** A consult an @mention in a task opened: the task, and the card in its conversation that shows the answer. */
-  consult?: { task: string; card: string; review?: boolean };
+  /** `asker`: the agent that asked on the task and the chat it asked from, where it hears the answer. */
+  consult?: { task: string; card: string; review?: boolean; asker?: { agent: string; thread: string } };
   /** On a task's conversation: the close (its place in the task's history) already reported to whoever created it. */
   close_reported?: number;
   /** A task chat an agent's turn started: the chat it came from, whose unattended limits its turns count against. */

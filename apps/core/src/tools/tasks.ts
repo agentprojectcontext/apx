@@ -289,7 +289,7 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_comment",
       description:
-        "Comment on a task's conversation. Mention @owner to request the owner's attention; their reply clears the request. To ask an agent, use delegate.",
+        "Comment on a task's conversation. @owner requests the owner's attention (their reply clears it); @agent asks that teammate here and its answer comes back to you.",
       args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(5000) }),
       effect: "local",
       confirm: handsOff,
@@ -298,7 +298,9 @@ export function taskTools(store: Store): Tool[] {
       title: (a) => `Commented on ${String(a.task ?? "")}`,
       async run(a, ctx) {
         const r = await ctx.call("tasks.comment", a);
-        return r.runs.length ? `commented; ${r.runs.length} agent(s) will answer there.` : "commented.";
+        return r.runs.length
+          ? `commented; ${r.runs.length} agent(s) will answer there, and the answer comes back to you: do not wait for it.`
+          : "commented.";
       },
     }),
     defineTool({

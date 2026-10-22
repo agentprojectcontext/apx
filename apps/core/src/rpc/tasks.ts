@@ -29,6 +29,7 @@ import {
   type Asker,
   addComment,
   askMentioned,
+  consultFromAgent,
   proposalReason,
   reviewRequested,
   reworkTask,
@@ -342,8 +343,11 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       const author: Author = ctx.agent ? { kind: "agent", id: ctx.agent.id } : { kind: "user" };
       return store.tx(() => {
         const message = addComment(store, t, author, text, by(ctx));
-        // Only the owner's @mentions ask an agent; an agent asks with `delegate` (DECISIONS.md#d-078).
-        const runs = ctx.agent ? [] : askMentioned(store, engine.admit, store.tasks.get(t.id) ?? t, text);
+        // An agent's @mentions are consults whose answers come back to it (DECISIONS.md#d-132).
+        const current = store.tasks.get(t.id) ?? t;
+        const runs = ctx.agent
+          ? consultFromAgent(store, engine.admit, current, ctx.agent, text)
+          : askMentioned(store, engine.admit, current, text);
         // Naming no one, it waits for the task's agent (or the super-agent) to pick it up (engine/task-inbox.ts).
         if (ctx.actor === "human" && !runs.length) awaitAgent(store, t, message.id);
         return { message, runs: runs.map(publicRun) };
