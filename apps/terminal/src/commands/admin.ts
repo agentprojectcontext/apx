@@ -157,7 +157,7 @@ export async function admin(client: ApxClient, command: string, rest: string[], 
       : card("APX upgrade", [
           result.ok ? "Updated" : "Update failed",
           result.log,
-          result.restart ? "Core restarting" : "Restart APX to load the update",
+          ...(result.ok ? [result.restart ? "Core restarting" : "Restart APX to load the update"] : []),
         ]),
   );
   if (!result.ok) process.exitCode = 1;
