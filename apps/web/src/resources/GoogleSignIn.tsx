@@ -96,16 +96,14 @@ export function GoogleSignInForm({
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [pasted, setPasted] = useState("");
-  // The other Google parts: those not on the owner's client can join this sign-in.
+  // The other Google parts: those not on the owner's client can join this sign-in, when the owner ticks them.
   const [others, setOthers] = useState<Integration[]>([]);
   const [also, setAlso] = useState<string[]>([]);
   const file = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    void api.call("integrations.list", {}).then(({ integrations }) => {
-      const rest = integrations.filter((x) => x.oauth && x.id !== i.id);
-      setOthers(rest);
-      setAlso(rest.filter((x) => !x.connected).map((x) => x.id));
-    });
+    void api
+      .call("integrations.list", {})
+      .then(({ integrations }) => setOthers(integrations.filter((x) => x.oauth && x.id !== i.id)));
   }, [i.id]);
   const saved = i.fields.every((f) => f.value || f.set);
   const ownUsers = others.filter((x) => x.connected && x.oauth?.client === "own");
