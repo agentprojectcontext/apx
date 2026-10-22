@@ -1,9 +1,11 @@
 import type { CatalogEngine, ModelChoice, ModelRef } from "@apx/protocol";
 import { Button, Icons, Popover } from "@apx/ui";
-import { type ReactNode, useState } from "react";
+import { lazy, type ReactNode, Suspense, useState } from "react";
 import { choiceLabel, effectiveChoice, inCatalog, refLabel, useModels } from "../../data/models.ts";
 import { useT } from "../../i18n/index.ts";
-import { ModelList } from "./ModelList.tsx";
+
+// The list shows only once a picker opens: not part of the first load (the composer has a picker).
+const ModelList = lazy(() => import("./ModelList.tsx").then((m) => ({ default: m.ModelList })));
 
 /**
  * The select-like button a picker opens from (a plain element: the Popover merges its trigger props into it).
@@ -52,15 +54,17 @@ export function ModelRefPicker(props: {
       label={props.label}
       trigger={trigger({ text, label: props.label, warn, warnText: t("models.notInCatalog") })}
     >
-      <ModelList
-        value={value}
-        onPick={(ref) => {
-          // An add button has no current model whose effort could be edited here.
-          if (!value) setOpen(false);
-          props.onChange(ref);
-        }}
-        onEffort={props.onChange}
-      />
+      <Suspense fallback={null}>
+        <ModelList
+          value={value}
+          onPick={(ref) => {
+            // An add button has no current model whose effort could be edited here.
+            if (!value) setOpen(false);
+            props.onChange(ref);
+          }}
+          onEffort={props.onChange}
+        />
+      </Suspense>
     </Popover>
   );
 }
@@ -140,13 +144,15 @@ export function ModelChoicePicker(props: {
           onPick={() => pick(null)}
         />
         <div className="mchoice__label">{t("models.ownModel")}</div>
-        <ModelList
-          value={own}
-          effortValue={effective.model}
-          {...(props.only ? { only: props.only } : {})}
-          onPick={(model) => pick({ model, router: own === model ? (value?.router ?? true) : true })}
-          onEffort={(model) => props.onChange({ model, router: effective.router })}
-        />
+        <Suspense fallback={null}>
+          <ModelList
+            value={own}
+            effortValue={effective.model}
+            {...(props.only ? { only: props.only } : {})}
+            onPick={(model) => pick({ model, router: own === model ? (value?.router ?? true) : true })}
+            onEffort={(model) => props.onChange({ model, router: effective.router })}
+          />
+        </Suspense>
       </div>
     </Popover>
   );
