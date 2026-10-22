@@ -1,4 +1,5 @@
 import type { Result } from "@apx/protocol";
+import { secureRequestKey } from "@apx/protocol/client";
 import { useEffect, useRef, useState } from "react";
 import { createThread } from "../data/actions.ts";
 import { client } from "../data/client.ts";
@@ -103,8 +104,8 @@ export function useHelperActions({
       if (start && next.recipient) {
         // A retry reuses both payload and keys, even if the core accepted a request whose response was lost.
         handoff.current = {
-          createKey: crypto.randomUUID(),
-          sendKey: crypto.randomUUID(),
+          createKey: secureRequestKey(),
+          sendKey: secureRequestKey(),
           project,
           recipient: next.recipient,
           title,

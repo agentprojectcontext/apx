@@ -1,5 +1,6 @@
 // Every write the panel makes. Components call these; they never call the client directly.
 import type { ApprovalScope, Message, Part, SurfaceState, Thread } from "@apx/protocol";
+import { secureRequestKey } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { type Attached, setThreadModel } from "./composer.ts";
@@ -128,19 +129,21 @@ export async function send(
   const files = opts.attachments ?? [];
   const list = data.get().messages[threadId] ?? [];
   const busy = data.get().threads[threadId]?.state === "working";
-  const local: Message = {
-    id: `local_${crypto.randomUUID()}`,
-    thread_id: threadId,
-    seq: (list[list.length - 1]?.seq ?? 0) + 0.5,
-    author: { kind: "user" },
-    parts: [{ type: "text", text }, ...files.map(attachedPart)],
-    created_at: new Date().toISOString(),
-  };
-  data.set((s) => ({
-    messages: { ...s.messages, [threadId]: upsertMessage(s.messages[threadId], local) },
-    threads: busy ? s.threads : patchThread(s.threads, threadId, { state: "submitted" }),
-  }));
+  let localId: string | undefined;
   try {
+    const local: Message = {
+      id: `local_${secureRequestKey()}`,
+      thread_id: threadId,
+      seq: (list[list.length - 1]?.seq ?? 0) + 0.5,
+      author: { kind: "user" },
+      parts: [{ type: "text", text }, ...files.map(attachedPart)],
+      created_at: new Date().toISOString(),
+    };
+    data.set((s) => ({
+      messages: { ...s.messages, [threadId]: upsertMessage(s.messages[threadId], local) },
+      threads: busy ? s.threads : patchThread(s.threads, threadId, { state: "submitted" }),
+    }));
+    localId = local.id;
     const r = await client.call("threads.send", {
       thread: threadId,
       text,
@@ -157,9 +160,9 @@ export async function send(
     });
   } catch (e) {
     data.set((s) => ({
-      messages: { ...s.messages, [threadId]: (s.messages[threadId] ?? []).filter((m) => m.id !== local.id) },
+      messages: { ...s.messages, [threadId]: (s.messages[threadId] ?? []).filter((m) => m.id !== localId) },
       threads:
-        !busy && s.threads[threadId]?.state === "submitted"
+        localId && !busy && s.threads[threadId]?.state === "submitted"
           ? patchThread(s.threads, threadId, { state: "idle" })
           : s.threads,
     }));

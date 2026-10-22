@@ -59,6 +59,8 @@ const core = spawn(process.execPath, ["--no-warnings", "--import", hook, path.jo
     ...compileCacheEnv(root),
     APX_HOME: fx.home,
     APX_PORT: String(E2E.port),
+    // Browser regression tests resolve this insecure origin to loopback; the core stays loopback-only.
+    APX_PUBLIC_URL: `http://panel.test:${E2E.port}`,
     APX_SECRETS: "file",
     APX_UPDATES: "off",
     // A sandbox never reports to the APX project.

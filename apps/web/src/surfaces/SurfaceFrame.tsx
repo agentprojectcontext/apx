@@ -1,5 +1,5 @@
 import type { SurfaceState } from "@apx/protocol";
-import { SURFACE_STATE_MAX } from "@apx/protocol/client";
+import { SURFACE_STATE_MAX, secureRequestKey } from "@apx/protocol/client";
 import { EmptyState, Icons, Skeleton, useApx } from "@apx/ui";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { declaresLive } from "../../../../packages/surfaces/src/kit.ts";
@@ -72,7 +72,7 @@ export function FrameView({
   const frame = useRef<HTMLIFrameElement>(null);
   const [theme, setTheme] = useState<string>();
   const [height, setHeight] = useState(120);
-  const nonce = useMemo(() => crypto.randomUUID(), []);
+  const nonce = useMemo(() => secureRequestKey(), []);
   const lastPrompt = useRef(0);
   const asked = useRef(new Set<string>());
   const version = doc?.version;

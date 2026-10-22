@@ -20,6 +20,8 @@ export {
   UPLOAD_LIMITS,
 } from "./constants.ts";
 
+export { secureRequestKey } from "./request-key.ts";
+
 export class ApxError extends Error {
   readonly code: ApxErrorShape["code"];
   readonly detail: unknown;
