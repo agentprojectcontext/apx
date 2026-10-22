@@ -63,15 +63,14 @@ function Main() {
   }, [lang]);
   return (
     <ApxProvider look={look} mode={mode} fill style={font === "mono" ? MONO : undefined}>
-      {gate === "open" &&
-        (OAUTH_RETURN ? (
-          <Suspense fallback={null}>
-            <OAuthReturn />
-          </Suspense>
-        ) : (
-          <Panel />
-        ))}
-      {gate === "pair" && (
+      {/* Google's return page finishes without pairing: the browser it lands in may be any. */}
+      {OAUTH_RETURN && (
+        <Suspense fallback={null}>
+          <OAuthReturn />
+        </Suspense>
+      )}
+      {!OAUTH_RETURN && gate === "open" && <Panel />}
+      {!OAUTH_RETURN && gate === "pair" && (
         <Suspense fallback={null}>
           <PairScreen />
         </Suspense>

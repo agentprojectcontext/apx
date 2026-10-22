@@ -400,12 +400,16 @@ export const resourceMethods = {
     effect: true,
     access: "human",
   },
-  /** The code and state Google sent back: a state this core signed minutes ago, used once. */
+  /**
+   * The code and state Google sent back: a state this core signed minutes ago, used once. Open: Google returns to a
+   * browser that may not be paired (the system browser), and the signed state with the core's PKCE verifier is the key.
+   */
   "integrations.oauth_finish": {
     params: z.object({ code: z.string().min(1).max(2000), state: z.string().min(1).max(2000) }).strict(),
     result: z.object({ id: z.string(), account: z.string().optional() }),
     effect: true,
     access: "human",
+    open: true,
   },
   /** Disconnects one: its server and its secrets go. */
   "integrations.disconnect": {
