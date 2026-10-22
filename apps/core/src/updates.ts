@@ -75,7 +75,8 @@ export function createUpdates(opts: {
   const platform = opts.platform ?? platformOf(process.platform, process.arch);
   const release = !git && opts.enabled && Boolean((opts.app || opts.byApp) && opts.feed && opts.version && platform);
   const releaseSource = opts.byApp ? "app" : "release";
-  const sh = opts.run ?? run(opts.root);
+  // Bundle versions can be pruned while a daemon still runs from one; the install directory survives updates.
+  const sh = opts.run ?? run(git ? opts.root : (opts.app ?? opts.root));
   const fetchImpl = opts.fetch ?? fetch;
   let status: UpdateStatus = { source: git ? "git" : release ? releaseSource : "none", behind: 0, changes: [] };
   let newer: Release[] = [];

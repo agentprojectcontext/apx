@@ -39,9 +39,11 @@ const sha256 = (file: string) =>
       .on("end", () => resolve(h.digest("hex")));
   });
 
-/** Windows' own bsdtar: an MSYS tar on PATH would read "C:" as a remote host. */
-const tarCommand = () =>
-  process.platform === "win32" ? path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
+/** System tar avoids a service's restricted PATH on macOS and MSYS drive parsing on Windows. */
+const tarCommand = () => {
+  if (process.platform === "win32") return path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
+  return process.platform === "darwin" ? "/usr/bin/tar" : "tar";
+};
 
 /** Points `current` at a version: a relative symlink swapped in by rename, or a junction on Windows. */
 export function switchCurrent(app: string, version: string): void {

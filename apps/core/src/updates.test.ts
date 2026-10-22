@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { promisify } from "node:util";
 import { createLog } from "./log.ts";
 import { panelEntry } from "./server-wiring.ts";
 import { createUpdates, type Runner } from "./updates.ts";
@@ -116,6 +117,7 @@ async function releaseFeed(o: { corrupt?: boolean } = {}) {
     .digest("hex");
 
   const server = http.createServer((req, res) => {
+    if (req.url === "/releases") return res.setHeader("content-type", "application/json").end(JSON.stringify(releases));
     if (req.url === `/${name}`) return res.end(tarball);
     if (req.url === `/${name}.sha256`) return res.end(`${digest}  ${name}\n`);
     res.statusCode = 404;
@@ -149,7 +151,27 @@ async function releaseFeed(o: { corrupt?: boolean } = {}) {
     fs.rmSync(app, { recursive: true, force: true });
     fs.rmSync(src, { recursive: true, force: true });
   };
-  return { app, fakeFetch, tar, done };
+  const applyInProcess = async (root: string, env = process.env) => {
+    const script = `
+      import { createUpdates } from ${JSON.stringify(new URL("./updates.ts", import.meta.url).href)};
+      import { createLog } from ${JSON.stringify(new URL("./log.ts", import.meta.url).href)};
+      const u = createUpdates({
+        root: ${JSON.stringify(root)}, app: ${JSON.stringify(app)}, log: createLog("test", true),
+        enabled: true, supervised: false, version: "2.0.3", feed: "acme/apx",
+        platform: { os: "linux", arch: "x64" },
+        fetch: (input, init) => fetch(String(input).startsWith("https://api.github.com/")
+          ? ${JSON.stringify(`${base}/releases`)} : input, init),
+      });
+      const result = await u.apply();
+      process.stdout.write(JSON.stringify(result), () => process.exit(0));
+    `;
+    const { stdout } = await promisify(execFile)(process.execPath, ["--input-type=module", "-e", script], {
+      env,
+      timeout: 20_000,
+    });
+    return JSON.parse(stdout) as { ok: boolean; restart: boolean; log: string };
+  };
+  return { app, fakeFetch, tar, done, applyInProcess };
 }
 
 test("a bundle install finds the newer release, installs it beside the running one and restarts", async () => {
@@ -209,6 +231,63 @@ test("a bundle that does not match its .sha256 is refused and what runs stays as
   assert.equal(fs.readFileSync(path.join(f.app, "current", "node", "bin", "node"), "utf8"), "old");
   assert.deepEqual(fs.readdirSync(path.join(f.app, "versions")).sort(), ["1.9.0", "2.0.3"]);
   f.done();
+});
+
+test("a release update runs even when the running bundle's root no longer exists", async () => {
+  const f = await releaseFeed();
+  try {
+    const result = await f.applyInProcess(path.join(f.app, "removed-bundle"));
+    assert.equal(result.ok, true, result.log);
+    assert.equal(fs.readFileSync(path.join(f.app, "current", "node", "bin", "node"), "utf8"), "new");
+  } finally {
+    f.done();
+  }
+});
+
+if (process.platform === "darwin") {
+  test("a macOS release update uses system tar even without a service PATH", async () => {
+    const f = await releaseFeed();
+    try {
+      const result = await f.applyInProcess(f.app, { ...process.env, PATH: "" });
+      assert.equal(result.ok, true, result.log);
+      assert.equal(fs.readFileSync(path.join(f.app, "current", "node", "bin", "node"), "utf8"), "new");
+    } finally {
+      f.done();
+    }
+  });
+}
+
+test("failed extraction preserves the installed versions and never requests a restart", async () => {
+  const f = await releaseFeed();
+  try {
+    const before = fs.readlinkSync(path.join(f.app, "current"));
+    const u = createUpdates({
+      root: os.tmpdir(),
+      app: f.app,
+      log,
+      enabled: true,
+      supervised: true,
+      version: "2.0.3",
+      feed: "acme/apx",
+      platform: { os: "linux", arch: "x64" },
+      fetch: f.fakeFetch,
+      run: async () => ({ code: 1, out: "spawn tar ENOENT" }),
+      restart: () => assert.fail("restarted after failed extraction"),
+    });
+    const result = await u.apply();
+    assert.equal(result.ok, false);
+    assert.equal(result.restart, false);
+    assert.match(result.log, /unpacking .*spawn tar ENOENT/);
+    assert.equal(fs.readlinkSync(path.join(f.app, "current")), before);
+    assert.deepEqual(fs.readdirSync(path.join(f.app, "versions")).sort(), ["1.9.0", "2.0.3"]);
+    assert.deepEqual(
+      fs.readdirSync(f.app).filter((name) => name.startsWith(".update-")),
+      [],
+    );
+    await new Promise((resolve) => setTimeout(resolve, 600));
+  } finally {
+    f.done();
+  }
 });
 
 test("without a bundle install or a checkout, updates belong to the desktop app", async () => {
