@@ -4,7 +4,7 @@ import { legacyHome, loadConfig } from "./config.ts";
 import { acquireDaemonLock } from "./daemon-lock.ts";
 import { moveLegacyHome } from "./home.ts";
 import { createCore } from "./server.ts";
-import { RESTART_CODE } from "./updates.ts";
+import { restartAfterClose } from "./updates.ts";
 
 // See HISTORY.md#connection-attempt-timeout.
 setDefaultAutoSelectFamilyAttemptTimeout(Math.max(2000, getDefaultAutoSelectFamilyAttemptTimeout()));
@@ -24,8 +24,12 @@ const lock = (() => {
 })();
 process.once("exit", () => lock.release());
 const core = await createCore(config, {
-  // After an update: close cleanly, then the supervisor starts the new code.
-  restart: () => void core.close().finally(() => process.exit(RESTART_CODE)),
+  // After an update: close, then the supervisor starts the new code.
+  restart: () =>
+    void restartAfterClose(
+      () => core.close(),
+      (code) => process.exit(code),
+    ),
 });
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

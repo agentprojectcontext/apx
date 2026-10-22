@@ -9,7 +9,7 @@ import { test } from "node:test";
 import { promisify } from "node:util";
 import { createLog } from "./log.ts";
 import { panelEntry } from "./server-wiring.ts";
-import { createUpdates, type Runner } from "./updates.ts";
+import { createUpdates, RESTART_CODE, type Runner, restartAfterClose } from "./updates.ts";
 import { runningVersion } from "./updates-release.ts";
 
 const log = createLog("test", true);
@@ -356,4 +356,26 @@ test("the core the desktop app carries says a newer release is out, and leaves i
   assert.equal(r.ok, false);
   assert.match(r.log, /desktop app/);
   f.done();
+});
+
+test("a restart after an update exits even when closing the core hangs", async () => {
+  const codes: number[] = [];
+  await restartAfterClose(
+    () => new Promise(() => {}),
+    (code) => codes.push(code),
+    20,
+  );
+  assert.deepEqual(codes, [RESTART_CODE]);
+  // A close that finishes, or fails, exits right after it.
+  await restartAfterClose(
+    async () => {},
+    (code) => codes.push(code),
+    60_000,
+  );
+  await restartAfterClose(
+    () => Promise.reject(new Error("mcp")),
+    (code) => codes.push(code),
+    60_000,
+  );
+  assert.deepEqual(codes, [RESTART_CODE, RESTART_CODE, RESTART_CODE]);
 });

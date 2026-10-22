@@ -36,6 +36,26 @@ const CHANGES = 8;
 const BRANCH = "release/v2";
 /** The exit code that asks a supervisor to start the core again. */
 export const RESTART_CODE = 75;
+/** How long a core may take to close for an update before it exits anyway. */
+export const RESTART_CLOSE_MS = 10_000;
+
+/**
+ * Closes, then exits with RESTART_CODE so the supervisor starts the new code. A close that hangs is not waited for: a
+ * core left running would keep the old version's folder in use, and the next update could prune it.
+ */
+export async function restartAfterClose(
+  close: () => Promise<unknown>,
+  exit: (code: number) => void,
+  ms = RESTART_CLOSE_MS,
+): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  await Promise.race([close().catch(() => {}), deadline]);
+  clearTimeout(timer);
+  exit(RESTART_CODE);
+}
 
 const run =
   (cwd: string): Runner =>
