@@ -53,3 +53,22 @@ test("the agent reacts to a sticker: the emoji shows on it, and the Inbox says s
   await expect(page.getByRole("img", { name: /^Reacción de .+: ❤️$/ })).toBeVisible();
   await expect(page.locator(".turn")).toHaveCount(0);
 });
+
+test("the channel's settings list the stickers kept: the owner names one and says the agent may not use it", async ({
+  page,
+}) => {
+  await open(page);
+  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.getByRole("button", { name: "Configuración del canal" }).click();
+  await expect(page.getByText("Stickers", { exact: true })).toBeVisible();
+  const meaning = page.getByRole("textbox", { name: "Qué significa" }).first();
+  await meaning.scrollIntoViewIfNeeded();
+  await meaning.fill("mate compartido, buena onda");
+  await meaning.press("Enter");
+  await page.getByRole("switch", { name: "Puede usarlo" }).first().click();
+  await page.screenshot({ path: "test-results/86-stickers-settings.png" });
+  const kept = async () =>
+    (await rpc<{ stickers: Array<{ meaning?: string; blocked: boolean }> }>("stickers.list", { platform: "whatsapp" }))
+      .stickers;
+  await until(async () => (await kept()).some((s) => s.meaning === "mate compartido, buena onda" && s.blocked));
+});

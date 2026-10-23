@@ -1209,3 +1209,22 @@
 .telemetry__preview {
   margin-top: 16px;
 }
+
+/* A kept sticker: its picture beside what it means. */
+.stk__row {
+  align-items: center;
+}
+.stk__thumb {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+.stk__thumb--none {
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--apx-fill);
+  color: var(--apx-fg-subtle);
+  font-size: 22px;
+}

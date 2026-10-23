@@ -1,5 +1,5 @@
 // Channels the owner runs (channels.*), the people on them (contacts.*) and who waits for approval (pairing.*).
-import type { ChannelInfo, NoticePrefs, OutboxItem, PairingRequest, Person, Thread } from "@apx/protocol";
+import type { ChannelInfo, NoticePrefs, OutboxItem, PairingRequest, Person, Sticker, Thread } from "@apx/protocol";
 import { ApxError } from "@apx/protocol/client";
 import { type MessageKey, t } from "../i18n/index.ts";
 import { loadThread } from "./actions.ts";
@@ -280,5 +280,37 @@ export async function loadPresence(channel: string): Promise<Record<string, Pres
     return Object.fromEntries(r.people.map(({ person_id, ...p }) => [person_id, p]));
   } catch {
     return {};
+  }
+}
+
+/** The stickers kept from a channel type; none when the core could not be asked. */
+export async function loadStickers(platform: string): Promise<Sticker[]> {
+  try {
+    return (await client.call("stickers.list", { platform })).stickers;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return [];
+  }
+}
+
+/** The owner's words for a sticker, or whether the agent may send it; the sticker as it is now. */
+export async function setSticker(
+  id: string,
+  patch: { meaning?: string; blocked?: boolean },
+): Promise<Sticker | undefined> {
+  try {
+    return await client.call("stickers.set", { id, ...patch });
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return undefined;
+  }
+}
+
+export async function removeSticker(id: string): Promise<boolean> {
+  try {
+    return (await client.call("stickers.remove", { id })).removed;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return false;
   }
 }

@@ -9,6 +9,7 @@ import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
 import { isRoomsKind, RoomsSection } from "./RoomsSection.tsx";
+import { Stickers } from "./StickersSection.tsx";
 
 export type BotKind =
   | "telegram"
@@ -178,6 +179,7 @@ export function BotSection({ kind }: { kind: BotKind }) {
       )}
       {channel && <Notices />}
       {channel && <People channelId={channel.id} />}
+      {channel && kind === "telegram" && <Stickers platform="telegram" label={name} />}
       {channel && <Deliveries channelId={channel.id} />}
     </>
   );

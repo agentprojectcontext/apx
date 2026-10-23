@@ -870,4 +870,6 @@ export const MIGRATIONS: readonly string[] = [
   `,
   // Stickers named before their picture reached the model were named unseen: they are named again.
   `UPDATE stickers SET meaning = NULL;`,
+  // A sticker the owner said the agent may not send (it still reads what it means when it comes).
+  `ALTER TABLE stickers ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0;`,
 ];

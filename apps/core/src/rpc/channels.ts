@@ -1,5 +1,6 @@
 // Channels, the people on them and pairing: owner-only methods (the router refuses anyone else).
 
+import fs from "node:fs";
 import { type ChannelType, ErrorCode } from "@apx/protocol";
 import { CHANNEL_CATALOG } from "../channels/catalog.ts";
 import { pairingRef } from "../channels/inbound.ts";
@@ -8,6 +9,7 @@ import { normalJid } from "../channels/whatsapp.ts";
 import { publicOutbox } from "../domain/channels.ts";
 import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
 import { OWNER_ID } from "../domain/persons.ts";
+import type { Sticker } from "../domain/stickers.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
@@ -21,6 +23,11 @@ export function channelHandlers(store: Store, channels: Channels) {
     ...sent,
     delivery: await channels.settled(outbox, SETTLE_MS),
   });
+  /** A kept sticker as the app shows it (none when its file is gone). */
+  const shown = ({ created_at: _c, hash: _h, ...s }: Sticker) => {
+    const media = store.media.get(s.media_id);
+    return media ? [{ ...s, mime: media.mime }] : [];
+  };
   return {
     "channels.list": () => ({ channels: channels.info() }),
     // Open to agents: what channel_list shows. Disabled channels are not there for them.
@@ -96,6 +103,23 @@ export function channelHandlers(store: Store, channels: Channels) {
       } catch (err) {
         throw badRequest(errorMessage(err));
       }
+    },
+    "stickers.list": ({ platform }) => ({ stickers: store.stickers.list(platform).flatMap(shown) }),
+    "stickers.set": ({ id, meaning, blocked }) => {
+      const s = store.stickers.set(id, { meaning, blocked });
+      const out = s && shown(s)[0];
+      if (!out) throw notFound(`sticker ${id}`);
+      return out;
+    },
+    "stickers.remove": ({ id }) => {
+      const s = store.stickers.get(id);
+      if (!s || !store.stickers.remove(id)) return { removed: false };
+      const media = store.media.get(s.media_id);
+      if (media) {
+        store.media.remove(media.id);
+        fs.rmSync(media.path, { force: true });
+      }
+      return { removed: true };
     },
     "channels.outbox": ({ limit }) => ({
       items: store.channels.outbox.recent(limit).map(publicOutbox),

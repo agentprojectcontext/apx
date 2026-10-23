@@ -10,6 +10,7 @@ import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
 import { SubHead } from "./SectionHead.tsx";
+import { Stickers } from "./StickersSection.tsx";
 
 const CHANNEL_ID = "whatsapp";
 const DEFAULTS = { enabled: true, strangers: "pair", concurrency: "steer", owner_thread: "home" } as const;
@@ -38,6 +39,7 @@ export function WhatsAppSection() {
           <Pairing channelId={channel.id} />
           <Notices />
           <People channelId={channel.id} />
+          <Stickers platform="whatsapp" label={channel.label} />
           <Deliveries channelId={channel.id} />
         </>
       )}

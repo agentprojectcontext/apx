@@ -55,6 +55,7 @@ import {
   ServiceKind,
   ServiceSettings,
   ServiceTest,
+  Sticker,
   Surface,
   SurfaceOrigin,
   SurfaceState,
@@ -1107,6 +1108,29 @@ export const appMethods = {
     params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),
     result: z.object({ items: z.array(OutboxItem) }),
     effect: false,
+    access: "human",
+  },
+  /** The stickers kept from a channel type, the most used first, named or not, blocked or not. */
+  "stickers.list": {
+    params: z.object({ platform: z.string().min(1).max(40) }).strict(),
+    result: z.object({ stickers: z.array(Sticker) }),
+    effect: false,
+    access: "human",
+  },
+  /** The owner's words for what a sticker means (no model names it again), or whether the agent may send it. */
+  "stickers.set": {
+    params: z
+      .object({ id: Id, meaning: z.string().trim().min(1).max(160).optional(), blocked: z.boolean().optional() })
+      .strict(),
+    result: Sticker,
+    effect: true,
+    access: "human",
+  },
+  /** Forgets a sticker and its file; if someone sends it again it is kept and named again. */
+  "stickers.remove": {
+    params: z.object({ id: Id }).strict(),
+    result: z.object({ removed: z.boolean() }),
+    effect: true,
     access: "human",
   },
   /**

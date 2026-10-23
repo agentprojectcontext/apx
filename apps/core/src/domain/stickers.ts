@@ -17,6 +17,8 @@ export type Sticker = {
   /** Times it arrived, and times the agent sent it. */
   seen: number;
   sent: number;
+  /** The owner said the agent may not send it. */
+  blocked: boolean;
   created_at: string;
   last_at: string;
 };
@@ -30,6 +32,7 @@ const toSticker = (r: Selectable<StickersTable>): Sticker => ({
   ...opt("hint", r.hint),
   seen: Number(r.seen),
   sent: Number(r.sent),
+  blocked: Boolean(r.blocked),
   created_at: r.created_at,
   last_at: r.last_at,
 });
@@ -93,7 +96,33 @@ export function stickersRepo({ one, all, run }: Sql) {
         qb.selectFrom("stickers").selectAll().where("meaning", "is", null).orderBy("created_at").limit(limit),
       ).map(toSticker);
     },
-    /** A platform's stickers that have a meaning, the most used first. */
+    /** A platform's stickers, the most used first, named or not, blocked or not (what the owner manages). */
+    list(platform: string): Sticker[] {
+      return all(
+        qb
+          .selectFrom("stickers")
+          .selectAll()
+          .where("platform", "=", platform)
+          .orderBy((eb) => eb("seen", "+", eb.ref("sent")), "desc")
+          .orderBy("last_at", "desc"),
+      ).map(toSticker);
+    },
+    set(id: string, patch: { meaning?: string | undefined; blocked?: boolean | undefined }): Sticker | undefined {
+      if (patch.meaning !== undefined) repo.describe(id, patch.meaning);
+      if (patch.blocked !== undefined)
+        run(
+          qb
+            .updateTable("stickers")
+            .set({ blocked: patch.blocked ? 1 : 0 })
+            .where("id", "=", id),
+        );
+      return repo.get(id);
+    },
+    /** Forgets a sticker; its media row and file are the caller's to remove. */
+    remove(id: string): boolean {
+      return run(qb.deleteFrom("stickers").where("id", "=", id)) > 0;
+    },
+    /** A platform's stickers the agent may send (named, not blocked), the most used first. */
     known(platform: string, limit = 50): Sticker[] {
       return all(
         qb
@@ -101,6 +130,7 @@ export function stickersRepo({ one, all, run }: Sql) {
           .selectAll()
           .where("platform", "=", platform)
           .where("meaning", "is not", null)
+          .where("blocked", "=", 0)
           .orderBy((eb) => eb("seen", "+", eb.ref("sent")), "desc")
           .orderBy("last_at", "desc")
           .limit(limit),

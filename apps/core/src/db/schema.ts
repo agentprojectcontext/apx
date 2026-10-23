@@ -459,6 +459,7 @@ export interface StickersTable {
   sent: Generated<number>;
   created_at: string;
   last_at: string;
+  blocked: Generated<number>;
 }
 
 export interface SuggestionsTable {

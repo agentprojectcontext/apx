@@ -602,6 +602,26 @@ export const RunUsage = z.object({
 });
 export type RunUsage = z.infer<typeof RunUsage>;
 
+/** A sticker someone sent on a channel, kept so the agent reads what it means and can answer with it. */
+export const Sticker = z.object({
+  id: Id,
+  /** The channel type it came on ("whatsapp", "telegram"): the agent sends it only there. */
+  platform: z.string(),
+  media_id: Id,
+  mime: z.string(),
+  /** What it shows and says; none until a model that reads images named it. */
+  meaning: z.string().optional(),
+  /** The emoji the platform says it stands for. */
+  hint: z.string().optional(),
+  /** Times it arrived, and times the agent sent it. */
+  seen: z.number().int(),
+  sent: z.number().int(),
+  /** The owner said the agent may not send it. */
+  blocked: z.boolean(),
+  last_at: z.string(),
+});
+export type Sticker = z.infer<typeof Sticker>;
+
 /** What an auxiliary model call was for: a chat's title, a long chat's summary, a room's gate, a sticker's meaning… */
 export const AuxPurpose = z.enum([
   "title",

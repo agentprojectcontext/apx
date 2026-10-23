@@ -18,6 +18,7 @@ const naming = (system: string) => system.startsWith("You name chat stickers");
 const llm = scriptedLlm((_req, { system, said }) => {
   if (naming(system)) return say(`"${BEAR}."`);
   if (said.includes("send me a dinosaur")) return say("STICKER dinosaur roaring");
+  if (said.includes("send me the osito")) return say("STICKER osito con globo");
   if (said.includes("[sticker:")) return say("STICKER heart balloon");
   return say("ok");
 });
@@ -132,6 +133,44 @@ test("a sticker kept unnamed is named later, by its file", async () => {
   assert.deepEqual(asked, [media.id]);
   assert.equal(store.stickers.get(kept.id)?.meaning, "mate with a straw, a calm sip");
   assert.equal(store.stickers.unnamed().length, 0);
+});
+
+test("the owner sees a channel's stickers, says what one means, blocks one and forgets another", async () => {
+  const { stickers } = await env.client.call("stickers.list", { platform: "telegram" });
+  const bear = stickers.find((s) => s.meaning === BEAR);
+  assert.ok(bear);
+  assert.equal(bear.mime, "image/webp");
+  assert.equal(bear.blocked, false);
+  assert.equal("hash" in bear, false);
+
+  const renamed = await env.client.call("stickers.set", { id: bear.id, meaning: "osito con globo, te quiero" });
+  assert.equal(renamed.meaning, "osito con globo, te quiero");
+  await env.client.call("stickers.set", { id: bear.id, blocked: true });
+  assert.ok(!env.core.store.stickers.known("telegram").some((s) => s.id === bear.id), "the agent cannot send it");
+  // Blocked, the agent's words for it send nothing; unblocked, it goes by the owner's words.
+  const files = tg.filesTo(OWNER.id).length;
+  const said = async () => {
+    const calls = llm.calls.length;
+    tg.message(OWNER, "send me the osito");
+    await until(() => llm.calls.length > calls, "asked");
+    await env.settle("home");
+  };
+  await said();
+  assert.equal(tg.filesTo(OWNER.id).length, files);
+  await env.client.call("stickers.set", { id: bear.id, blocked: false });
+  await said();
+  await until(() => tg.filesTo(OWNER.id).length > files, "sent once unblocked");
+
+  const other = stickers.find((s) => s.id !== bear.id);
+  const file = env.core.store.media.get(other?.media_id ?? "")?.path ?? "";
+  assert.ok(fs.existsSync(file));
+  assert.deepEqual(await env.client.call("stickers.remove", { id: other?.id ?? "" }), { removed: true });
+  assert.equal(fs.existsSync(file), false, "its file goes too");
+  const after = await env.client.call("stickers.list", { platform: "telegram" });
+  assert.deepEqual(
+    after.stickers.map((s) => s.id),
+    [bear.id],
+  );
 });
 
 test("STICKER and the words for it, as the agent writes it", () => {
