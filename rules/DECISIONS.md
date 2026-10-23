@@ -2118,3 +2118,55 @@ the owner's idle minutes (30 by default, 0 for never) without a working run in i
 with the agent in control, it shuts it down too. Either way the disk is kept, the reason is kept for the panel
 (`last_stop`) and the owner is told in the chat and the tray. The stop threshold is below the start reserve, so a
 computer that just started is not stopped at once.
+[D-140](#d-140) replaced the one VM per chat with one shared VM, a user and screen per agent and a ledger of who
+holds each; the permission, resources and memory checks here stay.
+
+<a id="d-140"></a>
+## D-140 — 2026-10-23 — One shared computer: a Linux user and a screen per agent, and a ledger of who holds each
+D-139 gave one VM to one chat. Five or six agents each with their own 4 GiB VM would take about 24 GiB, and a guest's
+memory mostly goes back to macOS only when the VM stops. So there is one VM, sized once by the owner (D-139's
+resources), shared by every allowed agent.
+
+**Users and screens.** Each agent gets a screen number the first time it uses the computer (`computer_screens`, kept):
+screen n is Linux user `apx-a<n>` (uid 2000+n, locked, no sudo, its own `/home/apx-a<n>` with mode 700, its own
+Chromium profile there) on display `:100+n`. There is no screen of the owner's own: the owner watches an agent's screen and takes control of it
+(signing in to a site by hand happens there, with control taken). The former worker user `apx-worker` (uid 1001) stays
+as a screenless probe user the setup checks the boundary with. The firewall rules that kept uid 1001 to loopback now
+cover uids 2001–2999 too, and every user's session waits for the firewall. A desktop is reached only through its user's
+private socket: Xtigervnc listens on `$XDG_RUNTIME_DIR/apx-vnc.sock` (mode 600) and X clients need that user's cookie,
+so one agent can neither watch nor type into another's screen. The core opens a viewer by running
+`nc -U` on that socket as that user. Known limit: agents still share the guest's loopback network (another agent's
+service on 127.0.0.1 is reachable), and the proxy is the same for all.
+
+**The ledger.** Which screen is held by which agent's working run, in which chat, is the core's record
+(`computer_claims` in settings), not the guest's: a turn in a chat on the computer claims its agent's screen before the
+model is called, or an agent claims it when its `computer` tool starts the VM. A run event that ends the run releases it;
+claims of runs that are over are swept whenever the ledger is read, which covers a restart. An agent's screen held by its
+run in another chat refuses a second chat ("in use in another chat"); when as many screens are up as the VM holds
+(`(memory_gib − 1) / 1.25`, at least one: 2 for 4 GiB, 4 for 6 GiB, 5 for 8 GiB), a screen with no holder is stopped to
+make room, and with none free the turn is refused naming who holds them. A released screen stays up for its agent's next
+turn until room is needed; stopping it ends that user's session (`systemctl stop user@<uid>`), so its memory goes back.
+Control (D-139's lease) is per screen: the owner takes one agent's screen, which cancels the run holding it, without
+touching the others.
+
+**Chats.** A chat works on the computer when the owner turns it on in the Computer panel or its agent starts the
+computer from it (`computer_chats`); its turns then offer only the guest tools and `computer`, as before.
+`computer stop` from an agent is now "leave": the chat goes back to the Mac and its screen is freed; it no longer shuts
+the VM down for the others. The owner's "Shut down for everyone" does, cancelling the runs that hold screens. The
+watchdog stops the VM below 1 GiB of free host memory (telling each chat it took a screen from) or once no screen is held,
+no agent screen is in the owner's hands, nobody watches and nothing used it for the idle minutes.
+
+**Seeing them.** The Computer panel shows the screen of the chat's agent (switching chats switches it), with a picker
+for another agent's. A sidebar view, Computers, shows every screen in use as a wall of view-only tiles (agent, chat,
+who drives) and opens one large with its lease and a link to its chat; with none in use it says whether the computer is
+off or idle, how much memory the VM takes and offers start or stop. The view shows on a host that can run the computer
+once the owner has allowed an agent or set the computer up: an option most owners never use does not take a place in
+everyone's sidebar. Each tile is a live viewer with its own single-use ticket, only while the view is open, asking the
+desktop for low JPEG quality and high compression; VNC sends only what changed, so idle tiles cost little. Not
+measured: no guest could be booted while this was built (the host lacked the free memory), so eight live tiles against
+still snapshots is unmeasured; still snapshots are the fallback if live tiles prove heavy.
+
+`environments.*` follows: `display`, `control` and owner `command` name an agent's screen; `release` is the agent's (or owner's)
+leave; `stop` is the owner's, for everyone; `status` lists the screens with their holder, the cap and, for a chat,
+whether it is on the computer and its agent's screen. The guest disk marker moved to `desktop-ready-v3`, so an existing
+guest is secured and provisioned again on its next start.
