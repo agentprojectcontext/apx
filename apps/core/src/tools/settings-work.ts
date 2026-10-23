@@ -1,6 +1,6 @@
 // apx_settings, where the work happens and what it draws on: projects, memory, skills, MCP servers and extensions on
 // or off, media services and widgets. A project's autonomy and read-only folders and memory's model stay the owner's
-// (DECISIONS.md#d-060); so does adding an MCP server, whose command and keys run on this computer.
+// (DECISIONS.md#d-060). An MCP server names its keys as secret://NAME, never their value (DECISIONS.md#d-141).
 import { memorySettings } from "../domain/memory-settings.ts";
 import { imageDefaultsOf } from "../services/registry.ts";
 import { inlineName } from "./result.ts";
@@ -15,6 +15,38 @@ const widget = (store: Parameters<typeof projectName>[0], id: unknown) =>
   inlineName(store.surfaces.get(str(id))?.title ?? str(id));
 const scopeOf = (p: Params, store: Parameters<typeof projectName>[0]) =>
   p.project ? ` in ${projectName(store, p.project)}` : "";
+
+type McpRaw = {
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  headers?: Record<string, string>;
+  enabled?: boolean;
+};
+const SECRET_REF = /secret:\/\/[a-zA-Z0-9_.-]+/g;
+/** The owner's own MCP servers as they are saved (values hold secret:// references). */
+const ownServers = (store: Parameters<typeof projectName>[0]): Record<string, McpRaw> => {
+  try {
+    return (
+      (JSON.parse(store.settings.get("mcp_servers") ?? "{}") as { mcpServers?: Record<string, McpRaw> }).mcpServers ??
+      {}
+    );
+  } catch {
+    return {};
+  }
+};
+/** A value that reads like a key or token once its secret:// references are taken out. */
+const keyLike = (v: string) => {
+  const bare = v.replace(SECRET_REF, "");
+  return /[A-Za-z0-9_-]{20,}/.test(bare) && /\d/.test(bare) && /[a-z]/i.test(bare);
+};
+/** The env or header written as a key's value instead of a reference to one the owner saved. */
+const pastedKey = (server: unknown): string | undefined => {
+  const s = (server ?? {}) as McpRaw;
+  return Object.entries({ ...s.env, ...s.headers }).find(([, v]) => keyLike(String(v)))?.[0];
+};
+const shownValue = (v: string) => (keyLike(v) ? "(a value)" : v);
 
 export const WORK: Readonly<Record<string, Setting>> = {
   "projects.list": {
@@ -141,6 +173,44 @@ export const WORK: Readonly<Record<string, Setting>> = {
     named: ["project", "kind", "on"],
     says: (p, { store }) =>
       `${p.on ? "Let" : "Stop"} ${projectName(store, p.project)} ${p.on ? "use" : "using"} the global ${p.kind === "mcp" ? "MCP servers" : "skills"}`,
+  },
+  "mcp.list": {
+    does: "the owner's own MCP servers: command or URL, the variables they name (secret://NAME) and whether each is on",
+    read: (_p, { store }) =>
+      Object.entries(ownServers(store))
+        .map(([name, r]) => {
+          const vars = Object.entries({ ...r.env, ...r.headers }).map(([k, v]) => `${k}=${shownValue(String(v))}`);
+          const target = r.url ?? [r.command, ...(r.args ?? [])].join(" ");
+          return `- ${name}: ${target}${vars.length ? `; ${vars.join(", ")}` : ""}${r.enabled === false ? " (off)" : ""}`;
+        })
+        .join("\n") || "no MCP servers of the owner's own yet.",
+  },
+  "mcp.set": {
+    does: "add, change or (server: null) remove one of the owner's MCP servers (name; server: command, args, env, or url, headers; project: only there). A key goes as secret://NAME, a variable the owner saved, never its value",
+    says: (p, { store }) => {
+      const exists = !p.project && ownServers(store)[str(p.name)];
+      const act = p.server === null ? "Remove" : exists ? "Change" : "Add";
+      return `${act} the MCP server ${inlineName(str(p.name))}${scopeOf(p, store)}`;
+    },
+    named: ["name", "project"],
+    // A new server is shown field by field too, from nothing.
+    now: (p, { store }) => ({ name: p.name, server: (p.project ? undefined : ownServers(store)[str(p.name)]) ?? {} }),
+    refuse: (p) => {
+      const key = pastedKey(p.server);
+      if (key)
+        return `${key} looks like a key's value: the owner saves it once in Variables (or apx secrets set NAME), and the server names it as secret://NAME`;
+      const args = (p.server as McpRaw | null)?.args;
+      if (args && JSON.stringify(args).includes("secret://"))
+        return "a variable in args shows in the process list: put it in env instead";
+      return undefined;
+    },
+    shows: (r) => {
+      const { servers } = r as { servers: Array<{ name: string; vars: Array<{ name: string; set: boolean }> }> };
+      const missing = servers.flatMap((s) => s.vars.filter((v) => !v.set).map((v) => `${v.name} (${s.name})`));
+      return missing.length
+        ? `saved. Still without a value, so ask the owner to save them in Variables: ${missing.join(", ")}`
+        : "saved; mcp.list shows it now";
+    },
   },
   "mcp.toggle": {
     does: "turn an MCP server on or off in a project (project, server, on)",
