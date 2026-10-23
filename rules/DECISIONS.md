@@ -2061,3 +2061,42 @@ own (`agent_set`, `routine_set`…), kept the owner's with its reason (keys and 
 models per D-060, the machine, the panel's own views, the owner's own answer or send), or `NOT_YET`, the list still to
 place. `settings.test.ts` fails on a new owner method nobody placed, so the super-agent's reach is decided with each
 new setting instead of found missing by the owner. Contacts are the first area in it.
+
+<a id="d-139"></a>
+## D-139 — 2026-10-23 — The isolated computer is a per-agent permission, and its memory decides when it runs
+The Linux computer (a Lima VM with its own desktop, shell and browser, whose egress goes through a proxy that refuses
+the host and the local network) could only be turned on by the owner from the Computer panel, for one chat, with a
+fixed 4 GiB of memory. The owner wants it off by default, given to agents one by one, and started and stopped by the
+agents themselves as free memory allows.
+
+**Permission.** Using the computer is an owner's grant per agent, key `apx:computer` (`COMPUTER_GRANT`) in the grants
+store: for good (`always`, shown and revoked in the agent's settings, Computer page, or in its granted list) or for one
+chat (`session`). No agent has it until the owner gives it, whatever its autonomy: Total skips confirmation cards
+(D-047), so the request is not the executor's card but `requestGrant`, a card the tool raises itself that no mode
+skips; it offers "for this chat" and "always for this agent", never "only this time", since a permission covers the
+turns that follow. A chat bound to the computer whose agent lost the permission refuses its turns before any model
+call, as it does without a backend: never host tools instead. The owner's `environments.enable` and `bind` refuse an
+agent without it; the panel offers "Allow <agent> and turn on".
+
+**The tool.** `computer` (status, start, stop) is one conditional tool (rule 15): offered in an owner's native chat to
+an allowed agent, and, once the owner has set the computer up on this core, to any agent there so it can ask. A fresh
+install offers it to no one, so the default turn's budget (rule 23) is unchanged. It acts through `environments.start`
+and `environments.stop` (rule 1), which accept the owner or a working run of that very chat whose agent is allowed;
+an agent's stop does not cancel its own run. Starting from a chat that is not the computer's moves the computer there
+when it is off and its old chat has no working run; the old chat gets its host tools back from its next turn. In the
+computer's chat a stopped computer no longer refuses the turn: the agent gets the guest tools and `computer`, and
+starts it when it needs it. Known limit: an agent that starts the computer from another chat keeps that turn's host
+tools until the turn ends; its shell and browser move to the guest at once.
+
+**Memory.** Memory, CPUs and disk are owner settings (`environments.configure`), held to the host: memory 2 GiB up to
+the host's minus 4 GiB (at most 32), CPUs up to half the host's (at most 8), disk 16–256 GiB and never below what the
+guest disk already has, since Lima only grows a disk. The default is a quarter of the host's memory, from 4 up to
+8 GiB, and 4 CPUs on a host with 10 cores or more. They apply on the next start through `limactl edit` (a new
+instance gets them as `start` flags), and the disk and host-memory preflights use the same values. A start, the
+owner's or an agent's, is refused while free memory (as the system counts it: `vm_stat` on macOS, `MemAvailable` on
+Linux; `os.freemem()` on macOS counts only never-used pages) is below the VM's memory plus 2 GiB, with a message
+saying both numbers. A watchdog in the core checks every 30 seconds: below 1 GiB free it shuts the VM down, and after
+the owner's idle minutes (30 by default, 0 for never) without a working run in its chat, a viewer or a guest call, and
+with the agent in control, it shuts it down too. Either way the disk is kept, the reason is kept for the panel
+(`last_stop`) and the owner is told in the chat and the tray. The stop threshold is below the start reserve, so a
+computer that just started is not stopped at once.

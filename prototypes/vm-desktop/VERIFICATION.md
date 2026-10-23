@@ -28,6 +28,6 @@ Use a separately launched lab for the last two commands. Security verification r
 
 ## Scope
 
-The backend supports macOS Apple Silicon. One owner native chat owns one computer. Host folders, SSH agents, browser profiles, external harnesses and MCP tools are not shared with the guest. File/Git synchronization and VM pools are outside this implementation.
+The backend supports macOS Apple Silicon. One owner native chat owns the computer at a time; it moves to another chat only while off. An agent uses it only with the owner's grant (rules/DECISIONS.md#d-139). Host folders, SSH agents, browser profiles, external harnesses and MCP tools are not shared with the guest. File/Git synchronization and VM pools are outside this implementation.
 
 The boundary assumes the host core, Lima administrator, guest kernel and hypervisor remain trusted. It does not defend against kernel/hypervisor exploits or turn publicly reachable third-party services into private resources. Offline public destinations and a closed core fail closed rather than falling back to host execution.
