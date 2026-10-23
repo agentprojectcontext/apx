@@ -73,7 +73,7 @@ export function ComputerConsole({
       <div className="computer__console-title">
         <Icons.Terminal size={14} />
         <strong>{t("computer.terminal")}</strong>
-        <code>/home/apx/work</code>
+        <code>/home/apx-worker/work</code>
         <IconButton
           label={collapsed ? t("computer.expandTerminal") : t("computer.minimizeTerminal")}
           icon={collapsed ? <Icons.ChevronUp size={14} /> : <Icons.Minus size={14} />}

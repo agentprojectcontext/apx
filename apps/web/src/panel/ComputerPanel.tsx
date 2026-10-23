@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useT } from "../i18n/index.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ComputerConsole } from "./ComputerConsole.tsx";
+import { ComputerSettings } from "./ComputerSettings.tsx";
 import { PanelHeader } from "./SidePanel.tsx";
 import { useComputer } from "./useComputer.ts";
 import { useVmDisplay } from "./useVmDisplay.ts";
@@ -12,7 +13,7 @@ export function ComputerPanel() {
   const t = useT();
   const thread = useNav((s) => s.threadId);
   const wide = useNav((s) => s.panelWide);
-  const { status, error: controlError, busy, operate } = useComputer(thread);
+  const { status, error: controlError, setError, busy, operate, refresh } = useComputer(thread);
   const [terminalMaximized, setTerminalMaximized] = useState(false);
   const manual = status?.control === "human" && !status.changing;
   const ready = Boolean(status?.ready && status.thread === thread);
@@ -20,6 +21,9 @@ export function ComputerPanel() {
   const phase = status?.phase;
   const preparing = phase === "preparing" || phase === "stopping";
   const assignedElsewhere = Boolean(status?.thread && status.thread !== thread);
+  const allow = Boolean(status?.agent && status.permitted === false);
+  const r = status?.resources;
+  const stoppedBy = phase === "stopped" && status?.last_stop?.reason;
   return (
     <div className="computer">
       <PanelHeader
@@ -51,7 +55,7 @@ export function ComputerPanel() {
         <div className="computer__toolbar">
           <span className={`computer__status ${state === "connected" ? "is-on" : ""}`} />
           <strong>{t("computer.title")}</strong>
-          <span className="computer__badge">Linux · 2 vCPU · 4 GiB</span>
+          {r && <span className="computer__badge">{t("computer.badge", { cpus: r.cpus, memory: r.memory_gib })}</span>}
         </div>
       </PanelHeader>
       {ready && (
@@ -92,7 +96,15 @@ export function ComputerPanel() {
                         : "computer.enableTitle",
             )}
           </strong>
-          <p>{t(phase === "stopped" ? "computer.stoppedHint" : "computer.setupHint")}</p>
+          <p>
+            {phase === "stopped"
+              ? t("computer.stoppedHint")
+              : t("computer.setupHint", { memory: r?.memory_gib ?? 4, disk: (r?.disk_gib ?? 24) + 2 })}
+          </p>
+          {stoppedBy && stoppedBy !== "owner" && <p role="status">{t(`computer.lastStop.${stoppedBy}`)}</p>}
+          {allow && !preparing && !assignedElsewhere && (
+            <p>{t("computer.notAllowed", { agent: status?.agent_name ?? "" })}</p>
+          )}
           {preparing && (
             <p role="status">
               {t(
@@ -112,10 +124,21 @@ export function ComputerPanel() {
               type="button"
               className="computer__button is-primary"
               disabled={busy || !status || !thread}
-              onClick={() => void operate("environments.enable")}
+              onClick={() => void operate(allow ? "allow" : "environments.enable")}
             >
-              {t(phase === "stopped" ? "computer.start" : phase === "error" ? "computer.retry" : "computer.enable")}
+              {allow
+                ? t("computer.allowAndEnable", { agent: status?.agent_name ?? "" })
+                : t(phase === "stopped" ? "computer.start" : phase === "error" ? "computer.retry" : "computer.enable")}
             </button>
+          )}
+          {status && !preparing && phase !== "unsupported" && !assignedElsewhere && (
+            <ComputerSettings
+              status={status}
+              onSaved={(failure) => {
+                setError(failure ?? "");
+                void refresh().catch(() => {});
+              }}
+            />
           )}
           <small>{t("computer.closeHint")}</small>
         </div>

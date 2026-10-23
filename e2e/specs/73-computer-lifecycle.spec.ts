@@ -52,7 +52,7 @@ test("Computer installs only on enable, follows APX appearance and exposes stop/
   const env = await startCore({
     home,
     llm: scriptedLlm(() => say("ok")),
-    vmPrototype: {
+    computer: {
       limaHome: path.join(home, "no-vms"),
       instance: "missing",
       lifecycle,
@@ -68,9 +68,12 @@ test("Computer installs only on enable, follows APX appearance and exposes stop/
     }, env.core.url);
     await page.goto(`${env.core.url}/#thread=home&panel=computer`);
     const computer = page.locator(".computer");
-    await expect(computer.getByRole("button", { name: "Activar Computadora", exact: true })).toBeVisible();
+    // Off for every agent: turning it on for this chat first allows its agent.
+    const allow = computer.getByRole("button", { name: "Permitir a Roby y activar", exact: true });
+    await expect(allow).toBeVisible();
+    await expect(computer.getByRole("combobox", { name: "Memoria" })).toHaveText(/4 GiB/);
     expect(calls).toEqual([]);
-    await computer.getByRole("button", { name: "Activar Computadora", exact: true }).click();
+    await allow.click();
     await expect(computer.getByRole("button", { name: "Apagar VM", exact: true })).toBeVisible();
     expect(calls).toContain("prepare:light");
     await expect(computer.locator(".computer__locked")).toBeVisible();
@@ -143,7 +146,7 @@ test("a late status poll cannot undo shutdown, and an optional VM error cannot b
   });
   const env = await startCore({
     llm: scriptedLlm(() => say("ok")),
-    vmPrototype: { limaHome: "/unused", instance: "missing", lifecycle, executable: () => "/usr/bin/false" },
+    computer: { limaHome: "/unused", instance: "missing", lifecycle, executable: () => "/usr/bin/false" },
   });
   let release: () => void = () => {};
   let hold = false;
@@ -155,6 +158,7 @@ test("a late status poll cannot undo shutdown, and an optional VM error cannot b
   });
   try {
     await env.client.call("setup.finish", {});
+    await env.client.call("environments.permit", { agent: "roby", on: true });
     await env.client.call("environments.bind", { thread: "home" });
     const stale = await env.client.call("environments.status", {});
     await mockVmDisplay(page);

@@ -31,7 +31,10 @@ export function useComputer(thread: string | undefined) {
       const observed = generation.current;
       try {
         if (operating.current) return;
-        const result = await client.withSignal(abort.signal).call("environments.status", {});
+        const viewed = activeThread.current;
+        const result = await client
+          .withSignal(abort.signal)
+          .call("environments.status", viewed ? { thread: viewed } : {});
         if (!abort.signal.aborted && observed === generation.current) {
           setStatus(result);
           data.set({ vmThread: result.thread ?? null });
@@ -61,18 +64,22 @@ export function useComputer(thread: string | undefined) {
     return () => abort.abort();
   }, [thread, mode, status?.thread, status?.phase]);
   const operate = useCallback(
-    async (method: "environments.enable" | "environments.stop" | "human" | "agent") => {
+    async (method: "environments.enable" | "environments.stop" | "human" | "agent" | "allow") => {
       if (!thread || operating.current) return;
       operating.current = true;
       const observed = ++generation.current;
       setBusy(true);
       setError("");
       try {
-        if (method === "environments.enable") await client.call(method, { thread, appearance: mode });
+        if (method === "allow" && status?.agent) {
+          await client.call("environments.permit", { agent: status.agent, on: true });
+          await client.call("environments.enable", { thread, appearance: mode });
+        } else if (method === "environments.enable" || method === "allow")
+          await client.call("environments.enable", { thread, appearance: mode });
         else if (method === "human" || method === "agent")
           await client.call("environments.control", { thread, mode: method });
         else await client.call(method, { thread });
-        const result = await client.call("environments.status", {});
+        const result = await client.call("environments.status", { thread });
         if (observed === generation.current) {
           setStatus(result);
           data.set({ vmThread: result.thread ?? null });
@@ -84,7 +91,11 @@ export function useComputer(thread: string | undefined) {
         if (observed === generation.current) setBusy(false);
       }
     },
-    [thread, mode],
+    [thread, mode, status?.agent],
   );
-  return { status, error, setError, busy, operate };
+  const refresh = useCallback(async () => {
+    const result = await client.call("environments.status", thread ? { thread } : {});
+    setStatus(result);
+  }, [thread]);
+  return { status, error, setError, busy, operate, refresh };
 }

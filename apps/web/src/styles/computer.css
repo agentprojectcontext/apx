@@ -78,6 +78,14 @@
   line-height: 1.6;
   margin: 0;
 }
+.computer__settings {
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+}
+.computer__settings p {
+  margin-top: 8px;
+}
 .computer__setup small {
   max-width: 420px;
   color: var(--apx-muted);

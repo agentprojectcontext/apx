@@ -43,6 +43,7 @@ export const PAGES = [
   "rules",
   "granted",
   "browser",
+  "computer",
 ] as const;
 export type PageId = (typeof PAGES)[number];
 
