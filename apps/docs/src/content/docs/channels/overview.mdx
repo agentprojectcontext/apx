@@ -157,11 +157,27 @@ on for that chat; that needs a voice in **Settings › Voices** too.
 | SMS | Unverified | A Twilio number, checked every few seconds (no webhook) |
 | ntfy | Unverified | Push notifications to your phone, and your replies from the ntfy app; only you |
 | Nextcloud Talk, IRC, Twitch | Unverified | A bot user (Nextcloud), a nick (IRC) or a bot account (Twitch chat); their rooms are listed like Telegram groups |
-| Teams, LINE | Coming soon | They deliver only to a public webhook, which APX doesn't take yet |
+| Microsoft Teams, LINE | Unverified | A bot (Azure Bot, LINE Messaging API) that delivers to a [public address](#a-public-address-for-teams-and-line) |
 
 <Aside type="note">
 The terminal adds Telegram bots only. Every other channel is set up in **Settings › Channels**.
 </Aside>
+
+## A public address for Teams and LINE
+
+Teams and LINE don't let a bot fetch its messages: they send each one to a web address. APX only listens on your
+computer, so these two need a **public address**, set in their screen under **Settings › Channels**. It publishes
+only a separate door for webhooks (`…/hooks/<channel>`), never the panel or the API, and each message is checked
+against the platform's signature before anything reads it.
+
+| How | What you need | The address |
+|---|---|---|
+| **Tailscale** | Tailscale connected, and Funnel allowed for this device in your tailnet | Fixed: `https://<this computer>.ts.net:8443` |
+| **ngrok** | ngrok installed and signed in once (`ngrok config add-authtoken …`) | Changes each time ngrok starts again, unless you give a reserved domain |
+| **My own** | An https address of yours that forwards to the webhook port on this computer | Yours |
+
+Copy **This channel's address** into the platform (Teams' messaging endpoint, LINE's webhook URL). With ngrok and no
+reserved domain, paste it again after a restart: the panel warns you when that can happen.
 
 <Terminal command="apx channels">{`telegram       telegram  running   @acme_store_bot    agent nova
 whatsapp       whatsapp  running   +1 555 0100        agent nova`}</Terminal>

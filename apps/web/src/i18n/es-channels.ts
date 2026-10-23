@@ -284,4 +284,56 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "im.answer": "Contestar chats",
   "im.answerHint":
     "Las personas que te escriben por iMessage reciben respuesta de tu agente, una vez que las aprobás. Tus propios mensajes nunca se contestan.",
+  "hooks.title": "Dirección pública",
+  "hooks.lead":
+    "Este canal entrega sus mensajes a una dirección web, así que APX necesita una que se pueda alcanzar desde internet. Sólo se publica la puerta de webhooks: nunca el panel ni la API.",
+  "hooks.how": "Cómo se publica",
+  "hooks.off": "Apagada",
+  "hooks.offBody": "Sin dirección pública: este canal no puede recibir mensajes.",
+  "hooks.tailscale": "Tailscale",
+  "hooks.tailscaleBody":
+    "Tailscale Funnel da una dirección https fija en el puerto 8443. Gratis; Funnel tiene que estar permitido para este equipo en tu tailnet.",
+  "hooks.ngrok": "ngrok",
+  "hooks.ngrokBody":
+    "APX arranca ngrok por vos. Sin un dominio reservado, la dirección cambia cada vez que ngrok arranca de nuevo.",
+  "hooks.custom": "Propia",
+  "hooks.customBody": "Tu propia dirección https, delante del puerto de webhooks (un proxy o un servidor tuyo).",
+  "hooks.tsMissing": "Tailscale no está instalado en esta computadora.",
+  "hooks.tsDisconnected": "Tailscale está instalado pero no conectado (o MagicDNS está apagado).",
+  "hooks.ngrokMissing": "ngrok no está instalado: instalalo y corré “ngrok config add-authtoken <tu token>” una vez.",
+  "hooks.domain": "Dominio reservado",
+  "hooks.domainHint": "Opcional: tu dominio de ngrok mantiene la misma dirección entre reinicios.",
+  "hooks.ownUrl": "Tu dirección",
+  "hooks.ownUrlHint": "Tiene que reenviar a 127.0.0.1:{port} en esta computadora.",
+  "hooks.address": "La dirección de este canal",
+  "hooks.addressHint": "Pegala en la plataforma como messaging endpoint o URL del webhook.",
+  "hooks.copy": "Copiar",
+  "hooks.copied": "Dirección copiada",
+  "hooks.notUp": "Todavía no está activa",
+  "hooks.mayChange":
+    "Esta dirección de ngrok puede cambiar cuando ngrok o APX arrancan de nuevo: en ese caso pegá la nueva en la plataforma, o poné un dominio reservado.",
+  "hooks.failed": "No se pudo cambiar la dirección pública: {error}",
+  "tm.lead":
+    "Hablá con tus agentes desde Microsoft Teams, en chats personales y en los canales que listes. Teams entrega a una dirección pública, que configurás abajo.",
+  "tm.step1":
+    "En el portal de Azure, App registrations › New registration (single tenant): copiá el Application (client) ID y el Directory (tenant) ID.",
+  "tm.step2": "En esa app, Certificates & secrets › New client secret: copiá su valor.",
+  "tm.step3":
+    "Creá un Azure Bot con ese registro de app (single tenant) y poné como Messaging endpoint la dirección de este canal, abajo.",
+  "tm.step4":
+    "En los Channels del Azure Bot, activá Microsoft Teams y después instalá el bot en Teams (Developer Portal o un manifiesto con su id).",
+  "tm.step5": "Pegá los tres valores acá, escribile al bot en Teams y poné su código en “Este es mi Microsoft Teams”.",
+  "tm.appId": "App (client) ID",
+  "tm.secret": "Client secret",
+  "tm.tenant": "Directory (tenant) ID",
+  "ln.lead":
+    "Hablá con tus agentes desde LINE, en chats uno a uno y en los grupos que listes. LINE entrega a una dirección pública, que configurás abajo.",
+  "ln.step1":
+    "En la consola de LINE Developers, creá un provider y un canal de Messaging API para tu Official Account; copiá el Channel secret (Basic settings).",
+  "ln.step2": "En la pestaña Messaging API, emití un channel access token de larga duración y copialo.",
+  "ln.step3":
+    "Pegá la dirección de este canal (abajo) como Webhook URL, activá “Use webhook” y tocá Verify; en el Official Account Manager, apagá las respuestas automáticas y el saludo.",
+  "ln.step4": "Pegá el secret y el token acá, escribile a la cuenta y poné su código en “Este es mi LINE”.",
+  "ln.secret": "Channel secret",
+  "ln.token": "Channel access token",
 };

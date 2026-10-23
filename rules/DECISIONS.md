@@ -2061,3 +2061,25 @@ own (`agent_set`, `routine_set`…), kept the owner's with its reason (keys and 
 models per D-060, the machine, the panel's own views, the owner's own answer or send), or `NOT_YET`, the list still to
 place. `settings.test.ts` fails on a new owner method nobody placed, so the super-agent's reach is decided with each
 new setting instead of found missing by the owner. Contacts are the first area in it.
+
+<a id="d-139"></a>
+## D-139 — 2026-10-23 — Channels that deliver only to a webhook get a public address, on a listener of their own
+Teams, LINE and WhatsApp's business API do not let a bot pull its messages: they POST each one to a public HTTPS URL.
+The core listens only on loopback (rule 7) and has one contract, the router (rule 1), so those channels stayed
+"coming". openclaw and hermes open their gateway's port and leave the owner to put a tunnel in front (Microsoft's dev
+tunnels, ngrok, Tailscale Funnel); hermes also tries a hosted relay. Exposing the core's own port would publish the
+panel and the API, and a hosted relay is a service APX would have to run for everyone.
+
+So webhooks get a second HTTP listener (`transport/hooks.ts`), on 127.0.0.1, at the core's port + 8 (`APX_HOOKS_PORT`;
+a free one when that is taken), that takes only `POST …/hooks/<channel id>[/…]` up to 1 MB and hands the raw request
+to that channel's running adapter (`ChannelAdapter.webhook`); every other path is 404, and an adapter answers in 15 s
+or the platform gets 503. It is not a client↔core call, so it is not a router method: the platform is no client, and
+each adapter verifies its platform's own signature (Teams' Bot Framework JWT, LINE's HMAC) over the bytes as they came
+and refuses what it cannot verify. A failure's detail stays in the log.
+
+What publishes that port is the owner's choice (`webhooks.set`, Settings › Channels › Public address), kept and applied
+again at every start (`webhooks.ts`): Tailscale Funnel on HTTPS port 8443 (443 stays what `apx tailscale connect`
+serves to the tailnet, and only APX's own Funnel is undone when it is turned off); ngrok, started and watched by the
+core, whose free address changes each time it starts again unless the owner gives a reserved domain, which the panel
+says; or the owner's own https URL (a proxy they run). Each adapter reads its address through `io.hookUrl()`, and a
+channel that needs one and has none says so in its status until one exists.

@@ -17,13 +17,14 @@ const EMPTY: ChannelRooms = {
 };
 
 type ServerRoom = { id: string; name: string; server: string; writable: boolean };
-const ROOMS_KINDS = ["discord", "telegram", "googlechat", "nextcloud", "irc", "twitch"] as const;
+const ROOMS_KINDS = ["discord", "telegram", "googlechat", "nextcloud", "irc", "twitch", "teams", "line"] as const;
 type RoomsKind = (typeof ROOMS_KINDS)[number];
 export const isRoomsKind = (k: string): k is RoomsKind => (ROOMS_KINDS as readonly string[]).includes(k);
 
 /**
  * A Discord channel id; a Telegram group's id (negative, -100… for a supergroup); a Google Chat space; a Nextcloud
- * Talk conversation's token; an IRC channel; a Twitch chat (the streamer's #login).
+ * Talk conversation's token; an IRC channel; a Twitch chat (the streamer's #login); a Teams channel or group chat; a
+ * LINE group (C…) or multi-person chat (R…).
  */
 const ROOM_ID: Record<RoomsKind, RegExp> = {
   discord: /^\d{15,21}$/,
@@ -32,6 +33,8 @@ const ROOM_ID: Record<RoomsKind, RegExp> = {
   nextcloud: /^[a-z0-9]{4,32}$/,
   irc: /^[#&][^\s,]{1,39}$/,
   twitch: /^#\w{3,25}$/,
+  teams: /^19:\S{8,116}$/,
+  line: /^[CR][0-9a-f]{32}$/,
 };
 /** The rooms of the platforms that report them as the bot sees them, like Telegram's groups. */
 const SEEN = {
@@ -67,6 +70,8 @@ const WORDS = {
   nextcloud: SEEN,
   irc: SEEN,
   twitch: SEEN,
+  teams: SEEN,
+  line: SEEN,
 } as const satisfies Record<RoomsKind, Record<string, MessageKey>>;
 
 /** The rooms of the bot's servers while it runs; none (and the id form) when they cannot be read. */

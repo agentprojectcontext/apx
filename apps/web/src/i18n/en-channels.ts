@@ -266,4 +266,57 @@ export const enChannels = {
   "im.answer": "Answer chats",
   "im.answerHint":
     "The people who write to you on iMessage get answered by your agent, once you approve them. Your own messages are never answered.",
+  "hooks.title": "Public address",
+  "hooks.lead":
+    "This channel delivers its messages to a web address, so APX needs one the internet can reach. Only the webhook door is published: never the panel or the API.",
+  "hooks.how": "How it is published",
+  "hooks.off": "Off",
+  "hooks.offBody": "No public address: this channel cannot receive messages.",
+  "hooks.tailscale": "Tailscale",
+  "hooks.tailscaleBody":
+    "Tailscale Funnel gives a fixed https address on port 8443. Free; Funnel must be allowed for this device in your tailnet.",
+  "hooks.ngrok": "ngrok",
+  "hooks.ngrokBody":
+    "APX starts ngrok for you. Without a reserved domain, the address changes each time ngrok starts again.",
+  "hooks.custom": "My own",
+  "hooks.customBody": "Your own https address, in front of the webhook port (a proxy or a server you run).",
+  "hooks.tsMissing": "Tailscale is not installed on this computer.",
+  "hooks.tsDisconnected": "Tailscale is installed but not connected (or MagicDNS is off).",
+  "hooks.ngrokMissing": "ngrok is not installed: install it and run “ngrok config add-authtoken <your token>” once.",
+  "hooks.domain": "Reserved domain",
+  "hooks.domainHint": "Optional: your ngrok domain keeps the address the same across restarts.",
+  "hooks.ownUrl": "Your address",
+  "hooks.ownUrlHint": "It must forward to 127.0.0.1:{port} on this computer.",
+  "hooks.address": "This channel's address",
+  "hooks.addressHint": "Paste it into the platform as the messaging endpoint or webhook URL.",
+  "hooks.copy": "Copy",
+  "hooks.copied": "Address copied",
+  "hooks.notUp": "Not up yet",
+  "hooks.mayChange":
+    "This ngrok address can change when ngrok or APX starts again: paste the new one into the platform then, or set a reserved domain.",
+  "hooks.failed": "The public address could not change: {error}",
+  "tm.lead":
+    "Talk with your agents from Microsoft Teams, in personal chats and the channels you list. Teams delivers to a public address, set below.",
+  "tm.step1":
+    "In the Azure portal, App registrations › New registration (single tenant): copy the Application (client) ID and the Directory (tenant) ID.",
+  "tm.step2": "In that app, Certificates & secrets › New client secret: copy its value.",
+  "tm.step3":
+    "Create an Azure Bot with that app registration (single tenant) and set its Messaging endpoint to this channel's address, below.",
+  "tm.step4":
+    "In the Azure Bot's Channels, turn on Microsoft Teams, then install the bot in Teams (Developer Portal or an app manifest with its id).",
+  "tm.step5":
+    "Paste the three values here, write to the bot in Teams and type its code in “This is my Microsoft Teams”.",
+  "tm.appId": "App (client) ID",
+  "tm.secret": "Client secret",
+  "tm.tenant": "Directory (tenant) ID",
+  "ln.lead":
+    "Talk with your agents from LINE, in one-to-one chats and the groups you list. LINE delivers to a public address, set below.",
+  "ln.step1":
+    "In the LINE Developers console, create a provider and a Messaging API channel for your Official Account; copy the Channel secret (Basic settings).",
+  "ln.step2": "On the Messaging API tab, issue a long-lived channel access token and copy it.",
+  "ln.step3":
+    "Paste this channel's address (below) as the Webhook URL, turn on “Use webhook” and press Verify; in the Official Account Manager, turn off auto-reply and greeting messages.",
+  "ln.step4": "Paste the secret and the token here, write to the account and type its code in “This is my LINE”.",
+  "ln.secret": "Channel secret",
+  "ln.token": "Channel access token",
 } as const;

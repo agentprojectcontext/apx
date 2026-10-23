@@ -207,6 +207,25 @@ export const NEWS: readonly NewsEntry[] = [
       },
     ],
   },
+  {
+    id: "teams-line",
+    since: "2.9.1",
+    title: "Microsoft Teams and LINE",
+    applies: (f) => f.channels > 0,
+    text:
+      "Agents can now be reached on Microsoft Teams and LINE. Both send their messages to a web address, so their " +
+      "screen in Settings › Channels turns on a public address first: Tailscale Funnel (a fixed address), ngrok " +
+      "(started by APX; its free address changes when it restarts, unless the owner has a reserved domain) or the " +
+      "owner's own. Only a door for webhooks is published, never the panel, and every message is checked.",
+    actions: [
+      {
+        label: { en: "Set up Teams", es: "Configurar Teams" },
+        prompt:
+          "Walk me through connecting Microsoft Teams: what to create in Azure, how to turn on the public address " +
+          "(Tailscale or ngrok, whichever I have), and where to paste each value.",
+      },
+    ],
+  },
 ];
 
 /** The catalog integrations among the owner's global MCP servers. */

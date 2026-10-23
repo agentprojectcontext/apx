@@ -21,4 +21,6 @@ export const CHANNEL_CATALOG: Record<ChannelType, { label: string; description: 
   nextcloud: { label: "Nextcloud Talk", description: "A bot user on your Nextcloud server." },
   irc: { label: "IRC", description: "A bot on an IRC network." },
   twitch: { label: "Twitch", description: "A bot in a Twitch channel's chat." },
+  teams: { label: "Microsoft Teams", description: "A Teams bot in your organization (needs a public address)." },
+  line: { label: "LINE", description: "A LINE official account (needs a public address)." },
 };

@@ -164,11 +164,27 @@ las respuestas habladas para ese chat; para eso también hace falta una voz en *
 | SMS | Sin verificar | Un número de Twilio, revisado cada pocos segundos (sin webhook) |
 | ntfy | Sin verificar | Notificaciones push en tu teléfono, y tus respuestas desde la app de ntfy; sólo vos |
 | Nextcloud Talk, IRC, Twitch | Sin verificar | Un usuario bot (Nextcloud), un nick (IRC) o una cuenta bot (chat de Twitch); sus salas se listan como los grupos de Telegram |
-| Teams, LINE | Pronto | Sólo entregan a un webhook público, que APX todavía no recibe |
+| Microsoft Teams, LINE | Sin verificar | Un bot (Azure Bot, Messaging API de LINE) que entrega a una [dirección pública](#una-dirección-pública-para-teams-y-line) |
 
 <Aside type="note">
 La terminal solo agrega bots de Telegram. Todos los demás canales se configuran en **Configuración › Canales**.
 </Aside>
+
+## Una dirección pública para Teams y LINE
+
+Teams y LINE no dejan que un bot busque sus mensajes: mandan cada uno a una dirección web. APX sólo escucha en tu
+computadora, así que estos dos necesitan una **dirección pública**, que se configura en su pantalla de
+**Configuración › Canales**. Publica sólo una puerta aparte para webhooks (`…/hooks/<canal>`), nunca el panel ni la
+API, y cada mensaje se verifica con la firma de la plataforma antes de que nada lo lea.
+
+| Cómo | Qué necesitás | La dirección |
+|---|---|---|
+| **Tailscale** | Tailscale conectado, y Funnel permitido para este equipo en tu tailnet | Fija: `https://<esta computadora>.ts.net:8443` |
+| **ngrok** | ngrok instalado y con sesión iniciada una vez (`ngrok config add-authtoken …`) | Cambia cada vez que ngrok arranca de nuevo, salvo que pongas un dominio reservado |
+| **Propia** | Una dirección https tuya que reenvíe al puerto de webhooks de esta computadora | La tuya |
+
+Copiá **La dirección de este canal** en la plataforma (el messaging endpoint de Teams, la URL del webhook de LINE).
+Con ngrok y sin dominio reservado, volvé a pegarla después de un reinicio: el panel te avisa cuando puede pasar.
 
 <Terminal command="apx channels">{`telegram       telegram  running   @acme_store_bot    agent nova
 whatsapp       whatsapp  running   +1 555 0100        agent nova`}</Terminal>

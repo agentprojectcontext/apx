@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import type { Message } from "@apx/protocol";
 import { ApxClient } from "@apx/protocol/client";
+import type { TailscaleRun } from "../access.ts";
 import type { AdapterFactory } from "../channels/types.ts";
 import { type ProviderConfig, testConfig } from "../config.ts";
 import type { DesktopOps } from "../desktop.ts";
@@ -17,6 +18,7 @@ import { createCore } from "../server.ts";
 import type { TelemetrySink } from "../telemetry-sink.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Tool } from "../tools/types.ts";
+import type { NgrokStart } from "../webhooks.ts";
 import type { RunTimers } from "./engine.ts";
 import type { InputWaits } from "./inputs.ts";
 
@@ -80,6 +82,9 @@ export async function startCore(opts: {
   desktop?: DesktopOps;
   /** Messages on a Mac; none by default, so a test never reads the machine's own. */
   imessage?: IMessageOps | null;
+  /** The tailscale CLI (by default one that is not connected, never the machine's) and ngrok. */
+  tailscale?: TailscaleRun;
+  ngrok?: NgrokStart;
   clock?: () => Date;
   unseenAfterMs?: number;
   /** Where push notices go (a stand-in Expo push service). */
@@ -128,6 +133,8 @@ export async function startCore(opts: {
       ...(opts.runTimers ? { runTimers: opts.runTimers } : {}),
       ...(opts.desktop ? { desktop: opts.desktop } : {}),
       imessage: opts.imessage ?? null,
+      tailscale: opts.tailscale ?? (() => ({ ok: false, out: "not connected" })),
+      ...(opts.ngrok ? { ngrok: opts.ngrok } : {}),
       ...(opts.clock ? { clock: opts.clock } : {}),
       ...(opts.unseenAfterMs !== undefined ? { unseenAfterMs: opts.unseenAfterMs } : {}),
       ...(opts.telemetrySink ? { telemetrySink: opts.telemetrySink } : {}),
