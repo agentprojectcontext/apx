@@ -203,6 +203,17 @@ function apply(ev: CoreEvent): void {
     case "surface.updated":
       data.set((s) => ({ surfaces: { ...s.surfaces, [ev.surface.id]: ev.surface } }));
       return;
+    case "surface.deleted":
+      data.set((s) => {
+        const { [ev.surface_id]: _gone, ...surfaces } = s.surfaces;
+        return { surfaces };
+      });
+      return;
+    case "surface.state":
+      data.set((s) =>
+        ev.surface_id in s.surfaceStates ? { surfaceStates: { ...s.surfaceStates, [ev.surface_id]: ev.state } } : s,
+      );
+      return;
     case "team.updated":
       teamChanged();
       return;

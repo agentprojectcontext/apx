@@ -1,14 +1,18 @@
 import type { Part } from "@apx/protocol";
 import { Icons } from "@apx/ui";
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { formatBytes } from "../../common/format.ts";
 import { audioEnded } from "../../data/audioEnd.ts";
 import { mediaUrl } from "../../data/media.ts";
 import { useT } from "../../i18n/index.ts";
-import { DocumentActions } from "../../panel/DocumentActions.tsx";
 import { docRef } from "../../panel/documents.ts";
 import { go, useNav } from "../../shell/nav.ts";
 import { useMediaUrl } from "./useMediaUrl.ts";
+
+// Its buttons come after the file shows: not part of the first load.
+const DocumentActions = lazy(() =>
+  import("../../panel/DocumentActions.tsx").then((m) => ({ default: m.DocumentActions })),
+);
 
 /** An attachment from either participant, with inline audio playback and a named download (videos have their own carousel). */
 export function FilePart({ part }: { part: Extract<Part, { type: "file" }> }) {
@@ -43,7 +47,9 @@ export function FilePart({ part }: { part: Extract<Part, { type: "file" }> }) {
           <Icons.ArrowRight size={14} />
         </button>
         <div className="documentpart__actions">
-          <DocumentActions doc={docRef({ ...part, document: part.document })} thread={thread} />
+          <Suspense fallback={null}>
+            <DocumentActions doc={docRef({ ...part, document: part.document })} thread={thread} />
+          </Suspense>
         </div>
       </div>
     );

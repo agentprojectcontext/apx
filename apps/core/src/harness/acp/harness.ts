@@ -51,6 +51,7 @@ export function acpHarness(opts: {
       // How full its context is, when the agent says (`usage_update`).
       let context: { used?: number; size?: number } = {};
       const session = await openSession(agent, {
+        apxAgent: io.agent.id,
         binary,
         cwd: opts.cwd(io),
         resume: io.sessionId,

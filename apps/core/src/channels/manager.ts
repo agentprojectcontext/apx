@@ -14,7 +14,6 @@ import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
-import { isSkip } from "../engine/routines.ts";
 import type { Draft } from "../engine/suggest.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
@@ -22,16 +21,18 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Secrets } from "../secrets.ts";
 import { splitSpoken } from "../services/audio.ts";
 import type { Services } from "../services/registry.ts";
-import { reactAnswer } from "./closers.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
+import { createHeld } from "./held.ts";
 import { createInbound } from "./inbound.ts";
 import { createInputCards } from "./input-cards.ts";
-import { inputPresentation } from "./notices.ts";
+import { buttonId, inputPresentation } from "./notices.ts";
 import { createOutgoing } from "./outgoing.ts";
 import { createPoster } from "./post.ts";
 import { createRecovery } from "./recover.ts";
 import { createRooms, quietMentions, roomMentions } from "./rooms.ts";
+import { createSignals } from "./signals.ts";
+import { createStickers, type See } from "./stickers.ts";
 import { createSuggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
 import {
@@ -81,14 +82,21 @@ export function createChannels(deps: {
   pushOwner?: (deviceId: string, text: string) => boolean;
   /** A cheap model's one-shot answer: whether an uncalled message in a "useful" room deserves an answer. */
   judge?: (system: string, user: string, about: AuxAbout) => Promise<string | undefined>;
+  /** A model that reads images naming what a picture shows (a sticker's meaning); none: stickers stay unnamed. */
+  see?: See;
   /** How long a room waits for one person's quick messages to settle (tests shorten it). */
   roomBurstMs?: number;
   /** The reply a supervised contact would get, drafted with the agent's model and not sent. */
   draft?: (threadId: string, agentId: string, signal?: AbortSignal) => Promise<Draft>;
   /** How long a supervised contact's quick messages may keep coming before one draft answers them (tests shorten it). */
   suggestBurstMs?: number;
+  /** The owner's words kept without a turn, for memory (memory-maintenance.ts ownerReplied). */
+  ownerReplied?: (messageId: string) => void;
+  /** The time attention hours are read against (tests move it). */
+  now?: () => Date;
 }) {
   const retryMs = deps.retryMs ?? RETRY_MS;
+  const clock = deps.now ?? (() => new Date());
   const { store, secrets, log } = deps;
   const live = new Map<string, Live>();
   const typing = new Map<string, ReturnType<typeof setInterval>>();
@@ -174,6 +182,7 @@ export function createChannels(deps: {
     notifyOwner: (body) => notifyOwner(body),
     judge: deps.judge,
     ...(deps.roomBurstMs !== undefined ? { burstMs: deps.roomBurstMs } : {}),
+    now: () => clock().getTime(),
   });
   const poster = createPoster(store, delivery);
   const outgoing = createOutgoing({
@@ -195,6 +204,7 @@ export function createChannels(deps: {
     sendAsOwner: outgoing.sendAsOwner,
     burstMs: deps.suggestBurstMs,
   });
+  const held = createHeld({ store, configs, suggestions, now: clock });
   const cards = createInputCards({
     store,
     log,
@@ -202,6 +212,15 @@ export function createChannels(deps: {
       const l = live.get(id);
       return l?.status === "running" ? l.adapter : undefined;
     },
+  });
+  const stickers = createStickers({ store, home: deps.home, log, see: deps.see });
+  const signals = createSignals({
+    store,
+    log,
+    live: (id) => live.get(id),
+    attention: deps.attention,
+    delivery,
+    stickers,
   });
   const inbound = createInbound({
     store,
@@ -216,8 +235,12 @@ export function createChannels(deps: {
     ownAccount: (id) => Boolean(live.get(id)?.adapter.caps.ownAccount),
     rooms,
     suggestions,
-    react: reactOn,
+    stickers,
+    react: signals.reactOn,
     answeredHere: cards.answeredHere,
+    held,
+    now: clock,
+    ...(deps.ownerReplied ? { ownerReplied: deps.ownerReplied } : {}),
     setButtons: async (id, conversation, ref, buttons) => {
       const l = live.get(id);
       if (l?.status !== "running" || !l.adapter.setButtons) return false;
@@ -237,58 +260,6 @@ export function createChannels(deps: {
     },
   });
 
-  /** Puts the agent's emoji on a platform message; false when the channel has no reactions or is not running. */
-  async function reactOn(id: string, conversation: string, ref: string, emoji: string): Promise<boolean> {
-    const l = live.get(id);
-    if (l?.status !== "running" || !l.adapter.caps.reactions || !l.adapter.react) return false;
-    await l.adapter.react(conversation, ref, emoji);
-    return true;
-  }
-
-  /**
-   * The agent answered with a reaction ("REACT ❤️") to the other side's last message here: put on it, shown on that
-   * message, and the words taken out of the chat (the model log keeps them). False when it could not be done.
-   */
-  async function reactInstead(run: RunRecord, to: { channel: string; conversation: string }, emoji: string) {
-    const last = theirLast(run.thread_id, to);
-    const ok =
-      last &&
-      (await reactOn(to.channel, to.conversation, last.ref, emoji).catch((err: unknown) => {
-        log.warn({ run: run.id, err: errorMessage(err, 200) }, "channel reaction not sent");
-        return false;
-      }));
-    hideWords(run.message_id);
-    if (ok) {
-      if (last.message_id) store.messages.setReaction(last.message_id, "agent", emoji);
-      return;
-    }
-    // Words instead would be a stray emoji in their chat: nothing goes, and the owner hears why.
-    const where = store.threads.get(run.thread_id)?.title ?? to.channel;
-    const text = channelTexts(store).reactFailed(emoji, where);
-    deps.attention({ kind: "channel", level: "warn", title: where, body: text, thread_id: run.thread_id });
-  }
-
-  /**
-   * The other side's last message in a chat: as kept when it arrived, else the last one stored for that
-   * conversation (messages from before that was kept; shown on the contact's last message here).
-   */
-  function theirLast(threadId: string, to: { channel: string; conversation: string }) {
-    const kept = store.threads.context(threadId).their_last;
-    if (kept?.channel === to.channel && kept.conversation === to.conversation) return kept;
-    const m = store.channels.inbox.latest(to.channel, to.conversation);
-    // A WhatsApp message's own id is its external_id; other channels' older rows did not keep one.
-    const ref = m?.ref ?? (live.get(to.channel)?.config.type === "whatsapp" ? m?.external_id : undefined);
-    if (!ref) return undefined;
-    const theirs = store.messages.list(threadId).findLast((x) => x.author.kind === "person");
-    return { ref, message_id: theirs?.id };
-  }
-
-  /** An answer that was only a signal (SKIP, REACT): its words leave the chat; the model log keeps them. */
-  function hideWords(messageId: string | undefined): void {
-    const msg = messageId ? store.messages.get(messageId) : undefined;
-    if (msg) store.messages.update({ ...msg, parts: msg.parts.filter((p) => p.type !== "text") });
-  }
-
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
   function followUp(part: Extract<Part, { type: "input" }>, threadId: string): void {
     const after = noticePrefs(store).inputs_after_s;
@@ -304,14 +275,24 @@ export function createChannels(deps: {
   }
 
   // ── replies, confirmations, typing ────────────────────────────────────
-  const replyTo = (runId: string) => {
+  /** Where a run's channel traffic goes: an answer only from a chat that speaks there; a question or an OK always. */
+  const replyTo = (runId: string, action = false) => {
     const run = store.runs.get(runId);
-    if (!run) return undefined;
+    if (!run || (!action && !speaksOnChannel(run.thread_id))) return undefined;
     if (run.input && "reply_to" in run.input) return run.input.reply_to ?? undefined;
     const origin = run.input?.origin;
     if (origin?.kind === "channel") return { channel: origin.channel, conversation: origin.conversation };
     return store.threads.context(run.thread_id).reply_to;
   };
+
+  /**
+   * Whose answers go out on a channel: a contact's chat, and among the owner's chats only Home, the super-agent's. Other
+   * chats reach the owner's phone only with what needs them (a question, an OK), never their whole conversation.
+   */
+  function speaksOnChannel(threadId: string): boolean {
+    const thread = store.threads.get(threadId);
+    return Boolean(thread && (audienceOf(store, thread).kind !== "owner" || thread.kind === "home"));
+  }
 
   /**
    * A run ended: its answer returns to its own destination, even if another message changed the thread's channel.
@@ -325,8 +306,6 @@ export function createChannels(deps: {
     const ack = acked.get(run.id);
     acked.delete(run.id);
     const to = replyTo(run.id);
-    // A stopped turn's half-written answer is not news: the owner stopped it.
-    if (!to || run.trigger === "surface" || run.state === "canceled") return;
     const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
     let out = (msg?.parts ?? [])
       .map((p) => (p.type === "text" ? p.text : ""))
@@ -334,6 +313,9 @@ export function createChannels(deps: {
       .trim();
     // The "on it" line already went out on its own (an engine may keep it in front of the answer, or replace it).
     if (ack && out.startsWith(ack)) out = out.slice(ack.length).trim();
+    if (run.trigger !== "surface" && (await signals.handle(run, out, to))) return;
+    // A stopped turn's half-written answer is not news: the owner stopped it.
+    if (!to || run.trigger === "surface" || run.state === "canceled") return;
     const thread = store.threads.get(run.thread_id);
     const audience = thread ? audienceOf(store, thread) : undefined;
     const why = (run.error ?? "").replace(/^Could not finish: /, "").slice(0, 200);
@@ -360,15 +342,6 @@ export function createChannels(deps: {
       if (p.type === "file") return [{ id: p.media_id, kind: "file", mime: p.mime, name: p.name }];
       return [];
     });
-    if (run.state === "completed" && isSkip(out)) {
-      hideWords(run.message_id);
-      return;
-    }
-    const emoji = run.state === "completed" ? reactAnswer(out) : undefined;
-    if (emoji) {
-      await reactInstead(run, to, emoji);
-      return;
-    }
     if (!out && !attached.length) return;
     if (audience?.kind === "contact") out = guardReply(out);
     let mentions: Pick<Presentation, "mentions"> = {};
@@ -467,7 +440,7 @@ export function createChannels(deps: {
     const thread = store.threads.get(threadId);
     if (!thread || audienceOf(store, thread).kind !== "owner") return;
     const runId = store.inputs.get(part.input_id)?.run_id;
-    const to = runId ? replyTo(runId) : undefined;
+    const to = runId ? replyTo(runId, true) : undefined;
     // Asked from the app: it waits there first, then follows the owner.
     if (!to) {
       followUp(part, threadId);
@@ -499,7 +472,10 @@ export function createChannels(deps: {
       // Agents stopped by the breaker: the owner hears it wherever they are.
       const paused = e.message.parts.find((p) => p.type === "notice" && p.code === "breaker.paused");
       if (paused?.type === "notice") notifyOwner({ text: paused.text }, "notice", e.message.thread_id);
-      const limit = e.message.parts.find((p) => p.type === "notice" && p.code === "delegation.limit");
+      // A delegate APX keeps going on with is no news for the owner's phone: only a stop or a report is (DECISIONS.md#d-116).
+      const limit = e.message.parts.find(
+        (p) => p.type === "notice" && p.code === "delegation.limit" && !String(p.vars?.variant).startsWith("continued"),
+      );
       if (limit?.type === "notice") limitReached(e.message.thread_id, limit);
     }
   }
@@ -510,20 +486,25 @@ export function createChannels(deps: {
    */
   function limitReached(threadId: string, notice: Extract<Part, { type: "notice" }>): void {
     const text = noticeText(notice, store.settings.get("owner_language") === "en" ? "en" : "es");
+    // Stopped because it looked stuck: Continue right under the words, so the owner need not write it.
+    const session = notice.vars?.subthread;
+    const buttons =
+      String(notice.vars?.variant).startsWith("stopped") && typeof session === "string"
+        ? [{ id: buttonId.goOn(session), label: channelTexts(store).goOn }]
+        : undefined;
     const thread = store.threads.get(threadId);
-    const to =
-      thread && audienceOf(store, thread).kind === "owner" ? store.threads.context(threadId).reply_to : undefined;
+    const to = thread && thread.kind === "home" ? store.threads.context(threadId).reply_to : undefined;
     if (to && live.has(to.channel)) {
       delivery.enqueue({
         channel: to.channel,
         conversation: to.conversation,
         thread_id: threadId,
         kind: "notice",
-        body: { text, ...(inQuietHours(noticePrefs(store)) ? { silent: true } : {}) },
+        body: { text, ...(buttons ? { buttons } : {}), ...(inQuietHours(noticePrefs(store)) ? { silent: true } : {}) },
       });
       return;
     }
-    notifyOwner({ text }, "notice", threadId);
+    notifyOwner({ text, ...(buttons ? { buttons } : {}) }, "notice", threadId);
   }
 
   // ── lifecycle ─────────────────────────────────────────────────────────
@@ -619,8 +600,8 @@ export function createChannels(deps: {
       return {
         ...c,
         token_set: token !== undefined,
-        // A mailbox's password shows none of its characters.
-        ...(token ? { token_hint: c.type === "email" ? "••••••••" : hintOf(token) } : {}),
+        // A mailbox's password and a Google key (JSON, cut anywhere) show none of their characters.
+        ...(token ? { token_hint: c.type === "email" || c.type === "googlechat" ? "••••••••" : hintOf(token) } : {}),
         status: l?.status ?? "off",
         ...(l?.error ? { error: l.error } : {}),
         ...(l?.account ? { account: l.account } : {}),
@@ -667,6 +648,8 @@ export function createChannels(deps: {
     approved: inbound.approved,
     afterRun,
     recover: recovery.recover,
+    /** Each tick of the office clock: contacts' chats whose channel's hours began are answered (held.ts). */
+    openHeld: held.open,
     /** A supervised contact's drafts: the owner sends one (as is or edited) or drops it. */
     suggestions: { send: suggestions.send, discard: suggestions.discard },
     /** Adds, changes or removes a channel and (re)starts it. */
@@ -687,10 +670,9 @@ export function createChannels(deps: {
         if (!config) {
           secrets.set(tokenName(id), null);
           store.settings.set(groupsKey(id), "[]");
-          await live
-            .get(id)
-            ?.adapter.forget?.()
-            .catch(() => {});
+          // Disabled channels have no live adapter, but their persisted session still needs removing.
+          const adapter = l?.adapter ?? (before ? deps.factories[before.type]?.(before, undefined) : undefined);
+          await adapter?.forget?.().catch(() => {});
         }
         await stopOne(id);
         const next = configs().find((c) => c.id === id);
@@ -706,6 +688,7 @@ export function createChannels(deps: {
       inbound.resume();
       await Promise.allSettled(configs().map(startOne));
       delivery.kick();
+      void stickers.nameUnnamed().catch((err) => log.warn({ err: errorMessage(err, 200) }, "stickers not named"));
     },
     async stop(): Promise<void> {
       rooms.stop();

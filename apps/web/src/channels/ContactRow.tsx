@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { shortWhen } from "../common/format.ts";
 import type { PresenceState } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
-import { initials, RELATION_KEY } from "./ChannelScreen.tsx";
 import { PersonAvatar } from "./PersonAvatar.tsx";
+import { initials, RELATION_KEY } from "./people.ts";
 
 /** A contact on the list: their chat when they have one, else only them (a saved contact nobody wrote to yet). */
 export type Row = { key: string; thread?: Thread | undefined; person?: Person | undefined };

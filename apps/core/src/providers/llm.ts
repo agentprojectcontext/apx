@@ -30,6 +30,7 @@ export type LlmRequest = {
   onText?: ((soFar: string) => void) | undefined;
   /** Stable per conversation (a thread id), for providers' prompt caches. */
   cacheKey?: string | undefined;
+  maxOutputTokens?: number | undefined;
 };
 
 export type Llm = {
@@ -157,6 +158,7 @@ export function createLlm(opts: {
               tools: req.tools,
               signal: req.signal,
               cacheKey: req.cacheKey,
+              maxOutputTokens: req.maxOutputTokens,
               onText,
               firstByteMs: opts.firstByteMs,
               fetchImpl: opts.fetchImpl ?? fetch,

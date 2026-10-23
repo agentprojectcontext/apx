@@ -1,12 +1,15 @@
 // Channels, the people on them and pairing: owner-only methods (the router refuses anyone else).
 
-import { ErrorCode } from "@apx/protocol";
+import fs from "node:fs";
+import { type ChannelType, ErrorCode } from "@apx/protocol";
+import { CHANNEL_CATALOG } from "../channels/catalog.ts";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
 import { normalJid } from "../channels/whatsapp.ts";
 import { publicOutbox } from "../domain/channels.ts";
 import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
 import { OWNER_ID } from "../domain/persons.ts";
+import type { Sticker } from "../domain/stickers.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, CallError, errorMessage, notFound } from "../errors.ts";
 import type { Handlers } from "./router.ts";
@@ -20,6 +23,11 @@ export function channelHandlers(store: Store, channels: Channels) {
     ...sent,
     delivery: await channels.settled(outbox, SETTLE_MS),
   });
+  /** A kept sticker as the app shows it (none when its file is gone). */
+  const shown = ({ created_at: _c, hash: _h, ...s }: Sticker) => {
+    const media = store.media.get(s.media_id);
+    return media ? [{ ...s, mime: media.mime }] : [];
+  };
   return {
     "channels.list": () => ({ channels: channels.info() }),
     // Open to agents: what channel_list shows. Disabled channels are not there for them.
@@ -95,6 +103,23 @@ export function channelHandlers(store: Store, channels: Channels) {
       } catch (err) {
         throw badRequest(errorMessage(err));
       }
+    },
+    "stickers.list": ({ platform }) => ({ stickers: store.stickers.list(platform).flatMap(shown) }),
+    "stickers.set": ({ id, meaning, blocked }) => {
+      const s = store.stickers.set(id, { meaning, blocked });
+      const out = s && shown(s)[0];
+      if (!out) throw notFound(`sticker ${id}`);
+      return out;
+    },
+    "stickers.remove": ({ id }) => {
+      const s = store.stickers.get(id);
+      if (!s || !store.stickers.remove(id)) return { removed: false };
+      const media = store.media.get(s.media_id);
+      if (media) {
+        store.media.remove(media.id);
+        fs.rmSync(media.path, { force: true });
+      }
+      return { removed: true };
     },
     "channels.outbox": ({ limit }) => ({
       items: store.channels.outbox.recent(limit).map(publicOutbox),
@@ -201,17 +226,6 @@ export function channelHandlers(store: Store, channels: Channels) {
   } satisfies Partial<Handlers>;
 }
 
-const LABELS: Record<string, string> = {
-  telegram: "Telegram",
-  whatsapp: "WhatsApp",
-  discord: "Discord",
-  slack: "Slack",
-  matrix: "Matrix",
-  mattermost: "Mattermost",
-  signal: "Signal",
-  email: "Email",
-};
-
 /** What the owner typed as the address the channel uses: a WhatsApp number's account, a Telegram chat id. */
 function typedAddress(type: string, typed: string): string | undefined {
   if (type === "whatsapp") {
@@ -219,10 +233,14 @@ function typedAddress(type: string, typed: string): string | undefined {
     const digits = typed.replace(/\D/g, "");
     return digits.length >= 8 && digits.length <= 15 ? `${digits}@s.whatsapp.net` : undefined;
   }
-  if (type === "email") {
-    const a = typed.trim().toLowerCase();
-    return /^[^\s<>@,;"]+@[^\s<>@,;"]+\.[^\s<>@,;"]+$/.test(a) ? a : undefined;
+  const a = typed.trim().toLowerCase();
+  const mail = /^[^\s<>@,;"]+@[^\s<>@,;"]+\.[^\s<>@,;"]+$/.test(a) ? a : undefined;
+  if (type === "email") return mail;
+  // A phone number as the platform writes it (+E.164); iMessage also knows people by their Apple ID's mail.
+  if (type === "sms" || type === "imessage") {
+    const phone = typed.replace(/[\s().-]/g, "");
+    return /^\+[1-9]\d{6,14}$/.test(phone) ? phone : type === "imessage" ? mail : undefined;
   }
   return /^-?\d{3,20}$/.test(typed.trim()) ? typed.trim() : undefined;
 }
-const defaultLabel = (type: string) => LABELS[type] ?? type;
+const defaultLabel = (type: string) => CHANNEL_CATALOG[type as ChannelType]?.label ?? type;

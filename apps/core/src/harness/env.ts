@@ -59,7 +59,10 @@ const NO_PROMPTS: Readonly<Record<string, string>> = {
   PAGER: "cat",
 };
 
-/** An agent harness process (Claude Code, Codex): the environment minus APX's own secrets, and who is calling. */
-export function harnessEnv(): Record<string, string> {
-  return { ...childEnv(), CLAUDE_AGENT_SDK_CLIENT_APP: "apx/2" };
+/**
+ * An agent harness process (Claude Code, Codex): the environment minus APX's own secrets, and who is calling; `agent`
+ * marks its own commands as an agent's (APX_AGENT), as ours are.
+ */
+export function harnessEnv(agent?: string): Record<string, string> {
+  return { ...childEnv(), CLAUDE_AGENT_SDK_CLIENT_APP: "apx/2", ...(agent ? { APX_AGENT: agent } : {}) };
 }

@@ -21,12 +21,20 @@ function fromOf(origin: Origin): JobFrom {
       return { kind: origin.kind, name: origin.name };
     case "surface":
       return { kind: origin.kind, name: origin.title };
+    // A contact's messages answered once the channel's hours began: shown as theirs.
+    case "hours_began":
+      return { kind: "channel", name: origin.name };
     default:
       return { kind: origin.kind };
   }
 }
 
 export function jobHandlers(store: Store, engine: Engine) {
+  const provenance = (job: Job): Job => ({
+    ...job,
+    thread_title: store.threads.get(job.thread_id)?.title,
+    agent_name: job.agent_id ? store.agents.get(job.agent_id)?.name : undefined,
+  });
   const view = (r: RunRecord): Job => {
     const t = store.threads.get(r.thread_id);
     const agent = store.agents.get(r.agent_id);
@@ -68,7 +76,10 @@ export function jobHandlers(store: Store, engine: Engine) {
     },
     "jobs.list": ({ finished, thread }) => {
       if (thread) {
-        const mine = store.jobs.ofThread(thread, finished + 20).map(publicJob);
+        const mine = store.jobs
+          .ofThread(thread, finished + 20)
+          .map(publicJob)
+          .map(provenance);
         return {
           running: mine.filter((j) => j.state === "working"),
           finished: mine.filter((j) => j.state !== "working").slice(0, finished),
@@ -76,8 +87,9 @@ export function jobHandlers(store: Store, engine: Engine) {
       }
       const runs = store.runs.jobs(finished);
       return {
-        running: [...runs.running.map(view), ...store.jobs.running().map(publicJob)].sort(newest),
+        running: [...runs.running.map(view), ...store.jobs.running().map(publicJob)].map(provenance).sort(newest),
         finished: [...runs.finished.map(view), ...store.jobs.finished(finished).map(publicJob)]
+          .map(provenance)
           .sort(newest)
           .slice(0, finished),
       };
@@ -86,10 +98,10 @@ export function jobHandlers(store: Store, engine: Engine) {
       const j = store.jobs.get(job);
       if (j && ctx.actor !== "human" && ctx.agent?.thread_id !== j.thread_id)
         throw unauthorized("an agent can only read its own thread's jobs");
-      if (j) return { job: publicJob(j), ...engine.jobs.read(j.id, offset, max_chars) };
+      if (j) return { job: provenance(publicJob(j)), ...engine.jobs.read(j.id, offset, max_chars) };
       const r = store.runs.get(job);
       if (!r) throw notFound(`job ${job}`);
-      return { job: view(r), output: "", size: 0, offset: 0 };
+      return { job: provenance(view(r)), output: "", size: 0, offset: 0 };
     },
     /** An agent may stop only the terminal jobs of its own thread; the owner stops anything. */
     "jobs.cancel": ({ job }, ctx) => {

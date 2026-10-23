@@ -283,19 +283,30 @@ describe("the email channel", () => {
 
   test("reading the mailbox again (renumbered, or a copy) never starts a second turn", async () => {
     const calls = llm.calls.length;
-    const fetched = imap.fetches();
     const again = mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "once only" });
     imap.deliver(again.raw);
     await until(() => to("owner@example.org").some((m) => m.text.includes("You said: once only")), "answer");
     const after1 = llm.calls.length;
+    const sentOnce = smtp.sent.length;
     assert.ok(after1 > calls);
     // The same message under another UID, then the whole mailbox renumbered: read again, answered never.
     imap.deliver(again.raw);
     imap.renumber();
-    await until(() => imap.fetches() > fetched + 4, "mailbox read again", 15_000);
-    await new Promise((r) => setTimeout(r, 400));
-    assert.equal(llm.calls.length, after1);
+    imap.deliver(mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "after replay" }).raw);
+    await until(
+      () => to("owner@example.org").some((m) => m.text.includes("You said: after replay")),
+      "mailbox read again",
+      15_000,
+    );
+    assert.equal(llm.calls.length, after1 + 1, "only the new marker starts a turn");
     assert.equal(to("owner@example.org").filter((m) => m.text.includes("You said: once only")).length, 1);
+    assert.equal(smtp.sent.length, sentOnce + 1, JSON.stringify(smtp.sent.slice(sentOnce).map(read)));
+    imap.deliver(mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "1" }).raw);
+    await until(() => smtp.sent.length === sentOnce + 2, "a new message still chooses the closed option");
+    const closed = smtp.sent.at(-1);
+    assert.ok(closed);
+    assert.match(read(closed).text, /ya no está pendiente/);
+    assert.equal(llm.calls.length, after1 + 1, "a closed option never starts a model turn");
   });
 
   test("auto-replies, bulk mail, bounces and forged senders never reach the agent", async () => {

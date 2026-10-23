@@ -38,8 +38,12 @@ export function bubbleFiles(parts: readonly Part[]): Array<Extract<Part, { type:
   );
 }
 
-/** A channel message that was only files says so in words for the agent; where the files show, those words go. */
+/**
+ * A channel message that was only files says so in words for the agent, and a sticker says what it means; where the
+ * files show, those words go.
+ */
 export function withoutFilesNote(parts: readonly Part[], text: string): string {
   const attached = parts.some((p) => p.type === "file" || p.type === "image" || p.type === "audio");
-  return attached && text.trim() === "[attached files]" ? "" : text;
+  if (!attached) return text;
+  return text.trim() === "[attached files]" ? "" : text.replace(/^\[sticker(?:: [^\]\n]*)?\]$/gm, "").trim();
 }

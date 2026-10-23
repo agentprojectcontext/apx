@@ -10,8 +10,9 @@ import Shot from "../../../../components/Shot.astro";
 import Terminal from "../../../../components/Terminal.astro";
 
 La memoria en APX es un conjunto de notas cortas: "Alex prefiere los números antes que el texto", "Los deploys salen
-los viernes", "El contacto del proveedor es Northwind". Cada nota tiene un autor y un alcance, podés leerlas todas, y
-nada se escribe a tus espaldas.
+los viernes", "El contacto del proveedor es Northwind". Cada nota tiene autor y alcance. Recuperación automática,
+guardado y AutoDream tienen controles separados en **Configuración › Memoria**; las citas y cambios se ven en
+**Fuentes e historial**.
 
 ## Tres alcances, más un archivo
 
@@ -27,15 +28,39 @@ nunca lo escriben: es el lugar para reglas fijas que no querés que ningún agen
 
 ## Quién escribe las notas
 
-Dos caminos, los dos a la vista:
+Tres caminos, todos a la vista:
 
 - **Vos.** Sumás una nota en la pestaña **Memoria** de un proyecto, o con `apx memory add`. O directamente le decís a
   un agente "acordate de que…".
-- **Un agente**, con su herramienta `remember`, cuando aprende algo que vale la pena guardar. Dentro de un proyecto
-  la guarda en el proyecto; si no, en las notas globales. Puede corregir sus propias notas y sacar una con `forget`.
+- **Un agente**, con su herramienta `remember`, cuando aprende algo que vale la pena guardar: una corrección, algo
+  que repetís o una forma de hacer algo que confirmaste. Escribe la nota con sus propias palabras; para una corrección
+  o una forma de trabajar, primero la regla; `Why:` solo si diste motivo y `How to apply:` solo cuando existe respaldo. Dentro de un proyecto la
+  guarda en el proyecto; si no, en las notas globales. Puede corregir sus propias notas y sacar una con `forget`.
 
-**No hay extracción silenciosa**: APX no revuelve tus chats buscando datos en segundo plano. Una nota existe porque
-vos o un agente la guardaron a propósito, y el chat muestra un paso "Remembered: …" cuando lo hace un agente.
+- **Guardado automático.** Después de un turno común del dueño, el auxiliar puede seleccionar preferencias,
+  correcciones, decisiones y referencias duraderas. Considera hasta tres turnos elegibles y conserva hasta cuatro
+  citas exactas con sus fuentes. APX controla nombres, números y negaciones; después pide una revisión separada de
+  relaciones, condiciones, excepciones y motivos. Descarta candidatos contradictorios o inciertos. No exige inventar
+  un motivo cuando no lo diste. Las notas quedan privadas del agente, limitadas al mismo proyecto. La revisión reduce
+  errores; no garantiza que el modelo comprenda todos los casos.
+- **Historia de procedimientos verificados.** Un turno recuperado deja nota solo si confirmás el trabajo real
+  ("genial, funcionó", incluso como cierre de canal), o APX observa una lectura completa de archivo que coincide con
+  su escritura anterior. Un `ok` de herramienta no basta. Conserva método exitoso, destinos seguros, salidas e intentos
+  fallidos en una sección aparte. Las fuentes incluyen confirmación real o referencias a escritura y lectura.
+  Otros resultados todavía necesitan tu confirmación. Notas anteriores sin esa evidencia siguen siendo históricas.
+  Las notas son datos, nunca instrucciones ni permiso nuevo: el agente debe revisar estado actual antes de repetir.
+  Se quitan parámetros de direcciones y valores que parezcan credenciales. Cada paso conserva sobre qué actuó, en
+  corto: un sitio por su host, un comando por su programa y sus flags decisivos (links como host, sin encabezados,
+  cookies ni cuerpos de pedido), un archivo relativo a la carpeta de trabajo o temporal. Las consultas (búsquedas,
+  capturas, cambios de pestaña) quedan afuera, los intentos que fallaron antes del método se listan como "Tried
+  first, failed" con un motivo corto, y el índice de notas nombra el pedido y sus pasos decisivos (por ejemplo
+  `snapinsta.to → page script → curl`).
+
+Usa el modelo auxiliar que ya configuraste en APX. Si está apagado, no extrae notas automáticas; `remember` y la
+recuperación automática de chats siguen funcionando. La cola persiste entre reinicios y los reintentos no duplican
+notas. Lo que escribís como dueño en un canal (Telegram, WhatsApp…) cuenta igual que lo que escribís en la app.
+Contactos, salas, clientes externos, subhilos, workers y sesiones directas de motor quedan excluidos del recuerdo y
+guardado automáticos.
 
 Los agentes no pueden editar ni borrar las notas que escribiste vos. Y algunas notas te esperan:
 
@@ -50,9 +75,21 @@ Los agentes no pueden editar ni borrar las notas que escribiste vos. Y algunas n
 Las notas nunca van en el prompt de sistema. En cambio, cuando un agente responde en un hilo:
 
 1. En su **primer turno** en ese hilo recibe sus notas fijas: hasta 8 de las globales y hasta 8 de su propio
-   cuaderno, las más nuevas primero, más **hasta 5 notas que coinciden con tu mensaje**.
-2. En los **turnos siguientes** recibe sólo coincidencias nuevas que todavía no vio en ese hilo.
-3. Cuando necesita algo puntual, busca con su herramienta `recall`.
+   cuaderno, las más nuevas primero, más **hasta 5 notas relacionadas con tu mensaje y turnos recientes**. Las
+   coincidencias relevantes tienen espacio antes de las notas fijas; una nota larga no tapa las siguientes.
+2. Tus turnos también traen un **índice del cuaderno del agente**: una línea corta por cada nota que no se muestra
+   entera (tipo, fecha y de qué trata), las más nuevas primero, dentro de 2.000 caracteres. Así una nota escrita
+   distinto de tu mensaje ("hacelo como hiciste hoy") sigue a la vista, y `recall` trae su texto completo; las que no
+   entran se encuentran buscando. Los turnos siguientes del hilo listan sólo las notas guardadas o cambiadas desde
+   entonces.
+3. En los **turnos siguientes** recibe sólo coincidencias nuevas que todavía no vio en ese hilo.
+4. Puede recuperar automáticamente frases relevantes de **sus propios chats anteriores, en el mismo proyecto**, con
+   fecha y mensaje fuente. Incluye turnos antiguos del mismo chat que ya no entran en su contexto, sin duplicar los
+   visibles. También funciona con chats antiguos sin modelo auxiliar. Los saludos no disparan búsquedas.
+5. Si necesita detalle, usa `recall` o `read_chat` con `around` y el ID del mensaje fuente para leer mensajes antiguos.
+
+Editar u olvidar una nota invalida las copias inyectadas y sus respuestas derivadas. También invalida resúmenes de
+compactación, evitando que reaparezca desde un resumen viejo. Los registros originales de conversación se conservan.
 
 Dejar las notas fuera del prompt de sistema mantiene idéntico el comienzo de cada pedido, así el proveedor lo puede
 cachear y cada turno sale más barato.
@@ -80,6 +117,38 @@ La misma pantalla tiene dos opciones relacionadas:
 - **Resumir los chats largos** y el **Modelo ayudante** que escribe los resúmenes y los títulos de los chats
   (Automático, Elegido o Desactivado). Mirá [Conversaciones](/es/concepts/conversations/).
 
+## AutoDream y límites
+
+**AutoDream** revisa las notas privadas de un agente después de nuevo trabajo, como máximo una vez al día por agente
+y proyecto, cuando ese agente está libre. Hace esto:
+
+- une duplicados, conservando sus fuentes y la marca de contenido externo;
+- retira una nota que otra más nueva corrige (sólo si se escribió antes de la corrección);
+- cuando el cuaderno pasa de 40 notas, retira las que ya no sirven, para que el índice siga corto;
+- reescribe los días relativos ("hoy", "yesterday") como las fechas que querían decir, sin tocar comandos citados
+  ni notas de procedimiento.
+
+El modelo auxiliar sólo nombra notas; APX hace la reescritura por su cuenta y nunca edita notas del dueño ni promueve
+recuerdos globales. Conserva contradicciones, números distintos y preferencias diferentes. Una pasada que olvidaría
+más de un quinto del cuaderno de una vez (al menos una nota) se rechaza entera, y ese cupo se cuenta por día. Las notas retiradas van a
+**Olvidadas** con el motivo en su historial, y se comprueban revisiones antes de aplicar una propuesta para evitar
+pisar cambios recientes.
+
+Guardado y AutoDream comparten un **límite diario de llamadas de memoria**, inicialmente 20. Cada pedido limita
+entrada, salida y tiempo; llamadas y tokens aparecen en **Uso**. Cero pausa llamadas al modelo. Configuración muestra
+trabajos completados, en espera y fallidos. **Revisar chats anteriores** encola los últimos 100 turnos por chat elegible;
+**Revisar duplicados ahora** pide consolidación. La cola procesa tandas acotadas y prioriza trabajos recientes.
+Al agotar la cuota, las llamadas esperan al próximo día UTC.
+
+El índice de historial avanza separado de la extracción, aunque no quede cuota o no haya modelo auxiliar. La búsqueda
+semántica conserva la relevancia antes que la novedad y usa la pregunta actual sin mezclar temas recientes ajenos.
+Los mensajes largos se indexan por fragmentos superpuestos para no diluir temas distintos. Recupera mensajes
+originales del dueño; `read_chat` permite ampliar sus respuestas.
+
+Extracción y revisión semántica consumen una llamada lógica cada una dentro de la cuota existente. Reintentos de
+transporte pueden generar más de una petición HTTP. Si falta cuota para revisar, conserva extracción y la retoma sin
+repetirla. Retirar una nota exige revisar misma afirmación y ámbito; una fecha más nueva no prueba reemplazo.
+
 ## Ver, confirmar y deshacer
 
 La pestaña **Memoria** de un proyecto muestra sus notas y te deja cambiar entre **Este proyecto**, **Cuadernos de
@@ -89,7 +158,14 @@ agentes**, **Sobre vos** y **Olvidadas**. Buscalas, sumá una, editá o sacá cu
 
 - Una nota **Para confirmar** tiene un botón **Confirmar** y un link al chat donde el agente la aprendió.
 - Olvidar se puede deshacer. Una nota que sacás va a **Olvidadas**, donde ningún agente la ve; **Traer de vuelta** la
-  recupera y **Borrar para siempre** la borra de verdad.
+  recupera. **Borrar para siempre** elimina la nota y el texto de sus revisiones; conserva una huella mínima y los IDs
+  fuente para impedir recrearla. Las fuentes olvidadas quedan fuera del recuerdo automático, herramientas de chats y reintentos.
+- **Fuentes e historial** muestra citas y revisiones. **Restaurar esta revisión** permite deshacer una unión o edición.
+  Los chats originales se conservan; borrar un recuerdo no borra la conversación.
+- La captura automática de APX 2.7.0 también guardó como notas pedidos y preguntas del momento ("¿podés terminar
+  esa review?"). El primer arranque después de actualizar retira las que su agente nunca editó y la captura de hoy
+  rechazaría; quedan en **Olvidadas**, marcadas *Retirada por la limpieza de capturas* en su historial, y **Traer de vuelta**
+  recupera la que quieras. Las notas que escribiste vos o `remember` no se tocan, y el mismo dato se puede enseñar de nuevo.
 
 ## Desde la terminal
 

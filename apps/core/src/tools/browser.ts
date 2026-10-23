@@ -14,6 +14,8 @@ const HANDOFF_S = 300;
 const SNAPSHOT_NAME = "browser-snapshot.jpg";
 /** Tab pictures a chat keeps: a model call carries the newest 4 images (providers/llm.ts), older ones are dropped. */
 const SNAPSHOTS_KEPT = 4;
+/** Messages back a chat's own tab is looked for: past them a new tab opens. */
+const CHAT_TAB_LOOKBACK = 40;
 
 export function profileFor(agent: AgentRecord): string {
   if (agent.browser_profile === "incognito") return "incognito";
@@ -81,37 +83,49 @@ export function browserTools(store: Store, home: string, vm?: { hasThread(id: st
     return id;
   };
 
+  /** The newest tab this chat's cards show that the agent may still drive: browsing goes on there, not in a new tab. */
+  const chatTab = async (ctx: ToolContext): Promise<string | undefined> => {
+    const shown = store.messages
+      .list(ctx.thread.id, CHAT_TAB_LOOKBACK)
+      .flatMap((m) => m.parts.flatMap((p) => (p.type === "browser" ? [p.tab] : [])))
+      .reverse();
+    if (!shown.length) return undefined;
+    const open = (await ctx.call("browser.tabs", {})).tabs;
+    return shown.find((id) => {
+      const t = open.find((x) => x.tab === id);
+      return (
+        t?.profile === profileFor(ctx.agent) &&
+        (t.control.kind === "idle" || (t.control.kind === "agent" && t.control.by === ctx.agent.id))
+      );
+    });
+  };
+
   return [
     defineTool({
       needsCap: BROWSER_CAP,
       name: "browser_open",
       description:
-        "Open a URL in a new browser tab: the owner's embedded browser when the APX app is open (they can watch it), APX's own headless one otherwise (nobody sees it, nobody can log in for you). Returns the tab id. For reading or looking something up, web_read and web_search are faster; use the browser when a page needs JavaScript, clicks or forms, or when they failed.",
-      args: z.object({ url: z.string().describe("http(s) URL") }),
+        "Open a URL in your browser: in the tab this chat already uses (or `tab`), else a new one; `new_tab` for another beside it. The owner's embedded browser when the APX app is open (they can watch it), APX's own headless one otherwise (nobody sees it, nobody can log in for you). Returns the tab id. For reading or looking something up, web_read and web_search are faster; use the browser when a page needs JavaScript, clicks or forms, or when they failed. This is your browser for any site: not the owner's screen (screen_ tools, only when they ask for their computer) nor a browser an MCP server brings (another profile, logged out, the owner cannot see it). When a page fails, retry or browser_handoff; never switch.",
+      args: z.object({
+        url: z.string().describe("http(s) URL"),
+        tab: tabArg.optional().describe("tab id to load it in"),
+        new_tab: z.boolean().optional().describe("open another tab instead of reusing this chat's"),
+      }),
       effect: "external",
       confirm: (a) => urlConfirm(a.url),
+      untrustedWhy: "url_data",
       deadlineMs: 30_000,
       title: (a) => `Opened ${host(a.url)}`,
       async run(a, ctx) {
+        const reuse = a.tab ? await own(ctx, a.tab) : a.new_tab ? undefined : await chatTab(ctx);
+        if (reuse) {
+          const r = await ctx.call("browser.navigate", { tab: reuse, url: a.url, by: ctx.agent.id });
+          await card(ctx, reuse, "agent");
+          return `tab ${reuse} · ${r.title} · ${r.url}\nNext: browser_snapshot to see the page.`;
+        }
         const t = await ctx.call("browser.open", { url: a.url, profile: profileFor(ctx.agent), by: ctx.agent.id });
         await card(ctx, t.tab, "agent");
         return `tab ${t.tab} · ${t.title} · ${t.url}\nNext: browser_snapshot to see the page.`;
-      },
-    }),
-    defineTool({
-      needsCap: BROWSER_CAP,
-      name: "browser_navigate",
-      description: "Navigate an open tab to a URL.",
-      args: z.object({ tab: tabArg, url: z.string().describe("URL") }),
-      effect: "external",
-      confirm: (a) => urlConfirm(a.url),
-      deadlineMs: 30_000,
-      title: (a) => `Went to ${host(a.url)}`,
-      async run(a, ctx) {
-        const tab = await own(ctx, a.tab);
-        const r = await ctx.call("browser.navigate", { tab, url: a.url, by: ctx.agent.id });
-        await card(ctx, tab, "agent");
-        return `${r.title} · ${r.url}`;
       },
     }),
     defineTool({
@@ -233,14 +247,14 @@ export function browserTools(store: Store, home: string, vm?: { hasThread(id: st
           domains: best.domains.slice(0, 50),
           profile: profile as "shared" | `agent:${string}`,
         });
-        return `copied ${r.imported} cookies for ${site} from ${best.browser}. Reload the tab (browser_navigate to the same URL) and take a new snapshot.`;
+        return `copied ${r.imported} cookies for ${site} from ${best.browser}. Reload the tab (browser_open with the same URL and tab) and take a new snapshot.`;
       },
     }),
     defineTool({
       needsCap: BROWSER_CAP,
       name: "browser_handoff",
       description:
-        "Hand the tab to the owner for login, password, 2FA or captcha, and wait until they finish (up to 5 min). Never ask for passwords in chat.",
+        "Hand the tab to the owner and wait until they press Done (up to 5 min), then go on in it yourself: a login, password, 2FA, captcha or a site that blocks you is a handoff, not a reason to give up or go another way. Just before it, tell the owner in one line what they must do and that you take the tab back after. Never ask for passwords in chat.",
       args: z.object({ tab: tabArg, reason: z.string().max(300).describe("what the owner must do, short") }),
       effect: "none",
       deadlineMs: (HANDOFF_S + 20) * 1000,

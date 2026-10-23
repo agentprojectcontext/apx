@@ -516,6 +516,22 @@
 .tgquiet .apx-field {
   width: 112px;
 }
+/* A channel's attention hours: the days, then from and to, under the row's text. */
+.chhours {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+/* From and to stay together on one line, wherever the days end. */
+.chhours__span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chhours .apx-field {
+  width: 136px;
+}
 .tgremove {
   margin-top: 4px;
 }
@@ -1192,4 +1208,23 @@
 }
 .telemetry__preview {
   margin-top: 16px;
+}
+
+/* A kept sticker: its picture beside what it means. */
+.stk__row {
+  align-items: center;
+}
+.stk__thumb {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+.stk__thumb--none {
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--apx-fill);
+  color: var(--apx-fg-subtle);
+  font-size: 22px;
 }

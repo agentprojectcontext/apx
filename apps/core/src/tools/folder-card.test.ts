@@ -166,10 +166,15 @@ test("total autonomy reads and changes any folder, in a chat with no project too
   }
 });
 
-test("a chat with no project, and APX's own folder, keep the refusal and raise no card", async () => {
-  const alone = await run({ name: "shell", args: { command: `ls ${sh(northwind)}` } }, { inProject: false });
-  assert.equal(alone.input, undefined);
-  assert.match(alone.said, /refused: .*outside the folders you can read: the folder you work in and your temp folder/);
+test("manual in a chat with no project asks for that call instead of refusing; APX's own folder raises no card", async () => {
+  const alone = await run(
+    { name: "shell", args: { command: `ls ${sh(northwind)}` } },
+    { inProject: false, decision: "approve" },
+  );
+  assert.deepEqual(alone.input?.folders, [northwind]);
+  // No project to keep it in: only this time.
+  assert.deepEqual(alone.input?.approval_scopes, ["once"]);
+  assert.match(alone.said, /exit 0[\s\S]*docs/);
   const apx = await run({ name: "file_read", args: { path: path.join(env.home, "apx.db") } });
   assert.equal(apx.input, undefined);
   assert.match(apx.said, /APX's own folder/);
@@ -330,7 +335,7 @@ test("a refusal never sends the agent to ask_owner for a folder", () => {
 });
 
 test("a worktree inside the project is made through the folder rule; one outside it is refused", () => {
-  const thread = { id: "t_wt", project_id: project };
+  const thread = { id: "t_wt", project_id: project, reach: "card" as const };
   const verdict = (command: string) => commandFolder(env.core.store, env.home, thread, { command });
   for (const c of ["git worktree add .worktrees/x -b fix/x", "git worktree add -b fix/x .worktrees/x origin/release"])
     assert.ok(!("refused" in verdict(c)), c);

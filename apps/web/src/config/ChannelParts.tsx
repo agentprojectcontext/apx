@@ -1,10 +1,11 @@
 // What every channel's settings share: who answers and how, who waits to be let in, the people on it, what was sent,
 // and how notices reach the owner.
-import type { ChannelClosers, ChannelInfo, ChannelResearch, Person } from "@apx/protocol";
-import { Badge, Button, IconButton, Icons, Input, Menu, SegmentedControl, SettingRow } from "@apx/ui";
+import type { ChannelClosers, ChannelHours, ChannelInfo, ChannelResearch, OutboxItem, Person } from "@apx/protocol";
+import { Badge, Button, IconButton, Icons, Input, Menu, SegmentedControl, SettingRow, Switch } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { ownerOn, PairingRow } from "../channels/StartRows.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
+import { WeekDays } from "../common/pickers/WeekDays.tsx";
 import {
   type ChannelDraft,
   removePerson,
@@ -14,6 +15,7 @@ import {
   unlinkAddress,
   useChannels,
 } from "../data/channels.ts";
+import { useOwnerTimeZone } from "../data/owner.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { SubHead } from "./SectionHead.tsx";
@@ -111,6 +113,7 @@ export function Behavior({
           ]}
         />
       </SettingRow>
+      <Hours channel={channel} save={save} />
       <SettingRow title={t("tg.strangers")} description={t(STRANGER_HINT[strangerMode(channel)])}>
         <SegmentedControl
           size="sm"
@@ -125,6 +128,54 @@ export function Behavior({
           ]}
         />
       </SettingRow>
+    </>
+  );
+}
+
+/** Hours a channel starts with when the owner turns them on: every day, a working day's span. */
+const FIRST_HOURS: ChannelHours = { days: [1, 2, 3, 4, 5, 6, 0], from: "08:00", to: "22:00" };
+
+/** When it answers contacts, in the owner's time zone: at any hour, or on some days between two times. */
+function Hours({ channel, save }: { channel: ChannelInfo; save(patch: Partial<ChannelDraft>): Promise<unknown> }) {
+  const t = useT();
+  const zone = useOwnerTimeZone();
+  const hours = channel.hours;
+  const set = (patch: Partial<ChannelHours>) => hours && void save({ hours: { ...hours, ...patch } });
+  const time = (key: "from" | "to", label: string) => (
+    <Input
+      aria-label={label}
+      type="time"
+      value={hours?.[key] ?? ""}
+      onChange={(e) => e.currentTarget.value && set({ [key]: e.currentTarget.value })}
+    />
+  );
+  return (
+    <>
+      <SettingRow title={t("ch.hours")} description={t(hours ? "ch.hoursHint.on" : "ch.hoursHint.off")}>
+        <Switch
+          size="sm"
+          checked={Boolean(hours)}
+          onCheckedChange={(on) => void save({ hours: on ? FIRST_HOURS : undefined })}
+          aria-label={t("ch.hours")}
+        />
+      </SettingRow>
+      {hours && (
+        <SettingRow
+          stacked
+          title={t("ch.hoursWhen")}
+          description={zone ? t("ch.hoursZone", { zone }) : t("ch.hoursZoneLocal")}
+        >
+          <div className="chhours">
+            <WeekDays days={hours.days} label={t("ch.hoursDays")} onChange={(days) => set({ days })} />
+            <span className="chhours__span">
+              <span className="tgquiet__word">{t("tg.quietFrom")}</span>
+              {time("from", t("tg.quietFrom"))}
+              <span className="tgquiet__word">{t("tg.quietTo")}</span>
+              {time("to", t("tg.quietTo"))}
+            </span>
+          </div>
+        </SettingRow>
+      )}
     </>
   );
 }
@@ -235,6 +286,12 @@ function PersonRow({ person, channelId }: { person: Person; channelId: string })
   );
 }
 
+/** What went out without words: a sticker (with what it shows) or an emoji put on a message. */
+function sentLabel(o: OutboxItem, t: ReturnType<typeof useT>): string {
+  if (o.sticker !== undefined) return o.sticker ? t("tg.out.stickerAbout", { about: o.sticker }) : t("tg.out.sticker");
+  return o.reaction ? t("tg.out.reaction", { emoji: o.reaction }) : "";
+}
+
 export function Deliveries({ channelId }: { channelId: string }) {
   const t = useT();
   const outbox = useChannels((s) => s.outbox);
@@ -261,7 +318,7 @@ export function Deliveries({ channelId }: { channelId: string }) {
               {t(`tg.out.${o.state}`)}
             </Badge>
             <div className="res__main">
-              <div className="res__desc">{o.text}</div>
+              <div className="res__desc">{o.text || sentLabel(o, t)}</div>
               {o.error && o.state !== "sent" && <div className="res__desc tgcard__error">{o.error}</div>}
             </div>
           </li>

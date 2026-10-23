@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
-import { type ClientScope, methodOpen } from "@apx/protocol";
+import { type ClientScope, FILE_PAYLOAD_BYTES, methodOpen } from "@apx/protocol";
 import {
   injectSurfaceHead,
   surfaceLayoutCss,
@@ -21,8 +21,13 @@ const FILE_METHODS: ReadonlySet<string> = new Set([
   "media.listen",
   "skills.preview",
   "skills.import",
+  // An artifact's store holds up to 5 MB; a bundle carries its database.
+  "surfaces.store_set",
+  "surfaces.import",
 ]);
-const MAX_FILE_BODY = 16 * 1024 * 1024;
+const MAX_FILE_BODY = FILE_PAYLOAD_BYTES;
+/** The kit's path in any minor version a page names (kit@1.js, kit@1.2.js). */
+const KIT_URL = /^\/_apx\/kit@1(?:\.\d+){0,2}\.js$/;
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -60,6 +65,8 @@ export type PublicPages = {
   artifact(
     token: string,
   ): { title: string; html: string; app?: boolean | undefined; connect?: string[] | undefined } | undefined;
+  /** The APX Kit's source, for pages opened outside APX that load it by its path. */
+  kit?(): string;
 };
 
 /**
@@ -67,7 +74,7 @@ export type PublicPages = {
  * only the origins their widget declared for live data (already validated as bare https/wss origins).
  */
 const artifactCsp = (connect: string[] = []) =>
-  `sandbox allow-scripts allow-popups; default-src 'self' data: blob: 'unsafe-inline'; connect-src ${connect.length ? connect.join(" ") : "'none'"}; frame-ancestors *`;
+  `sandbox allow-scripts allow-popups allow-forms; default-src 'self' data: blob: 'unsafe-inline'; form-action 'none'; connect-src ${connect.length ? connect.join(" ") : "'none'"}; frame-ancestors *`;
 
 function artifactPage(title: string, html: string, app = false): string {
   const esc = title.replace(/[<>&"]/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -163,6 +170,11 @@ export function httpHandler(
         "cache-control": "no-store",
       });
       res.end(artifactPage(page.title, page.html, page.app));
+      return;
+    }
+    if (req.method === "GET" && KIT_URL.test(url.pathname) && pages?.kit) {
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache" });
+      res.end(pages.kit());
       return;
     }
     if (req.method === "GET" && webDist && serveStatic(webDist, url.pathname, res)) return;

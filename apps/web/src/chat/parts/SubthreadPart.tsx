@@ -31,7 +31,12 @@ export function SubthreadPart({ part, from }: { part: Extract<Part, { type: "sub
       ? { status: "waiting" as const, label: "usage.state.stepLimit" as const }
       : part.end_reason === "deadline"
         ? { status: "waiting" as const, label: "usage.state.outOfTime" as const }
-        : STATE[part.state];
+        : // Completed is not the same as went well: no answer, or actions that failed, shows as a warning.
+          part.issue === "no_answer"
+          ? { status: "waiting" as const, label: "subthread.noAnswer" as const }
+          : part.issue === "actions_failed"
+            ? { status: "waiting" as const, label: "subthread.actionsFailed" as const }
+            : STATE[part.state];
   const name = part.worker ?? target?.name ?? part.agent_id;
   // A consult on a task names who asked; a delegation's asker is the message's author.
   const askedBy =

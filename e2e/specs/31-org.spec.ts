@@ -58,7 +58,7 @@ test("the base project is renamed and made a company, with areas and roles its a
 test("importing the executive team into the base project sets the company up in one go", async ({ page }) => {
   await rpc("setup.finish", {});
   await open(page, "#project=~default&tab=team");
-  await page.getByRole("button", { name: "Importar" }).click();
+  await page.getByRole("button", { name: "Importar", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Importar agentes" });
   const team = dialog.locator(".teamimport__team", { hasText: "Executive team" });
   await team.getByRole("button", { name: "Elegir todos" }).click();

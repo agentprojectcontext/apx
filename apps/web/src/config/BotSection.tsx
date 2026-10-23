@@ -1,5 +1,5 @@
 import type { ChannelInfo } from "@apx/protocol";
-import { Badge, Button, Icons, Input, SettingRow, Switch } from "@apx/ui";
+import { Badge, Button, Icons, Input, SettingRow, Switch, Textarea } from "@apx/ui";
 import { useEffect, useState } from "react";
 import { KindTile } from "../channels/KindIcon.tsx";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
@@ -8,12 +8,28 @@ import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
-import { RoomsSection } from "./RoomsSection.tsx";
+import { isRoomsKind, RoomsSection } from "./RoomsSection.tsx";
+import { Stickers } from "./StickersSection.tsx";
 
-export type BotKind = "telegram" | "discord" | "slack" | "matrix" | "mattermost" | "signal";
+export type BotKind =
+  | "telegram"
+  | "discord"
+  | "slack"
+  | "matrix"
+  | "mattermost"
+  | "signal"
+  | "googlechat"
+  | "sms"
+  | "ntfy"
+  | "nextcloud"
+  | "irc"
+  | "twitch";
 
-/** One field of the secret; `plain` ones (a server's address, a number) are not hidden as they are typed. */
-type TokenSpec = { label: MessageKey; placeholder: string; pattern: RegExp; plain?: boolean };
+/**
+ * One field of the secret; `plain` ones (a server's address, a number) are not hidden as they are typed, `multiline`
+ * ones take a pasted file (a JSON key).
+ */
+type TokenSpec = { label: MessageKey; placeholder: string; pattern: RegExp; plain?: boolean; multiline?: boolean };
 
 /**
  * What each bot channel needs: the steps to make the bot, and its token(s). Slack takes two (the bot's and the app's,
@@ -63,7 +79,78 @@ const BOTS: Record<BotKind, { name: string; steps: MessageKey[]; tokens: TokenSp
       { label: "sg.number", placeholder: "+15550001111", pattern: /^\+\d{6,15}$/, plain: true },
     ],
   },
+  googlechat: {
+    name: "Google Chat",
+    steps: ["gc.step1", "gc.step2", "gc.step3", "gc.step4"],
+    tokens: [
+      {
+        label: "gc.subscription",
+        placeholder: "projects/acme/subscriptions/apx-chat",
+        pattern: /^projects\/[^/\s]+\/subscriptions\/[^/\s]+$/,
+        plain: true,
+      },
+      {
+        label: "gc.key",
+        placeholder: '{ "type": "service_account", … }',
+        pattern: /^\{[\s\S]*"private_key"[\s\S]*\}$/,
+        multiline: true,
+      },
+    ],
+  },
+  sms: {
+    name: "SMS",
+    steps: ["sms.step1", "sms.step2", "sms.step3"],
+    tokens: [
+      { label: "sms.sid", placeholder: "AC0123…", pattern: /^AC[0-9a-fA-F]{32}$/, plain: true },
+      { label: "sms.token", placeholder: "abc123…", pattern: /^[A-Za-z0-9]{16,}$/ },
+      { label: "sg.number", placeholder: "+15550001111", pattern: /^\+[1-9]\d{6,14}$/, plain: true },
+    ],
+  },
+  ntfy: {
+    name: "ntfy",
+    steps: ["nt.step1", "nt.step2", "nt.step3"],
+    tokens: [
+      { label: "nt.server", placeholder: "https://ntfy.sh", pattern: /^https?:\/\/\S+$/, plain: true },
+      { label: "nt.topic", placeholder: "apx-7f3k9q2m8x", pattern: /^[-_A-Za-z0-9]{1,64}$/, plain: true },
+      { label: "nt.token", placeholder: "tk_…", pattern: /^(tk_\S+)?$/ },
+    ],
+  },
+  nextcloud: {
+    name: "Nextcloud Talk",
+    steps: ["nc.step1", "nc.step2", "nc.step3"],
+    tokens: [
+      { label: "mm.server", placeholder: "https://cloud.example.org", pattern: /^https?:\/\/\S+$/, plain: true },
+      { label: "nc.user", placeholder: "apx-bot", pattern: /^\S+$/, plain: true },
+      { label: "nc.password", placeholder: "xxxxx-xxxxx-…", pattern: /^\S{8,}$/ },
+    ],
+  },
+  irc: {
+    name: "IRC",
+    steps: ["irc.step1", "irc.step2", "irc.step3"],
+    tokens: [
+      { label: "mm.server", placeholder: "ircs://irc.libera.chat:6697", pattern: /^ircs?:\/\/\S+$/, plain: true },
+      {
+        label: "irc.nick",
+        placeholder: "acme-bot",
+        pattern: /^[A-Za-z[\]\\`_^{|}][\w[\]\\`^{|}-]{0,29}$/,
+        plain: true,
+      },
+      { label: "irc.password", placeholder: "", pattern: /^\S*$/ },
+    ],
+  },
+  twitch: {
+    name: "Twitch",
+    steps: ["tw.step1", "tw.step2", "tw.step3"],
+    tokens: [
+      { label: "tw.login", placeholder: "acme_bot", pattern: /^\w{3,25}$/, plain: true },
+      { label: "tw.token", placeholder: "oauth:…", pattern: /^(oauth:)?\w{20,}$/ },
+      { label: "tw.channel", placeholder: "#acme", pattern: /^#?\w{3,25}$/, plain: true },
+    ],
+  },
 };
+
+/** Kinds whose single owner writes from a place only they know (an ntfy topic): that place is the owner. */
+const SELF_OWNER: readonly BotKind[] = ["ntfy"];
 
 export const isBotKind = (k: string): k is BotKind => Object.hasOwn(BOTS, k);
 /** How to make a kind's bot and the token(s) it takes (the setup connects Discord and Slack with it too). */
@@ -92,6 +179,7 @@ export function BotSection({ kind }: { kind: BotKind }) {
       )}
       {channel && <Notices />}
       {channel && <People channelId={channel.id} />}
+      {channel && kind === "telegram" && <Stickers platform="telegram" label={name} />}
       {channel && <Deliveries channelId={channel.id} />}
     </>
   );
@@ -108,7 +196,11 @@ export function useTokens(kind: BotKind) {
     set: (i: number, v: string) => setValues((cur) => cur.map((x, j) => (j === i ? v : x))),
     clear: () => setValues(specs.map(() => "")),
     ok,
-    joined: values.map((v) => v.trim()).join(" "),
+    // An optional field left empty adds nothing.
+    joined: values
+      .map((v) => v.trim())
+      .filter(Boolean)
+      .join(" "),
   };
 }
 
@@ -123,7 +215,14 @@ function Setup({ kind }: { kind: BotKind }) {
     setBusy(true);
     await saveChannel(
       kind,
-      { agent_id: agent, enabled: true, strangers: "pair", concurrency: "steer", owner_thread: "home" },
+      {
+        agent_id: agent,
+        enabled: true,
+        strangers: "pair",
+        concurrency: "steer",
+        owner_thread: "home",
+        ...(SELF_OWNER.includes(kind) ? { self_owner: true } : {}),
+      },
       tokens.joined,
     );
     setBusy(false);
@@ -138,14 +237,7 @@ function Setup({ kind }: { kind: BotKind }) {
       {tokens.specs.map((spec, i) => (
         <div className="pform__field" key={spec.label}>
           <span className="pform__label">{t(spec.label)}</span>
-          <Input
-            aria-label={t(spec.label)}
-            type={spec.plain ? "text" : "password"}
-            autoComplete="off"
-            placeholder={spec.placeholder}
-            value={tokens.values[i]}
-            onChange={(e) => tokens.set(i, e.currentTarget.value)}
-          />
+          <TokenInput spec={spec} value={tokens.values[i] ?? ""} onChange={(v) => tokens.set(i, v)} />
           {i === tokens.specs.length - 1 && <span className="pform__hint">{t("tg.tokenHint")}</span>}
         </div>
       ))}
@@ -158,6 +250,50 @@ function Setup({ kind }: { kind: BotKind }) {
         </Button>
       </div>
     </div>
+  );
+}
+
+/** One field of a kind's secret: hidden as it is typed unless plain; a pasted file (JSON key) gets a text area. */
+function TokenInput({
+  spec,
+  value,
+  onChange,
+  placeholder = spec.placeholder,
+  autoFocus,
+  onEnter,
+}: {
+  spec: TokenSpec;
+  value: string;
+  onChange(v: string): void;
+  placeholder?: string;
+  autoFocus?: boolean;
+  onEnter?(): void;
+}) {
+  const t = useT();
+  if (spec.multiline)
+    return (
+      <Textarea
+        aria-label={t(spec.label)}
+        className="tgtoken__key"
+        rows={4}
+        spellCheck={false}
+        autoFocus={autoFocus}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.currentTarget.value)}
+      />
+    );
+  return (
+    <Input
+      aria-label={t(spec.label)}
+      type={spec.plain ? "text" : "password"}
+      autoComplete="off"
+      autoFocus={autoFocus}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.currentTarget.value)}
+      onKeyDown={(e) => e.key === "Enter" && onEnter?.()}
+    />
   );
 }
 
@@ -189,16 +325,14 @@ function TokenField({
   return (
     <div className="tgtoken">
       {tokens.specs.map((spec, i) => (
-        <Input
+        <TokenInput
           key={spec.label}
-          aria-label={t(spec.label)}
-          type={spec.plain ? "text" : "password"}
-          autoComplete="off"
+          spec={spec}
           autoFocus={Boolean(onCancel) && i === 0}
           placeholder={channel.token_set ? `${t("tg.tokenNew")} (${spec.placeholder})` : spec.placeholder}
-          value={tokens.values[i]}
-          onChange={(e) => tokens.set(i, e.currentTarget.value)}
-          onKeyDown={(e) => e.key === "Enter" && void save()}
+          value={tokens.values[i] ?? ""}
+          onChange={(v) => tokens.set(i, v)}
+          onEnter={() => void save()}
         />
       ))}
       {onCancel && (
@@ -246,9 +380,11 @@ function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
     strangers: channel.strangers,
     concurrency: channel.concurrency,
     owner_thread: channel.owner_thread,
+    ...(channel.self_owner ? { self_owner: true } : {}),
     ...(channel.rooms ? { rooms: channel.rooms } : {}),
     closers: channel.closers,
     research: channel.research,
+    hours: channel.hours,
   };
   const save = (patch: Partial<ChannelDraft>, newToken?: string) =>
     saveChannel(channel.id, { ...draft, ...patch }, newToken);
@@ -283,9 +419,7 @@ function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
       </div>
 
       <Behavior channel={channel} save={save} />
-      {(kind === "discord" || kind === "telegram") && (
-        <RoomsSection channel={channel} kind={kind} save={(rooms) => save({ rooms })} />
-      )}
+      {isRoomsKind(kind) && <RoomsSection channel={channel} kind={kind} save={(rooms) => save({ rooms })} />}
       {!fixToken && (
         <SettingRow title={t("tg.token")} description={t("tg.tokenStored")}>
           <StoredToken channel={channel} kind={kind} onSave={(token) => save({}, token)} />

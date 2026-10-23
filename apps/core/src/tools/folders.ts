@@ -99,6 +99,24 @@ export function scratchDir(store: Store, home: string, thread: { id: string; par
   return path.join(scratchRoot(home), root.id.replace(/[^\w-]/g, "_"));
 }
 
+/**
+ * Where a built artifact's source lives (one folder per artifact under it): APX's side, never the owner's repo, and
+ * apart from the artifact's memory (`artifacts/`), which only the core writes. See DECISIONS.md#d-118.
+ */
+export const artifactSources = (home: string, projectId: string | undefined) =>
+  path.join(home, "artifact-sources", projectId ?? "global");
+
+/**
+ * Whether a command names APX's own folder, leaving out this project's artifact sources, which its agents may build in.
+ */
+export function namesApxHome(command: string, home: string, projectId: string | undefined): boolean {
+  // A command may write a path with either slash (Git Bash on Windows): both spellings count.
+  const both = (p: string) => [...new Set([p, p.split(path.sep).join("/"), p.split("/").join(path.sep)])];
+  let rest = command;
+  for (const src of both(artifactSources(home, projectId))) rest = rest.split(src).join("");
+  return both(home).some((h) => rest.includes(h)) || /\.apx(2\b|\/v2\b)/.test(rest);
+}
+
 /** Every chat's temp folder sits here; one per APX home, so a test core never shares the owner's. */
 export const scratchRoot = (home: string) =>
   path.join(os.tmpdir(), `apx-scratch-${createHash("sha256").update(home).digest("hex").slice(0, 8)}`);
@@ -118,15 +136,22 @@ export type Root = {
 };
 
 /**
- * A thread as the folder rule sees it; `lent`: folders outside its own the owner let this one call read, or change
- * with `lentWrite`; `reach`: its agent may read (`read`) or also change (`all`) any folder but APX's home
- * (DECISIONS.md#d-102, #d-106).
+ * How far an agent's files reach outside the folders it works in (DECISIONS.md#d-106): `all` reads and changes any
+ * folder but APX's home, `read` reads any and asks before changing outside, `card` asks before reading outside,
+ * `fenced` keeps to its folders.
+ */
+export type Reach = "all" | "read" | "card" | "fenced";
+
+/**
+ * A thread as the folder rule sees it for one agent. Only engine/permissions.ts makes one: a thread read from the store
+ * has no `reach`, so it cannot be judged here by mistake with less than the agent may do (DECISIONS.md#d-115).
+ * `lent`: folders outside its own the owner let this one call read, or change with `lentWrite`.
  */
 export type FolderThread = Parameters<typeof workDir>[2] &
   Parameters<typeof scratchDir>[2] & {
+    reach: Reach;
     lent?: readonly string[] | undefined;
     lentWrite?: boolean | undefined;
-    reach?: "read" | "all" | undefined;
     /** Folders outside its own the owner let this agent change for good (a folder card's "always"). */
     granted?: readonly string[] | undefined;
   };
@@ -141,7 +166,7 @@ export function readOnlyFolders(store: Store, thread: { project_id?: string | un
  * The project's linked git worktrees, wherever they sit (`git worktree add ../x`): the same repository, so the same
  * project (DECISIONS.md#d-106). Only for a thread working in the project's own folder: one kept to a worktree stays in it.
  */
-export function projectWorktrees(store: Store, thread: Thread): string[] {
+export function projectWorktrees(store: Store, thread: Parameters<typeof workDir>[2]): string[] {
   if (thread.cwd || !thread.project_id) return [];
   const p = store.projects.get(thread.project_id);
   if (!p?.path || !p.present) return [];
@@ -181,7 +206,7 @@ export function ownerProjects(store: Store, home: string, thread: Thread): Root[
     const at = real(p.path);
     if (isInside(at, apx) || isInside(apx, at)) continue;
     out.push({ dir: p.path, write: true, scratch: false });
-    for (const tree of projectWorktrees(store, { id: thread.id, project_id: p.id }))
+    for (const tree of projectWorktrees(store, { project_id: p.id }))
       out.push({ dir: tree, write: true, scratch: false });
   }
   return out;
@@ -214,6 +239,7 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
   return [
     { dir: workDir(store, home, thread), write: true, scratch: false },
     { dir: scratchDir(store, home, thread), write: true, scratch: true },
+    { dir: artifactSources(home, thread.project_id), write: true, scratch: false },
     ...projectWorktrees(store, thread).map((dir) => ({ dir, write: true, scratch: false })),
     ...readOnlyFolders(store, thread).map((dir) => ({ dir, write: false, scratch: false })),
     ...sharedRoots(home),
@@ -223,7 +249,7 @@ export function rootsOf(store: Store, home: string, thread: Thread): Root[] {
     // Last, so other chats' temp folders stay closed even inside a folder lent for one call.
     ...(thread.lent ?? []).map((dir) => ({ dir, write: thread.lentWrite === true, scratch: false, lent: true })),
     // Last of all: the project's read-only folders and other chats' temp folders keep their own rule.
-    ...(thread.reach
+    ...(thread.reach === "all" || thread.reach === "read"
       ? [{ dir: path.parse(home).root, write: thread.reach === "all", scratch: false, anywhere: { home } }]
       : []),
   ];
@@ -282,7 +308,7 @@ export const refusal = {
     `${p} is in a read-only folder: it can be read, never changed. Write in the folder you work in or your temp folder instead.`,
   /** Outside a project there is no read-only folder to add. */
   alone: (p: string) =>
-    `${p} is outside the folders you can read: the folder you work in and your temp folder. Tell the owner which folder you need: in Auto mode an agent reads any folder.`,
+    `${p} is outside the folders you can read: the folder you work in and your temp folder. Work with what is there, or tell the owner which folder you need and why.`,
   apx: (p: string) =>
     `${p} is in APX's own folder, which no agent may use. Ask APX through its tools (list_agents, recall, search_chats) instead.`,
   unknown: (what: string) =>
@@ -337,11 +363,10 @@ export function judge(roots: Root[], file: string, from: string, o: JudgeOptions
     if (apx && insideReal(apx, lands)) return { refused: refusal.apx(name) };
   }
   if (!root || root.off) {
-    if (o.write) return { refused: refusal.unwritable(name) };
-    if (o.project === false) return { refused: refusal.alone(name) };
-    // In a project the owner may let it read there: the card offers the folder holding the path.
-    const offer = o.project && o.home && !root ? { offer: holding(lands) } : {};
-    return { refused: refusal.outside(name), ...offer };
+    // Outside every folder it may use the owner may let it there: the card offers the folder holding the path.
+    const offer = o.home && !root ? { offer: holding(lands) } : {};
+    if (o.write) return { refused: refusal.unwritable(name), ...offer };
+    return { refused: o.project === false ? refusal.alone(name) : refusal.outside(name), ...offer };
   }
   if (o.write && !root.write)
     // Anywhere but its folders is readable only: the owner is offered the folder holding the path for this call.
@@ -372,6 +397,18 @@ export function outsideFolders(judgeWith: (lent: string[]) => Access): string[] 
     lent.push(r.offer);
   }
   return [];
+}
+
+/**
+ * A tool's `outside` for paths the call reads (send_file, open_document, a drawing's references): the folders holding
+ * them that the owner would have to lend it, so a mode that asks gets a card instead of a refusal.
+ */
+export function readsOutside(store: Store, home: string, thread: FolderThread, files: readonly string[]): string[] {
+  const out = new Set<string>();
+  for (const file of files)
+    for (const dir of outsideFolders((lent) => folderAccess(store, home, { ...thread, lent: [...out, ...lent] }, file)))
+      out.add(dir);
+  return [...out];
 }
 
 /**

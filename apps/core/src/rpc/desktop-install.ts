@@ -5,5 +5,6 @@ export function desktopInstallHandlers(installer: DesktopInstaller) {
   return {
     "desktop.install_status": () => installer.status(),
     "desktop.install": () => installer.start(),
+    "desktop.install_cancel": () => installer.cancel(),
   } satisfies Partial<Handlers>;
 }

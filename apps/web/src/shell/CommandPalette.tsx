@@ -1,6 +1,7 @@
 import type { Task, Thread } from "@apx/protocol";
 import { AgentAvatar, Dialog, Icons, Kbd, ProjectTile } from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { CONFIG_SECTION_LABELS } from "../config/sectionLabels.ts";
 import { client } from "../data/client.ts";
 import { isListed, projectInitial, projectTone } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
@@ -9,22 +10,6 @@ import { type ConfigSection, go, useNav } from "./nav.ts";
 
 type Item = { key: string; group: MessageKey; title: string; detail?: string; icon: ReactNode; run(): void };
 
-const SECTIONS: Partial<Record<ConfigSection, MessageKey>> = {
-  account: "config.account",
-  appearance: "config.appearance",
-  sounds: "config.sounds",
-  engines: "config.engines",
-  agents: "config.agents",
-  memory: "config.memory",
-  channels: "config.channels",
-  interruptions: "config.interruptions",
-  profile: "config.profile",
-  browser: "config.browser",
-  desktop: "config.desktop",
-  devices: "config.devices",
-  advanced: "config.advanced",
-  logs: "config.logs",
-};
 const MAX_PER_GROUP = 6;
 /** Words in messages are looked up in the core once typing pauses, from this many characters on. */
 const SEARCH_MIN = 2;
@@ -114,7 +99,7 @@ export function CommandPalette() {
         icon: <Icons.Layers size={15} />,
         run: close(() => go.view("resources")),
       },
-      ...(Object.entries(SECTIONS) as Array<[ConfigSection, MessageKey]>).map(([id, label]) => ({
+      ...(Object.entries(CONFIG_SECTION_LABELS) as Array<[ConfigSection, MessageKey]>).map(([id, label]) => ({
         key: `c:${id}`,
         title: t(label),
         detail: t("palette.settings"),

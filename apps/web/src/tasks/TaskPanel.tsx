@@ -1,5 +1,18 @@
 import type { Message, Task, TaskEvent } from "@apx/protocol";
-import { AgentAvatar, Badge, Button, Icons, Select, Skeleton, Tabs, TagInput, Textarea } from "@apx/ui";
+import {
+  AgentAvatar,
+  Badge,
+  Button,
+  IconButton,
+  Icons,
+  MarkdownView,
+  Menu,
+  Select,
+  Skeleton,
+  Tabs,
+  TagInput,
+  Textarea,
+} from "@apx/ui";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { QuoteContext, quoteBlock } from "../chat/quote.ts";
 import { Transcript } from "../chat/Transcript.tsx";
@@ -7,12 +20,22 @@ import { Drawer } from "../common/Drawer.tsx";
 import { shortWhen } from "../common/format.ts";
 import { AgentSelect } from "../common/pickers/AgentSelect.tsx";
 import { ProjectSelect } from "../common/pickers/ProjectSelect.tsx";
+import { useMarkdownLabels } from "../common/useMarkdownLabels.ts";
 import { loadThread } from "../data/actions.ts";
 import { baseName, blobOf } from "../data/identity.ts";
 import { useOwnerName } from "../data/owner.ts";
 import { useData } from "../data/state.ts";
-import { closeTask, settleTask, type TaskDetail, taskDetail, updateTask, useTasks } from "../data/tasks.ts";
+import {
+  acceptTasks,
+  closeTask,
+  settleTask,
+  type TaskDetail,
+  taskDetail,
+  updateTask,
+  useTasks,
+} from "../data/tasks.ts";
 import { useT } from "../i18n/index.ts";
+import { formatCompact } from "./compact.ts";
 import { historyLines } from "./history.ts";
 import { mentionToken } from "./mentions.ts";
 import { TaskComment } from "./TaskComment.tsx";
@@ -27,6 +50,7 @@ import {
 } from "./TaskFields.tsx";
 import { ColumnDot, ColumnHelp, columnLabel, KindHelp } from "./TaskForms.tsx";
 import { TaskParent, TaskSubtasks, TaskUsage, TaskWork } from "./TaskWork.tsx";
+import { copyItems } from "./taskActions.tsx";
 import { pickerValue, type Reminder, remindAt, reminderOf } from "./when.ts";
 
 /**
@@ -89,11 +113,27 @@ export function TaskPanel({ task, onClose, actions }: { task: Task; onClose: () 
     };
   }, [task.id, movedAt]);
   return (
-    <Drawer className="taskpanel" label={task.title} title={task.title} onClose={onClose} actions={actions}>
+    <Drawer
+      className="taskpanel"
+      label={task.title}
+      title={<Title task={task} />}
+      onClose={onClose}
+      actions={
+        <>
+          {actions}
+          <Menu
+            trigger={<IconButton size="sm" label={t("common.more")} icon={<Icons.Ellipsis size={14} />} />}
+            items={copyItems(task, t)}
+          />
+        </>
+      }
+    >
       <div className="taskpanel__body" ref={body}>
         <StateBar task={task} />
         <Properties task={task} detail={detail} />
+        <TaskActivity task={task} detail={detail} />
         <Description task={task} />
+        {task.plan?.trim() && <TaskPlan plan={task.plan} />}
         <Tabs
           variant="pill"
           className="taskpanel__tabs"
@@ -132,6 +172,49 @@ export function TaskPanel({ task, onClose, actions }: { task: Task; onClose: () 
   );
 }
 
+/**
+ * Below the properties: the chats the task was worked in and what it consumed, each a button that opens its list
+ * (a session opens in the inbox).
+ */
+function TaskActivity({ task, detail }: { task: Task; detail: TaskDetail | undefined }) {
+  const t = useT();
+  const [shown, setShown] = useState<"sessions" | "usage">();
+  const count = (detail?.sessions.length ?? 0) + (detail?.consults.length ?? 0);
+  const tokens = detail?.usage.reduce((n, u) => n + u.input + u.output, 0) ?? 0;
+  const toggle = (which: "sessions" | "usage") => setShown((s) => (s === which ? undefined : which));
+  return (
+    <div className="taskdetail__activity">
+      <div className="taskdetail__activitybar">
+        <Button
+          size="sm"
+          variant={shown === "sessions" ? "secondary" : "ghost"}
+          aria-expanded={shown === "sessions"}
+          leadingIcon={<Icons.MessagesSquare size={14} />}
+          onClick={() => toggle("sessions")}
+        >
+          {detail ? t("tasks.work.count", { count }) : t("tasks.work.label")}
+        </Button>
+        <Button
+          size="sm"
+          variant={shown === "usage" ? "secondary" : "ghost"}
+          aria-expanded={shown === "usage"}
+          leadingIcon={<Icons.Activity size={14} />}
+          onClick={() => toggle("usage")}
+        >
+          {detail?.usage.length ? t("tasks.usage.count", { tokens: formatCompact(tokens) }) : t("tasks.usage")}
+        </Button>
+      </div>
+      {shown === "sessions" && <TaskWork task={task} sessions={detail?.sessions} consults={detail?.consults} />}
+      {shown === "usage" &&
+        (detail?.usage.length ? (
+          <TaskUsage usage={detail.usage} />
+        ) : (
+          <span className="taskwork__none">{t("tasks.usage.none")}</span>
+        ))}
+    </div>
+  );
+}
+
 /** Its column (how it ended, once closed: it keeps its column to go back to on reopen), and done / drop (or reopen). */
 function StateBar({ task }: { task: Task }) {
   const t = useT();
@@ -160,6 +243,13 @@ function StateBar({ task }: { task: Task }) {
       <span className="board__spacer" />
       {task.kind === "commitment" ? (
         <CommitmentActions task={task} />
+      ) : task.state === "open" && task.proposed ? (
+        <>
+          <Button size="sm" leadingIcon={<Icons.Check size={14} />} onClick={() => void acceptTasks([task.id])}>
+            {t("tasks.accept")}
+          </Button>
+          <DropButton task={task} />
+        </>
       ) : task.state === "open" ? (
         <>
           <Button
@@ -170,14 +260,7 @@ function StateBar({ task }: { task: Task }) {
           >
             {t("tasks.markDone")}
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            leadingIcon={<Icons.X size={14} />}
-            onClick={() => void closeTask(task.id, "dropped")}
-          >
-            {t("tasks.drop")}
-          </Button>
+          <DropButton task={task} />
         </>
       ) : (
         <Button size="sm" variant="secondary" onClick={() => void closeTask(task.id, "open")}>
@@ -185,6 +268,20 @@ function StateBar({ task }: { task: Task }) {
         </Button>
       )}
     </div>
+  );
+}
+
+/** Dropping, as an icon beside the main action so the bar stays one line in a narrow panel. */
+function DropButton({ task }: { task: Task }) {
+  const t = useT();
+  return (
+    <IconButton
+      size="sm"
+      variant="outline"
+      label={t("tasks.drop")}
+      icon={<Icons.X size={14} />}
+      onClick={() => void closeTask(task.id, "dropped")}
+    />
   );
 }
 
@@ -278,17 +375,31 @@ function Properties({ task, detail }: { task: Task; detail: TaskDetail | undefin
           <TaskParent id={task.parent_id} />
         </Prop>
       )}
-      <Prop label={t("tasks.work")} top>
-        <TaskWork task={task} sessions={detail?.sessions} consults={detail?.consults} />
-      </Prop>
       {detail && detail.subtasks.length > 0 && (
         <Prop label={t("tasks.subtasks")} top>
           <TaskSubtasks subtasks={detail.subtasks} />
         </Prop>
       )}
-      {detail && detail.usage.length > 0 && (
-        <Prop label={t("tasks.usage")} top>
-          <TaskUsage usage={detail.usage} />
+      {task.state === "open" && (task.status === "review" || task.reviewer) && (
+        <Prop label={t("tasks.reviewer")}>
+          <AgentSelect
+            size="sm"
+            value={task.reviewer}
+            projectId={task.project_id}
+            globalAgents={task.project_id ? "secretary" : "all"}
+            none={t("tasks.reviewerOwner")}
+            onChange={(id) => id !== task.reviewer && void updateTask(task.id, { reviewer: id ?? null })}
+          />
+        </Prop>
+      )}
+      {task.state === "open" && task.kind === "task" && detail && !detail.sessions.length && (
+        <Prop label={t("tasks.start")}>
+          <DueField
+            size="sm"
+            label={t("tasks.startNow")}
+            value={pickerValue(task.start_at)}
+            onChange={(v) => v !== pickerValue(task.start_at) && void updateTask(task.id, { start_at: v ?? null })}
+          />
         </Prop>
       )}
       <Prop label={t("commitments.due")}>
@@ -331,6 +442,52 @@ function Prop({ label, help, top, children }: { label: string; help?: ReactNode;
       </dt>
       <dd className="taskprops__value">{children}</dd>
     </>
+  );
+}
+
+/** The title, edited in place: saved on Enter or leaving the box; Escape or an empty box keeps the old one. */
+function Title({ task }: { task: Task }) {
+  const t = useT();
+  const [draft, setDraft] = useState(task.title);
+  useEffect(() => setDraft(task.title), [task.title]);
+  const save = () => {
+    const title = draft.trim();
+    if (title && title !== task.title) void updateTask(task.id, { title });
+    else setDraft(task.title);
+  };
+  return (
+    <textarea
+      className="taskpanel__title"
+      aria-label={t("tasks.rename")}
+      rows={1}
+      maxLength={200}
+      value={draft}
+      onChange={(e) => setDraft(e.currentTarget.value.replace(/\n/g, " "))}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.blur();
+        } else if (e.key === "Escape") {
+          // The drawer stays open: Escape here only drops the edit.
+          e.preventDefault();
+          setDraft(task.title);
+          requestAnimationFrame(() => (e.target as HTMLTextAreaElement).blur());
+        }
+      }}
+    />
+  );
+}
+
+/** The plan its agent keeps on the task: the steps and where it stands, read again on every turn of its work. */
+function TaskPlan({ plan }: { plan: string }) {
+  const t = useT();
+  const labels = useMarkdownLabels();
+  return (
+    <section className="taskdetail__plan" aria-label={t("tasks.plan")}>
+      <h3 className="taskdetail__planhead">{t("tasks.plan")}</h3>
+      <MarkdownView source={plan} size="sm" labels={labels} />
+    </section>
   );
 }
 

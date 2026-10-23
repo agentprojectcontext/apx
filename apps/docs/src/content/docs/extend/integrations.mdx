@@ -26,19 +26,32 @@ and adds its MCP server as one of your global servers, so your agents can use it
 
 </Steps>
 
+You can also let an agent bring it up: ask for something an app or channel you have not connected would do ("open
+my Figma file", "send it on WhatsApp") and the agent answers with a **Suggested connections** card. **Connect** opens
+that integration's form right in the chat, or that channel's setup in **Settings › Channels**; once an integration is
+connected, the agent is told and goes on.
+
 <Shot name="resources-integrations" alt="Resources, Integrations tab: connected integrations and the catalog of ones that can be connected" caption="Resources › Integrations" />
 
 | Integration | Gives your agents | You provide |
 |---|---|---|
 | GitHub | Repositories, issues and pull requests | A personal access token |
 | Notion | Pages and databases of your workspace | An integration token |
-| Slack | Channels, messages and threads of your workspace | A bot token and the team id |
+| Slack | Channels, messages and threads of your workspace | A bot token |
 | Sentry | Errors and issues of your projects | An access token |
 | Brave Search | Web search | An API key |
 | Obsidian | Read and write the notes of your vault | The vault's folder |
 | Asana | Native workspace, project and task reads; task creation and updates | A personal access token |
-| Google Calendar, Gmail | Native calendar and mail tools | Sign in with Google |
-| Linear | | Marked **Soon**: they need a sign-in flow APX doesn't run yet |
+| Google Calendar, Gmail, Google Drive | Native calendar, mail and Drive tools | Sign in with Google |
+| Home Assistant | Lights, sensors and automations of your home | Its address and a long-lived access token (turn on its **MCP Server** integration) |
+| n8n | Run the workflows of your n8n instance | Its address and its MCP access token |
+| Linear, Jira and Confluence, GitLab, Vercel, Supabase, Stripe, Todoist, Airtable, Figma, Cloudflare, Netlify, Neon, ClickUp, monday.com, Canva, Miro, Dropbox, Calendly, Datadog, Grafana, PayPal, WordPress.com, Hugging Face, Railway, Intercom, Attio, Close, Klaviyo, Mixpanel, Amplitude, Better Stack, Square, Fireflies, Strava, Semgrep, CircleCI, Postman, Prisma Postgres, Cloudinary, Craft, Webflow, Gamma | Each app's own MCP server | Nothing to type: you sign in in your browser |
+| Context7, DeepWiki, Wolfram, AWS Knowledge, Microsoft Learn | Documentation and knowledge | Nothing: no account |
+| Microsoft 365, Box | | Marked **Soon**: their sign-in needs an app APX registers with them |
+
+The catalog has a search box. An app you sign in to runs through `mcp-remote`: connecting starts it, it registers
+itself with the app and opens the app's sign-in page in your browser. Until you finish, the integration shows
+**Sign in**; press it to open the page again.
 
 Asana uses the REST API directly, not an MCP server. Create a personal access token at
 [Asana developer apps](https://app.asana.com/0/my-apps) and enter it in the connection form.
@@ -49,6 +62,36 @@ Create a task with an Asana `project` or a `workspace` (for a task without a pro
 `asana_write` creates or updates tasks (name, notes, completion, assignee and due date), with owner authorization.
 The per-project switch controls availability, not Asana object permissions: the shared account can access whatever its token permits.
 Do not repeat a create after an unknown outcome without checking Asana first; writes are not automatically retried.
+
+### Google
+
+Each Google part connects on its own, so you choose what your agents reach: **Google Calendar**, **Gmail** and
+**Google Drive**. The access Google grants stays in this computer's secret store, and you can remove it at
+[myaccount.google.com/permissions](https://myaccount.google.com/permissions).
+
+- **Calendar** starts on **APX sign-in**: click **Sign in with Google** and accept in your browser, with no Google
+  Cloud setup.
+- **Gmail and Drive** start on **My own OAuth client**, which reaches all of them. The dialog walks you through creating
+  it in Google Cloud once (about 5 minutes); then upload the JSON Google gives you. Publish the app (**In production**):
+  in Testing, Google ends the access after 7 days. One sign-in can connect the other parts too, with the same client.
+- **APX sign-in (limited)** is there for Gmail and Drive as well, for sending mail and the Docs APX writes.
+
+| Part | What agents can do | Asks you first |
+|---|---|---|
+| Google Calendar | Read events, find free time, create and change events, add or remove guests, add a Meet link, cancel | Inviting people and cancelling |
+| Gmail | Send mail. With your own client: also search and read mail, and write drafts | Sending always asks; writing a draft asks |
+| Google Drive | Write Docs and share them; find and read them. With your own client: find and read your whole Drive (Docs, Sheets, Slides, text files) | Sharing |
+
+APX's sign-in asks Google only for what it can get verified without a paid security review, so it cannot read your mail
+or the rest of your Drive. To read mail, connect your mailbox in **Channels › Email**; for the whole of Gmail and Drive,
+use your own OAuth client.
+
+An event only on your calendar goes in without asking. Events, mail and files come back to agents as outside data,
+never as instructions. With your own client, Google shows "Google hasn't verified this app": choose **Advanced** and
+continue.
+
+GitHub is reached at GitHub's own server (`api.githubcopilot.com/mcp`) with your token. An integration connected
+before this change keeps its old server until you edit and save it.
 
 The MCP-based servers start with `npx`, so the machine running the core needs Node.js and internet access the first time
 each one starts. Once connected, an MCP-based integration behaves like any other MCP server: it has [tool
@@ -72,8 +115,10 @@ a value to you, and each row says where it's used.
 ### Where values are stored
 
 - **macOS**: in your login Keychain.
-- **Linux, Windows**, or any core started with `APX_SECRETS=file`: in `secrets.json` inside APX's home, readable only
-  by your user (mode 600).
+- **Linux**: in your keyring (GNOME Keyring, KWallet or any Secret Service).
+- **Windows**: in `secrets.dpapi`, which only your Windows account can decrypt.
+- A Linux server with no keyring, or any core started with `APX_SECRETS=file`: in `secrets.json` inside APX's home,
+  readable only by your user (mode 600).
 
 ### A project's own value
 

@@ -1,19 +1,17 @@
 // The built-in loop: our model call, our tools, bounded steps. What the model says and every tool result are
 // logged as they happen.
+
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem, ModelFailure, Usage } from "../providers/types.ts";
 import { readsImages } from "../providers/vision.ts";
+import { modelSpec } from "../tools/types.ts";
 import type { Harness } from "./types.ts";
 
-/** Model calls a turn may make before it must answer: a real piece of work fits, watched or not. */
-export const MAX_STEPS = 60;
 /**
- * A turn that works on the owner's computer goes step by step (look, click, look again): it gets this many. The owner
- * is asked whether to go on every 60 computer actions (tools/computer.ts), well before this ends.
+ * Model calls a turn may make before it must report: a long piece of work (a code change, its review, the screen or
+ * the browser step by step) fits; a delegated one cut here goes on while it progresses (engine/progress.ts).
  */
-const COMPUTER_STEPS = 150;
-/** A turn in the browser goes the same way (open, look, type, look again), with no owner check on the way. */
-const BROWSER_STEPS = 60;
+export const MAX_STEPS = 150;
 const MAX_CONTINUATIONS = 2;
 /** Same tool with the same arguments this many times = stuck. */
 const REPEAT_LIMIT = 3;
@@ -56,7 +54,7 @@ export function nativeHarness(llm: Llm): Harness {
         const c = await llm.complete({
           models: io.models,
           messages,
-          tools: tools && !toolsOff ? io.tools : [],
+          tools: tools && !toolsOff ? io.tools.map(modelSpec) : [],
           signal: io.signal,
           cacheKey: io.thread.id,
           onText: (s) => {
@@ -79,7 +77,7 @@ export function nativeHarness(llm: Llm): Harness {
         return c;
       };
 
-      let limit = io.steps ?? MAX_STEPS;
+      const limit = io.steps ?? MAX_STEPS;
       for (let i = 0; i < limit; i++) {
         // The owner's words added while we work go in after the last tool results, before the next model call.
         for (const t of io.takeSteered?.() ?? [])
@@ -117,8 +115,6 @@ export function nativeHarness(llm: Llm): Harness {
             looked.push(...out.images);
             lookedFrom.add(call.function.name);
           }
-          if (call.function.name.startsWith("screen_")) limit = Math.max(limit, COMPUTER_STEPS);
-          if (call.function.name.startsWith("browser_")) limit = Math.max(limit, BROWSER_STEPS);
           if (LOOKS_AGAIN.has(call.function.name)) continue;
           const sig = `${call.function.name}:${call.function.arguments}${READS_AGAIN.has(call.function.name) ? `:${out.text}` : ""}`;
           seen.set(sig, (seen.get(sig) ?? 0) + 1);

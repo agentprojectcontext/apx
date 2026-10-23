@@ -19,12 +19,14 @@ export function AgentLimitsBlock() {
   const [limits, setLimits] = useState<AgentLimits>();
   const [defaults, setDefaults] = useState<AgentLimits>({ runs: 30, tokens: 1_500_000 });
   const [draft, setDraft] = useState<Partial<Record<Key, string>>>({});
+  const [fanOutAsk, setFanOutAsk] = useState(true);
   useEffect(() => {
     void client
       .call("agents.limits", {})
       .then((r) => {
         setLimits({ runs: r.runs, tokens: r.tokens });
         setDefaults(r.defaults);
+        setFanOutAsk(r.fan_out_ask);
       })
       .catch(() => setLimits(undefined));
   }, []);
@@ -83,6 +85,20 @@ export function AgentLimitsBlock() {
       </SettingRow>
       {!none && row("runs")}
       {!none && row("tokens")}
+      <SettingRow title={t("limits.fanOut")} description={t("limits.fanOutHint")}>
+        <Switch
+          size="sm"
+          checked={fanOutAsk}
+          onCheckedChange={(ask) => {
+            setFanOutAsk(ask);
+            void client
+              .call("agents.set_fan_out_ask", { ask })
+              .then((r) => setFanOutAsk(r.ask))
+              .catch(() => setFanOutAsk(!ask));
+          }}
+          aria-label={t("limits.fanOut")}
+        />
+      </SettingRow>
     </>
   );
 }

@@ -13,6 +13,9 @@ import { inputsRepo } from "./inputs.ts";
 import { jobsRepo } from "./jobs.ts";
 import { mediaRepo } from "./media.ts";
 import { memoriesRepo } from "./memories.ts";
+import { memorySourcesRepo } from "./memory-sources.ts";
+import { memoryWorkRepo } from "./memory-work.ts";
+import { modelLogRepo } from "./model-log.ts";
 import { notificationsRepo } from "./notifications.ts";
 import { nudgesRepo } from "./nudges.ts";
 import { personsRepo } from "./persons.ts";
@@ -21,10 +24,11 @@ import { routinesRepo } from "./routines.ts";
 import { runsRepo } from "./runs.ts";
 import { harnessSessionsRepo, idempotencyRepo, settingsRepo } from "./settings.ts";
 import { sql } from "./sql.ts";
+import { stickersRepo } from "./stickers.ts";
 import { suggestionsRepo } from "./suggestions.ts";
 import { surfacesRepo } from "./surfaces.ts";
 import { tasksRepo } from "./tasks.ts";
-import { messagesRepo, modelLogRepo, threadsRepo } from "./threads.ts";
+import { messagesRepo, threadsRepo } from "./threads.ts";
 
 export function createStore(db: Db, bus: Bus) {
   const q = sql(db);
@@ -46,16 +50,19 @@ export function createStore(db: Db, bus: Bus) {
     threads: threadsRepo(q, bus, approvals.endSession),
     messages: messagesRepo(q, bus),
     modelLog: modelLogRepo(q),
+    memorySources: memorySourcesRepo(q),
     runs: runsRepo(q, bus),
     auxCalls: auxCallsRepo(q),
     inputs: inputsRepo(q),
     approvals,
     jobs: jobsRepo(q, bus),
     memories: memoriesRepo(q),
+    memoryWork: memoryWorkRepo(q),
     media: mediaRepo(q),
     persons: personsRepo(q),
     suggestions: suggestionsRepo(q),
     channels: channelsRepo(q),
+    stickers: stickersRepo(q),
     surfaces: surfacesRepo(q, bus),
     tasks: tasksRepo(q, bus),
     routines: routinesRepo(q),

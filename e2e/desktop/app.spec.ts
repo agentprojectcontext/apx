@@ -421,3 +421,25 @@ test("double-click opens the existing main window in front and cancels the quick
     )
     .toEqual({ ids: [id], visible: true, minimized: false, focused: true, quickVisible: false });
 });
+
+test("an .apxart opened from the system opens the install dialog with it, also when APX already runs", async () => {
+  const made = await rpc<{ id: string }>("surfaces.show", {
+    name: "opened-file",
+    title: "Opened file",
+    html: "<h1>Opened</h1>",
+  });
+  const file = path.join(home, "opened-file.apxart");
+  fs.writeFileSync(file, JSON.stringify(await rpc<object>("surfaces.export", { surface: made.id, memory: false })));
+  const main = await page("main");
+  const dialog = main.getByRole("dialog", { name: /Instalar un artefacto|Install an artifact/ });
+
+  // macOS hands an opened file to the running app; Windows and Linux start it again with the file's path.
+  await app.evaluate(({ app }, file) => app.emit("open-file", { preventDefault() {} }, file), file);
+  await expect(dialog.getByText("Opened file", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: /Cancelar|Cancel/ }).click();
+  await expect(dialog).toBeHidden();
+
+  await app.evaluate(({ app }, file) => app.emit("second-instance", {}, ["APX", file], "/"), file);
+  await expect(dialog.getByText("Opened file", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: /Cancelar|Cancel/ }).click();
+});

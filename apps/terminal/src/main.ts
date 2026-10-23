@@ -4,6 +4,7 @@ import { ApxClient, ApxError } from "@apx/protocol/client";
 // The terminal owns no domain logic: every command is a protocol call to the core.
 import { admin, status, version, wizard } from "./commands/admin.ts";
 import { agentLimits } from "./commands/agent-fields.ts";
+import { artifacts } from "./commands/artifacts.ts";
 import { browser } from "./commands/browser.ts";
 import { channels, contacts, pairing } from "./commands/channels.ts";
 import { chat } from "./commands/chat.ts";
@@ -18,6 +19,7 @@ import { mcpCommand } from "./commands/mcp.ts";
 import { image, say, transcribe } from "./commands/media.ts";
 import { memory } from "./commands/memory.ts";
 import { agentEdit, agentModel, models } from "./commands/models.ts";
+import { news } from "./commands/news.ts";
 import { notifications } from "./commands/notifications.ts";
 import { org, owner, profiles } from "./commands/owner.ts";
 import { pair } from "./commands/pair.ts";
@@ -47,6 +49,7 @@ Usage:
   apx mcp tools <server> [<tool>] [--project <id>] [--scope global|project] [--json]
   apx mcp run <server> <tool> ['{"key":"value"}'|-] [--project <id>]
   apx mcp check <server> [--project <id>]   Connection test
+  apx mcp signin <server> [--project <id>]  Sign in to a server that asked for it
   apx ping [text]         Round-trip over the live socket
 
   apx browser tabs
@@ -76,12 +79,18 @@ Usage:
   apx tasks [add|show|edit|settle|move|done|say]  The office board (apx tasks help)
   apx routines [add|show|edit|run|on|off|rm|log]  Scheduled work (apx routines help)
   apx notifications [read]       What is waiting for you
+  apx news [tell [<id>…]] [--json]   Release news; tell runs the super-agent's message now
   apx clients [add <name>|rm <id>]  Outside apps with their own token (Claude Code, Codex…)
   apx extensions [inspect|install|on|off|secret|rm]  Skills, MCP servers and routines in one folder
   apx memory [words]      Notes agents keep between threads (newest first, or the best matches for the words)
   apx memory add [global|project|agent] <text> [--project p] [--agent a]
   apx memory edit <id> <text…>   Rewrite a note in place
   apx memory rm <id…>     Remove notes
+  apx artifacts [list] [--project <id>] [--json]   Widgets and apps agents made
+  apx artifacts push <name> <file.html> [--title t] [--app] [--connect <origin,…>] [--project <id>]   Show a built page
+  apx artifacts dir <name> [--project <id>]   Where a built artifact keeps its source (created if missing)
+  apx artifacts export <name> [--memory] [--out <file>] [--project <id>]   Save one as an .apxart file
+  apx artifacts import <file.apxart> [--project <id>]   Load an .apxart file into this APX
   apx sessions projects codex|claude   Claude Code or Codex projects and chats on this computer
   apx sessions import codex|claude <project> [--only <id,…>] [--name "…"]   Bring them in as an APX project
   apx sessions digest|adopt|page …     What an imported chat is about, who takes it over, its pages as widgets
@@ -208,6 +217,8 @@ function argumentsOf() {
       person: { type: "string" },
       owed: { type: "string" },
       due: { type: "string" },
+      start: { type: "string" },
+      reviewer: { type: "string" },
       every: { type: "string" },
       at: { type: "string" },
       pre: { type: "string" },
@@ -243,6 +254,9 @@ function argumentsOf() {
       level: { type: "string" },
       grep: { type: "string" },
       only: { type: "string" },
+      app: { type: "boolean" },
+      connect: { type: "string" },
+      memory: { type: "boolean" },
     },
   });
 }
@@ -341,6 +355,8 @@ try {
         person: values.person,
         owed: values.owed,
         due: values.due,
+        start: values.start,
+        reviewer: values.reviewer,
         title: values.title,
         desc: values.desc,
         descFile: values["desc-file"],
@@ -355,6 +371,9 @@ try {
       break;
     case "notifications":
       await notifications(client, rest);
+      break;
+    case "news":
+      await news(client, rest, { json: values.json });
       break;
     case "v1":
       await v1(client, rest);
@@ -397,6 +416,17 @@ try {
       break;
     case "profiles":
       await profiles(client, rest);
+      break;
+    case "artifacts":
+      await artifacts(client, rest, {
+        project: values.project,
+        title: values.title,
+        app: values.app,
+        connect: values.connect,
+        json: values.json,
+        memory: values.memory,
+        out: values.out,
+      });
       break;
     case "image":
       await image(client, rest, { out: values.out, size: values.size });

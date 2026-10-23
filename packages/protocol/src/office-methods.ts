@@ -77,6 +77,9 @@ export const officeMethods = {
         tags: z.array(TaskTag).max(12).optional(),
         due_at: z.string().max(40).optional(),
         remind_at: z.string().max(40).optional(),
+        start_at: z.string().max(40).optional(),
+        /** A proposal: it waits for the owner to accept it before anything starts. */
+        propose: z.boolean().optional(),
         /** A commitment: the person (id or exact name) and who owes it (default: the owner). */
         person: z.string().max(80).optional(),
         owed_by: z.enum(["owner", "person"]).optional(),
@@ -103,6 +106,12 @@ export const officeMethods = {
         tags: z.array(TaskTag).max(12).optional(),
         due_at: z.string().max(40).nullable().optional(),
         remind_at: z.string().max(40).nullable().optional(),
+        start_at: z.string().max(40).nullable().optional(),
+        /** Who checks it in review: "owner" or an agent (id or name); null: the owner again. */
+        reviewer: z.string().max(80).nullable().optional(),
+        plan: z.string().max(4000).nullable().optional(),
+        /** false accepts a proposal (the owner only): its work starts as if it had just been given. */
+        proposed: z.literal(false).optional(),
         awaits_owner: z.boolean().optional(),
         person: z.string().max(80).nullable().optional(),
         owed_by: z.enum(["owner", "person"]).optional(),

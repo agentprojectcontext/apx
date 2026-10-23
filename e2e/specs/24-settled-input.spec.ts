@@ -36,6 +36,8 @@ test("a question with several answers is ticked, then sent, and shows what was p
 
   const card = page.locator(".inputcard.is-pending");
   await expect(card).toContainText("Which days work for the Northwind review?");
+  // The question is Markdown: bold reads as bold, never as asterisks.
+  await expect(card.locator("strong")).toHaveText("Northwind");
   const send = card.getByRole("button", { name: "Enviar" });
   await expect(send).toBeDisabled();
   await card.getByRole("button", { name: "Monday" }).click();

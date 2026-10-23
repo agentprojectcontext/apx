@@ -330,7 +330,8 @@
 .resd__status.is-error .resd__dot {
   background: var(--apx-danger);
 }
-.resd__status.is-needs-approval .resd__dot {
+.resd__status.is-needs-approval .resd__dot,
+.resd__status.is-needs-sign-in .resd__dot {
   background: var(--apx-warning);
 }
 .resd__error {
@@ -391,8 +392,12 @@
 .resd__callout p {
   margin: 2px 0 0;
 }
-.resd__callout > div {
+.resd__callout > div,
+.resd__callout--line > strong {
   flex: 1;
+}
+.resd__callout--line {
+  align-items: center;
 }
 
 /* ── Variables ─────────────────────────────────────────────────────────────── */
@@ -799,6 +804,31 @@
   flex-direction: column;
   gap: 12px;
 }
+/* Creating one's own Google client: numbered steps, each with its console link. */
+.int__guide {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+/* The other Google parts that can join this sign-in. */
+.int__also {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+/* Google's return address from another device, pasted beside its button. */
+.int__paste {
+  display: flex;
+  gap: 8px;
+}
+.int__paste > :first-child {
+  flex: 1;
+  min-width: 0;
+}
 /* The page Google sends the browser back to: one message in the middle. */
 .oauthreturn {
   display: grid;
@@ -980,4 +1010,11 @@
 }
 .skimp__note.is-warn {
   color: var(--apx-warning);
+}
+/* The search stays on top while the catalog scrolls under it. */
+.int__search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin-bottom: 12px;
 }

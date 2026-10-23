@@ -17,7 +17,7 @@ Los canales se conectan en **Configuración › Canales**. Después cada uno apa
 
 ## Tres palabras: canal, contacto, sala
 
-- Un **canal** es una app por la que habla APX: Telegram, WhatsApp, Discord, Slack, iMessage.
+- Un **canal** es una app por la que habla APX: Telegram, WhatsApp, Discord, Slack, iMessage, Google Chat, SMS y más.
 - Un **contacto** es una persona en un canal. Cada contacto tiene un chat directo con tu agente.
 - Una **sala** es un lugar compartido que leen muchas personas, como un canal de tu servidor de Discord.
 
@@ -108,6 +108,28 @@ Con cualquier opción, un "pará" corto ("pará", "basta", "cancelá", "stop") m
 En Telegram y WhatsApp, **Mensajes que no necesitan respuesta** elige qué recibe un "ok", un gracias o una despedida:
 **Silencio** o **Reaccionar** (un emoji), sin llamar al modelo en ningún caso.
 
+## Horario de atención
+
+Un canal les responde a los contactos a cualquier hora hasta que prendés **Horario de atención** en su configuración:
+los días en que responde y desde cuándo hasta cuándo, en la zona horaria de tu cuenta (**Configuración › Cuenta**). Un
+horario que termina después de medianoche es del día en que empieza (viernes 20:00–02:00 cubre las primeras horas del
+sábado).
+
+- Fuera del horario, el mensaje de un contacto queda en su chat, sin leer para vos y sin llamar al modelo: no se
+  responde nada.
+- Cuando empieza el horario, cada chat que esperó recibe **una** respuesta a todo lo que esa persona mandó mientras
+  tanto. Los chats se responden de a pocos, primero el que esperó más. A un contacto supervisado le llega el borrador
+  en ese momento.
+- Si vuelve a escribir cuando el horario ya empezó, ese mensaje se responde con los anteriores a la vista, y una sola
+  vez.
+- A vos siempre te responde, en cualquier canal. A un contacto con **Responder a cualquier hora** (en su ficha),
+  también.
+- En las salas, fuera del horario solo te responde a vos, y lo que se dijo mientras tanto no se responde después.
+
+También se lo podés pedir a tu super-agente en el chat ("respondé WhatsApp de lunes a viernes de 9 a 18, y a mi papá
+a cualquier hora"): cambia el horario de un canal y a quién se responde a cualquier hora, cada cambio cuando lo
+aprobás. Los demás agentes no pueden.
+
 ## Entregas y avisos
 
 Todo lo que manda APX pasa por un **outbox** durable: un mensaje sobrevive a un reinicio y se reintenta, y cada uno
@@ -135,10 +157,14 @@ las respuestas habladas para ese chat; para eso también hace falta una voz en *
 | [WhatsApp](/es/channels/whatsapp/) | Completo | Un dispositivo vinculado, por QR |
 | [Discord](/es/channels/discord-slack/) | Completo | Un bot: mensajes directos y salas del servidor |
 | [Slack](/es/channels/discord-slack/) | Completo | Una app en Socket Mode: mensajes directos |
-| [iMessage](/es/channels/imessage/) | Tools en la Mac | Los agentes leen y mandan; no entran chats |
+| [iMessage](/es/channels/imessage/) | Sin verificar | En una Mac: tools que usan los agentes y, si querés, contestar a las personas que aprobás |
 | Matrix, Mattermost, Signal | Sin verificar | Están en el panel, todavía sin probar contra un servidor real |
 | Email | Sin verificar | Un buzón por IMAP y SMTP (con contraseña de aplicación); probado solo contra un servidor simulado |
-| Teams, Google Chat, SMS, LINE | Pronto | Aparecen en la lista, todavía no se pueden conectar |
+| Google Chat | Sin verificar | Una app de Chat por Cloud Pub/Sub (sin dirección pública): mensajes directos y los espacios que listes |
+| SMS | Sin verificar | Un número de Twilio, revisado cada pocos segundos (sin webhook) |
+| ntfy | Sin verificar | Notificaciones push en tu teléfono, y tus respuestas desde la app de ntfy; sólo vos |
+| Nextcloud Talk, IRC, Twitch | Sin verificar | Un usuario bot (Nextcloud), un nick (IRC) o una cuenta bot (chat de Twitch); sus salas se listan como los grupos de Telegram |
+| Teams, LINE | Pronto | Sólo entregan a un webhook público, que APX todavía no recibe |
 
 <Aside type="note">
 La terminal solo agrega bots de Telegram. Todos los demás canales se configuran en **Configuración › Canales**.

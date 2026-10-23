@@ -53,4 +53,6 @@ test("attachment placeholder text disappears only when real files are shown; nor
   assert.equal(withoutFilesNote([video(1)], "Caption"), "Caption");
   assert.equal(withoutFilesNote([], "[attached files]"), "[attached files]");
   assert.equal(withoutFilesNote([image(1)], "Look: [attached files]"), "Look: [attached files]");
+  assert.equal(withoutFilesNote([image(1)], "[sticker: white bear holding a heart balloon]"), "");
+  assert.equal(withoutFilesNote([], "[sticker: white bear]"), "[sticker: white bear]");
 });

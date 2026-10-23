@@ -1,21 +1,29 @@
 ---
 title: iMessage
-description: Dejá que tus agentes lean tus iMessages recientes y manden uno desde tu Mac, con tu OK.
+description: Dejá que tus agentes lean tus iMessages recientes y manden uno desde tu Mac, con tu OK, y que contesten a quienes aprobás.
 sidebar:
   order: 5
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-iMessage no es un canal donde contesten tus agentes. Les presta dos tools en la Mac donde corre APX:
+iMessage funciona de dos maneras en la Mac donde corre APX, y cada una se prende por separado. Les presta dos tools a tus agentes:
 
 - **Leer** tus iMessages recientes: todos los chats, o los de una persona por número o email. Lo que escriben otros
   vuelve como dato de afuera, nunca como instrucciones.
 - **Mandar** uno, a un número con código de país (`+1 555 0100`) o a un email de Apple ID. Mandar siempre espera tu
   OK.
 
-No entra nada: cuando alguien te escribe por iMessage, ningún agente contesta. Vos pedís ("¿Ana me escribió por lo del
-viernes?", "decile que llego tarde") y el agente lee o prepara el mensaje para que lo apruebes.
+Con las tools solas no entra nada: vos pedís ("¿Ana me escribió por lo del viernes?", "decile que llego tarde") y el
+agente lee o prepara el mensaje para que lo apruebes.
+
+## Contestar chats
+
+Prendé **Contestar chats** e iMessage pasa a ser un canal: cuando alguien te escribe, tu agente le contesta, una vez
+que lo aprobás, como en [WhatsApp](/es/channels/whatsapp/). Es tu propia cuenta, así que un desconocido nunca recibe un
+código: su pedido queda en la lista del canal esperándote. Sólo se leen los chats directos (todavía no los grupos), tus
+propios mensajes nunca se contestan, y las fotos (PNG, JPEG, GIF, WebP) le llegan al agente mientras que otros archivos
+sólo se nombran.
 
 ## Activalo
 

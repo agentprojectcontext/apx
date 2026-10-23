@@ -16,6 +16,8 @@ export interface PopoverProps {
   width?: number;
   /** Accessible name of the popup. */
   label?: string;
+  /** Also opens while the pointer rests on the trigger; a click still opens it on touch. */
+  openOnHover?: boolean;
   className?: string;
 }
 
@@ -30,12 +32,13 @@ export function Popover({
   align = "start",
   width,
   label,
+  openOnHover,
   className,
 }: PopoverProps) {
   const { portalRef } = useApx();
   return (
     <BasePopover.Root open={open} defaultOpen={defaultOpen} onOpenChange={(o) => onOpenChange?.(o)}>
-      <BasePopover.Trigger render={trigger} />
+      <BasePopover.Trigger render={trigger} openOnHover={openOnHover} delay={150} />
       <BasePopover.Portal container={portalRef}>
         <BasePopover.Positioner side={side} align={align} sideOffset={8}>
           <BasePopover.Popup className={cx("apx-popover", className)} style={{ width }} aria-label={label}>

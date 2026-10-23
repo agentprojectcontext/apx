@@ -164,9 +164,12 @@ export function reactionFor(text: string): string | undefined {
   return "👍";
 }
 
+/** One emoji, any of them (a flag, a skin tone, a ZWJ sequence too): what every channel can take as a reaction. */
+export const isReaction = (s: string): boolean => /^(?:\p{RGI_Emoji}|\p{Extended_Pictographic}\uFE0F?)$/v.test(s);
+
 /** "REACT ❤️" (or "REACT: 👍"): the agent answers the other side's last message with that emoji instead of words. */
 export function reactAnswer(text: string): string | undefined {
   const m = /^\W*REACT\W*?:?\s+(\S{1,16})\s*$/iu.exec(text.trim());
   const emoji = m?.[1]?.replace(/[*_`]/g, "");
-  return emoji && /\p{Extended_Pictographic}/u.test(emoji) ? emoji : undefined;
+  return emoji && isReaction(emoji) ? emoji : undefined;
 }

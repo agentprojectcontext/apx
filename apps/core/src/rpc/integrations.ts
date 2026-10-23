@@ -1,6 +1,8 @@
 // Integrations: connecting an account (its secrets and its MCP server as a global one, or a Google sign-in for APX's
 // own tools) and disconnecting it. Where it is used is the per-project switch every global server has (mcp.toggle).
 import os from "node:os";
+import type { ChannelType } from "@apx/protocol";
+import { CHANNEL_CATALOG } from "../channels/catalog.ts";
 import type { Store } from "../domain/store.ts";
 import { badRequest, notFound } from "../errors.ts";
 import { ASANA_FIELD, ASANA_SECRET, type Asana } from "../integrations/asana.ts";
@@ -12,6 +14,7 @@ import {
   isGoogleId,
   serverFor,
 } from "../integrations/catalog.ts";
+import { type Connectable, findConnectable } from "../integrations/find.ts";
 import type { Google } from "../integrations/google.ts";
 import type { Mcp } from "../mcp/manager.ts";
 import type { Secrets } from "../secrets.ts";
@@ -20,6 +23,7 @@ import type { Handlers } from "./router.ts";
 /** A folder typed as ~/… is the owner's home. */
 const expand = (v: string) => (v.startsWith("~/") ? `${os.homedir()}${v.slice(1)}` : v);
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const ASANA = { id: "asana", label: "Asana", description: "Tasks and projects of your workspace." };
 
 export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp: Mcp; google: Google; asana: Asana }) {
   const { store, secrets, mcp, google, asana } = deps;
@@ -57,7 +61,12 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
       connected: on,
       coming: false,
       off_in: on ? offIn(e.id, projects) : [],
-      oauth: { redirect_uri: google.redirectUri(), ...(account ? { account } : {}) },
+      oauth: {
+        redirect_uri: google.redirectUri(),
+        ...(account ? { account } : {}),
+        builtin: client.builtin,
+        ...(google.clientOf(e.id) ? { client: google.clientOf(e.id) } : {}),
+      },
     };
   };
   return {
@@ -67,9 +76,7 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
         integrations: [
           ...GOOGLE_INTEGRATIONS.map((e) => googleEntry(e, projects)),
           {
-            id: "asana",
-            label: "Asana",
-            description: "Tasks and projects of your workspace.",
+            ...ASANA,
             fields: [{ ...ASANA_FIELD, set: asana.connected() }],
             connected: asana.connected(),
             coming: false,
@@ -99,6 +106,29 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
           ...COMING.map((c) => ({ ...c, fields: [], connected: false, coming: true, off_in: [] })),
         ],
       };
+    },
+    "integrations.find": ({ query }) => {
+      const kept = new Set(store.settings.read("channels").map((c) => c.type));
+      const integration = (e: { id: string; label: string; description: string }, on: boolean): Connectable => ({
+        kind: "integration",
+        id: e.id,
+        label: e.label,
+        description: e.description,
+        connected: on,
+      });
+      const all: Connectable[] = [
+        ...GOOGLE_INTEGRATIONS.map((e) => integration(e, google.connected(e.id))),
+        integration(ASANA, asana.connected()),
+        ...CATALOG.map((e) => integration(e, connected(e.id))),
+        ...COMING.map((e) => ({ ...integration(e, false), coming: true })),
+        ...Object.entries(CHANNEL_CATALOG).map(([id, c]) => ({
+          kind: "channel" as const,
+          id,
+          ...c,
+          connected: kept.has(id as ChannelType),
+        })),
+      ];
+      return { found: findConnectable(all, query) };
     },
     "integrations.connect": async ({ id, values }) => {
       if (id === "asana") {
@@ -133,10 +163,19 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
       mcp.drop({ scope: "global", name: e.id });
       return { connected: true as const };
     },
-    "integrations.oauth_start": ({ id, values }) => {
+    "integrations.oauth_start": ({ id, values, also }) => {
       if (!isGoogleId(id)) throw notFound(`integration ${id} with a sign-in`);
+      const more = also ?? [];
+      const unknown = more.find((x) => !isGoogleId(x));
+      if (unknown) throw badRequest(`${unknown} is not a Google integration`);
       try {
-        return { url: google.start(id, { client_id: values?.client_id, client_secret: values?.client_secret }) };
+        return {
+          url: google.start(
+            id,
+            { client: values?.client, client_id: values?.client_id, client_secret: values?.client_secret },
+            more.filter(isGoogleId),
+          ),
+        };
       } catch (e) {
         throw badRequest(message(e));
       }
@@ -144,7 +183,11 @@ export function integrationHandlers(deps: { store: Store; secrets: Secrets; mcp:
     "integrations.oauth_finish": async ({ code, state }) => {
       try {
         const done = await google.finish(code, state);
-        return { id: done.id, ...(done.account ? { account: done.account } : {}) };
+        return {
+          id: done.id,
+          ...(done.also.length ? { also: done.also } : {}),
+          ...(done.account ? { account: done.account } : {}),
+        };
       } catch (e) {
         throw badRequest(message(e));
       }

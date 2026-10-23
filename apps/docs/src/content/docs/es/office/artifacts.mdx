@@ -1,0 +1,111 @@
+---
+title: Artefactos
+description: Los widgets y apps que arman tus agentes, qué recuerda cada uno, cómo se mantienen al día los que están en vivo y cómo llevarlos de una máquina a otra.
+sidebar:
+  order: 5.5
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+Un **artefacto** es lo que un agente arma para que mires o uses: una página HTML que APX muestra en un marco seguro.
+Hay dos tipos:
+
+| Tipo | Qué es | Dónde se ve |
+|---|---|---|
+| **Widget** | Un gráfico, una tabla, una tarjeta de estado, un formulario, una herramientita. Lo normal. | En el chat, en el [Tablero](/es/office/board/) de un proyecto, en el teléfono. |
+| **App** | Una ventana entera con su propia navegación, muchas veces con registros que vas sumando. | A pantalla completa, en **Apps**. |
+
+Los agentes arman un widget simple salvo que pidas una app o que tenga que guardar registros (un log, una lista de
+clientes, un inventario). Un widget hecho para mostrarte algo durante un chat es una página simple, nada más.
+
+Cada artefacto pertenece a un proyecto (o es global si se hizo fuera de uno), mantiene su nombre entre versiones y se
+actualiza en vivo donde esté abierto. Los dos tipos usan **APX Kit**, los componentes y el tema de APX, que APX suma a
+la página donde se muestre: sin descargas, nada fuera de tu máquina.
+
+## Qué recuerda un artefacto
+
+Cada artefacto tiene su propia memoria, guardada en tu APX entre aperturas, recargas y versiones nuevas. Nada se
+comparte entre artefactos.
+
+| Capa | Guarda | Quién la ve |
+|---|---|---|
+| **Estado** | Lo que elegiste o escribiste: filtros, la pestaña abierta, una checklist, un borrador. Hasta 64.000 caracteres. | Vos, y su agente, que lo lee como datos y puede cambiarlo por vos. |
+| **Almacén** | Datos que guardó, como la última lectura de un widget en vivo. Hasta 5 MB. | La página. Su agente ve solo los nombres de lo guardado y el tamaño. |
+| **Base de datos** | Los registros de una app (SQLite), hasta 50 MB. | La página. Su agente ve las tablas y cuántas filas tienen. |
+
+Para verla o borrarla, abrí el menú del artefacto › **Memoria y exportación**: cada capa muestra su tamaño y
+**Borrar…** te deja elegir qué olvidar. Copiar un artefacto a otro proyecto no copia su memoria.
+
+### Credenciales
+
+Un artefacto que lee una API con una clave nunca tiene la clave. La guardás una vez como secreto con el nombre
+`artifact.<nombre del artefacto>.<clave>` (por ejemplo `artifact.weather.token`) y la página le pide a APX que haga
+la llamada: APX suma la clave de su lado y la página recibe solo la respuesta. La llamada solo puede ir a los sitios
+que el artefacto declaró, y la clave nunca la ve la página, ni su agente, ni un link compartido.
+
+## Artefactos en vivo
+
+Cómo se comporta un artefacto cuando te vas y volvés:
+
+- **Estático** (la mayoría): muestra lo que tenía cuando se armó y corre solo mientras está en pantalla.
+- **Con caché**: guarda su última lectura en el almacén; cuando lo volvés a abrir ves esa lectura al instante (marcada
+  como vieja) mientras trae una nueva.
+- **En vivo**: una página que tiene que seguir corriendo oculta (un ticker, un temporizador) puede pedirle a APX que
+  la mantenga viva. APX mantiene como mucho tres a la vez, las pausa cuando la ventana de la app está oculta y frena la
+  menos reciente cuando se abre una cuarta.
+
+**Las apps quedan abiertas; los widgets se cierran.** Una app que abrís sigue corriendo mientras vas a otra parte de
+APX, como una app de tu escritorio: volvés y está tal cual la dejaste, hasta que la cerrás (Cerrar app) o cerrás APX.
+Corren hasta seis a la vez, cada una con un punto en Apps, en la barra lateral. Un widget es una vista: lo abrís en
+pantalla completa, lo mirás, te vas y se cierra. Fijá un widget en Apps para convertirlo en app. "Abrir en otra
+ventana" lleva una app a una ventana propia; el panel muestra dónde está y la trae de vuelta cuando cerrás esa ventana.
+
+## Exportar e importar
+
+Un artefacto viaja como un archivo **`.apxart`**, sea widget o app. Clic derecho en Apps (o su menú Más) ›
+**Descargar (.apxart)** › **Solo el artefacto**, o **Con lo que recuerda** para llevarte también tus elecciones, la caché
+y los registros (para un backup o para pasarlo a otro APX). **Instalar artefacto** (el botón de subir en Apps, o el +
+del tablero de un proyecto) abre un diálogo: arrastrás el archivo o lo elegís, ves qué es (widget o app, a qué se
+conecta, qué secretos te va a pedir, si trae datos), elegís el proyecto, si lo fijás en Apps, y recién ahí
+**Instalar**. Si el nombre ya existe ahí, se instala al lado con un número. Desde la terminal:
+`apx artifacts export <nombre> [--memory]` y `apx artifacts import <archivo.apxart>`. Los archivos guardados antes como
+`.apx-artifact.json` se instalan igual.
+
+<Aside type="caution">
+Una exportación con memoria lleva lo que escribiste y los registros de la app. Compartí solo exportaciones sin
+memoria.
+</Aside>
+
+## Apps más grandes
+
+La mayoría de las apps son una página que el agente escribe a mano. Para una grande, el agente puede armarla desde
+código fuente (con Preact y Vite) en la misma página única y mostrarla con la terminal:
+
+```bash
+apx artifacts dir expenses --project <id-del-proyecto>     # dónde vive su código
+apx artifacts push expenses dist/index.html --app --project <id-del-proyecto>
+apx artifacts list
+```
+
+El código vive en la carpeta de APX, en `artifact-sources/<proyecto>/<nombre>`, nunca entre los archivos de tu
+proyecto. Tus registros quedan en la base de datos de la app, así que rearmarla nunca los pierde.
+
+## Marketplace (próximamente)
+
+Los artefactos exportados son el formato que va a usar un futuro marketplace. Cada archivo tiene:
+
+- un **manifiesto**: nombre, título, tipo (widget o app), versión, la versión del kit que usa, los sitios a los que
+  llega, los secretos que espera (solo nombres, nunca valores), si corre en vivo y la versión del formato de su base de
+  datos, para que una versión nueva pueda actualizar tus registros;
+- la **página** en sí;
+- opcionalmente, la memoria (estado, almacén y base de datos), solo cuando lo exportás para vos.
+
+Una subida al marketplace nunca va a llevar tu memoria: quien instala un artefacto arranca con una vacía y suma sus
+propios secretos.
+
+## Siguiente
+
+<CardGrid>
+  <LinkCard title="Tablero y widgets" href="/es/office/board/" description="Fijá artefactos a un proyecto, abrilos como apps, compartilos." />
+  <LinkCard title="Chat" href="/es/office/chat/" description="Donde los agentes los arman y los cambian." />
+</CardGrid>

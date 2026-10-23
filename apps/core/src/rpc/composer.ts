@@ -2,19 +2,22 @@
 import nodePath from "node:path";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
+import type { Caller } from "../engine/permissions.ts";
 import { badRequest, errorMessage, notFound, unauthorized, unavailable } from "../errors.ts";
 import { saveLocalAttachment } from "../services/attachment-files.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
-import type { Access } from "../tools/folders.ts";
+import type { Access, FolderThread } from "../tools/folders.ts";
 import type { Handlers } from "./router.ts";
 
 export function composerHandlers(deps: {
   store: Store;
   home: string;
   services: Services;
+  /** The thread the calling agent's tool call runs with (engine/permissions.ts forCaller): never the store's own. */
+  scopeOf(caller: Caller): FolderThread | undefined;
   /** Where `file` is, by the folder rule every tool follows (folders.ts), or why it is refused. */
-  locate(thread: NonNullable<ReturnType<Store["threads"]["get"]>>, file: string): Access;
+  locate(thread: FolderThread, file: string): Access;
   /** `session`: the CLI whose own session the chat is (only that CLI runs there). */
   checkModel(ref: string, session: string | undefined): string | undefined;
 }) {
@@ -28,8 +31,11 @@ export function composerHandlers(deps: {
         throw unauthorized("only the running agent can attach a file to its own chat");
       if (audienceOf(store, thread).kind !== "owner")
         throw unauthorized("local files can only be attached in the owner's chats");
+      // Judged as the call itself was: the agent's mode, reach and the folders the owner lent it (DECISIONS.md#d-115).
+      const scope = deps.scopeOf(caller);
+      if (!scope) throw unauthorized("only the running agent can attach a file to its own chat");
       try {
-        const where = deps.locate(thread, path);
+        const where = deps.locate(scope, path);
         if ("refused" in where) throw new Error(`refused: ${where.refused}`);
         const m = saveLocalAttachment(deps.home, store, where.base, thread.id, where.at, document);
         const rel = nodePath.relative(where.base, where.at).split(nodePath.sep).join("/");

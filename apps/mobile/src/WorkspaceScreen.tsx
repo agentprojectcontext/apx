@@ -330,6 +330,7 @@ export function WorkspaceScreen({
             read={workspace.readNotice}
             respond={workspace.respond}
             rerun={workspace.runRoutine}
+            continueSession={workspace.continueDelegation}
           />
         );
       case "tasks":

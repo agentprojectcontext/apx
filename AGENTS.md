@@ -121,6 +121,11 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
 24. **Fixes leave regression protection.** Reproduce the failure, add or strengthen a test that catches it, verify
     the fix and its callers; never loosen an assertion to accept a regression
     ([fix regression contract](rules/TESTING.md#fix-regression-contract)). `[review]`
+25. **New things owners can act on are told.** A `feat` that lets an owner do something new (connect a service, a
+    routine, a tool their super-agent can use for them) adds an entry to `apps/core/src/news/entries.ts` in the same
+    change: `since` the release it ships in, `applies` only to owners it helps, a text for the super-agent to tell in
+    its own words and one or two actions it can take ([What people are told](rules/RELEASE.md#what-people-are-told)).
+    Commit subjects reach everyone as a list; news are the few things the super-agent offers to do. `[review]`
 
 ### Code comments
 

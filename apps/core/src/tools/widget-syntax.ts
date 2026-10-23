@@ -59,7 +59,7 @@ async function checkModule(src: string, lineOffset: number, signal: AbortSignal)
  */
 export async function widgetScriptError(
   html: string,
-  tool: "show_widget" | "edit_widget",
+  tool: "show_widget" | "edit_widget" | "file_write",
   signal?: AbortSignal,
 ): Promise<string | null> {
   const stop = AbortSignal.any([AbortSignal.timeout(BUDGET_MS), ...(signal ? [signal] : [])]);

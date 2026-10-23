@@ -3,10 +3,11 @@ import { type AgentRules, type Autonomy, DEFAULT_AUTONOMY, type RulePolicy, Tool
 import type { AgentRecord } from "../domain/agents.ts";
 import type { Store } from "../domain/store.ts";
 import { SUPER_AGENT_TOOLS } from "./agent-set.ts";
-import type { Confirm, Effect, Tool } from "./types.ts";
+import type { Reach } from "./folders.ts";
+import type { Confirm, Effect, Tool, UntrustedWhy } from "./types.ts";
 
 /** Why the owner is asked: always, outside content in the turn, the action's kind, or an agent that asks for all. */
-export type ConfirmWhy = "always" | "untrusted" | "needs_ok" | "asks_every" | "rule";
+export type ConfirmWhy = "always" | "untrusted" | "needs_ok" | "asks_every" | "rule" | UntrustedWhy;
 
 /** The mode an agent works in: its own, else its project's (withProjectAutonomy), else the default. */
 export const modeOf = (agent: Pick<AgentRecord, "autonomy">): Autonomy => agent.autonomy ?? DEFAULT_AUTONOMY;
@@ -107,9 +108,18 @@ export function authorize(tool: Tool, args: Record<string, unknown>, agent: Agen
   // Plan mode still asks the owner, loads skills and hands reading work to a helper (who works in plan mode too).
   if (modeOf(agent) === "plan" && PLAN_KEEPS.has(tool.name) && agent.rules?.[toolRisk(tool)] !== "off")
     return { kind: "allow" };
+  const level = tool.confirm(args);
+  // Its own temp files change nothing of the owner's: no mode asks for them, only what always asks still does.
+  if (tool.scratch?.(args)) return decide(level === "always" ? "always" : "never", "none", agent, untrusted);
   // A call that only reads here is risk read whatever the tool may do otherwise (DECISIONS.md#d-098).
-  return decide(tool.confirm(args), tool.reads?.(args) ? "none" : tool.effect, agent, untrusted, tool.workspace);
+  const d = decide(level, tool.reads?.(args) ? "none" : tool.effect, agent, untrusted, tool.workspace);
+  // The tool names what outside content could do through this call, so the card says it (DECISIONS.md#d-121).
+  return d.kind === "confirm" && d.why === "untrusted" && level === "untrusted" && tool.untrustedWhy
+    ? { ...d, why: tool.untrustedWhy, reason: URL_DATA }
+    : d;
 }
+
+const URL_DATA = "the URL carries data, and content from outside (web, another agent or a message) is in this turn";
 
 const PLAN_KEEPS = new Set([...ALWAYS, "delegate", "list_agents", "list_sessions"]);
 
@@ -162,12 +172,11 @@ export function decide(
 }
 
 /**
- * How far an agent's files reach outside the folders it works in (DECISIONS.md#d-106): `all` reads and writes any
- * folder but APX's home (total, or its own rule to act outside on its own); `read` reads anywhere but APX's home and
- * asks before writing outside; `card` asks before reading outside (manual, or its own rule to ask before acting
- * outside); `fenced` keeps to its folders (its own rule turns acting outside off).
+ * How far an agent's files reach (folders.ts Reach): `all` on total or its own rule to act outside on its own,
+ * `card` on manual or its own rule to ask before acting outside, `fenced` when its own rule turns that off, else `read`.
+ * Asked only through engine/permissions.ts, with the agent as it acts (its project's and callers' mode).
  */
-export function reachOf(agent: AgentRecord): "all" | "read" | "card" | "fenced" {
+export function reachOf(agent: AgentRecord): Reach {
   const own = agent.rules?.outside;
   const mode = modeOf(agent);
   if (own === "auto" || (mode === "total" && !own)) return "all";
@@ -198,21 +207,18 @@ export function inherit(
 ): { agent: AgentRecord; tools: Tool[]; allows: (name: string) => boolean } {
   const filters = [agent, ...callers].map((a) => toolFilter(a, tools));
   const allows = (name: string) => filters.every((f) => f(name));
-  // Callers come nearest first: the top of the chain sets the mode, each one below adds its own rules.
-  let autonomy = modeOf(agent);
-  let rules: AgentRules = { ...agent.rules };
+  return { agent: actingAs(agent, callers), tools: tools.filter((t) => allows(t.name)), allows };
+}
+
+/** The agent with the mode and rules it acts with under its callers (nearest first), as `inherit` gives it. */
+export function actingAs(agent: AgentRecord, callers: AgentRecord[]): AgentRecord {
   const chain = [...callers].reverse();
-  if (chain.length) {
-    const top = chain[0] as AgentRecord;
-    autonomy = modeOf(top);
-    rules = { ...top.rules };
-    for (const a of [...chain.slice(1), agent]) rules = narrowed(rules, a.rules);
-  }
-  return {
-    agent: { ...agent, autonomy, ...(Object.keys(rules).length ? { rules } : {}) },
-    tools: tools.filter((t) => allows(t.name)),
-    allows,
-  };
+  const top = chain[0];
+  if (!top) return { ...agent, autonomy: modeOf(agent) };
+  // The top of the chain sets the mode, each one below adds its own rules.
+  let rules: AgentRules = { ...top.rules };
+  for (const a of [...chain.slice(1), agent]) rules = narrowed(rules, a.rules);
+  return { ...agent, autonomy: modeOf(top), ...(Object.keys(rules).length ? { rules } : {}) };
 }
 
 /** The rules a caller passed down, under an agent's own: its own win, except over a risk the caller turned off. */

@@ -23,10 +23,14 @@ const STATE_LABEL: Record<Run["state"], MessageKey> = {
 
 const AUX_LABEL: Record<AuxPurpose, MessageKey> = {
   title: "usage.aux.title",
+  memory_capture: "mem.auto_capture",
+  memory_dream: "mem.auto_dream",
   summary: "usage.aux.summary",
   room: "usage.aux.room",
   commit: "usage.aux.commit",
   suggestion: "usage.aux.suggestion",
+  news: "usage.aux.news",
+  sticker: "usage.aux.sticker",
 };
 
 function secs(run: Run): number | undefined {

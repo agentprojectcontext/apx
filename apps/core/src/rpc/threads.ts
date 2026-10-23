@@ -1,13 +1,14 @@
 import path from "node:path";
 import type { Author, Task } from "@apx/protocol";
 import { OWNER_ID } from "../domain/persons.ts";
-import { type Attachment, publicRun, TERMINAL } from "../domain/runs.ts";
+import { type Attachment, ownerOrigin, publicRun, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { tree } from "../engine/breaker.ts";
 import type { Admit, Engine } from "../engine/engine.ts";
 import { goOn } from "../engine/go-on.ts";
 import { MAX_ACTIVE_DELEGATIONS } from "../engine/limits.ts";
+import { answersOwner } from "../engine/task-inbox.ts";
 import { addComment, assignedTaskOf, consultMentioned, sessionFor, startHeld } from "../engine/task-work.ts";
 import type { Upkeep } from "../engine/upkeep.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
@@ -134,7 +135,17 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         store.runs.setReplyTo(into.id, store.threads.context(threadId).reply_to);
         return { message, run: publicRun(into), steered: true };
       }
-      return { message, run: publicRun(engine.admit({ ...admit, thread_id: threadId, text })) };
+      return {
+        message,
+        run: publicRun(
+          engine.admit({
+            ...admit,
+            origin: ownerOrigin(admit.origin) ? { ...admit.origin, message_id: message.id } : admit.origin,
+            thread_id: threadId,
+            text,
+          }),
+        ),
+      };
     });
   }
 
@@ -154,6 +165,8 @@ export function threadHandlers(store: Store, engine: Engine, upkeep: Pick<Upkeep
         origin: { kind: "user" },
         ...(attachments.length ? { attachments: attachedFiles(store, task.thread_id, attachments) } : {}),
       });
+      // Its answer comes back on the task, with any of the owner's comments still waiting.
+      if (!sent.steered) answersOwner(store, task, sent.run);
       consultMentioned(store, engine.admit, task, text);
       // As in any chat the owner writes in, a paused chain goes on (DECISIONS.md#d-082).
       startHeld(store, engine.admit, tree(store, work.id));

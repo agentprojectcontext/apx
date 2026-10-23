@@ -21,8 +21,8 @@ export interface HelpProps {
 }
 
 /**
- * A "?" after a title that opens a short explanation (when to use each option). Unlike a tooltip it stays open to be
- * read, and closes on an outside click or Escape.
+ * A "?" after a title that opens a short explanation (when to use each option) on hover or click. Unlike a tooltip the
+ * pointer can move onto it to read it; it closes on leaving, a second click, an outside click or Escape.
  */
 export function Help({ label, title, items, children, align = "start", width = 320, className }: HelpProps) {
   return (
@@ -31,6 +31,7 @@ export function Help({ label, title, items, children, align = "start", width = 3
       width={width}
       label={label}
       className="apx-help__panel"
+      openOnHover
       trigger={
         <button type="button" className={cx("apx-help", className)} aria-label={label}>
           <CircleHelp size={13} />

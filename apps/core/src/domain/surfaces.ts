@@ -1,10 +1,18 @@
 // Widgets, sidebar panels and fullscreen apps: one primitive. Addressed by id; an agent updates its own by
 // stable name within a project (`upsert`).
 import { randomUUID } from "node:crypto";
-import { type Surface, SurfaceOrigin, type SurfaceSummary } from "@apx/protocol";
+import {
+  ArtifactOrigin,
+  SURFACE_STATE_MAX,
+  type Surface,
+  SurfaceOrigin,
+  SurfaceState,
+  type SurfaceSummary,
+} from "@apx/protocol";
 import type { ExpressionBuilder, Selectable } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { Database, SurfacesTable } from "../db/schema.ts";
+import { badRequest } from "../errors.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 
 const toSurface = (r: Selectable<SurfacesTable>): Surface => ({
@@ -21,7 +29,31 @@ const toSurface = (r: Selectable<SurfacesTable>): Surface => ({
   updated_at: r.updated_at,
   ...(r.share_token ? { share_path: `/a/${r.share_token}` } : {}),
   ...connectOf(r.connect),
+  ...stateOf(r.state),
+  ...originOf(r.origin),
 });
+
+/** The stored state, when it is still an object of JSON values (anything else reads as nothing remembered). */
+function stateOf(raw: string | null): { state?: SurfaceState } {
+  if (!raw) return {};
+  try {
+    const parsed = SurfaceState.safeParse(JSON.parse(raw));
+    return parsed.success && Object.keys(parsed.data).length ? { state: parsed.data } : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Where it was installed from, while the stored JSON still reads as one. */
+function originOf(raw: string | null): { origin?: ArtifactOrigin } {
+  if (!raw) return {};
+  try {
+    const parsed = ArtifactOrigin.safeParse(JSON.parse(raw));
+    return parsed.success ? { origin: parsed.data } : {};
+  } catch {
+    return {};
+  }
+}
 
 /** The stored origins, kept only while they still look like one (a hand-edited row cannot widen the CSP). */
 function connectOf(raw: string | null): { connect?: string[] } {
@@ -38,7 +70,7 @@ const inScope = (projectId: string | undefined) => (eb: ExpressionBuilder<Databa
 const named = (projectId: string | undefined, name: string) => (eb: ExpressionBuilder<Database, "surfaces">) =>
   eb.and([inScope(projectId)(eb), eb("name", "=", name)]);
 
-export const summary = ({ html: _html, ...rest }: Surface): SurfaceSummary => rest;
+export const summary = ({ html: _html, state: _state, ...rest }: Surface): SurfaceSummary => rest;
 
 export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
   const emit = (s: Surface) => bus.emit({ type: "surface.updated", surface: summary(s) });
@@ -56,6 +88,13 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
     byName(projectId: string | undefined, name: string): Surface | undefined {
       const r = one(qb.selectFrom("surfaces").selectAll().where(named(projectId, name)));
       return r ? toSurface(r) : undefined;
+    },
+    /** Deletes the widget's row; its memory folder is the caller's to remove. */
+    remove(id: string): boolean {
+      if (!repo.get(id)) return false;
+      run(qb.deleteFrom("surfaces").where("id", "=", id));
+      bus.emit({ type: "surface.deleted", surface_id: id });
+      return true;
     },
     byShareToken(token: string): Surface | undefined {
       const r = one(qb.selectFrom("surfaces").selectAll().where("share_token", "=", token));
@@ -151,6 +190,36 @@ export function surfacesRepo({ one, all, run }: Sql, bus: Bus) {
       );
       emit(next);
       return summary(next);
+    },
+    /** Records where an installed artifact came from. */
+    setOrigin(id: string, origin: ArtifactOrigin): void {
+      run(
+        qb
+          .updateTable("surfaces")
+          .set({ origin: JSON.stringify(origin) })
+          .where("id", "=", id),
+      );
+    },
+    /** Sets the keys of `patch` (null removes one) over the current state, or over nothing with `replace`. */
+    setState(id: string, patch: SurfaceState, replace = false): SurfaceState | undefined {
+      const cur = repo.get(id);
+      if (!cur) return undefined;
+      const next: SurfaceState = replace ? {} : { ...cur.state };
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === null || v === undefined) delete next[k];
+        else next[k] = v;
+      }
+      const json = JSON.stringify(next);
+      if (json.length > SURFACE_STATE_MAX)
+        throw badRequest(`state would be ${json.length} characters; the most is ${SURFACE_STATE_MAX}`);
+      run(
+        qb
+          .updateTable("surfaces")
+          .set({ state: json === "{}" ? null : json })
+          .where("id", "=", cur.id),
+      );
+      bus.emit({ type: "surface.state", surface_id: cur.id, state: next });
+      return next;
     },
     share(id: string, shared: boolean): SurfaceSummary | undefined {
       const cur = repo.get(id);

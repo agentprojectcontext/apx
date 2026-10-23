@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { html, summarize, text, toDay, toInstall } from "./telemetry-report.ts";
+import { existedBefore, html, summarize, text, toDay, toInstall } from "./telemetry-report.ts";
 
 const root = "projects/apx-agents/databases/(default)/documents/installs";
-const install = (id: string, channel: string, stages: string[], usage?: boolean) =>
+// Each stage lands a 30-minute tick after the one before, as on a new install; `gapMs` sets that gap.
+const install = (id: string, channel: string, stages: string[], usage?: boolean, gapMs = 30 * 60_000) =>
   toInstall({
     name: `${root}/${id}`,
     fields: {
@@ -15,7 +16,14 @@ const install = (id: string, channel: string, stages: string[], usage?: boolean)
       ...(usage === undefined ? {} : { usage: { booleanValue: usage } }),
       updated_at: { timestampValue: "2026-03-02T10:00:00Z" },
       stages: {
-        mapValue: { fields: Object.fromEntries(stages.map((s) => [s, { timestampValue: "2026-03-01T10:00:00Z" }])) },
+        mapValue: {
+          fields: Object.fromEntries(
+            stages.map((s, n) => [
+              s,
+              { timestampValue: new Date(Date.parse("2026-03-01T10:00:00Z") + n * gapMs).toISOString() },
+            ]),
+          ),
+        },
       },
     },
   });
@@ -54,5 +62,26 @@ test("the report reads Firestore documents into a funnel that leaves checkouts a
   ]);
   assert.equal(summarize(installs, days, { all: true }).installs, 5);
   assert.match(text(s), /first_run\s+1\s+33%/);
-  assert.match(html(s), /<h2>Funnel<\/h2>/);
+  assert.match(html(s), /<h2>Funnel \(new installs\)<\/h2>/);
+});
+
+test("an APX that ran before telemetry is kept out of the funnel but not out of usage", () => {
+  const before = install("old", "bundle", ["installed", "opened", "setup", "first_run"], true, 1_000);
+  const firstRunOnly = install("old2", "app", ["installed", "first_run"], undefined, 2_000);
+  const fresh = install("new", "app", ["installed", "opened", "setup", "first_run"]);
+  const idle = install("idle", "app", ["installed"]);
+  assert.equal(existedBefore(before), true);
+  assert.equal(existedBefore(firstRunOnly), true);
+  assert.equal(existedBefore(fresh), false);
+  assert.equal(existedBefore(idle), false);
+
+  const s = summarize([before, firstRunOnly, fresh, idle], [], { now: new Date("2026-03-02T12:00:00Z") });
+  assert.equal(s.installs, 2);
+  assert.equal(s.existing, 2);
+  assert.deepEqual(
+    s.funnel.map((f) => f.installs),
+    [2, 1, 0, 1, 1],
+  );
+  assert.deepEqual(s.opt_in, { answered: 1, yes: 1 });
+  assert.match(text(s), /Installs: 2 new · 2 running before telemetry/);
 });

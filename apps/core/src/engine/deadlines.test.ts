@@ -3,21 +3,64 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { setImmediate } from "node:timers/promises";
 import { z } from "zod";
 import type { Harness } from "../harness/types.ts";
+import { createLog } from "../log.ts";
 import { realpath } from "../paths.ts";
+import { internalCaller } from "../rpc/internal.ts";
 import { defineTool } from "../tools/types.ts";
+import type { RunTimers } from "./engine.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 const IDLE_MS = 300;
+// Only the engine deadline and fixture steps use virtual time; HTTP and background I/O remain real.
+function manualTimers() {
+  let now = Date.now();
+  let sequence = 0;
+  const pending = new Map<number, { at: number; callback: () => void }>();
+  const timers: RunTimers = {
+    now: () => now,
+    after(ms, callback) {
+      const id = sequence++;
+      pending.set(id, { at: now + ms, callback });
+      return () => {
+        pending.delete(id);
+      };
+    },
+  };
+  return {
+    ...timers,
+    pending: () => pending.size,
+    tick(ms: number) {
+      const target = now + ms;
+      while (true) {
+        const next = [...pending].sort((a, b) => a[1].at - b[1].at || a[0] - b[0])[0];
+        if (!next || next[1].at > target) break;
+        pending.delete(next[0]);
+        now = next[1].at;
+        next[1].callback();
+      }
+      now = target;
+    },
+  };
+}
+const timers = manualTimers();
+let queuedSteps = 0;
 const sleep = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
-    const t = setTimeout(resolve, ms);
+    const cancel = timers.after(ms, () => {
+      signal.removeEventListener("abort", stop);
+      resolve();
+    });
     const stop = () => {
-      clearTimeout(t);
+      cancel();
+      signal.removeEventListener("abort", stop);
       reject(signal.reason);
     };
     signal.addEventListener("abort", stop, { once: true });
+    queuedSteps++;
+    if (signal.aborted) stop();
   });
 
 // "keep going": works three idle windows long, with an event every 100 ms. Anything else: goes quiet.
@@ -60,6 +103,8 @@ const llm = scriptedLlm(async (req, { said }) => {
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let project = "";
+const call = internalCaller(() => env.core.dispatch, createLog("deadlines-test", true));
+const owner = { actor: "human", local: true } as const;
 before(async () => {
   env = await startCore({
     llm,
@@ -67,57 +112,94 @@ before(async () => {
     extraTools: [slowStep],
     engineIdleMs: IDLE_MS,
     turnIdleMs: IDLE_MS,
+    runTimers: timers,
   });
   const repo = realpath(fs.mkdtempSync(path.join(os.tmpdir(), "apx-deadline-")));
-  project = (await env.client.call("projects.register", { path: repo, init: true })).project.id;
+  project = (await call("projects.register", { path: repo, init: true }, owner)).project.id;
 });
 after(async () => {
   await env.core.close();
   env.cleanup();
 });
 
-const ended = async (thread: string, text: string) => {
-  await env.client.call("threads.send", { thread, text });
-  const id = env.core.store.runs.list(thread, 1)[0]?.id ?? "";
-  for (let i = 0; i < 100; i++) {
-    const run = env.core.store.runs.get(id);
-    if (run?.ended_at) return run;
-    await new Promise((r) => setTimeout(r, 50));
+async function until(check: () => boolean) {
+  const start = performance.now();
+  while (!check()) {
+    assert.ok(performance.now() - start < 5000, "the run did not reach its next step");
+    await setImmediate();
   }
-  assert.fail("the run never ended");
-};
+}
+
+async function ended(thread: string, text: string) {
+  queuedSteps = 0;
+  const start = timers.now();
+  let id = "";
+  try {
+    await call("threads.send", { thread, text }, owner);
+    id = env.core.store.runs.list(thread, 1)[0]?.id ?? "";
+    assert.ok(id);
+    const current = () => env.core.store.runs.get(id);
+    const busy = text.includes("keep going");
+    // Keep real I/O out of simulated idle time; advance only after the fixture installs its next timer.
+    for (let step = 1; step <= (busy ? 9 : 1); step++) {
+      await until(() => queuedSteps >= step || !!current()?.ended_at);
+      assert.ok(queuedSteps >= step, current()?.error);
+      timers.tick(busy ? IDLE_MS / 3 : IDLE_MS);
+    }
+    await until(() => !!current()?.ended_at);
+    const run = current();
+    assert.ok(run);
+    return { run, elapsed: timers.now() - start };
+  } finally {
+    if (id && !env.core.store.runs.get(id)?.ended_at) {
+      await call("threads.cancel", { thread }, owner);
+      await until(() => !!env.core.store.runs.get(id)?.ended_at);
+    }
+    // Terminal state is persisted before the engine's finally stops its clock.
+    await until(() => timers.pending() === 0);
+    assert.equal(timers.pending(), 0);
+  }
+}
 
 const codeThread = async () =>
   (
-    await env.client.call("threads.create", {
-      kind: "code",
-      agent_id: "roby",
-      project_id: project,
-      engine: "claude",
-    })
+    await call(
+      "threads.create",
+      {
+        kind: "code",
+        agent_id: "roby",
+        project_id: project,
+        engine: "claude",
+      },
+      owner,
+    )
   ).id;
 
 test("an outside engine that keeps sending events works past its idle window", async () => {
-  const run = await ended(await codeThread(), "keep going");
+  const { run, elapsed } = await ended(await codeThread(), "keep going");
   assert.equal(run.state, "completed", run.error);
+  assert.equal(elapsed, IDLE_MS * 3);
 });
 
 test("an outside engine that goes quiet is stopped, and the owner reads why", async () => {
-  const run = await ended(await codeThread(), "think quietly");
+  const { run, elapsed } = await ended(await codeThread(), "think quietly");
   assert.equal(run.state, "failed");
   assert.match(run.error ?? "", /sent nothing/);
+  assert.equal(elapsed, IDLE_MS);
 });
 
-const chat = async () => (await env.client.call("threads.create", { kind: "loose", agent_id: "roby" })).id;
+const chat = async () => (await call("threads.create", { kind: "loose", agent_id: "roby" }, owner)).id;
 
 test("a turn on our own loop that keeps making progress works past its idle window", async () => {
-  const run = await ended(await chat(), "keep going");
+  const { run, elapsed } = await ended(await chat(), "keep going");
   assert.equal(run.state, "completed", run.error);
   assert.equal(run.tool_calls, 9);
+  assert.equal(elapsed, IDLE_MS * 3);
 });
 
 test("a turn on our own loop that makes no progress is stopped, and the owner reads why", async () => {
-  const run = await ended(await chat(), "think quietly");
+  const { run, elapsed } = await ended(await chat(), "think quietly");
   assert.equal(run.state, "failed");
   assert.match(run.error ?? "", /no progress/);
+  assert.equal(elapsed, IDLE_MS);
 });

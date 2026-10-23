@@ -1,3 +1,4 @@
+import { secureRequestKey } from "@apx/protocol/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Attached, isImage, mimeOf, transcribe, upload } from "../../data/composer.ts";
 
@@ -42,7 +43,7 @@ export function useAttachments(thread: string | undefined, onWords?: (text: stri
       const fresh = [...files].slice(0, Math.max(0, room)).map((file) => {
         const image = isImage(mimeOf(file));
         const chip: Chip = {
-          key: crypto.randomUUID(),
+          key: secureRequestKey(),
           name: file.name || "pasted",
           image,
           ...(image ? { preview: URL.createObjectURL(file) } : {}),
@@ -85,7 +86,7 @@ export function useAttachments(thread: string | undefined, onWords?: (text: stri
   /** Puts back files a failed send took (already uploaded: they need no new upload). */
   const restore = useCallback((files: Attached[]) => {
     const back = files.map((media) => ({
-      key: crypto.randomUUID(),
+      key: media.id,
       name: media.name,
       image: media.kind === "image",
       media,

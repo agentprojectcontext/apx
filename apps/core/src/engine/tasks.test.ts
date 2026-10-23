@@ -15,7 +15,7 @@ const bridgeHeld = new Promise<void>((r) => {
   releaseBridge = r;
 });
 
-// Vera and Roby keep mentioning each other: only the owner's @mentions ask anyone (DECISIONS.md#d-078).
+// Vera and Roby keep mentioning each other: an answer to an agent's @mention asks no one further (DECISIONS.md#d-132).
 const llm = scriptedLlm(async (req, { said, afterTool }) => {
   const system = String(req.messages[0]?.content);
   const steer = req.messages.find((m) => m.role === "user" && String(m.content).startsWith("[The owner adds"));
@@ -37,6 +37,12 @@ const llm = scriptedLlm(async (req, { said, afterTool }) => {
       description: "Write the launch draft.",
     });
   if (said.includes("peek at the other")) return callTool("t2", "task_list", {});
+  if (said.includes("open the reel tasks"))
+    return callTool("t6", "task_create", {
+      title: "Cut the tools reel",
+      assignee: "vera",
+      description: "Edit the tools reel from the brief.",
+    });
   if (said.includes("ask the owner")) return say("@JULIAN please confirm the launch date.");
   if (said.includes("hand over subtask"))
     return callTool("t4", "delegate", { agent: "vera", task: "assign a subtask to roby" });
@@ -337,14 +343,24 @@ test("files the owner attaches on a task reach the work chat's turn", async () =
   );
 });
 
-test("an agent's @mention in a task comment summons nobody", async () => {
+test("an agent's @mention in a task comment asks that agent, and the answer comes back to the chat it asked from", async () => {
+  const store = env.core.store;
   const t = await env.client.call("tasks.create", { title: "Name the release", project });
   const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "vera", project_id: project });
   await env.client.call("threads.send", { thread: chat.id, text: `ping roby on ${t.id}` });
   await env.settle(chat.id);
-  assert.deepEqual(await commentsOf(t.thread_id), ["vera"]);
-  assert.deepEqual(env.core.store.threads.children(t.thread_id), []);
-  assert.deepEqual(await env.client.call("tasks.get", { task: t.id }).then((d) => d.sessions), []);
+  const consult = store.threads.get(store.threads.children(t.thread_id)[0] ?? "");
+  assert.equal(consult?.agent_ids[0], "roby");
+  assert.deepEqual(store.threads.context(consult?.id ?? "").consult?.asker, { agent: "vera", thread: chat.id });
+  await env.settle(consult?.id ?? "");
+  await env.settle(chat.id);
+  const back = store.messages.list(chat.id, 50).find((m) => m.author.kind === "agent" && m.author.id === "roby");
+  assert.match(JSON.stringify(back?.parts), /Roby (answered|could not answer) your question/);
+  assert.deepEqual(
+    await env.client.call("tasks.get", { task: t.id }).then((d) => d.sessions),
+    [],
+    "no chat of Vera's opens on a task that is not hers",
+  );
 });
 
 test("a task an agent makes while working a task is its subtask, listed on it", async () => {
@@ -377,6 +393,21 @@ test("an answering agent cannot silently drop a requested assignee and leave an 
   assert.match(String(refusal?.content), /the agent that asked you|assigns it/);
 });
 
+test("an agent the owner consults on a task can create and start the tasks the owner asks for", async () => {
+  const t = await env.client.call("tasks.create", { title: "Plan the reel series", project });
+  await env.client.call("tasks.comment", { task: t.id, text: "@roby open the reel tasks and start them" });
+  await settleTask(t.id);
+  const { subtasks } = await env.client.call("tasks.get", { task: t.id });
+  assert.deepEqual(
+    subtasks.map((s) => [s.title, s.assignee, s.created_by]),
+    [["Cut the tools reel", "vera", "roby"]],
+  );
+  const reel = subtasks[0];
+  assert.ok(reel);
+  const started = await settleTask(reel.id);
+  assert.equal(started.sessions.length, 1, "the new task's work started in its agent's chat");
+});
+
 test("giving a task to an agent starts it in its chat; another agent gets a new chat that knows who worked it", async () => {
   const t = await env.client.call("tasks.create", {
     title: "Write the release notes",
@@ -390,7 +421,8 @@ test("giving a task to an agent starts it in its chat; another agent gets a new 
   const opening = (await env.client.call("threads.get", { thread: vera.id })).messages[0];
   assert.equal(opening?.author.kind, "user");
   assert.deepEqual(opening?.parts, [{ type: "text", text: "Write the release notes\n\nTwo paragraphs." }]);
-  assert.equal((await commentsOf(t.thread_id))[0], "vera");
+  // A work turn's answer stays in its chat: the task's comments are what agents post there on purpose.
+  assert.deepEqual(await commentsOf(t.thread_id), []);
 
   await env.client.call("tasks.update", { task: t.id, assignee: "roby" });
   const second = await settleTask(t.id);
@@ -401,7 +433,7 @@ test("giving a task to an agent starts it in its chat; another agent gets a new 
       String(c.messages[0]?.content).startsWith("You are Roby") &&
       String(c.messages.at(-1)?.content).includes("Write the release notes\n\nTwo paragraphs."),
   );
-  assert.match(String(input?.messages.at(-1)?.content), /Worked on before in their own chats by: Vera\./);
+  assert.match(String(input?.messages.at(-1)?.content), new RegExp(`Worked on before by: Vera \\(chat ${vera.id}\\)`));
 });
 
 test("the hourly pickup starts only tasks assigned since it began, the most pressing first", async () => {

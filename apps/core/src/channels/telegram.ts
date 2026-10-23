@@ -14,6 +14,7 @@ import {
   type ChannelAdapter,
   ChannelRefused,
   fileName,
+  type InboundFile,
   type OutFile,
   SendError,
 } from "./types.ts";
@@ -46,7 +47,7 @@ type TgMessage = {
   animation?: TgFile & { file_name?: string };
   /** A round video message. */
   video_note?: TgFile;
-  sticker?: TgFile & { is_animated?: boolean; is_video?: boolean };
+  sticker?: TgFile & { is_animated?: boolean; is_video?: boolean; emoji?: string };
 };
 type TgFile = { file_id: string; mime_type?: string; file_size?: number };
 type TgUpdate = {
@@ -66,8 +67,41 @@ type TgUpdate = {
 /** The chats that are groups (rooms); "channel" is a broadcast the bot only posts in. */
 const GROUP_TYPES = new Set(["group", "supergroup"]);
 
-/** Bots may only use Telegram's fixed set of reactions: the closest one of those for an emoji it lacks. */
-const TG_REACTION: Record<string, string> = { "❤️": "❤", "😂": "🤣", "👋": "👍" };
+/** The only emoji a bot may react with (the Bot API's standard reactions, written without variation selectors). */
+export const TELEGRAM_REACTIONS: readonly string[] = (
+  "❤ 👍 👎 🔥 🥰 👏 😁 🤔 🤯 😱 🤬 😢 🎉 🤩 🤮 💩 🙏 👌 🕊 🤡 🥱 🥴 😍 🐳 ❤\u200d🔥 🌚 🌭 💯 🤣 ⚡ 🍌 🏆 💔 🤨 😐 🍓 🍾 " +
+  "💋 🖕 😈 😴 😭 🤓 👻 👨\u200d💻 👀 🎃 🙈 😇 😨 🤝 ✍ 🤗 🫡 🎅 🎄 ☃ 💅 🤪 🗿 🆒 💘 🙉 🦄 😘 💊 🙊 😎 👾 🤷\u200d♂ " +
+  "🤷 🤷\u200d♀ 😡"
+).split(" ");
+const TG_ALLOWED = new Set(TELEGRAM_REACTIONS);
+
+/** Stand-ins for emoji Telegram refuses (allowed one: the emoji it stands for); any other becomes a thumbs-up. */
+const TG_CLOSEST: Record<string, string> = Object.fromEntries(
+  Object.entries({
+    "👏": "🙌",
+    "👌": "✅ ✔ ☑ 🆗",
+    "👍": "💪 👋 👆",
+    "😁": "😀 😃 😄 😊 🙂 😉 😅",
+    "🤣": "😆 😂",
+    "🎉": "🥳 🎊",
+    "🤩": "✨ 🌟 ⭐",
+    "🥰": "🫶",
+    "🙏": "🤞",
+    "😱": "😮 😲",
+    "🤔": "😕 🧐",
+    "😢": "😞 😔 🥲",
+    "😡": "😠",
+    "🔥": "🚀",
+    "❤": "💙 💚 💛 💜 🧡 🖤 🤍 💕 💖 💗 💞",
+  }).flatMap(([to, from]) => from.split(" ").map((f) => [f, to])),
+);
+
+/** The allowed reaction closest to `emoji`, for when Telegram refuses it ("" stays "": it takes the reaction off). */
+export function telegramReaction(emoji: string): string {
+  const bare = emoji.replace(/\uFE0F/g, "");
+  if (!bare || TG_ALLOWED.has(bare)) return bare;
+  return TG_CLOSEST[bare] ?? "👍";
+}
 type TgReply<T> = {
   ok: boolean;
   result?: T;
@@ -186,10 +220,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     return { mime: v.mime_type ?? "audio/ogg", data: Buffer.from(await res.arrayBuffer()).toString("base64") };
   }
 
-  async function filesOf(
-    m: TgMessage,
-    signal = ac.signal,
-  ): Promise<Array<{ name: string; mime: string; data: string }>> {
+  async function filesOf(m: TgMessage, signal = ac.signal): Promise<InboundFile[]> {
     const photo = [...(m.photo ?? [])].sort((a, b) => b.width * b.height - a.width * a.height)[0];
     const f = photo ?? m.document ?? m.video ?? m.animation ?? m.video_note ?? m.sticker;
     if (!f) return [];
@@ -216,7 +247,8 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     } finally {
       await reader.cancel().catch(() => {});
     }
-    return [{ name, mime, data: Buffer.concat(chunks).toString("base64") }];
+    const data = Buffer.concat(chunks).toString("base64");
+    return [{ name, mime, data, ...(m.sticker ? { sticker: { hint: m.sticker.emoji } } : {}) }];
   }
 
   async function readFiles(m: TgMessage): ReturnType<typeof filesOf> {
@@ -372,21 +404,26 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     }
   }
 
-  /** An image as a photo, OGG/Opus as a voice note, other audio as an audio file, anything else as a document. */
+  /**
+   * An image as a photo, OGG/Opus as a voice note, other audio as an audio file, a sticker as a sticker, anything else
+   * as a document.
+   */
   async function sendFile(chat: string, f: OutFile, silent?: boolean, caption?: string): Promise<number> {
     const [method, field, name] =
-      f.kind === "file"
-        ? ["sendDocument", "document", fileName(f)]
-        : f.kind === "image"
-          ? ["sendPhoto", "photo", "image"]
-          : f.mime === "audio/ogg"
-            ? ["sendVoice", "voice", "voice.ogg"]
-            : ["sendAudio", "audio", `audio.${f.mime.split("/")[1] ?? "wav"}`];
+      f.kind === "sticker"
+        ? ["sendSticker", "sticker", fileName(f)]
+        : f.kind === "file"
+          ? ["sendDocument", "document", fileName(f)]
+          : f.kind === "image"
+            ? ["sendPhoto", "photo", "image"]
+            : f.mime === "audio/ogg"
+              ? ["sendVoice", "voice", "voice.ogg"]
+              : ["sendAudio", "audio", `audio.${f.mime.split("/")[1] ?? "wav"}`];
     const form = new FormData();
     form.set("chat_id", chat);
     if (silent) form.set("disable_notification", "true");
     form.set(field, new Blob([new Uint8Array(f.data)], { type: f.mime }), name);
-    if (caption) form.set("caption", caption);
+    if (caption && f.kind !== "sticker") form.set("caption", caption);
     if (!token) throw new TgError(401, "no bot token");
     const res = await fetch(`${apiBase}/bot${token}/${method}`, {
       method: "POST",
@@ -438,7 +475,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   }
 
   return {
-    caps: { typing: true, buttons: true, reactions: true },
+    caps: { typing: true, buttons: true, reactions: true, stickers: true, reactionSet: TELEGRAM_REACTIONS },
     async start(io) {
       me = await api<{ id: number; username?: string }>("getMe", {}).catch((err: unknown) => {
         throw err instanceof TgError && (err.code === 401 || err.code === 404)
@@ -506,16 +543,22 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
       return res.ok ? { mime: "image/jpeg", data: Buffer.from(await res.arrayBuffer()) } : undefined;
     },
     async react(conversation, ref, emoji) {
-      const shown = TG_REACTION[emoji] ?? emoji;
-      await api(
-        "setMessageReaction",
-        {
-          chat_id: Number(conversation),
-          message_id: Number(ref),
-          reaction: shown ? [{ type: "emoji", emoji: shown }] : [],
-        },
-        8000,
-      );
+      const put = (e: string) =>
+        api(
+          "setMessageReaction",
+          { chat_id: Number(conversation), message_id: Number(ref), reaction: e ? [{ type: "emoji", emoji: e }] : [] },
+          8000,
+        );
+      // The agent picks any emoji: it goes as chosen, and the closest allowed one only when Telegram refuses it.
+      const bare = emoji.replace(/\uFE0F/g, "");
+      const first = TG_ALLOWED.has(bare) ? bare : emoji;
+      try {
+        await put(first);
+      } catch (err) {
+        const closest = telegramReaction(emoji);
+        if (!(err instanceof TgError && err.message.includes("REACTION_INVALID")) || closest === first) throw err;
+        await put(closest);
+      }
     },
     async setButtons(conversation, ref, buttons) {
       await api(

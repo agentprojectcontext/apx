@@ -4,6 +4,7 @@ import { test } from "node:test";
 import type { Store } from "../domain/store.ts";
 import type { Secrets } from "../secrets.ts";
 import { calendarApi, flattenEvent, gaps } from "./calendar.ts";
+import { driveApi, driveQuery } from "./drive.ts";
 import { bodyOf, gmailApi, rawMessage } from "./gmail.ts";
 import { createGoogle } from "./google.ts";
 import { googleAt } from "./google-oauth.ts";
@@ -27,7 +28,8 @@ function fakeGoogle() {
     if (url === `${BASE}/token`) {
       const form = new URLSearchParams(String(init?.body));
       seen.push({ url, form });
-      if (form.get("client_secret") !== "s3cret") return json(401, { error: "invalid_client" });
+      if (!["s3cret", "apx-public"].includes(form.get("client_secret") ?? ""))
+        return json(401, { error: "invalid_client" });
       if (form.get("grant_type") === "authorization_code") {
         const verifier = form.get("code_verifier") ?? "";
         const hash = crypto.createHash("sha256").update(verifier).digest("base64url");
@@ -48,13 +50,14 @@ function fakeGoogle() {
       url,
       ...(auth ? { auth } : {}),
       method: init?.method,
-      ...(init?.body ? { body: JSON.parse(String(init.body)) as unknown } : {}),
+      ...(init?.body ? { body: parsed(String(init.body)) } : {}),
     });
     if (refuseNext) {
       refuseNext = false;
       return json(401, { error: { message: "Invalid Credentials" } });
     }
-    return json(200, respond?.(new URL(url), init) ?? { items: [] });
+    const answer = respond?.(new URL(url), init) ?? { items: [] };
+    return answer instanceof Response ? answer : json(200, answer);
   }) as typeof fetch;
   return {
     fetchImpl,
@@ -74,7 +77,16 @@ function fakeGoogle() {
   };
 }
 
-function setup() {
+/** A JSON body as data, anything else (an upload) as its text. */
+const parsed = (body: string): unknown => {
+  try {
+    return JSON.parse(body) as unknown;
+  } catch {
+    return body;
+  }
+};
+
+function setup(o: { builtin?: boolean } = {}) {
   const settings = new Map<string, string>();
   const vault = new Map<string, string>();
   const store = {
@@ -96,8 +108,9 @@ function setup() {
     offIn: (project, id) => off.has(`${project}:${id}`),
     fetch: fake.fetchImpl,
     now: () => clock,
+    ...(o.builtin ? { builtin: { clientId: "apx.apps.googleusercontent.com", clientSecret: "apx-public" } } : {}),
   });
-  const start = (id: "google-calendar" | "gmail" = "google-calendar") => {
+  const start = (id: "google-calendar" | "gmail" | "google-drive" = "google-calendar") => {
     const url = new URL(g.start(id, { client_id: "123-abc.apps.googleusercontent.com", client_secret: "s3cret" }));
     fake.setChallenge(url.searchParams.get("code_challenge") ?? "");
     return url;
@@ -127,7 +140,7 @@ test("a sign-in finishes once, with the state this core signed; forged, altered 
   await assert.rejects(g.finish("good-code", `${body}.${sig}x`), /not valid/);
 
   const done = await g.finish("good-code", state);
-  assert.deepEqual(done, { id: "google-calendar", account: "owner@example.com" });
+  assert.deepEqual(done, { id: "google-calendar", also: [], account: "owner@example.com" });
   assert.equal(vault.get("google-calendar-refresh_token"), "rt-1", "the refresh token is a secret");
   assert.equal(g.connected("google-calendar"), true);
   assert.equal(g.connected("gmail"), false);
@@ -169,7 +182,83 @@ test("an integration off in a project is not usable there; disconnecting the las
   g.disconnect("google-calendar");
   assert.equal(g.connected("google-calendar"), false);
   assert.equal(vault.size, 0, "no Google secret is left");
-  assert.deepEqual(g.client(), { client_id: undefined, secret: false });
+  assert.deepEqual(g.client(), { client_id: undefined, secret: false, builtin: false });
+});
+
+test("with APX's own client the owner signs in without one, and each integration keeps the client it signed in with", async () => {
+  const { g, fake, vault, settings, tick } = setup({ builtin: true });
+  assert.equal(g.client().builtin, true);
+  const url = new URL(g.start("google-calendar", {}));
+  assert.equal(url.searchParams.get("client_id"), "apx.apps.googleusercontent.com", "nothing typed: APX's client");
+  // APX's client asks for no restricted scope: Google verifies it without a security assessment.
+  const apxGmail = new URL(g.start("gmail", {})).searchParams.get("scope") ?? "";
+  assert.match(apxGmail, /gmail\.send/);
+  assert.doesNotMatch(apxGmail, /gmail\.(readonly|compose)/);
+  const apxDrive = new URL(g.start("google-drive", {})).searchParams.get("scope") ?? "";
+  assert.match(apxDrive, /drive\.file/);
+  assert.doesNotMatch(apxDrive, /drive\.readonly/);
+  fake.setChallenge(url.searchParams.get("code_challenge") ?? "");
+  await g.finish("good-code", url.searchParams.get("state") ?? "");
+  assert.equal(g.clientOf("google-calendar"), "apx");
+  assert.equal(settings.get("google_client_id"), undefined, "APX's client is never stored as the owner's");
+  assert.equal(vault.has("google-client_secret"), false);
+
+  // Gmail on the owner's own client, beside Calendar on APX's.
+  const own = new URL(
+    g.start("gmail", { client: "own", client_id: "123-abc.apps.googleusercontent.com", client_secret: "s3cret" }),
+  );
+  assert.equal(own.searchParams.get("client_id"), "123-abc.apps.googleusercontent.com");
+  fake.setChallenge(own.searchParams.get("code_challenge") ?? "");
+  await g.finish("good-code", own.searchParams.get("state") ?? "");
+  assert.equal(g.clientOf("gmail"), "own");
+  assert.match(own.searchParams.get("scope") ?? "", /gmail\.readonly/, "the owner's client gets every scope");
+  assert.equal(g.full("gmail"), true);
+  assert.equal(g.full("google-calendar"), false);
+
+  tick(3600_000);
+  await g.call("google-calendar", `${BASE}/calendar/v3/x`);
+  await g.call("gmail", `${BASE}/gmail/v1/x`);
+  const refreshes = fake.seen.filter((s) => s.form?.get("grant_type") === "refresh_token");
+  assert.deepEqual(
+    refreshes.map((s) => s.form?.get("client_id")),
+    ["apx.apps.googleusercontent.com", "123-abc.apps.googleusercontent.com"],
+    "a refresh token goes to the client that issued it",
+  );
+
+  g.disconnect("google-calendar");
+  assert.equal(g.client().client_id, "123-abc.apps.googleusercontent.com", "Gmail still signs in with it");
+  g.disconnect("gmail");
+  assert.equal(g.client().client_id, undefined);
+});
+
+test("one sign-in connects several Google parts: their scopes in one consent, the refresh token kept for each", async () => {
+  const { g, fake, vault } = setup();
+  const url = new URL(
+    g.start("gmail", { client: "own", client_id: "123-abc.apps.googleusercontent.com", client_secret: "s3cret" }, [
+      "google-drive",
+      "google-calendar",
+      "gmail",
+    ]),
+  );
+  const scope = url.searchParams.get("scope") ?? "";
+  for (const s of ["gmail.readonly", "drive.readonly", "calendar.events"]) assert.match(scope, new RegExp(s));
+  fake.setChallenge(url.searchParams.get("code_challenge") ?? "");
+  const done = await g.finish("good-code", url.searchParams.get("state") ?? "");
+  assert.deepEqual(done.also, ["google-drive", "google-calendar"], "the part asked for is not repeated");
+  for (const id of ["gmail", "google-drive", "google-calendar"] as const) {
+    assert.equal(g.connected(id), true);
+    assert.equal(g.clientOf(id), "own");
+    assert.equal(vault.get(`${id}-refresh_token`), "rt-1");
+  }
+  g.disconnect("gmail");
+  assert.equal(g.connected("google-drive"), true, "each part disconnects on its own");
+  assert.equal(g.client().client_id, "123-abc.apps.googleusercontent.com", "Drive still uses the owner's client");
+});
+
+test("without a client of APX's own, a sign-in with nothing typed says to bring one", () => {
+  const { g } = setup();
+  assert.throws(() => g.start("google-calendar", {}), /client id and the client secret/);
+  assert.throws(() => g.start("google-calendar", { client: "apx" }), /no Google client of its own/);
 });
 
 test("an event is flattened to what a prompt needs; free gaps fall between busy blocks", () => {
@@ -426,4 +515,206 @@ test("Gmail reply drafts preserve threading and send only an existing draft id",
   assert.deepEqual(await api.sendDraft("draft-1"), { message: "sent-1", thread: "thread-1" });
   assert.deepEqual(fake.seen.at(-1)?.body, { id: "draft-1" });
   assert.ok(fake.seen.at(-1)?.url.endsWith("/drafts/send"));
+});
+
+test("Calendar adds and removes guests on the current list, keeps their answers, adds Meet once, and cancels", async () => {
+  const { g, start, fake } = setup();
+  await g.finish("good-code", start().searchParams.get("state") ?? "");
+  let current: Record<string, unknown> = {
+    id: "e1",
+    summary: "Planning",
+    attendees: [
+      { email: "owner@example.com", organizer: true, responseStatus: "accepted" },
+      { email: "Ana@example.com", responseStatus: "accepted" },
+    ],
+  };
+  fake.respond((_url, init) =>
+    init?.method === "PATCH" ? { ...current, ...(parsed(String(init.body)) as object) } : current,
+  );
+  const api = calendarApi(g);
+  await api.update({
+    calendar: "primary",
+    id: "e1",
+    add_attendees: ["bob@example.com", "ana@example.com", "bob@example.com"],
+    remove_attendees: ["nobody@example.com"],
+    meet: true,
+  });
+  assert.equal(fake.seen.at(-2)?.method, "GET", "the current guests are read first");
+  const patch = fake.seen.at(-1);
+  const body = patch?.body as { attendees: unknown; conferenceData?: unknown };
+  assert.deepEqual(body.attendees, [
+    { email: "owner@example.com", organizer: true, responseStatus: "accepted" },
+    { email: "Ana@example.com", responseStatus: "accepted" },
+    { email: "bob@example.com" },
+  ]);
+  assert.ok(body.conferenceData, "an event without Meet gets one");
+  assert.equal(new URL(patch?.url ?? "").searchParams.get("conferenceDataVersion"), "1");
+
+  current = { ...current, hangoutLink: "https://meet.google.com/abc" };
+  await api.update({ calendar: "primary", id: "e1", remove_attendees: ["ANA@example.com"], meet: true });
+  const again = fake.seen.at(-1)?.body as { attendees: Array<{ email: string }>; conferenceData?: unknown };
+  assert.deepEqual(
+    again.attendees.map((a) => a.email),
+    ["owner@example.com"],
+  );
+  assert.equal(again.conferenceData, undefined, "a second Meet link is never asked for");
+
+  await api.update({ calendar: "primary", id: "e1", title: "Retro" });
+  assert.equal(fake.seen.at(-1)?.method, "PATCH", "a plain change reads nothing first");
+  assert.equal(fake.seen.at(-2)?.method, "PATCH");
+
+  await api.cancel({ calendar: "primary", id: "e1" });
+  const del = fake.seen.at(-1);
+  assert.equal(del?.method, "DELETE");
+  assert.equal(new URL(del?.url ?? "").searchParams.get("sendUpdates"), "all");
+});
+
+test("a Drive query escapes the words and never lists the trash", () => {
+  assert.equal(driveQuery({}), "trashed = false");
+  assert.equal(
+    driveQuery({ q: "Acme's \\ plan", kind: "doc" }),
+    "trashed = false and fullText contains 'Acme\\'s \\\\ plan' and mimeType = 'application/vnd.google-apps.document'",
+  );
+});
+
+test("Drive finds files, reads Google's formats as text and text files as they are, and refuses binaries", async () => {
+  const { g, start, fake } = setup();
+  await g.finish("good-code", start("google-drive").searchParams.get("state") ?? "");
+  assert.match(start("google-drive").searchParams.get("scope") ?? "", /drive\.readonly.*drive\.file/);
+  const meta: Record<string, { mimeType: string; name: string }> = {
+    d1: { mimeType: "application/vnd.google-apps.document", name: "Plan" },
+    s1: { mimeType: "application/vnd.google-apps.spreadsheet", name: "Budget" },
+    t1: { mimeType: "text/markdown", name: "notes.md" },
+    p1: { mimeType: "image/png", name: "logo.png" },
+  };
+  fake.respond((url) => {
+    const id = url.pathname.split("/")[4] ?? "";
+    if (url.pathname.endsWith("/drive/v3/files"))
+      return { files: [{ id: "d1", ...meta.d1, owners: [{ emailAddress: "ana@example.com" }] }] };
+    if (url.pathname.endsWith("/export") || url.searchParams.get("alt") === "media")
+      return new Response(id === "d1" ? "x".repeat(25_000) : `text of ${id}`);
+    return { id, ...meta[id], webViewLink: `https://docs.example.com/${id}` };
+  });
+  const api = driveApi(g);
+  assert.deepEqual(await api.search({ max: 5 }), [{ id: "d1", name: "Plan", type: "doc", owner: "ana@example.com" }]);
+  const listed = new URL(fake.seen.at(-1)?.url ?? "");
+  assert.equal(listed.searchParams.get("orderBy"), "modifiedTime desc", "without words: the newest first");
+  await api.search({ q: "budget", max: 5 });
+  assert.equal(new URL(fake.seen.at(-1)?.url ?? "").searchParams.get("orderBy"), null, "Drive refuses it with words");
+
+  const doc = await api.read("d1");
+  assert.equal(doc.file.type, "doc");
+  assert.ok(doc.text.endsWith("…[cut]") && doc.text.length < 20_100, "a long file is cut");
+  assert.equal(new URL(fake.seen.at(-1)?.url ?? "").searchParams.get("mimeType"), "text/plain");
+  assert.equal((await api.read("s1")).text, "text of s1");
+  assert.equal(new URL(fake.seen.at(-1)?.url ?? "").searchParams.get("mimeType"), "text/csv");
+  assert.equal((await api.read("t1")).text, "text of t1");
+  assert.equal(new URL(fake.seen.at(-1)?.url ?? "").searchParams.get("alt"), "media");
+  await assert.rejects(api.read("p1"), /cannot read as text; open https:\/\/docs\.example\.com\/p1/);
+});
+
+test("Drive writes a Doc as one upload, rewrites one by id, and shares it with each person", async () => {
+  const { g, start, fake } = setup();
+  await g.finish("good-code", start("google-drive").searchParams.get("state") ?? "");
+  fake.respond((url) => ({ id: url.pathname.split("/").at(-1) === "files" ? "new1" : "d9", name: "Agenda" }));
+  const api = driveApi(g);
+  assert.deepEqual(await api.writeDoc({ title: "Agenda", content: "1. Budget\n2. Dates", folder: "f1" }), {
+    id: "new1",
+    name: "Agenda",
+    type: "",
+  });
+  const made = fake.seen.at(-1);
+  assert.equal(made?.method, "POST");
+  assert.equal(new URL(made?.url ?? "").pathname, "/upload/drive/v3/files");
+  assert.equal(new URL(made?.url ?? "").searchParams.get("uploadType"), "multipart");
+  const raw = String(made?.body);
+  assert.match(raw, /"name":"Agenda","mimeType":"application\/vnd\.google-apps\.document","parents":\["f1"\]/);
+  assert.match(raw, /Content-Type: text\/plain; charset=UTF-8\r\n\r\n1\. Budget\n2\. Dates\r\n--apx-/);
+
+  await api.writeDoc({ id: "d9", content: "new text" });
+  const rewrite = fake.seen.at(-1);
+  assert.equal(rewrite?.method, "PATCH");
+  assert.equal(new URL(rewrite?.url ?? "").pathname, "/upload/drive/v3/files/d9");
+  assert.doesNotMatch(String(rewrite?.body), /mimeType|parents/, "a rewrite keeps the Doc where and what it is");
+
+  await api.share({
+    id: "d9",
+    emails: ["ana@example.com", "bob@example.com"],
+    role: "commenter",
+    message: "For Monday",
+  });
+  const grants = fake.seen.filter((s) => s.url.includes("/permissions"));
+  assert.deepEqual(
+    grants.map((s) => s.body),
+    [
+      { type: "user", role: "commenter", emailAddress: "ana@example.com" },
+      { type: "user", role: "commenter", emailAddress: "bob@example.com" },
+    ],
+  );
+  assert.equal(new URL(grants[0]?.url ?? "").searchParams.get("emailMessage"), "For Monday");
+});
+
+test("Gmail send with APX's client posts one UTF-8 message, never a draft", async () => {
+  const { g, fake } = setup({ builtin: true });
+  const url = new URL(g.start("gmail", {}));
+  fake.setChallenge(url.searchParams.get("code_challenge") ?? "");
+  await g.finish("good-code", url.searchParams.get("state") ?? "");
+  fake.respond(() => ({ id: "sent-9", threadId: "thread-9" }));
+  assert.deepEqual(
+    await gmailApi(g).send({ to: ["ana@example.com"], subject: "Reunión", body: "Nos vemos el lunes" }),
+    { message: "sent-9", thread: "thread-9" },
+  );
+  const sent = fake.seen.at(-1);
+  assert.ok(sent);
+  assert.ok(sent.url.endsWith("/users/me/messages/send"));
+  const raw = Buffer.from((sent.body as { raw: string }).raw, "base64url").toString("utf8");
+  assert.match(raw, /^To: ana@example\.com\r\n/);
+  assert.match(raw, /Subject: =\?UTF-8\?B\?/);
+});
+
+test("Gmail says where the inbox stands and what reached it since, oldest first; too old a point starts again", async () => {
+  const { g, start, fake } = setup();
+  await g.finish("good-code", start("gmail").searchParams.get("state") ?? "");
+  fake.respond((url) => {
+    if (url.pathname.endsWith("/profile")) return { historyId: "100" };
+    if (url.pathname.endsWith("/history")) {
+      if (url.searchParams.get("startHistoryId") === "1")
+        return new Response(JSON.stringify({ error: { message: "Requested entity was not found." } }), { status: 404 });
+      return {
+        historyId: "130",
+        history: [
+          { messagesAdded: [{ message: { id: "a" } }] },
+          { messagesAdded: [{ message: { id: "b" } }, { message: { id: "a" } }] },
+        ],
+      };
+    }
+    const id = url.pathname.split("/").at(-1);
+    return {
+      id,
+      threadId: `t-${id}`,
+      labelIds: id === "a" ? ["INBOX", "IMPORTANT", "UNREAD"] : ["INBOX", "CATEGORY_PROMOTIONS"],
+      payload: {
+        headers: [
+          { name: "From", value: `${id}@example.com` },
+          { name: "Subject", value: `Hi ${id}` },
+        ],
+      },
+    };
+  });
+  const api = gmailApi(g);
+  assert.equal(await api.historyId(), "100");
+  const got = await api.arrived("100");
+  const q = new URL(fake.seen.find((s) => s.url.includes("/history"))?.url ?? "").searchParams;
+  assert.equal(q.get("startHistoryId"), "100");
+  assert.equal(q.get("labelId"), "INBOX");
+  assert.equal(got?.next, "130");
+  assert.deepEqual(
+    got?.mail.map((m) => [m.id, m.from, m.labels.includes("IMPORTANT")]),
+    [
+      ["a", "a@example.com", true],
+      ["b", "b@example.com", false],
+    ],
+    "each message once, in the order it arrived",
+  );
+  assert.equal(await api.arrived("1"), undefined);
 });

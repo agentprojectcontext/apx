@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { nodeOs, targetOf } from "@apx/protocol";
 import { build } from "esbuild";
+import { CLIENT_FILE, clientFromJson, clientFromPair } from "../../core/src/integrations/google-client.ts";
 
 const repo = path.resolve(import.meta.dirname, "../../..");
 const target = targetOf(process.env.APX_TARGET, process.platform, process.arch);
@@ -128,6 +129,21 @@ fs.writeFileSync(
   path.join(out, "build.json"),
   JSON.stringify({ version, sha, os: target.os, arch: target.arch }, null, 2),
 );
+// APX's Google sign-in: CI's secret (`id:secret` or Cloud Console's JSON), or a checkout's own git-ignored file. Kept
+// out of the repository; a build without it offers only the owner's own client (DECISIONS.md#d-130).
+const google = process.env.APX_GOOGLE_CLIENT?.trim();
+const client = google
+  ? (clientFromJson(google) ?? clientFromPair(google))
+  : fs.existsSync(path.join(repo, CLIENT_FILE))
+    ? clientFromJson(fs.readFileSync(path.join(repo, CLIENT_FILE), "utf8"))
+    : undefined;
+if (google && !client) throw new Error("APX_GOOGLE_CLIENT is neither client_id:client_secret nor a client JSON");
+if (client)
+  fs.writeFileSync(
+    path.join(out, CLIENT_FILE),
+    JSON.stringify({ client_id: client.clientId, client_secret: client.clientSecret }, null, 2),
+  );
+console.log(client ? "Google sign-in: APX's own client" : "Google sign-in: none in this build");
 // What each release changed, read from this checkout's tags now: the installed core has no git (DECISIONS.md#d-100).
 execFileSync(
   process.execPath,

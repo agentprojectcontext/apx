@@ -12,7 +12,7 @@ const PIXEL = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QD
 
 export type Person = { phone: string; name: string; lid?: string };
 
-export function fakeWhatsApp() {
+export function fakeWhatsApp(owner = OWNER_PN) {
   let dir = "";
   /** The platform the device presents itself as (the second field of `browser`). */
   let platform = "";
@@ -64,7 +64,7 @@ export function fakeWhatsApp() {
       },
       // Only the line itself shows a picture here: a 1×1 PNG.
       async profilePictureUrl(jid: string) {
-        return jid === OWNER_PN ? `data:image/png;base64,${PIXEL}` : undefined;
+        return jid === owner ? `data:image/png;base64,${PIXEL}` : undefined;
       },
       async logout() {
         loggedOut.value = true;
@@ -81,7 +81,7 @@ export function fakeWhatsApp() {
   });
   const open = () => {
     if (!sock) return;
-    sock.user = { id: OWNER_PN.replace("@", ":7@"), lid: OWNER_LID };
+    sock.user = { id: owner.replace("@", ":7@"), lid: OWNER_LID };
     sock.emit("connection.update", { connection: "open" });
   };
   const deliver = (m: WaMessage) => {
@@ -121,7 +121,7 @@ export function fakeWhatsApp() {
 
   return {
     lib,
-    owner: OWNER_PN,
+    owner,
     get dir() {
       return dir;
     },

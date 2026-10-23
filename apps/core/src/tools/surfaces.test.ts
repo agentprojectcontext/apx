@@ -10,6 +10,8 @@ const widget = (connect?: string[]) => ({
   html: "<div id=p></div><script>fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT')</script>",
   ...(connect ? { connect } : {}),
 });
+const KIT_APP =
+  '<meta name="apx-surface" content="app"><script src="/_apx/kit@1.js"></script><div class="ax-app"><div class="ax-shell"><header class="ax-topbar">Habits</header></div></div>';
 const calls: Record<string, object | [string, object]> = {
   "live widget": widget(["https://api.binance.com", "wss://stream.binance.com:9443"]),
   "same widget": widget(),
@@ -51,6 +53,10 @@ const calls: Record<string, object | [string, object]> = {
   "break the script": ["edit_widget", { name: "mixed", edits: [{ old: "let x = 1;", new: "let x = ;" }] }],
   "project widget": { name: "acme-sales", title: "Acme sales", html: "<p>sales</p>" },
   "read the global one": ["read_widget", { name: "btc-live" }],
+  "kit app": { name: "habits", title: "Habits", html: KIT_APP },
+  "kit app again": { name: "habits", title: "Habits", html: KIT_APP.replace("Habits", "Daily habits") },
+  "read habits": ["read_widget", { name: "habits" }],
+  "remember for it": ["edit_widget", { name: "habits", state: { streak: 4, draft: null } }],
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content)}`);
@@ -190,7 +196,7 @@ test("a widget is not saved when the turn stopped while its scripts were checked
     },
     upsertPart: () => {},
   } as unknown as ToolContext;
-  const tools = surfaceTools(env.core.store);
+  const tools = surfaceTools(env.core.store, env.home);
   const run = (name: string, args: object) =>
     (tools.find((x) => x.name === name) as unknown as { run(a: object, c: ToolContext): Promise<string> }).run(
       args,
@@ -247,4 +253,114 @@ test("an agent converts a published app to a widget without reading or replacing
   const other = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project.id });
   assert.match(await said(other.id, "make a widget"), /no widget named conversion/);
   assert.equal((await env.client.call("surfaces.get", { surface: original.id })).app, true);
+});
+
+test("a page written with the APX Kit is an app by its meta tag and gets the kit inline wherever it is served", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "kit" });
+  assert.match(await said(t.id, "kit app"), /widget "habits" v1 shown.*listed as an app/);
+  const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "habits")?.id ?? "";
+  const doc = await env.client.call("surfaces.get", { surface: id });
+  assert.equal(doc.app, true);
+  assert.match(doc.html, /^<meta name="apx-surface" content="app"><script data-apx-kit>\/\*! APX Kit v1/);
+  assert.doesNotMatch(doc.html, /<script src="\/_apx\/kit@1\.js"><\/script>/);
+  // The agent reads and edits the page as written, never the kit.
+  assert.match(
+    await said(t.id, "read habits"),
+    /<html_source>\n<meta name="apx-surface" content="app"><script src="\/_apx\/kit@1\.js">/,
+  );
+
+  const shared = await env.client.call("surfaces.share", { surface: id, shared: true });
+  const res = await fetch(new URL(shared.share_path ?? "", env.core.url));
+  assert.match(
+    res.headers.get("content-security-policy") ?? "",
+    /^sandbox allow-scripts allow-popups allow-forms;.*form-action 'none';/,
+  );
+  assert.match(await res.text(), /<script data-apx-kit>\/\*! APX Kit v1/);
+  await env.client.call("surfaces.share", { surface: id, shared: false });
+  const kit = await fetch(new URL("/_apx/kit@1.js", env.core.url));
+  assert.match(kit.headers.get("content-type") ?? "", /^text\/javascript/);
+  assert.match(await kit.text(), /window\.APX = Object\.assign/);
+});
+
+test("a widget remembers between openings and versions; its agent reads it as data and changes it", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "memory" });
+  await said(t.id, "kit app");
+  const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "habits")?.id ?? "";
+  const events: unknown[] = [];
+  const off = env.core.bus.on((e) => {
+    if (e.type === "surface.state") events.push(e.state);
+  });
+  const { state } = await env.client.call("surfaces.set_state", {
+    surface: id,
+    patch: { streak: 3, draft: "Walk </script> at 7", done: ["mon", "tue"] },
+  });
+  assert.deepEqual(state, { streak: 3, draft: "Walk </script> at 7", done: ["mon", "tue"] });
+  assert.deepEqual(events.at(-1), state);
+
+  // A new version of the page keeps what it remembered; the summary every client lists never carries it.
+  await said(t.id, "kit app again");
+  const doc = await env.client.call("surfaces.get", { surface: id });
+  assert.deepEqual(doc.state, state);
+  assert.ok(!("state" in ((await env.client.call("surfaces.list", {})).surfaces.find((s) => s.id === id) ?? {})));
+  assert.match(await said(t.id, "read habits"), /<widget_state>\n\{"streak":3,"draft":"Walk <\/script> at 7"/);
+
+  const version = doc.version;
+  assert.match(await said(t.id, "remember for it"), /HTML unchanged; state: streak, draft changed/);
+  const after = await env.client.call("surfaces.get", { surface: id });
+  assert.deepEqual([after.state, after.version], [{ streak: 4, done: ["mon", "tue"] }, version]);
+
+  await assert.rejects(
+    env.client.call("surfaces.set_state", { surface: id, patch: { big: "x".repeat(70_000) } }),
+    /state would be \d+ characters; the most is 64000/,
+  );
+  const { state: fresh } = await env.client.call("surfaces.set_state", { surface: id, patch: {}, replace: true });
+  assert.deepEqual(fresh, {});
+  assert.equal((await env.client.call("surfaces.get", { surface: id })).state, undefined);
+  off();
+});
+
+test("read_widget names what an artifact keeps in its store and database, never the cached values", async () => {
+  const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "artifact memory" });
+  await said(t.id, "kit app");
+  const id = (await env.client.call("surfaces.list", {})).surfaces.find((s) => s.name === "habits")?.id ?? "";
+  assert.match(await said(t.id, "read habits"), /\nmemory: store: empty; db: no tables/);
+  await env.client.call("surfaces.store_set", { surface: id, patch: { reading: { value: "secret-looking 4821" } } });
+  await env.client.call("surfaces.db_exec", { surface: id, sql: "CREATE TABLE entries (id INTEGER PRIMARY KEY)" });
+  await env.client.call("surfaces.db_exec", { surface: id, sql: "INSERT INTO entries DEFAULT VALUES" });
+  const read = await said(t.id, "read habits");
+  assert.match(read, /\nmemory: store: 1 keys, \d+ bytes; db: entries \(1 rows\)/);
+  assert.doesNotMatch(read, /4821/);
+});
+
+test("a page pushed from the terminal lands in the project it names, never one its thread is not in", async () => {
+  const { project } = await env.client.call("projects.create", { name: "Northwind" });
+  const pushed = await env.client.call("surfaces.show", {
+    name: "expenses",
+    title: "Expenses",
+    html: "<p>built</p>",
+    project: project.id,
+  });
+  assert.equal(pushed.project_id, project.id);
+  const again = await env.client.call("surfaces.show", {
+    name: "expenses",
+    title: "Expenses",
+    html: "<p>v2</p>",
+    project: project.id,
+  });
+  assert.deepEqual([again.id, again.version], [pushed.id, pushed.version + 1]);
+  const loose = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", title: "elsewhere" });
+  await assert.rejects(
+    env.client.call("surfaces.show", {
+      name: "expenses",
+      title: "E",
+      html: "<p></p>",
+      thread: loose.id,
+      project: project.id,
+    }),
+    /is not in project/,
+  );
+  await assert.rejects(
+    env.client.call("surfaces.show", { name: "expenses", title: "E", html: "<p></p>", project: "p_missing" }),
+    /project p_missing/,
+  );
 });

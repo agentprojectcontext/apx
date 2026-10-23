@@ -458,6 +458,28 @@
 .taskpanel__body > * {
   flex-shrink: 0;
 }
+/* The title reads as the drawer's heading, wrapping like one; hovering or focusing it shows it can be edited. */
+.taskpanel__title {
+  display: block;
+  width: 100%;
+  field-sizing: content;
+  resize: none;
+  margin: -3px 0 -3px -6px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--apx-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.taskpanel__title:hover {
+  border-color: var(--apx-border);
+}
+.taskpanel__title:focus {
+  outline: none;
+  border-color: var(--apx-border-strong);
+  background: var(--apx-input-bg);
+}
 /* Space the panel has left over goes to what the task is about (1 part) and its conversation (2 parts), so the
    comment box ends at the bottom edge; with more than fits, the whole panel scrolls and the box sticks there. */
 .taskpanel .taskdetail__desc {
@@ -697,4 +719,34 @@ body.is-dragging {
   background: var(--apx-fill);
   color: var(--apx-fg-muted);
   font-size: var(--apx-text-2xs);
+}
+
+/* The agent's plan under the description: a quiet block, read-only. */
+.taskdetail__plan {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface);
+}
+.taskdetail__planhead {
+  margin: 0;
+  font-size: var(--apx-text-xs);
+  font-weight: 600;
+  color: var(--apx-fg-muted);
+}
+
+/* Task panel: under the properties, a rule and the buttons that open its sessions and its usage. */
+.taskdetail__activity {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--apx-border);
+}
+.taskdetail__activitybar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }

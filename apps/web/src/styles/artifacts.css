@@ -1,0 +1,237 @@
+/* Artifacts outside the chat: the dock, live pages, memory, install and properties. Loaded with those lazy screens. */
+
+/* Live pages run in one layer over the shell, each laid over the placeholder that shows it (LiveLayer.tsx). */
+.livelayer {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  overflow: hidden;
+}
+.livelayer__box {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.livelayer__box[data-shown] {
+  visibility: visible;
+  pointer-events: auto;
+}
+/* As the board's own frames, while a tile is dragged or resized. */
+body.is-dragging .livelayer__box[data-shown],
+body:has(.projboard__grid.is-dragging) .livelayer__box[data-shown] {
+  pointer-events: none;
+}
+/* An artifact's memory dialog (ArtifactMemory.tsx). */
+.artmem__detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.artmem__size {
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.artmem__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--apx-space-1);
+  margin-top: var(--apx-space-2);
+}
+.artmem__more {
+  color: var(--apx-fg-subtle);
+  font-size: var(--apx-text-sm);
+}
+.artmem__tables {
+  list-style: none;
+  margin: var(--apx-space-2) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--apx-space-1);
+  font-size: var(--apx-text-sm);
+}
+.artmem__tables li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--apx-space-3);
+  color: var(--apx-fg-muted);
+}
+.artmem__choose {
+  display: grid;
+  gap: var(--apx-space-3);
+}
+.artmem__spacer {
+  flex: 1;
+}
+
+/* One artifact alone in its own window or tab (ArtifactWindow.tsx). */
+.artifactwin {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--apx-bg);
+}
+
+/* An opened app still running (AppsDock.tsx): a small dot after its name. */
+.navitem__running {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--apx-brand);
+  flex: none;
+}
+
+/* The Apps dock in the sidebar (AppsDock.tsx). */
+.appsdock__actions {
+  display: inline-flex;
+  gap: 2px;
+}
+.appsdock__launcher {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.appsdock__list {
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.appsdock__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  color: var(--apx-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.appsdock__row:hover,
+.appsdock__row:focus-visible {
+  background: var(--apx-fill);
+}
+/* Already in the dock: still openable, shown quieter. */
+.appsdock__row[data-pinned] {
+  color: var(--apx-fg-muted);
+}
+.appsdock__name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.appsdock__name small {
+  color: var(--apx-fg-subtle);
+  font-size: 11.5px;
+}
+.appsdock__empty {
+  padding: 12px 8px;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+}
+.appsdock__icon {
+  position: relative;
+  display: inline-flex;
+}
+.appsdock__dot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  box-shadow: 0 0 0 2px var(--apx-bg);
+}
+
+/* The install dialog (InstallArtifact.tsx). */
+.install {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.install__drop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px;
+  border: 1.5px dashed var(--apx-border-strong, var(--apx-border));
+  border-radius: var(--apx-radius-md);
+  color: var(--apx-fg-muted);
+}
+.install__drop span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.install__drop[data-dragging] {
+  border-color: var(--apx-brand);
+  background: var(--apx-brand-soft);
+}
+.install__what {
+  padding: 12px 14px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-surface-raised);
+}
+.install__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.install__facts {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+}
+.install__error {
+  color: var(--apx-danger);
+  margin: 0;
+}
+.install__note {
+  color: var(--apx-fg-muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* An artifact's properties (ArtifactProperties.tsx). */
+.artprops__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.artprops {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.artprops > div {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+}
+.artprops dt {
+  color: var(--apx-fg-muted);
+}
+.artprops dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.artprops__head {
+  margin: 18px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+/* Creating one comes first in the launcher, apart from the list to open. */
+.appsdock__create {
+  border-bottom: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-sm) var(--apx-radius-sm) 0 0;
+  padding-bottom: 10px;
+}

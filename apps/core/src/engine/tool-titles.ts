@@ -30,6 +30,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
     `${a.task === undefined ? "Revisó pedidos" : a.task ? "Actualizó pedido" : "Pasó el pedido"}: ${str(a.summary)}`,
   search_owner_notes: (a) => `Buscó «${str(a.query, 60)}» en tus notas`,
   contact_requests: () => "Revisó quién está esperando",
+  suggest_connection: (a) => `Buscó ${str(a.query, 60)} para conectar`,
   answer_contact_request: (a) => (a.decision === "answer" ? `Dejó pasar a ${str(a.code)}` : `Ignoró a ${str(a.code)}`),
   search_chats: (a) => `Buscó «${str(a.query, 60)}» en los chats`,
   read_chat: (a) => `Leyó el chat ${str(a.chat)}`,
@@ -43,6 +44,13 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
         ? "Cambió los límites de los agentes"
         : "Revisó los límites de los agentes",
   contact_list: () => "Revisó los contactos",
+  attention_hours: (a) =>
+    a.hours !== undefined
+      ? `Cambió el horario de ${str(a.channel ?? "un canal")}`
+      : Array.isArray(a.contacts) && a.contacts.length && a.any_hour !== undefined
+        ? `${a.any_hour ? "Dejó pasar a toda hora a" : "Ya no deja pasar a toda hora a"} ${a.contacts.join(", ").slice(0, 60)}`
+        : "Revisó el horario de atención",
+  apx_settings: (a) => (a.params && a.method ? `Cambió ${str(a.method)}` : "Revisó la configuración"),
   list_agents: () => "Buscó agentes",
   agent_set: (a) =>
     !a.agent
@@ -61,7 +69,6 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   list_sessions: () => "Buscó sesiones",
   stop_session: (a) => `Detuvo la sesión ${str(a.session)}`,
   browser_open: (a) => `Abrió ${host(a.url)}`,
-  browser_navigate: (a) => `Fue a ${host(a.url)}`,
   browser_snapshot: () => "Leyó la página",
   browser_text: () => "Leyó el texto",
   browser_click: (a) => `Hizo clic en ${str(a.ref)}`,
@@ -108,7 +115,8 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
   ask_owner: (a) => `Te preguntó: ${str(a.question, 60)}`,
   notify_owner: (a) => `Te avisó: ${str(a.text, 60)}`,
   read_output: () => "Leyó más de una salida",
-  load_skill: (a) => `Cargó la habilidad ${str(a.name)}`,
+  load_skill: (a) =>
+    a.file ? `Leyó ${file(a.file, "")} de la habilidad ${str(a.name)}` : `Cargó la habilidad ${str(a.name)}`,
   file_read: (a) => `Leyó ${str(a.path ?? "un archivo")}`,
   file_write: (a) => `Escribió ${str(a.path ?? "un archivo")}`,
   file_edit: (a) => `Editó ${str(a.path ?? "un archivo")}`,

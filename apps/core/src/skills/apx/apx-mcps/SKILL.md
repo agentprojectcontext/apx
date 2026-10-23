@@ -79,6 +79,9 @@ apx mcps list               # every server and its state
 apx mcps logs <name> -n 50  # what it printed while starting or failing
 ```
 
+A server that signs in through the owner's browser (`mcp-remote`) shows `needs-sign-in` once it asked: APX does not
+start it again, so tell the owner to run `apx mcps signin <name>` (or click Sign in in the panel) and finish there.
+
 A change is live from the next message: nothing restarts. Its tools are reached with `mcp_search` and `mcp_call`
 from then on, not in the turn that added it.
 

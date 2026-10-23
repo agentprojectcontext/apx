@@ -32,10 +32,10 @@ import { askedSkill } from "../skills/picker.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { agentSkills, skillCatalog, skillsFor } from "../skills/skills.ts";
 import { CONTACT_TOOLS, contactToolNames } from "../tools/contact.ts";
-import { harnessDir, harnessRoots, readOnlyFolders, scratchDir, workDir } from "../tools/folders.ts";
+import { harnessDir, readOnlyFolders, scratchDir, workDir } from "../tools/folders.ts";
 import { IMESSAGE_TOOLS } from "../tools/imessage.ts";
 import { MCP_CALL, MCP_SEARCH, mcpBridge } from "../tools/mcp-bridge.ts";
-import { inherit, modeOf, withProjectAutonomy } from "../tools/policy.ts";
+import { inherit, modeOf } from "../tools/policy.ts";
 import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
@@ -52,7 +52,9 @@ import {
   sealedWeb,
 } from "./audience.ts";
 import { gitChanges } from "./changes.ts";
+import { memoryQuery, recallChats } from "./chat-recall.ts";
 import {
+  frameInput,
   HISTORY_BUDGET_CHARS,
   modeBlock,
   type ProjectBrief,
@@ -72,9 +74,11 @@ import type { Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
 import { MAX_DEPTH } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
+import { memoryHistory, snapshotOf, visibleMemoryRuns, windowRuns } from "./memory-projection.ts";
 import { ratingNote, sentMeanwhile } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
-import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
+import type { Permissions } from "./permissions.ts";
+import { type MailSource, POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
 import { resetLabel } from "./provider-limit.ts";
 import { recallFor } from "./recall.ts";
@@ -108,6 +112,8 @@ export type TurnDeps = {
   mcpServers?: ((thread: Thread) => string[]) | undefined;
   /** Whether a connected node lends a capability: tools that need one are offered only then. */
   hasCap?: ((cap: string) => boolean) | undefined;
+  /** The owner's Gmail, for mail routines. */
+  mail?: MailSource | undefined;
   /** Whether a desktop app is linked as a node (lending its browser), whatever else it lends. */
   desktopLinked?: (() => boolean) | undefined;
   /** Owner text steered into this turn since the last call. */
@@ -118,6 +124,8 @@ export type TurnDeps = {
   busy?: (() => () => void) | undefined;
   /** A protocol method through the router, as the agent of `as.run`. */
   call: ToolCall;
+  /** How the agent acts and how far its files reach: every permission question goes here. */
+  permissions: Permissions;
   delegate(caller: Caller, to: DelegateTo, task: string, waitMs: number): Promise<string>;
 };
 
@@ -147,6 +155,8 @@ const HANDOFF_TOOLS = new Set([
   "channel_post",
   "channel_list",
   "contact_list",
+  "attention_hours",
+  "apx_settings",
   "read_chat",
 ]);
 
@@ -222,7 +232,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   if (report) display.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
   // A routine with commands of its own: the pre-command first; its result may say the model is not needed.
   const routine = routineWithCommands(store, run);
-  const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display });
+  const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display, mail: deps.mail });
   // The post-command runs whatever the outcome, except when the owner canceled or the core is stopping; after a
   // missed deadline it gets a short limit. It never changes the run's state.
   const end = async (done: RunRecord, skipped = false) => {
@@ -256,7 +266,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   } catch (err) {
     return end(failRun(deps, { run, turn, display, signal, err }));
   }
-  const { history, input, skills, picked, policy, tools, mcpLate } = prepared;
+  const { history, input, skills, picked, inView, policy, tools, mcpLate } = prepared;
   if (picked) display.upsert((p) => p.type === "skills", picked.part);
   let harness: HarnessId = "native";
   const startedUntrusted = [...history, input].some((m) => String(m.content ?? "").includes(UNTRUSTED_MARK));
@@ -271,18 +281,19 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     display,
     signal,
     untrusted: startedUntrusted,
+    inView,
     external: () => harness !== "native",
     call: deps.call,
     jobs: deps.jobs,
     busy: deps.busy,
     apxPort: deps.apxPort,
     workDir: harnessDir(store, deps.home, thread),
-    readOnly: readOnlyFolders(store, thread),
-    roots: harnessRoots(store, deps.home, thread),
-    delegate: (to, task, waitMs) => deps.delegate({ run, agent, display }, to, task, waitMs),
+    permissions: deps.permissions,
+    // Harnesses and delegations see the agent as it acts here (its project's and callers' mode), never its bare record.
+    delegate: (to, task, waitMs) => deps.delegate({ run, agent: policy.agent, display }, to, task, waitMs),
   });
   const io = (): TurnIO => ({
-    agent,
+    agent: policy.agent,
     thread,
     run,
     system: thread.engine
@@ -412,10 +423,11 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
   const ctxState = store.threads.context(thread.id);
   // A public room's turn reads the room's latest messages instead of a history of its own.
   const room = turn.audience.kind === "contact" ? turn.audience.room : undefined;
+  const entries = memoryHistory(store, store.modelLog.list(thread.id), agent.id, thread.project_id);
   const projected = room
     ? { items: [] as ChatItem[], from: 0 }
-    : project(store.modelLog.list(thread.id), HISTORY_BUDGET_CHARS, ctxState.compaction);
-  const { items: history, from } = projected;
+    : project(entries, HISTORY_BUDGET_CHARS, ctxState.compaction);
+  const { from } = projected;
   const roster = rosterBlock(agent, store.agents.list(), thread);
   // A worker delegates to no one: it needs no roster.
   const rosterChanged =
@@ -433,12 +445,17 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
         deps.memory.search,
         agent.id,
         thread,
-        turn.input.text,
+        memoryQuery(store, thread.id, turn.input.text),
         ctxState,
         from,
         turn.input.origin.kind === "agent",
       )
     : {};
+  const chats = remembers
+    ? await recallChats(store, deps.memory, agent.id, thread, turn.input.text, {
+        excludeRuns: visibleMemoryRuns(store, entries, from, run.id),
+      })
+    : undefined;
   const picked = await picking;
   // A plugin's context is for the owner's own turns only (not other agents', apps' or contacts'), as outside data.
   const o = turn.input.origin;
@@ -465,6 +482,11 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
     turn.input.attachments ?? [],
     turn.audience.kind === "contact" ? undefined : { home: deps.home, thread },
   );
+  const liveThread = store.threads.get(thread.id);
+  if (!liveThread || liveThread.project_id !== thread.project_id || !liveThread.agent_ids.includes(agent.id))
+    throw new Error("chat access changed while preparing its context");
+  const memoryBlock =
+    memorySettings(store).mode !== "off" ? [recalled.text, chats?.render()].filter(Boolean).join("\n") : "";
   const images = (turn.input.attachments ?? []).filter((a) => a.kind === "image");
   // A resumed turn already has its message in the history: it only learns why it stopped.
   const input: ChatItem & { role: "user" } = turn.input.resume_of
@@ -483,15 +505,16 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
               app: o.kind === "user",
             })
           : direct
-            ? files
-              ? `${said}\n\n${files}`
-              : said
+            ? // An engine session gets no header, but a result or outside text still says what it is and what to do.
+              o.kind === "go_on"
+              ? said
+              : frameInput(o, files ? `${said}\n\n${files}` : said)
             : turnInput({
                 origin: turn.input.origin,
                 text: files ? `${said}\n\n${files}` : said,
                 now: new Date(),
                 roster: rosterChanged ? roster.text : undefined,
-                memory: recalled.text,
+                memory: memoryBlock,
                 skills: picked?.block || undefined,
                 task: taskBlock(store, thread),
                 extension: extra ? untrusted("extension_context", { from: extra.from }, extra.text) : undefined,
@@ -499,6 +522,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
                 timeZone: ownerTimeZone(store),
                 channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
                 voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
+                stickers: o.kind === "channel" ? stickersOf(store, o.channel) : undefined,
                 mode: modeBlock(mode),
                 workspace: deps.vm?.hasThread(thread.id)
                   ? "Isolated Linux computer: /home/apx-worker/work. Shell and browser tools run as an unprivileged user in this VM; web access uses the protected proxy."
@@ -512,14 +536,28 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
                     : undefined,
               }),
       };
-  const at = store.modelLog.append(thread.id, run.id, [input]);
+  const history = room
+    ? []
+    : project(
+        memoryHistory(store, store.modelLog.list(thread.id), agent.id, thread.project_id),
+        HISTORY_BUDGET_CHARS,
+        store.threads.context(thread.id).compaction,
+      ).items;
+  const at = store.modelLog.append(
+    thread.id,
+    run.id,
+    [input],
+    snapshotOf(store, input.content, memoryBlock, agent.id, thread.project_id),
+  );
   if (rosterChanged || recalled.shown)
     store.threads.mergeContext(thread.id, {
       ...(rosterChanged ? { roster_hash: roster.hash, roster_agent: agent.id } : {}),
       ...(recalled.shown ? recalled.shown(at) : {}),
     });
   const skills = sealed ? "" : skillCatalog(available);
-  return { history, input, skills, picked };
+  // A room's turn has no history of its own: only its run is in view.
+  const inView = room ? new Set([run.id]) : windowRuns(entries, from, run.id);
+  return { history, input, skills, picked, inView };
 }
 
 /** The kind of channel a message came on ("telegram"), for how the answer should look; none for the app. */
@@ -537,6 +575,12 @@ const VM_BROWSER_TOOLS = new Set([
   "browser_click",
   "browser_type",
 ]);
+
+/** What the stickers people sent on a channel's platform mean, the most used first: the agent may answer with one. */
+function stickersOf(store: Store, channel: string): string[] {
+  const type = store.settings.read("channels").find((c) => c.id === channel)?.type;
+  return type ? store.stickers.known(type, 12).flatMap((s) => (s.meaning ? [s.meaning] : [])) : [];
+}
 
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
 async function turnTools(deps: TurnDeps, turn: Turn) {
@@ -572,14 +616,15 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
     turn.audience.kind === "contact"
       ? new Set([...contactToolNames(turn.audience.person?.perms), ...(turn.web ? WEB_TOOLS : [])])
       : new Set<string>();
-  const ownAutonomy = (a: AgentRecord) => withProjectAutonomy(deps.store, a);
-  const policy = inherit(
-    ownAutonomy(turn.agent),
-    callers.map(ownAutonomy),
+  const narrowed = inherit(
+    turn.agent,
+    callers,
     sealed
       ? offered.filter((t) => forContact.has(t.name))
       : [...offered.filter((t) => !CONTACT_TOOLS.has(t.name)), ...bridge],
   );
+  // The mode it acts in comes from the one place every permission question asks; its callers narrow its tools.
+  const policy = { ...narrowed, agent: deps.permissions.agentIn(turn.agent, turn.thread.id) };
   // A worker asks no one, and keeps to the tools its caller named for it (when it named any).
   const named = turn.worker?.tools?.length ? new Set(turn.worker.tools) : undefined;
   const o = turn.input.origin;

@@ -243,6 +243,7 @@ export function webTools(): Tool[] {
       }),
       effect: "external",
       confirm: (a) => urlConfirm(a.url),
+      untrustedWhy: "url_data",
       deadlineMs: 45_000,
       title: (a) => {
         try {

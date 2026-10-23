@@ -4,7 +4,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useCallback, useState } from "react";
 import { Alert } from "react-native";
 import { t } from "../i18n";
-import type { ApxClient } from "../protocol";
+import { type ApxClient, UPLOAD_LIMITS } from "../protocol";
 
 /** A file on its way into the chat: uploading until it has the media id the message will carry. */
 export type Attachment = {
@@ -17,7 +17,7 @@ export type Attachment = {
   id?: string;
 };
 
-const LIMITS = { image: 5 * 1024 * 1024, audio: 10 * 1024 * 1024, file: 2 * 1024 * 1024 };
+const LIMITS = { image: UPLOAD_LIMITS.imageBytes, audio: UPLOAD_LIMITS.audioBytes, file: UPLOAD_LIMITS.fileBytes };
 const kindOf = (mime: string): Attachment["kind"] =>
   mime.startsWith("image/") ? "image" : mime.startsWith("audio/") ? "audio" : "file";
 

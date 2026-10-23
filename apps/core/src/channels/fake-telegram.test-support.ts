@@ -96,6 +96,8 @@ export async function fakeTelegram(token: string) {
         photo?: boolean;
         /** Sent as a video (Telegram's own player), not as a document. */
         video?: boolean;
+        /** Sent as a sticker, standing for this emoji. */
+        sticker?: { emoji?: string };
         caption?: string;
         declaredSize?: number;
       },
@@ -113,9 +115,11 @@ export async function fakeTelegram(token: string) {
           ...(file.caption !== undefined ? { caption: file.caption } : {}),
           ...(file.photo
             ? { photo: [{ ...item, width: 10, height: 10 }] }
-            : file.video
-              ? { video: { ...item, ...(file.name ? { file_name: file.name } : {}) } }
-              : { document: { ...item, file_name: file.name ?? "receipt.pdf" } }),
+            : file.sticker
+              ? { sticker: { ...item, ...file.sticker } }
+              : file.video
+                ? { video: { ...item, ...(file.name ? { file_name: file.name } : {}) } }
+                : { document: { ...item, file_name: file.name ?? "receipt.pdf" } }),
         },
       });
       return update_id;

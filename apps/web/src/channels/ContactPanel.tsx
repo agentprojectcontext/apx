@@ -5,11 +5,12 @@ import { useState } from "react";
 import { claimAddress, saveContact } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
-import { RELATION_KEY } from "./ChannelScreen.tsx";
+import { RELATION_KEY } from "./people.ts";
 
 /**
  * A contact's card beside their chat: name and nickname, how they relate to the owner, who they are and the rules for
- * answering them (in the owner's words), what their chat may do (all off by default), and silencing.
+ * answering them (in the owner's words), what their chat may do (all off by default), whether they are answered past
+ * the channel's attention hours, and silencing.
  */
 const NO_RELATION = "none";
 
@@ -21,6 +22,7 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
     relation: person.relation,
     note: person.note ?? "",
     rules: person.rules ?? "",
+    any_hour: person.any_hour,
     perms: person.perms,
   });
   const [busy, setBusy] = useState(false);
@@ -30,6 +32,7 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
     d.relation !== person.relation ||
     d.note !== (person.note ?? "") ||
     d.rules !== (person.rules ?? "") ||
+    d.any_hour !== person.any_hour ||
     JSON.stringify(d.perms) !== JSON.stringify(person.perms);
   const save = async () => {
     setBusy(true);
@@ -114,6 +117,15 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
           {perm("appointments", t("ch.perm.appointments"), t("ch.perm.appointmentsHint"))}
           {perm("requests", t("ch.perm.requests"), t("ch.perm.requestsHint"))}
           {perm("notes", t("ch.perm.notes"), t("ch.perm.notesHint"))}
+          <li>
+            <Switch
+              size="sm"
+              checked={d.any_hour}
+              label={t("ch.anyHour")}
+              description={t("ch.anyHourHint")}
+              onCheckedChange={(on) => setD((x) => ({ ...x, any_hour: on }))}
+            />
+          </li>
         </ul>
         <ItsMine person={person} onDone={onClose} />
       </div>

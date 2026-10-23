@@ -136,3 +136,19 @@ test("a kind this app does not know yet shows as a plain notice with the generic
   assert.equal(item?.label, "inboxNotice");
   assert.equal(item?.icon, "Bell");
 });
+
+test("a delegated session a limit stopped offers Continue on its card; other agent notices stay plain", () => {
+  const items = inboxItems(
+    data({
+      notices: [
+        notice("stuck", { level: "warn", thread_id: "t1", ref: "th_sub", body: "Cody ran out of steps" }),
+        notice("news", { level: "warn", thread_id: "t1" }),
+      ],
+    }),
+  );
+  const stuck = items.find((i) => i.id === "notice:stuck");
+  assert.equal(stuck?.label, "inboxStopped");
+  assert.deepEqual(stuck?.primary, { label: "delegationContinue", action: { kind: "continue", session: "th_sub" } });
+  assert.deepEqual(stuck?.secondary.action, { kind: "open", thread: "th_sub" });
+  assert.notEqual(items.find((i) => i.id === "notice:news")?.primary.label, "delegationContinue");
+});

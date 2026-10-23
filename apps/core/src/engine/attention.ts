@@ -6,6 +6,8 @@ import type { Bus } from "../bus.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { audienceOf } from "./audience.ts";
+import { droppedWords } from "./owner-words.ts";
+import { droppedResult, silent } from "./run-outcome.ts";
 
 /** How long an open chat has to mark a finished turn read before it counts as unseen. */
 const UNSEEN_AFTER_MS = 5000;
@@ -27,6 +29,7 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
     if (run.input?.origin?.kind === "channel" || run.end_reason === "provider_limit") return;
     const thread = store.threads.get(run.thread_id);
     if (!thread || QUIET_KINDS.has(thread.kind) || audienceOf(store, thread).kind !== "owner") return;
+    const dropped = droppedResult(store, run);
     if (ended.has(run.id)) return;
     ended.add(run.id);
     if (ended.size > 500) ended.delete(ended.values().next().value ?? "");
@@ -34,12 +37,19 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
       timers.delete(timer);
       const now = store.threads.get(thread.id);
       if (!now?.unread) return;
+      // A result turn that said nothing and was tried once more (engine `retryDropped`): the retry reports.
+      if (dropped && store.runs.list(thread.id, 5).some((r) => r.input?.retry_of === run.id)) return;
       const failed = run.state === "failed";
+      const origin = run.input?.origin;
+      const from = origin?.kind === "delegation_result" || origin?.kind === "task_result" ? origin.name : undefined;
       store.notifications.add({
         kind: "run",
-        level: failed ? "error" : "info",
+        // A turn that ended without a word or an action is not a finished one: the owner should look.
+        level: failed ? "error" : silent(store, run) ? "warn" : "info",
         title: store.agents.get(run.agent_id)?.name ?? now.title,
-        body: previewOf(failed ? (run.error ?? now.preview) : now.preview),
+        body: previewOf(
+          failed ? (run.error ?? now.preview) : dropped && from ? droppedWords(store, from) : now.preview,
+        ),
         thread_id: thread.id,
         // One unread notice per chat: the latest turn replaces the one before.
         ref: thread.id,
@@ -73,6 +83,7 @@ export function createAttention(deps: { store: Store; bus: Bus; now?: () => Date
       // Raised when a task starts waiting; later updates only clear it once it stops.
       const t = e.task;
       if (!t.awaits_owner || t.state !== "open") store.notifications.resolve("task", t.id);
+      if (t.status !== "review" || t.state !== "open") store.notifications.resolve("task", `review:${t.id}`);
       // Done, dropped or moved to a later date: the reminder is moot.
       if (t.state !== "open" || !t.due_at || t.due_at > clock().toISOString()) store.notifications.resolve("due", t.id);
     }

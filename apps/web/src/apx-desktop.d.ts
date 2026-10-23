@@ -61,9 +61,18 @@ declare global {
       installedBrowsers?(): Promise<Array<{ id: string; name: string }>>;
       /** Opens a web page in the system's default browser, or in an installed one by id. */
       openExternal?(url: string, browser?: string): Promise<boolean>;
+      /** Opens an artifact in a desktop window of its own (one per artifact). */
+      openArtifactWindow?(id: string, title: string): void;
+      /** Closes an artifact's own window; the panel shows the app again. */
+      closeArtifactWindow?(id: string): void;
+      /** An artifact's window opened or closed (by any means). */
+      onArtifactWindow?(listener: (id: string, open: boolean) => void): () => void;
       /** From the quick window: bring the main window up, on this chat. */
       openMain?(threadId?: string): void;
       /** The main window is told to open a chat (asked from the quick window). */
+      /** Files opened with APX from the system, each with its text or why it has none (taken once). */
+      takeOpenedFiles?(): Promise<{ name: string; text?: string; error?: "too-big" | "unreadable" }[]>;
+      onFileOpened?(listener: () => void): () => void;
       onOpenThread?(listener: (threadId: string) => void): () => void;
       /** Runs one of the app menu's items: Windows and Linux show no menu bar for them. */
       menuAction?(id: "about" | "update" | "change-connection"): void;

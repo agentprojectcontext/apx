@@ -10,15 +10,17 @@ import { AgentAvatar, Button, Dialog, Icons, Kbd, NavItem, SearchField, Skeleton
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { client } from "../../data/client.ts";
 import { blobOf } from "../../data/identity.ts";
+import { activeProfileName, loadProfiles, useProfiles } from "../../data/profiles.ts";
 import { revokeApproval } from "../../data/resources.ts";
 import { useData } from "../../data/state.ts";
 import { agentToolCatalog, getAgent, setGrant, updateAgent } from "../../data/team.ts";
-import { type MessageKey, useT } from "../../i18n/index.ts";
+import { type MessageKey, useLanguage, useT } from "../../i18n/index.ts";
 import { LAYOUT } from "../../shell/layout.ts";
 import { GrantsPage, SkillsTab, ToolsTab } from "./AgentAccess.tsx";
 import { type Draft, type GrantChange, grantId, type PageId, sameValue } from "./editor/draft.ts";
 import { IdentityPage, PromptPage, TeamPage } from "./editor/IdentityPages.tsx";
 import { useModifierHeld } from "./editor/keys.ts";
+import { ProfilePage } from "./editor/ProfilePage.tsx";
 import { AutonomyPage, BrowserPage, RulesPage } from "./editor/RulesPages.tsx";
 import { teamLead } from "./lead.ts";
 
@@ -31,6 +33,7 @@ const NAV: Array<{ label: MessageKey; items: Array<{ id: PageId; icon: ReactNode
       { id: "identity", icon: <Icons.User /> },
       { id: "prompt", icon: <Icons.FileText /> },
       { id: "team", icon: <Icons.Sparkles /> },
+      { id: "profile", icon: <Icons.Calendar /> },
     ],
   },
   {
@@ -123,6 +126,12 @@ export function AgentEditor({
   const projectAutonomy: Autonomy = (agent.project_id ? project?.autonomy : baseProject.autonomy) ?? DEFAULT_AUTONOMY;
   const projectName = project?.name ?? baseProject.name;
   const isSuper = agent.kind === "secretary";
+  const lang = useLanguage();
+  const profileName = useProfiles((s) => activeProfileName(s, lang));
+
+  useEffect(() => {
+    if (isSuper) void loadProfiles();
+  }, [isSuper]);
 
   const teamRef = useRef(team);
   teamRef.current = team;
@@ -209,13 +218,15 @@ export function AgentEditor({
       return n ? t("agentedit.ownRules", { count: n }) : "";
     }
     if (id === "granted") return grants ? String(nGrants) : "";
+    if (id === "profile") return profileName === undefined ? "" : (profileName ?? t("prof.none"));
     return "";
   };
   const query = q.trim().toLowerCase();
   const matches = (id: PageId) =>
-    !query ||
-    t(`agentedit.page.${id}`).toLowerCase().includes(query) ||
-    (id === "tools" && Boolean(catalog?.some((x) => x.name.includes(query))));
+    (id !== "profile" || isSuper) &&
+    (!query ||
+      t(`agentedit.page.${id}`).toLowerCase().includes(query) ||
+      (id === "tools" && Boolean(catalog?.some((x) => x.name.includes(query)))));
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => matches(i.id)) })).filter((g) => g.items.length);
   const file = agent.source === "apc" && agent.slug ? `.apc/agents/${agent.slug}.md` : undefined;
 
@@ -229,6 +240,8 @@ export function AgentEditor({
         return <PromptPage {...common} isSuper={isSuper} />;
       case "team":
         return <TeamPage {...common} isSuper={isSuper} team={team} file={file} />;
+      case "profile":
+        return <ProfilePage agent={live} onClose={onClose} />;
       case "tools":
         return (
           <ToolsTab

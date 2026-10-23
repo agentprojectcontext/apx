@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apx-style" content="aurora">
+<title>Weekly sales</title>
+<script src="/_apx/kit@1.js"></script>
+</head>
+<body>
+<main class="ax-page" data-ax-filter>
+  <header class="ax-hero">
+    <div>
+      <div class="ax-hero__eyebrow">Northwind · sample snapshot</div>
+      <h1>Weekly sales</h1>
+      <p>Orders closed per region. Your filters are remembered the next time you open it.</p>
+    </div>
+    <div class="ax-row">
+      <span class="ax-live" data-state="stale">Snapshot <ax-ago datetime="2026-10-19T09:00:00Z"></ax-ago></span>
+      <button class="ax-btn ax-btn--primary" data-ax-ask="Refresh the weekly sales widget with this week's numbers">Refresh</button>
+    </div>
+  </header>
+
+  <div class="ax-toolbar">
+    <label class="ax-field"><span>Region</span>
+      <select class="ax-select" data-ax-key="region" data-ax-persist="filter.region">
+        <option value="*">All</option><option value="north">North</option><option value="south">South</option>
+      </select>
+    </label>
+    <div class="ax-seg" data-ax-key="status" data-ax-persist="filter.status">
+      <button value="*">All</button><button value="won">Won</button><button value="open">Open</button>
+    </div>
+    <label class="ax-search ax-grow"><input class="ax-input" data-ax-search data-ax-persist="filter.q" placeholder="Search customers…"></label>
+    <button class="ax-btn ax-btn--ghost" data-ax-reset>Reset</button>
+  </div>
+
+  <section class="ax-grid" style="--min:200px">
+    <div class="ax-card ax-card--accent ax-stat">
+      <div class="ax-stat__label">Orders</div>
+      <div class="ax-stat__value ax-num">42</div>
+      <ax-spark values="22,25,28,31,30,36,42" tone="brand" fill></ax-spark>
+      <div class="ax-stat__foot"><span class="ax-delta ax-delta--up">+17%</span> vs last week</div>
+    </div>
+    <div class="ax-card ax-card--accent ax-stat">
+      <div class="ax-stat__label">Win rate</div>
+      <ax-ring value="64" size="72" sub="won"></ax-ring>
+    </div>
+    <div class="ax-card ax-stat ax-stat--empty">
+      <div class="ax-stat__label">Refunds</div>
+      <div class="ax-stat__value">No data</div>
+      <div class="ax-stat__foot">Not tracked yet</div>
+    </div>
+  </section>
+
+  <section class="ax-card">
+    <div class="ax-card__head">
+      <div><h2 class="ax-card__title">Orders per day</h2><p class="ax-card__desc">Closed orders, both regions.</p></div>
+    </div>
+    <ax-chart type="bar" labels="Mon,Tue,Wed,Thu,Fri,Sat,Sun" height="180"
+      data='[{"name":"North","values":[4,6,5,7,8,3,2],"tone":"brand"},{"name":"South","values":[2,3,4,3,5,2,1],"tone":"info"}]'></ax-chart>
+  </section>
+
+  <section class="ax-card">
+    <div class="ax-card__head"><div><h2 class="ax-card__title">Customers</h2><p class="ax-card__desc">Stage: lead · quote · signed · paid</p></div><span class="ax-sm ax-subtle" data-ax-count="{n} of {total}"></span></div>
+    <div style="overflow-x:auto">
+      <table class="ax-table" data-ax-sort>
+        <thead><tr><th>Customer</th><th>Status</th><th>Stage</th><th class="r">Amount</th></tr></thead>
+        <tbody>
+          <tr data-ax-item data-region="north" data-status="won"><td>Acme</td><td><span class="ax-badge ax-badge--brand">Won</span></td><td><ax-steps value="1111" labels="lead,quote,signed,paid"></ax-steps></td><td class="r">12,400</td></tr>
+          <tr data-ax-item data-region="south" data-status="open"><td>Globex</td><td><span class="ax-badge ax-badge--info">Open</span></td><td><ax-steps value="1100" labels="lead,quote,signed,paid"></ax-steps></td><td class="r">8,150</td></tr>
+          <tr data-ax-item data-region="north" data-status="open"><td>Initech</td><td><span class="ax-badge ax-badge--info">Open</span></td><td><ax-steps value="1x00" labels="lead,quote,signed,paid"></ax-steps></td><td class="r">3,900</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="ax-empty" data-ax-empty hidden>No matching customers</div>
+  </section>
+
+  <details class="ax-details">
+    <summary>How it is calculated</summary>
+    <p class="ax-note">Orders closed between Monday and Sunday (UTC). Win rate = won ÷ (won + lost). Fixed snapshot: ask for a refresh.</p>
+  </details>
+</main>
+</body>
+</html>

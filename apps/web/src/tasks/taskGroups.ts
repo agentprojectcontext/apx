@@ -1,17 +1,20 @@
-// How the Tasks list groups tasks: what is moving first, what is blocked on the owner last before the closed ones.
-// Pure, so it is tested on its own.
+// How the Tasks list groups tasks: what needs the owner first (a question, or a review that is theirs), then what is
+// moving, what waits, what an agent reviews, and the closed ones. Pure, so it is tested on its own.
 import type { Task } from "@apx/protocol";
 
-export type GroupId = "doing" | "pending" | "review" | "blocked" | "closed";
-export const GROUP_ORDER: readonly GroupId[] = ["doing", "pending", "review", "blocked", "closed"];
+export type GroupId = "proposed" | "doing" | "pending" | "review" | "blocked" | "closed";
+export const GROUP_ORDER: readonly GroupId[] = ["proposed", "blocked", "doing", "pending", "review", "closed"];
 
 /**
- * Blocked (waiting for the owner) wins over every column; then a task whose thread has a turn running counts as in
- * progress whatever its column; `review` is review; any other open column (backlog, to do, the owner's own) is pending.
+ * What needs the owner wins over every column ("blocked": a question for them, or a review with no agent to do it);
+ * then a task whose thread has a turn running counts as in progress whatever its column; `review` is an agent's review;
+ * any other open column (backlog, to do, the owner's own) is pending.
  */
 export function groupOf(task: Task, running: ReadonlySet<string>): GroupId {
   if (task.state !== "open") return "closed";
-  if (task.awaits_owner) return "blocked";
+  // An agent's proposal: nothing starts until the owner accepts it.
+  if (task.proposed) return "proposed";
+  if (task.awaits_owner || (task.status === "review" && !task.reviewer)) return "blocked";
   if (task.status === "doing" || running.has(task.thread_id)) return "doing";
   if (task.status === "review") return "review";
   return "pending";
@@ -56,6 +59,8 @@ export type GroupMove = { status: string; awaits_owner: false } | { awaits_owner
 
 export function moveTo(group: GroupId, columns: readonly { id: string }[]): GroupMove {
   if (group === "closed") return { done: true };
+  // Dropped among the proposals it is not one: it goes where nobody started it yet.
+  if (group === "proposed") return moveTo("pending", columns);
   if (group === "blocked") return { awaits_owner: true };
   const has = (id: string) => columns.some((c) => c.id === id);
   if (group === "doing" && has("doing")) return { status: "doing", awaits_owner: false };

@@ -10,6 +10,9 @@ import { processStart, spawnCommand, stopTree } from "../processes.ts";
 import { pausedNotice } from "./breaker.ts";
 import type { AdmitFn } from "./engine.ts";
 
+/** Set on an agent's commands, so the apx CLI knows an agent runs it, not the owner. */
+export const AGENT_ENV = "APX_AGENT";
+
 /** A job's output file stops growing here; the rest is dropped with a note. */
 const OUTPUT_CAP = 20 * 1024 * 1024;
 /** The end of the output a woken agent gets. */
@@ -97,7 +100,9 @@ export function createJobs(deps: { store: Store; home: string; log: Log; admit: 
         written += chunk.length;
         out.write(written > OUTPUT_CAP ? Buffer.concat([chunk, Buffer.from("\n[output cut by APX]\n")]) : chunk);
       };
-      const child = spawnCommand(o.command, { cwd: o.cwd, env: commandEnv(), stdio: ["ignore", "pipe", "pipe"] });
+      // An agent's command says whose it is: `apx chat` run there refuses to speak as the owner (it asks with delegate).
+      const env = { ...commandEnv(), ...(o.agent_id ? { [AGENT_ENV]: o.agent_id } : {}) };
+      const child = spawnCommand(o.command, { cwd: o.cwd, env, stdio: ["ignore", "pipe", "pipe"] });
       if (child.pid) {
         store.jobs.setPid(job.id, child.pid);
         void processStart(child.pid).then((started) => {

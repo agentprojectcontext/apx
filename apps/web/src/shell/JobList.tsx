@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { elapsed, formatNumber } from "../common/format.ts";
 import { cancelJob } from "../data/actions.ts";
 import { client } from "../data/client.ts";
+import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { turnName } from "./QueuedTurns.tsx";
 
@@ -59,6 +60,11 @@ export function JobList({
 function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job: Job) => void }) {
   const t = useT();
   const [showOutput, setShowOutput] = useState(false);
+  const thread = useData((s) => s.threads[j.thread_id]);
+  const agent = useData((s) => (j.agent_id ? s.agents[j.agent_id] : undefined));
+  const origin = [agent?.name ?? j.agent_name, thread?.title ?? j.thread_title ?? j.thread_id]
+    .filter(Boolean)
+    .join(" · ");
   const live = !j.ended_at;
   const terminal = j.kind === "terminal";
   // A turn not started yet says what it carries: a delegation's task, a helper's result for its caller…
@@ -87,6 +93,9 @@ function JobCard({ job: j, now, onOpen }: { job: Job; now: number; onOpen: (job:
             <span className="job__top">
               <span className={terminal ? "job__title is-mono" : "job__title"}>{j.title}</span>
               <span className="job__time">{took}</span>
+            </span>
+            <span className="job__meta job__origin" title={origin}>
+              {t("job.startedIn", { origin })}
             </span>
             <span className="job__activity">
               {live && j.activity

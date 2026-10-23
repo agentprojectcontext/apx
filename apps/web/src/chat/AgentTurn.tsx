@@ -27,6 +27,8 @@ const ChangesPart = lazy(() => import("./parts/ChangesPart.tsx").then((m) => ({ 
 const BrowserPart = lazy(() => import("./parts/BrowserPart.tsx").then((m) => ({ default: m.BrowserPart })));
 const SurfacePart = lazy(() => import("./parts/SurfacePart.tsx").then((m) => ({ default: m.SurfacePart })));
 const ChoicesPart = lazy(() => import("./parts/ChoicesPart.tsx").then((m) => ({ default: m.ChoicesPart })));
+// It brings the integrations' forms: loaded only when an agent offers one.
+const ConnectPart = lazy(() => import("./parts/ConnectPart.tsx").then((m) => ({ default: m.ConnectPart })));
 const MediaGroup = lazy(() => import("./parts/MediaGroup.tsx"));
 const InputPart = lazy(() => import("./parts/InputPart.tsx").then((m) => ({ default: m.InputPart })));
 
@@ -203,6 +205,12 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
       return (
         <Suspense fallback={null}>
           <ChoicesPart part={p} threadId={message.thread_id} messageId={message.id} agentId={agent?.id} />
+        </Suspense>
+      );
+    case "connect":
+      return (
+        <Suspense fallback={null}>
+          <ConnectPart part={p} threadId={message.thread_id} messageId={message.id} />
         </Suspense>
       );
     default:

@@ -321,7 +321,6 @@
   min-height: 0;
   flex: 1;
 }
-
 /* The skills picked by meaning for a turn: small chips over the answer, beside the avatar's column. */
 .turn__skills {
   display: flex;
@@ -736,6 +735,15 @@
 /* In a table cell a long task title is cut short instead of widening its column. */
 .apx-md__scroll .taskchip {
   max-width: 22em;
+}
+/* An agent's link into the panel reads as an action, not as plain text: a raised fill at rest, and on hover the
+   sidebar's selected row (same fill and hairline), so it stays calm inside the chat. */
+.apx-btn.applink {
+  background: var(--apx-fill-hover);
+}
+.apx-btn.applink:hover:not(:disabled) {
+  background: var(--apx-row-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--apx-row-selected-border);
 }
 .taskchip.is-closed .taskchip__title {
   color: var(--apx-fg-muted);

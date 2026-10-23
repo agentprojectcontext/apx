@@ -53,6 +53,15 @@ export interface AuxCallsTable {
   cached: Generated<number>;
 }
 
+export interface ChannelHeldTable {
+  thread_id: string;
+  channel: string;
+  conversation: string;
+  sender: string;
+  person_id: string;
+  since: string;
+}
+
 export interface ChannelInboxTable {
   id: string;
   channel: string;
@@ -149,6 +158,77 @@ export interface MemoriesTable {
   run_id: string | null;
   pending: Generated<number>;
   forgotten_at: string | null;
+  revision: Generated<number>;
+  kind: string | null;
+  evidence: string | null;
+}
+
+export interface MemoryCallReservationsTable {
+  n: Generated<number>;
+  job_id: string;
+  day: string;
+}
+
+export interface MemoryEpisodeScansTable {
+  run_id: string;
+}
+
+export interface MemoryEpisodeVectorsTable {
+  run_id: string;
+  part: Generated<number>;
+  embedding: Uint8Array;
+}
+
+export interface MemoryEpisodesTable {
+  rowid: Generated<number>;
+  run_id: string;
+  thread_id: string;
+  agent_id: string;
+  project_id: string | null;
+  message_id: string;
+  text: string;
+  created_at: string;
+  embedding: Uint8Array | null;
+  embedding_model: string | null;
+}
+
+export interface MemoryExclusionsTable {
+  memory_id: string;
+  scope: string;
+  project_id: string | null;
+  agent_id: string | null;
+  text: string;
+  thread_id: string | null;
+  run_id: string | null;
+  evidence: string | null;
+  created_at: string;
+}
+
+export interface MemoryVersionsTable {
+  n: Generated<number>;
+  memory_id: string;
+  revision: number;
+  snapshot: string;
+  reason: string;
+  at: string;
+}
+
+export interface MemoryWorkTable {
+  id: string;
+  kind: string;
+  agent_id: string;
+  thread_id: string;
+  run_id: string;
+  project_id: string | null;
+  state: string;
+  attempts: Generated<number>;
+  lease_until: string | null;
+  available_at: string;
+  created_at: string;
+  updated_at: string;
+  reservation: Generated<number>;
+  result: string | null;
+  error: string | null;
 }
 
 export interface MessagesTable {
@@ -179,6 +259,7 @@ export interface ModelLogTable {
   seq: Generated<number>;
   item: string;
   run_id: string | null;
+  memory_snapshot: string | null;
 }
 
 export interface NotificationsTable {
@@ -277,6 +358,7 @@ export interface PersonsTable {
   perms: string | null;
   unreviewed: Generated<number>;
   supervised: Generated<number>;
+  any_hour: Generated<number>;
 }
 
 export interface ProjectsTable {
@@ -366,6 +448,20 @@ export interface StepsTable {
   output: string | null;
 }
 
+export interface StickersTable {
+  id: string;
+  platform: string;
+  hash: string;
+  media_id: string;
+  meaning: string | null;
+  hint: string | null;
+  seen: Generated<number>;
+  sent: Generated<number>;
+  created_at: string;
+  last_at: string;
+  blocked: Generated<number>;
+}
+
 export interface SuggestionsTable {
   id: string;
   person_id: string;
@@ -396,6 +492,8 @@ export interface SurfacesTable {
   updated_at: string;
   share_token: string | null;
   connect: string | null;
+  state: string | null;
+  origin: string | null;
 }
 
 export interface TaskEventsTable {
@@ -432,6 +530,10 @@ export interface TasksTable {
   remind_at: string | null;
   outcome: string | null;
   renegotiated: Generated<number>;
+  start_at: string | null;
+  reviewer: string | null;
+  plan: string | null;
+  proposed: Generated<number>;
 }
 
 export interface ThreadsTable {
@@ -465,6 +567,7 @@ export interface Database {
   agents: AgentsTable;
   api_clients: ApiClientsTable;
   aux_calls: AuxCallsTable;
+  channel_held: ChannelHeldTable;
   channel_inbox: ChannelInboxTable;
   devices: DevicesTable;
   extensions: ExtensionsTable;
@@ -473,6 +576,13 @@ export interface Database {
   jobs: JobsTable;
   media: MediaTable;
   memories: MemoriesTable;
+  memory_call_reservations: MemoryCallReservationsTable;
+  memory_episode_scans: MemoryEpisodeScansTable;
+  memory_episode_vectors: MemoryEpisodeVectorsTable;
+  memory_episodes: MemoryEpisodesTable;
+  memory_exclusions: MemoryExclusionsTable;
+  memory_versions: MemoryVersionsTable;
+  memory_work: MemoryWorkTable;
   messages: MessagesTable;
   messages_n: MessagesNTable;
   meta: MetaTable;
@@ -488,6 +598,7 @@ export interface Database {
   routines: RoutinesTable;
   runs: RunsTable;
   steps: StepsTable;
+  stickers: StickersTable;
   suggestions: SuggestionsTable;
   surfaces: SurfacesTable;
   task_events: TaskEventsTable;

@@ -127,8 +127,15 @@ for (const [mode, error] of [
 }
 test("a canceled invocation kills the child and ends the step", async () => {
   const { harness, io, events } = setup("aider", "hang");
-  io.signal = AbortSignal.timeout(100);
+  const controller = new AbortController();
+  io.signal = AbortSignal.any([io.signal, controller.signal]);
+  let started = false;
+  io.alive = () => {
+    started = true;
+    controller.abort();
+  };
   await assert.rejects(harness.run(io), /canceled/);
+  assert.equal(started, true);
   assert.deepEqual(events, ["approve", "running", "error"]);
 });
 test("pre-aborted turns and unsupported images or effort never request execution", async () => {

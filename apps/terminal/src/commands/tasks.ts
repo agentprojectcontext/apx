@@ -5,9 +5,10 @@ import { authorOf, messageText } from "./threads.ts";
 
 const USAGE = `apx tasks [--project p]                 Open tasks by column
 apx tasks add <title…> [--project p] [--agent a] [--person name --owed me|them] [--due 2026-10-05]
+                         [--start 2026-10-05T09:00]   Its agent starts then, not at once
 apx tasks show <id>                      Its fields, description and comments
-apx tasks edit <id> [--title t] [--desc d | --desc-file f|-] [--agent a] [--due d] [--tags a,b]
-                                         Change only what is given; --agent "" and --due "" clear them
+apx tasks edit <id> [--title t] [--desc d | --desc-file f|-] [--agent a] [--due d] [--start d] [--tags a,b]
+                    [--reviewer owner|<agent>]   Change only what is given; --agent "", --due "", --start "" clear them
 apx tasks commitments                    What you owe and what you are owed
 apx tasks settle <id> kept|missed|dropped [note…]
 apx tasks settle <id> renegotiated --due <date> [note…]
@@ -22,6 +23,8 @@ type Opts = {
   person?: string | undefined;
   owed?: string | undefined;
   due?: string | undefined;
+  start?: string | undefined;
+  reviewer?: string | undefined;
   title?: string | undefined;
   desc?: string | undefined;
   descFile?: string | undefined;
@@ -43,6 +46,8 @@ export function taskEditOf(
     ...(description !== undefined ? { description } : {}),
     ...(o.agent !== undefined ? { assignee: o.agent || null } : {}),
     ...(o.due !== undefined ? { due_at: o.due || null } : {}),
+    ...(o.start !== undefined ? { start_at: o.start || null } : {}),
+    ...(o.reviewer !== undefined ? { reviewer: o.reviewer || null } : {}),
     ...(o.tags !== undefined
       ? {
           tags: o.tags
@@ -72,6 +77,8 @@ export async function tasks(client: ApxClient, [sub, id, ...rest]: string[], opt
       ["Agent", t.assignee],
       ["Project", t.project_id],
       ["Due", t.due_at && when(t.due_at)],
+      ["Starts", t.start_at && when(t.start_at)],
+      ["Reviewer", t.status === "review" ? (t.reviewer ?? "you") : undefined],
       ["Tags", t.tags.join(", ") || undefined],
       ["Person", t.person_name && `${t.person_name} · ${t.owed_by === "person" ? "owed to you" : "you owe it"}`],
       ["Thread", t.thread_id],
@@ -102,8 +109,11 @@ export async function tasks(client: ApxClient, [sub, id, ...rest]: string[], opt
       ...(opts.agent ? { assignee: opts.agent } : {}),
       ...(opts.person ? { person: opts.person, owed_by: opts.owed === "them" ? "person" : "owner" } : {}),
       ...(opts.due ? { due_at: opts.due } : {}),
+      ...(opts.start ? { start_at: opts.start } : {}),
     });
-    console.log(`${t.id}  ${t.status}${t.due_at ? `  due ${new Date(t.due_at).toLocaleString()}` : ""}`);
+    console.log(
+      `${t.id}  ${t.status}${t.start_at ? `  starts ${when(t.start_at)}` : ""}${t.due_at ? `  due ${new Date(t.due_at).toLocaleString()}` : ""}`,
+    );
     return;
   }
   if (sub === "commitments") {
@@ -148,6 +158,11 @@ export async function tasks(client: ApxClient, [sub, id, ...rest]: string[], opt
     return;
   }
   if (sub === "say" && id && rest.length) {
+    // From an agent's command a comment would read as the owner's and reach the task's agent: agents use task_comment.
+    if (process.env.APX_AGENT !== undefined)
+      throw new Error(
+        "apx tasks say speaks as the owner, so it does not run inside an agent's command: use task_comment.",
+      );
     const r = await client.call("tasks.comment", { task: id, text: rest.join(" ") });
     console.log(r.runs.length ? `${r.runs.length} agent(s) will answer in the task` : "commented");
     return;

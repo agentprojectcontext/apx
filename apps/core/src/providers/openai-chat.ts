@@ -66,6 +66,7 @@ export const openaiChat: Transport = async (req) => {
     { authorization: `Bearer ${req.key}` },
     {
       model: req.model,
+      ...(req.maxOutputTokens ? { max_tokens: req.maxOutputTokens } : {}),
       messages: wire(req.messages),
       ...(req.tools.length
         ? {

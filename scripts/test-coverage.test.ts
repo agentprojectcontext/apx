@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { sourceMapResolver } from "./coverage-source-map.ts";
-import { coverageMarkdown, coverageReport, sandboxPorts } from "./test-coverage.ts";
+import { coverageMarkdown, coveragePart, coverageReport, mergeCoverage, sandboxPorts } from "./test-coverage.ts";
 
 test("coverage sandboxes use distinct available loopback ports and honor explicit overrides", async () => {
   const ports = await sandboxPorts({});
@@ -234,4 +234,40 @@ test("cycles and missing intermediate maps cannot invent execution in an origina
   );
   assert.equal(resolve(first, 0, 18), undefined);
   assert.equal(resolve(pathToFileURL("/work/missing.js").href, 0, 18), undefined);
+});
+
+test("a CI part runs only its suites: the panel's in a Playwright shard; with no part, all that the flags ask for", () => {
+  assert.deepEqual(coveragePart(["--e2e"]), { unit: true, web: true, desktop: true });
+  assert.deepEqual(coveragePart([]), { unit: true, web: false, desktop: false });
+  assert.deepEqual(coveragePart(["--e2e", "--part=web", "--shard=2/3"]), {
+    name: "web-2-of-3",
+    unit: false,
+    web: "2/3",
+    desktop: false,
+  });
+  assert.deepEqual(coveragePart(["--e2e", "--part=desktop"]), {
+    name: "desktop",
+    unit: false,
+    web: false,
+    desktop: true,
+  });
+  assert.throws(() => coveragePart(["--part=mobile"]), /unit, web or desktop/);
+});
+
+test("parts' reports merge into one: a function ran if any part ran it, a file loaded if any part loaded it", () => {
+  const fn = (name: string, line: number, covered: boolean) => ({ name, line, covered });
+  const unit = [
+    { file: "apps/core/src/a.ts", loaded: true, functions: [fn("start", 1, true), fn("stop", 9, false)] },
+    { file: "apps/web/src/b.tsx", loaded: false, functions: [fn("View", 3, false)] },
+  ];
+  const panel = [
+    { file: "apps/core/src/a.ts", loaded: true, functions: [fn("start", 1, false), fn("stop", 9, true)] },
+    { file: "apps/web/src/b.tsx", loaded: true, functions: [fn("View", 3, true)] },
+  ];
+  assert.deepEqual(mergeCoverage([unit, panel]), [
+    { file: "apps/core/src/a.ts", loaded: true, functions: [fn("start", 1, true), fn("stop", 9, true)] },
+    { file: "apps/web/src/b.tsx", loaded: true, functions: [fn("View", 3, true)] },
+  ]);
+  // The parts' own reports stay as they were.
+  assert.equal(unit[0]?.functions[1]?.covered, false);
 });

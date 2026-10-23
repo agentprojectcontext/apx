@@ -5,10 +5,13 @@ import { ChatComposer } from "../chat/composer/ChatComposer.tsx";
 import { Transcript } from "../chat/Transcript.tsx";
 import { Drawer } from "../common/Drawer.tsx";
 import { createThread, loadThread } from "../data/actions.ts";
+import { client } from "../data/client.ts";
 import { useSlice } from "../data/createStore.ts";
 import { keepDraft } from "../data/drafts.ts";
+import { secretary } from "../data/identity.ts";
 import { notify } from "../data/notices.ts";
 import { data, useData } from "../data/state.ts";
+import { deleteThread } from "../data/threadAdmin.ts";
 import { t as tr, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
 import { SurfaceFrame } from "./SurfaceFrame.tsx";
@@ -78,20 +81,44 @@ async function restartChat(surface: SurfaceSummary): Promise<void> {
   open.set({ surfaceId: surface.id, threadId });
 }
 
-const close = () => open.set({ surfaceId: undefined, threadId: undefined });
+/** Chats opened here to ask for a new widget: one closed before anything was written in it is not kept. */
+const asking = new Set<string>();
+
+const close = () => {
+  const { threadId } = open.get();
+  open.set({ surfaceId: undefined, threadId: undefined });
+  if (!threadId || !asking.has(threadId)) return;
+  asking.delete(threadId);
+  void client
+    .call("threads.get", { thread: threadId })
+    .then(({ messages }) => (messages.length ? undefined : deleteThread(threadId)))
+    .catch(() => undefined);
+};
 
 /**
  * Asks an agent for a new widget for a project's board: a new chat with it in that project (so it works with the
  * project's context), its first words ready, floating over the page; the widget shows on top as soon as it is made.
  */
-export async function askForWidget(agentId: string, projectId: string | undefined): Promise<void> {
+export async function askForWidget(
+  agentId: string,
+  projectId: string | undefined,
+  words: { title: string; draft: string } = { title: tr("widget.askTitle"), draft: tr("widget.askDraft") },
+): Promise<void> {
   try {
-    const thread = await createThread({ agentId, ...(projectId ? { projectId } : {}), title: tr("widget.askTitle") });
-    keepDraft(thread.id, tr("widget.askDraft"));
+    const thread = await createThread({ agentId, ...(projectId ? { projectId } : {}), title: words.title });
+    asking.add(thread.id);
+    keepDraft(thread.id, words.draft);
     open.set({ surfaceId: undefined, threadId: thread.id });
   } catch (e) {
     notify(tr("error.change", { error: errText(e) }));
   }
+}
+
+/** A new artifact from the Apps dock: a new chat with the super-agent, its first words ready for the owner to finish. */
+export function createArtifact(): void {
+  const boss = secretary(data.get().agents);
+  if (!boss) return;
+  void askForWidget(boss.id, undefined, { title: tr("artifact.createTitle"), draft: tr("artifact.createDraft") });
 }
 
 /**
@@ -145,6 +172,8 @@ export function WidgetChatHost() {
             label={t("widget.chatOpen")}
             icon={<Icons.ExternalLink size={14} />}
             onClick={() => {
+              // Opened whole, it is the owner's chat now: kept even with nothing written yet.
+              asking.delete(thread.id);
               close();
               go.inboxThread(thread.id);
             }}

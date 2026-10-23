@@ -1,20 +1,23 @@
+import type { LogEntry } from "../domain/model-log.ts";
 // Work on a thread after its turns, with a cheap auxiliary model: a title for a new chat, and compaction of a long
 // thread (older turns become one summary in a fixed shape, a new epoch of the context). Without an auxiliary model
 // the title comes from the first message and a long thread is only trimmed by the history budget.
 // See DECISIONS.md#d-013
 
 import type { AuxAbout } from "../domain/aux-calls.ts";
-import { memorySettings } from "../domain/memory-settings.ts";
+import { memoryGeneration, memorySettings } from "../domain/memory-settings.ts";
 import { harnessOf } from "../domain/refs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import type { Epoch, LogEntry } from "../domain/threads.ts";
+import type { Epoch } from "../domain/threads.ts";
 import type { Log } from "../log.ts";
 import { modelSettings } from "../models/choice.ts";
 import type { Llm } from "../providers/llm.ts";
 import type { ChatItem } from "../providers/types.ts";
+import { readsImages } from "../providers/vision.ts";
 import { UNTRUSTED_MARK } from "../tools/result.ts";
-import { HISTORY_BUDGET_CHARS } from "./context.ts";
+import { FULL_OUTPUT_RUNS, HISTORY_BUDGET_CHARS } from "./context.ts";
+import { memoryHistory } from "./memory-projection.ts";
 
 /** A thread is compacted once what the model would see since the last summary passes this. */
 export const COMPACT_AT_CHARS = Math.floor(HISTORY_BUDGET_CHARS * 0.75);
@@ -24,6 +27,8 @@ const KEEP_CHARS = Math.floor(HISTORY_BUDGET_CHARS * 0.35);
 /** The transcript the auxiliary model reads, at most (its newest part when longer). */
 const TRANSCRIPT_CHARS = 100_000;
 const AUX_TIMEOUT_MS = 90_000;
+/** A compaction notice among this many latest messages is updated rather than repeated. */
+const RECENT_NOTICE_WINDOW = 30;
 const STUDY_TIMEOUT_MS = 180_000;
 
 export const SUMMARY_SECTIONS = ["Goal", "Facts and decisions", "Done", "Open", "References"] as const;
@@ -107,10 +112,23 @@ function groups(entries: LogEntry[]): Group[] {
   return out;
 }
 
+/** How much an older tool output weighs in the model's view, where it is a stub (context.ts `pruneOutput`). */
+const STUB_CHARS = 160;
+
+/** What a turn weighs in the model's view: past the newest turns, a long tool output is only its stub. */
+const seenSize = (g: Group, full: boolean) =>
+  full
+    ? g.size
+    : g.entries.reduce((n, e) => {
+        const m = e.item as ChatItem;
+        return n + (m.role === "tool" && m.content.length > 400 ? STUB_CHARS : JSON.stringify(e.item).length);
+      }, 0);
+
 /** Splits what came after the last summary into the part to summarize and the newest turns kept verbatim. */
 export function planCompaction(entries: LogEntry[], epoch: Epoch | undefined, force: boolean) {
   const after = groups(epoch ? entries.filter((e) => e.seq > epoch.upto) : entries);
-  const total = after.reduce((n, g) => n + g.size, 0);
+  // Measured as the model sees it: counting old tool output in full summarized chats every turn or two.
+  const total = after.reduce((n, g, i) => n + seenSize(g, i >= after.length - FULL_OUTPUT_RUNS), 0);
   if (!force && total < COMPACT_AT_CHARS) return undefined;
   let keep = 0;
   let kept = 0;
@@ -177,7 +195,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     agentId: string | undefined,
     system: string,
     user: string,
-    o: { models?: string[]; timeoutMs?: number } = {},
+    o: { models?: string[]; timeoutMs?: number; images?: Array<{ media_id: string; mime: string }> } = {},
   ): Promise<string | undefined> {
     const models = o.models ?? auxModels(agentId);
     if (!models.length) return undefined;
@@ -185,9 +203,10 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       models,
       messages: [
         { role: "system", content: system },
-        { role: "user", content: user },
+        o.images?.length ? { role: "user", content: user, images: o.images } : { role: "user", content: user },
       ],
       tools: [],
+      ...(about.purpose === "memory_capture" || about.purpose === "memory_dream" ? { maxOutputTokens: 1800 } : {}),
       signal: AbortSignal.any([ac.signal, AbortSignal.timeout(o.timeoutMs ?? AUX_TIMEOUT_MS)]),
     });
     if (r.usage) store.auxCalls.add(about, r.model, r.usage);
@@ -234,9 +253,19 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     const runs = store.runs.list(threadId, 200);
     if (!runs.some((r) => r.harness === "native"))
       return { compacted: false, reason: "this thread's engine keeps and compacts its own transcript" };
+    const generation = memoryGeneration(store);
     const ctx = store.threads.context(threadId);
     const epoch = ctx.compaction;
-    const plan = planCompaction(store.modelLog.list(threadId), epoch, force);
+    const plan = planCompaction(
+      memoryHistory(
+        store,
+        store.modelLog.list(threadId),
+        runs[0]?.agent_id ?? "",
+        store.threads.get(threadId)?.project_id,
+      ),
+      epoch,
+      force,
+    );
     if (!plan) return { compacted: false, reason: "nothing old enough to summarize" };
     const previous = epoch ? `Previous summary:\n${epoch.summary}\n\n` : "";
     const out = await ask(
@@ -251,6 +280,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       log.warn({ thread: threadId }, "summary rejected: not in the fixed shape");
       return { compacted: false, reason: "the summary did not have the expected shape" };
     }
+    if (generation !== memoryGeneration(store)) return { compacted: false, reason: "memory changed during compaction" };
     const next: Epoch = {
       upto: plan.upto,
       summary,
@@ -265,18 +295,20 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       memory_since: undefined,
       roster_hash: undefined,
     });
-    store.messages.add({
-      thread_id: threadId,
-      author: { kind: "system" },
-      parts: [
-        {
-          type: "notice",
-          level: "info",
-          code: "thread.compacted",
-          text: `Summarized ${plan.runs} earlier turns to keep this chat's context small. Nothing new was started.`,
-        },
-      ],
-    });
+    const notice = {
+      type: "notice" as const,
+      level: "info" as const,
+      code: "thread.compacted",
+      text: `Summarized ${next.runs} earlier turns to keep this chat's context small. Nothing new was started.`,
+    };
+    // One notice for a stretch of the chat: a recent one is brought up to date instead of adding another.
+    const recent = store.messages
+      .list(threadId, RECENT_NOTICE_WINDOW)
+      .findLast(
+        (m) => m.author.kind === "system" && m.parts.some((p) => p.type === "notice" && p.code === notice.code),
+      );
+    if (recent) store.messages.update({ ...recent, parts: [notice] });
+    else store.messages.add({ thread_id: threadId, author: { kind: "system" }, parts: [notice] });
     return { compacted: true };
   }
 
@@ -302,8 +334,23 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     return p;
   }
 
+  /** The models an agent's own turns go to, then the auxiliary one: for a short message in its own voice. */
+  const voiceModels = (agentId: string) => [...new Set([...agentModels(agentId), ...auxModels(agentId)])];
+
   return {
     auxModels,
+    voiceModels,
+    memory: (agentId: string, system: string, user: string, about: AuxAbout) => ask(about, agentId, system, user),
+    /**
+     * What a picture shows (a sticker's meaning), from the models known to read images: the auxiliary ones, then the
+     * router's; none without one. A model not known to read them would name what it never saw.
+     */
+    see: (system: string, user: string, image: { media_id: string; mime: string }, about: AuxAbout) => {
+      const models = [...new Set([...auxModels(), ...agentModels()])].filter((m) => readsImages(m) === true);
+      return models.length
+        ? ask(about, undefined, system, user, { models, images: [image] })
+        : Promise.resolve(undefined);
+    },
     /** A one-shot answer from the auxiliary model (a room's "is this worth answering?"); none without one. */
     judge: (system: string, user: string, about: AuxAbout) => ask(about, undefined, system, user),
     /**
@@ -312,7 +359,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
      */
     study: (agentId: string, system: string, user: string, about: AuxAbout) =>
       ask(about, agentId, system, user, {
-        models: [...new Set([...agentModels(agentId), ...auxModels(agentId)])],
+        models: voiceModels(agentId),
         timeoutMs: STUDY_TIMEOUT_MS,
       }),
     compact: (threadId: string) => once(threadId, true),

@@ -1,9 +1,14 @@
-import { AgentAvatar, Button, EmptyState, IconButton, Icons } from "@apx/ui";
-import { setSurfaceFlags } from "../data/actions.ts";
+import { AgentAvatar, Button, EmptyState, IconButton, Icons, Menu } from "@apx/ui";
+import { useState } from "react";
 import { blobOf, projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
+import { ArtifactMemoryButton } from "../surfaces/ArtifactMemory.tsx";
+import { ArtifactPropertiesDialog } from "../surfaces/ArtifactProperties.tsx";
+import { downloadEntry, placeEntries } from "../surfaces/artifactMenu.tsx";
+import { bringBack, popOut, useOutside } from "../surfaces/artifactWindows.ts";
+import { dropLive, useRunningApps } from "../surfaces/livePool.ts";
 import { ShareMenu } from "../surfaces/ShareMenu.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
 import { openWidgetChat } from "../surfaces/WidgetChat.tsx";
@@ -15,6 +20,9 @@ export function AppScreen() {
   const app = useData((s) => (appId ? s.surfaces[appId] : undefined));
   const author = useData((s) => (app ? s.agents[app.created_by] : undefined));
   const projects = useData((s) => s.projects);
+  const outside = useOutside(appId ?? "");
+  const running = useRunningApps().includes(appId ?? "");
+  const [props, setProps] = useState(false);
   // Back to whatever chat was open before the app.
   const back = () => nav.set({ view: "inbox" });
 
@@ -63,28 +71,54 @@ export function AppScreen() {
           {t("widget.chatShort")}
         </Button>
         <ShareMenu surface={app} />
-        <Button
+        <ArtifactMemoryButton surface={app} />
+        <IconButton
           size="sm"
-          variant="secondary"
-          leadingIcon={app.pinned ? <Icons.PinOff size={14} /> : <Icons.Pin size={14} />}
-          onClick={() => void setSurfaceFlags(app.id, { pinned: !app.pinned })}
-        >
-          {app.pinned ? t("widget.unpin") : t("widget.pin")}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          leadingIcon={app.app ? <Icons.Trash2 size={14} /> : <Icons.AppWindow size={14} />}
-          onClick={async () => {
-            await setSurfaceFlags(app.id, { app: !app.app });
-            if (app.app) back();
-          }}
-        >
-          {t(app.app ? "app.remove" : "widget.installApp")}
-        </Button>
+          label={t("artifact.openWindow")}
+          icon={<Icons.ExternalLink size={14} />}
+          onClick={() => popOut(app)}
+        />
+        <Menu
+          align="end"
+          items={[
+            { label: `${t("artifact.properties")}…`, icon: <Icons.Info size={16} />, onSelect: () => setProps(true) },
+            downloadEntry(app, t),
+            { type: "separator" },
+            ...placeEntries(app, t, { removedFromApps: back }),
+          ]}
+          trigger={<IconButton size="sm" label={t("common.more")} icon={<Icons.Ellipsis size={16} />} />}
+        />
+        {running && (
+          <IconButton
+            size="sm"
+            label={t("artifact.closeApp")}
+            icon={<Icons.X size={16} />}
+            onClick={() => {
+              dropLive(app.id);
+              back();
+            }}
+          />
+        )}
       </header>
+      {props && <ArtifactPropertiesDialog surface={app} onClose={() => setProps(false)} />}
       <div className="appscreen__body">
-        <SurfaceFrame surfaceId={app.id} fit="fill" />
+        {outside ? (
+          <EmptyState
+            size="lg"
+            icon={<Icons.ExternalLink />}
+            title={t("artifact.outsideTitle")}
+            action={
+              <Button size="sm" variant="secondary" onClick={() => bringBack(app.id)}>
+                {t("artifact.bringBack")}
+              </Button>
+            }
+          >
+            {t("artifact.outsideHint")}
+          </EmptyState>
+        ) : (
+          // An app keeps running when the owner leaves; a widget is a view, closed on leaving (unless apx-live).
+          <SurfaceFrame surfaceId={app.id} fit="fill" open={app.app} />
+        )}
       </div>
     </section>
   );

@@ -147,7 +147,7 @@ test("integrations: GitHub is connected with a token, then disconnected", async 
   await expect(
     page
       .getByRole("dialog")
-      .getByRole("button", { name: /GitHub/ })
+      .getByRole("button", { name: /^GitHub/ })
       .locator(".apx-intmark svg"),
   ).toBeVisible();
   await expect(
@@ -158,7 +158,7 @@ test("integrations: GitHub is connected with a token, then disconnected", async 
   ).toBeVisible();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: /GitHub/ })
+    .getByRole("button", { name: /^GitHub/ })
     .click();
   await page.getByRole("dialog").getByLabel(/token/i).fill("ghp_e2e000000000");
   await page.getByRole("dialog").getByRole("button", { name: "Conectar" }).click();
@@ -168,6 +168,29 @@ test("integrations: GitHub is connected with a token, then disconnected", async 
   expect(servers.some((s) => s.name === "github")).toBe(true);
   expect(JSON.stringify(servers)).not.toContain("ghp_e2e000000000");
 
+  await page.getByRole("button", { name: "Desconectar" }).click();
+  await expect.poll(async () => (await rpc<{ servers: Array<{ name: string }> }>("mcp.list")).servers.length).toBe(0);
+});
+
+test("integrations: the catalog is searched; Home Assistant connects with its address and token", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Recursos", exact: true }).first().click();
+  await page.getByRole("radio", { name: /^Integraciones/ }).click();
+  await page
+    .getByRole("button", { name: /Conectar nueva|Integración/ })
+    .first()
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("searchbox", { name: "Buscar integraciones" }).fill("home");
+  await expect(dialog.getByRole("button", { name: /^GitHub/ })).toBeHidden();
+  await dialog.getByRole("button", { name: /Home Assistant/ }).click();
+  await dialog.getByLabel("Address").fill("http://homeassistant.local:8123/");
+  await dialog.getByLabel("Long-lived access token").fill("ha-e2e-token-000");
+  await dialog.getByRole("button", { name: "Conectar" }).click();
+  await expect(dialog).toBeHidden();
+  const servers = (await rpc<{ servers: Array<{ name: string; target: string }> }>("mcp.list")).servers;
+  expect(servers.find((s) => s.name === "home-assistant")?.target).toBe("http://homeassistant.local:8123/api/mcp");
+  expect(JSON.stringify(servers)).not.toContain("ha-e2e-token-000");
   await page.getByRole("button", { name: "Desconectar" }).click();
   await expect.poll(async () => (await rpc<{ servers: Array<{ name: string }> }>("mcp.list")).servers.length).toBe(0);
 });

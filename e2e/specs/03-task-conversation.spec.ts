@@ -130,11 +130,14 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
       .poll(async () => (await env.client.call("tasks.get", { task: task.id })).sessions.map((s) => s.agent_ids[0]))
       .toEqual([builder.id]);
     await expect(drawer.getByRole("button", { name: "Abrir conversación con Roby" })).toBeVisible();
-    // Its Work lists Roby's consult beside Builder's chat, and what every turn on it took.
+    // Under its properties, its sessions list Roby's consult beside Builder's chat; the button beside them, its usage.
+    await drawer.getByRole("button", { name: /^Sesiones · 2$/ }).click();
     await expect(drawer.locator(".taskwork__chat", { hasText: "Consulta" })).toContainText("Roby");
+    await drawer.getByRole("button", { name: /^Consumo · \d/ }).click();
     await expect(drawer.locator(".taskusage__total")).toContainText(/tokens de entrada · .* turnos/);
     expect((await env.client.call("threads.get", { thread: task.thread_id })).runs).toHaveLength(0);
-    await expect(drawer.getByText("On it.", { exact: true })).toBeVisible();
+    // Builder's answer when it started stays in its chat: the task shows only what answers the owner or reports.
+    await expect(drawer.getByText("On it.", { exact: true })).toHaveCount(0);
     await expect(drawer.getByRole("button", { name: "Ver a Builder" }).first()).toBeVisible();
     // Answering a bubble quotes it and asks its agent again.
     const answer = drawer.locator(".apx-msg--agent", { hasText: "Review completed. @roby please check." });
@@ -154,7 +157,7 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await expect(drawer.locator(".taskhistory__line")).not.toHaveCount(0);
     // What the owner did reads by their name, like an agent's line.
     await expect(drawer.getByText("Alex se la asignó a Builder", { exact: true })).toBeVisible();
-    await drawer.getByRole("tab", { name: "Conversación", exact: true }).click();
+    await drawer.getByRole("tab", { name: "Comentarios", exact: true }).click();
     await expect(comment).toHaveValue("Draft to keep");
     await expect(drawer.getByText("@owner please approve the review.", { exact: true })).toBeInViewport();
     await page.screenshot({ path: info.outputPath("task-conversation.png") });
@@ -178,7 +181,7 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
     await page.getByText("Second Northwind task", { exact: true }).click();
     const second = page.getByRole("complementary", { name: "Second Northwind task" });
     await expect(second.getByRole("textbox", { name: "Comentario", exact: true })).toHaveValue("");
-    await expect(second.getByRole("tab", { name: "Conversación", exact: true })).toHaveAttribute(
+    await expect(second.getByRole("tab", { name: "Comentarios", exact: true })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -195,8 +198,9 @@ test("tarea: equipo del proyecto, menciones, respuesta, estados y comentario sep
       .toBe(false);
     await expect.poll(async () => (await env.client.call("tasks.get", { task: task.id })).task.status).toBe("doing");
 
-    // Its Work row lists the agents' chats for it; one opens in the inbox and links back to the task.
-    await drawer.locator(".taskwork__chat", { hasText: "Builder" }).click();
+    // Its sessions list the agents' chats for it; one opens in the inbox and links back to the task.
+    await drawer.getByRole("button", { name: /^Sesiones · / }).click();
+    await page.locator(".taskwork__chat", { hasText: "Builder" }).click();
     await expect(page.locator(".chat__header")).toContainText("Builder");
     await expect(page.getByRole("main").getByText("On it.", { exact: true })).toBeVisible();
     await page.locator(".chat__task").click();

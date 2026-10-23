@@ -9,7 +9,7 @@ import type { ThreadContext } from "./threads.ts";
 
 /** Who a run's input comes from. Stamped by the core, never parsed from text. */
 export type Origin =
-  | { kind: "user" }
+  | { kind: "user"; message_id?: string }
   | { kind: "agent"; id: string; name: string; thread_id: string; run_id: string }
   | { kind: "surface"; id: string; title: string }
   /** A message on a channel (Telegram…): from the owner, or from a contact (then it is a third party's text). */
@@ -20,6 +20,21 @@ export type Origin =
       person_id: string;
       name: string;
       role: "owner" | "contact";
+      /** The message it came in as; stamped for the owner's, which memory may quote. */
+      message_id?: string;
+    }
+  /**
+   * A contact wrote outside their channel's hours and the hours have begun: their kept messages are in the chat, and
+   * this turn answers them (a third party's words, like a contact's channel message). See DECISIONS.md#d-136
+   */
+  | {
+      kind: "hours_began";
+      channel: string;
+      conversation: string;
+      person_id: string;
+      name: string;
+      /** When the first of them came. */
+      since: string;
     }
   /** A routine the owner scheduled: its prompt is the owner's own words. */
   | { kind: "routine"; id: string; name: string }
@@ -31,6 +46,8 @@ export type Origin =
   | { kind: "terminal"; terminal_id: string; command: string; exit_code: number | null }
   /** The owner let agents go on after a pause: with a fresh budget, or with no limit this round (DECISIONS.md#d-081). */
   | { kind: "go_on"; mode: "reset" | "release" }
+  /** APX found the agent's task open with nothing running on it, and asks it once to go on (engine/task-stall.ts). */
+  | { kind: "stalled_task"; task_id: string; title: string }
   /** A task an agent created and gave to another one was closed by that one (DECISIONS.md#d-076). */
   | { kind: "task_result"; task_id: string; title: string; state: "done" | "dropped"; agent_id: string; name: string }
   | {
@@ -46,9 +63,15 @@ export type Origin =
       actions?: string[];
       /** The session's name, to continue it with its context. */
       session?: string;
-      /** APX already continued it once after a limit cut it short (DECISIONS.md#d-105). */
-      continued?: boolean;
+      /** Why APX stopped going on with it after a limit cut it short (DECISIONS.md#d-116): the owner decides. */
+      stopped?: string;
+      /** How it went when not well (`outcomeOf`): no answer, failed actions, an error. */
+      outcome?: { level: "warn" | "error"; why: string };
     };
+
+/** The owner speaking: from the app, or on a channel as the owner (never a contact). */
+export const ownerOrigin = (o: Origin | undefined): o is Extract<Origin, { kind: "user" | "channel" }> =>
+  o?.kind === "user" || (o?.kind === "channel" && o.role === "owner");
 
 /** A file or image the owner attached to the message that started the run. */
 export type Attachment = { media_id: string; kind: "image" | "audio" | "file"; mime: string; name: string };
@@ -62,6 +85,8 @@ export type RunInput = {
   resume_of?: string;
   /** A delegated run APX started to go on with one a limit cut short (that run's id); never continued again. */
   continues?: string;
+  /** A result turn that gave no answer, tried once more (that run's id); never retried again. */
+  retry_of?: string;
 };
 export type RunRecord = Run & { input?: RunInput; message_id?: string };
 
@@ -105,6 +130,7 @@ export type Step = {
 
 /** A tool call found by search, with the run that made it. */
 export type StepHit = {
+  run_id: string;
   thread_id: string;
   agent_id: string;
   tool: string;
@@ -135,6 +161,25 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
     list(threadId: string, limit = 20): RunRecord[] {
       return all(
         qb.selectFrom("runs").selectAll().where("thread_id", "=", threadId).orderBy("created_at", "desc").limit(limit),
+      ).map(toRun);
+    },
+    /** Memory jobs can run long after their turn; select before the anchor, not from the newest chat page. */
+    memoryWindow(anchor: RunRecord): RunRecord[] {
+      return all(
+        qb
+          .selectFrom("runs")
+          .selectAll()
+          .where("thread_id", "=", anchor.thread_id)
+          .where("agent_id", "=", anchor.agent_id)
+          .where("state", "=", "completed")
+          .where("started_at", "<=", anchor.started_at)
+          .where(raw<boolean>`rowid <= (SELECT rowid FROM runs WHERE id = ${anchor.id})`)
+          .where(raw<boolean>`(json_extract(input, '$.origin.kind') = 'user' OR
+          (json_extract(input, '$.origin.kind') = 'channel' AND json_extract(input, '$.origin.role') = 'owner'))`)
+          .orderBy("started_at", "desc")
+          .orderBy("created_at", "desc")
+          .orderBy(raw`rowid`, "desc")
+          .limit(3),
       ).map(toRun);
     },
     /** An agent's runs, newest first; `before` pages back by creation time. */
@@ -472,8 +517,11 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
       );
       return r?.output == null ? undefined : r.output;
     },
-    /** Tool calls in these threads whose tool or arguments hold every word, newest first. Results are outside text. */
-    searchSteps(words: string[], threadIds: string[], limit = 10): StepHit[] {
+    /**
+     * Tool calls in these threads whose tool or arguments hold every word, newest first. Results are outside text.
+     * `excludeRuns` (already in a model's view) are dropped before the limit.
+     */
+    searchSteps(words: string[], threadIds: string[], limit = 10, excludeRuns: string[] = []): StepHit[] {
       if (!words.length || !threadIds.length) return [];
       const haystack = raw<string>`s.tool || ' ' || s.args`;
       const like = (w: string) => `%${w.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
@@ -481,8 +529,9 @@ export function runsRepo({ one, all, run }: Sql, bus: Bus) {
         qb
           .selectFrom("steps as s")
           .innerJoin("runs as r", "r.id", "s.run_id")
-          .select(["r.thread_id", "r.agent_id", "s.tool", "s.args", "s.state", "s.result", "s.started_at"])
+          .select(["s.run_id", "r.thread_id", "r.agent_id", "s.tool", "s.args", "s.state", "s.result", "s.started_at"])
           .where("r.thread_id", "in", threadIds)
+          .$if(excludeRuns.length > 0, (q) => q.where("s.run_id", "not in", excludeRuns))
           .where((eb) => eb.and(words.map((w) => raw<boolean>`${haystack} like ${like(w)} escape '\\'`)))
           .orderBy("s.started_at", "desc")
           .limit(limit),

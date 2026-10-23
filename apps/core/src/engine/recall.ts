@@ -3,14 +3,18 @@
 // Shown notes stay in the model log, so the prefix never changes; once the turn that showed the standing notes falls
 // out of the model's view (history budget), they are offered again.
 import type { Memory, Thread } from "@apx/protocol";
-import { ftsQuery } from "../domain/memories.ts";
+import { canUseChatMemory } from "../domain/chat-access.ts";
+import { canSee, ftsQuery, NOTEBOOK_TARGET } from "../domain/memories.ts";
 import type { Store } from "../domain/store.ts";
 import type { ThreadContext } from "../domain/threads.ts";
-import { notesText } from "../tools/memory.ts";
+import { hookLine, notesText, TAINTED_WRAP } from "../tools/memory.ts";
 import type { NoteSearch } from "./memory-index.ts";
 
 const STANDING = 8;
 const MATCHES = 5;
+/** The index of the agent's own notes: one hook line each, within this many characters (rules/PROMPT_SIZE.md). */
+export const INDEX_CHARS = 2000;
+const INDEX_HEADER = "[your notes index: one line each; recall its words for the whole note]";
 /** Ids remembered as shown, per agent: older ones may be shown again (they left the context long ago). */
 const SHOWN_CAP = 200;
 /** A global note comes into a delegated turn only when it shares this many distinctive words with the task. */
@@ -43,7 +47,7 @@ export async function recallFor(
   store: Store,
   search: (o: NoteSearch) => Promise<Memory[]>,
   agentId: string,
-  thread: Pick<Thread, "project_id">,
+  thread: Pick<Thread, "project_id"> & { id?: string },
   text: string,
   ctx: ThreadContext,
   from: number,
@@ -53,36 +57,90 @@ export async function recallFor(
   const since = ctx.memory_since ?? {};
   const stale = since[agentId] !== undefined && (since[agentId] as number) < from;
   const before = stale ? undefined : all[agentId];
-  const seen = new Set(before ?? []);
+  const versions = ctx.memory_versions ?? {};
+  const seen = new Set((before ?? []).filter((id) => versions[id] === (store.memories.get(id)?.revision ?? 1)));
   const view = { agent_id: agentId, project_id: thread.project_id };
   const notes: Memory[] = [];
   const add = (list: Memory[]) => {
     for (const m of list)
-      if (!seen.has(m.id)) {
+      if (!seen.has(m.id) && canUseChatMemory(store, thread, m)) {
         seen.add(m.id);
         notes.push(m);
       }
   };
+  if (text.trim()) {
+    const found = await search({
+      view,
+      query: text.slice(0, 2000),
+      exclude: [...seen],
+      limit: delegated ? MATCHES * 3 : MATCHES,
+    });
+    add(delegated ? found.filter((m) => m.scope !== "global" || relatedToTask(m, text)).slice(0, MATCHES) : found);
+  }
+  const matched = notes.length;
   if (!before) {
-    // What an agent wrote about the owner stands only once the owner confirmed it; until then it shows only on a match.
     if (delegated && thread.project_id)
       add(store.memories.list({ view, scope: "project", project_id: thread.project_id, limit: STANDING }));
     else if (!delegated) add(store.memories.list({ view, scope: "global", pending: false, limit: STANDING }));
     add(store.memories.list({ view, scope: "agent", agent_id: agentId, limit: STANDING }));
   }
-  if (text.trim()) {
-    // Delegated: the filter drops global hits, so ask for more first or unrelated ones would crowd out the rest.
-    const found = await search({ view, query: text.slice(0, 2000), limit: delegated ? MATCHES * 3 : MATCHES });
-    add(delegated ? found.filter((m) => m.scope !== "global" || relatedToTask(m, text)).slice(0, MATCHES) : found);
-  }
-  const block = notesText(notes);
+  // The owner's turns also get a hook per own note not shown yet in this thread, so a note phrased unlike the message
+  // is still known to exist; later turns add only the new ones.
+  // Later turns list only notes written or changed since the index was shown (by id and revision).
+  const indexedBefore = new Set(before ? (ctx.memory_indexed?.[agentId] ?? []) : []);
+  const indexedAt = before ? ctx.memory_indexed_at?.[agentId] : undefined;
+  const hookId = (m: Memory) => `${m.id}:${m.revision ?? 1}`;
+  const hooks = delegated
+    ? []
+    : store.memories
+        .list({ view, scope: "agent", agent_id: agentId, limit: NOTEBOOK_TARGET })
+        .filter(
+          (m) =>
+            !seen.has(m.id) &&
+            !indexedBefore.has(hookId(m)) &&
+            (!indexedAt || m.updated_at > indexedAt) &&
+            canUseChatMemory(store, thread, m),
+        );
+  const snapshot = () => {
+    const live = (list: Memory[]) =>
+      list.flatMap((m) => {
+        const n = store.memories.get(m.id);
+        return n && !n.forgotten_at && canSee(view, n) && canUseChatMemory(store, thread, n) ? [n] : [];
+      });
+    const matches = notesText(live(notes.slice(0, matched)), matched ? 1800 : 2400);
+    const profile = notesText(live(notes.slice(matched)), matches.ids.length ? 600 : 2400);
+    // The cap holds with the untrusted envelope too, when a hook came from outside content.
+    const index = notesText(live(hooks), INDEX_CHARS - INDEX_HEADER.length - 1 - TAINTED_WRAP, hookLine);
+    return {
+      text:
+        [matches.text, profile.text, index.text ? `${INDEX_HEADER}\n${index.text}` : ""].filter(Boolean).join("\n") ||
+        undefined,
+      ids: [...matches.ids, ...profile.ids],
+      indexed: index.ids.flatMap((id) => {
+        const m = store.memories.get(id);
+        return m ? [hookId(m)] : [];
+      }),
+    };
+  };
+  const block = snapshot();
   // The first turn records the agent even with nothing to show, so its standing notes are not looked up again.
-  if (before && !block.ids.length) return {};
+  if (before && !block.ids.length && !block.indexed.length) return {};
   return {
-    text: block.text,
+    get text() {
+      return snapshot().text;
+    },
     shown: (at) => ({
-      memory_shown: { ...all, [agentId]: [...(before ?? []), ...block.ids].slice(-SHOWN_CAP) },
+      memory_shown: { ...all, [agentId]: [...new Set([...(before ?? []), ...snapshot().ids])].slice(-SHOWN_CAP) },
+      memory_versions: {
+        ...versions,
+        ...Object.fromEntries(snapshot().ids.map((id) => [id, store.memories.get(id)?.revision ?? 1])),
+      },
       memory_since: before ? since : { ...since, [agentId]: at },
+      memory_indexed: {
+        ...(ctx.memory_indexed ?? {}),
+        [agentId]: [...new Set([...indexedBefore, ...snapshot().indexed])].slice(-SHOWN_CAP),
+      },
+      memory_indexed_at: { ...(ctx.memory_indexed_at ?? {}), [agentId]: new Date().toISOString() },
     }),
   };
 }

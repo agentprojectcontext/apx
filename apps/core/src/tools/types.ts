@@ -7,6 +7,7 @@ import type { JobRecord } from "../domain/jobs.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Worker } from "../domain/threads.ts";
 import type { ToolSpec } from "../providers/types.ts";
+import type { FolderThread } from "./folders.ts";
 
 /**
  * What a call may change. Decides recovery after a crash (a `none` call can simply be dropped; anything else is
@@ -20,14 +21,21 @@ export type Effect = "none" | "local" | "external" | "message";
  * outside total.
  */
 export type Confirm = "never" | "untrusted" | "ask" | "always";
+/** `url_data`: the URL carries values (a query) that outside content could have put there to send away. */
+export type UntrustedWhy = "url_data";
+
+/** The thread a tool call runs in, with how far its agent reaches: made only by engine/permissions.ts. */
+export type ScopedThread = Thread & FolderThread;
 
 export type ToolContext = {
   agent: AgentRecord;
-  thread: Thread;
+  thread: ScopedThread;
   run: RunRecord;
   signal: AbortSignal;
   /** Whether outside content (web, another agent, a message) is in this turn's context right now. */
   untrusted(): boolean;
+  /** This thread's runs already in the model's view (projected history and this run): search skips what it sees. */
+  inView?(): ReadonlySet<string>;
   /** The owner-approvable tools of this turn (MCP), by name: what an agent may hand to another one. */
   approvalFor?(name: string): ApprovalTarget | undefined;
   approvalTools?(): string[];
@@ -83,6 +91,8 @@ export type Tool = {
   effect: Effect;
   /** Fixed, or decided per call from the arguments (a shell command that only reads vs one that deletes). */
   confirm(args: Record<string, unknown>): Confirm;
+  /** Why an `untrusted` call waits, when the tool knows better than "outside content is in this turn". */
+  untrustedWhy?: UntrustedWhy | undefined;
   /** Longest the call may take before it is cut (the turn goes on with an error result). */
   deadlineMs: number;
   /**
@@ -92,6 +102,8 @@ export type Tool = {
   local?: ((args: Record<string, unknown>) => boolean) | undefined;
   /** This call only reads, on this machine (a shell command of known readers): its risk is read (DECISIONS.md#d-098). */
   reads?: ((args: Record<string, unknown>) => boolean) | undefined;
+  /** This call changes only the chat's temp folder, nothing of the owner's: no mode asks for it (DECISIONS.md#d-115). */
+  scratch?: ((args: Record<string, unknown>) => boolean) | undefined;
   /**
    * It writes files or runs commands in the folder the agent works in: what auto mode lets run without asking (accept
    * edits, only files), short of what always asks.
@@ -113,6 +125,8 @@ export type Tool = {
   outside?: ((args: Record<string, unknown>, ctx: CheckContext) => string[]) | undefined;
   /** What the call would change in a file, shown to the owner when they are asked to confirm it. */
   preview?: ((args: Record<string, unknown>, ctx: CheckContext) => Promise<FileChange | undefined>) | undefined;
+  /** What the owner reads about the call when asked to confirm it, in place of arguments that say nothing (an id). */
+  explain?: ((args: Record<string, unknown>) => string | undefined) | undefined;
   /** Checks the model's arguments; a failure goes back to the model as the tool's result. */
   parse(raw: Record<string, unknown>): { ok: true; args: Record<string, unknown> } | { ok: false; error: string };
   /** Short human title for the tool card ("Opened github.com"). Gets the raw arguments. */
@@ -129,15 +143,18 @@ export function defineTool<S extends Args>(def: {
   args: S;
   effect: Effect;
   confirm?: Confirm | ((args: z.output<S>) => Confirm);
+  untrustedWhy?: UntrustedWhy;
   deadlineMs: number;
   local?: (args: z.output<S>) => boolean;
   reads?: (args: z.output<S>) => boolean;
+  scratch?: (args: z.output<S>) => boolean;
   workspace?: true;
   needsCap?: string;
   when?: (thread: Thread) => boolean;
   check?: (args: z.output<S>, ctx: CheckContext) => void | Promise<void>;
   outside?: (args: z.output<S>, ctx: CheckContext) => string[];
   preview?: (args: z.output<S>, ctx: CheckContext) => Promise<FileChange | undefined>;
+  explain?: (args: z.output<S>) => string | undefined;
   title(args: Partial<z.input<S>>): string;
   run(args: z.output<S>, ctx: ToolContext): Promise<string>;
 }): Tool {
@@ -149,6 +166,7 @@ export function defineTool<S extends Args>(def: {
     effect: def.effect,
     confirm: (a) => (typeof def.confirm === "function" ? def.confirm(a as z.output<S>) : (def.confirm ?? "never")),
     deadlineMs: def.deadlineMs,
+    ...(def.untrustedWhy ? { untrustedWhy: def.untrustedWhy } : {}),
     ...(def.workspace ? { workspace: true as const } : {}),
     ...(def.needsCap ? { needsCap: def.needsCap } : {}),
     ...(def.when ? { when: def.when } : {}),
@@ -161,8 +179,10 @@ export function defineTool<S extends Args>(def: {
     ...(def.preview
       ? { preview: async (a: Record<string, unknown>, ctx: CheckContext) => def.preview?.(a as z.output<S>, ctx) }
       : {}),
+    ...(def.explain ? { explain: (a: Record<string, unknown>) => def.explain?.(a as z.output<S>) } : {}),
     ...(def.local ? { local: (a: Record<string, unknown>) => def.local?.(a as z.output<S>) === true } : {}),
     ...(def.reads ? { reads: (a: Record<string, unknown>) => def.reads?.(a as z.output<S>) === true } : {}),
+    ...(def.scratch ? { scratch: (a: Record<string, unknown>) => def.scratch?.(a as z.output<S>) === true } : {}),
     parse(raw) {
       const r = def.args.safeParse(raw);
       if (r.success) return { ok: true, args: r.data as Record<string, unknown> };
@@ -178,7 +198,37 @@ export function invalidArguments(tool: string, error: z.ZodError): string {
   return `invalid arguments for ${tool}: ${error.issues.map((i) => `${i.path.join(".") || "(args)"}: ${i.message}`).join("; ")}`;
 }
 
+/** Length and count bounds the arguments are still checked against here (zod): sent, they only cost prompt. */
+const SIZE_KEYS = new Set(["minLength", "maxLength", "minItems", "maxItems"]);
+
+/** The JSON schema the model reads, without the size bounds every call would carry for nothing (rules/PROMPT_SIZE.md). */
+function withoutSizes(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(withoutSizes);
+  if (!node || typeof node !== "object") return node;
+  return Object.fromEntries(
+    Object.entries(node).flatMap(([k, v]) =>
+      // Inside `properties` the keys are argument names, never bounds: an argument may be called "maxLength".
+      SIZE_KEYS.has(k) && typeof v === "number" ? [] : [[k, withoutSizes(v)]],
+    ),
+  );
+}
+
 export const toSpec = (t: Tool): ToolSpec => ({
   type: "function",
   function: { name: t.name, description: t.description, parameters: t.parameters },
 });
+
+const slim = new WeakMap<object, ToolSpec>();
+
+/**
+ * A tool as our own loop sends it to the model: its schema without size bounds, still checked here. Claude Code and
+ * Codex keep the full schema, through APX's MCP server.
+ */
+export function modelSpec(spec: ToolSpec): ToolSpec {
+  let out = slim.get(spec.function.parameters);
+  if (!out || out.function.name !== spec.function.name || out.function.description !== spec.function.description) {
+    out = { ...spec, function: { ...spec.function, parameters: withoutSizes(spec.function.parameters) as object } };
+    slim.set(spec.function.parameters, out);
+  }
+  return out;
+}

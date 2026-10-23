@@ -1,3 +1,8 @@
+.desktop-launch {
+  flex: none;
+  padding: 8px;
+  border-top: 1px solid var(--apx-border);
+}
 .desktop-install {
   position: fixed;
   z-index: 45;
@@ -38,4 +43,29 @@
   display: block;
   margin-top: 3px;
   color: var(--apx-fg-muted);
+}
+.desktop-install--min {
+  align-items: center;
+  width: max-content;
+  max-width: min(420px, calc(100vw - 40px));
+  padding: 8px 8px 8px 12px;
+}
+.desktop-install--min > svg {
+  margin-top: 0;
+}
+.desktop-install__minbody {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.desktop-install__minbody span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.desktop-install--min progress {
+  width: 88px;
+  height: 6px;
+  margin-top: 0;
 }

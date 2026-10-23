@@ -2,7 +2,6 @@
 // wait for the owner when it says so, record the step, run with a deadline, keep the full output and hand the
 // model a capped copy.
 
-import path from "node:path";
 import type { MethodName, Params, Result, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
 import { strictApproval } from "../domain/approvals.ts";
@@ -13,18 +12,18 @@ import type { Store } from "../domain/store.ts";
 import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { TurnIO } from "../harness/index.ts";
-import { insideReal } from "../paths.ts";
-import type { Root } from "../tools/folders.ts";
 import { MCP_CALL, MCP_SEARCH, unwrapCall } from "../tools/mcp-bridge.ts";
-import { authorize, decide, reachOf } from "../tools/policy.ts";
+import { authorize, decide } from "../tools/policy.ts";
 import { cap, UNTRUSTED_MARK } from "../tools/result.ts";
 import { commandRisk, judgeCommand } from "../tools/shell.ts";
-import type { CheckContext, Confirm, Tool, ToolContext } from "../tools/types.ts";
+import type { CheckContext, Confirm, ScopedThread, Tool, ToolContext } from "../tools/types.ts";
 import type { Display } from "./display.ts";
+import { fanOut, LOOK_FIRST } from "./fan-out.ts";
 import { folderBinding, type Inputs } from "./inputs.ts";
 import type { Jobs } from "./jobs.ts";
-import { confirmPrompt, folderPrompt } from "./owner-words.ts";
+import { confirmPrompt, fanOutPrompt, folderPrompt } from "./owner-words.ts";
 import { guarded, pathsOf } from "./paths.ts";
+import type { Permissions } from "./permissions.ts";
 import { toolTitle } from "./tool-titles.ts";
 
 /** Runs a tool with its own deadline; a canceled turn stops waiting for it. */
@@ -127,6 +126,8 @@ export function createExecutor(o: {
   signal: AbortSignal;
   /** Whether untrusted text is already in the context when the turn starts (history or the input itself). */
   untrusted: boolean;
+  /** The thread's runs in the model's projected history, and this one (ToolContext.inView). */
+  inView?: ReadonlySet<string>;
   /** The harness running the turn reaches tools over a deadline-bound call (Claude Code, Codex). */
   external: () => boolean;
   call<M extends MethodName>(
@@ -142,10 +143,8 @@ export function createExecutor(o: {
   apxPort: () => number;
   /** Where an outside agent works (harnessDir): its tools are checked against this folder. */
   workDir: string;
-  /** The project's read-only folders: an outside agent reads there as in its own folder and changes nothing. */
-  readOnly?: string[];
-  /** Its folders under the folder rule (harnessRoots): a command it runs is judged as the shell tool's. */
-  roots?: Root[];
+  /** How the agent acts and how far its files reach: asked for each call, never worked out here. */
+  permissions: Permissions;
 }): Executor {
   const { store, display, signal, agent, thread } = o;
   const byName = new Map(o.tools.map((t) => [t.name, t]));
@@ -157,6 +156,8 @@ export function createExecutor(o: {
   };
   let untrusted = o.untrusted;
   let toolsRan = 0;
+  /** The owner let this turn hand work to many agents (engine/fan-out.ts): it is not asked again. */
+  let wideOk = false;
 
   /**
    * A command as a terminal job of this run, stopped at its timeout. Foreground: waits, and also stops when the turn
@@ -209,20 +210,18 @@ export function createExecutor(o: {
     raw: Record<string, unknown>,
     callId: string,
     run: RunRecord,
-  ): Promise<{ thread: Thread } | { card: string; text: string }> => {
-    const reach = reachOf(agent);
-    if (reach === "all") return { thread: { ...thread, reach: "all" } as Thread };
-    if (reach === "fenced") return { thread };
-    // Reading anywhere, what a call may still need lent is a folder to change; asking to read, only in a project.
-    const write = reach === "read";
-    const granted = store.approvals.writeFolders(agent.id);
-    const base = { ...thread, ...(write ? { reach: "read" } : {}), ...(granted.length ? { granted } : {}) } as Thread;
-    const folders =
-      write || thread.project_id
-        ? (tool.outside?.(args, { agent, thread: { ...base, lentWrite: write } as Thread }) ?? [])
-        : [];
+  ): Promise<{ thread: ScopedThread; asked?: true } | { card: string; text: string }> => {
+    // Asked per call: a folder granted for good mid-turn counts from the next call.
+    const base = o.permissions.scope(agent, thread);
+    if (base.reach === "all" || base.reach === "fenced") return { thread: base };
+    // Reading anywhere, what a call may still need lent is a folder to change; asking to read, first one to read.
+    const toRead = base.reach === "card" ? (tool.outside?.(args, { agent, thread: base }) ?? []) : [];
+    const write = !toRead.length;
+    const folders = toRead.length
+      ? toRead
+      : (tool.outside?.(args, { agent, thread: { ...base, lentWrite: true } }) ?? []);
     if (!folders.length) return { thread: base };
-    const lent = { ...base, lent: folders, ...(write ? { lentWrite: true } : {}) } as Thread;
+    const lent: ScopedThread = { ...base, lent: folders, ...(write ? { lentWrite: true } : {}) };
     if (o.inputs.takeGrant(thread.id, agent.id, name, raw, folderBinding(folders, write))) return { thread: lent };
     const answer = await o.inputs.ask({
       run,
@@ -241,7 +240,7 @@ export function createExecutor(o: {
       signal,
     });
     signal.throwIfAborted();
-    return unanswered(answer) ?? { thread: lent };
+    return unanswered(answer) ?? { thread: lent, asked: true };
   };
 
   const execute: TurnIO["execute"] = async (callId, called, given) => {
@@ -298,9 +297,15 @@ export function createExecutor(o: {
       return { ok: false, text: `not run, nothing was asked of the owner: ${problem}` };
     }
 
-    // A read-only code thread refuses anything that would need an OK, before anyone is asked.
+    // A read-only code thread refuses anything that would need an OK, and any change to files, before anyone is asked;
+    // its temp files are not the code.
     const level = tool.confirm(args);
-    if (worksInFolder(thread) && thread.write === "read-only" && (level === "ask" || level === "always")) {
+    const changesFiles = Boolean(tool.workspace) && !tool.reads?.(args) && !tool.scratch?.(args);
+    if (
+      worksInFolder(thread) &&
+      thread.write === "read-only" &&
+      (level === "ask" || level === "always" || changesFiles)
+    ) {
       card("error", "read-only thread");
       const why =
         tool.name === "shell"
@@ -308,10 +313,57 @@ export function createExecutor(o: {
           : "only actions that read may run here";
       return { ok: false, text: `refused: this code thread is read-only; ${why}` };
     }
+    // A delegated session capped at ask (its caller could do no more) asks before changing files on our own loop too,
+    // as an outside engine does under it. The owner's own chats follow the agent's mode (DECISIONS.md#d-106).
+    const gate: typeof decision =
+      decision.kind === "allow" &&
+      thread.kind === "a2a" &&
+      worksInFolder(thread) &&
+      thread.write === "ask" &&
+      (level === "ask" || level === "always" || changesFiles)
+        ? { kind: "confirm", why: "asks_every", reason: "this session asks before changing files" }
+        : decision;
+    const wide = wideOk ? undefined : fanOut(store, run, agent, name, args);
+    // Tasks handed out wide become proposals the owner picks from, instead of a card that stops the turn.
+    const proposes = wide && name === "task_create";
+    if (proposes) (args as { propose?: boolean }).propose = true;
+    if (wide && !proposes && !o.inputs.takeGrant(thread.id, agent.id, name, raw)) {
+      const answer = await o.inputs.ask({
+        run,
+        agent,
+        display,
+        callId,
+        kind: "confirm",
+        prompt: fanOutPrompt(
+          store,
+          agent.name,
+          wide.map((id) => store.agents.get(id)?.name ?? id),
+        ),
+        tool: name,
+        args: raw,
+        detail: describe(args),
+        external: o.external(),
+        stays: true,
+        signal,
+      });
+      signal.throwIfAborted();
+      if (answer.state === "denied") {
+        card("error", "the owner wants a plan first");
+        return { ok: false, text: `${LOOK_FIRST}${answer.answer ? ` Their note: ${answer.answer}` : ""}` };
+      }
+      const no = unanswered(answer);
+      if (no) {
+        card("error", no.card);
+        return { ok: false, text: no.text };
+      }
+    }
+    if (wide && !proposes) wideOk = true;
     // A call that always asks has its own grant, apart from the tool's ordinary one (DECISIONS.md#d-089).
     const target = level === "always" && tool.approval ? strictApproval(tool.approval) : tool.approval;
     if (
-      decision.kind === "confirm" &&
+      gate.kind === "confirm" &&
+      // The owner just said yes to this very call on its folder card: manual's ask for every change is answered.
+      !(lent.asked && gate.why === "asks_every") &&
       !(target && store.approvals.allows(target, thread.id, agent.id, args)) &&
       !o.inputs.takeGrant(thread.id, agent.id, name, raw, target?.key)
     ) {
@@ -321,11 +373,11 @@ export function createExecutor(o: {
         display,
         callId,
         kind: "confirm",
-        prompt: confirmPrompt(store, decision.why, agent.name, name),
+        prompt: confirmPrompt(store, gate.why, agent.name, name),
         tool: name,
         approval: target,
         args: raw,
-        detail: describe(args),
+        detail: tool.explain?.(args) ?? describe(args),
         // A preview that fails only costs the patch: the owner still sees the arguments.
         change: await tool.preview?.(args, { agent, thread: callThread }).catch(() => undefined),
         external: o.external(),
@@ -350,6 +402,7 @@ export function createExecutor(o: {
       run,
       signal,
       untrusted: () => untrusted,
+      ...(o.inView ? { inView: () => o.inView as ReadonlySet<string> } : {}),
       approvalFor: (n) => byName.get(n)?.approval,
       approvalTools: () => [...byName.values()].filter((t) => t.approval).map((t) => t.name),
       // What this agent may run without asking, with no outside content in the turn: by its autonomy, or by an
@@ -386,7 +439,9 @@ export function createExecutor(o: {
         }),
       withdrawQuestion: (inputId) => o.inputs.withdraw(inputId, agent.id),
     };
-    const out = await runTool(tool, args, { ...ctx, runCommand: (c) => runCommand(c, run) });
+    // What the call was let use reaches the methods it calls (media.attach), never re-derived narrower there.
+    const release = o.permissions.hold(run.id, callId, callThread);
+    const out = await runTool(tool, args, { ...ctx, runCommand: (c) => runCommand(c, run) }).finally(release);
     const images = out.ok && seen.length ? { images: seen } : {};
     if (out.text.includes(UNTRUSTED_MARK) && !tool.local?.(args)) untrusted = true;
     const full = out.text.slice(0, STORED_OUTPUT_CHARS);
@@ -402,10 +457,6 @@ export function createExecutor(o: {
     };
   };
 
-  /**
-   * An external agent's own tool, judged by the same rule as ours: reading inside its folder runs, a command is
-   * classified like the shell tool's, fetching and anything that changes something ask (unless autonomy allows it).
-   */
   /** How much an external agent's own tool kind needs the owner, before the thread's write policy and autonomy. */
   function externalLevel(kind: string, inside: boolean, command: unknown): Confirm {
     if (READING.has(kind)) return inside ? "never" : "ask";
@@ -415,30 +466,35 @@ export function createExecutor(o: {
     return "ask";
   }
 
+  /**
+   * An external agent's own tool, judged by the same folder rule and reach as ours: what it reads must be readable and
+   * what it changes changeable; outside those the owner is asked, and only a read-only folder or APX's own is refused.
+   */
   const approve: TurnIO["approve"] = async (req) => {
     const base = o.workDir;
+    const scope = o.permissions.scope(agent, thread);
     const paths = pathsOf(req.input);
     const command = (req.input as { command?: unknown } | undefined)?.command;
     const reading = READING.has(req.kind);
-    const readOnly = (p: string) =>
-      !insideReal(base, p) && (o.readOnly ?? []).some((d) => insideReal(d, path.resolve(base, p)));
-    if (!reading && paths.some(readOnly)) return false;
+    const judged = paths.map((p) => o.permissions.harnessPath(scope, p, !reading));
     // A command is held to the shell tool's folder rule: what it reads readable, what it writes writable.
-    if (req.kind === "execute" && typeof command === "string" && o.roots && judgeCommand(o.roots, command, base))
-      return false;
-    const inside = paths.every((p) => insideReal(base, p) || (reading && readOnly(p)));
-    const level = externalLevel(req.kind, inside, command);
-    // A code thread's write policy comes first: read-only lets only reading run; auto lets edits inside its folder,
-    // never to git's config, APC files or AGENTS.md.
-    if (worksInFolder(thread) && level !== "never") {
-      if (thread.write === "read-only") return false;
-      const editable = paths.length > 0 && inside && !paths.some((p) => guarded(base, p));
-      if (thread.write === "auto" && req.kind === "edit" && editable) return true;
-    }
+    const ran = req.kind === "execute" && typeof command === "string";
+    const refusedCommand = ran ? judgeCommand(o.permissions.harnessRoots(scope), command, base) : undefined;
+    if (refusedCommand) judged.push(refusedCommand);
+    // No answer of the owner's opens a read-only folder or APX's own.
+    if (judged.some((r) => "refused" in r && !r.offer)) return false;
+    const inside = judged.every((r) => !("refused" in r));
+    const own = externalLevel(req.kind, inside, command);
+    // Outside the folders it may use, the owner says yes unless its mode lets it on its own.
+    const level = inside || own === "always" ? own : "ask";
+    // A read-only code thread lets only reading run. Otherwise the agent's mode decides, as for our own tools: an edit
+    // where it may write is a local change like file_edit, never to git's config, APC files or AGENTS.md.
+    if (worksInFolder(thread) && thread.write === "read-only" && level !== "never") return false;
     const workspace = inside && (req.kind === "edit" || req.kind === "execute") && !paths.some((p) => guarded(base, p));
     // A command that only reads here is risk read, as the shell tool's (DECISIONS.md#d-098).
     const reads = reading || (req.kind === "execute" && level === "never");
-    const decision = decide(level, reads ? "none" : "external", agent, untrusted, workspace);
+    const effect = reads ? "none" : req.kind === "edit" && workspace ? "local" : "external";
+    const decision = decide(level, effect, agent, untrusted, workspace);
     if (decision.kind === "allow") return true;
     if (decision.kind === "deny") return false;
     const answer = await o.inputs.ask({

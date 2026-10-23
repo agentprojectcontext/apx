@@ -36,6 +36,7 @@ export const PAGES = [
   "identity",
   "prompt",
   "team",
+  "profile",
   "tools",
   "skills",
   "autonomy",

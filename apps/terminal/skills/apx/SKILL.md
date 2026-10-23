@@ -45,7 +45,8 @@ server with `apx service install`. Do not start a second core yourself.
 
 `apx` acts **as the owner**: a message sent with `apx chat` reaches the agent as if the owner typed it. Only use
 it when the user asked you to send *their* words. When you want to ask an agent something *as yourself*, use the
-`apx_ask` tool of the APX MCP server ([[apx-mcp]]): the agent then knows the request comes from another app.
+`apx_ask` tool of the APX MCP server ([[apx-mcp]]): the agent then knows the request comes from another app. Running
+as an agent inside APX (`APX_AGENT` is set), `apx chat` refuses: ask other agents with your `delegate` tool.
 
 ```bash
 apx agents                                   # agents and the model each one runs on (★ = Home, the secretary)

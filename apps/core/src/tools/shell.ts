@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
+import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
 import { namedPaths } from "./command-paths.ts";
 import { readsOnly } from "./command-reads.ts";
@@ -15,10 +16,12 @@ import {
   type JudgeOptions,
   judge,
   missingCwd,
+  namesApxHome,
   outsideFolders,
   type Root,
   refusal,
   rootsOf,
+  scratchRoot,
 } from "./folders.ts";
 import { untrusted } from "./result.ts";
 import { type Confirm, defineTool, type Tool } from "./types.ts";
@@ -106,10 +109,11 @@ export function judgeCommand(
   roots: Root[],
   command: string,
   cwd: string,
-  o: Omit<JudgeOptions, "write" | "name"> & { userHome?: string } = {},
-): { refused: string } | undefined {
-  // Reading anywhere is not a folder to protect: only a read-only folder the owner named (or one lent) is.
-  const locked = roots.some((r) => !r.write && !r.off && !r.anywhere);
+  o: Omit<JudgeOptions, "write" | "name"> & { userHome?: string; strict?: boolean } = {},
+): Extract<Access, { refused: string }> | undefined {
+  // Reading anywhere is not a folder to protect: only a read-only folder the owner named (or one lent) is; `strict`
+  // refuses those words anyway.
+  const locked = o.strict === true || roots.some((r) => !r.write && !r.off && !r.anywhere);
   const unknown = (what: string) => (locked ? { refused: refusal.unknown(what) } : undefined);
   let from: string | undefined = cwd;
   let old: string | undefined;
@@ -226,6 +230,19 @@ export function shellTools(
           ? []
           : outsideFolders((lent) => commandFolder(store, home, { ...ctx.thread, lent }, a)),
       workspace: true,
+      // Run in a temp folder, writing only there and reaching nothing outside: its own scratch work.
+      scratch: (a) => {
+        const temp = scratchRoot(home);
+        // Its cwd, or the folder the command starts by going into (`cd /…/apx-scratch-…/x && …`).
+        const at = a.cwd ?? /^\s*cd\s+(["']?)([^"'\s;&|]+)\1\s*(&&|;)/.exec(a.command)?.[2];
+        if (!at || !path.isAbsolute(at) || !insideReal(temp, at) || reachesOut(a.command)) return false;
+        if (commandRisk(a.command, apxPort()) === "always") return false;
+        const roots: Root[] = [
+          { dir: temp, write: true, scratch: true },
+          { dir: path.parse(home).root, write: false, scratch: false, anywhere: { home } },
+        ];
+        return !judgeCommand(roots, a.command, at, { home, strict: true });
+      },
       local: (a) => !a.background && (commandRisk(a.command, apxPort()) === "never" || !reachesOut(a.command)),
       reads: (a) => commandRisk(a.command, apxPort()) === "never",
       // Covers the longest foreground wait plus the time to stop the process.
@@ -242,8 +259,7 @@ export function shellTools(
         const { base, at: cwd } = where;
         const limit = a.background ? (a.timeout_s ?? BACKGROUND_S) : Math.min(a.timeout_s ?? 120, 600);
         // APX's own home (database, secrets index, job logs) is never an agent's to read or change.
-        if (a.command.includes(home) || /\.apx(2\b|\/v2\b)/.test(a.command))
-          return "refused: APX's own folder is off limits";
+        if (namesApxHome(a.command, home, ctx.thread.project_id)) return "refused: APX's own folder is off limits";
         if (cwd === base) fs.mkdirSync(base, { recursive: true });
         else if (!fs.existsSync(cwd)) return `${a.cwd} does not exist`;
         const r = await ctx.runCommand({

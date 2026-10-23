@@ -20,6 +20,10 @@ export const queuedTurnsOf = (jobs: Job[], thread: string) =>
     .filter((j) => j.thread_id === thread && isQueuedTurn(j))
     .sort((a, b) => a.started_at.localeCompare(b.started_at));
 
+/** Commands can outlive the agent turn that started them. */
+export const activeCommandsOf = (jobs: Job[], thread: string) =>
+  jobs.filter((j) => j.kind === "terminal" && j.thread_id === thread && j.state === "working" && !j.ended_at);
+
 export async function loadJobs(): Promise<void> {
   if (inflight) {
     again = true;

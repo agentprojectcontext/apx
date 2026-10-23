@@ -8,6 +8,8 @@ export type InboxAction =
   | { kind: "approve"; input: string; scope?: "session" | "always" }
   | { kind: "open"; thread?: string }
   | { kind: "rerun"; routine: string }
+  /** A delegated session a limit stopped: one more turn. */
+  | { kind: "continue"; session: string }
   | { kind: "dismiss" };
 
 /** One card in the inbox: something an agent or the office is waiting on the owner for. */
@@ -155,6 +157,16 @@ function noticeItem(
       secondary: { label: "done", action: { kind: "dismiss" } },
     };
   }
+  // A delegated session a limit stopped (its notice points at the session): Continue, with nothing to write.
+  if (notice.kind === "agent" && notice.ref?.startsWith("th_") && notice.level === "warn")
+    return {
+      ...base,
+      label: "inboxStopped",
+      tone: "warning",
+      context: ctx(name, thread?.title),
+      primary: { label: "delegationContinue", action: { kind: "continue", session: notice.ref } },
+      secondary: { label: "view", action: { kind: "open", thread: notice.ref } },
+    };
   const channel = notice.kind === "channel";
   // A kind this app does not know yet still shows, as a plain notice.
   const known = channel || notice.kind === "agent";

@@ -17,11 +17,10 @@ async function copy(url: string): Promise<void> {
   }
 }
 
-/** Private ↔ public link for a surface (surfaces.share), with copy/open of the link. */
-export function ShareMenu({ surface, variant = "button" }: { surface: SurfaceSummary; variant?: "button" | "icon" }) {
-  const t = useT();
+/** The share choices for a surface: private or public link, and copy/open of the link once public. */
+export function shareEntries(surface: SurfaceSummary, t: typeof tr): MenuEntry[] {
   const url = linkOf(surface);
-  const items: MenuEntry[] = [
+  return [
     { type: "label", label: t("share.hint") },
     {
       label: url ? t("share.private") : `${t("share.private")} ✓`,
@@ -50,6 +49,13 @@ export function ShareMenu({ surface, variant = "button" }: { surface: SurfaceSum
         ] satisfies MenuEntry[])
       : []),
   ];
+}
+
+/** Private ↔ public link for a surface (surfaces.share), with copy/open of the link. */
+export function ShareMenu({ surface, variant = "button" }: { surface: SurfaceSummary; variant?: "button" | "icon" }) {
+  const t = useT();
+  const url = linkOf(surface);
+  const items = shareEntries(surface, t);
   const label = url ? t("share.shared") : t("share.private");
   const trigger =
     variant === "icon" ? (

@@ -218,6 +218,33 @@ test("a forgotten note leaves every turn, is not saved again by an agent, and th
   assert.equal(env.core.store.memories.get(note.id), undefined);
 });
 
+test("asked to let an agent forget a note, the owner reads what the note says, its id below", async () => {
+  const note = env.core.store.memories.add({
+    scope: "agent",
+    agent_id: "roby",
+    text: "Invoices to Acme go out on the 5th.",
+    source: "agent",
+    author_agent: "roby",
+  });
+  await env.client.call("agents.update", { agent: "roby", autonomy: "manual" });
+  try {
+    const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
+    await env.client.call("threads.send", { thread: t.id, text: `forget note ${note.id}` });
+    let inputs: Awaited<ReturnType<typeof env.client.call<"runs.pending">>>["inputs"] = [];
+    for (let i = 0; i < 100 && !inputs.length; i++) {
+      inputs = (await env.client.call("runs.pending", { thread: t.id })).inputs;
+      await new Promise((r) => setTimeout(r, 20));
+    }
+    assert.equal(inputs[0]?.tool, "forget");
+    assert.equal(inputs[0]?.detail, `Invoices to Acme go out on the 5th.\n(${note.id})`);
+    await env.client.call("runs.respond", { input: inputs[0]?.id ?? "", decision: "deny" });
+    await env.settle(t.id);
+    assert.equal(env.core.store.memories.get(note.id)?.forgotten_at, undefined, "declined, the note stays");
+  } finally {
+    await env.client.call("agents.update", { agent: "roby", autonomy: null });
+  }
+});
+
 test("a delegated turn gets its project's and its own notes, and global ones only when the task shares words", async () => {
   const store = env.core.store;
   const byWords = async (o: { query: string; limit: number }) => store.memories.list(o);

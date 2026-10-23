@@ -22,7 +22,8 @@ de APX v1, y v2 nunca escribe los archivos de v1 que hay ahí.
   - **apx.db** todo lo que guarda el core: agentes, hilos, tareas, rutinas, memoria, ajustes (SQLite)
   - core.env quién puede llegar al core: host, puerto, token, dirección pública
   - secrets.json los valores de los secretos, cuando se guardan en un archivo (modo 600)
-  - secrets.index.json solo nombres y fechas, cuando están en el Llavero de macOS
+  - secrets.index.json solo nombres y fechas, cuando están en el almacén del sistema
+  - secrets.dpapi los valores cifrados para tu cuenta, en Windows
   - skills/ tus skills globales, una carpeta con un SKILL.md cada una
   - extensions/ las extensiones instaladas
   - profiles/ los perfiles de secretaria que agregaste
@@ -75,7 +76,7 @@ necesita un reinicio.
 | `APX_TOKEN` | ninguno | El token del core. Sin token, el core solo acepta esta compu. |
 | `APX_PUBLIC_URL` | ninguna | La dirección por la que los dispositivos llegan a este core desde afuera (un VPS o un nombre de Tailscale). Va primera en el QR de vinculación. |
 | `APX_ALLOWED_ORIGINS` | ninguno | Orígenes extra que pueden llamar al core, separados por comas. |
-| `APX_SECRETS` | Llavero en macOS, archivo en el resto | `file` guarda los secretos en `<home>/secrets.json` también en macOS. |
+| `APX_SECRETS` | el almacén del sistema | `file` guarda los secretos en `<home>/secrets.json` en cualquier sistema. |
 | `APX_UPDATES` | prendido | `off` deja de buscar un APX más nuevo; `app` solo avisa que salió uno (la app de escritorio lo pone para su core, y las actualizaciones las instala ella). |
 | `APX_RELEASES` | `agentprojectcontext/apx` | El repositorio de GitHub cuyos releases anuncian un paquete nuevo. `off` lo frena. |
 | `APX_TELEMETRY` | prendido | `off` no le manda nada al proyecto APX, ni siquiera los pasos de la instalación. `DO_NOT_TRACK=1` y `CI` hacen lo mismo. Mirá [Privacidad y telemetría](/es/reference/privacy/). |
@@ -140,7 +141,10 @@ refieren a los secretos por nombre (`secret://gemini`) y el core los resuelve so
 
 - **macOS**: los valores van a tu Llavero de inicio de sesión, bajo el servicio `apx2` para la carpeta por defecto.
   `<home>/secrets.index.json` solo lista nombres y fechas.
-- **Linux, Windows o `APX_SECRETS=file`**: los valores van a `<home>/secrets.json`, que solo vos podés leer.
+- **Linux**: los valores van a tu llavero (Secret Service), bajo el mismo servicio.
+- **Windows**: los valores van a `<home>/secrets.dpapi`, cifrado con DPAPI para tu cuenta.
+- **Un servidor Linux sin llavero o `APX_SECRETS=file`**: los valores van a `<home>/secrets.json`, que solo vos podés
+  leer.
 
 Se manejan en **Recursos › Variables** (globales o por proyecto; el valor de un proyecto le gana al global), o con
 `apx secrets` (el valor siempre por stdin).

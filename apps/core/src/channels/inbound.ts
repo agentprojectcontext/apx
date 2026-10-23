@@ -11,14 +11,17 @@ import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
+import { newsAction } from "../news/entries.ts";
 import type { InternalCall } from "../rpc/internal.ts";
 import type { Services } from "../services/registry.ts";
 import { saveUpload } from "../services/uploads.ts";
 import { untrusted } from "../tools/result.ts";
 import { asksSomething, asksToStop, needsNoAnswer, reactionFor } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
+import { type Held, waitsForHours } from "./held.ts";
 import { type Button, buttonId, inputPresentation, parseButton, ratingOf, shown } from "./notices.ts";
 import type { createRooms } from "./rooms.ts";
+import type { Stickers } from "./stickers.ts";
 import type { Suggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
 import type { ChannelConfig } from "./types.ts";
@@ -49,12 +52,18 @@ export function createInbound(deps: {
   rooms: ReturnType<typeof createRooms>;
   /** Drafts for supervised contacts, and the owner answering one of them in their own words. */
   suggestions: Pick<Suggestions, "held" | "write" | "takeWriting">;
+  stickers: Pick<Stickers, "keep">;
   /** Puts the agent's emoji on a platform message; false when the channel has no reactions or is not running. */
   react(channel: string, conversation: string, ref: string, emoji: string): Promise<boolean>;
   /** The owner answers an input from this chat: its message there is not taken out when it settles. */
   answeredHere(inputId: string, at: { channel: string; conversation: string }, by: "button" | "text"): void;
   /** Replaces the buttons under a message sent on a channel; false when the channel cannot. */
   setButtons(channel: string, conversation: string, ref: string, buttons: Presentation["buttons"]): Promise<boolean>;
+  /** Contacts' chats waiting for their channel's hours. */
+  held: Pick<Held, "hold" | "release">;
+  now: () => Date;
+  /** The owner's words kept without a turn (a closing "genial, funcionó"): memory may still learn from them. */
+  ownerReplied?: (messageId: string) => void;
 }) {
   const { store, log, call, delivery } = deps;
   const recent = new Map<string, number[]>();
@@ -88,6 +97,10 @@ export function createInbound(deps: {
     const cfg = deps.configs().find((c) => c.id === channel);
     if (!cfg) return "ignored";
     if (!m.private) return m.room ? deps.rooms.handle(cfg, m, rowId) : "ignored";
+    if (m.action) {
+      await action(channel, { conversation: m.conversation, sender: m.sender, data: m.action });
+      return "done";
+    }
     const person = store.persons.byAddress(cfg.id, m.sender.id);
     if (!person) return stranger(cfg, m, rowId);
     if (person.role === "blocked") return "ignored";
@@ -95,7 +108,9 @@ export function createInbound(deps: {
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
     // A supervised contact costs a draft, not an answer: suggestions.ts keeps its own hourly cap.
     const supervised = !owner && !person.muted && person.supervised;
-    if (!owner && !person.muted && !supervised && overLimit(person.id, person.name)) return "ignored";
+    // Outside the channel's hours a contact's message waits, unanswered, for them to begin (held.ts).
+    const waits = !owner && !person.muted && waitsForHours(store, cfg, person, deps.now());
+    if (!owner && !person.muted && !supervised && !waits && overLimit(person.id, person.name)) return "ignored";
     let text = m.text;
     const attachments: string[] = [];
     let voice: MediaRecord | undefined;
@@ -127,6 +142,11 @@ export function createInbound(deps: {
       } catch (err) {
         text += `\n[attachment could not be accepted: ${errorMessage(err, 200)}]`;
       }
+      // A sticker is kept for good the moment it arrives, and read as what it means (a silenced contact's unnamed).
+      if (file.sticker) {
+        const s = await deps.stickers.keep(cfg.type, file, thread.id, owner || !person.muted);
+        text = `${text}\n[sticker${s?.meaning ? `: ${s.meaning}` : ""}]`.trim();
+      }
     }
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.
     if (!owner && person.muted) {
@@ -135,6 +155,14 @@ export function createInbound(deps: {
       if (person.unreviewed) report(cfg, person, m.sender.id, said, thread.id);
       return "done";
     }
+    if (waits) {
+      const said = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
+      const note = { answered: "not yet: it came outside the channel's attention hours" };
+      theirLast(thread.id, cfg.id, m, keepQuiet(thread.id, cfg.id, person, said, attachments, note));
+      deps.held.hold(cfg, person, thread.id, m.conversation, m.sender.id);
+      return "done";
+    }
+    if (!owner) deps.held.release(thread.id);
     // Supervised: kept unanswered, and the owner gets the reply the agent would send (a closing "ok" gets none).
     if (supervised) {
       const said = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
@@ -154,6 +182,7 @@ export function createInbound(deps: {
       return "done";
     if (!attachments.length && closesChat(thread.id, text)) {
       const kept = keepQuiet(thread.id, cfg.id, owner ? undefined : person, text.trim());
+      if (owner) deps.ownerReplied?.(kept);
       theirLast(thread.id, cfg.id, m, kept);
       const emoji = cfg.closers === "react" ? reactionFor(text) : undefined;
       if (emoji && (await deps.react(cfg.id, m.conversation, m.ref ?? m.external_id, emoji).catch(() => false)))
@@ -506,8 +535,11 @@ export function createInbound(deps: {
     const question =
       (asked ? open(asked) : undefined) ?? store.inputs.pending(threadId).find((i) => i.kind === "question");
     if (!question) return false;
-    store.threads.mergeContext(question.thread_id, { reply_to: to });
-    store.runs.setReplyTo(question.run_id, to);
+    // Answered on the phone, only Home goes on talking there; another chat keeps its conversation in the app.
+    if (store.threads.get(question.thread_id)?.kind === "home") {
+      store.threads.mergeContext(question.thread_id, { reply_to: to });
+      store.runs.setReplyTo(question.run_id, to);
+    }
     deps.answeredHere(question.id, to, "text");
     await call("runs.respond", { input: question.id, text: words }, { actor: "human" }, `channel:${rowId}:respond`);
     return true;
@@ -552,9 +584,27 @@ export function createInbound(deps: {
         }
         return;
       }
+      if (button.kind === "continue") {
+        // The core checks again that the session's last run is the stopped one, so a second press does nothing.
+        const { runs } = await call("threads.get", { thread: button.session }, { actor: "human" });
+        const latest = runs.toSorted((x, y) => y.started_at.localeCompare(x.started_at))[0];
+        if (!latest) return;
+        await call(
+          "threads.send",
+          { thread: button.session, text: t.goOnPrompt, mode: "queue", continue_run: latest.id },
+          { actor: "human" },
+          `channel:${a.ref ?? latest.id}:go-on`,
+        );
+        reply(t.wentOn);
+        return;
+      }
       if (button.kind === "pairing") {
         await call("pairing.respond", { code: button.code, decision: button.decision }, { actor: "human" });
         reply(button.decision === "contact" ? t.approved : t.denied);
+        return;
+      }
+      if (button.kind === "news") {
+        await newsButton(channel, a, button);
         return;
       }
       await inputButton(channel, a, button, reply);
@@ -563,6 +613,23 @@ export function createInbound(deps: {
       log.warn({ channel, err: msg }, "channel button not handled");
       reply(t.buttonFailed(msg));
     }
+  }
+
+  /** A release news action pressed: what it asks goes to the agent in the owner's chat there, as their words. */
+  async function newsButton(channel: string, a: InboundAction, button: Extract<Button, { kind: "news" }>) {
+    const ask = newsAction(button.entry, button.index);
+    const cfg = deps.configs().find((c) => c.id === channel);
+    if (!ask || !cfg) return;
+    const thread = ownerThread(cfg, a.conversation);
+    const name = store.persons.get(OWNER_ID)?.name ?? a.sender.name;
+    await call(
+      "threads.send",
+      { thread: thread.id, text: ask.prompt, mode: cfg.concurrency },
+      {
+        actor: "human",
+        channel: { id: cfg.id, conversation: a.conversation, person_id: OWNER_ID, name, role: "owner" },
+      },
+    );
   }
 
   /** A press on a confirmation or question's button: answer it, or tick an option of a multi-choice one. */
@@ -602,8 +669,10 @@ export function createInbound(deps: {
     }
     if (button.kind === "confirm" && a.ref) void deps.setButtons(channel, a.conversation, a.ref, []);
     const at = { channel, conversation: a.conversation };
-    store.threads.mergeContext(input.thread_id, { reply_to: at });
-    store.runs.setReplyTo(input.run_id, at);
+    if (store.threads.get(input.thread_id)?.kind === "home") {
+      store.threads.mergeContext(input.thread_id, { reply_to: at });
+      store.runs.setReplyTo(input.run_id, at);
+    }
     deps.answeredHere(input.id, at, "button");
     if (button.kind === "input") {
       await call("runs.respond", { input: input.id, decision: button.answer }, { actor: "human" });

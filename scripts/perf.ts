@@ -17,6 +17,7 @@ const budget = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "perf-b
 >;
 const port = Number(process.env.PERF_PORT ?? 7470);
 const TURNS = Number(process.env.PERF_TURNS ?? 60);
+const diagnostics = process.env.PERF_DIAGNOSTICS === "1";
 const base = `http://127.0.0.1:${port}`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let seq = 0;
@@ -51,6 +52,20 @@ async function usage(pid: number): Promise<{ rss: number; cpu: number }> {
 const pct = (xs: number[], p: number) =>
   [...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(xs.length * p))] ?? 0;
 
+function walSequence(file: string): number | undefined {
+  let fd: number | undefined;
+  try {
+    fd = fs.openSync(file, "r");
+    const header = Buffer.alloc(32);
+    if (fs.readSync(fd, header, 0, header.length, 0) !== header.length) return;
+    return header.readUInt32BE(12);
+  } catch {
+    return;
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+}
+
 /** What the panel loads before it shows anything: the files index.html names (lazy screens come later), gzipped. */
 function initialBundleKb(): number {
   const dist = path.join(root, "apps/web/dist");
@@ -74,15 +89,20 @@ if (
 const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-perf-"));
 const llm = await fakeLlm();
 const startCore = (apxHome: string) =>
-  spawn(process.execPath, ["--no-warnings", path.join(root, "apps/core/src/main.ts")], {
-    cwd: root,
-    stdio: ["ignore", "ignore", "pipe"],
-    env: coreEnv(apxHome),
-  });
+  spawn(
+    process.execPath,
+    ["--no-warnings", ...(diagnostics ? ["--trace-gc"] : []), path.join(root, "apps/core/src/main.ts")],
+    {
+      cwd: root,
+      stdio: ["ignore", diagnostics ? "pipe" : "ignore", "pipe"],
+      env: coreEnv(apxHome),
+    },
+  );
 
 // As the owner's core starts (pnpm app, pnpm dev): with the compile cache warm. A first start on a home of its own
 // fills it, so a fresh checkout or a CI run measures the same thing.
 const warm = startCore(path.join(home, "warm"));
+warm.stdout?.resume();
 for (let i = 0; i < 300; i++) {
   try {
     if ((await fetch(`${base}/health`)).ok) break;
@@ -92,6 +112,7 @@ for (let i = 0; i < 300; i++) {
 warm.kill("SIGTERM");
 await new Promise((r) => warm.once("exit", r));
 
+const coreEpoch = Date.now();
 const t0 = performance.now();
 const core = startCore(path.join(home, "apx"));
 function coreEnv(apxHome: string): NodeJS.ProcessEnv {
@@ -114,10 +135,22 @@ function coreEnv(apxHome: string): NodeJS.ProcessEnv {
   };
 }
 let stderr = "";
-core.stderr.on("data", (d) => {
+let gcTrace = "";
+core.stdout?.on("data", (data) => {
+  if (gcTrace.length < 128_000) gcTrace += data;
+});
+core.stderr?.on("data", (d) => {
   stderr += d;
 });
 const results: Record<string, number> = {};
+const turnSamples: Array<{
+  send_ms: number;
+  wait_ms: number;
+  total_ms: number;
+  start_ms: number;
+  end_ms: number;
+  wal_sequence?: number | undefined;
+}> = [];
 let failed = false;
 try {
   for (;;) {
@@ -155,9 +188,19 @@ try {
   for (let i = 0; i < TURNS; i++) {
     const s = performance.now();
     const { run } = await rpc<{ run: { id: string } }>("threads.send", { thread: thread.id, text: `turn ${i}` });
+    const sent = performance.now();
     const done = await rpc<{ state: string }>("runs.wait", { run: run.id, timeout_s: 30 });
     if (done.state !== "completed") throw new Error(`turn ${i} ended ${done.state}`);
-    turns.push(performance.now() - s);
+    const ended = performance.now();
+    turns.push(ended - s);
+    turnSamples.push({
+      send_ms: sent - s,
+      wait_ms: ended - sent,
+      total_ms: ended - s,
+      start_ms: s - t0,
+      end_ms: ended - t0,
+      ...(diagnostics ? { wal_sequence: walSequence(path.join(home, "apx", "apx.db-wal")) } : {}),
+    });
   }
   results.turn_p50_ms = pct(turns, 0.5);
   results.turn_p95_ms = pct(turns, 0.95);
@@ -180,8 +223,20 @@ try {
   const out = path.join(root, "e2e/.out");
   fs.mkdirSync(out, { recursive: true });
   fs.writeFileSync(
-    path.join(out, "perf.json"),
-    JSON.stringify({ at: new Date().toISOString(), results, budget }, null, 2),
+    path.join(out, diagnostics ? "perf-diagnostics.json" : "perf.json"),
+    JSON.stringify(
+      {
+        at: new Date().toISOString(),
+        results,
+        budget,
+        turn_samples: turnSamples,
+        core_pid: core.pid,
+        core_epoch_ms: coreEpoch,
+        ...(diagnostics ? { gc_trace: gcTrace } : {}),
+      },
+      null,
+      2,
+    ),
   );
 } catch (e) {
   console.error(e);

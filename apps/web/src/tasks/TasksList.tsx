@@ -11,7 +11,7 @@ import {
   Spinner,
 } from "@apx/ui";
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useState } from "react";
-import { dueLabel, shortWhen } from "../common/format.ts";
+import { aheadLabel, dueLabel, shortWhen } from "../common/format.ts";
 import { SearchSelect } from "../common/pickers/SearchSelect.tsx";
 import { useLongPressDrag } from "../common/useLongPressDrag.ts";
 import {
@@ -25,7 +25,7 @@ import {
 } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
-import { loadTasks, useTasks } from "../data/tasks.ts";
+import { acceptTasks, loadTasks, useTasks } from "../data/tasks.ts";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
 import { nav, useNav } from "../shell/nav.ts";
 import { CommitmentMeta } from "./Commitments.tsx";
@@ -45,6 +45,7 @@ const GLOBAL_PEEK = 5;
 const MAX_DEPTH = 3;
 
 const GROUP_LABEL: Record<GroupId, MessageKey> = {
+  proposed: "tasks.group.proposed",
   doing: "tasks.group.doing",
   pending: "tasks.group.pending",
   review: "tasks.group.review",
@@ -253,6 +254,14 @@ export function TasksList({
                     </>
                   )}
                   <span className="tasks__groupcount">{g.items.length}</span>
+                  {g.id === "proposed" && (
+                    <Button size="sm" variant="ghost" onClick={() => void acceptTasks(g.items.map((x) => x.id))}>
+                      {t("tasks.acceptAll")}
+                    </Button>
+                  )}
+                  <Help label={t(GROUP_LABEL[g.id])} align="start" width={280}>
+                    {t(`tasks.help.group.${g.id}`)}
+                  </Help>
                 </header>
                 <ul className="tasks__rows">{items.flatMap((task) => branch(task, g.id, 0))}</ul>
                 {hidden > 0 && (
@@ -300,6 +309,12 @@ function TaskRow(props: {
   const projects = useData((s) => s.projects);
   const who = task.assignee ? agents[task.assignee] : undefined;
   const due = task.due_at ? dueLabel(task.due_at) : undefined;
+  // In review it says who checks it; assigned with a start still ahead, when its work begins.
+  const reviewing = task.state === "open" && task.status === "review";
+  // A reviewer since removed reads as the owner, who checks it then; never a raw id.
+  const reviewerName = (task.reviewer && agents[task.reviewer]?.name) || t("tasks.reviewerOwner");
+  const startsAt =
+    task.state === "open" && task.start_at && task.start_at > new Date().toISOString() ? task.start_at : undefined;
   const pid = task.project_id ?? DEFAULT_PID;
   const subs = props.subtasks;
   return (
@@ -360,8 +375,40 @@ function TaskRow(props: {
               )}
             </span>
             {/* Every mark goes on one line under the title, side by side: kind, who it is with, date, tags. */}
-            {(task.kind !== "task" || task.person_id || task.tags.length > 0) && (
+            {(task.kind !== "task" ||
+              task.person_id ||
+              task.tags.length > 0 ||
+              reviewing ||
+              startsAt ||
+              task.awaits_owner ||
+              task.proposed) && (
               <span className="taskrow__sub">
+                {task.proposed && task.state === "open" ? (
+                  <span className="taskrow__commit">
+                    <Icons.Sparkles size={11} />
+                    {agents[task.created_by]
+                      ? t("tasks.row.proposedBy", { name: agents[task.created_by]?.name ?? "" })
+                      : t("tasks.row.proposed")}
+                  </span>
+                ) : task.awaits_owner && task.state === "open" ? (
+                  <span className="taskrow__commit">
+                    <Icons.MessageCircle size={11} />
+                    {t("tasks.row.asks")}
+                  </span>
+                ) : (
+                  reviewing && (
+                    <span className="taskrow__commit">
+                      <Icons.Eye size={11} />
+                      {t("tasks.row.reviewer", { name: reviewerName })}
+                    </span>
+                  )
+                )}
+                {startsAt && (
+                  <span className="taskrow__commit">
+                    <Icons.Clock size={11} />
+                    {t("tasks.row.starts", { when: aheadLabel(startsAt) })}
+                  </span>
+                )}
                 {task.kind !== "task" && (
                   <span className={`taskrow__commit is-${task.kind}`}>
                     {task.kind === "commitment" ? <Icons.Calendar size={11} /> : <Icons.MapPin size={11} />}

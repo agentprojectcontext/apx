@@ -10,14 +10,18 @@ import { effortPart, type Harness, modelPart, type TurnIO, type TurnOutcome } fr
 import { linkedWorktreeWritableDirs } from "./worktree.ts";
 
 const READ_ONLY_NOTE =
-  "[APX: this turn is read-only: this agent works in manual or plan mode, or the thread does not let it write. Say so if a change is needed: the owner can make it, or switch the agent to Auto.]";
+  "[APX: this turn is read-only: this agent works in manual or plan mode, or the thread does not let it write. Say so if a change is needed: the owner can make it, change the agent's mode or let the session write.]";
 
-/** Whether Codex may edit and run commands in the folder this turn. See DECISIONS.md#d-057 */
+/**
+ * Whether Codex may edit and run commands in the folder this turn, for the agent as it acts (TurnIO.agent): Codex never
+ * asks, so a thread that asks before writing stays read-only, except in total, where nothing waits (DECISIONS.md#d-115).
+ */
 export function codexWrites(io: Pick<TurnIO, "thread" | "agent" | "outside">): boolean {
-  if (!worksInFolder(io.thread) || io.thread.write !== "auto") return false;
-  // Auto and accepting edits are what Codex's workspace-write sandbox does: its folder, whatever the session read.
+  if (!worksInFolder(io.thread) || io.thread.write === "read-only") return false;
   const mode = modeOf(io.agent);
-  return mode === "total" || mode === "auto" || mode === "accept_edits";
+  if (mode === "total") return true;
+  // Auto and accepting edits are what Codex's workspace-write sandbox does: its folder, whatever the session read.
+  return io.thread.write === "auto" && (mode === "auto" || mode === "accept_edits");
 }
 
 /** More than this in one turn is a batch the owner asked for in files, not in the chat. */
@@ -40,7 +44,7 @@ export function codexHarness(opts: {
       const gate = opts.gate(io);
       try {
         const apx = { ...gate.command, default_tools_approval_mode: "approve" };
-        const env = harnessEnv();
+        const env = harnessEnv(io.agent.id);
         const codex = new Codex({
           codexPathOverride: codexPath,
           // With approval "never" Codex refuses every MCP call unless the server's tools are pre-approved; APX's gate

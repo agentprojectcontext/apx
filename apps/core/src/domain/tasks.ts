@@ -155,6 +155,10 @@ const toTask = (r: Selectable<TasksTable> & { person_name: string | null; chats:
   awaits_owner: Boolean(r.awaits_owner),
   ...opt("due_at", r.due_at),
   ...opt("remind_at", r.remind_at),
+  ...opt("start_at", r.start_at),
+  ...opt("reviewer", r.reviewer),
+  ...opt("plan", r.plan),
+  ...(r.proposed ? { proposed: true } : {}),
   // A person removed before this fix left an id behind: shown as no person, never as the id.
   ...(r.person_id && r.person_name
     ? {
@@ -184,6 +188,10 @@ export type TaskChange = Partial<{
   tags: string[];
   due_at: string | null;
   remind_at: string | null;
+  start_at: string | null;
+  reviewer: string | null;
+  plan: string | null;
+  proposed: boolean;
   awaits_owner: boolean;
   person_id: string | null;
   owed_by: "owner" | "person";
@@ -261,6 +269,9 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       parent_id?: string | undefined;
       due_at?: string | undefined;
       remind_at?: string | undefined;
+      start_at?: string | undefined;
+      /** An agent's proposal: nothing starts until the owner accepts it. */
+      proposed?: boolean | undefined;
       /** Already reminded (an import: what was due before it arrived is not news). */
       reminded_at?: string | undefined;
       kind?: TaskKind | undefined;
@@ -287,6 +298,8 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
           thread_id: t.thread_id,
           due_at: t.due_at ?? null,
           remind_at: t.remind_at ?? null,
+          start_at: t.start_at ?? null,
+          proposed: t.proposed ? 1 : 0,
           reminded_at: t.reminded_at ?? null,
           kind: t.kind ?? (t.person_id ? "commitment" : "task"),
           priority: t.priority ?? "normal",
@@ -302,6 +315,7 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
       event(id, "create", t.by, {
         title: t.title,
         status: t.status,
+        ...(t.proposed ? { proposed: true } : {}),
         ...(t.assignee ? { assignee: t.assignee } : {}),
         ...(t.from ? { from_thread: t.from.thread, from_run: t.from.run } : {}),
       });
@@ -341,6 +355,10 @@ export function tasksRepo({ one, all, run }: Sql, bus: Bus) {
               : {}),
             ...(c.person_id === undefined && c.owed_by !== undefined && cur.person_id ? { owed_by: c.owed_by } : {}),
             ...(c.awaits_owner !== undefined ? { awaits_owner: c.awaits_owner ? 1 : 0 } : {}),
+            ...(c.start_at !== undefined ? { start_at: c.start_at } : {}),
+            ...(c.reviewer !== undefined ? { reviewer: c.reviewer } : {}),
+            ...(c.plan !== undefined ? { plan: c.plan } : {}),
+            ...(c.proposed !== undefined ? { proposed: c.proposed ? 1 : 0 } : {}),
             updated_at: at,
             activity_at: at,
           })

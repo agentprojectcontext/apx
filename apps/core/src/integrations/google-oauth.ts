@@ -2,13 +2,22 @@
 // access tokens minted from the stored refresh token. node:crypto and fetch, no Google SDK.
 import crypto from "node:crypto";
 
-export type GoogleEndpoints = { auth: string; token: string; calendar: string; gmail: string };
+export type GoogleEndpoints = {
+  auth: string;
+  token: string;
+  calendar: string;
+  gmail: string;
+  drive: string;
+  driveUpload: string;
+};
 
 export const GOOGLE: GoogleEndpoints = {
   auth: "https://accounts.google.com/o/oauth2/v2/auth",
   token: "https://oauth2.googleapis.com/token",
   calendar: "https://www.googleapis.com/calendar/v3",
   gmail: "https://gmail.googleapis.com/gmail/v1",
+  drive: "https://www.googleapis.com/drive/v3",
+  driveUpload: "https://www.googleapis.com/upload/drive/v3",
 };
 
 /** Every endpoint under one address: a stand-in Google for tests. */
@@ -17,6 +26,8 @@ export const googleAt = (base: string): GoogleEndpoints => ({
   token: `${base}/token`,
   calendar: `${base}/calendar/v3`,
   gmail: `${base}/gmail/v1`,
+  drive: `${base}/drive/v3`,
+  driveUpload: `${base}/upload/drive/v3`,
 });
 
 export const b64url = (buf: Buffer | string) => Buffer.from(buf).toString("base64url");

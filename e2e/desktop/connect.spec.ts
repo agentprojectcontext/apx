@@ -58,19 +58,23 @@ echo APX_KEY_OK
 
 /** The intro holds the hero alone for a moment; a key skips straight to the question. */
 async function question(page: Page): Promise<Page> {
+  await expect(page.locator(".connect__stage")).toBeAttached();
   await page.keyboard.press("Space");
   await expect(page.locator(".connect__stage.is-ready")).toBeVisible();
   return page;
 }
 
 async function windowAt(app: ElectronApplication, test: (url: string) => boolean): Promise<Page> {
-  await expect.poll(() => app.windows().some((p) => test(p.url())), { timeout: 20_000 }).toBe(true);
-  return app.windows().find((p) => test(p.url())) as Page;
+  // Quick chat preloads the core too; it must not satisfy a main-panel navigation.
+  const matching = () => app.windows().find((p) => !p.isClosed() && !p.url().includes("quick=1") && test(p.url()));
+  await expect.poll(() => Boolean(matching()), { timeout: 20_000 }).toBe(true);
+  return matching() as Page;
 }
 
 test.beforeAll(async () => {
   coreHome = (await world.info()).home;
   home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-e2e-connect-"));
+  fs.mkdirSync(path.join(home, "desktop"), { recursive: true });
 });
 test.afterAll(() => fs.rmSync(home, { recursive: true, force: true }));
 
@@ -204,32 +208,38 @@ test("changing connection revokes the old desktop node before choosing a new ser
   fs.mkdirSync(path.join(home, "desktop"), { recursive: true });
   fs.writeFileSync(path.join(home, "desktop", "connection.json"), JSON.stringify({ mode: "local" }));
   const app = await launch();
-  await windowAt(app, (u) => u.startsWith(core));
-  const browserNode = async () => {
-    const health = (await (await fetch(`${core}/health`)).json()) as {
-      result: { subsystems: { browser: { detail: string } } };
+  try {
+    const panel = await windowAt(app, (u) => u.startsWith(core));
+    await expect(panel.locator(".shell")).toBeVisible();
+    const browserNode = async () => {
+      const health = (await (await fetch(`${core}/health`)).json()) as {
+        result: { subsystems: { browser: { detail: string } } };
+      };
+      return health.result.subsystems.browser.detail;
     };
-    return health.result.subsystems.browser.detail;
-  };
-  await expect.poll(browserNode).toBe("apx-desktop");
-  await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.click());
-  const chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
-  await expect.poll(browserNode).not.toBe("apx-desktop");
-  expect(fs.existsSync(path.join(home, "desktop", "connection.json"))).toBe(false);
-  // The checkout's core is still the one the e2e started: nothing took it down.
-  expect((await fetch(`${core}/health`)).ok).toBe(true);
-  await chooser.locator("#pick-client").click();
-  await chooser.locator("#url").fill(core);
-  await chooser.locator("#client-go").click();
-  await windowAt(app, (u) => u.startsWith(core));
-  expect(await browserNode()).not.toBe("apx-desktop");
-  await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.click());
-  await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
-  await chooser.locator("#pick-server").click();
-  await chooser.locator("#server-go").click();
-  await windowAt(app, (u) => u.startsWith(core));
-  await expect.poll(browserNode).toBe("apx-desktop");
-  await app.close();
+    await expect.poll(browserNode).toBe("apx-desktop");
+    await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.click());
+    let chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
+    await expect.poll(browserNode).not.toBe("apx-desktop");
+    expect(fs.existsSync(path.join(home, "desktop", "connection.json"))).toBe(false);
+    // The checkout's core is still the one the e2e started: nothing took it down.
+    expect((await fetch(`${core}/health`)).ok).toBe(true);
+    await chooser.locator("#pick-client").click();
+    await chooser.locator("#url").fill(core);
+    await chooser.locator("#client-go").click();
+    expect((await windowAt(app, (u) => u.startsWith(core))) === panel).toBe(true);
+    await expect(panel.locator(".shell")).toBeVisible();
+    expect(await browserNode()).not.toBe("apx-desktop");
+    await app.evaluate(({ Menu }) => Menu.getApplicationMenu()?.getMenuItemById("change-connection")?.click());
+    chooser = await question(await windowAt(app, (u) => u.startsWith("apx-app://")));
+    await chooser.locator("#pick-server").click();
+    await chooser.locator("#server-go").click();
+    expect((await windowAt(app, (u) => u.startsWith(core))) === panel).toBe(true);
+    await expect(panel.locator(".shell")).toBeVisible();
+    await expect.poll(browserNode).toBe("apx-desktop");
+  } finally {
+    await app.close();
+  }
 });
 
 test("About opens APX's own window with this build's versions and the repo", async () => {

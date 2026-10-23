@@ -2,18 +2,9 @@ import type { Schedule } from "@apx/protocol";
 import { Button, Input, SegmentedControl, Select } from "@apx/ui";
 import { useState } from "react";
 import { aheadLabel } from "../common/format.ts";
+import { DAY_KEY, WeekDays } from "../common/pickers/WeekDays.tsx";
 import { type MessageKey, type T, useT } from "../i18n/index.ts";
-import { WEEK, weeklyCron, weeklyOf } from "./cron.ts";
-
-const DAY_KEY: Record<number, MessageKey> = {
-  0: "routines.day.sun",
-  1: "routines.day.mon",
-  2: "routines.day.tue",
-  3: "routines.day.wed",
-  4: "routines.day.thu",
-  5: "routines.day.fri",
-  6: "routines.day.sat",
-};
+import { weeklyCron, weeklyOf } from "./cron.ts";
 
 const UNITS = [
   { id: "minutes", n: 1 },
@@ -100,25 +91,11 @@ export function ScheduleEditor({ value, onChange }: { value: Schedule; onChange:
       />
       {value.kind === "cron" && weekly && !advanced && (
         <div className="sched__weekly">
-          <fieldset className="sched__days">
-            <legend className="sr-only">{t("routines.daysLabel")}</legend>
-            {WEEK.map((d) => {
-              const on = weekly.days.includes(d);
-              return (
-                <label key={d} className={on ? "sched__day is-on" : "sched__day"}>
-                  <input
-                    type="checkbox"
-                    checked={on}
-                    onChange={() => {
-                      const days = on ? weekly.days.filter((x) => x !== d) : [...weekly.days, d];
-                      if (days.length) onChange({ kind: "cron", cron: weeklyCron(days, weekly.time) });
-                    }}
-                  />
-                  {t(DAY_KEY[d] as MessageKey)}
-                </label>
-              );
-            })}
-          </fieldset>
+          <WeekDays
+            days={weekly.days}
+            label={t("routines.daysLabel")}
+            onChange={(days) => onChange({ kind: "cron", cron: weeklyCron(days, weekly.time) })}
+          />
           <Input
             type="time"
             aria-label={t("routines.time")}

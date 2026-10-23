@@ -165,17 +165,23 @@ export const BROWSER_METHODS = Object.keys(browserMethods) as BrowserMethod[];
 export const BROWSER_HOLD = "browser.hold";
 export const BrowserHold = z.object({ run: z.string().min(1).max(128), tabs: z.array(Tab).max(64) }).strict();
 
-/** The browser's side of browser.hold: which tabs a running turn still holds. */
-export function createTabHolds() {
+/**
+ * The browser's side of browser.hold: which tabs a running turn still holds. `onRelease` hears each tab no turn holds
+ * any more, so an agent's tab shows as free once its turn ends.
+ */
+export function createTabHolds(onRelease?: (tab: string) => void) {
   const runs = new Map<string, Set<string>>();
+  const held = (tab: string): boolean => [...runs.values()].some((tabs) => tabs.has(tab));
   return {
     set(raw: unknown): { ok: true } {
       const p = BrowserHold.parse(raw);
+      const before = runs.get(p.run) ?? new Set<string>();
       if (p.tabs.length) runs.set(p.run, new Set(p.tabs));
       else runs.delete(p.run);
+      for (const tab of before) if (!held(tab)) onRelease?.(tab);
       return { ok: true };
     },
-    held: (tab: string): boolean => [...runs.values()].some((tabs) => tabs.has(tab)),
+    held,
     /** The link to the core dropped: a core that comes back tells its holds again. */
     clear: (): void => runs.clear(),
   };

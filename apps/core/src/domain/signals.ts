@@ -1,6 +1,7 @@
 // The watcher's signals: plain facts read from the store with no model — a task past its due date, one waiting on the
-// owner for days, a commitment about to fall due or already late, a project with open work and no movement. A watch
-// routine calls its agent only when one of them is new, and the agent decides whether it is worth interrupting for.
+// owner for days, a commitment about to fall due or already late, a project with open work and no movement, a task set
+// up so it cannot move (see `brokenTask`). A watch routine calls its agent only when one of them is new, and the agent
+// decides whether it is worth interrupting for.
 import type { Task } from "@apx/protocol";
 import type { Store } from "./store.ts";
 
@@ -12,7 +13,13 @@ export const WATCH = {
   repeatHours: 24,
 };
 
-export type SignalKind = "overdue_task" | "waiting_owner" | "commitment_due" | "overdue_commitment" | "stale_project";
+export type SignalKind =
+  | "overdue_task"
+  | "waiting_owner"
+  | "commitment_due"
+  | "overdue_commitment"
+  | "stale_project"
+  | "broken_task";
 export type Severity = "low" | "normal" | "high" | "critical";
 export type Signal = {
   /** Stable across runs ("overdue_task:tsk_…"): how a signal already told is recognized. */
@@ -93,6 +100,19 @@ export function watchSignals(store: Store, o: { projectId?: string | undefined; 
       });
   }
 
+  const ids = new Set(open.map((t) => t.id));
+  for (const t of open) {
+    const broken = brokenTask(store, t, now, ids);
+    if (broken)
+      out.push({
+        key: `broken_task:${broken.why}:${t.id}`,
+        kind: "broken_task",
+        severity: broken.severity,
+        ...where(t),
+        subject: `${broken.subject}: ${t.title}`,
+      });
+  }
+
   // A project goes quiet only while it has open work: an idle finished project is not news.
   const withWork = new Set(open.flatMap((t) => (t.project_id ? [t.project_id] : [])));
   const last = store.projects.lastActivity();
@@ -128,3 +148,46 @@ export function freshSignals(
 /** The signals as lines for the agent: "- [high] Acme: Overdue by 3 days: Send the invoice". */
 export const signalLines = (signals: Signal[]) =>
   signals.map((s) => `- [${s.severity}] ${s.project ? `${s.project}: ` : ""}${s.subject}`).join("\n");
+
+/** In progress with nothing run on it for this long is no longer a stall (task-stall.ts): the owner should see it. */
+const IDLE_DOING_DAYS = 2;
+/** A start this far in the past that never began did not start by itself. */
+const MISSED_START_HOURS = 1;
+
+/**
+ * What keeps an open task from moving, read from the store: an agent that is gone, nothing to start from, in progress
+ * with nobody on it or idle for days, a reviewer that is gone, a start that never came, a parent already closed.
+ */
+function brokenTask(
+  store: Store,
+  t: Task,
+  now: number,
+  open: ReadonlySet<string>,
+): { why: string; severity: Severity; subject: string } | undefined {
+  if (isCommitment(t) || t.awaits_owner || t.proposed) return undefined;
+  const agent = t.assignee ? store.agents.get(t.assignee) : undefined;
+  if (t.assignee && !agent)
+    return { why: "agent_gone", severity: "high", subject: "Assigned to an agent that no longer exists" };
+  const chats = store.threads.byTask(t.id);
+  if (agent && !t.description.trim() && !chats.length)
+    return { why: "no_description", severity: "normal", subject: "Assigned with no description, so it never starts" };
+  if (t.status === "doing" && !agent)
+    return { why: "doing_nobody", severity: "normal", subject: "In progress with nobody on it" };
+  if (t.status === "review" && t.reviewer && !store.agents.get(t.reviewer))
+    return { why: "reviewer_gone", severity: "normal", subject: "In review by an agent that no longer exists" };
+  if (agent && t.start_at && !chats.length && now - Date.parse(t.start_at) >= MISSED_START_HOURS * HOUR)
+    return { why: "missed_start", severity: "normal", subject: `Its start (${t.start_at}) passed and it never began` };
+  if (t.status === "doing" && chats.length) {
+    const ended = chats
+      .flatMap((c) => store.runs.list(c.id, 1))
+      .map((r) => r.ended_at ?? "")
+      .sort()
+      .at(-1);
+    const idle = ended ? Math.floor((now - Date.parse(ended)) / DAY) : 0;
+    if (idle >= IDLE_DOING_DAYS && !store.threads.busy(chats.map((c) => c.id)))
+      return { why: "idle", severity: "normal", subject: `In progress, but nothing has run on it for ${idle} days` };
+  }
+  if (t.parent_id && !open.has(t.parent_id) && store.tasks.get(t.parent_id)?.state !== "open")
+    return { why: "parent_closed", severity: "low", subject: "Still open under a task already closed" };
+  return undefined;
+}

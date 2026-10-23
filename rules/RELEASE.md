@@ -37,7 +37,10 @@ v2 is published into v1's public repo (`agentprojectcontext/apx`), which every v
 
 The release starts as a draft. After all desktop, daemon and Android jobs upload successfully, the publication
 job waits for the `verify.yml` run on `release/v2` for that exact tag commit to pass, then exposes it to update
-clients and announcements. Failed builds or verification leave the draft available for repair.
+clients and announcements. Failed builds or verification leave the draft available for repair. Tags build the
+release artifacts; verification runs on the branch commit once, rather than duplicating the same suites for its tag.
+Linux preflight, all-suite coverage and performance run in parallel, alongside macOS and Windows portability.
+Publication still requires the whole workflow to pass; a failed performance job can be retried without rerunning coverage.
 
 `release.yml` on a `v2.x.y` tag: for linux x64/arm64, win x64, mac arm64/x64 the desktop installer (AppImage, NSIS
 `.exe`, `.dmg`, plus a `.zip`), the daemon bundle `apx-core-<v>-<os>-<arch>.tar.gz`, a `.sha256` beside each,
@@ -56,6 +59,14 @@ The same commits since the previous v2 tag, each subject as a sentence, reach pe
 announcement, the replies to the issues a release fixes, and, inside APX, the super-agent's "what's new" chat on the
 first start of the new version ([D-100](DECISIONS.md#d-100)). So a commit subject is release text: write it for the
 people who use APX. Only `feat`, `fix` and `perf` commits are shown.
+
+Release news are the other half: what a release lets an owner's super-agent do for them, told once, in its own words,
+with a button or two to start ([D-117](DECISIONS.md#d-117)). They are written by hand in
+`apps/core/src/news/entries.ts`, one entry per thing worth acting on, by whoever ships that thing (AGENTS.md rule 25):
+`since` is the first release that has it, `applies` reads the install's facts (`newsFacts`: widgets, Google parts,
+the running profile…) so only owners it helps hear it. An owner who updates past several releases hears every entry
+they have not heard that applies; a fresh install hears none. Before tagging, check that each owner-facing `feat`
+since the last tag either has an entry or is not worth offering.
 
 ## Issues a release fixes
 

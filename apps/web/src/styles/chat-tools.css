@@ -393,3 +393,49 @@
 .inputline__state.is-denied {
   color: var(--apx-danger-soft-fg);
 }
+
+/* An agent's suggested connections (ConnectPart). */
+.connectcard .inputcard__head {
+  color: var(--apx-fg-muted);
+}
+.connectcard__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.connectcard__row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-bg);
+}
+.connectcard__more {
+  display: flex;
+  align-self: flex-start;
+  gap: 8px;
+  align-items: center;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--apx-radius-sm);
+  background: none;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+  cursor: pointer;
+}
+.connectcard__more:hover {
+  color: var(--apx-fg);
+  background: var(--apx-fill);
+}
+.connectcard__stack {
+  display: flex;
+}
+.connectcard__stack > * {
+  border-radius: 5px;
+  box-shadow: 0 0 0 1.5px var(--apx-surface);
+}
+.connectcard__stack > * + * {
+  margin-left: -5px;
+}

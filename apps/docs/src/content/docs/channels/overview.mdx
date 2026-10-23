@@ -17,7 +17,7 @@ chats.
 
 ## Three words: channel, contact, room
 
-- A **channel** is an app APX talks through: Telegram, WhatsApp, Discord, Slack, iMessage.
+- A **channel** is an app APX talks through: Telegram, WhatsApp, Discord, Slack, iMessage, Google Chat, SMS and more.
 - A **contact** is a person on a channel. Each contact has a direct chat with your agent.
 - A **room** is a shared place many people read, such as a channel on your Discord server.
 
@@ -107,6 +107,23 @@ Whatever the setting, a short "stop" ("stop", "pará", "basta", "cancelá") whil
 On Telegram and WhatsApp, **Messages that need no answer** chooses what an "ok", a thanks or a goodbye gets:
 **Silence** or **React** (an emoji), with no model call either way.
 
+## Attention hours
+
+A channel answers contacts at any hour until you turn on **Attention hours** in its settings: the days it answers and
+from when to when, in the time zone of your account (**Settings › Account**). Hours that end after midnight belong to
+the day they start on (Friday 20:00–02:00 covers the first hours of Saturday).
+
+- Outside them, a contact's message is kept in their chat, unread for you, with no model call: nothing goes back.
+- When the hours begin, each chat that waited gets **one** answer to everything that person sent meanwhile. Chats
+  are answered a few at a time, the longest waiting first. A supervised contact gets its draft then.
+- If they write again once the hours have begun, that message is answered with the earlier ones in view, and only
+  once.
+- You are always answered, on any channel. A contact with **Answer at any hour** (in their card) is too.
+- In rooms, outside the hours only you are answered, and nothing said meanwhile is answered later.
+
+You can also ask your super-agent in chat ("answer WhatsApp Monday to Friday 9 to 18, and my dad at any hour"): it sets
+a channel's hours and who is answered at any hour, each change once you approve it. Other agents cannot.
+
 ## Delivery and notices
 
 Everything APX sends goes through a durable **outbox**: a message survives a restart and is retried, and each one ends
@@ -133,10 +150,14 @@ on for that chat; that needs a voice in **Settings › Voices** too.
 | [WhatsApp](/channels/whatsapp/) | Complete | A linked device, by QR |
 | [Discord](/channels/discord-slack/) | Complete | A bot: direct messages and server rooms |
 | [Slack](/channels/discord-slack/) | Complete | An app in Socket Mode: direct messages |
-| [iMessage](/channels/imessage/) | Tools on a Mac | Agents read and send; no incoming chats |
+| [iMessage](/channels/imessage/) | Unverified | On a Mac: tools agents use, and (optional) answering the people you approve |
 | Matrix, Mattermost, Signal | Unverified | In the panel, not yet tested against a real server |
 | Email | Unverified | A mailbox over IMAP and SMTP (an app password); tested only against a fake server |
-| Teams, Google Chat, SMS, LINE | Coming soon | Listed, can't be connected yet |
+| Google Chat | Unverified | A Chat app over Cloud Pub/Sub (no public address): direct messages and the spaces you list |
+| SMS | Unverified | A Twilio number, checked every few seconds (no webhook) |
+| ntfy | Unverified | Push notifications to your phone, and your replies from the ntfy app; only you |
+| Nextcloud Talk, IRC, Twitch | Unverified | A bot user (Nextcloud), a nick (IRC) or a bot account (Twitch chat); their rooms are listed like Telegram groups |
+| Teams, LINE | Coming soon | They deliver only to a public webhook, which APX doesn't take yet |
 
 <Aside type="note">
 The terminal adds Telegram bots only. Every other channel is set up in **Settings › Channels**.

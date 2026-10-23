@@ -20,8 +20,26 @@ contextBridge.exposeInMainWorld("apxDesktop", {
   /** `browser` undefined = the system's default browser. */
   openExternal: (url: string, browser?: string): Promise<unknown> =>
     ipcRenderer.invoke("browser:open-external", String(url), typeof browser === "string" ? browser : undefined),
+  /** An artifact in a window of its own. */
+  openArtifactWindow: (id: string, title: string) =>
+    ipcRenderer.send("artifact:open-window", String(id), String(title)),
+  closeArtifactWindow: (id: string) => ipcRenderer.send("artifact:close-window", String(id)),
+  onArtifactWindow: (listener: (id: string, open: boolean) => void) => {
+    const on = (_e: unknown, id: unknown, open: unknown) => {
+      if (typeof id === "string") listener(id, open === true);
+    };
+    ipcRenderer.on("artifact:window", on);
+    return () => ipcRenderer.removeListener("artifact:window", on);
+  },
   openMain: (threadId?: string) =>
     ipcRenderer.send("quick:open-main", typeof threadId === "string" ? threadId : undefined),
+  /** Files the owner opened with APX, each with its text or why it has none; taken once. */
+  takeOpenedFiles: (): Promise<unknown> => ipcRenderer.invoke("artifact:take-opened"),
+  onFileOpened: (listener: () => void) => {
+    const on = () => listener();
+    ipcRenderer.on("artifact:file-opened", on);
+    return () => ipcRenderer.removeListener("artifact:file-opened", on);
+  },
   onOpenThread: (listener: (threadId: string) => void) => {
     const on = (_e: unknown, id: unknown) => {
       if (typeof id === "string") listener(id);

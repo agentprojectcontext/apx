@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { once } from "node:events";
 import fs from "node:fs";
+import { createServer } from "node:http";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -197,6 +199,189 @@ test("download errors, absent checksums and oversized payloads remain retryable 
     } finally {
       await f.close();
     }
+  }
+});
+
+test("cancel aborts an active download and a later install still completes", async () => {
+  let release = false;
+  let entered: (() => void) | undefined;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const f = fixture({
+    fetch: async (input, init) => {
+      if (!release && !String(input).includes("/releases?")) {
+        entered?.();
+        return new Promise((_resolve, reject) =>
+          init?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true }),
+        );
+      }
+      return f.fakeFetch(input, init);
+    },
+  });
+  try {
+    assert.equal((await f.installer.cancel()).phase, "idle");
+    f.installer.start();
+    await started;
+    const cancelled = await f.installer.cancel();
+    assert.equal(cancelled.phase, "idle");
+    assert.equal(cancelled.error, undefined);
+    assert.equal(cancelled.received, 0);
+    assert.equal(cancelled.total, undefined);
+    assert.equal(fs.existsSync(f.app), false);
+    release = true;
+    f.installer.start();
+    assert.equal((await f.installer.wait()).phase, "ready");
+    assert.equal(f.installer.status().error, undefined);
+  } finally {
+    await f.close();
+  }
+});
+
+test("a cancelled download still reports a temporary cleanup failure", async (t) => {
+  let entered: (() => void) | undefined;
+  const downloading = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const f = fixture({
+    fetch: async (input, init) => {
+      if (String(input).includes("/releases?")) return f.fakeFetch(input, init);
+      entered?.();
+      return new Promise((_resolve, reject) =>
+        init?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true }),
+      );
+    },
+  });
+  const remove = fs.rmSync;
+  const leftovers: fs.PathLike[] = [];
+  t.mock.method(fs, "rmSync", (file: fs.PathLike, options?: fs.RmOptions) => {
+    if (path.basename(String(file)).startsWith("apx-desktop-install-")) {
+      leftovers.push(file);
+      throw new Error("Temporary download is locked");
+    }
+    return remove(file, options);
+  });
+  try {
+    f.installer.start();
+    await downloading;
+    const cancelled = await f.installer.cancel();
+    assert.equal(cancelled.phase, "failed");
+    assert.match(cancelled.error ?? "", /locked/);
+    assert.equal(f.calls.length, 0);
+  } finally {
+    t.mock.restoreAll();
+    for (const file of leftovers) remove(file, { recursive: true, force: true });
+    await f.close();
+  }
+});
+
+test("cancel closes a partial HTTP download, removes its files and permits a fresh install", {
+  timeout: 10_000,
+}, async (t) => {
+  const bytes = Buffer.from("verified desktop binary");
+  const name = "APX-2.9.1-linux-x64.AppImage";
+  let partial = true;
+  let received: (() => void) | undefined;
+  const progress = new Promise<void>((resolve) => {
+    received = resolve;
+  });
+  let disconnected: (() => void) | undefined;
+  const closed = new Promise<void>((resolve) => {
+    disconnected = resolve;
+  });
+  const work: string[] = [];
+  const makeTemp = fs.mkdtempSync;
+  t.mock.method(fs, "mkdtempSync", (prefix: string) => {
+    const dir = makeTemp(prefix);
+    if (path.basename(dir).startsWith("apx-desktop-install-")) work.push(dir);
+    return dir;
+  });
+  const server = createServer((req, res) => {
+    if (req.url?.startsWith("/releases?")) {
+      res.setHeader("content-type", "application/json");
+      res.end(
+        JSON.stringify([
+          {
+            tag_name: "v2.9.1",
+            assets: [name, `${name}.sha256`].map((asset) => ({ name: asset, browser_download_url: `${url}/${asset}` })),
+          },
+        ]),
+      );
+    } else if (req.url?.endsWith(".sha256")) {
+      res.end(createHash("sha256").update(bytes).digest("hex"));
+    } else {
+      res.setHeader("content-length", bytes.length);
+      if (partial) {
+        res.once("close", () => disconnected?.());
+        res.write(bytes.subarray(0, 4));
+      } else res.end(bytes);
+    }
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const url = `http://127.0.0.1:${address.port}`;
+  const f = fixture({
+    feed: url,
+    fetch,
+    changed: (status) => {
+      if (status.received > 0) received?.();
+    },
+  });
+  try {
+    f.installer.start();
+    await progress;
+    assert.equal(f.installer.status().received, 4);
+    const result = await f.installer.cancel();
+    await closed;
+    assert.equal(result.phase, "idle");
+    assert.equal(result.error, undefined);
+    assert.equal(result.received, 0);
+    assert.equal(result.total, undefined);
+    assert.equal(f.calls.length, 0);
+    assert.equal(fs.existsSync(f.app), false);
+    assert.equal(work.length, 1);
+    for (const dir of work) assert.equal(fs.existsSync(dir), false);
+    partial = false;
+    f.installer.start();
+    assert.equal((await f.installer.wait()).phase, "ready");
+    assert.deepEqual(fs.readFileSync(f.app), bytes);
+    for (const dir of work) assert.equal(fs.existsSync(dir), false);
+  } finally {
+    await f.close();
+    const closing = once(server, "close");
+    server.close();
+    server.closeAllConnections();
+    await closing;
+  }
+});
+
+test("cancel leaves an OS installation and its launch running", async () => {
+  let installer: ReturnType<typeof createDesktopInstaller>;
+  let installing: ReturnType<typeof installer.cancel> | undefined;
+  const phases: string[] = [];
+  const f = fixture({
+    changed: (status) => {
+      phases.push(status.phase);
+      if (status.phase === "installing") installing = installer.cancel();
+    },
+    run: async (_command, _args, options) => {
+      assert.equal(installer.status().phase, "opening");
+      assert.equal((await installer.cancel()).phase, "opening");
+      assert.equal(options.signal.aborted, false);
+    },
+  });
+  installer = f.installer;
+  try {
+    installer.start();
+    assert.equal((await installer.wait()).phase, "ready");
+    assert.ok(phases.includes("installing"));
+    assert.ok(phases.includes("opening"));
+    assert.equal((await installing)?.phase, "installing");
+    assert.equal((await installer.cancel()).phase, "ready");
+  } finally {
+    await f.close();
   }
 });
 

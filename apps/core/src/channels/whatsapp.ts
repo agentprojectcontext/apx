@@ -251,7 +251,13 @@ export function whatsappAdapter(opts: {
   };
   const isSelf = (jid: string) => Boolean(me && (jid === me.pn || jid === me.lid));
 
-  async function connect(): Promise<void> {
+  let connecting: Promise<void> = Promise.resolve();
+  function connect(): Promise<void> {
+    connecting = openSocket();
+    return connecting;
+  }
+
+  async function openSocket(): Promise<void> {
     if (!lib || stopped) return;
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     const { state, saveCreds } = await lib.useMultiFileAuthState(dir);
@@ -260,6 +266,7 @@ export function whatsappAdapter(opts: {
       // An old protocol version is a reliable way to be disconnected: ask what WhatsApp speaks today.
       version = (await lib.fetchLatestBaileysVersion?.())?.version;
     } catch {}
+    if (stopped) return;
     const s = lib.makeWASocket({
       auth: state,
       ...(version ? { version } : {}),
@@ -273,6 +280,7 @@ export function whatsappAdapter(opts: {
     });
     sock = s;
     s.ev.on("creds.update", (() => {
+      if (s !== sock || stopped) return;
       saving = saving.then(saveCreds, saveCreds);
     }) as (arg: never) => void);
     s.ev.on("connection.update", ((u: ConnectionUpdate) => onConnection(s, u)) as (arg: never) => void);
@@ -330,10 +338,12 @@ export function whatsappAdapter(opts: {
     const why = u.lastDisconnect?.error?.message ?? `closed (${code ?? "?"})`;
     if (code === lib.DisconnectReason.loggedOut) {
       // Dead credentials: retrying them in a loop is how an account gets flagged. A human links it again.
-      fs.rmSync(dir, { recursive: true, force: true });
-      me = undefined;
-      io.qr?.(undefined);
-      io.status("error", "WhatsApp logged this device out: link it again with the QR");
+      void stop().then(() => {
+        fs.rmSync(dir, { recursive: true, force: true });
+        me = undefined;
+        io?.qr?.(undefined);
+        io?.status("error", "WhatsApp logged this device out: link it again with the QR");
+      });
       return;
     }
     // After a scan WhatsApp asks for a restart: the linked session comes up on the next connection.
@@ -416,7 +426,7 @@ export function whatsappAdapter(opts: {
     if (media && group) text ||= `[${media.kind}]`;
     else if (media) {
       const got = await fileOf(m, media);
-      if (got.file) files = [got.file];
+      if (got.file) files = [media.kind === "sticker" ? { ...got.file, sticker: {} } : got.file];
       else text = `${text}\n[attachment could not be downloaded: ${got.failure}]`.trim();
     }
     if (!text && !voice && !files) {
@@ -536,16 +546,32 @@ export function whatsappAdapter(opts: {
   }
 
   const fileContent = (f: OutFile): Record<string, unknown> =>
-    f.kind === "file"
-      ? { document: f.data, mimetype: f.mime, fileName: fileName(f) }
-      : f.kind === "image"
-        ? { image: f.data, mimetype: f.mime }
-        : f.mime === "audio/ogg"
-          ? { audio: f.data, mimetype: "audio/ogg; codecs=opus", ptt: true }
-          : { audio: f.data, mimetype: f.mime };
+    f.kind === "sticker"
+      ? { sticker: f.data, mimetype: f.mime }
+      : f.kind === "file"
+        ? { document: f.data, mimetype: f.mime, fileName: fileName(f) }
+        : f.kind === "image"
+          ? { image: f.data, mimetype: f.mime }
+          : f.mime === "audio/ogg"
+            ? { audio: f.data, mimetype: "audio/ogg; codecs=opus", ptt: true }
+            : { audio: f.data, mimetype: f.mime };
+
+  async function stop(): Promise<void> {
+    stopped = true;
+    clearTimeout(retry);
+    const s = sock;
+    sock = undefined;
+    me = undefined;
+    try {
+      s?.end(undefined);
+    } catch {}
+    // Auth initialization and queued saves must finish before a caller removes the session folder.
+    await connecting.catch(() => {});
+    await saving.catch(() => {});
+  }
 
   return {
-    caps: { typing: true, buttons: false, reactions: true, ownAccount: Boolean(opts.selfOwner) },
+    caps: { typing: true, buttons: false, reactions: true, stickers: true, ownAccount: Boolean(opts.selfOwner) },
     async start(adapterIO) {
       io = adapterIO;
       stopped = false;
@@ -558,19 +584,15 @@ export function whatsappAdapter(opts: {
       await connect();
       return { waiting: true };
     },
-    async stop() {
-      stopped = true;
-      clearTimeout(retry);
-      try {
-        sock?.end(undefined);
-      } catch {}
-      sock = undefined;
-    },
+    stop,
     async forget() {
+      stopped = true;
+      me = undefined;
+      clearTimeout(retry);
       try {
         await sock?.logout();
       } catch {}
-      await this.stop();
+      await stop();
       fs.rmSync(dir, { recursive: true, force: true });
     },
     async send(conversation, p: Presentation, files = []) {

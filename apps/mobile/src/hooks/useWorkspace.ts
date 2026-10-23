@@ -17,6 +17,7 @@ import {
 } from "../protocol";
 import { taskComments } from "../tasks/comments";
 import { DEFAULT_COLUMNS, type TaskColumn, type TaskPatch } from "../tasks/fields";
+import { continueSession } from "./continueSession";
 
 export type Agent = {
   id: string;
@@ -70,6 +71,10 @@ export type Task = {
   thread_id: string;
   due_at?: string;
   awaits_owner: boolean;
+  /** Who checks it in review: an agent's id; none, the owner. */
+  reviewer?: string;
+  /** An agent proposed it: nothing starts until the owner accepts it. */
+  proposed?: boolean;
   /** A commitment: the person on the other side, and how it ended once closed. */
   person_name?: string;
   outcome?: "kept" | "missed" | "dropped";
@@ -456,6 +461,14 @@ export function useWorkspace(creds: Creds) {
     [client, loadSecondary],
   );
 
+  const continueDelegation = useCallback(
+    async (session: string) => {
+      await continueSession(client, session);
+      await loadSecondary();
+    },
+    [client, loadSecondary],
+  );
+
   const routineRuns = useCallback(
     async (routineId: string, limit = 14) =>
       (await rpc<{ runs: RoutineRun[] }>(client, "routines.runs", { routine: routineId, limit })).runs,
@@ -677,6 +690,7 @@ export function useWorkspace(creds: Creds) {
     toggleRoutine,
     saveRoutine,
     runRoutine,
+    continueDelegation,
     routineRuns,
     taskDetail,
     createTask,

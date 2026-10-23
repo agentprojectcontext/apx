@@ -1,6 +1,6 @@
 // Every write the panel makes. Components call these; they never call the client directly.
-import type { ApprovalScope, Message, Part, Thread } from "@apx/protocol";
-import { ApxError } from "@apx/protocol/client";
+import type { ApprovalScope, Message, Part, SurfaceState, Thread } from "@apx/protocol";
+import { ApxError, secureRequestKey } from "@apx/protocol/client";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { type Attached, setThreadModel } from "./composer.ts";
@@ -137,19 +137,21 @@ export async function send(
   const files = opts.attachments ?? [];
   const list = data.get().messages[threadId] ?? [];
   const busy = data.get().threads[threadId]?.state === "working";
-  const local: Message = {
-    id: `local_${crypto.randomUUID()}`,
-    thread_id: threadId,
-    seq: (list[list.length - 1]?.seq ?? 0) + 0.5,
-    author: { kind: "user" },
-    parts: [{ type: "text", text }, ...files.map(attachedPart)],
-    created_at: new Date().toISOString(),
-  };
-  data.set((s) => ({
-    messages: { ...s.messages, [threadId]: upsertMessage(s.messages[threadId], local) },
-    threads: busy ? s.threads : patchThread(s.threads, threadId, { state: "submitted" }),
-  }));
+  let localId: string | undefined;
   try {
+    const local: Message = {
+      id: `local_${secureRequestKey()}`,
+      thread_id: threadId,
+      seq: (list[list.length - 1]?.seq ?? 0) + 0.5,
+      author: { kind: "user" },
+      parts: [{ type: "text", text }, ...files.map(attachedPart)],
+      created_at: new Date().toISOString(),
+    };
+    data.set((s) => ({
+      messages: { ...s.messages, [threadId]: upsertMessage(s.messages[threadId], local) },
+      threads: busy ? s.threads : patchThread(s.threads, threadId, { state: "submitted" }),
+    }));
+    localId = local.id;
     const r = await client.call("threads.send", {
       thread: threadId,
       text,
@@ -166,9 +168,9 @@ export async function send(
     });
   } catch (e) {
     data.set((s) => ({
-      messages: { ...s.messages, [threadId]: (s.messages[threadId] ?? []).filter((m) => m.id !== local.id) },
+      messages: { ...s.messages, [threadId]: (s.messages[threadId] ?? []).filter((m) => m.id !== localId) },
       threads:
-        !busy && s.threads[threadId]?.state === "submitted"
+        localId && !busy && s.threads[threadId]?.state === "submitted"
           ? patchThread(s.threads, threadId, { state: "idle" })
           : s.threads,
     }));
@@ -280,8 +282,11 @@ export async function markRead(threadId: string): Promise<void> {
 
 export async function loadSurfaceDoc(id: string): Promise<void> {
   try {
-    const doc = await client.call("surfaces.get", { surface: id });
-    data.set((s) => ({ surfaceDocs: { ...s.surfaceDocs, [id]: doc } }));
+    const { state, ...doc } = await client.call("surfaces.get", { surface: id });
+    data.set((s) => ({
+      surfaceDocs: { ...s.surfaceDocs, [id]: doc },
+      surfaceStates: { ...s.surfaceStates, [id]: state ?? {} },
+    }));
   } catch (e) {
     notify(t("error.loadWidget", { error: errText(e) }));
   }
@@ -293,6 +298,21 @@ export async function setSurfaceFlags(id: string, flags: { pinned?: boolean; app
     data.set((s) => ({ surfaces: { ...s.surfaces, [id]: summary } }));
   } catch (e) {
     notify(t("error.updateWidget", { error: errText(e) }));
+  }
+}
+
+/** Deletes a widget for good, with what it remembers; false when it could not. */
+export async function removeSurface(id: string): Promise<boolean> {
+  try {
+    await client.call("surfaces.remove", { surface: id });
+    data.set((s) => {
+      const { [id]: _gone, ...surfaces } = s.surfaces;
+      return { surfaces };
+    });
+    return true;
+  } catch (e) {
+    notify(t("error.updateWidget", { error: errText(e) }));
+    return false;
   }
 }
 
@@ -319,6 +339,16 @@ export async function respond(
 }
 
 /** A widget's sendPrompt(): the text goes to the thread that owns the surface. */
+/** A widget changed what it remembers; the core's surface.state event brings the result to every open copy. */
+export async function setSurfaceState(id: string, patch: SurfaceState): Promise<void> {
+  try {
+    const { state } = await client.call("surfaces.set_state", { surface: id, patch });
+    data.set((s) => ({ surfaceStates: { ...s.surfaceStates, [id]: state } }));
+  } catch (e) {
+    notify(t("error.widgetState", { error: errText(e) }));
+  }
+}
+
 export async function surfacePrompt(id: string, text: string): Promise<void> {
   try {
     await client.call("surfaces.prompt", { surface: id, text: text.slice(0, 4000) });

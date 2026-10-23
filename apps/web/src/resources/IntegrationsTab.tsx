@@ -1,4 +1,4 @@
-import type { Result } from "@apx/protocol";
+import type { McpServerStatus, Result } from "@apx/protocol";
 import {
   Badge,
   Button,
@@ -19,28 +19,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { client } from "../data/client.ts";
 import { loadMarks } from "../data/models.ts";
 import { notify } from "../data/notices.ts";
+import { signInMcp } from "../data/resources.ts";
 import { useData } from "../data/state.ts";
-import { type MessageKey, useT } from "../i18n/index.ts";
+import { isKey, useT } from "../i18n/index.ts";
 import { GoogleSignInForm } from "./GoogleSignIn.tsx";
 import type { TabProps } from "./ResourcesView.tsx";
 
-type Integration = Result<"integrations.list">["integrations"][number];
+export type Integration = Result<"integrations.list">["integrations"][number];
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
-/** What each one is, in the owner's language (the core's text otherwise). */
-const DESC: Record<string, MessageKey> = {
-  github: "int.desc.github",
-  notion: "int.desc.notion",
-  slack: "int.desc.slack",
-  sentry: "int.desc.sentry",
-  "brave-search": "int.desc.bravesearch",
-  obsidian: "int.desc.obsidian",
-  "google-calendar": "int.desc.googlecalendar",
-  gmail: "int.desc.gmail",
-  linear: "int.desc.linear",
-  asana: "int.desc.asana",
+/** What each one is, in the owner's language (`int.desc.<id without dashes>`; the core's text otherwise). */
+export const describe = (i: Pick<Integration, "id" | "description">, t: ReturnType<typeof useT>) => {
+  const key = `int.desc.${i.id.replaceAll("-", "")}`;
+  return isKey(key) ? t(key) : i.description;
 };
-const describe = (i: Integration, t: ReturnType<typeof useT>) =>
-  DESC[i.id] ? t(DESC[i.id] as MessageKey) : i.description;
+/** Nothing to type: it signs in through the owner's browser (or needs no account at all). */
+const viaBrowser = (i: Integration) => !i.oauth && i.fields.length === 0;
 
 function Tile({ i, size = 32 }: { i: Pick<Integration, "id" | "label">; size?: number }) {
   return <IntegrationIcon id={i.id} name={i.label} size={size} />;
@@ -286,6 +279,7 @@ function IntegrationDetail({
         </Button>
       </header>
       <p className="int__desc">{describe(i, t)}</p>
+      {viaBrowser(i) && <BrowserSignIn id={i.id} />}
       <div className="int__usehead">
         <b>{t("int.usedIn")}</b>
         <SegmentedControl
@@ -343,8 +337,47 @@ function IntegrationDetail({
   );
 }
 
-/** The catalog: what can be connected, and what is still coming. */
-function ConnectDialog({
+/** An app that signs in through the browser: its server's sign-in, until it is done. */
+function BrowserSignIn({ id }: { id: string }) {
+  const t = useT();
+  const [server, setServer] = useState<McpServerStatus>();
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => {
+    try {
+      const all = (await client.call("mcp.list", {})).servers;
+      setServer(all.find((s) => s.scope === "global" && s.name === id));
+    } catch (e) {
+      notify(t("error.load", { error: errText(e) }));
+    }
+  }, [id, t]);
+  useEffect(() => void load(), [load]);
+  const waiting = server?.status === "needs-sign-in" && Boolean(server.sign_in_url);
+  // While its sign-in page is open, the state is read again so the end of the sign-in shows by itself.
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setInterval(() => void load(), 3_000);
+    return () => clearInterval(timer);
+  }, [waiting, load]);
+  if (server?.status !== "needs-sign-in") return null;
+  const signIn = async () => {
+    setBusy(true);
+    await signInMcp(server);
+    setBusy(false);
+    await load();
+  };
+  return (
+    <div className="resd__callout resd__callout--line">
+      <Icons.LogIn size={16} />
+      <strong>{t(waiting ? "res.signInWaiting" : "mcp.status.needsSignIn")}</strong>
+      <Button size="sm" loading={busy} onClick={() => void signIn()}>
+        {t("res.signIn")}
+      </Button>
+    </div>
+  );
+}
+
+/** The catalog: what can be connected, and what is still coming; a long one is searched. */
+export function ConnectDialog({
   list,
   onClose,
   onConnected,
@@ -355,6 +388,8 @@ function ConnectDialog({
 }) {
   const t = useT();
   const [chosen, setChosen] = useState<Integration>();
+  const [search, setSearch] = useState("");
+  const words = search.trim().toLowerCase();
   if (chosen)
     return (
       <ConnectForm
@@ -366,9 +401,19 @@ function ConnectDialog({
     );
   return (
     <Dialog open size="lg" onOpenChange={(o) => !o && onClose()} title={t("int.catalog")}>
+      <Input
+        className="int__search"
+        type="search"
+        autoFocus
+        aria-label={t("int.search")}
+        placeholder={t("int.search")}
+        value={search}
+        onChange={({ currentTarget: { value } }) => setSearch(value)}
+      />
       <div className="int__catalog">
         {list
           .filter((i) => !i.connected)
+          .filter((i) => !words || `${i.label} ${describe(i, t)}`.toLowerCase().includes(words))
           .map((i) => (
             <button
               key={i.id}
@@ -391,7 +436,7 @@ function ConnectDialog({
 }
 
 /** An account signed in to (Google), or one connected by its token. */
-function ConnectForm(props: Parameters<typeof TokenForm>[0]) {
+export function ConnectForm(props: Parameters<typeof TokenForm>[0]) {
   return props.i.oauth ? <GoogleSignInForm {...props} /> : <TokenForm {...props} />;
 }
 
@@ -418,6 +463,8 @@ function TokenForm({
     setBusy(true);
     try {
       await client.call("integrations.connect", { id: i.id, values });
+      // Its server starts now, so its sign-in page opens while the owner is here.
+      if (viaBrowser(i) && !i.connected) await client.call("mcp.signIn", { scope: "global", server: i.id });
       await onDone();
     } catch (e) {
       notify(t("error.change", { error: errText(e) }));
@@ -442,7 +489,7 @@ function TokenForm({
       }
     >
       <div className="int__form">
-        <p className="int__desc">{t("int.formNote")}</p>
+        <p className="int__desc">{t(viaBrowser(i) ? "int.browserNote" : "int.formNote")}</p>
         {i.fields.map((f) => (
           <Field
             key={f.name}

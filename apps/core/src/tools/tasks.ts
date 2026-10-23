@@ -100,15 +100,13 @@ export function boardText(tasks: Task[], where: (t: Task) => string | undefined,
 const handsOff = "never" as const;
 
 const commitmentArgs = {
-  person: z.string().max(80).optional().describe("a commitment's contact (name or id)"),
+  person: z.string().max(80).optional().describe("a commitment's contact"),
   owed_by: z.enum(["owner", "person"]).optional().describe('who promised it: "owner" (default) or "person"'),
-  due_at: z.string().max(40).optional().describe("a day (2026-10-05) or a moment (ISO)"),
+  due_at: z.string().max(40).optional().describe("2026-10-05 or an ISO moment"),
 };
 
 const shapeArgs = {
-  kind: TaskKind.optional().describe(
-    '"commitment" has a person on the other side; "errand" is something small to do on the way.',
-  ),
+  kind: TaskKind.optional().describe('"commitment": owed to or by a person; "errand": small, on the way'),
   priority: TaskPriority.optional().describe("default normal"),
   tags: z.array(TaskTag).max(12).optional().describe("short labels (client, area…)"),
 };
@@ -226,7 +224,7 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_create",
       description:
-        "Subtasks: assignee+description. Delegates propose to caller. Global: assignee's project. Promises: person,owed_by,due_at.",
+        "Subtasks: assignee+description. Work your role hands out: create it; reviews, QA or another area's work: propose. Delegates propose to caller. Global: assignee's project. Promises: person,owed_by,due_at.",
       args: z.object({
         title: z.string().trim().min(3).max(200),
         description: z.string().max(5000).optional(),
@@ -235,6 +233,8 @@ export function taskTools(store: Store): Tool[] {
         status: z.string().max(40).optional(),
         ...shapeArgs,
         ...commitmentArgs,
+        start_at: z.string().max(40).optional().describe("work begins"),
+        propose: z.boolean().optional().describe("a chip the owner accepts before work starts"),
       }),
       effect: "local",
       confirm: handsOff,
@@ -244,6 +244,8 @@ export function taskTools(store: Store): Tool[] {
       async run(a, ctx) {
         const t = await ctx.call("tasks.create", a);
         const under = t.parent_id ? `, a subtask of ${t.parent_id}` : "";
+        if (t.proposed)
+          return `proposed ${t.id}${under}: it starts when the owner accepts it. Tell them what you proposed and why, in one line each.`;
         // A task with nobody on it never starts: say so while the agent can still fix it.
         if (!t.assignee && t.kind === "task")
           return `created ${t.id} in ${t.status}${under}, with nobody on it: it will not start. Assign it with task_update (the agent who does it, or yourself), or ask the owner who should.`;
@@ -254,7 +256,7 @@ export function taskTools(store: Store): Tool[] {
             ? " When they close it, their report comes here."
             : "";
         if (t.assignee && waits(t.id, ctx)) return `created ${t.id} in ${t.status}${under}. ${PAUSED(t.assignee)}`;
-        return `created ${t.id} in ${t.status}${under}.${t.assignee ? ` ${t.assignee} starts on it now.${back}` : ""}`;
+        return `created ${t.id} in ${t.status}${under}.${t.assignee ? ` ${t.assignee} starts on it ${t.start_at && t.start_at > new Date().toISOString() ? `at ${t.start_at}` : "now"}.${back}` : ""}`;
       },
     }),
     defineTool({
@@ -267,6 +269,8 @@ export function taskTools(store: Store): Tool[] {
         title: z.string().trim().min(3).max(200).optional(),
         description: z.string().max(5000).optional(),
         awaits_owner: z.boolean().optional(),
+        reviewer: z.string().max(80).optional().describe('"owner" or agent'),
+        plan: z.string().max(4000).optional().describe("the steps, marked done as you go; replaces the last"),
         ...shapeArgs,
         ...commitmentArgs,
       }),
@@ -285,7 +289,7 @@ export function taskTools(store: Store): Tool[] {
     defineTool({
       name: "task_comment",
       description:
-        "Comment on a task's conversation. Mention @owner to request the owner's attention; their reply clears the request. To ask an agent, use delegate.",
+        "Comment on a task's conversation. @owner requests the owner's attention (their reply clears it); @agent asks that teammate here and its answer comes back to you.",
       args: z.object({ task: z.string().min(1).max(64), text: z.string().trim().min(1).max(5000) }),
       effect: "local",
       confirm: handsOff,
@@ -294,7 +298,9 @@ export function taskTools(store: Store): Tool[] {
       title: (a) => `Commented on ${String(a.task ?? "")}`,
       async run(a, ctx) {
         const r = await ctx.call("tasks.comment", a);
-        return r.runs.length ? `commented; ${r.runs.length} agent(s) will answer there.` : "commented.";
+        return r.runs.length
+          ? `commented; ${r.runs.length} agent(s) will answer there, and the answer comes back to you: do not wait for it.`
+          : "commented.";
       },
     }),
     defineTool({

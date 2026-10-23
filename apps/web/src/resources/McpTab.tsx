@@ -73,7 +73,7 @@ export function McpTab({ projectId, query, scope, adding, setAdding, res, ownOnl
       {
         label: t("res.test"),
         icon: <Icons.FlaskConical size={14} />,
-        disabled: s.status === "needs-approval",
+        disabled: s.status === "needs-approval" || s.status === "needs-sign-in",
         onSelect: () => {
           setPicked(keyOf(s));
           setTestRequest((n) => n + 1);

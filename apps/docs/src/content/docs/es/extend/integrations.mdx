@@ -27,19 +27,32 @@ suma su servidor MCP como uno de tus servidores globales, así tus agentes puede
 
 </Steps>
 
+También puede sugerirlo un agente: pedile algo que haría una app o un canal que no conectaste ("abrí mi archivo de
+Figma", "mandalo por WhatsApp") y te responde con una tarjeta de **Conexiones sugeridas**. **Conectar** abre el
+formulario de esa integración ahí mismo en el chat, o la configuración de ese canal en **Configuración › Canales**;
+cuando la integración queda conectada, el agente se entera y sigue.
+
 <Shot name="resources-integrations" alt="Recursos, pestaña Integraciones: integraciones conectadas y el catálogo de las que se pueden conectar" caption="Recursos › Integraciones" />
 
 | Integración | Les da a tus agentes | Vos ponés |
 |---|---|---|
 | GitHub | Repositorios, issues y pull requests | Un token de acceso personal |
 | Notion | Páginas y bases de datos de tu espacio de trabajo | Un token de integración |
-| Slack | Canales, mensajes e hilos de tu espacio de trabajo | Un token de bot y el id del equipo |
+| Slack | Canales, mensajes e hilos de tu espacio de trabajo | Un token de bot |
 | Sentry | Errores e issues de tus proyectos | Un token de acceso |
 | Brave Search | Búsqueda web | Una API key |
 | Obsidian | Leer y escribir las notas de tu bóveda | La carpeta de la bóveda |
 | Asana | Tools nativas de proyectos y tareas | Un token de acceso personal |
-| Google Calendar, Gmail | Calendario y correo nativos | Iniciar sesión con Google |
-| Linear | | Marcadas **Pronto**: necesitan un inicio de sesión que APX todavía no hace |
+| Google Calendar, Gmail, Google Drive | Calendario, correo y Drive nativos | Iniciar sesión con Google |
+| Home Assistant | Luces, sensores y automatizaciones de tu casa | Su dirección y un token de acceso de larga duración (activá su integración **MCP Server**) |
+| n8n | Correr los workflows de tu instancia de n8n | Su dirección y su token de acceso MCP |
+| Linear, Jira y Confluence, GitLab, Vercel, Supabase, Stripe, Todoist, Airtable, Figma, Cloudflare, Netlify, Neon, ClickUp, monday.com, Canva, Miro, Dropbox, Calendly, Datadog, Grafana, PayPal, WordPress.com, Hugging Face, Railway, Intercom, Attio, Close, Klaviyo, Mixpanel, Amplitude, Better Stack, Square, Fireflies, Strava, Semgrep, CircleCI, Postman, Prisma Postgres, Cloudinary, Craft, Webflow, Gamma | El servidor MCP propio de cada app | Nada que escribir: iniciás sesión en tu navegador |
+| Context7, DeepWiki, Wolfram, AWS Knowledge, Microsoft Learn | Documentación y conocimiento | Nada: no hace falta cuenta |
+| Microsoft 365, Box | | Marcadas **Pronto**: su inicio de sesión necesita una app que APX registre con ellos |
+
+El catálogo tiene un buscador. Una app en la que iniciás sesión corre con `mcp-remote`: al conectarla arranca, se
+registra sola en la app y abre su página de inicio de sesión en tu navegador. Hasta que termines, la integración
+muestra **Iniciar sesión**; tocalo para abrir la página de nuevo.
 
 Asana usa REST directamente, sin MCP. Creá un token personal en [Asana](https://app.asana.com/0/my-apps) y pegalo solo en el formulario.
 APX lo valida antes de guardar `secret://asana-token`; un campo vacío conserva el token anterior.
@@ -48,6 +61,33 @@ Los listados excluyen tareas completadas por defecto; usá `completed: true` par
 Para crear una tarea, indicá un `project` de Asana o un `workspace` si no querés asociarla a un proyecto.
 `asana_write` crea o actualiza tareas (nombre, notas, estado, responsable y vencimiento), con autorización del dueño.
 El switch por proyecto controla la disponibilidad, no los permisos sobre objetos: la cuenta compartida conserva los permisos de su token.
+
+### Google
+
+Cada parte de Google se conecta por separado, así elegís a qué llegan tus agentes: **Google Calendar**, **Gmail** y
+**Google Drive**. El acceso que da Google queda en el almacén de secretos de esta computadora y lo podés quitar en
+[myaccount.google.com/permissions](https://myaccount.google.com/permissions).
+
+- **Calendar** arranca en **Acceso de APX**: hacé clic en **Iniciar sesión con Google** y aceptá en el navegador, sin
+  configurar nada en Google Cloud.
+- **Gmail y Drive** arrancan en **Mi propio OAuth client**, que llega a todo. El diálogo te guía para crearlo una vez en
+  Google Cloud (unos 5 minutos); después subís el JSON que te da Google. Publicá la app (**En producción**): en Prueba,
+  Google corta el acceso a los 7 días. Un mismo inicio de sesión puede conectar las otras partes, con el mismo cliente.
+- **Acceso de APX (limitado)** está también para Gmail y Drive, para enviar mails y los Docs que escribe APX.
+
+| Parte | Qué pueden hacer los agentes | Te pregunta antes |
+|---|---|---|
+| Google Calendar | Leer eventos, buscar huecos libres, crear y cambiar eventos, sumar o quitar invitados, agregar Meet, cancelar | Invitar gente y cancelar |
+| Gmail | Enviar mails. Con tu propio cliente: además buscar y leer mails y escribir borradores | Enviar siempre pregunta; escribir un borrador pregunta |
+| Google Drive | Escribir Docs y compartirlos; buscarlos y leerlos. Con tu propio cliente: buscar y leer todo tu Drive (Docs, Sheets, Slides, archivos de texto) | Compartir |
+
+El acceso de APX le pide a Google solo lo que puede verificarse sin una auditoría de seguridad paga, así que no lee tu
+correo ni el resto de tu Drive. Para leer mails, conectá tu casilla en **Canales › Email**; para todo Gmail y Drive, usá
+tu propio OAuth client.
+
+Un evento solo en tu calendario se crea sin preguntar. Eventos, mails y archivos les llegan a los agentes como datos de
+afuera, nunca como instrucciones. Con tu propio cliente, Google muestra "Google no verificó esta app": elegí
+**Avanzado** y seguí.
 Si no sabés si una creación se completó, revisá Asana antes de repetirla: APX no reintenta las escrituras automáticamente.
 
 Los servidores basados en MCP arrancan con `npx`, así que la máquina donde corre el core necesita Node.js e internet la primera vez
@@ -72,8 +112,10 @@ valor a vos, y cada fila dice dónde se usa.
 ### Dónde se guardan los valores
 
 - **macOS**: en tu Llavero de inicio de sesión.
-- **Linux, Windows**, o cualquier core arrancado con `APX_SECRETS=file`: en `secrets.json` dentro de la carpeta de
-  APX, legible solo por tu usuario (modo 600).
+- **Linux**: en tu llavero (GNOME Keyring, KWallet o cualquier Secret Service).
+- **Windows**: en `secrets.dpapi`, que solo tu cuenta de Windows puede descifrar.
+- Un servidor Linux sin llavero, o cualquier core arrancado con `APX_SECRETS=file`: en `secrets.json` dentro de la
+  carpeta de APX, legible solo por tu usuario (modo 600).
 
 ### Un valor propio de un proyecto
 

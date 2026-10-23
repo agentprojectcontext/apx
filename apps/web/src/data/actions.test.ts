@@ -86,6 +86,33 @@ test("sending renders an optimistic attachment once, then replaces it with the p
   assert.equal(data.get().runs.run_1?.state, "submitted");
 });
 
+test("sending works without randomUUID and rejects missing randomness before sending or changing chat state", async (t) => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+  const source = globalThis.crypto;
+  t.after(() => {
+    if (descriptor) Object.defineProperty(globalThis, "crypto", descriptor);
+  });
+  Object.defineProperty(globalThis, "crypto", {
+    configurable: true,
+    value: { getRandomValues: source.getRandomValues.bind(source) },
+  });
+  const calls = rpc(t, { "threads.send": { message: message("saved", 1) } });
+  data.set({ threads: { thr_1: thread() } });
+  await actions.send("thr_1", "HTTP draft");
+  assert.equal(calls.length, 1);
+  assert.deepEqual(data.get().messages.thr_1, [message("saved", 1)]);
+  data.set({ threads: { thr_1: thread() } });
+  Object.defineProperty(globalThis, "crypto", { configurable: true, value: {} });
+  await assert.rejects(actions.send("thr_1", "Keep this draft"), /secure request key generator/);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(data.get().messages.thr_1, [message("saved", 1)]);
+  assert.equal(data.get().threads.thr_1?.state, "idle");
+  data.set({ threads: { thr_1: thread("thr_1", "submitted") } });
+  await assert.rejects(actions.send("thr_1", "Still queued"), /secure request key generator/);
+  assert.equal(data.get().threads.thr_1?.state, "submitted");
+  assert.equal(calls.length, 1);
+});
+
 test("busy chats steer by default and queue only when explicitly chosen; failed sends remove placeholders", async (t) => {
   const replies: Record<string, unknown> = { "threads.send": { message: message("saved", 1) } };
   const calls = rpc(t, replies);

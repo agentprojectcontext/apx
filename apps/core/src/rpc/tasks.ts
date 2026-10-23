@@ -7,7 +7,7 @@ import type { Author, Task } from "@apx/protocol";
 import { publicRun } from "../domain/runs.ts";
 import { HOME_THREAD_ID } from "../domain/seed.ts";
 import type { Store } from "../domain/store.ts";
-import { noticeTaskWaiting } from "../domain/task-attention.ts";
+import { noticeTaskProposed, noticeTaskWaiting } from "../domain/task-attention.ts";
 import {
   boardScope,
   checkAssignee,
@@ -23,8 +23,19 @@ import {
 import { ancestors } from "../engine/ancestry.ts";
 import type { Engine } from "../engine/engine.ts";
 import { ownerMentionProblem } from "../engine/office.ts";
+import { awaitAgent } from "../engine/task-inbox.ts";
 import { reportClose } from "../engine/task-report.ts";
-import { type Asker, addComment, askMentioned, reworkTask, startTaskWork } from "../engine/task-work.ts";
+import {
+  type Asker,
+  addComment,
+  askMentioned,
+  consultFromAgent,
+  proposalReason,
+  reviewRequested,
+  reworkTask,
+  startsLater,
+  startTaskWork,
+} from "../engine/task-work.ts";
 import { badRequest, conflict, notFound, unauthorized } from "../errors.ts";
 import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
@@ -52,10 +63,12 @@ export function taskHandlers(
       : { kind: "owner" };
 
   const visible = (id: string, ctx: CallContext): Task => visibleTask(store, id, agentScope(ctx));
-  /** The agent that asked, when this call comes from an agent answering another one (a delegation, a consult). */
+  /** The agent that asked, when this call comes from an agent answering another one (a delegation). */
   const answering = (ctx: CallContext): string | undefined => {
     const thread = ctx.agent && store.threads.get(ctx.agent.thread_id);
     if (thread?.kind !== "a2a") return undefined;
+    // A consult is the owner asking on a task, so the work they ask for may be handed out (DECISIONS.md#d-079).
+    if (store.threads.context(thread.id).consult) return undefined;
     const caller = thread.agent_ids.find((id) => id !== ctx.agent?.id);
     return (caller && store.agents.get(caller)?.name) || "the agent that asked you";
   };
@@ -80,6 +93,14 @@ export function taskHandlers(
       throw badRequest(
         `assignee: you are answering ${caller}, so you start no task work, yours included: do what you can here yourself, and for a task name the agent in your answer: ${caller} assigns it`,
       );
+  };
+  /** Who checks a task in review: undefined leaves it, null (or "owner") is the owner, else an agent of its project. */
+  const reviewerOf = (reviewer: string | null | undefined, project: string | undefined): string | null | undefined => {
+    if (reviewer === undefined) return undefined;
+    if (reviewer === null || ["owner", "me", "yo", "vos"].includes(reviewer.trim().toLowerCase())) return null;
+    const found = store.agents.resolve(reviewer, project);
+    if ("error" in found) throw badRequest(`reviewer: ${found.error}`);
+    return found.agent.id;
   };
   /** Agent-created subtasks must be executable when recorded; owner drafts remain a deliberate choice. */
   const requireSubtaskWork = (
@@ -161,7 +182,8 @@ export function taskHandlers(
       checkColumn(store, p.status);
       const project = taskProject(store, ctx.agent, p);
       checkAssignee(store, p.assignee, project);
-      if (p.assignee) refuseHandOn(ctx);
+      // A proposal starts nothing, so even an agent answering another one may make it (for the owner to decide).
+      if (p.assignee && !p.propose) refuseHandOn(ctx);
       if (project && !store.projects.get(project)) throw notFound(`project ${project}`);
       if (p.parent) visible(p.parent, ctx);
       const parent = p.parent ?? chatTask(ctx);
@@ -169,6 +191,9 @@ export function taskHandlers(
       const person = p.person ? personOf(store, p.person) : undefined;
       const due = dueOf(p.due_at);
       const remind = dueOf(p.remind_at);
+      const start = dueOf(p.start_at);
+      const forced = ctx.agent ? proposalReason(store, parent, p.assignee, ctx.agent.id) : undefined;
+      const proposed = Boolean(p.propose) || Boolean(forced);
       // The task's conversation: the assignee answers there, or the super-agent until someone is assigned.
       const home = store.threads.get(HOME_THREAD_ID);
       const agent = p.assignee ?? home?.agent_ids[0] ?? "roby";
@@ -183,6 +208,8 @@ export function taskHandlers(
           parent_id: parent,
           due_at: due ?? undefined,
           remind_at: remind ?? undefined,
+          start_at: start ?? undefined,
+          proposed,
           kind: p.kind,
           priority: p.priority,
           tags: tagsOf(p.tags),
@@ -193,10 +220,15 @@ export function taskHandlers(
           from: ctx.agent ? { thread: ctx.agent.thread_id, run: ctx.agent.run_id } : undefined,
         });
       });
+      if (proposed) {
+        noticeTaskProposed(store, created);
+        return created;
+      }
       if (created.assignee) startTaskWork(store, engine.admit, created, created.assignee, askerOf(ctx));
+      if (created.status === "review") reviewRequested(store, engine.admit, created);
       return created;
     },
-    "tasks.update": ({ task, person, due_at, remind_at, project, tags, ...c }, ctx) => {
+    "tasks.update": ({ task, person, due_at, remind_at, start_at, reviewer, project, tags, ...c }, ctx) => {
       const cur = visible(task, ctx);
       checkColumn(store, c.status);
       // An agent keeps its tasks in its own project; the owner can move one anywhere (null = global).
@@ -206,8 +238,12 @@ export function taskHandlers(
       const moving = project !== undefined && (project ?? undefined) !== cur.project_id;
       const target = moving ? (project ?? undefined) : cur.project_id;
       checkAssignee(store, c.assignee, target);
+      const checker = reviewerOf(reviewer, target);
+      if (c.proposed === false && agentScope(ctx)) throw unauthorized("only the owner accepts a proposed task");
+      const accepting = Boolean(cur.proposed) && c.proposed === false;
       // Its agent stays only if it can work there.
       const keeper = c.assignee !== undefined ? c.assignee : cur.assignee;
+      if (checker && checker === keeper) throw badRequest("reviewer: the agent doing it does not review its own work");
       const unassign =
         moving && keeper && store.agents.get(keeper)?.project_id && store.agents.get(keeper)?.project_id !== target;
       const completing =
@@ -217,7 +253,13 @@ export function taskHandlers(
         store.threads.byTask(cur.id).length === 0;
       if (moving || c.assignee !== undefined || c.description !== undefined)
         requireSubtaskWork(ctx, cur.parent_id, unassign ? null : keeper, c.description ?? cur.description);
-      const starting = !unassign && keeper && (keeper !== cur.assignee || completing);
+      // Its start moved to now (or cleared) before its work began: it begins now.
+      const unscheduled =
+        start_at !== undefined &&
+        Boolean(cur.start_at) &&
+        !startsLater({ ...cur, start_at: dueOf(start_at) ?? undefined }) &&
+        store.threads.byTask(cur.id).length === 0;
+      const starting = !unassign && keeper && (keeper !== cur.assignee || completing || unscheduled || accepting);
       if (starting) refuseHandOn(ctx);
       const changed = store.tx(() => {
         noticeTaskWaiting(store, cur, c.awaits_owner ?? cur.awaits_owner);
@@ -234,10 +276,21 @@ export function taskHandlers(
             ...(person && !c.kind ? { kind: "commitment" as const } : {}),
             ...(due_at !== undefined ? { due_at: dueOf(due_at) } : {}),
             ...(remind_at !== undefined ? { remind_at: dueOf(remind_at) } : {}),
+            ...(start_at !== undefined ? { start_at: dueOf(start_at) } : {}),
+            ...(checker !== undefined ? { reviewer: checker } : {}),
           },
           by(ctx),
         ) as Task;
       });
+      // Put in review (or given another checker while in review): whoever checks it hears now.
+      const reviewing = changed.state === "open" && changed.status === "review";
+      // An agent answering another one (or inside a review) asks no reviewer: no loop of reviews.
+      if (
+        reviewing &&
+        !answering(ctx) &&
+        (cur.status !== "review" || (checker !== undefined && checker !== (cur.reviewer ?? null)))
+      )
+        reviewRequested(store, engine.admit, changed);
       // Completing a waiting task starts it too; editing one already worked never starts another turn.
       if (changed.assignee && starting) startTaskWork(store, engine.admit, changed, changed.assignee, askerOf(ctx));
       return changed;
@@ -296,8 +349,13 @@ export function taskHandlers(
       const author: Author = ctx.agent ? { kind: "agent", id: ctx.agent.id } : { kind: "user" };
       return store.tx(() => {
         const message = addComment(store, t, author, text, by(ctx));
-        // Only the owner's @mentions ask an agent; an agent asks with `delegate` (DECISIONS.md#d-078).
-        const runs = ctx.agent ? [] : askMentioned(store, engine.admit, store.tasks.get(t.id) ?? t, text);
+        // An agent's @mentions are consults whose answers come back to it (DECISIONS.md#d-132).
+        const current = store.tasks.get(t.id) ?? t;
+        const runs = ctx.agent
+          ? consultFromAgent(store, engine.admit, current, ctx.agent, text)
+          : askMentioned(store, engine.admit, current, text);
+        // Naming no one, it waits for the task's agent (or the super-agent) to pick it up (engine/task-inbox.ts).
+        if (ctx.actor === "human" && !runs.length) awaitAgent(store, t, message.id);
         return { message, runs: runs.map(publicRun) };
       });
     },

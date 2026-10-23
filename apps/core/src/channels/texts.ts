@@ -32,13 +32,23 @@ const es = {
   contactFailed: "Ahora no puedo responder; ya le avisé a mi dueño.",
   contactFailedOwner: (name: string, why: string) => `No pude responderle a ${name}: ${why}`,
   reactFailed: (emoji: string, where: string) =>
-    `No pude reaccionar con ${emoji} en ${where}: no hay un mensaje suyo al que reaccionar o el canal no lo permite. No se envió nada.`,
+    `No pude reaccionar con ${emoji} en ${where}: no hay un mensaje suyo al que reaccionar o el canal no tiene reacciones. No se envió nada.`,
+  reactRefused: (emoji: string, where: string, why: string) =>
+    `No pude reaccionar con ${emoji} en ${where}: la plataforma rechazó la reacción (${why}). No se envió nada.`,
+  reacted: (emoji: string) => `Reaccionó con ${emoji}`,
+  sentSticker: (meaning: string) => (meaning ? `Mandó un sticker: ${meaning}` : "Mandó un sticker"),
+  stickerMissing: (words: string, where: string) =>
+    `No mandé el sticker «${words}» en ${where}: no tengo uno guardado de este canal que diga eso. No se envió nada.`,
   tooMany: (name: string) => `${name} escribe mucho seguido: pausé sus respuestas automáticas por una hora.`,
   roomCap: (room: string) =>
     `Llegué al tope de respuestas por hora en ${room}: sigo leyendo, contesto cuando se libere.`,
   roomFailed: (room: string, why: string) => `No pude responder en ${room}: ${why}`,
   notHandled: (name: string, why: string) => `No pude procesar un mensaje de ${name}: ${why}`,
   buttonFailed: (why: string) => `No pude hacerlo: ${why}`,
+  goOn: "Continuar",
+  wentOn: "Listo, sigue trabajando.",
+  goOnPrompt:
+    "Continuá el trabajo pendiente en esta sesión desde el último informe. Conservá el alcance y los permisos existentes; informá el resultado a quien te delegó.",
   stopped: "Listo, paré.",
   due: (title: string, person?: string, owedBy?: "owner" | "person") =>
     person
@@ -107,12 +117,22 @@ const en: typeof es = {
   contactFailed: "I can't answer right now; I've let my owner know.",
   contactFailedOwner: (name, why) => `I couldn't answer ${name}: ${why}`,
   reactFailed: (emoji, where) =>
-    `I couldn't react with ${emoji} in ${where}: there is no message of theirs to react to, or the channel does not allow it. Nothing was sent.`,
+    `I couldn't react with ${emoji} in ${where}: there is no message of theirs to react to, or the channel has no reactions. Nothing was sent.`,
+  reactRefused: (emoji, where, why) =>
+    `I couldn't react with ${emoji} in ${where}: the platform refused the reaction (${why}). Nothing was sent.`,
+  reacted: (emoji) => `Reacted with ${emoji}`,
+  sentSticker: (meaning) => (meaning ? `Sent a sticker: ${meaning}` : "Sent a sticker"),
+  stickerMissing: (words, where) =>
+    `I didn't send the sticker "${words}" in ${where}: I have none kept from this channel that says that. Nothing was sent.`,
   tooMany: (name) => `${name} is writing a lot in a row: I paused their automatic answers for an hour.`,
   roomCap: (room) => `I hit the hourly cap of answers in ${room}: I keep reading and answer once it frees up.`,
   roomFailed: (room, why) => `I couldn't answer in ${room}: ${why}`,
   notHandled: (name, why) => `I couldn't handle a message from ${name}: ${why}`,
   buttonFailed: (why) => `I couldn't do it: ${why}`,
+  goOn: "Continue",
+  wentOn: "Done, it is working again.",
+  goOnPrompt:
+    "Continue the remaining work in this session from the last progress report. Keep the existing scope and permissions; report the result to the original caller.",
   stopped: "Done, I stopped.",
   due: (title, person, owedBy) =>
     person

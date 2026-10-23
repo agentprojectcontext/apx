@@ -59,6 +59,8 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
   const [deleting, setDeleting] = useState<Agent>();
   const team = useMemo(() => teamOf(agents, project.id), [agents, project.id]);
   const lead = teamLead(team);
+  // Marked, or the head by inference: a sub-team lead stays marked although the project's head is someone else.
+  const leads = (a: Agent) => a.id === lead?.id || a.orchestrator === true;
   const { info, live } = useTeamInfo(lead?.id, lead ? leadLabel(lead, t) : "");
   const current = team.find((a) => a.id === selected);
   const org = useOrg(project.id);
@@ -70,8 +72,8 @@ function ProjectTeam({ project, switcher }: { project: ProjectEntry; switcher?: 
     onEdit: setEditing,
     onChat: (a) => startChat(a, project.id),
     onDelete: setDeleting,
-    isOrchestrator: (a) => a.id === lead?.id,
-    onOrchestrator: (a) => void updateAgent(a.id, { orchestrator: a.id !== lead?.id }),
+    isOrchestrator: (a) => leads(a),
+    onOrchestrator: (a) => void updateAgent(a.id, { orchestrator: !leads(a) }),
   };
 
   return (
@@ -206,10 +208,10 @@ function AgentRow({ agent, lead, actions }: { agent: Agent; lead: boolean; actio
       <span className="team__cell team__cellname">
         <span className="agentcard__name">
           {agent.name}
-          {lead && (
+          {(lead || agent.orchestrator) && (
             <span className="agentcard__lead">
               <Icons.Crown size={12} />
-              {leadLabel(agent, t)}
+              {lead ? leadLabel(agent, t) : t("team.subLead")}
             </span>
           )}
         </span>

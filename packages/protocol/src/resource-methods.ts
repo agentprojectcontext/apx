@@ -1,7 +1,7 @@
 // Methods behind Resources: skills (read, edit, on/off per project), MCP servers (approve, test, on/off per
 // project) and variables (stored secrets: names, a hint and where they are used; never the values).
 import { z } from "zod";
-import { Id, McpServerStatus, ToolApproval } from "./domain.ts";
+import { ConnectOffer, Id, McpServerStatus, ToolApproval } from "./domain.ts";
 
 const McpTarget = z
   .object({ scope: z.enum(["global", "project"]), server: z.string(), project: Id.optional() })
@@ -355,10 +355,18 @@ export const resourceMethods = {
           /** Projects where it is turned off (it is on everywhere else). */
           off_in: z.array(Id),
           /**
-           * One the owner signs in to (Google): the address their OAuth client must allow as redirect, and the
-           * account it is connected as.
+           * One the owner signs in to (Google): the address their own OAuth client must allow as redirect, the
+           * account it is connected as, whether APX ships a client of its own (no Cloud Console needed) and which
+           * client it is signed in with.
            */
-          oauth: z.object({ redirect_uri: z.string(), account: z.string().optional() }).optional(),
+          oauth: z
+            .object({
+              redirect_uri: z.string(),
+              account: z.string().optional(),
+              builtin: z.boolean().optional(),
+              client: z.enum(["apx", "own"]).optional(),
+            })
+            .optional(),
         }),
       ),
     }),
@@ -376,8 +384,9 @@ export const resourceMethods = {
     access: "human",
   },
   /**
-   * Starts signing in to one that uses OAuth (Google): saves the OAuth client typed (a field left empty keeps the
-   * stored one) and gives the consent URL to open in a browser. Google sends the browser back to the panel's
+   * Starts signing in to one that uses OAuth (Google) and gives the consent URL to open in a browser. `values.client`
+   * picks APX's own client ("apx") or the owner's ("own": the client typed is saved, a field left empty keeps the
+   * stored one). Google sends the browser back to the panel's
    * /oauth/google page, which finishes it.
    */
   "integrations.oauth_start": {
@@ -385,18 +394,33 @@ export const resourceMethods = {
       .object({
         id: z.string().max(40),
         values: z.record(z.string().max(40), z.string().max(4000)).optional(),
+        /** Other Google parts to connect in the same consent (one sign-in for Gmail, Drive and Calendar). */
+        also: z.array(z.string().max(40)).max(5).optional(),
       })
       .strict(),
     result: z.object({ url: z.string() }),
     effect: true,
     access: "human",
   },
-  /** The code and state Google sent back: a state this core signed minutes ago, used once. */
+  /**
+   * The code and state Google sent back: a state this core signed minutes ago, used once. Open: Google returns to a
+   * browser that may not be paired (the system browser), and the signed state with the core's PKCE verifier is the key.
+   */
   "integrations.oauth_finish": {
     params: z.object({ code: z.string().min(1).max(2000), state: z.string().min(1).max(2000) }).strict(),
-    result: z.object({ id: z.string(), account: z.string().optional() }),
+    result: z.object({ id: z.string(), also: z.array(z.string()).optional(), account: z.string().optional() }),
     effect: true,
     access: "human",
+    open: true,
+  },
+  /**
+   * The integrations and channels that match words ("figma", "whatsapp"), best first, each connected or not: what an
+   * agent offers the owner to connect. Open to agents: names and descriptions only.
+   */
+  "integrations.find": {
+    params: z.object({ query: z.string().min(1).max(200) }).strict(),
+    result: z.object({ found: z.array(ConnectOffer.extend({ connected: z.boolean() })) }),
+    effect: false,
   },
   /** Disconnects one: its server and its secrets go. */
   "integrations.disconnect": {
@@ -415,6 +439,16 @@ export const resourceMethods = {
    * Starts a separate copy of a server and lists its tools: how long it took, or why it failed. The live connection
    * agents use is left alone. A project's server is tested only once the owner approved it (testing runs its command).
    */
+  /**
+   * The owner signs a server in: it starts now as the connection agents use (its sign-in page opens in their browser)
+   * and answers once it is ready, failed, or waits on that page. A server that asked to sign in waits for this.
+   */
+  "mcp.signIn": {
+    params: McpTarget,
+    result: z.object({ server: McpServerStatus }),
+    effect: true,
+    access: "human",
+  },
   "mcp.test": {
     params: z
       .object({ scope: z.enum(["global", "project"]), server: z.string().min(1).max(64), project: Id.optional() })

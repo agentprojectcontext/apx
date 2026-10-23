@@ -57,3 +57,17 @@ test("a local core without a token still accepts repeated socket calls", async (
     fs.rmSync(localHome, { recursive: true, force: true });
   }
 });
+
+test("Google's return finishes without the core's token, yet only with a state this core signed", async () => {
+  const nobody = new ApxClient({ url: core.url });
+  await assert.rejects(
+    nobody.call("integrations.oauth_finish", { code: "c", state: "forged.state" }),
+    (e: unknown) => e instanceof ApxError && /not valid or expired/.test(e.message),
+    "it reaches the handler, which refuses a state it did not sign",
+  );
+  await assert.rejects(
+    nobody.call("integrations.oauth_start", { id: "google-calendar" }),
+    (e: unknown) => e instanceof ApxError && /bad token/.test(e.message),
+    "starting a sign-in stays the owner's",
+  );
+});

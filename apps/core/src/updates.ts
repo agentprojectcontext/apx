@@ -8,7 +8,7 @@ import path from "node:path";
 import { type Platform, platformOf, type Release, releaseChanges } from "@apx/protocol";
 import { errorMessage } from "./errors.ts";
 import type { Log } from "./log.ts";
-import { checkReleases, installRelease } from "./updates-release.ts";
+import { checkReleases, installRelease, runningVersion } from "./updates-release.ts";
 
 export type UpdateStatus = {
   /**
@@ -36,6 +36,26 @@ const CHANGES = 8;
 const BRANCH = "release/v2";
 /** The exit code that asks a supervisor to start the core again. */
 export const RESTART_CODE = 75;
+/** How long a core may take to close for an update before it exits anyway. */
+export const RESTART_CLOSE_MS = 10_000;
+
+/**
+ * Closes, then exits with RESTART_CODE so the supervisor starts the new code. A close that hangs is not waited for: a
+ * core left running would keep the old version's folder in use, and the next update could prune it.
+ */
+export async function restartAfterClose(
+  close: () => Promise<unknown>,
+  exit: (code: number) => void,
+  ms = RESTART_CLOSE_MS,
+): Promise<void> {
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  await Promise.race([close().catch(() => {}), deadline]);
+  clearTimeout(timer);
+  exit(RESTART_CODE);
+}
 
 const run =
   (cwd: string): Runner =>
@@ -75,7 +95,8 @@ export function createUpdates(opts: {
   const platform = opts.platform ?? platformOf(process.platform, process.arch);
   const release = !git && opts.enabled && Boolean((opts.app || opts.byApp) && opts.feed && opts.version && platform);
   const releaseSource = opts.byApp ? "app" : "release";
-  const sh = opts.run ?? run(opts.root);
+  // Bundle versions can be pruned while a daemon still runs from one; the install directory survives updates.
+  const sh = opts.run ?? run(git ? opts.root : (opts.app ?? opts.root));
   const fetchImpl = opts.fetch ?? fetch;
   let status: UpdateStatus = { source: git ? "git" : release ? releaseSource : "none", behind: 0, changes: [] };
   let newer: Release[] = [];
@@ -144,7 +165,15 @@ export function createUpdates(opts: {
     if (!next || !platform || !opts.app)
       return { ok: false, restart: false, log: status.error ?? "Nothing newer to install." };
     try {
-      const log = await installRelease({ app: opts.app, release: next, platform, fetch: fetchImpl, run: sh });
+      const running = runningVersion(opts.app, opts.root);
+      const log = await installRelease({
+        app: opts.app,
+        release: next,
+        platform,
+        fetch: fetchImpl,
+        run: sh,
+        ...(running ? { running } : {}),
+      });
       return { ok: true, restart: false, log };
     } catch (err) {
       return { ok: false, restart: false, log: errorMessage(err, 2000) };

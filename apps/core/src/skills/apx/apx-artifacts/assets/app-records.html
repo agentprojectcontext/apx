@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apx-surface" content="app">
+<title>Home inventory</title>
+<script src="/_apx/kit@1.js"></script>
+</head>
+<body>
+<!-- Records shell: rail · sidebar (filters with counts) · shell (topbar, list-detail, statusbar) · inspector.
+     Records live in APX.db; APX.state remembers the open view, filter and selected record. -->
+<div class="ax-app" data-ax-views data-ax-persist="ui.view">
+
+  <nav class="ax-rail" aria-label="Sections">
+    <button class="ax-rail__btn" data-view="items" data-label="Items" data-ax-tip="Items" aria-selected="true"><ax-icon name="layers"></ax-icon></button>
+    <div class="ax-rail__spacer"></div>
+    <button class="ax-rail__btn" data-view="settings" data-label="Settings" data-ax-tip="Settings"><ax-icon name="settings"></ax-icon></button>
+  </nav>
+
+  <aside class="ax-sidebar" id="sb">
+    <div class="ax-sidebar__head"><b>Home inventory</b></div>
+    <div class="ax-sidebar__body">
+      <div class="ax-nav" id="filters">
+        <button class="ax-nav__item" data-filter="all"><ax-icon name="grid"></ax-icon><span>All items</span><em data-count="all"></em></button>
+        <button class="ax-nav__item" data-filter="status:low"><ax-icon name="alert"></ax-icon><span>Running low</span><em data-count="status:low"></em></button>
+        <button class="ax-nav__item" data-filter="status:out"><ax-icon name="x"></ax-icon><span>Out of stock</span><em data-count="status:out"></em></button>
+      </div>
+      <div class="ax-section">Categories</div>
+      <div class="ax-nav" id="categories"></div>
+    </div>
+    <div class="ax-sidebar__foot">
+      <span class="ax-avatar ax-avatar--sm" style="--tint:var(--apx-brand-soft)">A</span>
+      <span class="ax-grow">Made by <span class="ax-agent">AGENT_NAME</span></span>
+      <button class="ax-iconbtn ax-iconbtn--sm" data-ax-tip="Ask for a restock list" data-ax-ask="Look at my home inventory and make a shopping list of what is low or out"><ax-icon name="sparkle"></ax-icon></button>
+    </div>
+  </aside>
+
+  <div class="ax-shell">
+    <header class="ax-topbar">
+      <button class="ax-iconbtn" data-ax-toggle="#sb" aria-pressed="true" data-ax-tip="Sidebar"><ax-icon name="panelL"></ax-icon></button>
+      <div class="ax-topbar__title"><span data-view-title>Items</span><small id="subtitle"></small></div>
+      <label class="ax-search" style="width:240px"><input class="ax-input" id="search" placeholder="Search items…"></label>
+      <button class="ax-btn ax-btn--primary ax-btn--sm" id="new"><ax-icon name="plus" style="--s:14px"></ax-icon>New item</button>
+      <button class="ax-iconbtn" data-ax-toggle="#insp" aria-pressed="true" data-ax-tip="Inspector"><ax-icon name="panelR"></ax-icon></button>
+    </header>
+
+    <main class="ax-main ax-main--flush">
+      <div data-view-panel="items" style="height:100%">
+        <div class="ax-split" data-ax-select id="split" style="--list:340px" hidden>
+          <div class="ax-split__list">
+            <div id="rows"></div>
+            <div class="ax-empty" id="nomatch" hidden>No items match</div>
+          </div>
+          <div id="detail"></div>
+        </div>
+        <div class="ax-empty-app" id="empty" hidden></div>
+      </div>
+
+      <div class="ax-main__inner" data-view-panel="settings" style="padding:24px" hidden>
+        <div class="ax-settings">
+          <div class="ax-setgroup"><h3>List</h3>
+            <div class="ax-setrow"><div>Show quantity in the list<small>Next to each item's name</small></div><input type="checkbox" class="ax-switch" id="showQty" data-ax-persist="settings.qty" checked></div>
+          </div>
+          <div class="ax-setgroup"><h3>Data</h3>
+            <div class="ax-setrow"><div>Delete every item<small>The inventory starts empty; this cannot be undone</small></div><button class="ax-btn ax-btn--danger ax-btn--sm" id="wipe" type="button">Delete all</button></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="ax-statusbar"><span class="ax-live" id="saved">Saved in APX</span><span id="total"></span><span class="ax-grow"></span><span>APX Kit v1 · app</span></footer>
+  </div>
+
+  <aside class="ax-aside" id="insp">
+    <div class="ax-aside__head"><span class="ax-grow">Properties</span><button class="ax-iconbtn ax-iconbtn--sm" data-ax-toggle="#insp" data-ax-tip="Close"><ax-icon name="x"></ax-icon></button></div>
+    <div class="ax-aside__body" id="props"></div>
+  </aside>
+</div>
+
+<dialog class="ax-dialog" id="editor" aria-labelledby="editor-title">
+  <form method="dialog" id="form">
+    <h2 class="ax-h2" id="editor-title">New item</h2>
+    <input type="hidden" name="id">
+    <label class="ax-field"><span>Name</span><input class="ax-input" name="name" required maxlength="80" placeholder="Olive oil"></label>
+    <div class="ax-grid" style="--min:170px;--gap:10px">
+      <label class="ax-field"><span>Category</span><select class="ax-select" name="category" id="catSelect"></select></label>
+      <label class="ax-field"><span>Location</span><input class="ax-input" name="location" maxlength="60" placeholder="Pantry shelf"></label>
+      <label class="ax-field"><span>Quantity</span><input class="ax-input" name="qty" type="number" min="0" step="1" value="1" required></label>
+      <label class="ax-field"><span>Low below</span><input class="ax-input" name="min_qty" type="number" min="0" step="1" value="1" required></label>
+    </div>
+    <label class="ax-field"><span>Notes</span><textarea class="ax-textarea" name="notes" rows="3" maxlength="500" placeholder="Brand, size, where to buy…"></textarea></label>
+    <div class="ax-dialog__actions">
+      <button class="ax-btn ax-btn--ghost" type="button" data-ax-close>Cancel</button>
+      <button class="ax-btn ax-btn--primary" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const CATEGORIES = ["Kitchen", "Pantry", "Bathroom", "Cleaning", "Garage", "Office"];
+const S = APX.state;
+const $ = (id) => document.getElementById(id);
+let items = [];
+
+// --- data -------------------------------------------------------------
+async function ready() {
+  if (!APX.db.available) return false;
+  await APX.db.exec("CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)");
+  await APX.db.exec(`CREATE TABLE IF NOT EXISTS items (
+    id INTEGER PRIMARY KEY, name TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Kitchen',
+    qty INTEGER NOT NULL DEFAULT 0, min_qty INTEGER NOT NULL DEFAULT 1, location TEXT, notes TEXT,
+    created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now')))`);
+  await APX.db.exec("CREATE INDEX IF NOT EXISTS items_category ON items (category)");
+  await APX.db.exec("INSERT OR IGNORE INTO meta (k, v) VALUES ('schema', '1')");
+  return true;
+}
+async function load() {
+  items = await APX.db.query("SELECT * FROM items ORDER BY name COLLATE NOCASE LIMIT 2000");
+  render();
+}
+function save(v) {
+  const p = [v.name, v.category, v.qty, v.min_qty, v.location || null, v.notes || null];
+  return v.id
+    ? APX.db.exec("UPDATE items SET name=?, category=?, qty=?, min_qty=?, location=?, notes=?, updated_at=datetime('now') WHERE id=?", [...p, v.id])
+    : APX.db.exec("INSERT INTO items (name, category, qty, min_qty, location, notes) VALUES (?, ?, ?, ?, ?, ?)", p);
+}
+
+// --- view helpers -------------------------------------------------------
+const status = (it) => (it.qty <= 0 ? "out" : it.qty <= it.min_qty ? "low" : "ok");
+const BADGE = { ok: ["brand", "In stock"], low: ["warning", "Running low"], out: ["danger", "Out of stock"] };
+const badge = (it) => `<span class="ax-badge ax-badge--${BADGE[status(it)][0]} ax-badge--dot">${BADGE[status(it)][1]}</span>`;
+const when = (sqlTime) => `<ax-ago datetime="${APX.esc(String(sqlTime).replace(" ", "T"))}Z"></ax-ago>`;
+const matches = (it, f) =>
+  f === "all" || (f.startsWith("status:") ? status(it) === f.slice(7) : it.category === f.slice(4));
+function shown() {
+  const f = S.get("ui.filter", "all");
+  const q = $("search").value.trim().toLowerCase();
+  return items.filter((it) => matches(it, f) && (!q || `${it.name} ${it.location || ""} ${it.notes || ""}`.toLowerCase().includes(q)));
+}
+const selected = () => items.find((it) => it.id === S.get("ui.selected"));
+
+function showEmpty(icon, title, text, action) {
+  $("split").hidden = true;
+  $("empty").hidden = false;
+  $("empty").innerHTML = `<ax-icon name="${icon}" style="--s:28px"></ax-icon><b class="ax-h2">${title}</b><p class="ax-lede">${text}</p>${action || ""}`;
+}
+
+// --- render -------------------------------------------------------------
+function render() {
+  const f = S.get("ui.filter", "all");
+  document.querySelectorAll("[data-filter]").forEach((b) => {
+    b.setAttribute("aria-selected", String(b.dataset.filter === f));
+    const em = b.querySelector("em");
+    if (em) em.textContent = items.filter((it) => matches(it, b.dataset.filter)).length || "";
+  });
+  const label = document.querySelector(`[data-filter="${CSS.escape(f)}"] span`)?.textContent || "All items";
+  $("subtitle").textContent = label;
+  $("total").textContent = `${items.length} ${items.length === 1 ? "record" : "records"}`;
+
+  if (!items.length) {
+    renderProps(null);
+    return showEmpty("layers", "No items yet", "Add what you keep at home and how many you have; the sidebar shows what is running low.",
+      '<button class="ax-btn" type="button" data-new>Add the first item</button>');
+  }
+  $("empty").hidden = true;
+  $("split").hidden = false;
+
+  const list = shown();
+  if (!list.some((it) => it.id === S.get("ui.selected")) && list.length) S.set("ui.selected", list[0].id);
+  const sel = S.get("ui.selected");
+  const qty = $("showQty").checked;
+  $("rows").innerHTML = list
+    .map((it) => `<button class="ax-listrow" data-id="${it.id}" aria-selected="${it.id === sel}">
+        <b>${APX.esc(it.name)}</b>${badge(it)}
+        <small>${APX.esc(it.category)}${it.location ? ` · ${APX.esc(it.location)}` : ""}${qty ? ` · ${it.qty} left` : ""}</small>
+      </button>`)
+    .join("");
+  $("nomatch").hidden = list.length > 0;
+  const it = list.find((x) => x.id === sel);
+  renderDetail(it);
+  renderProps(it);
+}
+
+function renderDetail(it) {
+  if (!it) {
+    $("detail").innerHTML = '<div class="ax-empty-app">Pick an item on the left</div>';
+    return;
+  }
+  $("detail").innerHTML = `<article class="ax-detail">
+    <div class="ax-eyebrow">${APX.esc(it.category)}${it.location ? ` · ${APX.esc(it.location)}` : ""}</div>
+    <div class="ax-spread"><h1 class="ax-title">${APX.esc(it.name)}</h1>${badge(it)}</div>
+    ${it.notes ? `<p class="ax-lede">${APX.esc(it.notes)}</p>` : ""}
+    <div class="ax-grid" style="--min:160px">
+      <div class="ax-card ax-stat"><div class="ax-stat__label">Quantity</div><div class="ax-stat__value">${it.qty}</div>
+        <div class="ax-row" style="--gap:6px"><button class="ax-btn ax-btn--sm" data-step="-1" ${it.qty <= 0 ? "disabled" : ""}>−1</button><button class="ax-btn ax-btn--sm" data-step="1">+1</button></div></div>
+      <div class="ax-card ax-stat"><div class="ax-stat__label">Low below</div><div class="ax-stat__value">${it.min_qty}</div><div class="ax-stat__foot">Marked as running low at this amount</div></div>
+    </div>
+    <div class="ax-row"><button class="ax-btn" data-edit><ax-icon name="edit" style="--s:14px"></ax-icon>Edit</button><button class="ax-btn ax-btn--ghost" data-delete>Delete</button></div>
+  </article>`;
+}
+
+function renderProps(it) {
+  $("props").innerHTML = it
+    ? `<dl class="ax-kv">
+        <dt>Status</dt><dd>${badge(it)}</dd>
+        <dt>Category</dt><dd>${APX.esc(it.category)}</dd>
+        <dt>Location</dt><dd>${it.location ? APX.esc(it.location) : '<span class="ax-subtle">Not set</span>'}</dd>
+        <dt>Stock</dt><dd>${it.qty} left · low below ${it.min_qty}</dd>
+        <dt>Added</dt><dd>${when(it.created_at)}</dd>
+        <dt>Updated</dt><dd>${when(it.updated_at)}</dd>
+        <dt>ID</dt><dd><span class="ax-code">${it.id}</span></dd>
+      </dl>`
+    : '<p class="ax-sm ax-subtle">Select an item to see its properties.</p>';
+}
+
+// --- editor -------------------------------------------------------------
+$("catSelect").innerHTML = CATEGORIES.map((c) => `<option>${c}</option>`).join("");
+$("categories").innerHTML = CATEGORIES.map((c) =>
+  `<button class="ax-nav__item" data-filter="cat:${c}"><ax-icon name="folder"></ax-icon><span>${c}</span><em></em></button>`).join("");
+
+function openEditor(it) {
+  const form = $("form");
+  form.reset();
+  $("editor-title").textContent = it ? "Edit item" : "New item";
+  for (const k of ["id", "name", "category", "qty", "min_qty", "location", "notes"]) {
+    if (it && it[k] != null) form.elements[k].value = it[k];
+  }
+  if (!it) form.elements.id.value = "";
+  $("editor").showModal();
+}
+$("form").addEventListener("submit", async (e) => {
+  const v = Object.fromEntries(new FormData(e.target));
+  v.name = v.name.trim();
+  if (!v.name) return e.preventDefault();
+  v.qty = Math.max(0, Number(v.qty) || 0);
+  v.min_qty = Math.max(0, Number(v.min_qty) || 0);
+  v.id = v.id ? Number(v.id) : null;
+  const r = await save(v);
+  S.set("ui.selected", v.id || r.lastId);
+  await load();
+  APX.toast(v.id ? "Item saved" : "Item added");
+});
+
+// --- events -------------------------------------------------------------
+document.addEventListener("click", async (e) => {
+  const t = e.target;
+  if (t.closest("#new, [data-new]")) {
+    if (APX.db.available) openEditor(null);
+    return;
+  }
+  const f = t.closest("[data-filter]");
+  if (f) {
+    S.set("ui.filter", f.dataset.filter);
+    document.querySelector('[data-view="items"]').click();
+    return render();
+  }
+  const row = t.closest("#rows [data-id]");
+  if (row) {
+    S.set("ui.selected", Number(row.dataset.id));
+    return render();
+  }
+  const it = selected();
+  if (!it) return;
+  if (t.closest("[data-edit]")) openEditor(it);
+  const step = t.closest("[data-step]");
+  if (step) {
+    await APX.db.exec("UPDATE items SET qty = MAX(0, qty + ?), updated_at = datetime('now') WHERE id = ?", [Number(step.dataset.step), it.id]);
+    await load();
+  }
+  if (t.closest("[data-delete]") && (await APX.confirm(`Delete "${it.name}"?`, { title: "Delete item", confirm: "Delete", danger: true }))) {
+    await APX.db.exec("DELETE FROM items WHERE id = ?", [it.id]);
+    S.remove("ui.selected");
+    await load();
+    APX.toast("Item deleted");
+  }
+});
+$("search").addEventListener("input", render);
+$("showQty").addEventListener("change", render);
+$("wipe").addEventListener("click", async () => {
+  if (!APX.db.available || !items.length) return;
+  if (!(await APX.confirm(`Delete all ${items.length} items?`, { title: "Delete every item", confirm: "Delete all", danger: true }))) return;
+  await APX.db.exec("DELETE FROM items");
+  S.remove("ui.selected");
+  await load();
+});
+
+// --- start --------------------------------------------------------------
+ready().then((ok) => {
+  if (ok) return load();
+  $("new").disabled = true;
+  $("saved").dataset.state = "stale";
+  $("saved").textContent = "Not saved";
+  $("total").textContent = "Open in APX to keep records";
+  renderProps(null);
+  showEmpty("database", "Open this app in APX", "Your inventory is kept in APX's database for this app. This preview cannot save anything.");
+}).catch((err) => {
+  $("saved").dataset.state = "error";
+  $("saved").textContent = "Could not read the inventory";
+  showEmpty("alert", "Could not read the inventory", APX.esc(err.message || String(err)));
+});
+</script>
+</body>
+</html>

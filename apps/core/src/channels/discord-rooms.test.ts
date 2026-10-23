@@ -393,4 +393,8 @@ test("names are whole words in any script; the decision follows the room's mode"
   assert.equal(d("useful"), "gate");
   assert.equal(d("always"), "reply");
   assert.equal(d("always", true, false, true), "keep");
+  // Outside the channel's attention hours only the owner is answered there.
+  const closed = { ownerOnly: false, closed: true };
+  assert.equal(roomDecision({ mode: "always", called: true, owner: false, ...closed }), "keep");
+  assert.equal(roomDecision({ mode: "mention", called: true, owner: true, ...closed }), "reply");
 });

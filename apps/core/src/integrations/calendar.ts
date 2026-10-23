@@ -1,5 +1,5 @@
-// Google Calendar's REST API, flattened to what a prompt needs: events in a range, free time, creating and changing
-// an event (invitations go out as the owner).
+// Google Calendar's REST API, flattened to what a prompt needs: events in a range, free time, creating, changing and
+// cancelling an event (invitations go out as the owner).
 import { randomUUID } from "node:crypto";
 import type { Google } from "./google.ts";
 
@@ -15,7 +15,7 @@ type GEvent = {
   hangoutLink?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
-  attendees?: Array<{ email?: string; responseStatus?: string }>;
+  attendees?: Array<{ email?: string; responseStatus?: string; optional?: boolean; organizer?: boolean }>;
   organizer?: { email?: string };
 };
 
@@ -60,6 +60,11 @@ const when = (t: string, timeZone?: string) =>
 
 const events = (g: Google, calendar: string) =>
   `${g.endpoints.calendar}/calendars/${encodeURIComponent(calendar)}/events`;
+const eventUrl = (g: Google, calendar: string, id: string) => `${events(g, calendar)}/${encodeURIComponent(id)}`;
+const meetRequest = () => ({
+  conferenceData: { createRequest: { requestId: randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } } },
+});
+const sameEmail = (a: string | undefined, b: string) => a?.toLowerCase() === b.toLowerCase();
 
 export function calendarApi(g: Google) {
   return {
@@ -114,18 +119,20 @@ export function calendarApi(g: Google) {
           start: when(o.start, o.time_zone),
           end: when(o.end, o.time_zone),
           ...(invites ? { attendees: o.attendees?.map((email) => ({ email })) } : {}),
-          ...(o.meet
-            ? {
-                conferenceData: {
-                  createRequest: { requestId: randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } },
-                },
-              }
-            : {}),
+          ...(o.meet ? meetRequest() : {}),
         },
       });
       return flattenEvent(data);
     },
 
+    async get(o: { id: string; calendar: string }) {
+      return flattenEvent(await g.call<GEvent>(ID, eventUrl(g, o.calendar, o.id)));
+    },
+
+    /**
+     * Changes what is given. `attendees` is the whole new list; `add_attendees`/`remove_attendees` change the current
+     * one (who already answered keeps their answer); `meet` adds a Meet link if it has none.
+     */
     async update(o: {
       id: string;
       title?: string | undefined;
@@ -134,23 +141,45 @@ export function calendarApi(g: Google) {
       description?: string | undefined;
       location?: string | undefined;
       attendees?: string[] | undefined;
+      add_attendees?: string[] | undefined;
+      remove_attendees?: string[] | undefined;
+      meet?: boolean | undefined;
       time_zone?: string | undefined;
       calendar: string;
     }) {
-      const data = await g.call<GEvent>(ID, `${events(g, o.calendar)}/${encodeURIComponent(o.id)}`, {
+      const changesGuests = Boolean(o.add_attendees?.length || o.remove_attendees?.length);
+      const current = changesGuests || o.meet ? await g.call<GEvent>(ID, eventUrl(g, o.calendar, o.id)) : undefined;
+      let guests: GEvent["attendees"] = o.attendees?.map((email) => ({ email }));
+      if (current && changesGuests) {
+        const kept = (guests ?? current.attendees ?? []).filter(
+          (a) => !o.remove_attendees?.some((r) => sameEmail(a.email, r)),
+        );
+        const added = (o.add_attendees ?? [])
+          .filter((e, i, all) => !kept.some((a) => sameEmail(a.email, e)) && all.indexOf(e) === i)
+          .map((email) => ({ email }));
+        guests = [...kept, ...added];
+      }
+      const addMeet = Boolean(o.meet && current && !current.hangoutLink);
+      const data = await g.call<GEvent>(ID, eventUrl(g, o.calendar, o.id), {
         method: "PATCH",
         // Attendees already invited hear about a change of time or place.
-        query: { sendUpdates: "all" },
+        query: { sendUpdates: "all", ...(addMeet ? { conferenceDataVersion: 1 } : {}) },
         body: {
           ...(o.title !== undefined ? { summary: o.title } : {}),
           ...(o.description !== undefined ? { description: o.description } : {}),
           ...(o.location !== undefined ? { location: o.location } : {}),
           ...(o.start !== undefined ? { start: when(o.start, o.time_zone) } : {}),
           ...(o.end !== undefined ? { end: when(o.end, o.time_zone) } : {}),
-          ...(o.attendees !== undefined ? { attendees: o.attendees.map((email) => ({ email })) } : {}),
+          ...(guests !== undefined ? { attendees: guests } : {}),
+          ...(addMeet ? meetRequest() : {}),
         },
       });
       return flattenEvent(data);
+    },
+
+    /** Cancels an event; its attendees are told. */
+    async cancel(o: { id: string; calendar: string }) {
+      await g.call(ID, eventUrl(g, o.calendar, o.id), { method: "DELETE", query: { sendUpdates: "all" } });
     },
   };
 }

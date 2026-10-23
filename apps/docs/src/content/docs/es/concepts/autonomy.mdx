@@ -132,8 +132,10 @@ APX sabe si un turno tiene contenido de afuera, y cuando lo tiene, las acciones 
 Las API keys, los tokens y las contraseñas nunca van en un prompt, un archivo o un log. Los agentes y la configuración
 los nombran, como `secret://name`, y el valor se busca recién en el momento de usarlo.
 
-- En macOS, los valores viven en tu Llavero de inicio de sesión.
-- En otros sistemas (o con `APX_SECRETS=file`), en `~/.apx/v2/secrets.json`, que sólo vos podés leer.
+- Los valores viven en el almacén de tu sistema: el Llavero de inicio de sesión en macOS, el llavero (Secret Service) en
+  Linux y un archivo que solo tu cuenta de Windows puede descifrar (DPAPI) en Windows.
+- Sin ninguno (un servidor Linux sin llavero) o con `APX_SECRETS=file`, en `~/.apx/v2/secrets.json`, que sólo vos
+  podés leer.
 - Un proyecto puede pisar un secreto global con un valor propio.
 - Las sesiones de Claude Code y Codex arrancan con un entorno limpio: ninguna variable de APX.
 

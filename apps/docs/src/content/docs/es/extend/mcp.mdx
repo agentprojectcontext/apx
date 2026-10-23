@@ -71,6 +71,11 @@ propias. El entorno y los headers se editan en el panel.
 Los servidores no corren todo el tiempo: un servidor está **Listo** y arranca solo cuando un agente lo usa por primera
 vez.
 
+Un servidor que inicia sesión a través de tu navegador (uno que corre con `mcp-remote`, por ejemplo) abre su página
+de inicio de sesión la primera vez que arranca. Si no la terminás, muestra **Necesita que inicies sesión** y APX no
+lo vuelve a arrancar solo, así que tu navegador no se abre una y otra vez. Tocá **Iniciar sesión** en el servidor (o
+corré `apx mcp signin <server>`) cuando quieras, y terminá en la página que abre.
+
 ## Probar un servidor desde la terminal
 
 `apx mcp tools`, `run` y `check` hablan directo con un servidor, algo útil cuando algo no anda:

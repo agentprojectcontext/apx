@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { expect, open, rpc, test } from "./kit.ts";
 
 const starter = fs.readFileSync(
-  new URL("../../apps/core/src/skills/apx/apx-widgets/assets/starter.html", import.meta.url),
+  new URL("../../apps/core/src/skills/apx/apx-artifacts/assets/starter.html", import.meta.url),
   "utf8",
 );
 
@@ -80,6 +80,6 @@ test("the widget kit filters work in an edge-to-edge app and in published fragme
   await expect(
     page.frameLocator(".surfaceframe__iframe").getByRole("heading", { name: "Project overview" }),
   ).toBeVisible();
-  await expect(page.locator(".surfaceframe")).not.toHaveClass(/surfaceframe--app/);
+  await expect(page.locator(".appscreen__body .surfaceframe")).not.toHaveClass(/surfaceframe--app/);
   await page.screenshot({ path: testInfo.outputPath("widget-kit-preview.png") });
 });

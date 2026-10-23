@@ -80,6 +80,11 @@ test("a new schedule moves its routine; a prompt the owner edited stays, and Res
   assert.doesNotMatch(restored.prompt, /\{\{/, "restored with the profile's values filled in");
   assert.deepEqual((await get()).changed, [], "nothing left to restore");
   await assert.rejects(set({ day_open: "whenever" }));
+  const mail = (await set({ mail_every_min: 10 })).routines.find((r) => r.origin === "secretary:mail");
+  assert.equal(mail?.action, "mail", "the secretary reads new mail");
+  assert.deepEqual(mail?.schedule, { kind: "cron", cron: "*/10 * * * *" }, "as often as the owner chose");
+  const fast = (await set({ mail_every_min: 0 })).routines.find((r) => r.origin === "secretary:mail");
+  assert.deepEqual(fast?.schedule, { kind: "cron", cron: "*/2 * * * *" }, "never more often than every 2 minutes");
 });
 
 test("the super-agent's prompt says its role while the profile is on", async () => {
@@ -94,7 +99,7 @@ test("the super-agent's prompt says its role while the profile is on", async () 
   assert.match(await system(), /formally \(usted\)/);
   await env.client.call("profiles.set", { id: null, values: {} });
   const kept = env.core.store.routines.list().filter((r) => r.origin?.startsWith("secretary:"));
-  assert.ok(kept.length === 4 && kept.every((r) => !r.enabled), "none turns its routines off and keeps them");
+  assert.ok(kept.length === 5 && kept.every((r) => !r.enabled), "none turns its routines off and keeps them");
   assert.doesNotMatch(await system(), /chief of staff/);
   await set({});
 });
@@ -127,7 +132,7 @@ test("an imported v1 routine of the same job is adopted, not doubled", async () 
     assert.equal(close.length, 1);
     assert.equal(close[0]?.id, v1.id, "v1's own routine became the profile's");
     assert.match(close[0]?.prompt ?? "", /Close the owner's day/, "with v2's prompt: v1's named v1's tools");
-    assert.equal(routines.length, 4);
+    assert.equal(routines.length, 5);
   } finally {
     await fresh.core.close();
     fresh.cleanup();

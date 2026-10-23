@@ -13,7 +13,7 @@ Las tareas son el tablero de pendientes de la oficina, compartido entre vos y tu
 ellos, y darle una a un agente alcanza para que arranque. **Tareas** en la barra lateral las muestra de todos los
 proyectos; cada proyecto tiene además su pestaña **Tareas** con **Nueva tarea**.
 
-<Shot name="tasks" alt="La pantalla de Tareas con los grupos En curso, Pendiente, En revisión y Bloqueada, cada uno con tareas, responsable y vencimiento" caption="Tareas, de todos los proyectos" />
+<Shot name="tasks" alt="La pantalla de Tareas con los grupos En curso, Pendiente, En revisión y Necesita tu revisión, cada uno con tareas, responsable y vencimiento" caption="Tareas, de todos los proyectos" />
 
 ## Qué tiene una tarea
 
@@ -32,11 +32,16 @@ lista en un solo proyecto o muestra **Todos los proyectos**; este navegador recu
 
 ### Cómo se agrupa la lista
 
+- **Propuestas** (cuando hay, arriba de todo): tareas que un agente propone y que no arrancan hasta que las aceptás.
+  **Aceptar todas** en su encabezado, o **Aceptar** y **Descartar** en el panel de cada una. Mirá
+  [Propuestas](#propuestas).
+- **Necesita tu revisión** (va primero): lo que es tuyo. Un agente te preguntó algo o necesita una decisión (sigue
+  cuando respondés; también la marcás así con **Espera tu respuesta** desde el menú), o una tarea terminada que
+  revisás vos para cerrarla. Cada fila dice cuál: **Te pregunta algo** o **Revisa: Vos**.
 - **En curso**: su columna es En curso, o un agente la está trabajando ahora.
 - **Pendiente**: Por planificar o Para hacer, nadie la empezó todavía.
-- **En revisión**: terminada, falta que alguien la revise.
-- **Bloqueada**: espera tu respuesta. Un agente te preguntó algo, o la marcaste con **Espera tu respuesta** desde el
-  menú de la tarea.
+- **En revisión**: terminada, y la revisa el agente que nombraste (**Quién la revisa** en el panel, o un agente que lo
+  nombra). Se le pide la revisión enseguida: si pide cambios, vuelve al que la hizo; si aprueba, pasa a la tuya.
 - **Cerradas hace poco**: hechas o descartadas, las más nuevas primero.
 
 ## Asignar arranca el trabajo
@@ -48,29 +53,37 @@ tarea**. Ese chat es uno más del Inbox: podés abrirlo y mirar, o hablar ahí c
 
 1. Lucía crea "Escribir la página de tarifas de envío" en Acme Store y elige a **Tomás** en **Quién la hace**.
 2. Se abre el chat de Tomás para la tarea con el texto de la tarea, y arranca: lee el proyecto, arma un borrador.
-3. Cada vez que termina un turno, su respuesta se publica en la tarea como **comentario suyo**. La tarea guarda la
-   conversación sobre el trabajo; el chat guarda el trabajo en sí (cada herramienta, cada archivo).
-4. Cuando necesita una decisión, te pregunta. La tarea pasa a **Bloqueada** hasta que respondas.
+3. Sus respuestas quedan en su chat. Comenta en la tarea cuando hay algo que vale la pena saber: un paso hecho y
+   verificado, un bloqueo, algo para revisar. La tarea guarda esos comentarios; el chat guarda el trabajo en sí (cada
+   herramienta, cada archivo). Cuando la cierra, su última respuesta se publica como su informe.
+4. Cuando necesita una decisión, te pregunta. La tarea pasa a **Necesita tu revisión** hasta que respondas.
 
 </Steps>
 
-Abrí una tarea y su panel muestra la descripción, los campos, la **Conversación** (comentarios) y el **Historial**
-(quién la creó, movió, asignó o cerró). **Abrir el chat de Tomás para esta tarea** te lleva a donde pasa el trabajo.
-Si la reasignás, el nuevo agente tiene su propio chat y se entera de quién la trabajó antes.
+Abrí una tarea y su panel muestra la descripción, los campos, los **Comentarios** y el **Historial** (quién la creó,
+movió, asignó o cerró). **Sesiones**, arriba, cuenta los chats en los que se trabajó la tarea y abre su lista, para ir
+a donde pasa el trabajo. Si la reasignás, el nuevo agente tiene su propio chat y se entera de quién la trabajó antes y
+dónde leerlo.
 
 <Shot name="task-drawer" alt="Una tarea abierta en su panel: título, responsable, prioridad y una conversación con comentarios del dueño y de un agente" caption="El panel de una tarea: comentarios, campos y el chat de trabajo" />
 
 Las tareas asignadas que nunca arrancaron se retoman solas: una vez por hora, las más urgentes se ponen en marcha.
+Para que una arranque más tarde (mañana a la mañana, después de una salida a producción), poné **Empieza** en su
+panel, o `apx tasks add … --start 2026-10-23T09:00`: su agente arranca a esa hora, no cuando la asignás.
 
 ### Comentarios y @menciones
 
-Escribí en el cuadro **Comentario** de la tarea. Un `@nombre` le pregunta a ese agente: responde en su propio chat
+Escribí en el cuadro **Comentario** de la tarea. Un comentario que no nombra a nadie espera un minuto (por si sumás
+otro) y después le llega al agente de la tarea, o al superagente si nadie la tiene; sus tildes muestran que se envió,
+se entregó y se leyó. Un `@nombre` le pregunta a ese agente: responde en su propio chat
 para la tarea, y su respuesta vuelve como comentario. Preguntale a Vera desde la tarea de Lucía:
 
 > @Vera ¿podés tener las fotos de producto para el jueves? Esta página las necesita.
 
-Los agentes se mencionan entre ellos igual (hasta dos saltos), y un agente te puede mencionar a vos para llamarte la
-atención.
+Un agente le pregunta a un compañero igual: su `@nombre` en un comentario abre una consulta en la tarea, que se ve
+como una tarjeta con la pregunta y la respuesta, y la respuesta le vuelve al agente que preguntó, que sigue con su
+trabajo. Un comentario pregunta a dos compañeros como mucho, y el que responde una consulta no puede preguntarle a
+nadie más. Un agente también te puede mencionar a vos para llamarte la atención.
 
 ### Cuando se cierra la tarea de un agente
 
@@ -97,10 +110,25 @@ intentarlo. Las actualizaciones comunes y las reaperturas administrativas nunca 
 Una tarea puede nombrar una tarea madre, así "Lanzamiento de primavera" agrupa las fotos de Vera y la página de
 tarifas de Tomás.
 
-<Aside type="caution" title="Parcial">
-Las subtareas existen en el core (una tarea creada por el protocolo puede nombrar a su madre), pero el panel todavía
-las lista como tareas comunes y las herramientas de tareas de los agentes todavía no ponen una madre.
-</Aside>
+La lista las anida bajo su madre. Una tarea que un agente crea mientras trabaja una tarea es subtarea de esa: el
+agente dueño de una tarea la lleva de punta a punta, y le pasa una parte a otro agente con una subtarea, no por chat.
+
+### Propuestas
+
+Cuando un agente termina, puede ver más trabajo: una pasada de QA, una revisión, algo de otra área. El trabajo que su
+rol reparte lo crea y lo arranca; el resto lo **propone**. Una tarea propuesta espera en **Propuestas**, con quién la
+propuso, hasta que la aceptás (arranca como cualquier tarea asignada) o la descartás. Te llega un aviso por agente con
+cuántas tiene esperando.
+
+Algunas tareas son propuestas pida lo que pida el agente:
+
+- **Un reparto amplio.** Cuando un agente reparte tareas a un tercer agente o más en un mismo turno (Roby dividiendo
+  "revisá todos los servicios por vulnerabilidades de PHP" en una tarea por servicio), quedan propuestas, así elegís
+  cuáles siguen. El interruptor **Preguntar antes de repartir trabajo entre varios agentes** (Equipo, en **Cuando los agentes trabajan solos**) lo apaga.
+- **Una cadena de tres pases.** Una subtarea de una subtarea de una subtarea queda propuesta, así los agentes no siguen
+  pasándose trabajo solos.
+- **Trabajo devuelto hacia arriba.** Una subtarea para un agente que creó una de las tareas de arriba queda propuesta,
+  así dos agentes no se pasan el mismo trabajo de ida y vuelta.
 
 ## Compromisos
 

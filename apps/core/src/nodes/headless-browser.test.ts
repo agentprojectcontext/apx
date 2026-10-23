@@ -10,9 +10,9 @@ import { PassThrough } from "node:stream";
 import { after, before, test } from "node:test";
 import type { TabInfo } from "@apx/protocol";
 import { chromium } from "@playwright/test";
-import { createHeadlessBrowser, findChrome } from "./headless-browser.ts";
+import { createHeadlessBrowser } from "./headless-browser.ts";
 
-const chrome = findChrome() ?? chromium.executablePath();
+const chrome = chromium.executablePath();
 const PAGES: Record<string, string> = {
   "/": `<html><head><title>Acme home</title></head><body><h1>Acme</h1><a href="/prices">Prices</a>
     <form action="/search"><input name="q" aria-label="Search"><input type="password" aria-label="Password"></form></body></html>`,
@@ -23,6 +23,7 @@ let srv: http.Server;
 let base = "";
 let apxPort = "";
 let dir = "";
+let chromeStderr = "";
 let browser: ReturnType<typeof createHeadlessBrowser>;
 const seen: TabInfo[][] = [];
 
@@ -47,8 +48,13 @@ before(async () => {
     chrome,
     // Chromium cannot start its sandbox as root in a disposable test container.
     // Keep this exception at the test's process boundary; production keeps its sandbox.
-    spawn: ((command: string, args: readonly string[], options: SpawnOptions) =>
-      spawn(command, [...args, ...(process.getuid?.() === 0 ? ["--no-sandbox"] : [])], options)) as typeof spawn,
+    spawn: ((command: string, args: readonly string[], options: SpawnOptions) => {
+      const child = spawn(command, [...args, ...(process.getuid?.() === 0 ? ["--no-sandbox"] : [])], options);
+      child.stderr?.on("data", (data) => {
+        chromeStderr = `${chromeStderr}${data}`.slice(-4000);
+      });
+      return child;
+    }) as typeof spawn,
     blockedPorts: () => new Set([apxPort]),
     onChange: (t) => seen.push(t),
   });
@@ -102,9 +108,13 @@ test("CDP input and output pipe errors reject work and stop Chrome without an un
   }
 });
 
-test("with no desktop app the core drives its own headless Chrome: open, read, click, type; never a password", async () => {
+test("with no desktop app the core drives its own headless Chrome: open, read, click, type; never a password", async (t) => {
   assert.ok(browser.available());
-  const tab = (await browser.handle("browser.open", { url: `${base}/`, by: "roby" })) as TabInfo;
+  const tab = (await browser.handle("browser.open", { url: `${base}/`, by: "roby" }).catch((error) => {
+    t.diagnostic(`Browser executable: ${chrome}`);
+    t.diagnostic(chromeStderr || "No browser stderr");
+    throw error;
+  })) as TabInfo;
   assert.equal(tab.title, "Acme home");
   assert.deepEqual(tab.control.kind, "agent");
   const snap = (await browser.handle("browser.snapshot", { tab: tab.tab })) as { tree: string };

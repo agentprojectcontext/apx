@@ -69,6 +69,11 @@ options. Environment and headers are edited in the panel.
 
 Servers don't run all the time: a server is **Ready** and starts only when an agent first uses it.
 
+A server that signs in through your browser (one run with `mcp-remote`, for example) opens its sign-in page the
+first time it starts. If you don't finish, it shows **Needs you to sign in** and APX doesn't start it again by
+itself, so your browser doesn't keep opening. Click **Sign in** on the server (or run `apx mcp signin <server>`) when
+you are ready, and finish on the page it opens.
+
 ## Try a server from the terminal
 
 `apx mcp tools`, `run` and `check` talk to a server directly, which is handy when something doesn't work:

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
-import { telegramAdapter } from "./telegram.ts";
+import { TELEGRAM_REACTIONS, telegramAdapter, telegramReaction } from "./telegram.ts";
 
 const TOKEN = "123456:TEST-contacts";
 const MAG = { id: 2201, name: "Northwind Buyer" };
@@ -32,6 +32,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (said.includes("what routines")) return callTool("c2", "routine_list", {});
   if (said.includes("nothing to add")) return say("SKIP");
   if (said.includes("react with a heart")) return say("REACT ❤️");
+  if (said.includes("react with raised hands")) return say("REACT 🙌");
   if (said.includes("can I ask")) return say("Sure, want me to tell them?");
   if (said.includes("tell nobody")) return callTool("m2", "message_contact", { to: "Zed", text: "Hi" });
   return say(`Reply: ${said.split("\n").at(-1)?.slice(0, 80)}`);
@@ -150,6 +151,10 @@ test("an agent that answers SKIP sends nothing", async () => {
   await new Promise((r) => setTimeout(r, 300));
   assert.equal(tg.messagesTo(MAG.id).length, sent, "nothing went back");
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /answer only SKIP/);
+  // The chat's preview goes back to their words, never the signal.
+  const shown = async () => (await env.client.call("threads.get", { thread })).thread.preview;
+  await until(async () => (await shown()) !== "SKIP", "preview restored");
+  assert.equal(await shown(), "nothing to add from my side, see you around");
 });
 
 test("a reaction to the agent's message shows on it, and never wakes the agent", async () => {
@@ -221,18 +226,79 @@ test("asked to react, the agent puts its emoji on their last message instead of 
   const theirs = messages.findLast((m) => m.author.kind === "person");
   assert.deepEqual(theirs?.reactions, [{ emoji: "❤️", by: "agent" }]);
   assert.ok(!messages.at(-1)?.parts.some((p) => p.type === "text"), "the REACT words leave the chat");
+  assert.equal((await env.client.call("threads.get", { thread })).thread.preview, "Reaccionó con ❤️");
+  // Listed with what went out on the channel, as sent.
+  const { items } = await env.client.call("channels.outbox", { limit: 5 });
+  const put = items.find((i) => i.reaction);
+  assert.deepEqual([put?.reaction, put?.state, put?.conversation], ["❤️", "sent", String(MAG.id)]);
+});
+
+test("asked to react in the app's own chat, the emoji goes on the owner's message there and no platform gets it", async () => {
+  const reactions = tg.reactionsTo(MAG.id).length;
+  const { message } = await env.client.call("threads.send", { thread: "home", text: "react with a heart, no words" });
+  await env.settle("home");
+  const home = await env.client.call("threads.get", { thread: "home" });
+  assert.deepEqual(home.messages.find((m) => m.id === message.id)?.reactions, [{ emoji: "❤️", by: "agent" }]);
+  assert.ok(!home.messages.at(-1)?.parts.some((p) => p.type === "text"), "the REACT words leave the chat");
+  assert.equal(home.thread.preview, "Reaccionó con ❤️");
+  assert.equal(tg.reactionsTo(MAG.id).length, reactions, "the contact's chat got nothing");
+});
+
+test("Telegram only takes its own reactions: any other emoji becomes the closest allowed one", () => {
+  assert.equal(telegramReaction("🙌"), "👏");
+  assert.equal(telegramReaction("✅"), "👌");
+  assert.equal(telegramReaction("😀"), "😁");
+  assert.equal(telegramReaction("❤️"), "❤");
+  assert.equal(telegramReaction("🔥"), "🔥");
+  assert.equal(telegramReaction("🦖"), "👍");
+  assert.equal(telegramReaction(""), "");
+  for (const e of ["🙌", "✅", "😀", "❤️", "🦖", "💙", "🥳"])
+    assert.ok(TELEGRAM_REACTIONS.includes(telegramReaction(e)), e);
+});
+
+test("the agent reacts with the emoji it chose; only when Telegram refuses it does the closest allowed one go", async () => {
+  const id = tg.message(MAG, "payment went through");
+  await until(async () => {
+    const { messages } = await env.client.call("threads.get", { thread });
+    const theirs = messages.findLastIndex((m) => m.parts.some((p) => p.type === "text" && p.text.includes("payment")));
+    return theirs >= 0 && messages.at(-1)?.author.kind === "agent" && messages.length - 1 > theirs;
+  }, "answered");
+  await env.settle(thread);
+  const reactions = tg.reactionsTo(MAG.id).length;
+  await env.client.call("threads.send", { thread, text: "react with raised hands to their last message" });
+  await env.settle(thread);
+  await until(() => tg.reactionsTo(MAG.id).length > reactions, "reaction sent");
+  assert.deepEqual(tg.reactionsTo(MAG.id).at(-1)?.body, {
+    chat_id: MAG.id,
+    message_id: id,
+    reaction: [{ type: "emoji", emoji: "🙌" }],
+  });
+  tg.failures.set("setMessageReaction", [
+    { status: 400, body: { ok: false, description: "Bad Request: REACTION_INVALID" } },
+  ]);
+  await env.client.call("threads.send", { thread, text: "react with raised hands to their last message" });
+  await env.settle(thread);
+  await until(() => tg.reactionsTo(MAG.id).length > reactions + 1, "the closest one sent");
+  assert.deepEqual(tg.reactionsTo(MAG.id).at(-1)?.body, {
+    chat_id: MAG.id,
+    message_id: id,
+    reaction: [{ type: "emoji", emoji: "👏" }],
+  });
+  const { notifications } = await env.client.call("notifications.list", {});
+  assert.ok(!notifications.some((n) => /🙌/.test(n.body ?? "")), "no failure notice: the reaction went");
 });
 
 test("a reaction that cannot be put sends nothing to them, and the owner hears why", async () => {
   await env.settle(thread);
   const sent = tg.messagesTo(MAG.id).length;
   tg.failures.set("setMessageReaction", [{ status: 400, body: { ok: false, description: "REACTION_INVALID" } }]);
+  // ❤️ is already an allowed reaction: no stand-in to try, so the refusal reaches the owner.
   await env.client.call("threads.send", { thread, text: "react with a heart to their last message" });
   await env.settle(thread);
   await until(async () => {
     const { notifications } = await env.client.call("notifications.list", {});
-    return notifications.some((n) => /No pude reaccionar|couldn't react/.test(n.body ?? ""));
-  }, "the owner is told");
+    return notifications.some((n) => /(rechazó la reacción|refused the reaction).*REACTION_INVALID/.test(n.body ?? ""));
+  }, "the owner is told the platform refused it, not that there was no message");
   assert.equal(tg.messagesTo(MAG.id).length, sent, "no stray emoji went to them");
   const { messages } = await env.client.call("threads.get", { thread });
   assert.ok(!messages.at(-1)?.parts.some((p) => p.type === "text"), "the REACT words leave the chat");

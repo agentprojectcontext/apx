@@ -3,7 +3,7 @@ import { randomUUID } from "expo-crypto";
 import { type ClientOptions, ApxClient as ProtocolClient } from "../../../packages/protocol/src/client.ts";
 import type { Params } from "../../../packages/protocol/src/index.ts";
 
-export { ApxError, type ApxSocket } from "../../../packages/protocol/src/client.ts";
+export { ApxError, type ApxSocket, UPLOAD_LIMITS } from "../../../packages/protocol/src/client.ts";
 export type {
   CoreEvent,
   Message,

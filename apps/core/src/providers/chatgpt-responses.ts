@@ -107,6 +107,7 @@ export const chatgptResponses: Transport = async (req) => {
       instructions,
       input,
       store: false,
+      ...(req.maxOutputTokens ? { max_output_tokens: req.maxOutputTokens } : {}),
       stream: true,
       // Codex sends its conversation id here and as the session_id header: the plan's prompt cache follows both.
       ...(req.cacheKey ? { prompt_cache_key: sessionUuid(req.cacheKey) } : {}),

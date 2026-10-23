@@ -5,6 +5,7 @@ import type { Selectable, Updateable } from "kysely";
 import { sql } from "kysely";
 import type { Bus } from "../bus.ts";
 import type { MessagesTable, ThreadsTable } from "../db/schema.ts";
+import { ftsQuery } from "./memories.ts";
 import { newId, now, opt, qb, type Sql } from "./sql.ts";
 import { toThread } from "./thread-projection.ts";
 
@@ -46,6 +47,10 @@ export type ThreadContext = {
   /** Memory notes shown per agent, and the model log seq of the turn that showed the standing ones. */
   memory_shown?: Record<string, string[]>;
   memory_since?: Record<string, number>;
+  memory_versions?: Record<string, number>;
+  /** Own notes listed by hook in the memory index per agent ("id:revision"), and when it was last shown. */
+  memory_indexed?: Record<string, string[]>;
+  memory_indexed_at?: Record<string, string>;
   /** Started by an outside app (its client id): only that app may read it or write in it. */
   client?: string;
   /** The model picked for this chat in its composer: tried before the agent's own choice. */
@@ -53,13 +58,19 @@ export type ThreadContext = {
   /** A worker's session: the caller's own agent, run under instructions the caller wrote for one task. */
   worker?: Worker;
   /** A consult an @mention in a task opened: the task, and the card in its conversation that shows the answer. */
-  consult?: { task: string; card: string };
+  /** `asker`: the agent that asked on the task and the chat it asked from, where it hears the answer. */
+  consult?: { task: string; card: string; review?: boolean; asker?: { agent: string; thread: string } };
   /** On a task's conversation: the close (its place in the task's history) already reported to whoever created it. */
   close_reported?: number;
   /** A task chat an agent's turn started: the chat it came from, whose unattended limits its turns count against. */
   asked_from?: string;
+  /** A task chat that stalled: when APX last asked its agent to go on, and the stop since then the owner was told of. */
+  stall?: { revived_at: string; told?: string };
   /** Tasks agents gave from this chat while it was paused: each starts once the owner lets agents go on. */
   held?: HeldTask[];
+  /** On a task's conversation: the owner's comments no agent has had yet (message ids), and those handed to a turn. */
+  owner_unread?: string[];
+  owner_handed?: Array<{ run: string; messages: string[] }>;
   /** Queued delegations from this chat the breaker holds (run ids) whose notice the owner already saw. */
   queue_held?: string[];
   /** A result or report reached this chat's agent (its id) while paused: kept for its next turn, which going on starts. */
@@ -69,6 +80,9 @@ export type ThreadContext = {
   /** On a tree's top chat: the owner let agents go on with no limit at this moment, until they write there again. */
   released_at?: string;
   /** Brought from the owner's Claude Code or Codex: that session. */
+  /** Fork relatives do not automatically recall each other beyond their copied history. */
+  memory_family?: string;
+  memory_cutoff?: string;
   imported?: { engine: "claude" | "codex"; session: string };
   /** What an imported chat is about, for the agent that takes it over (sessions.digest). */
   digest?: { text: string; at: string };
@@ -101,8 +115,6 @@ export const strictestWrite = (first: Write, ...rest: Write[]): Write =>
 
 export const PREVIEW_CHARS = 160;
 export const previewOf = (text: string) => text.slice(0, PREVIEW_CHARS);
-
-export type LogEntry = { seq: number; run_id: string | undefined; item: unknown };
 
 export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (thread: string) => void = () => {}) {
   const repo = {
@@ -221,6 +233,12 @@ export function threadsRepo({ one, all, run }: Sql, bus: Bus, endSession: (threa
       return all(qb.selectFrom("threads").select("id").where(sql`json_array_length(context, '$.held')`, ">", 0)).map(
         (r) => r.id,
       );
+    },
+    /** The task conversations holding owner comments no agent has had yet (`owner_unread`). */
+    unreadByAgents(): string[] {
+      return all(
+        qb.selectFrom("threads").select("id").where(sql`json_array_length(context, '$.owner_unread')`, ">", 0),
+      ).map((r) => r.id);
     },
     /** The task chats an agent's turn in `threadId` started (`asked_from`). */
     askedFrom(threadId: string): string[] {
@@ -493,8 +511,16 @@ export type DocumentPart = Extract<Part, { type: "file" }> & {
 
 export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
   const repo = {
-    /** Messages whose text has every word of `query`, best match first, newest among equals. */
-    search(query: string, limit = 30, threadIds?: string[]): MessageHit[] {
+    /**
+     * Messages whose text has every word of `query`, best match first, newest among equals. `exclude` drops those
+     * already in a model's view (by id, or by the run that wrote them) before the limit.
+     */
+    search(
+      query: string,
+      limit = 30,
+      threadIds?: string[],
+      exclude: { messages?: string[]; runs?: string[] } = {},
+    ): MessageHit[] {
       const match = messageQuery(query);
       if (!match || threadIds?.length === 0) return [];
       const rows = all(
@@ -504,6 +530,16 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
           .innerJoin("messages", "messages.id", "messages_n.id")
           .selectAll("messages")
           .$if(threadIds !== undefined, (q) => q.where("messages.thread_id", "in", threadIds ?? []))
+          .$if(Boolean(exclude.messages?.length), (q) =>
+            q.where(
+              sql<boolean>`messages.id not in (select value from json_each(${JSON.stringify(exclude.messages)}))`,
+            ),
+          )
+          .$if(Boolean(exclude.runs?.length), (q) =>
+            q.where(
+              sql<boolean>`coalesce(messages.run_id, '') not in (select value from json_each(${JSON.stringify(exclude.runs)}))`,
+            ),
+          )
           .where(sql<boolean>`messages_fts MATCH ${match}`)
           .orderBy(sql`bm25(messages_fts)`)
           .orderBy("messages.created_at", "desc")
@@ -514,6 +550,24 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         snippet: snippetOf(message.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])).join(" "), query),
       }));
     },
+    recall(query: string, threadIds: string[], limit = 20, excludeMessages: string[] = []): Message[] {
+      const match = ftsQuery(query, 12);
+      if (!match || !threadIds.length) return [];
+      return all(
+        qb
+          .selectFrom("messages_fts")
+          .innerJoin("messages_n", "messages_n.n", "messages_fts.rowid")
+          .innerJoin("messages", "messages.id", "messages_n.id")
+          .selectAll("messages")
+          .where(sql<boolean>`messages.thread_id in (select value from json_each(${JSON.stringify(threadIds)}))`)
+          .where(sql<string>`json_extract(messages.author, '$.kind')`, "=", "user")
+          .where(sql<boolean>`messages.id not in (select value from json_each(${JSON.stringify(excludeMessages)}))`)
+          .where(sql<boolean>`messages_fts MATCH ${match}`)
+          .orderBy(sql`bm25(messages_fts)`)
+          .orderBy("messages.created_at", "desc")
+          .limit(limit),
+      ).map(toMessage);
+    },
     list(threadId: string, limit = 200): Message[] {
       const newest = qb
         .selectFrom("messages")
@@ -522,6 +576,18 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
         .orderBy("seq", "desc")
         .limit(limit);
       return all(qb.selectFrom(newest.as("m")).selectAll().orderBy("seq")).map(toMessage);
+    },
+    around(threadId: string, seq: number, limit = 20): Message[] {
+      const half = Math.floor(limit / 2);
+      return all(
+        qb
+          .selectFrom("messages")
+          .selectAll()
+          .where("thread_id", "=", threadId)
+          .where("seq", ">=", Math.max(1, seq - half))
+          .orderBy("seq")
+          .limit(limit),
+      ).map(toMessage);
     },
     get(id: string): Message | undefined {
       const r = one(qb.selectFrom("messages").selectAll().where("id", "=", id));
@@ -688,78 +754,4 @@ export function messagesRepo({ one, all, run }: Sql, bus: Bus) {
     },
   };
   return repo;
-}
-
-export function modelLogRepo({ one, all, run }: Sql) {
-  const log = {
-    /** The thread's log, oldest first; `limit` keeps the newest entries. */
-    list(threadId: string, limit = 2000): LogEntry[] {
-      const newest = qb
-        .selectFrom("model_log")
-        .selectAll()
-        .where("thread_id", "=", threadId)
-        .orderBy("seq", "desc")
-        .limit(limit);
-      return all(qb.selectFrom(newest.as("l")).select(["seq", "run_id", "item"]).orderBy("seq")).map((r) => ({
-        seq: Number(r.seq),
-        run_id: r.run_id ? r.run_id : undefined,
-        item: JSON.parse(r.item),
-      }));
-    },
-    forRun(runId: string): unknown[] {
-      return all(qb.selectFrom("model_log").select("item").where("run_id", "=", runId).orderBy("seq")).map((r) =>
-        JSON.parse(r.item),
-      );
-    },
-    /** Forgets what these runs logged and everything logged after them, so the model never sees it again. */
-    dropRuns(threadId: string, runIds: string[]): void {
-      const first = log.firstOf(threadId, runIds);
-      if (first === undefined) return;
-      run(qb.deleteFrom("model_log").where("thread_id", "=", threadId).where("seq", ">=", first));
-    },
-    /** The first seq these runs logged in the thread: where what they saw starts. */
-    firstOf(threadId: string, runIds: string[]): number | undefined {
-      if (!runIds.length) return undefined;
-      const r = one(
-        qb
-          .selectFrom("model_log")
-          .select((eb) => eb.fn.min("seq").as("seq"))
-          .where("thread_id", "=", threadId)
-          .where("run_id", "in", runIds),
-      );
-      return r?.seq == null ? undefined : Number(r.seq);
-    },
-    /** Copies a thread's log below `before` into another, same seqs, so a copied compaction epoch still points right. */
-    copyInto(from: string, to: string, before = Number.POSITIVE_INFINITY): void {
-      const rows = all(
-        qb
-          .selectFrom("model_log")
-          .select(["seq", "run_id", "item"])
-          .where("thread_id", "=", from)
-          .$if(Number.isFinite(before), (q) => q.where("seq", "<", before))
-          .orderBy("seq"),
-      );
-      for (const r of rows)
-        run(qb.insertInto("model_log").values({ thread_id: to, seq: r.seq, item: r.item, run_id: r.run_id }));
-    },
-    /** Appends items in order; returns the seq of the first one. */
-    append(threadId: string, runId: string | undefined, items: unknown[]): number {
-      const base = Number(
-        one(
-          qb
-            .selectFrom("model_log")
-            .select((eb) => eb.fn.coalesce(eb.fn.max("seq"), eb.lit(0)).as("m"))
-            .where("thread_id", "=", threadId),
-        )?.m ?? 0,
-      );
-      for (const [i, item] of items.entries())
-        run(
-          qb
-            .insertInto("model_log")
-            .values({ thread_id: threadId, seq: base + i + 1, item: JSON.stringify(item), run_id: runId ?? null }),
-        );
-      return base + 1;
-    },
-  };
-  return log;
 }

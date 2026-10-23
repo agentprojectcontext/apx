@@ -19,8 +19,12 @@ export const buttonId = {
   pairing: (code: string, decision: "contact" | "deny") => `p:${code}:${decision}`,
   /** Someone kept unreviewed: answer them from now on, or keep them silenced without reports. */
   review: (personId: string, decision: "answer" | "ignore") => `r:${personId}:${decision}`,
+  /** A delegated session a limit stopped while it looked stuck: one more turn, as Continue in the app. */
+  goOn: (session: string) => `d:${session}:go`,
   /** A reply drafted for a supervised contact: send it, answer them yourself, or drop it. */
   suggestion: (id: string, decision: SuggestionDecision) => `s:${id}:${decision}`,
+  /** One of a release news entry's actions (news/entries.ts): what it asks goes to the agent as the owner's words. */
+  news: (entry: string, n: number) => `n:${entry}:${n}`,
 };
 
 export type SuggestionDecision = "send" | "write" | "ignore";
@@ -33,7 +37,9 @@ export type Button =
   | { kind: "skip"; inputId: string }
   | { kind: "pairing"; code: string; decision: "contact" | "deny" }
   | { kind: "review"; person: string; decision: "answer" | "ignore" }
-  | { kind: "suggestion"; id: string; decision: SuggestionDecision };
+  | { kind: "suggestion"; id: string; decision: SuggestionDecision }
+  | { kind: "continue"; session: string }
+  | { kind: "news"; entry: string; index: number };
 
 export function parseButton(data: string): Button | undefined {
   const [kind, ref, what] = data.split(":");
@@ -45,8 +51,10 @@ export function parseButton(data: string): Button | undefined {
   if (kind === "i" && (what === "c" || what === "s")) return { kind: what === "c" ? "confirm" : "skip", inputId: ref };
   if (kind === "p" && (what === "contact" || what === "deny")) return { kind: "pairing", code: ref, decision: what };
   if (kind === "r" && (what === "answer" || what === "ignore")) return { kind: "review", person: ref, decision: what };
+  if (kind === "d" && what === "go") return { kind: "continue", session: ref };
   if (kind === "s" && (what === "send" || what === "write" || what === "ignore"))
     return { kind: "suggestion", id: ref, decision: what };
+  if (kind === "n" && /^\d+$/.test(what)) return { kind: "news", entry: ref, index: Number(what) };
   return undefined;
 }
 

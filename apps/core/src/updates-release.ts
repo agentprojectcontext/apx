@@ -39,9 +39,11 @@ const sha256 = (file: string) =>
       .on("end", () => resolve(h.digest("hex")));
   });
 
-/** Windows' own bsdtar: an MSYS tar on PATH would read "C:" as a remote host. */
-const tarCommand = () =>
-  process.platform === "win32" ? path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
+/** System tar avoids a service's restricted PATH on macOS and MSYS drive parsing on Windows. */
+const tarCommand = () => {
+  if (process.platform === "win32") return path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
+  return process.platform === "darwin" ? "/usr/bin/tar" : "tar";
+};
 
 /** Points `current` at a version: a relative symlink swapped in by rename, or a junction on Windows. */
 export function switchCurrent(app: string, version: string): void {
@@ -58,7 +60,24 @@ export function switchCurrent(app: string, version: string): void {
   fs.renameSync(next, current);
 }
 
-/** Keeps the version that runs now and the one before it (to go back by hand); older ones go. */
+/**
+ * The bundle version a core runs from, when its root is inside `app`. It can differ from `current`: a core that did not
+ * restart after an update still runs the version before.
+ */
+export function runningVersion(app: string, root: string): string | undefined {
+  const real = (p: string) => {
+    try {
+      return realpath(p);
+    } catch {
+      return path.resolve(p);
+    }
+  };
+  const rel = path.relative(path.join(real(app), BUNDLE.versions), real(root));
+  const first = rel.split(path.sep)[0];
+  return first && !rel.startsWith("..") && !path.isAbsolute(rel) ? first : undefined;
+}
+
+/** Keeps the new version, the one `current` pointed at and the one a core still runs from; older ones go. */
 function prune(app: string, keep: string[]): void {
   const versions = path.join(app, BUNDLE.versions);
   for (const v of fs.readdirSync(versions)) {
@@ -82,6 +101,8 @@ export async function installRelease(o: {
   platform: Platform;
   fetch: typeof fetch;
   run: Runner;
+  /** The version this core runs from: never pruned under it. */
+  running?: string;
 }): Promise<string> {
   const name = coreBundleName(o.release.version, o.platform);
   const asset = o.release.assets.find((a) => a.name === name);
@@ -111,7 +132,7 @@ export async function installRelease(o: {
     fs.rmSync(target, { recursive: true, force: true });
     fs.renameSync(path.join(unpacked, "apx"), target);
     switchCurrent(o.app, o.release.version);
-    prune(o.app, [o.release.version, ...(before ? [before] : [])]);
+    prune(o.app, [o.release.version, ...(before ? [before] : []), ...(o.running ? [o.running] : [])]);
     return `downloaded ${name}, checked its sha256, installed it as current${before ? ` (was ${before})` : ""}`;
   } finally {
     fs.rmSync(work, { recursive: true, force: true });

@@ -72,6 +72,8 @@ export const enChat = {
   "usage.aux.room": "Room filter",
   "usage.aux.commit": "Commit messages",
   "usage.aux.suggestion": "Suggested replies",
+  "usage.aux.news": "Release news",
+  "usage.aux.sticker": "Sticker meanings",
   "usage.state.submitted": "Queued",
   "usage.state.working": "Working",
   "usage.state.waiting": "Waiting for you",
@@ -120,4 +122,8 @@ export const enChat = {
   "choices.personality": "I'd like you to be like this: {choice}.",
   "choices.own": "Something else",
   "choices.ownPlaceholder": "Tell me how you'd like me to be and press Enter",
+  "connect.title": "Suggested connections",
+  "connect.connected": "Connected",
+  "connect.done": "I connected {name}.",
+  "connect.more": "Explore {count} more connectors",
 };

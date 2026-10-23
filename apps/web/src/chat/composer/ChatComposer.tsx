@@ -85,6 +85,7 @@ export function ChatComposer({
 
   // A new chat is made once: what is sent while it is being made waits.
   const making = useRef(false);
+  const created = useRef<Thread | undefined>(undefined);
   const submit = (value: string, { queue }: { queue: boolean }) => {
     if (micBusy || making.current) return;
     if (att.uploading) return notify(t("composer.stillUploading"), "info");
@@ -106,17 +107,19 @@ export function ChatComposer({
     };
     if (!fresh) return void send(thread.id, words, { attachments, queue }).catch(giveBack);
     making.current = true;
-    makeChat(thread.id).then(
-      async (chat) => {
-        // The chat is made: words a send then refuses wait in its own draft.
-        await send(chat.id, words, { attachments, queue }).catch(() => keepDraft(chat.id, value));
+    void (async () => {
+      try {
+        // Keep the created chat on failure: retry sends the restored files without making another chat.
+        const chat = created.current ?? (await makeChat(thread.id));
+        created.current = chat;
+        await send(chat.id, words, { attachments, queue });
         onMade(chat.id);
-      },
-      () => {
-        making.current = false;
+      } catch {
         giveBack();
-      },
-    );
+      } finally {
+        making.current = false;
+      }
+    })();
   };
   const pick = (input: HTMLInputElement | null) => input?.click();
 

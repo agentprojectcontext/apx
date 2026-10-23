@@ -1,6 +1,7 @@
 import type { Agent, Thread } from "@apx/protocol";
 import { ContextMenu, ConversationRow, Icons, Spinner, Tag } from "@apx/ui";
 import { CHANNEL_KINDS, isChannelKind } from "../channels/kinds.ts";
+import { ChatProcesses } from "../common/ChatProcesses.tsx";
 import { shortWhen } from "../common/format.ts";
 import { isWorking, routineName } from "../data/identity.ts";
 import { type T, useT } from "../i18n/index.ts";
@@ -32,7 +33,12 @@ export function ThreadRow({ thread, agent, selected, onOpen }: ThreadRowProps) {
             {thread.kind === "routine" ? routineName(thread) : thread.title}
           </>
         }
-        titleTag={!thread.engine && agent?.kind === "secretary" ? <Tag kind="role">{t("agent.super")}</Tag> : undefined}
+        titleTag={
+          <>
+            <ChatProcesses thread={thread.id} />
+            {!thread.engine && agent?.kind === "secretary" && <Tag kind="role">{t("agent.super")}</Tag>}
+          </>
+        }
         time={shortWhen(thread.updated_at)}
         unread={thread.unread}
         meta={metaLine(thread, agent, t)}

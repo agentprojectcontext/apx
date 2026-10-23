@@ -36,7 +36,7 @@ restarting the client does not implicitly update that server.
 
 ## Desktop installation from a local web panel
 
-`desktop.install_status` and `desktop.install` use the ordinary protocol router. Both require a human and a direct
+`desktop.install_status`, `desktop.install` and `desktop.install_cancel` use the ordinary protocol router. All three require a human and a direct
 loopback request; locality is checked before idempotency replay or joining another request. HTTP and WS derive
 locality from the actual peer, Host, Origin and proxy headers, never request parameters. A graphical session is
 also required; SSH sessions and headless Linux do not offer this action. A transparent SSH forward cannot be
@@ -46,7 +46,7 @@ The shared Node-only installer in `packages/install` streams a bounded release a
 installs in the user's application folder and launches the app. macOS uses the release zip rather than a DMG drag
 step; Windows runs NSIS and Linux installs the AppImage and a desktop launcher. The OS may still require permission
 for an unsigned app; installation does not remove quarantine or bypass OS security. Polling resumes after a web reload;
-errors allow retry. A core restart interrupts the download; the next visit offers installation again.
+errors allow retry. After the start request is acknowledged and while the download is in progress the panel can cancel it: the transfer aborts and the notice returns to idle, without a failure. Minimizing the notice keeps its compact progress indicator visible while the download continues; a failure expands it again. Closing the offer is remembered across reloads, with an install action left above the sidebar account. After installation, that action becomes Open desktop and the install notice stays hidden. Installing and opening are not cancelled. A core restart interrupts the download; the next visit offers installation again.
 
 The explicit install action saves a private, atomic local connection containing canonical home, port and home id,
 without tokens. Desktop validates the home identity and reads its credentials from that home's `core.env`. If the

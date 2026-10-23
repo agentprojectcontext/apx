@@ -3,10 +3,10 @@ category: Identity
 ---
 # IntegrationIcon
 
-The official mark of the app an integration connects, on its tile: GitHub, Notion, Slack, Sentry, Brave Search,
-Obsidian, Google Calendar, Gmail, Linear and Asana, in their own colours (GitHub, Notion and Sentry in the text
-colour, so they show on the dark theme). Anything without a mark (a custom MCP server) gets the letter tile. Used
-wherever an integration is named: the "Connect an integration" dialog, the integrations list and its detail.
+The official mark of the app an integration connects, on its tile: GitHub, Notion, Slack, Sentry, Google Calendar, Gmail,
+Linear, Atlassian, GitLab, Vercel, Stripe, Figma and about forty more, in their own colours (near-black marks, like
+GitHub, Notion and Vercel, in the text colour so they show on the dark theme). Anything without a mark (Context7,
+DeepWiki, a custom MCP server) gets the letter tile. Used wherever an integration is named: the "Connect an integration" dialog, the integrations list and its detail.
 
 - `id`: the integration id or MCP server name; `integrationBrand(id)` tells which mark it maps to.
 - `name`: the app's name, whose first letter fills the tile when there is no mark.

@@ -1,6 +1,7 @@
 // The engine: every agent turn enters through `admit` (threads.send is its public door), runs one at a time per
 // thread from the durable queue (the runs table), and reports its end to whoever waits for it.
 // See DECISIONS.md#d-009
+
 import type { RunTrigger, Thread } from "@apx/protocol";
 import { type Attachment, type Origin, type RunInput, type RunRecord, TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
@@ -11,7 +12,7 @@ import type { Log } from "../log.ts";
 import type { RuntimeHomes } from "../skills/runtimes.ts";
 import { fromTeam } from "../tools/result.ts";
 import type { Tool } from "../tools/types.ts";
-import { pausedNotice } from "./breaker.ts";
+import { agentTrip, pausedNotice, trip } from "./breaker.ts";
 import { actionsNote, actionsOf, createDelegations, endedAs, endNote } from "./delegation.ts";
 import type { Display } from "./display.ts";
 import type { Hooks } from "./hooks.ts";
@@ -19,8 +20,11 @@ import { createInputs, type InputWaits } from "./inputs.ts";
 import { createJobs } from "./jobs.ts";
 import { A2A_CAP_MS } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
+import type { Permissions } from "./permissions.ts";
+import type { MailSource } from "./pipeline.ts";
 import type { ProfileRoot } from "./profiles.ts";
 import { recoverInterrupted } from "./recovery.ts";
+import { droppedResult, outcomeNote } from "./run-outcome.ts";
 import type { SkillPicker } from "./skill-pick.ts";
 import { runTurn, type ToolCall } from "./turn.ts";
 
@@ -53,6 +57,17 @@ function timeSpan(ms: number): string {
 type Clock = { pause(): void; resume(): void; stop(): void; touch(): void; busy(): () => void };
 /** `cap`: the most it may work in all, progress or not (a delegated run's). */
 type Limit = { ms: number; engine: boolean; cap?: number | undefined };
+export type RunTimers = {
+  now(): number;
+  after(ms: number, callback: () => void): () => void;
+};
+const wallRunTimers: RunTimers = {
+  now: () => Date.now(),
+  after(ms, callback) {
+    const timer = setTimeout(callback, ms);
+    return () => clearTimeout(timer);
+  },
+};
 type IdleWindows = {
   engineIdleMs?: number | undefined;
   turnIdleMs?: number | undefined;
@@ -72,49 +87,52 @@ function runLimit(store: Store, threadId: string, trigger: string | undefined, w
  * sign of life (`touch`), reports its new end through `moved` and does not run out while work it waits on is in
  * progress (`busy`). The cap never starts over and counts only the time the turn was not held.
  */
-function pausableClock(limit: Limit, fire: (capped: boolean) => void, moved: (at: number) => void = () => {}): Clock {
+function pausableClock(
+  limit: Limit,
+  fire: (capped: boolean) => void,
+  moved: (at: number) => void = () => {},
+  timers: RunTimers = wallRunTimers,
+): Clock {
   let left = limit.ms;
-  let since = Date.now();
+  let since = timers.now();
   let capLeft = limit.cap ?? 0;
   let capSince = since;
   let holds = 0;
-  let timer: ReturnType<typeof setTimeout> | undefined = setTimeout(() => fire(false), limit.ms);
-  let capTimer: ReturnType<typeof setTimeout> | undefined = limit.cap
-    ? setTimeout(() => fire(true), limit.cap)
-    : undefined;
+  let timer: (() => void) | undefined = timers.after(limit.ms, () => fire(false));
+  let capTimer: (() => void) | undefined = limit.cap ? timers.after(limit.cap, () => fire(true)) : undefined;
   let written = since;
   /** Work in progress the turn waits on: no idle end meanwhile. */
   let working = 0;
   let stopped = false;
   const arm = (ms: number) => {
-    clearTimeout(timer);
-    timer = working > 0 || stopped ? undefined : setTimeout(() => fire(false), ms);
+    timer?.();
+    timer = working > 0 || stopped ? undefined : timers.after(ms, () => fire(false));
   };
   return {
     pause() {
       if (holds++ > 0) return;
-      clearTimeout(timer);
-      clearTimeout(capTimer);
+      timer?.();
+      capTimer?.();
       timer = undefined;
       capTimer = undefined;
-      const now = Date.now();
+      const now = timers.now();
       left -= now - since;
       capLeft -= now - capSince;
     },
     resume() {
       if (holds === 0 || --holds > 0) return;
-      since = capSince = Date.now();
+      since = capSince = timers.now();
       arm(Math.max(left, AFTER_ANSWER_MS));
-      if (limit.cap && !stopped) capTimer = setTimeout(() => fire(true), Math.max(capLeft, AFTER_ANSWER_MS));
+      if (limit.cap && !stopped) capTimer = timers.after(Math.max(capLeft, AFTER_ANSWER_MS), () => fire(true));
     },
     stop() {
       stopped = true;
-      clearTimeout(timer);
-      clearTimeout(capTimer);
+      timer?.();
+      capTimer?.();
     },
     touch() {
       if (holds > 0) return;
-      const now = Date.now();
+      const now = timers.now();
       since = now;
       left = limit.ms;
       arm(limit.ms);
@@ -124,14 +142,14 @@ function pausableClock(limit: Limit, fire: (capped: boolean) => void, moved: (at
     },
     busy() {
       working++;
-      clearTimeout(timer);
+      timer?.();
       timer = undefined;
       let done = false;
       return () => {
         if (done) return;
         done = true;
         // A held clock resumes with a full window: the work just ended counts as progress.
-        since = Date.now();
+        since = timers.now();
         left = limit.ms;
         if (--working > 0 || holds > 0) return;
         arm(limit.ms);
@@ -159,6 +177,8 @@ export type Admit = {
   resume_of?: string | undefined;
   /** A continuation of a delegated run a limit cut short is never continued again, even resumed. */
   continues?: string | undefined;
+  /** A result turn that gave no answer, tried once more; never retried again. */
+  retry_of?: string | undefined;
 };
 
 export type AdmitFn = (a: Admit) => RunRecord;
@@ -170,6 +190,8 @@ export function createEngine(deps: {
   tools: Tool[];
   log: Log;
   call: ToolCall;
+  /** How agents act and how far their files reach (engine/permissions.ts). */
+  permissions: Permissions;
   home: string;
   /** The other agent apps whose skills agents may load too. */
   skillApps?: RuntimeHomes | undefined;
@@ -192,6 +214,8 @@ export function createEngine(deps: {
   turnIdleMs?: number;
   /** The most a delegated run may work in all (tests shorten it). */
   a2aCapMs?: number;
+  /** Timer source for run deadlines, independent of transports and background work. */
+  runTimers?: RunTimers;
   /** MCP servers' tools for a thread (its project's approved ones and the owner's). */
   mcpTools?: (thread: Thread) => Promise<Tool[]>;
   /** The MCP servers a thread may reach, by name, without starting them. */
@@ -200,6 +224,8 @@ export function createEngine(deps: {
   hasCap?: (cap: string) => boolean;
   /** Whether a desktop app is linked as a node. */
   desktopLinked?: () => boolean;
+  /** The owner's Gmail, for mail routines. */
+  mail?: MailSource;
   /** Work on the thread once a run ended (title, compaction); never blocks the next run. */
   afterRun?: (run: RunRecord) => void;
 }) {
@@ -220,17 +246,16 @@ export function createEngine(deps: {
     live,
     ended,
     windowMs: (threadId) => runLimit(store, threadId, "a2a", deps).ms,
-    deliver: (parent, child, answer) => {
+    deliver: (parent, child, answer, stopped, outcome) => {
       const agent = store.agents.get(child.agent_id);
       const name = store.threads.context(child.thread_id).worker?.name ?? agent?.name ?? child.agent_id;
       const session = store.threads.get(child.thread_id)?.session;
-      const continued = Boolean(child.input?.continues);
       const paused = pausedNotice(store, parent.thread_id, name);
       if (paused) {
         // The result is kept for the caller's next turn (when the owner writes), and the owner sees why it stopped.
         store.modelLog.append(parent.thread_id, child.id, [
           systemNote(
-            `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child, { session, continued })}${actionsNote(actionsOf(store, child))}`,
+            `A task you delegated to ${name} ended (${endedAs(child)}) while agents were paused:\n${fromTeam("delegation_result", { from: name }, answer.slice(0, 4000))}\n${endNote(child, { session, stopped })}${outcome ? outcomeNote(outcome) : ""}${actionsNote(actionsOf(store, child))}`,
           ),
         ]);
         store.messages.add({
@@ -255,7 +280,8 @@ export function createEngine(deps: {
           ...(child.end_reason ? { end_reason: child.end_reason } : {}),
           actions: actionsOf(store, child),
           ...(session ? { session } : {}),
-          ...(continued ? { continued } : {}),
+          ...(stopped ? { stopped } : {}),
+          ...(outcome && outcome.level !== "ok" ? { outcome: { level: outcome.level, why: outcome.why } } : {}),
         },
         text: answer,
         depth: parent.depth,
@@ -296,6 +322,7 @@ export function createEngine(deps: {
         reply_to: a.reply_to !== undefined ? a.reply_to : (store.threads.context(a.thread_id).reply_to ?? null),
         ...(a.resume_of ? { resume_of: a.resume_of } : {}),
         ...(a.continues ? { continues: a.continues } : {}),
+        ...(a.retry_of ? { retry_of: a.retry_of } : {}),
       },
       depth: a.depth ?? 0,
       parent_run_id: a.parent_run_id,
@@ -345,6 +372,7 @@ export function createEngine(deps: {
           ),
         ),
       (at) => deps.store.runs.setDeadline(run.id, new Date(at).toISOString()),
+      deps.runTimers,
     );
     active.set(run.id, { ac, thread: run.thread_id, clock });
     try {
@@ -363,6 +391,7 @@ export function createEngine(deps: {
       ended(done);
       // A turn APX's shutdown cut off is not over: the next boot closes and resumes it.
       if (TERMINAL.has(done.state)) deps.afterRun?.(done);
+      retryDropped(done);
     } finally {
       clock.stop();
       active.delete(run.id);
@@ -373,6 +402,25 @@ export function createEngine(deps: {
       live.delete(run.id);
       delegations.callerEnded(run.id);
     }
+  }
+
+  /** A result the agent dropped (no word, no tool) gets one more turn; a second silence is left for the owner's tray. */
+  function retryDropped(run: RunRecord): void {
+    if (!run.input || run.input.retry_of || run.input.resume_of || !droppedResult(store, run)) return;
+    // Paused, or the owner already wrote again: the result waits for that turn instead.
+    if (trip(store, run.thread_id) || agentTrip(store, run.thread_id, run.agent_id)) return;
+    if (store.runs.nextQueued(run.thread_id)) return;
+    log.warn({ run: run.id, thread: run.thread_id }, "a result turn gave no answer: trying it once more");
+    admit({
+      thread_id: run.thread_id,
+      agent_id: run.agent_id,
+      trigger: run.trigger,
+      origin: run.input.origin,
+      text: run.input.text,
+      depth: run.depth,
+      reply_to: run.input.reply_to,
+      retry_of: run.id,
+    });
   }
 
   function ended(run: RunRecord): void {

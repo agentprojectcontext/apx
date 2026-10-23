@@ -15,6 +15,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
   if (said.includes("launch the probe")) return callTool("p1", "probe", {});
   if (said.includes("long answer")) return say(`${"word ".repeat(500)}END`);
+  if (said.includes("raise your hands")) return say("REACT 🙌");
+  if (said.includes("give me a dino")) return say("REACT 🦖");
   return say(`Hello, you said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
 });
 
@@ -77,6 +79,23 @@ test("the bot identifies for direct messages; the owner pairs with a code and ta
     dc.sent.some((s) => s.route === `/channels/${dc.dm(OWNER.id)}/typing`),
     "typing while it works",
   );
+});
+
+test("asked to react, the agent puts any emoji it picks on their message", async () => {
+  const dm = dc.dm(OWNER.id);
+  const reactions = () =>
+    dc.sent.filter((s) => s.route.startsWith(`/channels/${dm}/messages/`) && s.route.includes("/reactions/"));
+  const sent = texts(OWNER).length;
+  const id = dc.message(OWNER, "raise your hands");
+  await until(() => reactions().length === 1, "reaction put");
+  assert.deepEqual(
+    reactions().map((r) => `${r.method} ${r.route}`),
+    [`PUT /channels/${dm}/messages/${id}/reactions/${encodeURIComponent("🙌")}/@me`],
+  );
+  const id2 = dc.message(OWNER, "give me a dino");
+  await until(() => reactions().length === 2, "second reaction put");
+  assert.equal(reactions()[1]?.route, `/channels/${dm}/messages/${id2}/reactions/${encodeURIComponent("🦖")}/@me`);
+  assert.equal(texts(OWNER).length, sent, "no words went back");
 });
 
 test("servers' channels and other bots are ignored", async () => {

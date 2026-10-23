@@ -18,6 +18,7 @@ import { createCore } from "../server.ts";
 import type { TelemetrySink } from "../telemetry-sink.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Tool } from "../tools/types.ts";
+import type { RunTimers } from "./engine.ts";
 import type { InputWaits } from "./inputs.ts";
 
 export type Script = (
@@ -67,6 +68,8 @@ export async function startCore(opts: {
   extraTools?: Tool[];
   /** Lets the scripted model also answer auxiliary calls (titles, summaries); off by default. */
   aux?: boolean;
+  /** Enable background extraction and consolidation only in tests that exercise them. */
+  memoryMaintenance?: boolean;
   channelAdapters?: Record<string, AdapterFactory>;
   channelRetryMs?: readonly number[];
   roomBurstMs?: number;
@@ -75,6 +78,7 @@ export async function startCore(opts: {
   engineIdleMs?: number;
   turnIdleMs?: number;
   a2aCapMs?: number;
+  runTimers?: RunTimers;
   desktop?: DesktopOps;
   /** Messages on a Mac; none by default, so a test never reads the machine's own. */
   imessage?: IMessageOps | null;
@@ -86,6 +90,8 @@ export async function startCore(opts: {
   providers?: ProviderConfig[];
   /** A stand-in Google (sign-in and REST APIs under one address). */
   googleApi?: string;
+  /** The Google OAuth client the core ships, as `client_id:client_secret` (none: a build without one). */
+  googleClient?: string;
   asanaFetch?: typeof fetch;
   /** Where telemetry goes (a recorder); none sends nothing, like any test core. */
   telemetrySink?: TelemetrySink;
@@ -104,6 +110,7 @@ export async function startCore(opts: {
       providers,
       ...(opts.port !== undefined ? { port: opts.port } : {}),
       ...(opts.googleApi ? { googleApi: opts.googleApi } : {}),
+      ...(opts.googleClient ? { googleClient: opts.googleClient } : {}),
       ...(opts.expoPushUrl ? { expoPushUrl: opts.expoPushUrl } : {}),
     }),
     {
@@ -121,6 +128,7 @@ export async function startCore(opts: {
       ...(opts.engineIdleMs ? { engineIdleMs: opts.engineIdleMs } : {}),
       ...(opts.turnIdleMs ? { turnIdleMs: opts.turnIdleMs } : {}),
       ...(opts.a2aCapMs ? { a2aCapMs: opts.a2aCapMs } : {}),
+      ...(opts.runTimers ? { runTimers: opts.runTimers } : {}),
       ...(opts.desktop ? { desktop: opts.desktop } : {}),
       imessage: opts.imessage ?? null,
       ...(opts.clock ? { clock: opts.clock } : {}),
@@ -133,6 +141,11 @@ export async function startCore(opts: {
   if (!core.store.settings.get("model_default"))
     core.store.settings.set("model_default", JSON.stringify({ model: "fake/fake-1", router: false }));
   if (!opts.aux && !core.store.settings.get("model_aux")) core.store.settings.set("model_aux", "off");
+  core.store.settings.write("memory", {
+    ...core.store.settings.read("memory"),
+    auto_capture: opts.memoryMaintenance ?? false,
+    auto_dream: opts.memoryMaintenance ?? false,
+  });
   const client = new ApxClient({ url: core.url });
   const settle = async (
     thread: string,
@@ -147,8 +160,10 @@ export async function startCore(opts: {
     throw new Error(`thread ${thread} never settled`);
   };
   const cleanup = () => {
-    fs.rmSync(home, { recursive: true, force: true });
-    fs.rmSync(scratchRoot(home), { recursive: true, force: true });
+    // Retry transient filesystem locks; persistent cleanup failures still fail the test.
+    const options = { recursive: true, force: true, maxRetries: 10, retryDelay: 50 };
+    fs.rmSync(home, options);
+    fs.rmSync(scratchRoot(home), options);
   };
   return { core, client, home, settle, cleanup };
 }

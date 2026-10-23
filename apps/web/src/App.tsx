@@ -17,6 +17,7 @@ const Wizard = lazy(() => import("./setup/Wizard.tsx").then((m) => ({ default: m
 const PairScreen = lazy(() => import("./setup/PairScreen.tsx").then((m) => ({ default: m.PairScreen })));
 const ConnectScreen = lazy(() => import("./setup/ConnectScreen.tsx").then((m) => ({ default: m.ConnectScreen })));
 const AboutScreen = lazy(() => import("./setup/AboutScreen.tsx").then((m) => ({ default: m.AboutScreen })));
+const ArtifactWindow = lazy(() => import("./apps/ArtifactWindow.tsx").then((m) => ({ default: m.ArtifactWindow })));
 const OAuthReturn = lazy(() => import("./resources/OAuthReturn.tsx").then((m) => ({ default: m.OAuthReturn })));
 
 /** The page Google sends the browser back to after the owner signs in (the core serves the panel there). */
@@ -30,6 +31,9 @@ const MONO = { "--apx-font-sans": "var(--apx-font-mono)" } as CSSProperties;
 
 /** The desktop app's first run (?connect): no APX is chosen yet, so nothing calls a core. */
 const CONNECT = new URLSearchParams(window.location.search).has("connect") && Boolean(window.apxConnect);
+
+/** One artifact in a window or tab of its own (?artifact=<id>). */
+const ARTIFACT = new URLSearchParams(window.location.search).get("artifact") ?? undefined;
 
 /** The desktop app's About window (?about): the hero with this build's version; no core either. */
 const ABOUT = new URLSearchParams(window.location.search).has("about");
@@ -59,15 +63,14 @@ function Main() {
   }, [lang]);
   return (
     <ApxProvider look={look} mode={mode} fill style={font === "mono" ? MONO : undefined}>
-      {gate === "open" &&
-        (OAUTH_RETURN ? (
-          <Suspense fallback={null}>
-            <OAuthReturn />
-          </Suspense>
-        ) : (
-          <Panel />
-        ))}
-      {gate === "pair" && (
+      {/* Google's return page finishes without pairing: the browser it lands in may be any. */}
+      {OAUTH_RETURN && (
+        <Suspense fallback={null}>
+          <OAuthReturn />
+        </Suspense>
+      )}
+      {!OAUTH_RETURN && gate === "open" && <Panel />}
+      {!OAUTH_RETURN && gate === "pair" && (
         <Suspense fallback={null}>
           <PairScreen />
         </Suspense>
@@ -81,10 +84,16 @@ function Panel() {
   const setup = useSetup((s) => s.open);
   useEffect(() => startLive(), []);
   useEffect(() => {
-    if (QUICK || IS_BROWSER_WINDOW) return;
+    if (QUICK || IS_BROWSER_WINDOW || ARTIFACT) return;
     void loadSetup();
     void loadTelemetry();
   }, []);
+  if (ARTIFACT)
+    return (
+      <Suspense fallback={null}>
+        <ArtifactWindow id={ARTIFACT} />
+      </Suspense>
+    );
   // The desktop app's browser window (?browser): only the browser panel.
   if (IS_BROWSER_WINDOW)
     return (

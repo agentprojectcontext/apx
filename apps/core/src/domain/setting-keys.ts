@@ -55,7 +55,7 @@ const AcpAgent = z.object({
   label: z.string().optional(),
   command: z.string().min(1),
   args: z.array(z.string()),
-  auth: z.string().optional(),
+  login: z.string().optional(),
   env: z.record(z.string(), z.string()).optional(),
 });
 
@@ -82,6 +82,8 @@ export const SETTINGS = {
    * the budgets the owner gave single agents, inside those limits.
    */
   agent_limits: entry(AgentLimits.partial().extend({ agents: AgentBudgets.optional() }), {}),
+  /** The super-agent asks before handing work to several agents in one turn (engine/fan-out.ts). */
+  fan_out_ask: entry(z.boolean(), true),
   /**
    * The quick chat's shortcut, start at login (on: APX is meant to be always there) and whether agents may use this
    * computer's screen (off until the owner turns it on); each field falls back alone.

@@ -1,5 +1,5 @@
 import "../styles/screens.css";
-import type { ChannelInfo, Person, RoomMode, Thread } from "@apx/protocol";
+import type { ChannelInfo, RoomMode, Thread } from "@apx/protocol";
 import { EmptyState, IconButton, Icons, ProjectTile, SearchField } from "@apx/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChatView } from "../chat/ChatView.tsx";
@@ -15,25 +15,6 @@ import { ContactRow, type Row } from "./ContactRow.tsx";
 import { KindTile } from "./KindIcon.tsx";
 import { isChannelKind } from "./kinds.ts";
 import { LinkMe, LinkPhone, OwnerRow, ownerOn, PairingRow } from "./StartRows.tsx";
-
-export const RELATION_KEY: Record<NonNullable<Person["relation"]>, MessageKey> = {
-  partner: "ch.rel.partner",
-  family: "ch.rel.family",
-  friend: "ch.rel.friend",
-  coworker: "ch.rel.coworker",
-  client: "ch.rel.client",
-  associate: "ch.rel.associate",
-  provider: "ch.rel.provider",
-  other: "ch.rel.other",
-};
-
-export const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .map((w) => w[0] ?? "")
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
 /** A saved contact picked before they have a chat: the list's selection names them instead of a chat. */
 export const PERSON_PICK = "person:";

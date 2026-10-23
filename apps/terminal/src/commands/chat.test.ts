@@ -204,3 +204,14 @@ test("code chat selects the closest registered project and preserves working dir
   assert.deepEqual(f.calls[3], ["threads.send", { thread: "code-chat", text: "Inspect", mode: "queue" }]);
   assert.equal(f.closes, 1);
 });
+
+test("inside an agent's command, chat refuses to speak as the owner and points to delegate", async () => {
+  const { client, calls } = fixture({});
+  process.env.APX_AGENT = "builder";
+  try {
+    await assert.rejects(chat(client, "please review", { agent: "noor" }), /use your delegate tool/);
+  } finally {
+    delete process.env.APX_AGENT;
+  }
+  assert.deepEqual(calls, [], "nothing was sent");
+});

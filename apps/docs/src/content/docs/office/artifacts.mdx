@@ -1,0 +1,109 @@
+---
+title: Artifacts
+description: Widgets and apps your agents make, what each one remembers, how live ones stay fresh, and how to move them between machines.
+sidebar:
+  order: 5.5
+---
+
+import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
+
+An **artifact** is what an agent makes for you to look at or use: one page of HTML that APX shows in a safe frame.
+It comes in two kinds:
+
+| Kind | What it is | Where it shows |
+|---|---|---|
+| **Widget** | A chart, a table, a status card, a form, a small tool. The default. | In the chat, on a project's [Board](/office/board/), on your phone. |
+| **App** | A full window with its own navigation, often with records you add over time. | Fullscreen, listed under **Apps**. |
+
+Agents make a plain widget unless you ask for an app or the thing must keep records (a log, a list of clients, an
+inventory). A widget made to show you something during a chat is a simple page, nothing more.
+
+Every artifact belongs to one project (or is global when it was made outside one), keeps its name across versions,
+and updates live wherever it is open. Both kinds are built with **APX Kit**, APX's own components and theme, which
+APX adds to the page wherever it shows: no downloads, nothing outside your machine.
+
+## What an artifact remembers
+
+Each artifact has its own memory, kept on your APX across openings, reloads and new versions. Nothing is shared
+between artifacts.
+
+| Layer | Holds | Who sees it |
+|---|---|---|
+| **State** | What you chose or typed: filters, the open tab, a checklist, a draft. Up to 64,000 characters. | You, and its agent, who reads it as data and can change it for you. |
+| **Store** | Data it cached, such as the last reading of a live widget. Up to 5 MB. | The page. Its agent sees only the names of what is stored and the size. |
+| **Database** | The records an app keeps (SQLite), up to 50 MB. | The page. Its agent sees the tables and how many rows. |
+
+To see or clear it, open the artifact's menu › **Memory and export**: each layer shows its size, and **Clear…** lets
+you choose what to forget. Copying an artifact to another project does not copy its memory.
+
+### Credentials
+
+An artifact that reads an API with a key never holds the key. You save it once as a secret named
+`artifact.<artifact name>.<key>` (for example `artifact.weather.token`), and the page asks APX to make the call: APX
+adds the key on its side and the page only gets the answer. The call can only go to the sites the artifact declared,
+and the key is never shown to the page, to its agent or in a shared link.
+
+## Live artifacts
+
+How an artifact behaves when you leave and come back:
+
+- **Static** (most of them): it shows what it was made with, and runs only while on screen.
+- **Cached**: it keeps its last reading in its store, so when you open it again you see that reading at once (marked
+  as stale) while it fetches a fresh one.
+- **Live**: a page that must keep running while hidden (a ticker, a timer) can ask APX to keep it alive. APX keeps at
+  most three such pages running at once, pauses them when the app window is hidden, and stops the least recent when a
+  fourth opens.
+
+**Apps stay open; widgets close.** An app you open keeps running while you go elsewhere in APX, like an app on your
+desktop: come back and it is exactly as you left it, until you close it (Close app) or quit APX. Up to six run at
+once, each marked with a dot in the sidebar's Apps. A widget is a view: open it full screen, look, leave, and it
+closes. Pin a widget to Apps to make it an app. "Open in a new window" moves an app to a window of its own; the
+panel shows where it went and brings it back when that window closes.
+
+## Export and import
+
+An artifact travels as one **`.apxart`** file, widget or app alike. Right-click it in Apps (or its More menu) ›
+**Download (.apxart)** › **The artifact alone**, or **With what it remembers** to take your choices, cache and records
+too (for a backup or a move to another APX). **Install artifact** (the upload button in Apps, or a project board's +)
+opens a dialog: drop the file or choose it, see what it is (widget or app, what it connects to, which secrets it will
+ask for, whether it brings data), pick the project, pin it to Apps or not, and only then **Install**. If the name is
+taken there, it installs beside it with a number. From a terminal: `apx artifacts export <name> [--memory]` and
+`apx artifacts import <file.apxart>`. Files saved earlier as `.apx-artifact.json` install the same way.
+
+<Aside type="caution">
+An export that includes memory carries what you typed and the app's records. Share only exports made without memory.
+</Aside>
+
+## Bigger apps
+
+Most apps are one page an agent writes by hand. For a large one, an agent can build it from source (with Preact and
+Vite) into the same single page and show it with the terminal:
+
+```bash
+apx artifacts dir expenses --project <project-id>     # where its source lives
+apx artifacts push expenses dist/index.html --app --project <project-id>
+apx artifacts list
+```
+
+The source lives in APX's folder, under `artifact-sources/<project>/<name>`, never in your project's own files. Your
+records stay in the app's database, so rebuilding it never loses them.
+
+## Marketplace (coming)
+
+Exported artifacts are the format a future marketplace will use. Each file holds:
+
+- a **manifest**: name, title, kind (widget or app), version, the kit version it uses, the sites it reaches, the
+  secrets it expects (names only, never values), whether it runs live, and the version of its database layout so a
+  newer version can update your records;
+- the **page** itself;
+- optionally, the memory (state, store and database), only when you export it for yourself.
+
+An upload to the marketplace will never carry your memory: whoever installs an artifact starts with an empty one and
+adds their own secrets.
+
+## Next
+
+<CardGrid>
+  <LinkCard title="Board and widgets" href="/office/board/" description="Pin artifacts to a project, open them as apps, share them." />
+  <LinkCard title="Chat" href="/office/chat/" description="Where agents make and change them." />
+</CardGrid>

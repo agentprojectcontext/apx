@@ -20,6 +20,7 @@ import {
 } from "electron";
 import { showAbout } from "./about.ts";
 import { registerAppScheme, serveAppScheme, webDist } from "./app-scheme.ts";
+import { createArtifactWindows } from "./artifact-windows.ts";
 import { runAskpass } from "./askpass.ts";
 import { installedBrowsers, isWebUrl, openExternal } from "./browser/external.ts";
 import { BrowserHost, blockAppOrigins } from "./browser/host.ts";
@@ -29,8 +30,9 @@ import { applySavedLocalTarget, loadConnection, localCoreUrl } from "./connectio
 import { createConnector } from "./connector.ts";
 import { createCursor } from "./cursor.ts";
 import { editMenu } from "./edit-menu.ts";
-import { itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
+import { artifactOwners, itemName, memoryReport, memoryText, memoryWatch, size } from "./memory.ts";
 import { startNodeLink } from "./node-link.ts";
+import { openedIn, openedQueue } from "./opened-files.ts";
 import { createQuick, type DesktopPrefs } from "./quick.ts";
 import { confirmQuit } from "./quit-confirm.ts";
 import { createUpdateMenu } from "./update-menu.ts";
@@ -60,6 +62,15 @@ registerAppScheme();
 // One APX at a time: opening it again brings the running one forward.
 const single = app.requestSingleInstanceLock();
 if (!single) app.quit();
+
+// Files opened with APX (double-click, Open with, the Dock icon): macOS sends them even before the window exists.
+let tellPanel = () => {};
+const opened = openedQueue(() => tellPanel());
+app.on("open-file", (e, file) => {
+  e.preventDefault();
+  opened.add([file]);
+});
+opened.add(openedIn(process.argv.slice(1)));
 
 let quitting = false;
 // Quitting asks first (closing the window only hides it). Set by the updater, a shutdown or a confirmed answer.
@@ -130,6 +141,7 @@ app.whenReady().then(() => {
       app.quit();
       return;
     }
+    opened.add(openedIn(argv.slice(1)));
     openMain();
   });
   // Every page (the panel, the quick chat, browser tabs) gets the edit menu on a right click.
@@ -270,6 +282,21 @@ app.whenReady().then(() => {
     ownBrowserPanel(e.sender) ? openExternal(url, browser ?? undefined) : false,
   );
 
+  const artifactWindows = createArtifactWindows({
+    url: () => base,
+    preload: path.join(DIST, "panel-preload.cjs"),
+    partition: "persist:apx-ui",
+    links: externalLinks,
+    changed: (id, open) => panel.webContents.send("artifact:window", id, open),
+  });
+  ipcMain.on("artifact:close-window", (e, id: unknown) => {
+    if (e.sender === panel.webContents && typeof id === "string") artifactWindows.close(id);
+  });
+  ipcMain.on("artifact:open-window", (e, id: unknown, title: unknown) => {
+    if (e.sender !== panel.webContents || typeof id !== "string") return;
+    artifactWindows.open(id, typeof title === "string" ? title : "APX");
+  });
+
   const quick = createQuick({
     url: () => base,
     preload: path.join(DIST, "panel-preload.cjs"),
@@ -329,7 +356,8 @@ app.whenReady().then(() => {
     coreUrl: CORE_URL,
     webUrl: WEB_URL,
     dist: DIST,
-    isOwnWindow: (sender) => sender === panel.webContents || popout.isPanel(sender) || quick.isQuick(sender),
+    isOwnWindow: (sender) =>
+      sender === panel.webContents || popout.isPanel(sender) || quick.isQuick(sender) || artifactWindows.owns(sender),
     disconnected: () => {
       link?.stop();
       link = undefined;
@@ -388,6 +416,12 @@ app.whenReady().then(() => {
     );
   setMenu(updater.status());
 
+  // The panel takes opened files when it is ready and whenever it hears of more.
+  ipcMain.handle("artifact:take-opened", (e) => (e.sender === panel.webContents ? opened.take() : []));
+  tellPanel = () => {
+    openMain();
+    panel.webContents.send("artifact:file-opened");
+  };
   ipcMain.on("quick:open-main", (e, threadId: unknown) => {
     if (!quick.isQuick(e.sender)) return;
     quick.hide();
@@ -482,6 +516,12 @@ app.whenReady().then(() => {
     if (quickPid) owners.set(quickPid, { kind: "quick" });
     const popoutPid = popout.processId();
     if (popoutPid) owners.set(popoutPid, { kind: "panel" });
+    // Open apps and live widgets: in the panel and in their own windows.
+    for (const page of [{ title: "", contents: panel.webContents }, ...artifactWindows.pages()]) {
+      const pid = page.contents.getOSProcessId();
+      if (page.title) owners.set(pid, { kind: "app", site: page.title });
+      for (const [p, o] of artifactOwners(page.contents.mainFrame.framesInSubtree, pid)) owners.set(p, o);
+    }
     return memoryReport(app.getAppMetrics(), owners);
   };
   const memText = memoryText(app.getLocale());

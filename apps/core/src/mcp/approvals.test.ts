@@ -277,7 +277,12 @@ test("changing a server revokes its grants and demands approval again", async ()
 
 test("a tool that becomes destructive on reconnection cannot use its old reading approval", async () => {
   const e = await setup();
-  const mcp = createMcp({ store: e.core.store, secrets: e.core.secrets, log: createLog("test", true) });
+  const mcp = createMcp({
+    store: e.core.store,
+    secrets: e.core.secrets,
+    log: createLog("test", true),
+    workDir: path.join(e.root, "mcp"),
+  });
   try {
     const mode = path.join(e.root, "mode.txt");
     fs.writeFileSync(mode, "read");
@@ -309,7 +314,7 @@ test("a tool that becomes destructive on reconnection cannot use its old reading
         { text: "must not run" },
         {
           agent,
-          thread,
+          thread: { ...thread, reach: "card" },
           run,
           signal: new AbortController().signal,
           untrusted: () => true,

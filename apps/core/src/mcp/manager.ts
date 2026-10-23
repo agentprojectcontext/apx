@@ -2,6 +2,8 @@
 // tools: same argument check, same policy, results marked as outside data.
 
 import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import type { Thread } from "@apx/protocol";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { z } from "zod";
@@ -12,23 +14,30 @@ import type { Log } from "../log.ts";
 import { onPath } from "../programs.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import { cap, untrusted } from "../tools/result.ts";
-import { type Confirm, type Effect, invalidArguments, type Tool } from "../tools/types.ts";
+import { type Confirm, type Effect, invalidArguments, type ScopedThread, type Tool } from "../tools/types.ts";
 import { type McpTool, mcpApproval, serverApprovalId } from "./approval.ts";
 import { ARGS_SECRET, type McpDef, mcpConfig } from "./config.ts";
 import { fileRefs, fillFileArgs, hasFileRefs, type OpenFile, refOf } from "./file-args.ts";
 import { createStderrLogs } from "./logs.ts";
+import { watchSignIn } from "./sign-in.ts";
 
 const CONNECT_MS = 20_000;
 const CALL_MS = 120_000;
 const IDLE_MS = 10 * 60_000;
+/** How long a server that asked the owner to sign in is kept running, so the browser's answer still finds it. */
+const SIGN_IN_MS = 5 * 60_000;
 
 type Conn = {
   key: string;
   hash: string;
   client?: Client;
   tools: McpTool[];
-  status: "starting" | "ready" | "error";
+  status: "starting" | "ready" | "error" | "needs-sign-in";
   error?: string;
+  /** The page the server asked the owner to open, while it waits for them. */
+  signInUrl?: string;
+  /** Ends a start still under way, its process with it (one waiting on a sign-in lives for minutes). */
+  stop?: () => Promise<void>;
   used: number;
   failedAt?: number;
   ready?: Promise<void>;
@@ -40,6 +49,9 @@ type Conn = {
  */
 const RETRY_MS = 30_000;
 
+const SIGN_IN_FIRST = "it waits for you to sign in: use Sign in";
+const SIGN_IN_ASKED = "it asked you to sign in: finish on the page it opened in your browser";
+
 export type McpStatus = {
   name: string;
   scope: "global" | "project";
@@ -49,7 +61,8 @@ export type McpStatus = {
   target: string;
   enabled: boolean;
   trusted: boolean;
-  status: "off" | "needs-approval" | "disabled" | "starting" | "ready" | "error";
+  status: "off" | "needs-approval" | "disabled" | "starting" | "ready" | "error" | "needs-sign-in";
+  sign_in_url?: string;
   tools: number;
   tool_names: string[];
   tool_permission_mode: "unknown" | "ask" | "all" | "some";
@@ -96,8 +109,10 @@ export function createMcp(deps: {
   store: Store;
   secrets: Secrets;
   log: Log;
+  /** Where a stdio server with no folder of its own starts: what it saves under a relative path lands there. */
+  workDir: string;
   /** The files an agent of a thread may hand to a tool (file-args.ts); without it, references are refused. */
-  files?: (thread: Thread) => OpenFile;
+  files?: (thread: ScopedThread) => OpenFile;
 }) {
   const config = mcpConfig(deps.store);
   const conns = new Map<string, Conn>();
@@ -118,8 +133,22 @@ export function createMcp(deps: {
       ? { ...d, values_of: projectId }
       : d;
 
-  /** Starts a server and lists its tools, within CONNECT_MS. The caller owns the client and closes it. */
-  async function connect(d: McpDef): Promise<{ client: Client; tools: McpTool[] }> {
+  /** Never the core's own folder, which is wherever it was started from (a checkout, the owner's home). */
+  const ownDir = (name: string) => {
+    const dir = path.join(deps.workDir, name.replace(/[^\w-]/g, "_"));
+    fs.mkdirSync(dir, { recursive: true });
+    return dir;
+  };
+
+  /**
+   * Starts a server and lists its tools, within CONNECT_MS; one that asks the owner to sign in gets SIGN_IN_MS from
+   * then, and `onSignIn` hears it. The caller owns the client and closes it.
+   */
+  async function connect(
+    d: McpDef,
+    onSignIn?: (url: string) => void,
+    signal?: AbortSignal,
+  ): Promise<{ client: Client; tools: McpTool[] }> {
     if (d.args.some((a) => a.includes("secret://"))) throw new Error(ARGS_SECRET);
     // Loaded with the first server: a core with none never loads the MCP client.
     const [{ Client }, { StdioClientTransport }, { StreamableHTTPClientTransport }] = await Promise.all([
@@ -128,6 +157,18 @@ export function createMcp(deps: {
       import("@modelcontextprotocol/sdk/client/streamableHttp.js"),
     ]);
     const client = new Client({ name: "apx", version: "2" });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let fail!: (err: Error) => void;
+    const deadline = new Promise<never>((_, reject) => {
+      fail = reject;
+    });
+    // Nobody waits on it once the start is over: a late sign-in line must not become an unhandled rejection.
+    deadline.catch(() => {});
+    signal?.addEventListener("abort", () => fail(new Error("closed")), { once: true });
+    const arm = (ms: number, why: string) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => fail(new Error(why)), ms);
+    };
     let transport: InstanceType<typeof StreamableHTTPClientTransport> | InstanceType<typeof StdioClientTransport>;
     if (d.url)
       transport = new StreamableHTTPClientTransport(new URL(d.url), {
@@ -143,7 +184,7 @@ export function createMcp(deps: {
         args: d.args.map((a) => resolveText(a, d.values_of)),
         // Only what the definition gives it, on top of an environment without credentials.
         env: { ...commandEnv(), ...env },
-        ...(d.cwd ? { cwd: d.cwd } : {}),
+        cwd: d.cwd ?? ownDir(d.name),
         stderr: "pipe",
       });
       // A server may print what it was given: its secrets and credential-like variables are masked in its log.
@@ -154,16 +195,16 @@ export function createMcp(deps: {
           .map((k) => env[k] ?? ""),
       ];
       stderr.follow(keyOf(d), stdio.stderr, hidden);
+      watchSignIn(stdio.stderr, (url) => {
+        arm(SIGN_IN_MS, `sign-in not finished in ${SIGN_IN_MS / 60_000} min`);
+        onSignIn?.(url);
+      });
       transport = stdio;
     }
-    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await Promise.race([
-        client.connect(transport),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error(`no answer in ${CONNECT_MS / 1000}s`)), CONNECT_MS);
-        }),
-      ]);
+      arm(CONNECT_MS, `no answer in ${CONNECT_MS / 1000}s`);
+      // Our deadline ends the start, not the SDK's own minute: a sign-in may take longer.
+      await Promise.race([client.connect(transport, { timeout: SIGN_IN_MS }), deadline]);
       const { tools } = await client.listTools(undefined, { timeout: CONNECT_MS });
       return { client, tools: tools as McpTool[] };
     } catch (err) {
@@ -174,23 +215,76 @@ export function createMcp(deps: {
     }
   }
 
-  async function open(d: McpDef, c: Conn): Promise<void> {
-    try {
-      const { client, tools } = await connect(d);
-      // Replaced or dropped while starting: this process is nobody's now.
-      if (conns.get(c.key) !== c) {
-        await client.close().catch(() => {});
-        return;
-      }
-      c.client = client;
-      c.tools = tools;
-      c.status = "ready";
-    } catch (err) {
-      c.status = "error";
-      c.failedAt = Date.now();
-      c.error = errorMessage(err);
-      deps.log.warn({ mcp: d.name, err: c.error }, "MCP server did not start");
-    }
+  /**
+   * A server that asked the owner to sign in is not started again by itself, a restart included, until they sign in
+   * from the panel (mcp.signIn) or its definition changes: every start would open their browser once more.
+   */
+  const signInKey = (d: McpDef) => `mcp_sign_in:${keyOf(d)}`;
+  const waitsSignIn = (d: McpDef) => deps.store.settings.get(signInKey(d)) === d.hash;
+  const setWaitsSignIn = (d: McpDef, on: boolean) => {
+    if (on || deps.store.settings.get(signInKey(d)) !== undefined)
+      deps.store.settings.set(signInKey(d), on ? d.hash : "");
+  };
+
+  /**
+   * Follows a start into its connection: `c.ready` settles once it is ready, failed, or waits on the owner's sign-in;
+   * a sign-in the owner finishes later still makes it ready.
+   */
+  function follow(
+    d: McpDef,
+    c: Conn,
+    start: (onSignIn: (url: string) => void) => Promise<{ client: Client; tools: McpTool[] }>,
+    abort: () => void,
+  ) {
+    let settle!: () => void;
+    c.ready = new Promise<void>((r) => {
+      settle = r;
+    });
+    const mine = () => conns.get(c.key) === c;
+    const started = start((url) => {
+      if (!mine()) return;
+      c.status = "needs-sign-in";
+      c.signInUrl = url;
+      setWaitsSignIn(d, true);
+      deps.log.info({ mcp: d.name }, "MCP server waits for the owner to sign in");
+      settle();
+    });
+    c.stop = async () => {
+      abort();
+      await started.catch(() => {});
+    };
+    started
+      .then(
+        async ({ client, tools }) => {
+          // Replaced or dropped while starting: this process is nobody's now.
+          if (!mine()) return void (await client.close().catch(() => {}));
+          c.client = client;
+          c.tools = tools;
+          c.status = "ready";
+          c.signInUrl = undefined;
+          setWaitsSignIn(d, false);
+        },
+        (err) => {
+          if (!mine()) return;
+          c.failedAt = Date.now();
+          c.error = errorMessage(err);
+          // Its page answers nobody now.
+          c.signInUrl = undefined;
+          // A sign-in left unfinished still waits on the owner, never on a retry.
+          if (c.status !== "needs-sign-in") c.status = "error";
+          deps.log.warn({ mcp: d.name, err: c.error }, "MCP server did not start");
+        },
+      )
+      .finally(() => {
+        c.stop = undefined;
+        settle();
+      });
+  }
+
+  /** Closes a connection, or the start still opening it. */
+  async function closeConn(c: Conn): Promise<void> {
+    await c.stop?.();
+    await c.client?.close().catch(() => {});
   }
 
   /** The live connection for a definition, (re)opened when missing, failed or its definition changed. */
@@ -198,13 +292,23 @@ export function createMcp(deps: {
     const key = keyOf(d);
     let c = conns.get(key);
     if (c && c.hash !== d.hash) {
-      void c.client?.close().catch(() => {});
+      void closeConn(c);
       c = undefined;
+    }
+    if (!c && waitsSignIn(d)) {
+      c = { key, hash: d.hash, tools: [], status: "needs-sign-in", used: Date.now(), ready: Promise.resolve() };
+      conns.set(key, c);
     }
     if (!c || (c.status === "error" && Date.now() - (c.failedAt ?? 0) > RETRY_MS)) {
       c = { key, hash: d.hash, tools: [], status: "starting", used: Date.now() };
       conns.set(key, c);
-      c.ready = open(d, c);
+      const ac = new AbortController();
+      follow(
+        d,
+        c,
+        (onSignIn) => connect(d, onSignIn, ac.signal),
+        () => ac.abort(),
+      );
     }
     c.used = Date.now();
     return c;
@@ -217,7 +321,12 @@ export function createMcp(deps: {
     // The connection may have been closed while the turn waited (an owner's long confirmation): reopen it.
     const c = ensure(d);
     await c.ready;
-    if (!c.client) throw new Error(`${d.name} is not connected${c.error ? `: ${c.error}` : ""}`);
+    if (!c.client)
+      throw new Error(
+        c.status === "needs-sign-in"
+          ? `${d.name} waits for the owner to sign in (APX panel → MCP → ${d.name} → Sign in)`
+          : `${d.name} is not connected${c.error ? `: ${c.error}` : ""}`,
+      );
     const next = defsFor(project).find((x) => keyOf(x) === keyOf(d));
     const liveTool = c.tools.find((x) => x.name === t.name);
     if (
@@ -295,7 +404,7 @@ export function createMcp(deps: {
   const idle = setInterval(() => {
     for (const [key, c] of conns)
       if (Date.now() - c.used > IDLE_MS) {
-        void c.client?.close().catch(() => {});
+        void closeConn(c);
         conns.delete(key);
       }
   }, 60_000);
@@ -401,7 +510,12 @@ export function createMcp(deps: {
           target: d.url ?? [d.command, ...d.args].join(" "),
           enabled: d.enabled,
           trusted,
-          status: !d.enabled ? "disabled" : !trusted ? "needs-approval" : (live?.status ?? "off"),
+          status: !d.enabled
+            ? "disabled"
+            : !trusted
+              ? "needs-approval"
+              : (live?.status ?? (waitsSignIn(d) ? "needs-sign-in" : "off")),
+          ...(live?.signInUrl ? { sign_in_url: live.signInUrl } : {}),
           tools: live?.tools.length ?? 0,
           tool_names: live?.tools.map((t) => t.name) ?? [],
           tool_permission_mode: !known.length
@@ -437,9 +551,37 @@ export function createMcp(deps: {
      */
     async test(d: McpDef): Promise<{ ok: boolean; ms: number; tools: string[]; error?: string }> {
       if (!config.trusted(d)) return { ok: false, ms: 0, tools: [], error: "approve this server before testing it" };
+      const live = conns.get(keyOf(d));
+      if ((live?.hash === d.hash && live.status === "needs-sign-in") || waitsSignIn(d))
+        return { ok: false, ms: 0, tools: [], error: SIGN_IN_FIRST };
       const t0 = Date.now();
+      let asked!: (url: string) => void;
+      const askedFor = new Promise<string>((r) => {
+        asked = r;
+      });
+      const ac = new AbortController();
+      const started = connect(d, (url) => asked(url), ac.signal);
       try {
-        const { client, tools } = await connect(d);
+        const first = await Promise.race([started, askedFor]);
+        if (typeof first === "string") {
+          // The copy becomes the connection agents use: the sign-in the owner finishes is the one they get.
+          const key = keyOf(d);
+          const old = conns.get(key);
+          if (old) void closeConn(old);
+          const c: Conn = { key, hash: d.hash, tools: [], status: "starting", used: Date.now() };
+          conns.set(key, c);
+          follow(
+            d,
+            c,
+            (onSignIn) => {
+              onSignIn(first);
+              return started;
+            },
+            () => ac.abort(),
+          );
+          return { ok: false, ms: Date.now() - t0, tools: [], error: SIGN_IN_ASKED };
+        }
+        const { client, tools } = first;
         await client.close().catch(() => {});
         // A server that failed earlier is worth starting again for agents now that it answers.
         const live = conns.get(keyOf(d));
@@ -448,6 +590,18 @@ export function createMcp(deps: {
       } catch (err) {
         return { ok: false, ms: Date.now() - t0, tools: [], error: errorMessage(err) };
       }
+    },
+    /**
+     * The owner signs a server in: it starts now as the connection agents use, and the answer comes once it is ready,
+     * failed, or waits on the page it opened (`sign_in_url` in its status).
+     */
+    async signIn(d: McpDef): Promise<void> {
+      if (!d.enabled || !config.trusted(d)) throw badRequest("approve and enable this server before signing in");
+      const old = conns.get(keyOf(d));
+      conns.delete(keyOf(d));
+      if (old) await closeConn(old);
+      setWaitsSignIn(d, false);
+      await ensure(d).ready;
     },
     /** The last `n` lines a server printed on stderr while this core ran (started by an agent or a test). */
     logs(d: McpDef, n: number) {
@@ -460,7 +614,7 @@ export function createMcp(deps: {
       const mine = (key: string) => key.startsWith(prefix) && key.endsWith(`:${d.name}`);
       for (const [key, c] of conns) {
         if (mine(key)) {
-          void c.client?.close().catch(() => {});
+          void closeConn(c);
           conns.delete(key);
         }
       }
@@ -474,7 +628,7 @@ export function createMcp(deps: {
     },
     async close(): Promise<void> {
       clearInterval(idle);
-      await Promise.allSettled([...conns.values()].map((c) => c.client?.close()));
+      await Promise.allSettled([...conns.values()].map(closeConn));
       conns.clear();
     },
   };

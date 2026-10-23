@@ -7,9 +7,13 @@ for (const width of [1280, 850, 390]) {
       name: `Northwind scroll ${width}`,
     });
     for (let i = 0; i < 30; i++)
-      await rpc("tasks.create", { title: `Prepare item ${i}`, project: project.id, status: i % 2 ? "review" : "todo" });
+      await rpc("tasks.create", {
+        title: `Prepare item ${i}`,
+        project: project.id,
+        status: i % 2 ? "review" : "doing",
+      });
     const parent = await rpc<{ id: string }>("tasks.create", { title: "Final parent", project: project.id });
-    await rpc("tasks.update", { task: parent.id, awaits_owner: true });
+    // Pending is the last open group (what needs the owner comes first): the parent's subtasks are the list's end.
     for (let i = 0; i < 8; i++)
       await rpc("tasks.create", { title: `Expanded child ${i}`, project: project.id, parent: parent.id });
 

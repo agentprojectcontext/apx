@@ -35,7 +35,7 @@ export function loadMarks(): void {
   marks ??= import("@apx/ui/marks")
     .then((m) => {
       registerMarks({ ...m.ACP_MARKS, ...m.PROVIDER_MARKS });
-      registerIntegrationMarks(m.INTEGRATION_MARKS);
+      registerIntegrationMarks(m.INTEGRATION_MARKS, m.drawMarkArt);
     })
     .catch(() => {
       marks = undefined;

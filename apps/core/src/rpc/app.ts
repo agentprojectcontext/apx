@@ -6,9 +6,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import type { Organization, ProjectKind } from "@apx/protocol";
+import { declaresApp } from "../../../../packages/surfaces/src/kit.ts";
 import { readOrganization, writeOrganization } from "../apc/org.ts";
 import type { ApcSync } from "../apc/sync.ts";
 import { writeProjectMeta } from "../apc/write.ts";
+import { artifactDir } from "../domain/artifact-memory.ts";
 import { ownerIdentity, saveOwnerIdentity } from "../domain/owner.ts";
 import { publicProject } from "../domain/projects.ts";
 import type { EngineIds } from "../domain/refs.ts";
@@ -21,6 +23,7 @@ import type { Catalog } from "../models/catalog.ts";
 import { modelSettings, refProblem } from "../models/choice.ts";
 import { projectSecretName, type Secrets } from "../secrets.ts";
 import type { Services } from "../services/registry.ts";
+import { withKit } from "../surface-kit.ts";
 import { checkReadOnly } from "../tools/folders.ts";
 import { projectHelperHandlers } from "./project-helper.ts";
 import type { Handlers } from "./router.ts";
@@ -187,14 +190,24 @@ export function appHandlers(deps: {
     "surfaces.get": ({ surface }) => {
       const s = store.surfaces.get(surface);
       if (!s) throw notFound(`surface ${surface}`);
-      return s;
+      return { ...s, html: withKit(s.html) };
+    },
+    "surfaces.set_state": ({ surface, patch, replace }) => {
+      if (Object.keys(patch).length > 200) throw badRequest("at most 200 keys per change");
+      const state = store.surfaces.setState(surface, patch, replace);
+      if (!state) throw notFound(`surface ${surface}`);
+      return { state };
     },
     "surfaces.show": (p, ctx) => {
       const threadId = p.thread ?? ctx.agent?.thread_id;
       const thread = threadId ? store.threads.get(threadId) : undefined;
       if (threadId && !thread) throw notFound(`thread ${threadId}`);
+      if (p.project && thread && thread.project_id !== p.project)
+        throw badRequest(`thread ${thread.id} is not in project ${p.project}`);
+      if (p.project && !store.projects.get(p.project)) throw notFound(`project ${p.project}`);
+      const project_id = thread ? thread.project_id : p.project;
       // A published widget is public: an agent may not change what its link shows; it makes a new one instead.
-      const current = store.surfaces.byName(thread?.project_id, p.name);
+      const current = store.surfaces.byName(project_id, p.name);
       if (current?.share_path && ctx.actor !== "human")
         throw conflict(`widget "${p.name}" is published; use another name (the owner can unpublish it)`);
       return summary(
@@ -202,11 +215,12 @@ export function appHandlers(deps: {
           name: p.name,
           title: p.title,
           html: p.html,
-          project_id: thread?.project_id,
+          project_id,
           thread_id: thread?.id,
           created_by: ctx.agent?.id ?? "owner",
           pinned: p.pinned,
-          app: p.app,
+          // A page written as an app (its apx-surface meta) is one unless the call says otherwise.
+          app: p.app ?? (declaresApp(p.html) ? true : undefined),
           connect: p.connect,
         }),
       );
@@ -235,6 +249,20 @@ export function appHandlers(deps: {
       const s = store.surfaces.patch(surface, { pinned, app });
       if (!s) throw notFound(`surface ${surface}`);
       return s;
+    },
+    "surfaces.remove": ({ surface }) => {
+      const s = store.surfaces.get(surface);
+      if (!s) throw notFound(`surface ${surface}`);
+      let memory: string | undefined;
+      try {
+        memory = artifactDir(deps.home, { name: s.name, project_id: s.project_id });
+      } catch {
+        // A name from before artifact names were checked has no memory folder of its own to remove.
+      }
+      store.surfaces.remove(surface);
+      // What it remembered goes with it; its source files (an agent's work in the project) stay.
+      if (memory) fs.rmSync(memory, { recursive: true, force: true });
+      return { removed: true as const };
     },
     "surfaces.share": ({ surface, shared }) => {
       const s = store.surfaces.share(surface, shared);

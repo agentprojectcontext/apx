@@ -1,22 +1,25 @@
 // make_image: an agent draws with the owner's image services and the image appears in the chat. voice_replies: its
 // answers on a channel also go as voice notes.
 import { z } from "zod";
+import type { Store } from "../domain/store.ts";
 import { documentTool } from "./documents.ts";
+import { readsOutside } from "./folders.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 /** A media id APX gave out (an earlier drawing), not a file path. */
 const MEDIA_ID = /^med_[0-9a-f]{16}$/;
 
-export function mediaTools(): Tool[] {
+export function mediaTools(store: Store, home: string): Tool[] {
   return [
-    documentTool(),
+    documentTool(store, home),
     defineTool({
       name: "send_file",
       description:
-        "Attach an existing file from your work folder directly to your reply in this chat. Use when the owner asks to see or download a project file, image, video, audio or document here. Images appear inline; videos play in the chat; files can be downloaded. Path may be relative or absolute inside your work folder, or absolute in your temp folder; maximum 20 MB per file. Call once per file. Never claim a file was attached unless this tool succeeds. Do not substitute a website link for an attachment.",
+        "Attach an existing file you can read directly to your reply in this chat. Use when the owner asks to see or download a file, image, video, audio or document here. Images appear inline; videos play in the chat; files can be downloaded. Path relative to your work folder, or absolute; maximum 20 MB per file. Call once per file. Never claim a file was attached unless this tool succeeds. Do not substitute a website link for an attachment.",
       args: z.object({ path: z.string().trim().min(1).max(1000) }),
       // Only to this chat, the owner's: contacts and rooms never get it (CONTACT_TOOLS).
       effect: "local",
+      outside: (a, ctx) => readsOutside(store, home, ctx.thread, [String(a.path)]),
       deadlineMs: 15_000,
       title: (a) =>
         `Attached ${String(a.path ?? "a file")
@@ -58,6 +61,13 @@ export function mediaTools(): Tool[] {
         references: z.array(z.string().min(1)).max(4).optional(),
       }),
       effect: "external",
+      outside: (a, ctx) =>
+        readsOutside(
+          store,
+          home,
+          ctx.thread,
+          ((a.references as string[] | undefined) ?? []).filter((r) => !MEDIA_ID.test(r)),
+        ),
       deadlineMs: 11 * 60_000,
       title: (a) => `Drew: ${String(a.prompt ?? "").slice(0, 80)}`,
       async run({ references: refs, ...a }, ctx) {

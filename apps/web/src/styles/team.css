@@ -732,6 +732,11 @@
   font-size: var(--apx-text-xs);
   color: var(--apx-fg-subtle);
 }
+.agentedit__links {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
 .agentedit__foot {
   flex: none;
   display: flex;

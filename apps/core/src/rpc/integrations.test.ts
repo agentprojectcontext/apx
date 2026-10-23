@@ -29,11 +29,12 @@ test("connecting an integration stores its token and adds its server; it can be 
     "the ones still coming are listed",
   );
 
-  await assert.rejects(env.client.call("integrations.connect", { id: "slack", values: { token: "xoxb-1" } }));
+  await assert.rejects(env.client.call("integrations.connect", { id: "slack", values: { token: " " } }), /Bot token/);
   await env.client.call("integrations.connect", { id: "github", values: { token: "ghp_example0000" } });
   const servers = (await env.client.call("mcp.list", {})).servers;
   const gh = servers.find((s) => s.name === "github");
   assert.ok(gh, "the server is a global one");
+  assert.equal(gh.transport, "http", "GitHub's own server, reached at its address");
   assert.ok(!JSON.stringify(servers).includes("ghp_example0000"), "the token never shows");
   assert.ok(env.core.secrets.has("secret://github-token"));
 
@@ -47,19 +48,40 @@ test("connecting an integration stores its token and adds its server; it can be 
 });
 
 test("a connected integration is edited: what is typed changes, what is left empty keeps its value", async () => {
-  const slack = async () => (await env.client.call("integrations.list", {})).integrations.find((i) => i.id === "slack");
-  await env.client.call("integrations.connect", { id: "slack", values: { token: "xoxb-first", team: "T0001" } });
-  const fields = (await slack())?.fields ?? [];
+  const ha = async () =>
+    (await env.client.call("integrations.list", {})).integrations.find((i) => i.id === "home-assistant");
+  const values = { server: "http://homeassistant.local:8123/", token: "example-ha-token" };
+  await env.client.call("integrations.connect", { id: "home-assistant", values });
   assert.deepEqual(
-    fields.map((f) => [f.name, f.set, f.value]),
+    (await ha())?.fields.map((f) => [f.name, f.set, f.value]),
     [
+      ["server", undefined, "http://homeassistant.local:8123/"],
       ["token", true, undefined],
-      ["team", undefined, "T0001"],
     ],
-    "a token only says it is stored; a team id comes back as typed",
+    "a token only says it is stored; an address comes back as typed",
   );
-  await env.client.call("integrations.connect", { id: "slack", values: { token: "", team: "T0002" } });
-  assert.equal(env.core.secrets.resolve("secret://slack-token"), "xoxb-first", "the token stays");
-  assert.equal((await slack())?.fields.find((f) => f.name === "team")?.value, "T0002");
-  await env.client.call("integrations.disconnect", { id: "slack" });
+  const server = (await env.client.call("mcp.list", {})).servers.find((s) => s.name === "home-assistant");
+  assert.equal(server?.transport, "http");
+  await env.client.call("integrations.connect", {
+    id: "home-assistant",
+    values: { server: "http://ha.example.org:8123", token: "" },
+  });
+  assert.equal(env.core.secrets.resolve("secret://home-assistant-token"), "example-ha-token", "the token stays");
+  assert.equal((await ha())?.fields.find((f) => f.name === "server")?.value, "http://ha.example.org:8123");
+  await env.client.call("integrations.disconnect", { id: "home-assistant" });
+});
+
+test("an app that signs in through the browser connects with nothing to type", async () => {
+  const linear = async () =>
+    (await env.client.call("integrations.list", {})).integrations.find((i) => i.id === "linear");
+  assert.deepEqual((await linear())?.fields, []);
+  assert.equal((await linear())?.coming, false);
+  await env.client.call("integrations.connect", { id: "linear", values: {} });
+  assert.equal((await linear())?.connected, true);
+  assert.equal(
+    (await env.client.call("mcp.list", {})).servers.find((s) => s.name === "linear")?.transport,
+    "stdio",
+    "mcp-remote runs it and asks for the sign-in",
+  );
+  await env.client.call("integrations.disconnect", { id: "linear" });
 });

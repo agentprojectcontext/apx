@@ -100,6 +100,7 @@ export function ExternalSection() {
 const SIGN: Record<string, { in: string; out: string }> = {
   claude: { in: "claude", out: "claude /logout" },
   codex: { in: "codex login", out: "codex logout" },
+  "acp:cursor": { in: "cursor-agent login", out: "cursor-agent logout" },
 };
 
 function EngineCard({ engine: e }: { engine: EngineStatus }) {

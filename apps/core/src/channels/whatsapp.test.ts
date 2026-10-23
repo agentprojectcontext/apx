@@ -12,9 +12,15 @@ import { toWhatsApp, whatsappAdapter } from "./whatsapp.ts";
 const ANA = { phone: "5491100000002@s.whatsapp.net", name: "Ana" };
 const BOB = { phone: "5491100000003@s.whatsapp.net", name: "Bob", lid: "200000000000003@lid" };
 
-// A business's menu is answered with one of its options; anything else is echoed.
-const llm = scriptedLlm((_req, { said }) =>
-  said.includes("[Options:") ? say(said.includes("Claims") ? "2" : "Home") : say(`Got it: ${said}`),
+// A business's menu is answered with one of its options, a sticker with the same one; anything else is echoed.
+const llm = scriptedLlm((_req, { system, said }) =>
+  system.startsWith("You name chat stickers")
+    ? say("thumbs up, all good")
+    : said.includes("[sticker: thumbs up")
+      ? say("STICKER thumbs up")
+      : said.includes("[Options:")
+        ? say(said.includes("Claims") ? "2" : "Home")
+        : say(`Got it: ${said}`),
 );
 let env: Awaited<ReturnType<typeof startCore>>;
 let wa: ReturnType<typeof fakeWhatsApp>;
@@ -279,6 +285,23 @@ test("someone under their private id is the same person as their number", async 
   await until(async () => (await env.client.call("pairing.list", {})).requests.some((r) => r.name === "Bob"), "listed");
   const req = (await env.client.call("pairing.list", {})).requests.find((r) => r.name === "Bob");
   assert.equal(req?.external_id, BOB.phone);
+});
+
+test("a contact's sticker is kept as WhatsApp's, and the agent answers with it as a sticker", async () => {
+  // A 1×1 WebP, the file a WhatsApp sticker is.
+  const WEBP = Buffer.from("UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==", "base64");
+  env.core.store.settings.set("model_aux", "openai/gpt-4o-mini");
+  wa.message(ANA, "", { content: { stickerMessage: { mimetype: "image/webp" }, bytes: WEBP.toString("base64") } });
+  await until(() => wa.sent.some((x) => x.jid === ANA.phone && x.content.sticker), "a sticker back");
+  const back = wa.sent.findLast((x) => x.jid === ANA.phone && x.content.sticker);
+  assert.deepEqual(back?.content.sticker, WEBP);
+  assert.deepEqual(
+    env.core.store.stickers.known("whatsapp").map((x) => x.meaning),
+    ["thumbs up, all good"],
+  );
+  assert.equal(env.core.store.stickers.known("telegram").length, 0, "kept as WhatsApp's only");
+  assert.ok(!wa.textsTo(ANA.phone).some((t) => /STICKER/.test(t)));
+  env.core.store.settings.set("model_aux", "");
 });
 
 test("a contact's video, a document of any type and a too-big file: kept to play or download, or explained", async () => {

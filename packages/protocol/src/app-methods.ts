@@ -13,6 +13,7 @@ import {
   CatalogEngine,
   ChannelClosers,
   ChannelEmail,
+  ChannelHours,
   ChannelInfo,
   ChannelResearch,
   ChannelRooms,
@@ -27,6 +28,7 @@ import {
   LocalEmbedding,
   LocalTranscription,
   Memory,
+  MemoryEvidence,
   MemoryScope,
   MemorySettings,
   Message,
@@ -53,8 +55,10 @@ import {
   ServiceKind,
   ServiceSettings,
   ServiceTest,
+  Sticker,
   Surface,
   SurfaceOrigin,
+  SurfaceState,
   SurfaceSummary,
   Thread,
   ToolApproval,
@@ -97,7 +101,27 @@ const Sent = z.object({
   delivery: z.object({ state: OutboxState, error: z.string().optional() }),
 });
 
+const MemoryJobs = z.array(
+  z.object({
+    id: Id,
+    kind: z.string(),
+    agent_id: Id,
+    thread_id: Id,
+    state: z.string(),
+    attempts: z.number().int(),
+    updated_at: z.string(),
+    result: z.string().nullable(),
+    error: z.string().nullable(),
+  }),
+);
+
 export const appMethods = {
+  "memory.status": {
+    params: z.object({}).strict(),
+    result: z.object({ jobs: MemoryJobs }),
+    effect: false,
+    access: "human",
+  },
   ...officeMethods,
   ...teamMethods,
   ...resourceMethods,
@@ -208,6 +232,39 @@ export const appMethods = {
   "system.update": {
     params: z.object({}).strict(),
     result: z.object({ ok: z.boolean(), restart: z.boolean(), log: z.string() }),
+    effect: true,
+    access: "human",
+  },
+  // Release news the super-agent tells the owner (DECISIONS.md#d-116).
+  /** The news APX carries: whether each was told (or known from the start) and whether it applies to this owner. */
+  "system.news": {
+    params: z.object({}).strict(),
+    result: z.object({
+      entries: z.array(
+        z.object({
+          id: z.string(),
+          since: z.string(),
+          title: z.string(),
+          seen: z.boolean(),
+          applies: z.boolean(),
+          actions: z.array(z.string()),
+        }),
+      ),
+    }),
+    effect: false,
+  },
+  /**
+   * Tells news now, as a start would: the given entries even if told or not applying (a replay), else the unseen ones
+   * that apply. `voiced`: the super-agent's model wrote it; `sent`: a channel or the phone took it.
+   */
+  "system.news_tell": {
+    params: z.object({ ids: z.array(z.string().max(80)).max(20).optional() }).strict(),
+    result: z.object({
+      told: z.array(z.string()),
+      thread: z.string().optional(),
+      sent: z.boolean(),
+      voiced: z.boolean(),
+    }),
     effect: true,
     access: "human",
   },
@@ -830,6 +887,71 @@ export const appMethods = {
     effect: true,
     access: "human",
   },
+  "memory.maintenance": {
+    params: z.object({ backfill: z.boolean().optional(), dream: z.boolean().optional() }).strict(),
+    result: z.object({ queued: z.number().int(), jobs: MemoryJobs }),
+    effect: true,
+    access: "human",
+  },
+  "memory.history": {
+    params: z.object({ id: Id }).strict(),
+    result: z.object({
+      versions: z.array(z.object({ revision: z.number().int(), note: Memory, reason: z.string(), at: z.string() })),
+    }),
+    effect: false,
+    access: "human",
+  },
+  "memory.undo": {
+    params: z
+      .object({
+        id: Id,
+        revision: z.number().int().positive(),
+        expected_revision: z.number().int().positive().optional(),
+      })
+      .strict(),
+    result: Memory,
+    effect: true,
+    access: "human",
+  },
+  "memory.consolidate": {
+    params: z
+      .object({
+        notes: z
+          .array(z.object({ id: Id, revision: z.number().int().positive() }))
+          .min(2)
+          .max(8),
+      })
+      .strict(),
+    result: z.object({ merged: z.boolean() }),
+    effect: true,
+  },
+  /**
+   * An agent tidies its own notebook: retires notes a newer one corrects (`by`) or that went stale, and rewrites
+   * relative dates ("today") as the dates they meant. Refused when it would forget too many notes at once.
+   */
+  "memory.tidy": {
+    params: z
+      .object({
+        retire: z
+          .array(
+            z.object({
+              id: Id,
+              revision: z.number().int().positive(),
+              by: Id.optional(),
+              by_revision: z.number().int().positive().optional(),
+            }),
+          )
+          .max(8)
+          .optional(),
+        redate: z
+          .array(z.object({ id: Id, revision: z.number().int().positive() }))
+          .max(32)
+          .optional(),
+      })
+      .strict(),
+    result: z.object({ retired: z.number().int(), redated: z.number().int() }),
+    effect: true,
+  },
   /** An agent's note goes to its own thread's project (`project`) or to itself (`agent`); `id` edits one in place. */
   "memory.add": {
     params: z
@@ -839,6 +961,9 @@ export const appMethods = {
         project: Id.optional(),
         agent: Id.optional(),
         id: Id.optional(),
+        kind: Memory.shape.kind,
+        evidence: z.array(MemoryEvidence).max(8).optional(),
+        expected_revision: z.number().int().positive().optional(),
         /** Set by an agent's tool when outside content is in its turn (agents' notes default to tainted). */
         tainted: z.boolean().optional(),
       })
@@ -916,10 +1041,12 @@ export const appMethods = {
             rooms: ChannelRooms.optional(),
             closers: ChannelClosers.default("silent"),
             research: ChannelResearch.default("owner"),
+            hours: ChannelHours.optional(),
             email: ChannelEmail.optional(),
           })
           .nullable(),
-        token: z.string().min(8).max(400).optional(),
+        // A Google service account key travels whole (about 2.3 KB).
+        token: z.string().min(8).max(8000).optional(),
       })
       .strict(),
     result: z.object({ channels: z.array(ChannelInfo) }),
@@ -981,6 +1108,29 @@ export const appMethods = {
     params: z.object({ limit: z.number().int().min(1).max(200).default(50) }).strict(),
     result: z.object({ items: z.array(OutboxItem) }),
     effect: false,
+    access: "human",
+  },
+  /** The stickers kept from a channel type, the most used first, named or not, blocked or not. */
+  "stickers.list": {
+    params: z.object({ platform: z.string().min(1).max(40) }).strict(),
+    result: z.object({ stickers: z.array(Sticker) }),
+    effect: false,
+    access: "human",
+  },
+  /** The owner's words for what a sticker means (no model names it again), or whether the agent may send it. */
+  "stickers.set": {
+    params: z
+      .object({ id: Id, meaning: z.string().trim().min(1).max(160).optional(), blocked: z.boolean().optional() })
+      .strict(),
+    result: Sticker,
+    effect: true,
+    access: "human",
+  },
+  /** Forgets a sticker and its file; if someone sends it again it is kept and named again. */
+  "stickers.remove": {
+    params: z.object({ id: Id }).strict(),
+    result: z.object({ removed: z.boolean() }),
+    effect: true,
     access: "human",
   },
   /**
@@ -1245,6 +1395,7 @@ export const appMethods = {
         rules: z.string().max(1000).optional(),
         muted: z.boolean().optional(),
         supervised: z.boolean().optional(),
+        any_hour: z.boolean().optional(),
         // Only the flags sent change (PersonPerms' defaults would reset the others).
         perms: z
           .object({ appointments: z.boolean(), requests: z.boolean(), notes: z.boolean() })
@@ -1595,6 +1746,8 @@ export const appMethods = {
         /** Origins it may read live data from ([] removes them; absent keeps the current ones). */
         connect: z.array(SurfaceOrigin).max(5).optional(),
         thread: Id.optional(),
+        /** Without a thread (`apx artifacts push`): the project it belongs to; none makes it global. */
+        project: Id.optional(),
       })
       .strict(),
     result: SurfaceSummary,
@@ -1638,12 +1791,31 @@ export const appMethods = {
     result: SurfaceSummary,
     effect: true,
   },
+  /**
+   * Deletes a widget for good, with what it remembers (APX.store, APX.db): the chats that showed it keep their messages.
+   * Owner only.
+   */
+  "surfaces.remove": {
+    params: z.object({ surface: Id }).strict(),
+    result: z.object({ removed: z.literal(true) }),
+    effect: true,
+    access: "human",
+  },
   /** Publishes (or revokes) a surface as an artifact: a standalone page at /a/<token>, isolated from the API. */
   "surfaces.share": {
     params: z.object({ surface: Id, shared: z.boolean() }).strict(),
     result: SurfaceSummary,
     effect: true,
     access: "human",
+  },
+  /**
+   * Changes what a widget remembers (APX.state): `patch` keys are set, a null removes one; `replace` starts from empty.
+   * Refused past SURFACE_STATE_MAX characters of JSON. The page and its version stay as they are.
+   */
+  "surfaces.set_state": {
+    params: z.object({ surface: Id, patch: SurfaceState, replace: z.boolean().optional() }).strict(),
+    result: z.object({ state: SurfaceState }),
+    effect: true,
   },
   /** A widget's sendPrompt(): the text goes to the thread that owns the surface, as the user. */
   "surfaces.prompt": {

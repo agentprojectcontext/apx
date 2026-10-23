@@ -2,8 +2,10 @@ import fs from "node:fs";
 
 const args = process.argv.slice(2);
 const mode = args.shift();
-if (mode === "hang") setInterval(() => {}, 100);
-else if (mode === "fail") {
+if (mode === "hang") {
+  process.stdout.write("ready\n");
+  setInterval(() => {}, 100);
+} else if (mode === "fail") {
   process.stderr.write("secret credential");
   process.exitCode = 7;
 } else if (mode === "large") process.stdout.write("x".repeat(1_000_001));

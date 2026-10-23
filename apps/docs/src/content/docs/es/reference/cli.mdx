@@ -114,6 +114,8 @@ settings ~/.apx/v2/core.env (none yet)`}</Terminal>
 | `apx compact <thread>` | Resume ya los turnos viejos de un hilo (el loop propio de APX). |
 | `apx notifications` | Lo que te está esperando. |
 | `apx notifications read` | Marca todo como leído. |
+| `apx news` | Las novedades que trae APX: si ya se contaron y si te aplican. |
+| `apx news tell [id…]` | Contar novedades ahora (esas de nuevo, o las que te aplican y faltan), con las palabras de tu super-agente. |
 
 `apx chat` también acepta `--detach` (manda y vuelve sin esperar), y `--interrupt` o `--steer` para cuando el agente ya
 está trabajando (frenarlo, o meter el mensaje en el turno que corre). Sin esas opciones, el mensaje espera su turno.
@@ -230,6 +232,7 @@ Los demás canales (WhatsApp, Discord, Slack) se configuran en el panel. Mirá [
 | `apx mcp tools <server> [<tool>]` | Las descripciones de las herramientas y sus esquemas JSON. |
 | `apx mcp run <server> <tool> '<json>'` | Llama a una herramienta directo y muestra el resultado crudo; `-` lee los argumentos de stdin. |
 | `apx mcp check <server>` | Una prueba de conexión. |
+| `apx mcp signin <server>` | Iniciar sesión en un servidor que lo pidió; su página se abre en tu navegador. |
 | `apx extensions` | Las extensiones instaladas. |
 | `apx extensions inspect <folder>` | Qué traería una carpeta; no instala nada. |
 | `apx extensions install <folder>` | La copia, apagada. |

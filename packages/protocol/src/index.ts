@@ -1,5 +1,6 @@
 export * from "./app-links.ts";
 export * from "./app-methods.ts";
+export * from "./artifact-methods.ts";
 export * from "./asana-methods.ts";
 export * from "./browser.ts";
 export * from "./composer-methods.ts";
@@ -19,6 +20,7 @@ export * from "./office.ts";
 export * from "./releases.ts";
 export * from "./resource-methods.ts";
 export * from "./team-methods.ts";
+export * from "./team-tree.ts";
 export * from "./telemetry-methods.ts";
 export * from "./terminal-methods.ts";
 export * from "./thread-methods.ts";

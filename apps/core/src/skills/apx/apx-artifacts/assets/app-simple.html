@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apx-surface" content="app">
+<title>Unit converter</title>
+<script src="/_apx/kit@1.js"></script>
+</head>
+<body>
+<!-- Light shell for a small tool: sidebar (views) · shell (topbar, main, statusbar). No rail, no inspector. -->
+<div class="ax-app" data-ax-views data-ax-persist="ui.view">
+
+  <aside class="ax-sidebar" id="sb" style="--w:232px">
+    <div class="ax-sidebar__head"><b>Unit converter</b></div>
+    <div class="ax-sidebar__body">
+      <div class="ax-nav">
+        <button class="ax-nav__item" data-view="length" aria-selected="true"><ax-icon name="layers"></ax-icon><span>Length</span></button>
+        <button class="ax-nav__item" data-view="weight"><ax-icon name="download"></ax-icon><span>Weight</span></button>
+        <button class="ax-nav__item" data-view="temperature"><ax-icon name="sparkle"></ax-icon><span>Temperature</span></button>
+      </div>
+      <div class="ax-section">Saved</div>
+      <div class="ax-nav">
+        <button class="ax-nav__item" data-view="history"><ax-icon name="clock"></ax-icon><span>History</span><em id="historyCount"></em></button>
+      </div>
+    </div>
+    <div class="ax-sidebar__foot">
+      <span class="ax-avatar ax-avatar--sm" style="--tint:var(--apx-brand-soft)">A</span>
+      <span class="ax-grow">Made by <span class="ax-agent">AGENT_NAME</span></span>
+    </div>
+  </aside>
+
+  <div class="ax-shell">
+    <header class="ax-topbar">
+      <button class="ax-iconbtn" data-ax-toggle="#sb" aria-pressed="true" data-ax-tip="Sidebar"><ax-icon name="panelL"></ax-icon></button>
+      <div class="ax-topbar__title"><span data-view-title>Length</span><small>Length, weight and temperature</small></div>
+      <button class="ax-btn ax-btn--primary ax-btn--sm" id="save">Save to history</button>
+    </header>
+
+    <main class="ax-main">
+      <!-- One panel per kind; the script below fills the unit lists from UNITS. -->
+      <div class="ax-main__inner" style="--max:640px" data-view-panel="length"><div class="ax-card" data-kind="length"></div></div>
+      <div class="ax-main__inner" style="--max:640px" data-view-panel="weight" hidden><div class="ax-card" data-kind="weight"></div></div>
+      <div class="ax-main__inner" style="--max:640px" data-view-panel="temperature" hidden><div class="ax-card" data-kind="temperature"></div></div>
+
+      <div class="ax-main__inner" style="--max:640px" data-view-panel="history" hidden>
+        <div class="ax-spread"><h2 class="ax-h2">Saved conversions</h2><button class="ax-btn ax-btn--ghost ax-btn--sm" id="clear">Clear</button></div>
+        <div class="ax-list" id="history"></div>
+        <div class="ax-empty" id="historyEmpty" hidden>Nothing saved yet. Convert something and press Save to history.</div>
+      </div>
+    </main>
+
+    <footer class="ax-statusbar"><span class="ax-live" id="where">Remembered by APX</span><span id="last"></span><span class="ax-grow"></span><span>APX Kit v1 · app</span></footer>
+  </div>
+</div>
+<script>
+// Factor to the base unit (m, kg); temperature converts through Celsius.
+const UNITS = {
+  length: { m: 1, km: 1000, cm: 0.01, mi: 1609.344, ft: 0.3048, in: 0.0254 },
+  weight: { kg: 1, g: 0.001, lb: 0.45359237, oz: 0.028349523 },
+  temperature: { "°C": "c", "°F": "f", K: "k" },
+};
+const TO_C = { c: (v) => v, f: (v) => ((v - 32) * 5) / 9, k: (v) => v - 273.15 };
+const FROM_C = { c: (v) => v, f: (v) => (v * 9) / 5 + 32, k: (v) => v + 273.15 };
+const S = APX.state;
+
+function convert(kind, value, from, to) {
+  const u = UNITS[kind];
+  return kind === "temperature" ? FROM_C[u[to]](TO_C[u[from]](value)) : (value * u[from]) / u[to];
+}
+const opts = (kind, sel) => Object.keys(UNITS[kind]).map((k) => `<option ${k === sel ? "selected" : ""}>${k}</option>`).join("");
+
+document.querySelectorAll("[data-kind]").forEach((card) => {
+  const kind = card.dataset.kind;
+  const [a, b] = Object.keys(UNITS[kind]);
+  card.innerHTML = `
+    <div class="ax-grid" style="--min:160px">
+      <label class="ax-field"><span>Value</span><input class="ax-input" type="number" step="any" name="value" value="1" data-ax-persist="${kind}.value"></label>
+      <label class="ax-field"><span>From</span><select class="ax-select" name="from" data-ax-persist="${kind}.from">${opts(kind, a)}</select></label>
+      <label class="ax-field"><span>To</span><select class="ax-select" name="to" data-ax-persist="${kind}.to">${opts(kind, b)}</select></label>
+    </div>
+    <hr class="ax-divider">
+    <div class="ax-stat"><div class="ax-stat__label">Result</div><div class="ax-stat__value ax-num" data-out></div><div class="ax-stat__foot" data-formula></div></div>`;
+  card.addEventListener("input", () => update(card));
+  card.addEventListener("change", () => update(card));
+});
+
+function read(card) {
+  const q = (n) => card.querySelector(`[name=${n}]`).value;
+  const value = Number(q("value"));
+  const result = convert(card.dataset.kind, value, q("from"), q("to"));
+  return { kind: card.dataset.kind, value, from: q("from"), to: q("to"), result };
+}
+function update(card) {
+  const r = read(card);
+  const ok = Number.isFinite(r.result);
+  card.querySelector("[data-out]").textContent = ok ? `${APX.fmt(r.result, 4)} ${r.to}` : "—";
+  card.querySelector("[data-formula]").textContent = ok ? `${APX.fmt(r.value, 4)} ${r.from} = ${APX.fmt(r.result, 4)} ${r.to}` : "Type a number";
+}
+
+function renderHistory() {
+  const h = S.get("history", []);
+  document.getElementById("history").innerHTML = h
+    .map((x) => `<div class="ax-item"><span class="ax-item__title">${APX.fmt(x.value, 4)} ${APX.esc(x.from)} → ${APX.fmt(x.result, 4)} ${APX.esc(x.to)}</span><span class="ax-item__aside"><ax-ago datetime="${APX.esc(x.at)}"></ax-ago></span></div>`)
+    .join("");
+  document.getElementById("history").hidden = !h.length;
+  document.getElementById("historyEmpty").hidden = h.length > 0;
+  document.getElementById("historyCount").textContent = h.length || "";
+  document.getElementById("last").textContent = h.length ? `${h.length} saved` : "";
+  document.getElementById("where").textContent = S.persistent ? "Remembered by APX" : "This page only";
+}
+
+document.getElementById("save").addEventListener("click", () => {
+  const panel = document.querySelector("[data-view-panel]:not([hidden]) [data-kind]");
+  if (!panel) return APX.toast("Open a converter first");
+  const r = read(panel);
+  if (!Number.isFinite(r.result)) return APX.toast("Type a number first");
+  S.set("history", [{ ...r, at: new Date().toISOString() }, ...S.get("history", [])].slice(0, 50));
+  APX.toast("Saved to history");
+});
+document.getElementById("clear").addEventListener("click", async () => {
+  if (!S.get("history", []).length) return;
+  if (await APX.confirm("Clear every saved conversion?", { confirm: "Clear", danger: true })) S.remove("history");
+});
+
+S.on(renderHistory);
+renderHistory();
+// The kit restores persisted field values on DOMContentLoaded; this listener runs after it.
+document.addEventListener("DOMContentLoaded", () => document.querySelectorAll("[data-kind]").forEach(update));
+</script>
+</body>
+</html>

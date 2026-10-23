@@ -186,7 +186,7 @@ export const Agent = z.object({
   model_choice: ModelChoice.optional(),
   /** The file name in .apc/agents/ for project agents. */
   slug: z.string().optional(),
-  /** Slug of the agent it reports to, inside the same project. */
+  /** The agent it reports to, inside the same project: its slug (or its full id). */
   parent: z.string().optional(),
   /** Group it belongs to in the team view ("product", "sports"). From `area:`. */
   area: z.string().optional(),
@@ -224,7 +224,12 @@ export const AgentListing = Agent.extend({
       selection: z.enum(["marked", "role", "sole_head"]),
     })
     .nullable(),
+  /** Heads the whole project; a marked agent with a parent leads only its reports. */
   is_orchestrator: z.boolean(),
+  /** The agent its `parent:` names, resolved by slug or full id; null at the top of its team. */
+  reports_to: z.object({ id: Id, name: z.string() }).nullable(),
+  /** Ids of the agents that report to it. */
+  leads: z.array(Id),
 });
 export type AgentListing = z.infer<typeof AgentListing>;
 
@@ -395,6 +400,19 @@ export const PendingInput = z.object({
 });
 export type PendingInput = z.infer<typeof PendingInput>;
 
+/**
+ * Something the owner can connect, offered by an agent for what they asked: an integration (an account like Figma or
+ * GitHub, Resources › Integrations) or a channel (an app like WhatsApp, Settings › Channels). `coming`: not yet.
+ */
+export const ConnectOffer = z.object({
+  kind: z.enum(["integration", "channel"]),
+  id: z.string(),
+  label: z.string(),
+  description: z.string(),
+  coming: z.boolean().optional(),
+});
+export type ConnectOffer = z.infer<typeof ConnectOffer>;
+
 /** Where a document's file is in its chat: a path in the chat's folder, or (`scratch`) in its temp folder. */
 export const DocumentSource = z.object({ path: z.string().max(1000), scratch: z.boolean().optional() });
 export type DocumentSource = z.infer<typeof DocumentSource>;
@@ -427,6 +445,8 @@ const KnownPart = z.discriminatedUnion("type", [
     end_reason: RunEndReason.optional(),
     /** Who asked, when it is not the message's author (a consult on a task): an agent's id, or "owner". */
     asked_by: z.string().optional(),
+    /** A completed run that did not go well: it gave no answer, or some of its actions failed. */
+    issue: z.enum(["no_answer", "actions_failed"]).optional(),
   }),
   z.object({
     type: z.literal("browser"),
@@ -519,6 +539,11 @@ const KnownPart = z.discriminatedUnion("type", [
     options: z.array(z.object({ label: z.string(), value: z.string() })),
     custom: z.boolean().optional(),
   }),
+  /**
+   * What the agent offers the owner to connect for what they asked (suggest_connection): each opens its form where it
+   * is shown. `why`: the agent's line on what it would do with it.
+   */
+  z.object({ type: z.literal("connect"), why: z.string().optional(), offers: z.array(ConnectOffer) }),
   /** Something the system says about the turn (interrupted, fallback engine, no answer): never the agent's words. */
   z.object({
     type: z.literal("notice"),
@@ -578,8 +603,38 @@ export const RunUsage = z.object({
 });
 export type RunUsage = z.infer<typeof RunUsage>;
 
-/** What an auxiliary model call was for: a chat's title, a long chat's summary, a room's gate, a commit message. */
-export const AuxPurpose = z.enum(["title", "summary", "room", "commit", "suggestion"]);
+/** A sticker someone sent on a channel, kept so the agent reads what it means and can answer with it. */
+export const Sticker = z.object({
+  id: Id,
+  /** The channel type it came on ("whatsapp", "telegram"): the agent sends it only there. */
+  platform: z.string(),
+  media_id: Id,
+  mime: z.string(),
+  /** What it shows and says; none until a model that reads images named it. */
+  meaning: z.string().optional(),
+  /** The emoji the platform says it stands for. */
+  hint: z.string().optional(),
+  /** Times it arrived, and times the agent sent it. */
+  seen: z.number().int(),
+  sent: z.number().int(),
+  /** The owner said the agent may not send it. */
+  blocked: z.boolean(),
+  last_at: z.string(),
+});
+export type Sticker = z.infer<typeof Sticker>;
+
+/** What an auxiliary model call was for: a chat's title, a long chat's summary, a room's gate, a sticker's meaning… */
+export const AuxPurpose = z.enum([
+  "title",
+  "summary",
+  "room",
+  "commit",
+  "suggestion",
+  "memory_capture",
+  "memory_dream",
+  "news",
+  "sticker",
+]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 
 /** What started a run. Everything enters through threads.send; this only says from where. */
@@ -625,6 +680,7 @@ export const JobFrom = z.object({
     "job",
     "terminal",
     "go_on",
+    "stalled_task",
     "task_result",
     "delegation_result",
   ]),
@@ -643,6 +699,9 @@ export const Job = z.object({
   title: z.string(),
   state: RunState,
   thread_id: Id,
+  /** Display provenance even when the owning chat is not loaded by the operator. */
+  thread_title: z.string().optional(),
+  agent_name: z.string().optional(),
   /** The thread that started it (a delegation's caller). */
   parent_thread_id: Id.optional(),
   agent_id: Id.optional(),
@@ -705,12 +764,29 @@ export type ProviderInfo = z.infer<typeof ProviderInfo>;
  */
 export const MemoryScope = z.enum(["global", "project", "agent"]);
 export type MemoryScope = z.infer<typeof MemoryScope>;
+export const MemoryEvidence = z.object({
+  message_id: Id,
+  quote: z.string().min(3).max(2000),
+  /** Derived by the core from the owner's confirmation or a read after a write. */
+  verification: z
+    .object({
+      kind: z.enum(["owner_confirmation", "observed_result"]),
+      criterion: z.string().min(3).max(300),
+      step_ids: z.array(z.string().min(1).max(200)).max(8).optional(),
+    })
+    .optional(),
+});
+export type MemoryEvidence = z.infer<typeof MemoryEvidence>;
 export const Memory = z.object({
   id: Id,
   scope: MemoryScope,
   project_id: Id.optional(),
   agent_id: Id.optional(),
   text: z.string(),
+  revision: z.number().int().positive().optional(),
+  /** `procedure`: how the agent did something that worked, kept as history (never as an instruction). */
+  kind: z.enum(["user", "feedback", "project", "reference", "procedure"]).optional(),
+  evidence: z.array(MemoryEvidence).optional(),
   source: z.enum(["owner", "agent"]),
   /** The agent that wrote it, and the thread and run it learned it in. */
   author_agent: Id.optional(),
@@ -777,6 +853,8 @@ export const Person = z.object({
    * Silenced and supervised exclude each other (setting one clears the other).
    */
   supervised: z.boolean().default(false),
+  /** Answered at any hour, past the attention hours of the channel they write on. */
+  any_hour: z.boolean().default(false),
   perms: PersonPerms.default({ appointments: false, requests: false, notes: false }),
   addresses: z.array(Address),
   created_at: z.string(),
@@ -822,6 +900,13 @@ export const ChannelType = z.enum([
   "mattermost",
   "signal",
   "email",
+  "imessage",
+  "googlechat",
+  "sms",
+  "ntfy",
+  "nextcloud",
+  "irc",
+  "twitch",
 ]);
 export type ChannelType = z.infer<typeof ChannelType>;
 
@@ -905,6 +990,20 @@ export type ChannelClosers = z.infer<typeof ChannelClosers>;
 export const ChannelResearch = z.enum(["off", "owner", "everyone"]);
 export type ChannelResearch = z.infer<typeof ChannelResearch>;
 
+const HourOfDay = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+
+/**
+ * When a channel answers its contacts, in the owner's time zone: the days it opens (0 = Sunday) and from when to when
+ * ("22:00"–"02:00" runs past midnight into the next day; the same time twice is the whole day). Outside them a
+ * contact's message waits, unanswered, until the hours begin. See DECISIONS.md#d-136
+ */
+export const ChannelHours = z.object({
+  days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+  from: HourOfDay,
+  to: HourOfDay,
+});
+export type ChannelHours = z.infer<typeof ChannelHours>;
+
 export const ChannelInfo = z.object({
   id: z.string(),
   type: ChannelType,
@@ -935,6 +1034,8 @@ export const ChannelInfo = z.object({
   closers: ChannelClosers.optional(),
   /** Web search and reading in its sealed chats (none set: only when the owner asks). See DECISIONS.md#d-059 */
   research: ChannelResearch.optional(),
+  /** When it answers contacts; none: at any hour. The owner is always answered. */
+  hours: ChannelHours.optional(),
   /** Email: the mailbox and its servers. */
   email: ChannelEmail.optional(),
   token_set: z.boolean(),
@@ -1110,6 +1211,10 @@ export const MemorySettings = z.object({
   skill_picker: z.boolean().default(true),
   /** Summarize long chats' older turns automatically. */
   auto_compact: z.boolean(),
+  auto_recall: z.boolean().optional(),
+  auto_capture: z.boolean().optional(),
+  auto_dream: z.boolean().optional(),
+  daily_memory_calls: z.number().int().min(0).max(200).optional(),
   /** The auxiliary model for titles and summaries: a model ref, "off", or none (the agent's own API models). */
   aux_model: z.string().max(200).optional(),
 });
@@ -1179,6 +1284,10 @@ export const OutboxItem = z.object({
   state: OutboxState,
   attempts: z.number().int(),
   error: z.string().optional(),
+  /** A sticker that went out: what it shows ("" when it has no name). */
+  sticker: z.string().optional(),
+  /** An emoji the agent put on a message there. */
+  reaction: z.string().optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -1195,7 +1304,10 @@ export const McpServerStatus = z.object({
   enabled: z.boolean(),
   /** A project's server runs only after the owner approved this exact definition. */
   trusted: z.boolean(),
-  status: z.enum(["off", "needs-approval", "disabled", "starting", "ready", "error"]),
+  /** needs-sign-in: it asked the owner to sign in in their browser and is not started again until they do. */
+  status: z.enum(["off", "needs-approval", "disabled", "starting", "ready", "error", "needs-sign-in"]),
+  /** The page it asked the owner to open, while it still waits for them there. */
+  sign_in_url: z.string().optional(),
   tools: z.number().int(),
   /** Tool names once it has started. */
   tool_names: z.array(z.string()).default([]),
@@ -1225,12 +1337,29 @@ export const McpServerStatus = z.object({
 export type McpServerStatus = z.infer<typeof McpServerStatus>;
 
 /** One primitive for widgets, sidebar panels and fullscreen apps. */
+/** A widget's state: JSON values by key. */
+export const SurfaceState = z.record(z.string().min(1).max(100), z.unknown());
+export type SurfaceState = z.infer<typeof SurfaceState>;
 /** An origin a widget may read live data from: https or wss, a host and maybe a port, nothing else. */
 export const SurfaceOrigin = z
   .string()
   .max(200)
   .regex(/^(https|wss):\/\/[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+(:\d{1,5})?$/);
 
+/** Where an installed artifact came from: who made it, and where, as its file said. Absent for one made here. */
+export const ArtifactOrigin = z.object({
+  /** The person whose APX it was exported from. */
+  author: z.string().max(80).optional(),
+  /** The agent that made it there. */
+  agent: z.string().max(80).optional(),
+  /** The project it belonged to there. */
+  project: z.string().max(120).optional(),
+  /** Its version when exported. */
+  version: z.number().int().min(1).optional(),
+  exported_at: z.string().max(40).optional(),
+  installed_at: z.string().max(40),
+});
+export type ArtifactOrigin = z.infer<typeof ArtifactOrigin>;
 export const Surface = z.object({
   id: Id,
   /** Stable name an agent updates by ("ventas-mes"). Unique per project (or globally when no project). */
@@ -1248,7 +1377,69 @@ export const Surface = z.object({
   share_path: z.string().optional(),
   /** Origins it may connect to for live data (shown to the owner); absent: no network at all. */
   connect: z.array(SurfaceOrigin).max(5).optional(),
+  /** What it remembers (APX.state): kept across openings and new versions, read and written by it and its agent. */
+  state: SurfaceState.optional(),
+  /** Installed from a file: who made it and where. */
+  origin: ArtifactOrigin.optional(),
 });
 export type Surface = z.infer<typeof Surface>;
-export const SurfaceSummary = Surface.omit({ html: true });
+export const SurfaceSummary = Surface.omit({ html: true, state: true });
 export type SurfaceSummary = z.infer<typeof SurfaceSummary>;
+
+/** Most an artifact's store (APX.store) may hold, as JSON bytes of every value together. */
+export const ARTIFACT_STORE_MAX = 5_000_000;
+/** Largest an artifact's database file (APX.db) may grow. */
+export const ARTIFACT_DB_MAX = 50_000_000;
+/** An artifact's own secret key (its full name is `artifact.<name>.<key>`). */
+export const ArtifactSecretKey = z
+  .string()
+  .min(1)
+  .max(60)
+  .regex(/^[a-z0-9][a-z0-9_-]*$/);
+/** What an artifact is, as a bundle names it: enough to install it again without its owner's data. */
+export const ArtifactManifest = z.object({
+  name: z
+    .string()
+    .min(1)
+    .max(60)
+    .regex(/^[a-z0-9][a-z0-9-]*$/),
+  title: z.string().min(1).max(120),
+  kind: z.enum(["widget", "app"]),
+  version: z.number().int().min(1),
+  /** The kit version its HTML loads (/_apx/kit@<version>.js). */
+  kit: z.string().max(40).optional(),
+  connect: z.array(SurfaceOrigin).max(5).optional(),
+  /** Secret keys it expects, never their values. */
+  secrets: z.array(ArtifactSecretKey).max(20).optional(),
+  live: z.boolean().optional(),
+  /** Schema version of its database, for future migrations. */
+  data_version: z.number().int().min(0).optional(),
+  source: z.object({ framework: z.enum(["preact", "html"]).optional(), built_at: z.string().optional() }).optional(),
+  /** Who made it: the person whose APX exported it, its agent and its project there (kept through later exports). */
+  author: z.string().max(80).optional(),
+  agent: z.string().max(80).optional(),
+  project: z.string().max(120).optional(),
+  exported_at: z.string().max(40).optional(),
+});
+export type ArtifactManifest = z.infer<typeof ArtifactManifest>;
+/** One artifact as a file: its page and, only when asked, its memory (state, store, base64 database). */
+export const ArtifactBundle = z.object({
+  format: z.literal("apx-artifact@1"),
+  manifest: ArtifactManifest,
+  html: z.string().min(1).max(400_000),
+  state: SurfaceState.optional(),
+  store: z.record(z.string(), z.unknown()).optional(),
+  db: z.string().optional(),
+});
+export type ArtifactBundle = z.infer<typeof ArtifactBundle>;
+/** A value bound to an artifact's SQL: what SQLite takes as a parameter. */
+export const ArtifactSqlParam = z.union([z.string(), z.number(), z.null(), z.boolean()]);
+/** What an artifact remembers, sizes only (its contents stay with it). */
+export const ArtifactMemory = z.object({
+  state_chars: z.number().int(),
+  store: z.object({ keys: z.array(z.string()), bytes: z.number().int() }),
+  db: z.object({ bytes: z.number().int(), tables: z.array(z.object({ name: z.string(), rows: z.number().int() })) }),
+  /** The origin each of its secrets was first sent to; it is sent nowhere else until the owner resets the pins. */
+  secrets: z.array(z.object({ key: z.string(), origin: z.string() })),
+});
+export type ArtifactMemory = z.infer<typeof ArtifactMemory>;

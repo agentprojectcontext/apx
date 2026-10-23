@@ -164,19 +164,19 @@ test("a path inside the project is the folder a delegation works in: relative re
     const sub = env.core.store.threads.sessions(t.id)[0];
     assert.equal(sub?.project_id, project);
     assert.equal(sub?.cwd, path.join(root, "sub"));
-    // Nobody asked for more: a chat outside a folder hands on the code threads' default.
-    assert.equal(sub?.write, "ask");
+    // Nobody asked for more: it may change files as far as its caller may (Roby works in auto).
+    assert.equal(sub?.write, "auto");
     assert.equal(sub?.parent_id, t.id);
     const child = env.core.store.runs.list(sub?.id ?? "")[0];
     assert.ok(child?.parent_run_id, "the session's run belongs to the caller's run");
     // The worker read marker.txt by its relative path, and the caller got that back in its turn.
     const result = lastToolResult();
     assert.match(result, /Read: [\s\S]*northwind marker/);
-    assert.ok(result.includes(`It works in ${path.join(root, "sub")}, writes: ask.`), result);
+    assert.ok(result.includes(`It works in ${path.join(root, "sub")}, writes: auto.`), result);
   });
 });
 
-test("continuing a session in another folder opens a new one with the same helper instead of refusing", async () => {
+test("continuing a session in another folder of the project goes on in it, now working there", async () => {
   await withProject(async (root, project) => {
     const t = await env.client.call("threads.create", { kind: "loose", agent_id: "roby", project_id: project });
     await env.client.call("threads.send", { thread: t.id, text: "delegate to a project subpath" });
@@ -185,12 +185,13 @@ test("continuing a session in another folder opens a new one with the same helpe
     await env.settle(t.id);
     const result = lastToolResult();
     assert.doesNotMatch(result, /refused/);
-    assert.match(result, /Session "researcher" works elsewhere, so this is a new session "researcher-2"/);
+    assert.match(result, new RegExp(`It works in ${root.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")},`));
     const sessions = env.core.store.threads.sessions(t.id);
-    assert.deepEqual(sessions.map((s) => [s.session, s.cwd]).sort(), [
-      ["researcher", path.join(root, "sub")],
-      ["researcher-2", root],
-    ]);
+    assert.deepEqual(
+      sessions.map((s) => [s.session, s.cwd]),
+      [["researcher", root]],
+      "one session, moved to the root with its context",
+    );
   });
 });
 
@@ -217,7 +218,7 @@ test("a delegation's write policy is never looser than its caller's", async () =
     assert.equal(env.core.store.threads.sessions(code.id)[0]?.write, "read-only");
     assert.match(lastToolResult(), /writes: read-only \(auto would go further than you may\)/);
 
-    // Outside a folder, an agent that asks before every change hands on no more than that; others the default.
+    // Outside a folder, an agent that asks before every change hands on no more than that; others as far as they may.
     const store = env.core.store;
     const roby = store.agents.get("roby");
     const chat = store.threads.get(
@@ -225,21 +226,40 @@ test("a delegation's write policy is never looser than its caller's", async () =
     );
     assert.ok(roby && chat);
     const asked = { folder: "sub", write: "auto" } as const;
-    assert.deepEqual(workspaceOf(store, { ...roby, autonomy: "manual" }, chat, project, asked), {
+    const vera = store.agents.get("vera");
+    assert.ok(vera);
+    assert.deepEqual(workspaceOf(store, { ...roby, autonomy: "manual" }, vera, chat, project, asked), {
       cwd: path.join(root, "sub"),
       write: "ask",
     });
     assert.equal(
-      (workspaceOf(store, { ...roby, autonomy: "auto" }, chat, project, asked) as { write: string }).write,
+      (workspaceOf(store, { ...roby, autonomy: "auto" }, vera, chat, project, asked) as { write: string }).write,
       "auto",
     );
-    assert.equal((workspaceOf(store, roby, chat, project, { folder: "sub" }) as { write: string }).write, "ask");
+    // A folder asked with no policy: as far as its caller may, never more.
+    assert.equal((workspaceOf(store, roby, vera, chat, project, { folder: "sub" }) as { write: string }).write, "auto");
+    const manual = { ...roby, autonomy: "manual" as const };
     assert.equal(
-      workspaceOf(store, roby, chat, project, {}),
-      undefined,
-      "no folder nor policy asked: the project's root, as before",
+      (workspaceOf(store, manual, vera, chat, project, { folder: "sub" }) as { write: string }).write,
+      "ask",
+      "never more than its caller",
     );
-    assert.match(String(workspaceOf(store, roby, chat, project, { folder: "../.." })), /outside the project's folder/);
+    // A caller in total mode does not lift a callee, or a project it works in, kept stricter.
+    const total = { ...roby, autonomy: "total" as const };
+    const planner = { ...vera, autonomy: "plan" as const };
+    assert.equal((workspaceOf(store, total, planner, chat, project, asked) as { write: string }).write, "read-only");
+    await env.client.call("projects.update", { project, autonomy: "manual" });
+    assert.equal(
+      (workspaceOf(store, total, vera, chat, project, asked) as { write: string }).write,
+      "ask",
+      "the project's own mode caps it",
+    );
+    await env.client.call("projects.update", { project, autonomy: null });
+    assert.equal(workspaceOf(store, roby, vera, chat, project, {}), undefined, "nothing asked: no folder of its own");
+    assert.match(
+      String(workspaceOf(store, roby, vera, chat, project, { folder: "../.." })),
+      /outside the project's folder/,
+    );
   });
 });
 

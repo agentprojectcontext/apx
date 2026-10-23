@@ -1,8 +1,136 @@
 import assert from "node:assert/strict";
+import http from "node:http";
 import { afterEach, test } from "node:test";
 import { ApxClient, ApxError, ApxSocket } from "./client.ts";
 import { PROTOCOL_VERSION } from "./constants.ts";
 import type { MethodName } from "./methods.ts";
+
+test("a chat read survives one dropped response without retrying a one-time effect", async (t) => {
+  const reads: Array<{ headers: http.IncomingHttpHeaders; body: string }> = [];
+  let effects = 0;
+  const result = { thread: { id: "th_acme" }, messages: [], runs: [] };
+  const server = http.createServer(async (req, res) => {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    if (req.url === "/rpc/threads.get") {
+      reads.push({ headers: req.headers, body });
+      if (reads.length === 1) return req.socket.destroy();
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ ok: true, result }));
+      return;
+    }
+    effects++;
+    req.socket.destroy();
+  });
+  t.after(() => {
+    server.closeAllConnections();
+    return new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  let keys = 0;
+  const client = new ApxClient({
+    url: `http://127.0.0.1:${address.port}`,
+    token: "test-owner",
+    clientToken: "test-client",
+    actor: "agent",
+    requestKey: () => `key-${++keys}`,
+  });
+  assert.deepEqual(await client.call("threads.get", { thread: "th_acme" }), result);
+  assert.equal(reads.length, 2);
+  assert.equal(keys, 1);
+  assert.equal(reads[0]?.body, '{"thread":"th_acme"}');
+  assert.equal(reads[1]?.body, reads[0]?.body);
+  for (const name of ["authorization", "x-apx-client", "x-apx-actor", "idempotency-key"])
+    assert.equal(reads[1]?.headers[name], reads[0]?.headers[name]);
+  await assert.rejects(client.call("clients.create", { name: "Acme", scopes: ["chat"] }), TypeError);
+  assert.equal(effects, 1);
+});
+
+test("chat reads retry socket resets at most once within one deadline and request", async (t) => {
+  const timeout = AbortSignal.timeout;
+  let deadlines = 0;
+  t.mock.method(AbortSignal, "timeout", (ms: number) => {
+    deadlines++;
+    return timeout(ms);
+  });
+  const client = new ApxClient({ url: "http://core.example.com" });
+  for (const code of ["ECONNRESET", "UND_ERR_SOCKET"]) {
+    const requests: RequestInit[] = [];
+    const error = new TypeError("socket closed", { cause: { code } });
+    t.mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+      requests.push(init);
+      throw error;
+    });
+    const before = deadlines;
+    await assert.rejects(client.call("threads.get", { thread: "th_acme" }), (e) => e === error);
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1], requests[0]);
+    assert.equal(deadlines - before, 1);
+  }
+});
+
+test("chat read cancellation and non-socket failures never retry", async (t) => {
+  const client = new ApxClient({ url: "http://core.example.com" });
+  for (const code of ["ENOTFOUND", "ERR_TLS_CERT_ALTNAME_INVALID", undefined]) {
+    let attempts = 0;
+    const error = new TypeError("network failed", { cause: { code } });
+    t.mock.method(globalThis, "fetch", async () => {
+      attempts++;
+      throw error;
+    });
+    await assert.rejects(client.call("threads.get", { thread: "th_acme" }), (e) => e === error);
+    assert.equal(attempts, 1);
+  }
+  const controller = new AbortController();
+  let attempts = 0;
+  const error = new TypeError("socket closed", { cause: { code: "ECONNRESET" } });
+  t.mock.method(globalThis, "fetch", async () => {
+    attempts++;
+    controller.abort(new Error("view closed"));
+    throw error;
+  });
+  await assert.rejects(
+    client.withSignal(controller.signal).call("threads.get", { thread: "th_acme" }),
+    (e) => e === error,
+  );
+  assert.equal(attempts, 1);
+  t.mock.method(AbortSignal, "timeout", () => AbortSignal.abort(new Error("deadline elapsed")));
+  attempts = 0;
+  await assert.rejects(client.call("threads.get", { thread: "th_acme" }), (e) => e === error);
+  assert.equal(attempts, 1);
+});
+
+test("effects and chat read response errors are never retried", async (t) => {
+  const client = new ApxClient({ url: "http://core.example.com" });
+  let attempts = 0;
+  const error = new TypeError("socket closed", { cause: { code: "ECONNRESET" } });
+  t.mock.method(globalThis, "fetch", async () => {
+    attempts++;
+    throw error;
+  });
+  for (const call of [
+    () => client.call("terminal.input", { terminal: "term_acme", data: "echo Acme\n" }),
+    () => client.call("clients.create", { name: "Acme", scopes: ["chat"] }),
+    () => client.call("threads.send", { thread: "th_acme", text: "hello" }),
+  ]) {
+    attempts = 0;
+    await assert.rejects(call(), (e) => e === error);
+    assert.equal(attempts, 1);
+  }
+  for (const response of [
+    Response.json({ ok: false, error: { code: "unavailable", message: "try later" } }, { status: 503 }),
+    new Response("not JSON"),
+  ]) {
+    attempts = 0;
+    t.mock.method(globalThis, "fetch", async () => {
+      attempts++;
+      return response;
+    });
+    await assert.rejects(client.call("threads.get", { thread: "th_acme" }));
+    assert.equal(attempts, 1);
+  }
+});
 
 test("HTTP client sends credentials, actor, exact params and explicit or fresh idempotency keys", async (t) => {
   const requests: { url: string; init?: RequestInit }[] = [];
@@ -121,7 +249,11 @@ test("every long-running method gives its server time to finish and other method
     ["media.image", {}, 720_000],
     ["media.speak", {}, 150_000],
     ["media.transcribe", {}, 190_000],
+    ["media.upload", {}, 120_000],
     ["surfaces.media", {}, 120_000],
+    ["surfaces.fetch", {}, 45_000],
+    ["surfaces.export", {}, 180_000],
+    ["surfaces.import", {}, 180_000],
     ["memory.reindex", {}, 600_000],
     ["sessions.projects", {}, 60_000],
     ["sessions.import", {}, 300_000],

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { CORE_ENV_FILE, coreEnvDefaults, parseCoreEnv, RELEASE_FEED } from "@apx/protocol";
-import type { SecretsBackend } from "./secrets.ts";
+import { type SecretsBackend, systemBackend } from "./secrets-stores.ts";
 import { TELEMETRY_SINK } from "./telemetry-sink.ts";
 
 /**
@@ -67,6 +67,8 @@ export type CoreConfig = {
   slackApi: string | undefined;
   /** Google's sign-in and REST APIs under one address; a test environment points it at a fake one (APX_GOOGLE_API). */
   googleApi: string | undefined;
+  /** A Google OAuth client (`client_id:client_secret`) in place of the one this build ships (APX_GOOGLE_CLIENT). */
+  googleClient: string | undefined;
   /** iMessage tools on a Mac; APX_IMESSAGE=off hides them (a sandbox must never reach the owner's Messages). */
   imessage: boolean;
   /**
@@ -86,6 +88,11 @@ export type CoreConfig = {
   updates: "on" | "app" | "off";
   /** The super-agent tells what an update brought, on the first start of a newer release (APX_WHATS_NEW=off: never). */
   whatsNew: boolean;
+  /**
+   * The super-agent tells release news that applies to the owner, in its words on their channel (APX_NEWS=off: never;
+   * test cores start off, APX_NEWS=on turns it on there).
+   */
+  news: boolean;
   /** A supervisor starts the core again when it exits to update (`pnpm app` sets APX_SUPERVISED=1). */
   supervised: boolean;
   /** APX_APP: where install.sh/ps1 put this daemon (its bundles and `current`); unset for a checkout or the app. */
@@ -189,6 +196,7 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
         : undefined,
     slackApi: env.APX_SLACK_API || undefined,
     googleApi: env.APX_GOOGLE_API || undefined,
+    googleClient: env.APX_GOOGLE_CLIENT || undefined,
     publicUrl: env.APX_PUBLIC_URL?.replace(/\/$/, "") || undefined,
     expoPushUrl: env.APX_EXPO_PUSH_URL || "https://exp.host/--/api/v2/push/send",
     imessage: env.APX_IMESSAGE !== "off",
@@ -209,11 +217,12 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
     },
     ollamaUrl: env.APX_OLLAMA_URL || "http://127.0.0.1:11434",
     providers: [...custom, ...DEFAULT_PROVIDERS],
-    secrets: env.APX_SECRETS === "file" || process.platform !== "darwin" ? "file" : "keychain",
+    secrets: env.APX_SECRETS === "file" ? "file" : systemBackend(),
     llmTimeoutMs: Number(env.APX_LLM_TIMEOUT_MS ?? 45_000),
     agentName: env.APX_AGENT_NAME?.trim() || undefined,
     updates: env.APX_UPDATES === "off" ? "off" : env.APX_UPDATES === "app" ? "app" : "on",
     whatsNew: env.APX_WHATS_NEW !== "off",
+    news: env.APX_NEWS !== "off",
     supervised: env.APX_SUPERVISED === "1",
     app: env.APX_APP || undefined,
     releases: env.APX_RELEASES === "off" ? undefined : env.APX_RELEASES || RELEASE_FEED,
@@ -249,6 +258,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
     runtimeSkills: { homes: { home: over.home, ...native }, auto: false },
     updates: "off",
     whatsNew: false,
+    news: false,
     app: undefined,
     releases: undefined,
     telemetry: undefined,

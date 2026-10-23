@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apx-surface" content="app">
+<title>Sales</title>
+<script src="/_apx/kit@1.js"></script>
+</head>
+<body>
+<!-- Full shell: rail (sections) · sidebar (views inside the section) · shell (topbar, views, statusbar) · inspector. -->
+<div class="ax-app" data-ax-views data-ax-persist="ui.view">
+
+  <nav class="ax-rail" aria-label="Sections">
+    <button class="ax-rail__btn" data-ax-tip="Home"><ax-icon name="home"></ax-icon></button>
+    <button class="ax-rail__btn" aria-selected="true" data-ax-tip="Sales"><ax-icon name="chart"></ax-icon></button>
+    <button class="ax-rail__btn" data-badge data-ax-tip="Inbox"><ax-icon name="inbox"></ax-icon></button>
+    <button class="ax-rail__btn" data-ax-tip="Sources"><ax-icon name="database"></ax-icon></button>
+    <hr>
+    <button class="ax-rail__btn" data-ax-tip="Team"><ax-icon name="users"></ax-icon></button>
+    <div class="ax-rail__spacer"></div>
+    <button class="ax-rail__btn" data-view="settings" data-label="Settings" data-ax-tip="Settings"><ax-icon name="settings"></ax-icon></button>
+  </nav>
+
+  <aside class="ax-sidebar" id="sb">
+    <div class="ax-sidebar__head">
+      <b>Sales</b>
+      <button class="ax-iconbtn" data-ax-tip="Search"><ax-icon name="search"></ax-icon></button>
+    </div>
+    <div class="ax-sidebar__body">
+      <div class="ax-nav">
+        <button class="ax-nav__item" data-view="overview" aria-selected="true"><ax-icon name="grid"></ax-icon><span>Overview</span></button>
+        <button class="ax-nav__item" data-view="orders"><ax-icon name="list"></ax-icon><span>Orders</span><em>248</em></button>
+        <button class="ax-nav__item" data-view="alerts"><ax-icon name="alert"></ax-icon><span>Alerts</span><em>2</em></button>
+      </div>
+      <div class="ax-section">Segments <button class="ax-iconbtn ax-iconbtn--sm" data-ax-tip="New segment"><ax-icon name="plus"></ax-icon></button></div>
+      <details class="ax-group" open>
+        <summary class="ax-nav__item"><ax-icon name="folder"></ax-icon><span>By region</span><ax-icon name="chevD" class="chev" style="--s:14px"></ax-icon></summary>
+        <div class="ax-nav">
+          <button class="ax-nav__item ax-nav__item--sub"><span>North</span><em>112</em></button>
+          <button class="ax-nav__item ax-nav__item--sub"><span>South</span><em>81</em></button>
+          <button class="ax-nav__item ax-nav__item--sub"><span>West</span><em>55</em></button>
+        </div>
+      </details>
+      <details class="ax-group">
+        <summary class="ax-nav__item"><ax-icon name="folder"></ax-icon><span>By channel</span><ax-icon name="chevD" class="chev" style="--s:14px"></ax-icon></summary>
+        <div class="ax-nav">
+          <button class="ax-nav__item ax-nav__item--sub"><span>Online store</span><em>164</em></button>
+          <button class="ax-nav__item ax-nav__item--sub"><span>Retail</span><em>84</em></button>
+        </div>
+      </details>
+      <div class="ax-section">Sources</div>
+      <div class="ax-nav">
+        <button class="ax-nav__item"><ax-icon name="database"></ax-icon><span>Store orders</span><span class="ax-live" style="flex:none"></span></button>
+        <button class="ax-nav__item ax-nav__item--muted"><ax-icon name="database"></ax-icon><span>Point of sale</span><em>Offline</em></button>
+      </div>
+    </div>
+    <div class="ax-sidebar__foot">
+      <span class="ax-avatar ax-avatar--sm" style="--tint:var(--apx-brand-soft)">A</span>
+      <span class="ax-grow">Made by <span class="ax-agent">AGENT_NAME</span></span>
+      <button class="ax-iconbtn ax-iconbtn--sm" data-ax-tip="More"><ax-icon name="more"></ax-icon></button>
+    </div>
+  </aside>
+
+  <div class="ax-shell">
+    <header class="ax-topbar">
+      <button class="ax-iconbtn" data-ax-toggle="#sb" aria-pressed="true" data-ax-tip="Sidebar"><ax-icon name="panelL"></ax-icon></button>
+      <div class="ax-topbar__title"><span data-view-title>Overview</span><small>Store orders · all regions</small></div>
+      <span class="ax-live">Read <ax-ago datetime="2026-10-21T09:40:00Z"></ax-ago></span>
+      <div class="ax-seg" id="range"><button value="30" aria-pressed="true">30 d</button><button value="90">90 d</button><button value="all">All</button></div>
+      <button class="ax-btn ax-btn--primary ax-btn--sm" data-ax-ask="Refresh the reading of the Sales app">Refresh</button>
+      <button class="ax-iconbtn" data-ax-toggle="#insp" aria-pressed="true" data-ax-tip="Inspector"><ax-icon name="panelR"></ax-icon></button>
+    </header>
+
+    <main class="ax-main">
+      <div class="ax-main__inner" data-view-panel="overview">
+        <div class="ax-grid" style="--min:200px">
+          <div class="ax-card ax-stat"><div class="ax-stat__label">Revenue</div><div class="ax-row" style="align-items:baseline"><div class="ax-stat__value">$48.2k</div><span class="ax-delta ax-delta--up">+12%</span></div><ax-spark values="22,25,24,30,33,36,38,44,48" fill></ax-spark></div>
+          <div class="ax-card ax-stat"><div class="ax-stat__label">Orders</div><div class="ax-row" style="align-items:baseline"><div class="ax-stat__value">248</div><span class="ax-delta ax-delta--down">−4%</span></div><ax-split data='[{"label":"Paid","value":201,"tone":"brand"},{"label":"Pending","value":32,"tone":"warning"},{"label":"Refunded","value":15,"tone":"danger"}]'></ax-split></div>
+          <div class="ax-card" style="flex-direction:row;align-items:center;gap:14px"><ax-ring value="72" size="68"></ax-ring><div class="ax-stat"><div class="ax-stat__label">Monthly target</div><div class="ax-stat__foot">$48.2k of $67k</div></div></div>
+        </div>
+        <div class="ax-card">
+          <div class="ax-card__head"><h3 class="ax-card__title">Revenue</h3><span class="ax-sm ax-subtle">Thousands of dollars</span></div>
+          <ax-chart id="chart" type="area" height="200"></ax-chart>
+        </div>
+        <div class="ax-grid" style="--min:300px">
+          <div class="ax-card"><h3 class="ax-card__title">Top products</h3><ax-bars total="248" data='[{"label":"Desk lamp","value":64},{"label":"Notebook set","value":52},{"label":"Travel mug","value":41},{"label":"Wall clock","value":23,"tone":"warning"},{"label":"Plant pot","value":18}]'></ax-bars></div>
+          <div class="ax-card"><h3 class="ax-card__title">Channels</h3><div class="ax-row" style="--gap:20px;flex-wrap:nowrap"><ax-donut size="120" sub="orders" data='[{"label":"Online store","value":164,"tone":"brand"},{"label":"Retail","value":62,"tone":"info"},{"label":"Wholesale","value":22,"tone":"violet"}]'></ax-donut><table class="ax-table ax-grow"><tbody><tr><td>Online store</td><td class="r">164</td></tr><tr><td>Retail</td><td class="r">62</td></tr><tr><td>Wholesale</td><td class="r">22</td></tr></tbody></table></div></div>
+        </div>
+      </div>
+
+      <div class="ax-main__inner" data-view-panel="orders" data-ax-filter hidden>
+        <div class="ax-toolbar">
+          <label class="ax-search ax-grow"><input class="ax-input" data-ax-search placeholder="Search orders…"></label>
+          <select class="ax-select" data-ax-key="status"><option value="*">All statuses</option><option value="paid">Paid</option><option value="pending">Pending</option><option value="refunded">Refunded</option></select>
+          <span class="ax-sm ax-subtle" data-ax-count="{n} of {total}"></span>
+        </div>
+        <div class="ax-card" style="padding:6px 16px">
+          <table class="ax-table" data-ax-sort>
+            <thead><tr><th>Order</th><th>Customer</th><th>Region</th><th>Status</th><th class="r">Total</th></tr></thead>
+            <tbody>
+              <tr data-ax-item data-status="paid"><td class="ax-mono">#1048</td><td>Northwind Traders</td><td>North</td><td><span class="ax-badge ax-badge--brand">Paid</span></td><td class="r">$1,240</td></tr>
+              <tr data-ax-item data-status="pending"><td class="ax-mono">#1047</td><td>Acme Corp</td><td>South</td><td><span class="ax-badge ax-badge--warning">Pending</span></td><td class="r">$860</td></tr>
+              <tr data-ax-item data-status="paid"><td class="ax-mono">#1046</td><td>Contoso Ltd</td><td>West</td><td><span class="ax-badge ax-badge--brand">Paid</span></td><td class="r">$415</td></tr>
+              <tr data-ax-item data-status="refunded"><td class="ax-mono">#1045</td><td>Fabrikam</td><td>North</td><td><span class="ax-badge ax-badge--danger">Refunded</span></td><td class="r">$92</td></tr>
+              <tr data-ax-item data-status="paid"><td class="ax-mono">#1044</td><td>Tailspin Toys</td><td>South</td><td><span class="ax-badge ax-badge--brand">Paid</span></td><td class="r">$2,030</td></tr>
+              <tr data-ax-item data-status="pending"><td class="ax-mono">#1043</td><td>Wingtip Supply</td><td>West</td><td><span class="ax-badge ax-badge--warning">Pending</span></td><td class="r">$310</td></tr>
+            </tbody>
+          </table>
+          <div class="ax-empty" data-ax-empty hidden>No orders match</div>
+        </div>
+      </div>
+
+      <div class="ax-main__inner" data-view-panel="alerts" hidden>
+        <div class="ax-callout ax-callout--warning"><b>Refunds above 5%.</b> 15 of 248 orders were refunded this period, mostly wall clocks.</div>
+        <div class="ax-callout ax-callout--danger"><b>Point of sale offline.</b> Retail orders since Monday are not in these numbers yet.</div>
+      </div>
+
+      <div class="ax-main__inner" data-view-panel="settings" hidden style="--max:720px">
+        <div class="ax-settings">
+          <div class="ax-setgroup"><h3>Reading</h3>
+            <div class="ax-setrow"><div>Read automatically<small>Every 15 minutes through a routine</small></div><input type="checkbox" class="ax-switch" data-ax-persist="settings.auto" checked></div>
+            <div class="ax-setrow"><div>Leave out test orders<small>Orders placed with a test card</small></div><input type="checkbox" class="ax-switch" data-ax-persist="settings.noTest" checked></div>
+          </div>
+          <div class="ax-setgroup"><h3>Notices</h3>
+            <div class="ax-setrow"><div>Tell me in the chat<small>Only when a number changes</small></div><input type="checkbox" class="ax-switch" data-ax-persist="settings.notify"></div>
+            <div class="ax-setrow"><div>Currency</div><select class="ax-select" data-ax-persist="settings.currency"><option>USD</option><option>EUR</option></select></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="ax-statusbar"><span class="ax-live">Connected</span><span>248 orders · 6 customers new this week</span><span class="ax-grow"></span><span>APX Kit v1 · app</span></footer>
+  </div>
+
+  <aside class="ax-aside" id="insp">
+    <div class="ax-aside__head"><span class="ax-grow">Inspector</span><button class="ax-iconbtn ax-iconbtn--sm" data-ax-toggle="#insp" data-ax-tip="Close"><ax-icon name="x"></ax-icon></button></div>
+    <div class="ax-aside__body">
+      <dl class="ax-kv">
+        <dt>Source</dt><dd><span class="ax-code">store-orders</span></dd>
+        <dt>Owner</dt><dd><span class="ax-agent">AGENT_NAME</span></dd>
+        <dt>Routine</dt><dd>Every 15 min</dd>
+        <dt>Period</dt><dd>Last 30 days (UTC)</dd>
+      </dl>
+      <hr class="ax-divider">
+      <div class="ax-stack" style="--gap:8px"><span class="ax-sm ax-subtle">Last run</span>
+        <ol class="ax-steps"><li data-s="done">Orders<em>0.9s</em></li><li data-s="done">Refunds<em>0.3s</em></li><li data-s="done">Totals<em>0.1s</em></li><li data-s="failed">Point of sale<small>offline</small></li></ol>
+      </div>
+      <hr class="ax-divider">
+      <div class="ax-stack" style="--gap:8px"><span class="ax-sm ax-subtle">History</span>
+        <ol class="ax-timeline"><li style="--tone:var(--apx-brand)"><time>09:40</time>No changes</li><li style="--tone:var(--apx-info)"><time>09:25</time>+3 orders</li><li style="--tone:var(--apx-danger)"><time>08:10</time>Point of sale unreachable</li></ol>
+      </div>
+    </div>
+  </aside>
+</div>
+<script>
+// Sample series per range; a real app reads them with APX.live or from APX.db.
+const SERIES = {
+  30: { labels: ["W1", "W2", "W3", "W4"], now: [9.8, 11.2, 12.6, 14.6], prev: [9.1, 10.4, 10.9, 12.0] },
+  90: { labels: ["Jul", "Aug", "Sep", "Oct"], now: [31, 36, 41, 48], prev: [28, 30, 35, 39] },
+  all: { labels: ["Q1", "Q2", "Q3", "Q4"], now: [88, 104, 121, 48], prev: [70, 86, 97, 0] },
+};
+const range = document.getElementById("range");
+function draw(key) {
+  const s = SERIES[key];
+  const chart = document.getElementById("chart");
+  chart.setAttribute("labels", s.labels.join(","));
+  chart.setAttribute("data", JSON.stringify([
+    { name: "This period", values: s.now, tone: "brand" },
+    { name: "Previous", values: s.prev, tone: "info", dashed: true },
+  ]));
+  range.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.value === key)));
+}
+range.addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  APX.state.set("ui.range", b.value);
+  draw(b.value);
+});
+draw(APX.state.get("ui.range", "30"));
+</script>
+</body>
+</html>

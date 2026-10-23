@@ -13,7 +13,7 @@ Tasks are the office's to-do board, shared by you and your agents. You create th
 to an agent is enough for it to start. **Tasks** in the sidebar shows them from every project; each project has its
 own **Tasks** tab with **New task**.
 
-<Shot name="tasks" alt="The Tasks screen with groups In progress, Pending, In review and Blocked, each listing tasks with assignee and due date" caption="Tasks, across every project" />
+<Shot name="tasks" alt="The Tasks screen with groups In progress, Pending, In review and Needs your review, each listing tasks with assignee and due date" caption="Tasks, across every project" />
 
 ## What a task has
 
@@ -32,11 +32,16 @@ project or shows **All projects**; this browser remembers the choice for the nex
 
 ### How the list is grouped
 
+- **Proposed** (when there are any, on top): tasks an agent proposes and nothing starts until you accept them.
+  **Accept all** in its header, or **Accept** and **Drop** in each one's drawer. See
+  [Proposals](#proposals).
+- **Needs your review** (first): what is yours. An agent asked you something or needs your decision (it goes on when
+  you answer; you also mark it so with **Waits for your answer** from its menu), or a finished task you review to
+  close. Each row says which: **Asks you something** or **Reviews: You**.
 - **In progress**: its column is Doing, or an agent is working on it right now.
 - **Pending**: Backlog or To do, nobody started it yet.
-- **In review**: finished, waiting for someone to check it.
-- **Blocked**: waiting for your answer. An agent asked you something, or you marked it **Waits for your answer** from
-  the task's menu.
+- **In review**: finished, and the agent you named reviews it (**Reviewed by** in the drawer, or an agent naming one).
+  It is asked to review at once: asking for changes sends it back to whoever did it; approving makes it yours.
 - **Closed recently**: done or dropped, newest first.
 
 ## Assigning starts the work
@@ -48,29 +53,37 @@ task**. That chat is a normal chat listed in the Inbox: you can open it and watc
 
 1. Lucía creates "Write the shipping rates page" in Acme Store and picks **Tomás** in **Who does it**.
 2. Tomás's chat for the task opens with the task's words and he starts: reads the project, drafts the page.
-3. Each time a turn of his ends, his answer is posted to the task as **his comment**. The task keeps the conversation
-   about the work; the chat keeps the work itself (every tool call, every file).
-4. When he needs a decision, he asks you. The task moves to **Blocked** until you answer.
+3. His answers stay in his chat. He comments on the task when something is worth knowing: a step done and verified,
+   a block, something to review. The task keeps those comments; the chat keeps the work itself (every tool call,
+   every file). When he closes the task, his last answer is posted as his report.
+4. When he needs a decision, he asks you. The task moves to **Needs your review** until you answer.
 
 </Steps>
 
-Open a task and its drawer shows the description, the fields, the **Conversation** (comments) and the **History**
-(who created, moved, assigned or closed it). **Open Tomás's chat for this task** jumps to where the work happens. If
-you reassign it, the new agent gets its own chat and is told who worked on it before.
+Open a task and its drawer shows the description, the fields, the **Comments** and the **History** (who created,
+moved, assigned or closed it). **Sessions** at the top counts the chats the task was worked in and opens their list,
+to jump to where the work happens. If you reassign it, the new agent gets its own chat and is told who worked on it
+before, and where to read it.
 
 <Shot name="task-drawer" alt="A task open in its drawer: title, assignee, priority, and a conversation of comments from the owner and an agent" caption="A task's drawer: comments, fields and the work chat" />
 
-Assigned tasks that never started are picked up on their own: once an hour, the most pressing few get started.
+Assigned tasks that never started are picked up on their own: once an hour, the most pressing few get started. To
+have one start later (tomorrow morning, after a release), set **Starts** in its drawer, or `apx tasks add … --start
+2026-10-23T09:00`: its agent starts then, not when you assign it.
 
 ### Comments and @mentions
 
-Write in the task's **Comment** box. An `@name` asks that agent: it answers in its own chat for the task, and its
+Write in the task's **Comment** box. A comment that names no one waits a minute (so you can add another) and then
+goes to the task's agent, or to the super-agent when nobody has the task; its ticks show it sent, delivered and read.
+An `@name` asks that agent: it answers in its own chat for the task, and its
 answer comes back as a comment. Ask Vera from Lucía's task:
 
 > @Vera can you have the product photos by Thursday? This page needs them.
 
-Agents can mention each other the same way (two hops deep at most), and an agent can mention you to get your
-attention.
+An agent asks a teammate the same way: its `@name` in a comment opens a consult on the task, shown as a card with
+the question and the answer, and the answer comes back to the agent that asked, which goes on with its work. One
+comment asks two teammates at most, and the one answering a consult cannot ask anyone further. An agent can also
+mention you to get your attention.
 
 ### When an agent's task closes
 
@@ -96,10 +109,25 @@ start a correction run.
 
 A task can name a parent task, so "Spring launch" can hold the photos for Vera and the rates page for Tomás.
 
-<Aside type="caution" title="Partial">
-Sub-tasks exist in the core (a task created through the protocol can name its parent), but the panel still lists them
-as ordinary tasks and agents' task tools do not set a parent yet.
-</Aside>
+The list nests them under their parent. A task an agent creates while it works on a task is a sub-task of that one:
+the agent that owns a task carries it end to end, and hands a part to another agent through a sub-task, not a chat.
+
+### Proposals
+
+When an agent finishes, it may see more work: a QA pass, a review, something for another area. Work its own role
+hands out it creates and starts; the rest it **proposes**. A proposed task waits in **Proposed**, with who proposed
+it, until you accept it (it starts like any assigned task) or drop it. You get one notice per agent with how many it
+has waiting.
+
+Some tasks are proposals whatever the agent asks for:
+
+- **A wide hand-out.** When an agent hands tasks to a third agent or more in one turn (Roby splitting "check every
+  service for PHP vulnerabilities" into one task per service), they are proposed, so you pick which go ahead. The
+  **Ask before handing work to several agents** switch (Team, under **When agents work on their own**) turns this off.
+- **A hand-off chain three deep.** A sub-task of a sub-task of a sub-task is proposed, so agents cannot keep passing
+  work down on their own.
+- **Work given back up the chain.** A sub-task for an agent that created one of the tasks above it is proposed, so two
+  agents cannot ping-pong the same work.
 
 ## Commitments
 

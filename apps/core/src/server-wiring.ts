@@ -12,6 +12,7 @@ import { nativeApproval } from "./domain/approvals.ts";
 import type { Store } from "./domain/store.ts";
 import { audienceOf } from "./engine/audience.ts";
 import { createHooks } from "./engine/hooks.ts";
+import type { Permissions } from "./engine/permissions.ts";
 import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
 import type { Upkeep } from "./engine/upkeep.ts";
 import type { VmPrototype } from "./environments/prototype.ts";
@@ -60,7 +61,8 @@ import { routineHandlers } from "./rpc/routines.ts";
 import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
 import { setupHandlers } from "./rpc/setup.ts";
-import { systemHandlers, telemetryHandlers, updateHandlers } from "./rpc/system.ts";
+import { artifactHandlers } from "./rpc/surfaces.ts";
+import { newsHandlers, systemHandlers, telemetryHandlers, updateHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
 import { terminalHandlers } from "./rpc/terminal.ts";
@@ -69,16 +71,17 @@ import { threadHandlers } from "./rpc/threads.ts";
 import { transcriptionHandlers } from "./rpc/transcription.ts";
 import type { Secrets } from "./secrets.ts";
 import type { RuntimeHomes } from "./skills/runtimes.ts";
+import { kitSource, withKit } from "./surface-kit.ts";
 import type { Telemetry } from "./telemetry.ts";
 import { agentSetTools } from "./tools/agent-set.ts";
 import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
 import { chatTools } from "./tools/chats.ts";
 import { computerTools } from "./tools/computer.ts";
+import { connectionTools } from "./tools/connections.ts";
 import { contactTools } from "./tools/contact.ts";
 import { directoryTools } from "./tools/directory.ts";
 import { fileTools } from "./tools/files.ts";
-import { folderAccess } from "./tools/folders.ts";
 import { limitTools } from "./tools/limits.ts";
 import { mediaTools } from "./tools/media.ts";
 import { memoryTools } from "./tools/memory.ts";
@@ -87,6 +90,7 @@ import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
 import { requestTools } from "./tools/requests.ts";
 import { routineTools } from "./tools/routines.ts";
+import { settingsTools } from "./tools/settings.ts";
 import { shellTools } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
@@ -149,8 +153,9 @@ export function builtinTools(
     ...agentSetTools(store),
     ...chatTools(store),
     ...browserTools(store, home, vm),
-    ...surfaceTools(store),
+    ...surfaceTools(store, home),
     ...ownerTools(store),
+    ...connectionTools(),
     ...shellTools(store, home, port, vm),
     ...fileTools(store, home),
     ...messageTools(store, home),
@@ -158,8 +163,8 @@ export function builtinTools(
     ...routineTools(store),
     ...limitTools(store),
     ...skillTools(store, { home, apps: skillApps }),
-    ...memoryTools(),
-    ...mediaTools(),
+    ...memoryTools(store),
+    ...mediaTools(store, home),
     ...phoneTools(),
     ...computerTools(store),
     ...taskTools(store),
@@ -167,6 +172,7 @@ export function builtinTools(
     ...webTools(),
     ...contactTools(store),
     ...requestTools(store),
+    ...settingsTools(store),
     ...extra,
   ];
   // The owner may let an agent use one of them without asking again, as with an MCP tool (DECISIONS.md#d-062).
@@ -175,6 +181,8 @@ export function builtinTools(
 
 type HandlerDeps = {
   store: Store;
+  /** How agents act and how far their files reach (engine/permissions.ts). */
+  permissions: Permissions;
   /** The router from inside the core (late-bound: it exists once these handlers do). */
   internal: InternalCall;
   log: Log;
@@ -187,6 +195,7 @@ type HandlerDeps = {
   engine: Parameters<typeof threadHandlers>[1] & Parameters<typeof jobHandlers>[1] & Parameters<typeof taskHandlers>[1];
   upkeep: Parameters<typeof threadHandlers>[2] & Parameters<typeof gitHandlers>[1] & Pick<Upkeep, "study">;
   memory: Parameters<typeof memoryHandlers>[1];
+  memoryMaintenance: NonNullable<Parameters<typeof memoryHandlers>[2]>;
   channels: Parameters<typeof channelHandlers>[1];
   services: Parameters<typeof mediaHandlers>[0];
   scheduler: Parameters<typeof routineHandlers>[1];
@@ -217,6 +226,8 @@ type HandlerDeps = {
   runtimeHomes: Parameters<typeof resourceHandlers>[0]["runtimeHomes"];
   updates: Updates;
   telemetry: Telemetry;
+  /** Release news the super-agent tells. */
+  news: Parameters<typeof newsHandlers>[0];
   /** The panel build being served (its entry file). */
   panel: () => string | undefined;
   /** The addresses a paired device may reach this core on. */
@@ -234,6 +245,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: VmPrototype | undefined }) 
     ...desktopInstallHandlers(d.desktopInstaller),
     ...updateHandlers(d.updates),
     ...telemetryHandlers(d.telemetry),
+    ...newsHandlers(d.news),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)
@@ -248,7 +260,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: VmPrototype | undefined }) 
     ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
     ...runHandlers(d.store, d.engine),
     ...jobHandlers(d.store, d.engine),
-    ...memoryHandlers(d.store, d.memory),
+    ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
     ...channelHandlers(d.store, d.channels),
     ...mediaHandlers(d.services),
     ...transcriptionHandlers(d.services, d.localModels),
@@ -278,6 +290,14 @@ export function coreHandlers(d: HandlerDeps & { vm?: VmPrototype | undefined }) 
     }),
     ...providerHandlers(d.providers, d.secrets, d.chatgpt),
     ...appHandlers({ ...d.app, store: d.store, secrets: d.secrets, services: d.services }),
+    ...artifactHandlers({
+      store: d.store,
+      secrets: d.secrets,
+      home: d.app.home,
+      checkPage: d.headless?.available()
+        ? (html, onCall) => d.headless?.checkPage(html, onCall) ?? Promise.resolve({ errors: [], text: "", views: [] })
+        : undefined,
+    }),
     ...agentHandlers(d.store, d.apc, d.engines, d.tools),
     ...teamHandlers(d.store, d.apc, d.templateRoots, (s) => d.scheduler.nextFor(s)),
     ...fileHandlers(d.store, d.desktop, d.app.home),
@@ -313,7 +333,8 @@ export function coreHandlers(d: HandlerDeps & { vm?: VmPrototype | undefined }) 
     ...composerHandlers({
       store: d.store,
       home: d.app.home,
-      locate: (thread, file) => folderAccess(d.store, d.app.home, thread, file),
+      scopeOf: (caller) => d.permissions.forCaller(caller),
+      locate: (thread, file) => d.permissions.path(thread, file),
       services: d.services,
       checkModel: (ref, session) => refProblem(ref, d.engines, session),
     }),
@@ -403,8 +424,9 @@ export async function listen(
       {
         artifact: (t) => {
           const s = d.store.surfaces.byShareToken(t);
-          return s ? { title: s.title, html: s.html, app: s.app, connect: s.connect } : undefined;
+          return s ? { title: s.title, html: withKit(s.html), app: s.app, connect: s.connect } : undefined;
         },
+        kit: kitSource,
       },
       (token) => d.store.clients.byToken(token),
       (token) => d.store.devices.byToken(token),

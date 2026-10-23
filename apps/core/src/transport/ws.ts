@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { Server } from "node:http";
-import { ClientFrame, type HelloFrame, methodAccess, methods, PROTOCOL_VERSION } from "@apx/protocol";
+import {
+  ClientFrame,
+  FILE_PAYLOAD_BYTES,
+  type HelloFrame,
+  methodAccess,
+  methods,
+  PROTOCOL_VERSION,
+} from "@apx/protocol";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { Bus } from "../bus.ts";
 import type { Identity } from "../identity.ts";
@@ -9,7 +16,7 @@ import type { NodeBroker } from "../nodes/broker.ts";
 import { type Dispatch, NODE_METHODS } from "../rpc/router.ts";
 import { type Gate, localRequest, mayBeNode, refuse } from "./guard.ts";
 
-const MAX_PAYLOAD = 16 * 1024 * 1024;
+const MAX_PAYLOAD = FILE_PAYLOAD_BYTES;
 
 /** What a connection may call, so the client does not have to guess. */
 function methodsFor(hello: HelloFrame): string[] {

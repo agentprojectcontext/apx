@@ -5,6 +5,7 @@ import { copySurface, setSurfaceFlags } from "../data/actions.ts";
 import { blobOf, projectEntries, realProjectId, teamOf } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { openInstall } from "../surfaces/installRequest.ts";
 import { askForWidget } from "../surfaces/WidgetChat.tsx";
 
 export type BoardChoices = {
@@ -88,6 +89,7 @@ export function useBoardChoices(projectId: string, mine: SurfaceSummary[]): Boar
           : [{ label: t("board.noAgents"), disabled: true }],
       },
       ...load.slice(-1),
+      { label: t("artifact.install"), icon: <Icons.Upload />, onSelect: () => openInstall(here) },
     ];
     return { menu, load, askers, ask, askerLabel };
   }, [t, agents, projects, surfaces, superAgent, projectId, mine]);

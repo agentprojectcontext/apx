@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore, texts } from "../../engine/testkit.ts";
 import { realpath } from "../../paths.ts";
+import { openSession } from "./agents.ts";
 
 const FAKE = path.join(import.meta.dirname, "fake-agent.test-support.mjs");
 
@@ -67,4 +68,29 @@ test("an ACP agent's session runs the turn: model picked, its edit asks the owne
   await env.client.call("runs.wait", { run: again.run.id, timeout_s: 10 });
   const after2 = await env.settle(t.id);
   assert.ok(texts(after2.messages).includes("model=m2 edit=rejected instructions=false"));
+});
+
+test("a CLI nobody signed in to ends the session with how to sign in, and APX never signs it in itself", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-acp-auth-"));
+  const log = path.join(dir, "auth.log");
+  const agent = {
+    id: "fake",
+    label: "Fake ACP",
+    command: process.execPath,
+    args: [FAKE],
+    login: "fake login",
+    env: { FAKE_SIGNED_OUT: "1", FAKE_AUTH_LOG: log },
+  };
+  try {
+    await assert.rejects(
+      openSession(agent, { binary: process.execPath, cwd: os.tmpdir() }),
+      /Fake ACP is not signed in: run fake login in a terminal/,
+    );
+    // Its auth method opens the owner's browser from turns and model listings nobody watches.
+    assert.equal(fs.existsSync(log), false);
+  } finally {
+    // The CLI works outside the folder removed here: it is told to stop, not waited for, and Windows keeps a running
+    // process's folder (Node's native rmSync does not retry that).
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

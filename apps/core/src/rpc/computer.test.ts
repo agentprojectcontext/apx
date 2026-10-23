@@ -59,6 +59,13 @@ before(async () => {
   home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-computer-"));
   core = await createCore(testConfig({ home }), { quiet: true, llm });
   core.store.settings.set("model_default", JSON.stringify({ model: "fake/fake-1", router: false }));
+  core.store.settings.write("memory", {
+    mode: "notes",
+    skill_picker: true,
+    auto_compact: true,
+    auto_capture: false,
+    auto_dream: false,
+  });
   owner = new ApxClient({ url: core.url });
 });
 after(async () => {

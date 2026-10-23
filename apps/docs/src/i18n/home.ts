@@ -247,7 +247,7 @@ const en = {
       ["1", "way to run a turn", "was ~23 in v1"],
       ["1", "way to talk to an agent", "threads.send, everywhere"],
       ["~230", "typed methods in one registry", "was ~378 ad-hoc endpoints"],
-      ["8.1k", "tokens per model call", "the least of the apps we measured"],
+      ["8.2k", "tokens per model call", "the least of the apps we measured"],
     ],
     bars: {
       title: "Tokens every model call carries, fresh install",
@@ -525,7 +525,7 @@ const es: HomeText = {
       ["1", "forma de correr un turno", "eran ~23 en v1"],
       ["1", "forma de hablarle a un agente", "threads.send, en todos lados"],
       ["~230", "métodos tipados en un registro", "eran ~378 endpoints sueltos"],
-      ["8,1k", "tokens por llamada al modelo", "lo menos de las apps que medimos"],
+      ["8,2k", "tokens por llamada al modelo", "lo menos de las apps que medimos"],
     ],
     bars: {
       title: "Tokens que lleva cada llamada al modelo, instalación nueva",

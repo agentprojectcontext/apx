@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import type { PendingInput } from "@apx/protocol";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { realpath } from "../paths.ts";
 import { broadScan, commandRisk, reachesOut } from "./shell.ts";
@@ -114,6 +115,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(`Result: ${String(req.messages.at(-1)?.content).slice(0, 300)}`);
   if (said.includes("list then write")) return callTool("l1", "shell", { command: "ls" });
   if (said.includes("echo please")) return callTool("s1", "shell", { command: "echo hi-from-shell" });
+  if (said.includes("whose please")) return callTool("s9", "shell", { command: "echo agent=$APX_AGENT" });
   if (said.includes("background please"))
     return callTool("s2", "shell", { command: "sleep 0.2 && echo bg-done", background: true });
   if (said.includes("long please")) return callTool("s3", "shell", { command: "sleep 30", background: true });
@@ -252,7 +254,7 @@ test("auto: a command that changes something where the agent works runs without 
   assert.match(lastSeen(), /exit 0/);
 });
 
-test("auto reads in a cwd outside its folders; manual, in a chat with no project, is refused with what to do", async () => {
+test("auto reads in a cwd outside its folders; manual, in a chat with no project, asks the owner for that call", async () => {
   const t = await thread();
   await env.client.call("threads.send", { thread: t, text: "escape please" });
   await env.settle(t);
@@ -260,8 +262,16 @@ test("auto reads in a cwd outside its folders; manual, in a chat with no project
   await env.client.call("agents.update", { agent: "roby", autonomy: "manual" });
   try {
     await env.client.call("threads.send", { thread: t, text: "escape please" });
+    let input: PendingInput | undefined;
+    for (let i = 0; i < 80 && !input; i++) {
+      input = (await env.client.call("runs.pending", { thread: t })).inputs[0];
+      if (!input) await new Promise((r) => setTimeout(r, 25));
+    }
+    assert.equal(input?.folders?.length, 1, "a folder card, not a refusal");
+    assert.deepEqual(input?.approval_scopes, ["once"]);
+    await env.client.call("runs.respond", { input: input?.id ?? "", decision: "deny" });
     await env.settle(t);
-    assert.match(lastSeen(), /refused: \.\.\/\.\. is outside the folders you can read: .*Tell the owner/);
+    assert.match(lastSeen(), /not run: the owner declined/);
   } finally {
     await env.client.call("agents.update", { agent: "roby", autonomy: null });
   }
@@ -317,4 +327,11 @@ test("a build or a test run's output is the project's own; a command that reache
     "pip install x",
   ])
     assert.equal(reachesOut(c), true, c);
+});
+
+test("an agent's command says whose it is, so the apx CLI does not speak as the owner there", async () => {
+  const t = await thread();
+  await env.client.call("threads.send", { thread: t, text: "whose please" });
+  await env.settle(t);
+  assert.match(lastSeen(), /agent=roby/);
 });

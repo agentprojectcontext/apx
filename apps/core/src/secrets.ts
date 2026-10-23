@@ -1,20 +1,27 @@
 // Secrets by reference. Config and settings hold `secret://<name>` (or `env:<VAR>`); the value is read only by the
 // code that uses it, right when it uses it, and never leaves the core.
-// On macOS values live in the login Keychain (service "apx2", one per home): an agent harness sandboxed to read the disk
-// (Codex read-only) cannot read it. Elsewhere, and in tests, they live in <home>/secrets.json (0600).
-// See DECISIONS.md#d-010
-import { execFileSync } from "node:child_process";
+// Values live in the system's own store (secrets-stores.ts): the login Keychain on macOS, a DPAPI file on Windows, the
+// Secret Service keyring on Linux, so an agent harness sandboxed to read the disk cannot read them. Without one (a Linux
+// server with no keyring), and in tests, they live in <home>/secrets.json (0600). See DECISIONS.md#d-010
 import fs from "node:fs";
 import path from "node:path";
 import { defaultHome } from "./config.ts";
+import {
+  dpapiStore,
+  keychainStore,
+  type Run,
+  runCommand,
+  type SecretsBackend,
+  secretServiceStore,
+  type ValueStore,
+} from "./secrets-stores.ts";
 
-export type SecretsBackend = "keychain" | "file";
+export type { SecretsBackend } from "./secrets-stores.ts";
+
 type Entry = { value?: string; updated_at: string; hint?: string };
 
 /** Values at least this long keep their last four characters as a hint; shorter ones would give too much away. */
 const HINT_MIN = 12;
-
-const SECURITY = "/usr/bin/security";
 
 export type Secrets = ReturnType<typeof createSecrets>;
 
@@ -39,10 +46,28 @@ export function keychainService(home: string, main = defaultHome()): string {
   return at === path.resolve(main) ? "apx2" : `apx2:${at}`;
 }
 
-export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS.ProcessEnv = process.env) {
+export function createSecrets(
+  home: string,
+  wanted: SecretsBackend,
+  env: NodeJS.ProcessEnv = process.env,
+  run: Run = runCommand,
+) {
   const SERVICE = keychainService(home);
-  // The file holds values only for the file backend; with the Keychain it is just the index (names, dates).
-  const file = path.join(home, backend === "keychain" ? "secrets.index.json" : "secrets.json");
+  const index = path.join(home, "secrets.index.json");
+  const legacy = path.join(home, "secrets.json");
+  const stores: Record<Exclude<SecretsBackend, "file">, () => ValueStore> = {
+    keychain: () => keychainStore(SERVICE, run),
+    dpapi: () => dpapiStore(home, SERVICE, run),
+    "secret-service": () => secretServiceStore(SERVICE, run),
+  };
+  const candidate = wanted === "file" ? undefined : stores[wanted]();
+  // An index means values already went to the store: it stays chosen even while it does not answer (a keyring still
+  // locked at boot), or the owner's secrets would seem gone. Otherwise a store that does not work falls back to the file.
+  const store =
+    candidate && (wanted === "keychain" || fs.existsSync(index) || candidate.works()) ? candidate : undefined;
+  const backend: SecretsBackend = store ? wanted : "file";
+  // The file holds values only for the file backend; with a store it is just the index (names, dates).
+  const file = store ? index : legacy;
   const cache = new Map<string, string | undefined>();
   const read = (): Record<string, Entry> => {
     try {
@@ -57,30 +82,6 @@ export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS
     fs.writeFileSync(tmp, JSON.stringify(all, null, 2), { mode: 0o600 });
     fs.renameSync(tmp, file);
   };
-  const keychainGet = (name: string): string | undefined => {
-    try {
-      return execFileSync(SECURITY, ["find-generic-password", "-s", SERVICE, "-a", name, "-w"], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      }).replace(/\n$/, "");
-    } catch {
-      return undefined;
-    }
-  };
-  const keychainSet = (name: string, value: string | null) => {
-    if (value === null) {
-      try {
-        execFileSync(SECURITY, ["delete-generic-password", "-s", SERVICE, "-a", name], { stdio: "ignore" });
-      } catch {}
-      return;
-    }
-    // Through `security -i` on stdin: a value on argv would show up in the process list.
-    const q = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-    execFileSync(SECURITY, ["-i"], {
-      input: `add-generic-password -U -s ${SERVICE} -a ${q(name)} -w ${q(value)}\n`,
-      stdio: ["pipe", "ignore", "ignore"],
-    });
-  };
 
   const api = {
     backend,
@@ -90,9 +91,14 @@ export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS
       if (ref.startsWith("env:")) return env[ref.slice(4)] || undefined;
       if (!ref.startsWith("secret://")) return undefined;
       const name = ref.slice(9);
-      if (backend === "file") return read()[name]?.value || undefined;
-      if (!cache.has(name)) cache.set(name, keychainGet(name));
-      return cache.get(name);
+      if (!store) return read()[name]?.value || undefined;
+      if (cache.has(name)) return cache.get(name);
+      // The Keychain may hold a value from an earlier install in another home; the newer stores only what is listed.
+      if (backend !== "keychain" && !Object.hasOwn(read(), name)) return undefined;
+      const value = store.get(name);
+      // A miss is not kept: a keyring locked now may open later.
+      if (value !== undefined || backend === "keychain") cache.set(name, value);
+      return value;
     },
     has(ref: string | undefined): boolean {
       return api.resolve(ref) !== undefined;
@@ -121,14 +127,14 @@ export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS
     },
     set(name: string, value: string | null): void {
       const all = read();
-      if (backend === "keychain") {
-        keychainSet(name, value);
+      if (store) {
+        store.set(name, value);
         cache.delete(name);
       }
       if (value === null) delete all[name];
       else
         all[name] = {
-          ...(backend === "file" ? { value } : {}),
+          ...(store ? {} : { value }),
           updated_at: new Date().toISOString(),
           ...(value.length >= HINT_MIN ? { hint: value.slice(-4) } : {}),
         };
@@ -136,9 +142,8 @@ export function createSecrets(home: string, backend: SecretsBackend, env: NodeJS
     },
   };
 
-  // Values written by the file backend before the Keychain was used move there once, and the file goes away.
-  const legacy = path.join(home, "secrets.json");
-  if (backend === "keychain" && fs.existsSync(legacy)) {
+  // Values written by the file backend before a store was used move there once, and the file goes away.
+  if (store && fs.existsSync(legacy)) {
     try {
       const old = JSON.parse(fs.readFileSync(legacy, "utf8")) as Record<string, Entry>;
       for (const [name, e] of Object.entries(old)) if (e.value) api.set(name, e.value);

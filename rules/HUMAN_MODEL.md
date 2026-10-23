@@ -55,12 +55,13 @@ gets the types. There is no other way into a handler.
 - `packages/ui` ← web (and desktop through web). React + Base UI + CSS tokens.
 - `packages/install`: Node-only desktop download, checksum, installation and launch shared by core and terminal.
   The protocol remains isomorphic. Direct local human-only `desktop.install` starts one bounded operation;
-  `desktop.install_status` reports progress. The local web panel offers this when the desktop is absent.
+  `desktop.install_status` reports progress and `desktop.install_cancel` aborts a download still in progress.
+  The local web panel offers this when the desktop is absent; its sidebar keeps Open desktop above the account once installed.
 - `packages/surfaces` ← placement types and an inline CSS kit shared by panel, mobile and public widget hosts.
   The stored app flag controls layout in every host: widgets keep a 16–24px inset even when maximized;
   declared apps use zero inset and no kit width cap. Height fitting and view do not change the saved type; kit classes opt into
   APX typography, cards and responsive controls.
-  The bundled `apx-widgets` skill includes the starter. Agent `edit_widget` changes app/pin flags through
+  The bundled `apx-artifacts` skill (artifacts of kind widget or app) includes the starters. Agent `edit_widget` changes app/pin flags through
   `surfaces.update` without reading or replacing HTML; metadata-only changes preserve the content version and share link. No stylesheet requests or extra sandbox permissions.
 - `apps/core`: `transport → rpc → engine (turns) → harness / providers / tools → domain (one repository per
   aggregate over SQLite)`; `nodes/` routes capability calls to the desktop; `channels/` adapts the messaging apps
@@ -82,6 +83,8 @@ playable beside their words, even if transcription fails; `media.transcribe` can
 Agents share local project files through `send_file` → `media.attach`: a snapshot, at most 20 MB, scoped to
 their running owner's chat and work folder. Images appear inline; video/audio files play and download in the
 panel. Attachments survive changes to the source file and a chat reload.
+Composer uploads accept files and videos up to 20 MB, images up to 5 MB and audio up to 10 MB.
+HTTP and WebSocket payload bounds include base64 expansion; remote uploads have a two-minute client deadline.
 Agents open long reports, plans and reusable text documents with `open_document` after writing the file.
 It extends `media.attach` with bounded UTF-8 validation (400,000 bytes, `.md`/`.markdown`/`.txt`), uses the same
 owner-run/work-folder boundary, and persists a file part with document presentation metadata. The web/desktop
@@ -117,6 +120,7 @@ a thread's queue one run at a time → `engine/turn.ts` builds the context (`eng
 prompt, projected history, per-turn input with the origin envelope), logs the input, and hands the turn to the
 agent's harness (`harness/`: native over `providers/`, Claude Code, Codex, ACP agents, Aider and headless Antigravity) → every tool call goes through one
 executor (`engine/executor.ts`: check the arguments against the tool's zod schema → `tools/policy.ts` `authorize`
+→ the folders it may use, from `engine/permissions.ts`, the one service every permission question goes through
 → wait for the owner when it says so → `steps` row → run with a deadline → full output kept, a capped copy to the
 model) → the answer's parts stream as `message.part` events → the run ends completed / failed / canceled with a
 notice when there is no text. Tools that touch core state call protocol methods through the router as the agent
@@ -136,7 +140,18 @@ notice when there is no text. Tools that touch core state call protocol methods 
 - **Memory and long threads** (D-013): notes live in `memories` (FTS5) and reach a turn in its `[memory]` block
   (`engine/recall.ts`); `.apc/memory.md` joins `AGENTS.md` in the system prompt. After each run `engine/upkeep.ts`
   titles new chats and, when the history gets long, summarizes older turns into a new epoch that
-  `projectHistory` puts before the newest turns.
+  `projectHistory` puts before the newest turns. `engine/chat-recall.ts` retrieves literal owner messages from the
+  agent's own eligible chats in the same project, including old current-chat turns outside the projected context.
+  Visible sources are excluded before search limits. `engine/memory-episodes.ts` checkpoints historical indexing
+  independently of capture; bounded overlapping embeddings retain individual topics in long owner messages.
+  `engine/memory-maintenance.ts` drains durable `memory_work` jobs:
+  grounded private capture (up to three owner turns, literal sources and a separate semantic review) and idle AutoDream
+  (`engine/memory-dream.ts`: bounded source evidence, reviewed retirement, unambiguous local dates and a forget-share guard), through
+  the same router as tools. `engine/memory-procedure.ts` writes procedure history only after owner confirmation or a complete file readback;
+  `domain/memory-verification.ts` rechecks that evidence at the canonical write. Successful and failed attempts stay separate, and
+  `engine/recall.ts` adds an index of the agent's own notes to owner turns. Notes have revisions,
+  source evidence and reversible history; exclusions suppress forgotten sources in recall and retries. Model-log
+  snapshots record dependencies so edits invalidate old context and derived replies. See D-111–D-114.
 - **Waiting for the owner** (`engine/inputs.ts`): confirmations and `ask_owner` questions are `pending_inputs`
   rows, answered with `runs.respond` (owner only). The run's clock stops while it waits; an answer after a restart
   wakes the agent with a new run.
