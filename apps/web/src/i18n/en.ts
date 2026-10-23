@@ -493,6 +493,7 @@ export const en = {
   "chat.readOnly": "Conversation between agents · read only",
   "chat.with": "Chat with {name}",
   "chat.startHint": "Write below to get started.",
+  "chat.toBottom": "Go to the latest message",
   "chat.fromWidget": "From the widget",
   "chat.theAgent": "The agent",
   "chat.agentWorking": "{name} is working…",
