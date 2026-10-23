@@ -125,3 +125,22 @@ test("iMessage is a pair of tools on a Mac; elsewhere (this sandbox) the panel s
   await page.getByRole("menuitem", { name: /iMessage/ }).click();
   await expect(page.getByText("Solo en una Mac")).toBeVisible();
 });
+
+test("new channels are offered; Google Chat takes its subscription and whole JSON key; Teams and LINE wait", async ({
+  page,
+}) => {
+  await open(page);
+  await page.getByRole("button", { name: "Agregar canal" }).click();
+  for (const name of ["Google Chat", "SMS", "ntfy", "Nextcloud Talk", "IRC", "Twitch"])
+    await expect(page.getByRole("menuitem", { name, exact: true })).toBeEnabled();
+  for (const name of ["Microsoft Teams", "LINE"])
+    await expect(page.getByRole("menuitem", { name, exact: true })).toBeDisabled();
+  await page.getByRole("menuitem", { name: "Google Chat", exact: true }).click();
+  const connect = page.getByRole("button", { name: "Conectar bot" });
+  await page.getByRole("textbox", { name: "Suscripción", exact: true }).fill("projects/acme/subscriptions/apx-chat");
+  await expect(connect).toBeDisabled();
+  const key =
+    '{\n  "type": "service_account",\n  "client_email": "apx@acme.iam.gserviceaccount.com",\n  "private_key": "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n"\n}';
+  await page.getByRole("textbox", { name: "Clave de la cuenta de servicio (JSON)", exact: true }).fill(key);
+  await expect(connect).toBeEnabled();
+});

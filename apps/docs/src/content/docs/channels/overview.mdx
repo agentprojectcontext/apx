@@ -17,7 +17,7 @@ chats.
 
 ## Three words: channel, contact, room
 
-- A **channel** is an app APX talks through: Telegram, WhatsApp, Discord, Slack, iMessage.
+- A **channel** is an app APX talks through: Telegram, WhatsApp, Discord, Slack, iMessage, Google Chat, SMS and more.
 - A **contact** is a person on a channel. Each contact has a direct chat with your agent.
 - A **room** is a shared place many people read, such as a channel on your Discord server.
 
@@ -133,10 +133,14 @@ on for that chat; that needs a voice in **Settings › Voices** too.
 | [WhatsApp](/channels/whatsapp/) | Complete | A linked device, by QR |
 | [Discord](/channels/discord-slack/) | Complete | A bot: direct messages and server rooms |
 | [Slack](/channels/discord-slack/) | Complete | An app in Socket Mode: direct messages |
-| [iMessage](/channels/imessage/) | Tools on a Mac | Agents read and send; no incoming chats |
+| [iMessage](/channels/imessage/) | Unverified | On a Mac: tools agents use, and (optional) answering the people you approve |
 | Matrix, Mattermost, Signal | Unverified | In the panel, not yet tested against a real server |
 | Email | Unverified | A mailbox over IMAP and SMTP (an app password); tested only against a fake server |
-| Teams, Google Chat, SMS, LINE | Coming soon | Listed, can't be connected yet |
+| Google Chat | Unverified | A Chat app over Cloud Pub/Sub (no public address): direct messages and the spaces you list |
+| SMS | Unverified | A Twilio number, checked every few seconds (no webhook) |
+| ntfy | Unverified | Push notifications to your phone, and your replies from the ntfy app; only you |
+| Nextcloud Talk, IRC, Twitch | Unverified | A bot user (Nextcloud), a nick (IRC) or a bot account (Twitch chat); their rooms are listed like Telegram groups |
+| Teams, LINE | Coming soon | They deliver only to a public webhook, which APX doesn't take yet |
 
 <Aside type="note">
 The terminal adds Telegram bots only. Every other channel is set up in **Settings › Channels**.

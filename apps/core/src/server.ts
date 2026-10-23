@@ -18,12 +18,19 @@ import { createApcSync } from "./apc/sync.ts";
 import { createBus } from "./bus.ts";
 import { discordAdapter } from "./channels/discord.ts";
 import { emailAdapter } from "./channels/email.ts";
+import { googlechatAdapter } from "./channels/googlechat.ts";
+import { imessageAdapter } from "./channels/imessage.ts";
+import { ircAdapter } from "./channels/irc.ts";
 import { createChannels } from "./channels/manager.ts";
 import { matrixAdapter } from "./channels/matrix.ts";
 import { mattermostAdapter } from "./channels/mattermost.ts";
+import { nextcloudAdapter } from "./channels/nextcloud.ts";
+import { ntfyAdapter } from "./channels/ntfy.ts";
 import { signalAdapter } from "./channels/signal.ts";
 import { slackAdapter } from "./channels/slack.ts";
+import { smsAdapter } from "./channels/sms.ts";
 import { telegramAdapter } from "./channels/telegram.ts";
+import { twitchAdapter } from "./channels/twitch.ts";
 import type { AdapterFactory } from "./channels/types.ts";
 import { whatsappAdapter } from "./channels/whatsapp.ts";
 import { type CoreConfig, OAUTH_CHATGPT } from "./config.ts";
@@ -351,6 +358,14 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       email: (c, password) => emailAdapter(c, password, { dir: path.join(config.home, "channels", c.id) }),
       whatsapp: (c) =>
         whatsappAdapter({ dir: path.join(config.home, "channels", c.id), selfOwner: c.self_owner === true, log }),
+      // Messages' database on this Mac: no secret; it refuses to start anywhere else.
+      imessage: (c, s) => imessageAdapter(c, s, { dir: path.join(config.home, "channels", c.id) }),
+      googlechat: (c, secret) => googlechatAdapter(c, secret),
+      sms: (c, secret) => smsAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
+      ntfy: (c, secret) => ntfyAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
+      nextcloud: (c, secret) => nextcloudAdapter(c, secret, { dir: path.join(config.home, "channels", c.id) }),
+      irc: (c, secret) => ircAdapter(c, secret),
+      twitch: (c, secret) => twitchAdapter(c, secret),
     },
     ...(opts.channelRetryMs ? { retryMs: opts.channelRetryMs } : {}),
     call: internal,

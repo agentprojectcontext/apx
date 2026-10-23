@@ -1042,7 +1042,8 @@ export const appMethods = {
             email: ChannelEmail.optional(),
           })
           .nullable(),
-        token: z.string().min(8).max(400).optional(),
+        // A Google service account key travels whole (about 2.3 KB).
+        token: z.string().min(8).max(8000).optional(),
       })
       .strict(),
     result: z.object({ channels: z.array(ChannelInfo) }),
