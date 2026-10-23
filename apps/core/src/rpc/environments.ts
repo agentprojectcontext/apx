@@ -26,14 +26,18 @@ export function environmentHandlers(store: Store, vm?: Computer, cancel: Engine[
     if (!enabled().permitted(ctx.agent.id, thread)) throw unauthorized("this agent may not use the computer");
     return run;
   };
-  const appearance = () => (store.settings.get("vm_appearance") === "dark" ? "dark" : "light");
+  const look = () => (store.settings.get("vm_appearance") === "dark" ? "dark" : "light");
   return {
     "environments.status": ({ thread }) =>
       vm?.status(thread) ?? { enabled: false, ready: false, name: "", workspace: "" },
     "environments.enable": ({ thread, appearance }) => enabled().enable(thread, appearance),
     "environments.start": ({ thread }, ctx) => {
       const run = caller(thread, ctx);
-      return run ? enabled().start(thread, appearance(), run.id) : enabled().enable(thread, appearance());
+      return run ? enabled().start(thread, run.agent_id, run.id) : enabled().enable(thread, look());
+    },
+    "environments.release": ({ thread }, ctx) => {
+      const run = caller(thread, ctx);
+      return enabled().leave(thread, run?.id);
     },
     "environments.configure": async (params) => {
       const computer = enabled();
@@ -51,30 +55,24 @@ export function environmentHandlers(store: Store, vm?: Computer, cancel: Engine[
       return { resources: computer.resources(), idle_minutes: next.idle_minutes };
     },
     "environments.permit": ({ agent, on }) => enabled().permit(agent, on),
-    "environments.control": ({ thread, mode }) => enabled().control(thread, mode, () => cancel(thread)),
-    "environments.stop": ({ thread }, ctx) =>
-      caller(thread, ctx)
-        ? enabled().stop(thread, () => {}, "agent")
-        : enabled().stop(thread, () => {
-            cancel(thread);
-          }),
-    "environments.appearance": ({ thread, appearance }) => enabled().appearance(thread, appearance),
-    "environments.bind": ({ thread }) => {
-      const computer = enabled();
-      if (!computer.serves(thread)) throw badRequest("use an owner's native chat");
-      const agent = store.threads.get(thread)?.agent_ids[0];
-      if (agent && !computer.permitted(agent, thread))
-        throw conflict(`${store.agents.get(agent)?.name ?? agent} may not use the computer; allow it first`);
-      computer.bind(thread);
+    "environments.usage": async () => (await vm?.usage()) ?? { running: false },
+    "environments.control": ({ screen, mode }) => enabled().control(screen, mode, (thread) => cancel(thread)),
+    "environments.stop": async () => {
+      await enabled().halt("owner", (thread) => {
+        cancel(thread);
+      });
       return { ok: true as const };
     },
-    "environments.display": async ({ thread }, ctx) => {
-      await enabled().requireRunning(thread);
-      return enabled().display(thread, ctx.device?.id);
+    "environments.appearance": ({ appearance }) => enabled().appearance(appearance),
+    "environments.bind": ({ thread }) => {
+      enabled().bind(thread);
+      return { ok: true as const };
     },
-    "environments.command": ({ thread, command }, ctx) => {
+    "environments.display": ({ screen }, ctx) => enabled().display(screen, ctx.device?.id),
+    "environments.command": ({ thread, command, screen }, ctx) => {
       const run = caller(thread, ctx);
-      return enabled().command(thread, command, run ? "agent" : "human");
+      if (!run && screen === undefined) throw badRequest("name the agent screen to run it on");
+      return enabled().command(run ? { run: run.id } : { screen: screen ?? 1 }, command);
     },
   } satisfies Partial<Handlers>;
 }

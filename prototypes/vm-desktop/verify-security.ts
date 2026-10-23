@@ -15,8 +15,9 @@ if (!path.basename(runtime).startsWith("apx-vm-lab-")) throw new Error("Use an i
 const { url } = JSON.parse(fs.readFileSync(path.join(runtime, "running.json"), "utf8")) as { url: string };
 const client = new ApxClient({ url: new URL(url).origin });
 const status = await client.call("environments.status", {});
-assert.ok(status.ready && status.thread, "Start the protected lab computer first");
-const { runs } = await client.call("threads.get", { thread: status.thread });
+const chat = status.chats?.[0];
+assert.ok(status.ready && chat, "Start the protected lab computer first");
+const { runs } = await client.call("threads.get", { thread: chat });
 assert.ok(
   runs.every((run) => run.ended_at),
   "Wait for active agent work before testing",

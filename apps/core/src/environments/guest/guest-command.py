@@ -3,6 +3,7 @@ import base64
 import fcntl
 import json
 import os
+import pwd
 import signal
 import subprocess
 import sys
@@ -11,7 +12,8 @@ import uuid
 from pathlib import Path
 from apx_vm_session import desktop_environment
 
-state = Path("/home/apx-worker/.local/state/apx-vm/commands")
+home = Path(pwd.getpwuid(os.getuid()).pw_dir)
+state = home / ".local/state/apx-vm/commands"
 state.mkdir(parents=True, exist_ok=True, mode=0o700)
 operation = str(uuid.UUID(sys.argv[2])) if len(sys.argv) > 2 else str(uuid.uuid4())
 record = state / operation
@@ -40,8 +42,8 @@ if sys.argv[1] == "--cancel":
     sys.exit(0)
 
 command = base64.b64decode(sys.argv[1], validate=True).decode("utf-8")
-os.chdir("/home/apx-worker/work")
-transcript = "/home/apx-worker/work/.apx-terminal.log"
+os.chdir(home / "work")
+transcript = str(home / "work/.apx-terminal.log")
 if os.path.exists(transcript) and os.path.getsize(transcript) > 2 * 1024 * 1024:
     open(transcript, "w").close()
 with open(transcript, "a") as screen:

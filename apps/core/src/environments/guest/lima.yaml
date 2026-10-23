@@ -27,7 +27,7 @@ provision:
       export DEBIAN_FRONTEND=noninteractive
       apt-get update
       dpkg --configure -a || apt-get -f install -y --no-install-recommends
-      apt-get install -y --no-install-recommends xfce4 xfce4-terminal tigervnc-standalone-server dbus-x11 chromium xdotool x11-utils netcat-openbsd python3 fonts-dejavu nftables
+      apt-get install -y --no-install-recommends xfce4 xfce4-terminal tigervnc-standalone-server dbus-x11 xauth chromium xdotool x11-utils netcat-openbsd python3 fonts-dejavu nftables
       mkdir -p /home/apx/work /home/apx/.config/autostart
       chown -R apx:apx /home/apx/work /home/apx/.config
       usermod --comment 'APX Lab' apx

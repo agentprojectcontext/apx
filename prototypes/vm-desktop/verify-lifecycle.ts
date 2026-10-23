@@ -19,9 +19,9 @@ const wait = async (phase: string) => {
   }
 };
 await wait("running");
-await client.call("environments.control", { thread, mode: "human" });
+// The owner's own screen (0) is theirs from the start.
 const guest = async (command: string) => {
-  const result = await client.call("environments.command", { thread, command });
+  const result = await client.call("environments.command", { thread, command, screen: 0 });
   assert.equal(result.code, 0, result.output);
   return result.output.trim();
 };
@@ -29,12 +29,13 @@ await guest("printf 'persistent VM file\\n' > lifecycle-check.txt");
 await guest("xfconf-query -c xfwm4 -p /general/workspace_count -r || true");
 const unset = await client.call("environments.command", {
   thread,
+  screen: 0,
   command: "xfconf-query -c xfwm4 -p /general/workspace_count",
 });
 assert.notEqual(unset.code, 0, "fresh Xfce defaults must be absent for this regression check");
 await guest("/usr/local/bin/apx-appearance light --reset");
 for (const appearance of ["light", "dark"] as const) {
-  await client.call("environments.appearance", { thread, appearance });
+  await client.call("environments.appearance", { appearance });
   assert.equal(await guest("xfconf-query -c xsettings -p /Net/ThemeName"), `APX-Green-${appearance}`);
   assert.equal(
     await guest("xfconf-query -c xfce4-terminal -p /color-background"),

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Bridge Chromium's private CDP pipe through SSH; no debugging TCP listener."""
 import os
+import pwd
 import selectors
 import signal
 import subprocess
@@ -13,7 +14,7 @@ with open("/tmp/apx-browser.log", "ab", buffering=0) as log:
     child = subprocess.Popen(
         ["/bin/bash", "-c", 'exec 3<&"$1" 4>&"$2"; shift 2; exec "$@"', "apx-browser",
          str(incoming), str(outgoing), "/usr/bin/chromium", "--remote-debugging-pipe",
-         "--user-data-dir=/home/apx-worker/.config/apx-agent-browser", "--ozone-platform=x11",
+         f"--user-data-dir={pwd.getpwuid(os.getuid()).pw_dir}/.config/apx-agent-browser", "--ozone-platform=x11",
          "--no-first-run", "--no-default-browser-check", "--disable-session-crashed-bubble",
          "--proxy-server=http://127.0.0.1:3128", "--proxy-bypass-list=localhost;127.0.0.1;[::1]",
          "--disable-dev-shm-usage", "--disable-gpu", "--disable-sync", "--disable-extensions",

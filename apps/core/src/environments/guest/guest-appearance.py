@@ -2,6 +2,8 @@
 """Apply APX's resolved appearance without replacing a custom owner wallpaper."""
 from pathlib import Path
 import configparser
+import os
+import pwd
 import re
 import shutil
 import subprocess
@@ -9,7 +11,7 @@ import sys
 import time
 from apx_vm_session import desktop_environment
 
-home = Path('/home/apx-worker')
+home = Path(pwd.getpwuid(os.getuid()).pw_dir)
 assets = home / '.local/share/apx-vm'
 marker = home / '.config/apx-vm/appearance-version'
 mode_file = home / '.config/apx-vm/appearance-mode'

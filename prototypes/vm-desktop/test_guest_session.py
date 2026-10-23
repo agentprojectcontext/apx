@@ -33,6 +33,17 @@ class GuestSessionTest(unittest.TestCase):
         self.assertEqual(environment["XDG_RUNTIME_DIR"], f"/run/user/{os.getuid()}")
         self.assertNotIn("PRIVATE_VALUE", environment)
 
+    def test_an_agent_screen_user_uses_only_its_own_display(self):
+        self.session(10)
+        self.session(20, display=":103", address="unix:path=/tmp/apx-agent-bus")
+        with patch("apx_vm_session.os.getuid", return_value=2003), patch(
+            "apx_vm_session.pwd.getpwuid", return_value=type("A", (), {"pw_dir": "/home/apx-a3", "pw_name": "apx-a3"})()
+        ), patch.object(Path, "stat", return_value=type("S", (), {"st_uid": 2003})()):
+            environment = desktop_environment(self.proc)
+        self.assertEqual(environment["DISPLAY"], ":103")
+        self.assertEqual(environment["HOME"], "/home/apx-a3")
+        self.assertEqual(environment["DBUS_SESSION_BUS_ADDRESS"], "unix:path=/tmp/apx-agent-bus")
+
     def test_ignores_another_users_session(self):
         self.session(10)
         with patch("apx_vm_session.os.getuid", return_value=os.getuid() + 1):

@@ -9,7 +9,7 @@ import { secureGuest, verifyGuest } from "./guest-security.ts";
 import { createVmLifecycle } from "./lifecycle.ts";
 import { installLima, LIMA_VERSION } from "./lima-install.ts";
 import { limaProcess } from "./lima-process.ts";
-import { GUEST_ASSETS, provisionDesktop } from "./provision.ts";
+import { GUEST_ASSETS, provisionDesktop, screenDriver } from "./provision.ts";
 import {
   type ComputerResources,
   configuredResources,
@@ -20,7 +20,6 @@ import {
   thisHost,
 } from "./resources.ts";
 import { computerUsage, diskImageBytes } from "./usage.ts";
-import { workerArgs } from "./worker.ts";
 
 const GIB = 1024 ** 3;
 
@@ -33,7 +32,7 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
   const root = path.join(home, "computer");
   const limaHome = external?.limaHome ?? path.join(root, "lima");
   const instance = external?.instance ?? "computer";
-  const prepared = path.join(root, "desktop-ready-v2");
+  const prepared = path.join(root, "desktop-ready-v3");
   const env = { PATH: withUsualDirs(process.env.PATH ?? ""), HOME: os.homedir(), LIMA_HOME: limaHome };
   const privateBinary = path.join(root, `lima-${LIMA_VERSION}/bin/limactl`);
   let executable = fs.existsSync(privateBinary) ? privateBinary : (findProgram("limactl", env.PATH) ?? privateBinary);
@@ -79,9 +78,9 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
         await egress.connect();
       }
     },
-    appearance: (mode) =>
-      run(["shell", instance, "--", ...workerArgs("/usr/local/bin/apx-appearance", mode)]).then(() => {}),
-    async prepare(mode, signal, progress) {
+    // Each agent screen follows the appearance when it starts and when it changes (Computer.appearance).
+    appearance: async () => {},
+    async prepare(_mode, signal, progress) {
       if (limaHome.length > 70) throw new Error("APX home is too long for Lima's SSH sockets; use a shorter APX_HOME");
       fs.mkdirSync(root, { recursive: true, mode: 0o700 });
       fs.mkdirSync(limaHome, { recursive: true, mode: 0o700 });
@@ -121,11 +120,7 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
       else await secureGuest(run, instance, signal);
       await egress.connect();
       signal.throwIfAborted();
-      await provisionDesktop(run, instance, mode, signal, external?.demo);
-      // Read the latest choice after provisioning so a theme change during installation is not lost.
-      const latest = store.settings.get("vm_appearance") === "dark" ? "dark" : "light";
-      if (latest !== mode)
-        await run(["shell", instance, "--", ...workerArgs("/usr/local/bin/apx-appearance", latest)], { signal });
+      await provisionDesktop(run, instance, signal, external?.demo);
       signal.throwIfAborted();
       fs.writeFileSync(prepared, "1\n", { mode: 0o600 });
     },
@@ -137,6 +132,7 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
     executable: binary,
     env,
     lifecycle,
+    screens: screenDriver(run, instance),
     applied,
     usage: () =>
       computerUsage({

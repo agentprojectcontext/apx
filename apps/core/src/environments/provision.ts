@@ -2,18 +2,21 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { LimaRun } from "./lima-process.ts";
-import { workerArgs } from "./worker.ts";
+import { screenArgs, screenUser, workerArgs } from "./worker.ts";
 
 export const GUEST_ASSETS = path.join(import.meta.dirname, "guest");
 
+const PROXY =
+  "Environment=http_proxy=http://127.0.0.1:3128\nEnvironment=https_proxy=http://127.0.0.1:3128\nEnvironment=no_proxy=localhost,127.0.0.1,::1\n";
+
+/** User units every agent's screen user starts with its display number (`apx-desktop@103`). */
+export const screenUnits = () => ({
+  "apx-desktop@.service": `[Unit]\nDescription=APX screen :%i\n[Service]\nEnvironment=DISPLAY=:%i\n${PROXY}ExecStart=/usr/local/bin/apx-desktop :%i\nRestart=no\n`,
+  "apx-agent-terminal@.service": `[Unit]\nDescription=APX agent terminal :%i\n[Service]\nEnvironment=DISPLAY=:%i\nEnvironment=XAUTHORITY=%h/.Xauthority\n${PROXY}ExecStart=/usr/bin/xfce4-terminal --disable-server --title=APX-Agent --geometry=75x16+570+440 --command="tail -n 60 -f %h/work/.apx-terminal.log"\nRestart=no\n`,
+});
+
 /** Shared by optional installation and the isolated lab, including every subsequent VM boot. */
-export async function provisionDesktop(
-  run: LimaRun,
-  instance: string,
-  mode: "light" | "dark",
-  signal?: AbortSignal,
-  demo = false,
-) {
+export async function provisionDesktop(run: LimaRun, instance: string, signal?: AbortSignal, demo = false) {
   const admin = (args: string[], input?: string | Buffer) => run(["shell", instance, "--", ...args], { input, signal });
   const guest = (args: string[], input?: string | Buffer) => admin(workerArgs(...args), input);
   for (const [source, target] of [
@@ -26,44 +29,52 @@ export async function provisionDesktop(
     await admin(["sudo", "tee", `/usr/local/bin/${target}`], fs.readFileSync(path.join(GUEST_ASSETS, source)));
     await admin(["sudo", "chmod", "755", `/usr/local/bin/${target}`]);
   }
-  const appearance = "/home/apx-worker/.local/share/apx-vm";
-  await guest(["mkdir", "-p", appearance, "/home/apx-worker/.config/systemd/user"]);
-  await guest(
-    ["tar", "-xzf", "-", "-C", appearance],
-    execFileSync("tar", ["-czf", "-", "-C", path.join(GUEST_ASSETS, "appearance"), "."], {
-      maxBuffer: 8 * 1024 * 1024,
-    }),
+  await admin(
+    ["sudo", "tee", "/usr/local/libexec/apx-computer-user"],
+    fs.readFileSync(path.join(GUEST_ASSETS, "user.sh")),
   );
-  await guest(["touch", "/home/apx-worker/work/.apx-terminal.log"]);
-  const unit = async (name: string, command: string) =>
-    guest(
-      ["tee", `/home/apx-worker/.config/systemd/user/${name}.service`],
-      `[Unit]\nDescription=APX ${name}\n[Service]\nEnvironment=DISPLAY=:1\nEnvironment=http_proxy=http://127.0.0.1:3128\nEnvironment=https_proxy=http://127.0.0.1:3128\nEnvironment=no_proxy=localhost,127.0.0.1,::1\nExecStart=${command}\nRestart=no\n`,
-    );
-  await unit("apx-desktop", "/usr/local/bin/apx-desktop");
-  await unit(
-    "apx-agent-terminal",
-    '/usr/bin/xfce4-terminal --disable-server --title=APX-Agent --geometry=75x16+570+440 --command="tail -n 60 -f /home/apx-worker/work/.apx-terminal.log"',
-  );
-  await guest(["systemctl", "--user", "daemon-reload"]);
-  await guest(["systemctl", "--user", "start", "apx-desktop.service"]);
-  await guest(["/usr/local/bin/apx-appearance", mode]);
-  await guest(["systemctl", "--user", "start", "apx-agent-terminal.service"]);
+  await admin(["sudo", "chmod", "755", "/usr/local/libexec/apx-computer-user"]);
+  const assets = execFileSync("tar", ["-czf", "-", "-C", path.join(GUEST_ASSETS, "appearance"), "."], {
+    maxBuffer: 8 * 1024 * 1024,
+  });
+  // A shared, root-owned copy each agent's screen user gets its own copy of (user.sh).
+  await admin(["sudo", "mkdir", "-p", "/usr/local/share/apx-vm"]);
+  await admin(["sudo", "tar", "-xzf", "-", "-C", "/usr/local/share/apx-vm"], assets);
+  for (const [name, unit] of Object.entries(screenUnits()))
+    await admin(["sudo", "tee", `/etc/systemd/user/${name}`], unit);
+  // No screen for the probe user: the lab's sample site is served from its home for the agents' browsers to open.
   if (demo) {
-    await unit(
-      "apx-demo-browser",
-      "/usr/bin/chromium --ozone-platform=x11 --disable-gpu --no-first-run --disable-dev-shm-usage --disable-session-crashed-bubble --window-size=1050,730 --window-position=20,30 file:///home/apx-worker/work/acme.html",
-    );
-    await unit(
-      "apx-demo-terminal",
-      "/usr/bin/xfce4-terminal --disable-server --title=APX-VM --geometry=75x17+570+400 --working-directory=/home/apx-worker/work",
-    );
+    const unit = `[Unit]\nDescription=APX demo site\n[Service]\nExecStart=/usr/bin/python3 -m http.server 8080 --bind 127.0.0.1 --directory /home/apx-worker/work\nRestart=no\n`;
+    await guest(["mkdir", "-p", "/home/apx-worker/work", "/home/apx-worker/.config/systemd/user"]);
+    await guest(["tee", "/home/apx-worker/.config/systemd/user/apx-demo-site.service"], unit);
     await guest(["tee", "/home/apx-worker/work/acme.html"], fs.readFileSync(path.join(GUEST_ASSETS, "acme.html")));
-    await unit(
-      "apx-demo-site",
-      "/usr/bin/python3 -m http.server 8080 --bind 127.0.0.1 --directory /home/apx-worker/work",
-    );
     await guest(["systemctl", "--user", "daemon-reload"]);
     await guest(["systemctl", "--user", "start", "apx-demo-site.service"]);
   }
 }
+
+/**
+ * An agent's screen: its locked user (created once), its own desktop on its display, APX's appearance. Stopping it
+ * ends that user's session, so its desktop and browser give their memory back; its home is kept.
+ */
+export function screenDriver(run: LimaRun, instance: string) {
+  const admin = (args: string[], signal?: AbortSignal, timeout?: number) =>
+    run(["shell", instance, "--", ...args], { ...(signal ? { signal } : {}), ...(timeout ? { timeout } : {}) });
+  return {
+    async start(screen: number, mode: "light" | "dark", signal?: AbortSignal) {
+      const u = screenUser(screen);
+      const display = u.display.slice(1);
+      await admin(["sudo", "-n", "/usr/local/libexec/apx-computer-user", String(screen)], signal, 60_000);
+      await admin(screenArgs(screen, "systemctl", "--user", "start", `apx-desktop@${display}.service`), signal);
+      await admin(screenArgs(screen, "/usr/local/bin/apx-appearance", mode), signal, 30_000);
+      await admin(screenArgs(screen, "systemctl", "--user", "start", `apx-agent-terminal@${display}.service`), signal);
+    },
+    async appearance(screen: number, mode: "light" | "dark") {
+      await admin(screenArgs(screen, "/usr/local/bin/apx-appearance", mode), undefined, 30_000);
+    },
+    async stop(screen: number) {
+      await admin(["sudo", "-n", "systemctl", "stop", `user@${screenUser(screen).uid}.service`], undefined, 30_000);
+    },
+  };
+}
+export type ScreenDriver = ReturnType<typeof screenDriver>;

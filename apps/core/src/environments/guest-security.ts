@@ -33,10 +33,11 @@ assert Path('/etc/apx-computer/egress.nft').stat().st_uid==0
 assert Path('/etc/apx-computer/egress.nft').stat().st_mode & 0o022==0
 rules=json.loads(subprocess.check_output(['nft','-j','list','table','inet','apx_computer']))
 expressions=[r['rule']['expr'] for r in rules['nftables'] if 'rule' in r and r['rule']['chain']=='output']
-assert len(expressions)==2
-assert expressions[0][0]['match']['right']==1001 and expressions[0][1]['match']['right']=='lo'
-assert 'accept' in expressions[0][2]
-assert expressions[1][0]['match']['right']==1001 and 'reject' in expressions[1][1]
+assert len(expressions)==4
+for first,owner in ((0,1001),(2,{'range':[2001,2999]})):
+  assert expressions[first][0]['match']['right']==owner and expressions[first][1]['match']['right']=='lo'
+  assert 'accept' in expressions[first][2]
+  assert expressions[first+1][0]['match']['right']==owner and 'reject' in expressions[first+1][1]
 forward=[r['chain'] for r in rules['nftables'] if 'chain' in r and r['chain']['name']=='forward']
 assert len(forward)==1 and forward[0]['policy']=='drop'
 r=subprocess.run(['sudo','-n','-u','apx-worker','sudo','-n','true'],capture_output=True)

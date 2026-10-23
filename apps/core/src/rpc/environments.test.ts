@@ -9,7 +9,27 @@ import WebSocket from "ws";
 import { testConfig } from "../config.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { createComputer } from "../environments/computer.ts";
+import { createVmLifecycle } from "../environments/lifecycle.ts";
 import { createCore } from "../server.ts";
+
+/** A guest that is up, or not, as the test says; preparing it only flips it on. */
+function fakeLifecycle(state = { running: true }, modes: string[] = []) {
+  return createVmLifecycle({
+    supported: true,
+    installed: () => true,
+    running: async () => state.running,
+    prepare: async (mode) => {
+      modes.push(mode);
+      state.running = true;
+    },
+    stop: async () => {
+      state.running = false;
+    },
+    appearance: async (mode) => {
+      modes.push(mode);
+    },
+  });
+}
 
 test("the computer is off by default over HTTP and WS; agent clients cannot acquire a screen", async () => {
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
@@ -22,39 +42,35 @@ test("the computer is off by default over HTTP and WS; agent clients cannot acqu
       socket.close();
     }
     assert.equal(http.enabled, false);
+    assert.deepEqual(http.screens, []);
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
-    await assert.rejects(agent.call("environments.display", { thread: "home" }), { code: "unauthorized" });
+    await assert.rejects(agent.call("environments.display", { screen: 1 }), { code: "unauthorized" });
     assert.equal(fs.existsSync(path.join(env.home, "computer")), false);
-    await assert.rejects(env.client.call("environments.display", { thread: "home" }), /no computer assigned/);
+    await assert.rejects(env.client.call("environments.display", { screen: 1 }), /not running/);
   } finally {
     await env.core.close();
     env.cleanup();
   }
 });
 
-test("VM binding refuses unknown chats and cross-chat commands; host terminal never opens for a bound chat", async () => {
+test("chats go on the computer only for allowed agents; outside clients run nothing and the host terminal stays shut", async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-test-"));
   const env = await startCore({
     home,
     llm: scriptedLlm(() => say("ok")),
-    computer: { limaHome: path.join(home, "no-vms"), instance: "missing", model: "fake/default" },
+    computer: { limaHome: path.join(home, "no-vms"), instance: "missing" },
   });
   try {
     await assert.rejects(env.client.call("environments.bind", { thread: "unknown" }), /owner/i);
+    await assert.rejects(env.client.call("environments.bind", { thread: "home" }), /may not use the computer/i);
     await env.client.call("environments.permit", { agent: "roby", on: true });
     await env.client.call("environments.bind", { thread: "home" });
-    await env.client.call("agents.update", { agent: "roby", model_choice: { model: "fake/agent", router: false } });
-    assert.equal((await env.client.call("environments.status", {})).model, "fake/agent");
-    await env.client.call("threads.model", { thread: "home", model_choice: { model: "fake/chat", router: false } });
-    assert.equal((await env.client.call("environments.status", {})).model, "fake/chat");
+    // The computer is shared: another allowed agent's chat goes on it too.
     const other = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
-    await assert.rejects(env.client.call("environments.bind", { thread: other.id }), /may not use the computer/i);
     await env.client.call("environments.permit", { agent: "scout", on: true });
-    await assert.rejects(env.client.call("environments.bind", { thread: other.id }), /another chat/i);
-    await assert.rejects(
-      env.client.call("environments.command", { thread: other.id, command: "pwd" }),
-      /no computer assigned/i,
-    );
+    await env.client.call("environments.bind", { thread: other.id });
+    const status = await env.client.call("environments.status", { thread: other.id });
+    assert.deepEqual(status.chat, { thread: other.id, on: true, agent: "scout", agent_name: "Scout", permitted: true });
     await assert.rejects(env.client.call("terminal.open", { thread: "home", cols: 80, rows: 24 }), /VM terminal/i);
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
     await assert.rejects(agent.call("environments.command", { thread: "home", command: "pwd" }), /bound native run/i);
@@ -90,6 +106,7 @@ test("native VM turns expose guest shell and browser tools and never fall back t
       ),
     );
     assert.ok(llm.calls.length >= 2);
+    assert.deepEqual(env.core.store.settings.read("computer_claims"), [], "its screen is let go when the run ends");
   } finally {
     await env.core.close();
     env.cleanup();
@@ -100,16 +117,19 @@ test("display tickets are single-use, bounded and revoked at shutdown without sp
   const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
   const vm = createComputer(env.core.store, { limaHome: path.join(env.home, "no-vms"), instance: "missing" });
   try {
-    vm.bind("home");
-    const first = vm.display("home");
-    assert.equal(typeof vm.connectDisplay(first.ticket), "function");
+    // Only an agent screen that is up can be watched.
+    assert.throws(() => vm.display(1), /not running/i);
+    await vm.ledger.claim("roby", "home", "run_test");
+    const first = vm.display(1);
+    assert.equal(typeof vm.connectDisplay(first.ticket).open, "function");
     assert.throws(() => vm.connectDisplay(first.ticket), /expired/i);
-    const pending = Array.from({ length: 6 }, () => vm.display("home"));
-    assert.throws(() => vm.display("home"), /too many/i);
-    vm.close();
+    assert.throws(() => vm.display(4), /not running/i);
+    const pending = Array.from({ length: 12 }, () => vm.display(1));
+    assert.throws(() => vm.display(1), /too many/i);
+    await vm.close();
     assert.throws(() => vm.connectDisplay(pending[0]?.ticket ?? ""), /expired/i);
   } finally {
-    vm.close();
+    await vm.close();
     await env.core.close();
     env.cleanup();
   }
@@ -176,26 +196,10 @@ test("a VM-bound chat restarted on a core whose computer is not set up offers on
   }
 });
 
-test("only the owner controls lifecycle; stop revokes tickets, cancels the native turn and blocks host fallback", async () => {
-  let running = true;
-  let signal: AbortSignal | undefined;
+test("only the owner shuts the shared computer down; it cancels the turns holding screens and blocks host fallback", async () => {
+  const state = { running: true };
   const modes: string[] = [];
-  const { createVmLifecycle } = await import("../environments/lifecycle.ts");
-  const lifecycle = createVmLifecycle({
-    supported: true,
-    installed: () => true,
-    running: async () => running,
-    prepare: async (mode) => {
-      modes.push(mode);
-      running = true;
-    },
-    stop: async () => {
-      running = false;
-    },
-    appearance: async (mode) => {
-      modes.push(mode);
-    },
-  });
+  let signal: AbortSignal | undefined;
   const offered: string[][] = [];
   const llm = scriptedLlm(async (req) => {
     if (signal) {
@@ -213,7 +217,7 @@ test("only the owner controls lifecycle; stop revokes tickets, cancels the nativ
   const env = await startCore({
     home,
     llm,
-    computer: { limaHome: path.join(home, "no-vms"), instance: "missing", lifecycle },
+    computer: { limaHome: path.join(home, "no-vms"), instance: "missing", lifecycle: fakeLifecycle(state, modes) },
   });
   const agent = new ApxClient({ url: env.core.url, actor: "agent" });
   const socket = await env.client.connect();
@@ -223,27 +227,26 @@ test("only the owner controls lifecycle; stop revokes tickets, cancels the nativ
     await assert.rejects(agent.call("environments.enable", { thread: "home", appearance: "light" }), {
       code: "unauthorized",
     });
-    await assert.rejects(agent.call("environments.stop", { thread: "home" }), { code: "unauthorized" });
-    await assert.rejects(agent.call("environments.appearance", { thread: "home", appearance: "dark" }), {
-      code: "unauthorized",
-    });
-    const ticket = await env.client.call("environments.display", { thread: "home" });
-    const other = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
-    await assert.rejects(socket.call("environments.stop", { thread: other.id }), /no computer assigned/);
-    assert.equal(running, true);
+    await assert.rejects(agent.call("environments.stop", {}), { code: "unauthorized" });
+    await assert.rejects(agent.call("environments.appearance", { appearance: "dark" }), { code: "unauthorized" });
+    await env.client.call("environments.status", {});
     await env.client.call("threads.send", { thread: "home", text: "Work inside the computer" });
     const deadline = Date.now() + 2000;
     while (!signal) {
       assert.ok(Date.now() < deadline, "native turn did not start");
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
-    await socket.call("environments.stop", { thread: "home" });
+    const held = (await env.client.call("environments.status", {})).screens?.find((s) => s.agent === "roby");
+    assert.equal(held?.thread, "home");
+    const ticket = await env.client.call("environments.display", { screen: 1 });
+    await socket.call("environments.stop", {});
     await env.settle("home");
     assert.equal(signal.aborted, true);
-    assert.equal(running, false);
+    assert.equal(state.running, false);
     assert.equal(env.core.store.runs.list("home")[0]?.state, "canceled");
+    assert.equal((await env.client.call("environments.status", {})).last_stop?.reason, "owner");
     await assert.rejects(
-      env.client.call("environments.command", { thread: "home", command: "pwd" }),
+      env.client.call("environments.command", { thread: "home", command: "pwd", screen: 1 }),
       /stopped|not ready/,
     );
     await assert.rejects(
@@ -263,7 +266,7 @@ test("only the owner controls lifecycle; stop revokes tickets, cancels the nativ
       }),
       /403/,
     );
-    // Stopped, the chat keeps to its computer: the agent may start it again, and still has no host tool.
+    // Stopped, the chat keeps to the computer: the agent may start it again, and still has no host tool.
     await env.client.call("threads.send", { thread: "home", text: "Try another command" });
     await env.settle("home");
     assert.deepEqual(offered.at(-1), [
@@ -281,7 +284,7 @@ test("only the owner controls lifecycle; stop revokes tickets, cancels the nativ
       assert.ok(Date.now() < readyDeadline);
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
-    assert.equal((await socket.call("environments.status", {})).thread, "home");
+    assert.equal((await socket.call("environments.status", { thread: "home" })).chat?.on, true);
     assert.deepEqual(modes, ["dark"]);
   } finally {
     socket.close();
@@ -291,7 +294,6 @@ test("only the owner controls lifecycle; stop revokes tickets, cancels the nativ
 });
 
 test("shutdown terminates an in-flight guest command's local SSH process", async () => {
-  const { createVmLifecycle } = await import("../environments/lifecycle.ts");
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-computer-command-"));
   const pidFile = path.join(home, "ssh.pid");
   const binary = path.join(home, "guest.mjs");
@@ -300,17 +302,7 @@ test("shutdown terminates an in-flight guest command's local SSH process", async
     `#!${process.execPath}\nimport fs from 'node:fs';\nfs.writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));\nsetInterval(() => {}, 10000);\n`,
     { mode: 0o755 },
   );
-  let running = true;
-  const lifecycle = createVmLifecycle({
-    supported: true,
-    installed: () => true,
-    running: async () => running,
-    prepare: async () => {},
-    stop: async () => {
-      running = false;
-    },
-    appearance: async () => {},
-  });
+  const state = { running: true };
   const env = await startCore({
     home,
     llm: scriptedLlm(() => say("ok")),
@@ -318,15 +310,16 @@ test("shutdown terminates an in-flight guest command's local SSH process", async
       limaHome: path.join(home, "no-vms"),
       instance: "missing",
       executable: () => binary,
-      lifecycle,
+      lifecycle: fakeLifecycle(state),
     },
   });
   let pid: number | undefined;
   try {
-    await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
-    await env.client.call("environments.control", { thread: "home", mode: "human" });
-    const command = env.client.call("environments.command", { thread: "home", command: "long guest work" });
+    await env.client.call("environments.status", {});
+    // The owner takes an agent's screen that is up, and types there.
+    await env.core.computer.ledger.claim("roby", "home", "run_test");
+    await env.client.call("environments.control", { screen: 1, mode: "human" });
+    const command = env.client.call("environments.command", { thread: "home", command: "long guest work", screen: 1 });
     const rejected = assert.rejects(command, /VM command failed/);
     const deadline = Date.now() + 3000;
     while (!fs.existsSync(pidFile)) {
@@ -334,10 +327,10 @@ test("shutdown terminates an in-flight guest command's local SSH process", async
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
     pid = Number(fs.readFileSync(pidFile, "utf8"));
-    await env.client.call("environments.stop", { thread: "home" });
+    await env.client.call("environments.stop", {});
     await rejected;
     assert.throws(() => process.kill(pid ?? 0, 0), { code: "ESRCH" });
-    assert.equal(running, false);
+    assert.equal(state.running, false);
   } finally {
     if (pid) {
       try {
@@ -349,7 +342,7 @@ test("shutdown terminates an in-flight guest command's local SSH process", async
   }
 });
 
-test("taking manual control cancels the active native turn, persists an interruption and refuses agent work until handback", async () => {
+test("taking an agent's screen cancels the run holding it, persists an interruption and keeps it until handback", async () => {
   let started: () => void = () => {};
   const active = new Promise<void>((resolve) => {
     started = resolve;
@@ -363,27 +356,33 @@ test("taking manual control cancels the active native turn, persists an interrup
   try {
     await env.client.call("environments.permit", { agent: "roby", on: true });
     await env.client.call("environments.bind", { thread: "home" });
-    await assert.rejects(env.client.call("environments.command", { thread: "home", command: "pwd" }), /Take control/);
+    await assert.rejects(
+      env.client.call("environments.command", { thread: "home", command: "pwd", screen: 1 }),
+      /Take control/,
+    );
+    await assert.rejects(
+      env.client.call("environments.command", { thread: "home", command: "pwd" }),
+      /name the agent screen/,
+    );
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
-    await assert.rejects(agent.call("environments.control", { thread: "home", mode: "human" }), {
-      code: "unauthorized",
-    });
+    await assert.rejects(agent.call("environments.control", { screen: 1, mode: "human" }), { code: "unauthorized" });
     await env.client.call("threads.send", { thread: "home", text: "Work in the VM" });
     await active;
-    await env.client.call("environments.control", { thread: "home", mode: "human" });
+    await env.client.call("environments.control", { screen: 1, mode: "human" });
     const result = await env.settle("home");
     assert.equal(result.runs[0]?.state, "canceled");
     assert.ok(
       result.messages.some((m) => m.parts.some((p) => p.type === "notice" && p.code === "computer.interrupted")),
     );
-    assert.equal((await env.client.call("environments.status", {})).control, "human");
+    const screen = async () => (await env.client.call("environments.status", {})).screens?.find((s) => s.screen === 1);
+    assert.equal((await screen())?.control, "human");
     const count = llm.calls.length;
     await env.client.call("threads.send", { thread: "home", text: "Try while owner controls" });
     await env.settle("home");
     assert.equal(llm.calls.length, count);
     assert.equal(env.core.store.threads.get("home")?.state, "failed");
-    await env.client.call("environments.control", { thread: "home", mode: "agent" });
-    assert.equal((await env.client.call("environments.status", {})).control, "agent");
+    await env.client.call("environments.control", { screen: 1, mode: "agent" });
+    assert.equal((await screen())?.control, "agent");
   } finally {
     await env.core.close();
     env.cleanup();
@@ -396,50 +395,43 @@ test("task conversations cannot redirect a VM-bound request into an unbound work
     computer: { limaHome: "/unused", instance: "missing" },
   });
   try {
+    await env.client.call("environments.permit", { agent: "roby", on: true });
     const task = await env.client.call("tasks.create", { title: "Acme work", assignee: "roby" });
     await assert.rejects(env.client.call("environments.bind", { thread: task.thread_id }), /owner.*native chat/);
-    assert.equal((await env.client.call("environments.status", {})).thread, undefined);
+    assert.equal((await env.client.call("environments.status", { thread: task.thread_id })).chat?.on, false);
   } finally {
     await env.core.close();
     env.cleanup();
   }
 });
 
-test("a stopped computer releases its deleted chat and can bind another without losing the guest disk", async () => {
-  const { createVmLifecycle } = await import("../environments/lifecycle.ts");
-  let running = true;
-  const lifecycle = createVmLifecycle({
-    supported: true,
-    installed: () => true,
-    running: async () => running,
-    prepare: async () => {},
-    stop: async () => {
-      running = false;
-    },
-    appearance: async () => {},
+test("a chat on the computer is deleted only while none of its runs holds a screen, and leaves the computer's chats", async () => {
+  let release: () => void = () => {};
+  let started: () => void = () => {};
+  const active = new Promise<void>((resolve) => {
+    started = resolve;
   });
-  const env = await startCore({
-    llm: scriptedLlm(() => say("ok")),
-    computer: { limaHome: "/unused", instance: "missing", lifecycle },
+  const llm = scriptedLlm(async () => {
+    started();
+    await new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return say("Done");
   });
+  const env = await startCore({ llm, computer: { limaHome: "/unused", instance: "missing" } });
   try {
     const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "roby" });
     await env.client.call("environments.permit", { agent: "roby", on: true });
     await env.client.call("environments.bind", { thread: chat.id });
-    await assert.rejects(env.client.call("threads.delete", { thread: chat.id }), /stop Computer/);
-    assert.ok(env.core.store.threads.get(chat.id));
-    await env.client.call("environments.stop", { thread: chat.id });
-    const deadline = Date.now() + 2000;
-    while ((await env.client.call("environments.status", {})).phase !== "stopped") {
-      assert.ok(Date.now() < deadline);
-      await new Promise((resolve) => setTimeout(resolve, 1));
-    }
+    await env.client.call("threads.send", { thread: chat.id, text: "Work" });
+    await active;
+    await assert.rejects(env.client.call("threads.delete", { thread: chat.id }), /stop/);
+    release();
+    await env.settle(chat.id);
     await env.client.call("threads.delete", { thread: chat.id });
-    assert.equal((await env.client.call("environments.status", {})).thread, undefined);
-    await env.client.call("environments.permit", { agent: "roby", on: true });
-    await env.client.call("environments.bind", { thread: "home" });
-    assert.equal((await env.client.call("environments.status", {})).thread, "home");
+    assert.deepEqual(env.core.store.settings.read("computer_chats"), []);
   } finally {
+    release();
     await env.core.close();
     env.cleanup();
   }
@@ -465,25 +457,21 @@ test("VM availability does not advertise browser tools to an ordinary chat witho
 });
 
 test("revoking a device invalidates pending display tickets, closes its live display and refuses existing RPC sockets", async () => {
-  const { createVmLifecycle } = await import("../environments/lifecycle.ts");
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-display-revoke-"));
   const binary = path.join(home, "display.mjs");
   fs.writeFileSync(binary, `#!${process.execPath}\nsetInterval(() => {}, 10000);\n`, { mode: 0o755 });
-  const lifecycle = createVmLifecycle({
-    supported: true,
-    installed: () => true,
-    running: async () => true,
-    prepare: async () => {},
-    stop: async () => {},
-    appearance: async () => {},
-  });
   const token = "test-core-display-token";
   const core = await createCore(
     { ...testConfig({ home }), token },
     {
       quiet: true,
       llm: scriptedLlm(() => say("ok")),
-      computer: { limaHome: path.join(home, "unused"), instance: "missing", executable: () => binary, lifecycle },
+      computer: {
+        limaHome: path.join(home, "unused"),
+        instance: "missing",
+        executable: () => binary,
+        lifecycle: fakeLifecycle(),
+      },
       imessage: null,
     },
   );
@@ -491,14 +479,14 @@ test("revoking a device invalidates pending display tickets, closes its live dis
   let display: WebSocket | undefined;
   let socket: Awaited<ReturnType<ApxClient["connect"]>> | undefined;
   try {
-    await owner.call("environments.permit", { agent: "roby", on: true });
-    await owner.call("environments.bind", { thread: "home" });
+    await owner.call("environments.status", {});
+    await core.computer.ledger.claim("roby", "home", "run_test");
     const { code } = await owner.call("devices.pair_start", {});
     const paired = await new ApxClient({ url: core.url }).call("devices.pair", { code, name: "Test display" });
     const client = new ApxClient({ url: core.url, token: paired.token });
     socket = await client.connect();
-    const live = await client.call("environments.display", { thread: "home" });
-    const pending = await socket.call("environments.display", { thread: "home" });
+    const live = await client.call("environments.display", { screen: 1 });
+    const pending = await socket.call("environments.display", { screen: 1 });
     display = new WebSocket(`${core.url.replace("http:", "ws:")}/vm-display?ticket=${live.ticket}`, {
       headers: { Origin: core.url },
     });
@@ -511,8 +499,8 @@ test("revoking a device invalidates pending display tickets, closes its live dis
         setTimeout(() => reject(new Error("revoked display remained open")), 2000).unref(),
       ),
     ]);
-    await assert.rejects(client.call("environments.display", { thread: "home" }), { code: "unauthorized" });
-    await assert.rejects(socket.call("environments.display", { thread: "home" }));
+    await assert.rejects(client.call("environments.display", { screen: 1 }), { code: "unauthorized" });
+    await assert.rejects(socket.call("environments.display", { screen: 1 }));
     const rejected = new WebSocket(`${core.url.replace("http:", "ws:")}/vm-display?ticket=${pending.ticket}`, {
       headers: { Origin: core.url },
     });
@@ -521,7 +509,7 @@ test("revoking a device invalidates pending display tickets, closes its live dis
     } finally {
       rejected.terminate();
     }
-    assert.ok((await owner.call("environments.display", { thread: "home" })).ticket);
+    assert.ok((await owner.call("environments.display", { screen: 1 })).ticket);
   } finally {
     display?.terminate();
     socket?.close();

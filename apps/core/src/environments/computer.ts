@@ -1,10 +1,9 @@
 import { COMPUTER_GRANT } from "@apx/protocol";
 import type { ApprovalTarget } from "../domain/approvals.ts";
-import { TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
 import { badRequest, conflict, unavailable } from "../errors.ts";
-import { computerControl } from "./control.ts";
+import { type ComputerControl, computerControl } from "./control.ts";
 import { guestOperations } from "./guest-operations.ts";
 import type { Appearance, VmLifecycle } from "./lifecycle.ts";
 import {
@@ -16,8 +15,9 @@ import {
   startRefusal,
   thisHost,
 } from "./resources.ts";
+import { maxScreens, screenLedger } from "./screens.ts";
 import type { ComputerUsage } from "./usage.ts";
-import { VM_WORKSPACE } from "./worker.ts";
+import { AGENT_WORKSPACE, screenUser } from "./worker.ts";
 
 export type ComputerConfig = {
   limaHome: string;
@@ -28,6 +28,12 @@ export type ComputerConfig = {
   executable?: () => string;
   env?: NodeJS.ProcessEnv;
   lifecycle?: VmLifecycle;
+  /** Starts, restyles and stops an agent's screen in the guest; without it (tests) a claim needs nothing started. */
+  screens?: {
+    start(screen: number, mode: Appearance): Promise<void>;
+    stop(screen: number): Promise<void>;
+    appearance?(screen: number, mode: Appearance): Promise<void>;
+  };
   /** The memory, CPUs and disk the instance was last given (its lima.yaml); empty before it exists. */
   applied?: () => Partial<ComputerResources>;
   usage?: () => Promise<ComputerUsage>;
@@ -47,48 +53,76 @@ export const computerApproval: ApprovalTarget = {
 export type StopReason = "owner" | "agent" | "idle" | "memory";
 
 const NATIVE_CHATS = new Set(["home", "agent", "loose", "code"]);
-const OFF_PHASES = new Set(["stopped", "not_installed", "error", "unsupported"]);
 
-/** One owner-bound guest; host tools are never a fallback for its chat. */
+/**
+ * One shared Linux VM for every allowed agent: each works as its own user on its own screen, the core keeps who
+ * holds which screen, and a chat on the computer never falls back to host tools (DECISIONS.md#d-140).
+ */
 export function createComputer(store: Store, config: ComputerConfig) {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,40}$/.test(config.instance)) throw badRequest("invalid VM name");
   const host = config.host ?? thisHost();
   const freeMemory = config.freeMemory ?? (() => availableMemory());
-  const thread = () => store.settings.get("computer_thread");
-  const check = (id: string) => {
-    if (!thread() || thread() !== id || !store.threads.get(id)) throw conflict("this chat has no computer assigned");
-  };
+  const chats = () => store.settings.read("computer_chats");
+  const appearance = (): Appearance => (store.settings.get("vm_appearance") === "dark" ? "dark" : "light");
   let activity = Date.now();
   const touch = () => {
     activity = Date.now();
   };
-
-  const control = computerControl(store);
-  const guest = guestOperations(store, config, check, (id) => vm.requireRunning(id), control, touch);
+  const leases = new Map<number, ComputerControl>();
+  /** An agent's screen starts in the agent's hands; the owner may take it to watch closely, type or sign in. */
+  const control = (screen: number) => {
+    let lease = leases.get(screen);
+    if (!lease) {
+      lease = computerControl(store, `vm_control:${screen}`);
+      leases.set(screen, lease);
+    }
+    return lease;
+  };
+  const guest = guestOperations(store, config, control, touch);
   /** What the next start gives the VM; a disk already larger stays as it is, since Lima only grows one. */
   const resources = (): ComputerResources => {
     const wanted = resolveResources(store.settings.read("computer"), host);
     const disk = config.applied?.().disk_gib;
     return disk && disk > wanted.disk_gib ? { ...wanted, disk_gib: disk } : wanted;
   };
+  /** Screens the VM holds at once, from the memory it runs with now (or will start with). */
+  const cap = () => maxScreens(config.applied?.().memory_gib ?? resources().memory_gib);
+  const ledger = screenLedger(store, {
+    cap,
+    screens: {
+      start: async (screen) => {
+        await config.screens?.start(screen, appearance());
+      },
+      stop: async (screen) => {
+        guest.closeScreen(screen);
+        await config.screens?.stop(screen);
+      },
+    },
+  });
   /** An owner's native chat with no outside engine: the only kind a computer serves. */
   const nativeChat = (id: string) => {
     const t = store.threads.get(id);
     return t && NATIVE_CHATS.has(t.kind) && !t.engine && audienceOf(store, t).kind === "owner" ? t : undefined;
   };
-  const busyRun = (id: string, except?: string) =>
-    store.runs.list(id).some((run) => run.id !== except && !TERMINAL.has(run.state));
+  const running = async () => (config.lifecycle ? (await config.lifecycle.status()).phase === "running" : true);
+  /** The screen a working run of an agent holds; refused for any other caller. */
+  const held = (run: string) => {
+    const claim = ledger.forRun(run);
+    if (!claim) throw conflict("this run holds no screen on the computer; start it with the computer tool");
+    return claim;
+  };
   const vm = {
     async beforeDelete(ids: string[]) {
-      const bound = thread();
-      if (!bound || !ids.includes(bound)) return;
-      const status = await vm.status();
-      if (status.ready || (status.phase && !OFF_PHASES.has(status.phase)))
-        throw conflict("stop Computer before deleting its chat");
-      await guest.disconnect();
-      store.settings.set("computer_thread", "");
+      const on = ids.filter((id) => chats().includes(id));
+      if (!on.length) return;
+      if (on.some((id) => ledger.forThread(id))) throw conflict("stop Computer before deleting its chat");
+      store.settings.write(
+        "computer_chats",
+        chats().filter((id) => !on.includes(id)),
+      );
     },
-    hasThread: (id: string) => thread() === id,
+    /** The chat works on the computer: its agent's shell and browser run on its screen there. */
+    hasThread: (id: string) => chats().includes(id),
     /** A chat a computer can serve: the owner's own, native, with no outside engine. */
     serves: (id: string) => Boolean(nativeChat(id)),
     /** Whether an agent may use the computer in a chat: the owner's grant, for good or for that chat. */
@@ -107,13 +141,15 @@ export function createComputer(store: Store, config: ComputerConfig) {
     },
     /** Set up once by the owner: from then on agents in their chats may ask to use it. */
     offered: () => Boolean(config.lifecycle) && store.settings.get("computer_enabled") === "true",
-    browser: (id: string) => {
-      check(id);
+    /** The visible browser on the screen this run holds. */
+    browser: (run: string) => {
       touch();
-      return guest.browser;
+      return guest.browser(held(run).screen);
     },
     resources,
     freeMemory,
+    ledger,
+    cap,
     /** Worth probing: never seen yet, or last seen running (an error may leave the guest up). */
     mayRun: () => {
       if (!config.lifecycle) return false;
@@ -132,13 +168,33 @@ export function createComputer(store: Store, config: ComputerConfig) {
             .filter(Boolean)
             .some((line) => (JSON.parse(line) as { status: string }).status === "Running");
         } catch {}
-      const bound = thread();
-      const chat = forThread ?? bound;
-      const agent = chat ? store.threads.get(chat)?.agent_ids[0] : undefined;
-      const model =
-        bound &&
-        (store.threads.context(bound).model_choice?.model ??
-          store.agents.get(store.threads.get(bound)?.agent_ids[0] ?? "")?.model_choice?.model);
+      const claims = ledger.claims();
+      const up = ledger.running();
+      const watched = guest.watched();
+      const screen = (n: number) => {
+        const claim = claims.find((c) => c.screen === n);
+        const agent = claim?.agent ?? ledger.agentOf(n);
+        return {
+          screen: n,
+          ...(agent ? { agent, agent_name: store.agents.get(agent)?.name ?? agent } : {}),
+          ...(claim
+            ? {
+                thread: claim.thread,
+                title: store.threads.get(claim.thread)?.title ?? "",
+                run: claim.run,
+                since: claim.at,
+              }
+            : {}),
+          display: screenUser(n).display,
+          ...control(n).status(),
+          ...(watched.has(n) ? { watched: true } : {}),
+        };
+      };
+      // Without a lifecycle (a lab or a test guest) screens count as up whenever claimed.
+      const screens =
+        ready || !config.lifecycle ? [...new Set([...up, ...claims.map((c) => c.screen)])].sort((a, b) => a - b) : [];
+      const agent = forThread ? store.threads.get(forThread)?.agent_ids[0] : undefined;
+      const mine = agent ? ledger.screenOf(agent) : undefined;
       const wanted = resources();
       const applied = config.applied?.() ?? {};
       const restart =
@@ -148,17 +204,33 @@ export function createComputer(store: Store, config: ComputerConfig) {
           (applied.disk_gib ?? 0) < wanted.disk_gib);
       const stopped = store.settings.get("computer_last_stop");
       return {
-        enabled: config.lifecycle ? Boolean(thread() || vm.offered()) : true,
+        enabled: config.lifecycle ? Boolean(chats().length || vm.offered()) : true,
         ready,
-        ...control.status(),
         name: config.instance,
-        ...(bound ? { thread: bound } : {}),
-        ...(agent
-          ? { agent, agent_name: store.agents.get(agent)?.name ?? agent, permitted: vm.permitted(agent, chat) }
+        chats: chats(),
+        allowed_agents: store.agents.list().filter((a) => store.approvals.allows(computerApproval, undefined, a.id))
+          .length,
+        screens: screens.map(screen),
+        max_screens: cap(),
+        ...(forThread
+          ? {
+              chat: {
+                thread: forThread,
+                on: vm.hasThread(forThread),
+                ...(agent
+                  ? {
+                      agent,
+                      agent_name: store.agents.get(agent)?.name ?? agent,
+                      permitted: vm.permitted(agent, forThread),
+                    }
+                  : {}),
+                ...(mine !== undefined ? { screen: mine } : {}),
+              },
+            }
           : {}),
-        workspace: VM_WORKSPACE,
+        workspace: AGENT_WORKSPACE,
         demo: config.demo === true,
-        ...(model || config.model ? { model: model || config.model } : {}),
+        ...(config.model ? { model: config.model } : {}),
         resources: wanted,
         limits: resourceLimits(host),
         ...(applied.disk_gib ? { disk_min_gib: applied.disk_gib } : {}),
@@ -168,25 +240,32 @@ export function createComputer(store: Store, config: ComputerConfig) {
         ...(lifecycle ?? {}),
       };
     },
-    async requireRunning(id: string) {
-      check(id);
-      if (config.lifecycle && !(await vm.status()).ready)
-        throw unavailable("the computer is stopped or not ready; start it with the computer tool or from Computer");
+    /**
+     * The run's screen, claimed now when the computer runs (a turn in a computer chat, or the agent starting it):
+     * refused while its agent's screen works elsewhere or every screen is held.
+     */
+    async claim(agent: string, thread: string, run: string) {
+      if (!vm.hasThread(thread)) throw conflict("this chat does not work on the computer");
+      if (!(await running())) return undefined;
+      // A screen the owner has in hand is not given to its agent until they hand it back.
+      control(ledger.slot(agent)).assert("agent");
+      const claim = await ledger.claim(agent, thread, run);
+      touch();
+      return claim;
     },
-    requireAgentControl(id: string) {
-      check(id);
-      control.assert("agent");
+    release(run: string) {
+      ledger.release(run);
     },
-    humanControl: control.human,
-    async control(id: string, mode: "agent" | "human", cancel: () => number) {
-      await vm.requireRunning(id);
-      await control.change(mode, async () => {
-        const canceled = cancel();
-        const author = store.threads.get(id)?.agent_ids[0];
-        if (canceled && author)
+    humanControl: (screen: number) => control(screen).human(),
+    /** The owner takes or returns one screen; taking an agent's cancels the run holding it. */
+    async control(screen: number, mode: "agent" | "human", cancel: (thread: string) => number) {
+      config.lifecycle?.assertRunning();
+      await control(screen).change(mode, async () => {
+        const claim = ledger.claims().find((c) => c.screen === screen);
+        if (claim && mode === "human" && cancel(claim.thread))
           store.messages.add({
-            thread_id: id,
-            author: { kind: "agent", id: author },
+            thread_id: claim.thread,
+            author: { kind: "agent", id: claim.agent },
             parts: [
               {
                 type: "notice",
@@ -197,78 +276,101 @@ export function createComputer(store: Store, config: ComputerConfig) {
               },
             ],
           });
-        await guest.interrupt();
+        await guest.interrupt(screen);
       });
       touch();
       return { ok: true as const };
     },
-    /** The owner's start from Computer: the chat's agent must be allowed first. */
-    async enable(id: string, appearance: Appearance) {
-      const agent = nativeChat(id)?.agent_ids[0];
-      if (agent && !vm.permitted(agent, id))
-        throw conflict(`${store.agents.get(agent)?.name ?? agent} may not use the computer; allow it first`);
-      return vm.start(id, appearance);
+    /** The owner starts the computer, putting a chat on it when named (its agent must be allowed first). */
+    async enable(id: string | undefined, look: Appearance) {
+      if (id) vm.bind(id);
+      store.settings.set("vm_appearance", look);
+      await vm.boot();
+      return { ok: true as const };
     },
-    /**
-     * Assigns the chat (moving the computer from a chat where it is off) and starts it, unless free host memory cannot
-     * hold it. `run` is the caller's own run, which may go on in the chat it assigns.
-     */
-    async start(id: string, appearance: Appearance, run?: string) {
+    /** An allowed agent puts its chat on the computer, starts it if off, and takes its screen once it runs. */
+    async start(id: string, agent: string, run: string) {
+      vm.bind(id);
+      if (await running()) {
+        await vm.claim(agent, id, run);
+        return { ok: true as const };
+      }
+      await vm.boot();
+      return { ok: true as const };
+    },
+    /** Starts the shared VM unless it runs, is starting, or free host memory cannot hold it. */
+    async boot() {
       const lifecycle = config.lifecycle;
       if (!lifecycle) throw unavailable("this VM has no lifecycle controller");
       const now = await lifecycle.status();
       if (!now.supported) throw unavailable("Computer currently requires macOS Apple Silicon");
-      if (thread() === id && (now.phase === "running" || now.phase === "preparing")) return { ok: true as const };
+      if (now.phase === "running" || now.phase === "preparing") return;
       if (now.phase === "stopping") throw conflict("Computer is shutting down; start it again once it is off");
       const refusal = startRefusal(resources(), await freeMemory());
       if (refusal) throw conflict(refusal);
-      vm.bind(id, run, now.phase);
-      store.settings.set("vm_appearance", appearance);
+      ledger.reset();
       touch();
-      lifecycle.start(appearance);
+      lifecycle.start(appearance());
       store.settings.set("computer_enabled", "true");
+    },
+    /** The chat goes back to this Mac; a screen it holds is let go (its desktop stays up until room is needed). */
+    leave(id: string, run?: string) {
+      const claim = ledger.forThread(id);
+      if (claim && (!run || claim.run === run)) ledger.release(claim.run);
+      store.settings.write(
+        "computer_chats",
+        chats().filter((chat) => chat !== id),
+      );
       return { ok: true as const };
     },
-    async stop(id: string, cancel: () => void, reason: StopReason = "owner") {
-      check(id);
-      await vm.halt(reason, cancel);
-      return { ok: true as const };
-    },
-    /** Shuts the guest down and keeps its disk; the reason is kept for the owner to read. */
-    async halt(reason: StopReason, cancel: () => void = () => {}) {
+    /** Shuts the shared VM down for everyone and keeps its disk; the reason is kept for the owner to read. */
+    async halt(reason: StopReason, cancel: (thread: string) => void = () => {}) {
       if (!config.lifecycle) throw unavailable("this VM has no lifecycle controller");
+      const holders = ledger.claims();
       config.lifecycle.stop();
       store.settings.set("computer_last_stop", JSON.stringify({ reason, at: new Date().toISOString() }));
-      cancel();
+      for (const claim of holders) cancel(claim.thread);
+      ledger.reset();
       await guest.disconnect();
+      return holders;
     },
     /** When the guest was last used: a command, a browser call, a viewer or a change of control. */
     lastActivity: () => Math.max(activity, guest.lastViewed()),
     watched: () => guest.watching(),
-    async appearance(id: string, appearance: Appearance) {
-      check(id);
-      if (!config.lifecycle) return { ok: true as const };
-      store.settings.set("vm_appearance", appearance);
-      await config.lifecycle.appearance(appearance);
+    /** Someone holds a screen, or the owner has one of the agents' screens in hand. */
+    inUse: () => ledger.claims().length > 0 || [...leases.values()].some((lease) => lease.human()),
+    /** Every agent screen that is up follows APX's light or dark mode. */
+    async appearance(look: Appearance) {
+      const changed = store.settings.get("vm_appearance") !== look;
+      store.settings.set("vm_appearance", look);
+      if (changed && (await running()))
+        await Promise.all([...ledger.running()].map((n) => config.screens?.appearance?.(n, look)));
       return { ok: true as const };
     },
-    bind(id: string, run?: string, phase?: string) {
-      if (guest.busy()) throw conflict("a VM command is running");
-      if (!nativeChat(id)) throw badRequest("use an owner's native chat");
-      if (busyRun(id, run)) throw conflict("wait for the chat's active run to end before binding a VM");
-      const previous = thread();
-      if (previous && previous !== id && store.threads.get(previous)) {
-        // It moves only while off and idle, so no turn there loses its computer mid-way.
-        if (!phase || !OFF_PHASES.has(phase) || busyRun(previous))
-          throw conflict("the computer already belongs to another chat; stop it there first");
-      }
-      store.settings.set("computer_thread", id);
+    /** Puts the chat on the computer; an agent's own run may do it from inside the chat. */
+    bind(id: string) {
+      const t = nativeChat(id);
+      if (!t) throw badRequest("use an owner's native chat");
+      const agent = t.agent_ids[0];
+      if (agent && !vm.permitted(agent, id))
+        throw conflict(`${store.agents.get(agent)?.name ?? agent} may not use the computer; allow it first`);
+      if (!chats().includes(id)) store.settings.write("computer_chats", [...chats(), id]);
     },
     usage: async (): Promise<ComputerUsage | undefined> => config.usage?.(),
     revokeDevice: guest.revokeDevice,
-    display: guest.display,
+    display: (screen: number, device?: string) => {
+      if (!ledger.running().has(screen) && !ledger.claims().some((c) => c.screen === screen))
+        throw conflict("that screen is not running");
+      return guest.display(screen, device);
+    },
     connectDisplay: guest.connectDisplay,
-    command: guest.command,
+    /** An agent's command runs on the screen its run holds; the owner's on the screen they name, in their hands. */
+    async command(by: { run: string } | { screen: number }, command: string) {
+      if (!(await running()))
+        throw unavailable("the computer is stopped; start it with the computer tool or from Computer");
+      if ("run" in by) return guest.command(held(by.run).screen, command, "agent");
+      return guest.command(by.screen, command, "human");
+    },
     async close() {
       await Promise.all([guest.disconnect(true), config.lifecycle?.close()]);
     },

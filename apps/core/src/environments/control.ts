@@ -2,9 +2,13 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type { Store } from "../domain/store.ts";
 import { conflict } from "../errors.ts";
 
-/** An epoch fences delayed tool continuations, including after control is returned. */
-export function computerControl(store: Store) {
-  let mode: "agent" | "human" = store.settings.get("vm_control") === "human" ? "human" : "agent";
+/**
+ * One screen's lease between its agent and the owner. An epoch fences delayed tool continuations, including after
+ * control is returned. `key` keeps the choice across restarts; the owner's own screen starts in human hands.
+ */
+export function computerControl(store: Store, key = "vm_control", initial: "agent" | "human" = "agent") {
+  const kept = store.settings.get(key);
+  let mode: "agent" | "human" = kept === "human" || kept === "agent" ? kept : initial;
   let epoch = 0;
   let changing = false;
   let blocked = false;
@@ -40,7 +44,7 @@ export function computerControl(store: Store) {
         await interrupt();
         blocked = false;
         mode = next;
-        store.settings.set("vm_control", mode);
+        store.settings.set(key, mode);
       } catch (error) {
         blocked = true;
         throw error;

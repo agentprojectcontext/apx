@@ -220,14 +220,15 @@ export const NEWS: readonly NewsEntry[] = [
   {
     id: "linux-computer",
     since: "2.9.1",
-    title: "An isolated Linux computer for agents",
+    title: "A Linux computer your agents share",
     applies: (f) => f.computer,
     text:
-      "Agents can now work on a Linux computer of their own, a VM apart from the owner's Mac with its own desktop, " +
-      "shell and browser and no way into the Mac or the local network. It is off for every agent until the owner " +
-      "allows one, in the agent's settings or from the card the agent shows when it asks. An allowed agent starts " +
-      "and stops it itself; it does not start without enough free memory, and APX shuts it down when the Mac runs " +
-      "short or nobody used it for a while, keeping its files. Memory, CPUs and disk are set in the Computer panel.",
+      "Agents can now work on a Linux computer they share, a VM apart from the owner's Mac with no way into the Mac " +
+      "or the local network. Each agent gets its own user, files and screen with a desktop and browser. It is off " +
+      "for every agent until the owner allows one, in the agent's settings or from the card the agent shows when it " +
+      "asks. An allowed agent starts it itself; it does not start without enough free memory, and APX shuts it down " +
+      "when the Mac runs short or nobody uses it, keeping its files. The new Computers view shows every agent's " +
+      "screen at once; memory, CPUs and disk are set in the Computer panel.",
     actions: [
       {
         label: { en: "What could you do there?", es: "¿Qué harías ahí?" },

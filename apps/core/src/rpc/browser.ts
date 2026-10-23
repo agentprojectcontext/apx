@@ -52,12 +52,12 @@ export function browserHandlers(
     (method: BrowserMethod): Handler<BrowserMethod> =>
     async (params, ctx) => {
       const thread = ctx.agent?.thread_id;
-      if (thread && store?.settings.get("computer_thread") === thread) {
+      if (thread && store?.settings.read("computer_chats").includes(thread)) {
         if (!vm?.hasThread(thread)) throw unavailable("VM browser unavailable; host browser refused");
         const run = ctx.agent && store.runs.get(ctx.agent.run_id);
         if (run?.state !== "working" || run.thread_id !== thread || run.agent_id !== ctx.agent?.id)
           throw conflict("VM browser does not belong to this active run");
-        return (await vm.browser(thread).handle(method, params)) as never;
+        return (await vm.browser(run.id).handle(method, params)) as never;
       }
       const out = await (local()
         ? headless?.handle(method, params)
@@ -73,7 +73,7 @@ export function browserHandlers(
   // With no browser at all there are no tabs: an empty list, not an error the panel would log on every load.
   const tabs = handlers["browser.tabs"];
   handlers["browser.tabs"] = (params, ctx) =>
-    (ctx.agent && store?.settings.get("computer_thread") === ctx.agent.thread_id) ||
+    (ctx.agent && store?.settings.read("computer_chats").includes(ctx.agent.thread_id)) ||
     broker.withCap(BROWSER_CAP) ||
     headless?.running()
       ? tabs(params, ctx)

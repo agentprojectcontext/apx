@@ -39,6 +39,7 @@ import { coreLogSink } from "./core-log.ts";
 import { openDb } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
+import { TERMINAL } from "./domain/runs.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { announceRelease } from "./domain/whats-new.ts";
@@ -282,6 +283,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     store,
     opts.computer && !opts.computer.managed ? opts.computer : managedVmConfig(store, config.home, opts.computer),
   );
+  // A screen is held for one run: once the run is over, the screen is free for another agent.
+  bus.on((e) => {
+    if (e.type === "run.updated" && TERMINAL.has(e.run.state)) vm.release(e.run.id);
+  });
   const watchdog = computerWatchdog({
     store,
     vm,
@@ -618,6 +623,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     channels,
     scheduler,
     telemetry,
+    computer: vm,
     async close() {
       await watchdog.stop();
       await vm.close();

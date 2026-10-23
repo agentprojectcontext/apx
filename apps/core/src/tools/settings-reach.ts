@@ -59,6 +59,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "devices.pair_cancel": MACHINE,
   "devices.revoke": MACHINE,
   "environments.configure": MACHINE,
+  "environments.stop": MACHINE,
   "browser.control": MACHINE,
   "system.update": MACHINE,
   "system.import_v1": MACHINE,

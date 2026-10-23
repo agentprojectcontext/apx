@@ -19,7 +19,7 @@ import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
 import type { Origin, RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
-import { VM_WORKSPACE } from "../environments/worker.ts";
+import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { Canceled, DeadlineExceeded, errorMessage, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import { systemNote } from "../harness/native.ts";
@@ -200,7 +200,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     return store.runs.setState(start, "failed", error);
   };
   const audience = audienceOf(store, thread);
-  if (store.settings.get("computer_thread") === thread.id && !deps.vm)
+  if (store.settings.read("computer_chats").includes(thread.id) && !deps.vm)
     return preflightFailure("the assigned VM backend is unavailable; host fallback is forbidden");
   if (deps.vm?.hasThread(thread.id)) {
     if (thread.engine || start.input.origin.kind !== "user")
@@ -208,8 +208,9 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
     // A stopped computer is the agent's to start; a chat whose agent may not use it never runs on the host instead.
     if (!deps.vm.permitted(agent.id, thread.id))
       return preflightFailure(`${agent.name} may not use the computer; the owner allows it in the agent's settings`);
+    // Its own screen for this run while the computer runs: refused when another chat holds it or every screen is held.
     try {
-      deps.vm.requireAgentControl(thread.id);
+      await deps.vm.claim(agent.id, thread.id, start.id);
     } catch (error) {
       return preflightFailure(error instanceof Error ? error.message : String(error));
     }
@@ -308,7 +309,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
           skills,
           deps.profileRoots ?? [],
           deps.build,
-          deps.vm?.hasThread(thread.id) ? VM_WORKSPACE : scratchDir(store, deps.home, thread),
+          deps.vm?.hasThread(thread.id) ? AGENT_WORKSPACE : scratchDir(store, deps.home, thread),
           Boolean(deps.desktopLinked?.()) && !deps.hasCap?.(COMPUTER_CAP),
         ),
     history,
@@ -529,7 +530,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
                 stickers: o.kind === "channel" ? stickersOf(store, o.channel) : undefined,
                 mode: modeBlock(mode),
                 workspace: deps.vm?.hasThread(thread.id)
-                  ? `Isolated Linux computer: ${VM_WORKSPACE}. Shell and browser tools run as an unprivileged user in this VM; web access uses the protected proxy. When it is off, start it with the computer tool.`
+                  ? `Shared Linux computer: ${AGENT_WORKSPACE}, as your own unprivileged user on your own screen. Shell and browser tools run there; web access uses the protected proxy. When it is off, start it with the computer tool.`
                   : workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
                 release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
                 feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,

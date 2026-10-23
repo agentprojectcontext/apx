@@ -15,9 +15,9 @@ export function attachVmDisplay(server: Server, vm: Computer, gate: Gate) {
       return;
     }
     try {
-      const connect = vm.connectDisplay(url.searchParams.get("ticket") ?? "");
+      const { screen, open } = vm.connectDisplay(url.searchParams.get("ticket") ?? "");
       wss.handleUpgrade(req, socket, head, (ws) => {
-        const child = connect();
+        const child = open();
         const stop = () => {
           child.kill();
           ws.terminate();
@@ -28,7 +28,10 @@ export function attachVmDisplay(server: Server, vm: Computer, gate: Gate) {
           if (ws.readyState !== ws.OPEN || ws.bufferedAmount > 4 * 1024 * 1024) return stop();
           ws.send(data);
         });
-        const input = rfbInput(vm.humanControl, (bytes) => child.stdin?.write(bytes));
+        const input = rfbInput(
+          () => vm.humanControl(screen),
+          (bytes) => child.stdin?.write(bytes),
+        );
         ws.on("message", (data, binary) => {
           if (!binary || !child.stdin?.writable || child.stdin.writableLength > 1024 * 1024) return stop();
           try {

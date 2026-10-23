@@ -28,6 +28,8 @@ table inet apx_computer {
     type filter hook output priority -150; policy accept;
     meta skuid 1001 oifname "lo" accept
     meta skuid 1001 reject with icmpx type admin-prohibited
+    meta skuid 2001-2999 oifname "lo" accept
+    meta skuid 2001-2999 reject with icmpx type admin-prohibited
   }
   chain forward {
     type filter hook forward priority -150; policy drop;
@@ -57,8 +59,10 @@ ExecStart=/usr/local/libexec/apx-computer-firewall
 [Install]
 WantedBy=multi-user.target
 UNIT
-install -d -m 755 /etc/systemd/system/user@1001.service.d
-cat > /etc/systemd/system/user@1001.service.d/firewall.conf <<'UNIT'
+# Every user's session, the owner's screen and each agent's, waits for the firewall.
+rm -rf /etc/systemd/system/user@1001.service.d
+install -d -m 755 /etc/systemd/system/user@.service.d
+cat > /etc/systemd/system/user@.service.d/firewall.conf <<'UNIT'
 [Unit]
 Requires=apx-computer-firewall.service
 After=apx-computer-firewall.service
@@ -72,7 +76,7 @@ systemctl start user@1001.service
 install -d -m 755 /etc/polkit-1/rules.d
 cat > /etc/polkit-1/rules.d/00-apx-worker.rules <<'RULES'
 polkit.addRule(function(action, subject) {
-  if (subject.user == "apx-worker") return polkit.Result.NO;
+  if (subject.user == "apx-worker" || /^apx-a[0-9]+$/.test(subject.user)) return polkit.Result.NO;
 });
 RULES
 if sudo -n -u "$worker" sudo -n true 2>/dev/null; then echo 'Worker has administrative access' >&2; exit 1; fi

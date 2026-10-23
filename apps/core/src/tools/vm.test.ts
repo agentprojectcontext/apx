@@ -60,16 +60,16 @@ test("an agent the owner did not allow sees no computer tool, and its chat canno
     assert.equal(seen[0]?.includes("computer"), false);
     await assert.rejects(env.client.call("environments.enable", { thread: "home", appearance: "light" }), /allow it/);
     await assert.rejects(env.client.call("environments.bind", { thread: "home" }), /may not use the computer/);
-    const status = await env.client.call("environments.status", {});
+    const status = await env.client.call("environments.status", { thread: "home" });
     assert.equal(status.enabled, false);
-    assert.equal(status.thread, undefined);
+    assert.equal(status.chat?.on, false);
   } finally {
     await env.core.close();
     env.cleanup();
   }
 });
 
-test("once set up, an agent asks with a card; allowed for good, it starts its computer and stops it, keeping its run", async () => {
+test("once set up, an agent asks with a card; allowed for good, it starts the shared computer, takes its own screen and leaves", async () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-tool-"));
   const vm = fakeComputer(home);
   const seen: string[][] = [];
@@ -86,7 +86,7 @@ test("once set up, an agent asks with a card; allowed for good, it starts its co
     await env.client.call("environments.permit", { agent: "roby", on: true });
     await env.client.call("environments.enable", { thread: "home", appearance: "light" });
     await until(async () => (await env.client.call("environments.status", {})).phase === "running", "owner start");
-    await env.client.call("environments.stop", { thread: "home" });
+    await env.client.call("environments.stop", {});
     await until(async () => (await env.client.call("environments.status", {})).phase === "stopped", "owner stop");
 
     const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
@@ -98,28 +98,30 @@ test("once set up, an agent asks with a card; allowed for good, it starts its co
     }, "a card asking for the computer");
     assert.equal(input?.tool, "computer");
     assert.deepEqual(input?.approval_scopes, ["session", "always"]);
-    assert.match(input?.prompt ?? "", /asks to use the isolated Linux computer \(4 GiB memory, 2 CPUs\)/);
+    assert.match(
+      input?.prompt ?? "",
+      /asks to use the shared Linux computer \(4 GiB memory, 2 CPUs\), with its own user/,
+    );
     await env.client.call("runs.respond", { input: input?.id ?? "", decision: "approve", scope: "always" });
     const result = await env.settle(chat.id);
 
     assert.ok(seen[0]?.includes("computer"), "offered to ask once the owner set it up");
-    assert.match(results(llm.calls.at(-1) as LlmRequest)[0] ?? "", /Computer: running/);
-    assert.match(results(llm.calls.at(-1) as LlmRequest)[1] ?? "", /Computer: stopped \(shut down by an agent\)/);
+    assert.match(results(llm.calls.at(-1) as LlmRequest)[0] ?? "", /running; you hold your screen :101/);
+    assert.match(results(llm.calls.at(-1) as LlmRequest)[1] ?? "", /Left the computer/);
     assert.equal(result.runs[0]?.state, "completed");
-    const status = await env.client.call("environments.status", {});
-    assert.equal(status.thread, chat.id, "moved from Home while it was off");
-    assert.equal(status.last_stop?.reason, "agent");
-    assert.deepEqual(vm.calls, ["start", "stop", "start", "stop"]);
+    const status = await env.client.call("environments.status", { thread: chat.id });
+    assert.equal(status.chat?.on, false, "back on this Mac");
+    assert.equal(status.chat?.screen, 1, "its own screen, kept for next time");
+    assert.equal(status.phase, "running", "still up for the other agents until the watchdog finds it idle");
+    assert.deepEqual(vm.calls, ["start", "stop", "start"]);
     const grants = (await env.client.call("tools.approvals", {})).approvals;
     assert.ok(grants.some((g) => g.key === COMPUTER_GRANT && g.agent_id === "scout" && g.scope === "always"));
 
-    // Its next turn is a computer turn: guest tools only, the computer tool among them.
+    // Its next turn is a turn on this Mac again: host tools, and the computer tool to go back.
     await env.client.call("threads.send", { thread: chat.id, text: "Again" });
     await env.settle(chat.id);
-    assert.deepEqual(
-      seen.at(-1)?.filter((n) => n !== "shell" && n !== "computer" && !n.startsWith("browser_")),
-      [],
-    );
+    assert.ok(seen.at(-1)?.includes("computer"));
+    assert.ok(seen.at(-1)?.some((n) => n !== "shell" && n !== "computer" && !n.startsWith("browser_")));
   } finally {
     await env.core.close();
     env.cleanup();
@@ -161,6 +163,7 @@ test("only the owner or the allowed agent's own run starts and stops it; taking 
   try {
     const agent = new ApxClient({ url: env.core.url, actor: "agent" });
     await assert.rejects(agent.call("environments.start", { thread: "home" }), { code: "unauthorized" });
+    await assert.rejects(agent.call("environments.release", { thread: "home" }), { code: "unauthorized" });
     await assert.rejects(agent.call("environments.permit", { agent: "roby", on: true }), { code: "unauthorized" });
     await env.client.call("environments.permit", { agent: "roby", on: true });
     await env.client.call("environments.bind", { thread: "home" });

@@ -19,23 +19,23 @@ try {
   await page.reload();
   await expect(page.locator(".computer__status.is-on")).toBeVisible({ timeout: 30_000 });
   await expect(page.locator(".computer__screen canvas")).toBeVisible();
-  await client.call("environments.control", { thread: "home", mode: "human" });
+  await client.call("environments.control", { screen: 1, mode: "human" });
   await expect(page.getByRole("button", { name: /Devolver control|Return control/ })).toBeVisible();
   const command = page.getByRole("textbox", { name: /Comando dentro|Command inside/ });
   await command.fill("printf 'VM-RUNTIME-PROOF\\n'; uname -s; pwd");
   await page.getByRole("button", { name: /^(Enviar|Send)$/ }).click();
-  await expect(page.locator(".computer__console pre")).toContainText("VM-RUNTIME-PROOF\nLinux\n/home/apx-worker/work", {
+  await expect(page.locator(".computer__console pre")).toContainText("VM-RUNTIME-PROOF\nLinux\n/home/apx-a1/work", {
     timeout: 20_000,
   });
   const reports = page.getByText("Demo programada terminada.", { exact: false });
   const previousReports = await reports.count();
-  await client.call("environments.control", { thread: "home", mode: "agent" });
+  await client.call("environments.control", { screen: 1, mode: "agent" });
   await client.call("threads.send", {
     thread: "home",
     text: "Demostración VM: abrir navegador y terminal, crear informe ficticio.",
   });
   await expect(reports).toHaveCount(previousReports + 1, { timeout: 60_000 });
-  await client.call("environments.control", { thread: "home", mode: "human" });
+  await client.call("environments.control", { screen: 1, mode: "human" });
   await expect(page.getByRole("button", { name: /Devolver control|Return control/ })).toBeVisible();
   await command.fill(
     "set -e; systemctl --user is-active apx-demo-browser.service apx-demo-terminal.service; cat report.txt; xdotool search --sync --onlyvisible --name 'Acme workspace' windowactivate --sync; xdotool search --onlyvisible --name '^APX-VM$' windowactivate --sync",
