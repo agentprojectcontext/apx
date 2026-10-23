@@ -107,6 +107,7 @@ export function agentSetTools(store: Store): Tool[] {
       args,
       effect: "local",
       confirm: (a) => (changes(a) ? "always" : "never"),
+      ownerSetting: changes,
       deadlineMs: 15_000,
       title: (a) =>
         !a.agent

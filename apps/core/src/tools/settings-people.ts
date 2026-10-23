@@ -11,7 +11,11 @@ import { merged, ownersField, type Params, type Setting, str } from "./settings-
 
 const personOf = (p: Params, store: Store) => (typeof p.id === "string" ? store.persons.get(p.id) : undefined);
 
-const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const fold = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
 /** One line per contact with everything the owner edits on their card, and each address's id (contacts.claim). */
 export function contactLine(p: Person): string {

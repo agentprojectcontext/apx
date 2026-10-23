@@ -127,6 +127,11 @@ export type Tool = {
   preview?: ((args: Record<string, unknown>, ctx: CheckContext) => Promise<FileChange | undefined>) | undefined;
   /** What the owner reads about the call when asked to confirm it, in place of arguments that say nothing (an id). */
   explain?: ((args: Record<string, unknown>) => string | undefined) | undefined;
+  /**
+   * The call changes what the owner set up (their contacts, channels, agents, settings): it runs only on the owner's
+   * own word in this chat, never another agent's, and always on their card, whatever the mode (DECISIONS.md#d-140).
+   */
+  ownerSetting?: ((args: Record<string, unknown>) => boolean) | undefined;
   /** Checks the model's arguments; a failure goes back to the model as the tool's result. */
   parse(raw: Record<string, unknown>): { ok: true; args: Record<string, unknown> } | { ok: false; error: string };
   /** Short human title for the tool card ("Opened github.com"). Gets the raw arguments. */
@@ -155,6 +160,7 @@ export function defineTool<S extends Args>(def: {
   outside?: (args: z.output<S>, ctx: CheckContext) => string[];
   preview?: (args: z.output<S>, ctx: CheckContext) => Promise<FileChange | undefined>;
   explain?: (args: z.output<S>) => string | undefined;
+  ownerSetting?: (args: z.output<S>) => boolean;
   title(args: Partial<z.input<S>>): string;
   run(args: z.output<S>, ctx: ToolContext): Promise<string>;
 }): Tool {
@@ -180,6 +186,9 @@ export function defineTool<S extends Args>(def: {
       ? { preview: async (a: Record<string, unknown>, ctx: CheckContext) => def.preview?.(a as z.output<S>, ctx) }
       : {}),
     ...(def.explain ? { explain: (a: Record<string, unknown>) => def.explain?.(a as z.output<S>) } : {}),
+    ...(def.ownerSetting
+      ? { ownerSetting: (a: Record<string, unknown>) => def.ownerSetting?.(a as z.output<S>) === true }
+      : {}),
     ...(def.local ? { local: (a: Record<string, unknown>) => def.local?.(a as z.output<S>) === true } : {}),
     ...(def.reads ? { reads: (a: Record<string, unknown>) => def.reads?.(a as z.output<S>) === true } : {}),
     ...(def.scratch ? { scratch: (a: Record<string, unknown>) => def.scratch?.(a as z.output<S>) === true } : {}),
