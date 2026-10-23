@@ -15,6 +15,7 @@ import { prepareLocalTarget } from "../../../packages/install/src/paths.ts";
 import { desktopSessionEnv } from "../../../packages/install/src/session.ts";
 import { createAccess } from "./access.ts";
 import { createApcSync } from "./apc/sync.ts";
+import type { TemplateRoot } from "./apc/templates.ts";
 import { createBus } from "./bus.ts";
 import { discordAdapter } from "./channels/discord.ts";
 import { emailAdapter } from "./channels/email.ts";
@@ -273,12 +274,23 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     fetch: opts.asanaFetch,
     offIn: (project) => !integrationsOff.takesGlobals(project) || integrationsOff.offIn(project).includes("asana"),
   });
+  // APX's own profiles, then the ones the owner installed (theirs win an id).
+  const profileRoots: ProfileRoot[] = [
+    { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/profiles") },
+    { source: "owner", dir: path.join(config.home, "profiles") },
+  ];
+  // APX's own templates, then the owner's v1 vault (read-only).
+  const templateRoots: TemplateRoot[] = [
+    { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/agents") },
+    { source: "v1", dir: path.join(config.v1.home, "agents") },
+  ];
   const tools = builtinTools(
     store,
     config.home,
     () => listening,
     [...imessageTools(imessage), ...googleTools(google), ...asanaTools(asana, store), ...(opts.extraTools ?? [])],
     config.runtimeSkills.homes,
+    { profiles: profileRoots, templates: templateRoots },
   );
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
   // The router exists only after the engine, hence the late binding.
@@ -392,11 +404,6 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
     log,
   });
-  // APX's own profiles, then the ones the owner installed (theirs win an id).
-  const profileRoots: ProfileRoot[] = [
-    { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/profiles") },
-    { source: "owner", dir: path.join(config.home, "profiles") },
-  ];
   const engine = createEngine({
     store,
     harnesses,
@@ -540,11 +547,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       news,
       panel: () => panelEntry(servedPanel(config)),
       profileRoots,
-      // APX's own templates, then the owner's v1 vault (read-only).
-      templateRoots: [
-        { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/agents") },
-        { source: "v1", dir: path.join(config.v1.home, "agents") },
-      ],
+      templateRoots,
     }),
     store.idempotency,
   );

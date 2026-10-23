@@ -8,10 +8,11 @@ import type { Store } from "../domain/store.ts";
 import type { ProfileRoot } from "../engine/profiles.ts";
 import type { Params, Setting, SettingsDeps } from "./settings-kit.ts";
 import { PEOPLE } from "./settings-people.ts";
+import { TEAM } from "./settings-team.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 /** What the super-agent may read and change, by method. */
-export const SETTINGS: Readonly<Record<string, Setting>> = { ...PEOPLE };
+export const SETTINGS: Readonly<Record<string, Setting>> = { ...PEOPLE, ...TEAM };
 
 /** The area a method belongs to, as its card's title names it ("Changed a channel"). */
 const AREA: Readonly<Record<string, string>> = {
