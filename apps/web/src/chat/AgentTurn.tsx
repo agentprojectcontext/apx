@@ -13,18 +13,18 @@ import { copyableQuote } from "./CopyableQuote.tsx";
 import { runnableCode } from "./codeRunner.tsx";
 import { linkMenu } from "./LinkMenu.tsx";
 import { MessageActions } from "./MessageActions.tsx";
+import { BrowserPart } from "./parts/BrowserPart.tsx";
+import { ChangesPart } from "./parts/ChangesPart.tsx";
 import { FilePart } from "./parts/FilePart.tsx";
 import { AudioPart } from "./parts/lazyAudio.tsx";
 import { type MediaBlock, mediaBlocks } from "./parts/mediaGroups.ts";
 import { NoticePart } from "./parts/NoticePart.tsx";
+import { SkillsPart } from "./parts/SkillsPart.tsx";
 import { SubthreadPart } from "./parts/SubthreadPart.tsx";
 import { ToolGroup } from "./parts/ToolGroup.tsx";
 import { taskCodeSpan } from "./TaskChip.tsx";
 
-// Rich message cards load only when a turn contains one.
-const SkillsPart = lazy(() => import("./parts/SkillsPart.tsx").then((m) => ({ default: m.SkillsPart })));
-const ChangesPart = lazy(() => import("./parts/ChangesPart.tsx").then((m) => ({ default: m.ChangesPart })));
-const BrowserPart = lazy(() => import("./parts/BrowserPart.tsx").then((m) => ({ default: m.BrowserPart })));
+// A widget's frame loads with the first message that has one, not with the chat.
 const SurfacePart = lazy(() => import("./parts/SurfacePart.tsx").then((m) => ({ default: m.SurfacePart })));
 const ChoicesPart = lazy(() => import("./parts/ChoicesPart.tsx").then((m) => ({ default: m.ChoicesPart })));
 // It brings the integrations' forms: loaded only when an agent offers one.
@@ -102,11 +102,7 @@ export function AgentTurn({
 
   return (
     <div className="turn">
-      {skills && (
-        <Suspense fallback={null}>
-          <SkillsPart part={skills} projectId={projectId} />
-        </Suspense>
-      )}
+      {skills && <SkillsPart part={skills} projectId={projectId} />}
       {tools.length > 0 && <ToolGroup parts={tools} waiting={waiting} />}
       {blocks.map(({ key, part, media }, i) => {
         const last = i === blocks.length - 1;
@@ -175,11 +171,7 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
     case "subthread":
       return <SubthreadPart part={p} from={agent} />;
     case "browser":
-      return (
-        <Suspense fallback={null}>
-          <BrowserPart part={p} agent={agent} threadId={message.thread_id} />
-        </Suspense>
-      );
+      return <BrowserPart part={p} agent={agent} threadId={message.thread_id} />;
     case "image":
       // One with a source is in its message's picture grid; one without has nothing to show.
       return null;
@@ -196,11 +188,7 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
         </Suspense>
       );
     case "changes":
-      return (
-        <Suspense fallback={null}>
-          <ChangesPart part={p} />
-        </Suspense>
-      );
+      return <ChangesPart part={p} />;
     case "choices":
       return (
         <Suspense fallback={null}>
