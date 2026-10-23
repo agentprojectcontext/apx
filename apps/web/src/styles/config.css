@@ -1220,6 +1220,12 @@
   height: 48px;
   object-fit: contain;
 }
+.stk__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
 .stk__thumb--none {
   display: grid;
   place-items: center;

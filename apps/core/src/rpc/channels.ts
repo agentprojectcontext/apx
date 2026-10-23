@@ -5,6 +5,7 @@ import { type ChannelType, ErrorCode } from "@apx/protocol";
 import { CHANNEL_CATALOG } from "../channels/catalog.ts";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
+import { autoApproves } from "../channels/stickers.ts";
 import { normalJid } from "../channels/whatsapp.ts";
 import { publicOutbox } from "../domain/channels.ts";
 import { noticePrefs, saveNoticePrefs } from "../domain/notices.ts";
@@ -104,7 +105,14 @@ export function channelHandlers(store: Store, channels: Channels) {
         throw badRequest(errorMessage(err));
       }
     },
-    "stickers.list": ({ platform }) => ({ stickers: store.stickers.list(platform).flatMap(shown) }),
+    "stickers.list": ({ platform }) => ({
+      stickers: store.stickers.list(platform).flatMap(shown),
+      auto: autoApproves(store),
+    }),
+    "stickers.auto": ({ on }) => {
+      store.settings.set("stickers_auto", on ? "on" : "off");
+      return { on };
+    },
     "stickers.set": ({ id, meaning, blocked }) => {
       const s = store.stickers.set(id, { meaning, blocked });
       const out = s && shown(s)[0];

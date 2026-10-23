@@ -460,6 +460,8 @@ export interface StickersTable {
   created_at: string;
   last_at: string;
   blocked: Generated<number>;
+  pending: Generated<number>;
+  adult: Generated<number>;
 }
 
 export interface SuggestionsTable {

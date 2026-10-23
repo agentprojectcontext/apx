@@ -19,6 +19,10 @@ export type Sticker = {
   sent: number;
   /** The owner said the agent may not send it. */
   blocked: boolean;
+  /** Waits for the owner's OK before the agent may send it. */
+  pending: boolean;
+  /** A model saw it as adult-only: never sent without the owner's OK. */
+  adult: boolean;
   created_at: string;
   last_at: string;
 };
@@ -33,6 +37,8 @@ const toSticker = (r: Selectable<StickersTable>): Sticker => ({
   seen: Number(r.seen),
   sent: Number(r.sent),
   blocked: Boolean(r.blocked),
+  pending: Boolean(r.pending),
+  adult: Boolean(r.adult),
   created_at: r.created_at,
   last_at: r.last_at,
 });
@@ -107,22 +113,32 @@ export function stickersRepo({ one, all, run }: Sql) {
           .orderBy("last_at", "desc"),
       ).map(toSticker);
     },
+    /** The owner's words for it, or their decision: allowed or blocked, either way no longer waiting. */
     set(id: string, patch: { meaning?: string | undefined; blocked?: boolean | undefined }): Sticker | undefined {
       if (patch.meaning !== undefined) repo.describe(id, patch.meaning);
       if (patch.blocked !== undefined)
         run(
           qb
             .updateTable("stickers")
-            .set({ blocked: patch.blocked ? 1 : 0 })
+            .set({ blocked: patch.blocked ? 1 : 0, pending: 0 })
             .where("id", "=", id),
         );
       return repo.get(id);
+    },
+    /** Once named: whether it waits for the owner's OK, and whether it is adult-only. */
+    review(id: string, r: { pending: boolean; adult: boolean }): void {
+      run(
+        qb
+          .updateTable("stickers")
+          .set({ pending: r.pending ? 1 : 0, adult: r.adult ? 1 : 0 })
+          .where("id", "=", id),
+      );
     },
     /** Forgets a sticker; its media row and file are the caller's to remove. */
     remove(id: string): boolean {
       return run(qb.deleteFrom("stickers").where("id", "=", id)) > 0;
     },
-    /** A platform's stickers the agent may send (named, not blocked), the most used first. */
+    /** A platform's stickers the agent may send (named, allowed, not waiting), the most used first. */
     known(platform: string, limit = 50): Sticker[] {
       return all(
         qb
@@ -131,6 +147,7 @@ export function stickersRepo({ one, all, run }: Sql) {
           .where("platform", "=", platform)
           .where("meaning", "is not", null)
           .where("blocked", "=", 0)
+          .where("pending", "=", 0)
           .orderBy((eb) => eb("seen", "+", eb.ref("sent")), "desc")
           .orderBy("last_at", "desc")
           .limit(limit),
