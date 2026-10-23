@@ -126,15 +126,11 @@ test("iMessage is a pair of tools on a Mac; elsewhere (this sandbox) the panel s
   await expect(page.getByText("Solo en una Mac")).toBeVisible();
 });
 
-test("new channels are offered; Google Chat takes its subscription and whole JSON key; Teams and LINE wait", async ({
-  page,
-}) => {
+test("new channels are offered; Google Chat takes its subscription and whole JSON key", async ({ page }) => {
   await open(page);
   await page.getByRole("button", { name: "Agregar canal" }).click();
-  for (const name of ["Google Chat", "SMS", "ntfy", "Nextcloud Talk", "IRC", "Twitch"])
+  for (const name of ["Google Chat", "SMS", "ntfy", "Nextcloud Talk", "IRC", "Twitch", "Microsoft Teams", "LINE"])
     await expect(page.getByRole("menuitem", { name, exact: true })).toBeEnabled();
-  for (const name of ["Microsoft Teams", "LINE"])
-    await expect(page.getByRole("menuitem", { name, exact: true })).toBeDisabled();
   await page.getByRole("menuitem", { name: "Google Chat", exact: true }).click();
   const connect = page.getByRole("button", { name: "Conectar bot" });
   await page.getByRole("textbox", { name: "Suscripción", exact: true }).fill("projects/acme/subscriptions/apx-chat");
@@ -143,4 +139,18 @@ test("new channels are offered; Google Chat takes its subscription and whole JSO
     '{\n  "type": "service_account",\n  "client_email": "apx@acme.iam.gserviceaccount.com",\n  "private_key": "-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----\\n"\n}';
   await page.getByRole("textbox", { name: "Clave de la cuenta de servicio (JSON)", exact: true }).fill(key);
   await expect(connect).toBeEnabled();
+});
+
+test("Teams shows its public address: the owner's own https URL gives the address to paste into Azure", async ({
+  page,
+}) => {
+  await open(page);
+  await page.getByRole("button", { name: "Agregar canal" }).click();
+  await page.getByRole("menuitem", { name: "Microsoft Teams", exact: true }).click();
+  await expect(page.getByText("Dirección pública", { exact: true })).toBeVisible();
+  await page.getByRole("radio", { name: "Propia", exact: true }).click();
+  await page.getByRole("textbox", { name: "Tu dirección", exact: true }).fill("https://hooks.example.com");
+  await page.getByRole("button", { name: "Guardar" }).click();
+  await expect(page.getByText("https://hooks.example.com/hooks/teams")).toBeVisible();
+  await rpc("webhooks.set", { mode: "off" });
 });

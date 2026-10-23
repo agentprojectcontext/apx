@@ -28,6 +28,8 @@ const LEAD: Partial<Record<ChannelKind, MessageKey>> = {
   nextcloud: "nc.lead",
   irc: "irc.lead",
   twitch: "tw.lead",
+  teams: "tm.lead",
+  line: "ln.lead",
 };
 
 /** Config › Channels: a tab per connected channel, and "+" for the kinds not connected yet. */

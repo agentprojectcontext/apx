@@ -69,6 +69,7 @@ import { terminalHandlers } from "./rpc/terminal.ts";
 import { threadAdminHandlers } from "./rpc/thread-admin.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import { transcriptionHandlers } from "./rpc/transcription.ts";
+import { webhookHandlers } from "./rpc/webhooks.ts";
 import type { Secrets } from "./secrets.ts";
 import type { RuntimeHomes } from "./skills/runtimes.ts";
 import { kitSource, withKit } from "./surface-kit.ts";
@@ -238,6 +239,7 @@ type HandlerDeps = {
   addresses: () => string[];
   /** Who may reach this core (this computer, the network, the tailnet). */
   access: Parameters<typeof accessHandlers>[0];
+  webhooks: Parameters<typeof webhookHandlers>[0];
   /** The owner's shells in a chat's folder. */
   terminals: Parameters<typeof terminalHandlers>[1];
 };
@@ -276,6 +278,7 @@ export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
     ...clientHandlers(d.store),
     ...deviceHandlers(d.store, { addresses: d.addresses, onRevoke: (id) => d.vm?.revokeDevice(id) }),
     ...accessHandlers(d.access),
+    ...webhookHandlers(d.webhooks),
     ...phoneHandlers(d.broker, d.store, d.app.home),
     ...computerHandlers(d.broker, d.store, d.app.home, d.engine),
     ...extensionHandlers(d.extensions, d.mcp),

@@ -2081,7 +2081,43 @@ panel's own acts (recovering a chat's lost files, importing a widget file, resum
 from the store with nothing secret: channels without tokens, services without keys.
 
 <a id="d-139"></a>
-## D-139 — 2026-10-23 — The isolated computer is a per-agent permission, and its memory decides when it runs
+## D-139 — 2026-10-23 — Channels that deliver only to a webhook get a public address, on a listener of their own
+Teams, LINE and WhatsApp's business API do not let a bot pull its messages: they POST each one to a public HTTPS URL.
+The core listens only on loopback (rule 7) and has one contract, the router (rule 1), so those channels stayed
+"coming". openclaw and hermes open their gateway's port and leave the owner to put a tunnel in front (Microsoft's dev
+tunnels, ngrok, Tailscale Funnel); hermes also tries a hosted relay. Exposing the core's own port would publish the
+panel and the API, and a hosted relay is a service APX would have to run for everyone.
+
+So webhooks get a second HTTP listener (`transport/hooks.ts`), on 127.0.0.1, at the core's port + 8 (`APX_HOOKS_PORT`;
+a free one when that is taken), that takes only `POST …/hooks/<channel id>[/…]` up to 1 MB and hands the raw request
+to that channel's running adapter (`ChannelAdapter.webhook`); every other path is 404, and an adapter answers in 15 s
+or the platform gets 503. It is not a client↔core call, so it is not a router method: the platform is no client, and
+each adapter verifies its platform's own signature (Teams' Bot Framework JWT, LINE's HMAC) over the bytes as they came
+and refuses what it cannot verify. A failure's detail stays in the log.
+
+What publishes that port is the owner's choice (`webhooks.set`, Settings › Channels › Public address), kept and applied
+again at every start (`webhooks.ts`): Tailscale Funnel on HTTPS port 8443 (443 stays what `apx tailscale connect`
+serves to the tailnet, and only APX's own Funnel is undone when it is turned off); ngrok, started and watched by the
+core, which remembers the last address ngrok gave and tells the owner only when one is new (a free account usually
+keeps one across starts; a reserved domain can be given); or the owner's own https URL (a proxy they run). Each adapter reads its address through `io.hookUrl()`, and a
+channel that needs one and has none says so in its status until one exists.
+
+<a id="d-140"></a>
+## D-140 — 2026-10-23 — The owner's settings change on their card, at their word alone
+With D-138 the super-agent can change nearly everything the owner sets up. The owner asked that each such change
+always show its card (do it or not), and that no other agent can get the super-agent to make one. Before, `always`
+skipped the card on Total (D-047) or under the agent's own rule for that risk, and a message another agent posted in the
+super-agent's chat (origin `agent`) reached a turn that had the tools.
+
+A tool marks such calls with `ownerSetting` (`agent_set`, `attention_hours`, `apx_settings`, the tools only the
+super-agent has; `owner-setting.test.ts` fails on one without it). `authorize` turns an allow into a card for them in
+every mode and under every rule; plan mode still refuses them. The executor refuses them, before anyone is asked,
+unless the run's origin is the owner's own: their message in the app or on a channel as the owner, or their answer to a
+question the agent asked (`ownerAsked`). Another agent, a contact, a routine, a job or a task result gets "only when the
+owner asks you themselves". A delegated run already loses these tools (`inherit` keeps what every caller may use).
+
+<a id="d-141"></a>
+## D-141 — 2026-10-23 — The isolated computer is a per-agent permission, and its memory decides when it runs
 The Linux computer (a Lima VM with its own desktop, shell and browser, whose egress goes through a proxy that refuses
 the host and the local network) could only be turned on by the owner from the Computer panel, for one chat, with a
 fixed 4 GiB of memory. The owner wants it off by default, given to agents one by one, and started and stopped by the
@@ -2118,13 +2154,13 @@ the owner's idle minutes (30 by default, 0 for never) without a working run in i
 with the agent in control, it shuts it down too. Either way the disk is kept, the reason is kept for the panel
 (`last_stop`) and the owner is told in the chat and the tray. The stop threshold is below the start reserve, so a
 computer that just started is not stopped at once.
-[D-140](#d-140) replaced the one VM per chat with one shared VM, a user and screen per agent and a ledger of who
+[D-142](#d-142) replaced the one VM per chat with one shared VM, a user and screen per agent and a ledger of who
 holds each; the permission, resources and memory checks here stay.
 
-<a id="d-140"></a>
-## D-140 — 2026-10-23 — One shared computer: a Linux user and a screen per agent, and a ledger of who holds each
-D-139 gave one VM to one chat. Five or six agents each with their own 4 GiB VM would take about 24 GiB, and a guest's
-memory mostly goes back to macOS only when the VM stops. So there is one VM, sized once by the owner (D-139's
+<a id="d-142"></a>
+## D-142 — 2026-10-23 — One shared computer: a Linux user and a screen per agent, and a ledger of who holds each
+D-141 gave one VM to one chat. Five or six agents each with their own 4 GiB VM would take about 24 GiB, and a guest's
+memory mostly goes back to macOS only when the VM stops. So there is one VM, sized once by the owner (D-141's
 resources), shared by every allowed agent.
 
 **Users and screens.** Each agent gets a screen number the first time it uses the computer (`computer_screens`, kept):
@@ -2146,7 +2182,7 @@ run in another chat refuses a second chat ("in use in another chat"); when as ma
 (`(memory_gib − 1) / 1.25`, at least one: 2 for 4 GiB, 4 for 6 GiB, 5 for 8 GiB), a screen with no holder is stopped to
 make room, and with none free the turn is refused naming who holds them. A released screen stays up for its agent's next
 turn until room is needed; stopping it ends that user's session (`systemctl stop user@<uid>`), so its memory goes back.
-Control (D-139's lease) is per screen: the owner takes one agent's screen, which cancels the run holding it, without
+Control (D-141's lease) is per screen: the owner takes one agent's screen, which cancels the run holding it, without
 touching the others.
 
 **Chats.** A chat works on the computer when the owner turns it on in the Computer panel or its agent starts the

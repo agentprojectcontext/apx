@@ -44,7 +44,7 @@ test("news reach the owner's channel with buttons; a press asks the super-agent 
   env.core.store.surfaces.upsert({ name: "weather", title: "Weather", html: "<p>sunny</p>", created_by: "roby" });
   // Calendar connected and the channels news already heard: this is about the widget news alone.
   env.core.store.settings.set("google_account:google-calendar", "owner@example.com");
-  env.core.store.settings.set("news_seen", JSON.stringify(["more-channels"]));
+  env.core.store.settings.set("news_seen", JSON.stringify(["more-channels", "teams-line"]));
   const { entries } = await env.client.call("system.news", {});
   const kit = entries.find((e) => e.id === "artifacts-kit");
   assert.equal(kit?.applies, true);

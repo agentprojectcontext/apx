@@ -911,6 +911,8 @@ export const ChannelType = z.enum([
   "nextcloud",
   "irc",
   "twitch",
+  "teams",
+  "line",
 ]);
 export type ChannelType = z.infer<typeof ChannelType>;
 
@@ -928,7 +930,8 @@ export type RoomMode = z.infer<typeof RoomMode>;
  */
 export const ChannelRooms = z.object({
   rooms: z
-    .array(z.object({ id: z.string().min(1).max(40), name: z.string().max(80).default(""), mode: RoomMode }))
+    // A Teams group chat's id runs to about 90 characters.
+    .array(z.object({ id: z.string().min(1).max(120), name: z.string().max(80).default(""), mode: RoomMode }))
     .max(50),
   /** Words that count as calling the bot (besides an @mention or a reply to it). */
   names: z.array(z.string().min(1).max(40)).max(10).default([]),

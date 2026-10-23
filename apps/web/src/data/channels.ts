@@ -104,6 +104,8 @@ const TYPES = [
   "nextcloud",
   "irc",
   "twitch",
+  "teams",
+  "line",
 ] as const satisfies readonly ChannelInfo["type"][];
 
 /** Saves a channel (and its token when one was typed); the core restarts it. */

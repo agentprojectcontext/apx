@@ -40,6 +40,8 @@ import {
   type ChannelAdapter,
   type ChannelConfig,
   ChannelRefused,
+  type HookRequest,
+  type HookResponse,
   type ServerRoom,
 } from "./types.ts";
 
@@ -61,6 +63,7 @@ type Live = {
 };
 
 const tokenName = (id: string) => `channel-${id}`;
+const MASKED: ReadonlySet<string> = new Set(["email", "googlechat", "teams"]);
 const RETRY_MS = [10_000, 30_000, 60_000, 120_000, 300_000];
 
 export function createChannels(deps: {
@@ -94,6 +97,8 @@ export function createChannels(deps: {
   ownerReplied?: (messageId: string) => void;
   /** The time attention hours are read against (tests move it). */
   now?: () => Date;
+  /** The public address webhooks reach (`<base>`, without `/hooks/…`), while the owner has one on. */
+  hookBase?: () => string | undefined;
 }) {
   const retryMs = deps.retryMs ?? RETRY_MS;
   const clock = deps.now ?? (() => new Date());
@@ -544,6 +549,10 @@ export function createChannels(deps: {
             if (a) store.persons.unlink(a.id);
           }
         },
+        hookUrl: () => {
+          const base = deps.hookBase?.();
+          return base ? `${base}/hooks/${config.id}` : undefined;
+        },
         signal: ac.signal,
       });
       if (r.account) l.account = r.account;
@@ -600,8 +609,8 @@ export function createChannels(deps: {
       return {
         ...c,
         token_set: token !== undefined,
-        // A mailbox's password and a Google key (JSON, cut anywhere) show none of their characters.
-        ...(token ? { token_hint: c.type === "email" || c.type === "googlechat" ? "••••••••" : hintOf(token) } : {}),
+        // A mailbox's password, a Google key (JSON, cut anywhere) and a Teams secret show none of their characters.
+        ...(token ? { token_hint: MASKED.has(c.type) ? "••••••••" : hintOf(token) } : {}),
         status: l?.status ?? "off",
         ...(l?.error ? { error: l.error } : {}),
         ...(l?.account ? { account: l.account } : {}),
@@ -640,9 +649,17 @@ export function createChannels(deps: {
     return l.adapter.rooms();
   }
 
+  /** A request to a channel's public address: its running adapter answers it; anything else is not found. */
+  async function webhook(id: string, req: HookRequest): Promise<HookResponse> {
+    const l = live.get(id);
+    if (!l?.adapter.webhook) return { status: 404 };
+    return l.adapter.webhook(req);
+  }
+
   return {
     info,
     serverRooms,
+    webhook,
     ...outgoing,
     notifyOwner,
     approved: inbound.approved,

@@ -589,6 +589,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "chat.readOnly": "Conversación entre agentes · solo lectura",
   "chat.with": "Chat con {name}",
   "chat.startHint": "Escribí abajo para empezar.",
+  "chat.toBottom": "Ir al último mensaje",
   "chat.fromWidget": "Desde el widget",
   "chat.theAgent": "El agente",
   "chat.agentWorking": "{name} está trabajando…",

@@ -2,7 +2,7 @@ import type { Result } from "@apx/protocol";
 
 /**
  * What the sidebar keeps of the computer: its view shows on a host that can run it once the owner allowed an agent
- * (or set it up), and counts the screens agents work on (DECISIONS.md#d-140).
+ * (or set it up), and counts the screens agents work on (DECISIONS.md#d-142).
  */
 export function computersOf(status: Result<"environments.status">) {
   return {

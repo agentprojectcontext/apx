@@ -20,9 +20,9 @@ export const CHANNEL_KINDS = {
   nextcloud: { name: "channel.nextcloud.name", text: "channel.nextcloud.text", tone: "info", soon: false },
   irc: { name: "channel.irc.name", text: "channel.irc.text", tone: "neutral", soon: false },
   twitch: { name: "channel.twitch.name", text: "channel.twitch.text", tone: "violet", soon: false },
-  // Both deliver only to a public webhook, which the core does not take yet.
-  teams: { name: "channel.teams.name", text: "channel.teams.text", tone: "violet", soon: true },
-  line: { name: "channel.line.name", text: "channel.line.text", tone: "brand", soon: true },
+  // Both deliver only to a webhook: they need the public address (Settings › Channels, in their own screen).
+  teams: { name: "channel.teams.name", text: "channel.teams.text", tone: "violet", soon: false },
+  line: { name: "channel.line.name", text: "channel.line.text", tone: "brand", soon: false },
 } as const satisfies Record<string, { name: MessageKey; text: MessageKey; tone: string; soon: boolean }>;
 
 export type ChannelKind = keyof typeof CHANNEL_KINDS;

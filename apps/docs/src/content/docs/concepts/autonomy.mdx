@@ -26,6 +26,11 @@ project with none is on **Auto**.
 | `plan` | Plan: reads and proposes, changes nothing | Reads anywhere and answers with a plan. Any call that would change something is refused and the agent is told to propose it instead. |
 | `total` | Total: asks for nothing | Nothing waits for you, in any folder but APX's own. Your explicit choice, for agents you trust to run on their own. |
 
+One kind of change waits for you in every mode, Total included: your super-agent changing what you set up in APX
+(your contacts, channels, agents, profile and other settings). It also happens only when you asked for it yourself, in
+your chat or as the answer to its question: if another agent asks your super-agent for it, nothing changes and you are
+not asked.
+
 Writing outside the project, in Auto or Accept edits, raises a card for that call: **Only this time** lets it write
 there once, nothing is kept. Files written before these modes existed keep working: `ask` reads as Manual and
 `standard` or `edits` as Auto.

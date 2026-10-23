@@ -77,7 +77,23 @@ export type AdapterIO = {
   room?(r: { id: string; name: string; left?: boolean }): void;
   /** Connected as this account; `owner` is the owner's own address on it (a linked device is the owner). */
   identified?(who: { account: string; owner?: string }): void;
+  /**
+   * This channel's public address for its platform's webhooks (`<base>/hooks/<channel id>`), when the owner turned
+   * one on (Settings › Channels › Public address); none otherwise. It can change while the channel runs (ngrok).
+   */
+  hookUrl?(): string | undefined;
   signal: AbortSignal;
+};
+
+/**
+ * A request a platform sent to this channel's public address: `path` is what follows `/hooks/<channel id>` ("" or
+ * "/…"), `headers` are lowercased, `body` is the bytes as they came (a signature is checked over them).
+ */
+export type HookRequest = { method: string; path: string; headers: Record<string, string>; body: Buffer };
+export type HookResponse = {
+  status: number;
+  body?: string | Record<string, unknown>;
+  headers?: Record<string, string>;
 };
 
 export interface ChannelAdapter {
@@ -90,6 +106,11 @@ export interface ChannelAdapter {
   stop(): Promise<void>;
   /** The channel is removed: drop its persisted state, even if start was never called. */
   forget?(): Promise<void>;
+  /**
+   * A platform that delivers to a webhook (Teams, LINE): the request it sent to this channel's public address. The
+   * adapter checks the platform's signature itself and refuses (401) what it cannot verify; nothing else guards it.
+   */
+  webhook?(req: HookRequest): Promise<HookResponse>;
   /** Text, then `files` (the presentation's media, already read). */
   send(conversation: string, p: Presentation, files?: OutFile[]): Promise<{ external_id?: string }>;
   typing?(conversation: string): Promise<void>;

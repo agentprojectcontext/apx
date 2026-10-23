@@ -113,6 +113,9 @@ export function authorize(tool: Tool, args: Record<string, unknown>, agent: Agen
   if (tool.scratch?.(args)) return decide(level === "always" ? "always" : "never", "none", agent, untrusted);
   // A call that only reads here is risk read whatever the tool may do otherwise (DECISIONS.md#d-098).
   const d = decide(level, tool.reads?.(args) ? "none" : tool.effect, agent, untrusted, tool.workspace);
+  // What the owner set up changes on their card alone: no mode or rule of the agent's skips it (DECISIONS.md#d-140).
+  if (d.kind === "allow" && tool.ownerSetting?.(args))
+    return { kind: "confirm", why: "always", reason: "a change to what you set up always waits for you" };
   // The tool names what outside content could do through this call, so the card says it (DECISIONS.md#d-121).
   return d.kind === "confirm" && d.why === "untrusted" && level === "untrusted" && tool.untrustedWhy
     ? { ...d, why: tool.untrustedWhy, reason: URL_DATA }

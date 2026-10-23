@@ -1,6 +1,16 @@
 import type { Message as Msg, Thread } from "@apx/protocol";
-import { ActivityPill, AgentAvatar, DayDivider, EmptyState, Icons, Message, SystemNote, withMentions } from "@apx/ui";
-import { lazy, type ReactNode, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import {
+  ActivityPill,
+  AgentAvatar,
+  DayDivider,
+  EmptyState,
+  IconButton,
+  Icons,
+  Message,
+  SystemNote,
+  withMentions,
+} from "@apx/ui";
+import { lazy, type ReactNode, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ReactionList } from "../channels/MessageMarks.tsx";
 import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
@@ -37,6 +47,7 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
+  const [away, setAway] = useState(false);
   // Each answer says who gave it when more than one agent speaks here: a group, a sub-thread, a task, or a chat where
   // another agent's answer arrived (a delegation's result).
   const multiAgent = useMemo(
@@ -63,6 +74,7 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
   // biome-ignore lint/correctness/useExhaustiveDependencies: runs per thread id on purpose
   useLayoutEffect(() => {
     stick.current = true;
+    setAway(false);
     const el = scroller.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [thread.id]);
@@ -102,7 +114,13 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
 
   const onScroll = () => {
     const el = scroller.current;
-    if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
+    if (!el) return;
+    stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
+    setAway(!stick.current);
+  };
+  const toBottom = () => {
+    const el = scroller.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   };
 
   // A reply's quote leads back to the message it was taken from.
@@ -211,6 +229,18 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
           </div>
         )}
       </div>
+      {away && (
+        <div className="chat__tobottom">
+          <IconButton
+            label={t("chat.toBottom")}
+            tooltipSide="top"
+            icon={<Icons.ArrowDown size={16} />}
+            variant="secondary"
+            shape="circle"
+            onClick={toBottom}
+          />
+        </div>
+      )}
     </div>
   );
 }
