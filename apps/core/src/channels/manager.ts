@@ -213,7 +213,7 @@ export function createChannels(deps: {
       return l?.status === "running" ? l.adapter : undefined;
     },
   });
-  const stickers = createStickers({ store, home: deps.home, log, see: deps.see });
+  const stickers = createStickers({ store, home: deps.home, log, see: deps.see, attention: deps.attention });
   const signals = createSignals({
     store,
     log,

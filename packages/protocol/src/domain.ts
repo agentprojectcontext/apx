@@ -618,6 +618,10 @@ export const Sticker = z.object({
   sent: z.number().int(),
   /** The owner said the agent may not send it. */
   blocked: z.boolean(),
+  /** Waits for the owner's OK before the agent may send it. */
+  pending: z.boolean(),
+  /** A model saw it as adult-only: it always waits for the owner's OK. */
+  adult: z.boolean(),
   last_at: z.string(),
 });
 export type Sticker = z.infer<typeof Sticker>;

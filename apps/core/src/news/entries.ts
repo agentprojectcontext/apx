@@ -160,7 +160,8 @@ export const NEWS: readonly NewsEntry[] = [
       "Every sticker someone sends on WhatsApp or Telegram is now kept the moment it arrives, named once by what it " +
       "shows, so the agent understands it and can answer a chat with one of them instead of words, on the same " +
       "platform. They are listed in each channel's settings, under Stickers, where the owner can say what one " +
-      "means or that the agent may not use it. Reactions the agent puts on messages now show in the app too.",
+      "means or that the agent may not use it, and choose whether new ones are the agent's to use at once (the " +
+      "default) or wait for their OK; one for adults always waits. Reactions the agent puts now show in the app too.",
     actions: [
       {
         label: { en: "Answer me with a sticker", es: "Contestame con un sticker" },

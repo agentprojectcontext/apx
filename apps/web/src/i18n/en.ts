@@ -1371,6 +1371,11 @@ export const en = {
   "stk.counts": "Arrived {seen} · sent {sent}",
   "stk.usable": "May use it",
   "stk.forget": "Forget this sticker",
+  "stk.auto": "Approve new stickers automatically",
+  "stk.autoHint":
+    "On, the agent may use each sticker as soon as it is kept; off, each one waits for your OK. 18+ ones and ones no model could see always wait for your OK.",
+  "stk.adult": "18+",
+  "stk.waits": "Waiting for your OK",
   "tg.out.queued": "Queued",
   "tg.out.sending": "Sending",
   "tg.out.sent": "Sent",

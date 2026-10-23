@@ -145,7 +145,7 @@ export function createInbound(deps: {
       // A sticker is kept for good the moment it arrives, and read as what it means (a silenced contact's unnamed).
       if (file.sticker) {
         const s = await deps.stickers.keep(cfg.type, file, thread.id, owner || !person.muted);
-        text = `${text}\n[sticker${s?.meaning ? `: ${s.meaning}` : ""}]`.trim();
+        text = `${text}\n[sticker${s?.adult ? " (18+)" : ""}${s?.meaning ? `: ${s.meaning}` : ""}]`.trim();
       }
     }
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.

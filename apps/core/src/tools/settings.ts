@@ -3,6 +3,7 @@
 // panel (rules/PROMPT_SIZE.md). Which methods it reaches is settings-reach.ts's to say. See DECISIONS.md#d-138
 import { isMethodName, type MethodName, methods, type Person } from "@apx/protocol";
 import { z } from "zod";
+import { autoApproves } from "../channels/stickers.ts";
 import type { Store } from "../domain/store.ts";
 import { inlineName } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
@@ -35,8 +36,13 @@ const stickerLine = (s: {
   seen: number;
   sent: number;
   blocked: boolean;
-}) =>
-  `- [${s.id}] ${s.meaning ? `"${inlineName(s.meaning)}"` : "not named yet"}${s.hint ? ` ${s.hint}` : ""} (arrived ${s.seen}, sent ${s.sent}${s.blocked ? ", you may not send it" : ""})`;
+  pending: boolean;
+  adult: boolean;
+}) => {
+  const state = s.blocked ? ", you may not send it" : s.pending ? ", waits for the owner's OK" : "";
+  const name = s.meaning ? `"${inlineName(s.meaning)}"` : "not named yet";
+  return `- [${s.id}] ${name}${s.hint ? ` ${s.hint}` : ""}${s.adult ? " (18+)" : ""} (arrived ${s.seen}, sent ${s.sent}${state})`;
+};
 
 /** One line per contact with everything the owner edits on their card. */
 function contactLine(p: Person): string {
@@ -95,20 +101,26 @@ export const SETTINGS: Readonly<Record<string, Setting>> = {
   "stickers.list": {
     does: "the stickers kept from a channel type (platform: whatsapp or telegram), what each means and if you may send it",
     read: (p, store) =>
-      store.stickers
-        .list(String(p.platform ?? ""))
-        .slice(0, 100)
-        .map(stickerLine)
-        .join("\n") || "no stickers kept there yet.",
+      `New stickers ${autoApproves(store) ? "are yours to use as they come" : "wait for the owner's OK"}.\n` +
+        store.stickers
+          .list(String(p.platform ?? ""))
+          .slice(0, 100)
+          .map(stickerLine)
+          .join("\n") || "no stickers kept there yet.",
   },
   "stickers.set": {
-    does: "say what a sticker means (id, meaning) or whether you may send it (blocked)",
+    does: "say what a sticker means (id, meaning), or approve it (blocked false) or block it (blocked true)",
     says: (p, store) => `Change the sticker ${inlineName(stickerOf(p, store)?.meaning ?? String(p.id ?? ""))}`,
     now: (p, store) => {
       const cur = stickerOf(p, store);
       return cur && { meaning: cur.meaning ?? "", blocked: cur.blocked };
     },
     shows: (r) => stickerLine(r as Parameters<typeof stickerLine>[0]),
+  },
+  "stickers.auto": {
+    does: "whether new stickers are yours to use as they come (on), or each waits for the owner's OK; 18+ always waits",
+    says: (p) => (p.on ? "Use new stickers as they come" : "Ask me before using each new sticker"),
+    now: (_p, store) => ({ on: autoApproves(store) }),
   },
   "stickers.remove": {
     does: "forget a sticker and its file (id); if someone sends it again it is kept again",

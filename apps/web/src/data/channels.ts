@@ -283,13 +283,22 @@ export async function loadPresence(channel: string): Promise<Record<string, Pres
   }
 }
 
-/** The stickers kept from a channel type; none when the core could not be asked. */
-export async function loadStickers(platform: string): Promise<Sticker[]> {
+/** The stickers kept from a channel type, and whether new ones are the agent's to use as they come. */
+export async function loadStickers(platform: string): Promise<{ stickers: Sticker[]; auto: boolean } | undefined> {
   try {
-    return (await client.call("stickers.list", { platform })).stickers;
+    return await client.call("stickers.list", { platform });
   } catch (e) {
     notify(t("error.channels", { error: errText(e) }));
-    return [];
+    return undefined;
+  }
+}
+
+export async function setStickersAuto(on: boolean): Promise<boolean | undefined> {
+  try {
+    return (await client.call("stickers.auto", { on })).on;
+  } catch (e) {
+    notify(t("error.channels", { error: errText(e) }));
+    return undefined;
   }
 }
 

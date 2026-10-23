@@ -2039,7 +2039,11 @@ agent reads `[sticker: meaning]`; a silenced contact's sticker is kept without a
 To answer with one the agent writes `STICKER <what it shows>`, a signal like `REACT` (no tool: no prompt cost on turns
 without stickers). Matching is by words of the meaning, at least half of them; below that nothing goes and the owner is
 told, since the wrong sticker says something the agent did not mean. A channel turn lists the platform's twelve most
-used meanings under `[stickers]`, so the agent picks among stickers that exist. Discord's stickers are not read nor sent
+used meanings under `[stickers]`, so the agent picks among stickers that exist. Whether the agent may send a sticker is the owner's: by default a new one is
+the agent's to use as soon as a model named it (the owner blocks what they do not want), or, with `stickers_auto` off,
+each waits for their OK. One the naming model marks `[18+]`, or one no model could see (an animated sticker, an install
+with no vision model), always waits: what nobody looked at may be anything. The owner is told in the tray when one
+waits, and approves it in the channel's Stickers section or by asking the super-agent (`apx_settings`, approved). Discord's stickers are not read nor sent
 yet: a bot can only send its own servers' stickers.
 
 <a id="d-138"></a>
