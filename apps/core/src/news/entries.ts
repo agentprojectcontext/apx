@@ -116,15 +116,15 @@ export const NEWS: readonly NewsEntry[] = [
     text:
       "A channel can now keep attention hours (days, from, to, in the owner's time zone): a contact who writes " +
       "outside them gets no answer then, and the agent answers everything they sent, once, when the hours begin. " +
-      "The owner is always answered, and a contact can be marked to be answered at any hour. It is set in each " +
-      "channel's settings, under Attention hours, and on the contact's card.",
+      "The owner is always answered, and a contact can be marked to be answered at any hour. The owner sets them in " +
+      "each channel's settings and on the contact's card, or asks the super-agent, who sets both with " +
+      "attention_hours once the owner approves each change.",
     actions: [
       {
         label: { en: "Suggest my hours", es: "Sugerime un horario" },
         prompt:
-          "Look at when my contacts usually write to me and suggest attention hours for my channels. Then tell me " +
-          "where to set them (Settings › Channels, the channel, Attention hours) and which contacts you would " +
-          "answer at any hour.",
+          "Look at when my contacts usually write to me and suggest attention hours for my channels, and which " +
+          "contacts you would answer at any hour. If I agree, set them.",
       },
     ],
   },

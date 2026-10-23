@@ -7,7 +7,7 @@ import type { Store } from "../domain/store.ts";
 import { defineTool, type Tool } from "./types.ts";
 
 /** Tools only the super-agent is offered (see policy.ts). */
-export const SUPER_AGENT_TOOLS: ReadonlySet<string> = new Set(["agent_set"]);
+export const SUPER_AGENT_TOOLS: ReadonlySet<string> = new Set(["agent_set", "attention_hours"]);
 
 const Slug = z
   .string()
