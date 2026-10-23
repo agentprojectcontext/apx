@@ -25,7 +25,7 @@ export type Origin =
     }
   /**
    * A contact wrote outside their channel's hours and the hours have begun: their kept messages are in the chat, and
-   * this turn answers them (a third party's words, like a contact's channel message). See DECISIONS.md#d-135
+   * this turn answers them (a third party's words, like a contact's channel message). See DECISIONS.md#d-136
    */
   | {
       kind: "hours_began";

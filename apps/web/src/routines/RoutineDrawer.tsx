@@ -23,6 +23,7 @@ const ACTION_KEY: Record<Routine["action"], MessageKey> = {
   shell: "routines.action.shell",
   watch: "routines.action.watch",
   relay: "routines.action.relay",
+  mail: "routines.action.mail",
 };
 
 /**
@@ -95,6 +96,8 @@ function RoutineDetail(props: {
               <Icons.Eye size={13} />
             ) : r.action === "relay" ? (
               <Icons.Inbox size={13} />
+            ) : r.action === "mail" ? (
+              <Icons.Mail size={13} />
             ) : r.action === "message" ? (
               <Icons.Send size={13} />
             ) : (
@@ -109,16 +112,20 @@ function RoutineDetail(props: {
                 ? t("routines.card.watches", { agent: props.agentName })
                 : r.action === "relay"
                   ? t("routines.card.relays", { agent: props.agentName })
-                  : r.action === "message"
-                    ? t("routines.card.messageSent")
-                    : t("routines.card.commandRuns")
+                  : r.action === "mail"
+                    ? t("routines.card.mails", { agent: props.agentName })
+                    : r.action === "message"
+                      ? t("routines.card.messageSent")
+                      : t("routines.card.commandRuns")
           }
           strong
         >
           {r.action === "shell" ? <code>{r.pre_command}</code> : <span className="rtdetail__clip">{r.prompt}</span>}
-          {r.pre_command && r.action !== "shell" && r.action !== "watch" && r.action !== "relay" && (
-            <Badge>{t("routines.card.cond", { cond: t(CALL_KEY[r.call_model]) })}</Badge>
-          )}
+          {r.pre_command &&
+            r.action !== "shell" &&
+            r.action !== "watch" &&
+            r.action !== "relay" &&
+            r.action !== "mail" && <Badge>{t("routines.card.cond", { cond: t(CALL_KEY[r.call_model]) })}</Badge>}
         </Card>
         {r.post_command && (
           <Card icon={<Icons.Terminal size={13} />} label={t("routines.card.after")} title={t("routines.card.command")}>

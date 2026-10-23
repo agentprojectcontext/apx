@@ -225,7 +225,7 @@ export function channelsRepo({ one, all, run }: Sql) {
         );
       },
     },
-    /** Contacts' chats whose messages came outside their channel's hours (DECISIONS.md#d-135). */
+    /** Contacts' chats whose messages came outside their channel's hours (DECISIONS.md#d-136). */
     held: {
       /** Marks a chat as waiting; one already waiting keeps the time it began to. */
       mark(h: Omit<HeldChat, "since">): void {

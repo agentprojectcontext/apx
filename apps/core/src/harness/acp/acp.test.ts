@@ -89,6 +89,7 @@ test("a CLI nobody signed in to ends the session with how to sign in, and APX ne
     // Its auth method opens the owner's browser from turns and model listings nobody watches.
     assert.equal(fs.existsSync(log), false);
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    // The CLI was told to stop, not waited for: on Windows it holds its folder for a moment after.
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 50, retryDelay: 100 });
   }
 });

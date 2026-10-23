@@ -671,3 +671,50 @@ test("Gmail send with APX's client posts one UTF-8 message, never a draft", asyn
   assert.match(raw, /^To: ana@example\.com\r\n/);
   assert.match(raw, /Subject: =\?UTF-8\?B\?/);
 });
+
+test("Gmail says where the inbox stands and what reached it since, oldest first; too old a point starts again", async () => {
+  const { g, start, fake } = setup();
+  await g.finish("good-code", start("gmail").searchParams.get("state") ?? "");
+  fake.respond((url) => {
+    if (url.pathname.endsWith("/profile")) return { historyId: "100" };
+    if (url.pathname.endsWith("/history")) {
+      if (url.searchParams.get("startHistoryId") === "1")
+        return new Response(JSON.stringify({ error: { message: "Requested entity was not found." } }), { status: 404 });
+      return {
+        historyId: "130",
+        history: [
+          { messagesAdded: [{ message: { id: "a" } }] },
+          { messagesAdded: [{ message: { id: "b" } }, { message: { id: "a" } }] },
+        ],
+      };
+    }
+    const id = url.pathname.split("/").at(-1);
+    return {
+      id,
+      threadId: `t-${id}`,
+      labelIds: id === "a" ? ["INBOX", "IMPORTANT", "UNREAD"] : ["INBOX", "CATEGORY_PROMOTIONS"],
+      payload: {
+        headers: [
+          { name: "From", value: `${id}@example.com` },
+          { name: "Subject", value: `Hi ${id}` },
+        ],
+      },
+    };
+  });
+  const api = gmailApi(g);
+  assert.equal(await api.historyId(), "100");
+  const got = await api.arrived("100");
+  const q = new URL(fake.seen.find((s) => s.url.includes("/history"))?.url ?? "").searchParams;
+  assert.equal(q.get("startHistoryId"), "100");
+  assert.equal(q.get("labelId"), "INBOX");
+  assert.equal(got?.next, "130");
+  assert.deepEqual(
+    got?.mail.map((m) => [m.id, m.from, m.labels.includes("IMPORTANT")]),
+    [
+      ["a", "a@example.com", true],
+      ["b", "b@example.com", false],
+    ],
+    "each message once, in the order it arrived",
+  );
+  assert.equal(await api.arrived("1"), undefined);
+});

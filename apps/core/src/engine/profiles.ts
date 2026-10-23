@@ -50,13 +50,17 @@ export function listProfiles(roots: readonly ProfileRoot[]): ProfileInfo[] {
 
 export const activeProfile = (store: Store): ActiveProfile => store.settings.read("profile");
 
-/** The values a profile runs with: its defaults, then what the owner set (only for settings it declares). */
+/**
+ * The values a profile runs with: its defaults, then what the owner set (only for settings it declares). A number
+ * keeps inside its setting's range: it ends up in a schedule, where 0 minutes or 61 would not run.
+ */
 export function valuesFor(m: ProfileManifest, values: Values): Values {
   return Object.fromEntries(
     m.settings.map((f) => {
       const v = values[f.key];
-      const ok = f.type === "number" ? typeof v === "number" && Number.isFinite(v) : typeof v === "string";
-      return [f.key, ok && v !== undefined ? v : f.default];
+      if (f.type !== "number") return [f.key, typeof v === "string" ? v : f.default];
+      if (typeof v !== "number" || !Number.isFinite(v)) return [f.key, f.default];
+      return [f.key, Math.min(f.max ?? v, Math.max(f.min ?? v, v))];
     }),
   );
 }

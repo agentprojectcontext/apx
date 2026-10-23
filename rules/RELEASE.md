@@ -60,6 +60,14 @@ announcement, the replies to the issues a release fixes, and, inside APX, the su
 first start of the new version ([D-100](DECISIONS.md#d-100)). So a commit subject is release text: write it for the
 people who use APX. Only `feat`, `fix` and `perf` commits are shown.
 
+Release news are the other half: what a release lets an owner's super-agent do for them, told once, in its own words,
+with a button or two to start ([D-117](DECISIONS.md#d-117)). They are written by hand in
+`apps/core/src/news/entries.ts`, one entry per thing worth acting on, by whoever ships that thing (AGENTS.md rule 25):
+`since` is the first release that has it, `applies` reads the install's facts (`newsFacts`: widgets, Google parts,
+the running profile…) so only owners it helps hear it. An owner who updates past several releases hears every entry
+they have not heard that applies; a fresh install hears none. Before tagging, check that each owner-facing `feat`
+since the last tag either has an entry or is not worth offering.
+
 ## Issues a release fixes
 
 A commit that fixes a GitHub issue ends its message with a trailer, one per issue: `Issue: #105`. Once that commit

@@ -15,6 +15,7 @@ const ACTIONS: Array<{ value: RoutineAction; key: MessageKey; hint: MessageKey; 
   { value: "shell", key: "routines.action.shell", hint: "routines.action.shellHint", icon: Icons.Terminal },
   { value: "watch", key: "routines.action.watch", hint: "routines.action.watchHint", icon: Icons.Eye },
   { value: "relay", key: "routines.action.relay", hint: "routines.action.relayHint", icon: Icons.Inbox },
+  { value: "mail", key: "routines.action.mail", hint: "routines.action.mailHint", icon: Icons.Mail },
 ];
 
 /** "Go on" after the pre-command: always, only if it printed something, only if it succeeded or failed, never. */
@@ -38,12 +39,13 @@ export function RoutineEditor({ draft, onClose }: { draft: RoutineDraft; onClose
   const [saving, setSaving] = useState(false);
   const set = (p: Partial<RoutineDraft>) => setD((cur) => ({ ...cur, ...p }));
   const shell = d.action === "shell";
-  // A watcher and a relay call their agent only when there is something new, with what it is as data.
-  const watch = d.action === "watch" || d.action === "relay";
+  // A watcher, a relay and a mail routine call their agent only when there is something new, with what it is as data.
+  const watch = d.action === "watch" || d.action === "relay" || d.action === "mail";
   // A new watcher or relay starts from a prompt that says what to do with it; the owner's own words are never replaced.
   const starter: Partial<Record<RoutineAction, MessageKey>> = {
     watch: "routines.watchPrompt",
     relay: "routines.relayPrompt",
+    mail: "routines.mailPrompt",
   };
   const pickAction = (action: RoutineAction) => {
     const key = starter[action];
@@ -228,6 +230,7 @@ const STEP_KEY: Record<RoutineAction, { title: MessageKey; hint: MessageKey }> =
   shell: { title: "routines.step.command", hint: "routines.step.commandHint" },
   watch: { title: "routines.step.watch", hint: "routines.step.watchHint" },
   relay: { title: "routines.step.relay", hint: "routines.step.relayHint" },
+  mail: { title: "routines.step.mail", hint: "routines.step.mailHint" },
 };
 
 const SUM_COND: Record<CallModel, MessageKey> = {
@@ -247,6 +250,7 @@ function summary(d: RoutineDraft, t: ReturnType<typeof useT>, agent: string): st
   if (d.action === "shell") parts.push(t("routines.sum.shell"));
   else if (d.action === "watch") parts.push(t("routines.sum.watch", { agent: agent || t("routines.agent") }));
   else if (d.action === "relay") parts.push(t("routines.sum.relay", { agent: agent || t("routines.agent") }));
+  else if (d.action === "mail") parts.push(t("routines.sum.mail", { agent: agent || t("routines.agent") }));
   else {
     const cond = pre ? t(SUM_COND[d.call_model]) : "";
     parts.push(

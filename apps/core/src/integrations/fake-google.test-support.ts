@@ -12,6 +12,9 @@ export async function fakeGoogle() {
   const codes = new Map<string, string>();
   const drafts: Array<{ raw: string; threadId?: string }> = [];
   const created: Array<{ summary?: string; attendees?: Array<{ email: string }>; sendUpdates: string | null }> = [];
+  /** Mail that reached the inbox after the start, each with the history id it arrived at. */
+  const inbox: Array<{ id: string; from: string; subject: string; labels: string[]; at: number }> = [];
+  let historyId = 100;
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://google.test");
     let body = "";
@@ -72,6 +75,26 @@ export async function fakeGoogle() {
         return send(200, {
           files: [{ id: "d1", name: "Northwind plan", mimeType: "application/vnd.google-apps.document" }],
         });
+      if (url.pathname === "/gmail/v1/users/me/profile") return send(200, { historyId: String(historyId) });
+      if (url.pathname === "/gmail/v1/users/me/history") {
+        const from = Number(url.searchParams.get("startHistoryId"));
+        const added = inbox.filter((m) => m.at > from).map((m) => ({ messagesAdded: [{ message: { id: m.id } }] }));
+        return send(200, { historyId: String(historyId), history: added });
+      }
+      const arrived = inbox.find((m) => url.pathname === `/gmail/v1/users/me/messages/${m.id}`);
+      if (arrived)
+        return send(200, {
+          id: arrived.id,
+          threadId: `t-${arrived.id}`,
+          snippet: `About ${arrived.subject}`,
+          labelIds: ["INBOX", ...arrived.labels],
+          payload: {
+            headers: [
+              { name: "From", value: arrived.from },
+              { name: "Subject", value: arrived.subject },
+            ],
+          },
+        });
       if (url.pathname === "/gmail/v1/users/me/messages/m1") {
         const headers = [
           { name: "From", value: "Ana <ana@example.com>" },
@@ -97,6 +120,11 @@ export async function fakeGoogle() {
     url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`,
     drafts,
     created,
+    /** A mail reaches the inbox now. */
+    arrive(m: { id: string; from: string; subject: string; labels?: string[] }) {
+      historyId += 1;
+      inbox.push({ ...m, labels: m.labels ?? [], at: historyId });
+    },
     close: () => new Promise<void>((r) => server.close(() => r())),
   };
 }

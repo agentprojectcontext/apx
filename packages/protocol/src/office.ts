@@ -111,9 +111,10 @@ export type CallModel = z.infer<typeof CallModel>;
  * `{{pre_output}}` filled with the pre-command's output, no model); or only its pre-command runs (a shell job).
  */
 /** Its agent answers the prompt; a message is sent as written; only its command runs; its agent watches the owner's
- * work (late tasks, commitments, quiet projects) and is called only when something new shows up; or its agent tells
- * the owner, in one message, what the other agents' routines and notices had for them (called only when there is). */
-export const RoutineAction = z.enum(["agent", "message", "shell", "watch", "relay"]);
+ * work (late tasks, commitments, quiet projects) and is called only when something new shows up; its agent tells
+ * the owner, in one message, what the other agents' routines and notices had for them (called only when there is);
+ * or its agent reads the mail that reached the owner's Gmail since its last run (called only when some came). */
+export const RoutineAction = z.enum(["agent", "message", "shell", "watch", "relay", "mail"]);
 export type RoutineAction = z.infer<typeof RoutineAction>;
 
 /** Work an agent does on its own on a schedule; the owner hears back only when there is something to say. */
@@ -181,7 +182,7 @@ export const ProfileRoutine = z.object({
   name: Localized,
   /** v1's names for the same routine: an imported one is adopted instead of doubled. */
   v1: z.array(z.string()).default([]),
-  action: z.enum(["agent", "watch", "message", "relay"]).default("agent"),
+  action: z.enum(["agent", "watch", "message", "relay", "mail"]).default("agent"),
   anchor: z.boolean().default(false),
   schedule: z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("cron"), cron: z.string().max(120) }),

@@ -77,7 +77,7 @@ import { memoryHistory, snapshotOf, visibleMemoryRuns, windowRuns } from "./memo
 import { ratingNote, sentMeanwhile } from "./nudges.ts";
 import { taskBlock } from "./office.ts";
 import type { Permissions } from "./permissions.ts";
-import { POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
+import { type MailSource, POST_AFTER_DEADLINE_MS, routinePipeline, routineWithCommands, stepsFor } from "./pipeline.ts";
 import { type ProfileRoot, profileBlock } from "./profiles.ts";
 import { resetLabel } from "./provider-limit.ts";
 import { recallFor } from "./recall.ts";
@@ -110,6 +110,8 @@ export type TurnDeps = {
   mcpServers?: ((thread: Thread) => string[]) | undefined;
   /** Whether a connected node lends a capability: tools that need one are offered only then. */
   hasCap?: ((cap: string) => boolean) | undefined;
+  /** The owner's Gmail, for mail routines. */
+  mail?: MailSource | undefined;
   /** Whether a desktop app is linked as a node (lending its browser), whatever else it lends. */
   desktopLinked?: (() => boolean) | undefined;
   /** Owner text steered into this turn since the last call. */
@@ -196,7 +198,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   if (report) display.upsert((p) => p.type === "subthread" && p.thread_id === report.thread_id, report);
   // A routine with commands of its own: the pre-command first; its result may say the model is not needed.
   const routine = routineWithCommands(store, run);
-  const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display });
+  const pipe = routine && routinePipeline({ store, home: deps.home, routine, run, display, mail: deps.mail });
   // The post-command runs whatever the outcome, except when the owner canceled or the core is stopping; after a
   // missed deadline it gets a short limit. It never changes the run's state.
   const end = async (done: RunRecord, skipped = false) => {

@@ -948,7 +948,7 @@ const HourOfDay = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 /**
  * When a channel answers its contacts, in the owner's time zone: the days it opens (0 = Sunday) and from when to when
  * ("22:00"–"02:00" runs past midnight into the next day; the same time twice is the whole day). Outside them a
- * contact's message waits, unanswered, until the hours begin. See DECISIONS.md#d-135
+ * contact's message waits, unanswered, until the hours begin. See DECISIONS.md#d-136
  */
 export const ChannelHours = z.object({
   days: z.array(z.number().int().min(0).max(6)).min(1).max(7),

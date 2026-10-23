@@ -1,4 +1,4 @@
-// Weekly hours in the owner's time zone: when a channel answers its contacts. See DECISIONS.md#d-135
+// Weekly hours in the owner's time zone: when a channel answers its contacts. See DECISIONS.md#d-136
 import type { ChannelHours } from "@apx/protocol";
 
 /** "HH:MM" as minutes since midnight. */

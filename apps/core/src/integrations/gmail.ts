@@ -92,6 +92,9 @@ export function rawMessage(m: {
   return Buffer.from(lines.join("\r\n"), "utf8").toString("base64url");
 }
 
+/** A message that just reached the inbox, with what is needed to judge whether it matters. */
+export type Arrival = MailSummary & { labels: string[] };
+
 export function gmailApi(g: Google) {
   const base = () => `${g.endpoints.gmail}/users/me`;
   // Metadata with the headers asked for: Gmail repeats the parameter, which a query object would collapse.
@@ -102,6 +105,44 @@ export function gmailApi(g: Google) {
     return g.call<GMessage>(ID, u.toString());
   };
   return {
+    /** Where the mailbox stands now: the point to ask what arrived after. */
+    async historyId(): Promise<string> {
+      return (await g.call<{ historyId?: string }>(ID, `${base()}/profile`)).historyId ?? "";
+    },
+
+    /**
+     * Messages added to the inbox after `from` (oldest first, at most `max`), and the point to ask from next time.
+     * Undefined when Gmail no longer keeps history that old: start again from now.
+     */
+    async arrived(from: string, max = 20): Promise<{ next: string; mail: Arrival[] } | undefined> {
+      let data: {
+        historyId?: string;
+        history?: Array<{ messagesAdded?: Array<{ message?: { id?: string; labelIds?: string[] } }> }>;
+      };
+      try {
+        data = await g.call(ID, `${base()}/history`, {
+          query: { startHistoryId: from, historyTypes: "messageAdded", labelId: "INBOX", maxResults: 100 },
+        });
+      } catch (e) {
+        if (/not found|404/i.test(e instanceof Error ? e.message : "")) return undefined;
+        throw e;
+      }
+      const ids = [
+        ...new Set(
+          (data.history ?? []).flatMap((h) =>
+            (h.messagesAdded ?? []).flatMap((m) => (m.message?.id ? [m.message.id] : [])),
+          ),
+        ),
+      ].slice(-max);
+      const mail = await Promise.all(
+        ids.map(async (id) => {
+          const m = await meta(id, ["From", "To", "Subject", "Date"]);
+          return { ...summary(m), labels: m.labelIds ?? [] };
+        }),
+      );
+      return { next: data.historyId ?? from, mail };
+    },
+
     async search(o: { q: string; max: number }): Promise<MailSummary[]> {
       const list = await g.call<{ messages?: Array<{ id: string }> }>(ID, `${base()}/messages`, {
         query: { q: o.q, maxResults: o.max },
