@@ -283,19 +283,23 @@ export function createComputer(store: Store, config: ComputerConfig) {
     },
     /** The owner starts the computer, putting a chat on it when named (its agent must be allowed first). */
     async enable(id: string | undefined, look: Appearance) {
-      if (id) vm.bind(id);
+      // The chat goes on the computer only once it can run: a start refused for memory leaves it on this Mac.
+      if (id) vm.admit(id);
       store.settings.set("vm_appearance", look);
       await vm.boot();
+      if (id) vm.bind(id);
       return { ok: true as const };
     },
     /** An allowed agent puts its chat on the computer, starts it if off, and takes its screen once it runs. */
     async start(id: string, agent: string, run: string) {
-      vm.bind(id);
+      vm.admit(id);
       if (await running()) {
+        vm.bind(id);
         await vm.claim(agent, id, run);
         return { ok: true as const };
       }
       await vm.boot();
+      vm.bind(id);
       return { ok: true as const };
     },
     /** Starts the shared VM unless it runs, is starting, or free host memory cannot hold it. */
@@ -347,13 +351,17 @@ export function createComputer(store: Store, config: ComputerConfig) {
         await Promise.all([...ledger.running()].map((n) => config.screens?.appearance?.(n, look)));
       return { ok: true as const };
     },
-    /** Puts the chat on the computer; an agent's own run may do it from inside the chat. */
-    bind(id: string) {
+    /** Refuses a chat the computer cannot serve: not the owner's native chat, or its agent not allowed. */
+    admit(id: string) {
       const t = nativeChat(id);
       if (!t) throw badRequest("use an owner's native chat");
       const agent = t.agent_ids[0];
       if (agent && !vm.permitted(agent, id))
         throw conflict(`${store.agents.get(agent)?.name ?? agent} may not use the computer; allow it first`);
+    },
+    /** Puts the chat on the computer; an agent's own run may do it from inside the chat. */
+    bind(id: string) {
+      vm.admit(id);
       if (!chats().includes(id)) store.settings.write("computer_chats", [...chats(), id]);
     },
     usage: async (): Promise<ComputerUsage | undefined> => config.usage?.(),

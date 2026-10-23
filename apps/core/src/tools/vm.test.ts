@@ -142,6 +142,8 @@ test("starting refuses when free memory cannot hold the VM and its reserve, and 
       env.client.call("environments.enable", { thread: "home", appearance: "light" }),
       /5 GiB free, the VM needs 4 GiB plus 2 GiB/,
     );
+    // Refused, the chat stays on this Mac.
+    assert.equal((await env.client.call("environments.status", { thread: "home" })).chat?.on, false);
     await env.client.call("environments.bind", { thread: "home" });
     await env.client.call("threads.send", { thread: "home", text: "Start your computer" });
     await env.settle("home");
