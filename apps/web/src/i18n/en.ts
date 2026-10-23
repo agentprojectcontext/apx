@@ -7,6 +7,7 @@ import { enHelper } from "./en-helper.ts";
 import { enOffice } from "./en-office.ts";
 import { enResources } from "./en-resources.ts";
 import { enSetup } from "./en-setup.ts";
+import { enSysUsage } from "./en-sysusage.ts";
 import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
 
@@ -38,6 +39,7 @@ export const en = {
   ...enResources,
   ...enEngines,
   ...enTelemetry,
+  ...enSysUsage,
   // Shared words
   "common.agent": "Agent",
   "common.app": "App",
@@ -1398,7 +1400,6 @@ export const en = {
   "quick.backHome": "Back to Home",
   "quick.openApp": "Open in the app",
   "config.desktop": "Desktop",
-  "desktop.memory": "RAM usage",
   "desktop.memoryHint":
     "APX is using {total}. Above 4 GB it tells you which process uses the most. Idle tabs close after 30 minutes.",
   "desktop.memory.core": "Core (agents, channels, data)",

@@ -12,6 +12,7 @@ import { LanguageMenu, useLanguageItems } from "./LanguageMenu.tsx";
 import { go, PROJECT_TABS, useNav, useNavHistory } from "./nav.ts";
 import { RunningIndicator } from "./RunningIndicator.tsx";
 import { UpdatePill, WhatsNewPill } from "./UpdatePill.tsx";
+import { UsageButton } from "./UsageButton.tsx";
 
 /** SPEC §1.5: Inbox / project / chat · Projects / project / tab · External sessions / engine / chat · Apps · Tasks. */
 function useCrumbs(): string[] {
@@ -101,6 +102,7 @@ export function Topbar() {
         <WhatsNewPill />
         <UpdatePill />
         <RunningIndicator />
+        <UsageButton />
         <AttentionTray />
         <div className="topbar__extras">
           <IconButton
@@ -119,10 +121,11 @@ export function Topbar() {
             onClick={go.toggleMode}
           />
         </div>
-        {/* Narrow windows fold phone, language and theme into one menu so the bar never scrolls sideways. */}
+        {/* Narrow windows fold usage, phone, language and theme into one menu so the bar never scrolls sideways. */}
         <Menu
           align="end"
           items={[
+            { label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) },
             { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
             {
               label: mode === "dark" ? t("theme.light") : t("theme.dark"),

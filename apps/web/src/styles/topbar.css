@@ -166,6 +166,7 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
 .topbar.is-desktop .topbar__lang,
 .topbar.is-desktop .topbar__nav,
 .topbar.is-desktop .running,
+.topbar.is-desktop .usage-btn,
 .topbar.is-desktop .attention,
 .topbar.is-desktop .updatepill {
   -webkit-app-region: no-drag;
@@ -221,9 +222,16 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
     padding: 0 8px;
   }
 }
+@media (max-width: 1199px) {
+  .topbar .usage-btn__gauge {
+    display: none;
+  }
+}
+/* Phone width: the gauge folds into the "more" menu, as Usage. */
 @media (max-width: 639px) {
   .topbar .running__count.is-light,
-  .topbar .running__div {
+  .topbar .running__div,
+  .topbar .usage-btn {
     display: none;
   }
 }
@@ -240,6 +248,9 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   }
 }
 @container topbar-actions (max-width: 540px) {
+  .topbar .usage-btn__gauge {
+    display: none;
+  }
   .topbar__extras,
   .topbar__agentkbd,
   .topbar__agentname {
@@ -250,6 +261,11 @@ html[data-shortcuts-active] [data-shortcut-modifier] {
   }
   .topbar__agent {
     padding: 0 4px;
+  }
+}
+@container topbar-actions (max-width: 400px) {
+  .topbar .usage-btn {
+    display: none;
   }
 }
 @container topbar-actions (max-width: 360px) {

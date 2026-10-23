@@ -4,7 +4,7 @@ import { openSetup } from "../data/setup.ts";
 import { type T, useT } from "../i18n/index.ts";
 import { go, useNav } from "./nav.ts";
 
-/** Sidebar footer: who is using the panel, with quick theme / phone / setup actions and Settings. */
+/** Sidebar footer: who is using the panel, with quick theme / phone / setup / usage actions and Settings. */
 export function AccountRow({ rail }: { rail: boolean }) {
   const t = useT();
   const name = usePrefs((s) => s.displayName) || t("account.you");
@@ -18,6 +18,7 @@ export function AccountRow({ rail }: { rail: boolean }) {
     },
     { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
     { label: t("setup.menu"), icon: <Icons.Sparkles />, onSelect: openSetup },
+    { label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) },
     { type: "separator" },
     { label: t("config.title"), icon: <Icons.Settings />, shortcut: "⌘,", onSelect: () => go.config() },
     ...appMenuItems(t),

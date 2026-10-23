@@ -10,6 +10,7 @@ import { esFiles } from "./es-files.ts";
 import { esOffice } from "./es-office.ts";
 import { esResources } from "./es-resources.ts";
 import { esSetup } from "./es-setup.ts";
+import { esSysUsage } from "./es-sysusage.ts";
 import { esTeam } from "./es-team.ts";
 import { esTelemetry } from "./es-telemetry.ts";
 
@@ -41,6 +42,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esResources,
   ...esEngines,
   ...esTelemetry,
+  ...esSysUsage,
   // Palabras compartidas
   "common.agent": "Agente",
   "common.app": "App",
@@ -1410,7 +1412,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "quick.backHome": "Volver a Home",
   "quick.openApp": "Abrir en la app",
   "config.desktop": "Escritorio",
-  "desktop.memory": "Uso de RAM",
   "desktop.memoryHint":
     "APX usa {total} ahora. Si pasa de 4 GB, te avisa qué proceso consume más. Las pestañas sin uso se cierran a los 30 minutos.",
   "desktop.memory.core": "Core (agentes, canales, datos)",

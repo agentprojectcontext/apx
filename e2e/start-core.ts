@@ -12,6 +12,15 @@ const core = await createCore(config, {
     open: async () => {},
     trash: fakeDesktopTrash(projectRoot, record),
   },
+  // A Linux VM that is always on, so the usage views show its slot.
+  vmUsage: () => ({
+    running: true,
+    name: "Linux VM",
+    cpus: 4,
+    memory_assigned_mb: 4096,
+    memory_used_mb: 1536,
+    disk_mb: 8200,
+  }),
 });
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, async () => {

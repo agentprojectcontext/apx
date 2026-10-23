@@ -38,6 +38,7 @@ const CommandPalette = lazy(() => import("./CommandPalette.tsx").then((m) => ({ 
 const ThreadDialogs = lazy(() => import("../inbox/ThreadDialogs.tsx").then((m) => ({ default: m.ThreadDialogs })));
 const WidgetChatHost = lazy(() => import("../surfaces/WidgetChat.tsx").then((m) => ({ default: m.WidgetChatHost })));
 const PhoneDialog = lazy(() => import("./PhoneDialog.tsx").then((m) => ({ default: m.PhoneDialog })));
+const UsageDialog = lazy(() => import("./UsagePanels.tsx").then((m) => ({ default: m.UsageDialog })));
 const TasksScreen = lazy(() => import("../tasks/TasksScreen.tsx").then((m) => ({ default: m.TasksScreen })));
 
 /** Topbar · Sidebar · main (chat workspace, a project, an app or a placeholder view). See SPEC §1. */
@@ -54,6 +55,7 @@ export function Shell() {
   const palette = useNav((s) => s.palette);
   const threadDialog = useThreadDialog() != null;
   const phone = useNav((s) => s.phone);
+  const usageDialog = useNav((s) => s.usageDialog);
   // A task opened from a chat floats over it; the Tasks screen shows its own beside the list.
   const peek = useNav((s) => s.peekTaskId != null && s.view !== "tasks");
   const widgetChat = useSlice(widgetChatOpen, (s) => s.threadId != null);
@@ -112,6 +114,11 @@ export function Shell() {
       {phone && (
         <Suspense fallback={null}>
           <PhoneDialog />
+        </Suspense>
+      )}
+      {usageDialog && (
+        <Suspense fallback={null}>
+          <UsageDialog />
         </Suspense>
       )}
       {widgetChat && (

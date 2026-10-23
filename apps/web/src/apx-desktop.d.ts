@@ -111,7 +111,7 @@ declare global {
             total_mb: number;
             items: Array<{
               pid: number;
-              kind: "main" | "gpu" | "panel" | "quick" | "tab" | "page" | "helper";
+              kind: "main" | "gpu" | "panel" | "quick" | "tab" | "page" | "app" | "helper";
               site?: string;
               mb: number;
             }>;

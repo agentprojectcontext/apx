@@ -1,0 +1,144 @@
+/* Usage: the topbar dropdown, the dialog and Advanced's overview (UsagePanels.tsx). */
+.usage {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.usage--compact {
+  gap: 12px;
+  padding: 4px 2px 0;
+}
+.usage-dialog.apx-dialog {
+  max-width: 820px;
+}
+.usage__cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.usage__col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+@media (max-width: 719px) {
+  .usage__cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.usage__block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.usage__headrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 22px;
+}
+.usage__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  font-weight: var(--apx-weight-semibold);
+  color: var(--apx-fg);
+}
+.usage__head svg {
+  color: var(--apx-fg-subtle);
+}
+.usage__figure {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.usage__note {
+  font-size: var(--apx-text-xs);
+  color: var(--apx-fg-subtle);
+  margin: 0;
+}
+.usage__error {
+  margin: 0;
+  font-size: var(--apx-text-sm);
+  color: var(--apx-danger-soft-fg);
+}
+.usage__state {
+  font-size: var(--apx-text-2xs);
+  padding: 1px 8px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+}
+.usage__state.is-on {
+  background: var(--apx-brand-soft);
+  color: var(--apx-brand-soft-fg);
+}
+.usage__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.usage__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px 64px;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: var(--apx-text-sm);
+}
+.usage--compact .usage__row {
+  grid-template-columns: minmax(0, 1fr) 48px 56px;
+  padding: 2px 0;
+  font-size: var(--apx-text-xs);
+}
+.usage__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--apx-fg);
+}
+.usage__bar {
+  height: 4px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  overflow: hidden;
+}
+.usage__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--apx-brand);
+}
+.usage__value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--apx-fg-muted);
+}
+.usage__more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 2px -4px -4px;
+  padding: 8px;
+  border: 0;
+  border-top: 1px solid var(--apx-border);
+  border-radius: 0 0 var(--apx-row-radius) var(--apx-row-radius);
+  background: transparent;
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-sm);
+}
+.usage__more:hover {
+  background: var(--apx-fill-hover);
+  color: var(--apx-fg);
+}
