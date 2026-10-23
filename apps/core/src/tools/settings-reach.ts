@@ -22,7 +22,6 @@ const POWER = "what agents may do or which model runs them stays the owner's (DE
 const MACHINE = "installs or controls this computer and its devices";
 const PANEL = "the panel's own view of chats, files, git and the terminal; agents have tools of their own for these";
 const AS_OWNER = "the owner's own word: their answer, their send, their read";
-const MCP_SERVER = "an MCP server's command runs on this computer, and its environment and headers carry its keys";
 
 /** Owner methods no agent calls, by reason. */
 export const OWNER_ONLY: Readonly<Record<string, string>> = {
@@ -39,7 +38,6 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "integrations.oauth_finish": SECRET,
   "mcp.signIn": SECRET,
   "extensions.set_secret": SECRET,
-  "mcp.set": MCP_SERVER,
   "access.set": POWER,
   "webhooks.set": MACHINE,
   "models.set_config": POWER,

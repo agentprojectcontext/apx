@@ -2115,3 +2115,15 @@ every mode and under every rule; plan mode still refuses them. The executor refu
 unless the run's origin is the owner's own: their message in the app or on a channel as the owner, or their answer to a
 question the agent asked (`ownerAsked`). Another agent, a contact, a routine, a job or a task result gets "only when the
 owner asks you themselves". A delegated run already loses these tools (`inherit` keeps what every caller may use).
+
+<a id="d-141"></a>
+## D-141 — 2026-10-23 — The super-agent adds MCP servers, their keys only by reference
+D-138 kept adding an MCP server the owner's, since its command runs on this computer and its env and headers carry
+keys. The owner wants to ask for one in chat and then say which saved variable holds its key. `mcp.set` is now in
+`apx_settings`, under D-140 (the owner's card in every mode, only at their word): the card names the server and shows
+its command or URL, args and each env or header field. A value that reads like a key once its `secret://NAME`
+references are taken out (a run of 20 or more letters, digits, `_` or `-`, with both letters and digits) is refused
+before anyone is asked, as is a variable in args (it would show in the process list). Saving the key stays the
+owner's (`secrets.set`, Variables, or `apx secrets set`); the answer names the variables still without a value.
+`mcp.list` reads the owner's own servers, showing a value that reads like a key as "(a value)". Trusting a project's
+server and approving its tools stay the owner's.
