@@ -88,6 +88,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "mcp.call": PANEL,
   "mcp.describe": PANEL,
   "mcp.tools": PANEL,
+  "channels.recover": PANEL,
   "runs.respond": AS_OWNER,
   "channels.send": AS_OWNER,
   "contacts.suggestions.send": AS_OWNER,
@@ -100,12 +101,6 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
 
 /** Not decided yet: what the owner changes in the panel and the super-agent cannot, the next ones to place. */
 export const NOT_YET: readonly string[] = [
-  "channels.set",
-  "channels.recover",
-  "contacts.address",
-  "contacts.claim",
-  "owner.set",
-  "notices.set",
   "agents.clone",
   "agents.delete",
   "agents.install",
@@ -136,7 +131,6 @@ export const NOT_YET: readonly string[] = [
   "mcp.set",
   "mcp.toggle",
   "extensions.enable",
-  "imessage.set",
   "services.defaults",
   "services.order",
   "surfaces.copy",

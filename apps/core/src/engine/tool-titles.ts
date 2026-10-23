@@ -1,6 +1,7 @@
 // An action card's title in the owner's language. Tools write theirs in English; these are the Spanish ones.
 import type { Store } from "../domain/store.ts";
 import { stepsText } from "../tools/computer.ts";
+import { settingAct } from "../tools/settings.ts";
 import type { Tool } from "../tools/types.ts";
 
 type Args = Record<string, unknown>;
@@ -21,6 +22,29 @@ const TASK_STATE: Record<string, string> = {
   kept: "cumplida",
   missed: "incumplida",
   renegotiated: "renegociada",
+};
+
+/** What apx_settings changed, by the area of its method ("Cambió un canal"). */
+const SETTING_AREA: Record<string, string> = {
+  contacts: "un contacto",
+  channels: "un canal",
+  imessage: "iMessage",
+  owner: "tu perfil",
+  notices: "los avisos",
+  agents: "los agentes",
+  routines: "una rutina",
+  profiles: "un perfil de agente",
+  tasks: "una tarea",
+  threads: "un chat",
+  sessions: "las sesiones importadas",
+  projects: "un proyecto",
+  memory: "la memoria",
+  skills: "las habilidades",
+  resources: "lo que usa un proyecto",
+  mcp: "un servidor MCP",
+  extensions: "una extensión",
+  services: "los servicios de medios",
+  surfaces: "un widget",
 };
 
 /** Spanish titles for the built-in tools, by tool name. */
@@ -49,7 +73,11 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
       : Array.isArray(a.contacts) && a.contacts.length && a.any_hour !== undefined
         ? `${a.any_hour ? "Dejó pasar a toda hora a" : "Ya no deja pasar a toda hora a"} ${a.contacts.join(", ").slice(0, 60)}`
         : "Revisó el horario de atención",
-  apx_settings: (a) => (a.params && a.method ? `Cambió ${str(a.method)}` : "Revisó la configuración"),
+  apx_settings: (a) => {
+    const { act, area } = settingAct(a);
+    const what = SETTING_AREA[area] ?? "la configuración";
+    return act === "look" ? "Revisó la configuración" : `${act === "remove" ? "Quitó" : "Cambió"} ${what}`;
+  },
   list_agents: () => "Buscó agentes",
   agent_set: (a) =>
     !a.agent
