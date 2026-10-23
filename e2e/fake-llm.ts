@@ -187,7 +187,10 @@ export async function fakeLlm() {
           ? "Part checked."
           : /^suggest a command/i.test(said)
             ? SUGGESTION
-            : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`);
+            : // The owner's words in a contact's chat come before APX's note on them: the whole message is read.
+              /react with a heart/i.test(JSON.stringify(body.messages?.findLast((m) => m.role === "user")?.content))
+              ? "REACT ❤️"
+              : (reviewTable(said) ?? `Got it: ${said || "(nothing)"}`);
       const usage = { prompt_tokens: 120, completion_tokens: 8, total_tokens: 128 };
       const call = toolCall(body.messages ?? [], said);
       const wanted = fanOut(body.messages ?? [], said) ?? (call ? [call] : undefined);

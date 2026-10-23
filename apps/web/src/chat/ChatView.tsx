@@ -1,5 +1,6 @@
 import { Button, EmptyState, Icons, Skeleton } from "@apx/ui";
 import { lazy, Suspense, useEffect } from "react";
+import { ContactChat, useContactChat } from "../channels/ContactChat.tsx";
 import { usePageVisible } from "../common/useInView.ts";
 import { loadThread, markRead } from "../data/actions.ts";
 import { threadAgent } from "../data/identity.ts";
@@ -29,6 +30,7 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
   const former = useData((s) => s.former);
   const visible = usePageVisible();
   const offline = useData((s) => s.connection === "offline");
+  const contact = useContactChat(thread);
 
   useEffect(() => {
     if (threadId && ready && load == null && !isNewChat(threadId)) void loadThread(threadId);
@@ -89,6 +91,9 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
       </section>
     );
   }
+  // A contact's chat reads as it does in its channel, wherever it is opened.
+  if (contact === undefined) return <ChatSkeleton />;
+  if (contact) return <ContactChat thread={thread} />;
   const agent = threadAgent(thread, agents);
   // An archived or deleted agent's old chat still shows who it was.
   const shown = agent ?? threadAgent(thread, former);

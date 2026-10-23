@@ -1,6 +1,6 @@
 import type { Message as Msg, Thread } from "@apx/protocol";
 import { ActivityPill, AgentAvatar, DayDivider, EmptyState, Icons, Message, SystemNote, withMentions } from "@apx/ui";
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { lazy, type ReactNode, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { ReactionList } from "../channels/MessageMarks.tsx";
 import { dayLabel, sameDay } from "../common/format.ts";
 import { useEngineLabel } from "../common/useEngineLabel.ts";
@@ -117,6 +117,8 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
   };
 
   const working = isWorking(thread.state);
+  const reactionsOf = (m: Msg) =>
+    m.reactions?.length ? <ReactionList list={m.reactions} agentName={agent?.name ?? ""} /> : undefined;
   return (
     <div className="chat__scroll" ref={scroller} onScroll={onScroll}>
       <div className="transcript" ref={content}>
@@ -141,11 +143,7 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
                   message={msg}
                   messages={messages}
                   text={textOf(msg)}
-                  reactions={
-                    msg.reactions?.length ? (
-                      <ReactionList list={msg.reactions} agentName={agent?.name ?? ""} />
-                    ) : undefined
-                  }
+                  reactions={reactionsOf(msg)}
                 >
                   <UserFiles message={msg} />
                   <UserText text={textOf(msg)} sourceOf={(quote) => quoted(msg.id, quote)} />
@@ -155,18 +153,19 @@ export function Transcript({ thread, comments = false }: { thread: Thread; comme
               <SystemMessage message={msg} />
             ) : msg.author.kind === "person" ? (
               <>
-                <UserMedia message={msg} from="agent" />
+                {/* A sticker or a photo alone: what anyone put on it shows on the picture, there is no bubble. */}
+                <UserMedia
+                  message={msg}
+                  from="agent"
+                  reactions={textOf(msg) || bubbleFiles(msg.parts).length > 0 ? undefined : reactionsOf(msg)}
+                />
                 {(textOf(msg) || bubbleFiles(msg.parts).length > 0) && (
                   <Message
                     from="agent"
                     variant="bubble"
                     avatar={<AgentAvatar name={msg.author.name} size={24} />}
                     meta={<span className="transcript__person">{msg.author.name}</span>}
-                    reactions={
-                      msg.reactions?.length ? (
-                        <ReactionList list={msg.reactions} agentName={agent?.name ?? ""} />
-                      ) : undefined
-                    }
+                    reactions={reactionsOf(msg)}
                     actions={<MessageActions thread={thread} message={msg} text={textOf(msg)} speechKey={msg.id} />}
                   >
                     <UserFiles message={msg} />
@@ -246,11 +245,11 @@ function RoutinePrompt({ name, text }: { name: string; text: string }) {
 }
 
 /** A message's pictures and videos, as blocks of their own beside its bubble: a grid, a carousel. */
-function UserMedia({ message, from }: { message: Msg; from: "user" | "agent" }) {
+function UserMedia({ message, from, reactions }: { message: Msg; from: "user" | "agent"; reactions?: ReactNode }) {
   const groups = mediaBlocks(message.parts).filter((b) => b.kind !== "part");
   if (!groups.length) return null;
   return (
-    <Message from={from} variant="bare" className="transcript__media">
+    <Message from={from} variant="bare" className="transcript__media" reactions={reactions}>
       <Suspense fallback={null}>
         {groups.map((g) => (
           <MediaGroup key={g.key} block={g} />
