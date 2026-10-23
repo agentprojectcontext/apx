@@ -48,7 +48,7 @@ export type DataState = {
   tabs: TabInfo[];
   /** The chats on the shared computer, including browser messages saved before guest tags existed. */
   vmThreads: string[];
-  /** The Computers view shows once the owner allowed an agent the computer, on a host that can run it (D-142). */
+  /** The Computers view shows once the owner allowed an agent the computer, on a host that can run it (D-143). */
   computers: { shown: boolean; inUse: number };
   /** Agent engines (native / Claude Code / Codex): installed → logged in → default. */
   engines: EngineStatus[];

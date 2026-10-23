@@ -14,7 +14,7 @@ export type ApprovalTarget = {
   permanent: boolean;
   project_id?: string | undefined;
 };
-/** The computer is a permission, not one call: this chat or for good (DECISIONS.md#d-141). */
+/** The computer is a permission, not one call: this chat or for good (DECISIONS.md#d-142). */
 export const approvalScopes = (a: ApprovalTarget): ApprovalScope[] =>
   a.key === COMPUTER_GRANT ? ["session", "always"] : ["once", "session", "always"];
 

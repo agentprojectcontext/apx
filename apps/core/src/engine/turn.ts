@@ -583,7 +583,7 @@ function stickersOf(store: Store, channel: string): string[] {
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
 async function turnTools(deps: TurnDeps, turn: Turn) {
   const inVm = deps.vm?.hasThread(turn.thread.id);
-  // Offered to an agent the owner allowed, or, once the owner set the computer up, to ask for it (DECISIONS.md#d-141).
+  // Offered to an agent the owner allowed, or, once the owner set the computer up, to ask for it (DECISIONS.md#d-142).
   const computerOn = Boolean(
     deps.vm?.serves(turn.thread.id) &&
       (deps.vm.permitted(turn.agent.id, turn.thread.id) || (!inVm && deps.vm.offered())),

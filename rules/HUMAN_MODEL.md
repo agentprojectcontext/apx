@@ -246,9 +246,9 @@ esbuild script (consumed as `dist/`). Checks: `pnpm preflight`. Details: [`TESTI
 
 The optional computer (`apps/core/src/environments`) is one Linux VM shared by the agents, inert at core startup and off
 for every agent: using it is a per-agent grant (`apx:computer`) the owner gives in the agent's settings or on the card
-the agent's `computer` tool raises ([D-141](DECISIONS.md#d-141)). Each agent works as its own locked Linux user on its own
+the agent's `computer` tool raises ([D-142](DECISIONS.md#d-142)). Each agent works as its own locked Linux user on its own
 screen (user `apx-a<n>`, display `:100+n`, a private VNC socket and X cookie); the owner has no screen of their own and
-takes control of an agent's when needed ([D-142](DECISIONS.md#d-142)). The Computer panel shows the chat agent's screen;
+takes control of an agent's when needed ([D-143](DECISIONS.md#d-143)). The Computer panel shows the chat agent's screen;
 the Computers view (`apps/web/src/computers`) shows every screen in use as a wall. The core keeps the ledger of which working run holds which screen (`screens.ts`,
 in settings, swept of finished runs), caps the screens up at once by the VM's memory and refuses a turn when none is
 free. The owner's `environments.enable`, or an allowed agent's `environments.start` from its own run, puts a chat on the

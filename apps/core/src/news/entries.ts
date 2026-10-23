@@ -144,9 +144,9 @@ export const NEWS: readonly NewsEntry[] = [
       "The super-agent can now change, with apx_settings, almost anything the owner sets up in the panel: a " +
       "contact (who they are, the rules to answer them, their relation), a channel (who answers it, strangers, " +
       "rooms), the owner's own profile and time zone, when they are notified, projects, memory, skills, agent " +
-      "profiles, routines, archived agents, tasks, chats and widgets. Each change shows the owner the fields before " +
-      "and after, and waits for their yes. Keys and sign-ins, models, what agents may do and this computer stay the " +
-      "owner's, in Settings.",
+      "profiles, routines, archived agents, tasks, chats, widgets and MCP servers (their keys named by a variable the " +
+      "owner saved, never typed in chat). Each change shows the owner the fields before and after, and waits for " +
+      "their yes. Saving a key, sign-ins, models, what agents may do and this computer stay the owner's, in Settings.",
     actions: [
       {
         label: { en: "Review my contacts", es: "Revisemos mis contactos" },

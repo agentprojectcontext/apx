@@ -2117,7 +2117,19 @@ question the agent asked (`ownerAsked`). Another agent, a contact, a routine, a 
 owner asks you themselves". A delegated run already loses these tools (`inherit` keeps what every caller may use).
 
 <a id="d-141"></a>
-## D-141 — 2026-10-23 — The isolated computer is a per-agent permission, and its memory decides when it runs
+## D-141 — 2026-10-23 — The super-agent adds MCP servers, their keys only by reference
+D-138 kept adding an MCP server the owner's, since its command runs on this computer and its env and headers carry
+keys. The owner wants to ask for one in chat and then say which saved variable holds its key. `mcp.set` is now in
+`apx_settings`, under D-140 (the owner's card in every mode, only at their word): the card names the server and shows
+its command or URL, args and each env or header field. A value that reads like a key once its `secret://NAME`
+references are taken out (a run of 20 or more letters, digits, `_` or `-`, with both letters and digits) is refused
+before anyone is asked, as is a variable in args (it would show in the process list). Saving the key stays the
+owner's (`secrets.set`, Variables, or `apx secrets set`); the answer names the variables still without a value.
+`mcp.list` reads the owner's own servers, showing a value that reads like a key as "(a value)". Trusting a project's
+server and approving its tools stay the owner's.
+
+<a id="d-142"></a>
+## D-142 — 2026-10-23 — The isolated computer is a per-agent permission, and its memory decides when it runs
 The Linux computer (a Lima VM with its own desktop, shell and browser, whose egress goes through a proxy that refuses
 the host and the local network) could only be turned on by the owner from the Computer panel, for one chat, with a
 fixed 4 GiB of memory. The owner wants it off by default, given to agents one by one, and started and stopped by the
@@ -2154,13 +2166,13 @@ the owner's idle minutes (30 by default, 0 for never) without a working run in i
 with the agent in control, it shuts it down too. Either way the disk is kept, the reason is kept for the panel
 (`last_stop`) and the owner is told in the chat and the tray. The stop threshold is below the start reserve, so a
 computer that just started is not stopped at once.
-[D-142](#d-142) replaced the one VM per chat with one shared VM, a user and screen per agent and a ledger of who
+[D-143](#d-143) replaced the one VM per chat with one shared VM, a user and screen per agent and a ledger of who
 holds each; the permission, resources and memory checks here stay.
 
-<a id="d-142"></a>
-## D-142 — 2026-10-23 — One shared computer: a Linux user and a screen per agent, and a ledger of who holds each
-D-141 gave one VM to one chat. Five or six agents each with their own 4 GiB VM would take about 24 GiB, and a guest's
-memory mostly goes back to macOS only when the VM stops. So there is one VM, sized once by the owner (D-141's
+<a id="d-143"></a>
+## D-143 — 2026-10-23 — One shared computer: a Linux user and a screen per agent, and a ledger of who holds each
+D-142 gave one VM to one chat. Five or six agents each with their own 4 GiB VM would take about 24 GiB, and a guest's
+memory mostly goes back to macOS only when the VM stops. So there is one VM, sized once by the owner (D-142's
 resources), shared by every allowed agent.
 
 **Users and screens.** Each agent gets a screen number the first time it uses the computer (`computer_screens`, kept):
@@ -2182,7 +2194,7 @@ run in another chat refuses a second chat ("in use in another chat"); when as ma
 (`(memory_gib − 1) / 1.25`, at least one: 2 for 4 GiB, 4 for 6 GiB, 5 for 8 GiB), a screen with no holder is stopped to
 make room, and with none free the turn is refused naming who holds them. A released screen stays up for its agent's next
 turn until room is needed; stopping it ends that user's session (`systemctl stop user@<uid>`), so its memory goes back.
-Control (D-141's lease) is per screen: the owner takes one agent's screen, which cancels the run holding it, without
+Control (D-142's lease) is per screen: the owner takes one agent's screen, which cancels the run holding it, without
 touching the others.
 
 **Chats.** A chat works on the computer when the owner turns it on in the Computer panel or its agent starts the

@@ -1,5 +1,5 @@
 // An agent asks for the isolated computer with a card, starts and stops it itself, and the owner turns the
-// permission off from the agent's settings (DECISIONS.md#d-141).
+// permission off from the agent's settings (DECISIONS.md#d-142).
 
 import type { Page } from "@playwright/test";
 import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";

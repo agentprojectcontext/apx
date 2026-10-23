@@ -123,7 +123,7 @@ export const SETTINGS = {
     }),
     { idle_minutes: 30 },
   ),
-  /** The chats whose agent works on the shared computer instead of this Mac (DECISIONS.md#d-142). */
+  /** The chats whose agent works on the shared computer instead of this Mac (DECISIONS.md#d-143). */
   computer_chats: entry(z.array(z.string()).catch([]), []),
   /** Each agent's screen number on the shared computer, given once and kept with its Linux user. */
   computer_screens: entry(z.record(z.string(), z.number().int().min(1).max(999)).catch({}), {}),
