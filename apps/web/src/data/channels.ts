@@ -73,6 +73,8 @@ export type ChannelDraft = {
   closers?: ChannelInfo["closers"];
   /** Who may have its rooms and contacts' chats search the web (kept on every save). */
   research?: ChannelInfo["research"];
+  /** When it answers contacts; none: at any hour (kept on every save). */
+  hours?: ChannelInfo["hours"] | undefined;
   /** Email: the mailbox and its servers (kept on every save). */
   email?: ChannelInfo["email"];
 };
@@ -207,6 +209,8 @@ export type ContactDraft = {
   rules?: string;
   muted?: boolean;
   supervised?: boolean;
+  /** Answered at any hour, past the attention hours of the channel they write on. */
+  any_hour?: boolean;
   perms?: Partial<Person["perms"]>;
 };
 

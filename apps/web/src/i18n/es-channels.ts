@@ -115,6 +115,14 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
     "Cuando se lo pedís en una sala (o desde la app en el chat de un contacto), busca en la web y lee páginas públicas. Nunca tu computadora, tus archivos ni tu memoria.",
   "ch.researchHint.everyone":
     "Cualquiera a quien le responda en salas y chats de contactos puede pedirle que busque en la web y lea páginas públicas. Nunca tu computadora, tus archivos ni tu memoria.",
+  "ch.hours": "Horario de atención",
+  "ch.hoursDays": "Días en que responde",
+  "ch.hoursHint.off": "Les responde a los contactos a cualquier hora.",
+  "ch.hoursHint.on":
+    "Fuera de él, el mensaje de un contacto queda sin leer y se responde, todo junto, cuando empieza. A vos siempre te responde.",
+  "ch.hoursWhen": "Días y horas",
+  "ch.hoursZone": "En {zone}, la zona horaria de tu cuenta.",
+  "ch.hoursZoneLocal": "Con el reloj de la computadora donde corre APX: tu cuenta no tiene zona horaria.",
   "ch.closers": "Mensajes que no necesitan respuesta",
   "ch.closers.silent": "Silencio",
   "ch.closers.react": "Reaccionar",
@@ -149,6 +157,8 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "ch.perm.requestsHint": "Una compra o un favor queda como tarea para vos.",
   "ch.perm.notes": "Contestar desde mis notas",
   "ch.perm.notesHint": "Solo tus notas generales, de lectura.",
+  "ch.anyHour": "Responder a cualquier hora",
+  "ch.anyHourHint": "Aunque sea fuera del horario de atención del canal.",
   "ch.mute": "Silenciar",
   "ch.unmute": "Quitar silencio",
   "ch.supervise": "Supervisar",

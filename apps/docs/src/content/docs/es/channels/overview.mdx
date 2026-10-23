@@ -108,6 +108,24 @@ Con cualquier opción, un "pará" corto ("pará", "basta", "cancelá", "stop") m
 En Telegram y WhatsApp, **Mensajes que no necesitan respuesta** elige qué recibe un "ok", un gracias o una despedida:
 **Silencio** o **Reaccionar** (un emoji), sin llamar al modelo en ningún caso.
 
+## Horario de atención
+
+Un canal les responde a los contactos a cualquier hora hasta que prendés **Horario de atención** en su configuración:
+los días en que responde y desde cuándo hasta cuándo, en la zona horaria de tu cuenta (**Configuración › Cuenta**). Un
+horario que termina después de medianoche es del día en que empieza (viernes 20:00–02:00 cubre las primeras horas del
+sábado).
+
+- Fuera del horario, el mensaje de un contacto queda en su chat, sin leer para vos y sin llamar al modelo: no se
+  responde nada.
+- Cuando empieza el horario, cada chat que esperó recibe **una** respuesta a todo lo que esa persona mandó mientras
+  tanto. Los chats se responden de a pocos, primero el que esperó más. A un contacto supervisado le llega el borrador
+  en ese momento.
+- Si vuelve a escribir cuando el horario ya empezó, ese mensaje se responde con los anteriores a la vista, y una sola
+  vez.
+- A vos siempre te responde, en cualquier canal. A un contacto con **Responder a cualquier hora** (en su ficha),
+  también.
+- En las salas, fuera del horario solo te responde a vos, y lo que se dijo mientras tanto no se responde después.
+
 ## Entregas y avisos
 
 Todo lo que manda APX pasa por un **outbox** durable: un mensaje sobrevive a un reinicio y se reintenta, y cada uno

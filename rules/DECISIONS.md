@@ -1986,3 +1986,23 @@ more, after the renderer of Google's 2026 icons moved to the marks chunk. What i
 the composer's model picker, its "/" menu) cannot load later without reshaping it, and trimming it to fit would trade
 real work for 0.2 KB. The performance gate keeps measuring the same initial assets; every other budget and test gate is
 unchanged. The next panel feature that grows the first load moves something out of it instead of raising this again.
+
+<a id="d-135"></a>
+## D-135 — 2026-10-22 — A channel's attention hours: contacts wait outside them and are answered once when they begin
+The owner wanted channels not to answer contacts all day: a message at 22:00 is read at 08:00. A channel can keep
+**hours** (days, from, to), read on the clocks of the owner's declared time zone (`ownerTimeZone`; none: the core
+computer's), never the machine's when they differ. Hours past midnight belong to the day they start on; the same time
+twice is the whole day.
+
+Outside them a contact's direct message is kept like a silenced one (`keepQuiet`, unread, the agent's note says it came
+outside the hours), transcribed if it is a voice note, and the chat is marked in `channel_held` (a table, so a restart
+keeps it and the clock does not scan every chat's context). Each tick of the office clock opens chats whose hours have
+begun, three at a time, longest waiting first: one turn with origin `hours_began` (a contact's words, framed as
+untrusted) reads the night's messages from the history and answers once; a supervised contact gets its draft then. A
+message inside the hours before that tick clears the mark and is answered by its own turn, so nothing is answered
+twice. A chat whose person was silenced or removed, or whose channel went off, stops waiting with no turn.
+
+Not held: the owner (on any channel, their Home always answers), answers to buttons and questions, a contact marked
+`any_hour`, and rooms for the owner; for anyone else a room keeps its messages outside the hours and never catches up,
+since its conversation moved on. No automatic "we are closed" reply in this version: the owner's example was simply to
+read at 08:00, and a reply at night is a message sent on their behalf.

@@ -111,6 +111,14 @@ export const enChannels = {
     "When you ask in a room (or from the app in a contact's chat), it searches the web and reads public pages. Never your computer, files or memory.",
   "ch.researchHint.everyone":
     "Anyone it answers in rooms and contacts' chats can have it search the web and read public pages. Never your computer, files or memory.",
+  "ch.hours": "Attention hours",
+  "ch.hoursDays": "Days it answers",
+  "ch.hoursHint.off": "It answers contacts at any hour.",
+  "ch.hoursHint.on":
+    "Outside them a contact's message waits unread and is answered, all together, when they begin. You are always answered.",
+  "ch.hoursWhen": "Days and hours",
+  "ch.hoursZone": "In {zone}, your account's time zone.",
+  "ch.hoursZoneLocal": "On the clock of the computer APX runs on: your account has no time zone set.",
   "ch.closers": "Messages that need no answer",
   "ch.closers.silent": "Silence",
   "ch.closers.react": "React",
@@ -146,6 +154,8 @@ export const enChannels = {
   "ch.perm.requestsHint": "A purchase or a favor becomes a task for you.",
   "ch.perm.notes": "Answer from my notes",
   "ch.perm.notesHint": "Only your general notes, read only.",
+  "ch.anyHour": "Answer at any hour",
+  "ch.anyHourHint": "Even outside the channel's attention hours.",
   "ch.mute": "Silence",
   "ch.unmute": "Unsilence",
   "ch.supervise": "Supervise",

@@ -97,6 +97,7 @@ function Linked({ channel }: { channel: ChannelInfo }) {
     self_owner: channel.self_owner,
     closers: channel.closers,
     research: channel.research,
+    hours: channel.hours,
   };
   const save = (patch: Partial<ChannelDraft>) => saveChannel(channel.id, { ...draft, ...patch });
   const running = channel.status === "running";

@@ -249,6 +249,7 @@ function Connected({ channel, kind }: { channel: ChannelInfo; kind: BotKind }) {
     ...(channel.rooms ? { rooms: channel.rooms } : {}),
     closers: channel.closers,
     research: channel.research,
+    hours: channel.hours,
   };
   const save = (patch: Partial<ChannelDraft>, newToken?: string) =>
     saveChannel(channel.id, { ...draft, ...patch }, newToken);
