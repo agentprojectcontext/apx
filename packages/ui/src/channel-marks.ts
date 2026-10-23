@@ -1,8 +1,13 @@
 // Official marks of the chat apps APX connects to, used only to say which app a channel is (never altered).
-// Path data from simple-icons (CC0; Slack and Microsoft Teams from its earlier releases); the marks belong to their
-// owners. `color` null draws in the text colour (a black mark would vanish on the dark theme).
+// Path data from simple-icons 16.35.0 (CC0; Slack from an earlier release, which no longer carries it); Microsoft
+// Teams' 2025 icon and Google Chat's 2026 icon are drawn whole (gradients) from thesvg.org; the marks belong to their owners. `color` null draws in the text colour (a black mark would vanish on the
+// dark theme). Flat paths where possible: these ship in the first load.
 
 export type ChannelMark = { paths: ReadonlyArray<{ d: string; color: string | null }> };
+/** One element of a mark drawn whole: its tag, attributes (`{id}` stands for the icon's own prefix) and children. */
+export type MarkNode = { t: string; a: Readonly<Record<string, string>>; c?: ReadonlyArray<MarkNode> };
+/** A mark kept as its full SVG, for an icon flat paths cannot draw (gradients, masks, a blur). */
+export type MarkArt = { viewBox: string; art: ReadonlyArray<MarkNode> };
 
 export const CHANNEL_MARKS = {
   telegram: {
@@ -54,18 +59,291 @@ export const CHANNEL_MARKS = {
     ],
   },
   teams: {
-    paths: [
+    viewBox: "4 4 36 38",
+    art: [
+      { t: "path", a: { fill: "url(#{id}a)", d: "M22 20h12a6 6 0 0 1 6 6v10a6 6 0 0 1-12 0V26a6 6 0 0 0-6-6Z" } },
       {
-        d: "M20.625 8.127q-.55 0-1.025-.205-.475-.205-.832-.563-.358-.357-.563-.832Q18 6.053 18 5.502q0-.54.205-1.02t.563-.837q.357-.358.832-.563.474-.205 1.025-.205.54 0 1.02.205t.837.563q.358.357.563.837.205.48.205 1.02 0 .55-.205 1.025-.205.475-.563.832-.357.358-.837.563-.48.205-1.02.205zm0-3.75q-.469 0-.797.328-.328.328-.328.797 0 .469.328.797.328.328.797.328.469 0 .797-.328.328-.328.328-.797 0-.469-.328-.797-.328-.328-.797-.328zM24 10.002v5.578q0 .774-.293 1.46-.293.685-.803 1.194-.51.51-1.195.803-.686.293-1.459.293-.445 0-.908-.105-.463-.106-.85-.329-.293.95-.855 1.729-.563.78-1.319 1.336-.756.557-1.67.861-.914.305-1.898.305-1.148 0-2.162-.398-1.014-.399-1.805-1.102-.79-.703-1.312-1.664t-.674-2.086h-5.8q-.411 0-.704-.293T0 16.881V6.873q0-.41.293-.703t.703-.293h8.59q-.34-.715-.34-1.5 0-.727.275-1.365.276-.639.75-1.114.475-.474 1.114-.75.638-.275 1.365-.275t1.365.275q.639.276 1.114.75.474.475.75 1.114.275.638.275 1.365t-.275 1.365q-.276.639-.75 1.113-.475.475-1.114.75-.638.276-1.365.276-.188 0-.375-.024-.188-.023-.375-.058v1.078h10.875q.469 0 .797.328.328.328.328.797zM12.75 2.373q-.41 0-.78.158-.368.158-.638.434-.27.275-.428.639-.158.363-.158.773 0 .41.158.78.159.368.428.638.27.27.639.428.369.158.779.158.41 0 .773-.158.364-.159.64-.428.274-.27.433-.639.158-.369.158-.779 0-.41-.158-.773-.159-.364-.434-.64-.275-.275-.639-.433-.363-.158-.773-.158zM6.937 9.814h2.25V7.94H2.814v1.875h2.25v6h1.875zm10.313 7.313v-6.75H12v6.504q0 .41-.293.703t-.703.293H8.309q.152.809.556 1.5.405.691.985 1.19.58.497 1.318.779.738.281 1.582.281.926 0 1.746-.352.82-.351 1.436-.966.615-.616.966-1.43.352-.815.352-1.752zm5.25-1.547v-5.203h-3.75v6.855q.305.305.691.452.387.146.809.146.469 0 .879-.176.41-.175.715-.48.304-.305.48-.715t.176-.879Z",
-        color: "#6264A7",
+        t: "path",
+        a: {
+          fill: "url(#{id}b)",
+          d: "M8 24a6 6 0 0 1 6-6h8a6 6 0 0 1 6 6v12a6 6 0 0 0 6 6H18c-5.523 0-10-4.477-10-10v-8Z",
+        },
+      },
+      {
+        t: "path",
+        a: {
+          fill: "url(#{id}c)",
+          fillOpacity: ".7",
+          d: "M8 24a6 6 0 0 1 6-6h8a6 6 0 0 1 6 6v12a6 6 0 0 0 6 6H18c-5.523 0-10-4.477-10-10v-8Z",
+        },
+      },
+      {
+        t: "path",
+        a: {
+          fill: "url(#{id}d)",
+          fillOpacity: ".7",
+          d: "M8 24a6 6 0 0 1 6-6h8a6 6 0 0 1 6 6v12a6 6 0 0 0 6 6H18c-5.523 0-10-4.477-10-10v-8Z",
+        },
+      },
+      { t: "path", a: { fill: "url(#{id}e)", d: "M33 18a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" } },
+      { t: "path", a: { fill: "url(#{id}f)", fillOpacity: ".46", d: "M33 18a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" } },
+      { t: "path", a: { fill: "url(#{id}g)", fillOpacity: ".4", d: "M33 18a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" } },
+      { t: "path", a: { fill: "url(#{id}h)", d: "M18 16a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" } },
+      { t: "path", a: { fill: "url(#{id}i)", fillOpacity: ".6", d: "M18 16a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" } },
+      { t: "path", a: { fill: "url(#{id}j)", fillOpacity: ".5", d: "M18 16a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" } },
+      { t: "rect", a: { width: "16", height: "16", x: "4", y: "23", fill: "url(#{id}k)", rx: "3.25" } },
+      {
+        t: "rect",
+        a: { width: "16", height: "16", x: "4", y: "23", fill: "url(#{id}l)", fillOpacity: ".7", rx: "3.25" },
+      },
+      { t: "path", a: { fill: "#fff", d: "M15.48 28.105h-2.448v7.466h-2.065v-7.466H8.52V26.43h6.96v1.676Z" } },
+      {
+        t: "defs",
+        a: {},
+        c: [
+          {
+            t: "radialGradient",
+            a: {
+              id: "{id}a",
+              cx: "0",
+              cy: "0",
+              r: "1",
+              gradientTransform: "matrix(13.4784 0 0 33.2694 39.797 22.174)",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              { t: "stop", a: { stopColor: "#A98AFF" } },
+              { t: "stop", a: { offset: ".14", stopColor: "#8C75FF" } },
+              { t: "stop", a: { offset: ".565", stopColor: "#5F50E2" } },
+              { t: "stop", a: { offset: ".9", stopColor: "#3C2CB8" } },
+            ],
+          },
+          {
+            t: "radialGradient",
+            a: {
+              id: "{id}b",
+              cx: "0",
+              cy: "0",
+              r: "1",
+              gradientTransform: "matrix(12.1875 30.39997 -30.74442 12.3256 8.812 16.4)",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              { t: "stop", a: { stopColor: "#85C2FF" } },
+              { t: "stop", a: { offset: ".69", stopColor: "#7588FF" } },
+              { t: "stop", a: { offset: "1", stopColor: "#6459FE" } },
+            ],
+          },
+          {
+            t: "radialGradient",
+            a: {
+              id: "{id}d",
+              cx: "0",
+              cy: "0",
+              r: "1",
+              gradientTransform: "rotate(113.326 8.093 17.645) scale(19.2186 15.4273)",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              { t: "stop", a: { stopColor: "#BD96FF" } },
+              { t: "stop", a: { offset: ".687", stopColor: "#BD96FF", stopOpacity: "0" } },
+            ],
+          },
+          {
+            t: "radialGradient",
+            a: {
+              id: "{id}e",
+              cx: "0",
+              cy: "0",
+              r: "1",
+              gradientTransform: "matrix(0 -10 12.6216 0 33 11.571)",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              { t: "stop", a: { offset: ".268", stopColor: "#6868F7" } },
+              { t: "stop", a: { offset: "1", stopColor: "#3923B1" } },
+            ],
+          },
+          {
+            t: "radialGradient",
+            a: {
+              id: "{id}f",
+              cx: "0",
+              cy: "0",
+              r: "1",
+              gradientTransform: "matrix(5.47024 4.59847 -6.65117 7.91208 28.867 10.544)",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              { t: "stop", a: { offset: ".271", stopColor: "#A1D3FF" } },
+              { t: "stop", a: { offset: ".813", stopColor: "#A1D3FF", stopOpacity: "0" } },
+            ],
+          },
+          {
+            t: "radialGradient",
+            a: {
+              id: "{id}g",
+              cx: "0",
+              cy: "0",
+              r: "1",
+              gradientTransform: "rotate(-41.658 32.118 -43.42) scale(8.51275 20.8824)",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              { t: "stop", a: { stopColor: "#E3ACFD" } },
+              { t: "stop", a: { offset: ".816", stopColor: "#9FA2FF", stopOpacity: "0" } },
+            ],
+          },
+          {
+            t: "radialGradient",
+            a: {
+              id: "{id}h",
+              cx: "0",
+              cy: "0",
+              r: "1",
+              gradientTransform: "matrix(0 -12 15.146 0 18 8.286)",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              { t: "stop", a: { offset: ".268", stopColor: "#8282FF" } },
+              { t: "stop", a: { offset: "1", stopColor: "#3923B1" } },
+            ],
+          },
+          {
+            t: "radialGradient",
+            a: {
+              id: "{id}i",
+              cx: "0",
+              cy: "0",
+              r: "1",
+              gradientTransform: "rotate(40.052 -3.155 21.416) scale(8.57554 12.4035)",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              { t: "stop", a: { offset: ".271", stopColor: "#A1D3FF" } },
+              { t: "stop", a: { offset: ".813", stopColor: "#A1D3FF", stopOpacity: "0" } },
+            ],
+          },
+          {
+            t: "radialGradient",
+            a: {
+              id: "{id}j",
+              cx: "0",
+              cy: "0",
+              r: "1",
+              gradientTransform: "rotate(-41.658 20.382 -26.516) scale(10.2153 25.0589)",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              { t: "stop", a: { stopColor: "#E3ACFD" } },
+              { t: "stop", a: { offset: ".816", stopColor: "#9FA2FF", stopOpacity: "0" } },
+            ],
+          },
+          {
+            t: "radialGradient",
+            a: {
+              id: "{id}k",
+              cx: "0",
+              cy: "0",
+              r: "1",
+              gradientTransform: "rotate(45 -25.763 16.328) scale(22.6274)",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              { t: "stop", a: { offset: ".047", stopColor: "#688EFF" } },
+              { t: "stop", a: { offset: ".947", stopColor: "#230F94" } },
+            ],
+          },
+          {
+            t: "radialGradient",
+            a: {
+              id: "{id}l",
+              cx: "0",
+              cy: "0",
+              r: "1",
+              gradientTransform: "matrix(0 11.2 -13.0702 0 12 32.6)",
+              gradientUnits: "userSpaceOnUse",
+            },
+            c: [
+              { t: "stop", a: { offset: ".571", stopColor: "#6965F6", stopOpacity: "0" } },
+              { t: "stop", a: { offset: "1", stopColor: "#8F8FFF" } },
+            ],
+          },
+          {
+            t: "linearGradient",
+            a: { id: "{id}c", x1: "20.594", x2: "20.594", y1: "18", y2: "42", gradientUnits: "userSpaceOnUse" },
+            c: [
+              { t: "stop", a: { offset: ".801", stopColor: "#6864F6", stopOpacity: "0" } },
+              { t: "stop", a: { offset: "1", stopColor: "#5149DE" } },
+            ],
+          },
+        ],
       },
     ],
   },
   googlechat: {
-    paths: [
+    viewBox: "0 0 192 192",
+    art: [
+      { t: "rect", a: { width: "160", height: "96", x: "16", y: "28", fill: "#00AF57", rx: "48" } },
       {
-        d: "M1.637 0C.733 0 0 .733 0 1.637v16.5c0 .904.733 1.636 1.637 1.636h3.955v3.323c0 .804.97 1.207 1.539.638l3.963-3.96h11.27c.903 0 1.636-.733 1.636-1.637V5.592L18.408 0Zm3.955 5.592h12.816v8.59H8.455l-2.863 2.863Z",
-        color: "#34A853",
+        t: "path",
+        a: {
+          fill: "#0EBC5F",
+          d: "M133 48c28.167 0 51 22.834 51 51 0 28.167-22.833 51-51 51H96.624l-34.857 23.064c-3.86 2.544-5.789 3.816-7.372 3.92a6 6 0 0 1-5.612-3.022C48 172.583 48 170.271 48 165.649V148.81C25.121 143.78 8 123.39 8 99c0-28.166 22.834-51 51-51h74z",
+        },
+      },
+      {
+        t: "mask",
+        a: {
+          id: "{id}a",
+          width: "176",
+          height: "129",
+          x: "8",
+          y: "48",
+          maskUnits: "userSpaceOnUse",
+          style: "mask-type:alpha",
+        },
+        c: [
+          {
+            t: "path",
+            a: {
+              fill: "#0EBC5F",
+              d: "M133 48c28.167 0 51 22.834 51 51 0 28.167-22.833 51-51 51H96.722l-39.428 25.896c-3.99 2.62-9.294-.242-9.294-5.015V148.81C25.121 143.78 8 123.39 8 99c0-28.166 22.834-51 51-51h74z",
+            },
+          },
+        ],
+      },
+      {
+        t: "g",
+        a: { mask: "url(#{id}a)" },
+        c: [
+          { t: "rect", a: { width: "160", height: "96", x: "16", y: "28", fill: "#0EBC5F", rx: "48" } },
+          { t: "rect", a: { width: "160", height: "96", x: "16", y: "28", fill: "url(#{id}b)", rx: "48" } },
+          {
+            t: "path",
+            a: {
+              stroke: "#fff",
+              strokeLinecap: "round",
+              strokeWidth: "12",
+              d: "M62 94s8.84 18 34 18 34-17.182 34-17.182",
+            },
+          },
+        ],
+      },
+      {
+        t: "defs",
+        a: {},
+        c: [
+          {
+            t: "linearGradient",
+            a: { id: "{id}b", x1: "96", x2: "96", y1: "28", y2: "124", gradientUnits: "userSpaceOnUse" },
+            c: [
+              { t: "stop", a: { offset: ".09", stopColor: "#94D4FF" } },
+              { t: "stop", a: { offset: ".28", stopColor: "#78C9FF" } },
+              { t: "stop", a: { offset: ".88", stopColor: "#01AE58", stopOpacity: "0" } },
+            ],
+          },
+        ],
       },
     ],
   },
@@ -105,6 +383,30 @@ export const CHANNEL_MARKS = {
       },
     ],
   },
-} as const satisfies Record<string, ChannelMark>;
+  twitch: {
+    paths: [
+      {
+        d: "M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z",
+        color: "#9146FF",
+      },
+    ],
+  },
+  nextcloud: {
+    paths: [
+      {
+        d: "M12.018 6.537c-2.5 0-4.6 1.712-5.241 4.015-.56-1.232-1.793-2.105-3.225-2.105A3.569 3.569 0 0 0 0 12a3.569 3.569 0 0 0 3.552 3.553c1.432 0 2.664-.874 3.224-2.106.641 2.304 2.742 4.016 5.242 4.016 2.487 0 4.576-1.693 5.231-3.977.569 1.21 1.783 2.067 3.198 2.067A3.568 3.568 0 0 0 24 12a3.569 3.569 0 0 0-3.553-3.553c-1.416 0-2.63.858-3.199 2.067-.654-2.284-2.743-3.978-5.23-3.977zm0 2.085c1.878 0 3.378 1.5 3.378 3.378 0 1.878-1.5 3.378-3.378 3.378A3.362 3.362 0 0 1 8.641 12c0-1.878 1.5-3.378 3.377-3.378zm-8.466 1.91c.822 0 1.467.645 1.467 1.468s-.644 1.467-1.467 1.468A1.452 1.452 0 0 1 2.085 12c0-.823.644-1.467 1.467-1.467zm16.895 0c.823 0 1.468.645 1.468 1.468s-.645 1.468-1.468 1.468A1.452 1.452 0 0 1 18.98 12c0-.823.644-1.467 1.467-1.467z",
+        color: "#0082C9",
+      },
+    ],
+  },
+  ntfy: {
+    paths: [
+      {
+        d: "M12.597 13.693v2.156h6.205v-2.156ZM5.183 6.549v2.363l3.591 1.901.023.01-.023.009-3.591 1.901v2.35l.386-.211 5.456-2.969V9.729ZM3.659 2.037C1.915 2.037.42 3.41.42 5.154v.002L.438 18.73 0 21.963l5.956-1.583h14.806c1.744 0 3.238-1.374 3.238-3.118V5.154c0-1.744-1.493-3.116-3.237-3.117h-.001zm0 2.2h17.104c.613.001 1.037.447 1.037.917v12.108c0 .47-.424.916-1.038.916H5.633l-3.026.915.031-.179-.017-13.76c0-.47.424-.917 1.038-.917z",
+        color: "#317F6F",
+      },
+    ],
+  },
+} as const satisfies Record<string, ChannelMark | MarkArt>;
 
 export type ChannelBrand = keyof typeof CHANNEL_MARKS;
