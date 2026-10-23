@@ -344,11 +344,11 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     voiceModels,
     memory: (agentId: string, system: string, user: string, about: AuxAbout) => ask(about, agentId, system, user),
     /**
-     * What a picture shows (a sticker's meaning), from the auxiliary models that read images, the agent's if none is
-     * set; none without one.
+     * What a picture shows (a sticker's meaning), from the models known to read images: the auxiliary ones, then the
+     * router's; none without one. A model not known to read them would name what it never saw.
      */
     see: (system: string, user: string, image: { mime: string; data: string }, about: AuxAbout) => {
-      const models = auxModels().filter((m) => readsImages(m) !== false);
+      const models = [...new Set([...auxModels(), ...agentModels()])].filter((m) => readsImages(m) === true);
       return models.length
         ? ask(about, undefined, system, user, { models, images: [image] })
         : Promise.resolve(undefined);

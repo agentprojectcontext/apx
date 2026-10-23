@@ -97,6 +97,18 @@ test("a sticker the agent was never sent goes nowhere, and the owner hears why",
   assert.ok(!tg.messagesTo(OWNER.id).some((m) => /STICKER/.test(String(m.body.text))));
 });
 
+test("with no model known to read images, a sticker takes its emoji: nothing names what it cannot see", async () => {
+  env.core.store.settings.set("model_aux", "ollama/qwen2.5:14b");
+  const named = namings();
+  const other = Buffer.concat([WEBP, Buffer.from([0])]);
+  tg.attachment(OWNER, { bytes: other, mime: "image/webp", sticker: { emoji: "👍" } });
+  await until(() => env.core.store.stickers.known("telegram").some((s) => s.hint === "👍"), "kept");
+  assert.equal(env.core.store.stickers.known("telegram").find((s) => s.hint === "👍")?.meaning, "👍");
+  assert.equal(namings(), named, "no model was asked");
+  await env.settle("home");
+  env.core.store.settings.set("model_aux", "openai/gpt-4o-mini");
+});
+
 test("STICKER and the words for it, as the agent writes it", () => {
   assert.equal(stickerAnswer("STICKER oso con corazón"), "oso con corazón");
   assert.equal(stickerAnswer('**STICKER**: "thumbs up"'), "thumbs up");

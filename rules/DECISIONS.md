@@ -2031,7 +2031,7 @@ is kept the moment it arrives in `stickers`, one row per **platform** and file (
 sends it), its file a media row of its own so it outlives the chat. Platforms never share: a Telegram sticker (often
 animated `.tgs`) is not a WhatsApp one, and the agent only sends a platform's own.
 
-It is named once, by the auxiliary models that are not known to be text-only (`see` in upkeep, aux purpose `sticker`),
+It is named once, by the models known to read images, auxiliary first, then the router's (`see` in upkeep, aux purpose `sticker`),
 in the owner's language; an animated one, or an install with no such model, takes the emoji the platform says it stands
 for. The message waits up to 20 seconds for the name, then the agent reads it unnamed and the name lands later. The
 agent reads `[sticker: meaning]`; a silenced contact's sticker is kept without a model call.
