@@ -31,25 +31,14 @@ test("attention hours: set in the channel's settings, a contact waits outside th
   await until(async () => !(await hoursOf())?.days.includes(0));
 
   // Today left out: a contact who writes now waits, with no model call.
-  const config = (await rpc<Channels & { channels: Array<Record<string, unknown>> }>("channels.list")).channels.find(
-    (c) => c.type === "telegram",
-  );
   // Today as the owner's time zone reads it (none set: this computer's, where the test core runs).
   const zone = (await rpc<{ timezone: string }>("owner.get")).timezone || undefined;
   const weekday = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: zone }).format(new Date());
   const today = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(weekday);
-  await rpc("channels.set", {
-    id: config?.id,
-    channel: {
-      type: "telegram",
-      agent_id: config?.agent_id,
-      strangers: config?.strangers,
-      concurrency: config?.concurrency,
-      owner_thread: config?.owner_thread,
-      ...(config?.rooms ? { rooms: config.rooms } : {}),
-      hours: { days: [0, 1, 2, 3, 4, 5, 6].filter((d) => d !== today), from: "00:00", to: "00:00" },
-    },
-  });
+  if (today !== 0) {
+    await page.getByText(["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][today] ?? "", { exact: true }).click();
+    await until(async () => !(await hoursOf())?.days.includes(today));
+  }
   await world.telegram(buyer, "hello");
   const code = /\b(\d{6})\b/.exec((await until(async () => (await world.sentTo(buyer.id))[0]))?.text ?? "")?.[1];
   await rpc("pairing.respond", { code, decision: "contact", name: buyer.name });
