@@ -1,7 +1,7 @@
-import { createElement, type ReactNode, useId, useSyncExternalStore } from "react";
+import { type ReactNode, useId, useSyncExternalStore } from "react";
 import { CHANNEL_MARKS } from "../channel-marks";
 import { cx } from "../cx";
-import type { IntegrationMark, LateIntegrationBrand, MarkNode } from "../integration-marks";
+import type { IntegrationMark, LateIntegrationBrand, MarkArt } from "../integration-marks";
 import { ProjectTile, type TileTone } from "./ProjectTile";
 
 export type IntegrationBrand = LateIntegrationBrand | "slack";
@@ -39,8 +39,14 @@ export function integrationBrand(id: string): IntegrationBrand | undefined {
 
 /** The marks arrive after the first screen (`@apx/ui/marks`); Slack's is the channel mark, here from the start. */
 let lateMarks: Partial<Record<LateIntegrationBrand, IntegrationMark>> = {};
+/** Draws a mark kept whole (MarkArt): it comes with the marks, so the first screen never carries it. */
+let drawArt: ((mark: MarkArt, prefix: string) => ReactNode) | undefined;
 const listeners = new Set<() => void>();
-export function registerIntegrationMarks(marks: Partial<Record<LateIntegrationBrand, IntegrationMark>>): void {
+export function registerIntegrationMarks(
+  marks: Partial<Record<LateIntegrationBrand, IntegrationMark>>,
+  draw?: (mark: MarkArt, prefix: string) => ReactNode,
+): void {
+  if (draw) drawArt = draw;
   lateMarks = { ...lateMarks, ...marks };
   for (const l of listeners) l();
 }
@@ -84,9 +90,11 @@ export function IntegrationIcon({ id, name, size = 32, tone = "info", label, cla
   const icon =
     mark &&
     ("art" in mark ? (
-      <svg viewBox={mark.viewBox} aria-hidden="true">
-        {mark.art.map((n, i) => drawn(n, `${prefix}-`, i))}
-      </svg>
+      drawArt && (
+        <svg viewBox={mark.viewBox} aria-hidden="true">
+          {drawArt(mark, `${prefix}-`)}
+        </svg>
+      )
     ) : (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         {mark.paths.map((p) => (
@@ -95,26 +103,4 @@ export function IntegrationIcon({ id, name, size = 32, tone = "info", label, cla
       </svg>
     ));
   return <ProjectTile tone="neutral" icon={icon} size={size} label={label} className={cx("apx-intmark", className)} />;
-}
-
-/** One element of a mark drawn whole, with `{id}` in its attributes made this icon's own. */
-function drawn(n: MarkNode, prefix: string, key: number): ReactNode {
-  const props: Record<string, unknown> = { key };
-  for (const [k, v] of Object.entries(n.a)) {
-    const value = v.replaceAll("{id}", prefix);
-    // A style is written as CSS ("mask-type:alpha"); React takes it as an object.
-    props[k] =
-      k === "style"
-        ? Object.fromEntries(
-            value
-              .split(";")
-              .filter(Boolean)
-              .map((d) => {
-                const [prop = "", val = ""] = d.split(":");
-                return [prop.trim().replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase()), val.trim()];
-              }),
-          )
-        : value;
-  }
-  return createElement(n.t, props, ...(n.c ?? []).map((c, i) => drawn(c, prefix, i)));
 }
