@@ -6,7 +6,7 @@
 // waits behind that turn); "make a note file" runs a command that needs the owner's OK; "look around the parent
 // folder" reads outside the project's folder (a folder card); "show a widget" makes one; "open a
 // report" writes one and opens it as a document; "show a table for task_…" answers with a wide table whose last
-// column holds that task's chip. It also
+// column holds that task's chip; "connect <app> for me" offers that app or channel to connect. It also
 // embeds texts (Ollama's /api/embed) for the skills picked by meaning.
 import http from "node:http";
 import type { AddressInfo } from "node:net";
@@ -117,6 +117,13 @@ function toolCall(messages: Message[], said: string): { name: string; arguments:
     return {
       name: "show_widget",
       arguments: JSON.stringify({ name: "e2e-coverage", title: "Coverage audit", html: "<h1>Coverage rows</h1>" }),
+    };
+  // An app or channel the owner has not connected: a card offers it.
+  const app = /^connect (\S+) for me/i.exec(said);
+  if (app)
+    return {
+      name: "suggest_connection",
+      arguments: JSON.stringify({ query: app[1], why: `To work with your ${app[1]} for you.` }),
     };
   // A first look past the project's folder: a folder card asks the owner.
   if (/^look around the parent folder/i.test(said))

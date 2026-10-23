@@ -1,6 +1,7 @@
 // Channels, the people on them and pairing: owner-only methods (the router refuses anyone else).
 
-import { ErrorCode } from "@apx/protocol";
+import { type ChannelType, ErrorCode } from "@apx/protocol";
+import { CHANNEL_CATALOG } from "../channels/catalog.ts";
 import { pairingRef } from "../channels/inbound.ts";
 import type { Channels } from "../channels/manager.ts";
 import { normalJid } from "../channels/whatsapp.ts";
@@ -201,24 +202,6 @@ export function channelHandlers(store: Store, channels: Channels) {
   } satisfies Partial<Handlers>;
 }
 
-const LABELS: Record<string, string> = {
-  telegram: "Telegram",
-  whatsapp: "WhatsApp",
-  discord: "Discord",
-  slack: "Slack",
-  matrix: "Matrix",
-  mattermost: "Mattermost",
-  signal: "Signal",
-  email: "Email",
-  imessage: "iMessage",
-  googlechat: "Google Chat",
-  sms: "SMS",
-  ntfy: "ntfy",
-  nextcloud: "Nextcloud Talk",
-  irc: "IRC",
-  twitch: "Twitch",
-};
-
 /** What the owner typed as the address the channel uses: a WhatsApp number's account, a Telegram chat id. */
 function typedAddress(type: string, typed: string): string | undefined {
   if (type === "whatsapp") {
@@ -236,4 +219,4 @@ function typedAddress(type: string, typed: string): string | undefined {
   }
   return /^-?\d{3,20}$/.test(typed.trim()) ? typed.trim() : undefined;
 }
-const defaultLabel = (type: string) => LABELS[type] ?? type;
+const defaultLabel = (type: string) => CHANNEL_CATALOG[type as ChannelType]?.label ?? type;

@@ -1,7 +1,7 @@
 // Methods behind Resources: skills (read, edit, on/off per project), MCP servers (approve, test, on/off per
 // project) and variables (stored secrets: names, a hint and where they are used; never the values).
 import { z } from "zod";
-import { Id, McpServerStatus, ToolApproval } from "./domain.ts";
+import { ConnectOffer, Id, McpServerStatus, ToolApproval } from "./domain.ts";
 
 const McpTarget = z
   .object({ scope: z.enum(["global", "project"]), server: z.string(), project: Id.optional() })
@@ -412,6 +412,15 @@ export const resourceMethods = {
     effect: true,
     access: "human",
     open: true,
+  },
+  /**
+   * The integrations and channels that match words ("figma", "whatsapp"), best first, each connected or not: what an
+   * agent offers the owner to connect. Open to agents: names and descriptions only.
+   */
+  "integrations.find": {
+    params: z.object({ query: z.string().min(1).max(200) }).strict(),
+    result: z.object({ found: z.array(ConnectOffer.extend({ connected: z.boolean() })) }),
+    effect: false,
   },
   /** Disconnects one: its server and its secrets go. */
   "integrations.disconnect": {

@@ -76,6 +76,7 @@ import { agentTools } from "./tools/agents.ts";
 import { browserTools } from "./tools/browser.ts";
 import { chatTools } from "./tools/chats.ts";
 import { computerTools } from "./tools/computer.ts";
+import { connectionTools } from "./tools/connections.ts";
 import { contactTools } from "./tools/contact.ts";
 import { directoryTools } from "./tools/directory.ts";
 import { fileTools } from "./tools/files.ts";
@@ -149,6 +150,7 @@ export function builtinTools(
     ...browserTools(store, home),
     ...surfaceTools(store, home),
     ...ownerTools(store),
+    ...connectionTools(),
     ...shellTools(store, home, port),
     ...fileTools(store, home),
     ...messageTools(store, home),

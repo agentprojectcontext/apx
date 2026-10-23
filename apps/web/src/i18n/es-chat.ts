@@ -124,4 +124,7 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "choices.personality": "Quiero que seas así: {choice}.",
   "choices.own": "Otra",
   "choices.ownPlaceholder": "Contame cómo querés que sea y apretá Enter",
+  "connect.title": "Conexiones sugeridas",
+  "connect.connected": "Conectado",
+  "connect.done": "Conecté {name}.",
 };

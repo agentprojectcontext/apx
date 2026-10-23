@@ -59,7 +59,8 @@ export function mcpBridge(servers: string[], load: () => Promise<Tool[]>): Tool[
         if (!a.query)
           return cap(pool.map((t) => `- ${t.name}: ${t.description.replace(/\s+/g, " ").slice(0, 160)}`).join("\n"));
         const found = rank(pool, a.query).slice(0, MAX_RESULTS);
-        if (!found.length) return `nothing matches "${a.query}"; search other words or list a server's tools`;
+        if (!found.length)
+          return `nothing matches "${a.query}"; search other words, list a server's tools, or, for an app not connected, suggest_connection`;
         return cap(
           found
             .map((t) => `## ${t.name}\n${t.description}\nargs: ${JSON.stringify(t.parameters).slice(0, SCHEMA_CAP)}`)

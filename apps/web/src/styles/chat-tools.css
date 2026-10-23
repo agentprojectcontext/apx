@@ -127,6 +127,23 @@
   background: var(--apx-surface);
   text-align: left;
 }
+.connectcard .inputcard__head {
+  color: var(--apx-fg-muted);
+}
+.connectcard__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.connectcard__row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-bg);
+}
 .inputcard.is-pending {
   border-color: var(--apx-warning-soft-fg);
   box-shadow: 0 0 0 3px var(--apx-warning-soft);
