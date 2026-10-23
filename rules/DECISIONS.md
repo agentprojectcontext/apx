@@ -1977,3 +1977,12 @@ shows the owner's names and finds their values once it opens, instead of falling
 can set `APX_SECRETS=file`. Values in `secrets.json` move to the store once at start, as D-010 did for the Keychain.
 The newer stores look up only names the index lists, so a check for a missing secret runs no command. Checked against a
 real keyring in a Linux container; the Windows store runs only against a stand-in so far.
+
+<a id="d-134"></a>
+## D-134 — 2026-10-22 — Initial panel bundle budget
+The owner approved raising the initial gzipped panel bundle budget from 270 to 275 KB. The released panel already sat
+over it (270.07 KB on `origin/release/v2`, measured the way `pnpm verify` builds it), and the day's work added 0.13 KB
+more, after the renderer of Google's 2026 icons moved to the marks chunk. What is left on the first screen (messages,
+the composer's model picker, its "/" menu) cannot load later without reshaping it, and trimming it to fit would trade
+real work for 0.2 KB. The performance gate keeps measuring the same initial assets; every other budget and test gate is
+unchanged. The next panel feature that grows the first load moves something out of it instead of raising this again.
