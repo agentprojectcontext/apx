@@ -1,132 +1,55 @@
 // apx_settings: the super-agent changes what the owner sets up in APX for them, through the owner's own methods, each
 // change once the owner approves it. One tool for every setting, read on demand, so the prompt does not grow with the
 // panel (rules/PROMPT_SIZE.md). Which methods it reaches is settings-reach.ts's to say. See DECISIONS.md#d-138
-import { isMethodName, type MethodName, methods, type Person } from "@apx/protocol";
+import { isMethodName, type MethodName, methods } from "@apx/protocol";
 import { z } from "zod";
-import { autoApproves } from "../channels/stickers.ts";
+import type { TemplateRoot } from "../apc/templates.ts";
 import type { Store } from "../domain/store.ts";
-import { inlineName } from "./result.ts";
+import type { ProfileRoot } from "../engine/profiles.ts";
+import type { Params, Setting, SettingsDeps } from "./settings-kit.ts";
+import { PEOPLE } from "./settings-people.ts";
+import { TEAM } from "./settings-team.ts";
+import { WORK } from "./settings-work.ts";
 import { defineTool, type Tool } from "./types.ts";
 
-type Params = Record<string, unknown>;
-
-type Setting = {
-  /** What it does, in the list the agent reads. */
-  does: string;
-  /** A read: answered from the store, with no confirmation. */
-  read?: (p: Params, store: Store) => string;
-  /** The card's first line: what changes, named as the owner names it. */
-  says?: (p: Params, store: Store) => string;
-  /** The record as it is now, so the card shows each field before and after. */
-  now?: (p: Params, store: Store) => Params | undefined;
-  /** Fields the method needs that the record already has (a contact's name). */
-  keep?: (p: Params, store: Store) => Params;
-  /** What the agent reads back once it ran (default: the method's result). */
-  shows?: (result: unknown) => string;
-};
-
-const personOf = (p: Params, store: Store) => (typeof p.id === "string" ? store.persons.get(p.id) : undefined);
-const stickerOf = (p: Params, store: Store) => (typeof p.id === "string" ? store.stickers.get(p.id) : undefined);
-
-/** One line per kept sticker: what it means, how often it came and was sent, and whether the agent may send it. */
-const stickerLine = (s: {
-  id: string;
-  meaning?: string;
-  hint?: string;
-  seen: number;
-  sent: number;
-  blocked: boolean;
-  pending: boolean;
-  adult: boolean;
-}) => {
-  const state = s.blocked ? ", you may not send it" : s.pending ? ", waits for the owner's OK" : "";
-  const name = s.meaning ? `"${inlineName(s.meaning)}"` : "not named yet";
-  return `- [${s.id}] ${name}${s.hint ? ` ${s.hint}` : ""}${s.adult ? " (18+)" : ""} (arrived ${s.seen}, sent ${s.sent}${state})`;
-};
-
-/** One line per contact with everything the owner edits on their card. */
-function contactLine(p: Person): string {
-  const on = [...new Set(p.addresses.map((a) => a.channel))].join(", ") || "no channel";
-  const flags = [
-    p.muted ? "silenced" : "",
-    p.supervised ? "supervised" : "",
-    p.any_hour ? "any hour" : "",
-    ...Object.entries(p.perms)
-      .filter(([, on]) => on)
-      .map(([k]) => `may: ${k}`),
-  ].filter(Boolean);
-  const bits = [
-    p.role !== "contact" ? p.role : "",
-    p.relation ?? "",
-    p.nickname ? `nickname "${inlineName(p.nickname)}"` : "",
-    `on ${on}`,
-    ...flags,
-  ].filter(Boolean);
-  const text = [p.note ? `note: ${p.note}` : "", p.rules ? `rules: ${p.rules}` : ""].filter(Boolean).join("; ");
-  return `- ${inlineName(p.name) || "someone"} [${p.id}] (${bits.join(", ")})${text ? ` ${text.slice(0, 600)}` : ""}`;
-}
-
 /** What the super-agent may read and change, by method. */
-export const SETTINGS: Readonly<Record<string, Setting>> = {
-  "contacts.list": {
-    does: "every contact with what the owner edits on their card: relation, nickname, note, rules, flags",
-    read: (_p, store) =>
-      store.persons
-        .list()
-        .filter((p) => p.role !== "owner")
-        .slice(0, 100)
-        .map(contactLine)
-        .join("\n") || "no contacts yet.",
-  },
-  "contacts.set": {
-    does: "change a contact (id and only what changes: note says who they are, rules how to answer them) or add one",
-    says: (p, store) => {
-      const cur = personOf(p, store);
-      return cur ? `Change the contact ${inlineName(cur.name)}` : `Add the contact ${inlineName(String(p.name ?? ""))}`;
-    },
-    now: (p, store) => personOf(p, store),
-    keep: (p, store) => {
-      const cur = personOf(p, store);
-      return cur && p.name === undefined ? { ...p, name: cur.name } : p;
-    },
-    shows: (r) => contactLine(r as Person),
-  },
-  "contacts.remove": {
-    does: "forget a contact (id), or only one of their addresses (address)",
-    says: (p, store) => {
-      const cur = personOf(p, store);
-      return cur ? `Forget the contact ${inlineName(cur.name)}` : "Forget an address of a contact";
-    },
-  },
-  "stickers.list": {
-    does: "the stickers kept from a channel type (platform: whatsapp or telegram), what each means and if you may send it",
-    read: (p, store) =>
-      `New stickers ${autoApproves(store) ? "are yours to use as they come" : "wait for the owner's OK"}.\n` +
-        store.stickers
-          .list(String(p.platform ?? ""))
-          .slice(0, 100)
-          .map(stickerLine)
-          .join("\n") || "no stickers kept there yet.",
-  },
-  "stickers.set": {
-    does: "say what a sticker means (id, meaning), or approve it (blocked false) or block it (blocked true)",
-    says: (p, store) => `Change the sticker ${inlineName(stickerOf(p, store)?.meaning ?? String(p.id ?? ""))}`,
-    now: (p, store) => {
-      const cur = stickerOf(p, store);
-      return cur && { meaning: cur.meaning ?? "", blocked: cur.blocked };
-    },
-    shows: (r) => stickerLine(r as Parameters<typeof stickerLine>[0]),
-  },
-  "stickers.auto": {
-    does: "whether new stickers are yours to use as they come (on), or each waits for the owner's OK; 18+ always waits",
-    says: (p) => (p.on ? "Use new stickers as they come" : "Ask me before using each new sticker"),
-    now: (_p, store) => ({ on: autoApproves(store) }),
-  },
-  "stickers.remove": {
-    does: "forget a sticker and its file (id); if someone sends it again it is kept again",
-    says: (p, store) => `Forget the sticker ${inlineName(stickerOf(p, store)?.meaning ?? String(p.id ?? ""))}`,
-  },
+export const SETTINGS: Readonly<Record<string, Setting>> = { ...PEOPLE, ...TEAM, ...WORK };
+
+/** The area a method belongs to, as its card's title names it ("Changed a channel"). */
+const AREA: Readonly<Record<string, string>> = {
+  contacts: "a contact",
+  channels: "a channel",
+  imessage: "iMessage",
+  owner: "the owner's profile",
+  notices: "the notices",
+  agents: "the agents",
+  routines: "a routine",
+  profiles: "an agent profile",
+  tasks: "a task",
+  threads: "a chat",
+  sessions: "the imported sessions",
+  projects: "a project",
+  memory: "memory",
+  skills: "the skills",
+  resources: "a project's skills and servers",
+  mcp: "an MCP server",
+  extensions: "an extension",
+  services: "the media services",
+  surfaces: "a widget",
+  stickers: "the stickers",
 };
+
+/** What a call does, for its card's title in each language: a look, a change, or a removal, and in which area. */
+export function settingAct(a: { method?: unknown; params?: unknown }): {
+  act: "look" | "change" | "remove";
+  area: string;
+} {
+  const method = typeof a.method === "string" ? a.method : "";
+  const s = SETTINGS[method];
+  const area = method.split(".")[0] ?? "";
+  if (!s || s.read || !a.params) return { act: "look", area };
+  return { act: /\.(remove|delete|unregister)$/.test(method) ? "remove" : "change", area };
+}
 
 /** A setting's method, or why there is none by that name. */
 function settingOf(method: string): { name: MethodName; setting: Setting } | string {
@@ -135,13 +58,36 @@ function settingOf(method: string): { name: MethodName; setting: Setting } | str
   return { name: method, setting };
 }
 
+const empty = (v: unknown) => v === undefined || v === null || v === "";
+const same = (a: unknown, b: unknown) => (empty(a) && empty(b)) || JSON.stringify(a) === JSON.stringify(b);
+const plain = (v: unknown): v is Params => !!v && typeof v === "object" && !Array.isArray(v);
+
 const shown = (v: unknown) => {
-  if (v === undefined || v === null || v === "") return "(none)";
+  if (empty(v)) return "(none)";
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
   const s = typeof v === "string" ? v : JSON.stringify(v);
   return `"${s.length > 300 ? `${s.slice(0, 300)}…` : s}"`;
 };
 
-export function settingsTools(store: Store): Tool[] {
+/** The card's lines: each field that changes, before → after, nested settings by their path ("channel.strangers"). */
+function changedFields(now: Params | undefined, p: Params, path = "", named: readonly string[] = []): string[] {
+  return Object.entries(p).flatMap(([k, v]) => {
+    // The record's own id names it on the card's first line; only another id is a change.
+    if (!path && k === "id" && (!now || same(now.id, v))) return [];
+    if (!path && named.includes(k)) return [];
+    if (!now) return [`${path}${k}: ${shown(v)}`];
+    const was = now[k];
+    if (same(was, v)) return [];
+    const inner = plain(v) && (plain(was) || empty(was)) ? changedFields(plain(was) ? was : {}, v, `${path}${k}.`) : [];
+    return inner.length ? inner : [`${path}${k}: ${shown(was)} → ${shown(v)}`];
+  });
+}
+
+export function settingsTools(
+  store: Store,
+  roots: { profiles?: readonly ProfileRoot[]; templates?: TemplateRoot[] } = {},
+): Tool[] {
+  const deps: SettingsDeps = { store, profiles: roots.profiles ?? [], templates: roots.templates ?? [] };
   const args = z.object({
     method: z.string().trim().min(1).max(60).optional(),
     params: z.record(z.string(), z.unknown()).optional(),
@@ -155,52 +101,67 @@ export function settingsTools(store: Store): Tool[] {
   const filled = (a: Args) => {
     const s = settingOf(a.method ?? "");
     const p = a.params ?? {};
-    return typeof s === "string" ? p : (s.setting.keep?.(p, store) ?? p);
+    return typeof s === "string" ? p : (s.setting.keep?.(p, deps) ?? p);
+  };
+  const card = (a: Args) => {
+    const s = SETTINGS[a.method ?? ""];
+    const p = filled(a);
+    const now = s?.now?.(p, deps);
+    return { says: s?.says?.(p, deps) ?? a.method, lines: changedFields(now, p, "", s?.named), known: !!now };
+  };
+  /** A change to a record that already is so: answered without asking the owner. */
+  const unchanged = (a: Args) => {
+    if (!changes(a)) return false;
+    const c = card(a);
+    return c.known && !c.lines.length;
   };
   return [
     defineTool({
       name: "apx_settings",
       description:
-        "Read and change what the owner sets up in APX for them (contacts: who they are, rules to answer them, notes). No args: what you can read and change. method alone: its fields. method + params: run it; a change waits for the owner's OK.",
+        "Read and change what the owner sets up in APX for them (contacts, channels, their profile, notices, projects, memory…). No args: what you can read and change. method alone: its fields. method + params: run it; a change waits for the owner's OK.",
       args,
       effect: "local",
       // What the owner set up is theirs: every change waits for their yes.
-      confirm: (a) => (changes(a) ? "always" : "never"),
-      deadlineMs: 15_000,
-      title: (a) => (a.params && a.method ? `Changed ${a.method}` : "Looked at the settings"),
-      // Before the owner is asked: nobody approves a call the method would refuse.
+      confirm: (a) => (changes(a) && !unchanged(a) ? "always" : "never"),
+      // Long enough for a reindex or a repo's skills; a read answers at once.
+      deadlineMs: 120_000,
+      title: (a) => {
+        const { act, area } = settingAct(a);
+        const what = AREA[area] ?? "a setting";
+        return act === "look" ? "Looked at the settings" : `${act === "remove" ? "Removed" : "Changed"} ${what}`;
+      },
+      // Before the owner is asked: nobody approves a call the method would refuse, or a field that stays theirs.
       check(a) {
         if (!a.method) return;
         const s = settingOf(a.method);
         if (typeof s === "string") throw new Error(s);
         if (s.setting.read || !a.params) return;
+        const refused = s.setting.refuse?.(a.params, deps);
+        if (refused) throw new Error(`${a.method}: ${refused}`);
         const r = methods[s.name].params.safeParse(filled(a));
         if (!r.success)
           throw new Error(`${a.method}: ${r.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
       },
       explain: (a) => {
         if (!changes(a)) return undefined;
-        const s = SETTINGS[a.method ?? ""];
-        const p = filled(a);
-        const now = s?.now?.(p, store);
-        const fields = Object.entries(p)
-          .filter(([k, v]) => k !== "id" && (!now || JSON.stringify(now[k]) !== JSON.stringify(v)))
-          .map(([k, v]) => (now ? `${k}: ${shown(now[k])} → ${shown(v)}` : `${k}: ${shown(v)}`));
-        return [s?.says?.(p, store) ?? a.method, ...fields].join("\n");
+        const c = card(a);
+        return [c.says, ...c.lines].join("\n");
       },
       async run(a, ctx) {
         if (!a.method)
           return [
             ...Object.entries(SETTINGS).map(([m, s]) => `- ${m}${s.read ? " (read)" : ""}: ${s.does}`),
-            "Agents, routines, limits and channel hours have tools of their own. Keys, sign-ins, models and what agents may do stay the owner's, in Settings.",
+            "Agents' definitions, routines, the shared limits and channel hours have tools of their own. Keys, sign-ins, models, what agents may do and this computer stay the owner's, in Settings.",
           ].join("\n");
         const s = settingOf(a.method);
         if (typeof s === "string") return s;
-        if (s.setting.read) return s.setting.read(a.params ?? {}, store);
+        if (s.setting.read) return s.setting.read(a.params ?? {}, deps);
         if (!a.params) {
           const { $schema: _, ...schema } = z.toJSONSchema(methods[s.name].params, { io: "input" }) as Params;
           return `${a.method} takes: ${JSON.stringify(schema).slice(0, 4000)}`;
         }
+        if (unchanged(a)) return `nothing to change: ${card(a).says} — it already is so.`;
         if (!ctx.callAsOwner) return "not run: the owner did not approve it";
         const result = await ctx.callAsOwner(s.name, filled(a) as never);
         return `done: ${s.setting.shows?.(result) ?? JSON.stringify(result).slice(0, 1500)}`;

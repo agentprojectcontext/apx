@@ -143,6 +143,8 @@ export function builtinTools(
   extra: Tool[] = [],
   /** The other agent apps whose skills agents may load too. */
   skillApps?: RuntimeHomes,
+  /** Where agent profiles and agent templates are found, for the super-agent's settings. */
+  roots?: Parameters<typeof settingsTools>[1],
 ): Tool[] {
   const tools = [
     ...agentTools(store),
@@ -168,7 +170,7 @@ export function builtinTools(
     ...webTools(),
     ...contactTools(store),
     ...requestTools(store),
-    ...settingsTools(store),
+    ...settingsTools(store, roots),
     ...extra,
   ];
   // The owner may let an agent use one of them without asking again, as with an MCP tool (DECISIONS.md#d-062).

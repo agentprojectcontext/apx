@@ -30,6 +30,12 @@ const BASE_DEFAULTS: ImageDefaults = {
   count: 1,
 };
 
+/** The image defaults every request starts from: the owner's over the base. */
+export const imageDefaultsOf = (store: Store): ImageDefaults => ({
+  ...BASE_DEFAULTS,
+  ...store.settings.read("image_defaults"),
+});
+
 /** The path each dialect is asked on to see whether it answers (and what it lists). */
 const PROBES: Record<ServiceKind, Record<string, string>> = {
   image: IMAGE_PROBE,
@@ -108,9 +114,7 @@ export function createServices(deps: {
     }));
   }
 
-  function imageDefaults(): ImageDefaults {
-    return { ...BASE_DEFAULTS, ...store.settings.read("image_defaults") };
-  }
+  const imageDefaults = () => imageDefaultsOf(store);
 
   /** The services to try for one request: the one asked for, or every enabled one of the kind in order. */
   function candidates(kind: ServiceKind, only?: string): ServiceConfig[] {
