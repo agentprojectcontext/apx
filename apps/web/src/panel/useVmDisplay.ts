@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { client } from "../data/client.ts";
 import { useT } from "../i18n/index.ts";
 
-export function useVmDisplay(thread: string | undefined, ready: boolean, manual: boolean) {
+/** A live viewer of one agent screen; a thumbnail asks the desktop for lower quality and more compression. */
+export function useVmDisplay(screenNumber: number | undefined, ready: boolean, manual: boolean, thumbnail = false) {
   const t = useT();
   const screen = useRef<HTMLDivElement>(null);
   const manualRef = useRef(manual);
@@ -13,7 +14,7 @@ export function useVmDisplay(thread: string | undefined, ready: boolean, manual:
   const [state, setState] = useState("connecting");
   const [error, setError] = useState("");
   useEffect(() => {
-    if (!thread || !screen.current || !ready) return;
+    if (screenNumber === undefined || !screen.current || !ready) return;
     const host = screen.current;
     const abort = new AbortController();
     let viewer: RFB | undefined;
@@ -21,7 +22,7 @@ export function useVmDisplay(thread: string | undefined, ready: boolean, manual:
     setState("connecting");
     setError("");
     void (async () => {
-      const { ticket } = await client.withSignal(abort.signal).call("environments.display", { thread });
+      const { ticket } = await client.withSignal(abort.signal).call("environments.display", { screen: screenNumber });
       if (abort.signal.aborted) return;
       const url = new URL("/vm-display", window.location.href);
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
@@ -31,6 +32,10 @@ export function useVmDisplay(thread: string | undefined, ready: boolean, manual:
       viewer.viewOnly = !manualRef.current;
       viewer.scaleViewport = true;
       viewer.resizeSession = false;
+      if (thumbnail) {
+        viewer.qualityLevel = 2;
+        viewer.compressionLevel = 9;
+      }
       connection.current = viewer;
       viewer.background = getComputedStyle(host).backgroundColor;
       viewer.addEventListener("connect", () => {
@@ -57,7 +62,7 @@ export function useVmDisplay(thread: string | undefined, ready: boolean, manual:
       if (!disconnected) viewer?.disconnect();
       connection.current = null;
     };
-  }, [thread, epoch, ready, t]);
+  }, [screenNumber, epoch, ready, t, thumbnail]);
 
   useEffect(() => {
     if (connection.current && screen.current) {

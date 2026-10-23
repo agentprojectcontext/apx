@@ -21,7 +21,7 @@
   background: #34d399;
 }
 .computer__badge {
-  color: var(--apx-muted);
+  color: var(--apx-fg-muted);
   margin-right: auto;
   font-size: 10px;
 }
@@ -54,7 +54,10 @@
   padding: 8px 14px;
   border-bottom: 1px solid var(--apx-border);
   font-size: 11px;
-  color: var(--apx-muted);
+  color: var(--apx-fg-muted);
+}
+.computer__held {
+  margin-left: auto;
 }
 .computer__controlbar > span {
   display: flex;
@@ -74,7 +77,7 @@
 .computer__setup p {
   max-width: 420px;
   font-size: 13px;
-  color: var(--apx-muted);
+  color: var(--apx-fg-muted);
   line-height: 1.6;
   margin: 0;
 }
@@ -88,7 +91,7 @@
 }
 .computer__setup small {
   max-width: 420px;
-  color: var(--apx-muted);
+  color: var(--apx-fg-muted);
   font-size: 11px;
 }
 .computer__error {
@@ -154,7 +157,7 @@
 .computer__console-title code {
   margin-left: auto;
   font-size: 10px;
-  color: var(--apx-muted);
+  color: var(--apx-fg-muted);
 }
 .computer__console form {
   display: flex;
@@ -189,7 +192,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 4px 8px 8px;
-  color: var(--apx-muted);
+  color: var(--apx-fg-muted);
   font-size: 10px;
 }
 .computer__editor-footer button {
@@ -227,5 +230,82 @@
   line-height: 1.6;
   padding: 6px 16px 12px;
   margin: 0;
-  color: var(--apx-muted);
+  color: var(--apx-fg-muted);
+}
+.computers__wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  padding: 0 24px 24px;
+}
+.computers__wall[data-count="1"] {
+  grid-template-columns: minmax(280px, 900px);
+}
+.computers__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  text-align: left;
+  cursor: pointer;
+}
+.computers__tile:hover {
+  border-color: var(--apx-border-strong);
+}
+.computers__thumb {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill-strong);
+  pointer-events: none;
+}
+.computers__thumb .computer__screen {
+  position: absolute;
+  inset: 0;
+}
+.computers__holder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+}
+.computers__holder > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.computers__holder > div span {
+  color: var(--apx-fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.computers__state {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.computers__state.is-human {
+  color: var(--apx-fg);
+  font-weight: 600;
+}
+.computers__large {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0 24px 24px;
+}
+.computers__large .computer__desktop {
+  flex: 1;
+  min-height: 360px;
 }

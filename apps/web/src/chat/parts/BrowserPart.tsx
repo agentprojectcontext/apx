@@ -21,8 +21,8 @@ export function BrowserPart({
   threadId: string;
 }) {
   const t = useT();
-  const vmThread = useData((s) => s.vmThread);
-  const guest = part.environment === "vm" || vmThread === threadId;
+  const onComputer = useData((s) => s.vmThreads.includes(threadId));
+  const guest = part.environment === "vm" || onComputer;
   const tab = useData((s) => (guest ? undefined : s.tabs.find((t) => t.tab === part.tab)));
   const panel = useNav((s) => s.panel);
   const currentThread = useNav((s) => s.threadId);

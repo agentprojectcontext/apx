@@ -46,8 +46,10 @@ export type DataState = {
   /** What each open surface remembers (APX.state), kept live by surface.state events. */
   surfaceStates: Record<string, SurfaceState>;
   tabs: TabInfo[];
-  /** The prototype's bound chat, including browser messages saved before guest tags existed. */
-  vmThread: string | null;
+  /** The chats on the shared computer, including browser messages saved before guest tags existed. */
+  vmThreads: string[];
+  /** The Computers view shows once the owner allowed an agent the computer, on a host that can run it (D-140). */
+  computers: { shown: boolean; inUse: number };
   /** Agent engines (native / Claude Code / Codex): installed → logged in → default. */
   engines: EngineStatus[];
   enginesLoad: EnginesLoad;
@@ -74,7 +76,8 @@ export const data = createStore<DataState>({
   surfaceDocs: {},
   surfaceStates: {},
   tabs: [],
-  vmThread: null,
+  vmThreads: [],
+  computers: { shown: false, inUse: 0 },
   engines: [],
   enginesLoad: "idle",
   health: undefined,

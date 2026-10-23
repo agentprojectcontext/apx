@@ -1,7 +1,9 @@
 import { type Agent, COMPUTER_GRANT, type ToolApproval } from "@apx/protocol";
 import { Switch } from "@apx/ui";
 import { useState } from "react";
+import { computersOf } from "../../../computers/summary.ts";
 import { client } from "../../../data/client.ts";
+import { data } from "../../../data/state.ts";
 import { useT } from "../../../i18n/index.ts";
 
 /** Whether the agent may use the isolated Linux computer: off until the owner turns it on, applied at once. */
@@ -24,6 +26,9 @@ export function ComputerPage({
     try {
       await client.call("environments.permit", { agent: agent.id, on: next });
       onChanged();
+      // The Computers view appears once an agent may use the computer.
+      const status = await client.call("environments.status", {});
+      data.set({ computers: computersOf(status) });
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {

@@ -5,6 +5,10 @@ declare module "@novnc/novnc" {
     resizeSession: boolean;
     viewOnly: boolean;
     background: string;
+    /** JPEG quality the server is asked for, 0–9. */
+    qualityLevel: number;
+    /** Compression the server is asked for, 0–9. */
+    compressionLevel: number;
     disconnect(): void;
   }
 }

@@ -75,7 +75,7 @@ test("guest browser cards, including old messages, stay in the VM; an open panel
     await page.locator(".computer").getByRole("button", { name: "Cerrar panel", exact: true }).click();
     await expect(page.locator(".computer")).toHaveCount(0);
     await expect(page).not.toHaveURL(/panel=computer/);
-    expect((await env.client.call("environments.status", {})).thread).toBe("home");
+    expect((await env.client.call("environments.status", {})).chats).toEqual(["home"]);
     await legacy.click();
     await expect(page.locator(".computer")).toBeVisible();
     expect(hostCalls.filter((method) => method !== "browser.tabs")).toEqual([]);

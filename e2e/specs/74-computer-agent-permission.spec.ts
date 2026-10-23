@@ -1,10 +1,33 @@
 // An agent asks for the isolated computer with a card, starts and stops it itself, and the owner turns the
 // permission off from the agent's settings (DECISIONS.md#d-139).
 
+import type { Page } from "@playwright/test";
 import { callTool, say, scriptedLlm, startCore } from "../../apps/core/src/engine/testkit.ts";
 import { createVmLifecycle } from "../../apps/core/src/environments/lifecycle.ts";
 import { COMPUTER_GRANT } from "../../packages/protocol/src/environment-methods.ts";
 import { expect, test } from "./kit.ts";
+
+/** A desktop that answers the viewer's handshake, so the panel can show a running screen. */
+async function mockVmDisplay(page: Page) {
+  await page.routeWebSocket(/\/vm-display\?/, (socket) => {
+    let handshake = 0;
+    socket.send(Buffer.from("RFB 003.008\n"));
+    socket.onMessage(() => {
+      if (handshake === 0) socket.send(Buffer.from([1, 1]));
+      if (handshake === 1) socket.send(Buffer.from([0, 0, 0, 0]));
+      if (handshake === 2) {
+        const init = Buffer.alloc(27);
+        init.writeUInt16BE(64, 0);
+        init.writeUInt16BE(64, 2);
+        init.set([32, 24, 0, 1, 0, 255, 0, 255, 0, 255, 16, 8, 0], 4);
+        init.writeUInt32BE(3, 20);
+        init.write("APX", 24);
+        socket.send(init);
+      }
+      handshake++;
+    });
+  });
+}
 
 test("an agent asks for the computer, starts and stops it, and the owner takes the permission back", async ({
   page,
@@ -29,7 +52,7 @@ test("an agent asks for the computer, starts and stops it, and the owner takes t
     const done = req.messages.filter((m) => m.role === "tool").length;
     if (done === 0) return callTool("start", "computer", { action: "start" });
     if (done === 1) return callTool("stop", "computer", { action: "stop" });
-    return say("Probé el sitio en Linux y apagué la computadora.");
+    return say("Probé el sitio en Linux y dejé la computadora.");
   });
   let free = 12 * 1024 ** 3;
   const env = await startCore({
@@ -48,7 +71,7 @@ test("an agent asks for the computer, starts and stops it, and the owner takes t
     await env.client.call("environments.permit", { agent: "roby", on: true });
     await env.client.call("environments.enable", { thread: "home", appearance: "light" });
     await expect.poll(async () => (await env.client.call("environments.status", {})).phase).toBe("running");
-    await env.client.call("environments.stop", { thread: "home" });
+    await env.client.call("environments.stop", {});
     await expect.poll(async () => (await env.client.call("environments.status", {})).phase).toBe("stopped");
 
     const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
@@ -57,19 +80,27 @@ test("an agent asks for the computer, starts and stops it, and the owner takes t
     await page.keyboard.press("Enter");
 
     const card = page.locator(".inputcard.is-pending");
-    await expect(card).toContainText("asks to use the isolated Linux computer");
+    await expect(card).toContainText("asks to use the shared Linux computer");
     await expect(card.getByRole("button", { name: "Aceptar una vez", exact: true })).toHaveCount(0);
     await card.getByRole("button", { name: "Aceptar siempre para este agente", exact: true }).click();
-    await expect(page.getByText("Probé el sitio en Linux y apagué la computadora.")).toBeVisible();
-    expect(calls).toEqual(["start", "stop", "start", "stop"]);
-    const status = await env.client.call("environments.status", {});
-    expect(status.thread).toBe(chat.id);
-    expect(status.last_stop?.reason).toBe("agent");
+    await expect(page.getByText("Probé el sitio en Linux y dejé la computadora.")).toBeVisible();
+    expect(calls).toEqual(["start", "stop", "start"]);
+    const status = await env.client.call("environments.status", { thread: chat.id });
+    expect(status.phase).toBe("running");
+    expect(status.chat).toMatchObject({ on: false, screen: 1 });
 
-    // The Computer panel says who shut it down; the agent's settings show the permission and take it back.
+    // The panel shows Scout's own screen, free now, and offers to put the chat back on the computer.
+    // A fresh load after mocking the viewer's socket: only pages loaded after it use the mock.
+    await page.goto("about:blank");
+    await mockVmDisplay(page);
     await page.goto(`${env.core.url}/#thread=${chat.id}&panel=computer`);
-    await expect(page.locator(".computer")).toContainText("El agente la apagó al terminar.");
+    const computer = page.locator(".computer");
     await expect(page.locator(".computer__badge")).toHaveText("Linux · 2 vCPU · 4 GiB");
+    await expect(computer.getByRole("combobox", { name: "Pantalla" })).toHaveText(/Scout · :101/);
+    await expect(computer.getByText("Scout trabaja en esta Mac en este chat.")).toBeVisible();
+    await expect(computer.getByRole("button", { name: "Usar la computadora acá", exact: true })).toBeVisible();
+    await env.client.call("environments.stop", {});
+    await expect(computer.getByRole("button", { name: "Encender VM", exact: true })).toBeVisible();
     // Without room for it, the start is refused where the owner sees it, above the settings.
     free = 3 * 1024 ** 3;
     // The core's own refusal, passed on as a 200 so the browser does not log the expected 409 as an error.

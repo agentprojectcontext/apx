@@ -27,7 +27,9 @@ async function mockVmDisplay(page: Page) {
   });
 }
 
-test("Computer installs only on enable, follows APX appearance and exposes stop/restart", async ({ page }) => {
+test("Computer installs only on enable, shows the chat agent's screen, follows APX appearance and stops for everyone", async ({
+  page,
+}) => {
   let installed = false;
   let running = false;
   const calls: string[] = [];
@@ -44,19 +46,35 @@ test("Computer installs only on enable, follows APX appearance and exposes stop/
       calls.push("stop");
       running = false;
     },
-    appearance: async (mode) => {
-      calls.push(`appearance:${mode}`);
-    },
+    appearance: async () => {},
+  });
+  // Roby's turn holds its screen until the test lets it end.
+  let finish: () => void = () => {};
+  const llm = scriptedLlm(async (req) => {
+    await new Promise<void>((resolve) => {
+      finish = resolve;
+      req.signal?.addEventListener("abort", () => resolve(), { once: true });
+    });
+    return say("ok");
   });
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-computer-ui-"));
   const env = await startCore({
     home,
-    llm: scriptedLlm(() => say("ok")),
+    llm,
     computer: {
       limaHome: path.join(home, "no-vms"),
       instance: "missing",
       lifecycle,
       executable: () => "/usr/bin/false",
+      screens: {
+        start: async (n, mode) => {
+          calls.push(`screen ${n}:${mode}`);
+        },
+        stop: async () => {},
+        appearance: async (n, mode) => {
+          calls.push(`appearance ${n}:${mode}`);
+        },
+      },
     },
   });
   try {
@@ -74,11 +92,17 @@ test("Computer installs only on enable, follows APX appearance and exposes stop/
     await expect(computer.getByRole("combobox", { name: "Memoria" })).toHaveText(/4 GiB/);
     expect(calls).toEqual([]);
     await allow.click();
-    await expect(computer.getByRole("button", { name: "Apagar VM", exact: true })).toBeVisible();
+    await expect(computer.getByRole("button", { name: "Apagar para todos", exact: true })).toBeVisible();
     expect(calls).toContain("prepare:light");
+    // No agent holds a screen yet: there is no owner screen, only a note about Roby's.
+    await expect(computer.getByText("La pantalla de Roby no está encendida.", { exact: false })).toBeVisible();
+    await expect(computer.getByText("0 de 2 pantallas de agentes en uso")).toBeVisible();
+    // Roby works on the computer: the panel shows its screen, in its hands until the owner takes it.
+    await env.client.call("threads.send", { thread: "home", text: "Work on the computer" });
+    await expect(computer.getByRole("combobox", { name: "Pantalla" })).toHaveText(/Roby · :101 · trabajando/);
+    expect(calls).toContain("screen 1:light");
     await expect(computer.locator(".computer__locked")).toBeVisible();
     await expect(computer.locator(".computer__notice")).toHaveCount(0);
-    await expect(computer.getByRole("button", { name: "Probar agente", exact: true })).toHaveCount(0);
     await computer.getByRole("button", { name: "Tomar control", exact: true }).click();
     await expect(computer.getByRole("button", { name: "Devolver control al agente", exact: true })).toBeVisible();
     await expect(computer.locator(".computer__locked")).toHaveCount(0);
@@ -112,13 +136,14 @@ test("Computer installs only on enable, follows APX appearance and exposes stop/
     await expect(computer.locator(".computer__locked")).toBeVisible();
     await expect(computer.getByRole("button", { name: "Enviar", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "Modo oscuro", exact: true }).click();
-    await expect.poll(() => calls.includes("appearance:dark")).toBe(true);
-    await computer.getByRole("button", { name: "Apagar VM", exact: true }).click();
+    await expect.poll(() => calls.includes("appearance 1:dark")).toBe(true);
+    finish();
+    await computer.getByRole("button", { name: "Apagar para todos", exact: true }).click();
     await expect(computer.getByRole("button", { name: "Encender VM", exact: true })).toBeVisible();
     expect(running).toBe(false);
     expect(installed).toBe(true);
     await computer.getByRole("button", { name: "Encender VM", exact: true }).click();
-    await expect(computer.getByRole("button", { name: "Apagar VM", exact: true })).toBeVisible();
+    await expect(computer.getByRole("button", { name: "Apagar para todos", exact: true })).toBeVisible();
     expect(calls).toContain("prepare:dark");
     await computer.getByRole("button", { name: "Cerrar panel", exact: true }).click();
     await expect(computer).toHaveCount(0);
@@ -182,10 +207,10 @@ test("a late status poll cannot undo shutdown, and an optional VM error cannot b
     });
     await page.goto(`${env.core.url}/#thread=home&panel=computer`);
     const computer = page.locator(".computer");
-    await expect(computer.getByRole("button", { name: "Apagar VM", exact: true })).toBeVisible();
+    await expect(computer.getByRole("button", { name: "Apagar para todos", exact: true })).toBeVisible();
     hold = true;
     await expect.poll(() => captured).toBe(true);
-    await computer.getByRole("button", { name: "Apagar VM", exact: true }).click();
+    await computer.getByRole("button", { name: "Apagar para todos", exact: true }).click();
     await expect(computer.getByRole("button", { name: "Encender VM", exact: true })).toBeVisible();
     const oldResponse = page.waitForResponse((response) => response.url().endsWith("/rpc/environments.status"));
     release();
@@ -194,7 +219,7 @@ test("a late status poll cannot undo shutdown, and an optional VM error cannot b
       () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))),
     );
     expect(stoppedDisplayRequests).toBe(0);
-    await expect(computer.getByRole("button", { name: "Apagar VM", exact: true })).toHaveCount(0);
+    await expect(computer.getByRole("button", { name: "Apagar para todos", exact: true })).toHaveCount(0);
     await expect(computer.getByRole("button", { name: "Encender VM", exact: true })).toBeVisible();
     optionalFailure = true;
     await page.reload();

@@ -5,11 +5,14 @@ import { useT } from "../i18n/index.ts";
 
 export function ComputerConsole({
   thread,
+  screen,
   editable,
   maximized,
   onMaximize,
 }: {
   thread: string;
+  /** The screen its commands run on, as that screen's user. */
+  screen: number;
   editable: boolean;
   maximized: boolean;
   onMaximize(): void;
@@ -29,7 +32,7 @@ export function ComputerConsole({
     setRunning(true);
     setOutput((previous) => `${previous}${previous ? "\n\n" : ""}$ ${sent}`);
     try {
-      const result = await client.call("environments.command", { thread, command: sent });
+      const result = await client.call("environments.command", { thread, command: sent, screen });
       setOutput((previous) => `${previous}\n${result.output}\n[exit ${result.code}]`.slice(-131072));
       setCommand((draft) => (draft === sent ? "" : draft));
     } catch (error) {
@@ -73,7 +76,7 @@ export function ComputerConsole({
       <div className="computer__console-title">
         <Icons.Terminal size={14} />
         <strong>{t("computer.terminal")}</strong>
-        <code>/home/apx-worker/work</code>
+        <code>~/work</code>
         <IconButton
           label={collapsed ? t("computer.expandTerminal") : t("computer.minimizeTerminal")}
           icon={collapsed ? <Icons.ChevronUp size={14} /> : <Icons.Minus size={14} />}

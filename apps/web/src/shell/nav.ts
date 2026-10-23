@@ -17,7 +17,7 @@ export type PanelKind =
   | "processes"
   | "document";
 
-export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "channel" | "engine";
+export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "computers" | "channel" | "engine";
 
 export const PROJECT_TABS = [
   { id: "overview", label: "project.tab.overview" },
@@ -130,7 +130,7 @@ const PANELS: readonly PanelKind[] = [
   "document",
 ];
 const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
-const VIEWS: readonly string[] = ["tasks", "resources"];
+const VIEWS: readonly string[] = ["tasks", "resources", "computers"];
 
 /** Deep links: #thread=<id>&panel=<kind>, #app=<id>, #project=<id>&tab=<tab>, #view=tasks&task=<id>. */
 function fromHash(): Partial<NavState> {
@@ -303,7 +303,7 @@ nav.subscribe(() => {
     h.set("tab", s.projectTab);
     if (s.projectTab === "chats" && s.threadId) h.set("thread", s.threadId);
     if (s.projectTab === "tasks" && s.taskId) h.set("task", s.taskId);
-  } else if (s.view === "tasks" || s.view === "resources") {
+  } else if (s.view === "tasks" || s.view === "resources" || s.view === "computers") {
     h.set("view", s.view);
     if (s.view === "tasks" && s.taskId) h.set("task", s.taskId);
   } else if (s.view === "channel" && s.channelId) {
@@ -430,7 +430,7 @@ export const go = {
   app(appId: string) {
     nav.set({ view: "app", appId });
   },
-  view(view: "tasks" | "resources") {
+  view(view: "tasks" | "resources" | "computers") {
     nav.set({ view });
   },
   /** A task: beside a tasks list when one is open, else over the current screen (a chat, a notice…). */

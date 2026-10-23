@@ -29,6 +29,9 @@ const ProjectScreen = lazy(() => import("../project/ProjectScreen.tsx").then((m)
 const ResourcesScreen = lazy(() =>
   import("../project/ResourcesScreen.tsx").then((m) => ({ default: m.ResourcesScreen })),
 );
+const ComputersScreen = lazy(() =>
+  import("../computers/ComputersScreen.tsx").then((m) => ({ default: m.ComputersScreen })),
+);
 const InstallArtifactDialog = lazy(() =>
   import("../surfaces/InstallArtifact.tsx").then((m) => ({ default: m.InstallArtifactDialog })),
 );
@@ -80,6 +83,8 @@ export function Shell() {
                 <TasksScreen />
               ) : view === "resources" ? (
                 <ResourcesScreen />
+              ) : view === "computers" ? (
+                <ComputersScreen />
               ) : view === "channel" ? (
                 <ChannelScreen />
               ) : view === "engine" ? (
