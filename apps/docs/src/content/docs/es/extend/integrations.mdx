@@ -33,13 +33,21 @@ suma su servidor MCP como uno de tus servidores globales, así tus agentes puede
 |---|---|---|
 | GitHub | Repositorios, issues y pull requests | Un token de acceso personal |
 | Notion | Páginas y bases de datos de tu espacio de trabajo | Un token de integración |
-| Slack | Canales, mensajes e hilos de tu espacio de trabajo | Un token de bot y el id del equipo |
+| Slack | Canales, mensajes e hilos de tu espacio de trabajo | Un token de bot |
 | Sentry | Errores e issues de tus proyectos | Un token de acceso |
 | Brave Search | Búsqueda web | Una API key |
 | Obsidian | Leer y escribir las notas de tu bóveda | La carpeta de la bóveda |
 | Asana | Tools nativas de proyectos y tareas | Un token de acceso personal |
 | Google Calendar, Gmail, Google Drive | Calendario, correo y Drive nativos | Iniciar sesión con Google |
-| Linear | | Marcadas **Pronto**: necesitan un inicio de sesión que APX todavía no hace |
+| Home Assistant | Luces, sensores y automatizaciones de tu casa | Su dirección y un token de acceso de larga duración (activá su integración **MCP Server**) |
+| n8n | Correr los workflows de tu instancia de n8n | Su dirección y su token de acceso MCP |
+| Linear, Jira y Confluence, GitLab, Vercel, Supabase, Stripe, Todoist, Airtable, Figma, Cloudflare, Netlify, Neon, ClickUp, monday.com, Canva, Miro, Dropbox, Calendly, Datadog, Grafana, PayPal, WordPress.com, Hugging Face, Railway, Intercom, Attio, Close, Klaviyo, Mixpanel, Amplitude, Better Stack, Square, Fireflies, Strava, Semgrep, CircleCI, Postman, Prisma Postgres, Cloudinary, Craft, Webflow, Gamma | El servidor MCP propio de cada app | Nada que escribir: iniciás sesión en tu navegador |
+| Context7, DeepWiki, Wolfram, AWS Knowledge, Microsoft Learn | Documentación y conocimiento | Nada: no hace falta cuenta |
+| Microsoft 365, Box | | Marcadas **Pronto**: su inicio de sesión necesita una app que APX registre con ellos |
+
+El catálogo tiene un buscador. Una app en la que iniciás sesión corre con `mcp-remote`: al conectarla arranca, se
+registra sola en la app y abre su página de inicio de sesión en tu navegador. Hasta que termines, la integración
+muestra **Iniciar sesión**; tocalo para abrir la página de nuevo.
 
 Asana usa REST directamente, sin MCP. Creá un token personal en [Asana](https://app.asana.com/0/my-apps) y pegalo solo en el formulario.
 APX lo valida antes de guardar `secret://asana-token`; un campo vacío conserva el token anterior.
