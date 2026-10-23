@@ -122,4 +122,8 @@ export const enChat = {
   "choices.personality": "I'd like you to be like this: {choice}.",
   "choices.own": "Something else",
   "choices.ownPlaceholder": "Tell me how you'd like me to be and press Enter",
+  "connect.title": "Suggested connections",
+  "connect.connected": "Connected",
+  "connect.done": "I connected {name}.",
+  "connect.more": "Explore {count} more connectors",
 };

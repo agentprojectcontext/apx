@@ -400,6 +400,19 @@ export const PendingInput = z.object({
 });
 export type PendingInput = z.infer<typeof PendingInput>;
 
+/**
+ * Something the owner can connect, offered by an agent for what they asked: an integration (an account like Figma or
+ * GitHub, Resources › Integrations) or a channel (an app like WhatsApp, Settings › Channels). `coming`: not yet.
+ */
+export const ConnectOffer = z.object({
+  kind: z.enum(["integration", "channel"]),
+  id: z.string(),
+  label: z.string(),
+  description: z.string(),
+  coming: z.boolean().optional(),
+});
+export type ConnectOffer = z.infer<typeof ConnectOffer>;
+
 /** Where a document's file is in its chat: a path in the chat's folder, or (`scratch`) in its temp folder. */
 export const DocumentSource = z.object({ path: z.string().max(1000), scratch: z.boolean().optional() });
 export type DocumentSource = z.infer<typeof DocumentSource>;
@@ -525,6 +538,11 @@ const KnownPart = z.discriminatedUnion("type", [
     options: z.array(z.object({ label: z.string(), value: z.string() })),
     custom: z.boolean().optional(),
   }),
+  /**
+   * What the agent offers the owner to connect for what they asked (suggest_connection): each opens its form where it
+   * is shown. `why`: the agent's line on what it would do with it.
+   */
+  z.object({ type: z.literal("connect"), why: z.string().optional(), offers: z.array(ConnectOffer) }),
   /** Something the system says about the turn (interrupted, fallback engine, no answer): never the agent's words. */
   z.object({
     type: z.literal("notice"),

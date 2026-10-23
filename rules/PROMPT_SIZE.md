@@ -11,7 +11,7 @@ Measured on a fresh install: the secretary, a new chat, default settings, no ski
 | Part | Budget | Now (2026-10-17) |
 |---|---|---|
 | System prompt | 10,000 chars (about 2,300 tokens) | 5,962 chars (2026-10-22: the web's routing in, memory and document details moved to their tools) |
-| Tool definitions (46, without the browser) | 30,000 chars (about 7,100 tokens) | 27,129 chars, about 6,400 tokens (2026-10-23: attention_hours in) |
+| Tool definitions (47, without the browser) | 30,000 chars (about 7,100 tokens) | 27,703 chars, about 6,500 tokens (2026-10-23: suggest_connection in) |
 | Browser tools (8, lent by the desktop app) | — | 811 tokens |
 
 Together the two stay at about 9,500 tokens, still well under Hermes and OpenClaw (about 13,000): the room above

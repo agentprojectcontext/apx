@@ -25,10 +25,10 @@ import { isKey, useT } from "../i18n/index.ts";
 import { GoogleSignInForm } from "./GoogleSignIn.tsx";
 import type { TabProps } from "./ResourcesView.tsx";
 
-type Integration = Result<"integrations.list">["integrations"][number];
+export type Integration = Result<"integrations.list">["integrations"][number];
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** What each one is, in the owner's language (`int.desc.<id without dashes>`; the core's text otherwise). */
-const describe = (i: Pick<Integration, "id" | "description">, t: ReturnType<typeof useT>) => {
+export const describe = (i: Pick<Integration, "id" | "description">, t: ReturnType<typeof useT>) => {
   const key = `int.desc.${i.id.replaceAll("-", "")}`;
   return isKey(key) ? t(key) : i.description;
 };
@@ -377,7 +377,7 @@ function BrowserSignIn({ id }: { id: string }) {
 }
 
 /** The catalog: what can be connected, and what is still coming; a long one is searched. */
-function ConnectDialog({
+export function ConnectDialog({
   list,
   onClose,
   onConnected,
@@ -436,7 +436,7 @@ function ConnectDialog({
 }
 
 /** An account signed in to (Google), or one connected by its token. */
-function ConnectForm(props: Parameters<typeof TokenForm>[0]) {
+export function ConnectForm(props: Parameters<typeof TokenForm>[0]) {
   return props.i.oauth ? <GoogleSignInForm {...props} /> : <TokenForm {...props} />;
 }
 
