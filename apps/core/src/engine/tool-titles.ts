@@ -50,6 +50,7 @@ export const SPANISH_TITLES: Record<string, (a: Args) => string> = {
       : Array.isArray(a.contacts) && a.contacts.length && a.any_hour !== undefined
         ? `${a.any_hour ? "Dejó pasar a toda hora a" : "Ya no deja pasar a toda hora a"} ${a.contacts.join(", ").slice(0, 60)}`
         : "Revisó el horario de atención",
+  apx_settings: (a) => (a.params && a.method ? `Cambió ${str(a.method)}` : "Revisó la configuración"),
   list_agents: () => "Buscó agentes",
   agent_set: (a) =>
     !a.agent

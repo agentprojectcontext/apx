@@ -154,6 +154,7 @@ const HANDOFF_TOOLS = new Set([
   "channel_list",
   "contact_list",
   "attention_hours",
+  "apx_settings",
   "read_chat",
 ]);
 

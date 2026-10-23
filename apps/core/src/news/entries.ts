@@ -134,6 +134,24 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
+    id: "super-agent-contacts",
+    since: "2.9.1",
+    title: "Contacts edited from chat",
+    applies: (f) => f.contacts,
+    text:
+      "The super-agent can now change what the owner keeps about a contact, with apx_settings: who they are (the " +
+      "note), the rules to answer them, their relation and nickname, whether they are silenced or supervised, or " +
+      "forget them. Each change shows the owner the fields before and after, and waits for their yes.",
+    actions: [
+      {
+        label: { en: "Review my contacts", es: "Revisemos mis contactos" },
+        prompt:
+          "Go through my contacts with me: tell me who has no note saying who they are or no rules for how to " +
+          "answer them, and fill them in as I tell you.",
+      },
+    ],
+  },
+  {
     id: "stickers",
     since: "2.9.1",
     title: "Stickers kept and sent back",
