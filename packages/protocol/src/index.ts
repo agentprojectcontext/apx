@@ -24,3 +24,4 @@ export * from "./team-tree.ts";
 export * from "./telemetry-methods.ts";
 export * from "./terminal-methods.ts";
 export * from "./thread-methods.ts";
+export * from "./usage-methods.ts";

@@ -115,6 +115,7 @@ import { googleTools } from "./tools/google.ts";
 import { imessageTools } from "./tools/imessage.ts";
 import type { Tool } from "./tools/types.ts";
 import { createUpdates, type Runner } from "./updates.ts";
+import { createUsage, type UsageOptions } from "./usage.ts";
 
 /** `apx mcp --run` (token in APX_RUN_TOKEN): how an external harness (Codex) reaches the tools of its run. */
 const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main.ts");
@@ -162,6 +163,8 @@ export type CoreOptions = {
   restart?: () => void;
   /** What each release changed, instead of this APX's own (release-notes.ts); tests stand in a release. */
   releases?: ReleaseSource;
+  /** The Linux VM's memory and disk for system.usage; none until a VM is set up. */
+  vmUsage?: UsageOptions["vm"];
 };
 
 export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
@@ -538,6 +541,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       updates,
       telemetry,
       news,
+      usage: createUsage({ home: config.home, vm: opts.vmUsage }),
       panel: () => panelEntry(servedPanel(config)),
       profileRoots,
       // APX's own templates, then the owner's v1 vault (read-only).

@@ -4,6 +4,7 @@ import type { Identity } from "../identity.ts";
 import type { News } from "../news/news.ts";
 import type { Telemetry } from "../telemetry.ts";
 import type { Updates } from "../updates.ts";
+import type { Usage } from "../usage.ts";
 import type { Handler, Handlers } from "./router.ts";
 
 export function systemHandlers(
@@ -57,5 +58,12 @@ export function newsHandlers(news: Pick<News, "list" | "tell">) {
   return {
     "system.news": () => ({ entries: news.list() }),
     "system.news_tell": ({ ids }) => news.tell(ids),
+  } satisfies Partial<Handlers>;
+}
+
+/** Memory, CPU and disk: the computer's and APX's. */
+export function usageHandlers(usage: Usage) {
+  return {
+    "system.usage": ({ disk }) => usage.read({ disk }),
   } satisfies Partial<Handlers>;
 }

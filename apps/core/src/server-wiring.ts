@@ -60,7 +60,7 @@ import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
 import { setupHandlers } from "./rpc/setup.ts";
 import { artifactHandlers } from "./rpc/surfaces.ts";
-import { newsHandlers, systemHandlers, telemetryHandlers, updateHandlers } from "./rpc/system.ts";
+import { newsHandlers, systemHandlers, telemetryHandlers, updateHandlers, usageHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
 import { terminalHandlers } from "./rpc/terminal.ts";
@@ -232,6 +232,8 @@ type HandlerDeps = {
   access: Parameters<typeof accessHandlers>[0];
   /** The owner's shells in a chat's folder. */
   terminals: Parameters<typeof terminalHandlers>[1];
+  /** What the computer has and what APX takes of it. */
+  usage: Parameters<typeof usageHandlers>[0];
 };
 
 /** The handler table the router serves: one entry per protocol method. */
@@ -241,6 +243,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...updateHandlers(d.updates),
     ...telemetryHandlers(d.telemetry),
     ...newsHandlers(d.news),
+    ...usageHandlers(d.usage),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)
