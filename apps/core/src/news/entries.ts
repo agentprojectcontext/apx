@@ -86,7 +86,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "mail-alerts",
-    since: "2.9.1",
+    since: "2.9.0",
     title: "Important mail, as it lands",
     applies: (f) => f.secretary && f.google.gmailReadable,
     text:

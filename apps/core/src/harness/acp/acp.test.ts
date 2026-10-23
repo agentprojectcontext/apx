@@ -83,13 +83,14 @@ test("a CLI nobody signed in to ends the session with how to sign in, and APX ne
   };
   try {
     await assert.rejects(
-      openSession(agent, { binary: process.execPath, cwd: dir }),
+      openSession(agent, { binary: process.execPath, cwd: os.tmpdir() }),
       /Fake ACP is not signed in: run fake login in a terminal/,
     );
     // Its auth method opens the owner's browser from turns and model listings nobody watches.
     assert.equal(fs.existsSync(log), false);
   } finally {
-    // The CLI was told to stop, not waited for: on Windows it holds its folder for a moment after.
-    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 50, retryDelay: 100 });
+    // The CLI works outside the folder removed here: it is told to stop, not waited for, and Windows keeps a running
+    // process's folder (Node's native rmSync does not retry that).
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });

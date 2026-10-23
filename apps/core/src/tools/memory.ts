@@ -2,6 +2,7 @@
 import type { Memory } from "@apx/protocol";
 import { z } from "zod";
 import { stepKey, stepPairs } from "../domain/procedure-steps.ts";
+import type { Store } from "../domain/store.ts";
 import { untrusted } from "./result.ts";
 import { defineTool, type Tool } from "./types.ts";
 
@@ -73,7 +74,7 @@ export function notesText(
   return parts.length ? { text: parts.join("\n"), ids } : { ids };
 }
 
-export function memoryTools(): Tool[] {
+export function memoryTools(store: Store): Tool[] {
   return [
     defineTool({
       name: "remember",
@@ -119,6 +120,11 @@ export function memoryTools(): Tool[] {
       effect: "local",
       confirm: "untrusted",
       deadlineMs: 5_000,
+      // The owner approves what the note says, not its id; the id stays below to tell two alike apart.
+      explain: (a) => {
+        const note = store.memories.get(a.id);
+        return note ? `${note.text}\n(${note.id})` : undefined;
+      },
       title: (a) => `Forgot the note ${String(a.id ?? "")}`,
       async run(a, ctx) {
         const { removed } = await ctx.call("memory.remove", { id: a.id });
