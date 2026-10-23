@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { methodAccess, methods } from "@apx/protocol";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { saveUpload } from "../services/uploads.ts";
 import { SETTINGS } from "./settings.ts";
 import { BY_TOOL, NOT_YET, OWNER_ONLY } from "./settings-reach.ts";
 
 let northwind = "";
+let sticker = "";
 
 // Each owner message names the tool call the scripted model makes; the tool's result comes back as the answer.
 const CALLS: Record<string, () => object> = {
@@ -18,6 +20,8 @@ const CALLS: Record<string, () => object> = {
   }),
   "make her a friend": () => ({ method: "contacts.set", params: { id: northwind, relation: "best-friend-ever" } }),
   "change my keys": () => ({ method: "secrets.set", params: { name: "x", value: "y" } }),
+  "show my whatsapp stickers": () => ({ method: "stickers.list", params: { platform: "whatsapp" } }),
+  "that sticker is mate": () => ({ method: "stickers.set", params: { id: sticker, meaning: "mate shared, all good" } }),
 };
 const llm = scriptedLlm((req, { said, afterTool }) => {
   if (afterTool) return say(String(req.messages.at(-1)?.content));
@@ -30,6 +34,9 @@ before(async () => {
   env = await startCore({ llm });
   northwind = (await env.client.call("contacts.set", { name: "Northwind Sister" })).id;
   await env.client.call("agents.create", { slug: "acme-writer", name: "Acme Writer", prompt: "Write." });
+  const webp = Buffer.from("UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==", "base64");
+  const media = saveUpload(env.home, env.core.store, { name: "sticker.webp", mime: "image/webp", bytes: webp });
+  sticker = env.core.store.stickers.add({ platform: "whatsapp", hash: "h1", media_id: media.id, hint: "🧉" }).id;
 });
 after(async () => {
   await env.core.close();
@@ -83,6 +90,15 @@ test("the owner approves who a contact is and how to answer them, read before an
   assert.equal(p?.note, "My sister");
   assert.equal(p?.rules, "Answer warmly, in Spanish.");
   assert.equal(p?.name, "Northwind Sister");
+});
+
+test("the owner approves what a sticker means; the agent reads its stickers first", async () => {
+  assert.match((await ask("show my whatsapp stickers")).answer, new RegExp(`\\[${sticker}\\] not named yet 🧉`));
+  const { answer, detail } = await ask("that sticker is mate", "roby", "approve");
+  assert.match(detail ?? "", /^Change the sticker/);
+  assert.match(detail ?? "", /meaning: .* → "mate shared, all good"/);
+  assert.match(answer, /"mate shared, all good"/);
+  assert.equal(env.core.store.stickers.get(sticker)?.meaning, "mate shared, all good");
 });
 
 test("a declined change saves nothing", async () => {
