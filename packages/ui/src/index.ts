@@ -65,6 +65,7 @@ export { MasterDetail, type MasterDetailProps } from "./components/MasterDetail"
 export { Menu, type MenuEntry, type MenuProps } from "./components/Menu";
 export { Message, type MessageProps } from "./components/Message";
 export { MessageMeta, type MessageMetaProps } from "./components/MessageMeta";
+export { Meter, type MeterProps, type MeterSegment, type MeterTone } from "./components/Meter";
 export { NavItem, type NavItemProps } from "./components/NavItem";
 export { PickRow, type PickRowProps } from "./components/PickRow";
 export { Popover, type PopoverProps } from "./components/Popover";
