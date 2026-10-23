@@ -22,6 +22,7 @@ const POWER = "what agents may do or which model runs them stays the owner's (DE
 const MACHINE = "installs or controls this computer and its devices";
 const PANEL = "the panel's own view of chats, files, git and the terminal; agents have tools of their own for these";
 const AS_OWNER = "the owner's own word: their answer, their send, their read";
+const MCP_SERVER = "an MCP server's command runs on this computer, and its environment and headers carry its keys";
 
 /** Owner methods no agent calls, by reason. */
 export const OWNER_ONLY: Readonly<Record<string, string>> = {
@@ -38,6 +39,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "integrations.oauth_finish": SECRET,
   "mcp.signIn": SECRET,
   "extensions.set_secret": SECRET,
+  "mcp.set": MCP_SERVER,
   "access.set": POWER,
   "models.set_config": POWER,
   "threads.model": POWER,
@@ -63,6 +65,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "extensions.install": MACHINE,
   "extensions.remove": MACHINE,
   "profiles.install": MACHINE,
+  "embeddings.install": MACHINE,
+  "transcription.install": MACHINE,
   "files.keep": PANEL,
   "files.open": PANEL,
   "files.rename": PANEL,
@@ -91,6 +95,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "mcp.describe": PANEL,
   "mcp.tools": PANEL,
   "channels.recover": PANEL,
+  "surfaces.import": PANEL,
   "sessions.resume": PANEL,
   "runs.respond": AS_OWNER,
   "channels.send": AS_OWNER,
@@ -103,35 +108,4 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
 };
 
 /** Not decided yet: what the owner changes in the panel and the super-agent cannot, the next ones to place. */
-export const NOT_YET: readonly string[] = [
-  "projects.create",
-  "projects.register",
-  "projects.unregister",
-  "projects.update",
-  "projects.update_base",
-  "projects.helper_set",
-  "memory.confirm",
-  "memory.maintenance",
-  "memory.reindex",
-  "memory.restore",
-  "memory.set_settings",
-  "memory.undo",
-  "skills.import",
-  "skills.runtimes",
-  "skills.save",
-  "skills.toggle",
-  "mcp.set",
-  "mcp.toggle",
-  "extensions.enable",
-  "services.defaults",
-  "services.order",
-  "surfaces.copy",
-  "surfaces.import",
-  "surfaces.import_page",
-  "surfaces.memory_clear",
-  "surfaces.remove",
-  "surfaces.share",
-  "resources.inherit",
-  "embeddings.install",
-  "transcription.install",
-];
+export const NOT_YET: readonly string[] = [];

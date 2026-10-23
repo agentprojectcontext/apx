@@ -2061,3 +2061,17 @@ own (`agent_set`, `routine_set`…), kept the owner's with its reason (keys and 
 models per D-060, the machine, the panel's own views, the owner's own answer or send), or `NOT_YET`, the list still to
 place. `settings.test.ts` fails on a new owner method nobody placed, so the super-agent's reach is decided with each
 new setting instead of found missing by the owner. Contacts are the first area in it.
+
+Every area is placed now (`NOT_YET` is empty), in `tools/settings-people.ts` (contacts, channels, iMessage, the
+owner's profile, notices), `settings-team.ts` (archived agents, copies and templates, one agent's limits, routines,
+agent profiles, tasks, chats, imported sessions) and `settings-work.ts` (projects, memory, skills, MCP servers and
+extensions on or off, media services, widgets). A method that replaces a whole record (a channel, the owner's
+profile, notices, memory's settings, image defaults) gets the record merged under the fields asked for, so a field
+left out keeps its value and the card lists only what changes, nested ones by path (`channel.strangers`); a change
+equal to the record answers "nothing to change" and asks nobody. Some fields are refused before the owner is asked,
+because the method carries more than the area: a channel's token, mail account, type and `research` (D-059), removing
+a channel (its sign-in goes with it), a project's autonomy and read-only folders and a chat's write policy (D-060),
+memory's model. Kept the owner's as a whole: adding an MCP server (its command runs here and its env carries keys),
+the fan-out question (how far agents act), installing a profile, an extension, a local model (the machine), and the
+panel's own acts (recovering a chat's lost files, importing a widget file, resuming a coding session). Reads stay
+from the store with nothing secret: channels without tokens, services without keys.

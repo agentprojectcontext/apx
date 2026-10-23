@@ -134,20 +134,27 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
-    id: "super-agent-contacts",
+    id: "super-agent-settings",
     since: "2.9.1",
-    title: "Contacts edited from chat",
+    title: "Settings changed from chat",
     applies: (f) => f.contacts,
     text:
-      "The super-agent can now change what the owner keeps about a contact, with apx_settings: who they are (the " +
-      "note), the rules to answer them, their relation and nickname, whether they are silenced or supervised, or " +
-      "forget them. Each change shows the owner the fields before and after, and waits for their yes.",
+      "The super-agent can now change, with apx_settings, almost anything the owner sets up in the panel: a " +
+      "contact (who they are, the rules to answer them, their relation), a channel (who answers it, strangers, " +
+      "rooms), the owner's own profile and time zone, when they are notified, projects, memory, skills, agent " +
+      "profiles, routines, archived agents, tasks, chats and widgets. Each change shows the owner the fields before " +
+      "and after, and waits for their yes. Keys and sign-ins, models, what agents may do and this computer stay the " +
+      "owner's, in Settings.",
     actions: [
       {
         label: { en: "Review my contacts", es: "Revisemos mis contactos" },
         prompt:
           "Go through my contacts with me: tell me who has no note saying who they are or no rules for how to " +
           "answer them, and fill them in as I tell you.",
+      },
+      {
+        label: { en: "Set my quiet hours", es: "Configurá mis horas de silencio" },
+        prompt: "Ask me when I do not want to be notified and how many notices a day are fine, then set it up.",
       },
     ],
   },

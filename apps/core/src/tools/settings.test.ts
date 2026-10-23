@@ -37,6 +37,7 @@ test("reading what it can change, the contacts and a method's fields asks nobody
   const list = (await h.ask({})).answer;
   assert.match(list, /- contacts\.set: /);
   assert.match(list, /- channels\.set: /);
+  assert.match(list, /- memory\.set_settings: /);
   assert.match((await h.ask({ method: "contacts.list" })).answer, new RegExp(`Northwind Sister \\[${northwind}\\]`));
   assert.match((await h.ask({ method: "contacts.set" })).answer, /contacts\.set takes: .*"rules"/);
 });
@@ -107,6 +108,7 @@ test("every owner method that changes something is placed: apx_settings, a tool 
   assert.deepEqual(twice, []);
   const stale = placed.flat().filter((m) => !(m in methods));
   assert.deepEqual(stale, []);
+  assert.deepEqual(NOT_YET, [], "every owner setting is decided");
   const reads = Object.entries(SETTINGS).filter(([m, s]) => s.read && methods[m as keyof typeof methods].effect);
   assert.deepEqual(reads, [], "a read answers from the store, so it is never a method that changes something");
 });
