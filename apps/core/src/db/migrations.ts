@@ -847,4 +847,15 @@ export const MIGRATIONS: readonly string[] = [
   `ALTER TABLE tasks ADD COLUMN plan TEXT;`,
   // A task an agent proposed: it waits for the owner to accept it before any work starts.
   `ALTER TABLE tasks ADD COLUMN proposed INTEGER NOT NULL DEFAULT 0;`,
+  // A channel's attention hours: contacts answered at any hour, and chats whose messages wait for the hours to begin.
+  `
+  ALTER TABLE persons ADD COLUMN any_hour INTEGER NOT NULL DEFAULT 0;
+  CREATE TABLE channel_held (
+    thread_id TEXT PRIMARY KEY REFERENCES threads(id) ON DELETE CASCADE,
+    channel TEXT NOT NULL, conversation TEXT NOT NULL, sender TEXT NOT NULL,
+    person_id TEXT NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+    since TEXT NOT NULL
+  );
+  CREATE INDEX channel_held_since ON channel_held(since);
+  `,
 ];

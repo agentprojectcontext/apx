@@ -18,6 +18,7 @@ import { saveUpload } from "../services/uploads.ts";
 import { untrusted } from "../tools/result.ts";
 import { asksSomething, asksToStop, needsNoAnswer, reactionFor } from "./closers.ts";
 import type { Delivery } from "./delivery.ts";
+import { type Held, waitsForHours } from "./held.ts";
 import { type Button, buttonId, inputPresentation, parseButton, ratingOf, shown } from "./notices.ts";
 import type { createRooms } from "./rooms.ts";
 import type { Suggestions } from "./suggestions.ts";
@@ -56,6 +57,9 @@ export function createInbound(deps: {
   answeredHere(inputId: string, at: { channel: string; conversation: string }, by: "button" | "text"): void;
   /** Replaces the buttons under a message sent on a channel; false when the channel cannot. */
   setButtons(channel: string, conversation: string, ref: string, buttons: Presentation["buttons"]): Promise<boolean>;
+  /** Contacts' chats waiting for their channel's hours. */
+  held: Pick<Held, "hold" | "release">;
+  now: () => Date;
   /** The owner's words kept without a turn (a closing "genial, funcionó"): memory may still learn from them. */
   ownerReplied?: (messageId: string) => void;
 }) {
@@ -102,7 +106,9 @@ export function createInbound(deps: {
     const thread = owner ? ownerThread(cfg, m.conversation) : contactThread(cfg, m.conversation, person);
     // A supervised contact costs a draft, not an answer: suggestions.ts keeps its own hourly cap.
     const supervised = !owner && !person.muted && person.supervised;
-    if (!owner && !person.muted && !supervised && overLimit(person.id, person.name)) return "ignored";
+    // Outside the channel's hours a contact's message waits, unanswered, for them to begin (held.ts).
+    const waits = !owner && !person.muted && waitsForHours(store, cfg, person, deps.now());
+    if (!owner && !person.muted && !supervised && !waits && overLimit(person.id, person.name)) return "ignored";
     let text = m.text;
     const attachments: string[] = [];
     let voice: MediaRecord | undefined;
@@ -142,6 +148,14 @@ export function createInbound(deps: {
       if (person.unreviewed) report(cfg, person, m.sender.id, said, thread.id);
       return "done";
     }
+    if (waits) {
+      const said = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");
+      const note = { answered: "not yet: it came outside the channel's attention hours" };
+      theirLast(thread.id, cfg.id, m, keepQuiet(thread.id, cfg.id, person, said, attachments, note));
+      deps.held.hold(cfg, person, thread.id, m.conversation, m.sender.id);
+      return "done";
+    }
+    if (!owner) deps.held.release(thread.id);
     // Supervised: kept unanswered, and the owner gets the reply the agent would send (a closing "ok" gets none).
     if (supervised) {
       const said = text.trim() || (attachments.length ? "[attached files]" : "[empty message]");

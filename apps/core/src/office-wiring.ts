@@ -3,7 +3,8 @@
 // date passing only lands in the tray: the watch routine mentions overdue work in one line, never a message per task.
 // The same clock picks up, hourly, assigned tasks whose work never started, and revives tasks whose work stopped with
 // nobody on it (engine/task-stall.ts), and hands the owner's task comments that named no one to an agent
-// (engine/task-inbox.ts). A provider limit that stops the agents is told once per stall.
+// (engine/task-inbox.ts), and answers the contacts who wrote outside a channel's attention hours once they begin
+// (channels/held.ts). A provider limit that stops the agents is told once per stall.
 import { channelTexts } from "./channels/texts.ts";
 import type { Presentation } from "./domain/channels.ts";
 import { ownerTimeZone } from "./domain/owner.ts";
@@ -30,6 +31,8 @@ export function officeScheduler(deps: {
   attention: Attention;
   /** Puts a message on the owner's channel; false when there is none. */
   notifyOwner: (body: Presentation, threadId: string | undefined) => boolean;
+  /** Answers contacts' chats whose channel's attention hours began; how many it started. */
+  openHeld?: () => number;
   log: Log;
   now?: () => Date;
 }) {
@@ -80,6 +83,7 @@ export function officeScheduler(deps: {
           asked: true,
         });
       nudges.release();
+      deps.openHeld?.();
     },
     deliver: ({ routine, run, text, failed }) => {
       const texts = channelTexts(store);

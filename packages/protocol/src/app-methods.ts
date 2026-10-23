@@ -13,6 +13,7 @@ import {
   CatalogEngine,
   ChannelClosers,
   ChannelEmail,
+  ChannelHours,
   ChannelInfo,
   ChannelResearch,
   ChannelRooms,
@@ -1039,6 +1040,7 @@ export const appMethods = {
             rooms: ChannelRooms.optional(),
             closers: ChannelClosers.default("silent"),
             research: ChannelResearch.default("owner"),
+            hours: ChannelHours.optional(),
             email: ChannelEmail.optional(),
           })
           .nullable(),
@@ -1368,6 +1370,7 @@ export const appMethods = {
         rules: z.string().max(1000).optional(),
         muted: z.boolean().optional(),
         supervised: z.boolean().optional(),
+        any_hour: z.boolean().optional(),
         // Only the flags sent change (PersonPerms' defaults would reset the others).
         perms: z
           .object({ appointments: z.boolean(), requests: z.boolean(), notes: z.boolean() })

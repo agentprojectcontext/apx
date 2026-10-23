@@ -75,6 +75,16 @@ export type Presentation = {
   input_id?: string;
 };
 
+/** A contact's chat waiting for its channel's hours: where to answer, and since when it waits. */
+export type HeldChat = {
+  thread_id: string;
+  channel: string;
+  conversation: string;
+  sender: string;
+  person_id: string;
+  since: string;
+};
+
 export type InboxRow = { id: string; channel: string; payload: Inbound; state: string };
 export type OutboxRow = OutboxItem & { body: Presentation; next_at: string; external_id?: string; message_id?: string };
 
@@ -213,6 +223,29 @@ export function channelsRepo({ one, all, run }: Sql) {
             .set({ state, error: error ?? null, ...(light ? { payload: light } : {}) })
             .where("id", "=", id),
         );
+      },
+    },
+    /** Contacts' chats whose messages came outside their channel's hours (DECISIONS.md#d-135). */
+    held: {
+      /** Marks a chat as waiting; one already waiting keeps the time it began to. */
+      mark(h: Omit<HeldChat, "since">): void {
+        run(
+          qb
+            .insertInto("channel_held")
+            .values({ ...h, since: now() })
+            .onConflict((c) => c.column("thread_id").doUpdateSet({ conversation: h.conversation, sender: h.sender })),
+        );
+      },
+      /** The chats waiting longest first. */
+      list(limit = 100): HeldChat[] {
+        return all(qb.selectFrom("channel_held").selectAll().orderBy("since").orderBy("thread_id").limit(limit));
+      },
+      get(threadId: string): HeldChat | undefined {
+        return one(qb.selectFrom("channel_held").selectAll().where("thread_id", "=", threadId));
+      },
+      /** No longer waiting; false when it was not (someone else took it). */
+      clear(threadId: string): boolean {
+        return run(qb.deleteFrom("channel_held").where("thread_id", "=", threadId)) > 0;
       },
     },
     outbox: {

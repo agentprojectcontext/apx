@@ -358,6 +358,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     judge: upkeep.judge,
     ownerReplied: (messageId) => memoryMaintenance.ownerReplied(messageId),
     draft: createDrafter({ store, llm, fallbackModels: upkeep.auxModels }).draft,
+    ...(opts.clock ? { now: opts.clock } : {}),
     ...(opts.roomBurstMs !== undefined ? { roomBurstMs: opts.roomBurstMs } : {}),
     ...(opts.suggestBurstMs !== undefined ? { suggestBurstMs: opts.suggestBurstMs } : {}),
     pushOwner: (deviceId, text) => {
@@ -417,6 +418,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     admit: (a) => engine.admit(a),
     attention,
     notifyOwner: (body, threadId) => channels.notifyOwner(body, "notice", threadId),
+    openHeld: () => channels.openHeld((a) => engine.admit(a)),
     log,
     ...(opts.clock ? { now: opts.clock } : {}),
   });

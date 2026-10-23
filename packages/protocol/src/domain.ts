@@ -813,6 +813,8 @@ export const Person = z.object({
    * Silenced and supervised exclude each other (setting one clears the other).
    */
   supervised: z.boolean().default(false),
+  /** Answered at any hour, past the attention hours of the channel they write on. */
+  any_hour: z.boolean().default(false),
   perms: PersonPerms.default({ appointments: false, requests: false, notes: false }),
   addresses: z.array(Address),
   created_at: z.string(),
@@ -941,6 +943,20 @@ export type ChannelClosers = z.infer<typeof ChannelClosers>;
 export const ChannelResearch = z.enum(["off", "owner", "everyone"]);
 export type ChannelResearch = z.infer<typeof ChannelResearch>;
 
+const HourOfDay = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+
+/**
+ * When a channel answers its contacts, in the owner's time zone: the days it opens (0 = Sunday) and from when to when
+ * ("22:00"–"02:00" runs past midnight into the next day; the same time twice is the whole day). Outside them a
+ * contact's message waits, unanswered, until the hours begin. See DECISIONS.md#d-135
+ */
+export const ChannelHours = z.object({
+  days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+  from: HourOfDay,
+  to: HourOfDay,
+});
+export type ChannelHours = z.infer<typeof ChannelHours>;
+
 export const ChannelInfo = z.object({
   id: z.string(),
   type: ChannelType,
@@ -971,6 +987,8 @@ export const ChannelInfo = z.object({
   closers: ChannelClosers.optional(),
   /** Web search and reading in its sealed chats (none set: only when the owner asks). See DECISIONS.md#d-059 */
   research: ChannelResearch.optional(),
+  /** When it answers contacts; none: at any hour. The owner is always answered. */
+  hours: ChannelHours.optional(),
   /** Email: the mailbox and its servers. */
   email: ChannelEmail.optional(),
   token_set: z.boolean(),

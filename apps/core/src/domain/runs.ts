@@ -23,6 +23,19 @@ export type Origin =
       /** The message it came in as; stamped for the owner's, which memory may quote. */
       message_id?: string;
     }
+  /**
+   * A contact wrote outside their channel's hours and the hours have begun: their kept messages are in the chat, and
+   * this turn answers them (a third party's words, like a contact's channel message). See DECISIONS.md#d-135
+   */
+  | {
+      kind: "hours_began";
+      channel: string;
+      conversation: string;
+      person_id: string;
+      name: string;
+      /** When the first of them came. */
+      since: string;
+    }
   /** A routine the owner scheduled: its prompt is the owner's own words. */
   | { kind: "routine"; id: string; name: string }
   /** The owner answered something the agent asked, after the turn that asked had ended. */

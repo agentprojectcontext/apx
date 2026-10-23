@@ -25,6 +25,7 @@ import type { Services } from "../services/registry.ts";
 import { reactAnswer } from "./closers.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
+import { createHeld } from "./held.ts";
 import { createInbound } from "./inbound.ts";
 import { createInputCards } from "./input-cards.ts";
 import { buttonId, inputPresentation } from "./notices.ts";
@@ -89,8 +90,11 @@ export function createChannels(deps: {
   suggestBurstMs?: number;
   /** The owner's words kept without a turn, for memory (memory-maintenance.ts ownerReplied). */
   ownerReplied?: (messageId: string) => void;
+  /** The time attention hours are read against (tests move it). */
+  now?: () => Date;
 }) {
   const retryMs = deps.retryMs ?? RETRY_MS;
+  const clock = deps.now ?? (() => new Date());
   const { store, secrets, log } = deps;
   const live = new Map<string, Live>();
   const typing = new Map<string, ReturnType<typeof setInterval>>();
@@ -176,6 +180,7 @@ export function createChannels(deps: {
     notifyOwner: (body) => notifyOwner(body),
     judge: deps.judge,
     ...(deps.roomBurstMs !== undefined ? { burstMs: deps.roomBurstMs } : {}),
+    now: () => clock().getTime(),
   });
   const poster = createPoster(store, delivery);
   const outgoing = createOutgoing({
@@ -197,6 +202,7 @@ export function createChannels(deps: {
     sendAsOwner: outgoing.sendAsOwner,
     burstMs: deps.suggestBurstMs,
   });
+  const held = createHeld({ store, configs, suggestions, now: clock });
   const cards = createInputCards({
     store,
     log,
@@ -220,6 +226,8 @@ export function createChannels(deps: {
     suggestions,
     react: reactOn,
     answeredHere: cards.answeredHere,
+    held,
+    now: clock,
     ...(deps.ownerReplied ? { ownerReplied: deps.ownerReplied } : {}),
     setButtons: async (id, conversation, ref, buttons) => {
       const l = live.get(id);
@@ -691,6 +699,8 @@ export function createChannels(deps: {
     approved: inbound.approved,
     afterRun,
     recover: recovery.recover,
+    /** Each tick of the office clock: contacts' chats whose channel's hours began are answered (held.ts). */
+    openHeld: held.open,
     /** A supervised contact's drafts: the owner sends one (as is or edited) or drops it. */
     suggestions: { send: suggestions.send, discard: suggestions.discard },
     /** Adds, changes or removes a channel and (re)starts it. */

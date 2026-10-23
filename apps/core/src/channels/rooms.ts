@@ -5,6 +5,8 @@
 import type { ChannelRooms, RoomMode, Thread } from "@apx/protocol";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import type { Inbound, Presentation } from "../domain/channels.ts";
+import { withinHours } from "../domain/hours.ts";
+import { ownerTimeZone } from "../domain/owner.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf } from "../domain/threads.ts";
 import type { Log } from "../log.ts";
@@ -42,8 +44,10 @@ export function roomDecision(o: {
   called: boolean;
   owner: boolean;
   ownerOnly: boolean;
+  /** Outside the channel's attention hours: only the owner is answered, and nothing is caught up later. */
+  closed?: boolean;
 }): "reply" | "gate" | "keep" {
-  if (o.mode === "read") return "keep";
+  if (o.mode === "read" || (o.closed && !o.owner)) return "keep";
   if (o.ownerOnly && !o.owner) return "keep";
   if (o.called || o.mode === "always") return "reply";
   return o.mode === "useful" ? "gate" : "keep";
@@ -265,7 +269,13 @@ export function createRooms(deps: {
       const called = Boolean(m.room?.called) || calledByName(m.text, settings.names);
       const decision = who.blocked
         ? "keep"
-        : roomDecision({ mode: room.mode, called, owner: who.owner, ownerOnly: settings.owner_only });
+        : roomDecision({
+            mode: room.mode,
+            called,
+            owner: who.owner,
+            ownerOnly: settings.owner_only,
+            closed: Boolean(cfg.hours && !withinHours(cfg.hours, new Date(clock()), ownerTimeZone(store))),
+          });
       if (decision === "keep") {
         keep(cfg, thread, m);
         return Promise.resolve("done");

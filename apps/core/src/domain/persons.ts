@@ -32,6 +32,7 @@ export type PersonDetails = {
   rules?: string | undefined;
   muted?: boolean | undefined;
   supervised?: boolean | undefined;
+  any_hour?: boolean | undefined;
   perms?: Partial<PersonPerms> | undefined;
 };
 
@@ -51,6 +52,7 @@ export function personsRepo({ one, all, run, tx }: Sql) {
       muted: r.muted === 1,
       unreviewed: r.unreviewed === 1,
       supervised: r.supervised === 1,
+      any_hour: r.any_hour === 1,
       perms: permsOf(r.perms),
       addresses: addressesOf(r.id),
       created_at: r.created_at,
@@ -125,6 +127,7 @@ export function personsRepo({ one, all, run, tx }: Sql) {
             rules: text(p.rules, cur.rules),
             muted: muted ? 1 : 0,
             supervised: supervised ? 1 : 0,
+            any_hour: (p.any_hour ?? cur.any_hour) ? 1 : 0,
             // Deciding whether they are answered (or who they are) is the owner's review.
             unreviewed:
               cur.unreviewed && p.muted === undefined && p.supervised === undefined && p.role === undefined ? 1 : 0,

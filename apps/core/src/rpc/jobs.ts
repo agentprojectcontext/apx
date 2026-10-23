@@ -21,6 +21,9 @@ function fromOf(origin: Origin): JobFrom {
       return { kind: origin.kind, name: origin.name };
     case "surface":
       return { kind: origin.kind, name: origin.title };
+    // A contact's messages answered once the channel's hours began: shown as theirs.
+    case "hours_began":
+      return { kind: "channel", name: origin.name };
     default:
       return { kind: origin.kind };
   }

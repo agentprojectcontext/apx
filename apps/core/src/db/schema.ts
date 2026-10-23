@@ -53,6 +53,15 @@ export interface AuxCallsTable {
   cached: Generated<number>;
 }
 
+export interface ChannelHeldTable {
+  thread_id: string;
+  channel: string;
+  conversation: string;
+  sender: string;
+  person_id: string;
+  since: string;
+}
+
 export interface ChannelInboxTable {
   id: string;
   channel: string;
@@ -349,6 +358,7 @@ export interface PersonsTable {
   perms: string | null;
   unreviewed: Generated<number>;
   supervised: Generated<number>;
+  any_hour: Generated<number>;
 }
 
 export interface ProjectsTable {
@@ -543,6 +553,7 @@ export interface Database {
   agents: AgentsTable;
   api_clients: ApiClientsTable;
   aux_calls: AuxCallsTable;
+  channel_held: ChannelHeldTable;
   channel_inbox: ChannelInboxTable;
   devices: DevicesTable;
   extensions: ExtensionsTable;
