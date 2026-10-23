@@ -1,6 +1,7 @@
 // Release news worth acting on: what a release lets the super-agent do for this owner. Each entry is told once, and
 // only to an owner it applies to. See rules/DECISIONS.md#d-117
 import type { Store } from "../domain/store.ts";
+import { CATALOG } from "../integrations/catalog.ts";
 
 /** What an entry may ask about this install before it is told. */
 export type NewsFacts = {
@@ -10,6 +11,10 @@ export type NewsFacts = {
   google: { calendar: boolean; gmail: boolean; drive: boolean; gmailReadable: boolean };
   /** The super-agent runs the secretary profile (chief of staff). */
   secretary: boolean;
+  /** Channels the owner connected (Telegram, WhatsApp…). */
+  channels: number;
+  /** Catalog integrations the owner connected (GitHub, Notion…). */
+  integrations: number;
 };
 
 export type NewsAction = {
@@ -106,7 +111,55 @@ export const NEWS: readonly NewsEntry[] = [
       },
     ],
   },
+  {
+    id: "more-apps",
+    since: "2.9.1",
+    title: "Fifty more integrations",
+    applies: (f) => f.integrations > 0,
+    text:
+      "Resources › Integrations now connects about fifty more apps, most with one click and a sign-in in the " +
+      "browser, nothing to paste: Linear, Jira and Confluence, GitLab, Vercel, Supabase, Stripe, Todoist, Airtable, " +
+      "Figma, Canva, Cloudflare, Dropbox, Calendly, PayPal and more; Home Assistant and n8n take their address and a " +
+      "token. The catalog has a search box. GitHub, Slack and Brave Search now run on their maintained servers: " +
+      "editing and saving one switches it.",
+    actions: [
+      {
+        label: { en: "Which ones help me?", es: "¿Cuáles me sirven?" },
+        prompt:
+          "Look at what I work on and the integrations I already have, and suggest the two or three new ones from " +
+          "Resources › Integrations that would help me most, saying in a line what you would do with each.",
+      },
+    ],
+  },
+  {
+    id: "more-channels",
+    since: "2.9.1",
+    title: "New channels",
+    applies: (f) => f.channels > 0,
+    text:
+      "Agents can now be reached on more apps: iMessage on the owner's Mac, Google Chat, SMS through Twilio, ntfy " +
+      "push notifications, Nextcloud Talk, IRC and Twitch chat. Each is set up in Settings › Channels, like the others.",
+    actions: [
+      {
+        label: { en: "Set one up", es: "Configurar uno" },
+        prompt:
+          "Tell me in a few lines which of the new channels (iMessage, Google Chat, SMS, ntfy, Nextcloud Talk, IRC, " +
+          "Twitch) would suit how I use you, and walk me through setting up the one I pick.",
+      },
+    ],
+  },
 ];
+
+/** The catalog integrations among the owner's global MCP servers. */
+const connectedIntegrations = (store: Store): number => {
+  try {
+    const servers = JSON.parse(store.settings.get("mcp_servers") ?? "{}") as { mcpServers?: object };
+    const names = Object.keys(servers.mcpServers ?? {});
+    return CATALOG.filter((e) => names.includes(e.id)).length;
+  } catch {
+    return 0;
+  }
+};
 
 const signedIn = (store: Store, id: string) => Boolean(store.settings.get(`google_account:${id}`));
 
@@ -119,6 +172,8 @@ export const newsFacts = (store: Store): NewsFacts => ({
     gmailReadable: signedIn(store, "gmail") && store.settings.get("google_client:gmail") === "own",
   },
   secretary: store.settings.read("profile").id === "secretary",
+  channels: store.settings.read("channels").length,
+  integrations: connectedIntegrations(store),
 });
 
 /** The action a channel button stands for. */
