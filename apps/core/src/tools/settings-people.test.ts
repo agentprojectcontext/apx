@@ -96,7 +96,12 @@ test("notices: quiet hours and the daily budget change, the rest stays", async (
 test("stickers: the owner approves what a sticker means; the agent reads its stickers first", async () => {
   const webp = Buffer.from("UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==", "base64");
   const media = saveUpload(h.env.home, h.env.core.store, { name: "sticker.webp", mime: "image/webp", bytes: webp });
-  const sticker = h.env.core.store.stickers.add({ platform: "whatsapp", hash: "h1", media_id: media.id, hint: "🧉" }).id;
+  const sticker = h.env.core.store.stickers.add({
+    platform: "whatsapp",
+    hash: "h1",
+    media_id: media.id,
+    hint: "🧉",
+  }).id;
   const list = await h.ask({ method: "stickers.list", params: { platform: "whatsapp" } });
   assert.match(list.answer, new RegExp(`\\[${sticker}\\] not named yet 🧉`));
   const call = { method: "stickers.set", params: { id: sticker, meaning: "mate shared, all good" } };
