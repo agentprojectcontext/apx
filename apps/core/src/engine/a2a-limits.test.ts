@@ -10,9 +10,10 @@ import { telegramAdapter } from "../channels/telegram.ts";
 import { defineTool } from "../tools/types.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
-// Wide enough that a loaded CI runner's pauses between steps never look like a stall.
-const IDLE_MS = 800;
-const CAP_MS = 4800;
+// Wide enough that a loaded CI runner's pauses between steps never look like a stall: a Windows runner once took
+// longer than 800 ms over a 200 ms step. The cap stays six idle windows.
+const IDLE_MS = 1500;
+const CAP_MS = 9000;
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
     const t = setTimeout(resolve, ms);
@@ -108,7 +109,8 @@ after(async () => {
   env.cleanup();
 });
 
-async function until<T>(get: () => T | undefined | false, what: string, ms = 15_000): Promise<T> {
+/** Long enough for two capped parts and the caller's wake-up, whatever the windows above. */
+async function until<T>(get: () => T | undefined | false, what: string, ms = CAP_MS * 4): Promise<T> {
   const end = Date.now() + ms;
   while (Date.now() < end) {
     const v = get();
