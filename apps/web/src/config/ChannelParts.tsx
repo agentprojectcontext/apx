@@ -1,6 +1,6 @@
 // What every channel's settings share: who answers and how, who waits to be let in, the people on it, what was sent,
 // and how notices reach the owner.
-import type { ChannelClosers, ChannelHours, ChannelInfo, ChannelResearch, Person } from "@apx/protocol";
+import type { ChannelClosers, ChannelHours, ChannelInfo, ChannelResearch, OutboxItem, Person } from "@apx/protocol";
 import { Badge, Button, IconButton, Icons, Input, Menu, SegmentedControl, SettingRow, Switch } from "@apx/ui";
 import { useMemo, useState } from "react";
 import { ownerOn, PairingRow } from "../channels/StartRows.tsx";
@@ -286,6 +286,12 @@ function PersonRow({ person, channelId }: { person: Person; channelId: string })
   );
 }
 
+/** What went out without words: a sticker (with what it shows) or an emoji put on a message. */
+function sentLabel(o: OutboxItem, t: ReturnType<typeof useT>): string {
+  if (o.sticker !== undefined) return o.sticker ? t("tg.out.stickerAbout", { about: o.sticker }) : t("tg.out.sticker");
+  return o.reaction ? t("tg.out.reaction", { emoji: o.reaction }) : "";
+}
+
 export function Deliveries({ channelId }: { channelId: string }) {
   const t = useT();
   const outbox = useChannels((s) => s.outbox);
@@ -312,7 +318,7 @@ export function Deliveries({ channelId }: { channelId: string }) {
               {t(`tg.out.${o.state}`)}
             </Badge>
             <div className="res__main">
-              <div className="res__desc">{o.text}</div>
+              <div className="res__desc">{o.text || sentLabel(o, t)}</div>
               {o.error && o.state !== "sent" && <div className="res__desc tgcard__error">{o.error}</div>}
             </div>
           </li>

@@ -38,7 +38,16 @@ export function createSignals(deps: {
   async function reactOn(id: string, conversation: string, ref: string, emoji: string): Promise<boolean> {
     const l = deps.live(id);
     if (l?.status !== "running" || !l.adapter.caps.reactions || !l.adapter.react) return false;
-    await l.adapter.react(conversation, ref, emoji);
+    // Kept with what was sent, so the owner sees the reaction among the channel's messages.
+    const kept = (error?: string) =>
+      store.channels.outbox.settled({ channel: id, conversation, body: { text: "", reaction: emoji }, error });
+    try {
+      await l.adapter.react(conversation, ref, emoji);
+    } catch (err) {
+      kept(errorMessage(err, 200));
+      throw err;
+    }
+    kept();
     return true;
   }
 
@@ -129,7 +138,7 @@ export function createSignals(deps: {
       thread_id: run.thread_id,
       ...(msg ? { message_id: msg.id } : {}),
       kind: "reply",
-      body: { text: "", media: [{ id: media.id, kind: "sticker", mime: media.mime }] },
+      body: { text: "", media: [{ id: media.id, kind: "sticker", mime: media.mime, about: s.meaning }] },
     });
     store.stickers.sentOnce(s.id);
     store.threads.patch(run.thread_id, { preview: channelTexts(store).sentSticker(s.meaning ?? "") }, false);

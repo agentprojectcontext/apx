@@ -78,6 +78,8 @@ test("a sticker is kept the moment it arrives, named once, and the agent reads i
   assert.ok(answer?.parts.some((p) => p.type === "image" && p.media_id === kept?.media_id));
   assert.equal(home.thread.preview, `Mandó un sticker: ${BEAR}`);
   assert.equal(env.core.store.stickers.get(kept?.id ?? "")?.sent, 1);
+  const { items } = await env.client.call("channels.outbox", { limit: 3 });
+  assert.equal(items.find((i) => i.sticker !== undefined)?.sticker, BEAR, "listed by what it shows");
 
   // The same sticker again is counted, not kept twice nor named again.
   const named = namings();

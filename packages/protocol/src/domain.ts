@@ -1263,6 +1263,10 @@ export const OutboxItem = z.object({
   state: OutboxState,
   attempts: z.number().int(),
   error: z.string().optional(),
+  /** A sticker that went out: what it shows ("" when it has no name). */
+  sticker: z.string().optional(),
+  /** An emoji the agent put on a message there. */
+  reaction: z.string().optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });

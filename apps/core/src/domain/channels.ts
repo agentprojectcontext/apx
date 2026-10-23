@@ -67,7 +67,16 @@ export type Presentation = {
   /** Parts already delivered by an earlier attempt (text chunks first, then media). */
   skip?: number;
   /** Images, voice notes, stickers and files (a document, sent as one, with its name), after the text. */
-  media?: Array<{ id: string; kind: "image" | "audio" | "file" | "sticker"; mime: string; name?: string | undefined }>;
+  media?: Array<{
+    id: string;
+    kind: "image" | "audio" | "file" | "sticker";
+    mime: string;
+    name?: string | undefined;
+    /** What a sticker shows, for the list of what was sent (adapters ignore it). */
+    about?: string | undefined;
+  }>;
+  /** An emoji the agent put on a message: recorded as sent, never queued (the adapter's `react` put it). */
+  reaction?: string;
   /** A voice note and what it says: the audio first, the text as its caption where the channel allows one. */
   mediaFirst?: boolean;
   /** In a room: the message this answers (shown as a reply to it). */
@@ -114,8 +123,14 @@ const toOut = (r: Selectable<OutboxTable>): OutboxRow => {
   };
 };
 
-export const publicOutbox = ({ body: _b, next_at: _n, external_id: _e, message_id: _m, ...o }: OutboxRow): OutboxItem =>
-  o;
+export const publicOutbox = ({ body, next_at: _n, external_id: _e, message_id: _m, ...o }: OutboxRow): OutboxItem => {
+  const sticker = body.media?.find((m) => m.kind === "sticker");
+  return {
+    ...o,
+    ...(sticker ? { sticker: sticker.about ?? "" } : {}),
+    ...(body.reaction ? { reaction: body.reaction } : {}),
+  };
+};
 
 const PAIRING_TTL_MS = 24 * 3600_000;
 
@@ -283,6 +298,32 @@ export function channelsRepo({ one, all, run }: Sql) {
         );
         return toOut(outRow(id) as Selectable<OutboxTable>);
       },
+      /** Something that already went out (or failed) without the queue, kept so the owner sees it with the rest. */
+      settled(o: {
+        channel: string;
+        conversation: string;
+        thread_id?: string | undefined;
+        body: Presentation;
+        error?: string | undefined;
+      }): void {
+        const ts = now();
+        run(
+          qb.insertInto("outbox").values({
+            id: newId("out"),
+            channel: o.channel,
+            conversation: o.conversation,
+            thread_id: o.thread_id ?? null,
+            message_id: null,
+            kind: "reply",
+            body: JSON.stringify(o.body),
+            state: o.error ? "failed" : "sent",
+            error: o.error ?? null,
+            next_at: ts,
+            created_at: ts,
+            updated_at: ts,
+          }),
+        );
+      },
       get(id: string): OutboxRow | undefined {
         const r = outRow(id);
         return r ? toOut(r) : undefined;
@@ -299,7 +340,7 @@ export function channelsRepo({ one, all, run }: Sql) {
             .limit(limit),
         ).map(toOut);
       },
-      /** The last thing sent or queued to a conversation, of any kind. */
+      /** The last thing sent or queued to a conversation, of any kind (an emoji put on a message is not one). */
       last(channel: string, conversation: string): OutboxRow | undefined {
         const r = one(
           qb
@@ -307,6 +348,7 @@ export function channelsRepo({ one, all, run }: Sql) {
             .selectAll()
             .where("channel", "=", channel)
             .where("conversation", "=", conversation)
+            .where(sql`json_extract(body, '$.reaction')`, "is", null)
             .orderBy("created_at", "desc")
             .orderBy("id", "desc")
             .limit(1),

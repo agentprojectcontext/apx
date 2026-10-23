@@ -227,6 +227,10 @@ test("asked to react, the agent puts its emoji on their last message instead of 
   assert.deepEqual(theirs?.reactions, [{ emoji: "❤️", by: "agent" }]);
   assert.ok(!messages.at(-1)?.parts.some((p) => p.type === "text"), "the REACT words leave the chat");
   assert.equal((await env.client.call("threads.get", { thread })).thread.preview, "Reaccionó con ❤️");
+  // Listed with what went out on the channel, as sent.
+  const { items } = await env.client.call("channels.outbox", { limit: 5 });
+  const put = items.find((i) => i.reaction);
+  assert.deepEqual([put?.reaction, put?.state, put?.conversation], ["❤️", "sent", String(MAG.id)]);
 });
 
 test("asked to react in the app's own chat, the emoji goes on the owner's message there and no platform gets it", async () => {
