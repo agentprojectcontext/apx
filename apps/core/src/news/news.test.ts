@@ -242,3 +242,17 @@ test("Google news reach an owner without Calendar; mail alerts only a secretary 
     done();
   }
 });
+
+test("attention hours news reach only an owner whom contacts write to on a channel", () => {
+  const { store, news, done } = setup();
+  try {
+    const applies = () => news.list().find((n) => n.id === "channel-hours")?.applies;
+    assert.equal(applies(), false, "nobody but the owner");
+    const saved = store.persons.create({ name: "Northwind Buyer", role: "contact" });
+    assert.equal(applies(), false, "a saved contact nobody hears from on a channel");
+    store.persons.link(saved.id, { channel: "tg", external_id: "2201" });
+    assert.equal(applies(), true);
+  } finally {
+    done();
+  }
+});

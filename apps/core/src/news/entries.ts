@@ -10,6 +10,8 @@ export type NewsFacts = {
   google: { calendar: boolean; gmail: boolean; drive: boolean; gmailReadable: boolean };
   /** The super-agent runs the secretary profile (chief of staff). */
   secretary: boolean;
+  /** People other than the owner write to them on a channel (contacts the agents answer). */
+  contacts: boolean;
 };
 
 export type NewsAction = {
@@ -106,6 +108,26 @@ export const NEWS: readonly NewsEntry[] = [
       },
     ],
   },
+  {
+    id: "channel-hours",
+    since: "2.9.1",
+    title: "Attention hours for contacts",
+    applies: (f) => f.contacts,
+    text:
+      "A channel can now keep attention hours (days, from, to, in the owner's time zone): a contact who writes " +
+      "outside them gets no answer then, and the agent answers everything they sent, once, when the hours begin. " +
+      "The owner is always answered, and a contact can be marked to be answered at any hour. It is set in each " +
+      "channel's settings, under Attention hours, and on the contact's card.",
+    actions: [
+      {
+        label: { en: "Suggest my hours", es: "Sugerime un horario" },
+        prompt:
+          "Look at when my contacts usually write to me and suggest attention hours for my channels. Then tell me " +
+          "where to set them (Settings › Channels, the channel, Attention hours) and which contacts you would " +
+          "answer at any hour.",
+      },
+    ],
+  },
 ];
 
 const signedIn = (store: Store, id: string) => Boolean(store.settings.get(`google_account:${id}`));
@@ -119,6 +141,7 @@ export const newsFacts = (store: Store): NewsFacts => ({
     gmailReadable: signedIn(store, "gmail") && store.settings.get("google_client:gmail") === "own",
   },
   secretary: store.settings.read("profile").id === "secretary",
+  contacts: store.persons.list().some((p) => p.role !== "owner" && p.role !== "blocked" && p.addresses.length > 0),
 });
 
 /** The action a channel button stands for. */
