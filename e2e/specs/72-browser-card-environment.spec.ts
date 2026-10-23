@@ -56,6 +56,7 @@ test("guest browser cards, including old messages, stay in the VM; an open panel
   };
   try {
     await env.client.call("setup.finish", {});
+    await env.client.call("environments.permit", { agent: "roby", on: true });
     await env.client.call("environments.bind", { thread: "home" });
     add("home", "Legacy guest page", "h1");
     add("home", "Tagged guest page", "vm-1", "vm");
