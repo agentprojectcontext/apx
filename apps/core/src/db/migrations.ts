@@ -858,4 +858,14 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX channel_held_since ON channel_held(since);
   `,
+  // Stickers people sent, one per platform and file (its bytes' hash), with what each means; the file is its own media.
+  `
+  CREATE TABLE stickers (
+    id TEXT PRIMARY KEY, platform TEXT NOT NULL, hash TEXT NOT NULL,
+    media_id TEXT NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+    meaning TEXT, hint TEXT, seen INTEGER NOT NULL DEFAULT 1, sent INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL, last_at TEXT NOT NULL,
+    UNIQUE(platform, hash)
+  );
+  `,
 ];

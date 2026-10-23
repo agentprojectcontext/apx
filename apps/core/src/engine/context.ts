@@ -302,6 +302,9 @@ const ownerChannelNote = (channel: string) =>
     ? `${SAME_CHAT(channel)} ${HANDOFF_NOTE}`
     : `${SAME_CHAT(channel)} ${ATTACH_NOTE(channel)} ${ACK_NOTE}`;
 
+const STICKER_NOTE =
+  'To answer with a sticker instead of words, answer only STICKER and what it shows, e.g. "STICKER thumbs up". Only these exist here:';
+
 const VOICE_STYLE =
   "Your first paragraph is sent as a voice note (about 20 seconds): make it a sayable summary in plain words. Lists, links, code and details go after a blank line, as text.";
 
@@ -329,6 +332,8 @@ export function turnInput(opts: {
   channel?: string | undefined;
   /** The chat gets spoken answers: the first paragraph becomes a voice note. */
   voice?: boolean | undefined;
+  /** What the stickers people sent on this channel mean: the agent may answer with one. */
+  stickers?: string[] | undefined;
   /** A code thread's folder and what may change there, the project's read-only folders (workspaceBlock). */
   workspace?: string | undefined;
   /** The permission mode this turn runs in, and what waits for the owner there (modeBlock). */
@@ -349,6 +354,7 @@ export function turnInput(opts: {
       ? `[channel turn] ${ownerChannelNote(channel)}`
       : "",
     opts.voice ? `[voice] ${VOICE_STYLE}` : "",
+    opts.stickers?.length ? `[stickers] ${STICKER_NOTE} ${opts.stickers.join("; ")}` : "",
     opts.mode ? `[mode] ${opts.mode}` : "",
     opts.workspace ? `[workspace] ${opts.workspace}` : "",
     opts.release ? `[release notes] ${opts.release}` : "",

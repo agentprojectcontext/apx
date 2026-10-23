@@ -357,6 +357,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     services,
     attention: attention.add,
     judge: upkeep.judge,
+    see: upkeep.see,
     ownerReplied: (messageId) => memoryMaintenance.ownerReplied(messageId),
     draft: createDrafter({ store, llm, fallbackModels: upkeep.auxModels }).draft,
     ...(opts.clock ? { now: opts.clock } : {}),

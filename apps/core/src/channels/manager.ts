@@ -32,6 +32,7 @@ import { createPoster } from "./post.ts";
 import { createRecovery } from "./recover.ts";
 import { createRooms, quietMentions, roomMentions } from "./rooms.ts";
 import { createSignals } from "./signals.ts";
+import { createStickers, type See } from "./stickers.ts";
 import { createSuggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
 import {
@@ -81,6 +82,8 @@ export function createChannels(deps: {
   pushOwner?: (deviceId: string, text: string) => boolean;
   /** A cheap model's one-shot answer: whether an uncalled message in a "useful" room deserves an answer. */
   judge?: (system: string, user: string, about: AuxAbout) => Promise<string | undefined>;
+  /** A model that reads images naming what a picture shows (a sticker's meaning); none: stickers stay unnamed. */
+  see?: See;
   /** How long a room waits for one person's quick messages to settle (tests shorten it). */
   roomBurstMs?: number;
   /** The reply a supervised contact would get, drafted with the agent's model and not sent. */
@@ -210,7 +213,15 @@ export function createChannels(deps: {
       return l?.status === "running" ? l.adapter : undefined;
     },
   });
-  const signals = createSignals({ store, log, live: (id) => live.get(id), attention: deps.attention });
+  const stickers = createStickers({ store, home: deps.home, log, see: deps.see });
+  const signals = createSignals({
+    store,
+    log,
+    live: (id) => live.get(id),
+    attention: deps.attention,
+    delivery,
+    stickers,
+  });
   const inbound = createInbound({
     store,
     home: deps.home,
@@ -224,6 +235,7 @@ export function createChannels(deps: {
     ownAccount: (id) => Boolean(live.get(id)?.adapter.caps.ownAccount),
     rooms,
     suggestions,
+    stickers,
     react: signals.reactOn,
     answeredHere: cards.answeredHere,
     held,

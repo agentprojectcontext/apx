@@ -23,6 +23,8 @@ test("the agent reacts to a sticker: the emoji shows on it, and the Inbox says s
     .filter({ has: page.locator("img") })
     .last();
   await expect(sticker).toBeVisible();
+  // What it means is for the agent: beside the picture it never shows as words.
+  await expect(page.getByText(/\[sticker/)).toHaveCount(0);
   const box = page.getByRole("textbox", { name: /qué contestarle a Olga/ });
   await box.fill("react with a heart to her sticker");
   await box.press("Enter");

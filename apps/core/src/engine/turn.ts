@@ -486,6 +486,7 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
                 timeZone: ownerTimeZone(store),
                 channel: channelKindOf(store, o, turn.input.reply_to === null ? null : turn.input.reply_to?.channel),
                 voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
+                stickers: o.kind === "channel" ? stickersOf(store, o.channel) : undefined,
                 mode: modeBlock(mode),
                 workspace: workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
                 release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
@@ -526,6 +527,12 @@ function channelKindOf(store: Store, o: Origin, replyChannel?: string | null) {
   const channel = replyChannel === null ? undefined : (replyChannel ?? (o.kind === "channel" ? o.channel : undefined));
   if (!channel) return undefined;
   return store.settings.read("channels").find((c) => c.id === channel)?.type ?? channel;
+}
+
+/** What the stickers people sent on a channel's platform mean, the most used first: the agent may answer with one. */
+function stickersOf(store: Store, channel: string): string[] {
+  const type = store.settings.read("channels").find((c) => c.id === channel)?.type;
+  return type ? store.stickers.known(type, 12).flatMap((s) => (s.meaning ? [s.meaning] : [])) : [];
 }
 
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */

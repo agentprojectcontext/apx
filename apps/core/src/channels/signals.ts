@@ -1,7 +1,9 @@
-// An answer that is a signal to APX, not words for the chat ("SKIP", "REACT ❤️"): its words leave the chat (the model
-// log keeps them), a reaction goes on the message it answers (on the platform too when that message came from there),
-// and the chat's preview says what happened instead of the signal.
+// An answer that is a signal to APX, not words for the chat ("SKIP", "REACT ❤️", "STICKER a bear with a heart"): its
+// words leave the chat (the model log keeps them), a reaction goes on the message it answers (on the platform too when
+// that message came from there), a sticker goes out instead of words, and the chat's preview says what happened
+// instead of the signal.
 import type { ChannelInfo } from "@apx/protocol";
+import { partOfMedia } from "../domain/media.ts";
 import type { NewNotification } from "../domain/notifications.ts";
 import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
@@ -11,6 +13,8 @@ import { isSkip } from "../engine/routines.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { reactAnswer } from "./closers.ts";
+import type { Delivery } from "./delivery.ts";
+import { type Stickers, stickerAnswer } from "./stickers.ts";
 import { channelTexts } from "./texts.ts";
 import type { ChannelAdapter, ChannelConfig } from "./types.ts";
 
@@ -25,6 +29,8 @@ export function createSignals(deps: {
   log: Log;
   live: (id: string) => Target | undefined;
   attention: (n: NewNotification) => void;
+  delivery: Pick<Delivery, "enqueue">;
+  stickers: Pick<Stickers, "find">;
 }) {
   const { store, log } = deps;
 
@@ -46,6 +52,12 @@ export function createSignals(deps: {
       // In the app alone the words never show (the panel hides them); a channel's chat drops them.
       if (to) hideWords(run.message_id);
       showLast(run);
+      return true;
+    }
+    const wanted = stickerAnswer(out);
+    if (wanted) {
+      if (to) sendSticker(run, to, wanted);
+      else hideWords(run.message_id);
       return true;
     }
     const emoji = reactAnswer(out);
@@ -90,6 +102,37 @@ export function createSignals(deps: {
     const texts = channelTexts(store);
     const text = refused ? texts.reactRefused(emoji, where, refused) : texts.reactFailed(emoji, where);
     deps.attention({ kind: "channel", level: "warn", title: where, body: text, thread_id: run.thread_id });
+  }
+
+  /** The agent answered with a sticker it was sent on this platform: it goes out, and shows here in its words' place. */
+  function sendSticker(run: RunRecord, to: To, words: string): void {
+    const l = deps.live(to.channel);
+    const s = l?.adapter.caps.stickers ? deps.stickers.find(l.config.type, words) : undefined;
+    const media = s && store.media.get(s.media_id);
+    const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
+    if (!s || !media) {
+      hideWords(run.message_id);
+      // The nearest sticker could say something else: nothing goes, and the owner hears why.
+      const where = store.threads.get(run.thread_id)?.title ?? to.channel;
+      const body = channelTexts(store).stickerMissing(words, where);
+      deps.attention({ kind: "channel", level: "warn", title: where, body, thread_id: run.thread_id });
+      return;
+    }
+    const shown =
+      media.kind === "image"
+        ? { type: "image" as const, media_id: media.id, mime: media.mime, alt: s.meaning ?? "sticker" }
+        : partOfMedia(media);
+    if (msg) store.messages.update({ ...msg, parts: [...msg.parts.filter((p) => p.type !== "text"), shown] });
+    deps.delivery.enqueue({
+      channel: to.channel,
+      conversation: to.conversation,
+      thread_id: run.thread_id,
+      ...(msg ? { message_id: msg.id } : {}),
+      kind: "reply",
+      body: { text: "", media: [{ id: media.id, kind: "sticker", mime: media.mime }] },
+    });
+    store.stickers.sentOnce(s.id);
+    store.threads.patch(run.thread_id, { preview: channelTexts(store).sentSticker(s.meaning ?? "") }, false);
   }
 
   /**

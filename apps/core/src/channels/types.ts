@@ -12,7 +12,7 @@
 import type { ChannelInfo } from "@apx/protocol";
 import type { Inbound, InboundAction, InboundReaction, Presentation } from "../domain/channels.ts";
 
-type InboundFile = NonNullable<Inbound["files"]>[number];
+export type InboundFile = NonNullable<Inbound["files"]>[number];
 
 export type ChannelConfig = Omit<ChannelInfo, "token_set" | "token_hint" | "status" | "error" | "account">;
 
@@ -30,6 +30,8 @@ export type AdapterCaps = {
    * it; their request is only listed for the owner to approve.
    */
   ownAccount?: boolean;
+  /** Sends a sticker file as a sticker (an `OutFile` of kind "sticker"). */
+  stickers?: boolean;
 };
 
 /** Why a send failed: worth trying again (nothing went out), maybe delivered (never resend blindly), or final. */
@@ -125,15 +127,25 @@ export type ServerRoom = { id: string; name: string; server: string; writable: b
 
 export type Presence = { online: boolean; last_seen?: string };
 
-/** A media file to send: an image goes as a photo, OGG audio as a voice note, other audio as an audio file. */
-export type OutFile = { kind: "image" | "audio" | "file"; mime: string; data: Buffer; name?: string | undefined };
+/**
+ * A media file to send: an image goes as a photo, OGG audio as a voice note, other audio as an audio file, a sticker as
+ * a sticker where the channel has them (`caps.stickers`).
+ */
+export type OutFile = {
+  kind: "image" | "audio" | "file" | "sticker";
+  mime: string;
+  data: Buffer;
+  name?: string | undefined;
+};
 
 /** The name a file goes out with: its own, else one made from its kind and type ("image.png"). */
 export function fileName(f: OutFile): string {
   if (f.name) return f.name;
   const ext =
-    f.kind === "image"
-      ? (f.mime.split("/")[1] ?? "png")
+    f.kind === "image" || f.kind === "sticker"
+      ? f.mime === "application/x-tgsticker"
+        ? "tgs"
+        : (f.mime.split("/")[1] ?? "png")
       : f.mime === "audio/ogg"
         ? "ogg"
         : f.kind === "audio"

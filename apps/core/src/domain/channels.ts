@@ -25,8 +25,13 @@ export type Inbound = {
   private: boolean;
   /** A message in a server's room the owner listed: whether it called the bot (an @mention or a reply to it). */
   room?: { called: boolean } | undefined;
-  /** Downloaded attachments, persisted in the inbox before the platform confirms delivery. */
-  files?: Array<{ name: string; mime: string; data: string }> | undefined;
+  /**
+   * Downloaded attachments, persisted in the inbox before the platform confirms delivery. `sticker`: the file is one
+   * (`hint`: the emoji the platform says it stands for).
+   */
+  files?:
+    | Array<{ name: string; mime: string; data: string; sticker?: { hint?: string | undefined } | undefined }>
+    | undefined;
   /** A voice note or audio, to be transcribed before an agent reads it. */
   voice?: { mime: string; data: string } | undefined;
   /** The platform's id of the message itself, to react to it, when `external_id` is something else (an update id). */
@@ -61,8 +66,8 @@ export type Presentation = {
   silent?: boolean;
   /** Parts already delivered by an earlier attempt (text chunks first, then media). */
   skip?: number;
-  /** Images, voice notes and files (a document, sent as one, with its name), after the text. */
-  media?: Array<{ id: string; kind: "image" | "audio" | "file"; mime: string; name?: string | undefined }>;
+  /** Images, voice notes, stickers and files (a document, sent as one, with its name), after the text. */
+  media?: Array<{ id: string; kind: "image" | "audio" | "file" | "sticker"; mime: string; name?: string | undefined }>;
   /** A voice note and what it says: the audio first, the text as its caption where the channel allows one. */
   mediaFirst?: boolean;
   /** In a room: the message this answers (shown as a reply to it). */

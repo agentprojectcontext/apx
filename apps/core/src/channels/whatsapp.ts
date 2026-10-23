@@ -426,7 +426,7 @@ export function whatsappAdapter(opts: {
     if (media && group) text ||= `[${media.kind}]`;
     else if (media) {
       const got = await fileOf(m, media);
-      if (got.file) files = [got.file];
+      if (got.file) files = [media.kind === "sticker" ? { ...got.file, sticker: {} } : got.file];
       else text = `${text}\n[attachment could not be downloaded: ${got.failure}]`.trim();
     }
     if (!text && !voice && !files) {
@@ -546,13 +546,15 @@ export function whatsappAdapter(opts: {
   }
 
   const fileContent = (f: OutFile): Record<string, unknown> =>
-    f.kind === "file"
-      ? { document: f.data, mimetype: f.mime, fileName: fileName(f) }
-      : f.kind === "image"
-        ? { image: f.data, mimetype: f.mime }
-        : f.mime === "audio/ogg"
-          ? { audio: f.data, mimetype: "audio/ogg; codecs=opus", ptt: true }
-          : { audio: f.data, mimetype: f.mime };
+    f.kind === "sticker"
+      ? { sticker: f.data, mimetype: f.mime }
+      : f.kind === "file"
+        ? { document: f.data, mimetype: f.mime, fileName: fileName(f) }
+        : f.kind === "image"
+          ? { image: f.data, mimetype: f.mime }
+          : f.mime === "audio/ogg"
+            ? { audio: f.data, mimetype: "audio/ogg; codecs=opus", ptt: true }
+            : { audio: f.data, mimetype: f.mime };
 
   async function stop(): Promise<void> {
     stopped = true;
@@ -569,7 +571,7 @@ export function whatsappAdapter(opts: {
   }
 
   return {
-    caps: { typing: true, buttons: false, reactions: true, ownAccount: Boolean(opts.selfOwner) },
+    caps: { typing: true, buttons: false, reactions: true, stickers: true, ownAccount: Boolean(opts.selfOwner) },
     async start(adapterIO) {
       io = adapterIO;
       stopped = false;

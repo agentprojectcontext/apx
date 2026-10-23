@@ -73,6 +73,7 @@ export const enChat = {
   "usage.aux.commit": "Commit messages",
   "usage.aux.suggestion": "Suggested replies",
   "usage.aux.news": "Release news",
+  "usage.aux.sticker": "Sticker meanings",
   "usage.state.submitted": "Queued",
   "usage.state.working": "Working",
   "usage.state.waiting": "Waiting for you",

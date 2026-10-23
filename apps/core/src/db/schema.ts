@@ -448,6 +448,19 @@ export interface StepsTable {
   output: string | null;
 }
 
+export interface StickersTable {
+  id: string;
+  platform: string;
+  hash: string;
+  media_id: string;
+  meaning: string | null;
+  hint: string | null;
+  seen: Generated<number>;
+  sent: Generated<number>;
+  created_at: string;
+  last_at: string;
+}
+
 export interface SuggestionsTable {
   id: string;
   person_id: string;
@@ -584,6 +597,7 @@ export interface Database {
   routines: RoutinesTable;
   runs: RunsTable;
   steps: StepsTable;
+  stickers: StickersTable;
   suggestions: SuggestionsTable;
   surfaces: SurfacesTable;
   task_events: TaskEventsTable;

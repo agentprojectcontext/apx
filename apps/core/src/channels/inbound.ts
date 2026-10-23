@@ -21,6 +21,7 @@ import type { Delivery } from "./delivery.ts";
 import { type Held, waitsForHours } from "./held.ts";
 import { type Button, buttonId, inputPresentation, parseButton, ratingOf, shown } from "./notices.ts";
 import type { createRooms } from "./rooms.ts";
+import type { Stickers } from "./stickers.ts";
 import type { Suggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
 import type { ChannelConfig } from "./types.ts";
@@ -51,6 +52,7 @@ export function createInbound(deps: {
   rooms: ReturnType<typeof createRooms>;
   /** Drafts for supervised contacts, and the owner answering one of them in their own words. */
   suggestions: Pick<Suggestions, "held" | "write" | "takeWriting">;
+  stickers: Pick<Stickers, "keep">;
   /** Puts the agent's emoji on a platform message; false when the channel has no reactions or is not running. */
   react(channel: string, conversation: string, ref: string, emoji: string): Promise<boolean>;
   /** The owner answers an input from this chat: its message there is not taken out when it settles. */
@@ -139,6 +141,11 @@ export function createInbound(deps: {
         );
       } catch (err) {
         text += `\n[attachment could not be accepted: ${errorMessage(err, 200)}]`;
+      }
+      // A sticker is kept for good the moment it arrives, and read as what it means (a silenced contact's unnamed).
+      if (file.sticker) {
+        const s = await deps.stickers.keep(cfg.type, file, thread.id, owner || !person.muted);
+        text = `${text}\n[sticker${s?.meaning ? `: ${s.meaning}` : ""}]`.trim();
       }
     }
     // A silenced contact keeps its files without transcription, a model call or a work-folder copy.

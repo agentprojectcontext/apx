@@ -2022,3 +2022,22 @@ Not held: the owner (on any channel, their Home always answers), answers to butt
 `any_hour`, and rooms for the owner; for anyone else a room keeps its messages outside the hours and never catches up,
 since its conversation moved on. No automatic "we are closed" reply in this version: the owner's example was simply to
 read at 08:00, and a reply at night is a message sent on their behalf.
+
+<a id="d-137"></a>
+## D-137 — 2026-10-23 — Stickers are kept as they arrive, named once, and sent back by meaning
+v1 kept a sticker lexicon and the owner missed it: an agent that reads "[sticker]" cannot tell a hug from a shrug, and
+on WhatsApp a sticker is often the natural answer. Every sticker that reaches a one-to-one chat on WhatsApp or Telegram
+is kept the moment it arrives in `stickers`, one row per **platform** and file (the bytes' SHA-256, the same whoever
+sends it), its file a media row of its own so it outlives the chat. Platforms never share: a Telegram sticker (often
+animated `.tgs`) is not a WhatsApp one, and the agent only sends a platform's own.
+
+It is named once, by the auxiliary models that are not known to be text-only (`see` in upkeep, aux purpose `sticker`),
+in the owner's language; an animated one, or an install with no such model, takes the emoji the platform says it stands
+for. The message waits up to 20 seconds for the name, then the agent reads it unnamed and the name lands later. The
+agent reads `[sticker: meaning]`; a silenced contact's sticker is kept without a model call.
+
+To answer with one the agent writes `STICKER <what it shows>`, a signal like `REACT` (no tool: no prompt cost on turns
+without stickers). Matching is by words of the meaning, at least half of them; below that nothing goes and the owner is
+told, since the wrong sticker says something the agent did not mean. A channel turn lists the platform's twelve most
+used meanings under `[stickers]`, so the agent picks among stickers that exist. Discord's stickers are not read nor sent
+yet: a bot can only send its own servers' stickers.

@@ -30,6 +30,7 @@ const AUX_LABEL: Record<AuxPurpose, MessageKey> = {
   commit: "usage.aux.commit",
   suggestion: "usage.aux.suggestion",
   news: "usage.aux.news",
+  sticker: "usage.aux.sticker",
 };
 
 function secs(run: Run): number | undefined {

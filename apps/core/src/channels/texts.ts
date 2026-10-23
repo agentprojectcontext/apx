@@ -36,6 +36,9 @@ const es = {
   reactRefused: (emoji: string, where: string, why: string) =>
     `No pude reaccionar con ${emoji} en ${where}: la plataforma rechazó la reacción (${why}). No se envió nada.`,
   reacted: (emoji: string) => `Reaccionó con ${emoji}`,
+  sentSticker: (meaning: string) => (meaning ? `Mandó un sticker: ${meaning}` : "Mandó un sticker"),
+  stickerMissing: (words: string, where: string) =>
+    `No mandé el sticker «${words}» en ${where}: no tengo uno guardado de este canal que diga eso. No se envió nada.`,
   tooMany: (name: string) => `${name} escribe mucho seguido: pausé sus respuestas automáticas por una hora.`,
   roomCap: (room: string) =>
     `Llegué al tope de respuestas por hora en ${room}: sigo leyendo, contesto cuando se libere.`,
@@ -118,6 +121,9 @@ const en: typeof es = {
   reactRefused: (emoji, where, why) =>
     `I couldn't react with ${emoji} in ${where}: the platform refused the reaction (${why}). Nothing was sent.`,
   reacted: (emoji) => `Reacted with ${emoji}`,
+  sentSticker: (meaning) => (meaning ? `Sent a sticker: ${meaning}` : "Sent a sticker"),
+  stickerMissing: (words, where) =>
+    `I didn't send the sticker "${words}" in ${where}: I have none kept from this channel that says that. Nothing was sent.`,
   tooMany: (name) => `${name} is writing a lot in a row: I paused their automatic answers for an hour.`,
   roomCap: (room) => `I hit the hourly cap of answers in ${room}: I keep reading and answer once it frees up.`,
   roomFailed: (room, why) => `I couldn't answer in ${room}: ${why}`,

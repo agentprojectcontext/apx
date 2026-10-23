@@ -14,6 +14,7 @@ import {
   type ChannelAdapter,
   ChannelRefused,
   fileName,
+  type InboundFile,
   type OutFile,
   SendError,
 } from "./types.ts";
@@ -46,7 +47,7 @@ type TgMessage = {
   animation?: TgFile & { file_name?: string };
   /** A round video message. */
   video_note?: TgFile;
-  sticker?: TgFile & { is_animated?: boolean; is_video?: boolean };
+  sticker?: TgFile & { is_animated?: boolean; is_video?: boolean; emoji?: string };
 };
 type TgFile = { file_id: string; mime_type?: string; file_size?: number };
 type TgUpdate = {
@@ -219,10 +220,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     return { mime: v.mime_type ?? "audio/ogg", data: Buffer.from(await res.arrayBuffer()).toString("base64") };
   }
 
-  async function filesOf(
-    m: TgMessage,
-    signal = ac.signal,
-  ): Promise<Array<{ name: string; mime: string; data: string }>> {
+  async function filesOf(m: TgMessage, signal = ac.signal): Promise<InboundFile[]> {
     const photo = [...(m.photo ?? [])].sort((a, b) => b.width * b.height - a.width * a.height)[0];
     const f = photo ?? m.document ?? m.video ?? m.animation ?? m.video_note ?? m.sticker;
     if (!f) return [];
@@ -249,7 +247,8 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     } finally {
       await reader.cancel().catch(() => {});
     }
-    return [{ name, mime, data: Buffer.concat(chunks).toString("base64") }];
+    const data = Buffer.concat(chunks).toString("base64");
+    return [{ name, mime, data, ...(m.sticker ? { sticker: { hint: m.sticker.emoji } } : {}) }];
   }
 
   async function readFiles(m: TgMessage): ReturnType<typeof filesOf> {
@@ -405,21 +404,26 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
     }
   }
 
-  /** An image as a photo, OGG/Opus as a voice note, other audio as an audio file, anything else as a document. */
+  /**
+   * An image as a photo, OGG/Opus as a voice note, other audio as an audio file, a sticker as a sticker, anything else
+   * as a document.
+   */
   async function sendFile(chat: string, f: OutFile, silent?: boolean, caption?: string): Promise<number> {
     const [method, field, name] =
-      f.kind === "file"
-        ? ["sendDocument", "document", fileName(f)]
-        : f.kind === "image"
-          ? ["sendPhoto", "photo", "image"]
-          : f.mime === "audio/ogg"
-            ? ["sendVoice", "voice", "voice.ogg"]
-            : ["sendAudio", "audio", `audio.${f.mime.split("/")[1] ?? "wav"}`];
+      f.kind === "sticker"
+        ? ["sendSticker", "sticker", fileName(f)]
+        : f.kind === "file"
+          ? ["sendDocument", "document", fileName(f)]
+          : f.kind === "image"
+            ? ["sendPhoto", "photo", "image"]
+            : f.mime === "audio/ogg"
+              ? ["sendVoice", "voice", "voice.ogg"]
+              : ["sendAudio", "audio", `audio.${f.mime.split("/")[1] ?? "wav"}`];
     const form = new FormData();
     form.set("chat_id", chat);
     if (silent) form.set("disable_notification", "true");
     form.set(field, new Blob([new Uint8Array(f.data)], { type: f.mime }), name);
-    if (caption) form.set("caption", caption);
+    if (caption && f.kind !== "sticker") form.set("caption", caption);
     if (!token) throw new TgError(401, "no bot token");
     const res = await fetch(`${apiBase}/bot${token}/${method}`, {
       method: "POST",
@@ -471,7 +475,7 @@ export const telegramAdapter = ((config, token, apiBase = "https://api.telegram.
   }
 
   return {
-    caps: { typing: true, buttons: true, reactions: true, reactionSet: TELEGRAM_REACTIONS },
+    caps: { typing: true, buttons: true, reactions: true, stickers: true, reactionSet: TELEGRAM_REACTIONS },
     async start(io) {
       me = await api<{ id: number; username?: string }>("getMe", {}).catch((err: unknown) => {
         throw err instanceof TgError && (err.code === 401 || err.code === 404)

@@ -584,7 +584,7 @@ export const RunUsage = z.object({
 });
 export type RunUsage = z.infer<typeof RunUsage>;
 
-/** What an auxiliary model call was for: a chat's title, a long chat's summary, a room's gate, a commit message. */
+/** What an auxiliary model call was for: a chat's title, a long chat's summary, a room's gate, a sticker's meaning… */
 export const AuxPurpose = z.enum([
   "title",
   "summary",
@@ -594,6 +594,7 @@ export const AuxPurpose = z.enum([
   "memory_capture",
   "memory_dream",
   "news",
+  "sticker",
 ]);
 export type AuxPurpose = z.infer<typeof AuxPurpose>;
 
