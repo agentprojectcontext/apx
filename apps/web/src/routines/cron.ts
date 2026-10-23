@@ -1,5 +1,4 @@
-/** Monday first, as people read a week; cron numbers Sunday 0. */
-export const WEEK = [1, 2, 3, 4, 5, 6, 0] as const;
+import { WEEK } from "../common/week.ts";
 
 /** "30 8 * * 1-5" → days and a time; undefined for a cron that says more (a day of the month, every N minutes). */
 export function weeklyOf(cron: string): { days: number[]; time: string } | undefined {

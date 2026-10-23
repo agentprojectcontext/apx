@@ -433,14 +433,15 @@
   align-items: center;
   gap: 10px;
 }
-.sched__days {
+/* A week's days as chips (common/pickers/WeekDays.tsx): routines, a channel's attention hours. */
+.weekdays {
   display: flex;
   gap: 4px;
   margin: 0;
   padding: 0;
   border: 0;
 }
-.sched__day {
+.weekdays__day {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -454,12 +455,12 @@
   cursor: pointer;
   user-select: none;
 }
-.sched__day input {
+.weekdays__day input {
   position: absolute;
   opacity: 0;
   pointer-events: none;
 }
-.sched__day.is-on {
+.weekdays__day.is-on {
   border-color: var(--apx-fg);
   background: var(--apx-fg);
   color: var(--apx-bg);
