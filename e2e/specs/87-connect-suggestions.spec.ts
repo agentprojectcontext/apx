@@ -21,6 +21,11 @@ test("an app that is not connected is offered, and its form opens from the chat"
   await expect(form).toBeVisible();
   await form.getByRole("button", { name: "Cancelar" }).click();
   await expect(form).toHaveCount(0);
+
+  // The rest of the catalog, one line under the offers: it opens the catalog right there.
+  await card.getByRole("button", { name: /Explorar \d+ conectores más/ }).click();
+  const catalog = page.getByRole("dialog", { name: "Conectar una integración" });
+  await expect(catalog).toContainText("GitHub");
 });
 
 test("a channel that is not set up is offered, and opens its setup in Settings", async ({ page }) => {

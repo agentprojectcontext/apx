@@ -125,4 +125,5 @@ export const enChat = {
   "connect.title": "Suggested connections",
   "connect.connected": "Connected",
   "connect.done": "I connected {name}.",
+  "connect.more": "Explore {count} more connectors",
 };

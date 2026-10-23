@@ -377,7 +377,7 @@ function BrowserSignIn({ id }: { id: string }) {
 }
 
 /** The catalog: what can be connected, and what is still coming; a long one is searched. */
-function ConnectDialog({
+export function ConnectDialog({
   list,
   onClose,
   onConnected,

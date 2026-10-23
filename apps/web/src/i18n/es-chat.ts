@@ -127,4 +127,5 @@ export const esChat: Partial<Record<MessageKey, string>> = {
   "connect.title": "Conexiones sugeridas",
   "connect.connected": "Conectado",
   "connect.done": "Conecté {name}.",
+  "connect.more": "Explorar {count} conectores más",
 };
