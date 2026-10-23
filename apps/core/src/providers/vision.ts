@@ -11,7 +11,7 @@ const READS_IMAGES: readonly RegExp[] = [
   /claude/,
   /gemini/,
   /gemma-?3/,
-  /gpt-4o|gpt-4\.1|gpt-4-turbo|gpt-5/,
+  /gpt-4o|gpt-4\.1|gpt-4-turbo|gpt-[5-9]/,
   /(^|[^a-z0-9])o[134](-|$)/,
   /llama-?4/,
   /llava|pixtral|moondream|minicpm-v|internvl|qvq/,

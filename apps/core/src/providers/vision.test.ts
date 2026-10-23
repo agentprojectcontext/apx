@@ -8,6 +8,7 @@ test("models known to read images, known not to, and unknown ones", () => {
     "gemini/gemini-2.5-flash",
     "openai/gpt-4o-mini",
     "openai/gpt-5",
+    "chatgpt/gpt-6-luna",
     "openai/o3",
     "openai/o4-mini",
     "ollama/llava:13b",
