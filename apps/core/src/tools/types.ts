@@ -125,6 +125,8 @@ export type Tool = {
   outside?: ((args: Record<string, unknown>, ctx: CheckContext) => string[]) | undefined;
   /** What the call would change in a file, shown to the owner when they are asked to confirm it. */
   preview?: ((args: Record<string, unknown>, ctx: CheckContext) => Promise<FileChange | undefined>) | undefined;
+  /** What the owner reads about the call when asked to confirm it, in place of arguments that say nothing (an id). */
+  explain?: ((args: Record<string, unknown>) => string | undefined) | undefined;
   /** Checks the model's arguments; a failure goes back to the model as the tool's result. */
   parse(raw: Record<string, unknown>): { ok: true; args: Record<string, unknown> } | { ok: false; error: string };
   /** Short human title for the tool card ("Opened github.com"). Gets the raw arguments. */
@@ -152,6 +154,7 @@ export function defineTool<S extends Args>(def: {
   check?: (args: z.output<S>, ctx: CheckContext) => void | Promise<void>;
   outside?: (args: z.output<S>, ctx: CheckContext) => string[];
   preview?: (args: z.output<S>, ctx: CheckContext) => Promise<FileChange | undefined>;
+  explain?: (args: z.output<S>) => string | undefined;
   title(args: Partial<z.input<S>>): string;
   run(args: z.output<S>, ctx: ToolContext): Promise<string>;
 }): Tool {
@@ -176,6 +179,7 @@ export function defineTool<S extends Args>(def: {
     ...(def.preview
       ? { preview: async (a: Record<string, unknown>, ctx: CheckContext) => def.preview?.(a as z.output<S>, ctx) }
       : {}),
+    ...(def.explain ? { explain: (a: Record<string, unknown>) => def.explain?.(a as z.output<S>) } : {}),
     ...(def.local ? { local: (a: Record<string, unknown>) => def.local?.(a as z.output<S>) === true } : {}),
     ...(def.reads ? { reads: (a: Record<string, unknown>) => def.reads?.(a as z.output<S>) === true } : {}),
     ...(def.scratch ? { scratch: (a: Record<string, unknown>) => def.scratch?.(a as z.output<S>) === true } : {}),
