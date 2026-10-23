@@ -10,9 +10,9 @@ import { openContactChat, type PresenceState, recoverFiles, sendDirect } from ".
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { RELATION_KEY } from "./ChannelScreen.tsx";
 import { addressText, ContactFace } from "./ContactRow.tsx";
 import { DeliveryTicks, ReactionList } from "./MessageMarks.tsx";
+import { RELATION_KEY } from "./people.ts";
 import { isSignal } from "./signal.ts";
 
 /** What a file that never arrived left in its message (the core asks for it again: channels.recover). */

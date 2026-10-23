@@ -1,6 +1,6 @@
 import { Button, EmptyState, Icons, Skeleton } from "@apx/ui";
 import { lazy, Suspense, useEffect } from "react";
-import { ContactChat, useContactChat } from "../channels/ContactChat.tsx";
+import { useContactChat } from "../channels/useContactChat.ts";
 import { usePageVisible } from "../common/useInView.ts";
 import { loadThread, markRead } from "../data/actions.ts";
 import { threadAgent } from "../data/identity.ts";
@@ -16,6 +16,8 @@ import { Transcript } from "./Transcript.tsx";
 // Computer use shows only in the desktop app: the browser never loads it.
 const ScreenLive = lazy(() => import("./ScreenLive.tsx").then((m) => ({ default: m.ScreenLive })));
 const COMPUTER = Boolean(window.apxDesktop?.onComputerActivity);
+// A contact's chat brings the channel's conversation and card: loaded when one is opened, not on the first screen.
+const ContactChat = lazy(() => import("../channels/ContactChat.tsx").then((m) => ({ default: m.ContactChat })));
 
 export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean; compact?: boolean }) {
   const t = useT();
@@ -93,7 +95,12 @@ export function ChatView({ wideHeader, compact = false }: { wideHeader: boolean;
   }
   // A contact's chat reads as it does in its channel, wherever it is opened.
   if (contact === undefined) return <ChatSkeleton />;
-  if (contact) return <ContactChat thread={thread} />;
+  if (contact)
+    return (
+      <Suspense fallback={<ChatSkeleton />}>
+        <ContactChat thread={thread} />
+      </Suspense>
+    );
   const agent = threadAgent(thread, agents);
   // An archived or deleted agent's old chat still shows who it was.
   const shown = agent ?? threadAgent(thread, former);

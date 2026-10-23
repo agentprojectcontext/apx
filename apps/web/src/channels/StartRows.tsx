@@ -6,9 +6,9 @@ import { useFlash } from "../common/useFlash.ts";
 import { respondPairing, useChannels } from "../data/channels.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { go } from "../shell/nav.ts";
-import { initials } from "./ChannelScreen.tsx";
 import { PersonAvatar } from "./PersonAvatar.tsx";
 import { PhoneForm, phoneOf } from "./PhoneForm.tsx";
+import { initials } from "./people.ts";
 
 /**
  * Someone who wrote and waits to be let in, first in the list with what they said. "It's me" asks for the code the

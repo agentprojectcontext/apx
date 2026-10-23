@@ -5,7 +5,7 @@ import { useState } from "react";
 import { claimAddress, saveContact } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
 import { useT } from "../i18n/index.ts";
-import { RELATION_KEY } from "./ChannelScreen.tsx";
+import { RELATION_KEY } from "./people.ts";
 
 /**
  * A contact's card beside their chat: name and nickname, how they relate to the owner, who they are and the rules for
