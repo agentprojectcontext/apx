@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { ComputerResources } from "./resources.ts";
 
 /** The VM's own numbers for a resource monitor: what it was given, what its guest uses, what its disk holds. */
@@ -11,6 +13,18 @@ export type ComputerUsage = {
 };
 
 const MIB = 1024 ** 2;
+
+/**
+ * Bytes the guest disk holds in an instance folder: allocated blocks, since it is sparse and grows up to its size.
+ * Lima 2 names it `disk`; older instances, `diffdisk`. 0 before it exists.
+ */
+export function diskImageBytes(instanceDir: string): number {
+  for (const name of ["disk", "diffdisk"])
+    try {
+      return fs.statSync(path.join(instanceDir, name)).blocks * 512;
+    } catch {}
+  return 0;
+}
 
 /** Used memory as the guest counts it (total minus available); undefined when its meminfo cannot be read. */
 export function usedFromMeminfo(text: string): number | undefined {

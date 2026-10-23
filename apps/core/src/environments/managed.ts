@@ -19,7 +19,7 @@ import {
   resolveResources,
   thisHost,
 } from "./resources.ts";
-import { computerUsage } from "./usage.ts";
+import { computerUsage, diskImageBytes } from "./usage.ts";
 import { workerArgs } from "./worker.ts";
 
 const GIB = 1024 ** 3;
@@ -48,14 +48,7 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
       return {};
     }
   };
-  /** Bytes the guest disk holds now: it is sparse, so a new one takes little and grows up to its size. */
-  const imageBytes = () => {
-    try {
-      return fs.statSync(path.join(limaHome, instance, "diffdisk")).blocks * 512;
-    } catch {
-      return 0;
-    }
-  };
+  const imageBytes = () => diskImageBytes(path.join(limaHome, instance));
   const running = async () => {
     if (!installed() || !fs.existsSync(binary())) return false;
     const result = await run(["list", "--json", instance]);

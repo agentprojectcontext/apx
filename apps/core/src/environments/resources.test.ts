@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { test } from "node:test";
 import {
   availableFromMeminfo,
@@ -11,7 +14,7 @@ import {
   resourceLimits,
   startRefusal,
 } from "./resources.ts";
-import { computerUsage, usedFromMeminfo } from "./usage.ts";
+import { computerUsage, diskImageBytes, usedFromMeminfo } from "./usage.ts";
 
 const GIB = 1024 ** 3;
 const host = (gib: number, cpus: number) => ({ memoryBytes: gib * GIB, cpus });
@@ -97,4 +100,22 @@ test("the VM's usage reads its guest memory when it runs, and leaves out what it
     },
   });
   assert.deepEqual(silent, { running: true, name: "computer", memory_assigned_mb: 4096 });
+});
+
+test("the guest disk's size is what it holds, read from Lima 2's `disk` or an older `diffdisk`", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vm-disk-"));
+  try {
+    assert.equal(diskImageBytes(dir), 0);
+    fs.writeFileSync(path.join(dir, "diffdisk"), Buffer.alloc(64 * 1024, 1));
+    assert.ok(diskImageBytes(dir) >= 64 * 1024, "an older instance's diffdisk");
+    // A sparse 1 GiB file holding 64 KiB: what it holds, not its size.
+    const disk = fs.openSync(path.join(dir, "disk"), "w");
+    fs.writeSync(disk, Buffer.alloc(64 * 1024, 1));
+    fs.ftruncateSync(disk, GIB);
+    fs.closeSync(disk);
+    const held = diskImageBytes(dir);
+    assert.ok(held >= 64 * 1024 && held < 64 * 1024 * 1024, `held ${held}`);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
