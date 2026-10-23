@@ -12,10 +12,10 @@ const CALLS: Record<string, object> = {
   "set my hours": {
     channel: "Acme bot",
     hours: { days: [1, 2, 3, 4, 5], from: "09:00", to: "18:00" },
-    contacts: ["Dad", "magui"],
+    contacts: ["Dad", "neighbor"],
     any_hour: true,
   },
-  "make magui wait": { contacts: ["Magui"], any_hour: false },
+  "make the neighbor wait": { contacts: ["Acme Neighbor"], any_hour: false },
   "answer at any hour": { channel: "tg", hours: null },
   "hours for nowhere": { channel: "Nowhere", hours: { days: [1], from: "09:00", to: "10:00" } },
 };
@@ -28,7 +28,7 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 let env: Awaited<ReturnType<typeof startCore>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 let dad = "";
-let magui = "";
+let neighbor = "";
 
 before(async () => {
   tg = await fakeTelegram(TOKEN);
@@ -39,7 +39,7 @@ before(async () => {
     token: TOKEN,
   });
   dad = (await env.client.call("contacts.set", { name: "Northwind Dad", nickname: "Dad", relation: "family" })).id;
-  magui = (await env.client.call("contacts.set", { name: "Magui" })).id;
+  neighbor = (await env.client.call("contacts.set", { name: "Acme Neighbor" })).id;
   await env.client.call("agents.create", { slug: "acme-writer", name: "Acme Writer", prompt: "Write." });
 });
 after(async () => {
@@ -88,7 +88,7 @@ test("reading the hours asks nobody", async () => {
 test("the owner approves hours and exceptions read in words, and the channel keeps its other settings", async () => {
   const { answer, detail } = await ask("set my hours", "roby", "approve");
   assert.match(detail ?? "", /Acme bot: answers contacts Mon–Fri 09:00–18:00/);
-  assert.match(detail ?? "", /Answered at any hour: Northwind Dad, Magui/);
+  assert.match(detail ?? "", /Answered at any hour: Northwind Dad, Acme Neighbor/);
   assert.match(answer, /Saved\./);
   const ch = await channel();
   assert.deepEqual(ch?.hours, { days: [1, 2, 3, 4, 5], from: "09:00", to: "18:00" });
@@ -96,17 +96,17 @@ test("the owner approves hours and exceptions read in words, and the channel kee
   assert.equal(ch?.research, "off");
   assert.equal(ch?.token_set, true);
   assert.equal((await person(dad))?.any_hour, true);
-  assert.equal((await person(magui))?.any_hour, true);
+  assert.equal((await person(neighbor))?.any_hour, true);
 });
 
 test("a declined change saves nothing", async () => {
-  await ask("make magui wait", "roby", "deny");
-  assert.equal((await person(magui))?.any_hour, true);
+  await ask("make the neighbor wait", "roby", "deny");
+  assert.equal((await person(neighbor))?.any_hour, true);
 });
 
 test("a contact stops passing the hours, and a channel goes back to any hour", async () => {
-  await ask("make magui wait", "roby", "approve");
-  assert.equal((await person(magui))?.any_hour, false);
+  await ask("make the neighbor wait", "roby", "approve");
+  assert.equal((await person(neighbor))?.any_hour, false);
   assert.equal((await person(dad))?.any_hour, true);
   await ask("answer at any hour", "roby", "approve");
   const ch = await channel();
