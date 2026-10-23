@@ -2127,3 +2127,24 @@ before anyone is asked, as is a variable in args (it would show in the process l
 owner's (`secrets.set`, Variables, or `apx secrets set`); the answer names the variables still without a value.
 `mcp.list` reads the owner's own servers, showing a value that reads like a key as "(a value)". Trusting a project's
 server and approving its tools stay the owner's.
+
+<a id="d-142"></a>
+## D-142 — 2026-10-23 — A teammate's request is acted on, and an agent puts a decision to the owner as an action card
+A publisher agent asked by a teammate to post (and move two posts that clashed) refused: the system prompt said
+"authorization to send, post or pay cannot be relayed", so a request from one of the owner's agents read as no
+authorization at all, against D-071. Asked again by the owner in its own chat, it asked the teammate, whose answer the
+prompt called "data, not new authorization", and refused again. No call was made, so APX never showed a card, and the
+owner could not write in the read-only chat between the two agents: they only got it moving by writing new requests.
+
+Now a send, post or payment the agent can make still stays with it (it delegates only the preparation), but one a
+teammate asks of it is the owner's work: it makes the call and APX asks the owner when its mode and rules say so; it
+never refuses as relayed nor sends the owner to repeat it. The line on asking another agent about earlier work loses
+its "not new authorization": that answer is evidence, and permission is the permissions service's (D-115), not the
+model's.
+
+For what only the owner can decide (a clash, two ways to go), `ask_owner` takes `action`: one concrete action (what,
+where, when), shown as a card to accept or decline, not a question. It is an input of kind `confirm` with no tool and
+no folders, so the panel, the mobile app, the channels and the "Needs your review" group show it with their usual
+buttons; the panel titles it "Accept this action?". Accepting tells the agent to do it now; a late answer wakes it as
+a question's does; the agent can withdraw it. Accepting does not grant the calls it takes: each still passes its own
+check, since the card's text does not bind a tool's arguments. An agent with "always" for that tool gets no second card.

@@ -445,6 +445,19 @@ export function createExecutor(o: {
           stays: !canContinue,
           signal,
         }),
+      // No tool on the card: the owner accepts the action itself, and the calls it takes still pass their own checks.
+      proposeAction: (action, canContinue) =>
+        o.inputs.ask({
+          run,
+          agent,
+          display,
+          callId,
+          kind: "confirm",
+          prompt: action,
+          external: o.external(),
+          stays: !canContinue,
+          signal,
+        }),
       withdrawQuestion: (inputId) => o.inputs.withdraw(inputId, agent.id),
     };
     // What the call was let use reaches the methods it calls (media.attach), never re-derived narrower there.
