@@ -58,6 +58,7 @@ import { readIdentity } from "./identity.ts";
 import { createIdleTrim } from "./idle-memory.ts";
 import { type IMessageOps, systemIMessage } from "./imessage.ts";
 import { createAsana } from "./integrations/asana.ts";
+import { gmailApi } from "./integrations/gmail.ts";
 import { createGoogle } from "./integrations/google.ts";
 import { apxGoogleClient, clientFromPair } from "./integrations/google-client.ts";
 import { GOOGLE, googleAt } from "./integrations/google-oauth.ts";
@@ -403,6 +404,12 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     mcpServers: mcp.serversFor,
     hasCap: (cap) => Boolean(broker.withCap(cap)) || (cap === BROWSER_CAP && Boolean(headless?.available())),
     desktopLinked: () => Boolean(broker.withCap(BROWSER_CAP)),
+    // Mail routines read the inbox only with the owner's own Google client: APX's can only send.
+    mail: {
+      readable: (project) => google.usable("gmail", project) && google.full("gmail"),
+      historyId: () => gmailApi(google).historyId(),
+      arrived: (from) => gmailApi(google).arrived(from),
+    },
     afterRun: (run) => {
       upkeep.afterRun(run);
       memoryMaintenance.afterRun(run);

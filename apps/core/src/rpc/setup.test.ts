@@ -363,7 +363,8 @@ test("importing the identity brings who the owner is, the super-agent's personal
   assert.equal(active.values.watch_every_h, 3);
   assert.equal(active.values.waiting_hours, 24);
   assert.equal(active.values.formality, "informal");
-  assert.equal(routines.filter((x) => x.enabled).length, 4);
+  assert.equal(routines.filter((x) => x.enabled).length, 5, "v1's four, and important mail");
+  assert.ok(routines.some((x) => x.origin === "secretary:mail" && x.action === "mail"));
   const notices = env.core.store.settings.read("notices");
   assert.deepEqual([notices.budget_per_day, notices.quiet_from, notices.quiet_to], [5, "22:00", "07:30"]);
   await env.client.call("profiles.set", { id: null, values: {} });

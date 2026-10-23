@@ -83,7 +83,7 @@ function RoutineCard({
   const agent = data.agents.find((item) => item.id === routine.agent_id);
   const project = data.projects.find((item) => item.id === routine.project_id)?.name ?? t("defaultProject");
   const status = routineStatus(routine, runs);
-  const usesAgent = routine.action === "agent" || routine.action === "watch";
+  const usesAgent = routine.action === "agent" || routine.action === "watch" || routine.action === "mail";
   return (
     <Pressable
       accessibilityRole="button"

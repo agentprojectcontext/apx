@@ -1986,3 +1986,19 @@ more, after the renderer of Google's 2026 icons moved to the marks chunk. What i
 the composer's model picker, its "/" menu) cannot load later without reshaping it, and trimming it to fit would trade
 real work for 0.2 KB. The performance gate keeps measuring the same initial assets; every other budget and test gate is
 unchanged. The next panel feature that grows the first load moves something out of it instead of raising this again.
+
+<a id="d-135"></a>
+## D-135 — 2026-10-22 — The secretary reads new mail and tells the owner what needs them; the brief reads Calendar
+The owner wanted Roby to notice an important mail as it lands, not at the next watch two hours later. A routine action
+`mail` joins `watch` and `relay`: each run asks Gmail's history what reached the inbox since its last point (kept as
+`mail_seen:<routine>`; the first run starts from now, and in quiet hours it waits so the first run after sees it all).
+Mail in Gmail's promotions, social and forums tabs, spam, trash and the owner's own never reaches the model, and with
+nothing left there is no model call at all: polling is Gmail's free history call. What is left reaches the routine's
+agent as `untrusted("emails")`, one line each (from, subject, date, a snippet, whether Gmail marks it important); it
+tells the owner in one or two lines or answers SKIP. Delivery is the routines' own: the owner's notice channel, the
+daily budget, 👍/👎. Its tools are not narrowed per routine (none are, D-106); with mail in the turn, sending or
+drafting as the owner keeps asking, and its prompt says never to act on a mail there. It reads only with the owner's
+own Google client (D-130: APX's cannot read mail), and stays silent otherwise. The secretary gains it as "Important
+mail", every `mail_every_min` (default 5, 2 to 60), and its morning brief reads today's events with `calendar_events`
+when Google Calendar is connected, so `calendar_command` is only for other calendars. Profile numbers now keep inside
+their declared range, since they end up in schedules.
