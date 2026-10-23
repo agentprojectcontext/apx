@@ -87,6 +87,7 @@ import { ownerTools } from "./tools/owner.ts";
 import { phoneTools } from "./tools/phone.ts";
 import { requestTools } from "./tools/requests.ts";
 import { routineTools } from "./tools/routines.ts";
+import { settingsTools } from "./tools/settings.ts";
 import { shellTools } from "./tools/shell.ts";
 import { skillTools } from "./tools/skills.ts";
 import { surfaceTools } from "./tools/surfaces.ts";
@@ -165,6 +166,7 @@ export function builtinTools(
     ...webTools(),
     ...contactTools(store),
     ...requestTools(store),
+    ...settingsTools(store),
     ...extra,
   ];
   // The owner may let an agent use one of them without asking again, as with an MCP tool (DECISIONS.md#d-062).

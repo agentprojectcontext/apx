@@ -2041,3 +2041,23 @@ without stickers). Matching is by words of the meaning, at least half of them; b
 told, since the wrong sticker says something the agent did not mean. A channel turn lists the platform's twelve most
 used meanings under `[stickers]`, so the agent picks among stickers that exist. Discord's stickers are not read nor sent
 yet: a bot can only send its own servers' stickers.
+
+<a id="d-138"></a>
+## D-138 — 2026-10-23 — The super-agent changes the owner's settings through one tool, and every owner method is placed
+The owner wants to ask the super-agent for anything they can change in the panel ("add rules to this contact and say
+who she is") without other agents getting the same reach. Two ways were open. The `apx` CLI from the agent's shell
+announces itself as the agent, so the router refuses owner-only methods there; letting it through would make a shell
+command, read as a command line, the only card the owner approves, and a command an agent may run freely would act as
+the owner. One tool per setting would grow every super-agent call with the panel (rules/PROMPT_SIZE.md).
+
+So `apx_settings` is one tool, offered only to the super-agent (`SUPER_AGENT_TOOLS`): with no args it lists what it
+reads and changes, with a method alone it gives that method's fields (from the protocol's own schema), and with params
+it runs the owner's method through the router as the owner, after the owner approves a card that names the record and
+shows each field before and after (`explain`). The arguments are checked against the method before anyone is asked.
+Reads come from the store, with nothing secret in them.
+
+`tools/settings-reach.ts` places every owner-only method that changes something: in `apx_settings`, in a tool of its
+own (`agent_set`, `routine_set`…), kept the owner's with its reason (keys and sign-ins, what agents may do and their
+models per D-060, the machine, the panel's own views, the owner's own answer or send), or `NOT_YET`, the list still to
+place. `settings.test.ts` fails on a new owner method nobody placed, so the super-agent's reach is decided with each
+new setting instead of found missing by the owner. Contacts are the first area in it.
