@@ -221,7 +221,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
       if (thread() === id && (now.phase === "running" || now.phase === "preparing")) return { ok: true as const };
       if (now.phase === "stopping") throw conflict("Computer is shutting down; start it again once it is off");
       const refusal = startRefusal(resources(), await freeMemory());
-      if (refusal) throw unavailable(refusal);
+      if (refusal) throw conflict(refusal);
       vm.bind(id, run, now.phase);
       store.settings.set("vm_appearance", appearance);
       touch();

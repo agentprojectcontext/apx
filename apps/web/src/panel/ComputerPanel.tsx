@@ -74,6 +74,12 @@ export function ComputerPanel() {
           </button>
         </div>
       )}
+      {/* Above the desktop or the setup: below the settings a narrow panel hides it. */}
+      {(error || controlError || status?.error) && (
+        <div className="computer__error" role="alert">
+          {error || controlError || status?.error}
+        </div>
+      )}
       <div className="computer__desktop" hidden={!ready || terminalMaximized}>
         <section className="computer__screen" ref={screen} aria-label={t("computer.screen")} />
         {!manual && <div className="computer__locked" role="img" aria-label={t("computer.takeControlHint")} />}
@@ -141,11 +147,6 @@ export function ComputerPanel() {
             />
           )}
           <small>{t("computer.closeHint")}</small>
-        </div>
-      )}
-      {(error || controlError || status?.error) && (
-        <div className="computer__error" role="alert">
-          {error || controlError || status?.error}
         </div>
       )}
       {ready && thread && (
