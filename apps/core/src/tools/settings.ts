@@ -124,6 +124,7 @@ export function settingsTools(
       effect: "local",
       // What the owner set up is theirs: every change waits for their yes.
       confirm: (a) => (changes(a) && !unchanged(a) ? "always" : "never"),
+      ownerSetting: (a) => changes(a) && !unchanged(a),
       // Long enough for a reindex or a repo's skills; a read answers at once.
       deadlineMs: 120_000,
       title: (a) => {

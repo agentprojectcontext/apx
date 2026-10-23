@@ -156,6 +156,7 @@ export function directoryTools(store: Store): Tool[] {
       effect: "local",
       // Who reaches the owner, and when, is theirs to decide: each change waits for their yes.
       confirm: (a) => (changes(a) ? "always" : "never"),
+      ownerSetting: changes,
       deadlineMs: 15_000,
       explain,
       title: (a) =>

@@ -2079,3 +2079,17 @@ memory's model. Kept the owner's as a whole: adding an MCP server (its command r
 the fan-out question (how far agents act), installing a profile, an extension, a local model (the machine), and the
 panel's own acts (recovering a chat's lost files, importing a widget file, resuming a coding session). Reads stay
 from the store with nothing secret: channels without tokens, services without keys.
+
+<a id="d-140"></a>
+## D-140 — 2026-10-23 — The owner's settings change on their card, at their word alone
+With D-138 the super-agent can change nearly everything the owner sets up. The owner asked that each such change
+always show its card (do it or not), and that no other agent can get the super-agent to make one. Before, `always`
+skipped the card on Total (D-047) or under the agent's own rule for that risk, and a message another agent posted in the
+super-agent's chat (origin `agent`) reached a turn that had the tools.
+
+A tool marks such calls with `ownerSetting` (`agent_set`, `attention_hours`, `apx_settings`, the tools only the
+super-agent has; `owner-setting.test.ts` fails on one without it). `authorize` turns an allow into a card for them in
+every mode and under every rule; plan mode still refuses them. The executor refuses them, before anyone is asked,
+unless the run's origin is the owner's own: their message in the app or on a channel as the owner, or their answer to a
+question the agent asked (`ownerAsked`). Another agent, a contact, a routine, a job or a task result gets "only when the
+owner asks you themselves". A delegated run already loses these tools (`inherit` keeps what every caller may use).

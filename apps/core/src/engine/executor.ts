@@ -7,7 +7,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { strictApproval } from "../domain/approvals.ts";
 import type { InputRecord } from "../domain/inputs.ts";
 import type { JobRecord } from "../domain/jobs.ts";
-import type { RunRecord } from "../domain/runs.ts";
+import { ownerAsked, type RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
@@ -281,6 +281,14 @@ export function createExecutor(o: {
       return {
         ok: false,
         text: `not run: ${decision.reason}. Do not retry it; tell the owner or continue without it.`,
+      };
+    }
+    // What the owner set up changes at their own word: not at another agent's, a contact's or a job's (DECISIONS.md#d-140).
+    if (tool.ownerSetting?.(args) && !ownerAsked(run.input?.origin)) {
+      card("error", "only when the owner asks");
+      return {
+        ok: false,
+        text: "not run, nothing was asked of the owner: changes to what the owner set up happen only when they ask you themselves. Tell whoever asked that the owner has to ask for it.",
       };
     }
     // A path outside the agent's folders asks the owner to let it, instead of being refused (DECISIONS.md#d-099).
