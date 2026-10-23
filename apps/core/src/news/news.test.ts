@@ -16,11 +16,13 @@ import { createNews } from "./news.ts";
 
 const quiet: Log = { info: () => {}, warn: () => {}, error: () => {} };
 
-function setup(o: { entries?: readonly NewsEntry[]; models?: string[]; fail?: boolean } = {}) {
+function setup(o: { entries?: readonly NewsEntry[]; models?: string[]; fail?: boolean; noGoogle?: boolean } = {}) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "apx-news-"));
   const db = openDb(home);
   const store = createStore(db, createBus());
   seed(store, "Roby");
+  // Calendar connected: the tests below are about widget news; Google's have one of their own.
+  if (!o.noGoogle) store.settings.set("google_account:google-calendar", "owner@example.com");
   const llm = scriptedLlm(() => {
     if (o.fail) throw new Error("provider down");
     return say("¡Hola! Tus widgets ahora recuerdan su última lectura.");
@@ -216,4 +218,27 @@ test("a channel button carries the entry and action, and fits Telegram's 64 byte
       assert.equal(newsAction(e.id, i)?.prompt, a.prompt);
     });
   assert.equal(newsAction("artifacts-kit", 9), undefined);
+});
+
+test("Google news reach an owner without Calendar; mail alerts only a secretary owner who can read Gmail", () => {
+  const { store, news, done } = setup({ noGoogle: true });
+  try {
+    const applies = (id: string) => news.list().find((n) => n.id === id)?.applies;
+    assert.equal(applies("google"), true, "nothing connected yet");
+    assert.equal(applies("mail-alerts"), false);
+
+    store.settings.set("google_account:google-calendar", "owner@example.com");
+    assert.equal(applies("google"), false, "Calendar already connected: nothing to tell");
+
+    store.settings.set("google_account:gmail", "owner@example.com");
+    store.settings.set("google_client:gmail", "apx");
+    store.settings.write("profile", { id: "secretary", values: {} });
+    assert.equal(applies("mail-alerts"), false, "APX's sign-in only sends mail");
+    store.settings.set("google_client:gmail", "own");
+    assert.equal(applies("mail-alerts"), true);
+    store.settings.write("profile", { id: null, values: {} });
+    assert.equal(applies("mail-alerts"), false, "without the secretary nobody reads mail");
+  } finally {
+    done();
+  }
 });
