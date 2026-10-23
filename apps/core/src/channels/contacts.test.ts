@@ -151,6 +151,10 @@ test("an agent that answers SKIP sends nothing", async () => {
   await new Promise((r) => setTimeout(r, 300));
   assert.equal(tg.messagesTo(MAG.id).length, sent, "nothing went back");
   assert.match(String(llm.calls.at(-1)?.messages.at(-1)?.content), /answer only SKIP/);
+  // The chat's preview goes back to their words, never the signal.
+  const shown = async () => (await env.client.call("threads.get", { thread })).thread.preview;
+  await until(async () => (await shown()) !== "SKIP", "preview restored");
+  assert.equal(await shown(), "nothing to add from my side, see you around");
 });
 
 test("a reaction to the agent's message shows on it, and never wakes the agent", async () => {
@@ -222,6 +226,18 @@ test("asked to react, the agent puts its emoji on their last message instead of 
   const theirs = messages.findLast((m) => m.author.kind === "person");
   assert.deepEqual(theirs?.reactions, [{ emoji: "❤️", by: "agent" }]);
   assert.ok(!messages.at(-1)?.parts.some((p) => p.type === "text"), "the REACT words leave the chat");
+  assert.equal((await env.client.call("threads.get", { thread })).thread.preview, "Reaccionó con ❤️");
+});
+
+test("asked to react in the app's own chat, the emoji goes on the owner's message there and no platform gets it", async () => {
+  const reactions = tg.reactionsTo(MAG.id).length;
+  const { message } = await env.client.call("threads.send", { thread: "home", text: "react with a heart, no words" });
+  await env.settle("home");
+  const home = await env.client.call("threads.get", { thread: "home" });
+  assert.deepEqual(home.messages.find((m) => m.id === message.id)?.reactions, [{ emoji: "❤️", by: "agent" }]);
+  assert.ok(!home.messages.at(-1)?.parts.some((p) => p.type === "text"), "the REACT words leave the chat");
+  assert.equal(home.thread.preview, "Reaccionó con ❤️");
+  assert.equal(tg.reactionsTo(MAG.id).length, reactions, "the contact's chat got nothing");
 });
 
 test("Telegram only takes its own reactions: any other emoji becomes the closest allowed one", () => {

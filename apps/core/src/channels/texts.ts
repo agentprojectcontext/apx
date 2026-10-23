@@ -35,6 +35,7 @@ const es = {
     `No pude reaccionar con ${emoji} en ${where}: no hay un mensaje suyo al que reaccionar o el canal no tiene reacciones. No se envió nada.`,
   reactRefused: (emoji: string, where: string, why: string) =>
     `No pude reaccionar con ${emoji} en ${where}: la plataforma rechazó la reacción (${why}). No se envió nada.`,
+  reacted: (emoji: string) => `Reaccionó con ${emoji}`,
   tooMany: (name: string) => `${name} escribe mucho seguido: pausé sus respuestas automáticas por una hora.`,
   roomCap: (room: string) =>
     `Llegué al tope de respuestas por hora en ${room}: sigo leyendo, contesto cuando se libere.`,
@@ -116,6 +117,7 @@ const en: typeof es = {
     `I couldn't react with ${emoji} in ${where}: there is no message of theirs to react to, or the channel has no reactions. Nothing was sent.`,
   reactRefused: (emoji, where, why) =>
     `I couldn't react with ${emoji} in ${where}: the platform refused the reaction (${why}). Nothing was sent.`,
+  reacted: (emoji) => `Reacted with ${emoji}`,
   tooMany: (name) => `${name} is writing a lot in a row: I paused their automatic answers for an hour.`,
   roomCap: (room) => `I hit the hourly cap of answers in ${room}: I keep reading and answer once it frees up.`,
   roomFailed: (room, why) => `I couldn't answer in ${room}: ${why}`,

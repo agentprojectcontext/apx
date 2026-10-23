@@ -14,7 +14,6 @@ import { OWNER_ID } from "../domain/persons.ts";
 import type { RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { audienceOf } from "../engine/audience.ts";
-import { isSkip } from "../engine/routines.ts";
 import type { Draft } from "../engine/suggest.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
@@ -22,7 +21,6 @@ import type { InternalCall } from "../rpc/internal.ts";
 import type { Secrets } from "../secrets.ts";
 import { splitSpoken } from "../services/audio.ts";
 import type { Services } from "../services/registry.ts";
-import { reactAnswer } from "./closers.ts";
 import { createDelivery } from "./delivery.ts";
 import { guardReply } from "./guard.ts";
 import { createHeld } from "./held.ts";
@@ -33,6 +31,7 @@ import { createOutgoing } from "./outgoing.ts";
 import { createPoster } from "./post.ts";
 import { createRecovery } from "./recover.ts";
 import { createRooms, quietMentions, roomMentions } from "./rooms.ts";
+import { createSignals } from "./signals.ts";
 import { createSuggestions } from "./suggestions.ts";
 import { channelTexts } from "./texts.ts";
 import {
@@ -211,6 +210,7 @@ export function createChannels(deps: {
       return l?.status === "running" ? l.adapter : undefined;
     },
   });
+  const signals = createSignals({ store, log, live: (id) => live.get(id), attention: deps.attention });
   const inbound = createInbound({
     store,
     home: deps.home,
@@ -224,7 +224,7 @@ export function createChannels(deps: {
     ownAccount: (id) => Boolean(live.get(id)?.adapter.caps.ownAccount),
     rooms,
     suggestions,
-    react: reactOn,
+    react: signals.reactOn,
     answeredHere: cards.answeredHere,
     held,
     now: clock,
@@ -247,61 +247,6 @@ export function createChannels(deps: {
       return l ? { adapter: l.adapter, label: l.config.label, running: l.status === "running" } : undefined;
     },
   });
-
-  /** Puts the agent's emoji on a platform message; false when the channel has no reactions or is not running. */
-  async function reactOn(id: string, conversation: string, ref: string, emoji: string): Promise<boolean> {
-    const l = live.get(id);
-    if (l?.status !== "running" || !l.adapter.caps.reactions || !l.adapter.react) return false;
-    await l.adapter.react(conversation, ref, emoji);
-    return true;
-  }
-
-  /**
-   * The agent answered with a reaction ("REACT ❤️") to the other side's last message here: put on it, shown on that
-   * message, and the words taken out of the chat (the model log keeps them). False when it could not be done.
-   */
-  async function reactInstead(run: RunRecord, to: { channel: string; conversation: string }, emoji: string) {
-    const last = theirLast(run.thread_id, to);
-    let refused: string | undefined;
-    const ok =
-      last &&
-      (await reactOn(to.channel, to.conversation, last.ref, emoji).catch((err: unknown) => {
-        refused = errorMessage(err, 200);
-        log.warn({ run: run.id, err: refused }, "channel reaction not sent");
-        return false;
-      }));
-    hideWords(run.message_id);
-    if (ok) {
-      if (last.message_id) store.messages.setReaction(last.message_id, "agent", emoji);
-      return;
-    }
-    // Words instead would be a stray emoji in their chat: nothing goes, and the owner hears why.
-    const where = store.threads.get(run.thread_id)?.title ?? to.channel;
-    const texts = channelTexts(store);
-    const text = refused ? texts.reactRefused(emoji, where, refused) : texts.reactFailed(emoji, where);
-    deps.attention({ kind: "channel", level: "warn", title: where, body: text, thread_id: run.thread_id });
-  }
-
-  /**
-   * The other side's last message in a chat: as kept when it arrived, else the last one stored for that
-   * conversation (messages from before that was kept; shown on the contact's last message here).
-   */
-  function theirLast(threadId: string, to: { channel: string; conversation: string }) {
-    const kept = store.threads.context(threadId).their_last;
-    if (kept?.channel === to.channel && kept.conversation === to.conversation) return kept;
-    const m = store.channels.inbox.latest(to.channel, to.conversation);
-    // A WhatsApp message's own id is its external_id; other channels' older rows did not keep one.
-    const ref = m?.ref ?? (live.get(to.channel)?.config.type === "whatsapp" ? m?.external_id : undefined);
-    if (!ref) return undefined;
-    const theirs = store.messages.list(threadId).findLast((x) => x.author.kind === "person");
-    return { ref, message_id: theirs?.id };
-  }
-
-  /** An answer that was only a signal (SKIP, REACT): its words leave the chat; the model log keeps them. */
-  function hideWords(messageId: string | undefined): void {
-    const msg = messageId ? store.messages.get(messageId) : undefined;
-    if (msg) store.messages.update({ ...msg, parts: msg.parts.filter((p) => p.type !== "text") });
-  }
 
   /** A confirmation nobody answered in the app after a while also goes to the owner's channel. */
   function followUp(part: Extract<Part, { type: "input" }>, threadId: string): void {
@@ -349,8 +294,6 @@ export function createChannels(deps: {
     const ack = acked.get(run.id);
     acked.delete(run.id);
     const to = replyTo(run.id);
-    // A stopped turn's half-written answer is not news: the owner stopped it.
-    if (!to || run.trigger === "surface" || run.state === "canceled") return;
     const msg = run.message_id ? store.messages.get(run.message_id) : undefined;
     let out = (msg?.parts ?? [])
       .map((p) => (p.type === "text" ? p.text : ""))
@@ -358,6 +301,9 @@ export function createChannels(deps: {
       .trim();
     // The "on it" line already went out on its own (an engine may keep it in front of the answer, or replace it).
     if (ack && out.startsWith(ack)) out = out.slice(ack.length).trim();
+    if (run.trigger !== "surface" && (await signals.handle(run, out, to))) return;
+    // A stopped turn's half-written answer is not news: the owner stopped it.
+    if (!to || run.trigger === "surface" || run.state === "canceled") return;
     const thread = store.threads.get(run.thread_id);
     const audience = thread ? audienceOf(store, thread) : undefined;
     const why = (run.error ?? "").replace(/^Could not finish: /, "").slice(0, 200);
@@ -384,15 +330,6 @@ export function createChannels(deps: {
       if (p.type === "file") return [{ id: p.media_id, kind: "file", mime: p.mime, name: p.name }];
       return [];
     });
-    if (run.state === "completed" && isSkip(out)) {
-      hideWords(run.message_id);
-      return;
-    }
-    const emoji = run.state === "completed" ? reactAnswer(out) : undefined;
-    if (emoji) {
-      await reactInstead(run, to, emoji);
-      return;
-    }
     if (!out && !attached.length) return;
     if (audience?.kind === "contact") out = guardReply(out);
     let mentions: Pick<Presentation, "mentions"> = {};
