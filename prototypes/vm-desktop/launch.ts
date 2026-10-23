@@ -73,7 +73,7 @@ await client.call("agents.update", {
   name: "Nova · VM Lab",
   role: "Computadora Linux de prueba",
   tools: real
-    ? ["shell", "browser_open", "browser_navigate", "browser_snapshot", "browser_text", "browser_click", "browser_type"]
+    ? ["shell", "browser_open", "browser_snapshot", "browser_text", "browser_click", "browser_type"]
     : ["shell"],
   browser_profile: "shared",
   autonomy: "total",

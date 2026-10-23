@@ -71,7 +71,6 @@ test("native VM turns expose guest shell and browser tools and never fall back t
       [
         "shell",
         "browser_open",
-        "browser_navigate",
         "browser_snapshot",
         "browser_text",
         "browser_click",

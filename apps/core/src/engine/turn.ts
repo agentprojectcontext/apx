@@ -569,7 +569,6 @@ function channelKindOf(store: Store, o: Origin, replyChannel?: string | null) {
 
 const VM_BROWSER_TOOLS = new Set([
   "browser_open",
-  "browser_navigate",
   "browser_snapshot",
   "browser_text",
   "browser_click",
