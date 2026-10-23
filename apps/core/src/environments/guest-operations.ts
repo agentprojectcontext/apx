@@ -3,9 +3,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { Store } from "../domain/store.ts";
 import { conflict, unauthorized } from "../errors.ts";
 import { createHeadlessBrowser } from "../nodes/headless-browser.ts";
+import type { ComputerConfig } from "./computer.ts";
 import type { ComputerControl } from "./control.ts";
 import { guestExecutor, stopGuestProcesses } from "./guest-exec.ts";
-import type { VmPrototypeConfig } from "./prototype.ts";
 import { workerArgs } from "./worker.ts";
 
 type Command = { code: number; output: string };
@@ -13,10 +13,11 @@ type Ticket = { expires: number; thread: string; device?: string };
 
 export function guestOperations(
   store: Store,
-  config: VmPrototypeConfig,
+  config: ComputerConfig,
   check: (id: string) => void,
   requireRunning: (id: string) => Promise<void>,
   control: ComputerControl,
+  touch: () => void = () => {},
 ) {
   const env = config.env ?? { PATH: process.env.PATH, HOME: process.env.HOME, LIMA_HOME: config.limaHome };
   const binary = config.executable ?? (() => "limactl");
@@ -28,6 +29,7 @@ export function guestOperations(
   const { exec, close: closeCommands } = guestExecutor(binary, env);
   let busy = false;
   let active: string | undefined;
+  let viewed = 0;
   const browser = createHeadlessBrowser({
     dir: "",
     blockedPorts: () => new Set(),
@@ -57,6 +59,9 @@ export function guestOperations(
   };
   return {
     busy: () => busy,
+    /** An open viewer counts as use until it closes: someone is looking at the desktop. */
+    lastViewed: () => (streams.size ? Date.now() : viewed),
+    watching: () => streams.size > 0,
     exec,
     disconnect,
     browser: {
@@ -100,7 +105,10 @@ export function guestOperations(
           stdio: ["pipe", "pipe", "ignore"],
         });
         streams.set(child, entry.device);
-        child.once("close", () => streams.delete(child));
+        child.once("close", () => {
+          streams.delete(child);
+          viewed = Date.now();
+        });
         return child;
       };
     },
@@ -110,6 +118,7 @@ export function guestOperations(
       control.assert(actor, version);
       if (busy) throw conflict("another command is running in this VM");
       busy = true;
+      touch();
       const operation = randomUUID();
       active = operation;
       const record = (state: string) =>
@@ -139,6 +148,7 @@ export function guestOperations(
       } finally {
         busy = false;
         active = undefined;
+        touch();
       }
     },
   };

@@ -184,7 +184,7 @@ export type Admit = {
 export type AdmitFn = (a: Admit) => RunRecord;
 
 export function createEngine(deps: {
-  vm?: import("../environments/prototype.ts").VmPrototype | undefined;
+  vm?: import("../environments/computer.ts").Computer | undefined;
   store: Store;
   harnesses: Harnesses;
   tools: Tool[];

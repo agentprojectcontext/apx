@@ -45,6 +45,9 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "tools.revoke": POWER,
   "mcp.trust": POWER,
   "mcp.approveTool": POWER,
+  "environments.permit": POWER,
+  "environments.enable": POWER,
+  "environments.bind": POWER,
   "telemetry.set": POWER,
   "desktop.set": MACHINE,
   "desktop.install": MACHINE,
@@ -52,6 +55,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "devices.pair_start": MACHINE,
   "devices.pair_cancel": MACHINE,
   "devices.revoke": MACHINE,
+  "environments.configure": MACHINE,
   "browser.control": MACHINE,
   "system.update": MACHINE,
   "system.import_v1": MACHINE,
@@ -88,6 +92,8 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "mcp.call": PANEL,
   "mcp.describe": PANEL,
   "mcp.tools": PANEL,
+  "environments.appearance": PANEL,
+  "environments.display": PANEL,
   "runs.respond": AS_OWNER,
   "channels.send": AS_OWNER,
   "contacts.suggestions.send": AS_OWNER,
@@ -96,6 +102,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "notices.feedback": AS_OWNER,
   "telemetry.seen": AS_OWNER,
   "system.news_tell": AS_OWNER,
+  "environments.control": AS_OWNER,
 };
 
 /** Not decided yet: what the owner changes in the panel and the super-agent cannot, the next ones to place. */

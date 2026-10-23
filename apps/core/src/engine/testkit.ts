@@ -8,7 +8,7 @@ import { ApxClient } from "@apx/protocol/client";
 import type { AdapterFactory } from "../channels/types.ts";
 import { type ProviderConfig, testConfig } from "../config.ts";
 import type { DesktopOps } from "../desktop.ts";
-import type { VmPrototypeConfig } from "../environments/prototype.ts";
+import type { ComputerConfig } from "../environments/computer.ts";
 import type { Harness } from "../harness/index.ts";
 import type { IMessageOps } from "../imessage.ts";
 import type { Llm, LlmRequest } from "../providers/llm.ts";
@@ -59,7 +59,7 @@ export const callTool = (id: string, name: string, args: object): { message: Ass
 });
 
 export async function startCore(opts: {
-  vmPrototype?: VmPrototypeConfig;
+  computer?: ComputerConfig;
   llm: Llm;
   home?: string;
   /** Known port for browser fixtures whose origin must be allowed before the core starts. */
@@ -115,7 +115,16 @@ export async function startCore(opts: {
     }),
     {
       quiet: true,
-      ...(opts.vmPrototype ? { vmPrototype: opts.vmPrototype } : {}),
+      // A fixed host, so limits and the free-memory check do not depend on the machine running the tests.
+      ...(opts.computer
+        ? {
+            computer: {
+              host: { memoryBytes: 16 * 1024 ** 3, cpus: 8 },
+              freeMemory: async () => 12 * 1024 ** 3,
+              ...opts.computer,
+            },
+          }
+        : {}),
       ...(opts.asanaFetch ? { asanaFetch: opts.asanaFetch } : {}),
       llm: opts.llm,
       ...(opts.harnesses ? { harnesses: opts.harnesses } : {}),

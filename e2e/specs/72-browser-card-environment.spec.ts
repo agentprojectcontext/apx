@@ -12,7 +12,7 @@ test("guest browser cards, including old messages, stay in the VM; an open panel
   const env = await startCore({
     home,
     llm: scriptedLlm(() => say("ok")),
-    vmPrototype: { limaHome: path.join(home, "no-vms"), instance: "missing" },
+    computer: { limaHome: path.join(home, "no-vms"), instance: "missing" },
   });
   const desktop = await env.client.connect("node", ["browser"]);
   const hostCalls: string[] = [];

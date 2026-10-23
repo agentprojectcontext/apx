@@ -1,11 +1,11 @@
 import type { Server } from "node:http";
 import { WebSocketServer } from "ws";
-import type { VmPrototype } from "../environments/prototype.ts";
+import type { Computer } from "../environments/computer.ts";
 import type { Gate } from "./guard.ts";
 import { rfbInput } from "./rfb-input.ts";
 
 /** Raw RFB bytes only; creating the single-use ticket requires the normal human-only router method. */
-export function attachVmDisplay(server: Server, vm: VmPrototype, gate: Gate) {
+export function attachVmDisplay(server: Server, vm: Computer, gate: Gate) {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
   server.on("upgrade", (req, socket, head) => {
     const url = new URL(req.url ?? "/", "http://core");

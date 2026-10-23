@@ -55,8 +55,9 @@ import { afterWorkTurn } from "./engine/task-work.ts";
 import { wakeAfterCommand } from "./engine/terminal-wake.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
+import { type ComputerConfig, createComputer } from "./environments/computer.ts";
 import { managedVmConfig } from "./environments/managed.ts";
-import { createVmPrototype, type VmPrototypeConfig } from "./environments/prototype.ts";
+import { computerWatchdog } from "./environments/watchdog.ts";
 import { errorMessage } from "./errors.ts";
 import { thisRunner, writeApxCommand } from "./harness/apx-command.ts";
 import type { CliStatus } from "./harness/detect.ts";
@@ -123,7 +124,7 @@ const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main
 
 /** What tests swap: the model, harnesses, extra tools, channel adapters and the scheduler's clock. */
 export type CoreOptions = {
-  vmPrototype?: VmPrototypeConfig;
+  computer?: ComputerConfig;
   /** Asana transport; tests record REST requests without contacting an account. */
   asanaFetch?: typeof fetch;
   quiet?: boolean;
@@ -276,12 +277,16 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     fetch: opts.asanaFetch,
     offIn: (project) => !integrationsOff.takesGlobals(project) || integrationsOff.offIn(project).includes("asana"),
   });
-  const vm = createVmPrototype(
+  const vm = createComputer(
     store,
-    opts.vmPrototype && !opts.vmPrototype.managed
-      ? opts.vmPrototype
-      : managedVmConfig(store, config.home, opts.vmPrototype),
+    opts.computer && !opts.computer.managed ? opts.computer : managedVmConfig(store, config.home, opts.computer),
   );
+  const watchdog = computerWatchdog({
+    store,
+    vm,
+    freeMemory: vm.freeMemory,
+    onError: (err) => log.warn({ err }, "computer watchdog check failed"),
+  });
   const tools = builtinTools(
     store,
     config.home,
@@ -611,7 +616,8 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     scheduler,
     telemetry,
     async close() {
-      await vm?.close();
+      await watchdog.stop();
+      await vm.close();
       await desktopInstaller.close();
       useApxCommand(undefined);
       idleTrim.stop();

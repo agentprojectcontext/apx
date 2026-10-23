@@ -15,7 +15,7 @@ import { createHooks } from "./engine/hooks.ts";
 import type { Permissions } from "./engine/permissions.ts";
 import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
 import type { Upkeep } from "./engine/upkeep.ts";
-import type { VmPrototype } from "./environments/prototype.ts";
+import type { Computer } from "./environments/computer.ts";
 import { errorMessage } from "./errors.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
@@ -97,6 +97,7 @@ import { surfaceTools } from "./tools/surfaces.ts";
 import { taskTools } from "./tools/tasks.ts";
 import type { Tool } from "./tools/types.ts";
 import { videoTools } from "./tools/video.ts";
+import { vmTools } from "./tools/vm.ts";
 import { webTools } from "./tools/web.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
@@ -146,7 +147,7 @@ export function builtinTools(
   extra: Tool[] = [],
   /** The other agent apps whose skills agents may load too. */
   skillApps?: RuntimeHomes,
-  vm?: VmPrototype,
+  vm?: Computer,
 ): Tool[] {
   const tools = [
     ...agentTools(store),
@@ -157,6 +158,7 @@ export function builtinTools(
     ...ownerTools(store),
     ...connectionTools(),
     ...shellTools(store, home, port, vm),
+    ...vmTools(vm),
     ...fileTools(store, home),
     ...messageTools(store, home),
     ...directoryTools(store),
@@ -239,7 +241,7 @@ type HandlerDeps = {
 };
 
 /** The handler table the router serves: one entry per protocol method. */
-export function coreHandlers(d: HandlerDeps & { vm?: VmPrototype | undefined }) {
+export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
   return {
     ...environmentHandlers(d.store, d.vm, d.engine.cancel),
     ...desktopInstallHandlers(d.desktopInstaller),
@@ -406,7 +408,7 @@ export async function listen(
     identity: Identity;
     broker: NodeBroker;
     bus: Bus;
-    vm?: VmPrototype | undefined;
+    vm?: Computer | undefined;
   },
 ) {
   const allowedOrigins = originsFor(`http://${config.host}:${config.port || 7440}`, config.allowedOrigins);

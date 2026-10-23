@@ -78,6 +78,8 @@ export function createVmLifecycle(driver: VmDriver) {
   };
   return {
     status,
+    /** The phase last seen, without probing the guest; undefined before the first status. */
+    seen: () => phase,
     assertRunning() {
       if (phase !== "running" || closed) throw unavailable("the VM is not ready; start it from Computer");
     },

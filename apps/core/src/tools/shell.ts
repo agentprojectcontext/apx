@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
 import type { Store } from "../domain/store.ts";
+import { VM_WORKSPACE } from "../environments/worker.ts";
 import { insideReal } from "../paths.ts";
 import { commandShell } from "../processes.ts";
 import { namedPaths } from "./command-paths.ts";
@@ -216,8 +217,8 @@ export function shellTools(
       // A command that could only be refused is not put to the owner.
       check(a, ctx) {
         if (vm?.hasThread(ctx.thread.id)) {
-          if (a.background || (a.cwd && a.cwd !== "." && a.cwd !== "/home/apx/work"))
-            throw new Error("VM prototype supports foreground commands in /home/apx/work only");
+          if (a.background || (a.cwd && a.cwd !== "." && a.cwd !== VM_WORKSPACE))
+            throw new Error(`in the computer, commands run in the foreground in ${VM_WORKSPACE}`);
           return;
         }
         const missing = missingCwd(store, home, ctx.thread, a.cwd);
@@ -251,7 +252,7 @@ export function shellTools(
       async run(a, ctx) {
         if (vm?.hasThread(ctx.thread.id)) {
           const result = await ctx.call("environments.command", { thread: ctx.thread.id, command: a.command });
-          return `VM /home/apx/work · exit ${result.code}\n${untrusted("command_output", {}, result.output)}`;
+          return `Computer ${VM_WORKSPACE} · exit ${result.code}\n${untrusted("command_output", {}, result.output)}`;
         }
         // Links resolved: a symlink inside the project must not run the command somewhere else.
         const where = commandFolder(store, home, ctx.thread, a);

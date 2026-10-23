@@ -2,7 +2,7 @@ import { BROWSER_CAP, BROWSER_HOLD, BROWSER_METHODS, type BrowserMethod } from "
 import type { Bus } from "../bus.ts";
 import { TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import type { VmPrototype } from "../environments/prototype.ts";
+import type { Computer } from "../environments/computer.ts";
 import { conflict, unavailable } from "../errors.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
 import { createBrowserHolds } from "../nodes/browser-holds.ts";
@@ -29,7 +29,7 @@ export function browserHandlers(
   broker: NodeBroker,
   headless?: HeadlessBrowser,
   bus?: Bus,
-  vm?: VmPrototype,
+  vm?: Computer,
   store?: Store,
 ) {
   const local = () => !broker.withCap(BROWSER_CAP) && headless?.available();
@@ -52,7 +52,7 @@ export function browserHandlers(
     (method: BrowserMethod): Handler<BrowserMethod> =>
     async (params, ctx) => {
       const thread = ctx.agent?.thread_id;
-      if (thread && store?.settings.get("vm_prototype_thread") === thread) {
+      if (thread && store?.settings.get("computer_thread") === thread) {
         if (!vm?.hasThread(thread)) throw unavailable("VM browser unavailable; host browser refused");
         const run = ctx.agent && store.runs.get(ctx.agent.run_id);
         if (run?.state !== "working" || run.thread_id !== thread || run.agent_id !== ctx.agent?.id)
@@ -73,7 +73,7 @@ export function browserHandlers(
   // With no browser at all there are no tabs: an empty list, not an error the panel would log on every load.
   const tabs = handlers["browser.tabs"];
   handlers["browser.tabs"] = (params, ctx) =>
-    (ctx.agent && store?.settings.get("vm_prototype_thread") === ctx.agent.thread_id) ||
+    (ctx.agent && store?.settings.get("computer_thread") === ctx.agent.thread_id) ||
     broker.withCap(BROWSER_CAP) ||
     headless?.running()
       ? tabs(params, ctx)

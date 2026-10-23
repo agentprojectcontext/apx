@@ -1,7 +1,7 @@
 // Owner grants: durable for every agent or for one, or limited to one chat.
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { type ApprovalScope, STRICT_APPROVAL, ToolApproval } from "@apx/protocol";
+import { type ApprovalScope, COMPUTER_GRANT, STRICT_APPROVAL, ToolApproval } from "@apx/protocol";
 import { z } from "zod";
 import { settingsRepo } from "./settings.ts";
 import type { Sql } from "./sql.ts";
@@ -14,7 +14,9 @@ export type ApprovalTarget = {
   permanent: boolean;
   project_id?: string | undefined;
 };
-export const approvalScopes = (_a: ApprovalTarget): ApprovalScope[] => ["once", "session", "always"];
+/** The computer is a permission, not one call: this chat or for good (DECISIONS.md#d-139). */
+export const approvalScopes = (a: ApprovalTarget): ApprovalScope[] =>
+  a.key === COMPUTER_GRANT ? ["session", "always"] : ["once", "session", "always"];
 
 /** The server name of APX's own tools in grants (an MCP server's is its approval id). */
 export const APX_SERVER = "apx";

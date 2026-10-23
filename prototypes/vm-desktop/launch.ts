@@ -55,7 +55,7 @@ const config = loadConfig(
 );
 const core = await createCore(config, {
   ...(!real ? { llm: demoModel } : {}),
-  vmPrototype: {
+  computer: {
     managed: true,
     demo: true,
     limaHome: env.LIMA_HOME,
