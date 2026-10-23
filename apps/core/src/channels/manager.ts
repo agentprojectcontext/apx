@@ -688,6 +688,7 @@ export function createChannels(deps: {
       inbound.resume();
       await Promise.allSettled(configs().map(startOne));
       delivery.kick();
+      void stickers.nameUnnamed().catch((err) => log.warn({ err: errorMessage(err, 200) }, "stickers not named"));
     },
     async stop(): Promise<void> {
       rooms.stop();

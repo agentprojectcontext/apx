@@ -87,6 +87,12 @@ export function stickersRepo({ one, all, run }: Sql) {
           .where("id", "=", id),
       );
     },
+    /** Stickers kept without a meaning (no model could see them when they came), oldest first. */
+    unnamed(limit = 50): Sticker[] {
+      return all(
+        qb.selectFrom("stickers").selectAll().where("meaning", "is", null).orderBy("created_at").limit(limit),
+      ).map(toSticker);
+    },
     /** A platform's stickers that have a meaning, the most used first. */
     known(platform: string, limit = 50): Sticker[] {
       return all(

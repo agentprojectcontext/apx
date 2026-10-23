@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { after, before, test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { createLog } from "../log.ts";
+import { saveUpload } from "../services/uploads.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
-import { stickerAnswer } from "./stickers.ts";
+import { createStickers, stickerAnswer } from "./stickers.ts";
 import { telegramAdapter } from "./telegram.ts";
 
 const TOKEN = "123456:TEST-stickers";
@@ -55,11 +58,11 @@ test("a sticker is kept the moment it arrives, named once, and the agent reads i
   assert.equal(kept?.meaning, BEAR, "named once, its quotes and full stop taken off");
   assert.equal(kept?.hint, "❤️");
   const asked = llm.calls.find((c) => naming(String(c.messages[0]?.content ?? "")))?.messages.at(-1);
-  assert.equal(
-    asked?.role === "user" ? asked.images?.[0]?.data : undefined,
-    WEBP.toString("base64"),
-    "it saw the file",
-  );
+  // The file goes by reference, as every image does: the model layer puts its bytes in the call (llm.test.ts).
+  const seen = asked?.role === "user" ? asked.images?.[0] : undefined;
+  assert.equal(seen?.media_id, kept?.media_id, "it saw the file");
+  assert.equal(seen && "data" in seen, false);
+  assert.deepEqual(fs.readFileSync(env.core.store.media.get(kept?.media_id ?? "")?.path ?? ""), WEBP);
   const turn = llm.calls.find((c) => !naming(String(c.messages[0]?.content ?? "")));
   const input = String(turn?.messages.at(-1)?.content);
   assert.match(input, new RegExp(`\\[sticker: ${BEAR}\\]`));
@@ -107,6 +110,26 @@ test("with no model known to read images, a sticker takes its emoji: nothing nam
   assert.equal(namings(), named, "no model was asked");
   await env.settle("home");
   env.core.store.settings.set("model_aux", "openai/gpt-4o-mini");
+});
+
+test("a sticker kept unnamed is named later, by its file", async () => {
+  const store = env.core.store;
+  const media = saveUpload(env.home, store, { name: "sticker.webp", mime: "image/webp", bytes: WEBP });
+  const kept = store.stickers.add({ platform: "whatsapp", hash: "unnamed-1", media_id: media.id });
+  const asked: string[] = [];
+  const stickers = createStickers({
+    store,
+    home: env.home,
+    log: createLog("test", true),
+    see: async (_system, _user, image) => {
+      asked.push(image.media_id);
+      return "mate with a straw, a calm sip";
+    },
+  });
+  await stickers.nameUnnamed();
+  assert.deepEqual(asked, [media.id]);
+  assert.equal(store.stickers.get(kept.id)?.meaning, "mate with a straw, a calm sip");
+  assert.equal(store.stickers.unnamed().length, 0);
 });
 
 test("STICKER and the words for it, as the agent writes it", () => {

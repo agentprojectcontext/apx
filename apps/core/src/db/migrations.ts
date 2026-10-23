@@ -868,4 +868,6 @@ export const MIGRATIONS: readonly string[] = [
     UNIQUE(platform, hash)
   );
   `,
+  // Stickers named before their picture reached the model were named unseen: they are named again.
+  `UPDATE stickers SET meaning = NULL;`,
 ];

@@ -195,7 +195,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
     agentId: string | undefined,
     system: string,
     user: string,
-    o: { models?: string[]; timeoutMs?: number; images?: Array<{ mime: string; data: string }> } = {},
+    o: { models?: string[]; timeoutMs?: number; images?: Array<{ media_id: string; mime: string }> } = {},
   ): Promise<string | undefined> {
     const models = o.models ?? auxModels(agentId);
     if (!models.length) return undefined;
@@ -203,9 +203,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
       models,
       messages: [
         { role: "system", content: system },
-        o.images?.length
-          ? { role: "user", content: user, images: o.images.map((i) => ({ media_id: "", ...i })) }
-          : { role: "user", content: user },
+        o.images?.length ? { role: "user", content: user, images: o.images } : { role: "user", content: user },
       ],
       tools: [],
       ...(about.purpose === "memory_capture" || about.purpose === "memory_dream" ? { maxOutputTokens: 1800 } : {}),
@@ -347,7 +345,7 @@ export function createUpkeep(deps: { store: Store; llm: Llm; log: Log }) {
      * What a picture shows (a sticker's meaning), from the models known to read images: the auxiliary ones, then the
      * router's; none without one. A model not known to read them would name what it never saw.
      */
-    see: (system: string, user: string, image: { mime: string; data: string }, about: AuxAbout) => {
+    see: (system: string, user: string, image: { media_id: string; mime: string }, about: AuxAbout) => {
       const models = [...new Set([...auxModels(), ...agentModels()])].filter((m) => readsImages(m) === true);
       return models.length
         ? ask(about, undefined, system, user, { models, images: [image] })

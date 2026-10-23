@@ -2,7 +2,6 @@
 // reads images, so the agent reads "[sticker: a bear holding a heart balloon]" and can answer with one it was sent.
 // See rules/DECISIONS.md#d-137
 import { createHash } from "node:crypto";
-import fs from "node:fs";
 import { UPLOAD_LIMITS } from "@apx/protocol";
 import type { AuxAbout } from "../domain/aux-calls.ts";
 import type { Sticker } from "../domain/stickers.ts";
@@ -22,7 +21,8 @@ const NAME_PROMPT = (language: string) =>
 export type See = (
   system: string,
   user: string,
-  image: { mime: string; data: string },
+  /** A kept file, by reference: its bytes join the call alone (the model layer reads them). */
+  image: { media_id: string; mime: string },
   about: AuxAbout,
 ) => Promise<string | undefined>;
 
@@ -70,11 +70,15 @@ export function createStickers(deps: { store: Store; home: string; log: Log; see
       const media = store.media.get(s.media_id);
       let meaning: string | undefined;
       if (media?.mime.startsWith("image/") && deps.see) {
-        const data = fs.readFileSync(media.path, "base64");
         const language = store.settings.get("owner_language") === "en" ? "English" : "Spanish";
         const hint = s.hint ? `The platform says it stands for ${s.hint}.` : "Name this sticker.";
         meaning = await deps
-          .see(NAME_PROMPT(language), hint, { mime: media.mime, data }, { purpose: "sticker", thread_id: threadId })
+          .see(
+            NAME_PROMPT(language),
+            hint,
+            { media_id: media.id, mime: media.mime },
+            { purpose: "sticker", thread_id: threadId },
+          )
           .catch((err: unknown) => {
             log.warn({ sticker: s.id, err: errorMessage(err, 200) }, "sticker not named");
             return undefined;
@@ -110,7 +114,12 @@ export function createStickers(deps: { store: Store; home: string; log: Log; see
     return best;
   }
 
-  return { keep, find };
+  /** Stickers kept without a name are named one after another (at boot: a model may read images now). */
+  async function nameUnnamed(): Promise<void> {
+    for (const s of store.stickers.unnamed()) await name(s);
+  }
+
+  return { keep, find, nameUnnamed };
 }
 
 export type Stickers = ReturnType<typeof createStickers>;
