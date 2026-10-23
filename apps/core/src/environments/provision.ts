@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { LimaRun } from "./lima-process.ts";
+import { agentLoopbackRules, LOOPBACK_RULES } from "./loopback.ts";
 import { screenArgs, screenUser, workerArgs } from "./worker.ts";
 
 export const GUEST_ASSETS = path.join(import.meta.dirname, "guest");
@@ -61,10 +62,17 @@ export function screenDriver(run: LimaRun, instance: string) {
   const admin = (args: string[], signal?: AbortSignal, timeout?: number) =>
     run(["shell", instance, "--", ...args], { ...(signal ? { signal } : {}), ...(timeout ? { timeout } : {}) });
   return {
-    async start(screen: number, mode: "light" | "dark", signal?: AbortSignal) {
+    /** `all` is every agent screen there is: the loopback rules are written for all of them at once. */
+    async start(screen: number, mode: "light" | "dark", all: number[], signal?: AbortSignal) {
       const u = screenUser(screen);
       const display = u.display.slice(1);
       await admin(["sudo", "-n", "/usr/local/libexec/apx-computer-user", String(screen)], signal, 60_000);
+      await run(["shell", instance, "--", "sudo", "-n", "tee", LOOPBACK_RULES], {
+        input: agentLoopbackRules([...all, screen]),
+        ...(signal ? { signal } : {}),
+      });
+      await admin(["sudo", "-n", "chmod", "600", LOOPBACK_RULES], signal);
+      await admin(["sudo", "-n", "/usr/local/libexec/apx-computer-firewall"], signal, 30_000);
       await admin(screenArgs(screen, "systemctl", "--user", "start", `apx-desktop@${display}.service`), signal);
       await admin(screenArgs(screen, "/usr/local/bin/apx-appearance", mode), signal, 30_000);
       await admin(screenArgs(screen, "systemctl", "--user", "start", `apx-agent-terminal@${display}.service`), signal);

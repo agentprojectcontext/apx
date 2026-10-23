@@ -41,9 +41,18 @@ install -d -m 755 /usr/local/libexec
 cat > /usr/local/libexec/apx-computer-firewall <<'SCRIPT'
 #!/bin/sh
 set -eu
-if nft list table inet apx_computer >/dev/null 2>&1; then
-  { printf 'delete table inet apx_computer\n'; cat /etc/apx-computer/egress.nft; } | nft -f -
-else nft -f /etc/apx-computer/egress.nft
+# Each table is replaced whole and atomically, never duplicated.
+load() {
+  if nft list table inet "$1" >/dev/null 2>&1; then
+    { printf 'delete table inet %s\n' "$1"; cat "$2"; } | nft -f -
+  else nft -f "$2"
+  fi
+}
+load apx_computer /etc/apx-computer/egress.nft
+# Agents' loopback: a rule names an agent's slice, which must exist before the rule loads.
+if [ -f /etc/apx-computer/agents.nft ]; then
+  for slice in $(grep -o 'user-[0-9]*\.slice' /etc/apx-computer/agents.nft | sort -u); do systemctl start "$slice"; done
+  load apx_loopback /etc/apx-computer/agents.nft
 fi
 SCRIPT
 chmod 755 /usr/local/libexec/apx-computer-firewall

@@ -2183,8 +2183,22 @@ as a screenless probe user the setup checks the boundary with. The firewall rule
 cover uids 2001–2999 too, and every user's session waits for the firewall. A desktop is reached only through its user's
 private socket: Xtigervnc listens on `$XDG_RUNTIME_DIR/apx-vnc.sock` (mode 600) and X clients need that user's cookie,
 so one agent can neither watch nor type into another's screen. The core opens a viewer by running
-`nc -U` on that socket as that user. Known limit: agents still share the guest's loopback network (another agent's
-service on 127.0.0.1 is reachable), and the proxy is the same for all.
+`nc -U` on that socket as that user. The proxy is the same for all.
+
+**Loopback between agents.** A service an agent runs on 127.0.0.1 or ::1 is reachable only by that agent. Every
+process of an agent runs in its own cgroup, `user.slice/user-<uid>.slice`: its desktop and terminal through its user
+manager, and its commands, browser and the core's helpers through `systemd-run --scope --uid --slice` (plain `sudo -u`
+from the admin's SSH session would leave them in that session's cgroup). A table of its own, `apx_loopback`, marks
+each loopback packet with its sender's agent uid on the way out (`meta skuid`), and on the way in looks up the listening
+socket (`socket cgroupv2 level 2`) and refuses a new connection to an agent's listener whose mark is not that agent's.
+The egress proxy, the guest's own services and the owner's paths into a screen (private Unix sockets, CDP pipes) are
+not in an agent's slice and are untouched; the egress table and its uid 2001–2999 coverage are unchanged. The core
+writes the rules for every agent screen to `/etc/apx-computer/agents.nft` when an agent gets a screen, and the firewall
+service starts those slices before loading them (a rule cannot name a cgroup that does not exist yet). Rejected:
+`meta skuid` alone, which names only the sender, never the listener; a network namespace per agent, which would put the
+proxy on 127.0.0.1:3128 out of reach and need a veth, DNAT and `route_localnet` path rebuilt for each agent, a second
+egress boundary to verify. Known limit: pathname Unix sockets an agent leaves world-writable in a shared directory
+such as `/tmp` stay reachable; file permissions decide those.
 
 **The ledger.** Which screen is held by which agent's working run, in which chat, is the core's record
 (`computer_claims` in settings), not the guest's: a turn in a chat on the computer claims its agent's screen before the

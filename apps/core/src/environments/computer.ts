@@ -30,7 +30,7 @@ export type ComputerConfig = {
   lifecycle?: VmLifecycle;
   /** Starts, restyles and stops an agent's screen in the guest; without it (tests) a claim needs nothing started. */
   screens?: {
-    start(screen: number, mode: Appearance): Promise<void>;
+    start(screen: number, mode: Appearance, all: number[]): Promise<void>;
     stop(screen: number): Promise<void>;
     appearance?(screen: number, mode: Appearance): Promise<void>;
   };
@@ -91,7 +91,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
     cap,
     screens: {
       start: async (screen) => {
-        await config.screens?.start(screen, appearance());
+        await config.screens?.start(screen, appearance(), Object.values(store.settings.read("computer_screens")));
       },
       stop: async (screen) => {
         guest.closeScreen(screen);
