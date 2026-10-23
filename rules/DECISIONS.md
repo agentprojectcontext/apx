@@ -2080,6 +2080,6 @@ and refuses what it cannot verify. A failure's detail stays in the log.
 What publishes that port is the owner's choice (`webhooks.set`, Settings › Channels › Public address), kept and applied
 again at every start (`webhooks.ts`): Tailscale Funnel on HTTPS port 8443 (443 stays what `apx tailscale connect`
 serves to the tailnet, and only APX's own Funnel is undone when it is turned off); ngrok, started and watched by the
-core, whose free address changes each time it starts again unless the owner gives a reserved domain, which the panel
-says; or the owner's own https URL (a proxy they run). Each adapter reads its address through `io.hookUrl()`, and a
+core, which remembers the last address ngrok gave and tells the owner only when one is new (a free account usually
+keeps one across starts; a reserved domain can be given); or the owner's own https URL (a proxy they run). Each adapter reads its address through `io.hookUrl()`, and a
 channel that needs one and has none says so in its status until one exists.

@@ -118,22 +118,31 @@ test("Tailscale Funnel publishes the listener on 8443 and each channel learns it
   assert.equal(hookUrl?.(), undefined);
 });
 
-test("ngrok: its address is used and may change; a reserved domain keeps it; a failure is said", async () => {
+test("ngrok: its address is used; the owner is told only when it is new; a reserved domain is passed on", async () => {
   const on = await env.client.call("webhooks.set", { mode: "ngrok" });
   assert.equal(on.url, "https://abc-123.ngrok-free.app");
-  assert.equal(on.url_may_change, true, "without a domain, a restart brings another address");
+  assert.equal(on.url_may_change, true, "the first address: paste it into the platform");
   assert.deepEqual(ngrokArgs.slice(0, 2), ["http", `127.0.0.1:${port}`]);
 
+  await env.client.call("webhooks.set", { mode: "off" });
+  const again = await env.client.call("webhooks.set", { mode: "ngrok" });
+  assert.equal(again.url, "https://abc-123.ngrok-free.app");
+  assert.equal(again.url_may_change, false, "the same address as last time: nothing to paste again");
+
+  ngrokSays = '{"lvl":"info","msg":"started tunnel","url":"https://xyz-789.ngrok-free.app"}';
+  const moved = await env.client.call("webhooks.set", { mode: "ngrok" });
+  assert.equal(moved.url_may_change, true, "another address after a restart: the owner is told");
+
   ngrokSays = '{"lvl":"info","msg":"started tunnel","url":"https://acme.ngrok.app"}';
-  const kept = await env.client.call("webhooks.set", { mode: "ngrok", domain: "acme.ngrok.app" });
-  assert.equal(ngrokStopped, 1, "the previous tunnel stopped");
+  await env.client.call("webhooks.set", { mode: "ngrok", domain: "acme.ngrok.app" });
   assert.deepEqual(ngrokArgs.slice(-2), ["--url", "acme.ngrok.app"]);
-  assert.equal(kept.url_may_change, false);
   assert.equal(hookUrl?.(), "https://acme.ngrok.app/hooks/teams");
+  assert.ok(ngrokStopped >= 3, "each new start stopped the tunnel before it");
 
   ngrokExit?.(1);
   const down = await env.client.call("webhooks.get", {});
   assert.equal(down.url, undefined, "ngrok stopped: no address");
+  assert.equal(down.url_may_change, false);
   assert.match(down.error ?? "", /ngrok stopped/);
   assert.ok(ngrokLines, "the log was read");
   await env.client.call("webhooks.set", { mode: "off" });
@@ -143,7 +152,9 @@ test("the owner's own address takes only https, and the choice is kept for the n
   await assert.rejects(env.client.call("webhooks.set", { mode: "custom", url: "http://example.com" }), /https/);
   const own = await env.client.call("webhooks.set", { mode: "custom", url: "https://hooks.example.com/" });
   assert.equal(own.url, "https://hooks.example.com");
-  assert.deepEqual(env.core.store.settings.read("webhooks"), { mode: "custom", url: "https://hooks.example.com/" });
+  const kept = env.core.store.settings.read("webhooks");
+  assert.deepEqual([kept.mode, kept.url], ["custom", "https://hooks.example.com/"]);
+  assert.equal(kept.ngrok_last, "https://acme.ngrok.app", "ngrok's last address is kept for when it is chosen again");
   await env.client.call("webhooks.set", { mode: "off" });
 });
 

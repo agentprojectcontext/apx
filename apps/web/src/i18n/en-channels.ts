@@ -277,7 +277,7 @@ export const enChannels = {
     "Tailscale Funnel gives a fixed https address on port 8443. Free; Funnel must be allowed for this device in your tailnet.",
   "hooks.ngrok": "ngrok",
   "hooks.ngrokBody":
-    "APX starts ngrok for you. Without a reserved domain, the address changes each time ngrok starts again.",
+    "APX starts ngrok for you. A free account usually keeps the same address; if ngrok ever gives a new one, this screen tells you.",
   "hooks.custom": "My own",
   "hooks.customBody": "Your own https address, in front of the webhook port (a proxy or a server you run).",
   "hooks.tsMissing": "Tailscale is not installed on this computer.",
@@ -293,7 +293,7 @@ export const enChannels = {
   "hooks.copied": "Address copied",
   "hooks.notUp": "Not up yet",
   "hooks.mayChange":
-    "This ngrok address can change when ngrok or APX starts again: paste the new one into the platform then, or set a reserved domain.",
+    "This ngrok address is new: paste it into the platform. If ngrok gives another one after a restart, this says so again.",
   "hooks.failed": "The public address could not change: {error}",
   "tm.lead":
     "Talk with your agents from Microsoft Teams, in personal chats and the channels you list. Teams delivers to a public address, set below.",

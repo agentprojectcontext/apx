@@ -173,11 +173,11 @@ against the platform's signature before anything reads it.
 | How | What you need | The address |
 |---|---|---|
 | **Tailscale** | Tailscale connected, and Funnel allowed for this device in your tailnet | Fixed: `https://<this computer>.ts.net:8443` |
-| **ngrok** | ngrok installed and signed in once (`ngrok config add-authtoken …`) | Changes each time ngrok starts again, unless you give a reserved domain |
+| **ngrok** | ngrok installed and signed in once (`ngrok config add-authtoken …`) | Usually the same one each time (a free account keeps one); the panel tells you if it changes |
 | **My own** | An https address of yours that forwards to the webhook port on this computer | Yours |
 
-Copy **This channel's address** into the platform (Teams' messaging endpoint, LINE's webhook URL). With ngrok and no
-reserved domain, paste it again after a restart: the panel warns you when that can happen.
+Copy **This channel's address** into the platform (Teams' messaging endpoint, LINE's webhook URL). APX remembers the
+last address ngrok gave: if a restart brings a different one, the panel says so, and you paste the new one.
 
 <Terminal command="apx channels">{`telegram       telegram  running   @acme_store_bot    agent nova
 whatsapp       whatsapp  running   +1 555 0100        agent nova`}</Terminal>

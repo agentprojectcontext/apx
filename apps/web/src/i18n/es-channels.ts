@@ -295,7 +295,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
     "Tailscale Funnel da una dirección https fija en el puerto 8443. Gratis; Funnel tiene que estar permitido para este equipo en tu tailnet.",
   "hooks.ngrok": "ngrok",
   "hooks.ngrokBody":
-    "APX arranca ngrok por vos. Sin un dominio reservado, la dirección cambia cada vez que ngrok arranca de nuevo.",
+    "APX arranca ngrok por vos. Una cuenta gratis suele mantener la misma dirección; si ngrok da una nueva, esta pantalla te avisa.",
   "hooks.custom": "Propia",
   "hooks.customBody": "Tu propia dirección https, delante del puerto de webhooks (un proxy o un servidor tuyo).",
   "hooks.tsMissing": "Tailscale no está instalado en esta computadora.",
@@ -311,7 +311,7 @@ export const esChannels: Partial<Record<MessageKey, string>> = {
   "hooks.copied": "Dirección copiada",
   "hooks.notUp": "Todavía no está activa",
   "hooks.mayChange":
-    "Esta dirección de ngrok puede cambiar cuando ngrok o APX arrancan de nuevo: en ese caso pegá la nueva en la plataforma, o poné un dominio reservado.",
+    "Esta dirección de ngrok es nueva: pegala en la plataforma. Si ngrok da otra después de un reinicio, te lo vuelve a avisar acá.",
   "hooks.failed": "No se pudo cambiar la dirección pública: {error}",
   "tm.lead":
     "Hablá con tus agentes desde Microsoft Teams, en chats personales y en los canales que listes. Teams entrega a una dirección pública, que configurás abajo.",

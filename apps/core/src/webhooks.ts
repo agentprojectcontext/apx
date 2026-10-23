@@ -78,6 +78,8 @@ export function createWebhooks(deps: {
   let url: string | undefined;
   let error: string | undefined;
   let tunnel: NgrokProcess | undefined;
+  /** ngrok gave an address it had not given before: the first one, or another after it started again. */
+  let fresh = false;
 
   const saved = () => deps.store.settings.read("webhooks");
   const tailscaleDns = (run: TailscaleRun | undefined) => {
@@ -113,6 +115,10 @@ export function createWebhooks(deps: {
         if (said.url) {
           url = said.url;
           error = undefined;
+          // A free account keeps one address across starts: only a new one has to be pasted into the platform.
+          const kept = saved();
+          fresh = kept.ngrok_last !== url;
+          if (fresh) deps.store.settings.write("webhooks", { ...kept, ngrok_last: url });
           deps.log.info({ url }, "webhooks: ngrok address up");
           clearTimeout(timer);
           resolve();
@@ -136,6 +142,7 @@ export function createWebhooks(deps: {
     stopNgrok();
     url = undefined;
     error = undefined;
+    fresh = false;
     if (mode === "custom") url = own?.replace(/\/+$/, "");
     if (mode === "ngrok") await startNgrok(domain);
     if (mode === "tailscale") {
@@ -157,7 +164,7 @@ export function createWebhooks(deps: {
     return {
       mode,
       ...(url ? { url } : {}),
-      url_may_change: mode === "ngrok" && !domain,
+      url_may_change: mode === "ngrok" && Boolean(url) && fresh,
       port: deps.port(),
       ...(domain ? { domain } : {}),
       ...(error ? { error } : {}),
@@ -178,7 +185,7 @@ export function createWebhooks(deps: {
     async set(o: { mode: HookMode; url?: string | undefined; domain?: string | undefined }): Promise<WebhooksState> {
       if (o.mode === "custom" && !o.url?.startsWith("https://"))
         throw new CallError({ code: "bad_request", message: "a public address needs an https:// URL" });
-      const before = saved().mode;
+      const { mode: before, ngrok_last } = saved();
       // Only undo what APX set up: other Funnel or serve configs on this machine are not APX's.
       if (before === "tailscale" && o.mode !== "tailscale")
         tailscaleRun()?.(["funnel", `--https=${FUNNEL_PORT}`, "off"]);
@@ -186,6 +193,7 @@ export function createWebhooks(deps: {
         mode: o.mode,
         ...(o.mode === "custom" && o.url ? { url: o.url } : {}),
         ...(o.mode === "ngrok" && o.domain ? { domain: o.domain } : {}),
+        ...(ngrok_last ? { ngrok_last } : {}),
       });
       await apply();
       return state();

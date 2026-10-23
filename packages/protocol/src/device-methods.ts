@@ -57,7 +57,10 @@ export const WebhooksState = z.object({
   mode: HookMode,
   /** The base platforms reach, as `<url>/hooks/<channel id>`; none while off or not up yet. */
   url: z.string().optional(),
-  /** ngrok without a reserved domain: the address changes each time ngrok starts again. */
+  /**
+   * ngrok gave an address it had not given before (the first one, or another after it started again): the owner pastes
+   * it into the platform. A free account usually keeps one address, so this is said only when it is new.
+   */
   url_may_change: z.boolean(),
   /** The loopback port of the webhook listener (what Funnel or ngrok forwards to). */
   port: z.number(),

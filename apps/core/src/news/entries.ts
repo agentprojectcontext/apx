@@ -215,7 +215,7 @@ export const NEWS: readonly NewsEntry[] = [
     text:
       "Agents can now be reached on Microsoft Teams and LINE. Both send their messages to a web address, so their " +
       "screen in Settings › Channels turns on a public address first: Tailscale Funnel (a fixed address), ngrok " +
-      "(started by APX; its free address changes when it restarts, unless the owner has a reserved domain) or the " +
+      "(started by APX, which says when its address is new) or the " +
       "owner's own. Only a door for webhooks is published, never the panel, and every message is checked.",
     actions: [
       {
