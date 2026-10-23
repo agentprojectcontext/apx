@@ -47,7 +47,55 @@ export const AccessState = z.object({
 });
 export type AccessState = z.infer<typeof AccessState>;
 
+/**
+ * The public address platforms that deliver to a webhook (Teams, LINE) reach this core on: off, Tailscale Funnel, an
+ * ngrok tunnel, or the owner's own (a proxy they run). It publishes only the webhook listener. See DECISIONS.md#d-139
+ */
+export const HookMode = z.enum(["off", "tailscale", "ngrok", "custom"]);
+export type HookMode = z.infer<typeof HookMode>;
+export const WebhooksState = z.object({
+  mode: HookMode,
+  /** The base platforms reach, as `<url>/hooks/<channel id>`; none while off or not up yet. */
+  url: z.string().optional(),
+  /**
+   * ngrok gave an address it had not given before (the first one, or another after it started again): the owner pastes
+   * it into the platform. A free account usually keeps one address, so this is said only when it is new.
+   */
+  url_may_change: z.boolean(),
+  /** The loopback port of the webhook listener (what Funnel or ngrok forwards to). */
+  port: z.number(),
+  /** The owner's reserved ngrok domain, when they gave one. */
+  domain: z.string().optional(),
+  /** Why the address is not up (Funnel not allowed in the tailnet, ngrok not signed in…). */
+  error: z.string().optional(),
+  tailscale: z.object({ installed: z.boolean(), connected: z.boolean() }),
+  ngrok: z.object({ installed: z.boolean() }),
+});
+export type WebhooksState = z.infer<typeof WebhooksState>;
+
 export const deviceMethods = {
+  /** The public address for channels' webhooks, and what this computer has to make one. */
+  "webhooks.get": {
+    params: z.object({}).strict(),
+    result: WebhooksState,
+    effect: false,
+    access: "human",
+  },
+  /** Turns the public address on (by Funnel, ngrok or the owner's own URL) or off. */
+  "webhooks.set": {
+    params: z
+      .object({
+        mode: HookMode,
+        /** `custom`: the owner's public base URL (https). */
+        url: z.string().trim().url().max(300).optional(),
+        /** `ngrok`: a reserved domain (example.ngrok.app), so the address survives restarts. */
+        domain: z.string().trim().max(200).optional(),
+      })
+      .strict(),
+    result: WebhooksState,
+    effect: true,
+    access: "human",
+  },
   /** Who may reach this core: this computer only, the local network, or the owner's tailnet (Tailscale). */
   "access.get": {
     params: z.object({}).strict(),

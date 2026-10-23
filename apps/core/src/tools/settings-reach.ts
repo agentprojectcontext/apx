@@ -41,6 +41,7 @@ export const OWNER_ONLY: Readonly<Record<string, string>> = {
   "extensions.set_secret": SECRET,
   "mcp.set": MCP_SERVER,
   "access.set": POWER,
+  "webhooks.set": MACHINE,
   "models.set_config": POWER,
   "threads.model": POWER,
   "tools.grant_set": POWER,

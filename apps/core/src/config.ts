@@ -34,6 +34,11 @@ export type ProviderConfig = {
 export type CoreConfig = {
   host: string;
   port: number;
+  /**
+   * The webhook listener's port, on loopback only (transport/hooks.ts): what a public address publishes. The core's
+   * port + 8 by default (APX_HOOKS_PORT); a free one when the core's is 0 (tests).
+   */
+  hooksPort: number;
   /** State home. v2 lives beside v1 (~/.apx) until the cut-over. */
   home: string;
   /** Required whenever host is not loopback. */
@@ -181,9 +186,11 @@ export function loadConfig(processEnv: NodeJS.ProcessEnv = process.env, readCore
         },
       ]
     : [];
+  const port = Number(env.APX_PORT ?? 7440);
   const config: CoreConfig = {
     host: env.APX_HOST ?? "127.0.0.1",
-    port: Number(env.APX_PORT ?? 7440),
+    port,
+    hooksPort: Number(env.APX_HOOKS_PORT ?? (port === 0 ? 0 : port + 8)),
     home: env.APX_HOME ?? defaultHome(),
     token: env.APX_TOKEN || undefined,
     allowedOrigins: list(env.APX_ALLOWED_ORIGINS),
@@ -252,6 +259,7 @@ export function testConfig(over: Partial<CoreConfig> & { home: string }): CoreCo
   return {
     ...loadConfig({}, false),
     port: 0,
+    hooksPort: 0,
     secrets: "file",
     v1,
     native,

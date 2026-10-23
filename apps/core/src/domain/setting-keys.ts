@@ -6,6 +6,7 @@ import {
   AgentLimits,
   BaseProject,
   ChannelInfo,
+  HookMode,
   ImageDefaults,
   MemorySettings,
   ModelChoice,
@@ -123,6 +124,19 @@ export const SETTINGS = {
   /** Services APX added on its own once (Codex's images): one the owner removed is not added again. */
   services_offered: entry(z.array(z.string()).catch([]), []),
   channels: entry(listOf(Channel), []),
+  /**
+   * The public address for channels' webhooks the owner chose (webhooks.ts), applied again at every start, and the
+   * last address ngrok gave (a new one is pointed out to the owner).
+   */
+  webhooks: entry(
+    z.object({
+      mode: HookMode,
+      url: z.string().optional(),
+      domain: z.string().optional(),
+      ngrok_last: z.string().optional(),
+    }),
+    { mode: "off" as const },
+  ),
   /**
    * Telemetry (telemetry.ts): the owner's answer on usage statistics (null: not asked yet), the lifecycle steps sent,
    * the version and answer the install's record holds, where the next usage report starts, and the last thing sent.
