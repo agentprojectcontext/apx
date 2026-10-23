@@ -861,6 +861,13 @@ export const ChannelType = z.enum([
   "mattermost",
   "signal",
   "email",
+  "imessage",
+  "googlechat",
+  "sms",
+  "ntfy",
+  "nextcloud",
+  "irc",
+  "twitch",
 ]);
 export type ChannelType = z.infer<typeof ChannelType>;
 

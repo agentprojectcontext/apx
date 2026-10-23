@@ -32,13 +32,21 @@ and adds its MCP server as one of your global servers, so your agents can use it
 |---|---|---|
 | GitHub | Repositories, issues and pull requests | A personal access token |
 | Notion | Pages and databases of your workspace | An integration token |
-| Slack | Channels, messages and threads of your workspace | A bot token and the team id |
+| Slack | Channels, messages and threads of your workspace | A bot token |
 | Sentry | Errors and issues of your projects | An access token |
 | Brave Search | Web search | An API key |
 | Obsidian | Read and write the notes of your vault | The vault's folder |
 | Asana | Native workspace, project and task reads; task creation and updates | A personal access token |
 | Google Calendar, Gmail, Google Drive | Native calendar, mail and Drive tools | Sign in with Google |
-| Linear | | Marked **Soon**: they need a sign-in flow APX doesn't run yet |
+| Home Assistant | Lights, sensors and automations of your home | Its address and a long-lived access token (turn on its **MCP Server** integration) |
+| n8n | Run the workflows of your n8n instance | Its address and its MCP access token |
+| Linear, Jira and Confluence, GitLab, Vercel, Supabase, Stripe, Todoist, Airtable, Figma, Cloudflare, Netlify, Neon, ClickUp, monday.com, Canva, Miro, Dropbox, Calendly, Datadog, Grafana, PayPal, WordPress.com, Hugging Face, Railway, Intercom, Attio, Close, Klaviyo, Mixpanel, Amplitude, Better Stack, Square, Fireflies, Strava, Semgrep, CircleCI, Postman, Prisma Postgres, Cloudinary, Craft, Webflow, Gamma | Each app's own MCP server | Nothing to type: you sign in in your browser |
+| Context7, DeepWiki, Wolfram, AWS Knowledge, Microsoft Learn | Documentation and knowledge | Nothing: no account |
+| Microsoft 365, Box | | Marked **Soon**: their sign-in needs an app APX registers with them |
+
+The catalog has a search box. An app you sign in to runs through `mcp-remote`: connecting starts it, it registers
+itself with the app and opens the app's sign-in page in your browser. Until you finish, the integration shows
+**Sign in**; press it to open the page again.
 
 Asana uses the REST API directly, not an MCP server. Create a personal access token at
 [Asana developer apps](https://app.asana.com/0/my-apps) and enter it in the connection form.
@@ -76,6 +84,9 @@ use your own OAuth client.
 An event only on your calendar goes in without asking. Events, mail and files come back to agents as outside data,
 never as instructions. With your own client, Google shows "Google hasn't verified this app": choose **Advanced** and
 continue.
+
+GitHub is reached at GitHub's own server (`api.githubcopilot.com/mcp`) with your token. An integration connected
+before this change keeps its old server until you edit and save it.
 
 The MCP-based servers start with `npx`, so the machine running the core needs Node.js and internet access the first time
 each one starts. Once connected, an MCP-based integration behaves like any other MCP server: it has [tool

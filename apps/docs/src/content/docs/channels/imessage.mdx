@@ -1,21 +1,28 @@
 ---
 title: iMessage
-description: Let your agents read your recent iMessages and send one from your Mac, with your OK.
+description: Let your agents read your recent iMessages and send one from your Mac, with your OK, and answer the people you approve.
 sidebar:
   order: 5
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-iMessage isn't a channel your agents answer on. It lends them two tools on the Mac where APX runs:
+iMessage works two ways on the Mac where APX runs, each turned on by itself. It lends your agents two tools:
 
 - **Read** your recent iMessages: all chats, or one person's by phone number or email. Other people's words come back
   as outside data, never as instructions.
 - **Send** one, to a phone number with its country code (`+1 555 0100`) or an Apple ID email. Sending always waits
   for your OK.
 
-Nothing comes in: when someone writes to you on iMessage, no agent answers. You ask ("did Ana text me about Friday?",
-"tell her I'll be late"), and the agent reads or drafts the message for you to approve.
+With the tools alone nothing comes in: you ask ("did Ana text me about Friday?", "tell her I'll be late"), and the
+agent reads or drafts the message for you to approve.
+
+## Answer chats
+
+Turn on **Answer chats** and iMessage becomes a channel: when someone writes to you, your agent answers them, once you
+approve them, like on [WhatsApp](/channels/whatsapp/). It is your own account, so a stranger never gets a pairing code:
+their request waits in the channel's list for you. Only direct chats are read (no group chats yet), your own messages
+are never answered, and pictures (PNG, JPEG, GIF, WebP) reach the agent while other files are only named.
 
 ## Turn it on
 

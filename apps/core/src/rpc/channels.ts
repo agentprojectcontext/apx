@@ -210,6 +210,13 @@ const LABELS: Record<string, string> = {
   mattermost: "Mattermost",
   signal: "Signal",
   email: "Email",
+  imessage: "iMessage",
+  googlechat: "Google Chat",
+  sms: "SMS",
+  ntfy: "ntfy",
+  nextcloud: "Nextcloud Talk",
+  irc: "IRC",
+  twitch: "Twitch",
 };
 
 /** What the owner typed as the address the channel uses: a WhatsApp number's account, a Telegram chat id. */
@@ -219,9 +226,13 @@ function typedAddress(type: string, typed: string): string | undefined {
     const digits = typed.replace(/\D/g, "");
     return digits.length >= 8 && digits.length <= 15 ? `${digits}@s.whatsapp.net` : undefined;
   }
-  if (type === "email") {
-    const a = typed.trim().toLowerCase();
-    return /^[^\s<>@,;"]+@[^\s<>@,;"]+\.[^\s<>@,;"]+$/.test(a) ? a : undefined;
+  const a = typed.trim().toLowerCase();
+  const mail = /^[^\s<>@,;"]+@[^\s<>@,;"]+\.[^\s<>@,;"]+$/.test(a) ? a : undefined;
+  if (type === "email") return mail;
+  // A phone number as the platform writes it (+E.164); iMessage also knows people by their Apple ID's mail.
+  if (type === "sms" || type === "imessage") {
+    const phone = typed.replace(/[\s().-]/g, "");
+    return /^\+[1-9]\d{6,14}$/.test(phone) ? phone : type === "imessage" ? mail : undefined;
   }
   return /^-?\d{3,20}$/.test(typed.trim()) ? typed.trim() : undefined;
 }

@@ -600,8 +600,8 @@ export function createChannels(deps: {
       return {
         ...c,
         token_set: token !== undefined,
-        // A mailbox's password shows none of its characters.
-        ...(token ? { token_hint: c.type === "email" ? "••••••••" : hintOf(token) } : {}),
+        // A mailbox's password and a Google key (JSON, cut anywhere) show none of their characters.
+        ...(token ? { token_hint: c.type === "email" || c.type === "googlechat" ? "••••••••" : hintOf(token) } : {}),
         status: l?.status ?? "off",
         ...(l?.error ? { error: l.error } : {}),
         ...(l?.account ? { account: l.account } : {}),

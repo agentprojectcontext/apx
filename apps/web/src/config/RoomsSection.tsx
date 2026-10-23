@@ -17,10 +17,32 @@ const EMPTY: ChannelRooms = {
 };
 
 type ServerRoom = { id: string; name: string; server: string; writable: boolean };
-type RoomsKind = "discord" | "telegram";
+const ROOMS_KINDS = ["discord", "telegram", "googlechat", "nextcloud", "irc", "twitch"] as const;
+type RoomsKind = (typeof ROOMS_KINDS)[number];
+export const isRoomsKind = (k: string): k is RoomsKind => (ROOMS_KINDS as readonly string[]).includes(k);
 
-/** A Discord channel id; a Telegram group's id (negative, -100… for a supergroup). */
-const ROOM_ID: Record<RoomsKind, RegExp> = { discord: /^\d{15,21}$/, telegram: /^-\d{5,16}$/ };
+/**
+ * A Discord channel id; a Telegram group's id (negative, -100… for a supergroup); a Google Chat space; a Nextcloud
+ * Talk conversation's token; an IRC channel; a Twitch chat (the streamer's #login).
+ */
+const ROOM_ID: Record<RoomsKind, RegExp> = {
+  discord: /^\d{15,21}$/,
+  telegram: /^-\d{5,16}$/,
+  googlechat: /^spaces\/[\w-]+$/,
+  nextcloud: /^[a-z0-9]{4,32}$/,
+  irc: /^[#&][^\s,]{1,39}$/,
+  twitch: /^#\w{3,25}$/,
+};
+/** The rooms of the platforms that report them as the bot sees them, like Telegram's groups. */
+const SEEN = {
+  title: "rooms.any.title",
+  lead: "rooms.any.lead",
+  pick: "rooms.any.pick",
+  allListed: "rooms.any.allListed",
+  namePlaceholder: "rooms.tg.namePlaceholder",
+  idPlaceholder: "rooms.any.idPlaceholder",
+  idHint: "rooms.any.idHint",
+} as const;
 /** The texts that name the platform's rooms: Discord's server rooms, Telegram's groups. */
 const WORDS = {
   discord: {
@@ -41,6 +63,10 @@ const WORDS = {
     idPlaceholder: "rooms.tg.idPlaceholder",
     idHint: "rooms.tg.idHint",
   },
+  googlechat: SEEN,
+  nextcloud: SEEN,
+  irc: SEEN,
+  twitch: SEEN,
 } as const satisfies Record<RoomsKind, Record<string, MessageKey>>;
 
 /** The rooms of the bot's servers while it runs; none (and the id form) when they cannot be read. */
@@ -151,8 +177,8 @@ export function RoomsSection({
               placeholder={
                 unlisted.length
                   ? t(words.pick)
-                  : kind === "telegram" && !server.length
-                    ? t("rooms.tg.none")
+                  : kind !== "discord" && !server.length
+                    ? t(kind === "telegram" ? "rooms.tg.none" : "rooms.any.none")
                     : t(words.allListed)
               }
               disabled={!unlisted.length}
@@ -202,7 +228,7 @@ export function RoomsSection({
             </Button>
           </div>
         )}
-        {(!server || byId || kind === "telegram") && <p className="pform__hint">{t(words.idHint)}</p>}
+        {(!server || byId || kind !== "discord") && <p className="pform__hint">{t(words.idHint)}</p>}
       </div>
 
       <SettingRow title={t("rooms.names")} description={t("rooms.namesHint")}>

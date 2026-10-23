@@ -1011,3 +1011,10 @@
 .skimp__note.is-warn {
   color: var(--apx-warning);
 }
+/* The search stays on top while the catalog scrolls under it. */
+.int__search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin-bottom: 12px;
+}

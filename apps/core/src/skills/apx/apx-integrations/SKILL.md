@@ -1,6 +1,6 @@
 ---
 name: apx-integrations
-description: APX's integrations, accounts the owner connects once (Asana, Google Calendar, Gmail, Google Drive, GitHub, Notion, Slack, Sentry, Brave Search, Obsidian) that give agents their tools. Use it when the owner asks to connect, check or disconnect one of those services, or asks why its tools are missing.
+description: APX's integrations, accounts the owner connects once (Google, Asana, GitHub, Notion, Slack, Linear, Jira, Home Assistant and about fifty more) that give agents their tools. Use it when the owner asks to connect, check or disconnect one of those services, or asks why its tools are missing.
 ---
 
 # Integrations in APX
@@ -17,12 +17,17 @@ to have at hand, and use the tools once it is connected.
 | Google Drive | Sign in with Google, as above | `drive_search`, `drive_read`, `drive_write_doc`, `drive_share` (APX's sign-in reaches only the Docs APX wrote; the owner's own client, the whole Drive) |
 | GitHub | Personal access token | MCP server `github` |
 | Notion | Integration token | MCP server `notion` |
-| Slack | Bot token and team id | MCP server `slack` |
+| Slack | Bot token | MCP server `slack` |
 | Sentry | Access token | MCP server `sentry` |
 | Brave Search | API key | MCP server `brave-search` |
 | Obsidian | The vault's folder | MCP server `obsidian` |
+| Home Assistant, n8n | Their address and a token | MCP server `home-assistant`, `n8n` |
+| Linear, Jira and Confluence (`atlassian`), GitLab, Vercel, Supabase, Stripe, Todoist, Airtable, Figma, Cloudflare, Netlify, Neon, ClickUp, monday.com, Canva, Miro, Dropbox, Calendly, Datadog, Grafana, PayPal, WordPress.com, Hugging Face and more | Nothing to type: the owner signs in in their browser | MCP server named like it (`linear`, `stripe`…) |
+| Context7, DeepWiki, Wolfram, AWS Knowledge, Microsoft Learn | Nothing: no account | MCP server named like it |
 
-Linear is listed as coming: it is not available yet.
+Microsoft 365 and Box are listed as coming: not available yet. An app the owner signs in to waits on that sign-in
+until they finish it: its server shows `needs-sign-in`, and the integration's screen has **Sign in** to open the page
+again.
 
 Asana uses a personal access token from https://app.asana.com/0/my-apps, entered only in the app.
 APX validates it before saving `secret://asana-token`; no MCP server is installed.

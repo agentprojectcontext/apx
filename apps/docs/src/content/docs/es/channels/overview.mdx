@@ -17,7 +17,7 @@ Los canales se conectan en **Configuración › Canales**. Después cada uno apa
 
 ## Tres palabras: canal, contacto, sala
 
-- Un **canal** es una app por la que habla APX: Telegram, WhatsApp, Discord, Slack, iMessage.
+- Un **canal** es una app por la que habla APX: Telegram, WhatsApp, Discord, Slack, iMessage, Google Chat, SMS y más.
 - Un **contacto** es una persona en un canal. Cada contacto tiene un chat directo con tu agente.
 - Una **sala** es un lugar compartido que leen muchas personas, como un canal de tu servidor de Discord.
 
@@ -157,10 +157,14 @@ las respuestas habladas para ese chat; para eso también hace falta una voz en *
 | [WhatsApp](/es/channels/whatsapp/) | Completo | Un dispositivo vinculado, por QR |
 | [Discord](/es/channels/discord-slack/) | Completo | Un bot: mensajes directos y salas del servidor |
 | [Slack](/es/channels/discord-slack/) | Completo | Una app en Socket Mode: mensajes directos |
-| [iMessage](/es/channels/imessage/) | Tools en la Mac | Los agentes leen y mandan; no entran chats |
+| [iMessage](/es/channels/imessage/) | Sin verificar | En una Mac: tools que usan los agentes y, si querés, contestar a las personas que aprobás |
 | Matrix, Mattermost, Signal | Sin verificar | Están en el panel, todavía sin probar contra un servidor real |
 | Email | Sin verificar | Un buzón por IMAP y SMTP (con contraseña de aplicación); probado solo contra un servidor simulado |
-| Teams, Google Chat, SMS, LINE | Pronto | Aparecen en la lista, todavía no se pueden conectar |
+| Google Chat | Sin verificar | Una app de Chat por Cloud Pub/Sub (sin dirección pública): mensajes directos y los espacios que listes |
+| SMS | Sin verificar | Un número de Twilio, revisado cada pocos segundos (sin webhook) |
+| ntfy | Sin verificar | Notificaciones push en tu teléfono, y tus respuestas desde la app de ntfy; sólo vos |
+| Nextcloud Talk, IRC, Twitch | Sin verificar | Un usuario bot (Nextcloud), un nick (IRC) o una cuenta bot (chat de Twitch); sus salas se listan como los grupos de Telegram |
+| Teams, LINE | Pronto | Sólo entregan a un webhook público, que APX todavía no recibe |
 
 <Aside type="note">
 La terminal solo agrega bots de Telegram. Todos los demás canales se configuran en **Configuración › Canales**.

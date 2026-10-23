@@ -1,42 +1,15 @@
 // Official marks of the apps an integration connects, used only to say which app it is (never altered). The panel
 // loads them after its first screen (`@apx/ui/marks`); Slack's is the channel mark, already there. Path data from
-// simple-icons 13.21.0 (CC0); Google's are their 2026 app icons whole (gradients, masks) from thesvg.org. The marks
-// belong to their owners. `color` null draws in the text colour: GitHub, Notion and Sentry are near-black and would
-// vanish on the dark theme.
-import { createElement, type ReactNode } from "react";
-import type { ChannelMark } from "./channel-marks";
+// simple-icons 16.35.0 (CC0; Canva's from 15.22.0, which dropped it); Google's are their 2026 app icons whole
+// (gradients, masks) from thesvg.org, which also supplied the logos of AWS, Amplitude, Attio, Figma and monday.com;
+// Semgrep's is its site icon and Microsoft's the four squares of its logo guidelines. The marks belong to their
+// owners. `color` null draws in the text colour: GitHub, Notion, Sentry and other near-black marks would vanish on
+// the dark theme. An app with no official vector we could trust has no mark (the panel shows its letter).
+import type { ChannelMark, MarkArt } from "./channel-marks";
+import { INTEGRATION_MARKS_MORE } from "./integration-marks-more";
 
-/** One element of a mark drawn whole: its tag, attributes (`{id}` stands for the icon's own prefix) and children. */
-export type MarkNode = { t: string; a: Readonly<Record<string, string>>; c?: ReadonlyArray<MarkNode> };
-/** A mark kept as its full SVG, for an icon flat paths cannot draw (gradients, masks, a blur). */
-export type MarkArt = { viewBox: string; art: ReadonlyArray<MarkNode> };
+export type { MarkArt, MarkNode } from "./channel-marks";
 export type IntegrationMark = ChannelMark | MarkArt;
-
-/** A whole mark's elements, `{id}` in their attributes made one icon's own (`prefix`). */
-export function drawMarkArt(mark: MarkArt, prefix: string): ReactNode {
-  return mark.art.map((n, i) => drawn(n, prefix, i));
-}
-
-function drawn(n: MarkNode, prefix: string, key: number): ReactNode {
-  const props: Record<string, unknown> = { key };
-  for (const [k, v] of Object.entries(n.a)) {
-    const value = v.replaceAll("{id}", prefix);
-    // A style is written as CSS ("mask-type:alpha"); React takes it as an object.
-    props[k] =
-      k === "style"
-        ? Object.fromEntries(
-            value
-              .split(";")
-              .filter(Boolean)
-              .map((d) => {
-                const [prop = "", val = ""] = d.split(":");
-                return [prop.trim().replace(/-([a-z])/g, (_m, c: string) => c.toUpperCase()), val.trim()];
-              }),
-          )
-        : value;
-  }
-  return createElement(n.t, props, ...(n.c ?? []).map((c, i) => drawn(c, prefix, i)));
-}
 
 export const INTEGRATION_MARKS = {
   github: {
@@ -592,6 +565,7 @@ export const INTEGRATION_MARKS = {
       },
     ],
   },
+  ...INTEGRATION_MARKS_MORE,
 } as const satisfies Record<string, IntegrationMark>;
 
 export type LateIntegrationBrand = keyof typeof INTEGRATION_MARKS;

@@ -256,3 +256,19 @@ test("attention hours news reach only an owner whom contacts write to on a chann
     done();
   }
 });
+
+test("more integrations reach an owner who connected one; new channels an owner with a channel", () => {
+  const { store, news, done } = setup();
+  try {
+    const applies = (id: string) => news.list().find((n) => n.id === id)?.applies;
+    assert.equal(applies("more-apps"), false, "no integration yet");
+    assert.equal(applies("more-channels"), false, "no channel yet");
+    store.settings.set("mcp_servers", JSON.stringify({ mcpServers: { notion: { command: "npx" }, acme: {} } }));
+    assert.equal(applies("more-apps"), true, "a catalog one counts; the owner's own servers do not");
+    const telegram = { id: "telegram", type: "telegram", label: "Telegram", enabled: true, agent_id: "roby" } as const;
+    store.settings.write("channels", [{ ...telegram, strangers: "pair", concurrency: "steer", owner_thread: "home" }]);
+    assert.equal(applies("more-channels"), true);
+  } finally {
+    done();
+  }
+});
