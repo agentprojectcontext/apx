@@ -77,6 +77,9 @@ export const enComputer = {
   "computer.offline": "The VM is off.",
   "computer.connectionFailed": "Could not connect to the VM desktop.",
   "agentedit.computer": "Isolated computer",
+  "computer.progress.creating": "Creating virtual machine",
+  "computer.progress.loading": "Loading virtual machine",
+  "computer.progress.ready": "Ready",
   "computer.noMemory":
     "Not enough free memory on this Mac: {free} GiB free, and the computer needs {vm} GiB plus {reserve} GiB kept for the Mac. Close apps or lower its memory, then try again.",
   "computer.lowerMemory": "Lower it to {gib} GiB and turn on",

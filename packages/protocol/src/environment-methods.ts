@@ -65,6 +65,8 @@ export const environmentMethods = {
         .enum(["not_installed", "stopped", "preparing", "running", "stopping", "error", "unsupported"])
         .optional(),
       step: z.enum(["runtime", "guest", "desktop"]).optional(),
+      /** While preparing: Linux is being set up for the first time, not booted. */
+      setup: z.boolean().optional(),
       downloaded: z.number().nonnegative().optional(),
       total: z.number().nonnegative().optional(),
       error: z.string().optional(),

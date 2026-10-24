@@ -108,11 +108,8 @@ export function vmTools(vm: Computer | undefined): Tool[] {
         let s = await settle(vm, ctx, ["preparing"], FIRST_LOOK_MS);
         if (s.phase === "preparing") {
           // A boot or a first setup takes minutes: this turn ends, and the chat gets a turn the moment it is up.
-          vm.whenReady(thread, ctx.agent.id);
-          const first =
-            s.step === "runtime" || s.step === "guest"
-              ? " Its first setup downloads Linux and takes several minutes."
-              : "";
+          vm.whenReady(thread, ctx.agent.id, s);
+          const first = s.setup ? " Its first setup downloads Linux and takes several minutes." : "";
           return `The computer is starting.${first} You get a turn in this chat the moment it is ready: tell the owner in one short line, in their language, that you will let them know, and end your turn now; do not check on it meanwhile.`;
         }
         // Started just now: the screen is taken once the computer runs.

@@ -103,6 +103,9 @@ export const TerminalView = lazy(() => import("./panel/TerminalView.tsx"));
 
 // Computer use shows only in the desktop app; a contact's chat brings the channel's conversation and card.
 export const ScreenLive = lazy(() => import("./chat/ScreenLive.tsx").then((m) => ({ default: m.ScreenLive })));
+export const ComputerProgress = lazy(() =>
+  import("./computers/ComputerProgress.tsx").then((m) => ({ default: m.ComputerProgress })),
+);
 export const ContactChat = lazy(() => import("./channels/ContactChat.tsx").then((m) => ({ default: m.ContactChat })));
 
 // Message parts load with the first message that has one, not with the chat.

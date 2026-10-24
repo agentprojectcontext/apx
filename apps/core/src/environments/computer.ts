@@ -7,7 +7,7 @@ import { availableMemory } from "../usage.ts";
 import { type ComputerControl, computerControl } from "./control.ts";
 import { guestOperations } from "./guest-operations.ts";
 import type { Appearance, VmLifecycle } from "./lifecycle.ts";
-import { type ReadyEvent, readyWaiters } from "./ready.ts";
+import { type ReadyEvent, type ReadyStage, readyWaiters } from "./ready.ts";
 import {
   type ComputerResources,
   type Host,
@@ -76,9 +76,11 @@ export function createComputer(store: Store, config: ComputerConfig) {
   const leases = new Map<number, ComputerControl>();
   let probe: { at: number; value: Promise<ComputerUsage | undefined> } | undefined;
   let wake: (e: ReadyEvent) => void = () => {};
+  let progress: (thread: string, stage: ReadyStage) => void = () => {};
   const ready = readyWaiters({
     phase: async () => (config.lifecycle ? await config.lifecycle.status() : { phase: "running" }),
     wake: (e) => wake(e),
+    progress: (thread, stage) => progress(thread, stage),
   });
   /** An agent's screen starts in the agent's hands; the owner may take it to watch closely, type or sign in. */
   const control = (screen: number) => {
@@ -156,10 +158,11 @@ export function createComputer(store: Store, config: ComputerConfig) {
     /** This host can run it: agents in the owner's chats may start it (asking first) before it was ever set up. */
     available: () => Boolean(config.lifecycle?.supported),
     /** The chat's agent gets a turn once the computer it started is up (or failed): it never waits in the chat. */
-    whenReady: (thread: string, agent: string) => ready.add(thread, agent),
-    /** Who admits that turn: the engine, wired once it exists. */
-    onReady(fn: (e: ReadyEvent) => void) {
+    whenReady: (thread: string, agent: string, now?: { setup?: boolean | undefined }) => ready.add(thread, agent, now),
+    /** Who admits that turn (the engine, wired once it exists), and who shows the chat how far it got. */
+    onReady(fn: (e: ReadyEvent) => void, stage: (thread: string, stage: ReadyStage) => void = () => {}) {
       wake = fn;
+      progress = stage;
     },
     /** The visible browser on the screen this run holds. */
     browser: (run: string) => {

@@ -196,3 +196,37 @@ test("polling a closed controller cannot reconnect its network", async () => {
   assert.equal((await vm.status()).phase, "error");
   assert.equal(connections, 0);
 });
+
+test("a first start says it sets Linux up; a start of one already set up is a boot", async () => {
+  let installed = false;
+  let running = false;
+  let release = () => {};
+  const vm = createVmLifecycle({
+    supported: true,
+    installed: () => installed,
+    running: async () => running,
+    prepare: async () => {
+      await new Promise<void>((resolve) => (release = resolve));
+      installed = true;
+      running = true;
+    },
+    stop: async () => {
+      running = false;
+    },
+    appearance: async () => {},
+  });
+  try {
+    vm.start("light");
+    assert.equal((await vm.status()).setup, true);
+    release();
+    await waitFor(async () => (await vm.status()).phase === "running");
+    assert.equal((await vm.status()).setup, undefined);
+    await vm.stop();
+    await waitFor(async () => (await vm.status()).phase !== "stopping");
+    vm.start("light");
+    assert.equal((await vm.status()).setup, undefined, "already set up: only a boot");
+    release();
+  } finally {
+    await vm.close();
+  }
+});

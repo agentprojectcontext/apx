@@ -8,7 +8,7 @@ import { retryNow } from "../data/live.ts";
 import { isNewChat, useNewChat } from "../data/newChat.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
-import { ContactChat, ScreenLive } from "../lazy.ts";
+import { ComputerProgress, ContactChat, ScreenLive } from "../lazy.ts";
 import { go, useNav } from "../shell/nav.ts";
 import { ChatHeader } from "./ChatHeader.tsx";
 import { ChatComposer } from "./composer/ChatComposer.tsx";
@@ -35,6 +35,7 @@ export function ChatView({
   const thread = stored ?? fresh;
   const load = useData((s) => (threadId ? s.threadLoad[threadId] : undefined));
   const agents = useData((s) => s.agents);
+  const computerStage = useData((s) => (threadId ? s.computerProgress[threadId] : undefined));
   const former = useData((s) => s.former);
   const visible = usePageVisible();
   const offline = useData((s) => s.connection === "offline");
@@ -129,7 +130,14 @@ export function ChatView({
           {t("chat.readOnly")}
         </div>
       ) : (
-        <ChatComposer key={thread.id} thread={thread} agent={agent} />
+        <>
+          {computerStage && (
+            <Suspense fallback={null}>
+              <ComputerProgress stage={computerStage} />
+            </Suspense>
+          )}
+          <ChatComposer key={thread.id} thread={thread} agent={agent} />
+        </>
       )}
       {COMPUTER && (
         <Suspense fallback={null}>

@@ -492,15 +492,18 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     },
   });
   // The agent that started the computer and ended its turn hears once it is up, or why not (environments/ready.ts).
-  vm.onReady((e) => {
-    engine.admit({
-      thread_id: e.thread,
-      agent_id: e.agent,
-      trigger: "system",
-      origin: { kind: "computer_ready", ready: e.ready, ...(e.error ? { error: e.error } : {}) },
-      text: "",
-    });
-  });
+  vm.onReady(
+    (e) => {
+      engine.admit({
+        thread_id: e.thread,
+        agent_id: e.agent,
+        trigger: "system",
+        origin: { kind: "computer_ready", ready: e.ready, ...(e.error ? { error: e.error } : {}) },
+        text: "",
+      });
+    },
+    (thread, stage) => bus.emit({ type: "computer.progress", thread_id: thread, stage }),
+  );
   const scheduler = officeScheduler({
     store,
     admit: (a) => engine.admit(a),

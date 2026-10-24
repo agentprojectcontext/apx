@@ -3,7 +3,11 @@
 import type { RunTimers } from "../engine/engine.ts";
 
 export type ReadyEvent = { thread: string; agent: string; ready: boolean; error?: string };
-type Phase = { phase?: string | undefined; error?: string | undefined };
+/** What a waiting chat shows: Linux being set up the first time, the computer coming up, then ready or not. */
+export type ReadyStage = "creating" | "loading" | "ready" | "failed";
+type Phase = { phase?: string | undefined; error?: string | undefined; setup?: boolean | undefined };
+
+const stageOf = (s: Phase): ReadyStage => (s.setup ? "creating" : "loading");
 
 export const READY_POLL_MS = 2_000;
 /** Past the lifecycle's own preparation deadline (20 minutes), so a preparation that hangs is reported by it first. */
@@ -18,9 +22,15 @@ const wall: RunTimers = {
   },
 };
 
-export function readyWaiters(o: { phase: () => Promise<Phase>; wake: (e: ReadyEvent) => void; timers?: RunTimers }) {
+export function readyWaiters(o: {
+  phase: () => Promise<Phase>;
+  wake: (e: ReadyEvent) => void;
+  progress?: (thread: string, stage: ReadyStage) => void;
+  timers?: RunTimers;
+}) {
   const timers = o.timers ?? wall;
-  const waiting = new Map<string, { agent: string; until: number }>();
+  const waiting = new Map<string, { agent: string; until: number; stage: ReadyStage }>();
+  const tell = (thread: string, stage: ReadyStage) => o.progress?.(thread, stage);
   let cancel: (() => void) | undefined;
   let closed = false;
   const arm = () => {
@@ -33,18 +43,27 @@ export function readyWaiters(o: { phase: () => Promise<Phase>; wake: (e: ReadyEv
     const now = timers.now();
     for (const [thread, w] of waiting) {
       const late = now >= w.until;
-      if ((!s || s.phase === "preparing") && !late) continue;
+      if ((!s || s.phase === "preparing") && !late) {
+        if (s && stageOf(s) !== w.stage) {
+          w.stage = stageOf(s);
+          tell(thread, w.stage);
+        }
+        continue;
+      }
       waiting.delete(thread);
       const ready = s?.phase === "running";
       const error = late && s?.phase !== "running" ? "it did not start in time" : (s?.error ?? `it is ${s?.phase}`);
+      tell(thread, ready ? "ready" : "failed");
       o.wake({ thread, agent: w.agent, ready, ...(ready ? {} : { error }) });
     }
     arm();
   };
   return {
     /** The chat's agent hears once when the computer is up, or why it is not. */
-    add(thread: string, agent: string) {
-      waiting.set(thread, { agent, until: timers.now() + READY_WAIT_MS });
+    add(thread: string, agent: string, now: Phase = {}) {
+      const stage = stageOf(now);
+      waiting.set(thread, { agent, until: timers.now() + READY_WAIT_MS, stage });
+      tell(thread, stage);
       arm();
     },
     waiting: () => waiting.size,

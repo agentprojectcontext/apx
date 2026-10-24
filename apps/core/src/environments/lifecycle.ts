@@ -28,6 +28,8 @@ export function createVmLifecycle(driver: VmDriver) {
   let phase: ComputerPhase | undefined;
   let progress: ComputerProgress | undefined;
   let error: string | undefined;
+  /** This start sets Linux up for the first time (a download and an install), not a boot of one already there. */
+  let setup = false;
   let controller: AbortController | undefined;
   let operation: Promise<void> | undefined;
   let connecting: Promise<void> | undefined;
@@ -70,7 +72,13 @@ export function createVmLifecycle(driver: VmDriver) {
         error = errorMessage(failure).slice(0, 2000);
       }
     }
-    return { phase, supported: true, ...progress, ...(error ? { error } : {}) };
+    return {
+      phase,
+      supported: true,
+      ...progress,
+      ...(phase === "preparing" && setup ? { setup: true } : {}),
+      ...(error ? { error } : {}),
+    };
   };
   const allowed = () => {
     if (closed) throw unavailable("computer controller is closed");
@@ -89,6 +97,7 @@ export function createVmLifecycle(driver: VmDriver) {
       allowed();
       if (operation) throw conflict("a computer lifecycle operation is already running");
       phase = "preparing";
+      setup = !(driver.prepared?.() ?? driver.installed());
       generation++;
       stopping = false;
       progress = { step: "runtime" };

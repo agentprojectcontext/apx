@@ -145,6 +145,7 @@
                       "**/CodeView.tsx",
                       "**/CommandPalette.tsx",
                       "**/ComputerPanel.tsx",
+                      "**/ComputerProgress.tsx",
                       "**/ComputersScreen.tsx",
                       "**/ConfigModal.tsx",
                       "**/ConnectPart.tsx",

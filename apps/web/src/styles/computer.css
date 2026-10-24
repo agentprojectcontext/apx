@@ -313,3 +313,35 @@
   flex: 1;
   min-height: 360px;
 }
+
+/* The chip a chat shows while the computer its agent started comes up. */
+.chat__computer {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  padding: 3px 10px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: var(--apx-text-xs);
+}
+.chat__computerdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--apx-accent, #3b82f6);
+  animation: chat-computer-pulse 1.2s ease-in-out infinite;
+}
+@keyframes chat-computer-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat__computerdot {
+    animation: none;
+  }
+}

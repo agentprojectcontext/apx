@@ -35,6 +35,12 @@ export const CoreEvent = z.discriminatedUnion("type", [
   /** Agents or projects changed (from any client, an agent's tool or a project's files): reload both lists. */
   z.object({ type: z.literal("team.updated") }),
   z.object({ type: z.literal("browser.tabs"), tabs: z.array(TabInfo) }),
+  /** A chat waits on the computer its agent started: Linux set up the first time, booting, then ready or not. */
+  z.object({
+    type: z.literal("computer.progress"),
+    thread_id: Id,
+    stage: z.enum(["creating", "loading", "ready", "failed"]),
+  }),
   /** What a terminal printed (text as it came: escape codes and all). */
   z.object({ type: z.literal("terminal.output"), terminal: Id, data: z.string() }),
   /** Its shell ended. */

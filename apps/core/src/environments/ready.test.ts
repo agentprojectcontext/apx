@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { manualTimers } from "../testkit/platform.ts";
-import { READY_POLL_MS, READY_WAIT_MS, type ReadyEvent, readyWaiters } from "./ready.ts";
+import { READY_POLL_MS, READY_WAIT_MS, type ReadyEvent, type ReadyStage, readyWaiters } from "./ready.ts";
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -42,4 +42,28 @@ test("a start that fails, or never ends, is told to the agent with why", async (
   }
   assert.deepEqual(heard.at(-1), { thread: "thr_2", agent: "roby", ready: false, error: "it did not start in time" });
   w.close();
+});
+
+test("the waiting chat is told whether Linux is being set up or booting, then that it is ready", async () => {
+  const timers = manualTimers();
+  let state: { phase: string; setup?: boolean } = { phase: "preparing", setup: true };
+  const stages: ReadyStage[] = [];
+  const w = readyWaiters({
+    phase: async () => state,
+    wake: () => {},
+    progress: (thread, stage) => thread === "thr_1" && stages.push(stage),
+    timers,
+  });
+  w.add("thr_1", "scout", state);
+  timers.tick(READY_POLL_MS);
+  await flush();
+  state = { phase: "preparing" };
+  timers.tick(READY_POLL_MS);
+  await flush();
+  timers.tick(READY_POLL_MS);
+  await flush();
+  state = { phase: "running" };
+  timers.tick(READY_POLL_MS);
+  await flush();
+  assert.deepEqual(stages, ["creating", "loading", "ready"]);
 });

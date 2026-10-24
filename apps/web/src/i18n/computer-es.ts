@@ -78,6 +78,9 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.offline": "VM apagada.",
   "computer.connectionFailed": "No se pudo conectar al escritorio de la VM.",
   "agentedit.computer": "Computadora aislada",
+  "computer.progress.creating": "Creando máquina virtual",
+  "computer.progress.loading": "Cargando máquina virtual",
+  "computer.progress.ready": "Lista",
   "computer.noMemory":
     "No hay memoria libre suficiente en esta Mac: {free} GiB libres, y la computadora necesita {vm} GiB más {reserve} GiB que se dejan para la Mac. Cerrá apps o bajale la memoria, y probá de nuevo.",
   "computer.lowerMemory": "Bajarla a {gib} GiB y encender",
