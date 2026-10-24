@@ -20,9 +20,28 @@ const STOPPED_BY = {
   owner: "by the owner",
 };
 
+type Sizes = { memory_gib?: number | undefined; cpus?: number | undefined; disk_gib?: number | undefined };
+
+const sizes = (r: Sizes) =>
+  [
+    r.memory_gib !== undefined && `${r.memory_gib} GiB memory`,
+    r.cpus !== undefined && `${r.cpus} CPUs`,
+    r.disk_gib !== undefined && `${r.disk_gib} GiB disk`,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+/** What it runs with now, and apart from it what the owner set for its next start; off, only the latter. */
+function sizeOf(s: Status): string {
+  const next = s.resources;
+  const now = s.phase === "running" ? s.running_resources : undefined;
+  if (now)
+    return ` · running with ${sizes(now)}${s.restart && next ? `; set to ${sizes(next)} from its next start` : ""}`;
+  return next ? ` · ${sizes(next)} when it starts` : "";
+}
+
 function describe(s: Status, run: string): string {
-  const r = s.resources;
-  const size = r ? ` · ${r.memory_gib} GiB memory, ${r.cpus} CPUs, ${r.disk_gib} GiB disk` : "";
+  const size = sizeOf(s);
   const why = s.last_stop ? ` (shut down ${STOPPED_BY[s.last_stop.reason]})` : "";
   const mine = s.screens?.find((x) => x.run === run);
   const up = s.screens?.length ?? 0;

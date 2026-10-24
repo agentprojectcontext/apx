@@ -93,6 +93,8 @@ export const environmentMethods = {
         .optional(),
       /** What the next start gives it; `restart` when that differs from what it runs with now. */
       resources: ComputerResources.optional(),
+      /** What the running VM has now, as its instance holds it (absent while it is off). */
+      running_resources: ComputerResources.partial().optional(),
       limits: z.object({ memory_gib: Range, cpus: Range, disk_gib: Range }).optional(),
       /** Its disk only grows: the smallest size the owner can still pick. */
       disk_min_gib: z.number().optional(),

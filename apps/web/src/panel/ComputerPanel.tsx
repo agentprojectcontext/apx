@@ -39,6 +39,9 @@ function ComputerPanelBody() {
   const chat = status?.chat;
   const allow = Boolean(chat?.agent && chat.permitted === false);
   const r = status?.resources;
+  // Running, the badge says what it runs with; the settings below say what its next start gets.
+  const now = ready ? status?.running_resources : undefined;
+  const badge = { cpus: now?.cpus ?? r?.cpus ?? 0, memory: now?.memory_gib ?? r?.memory_gib ?? 0 };
   const held = screensUp(status);
   const stoppedBy = phase === "stopped" && status?.last_stop?.reason;
   const label = (s: (typeof screens)[number]) =>
@@ -69,7 +72,7 @@ function ComputerPanelBody() {
         <div className="computer__toolbar">
           <span className={`computer__status ${state === "connected" ? "is-on" : ""}`} />
           <strong>{t("computer.title")}</strong>
-          {r && <span className="computer__badge">{t("computer.badge", { cpus: r.cpus, memory: r.memory_gib })}</span>}
+          {r && <span className="computer__badge">{t("computer.badge", badge)}</span>}
         </div>
       </PanelHeader>
       {ready && (

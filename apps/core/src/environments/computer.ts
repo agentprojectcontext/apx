@@ -259,6 +259,7 @@ export function createComputer(store: Store, config: ComputerConfig) {
         demo: config.demo === true,
         ...(config.model ? { model: config.model } : {}),
         resources: wanted,
+        ...(ready && Object.keys(applied).length ? { running_resources: applied } : {}),
         limits: resourceLimits(host),
         ...(applied.disk_gib ? { disk_min_gib: applied.disk_gib } : {}),
         ...(restart ? { restart: true } : {}),

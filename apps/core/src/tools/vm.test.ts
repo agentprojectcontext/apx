@@ -288,3 +288,31 @@ test("a computer that takes minutes to come up ends the turn, and its chat gets 
     env.cleanup();
   }
 });
+
+test("the computer's status says what it runs with now and, apart, what the owner set for its next start", async () => {
+  const home = tempDir("apx-vm-tool-").path;
+  const llm = scriptedLlm((req) =>
+    results(req).length ? say("ok") : callTool("look", "computer", { action: "status" }),
+  );
+  const config = { ...fakeComputer(home).config, applied: () => ({ memory_gib: 6, cpus: 4, disk_gib: 32 }) };
+  const env = await startCore({ home, llm, computer: config });
+  try {
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    await env.client.call("environments.configure", { memory_gib: 4, cpus: 2 });
+    await env.client.call("environments.enable", { thread: "home", appearance: "light" });
+    await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "running");
+    await env.client.call("threads.send", { thread: "home", text: "¿Con cuánto corre la computadora?" });
+    await env.settle("home");
+    assert.match(
+      results(llm.calls.at(-1) as LlmRequest)[0] ?? "",
+      /running with 6 GiB memory, 4 CPUs, 32 GiB disk; set to 4 GiB memory, 2 CPUs, 32 GiB disk from its next start/,
+    );
+    await env.client.call("environments.stop", {});
+    await waitFor(async () => (await env.client.call("environments.status", {})).phase === "stopped", "stopped");
+    const off = await env.client.call("environments.status", {});
+    assert.equal(off.running_resources, undefined, "off, it runs with nothing");
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});
