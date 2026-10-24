@@ -116,8 +116,8 @@ export function AppScreen() {
             {t("artifact.outsideHint")}
           </EmptyState>
         ) : (
-          // An app keeps running when the owner leaves; a widget is a view, closed on leaving (unless apx-live).
-          <SurfaceFrame surfaceId={app.id} fit="fill" open={app.app} />
+          // Opened here, it keeps running when the owner leaves, until closed: the dock lists it, pinned or not.
+          <SurfaceFrame surfaceId={app.id} fit="fill" open />
         )}
       </div>
     </section>

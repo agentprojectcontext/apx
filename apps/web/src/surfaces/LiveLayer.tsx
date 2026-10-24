@@ -49,12 +49,12 @@ export function LiveLayer() {
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
 
-  // Closes here: a deleted page, and one that no longer earns its place (not live, and not an app any more).
+  // Closes here: a deleted page, and one that no longer earns its place (not live, and not opened by the owner).
   useEffect(() => {
     for (const e of entries) {
       const doc = docs[e.surface];
       const s = summaries[e.surface];
-      if (!s || ((!e.open || !s.app) && doc && declaresLive(doc.html) === undefined)) dropLive(e.surface);
+      if (!s || (!e.open && doc && declaresLive(doc.html) === undefined)) dropLive(e.surface);
     }
   }, [entries, docs, summaries]);
 

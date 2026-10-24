@@ -141,6 +141,35 @@ body:has(.projboard__grid.is-dragging) .livelayer__box[data-shown] {
   position: relative;
   display: inline-flex;
 }
+/* Opened, not pinned: below a line, with its pin and (on hover) its close over the row's right end. */
+.appsdock__sep {
+  flex: none;
+  width: calc(100% - 20px);
+  margin: 4px 10px;
+  border: 0;
+  border-top: 1px dashed var(--apx-border);
+}
+.appsdock__loose {
+  position: relative;
+}
+.appsdock__loose .apx-nav {
+  padding-right: 60px;
+}
+.appsdock__looseactions {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: inline-flex;
+  gap: 2px;
+  transform: translateY(-50%);
+}
+.appsdock__close {
+  opacity: 0;
+}
+.appsdock__loose:hover .appsdock__close,
+.appsdock__close:focus-visible {
+  opacity: 1;
+}
 .appsdock__dot {
   position: absolute;
   right: -2px;

@@ -1,6 +1,7 @@
 import type { SurfaceSummary } from "@apx/protocol";
 import { ContextMenu, IconButton, Icons, NavItem, Popover, ProjectTile, SearchField } from "@apx/ui";
 import { useMemo, useState } from "react";
+import { setSurfaceFlags } from "../data/actions.ts";
 import { projectName } from "../data/identity.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
@@ -8,7 +9,7 @@ import { ArtifactMemoryDialog } from "../surfaces/ArtifactMemory.tsx";
 import { ArtifactPropertiesDialog } from "../surfaces/ArtifactProperties.tsx";
 import { artifactMenu } from "../surfaces/artifactMenu.tsx";
 import { openInstall } from "../surfaces/installRequest.ts";
-import { useRunningApps } from "../surfaces/livePool.ts";
+import { dropLive, useRunningApps } from "../surfaces/livePool.ts";
 import { createArtifact } from "../surfaces/widgetChatActions.ts";
 import { go, useNav } from "./nav.ts";
 import { SidebarSection } from "./SidebarSection.tsx";
@@ -18,8 +19,8 @@ import "../styles/artifacts.css";
 const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 /**
- * Apps in the sidebar, like a dock: every app (an artifact listed in Apps), a dot on each one still running. "+" opens
- * any artifact in the system; a widget opened that way is a view and closes when the owner leaves it.
+ * Apps in the sidebar, like a dock: every app (an artifact listed in Apps), a dot on each one still running, then under
+ * a line the artifacts opened but not pinned, each with its pin, until closed. "+" opens any artifact in the system.
  */
 export function AppsDock({ rail }: { rail: boolean }) {
   const t = useT();
@@ -38,6 +39,15 @@ export function AppsDock({ rail }: { rail: boolean }) {
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
     [surfaces],
   );
+  // Opened and not in Apps: shown while they run, and the one on screen even when the pool could not keep it.
+  const loose = useMemo(() => {
+    const ids = [...runningIds];
+    if (view === "app" && appId && !ids.includes(appId)) ids.push(appId);
+    return ids.flatMap((id) => {
+      const s = surfaces[id];
+      return s && !s.app ? [s] : [];
+    });
+  }, [runningIds, surfaces, view, appId]);
 
   const item = (a: SurfaceSummary) => (
     <ContextMenu
@@ -88,6 +98,32 @@ export function AppsDock({ rail }: { rail: boolean }) {
         }
       />
       {pinned.map(item)}
+      {loose.length > 0 && pinned.length > 0 && <hr className="appsdock__sep" />}
+      {loose.map((a) => (
+        <div key={a.id} className="appsdock__loose">
+          {item(a)}
+          {!rail && (
+            <span className="appsdock__looseactions">
+              <IconButton
+                size="sm"
+                label={t("widget.installApp")}
+                icon={<Icons.Pin size={14} />}
+                onClick={() => void setSurfaceFlags(a.id, { app: true })}
+              />
+              <IconButton
+                size="sm"
+                className="appsdock__close"
+                label={t("artifact.closeApp")}
+                icon={<Icons.X size={14} />}
+                onClick={() => {
+                  dropLive(a.id);
+                  if (view === "app" && appId === a.id) go.inbox();
+                }}
+              />
+            </span>
+          )}
+        </div>
+      ))}
       {memory && <ArtifactMemoryDialog surface={memory} onClose={() => setMemoryOf(undefined)} />}
       {props && <ArtifactPropertiesDialog surface={props} onClose={() => setPropsOf(undefined)} />}
     </>

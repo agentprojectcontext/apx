@@ -45,9 +45,11 @@ test("an artifact's store and database survive a reload", async ({ page: p }) =>
   expect(memory.db.tables).toContainEqual({ name: "marks", rows: 1 });
 });
 
-test("an app keeps running as it was left while the owner goes elsewhere, until closed; a widget closes on leaving", async ({
+test("an opened artifact keeps running as it was left while the owner goes elsewhere, pinned or not, until closed", async ({
   page: p,
 }) => {
+  // Wide enough for the full sidebar: the rail shows only icons, without the pin and close beside them.
+  await p.setViewportSize({ width: 1600, height: 900 });
   await rpc("setup.finish", {});
   const one = await rpc<{ id: string }>("surfaces.show", {
     name: "dock-one",
@@ -94,7 +96,7 @@ test("an app keeps running as it was left while the owner goes elsewhere, until 
   await expect.poll(() => frames(p).length).toBe(2);
   await expect.poll(marked).toBe(0);
 
-  // A widget opened full screen is a view: leaving closes it, and it never takes a place among the running apps.
+  // A widget opened full screen keeps running too, listed under the pinned apps with its pin until closed.
   const view = await rpc<{ id: string }>("surfaces.show", {
     name: "dock-view",
     title: "Dock view",
@@ -105,16 +107,23 @@ test("an app keeps running as it was left while the owner goes elsewhere, until 
     location.hash = `app=${i}`;
   }, view.id);
   await expect.poll(() => frames(p).length).toBe(3);
-  await expect(p.locator(".navitem__running")).toHaveCount(2);
   await p.evaluate(() => {
     location.hash = "";
   });
-  await expect.poll(() => frames(p).length).toBe(2);
+  await expect(p.locator(".appsdock__loose")).toHaveCount(1);
+  await expect.poll(() => frames(p).length).toBe(3);
+  await p.locator(".appsdock__loose").getByRole("button", { name: "Fijar en Apps" }).click();
+  await expect(p.locator(".appsdock__loose")).toHaveCount(0);
+  await expect(p.locator(".navitem__running")).toHaveCount(3);
 
-  // Unpinned from Apps, a running app is a widget from then on, and stops running once left.
+  // Unpinned from Apps, a running app keeps running under the line; its close there ends it.
   await rpc("surfaces.update", { surface: two.id, app: false });
-  await expect(p.locator(".navitem__running")).toHaveCount(1);
-  await expect.poll(() => frames(p).length).toBe(1);
+  await expect(p.locator(".appsdock__loose")).toHaveCount(1);
+  await expect.poll(() => frames(p).length).toBe(3);
+  await p.locator(".appsdock__loose").hover();
+  await p.locator(".appsdock__loose").getByRole("button", { name: "Cerrar app" }).click();
+  await expect(p.locator(".appsdock__loose")).toHaveCount(0);
+  await expect.poll(() => frames(p).length).toBe(2);
 });
 
 test("an .apxart file is shown for what it is before it installs, pinned and with its data as the owner chooses", async ({
