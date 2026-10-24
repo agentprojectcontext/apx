@@ -128,6 +128,8 @@ const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main
 export type CoreOptions = {
   /** Asana transport; tests record REST requests without contacting an account. */
   asanaFetch?: typeof fetch;
+  /** What asks an integration's remote server whether it takes the owner's account; tests pass a fake. */
+  integrationFetch?: typeof fetch;
   quiet?: boolean;
   llm?: Llm;
   harnesses?: Partial<Record<HarnessId, Harness>>;
@@ -514,6 +516,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       addresses: () => reachableAt(config.host, listening, config.publicUrl),
       terminals,
       webhooks,
+      integrationFetch: opts.integrationFetch,
       access: createAccess({
         home: config.home,
         running: { host: config.host, publicUrl: config.publicUrl, token: config.token },
