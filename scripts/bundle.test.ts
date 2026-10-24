@@ -84,4 +84,7 @@ test("a source file belongs to its npm package, a workspace package's build or i
   assert.equal(owner("/r/node_modules/react-dom/cjs/react-dom.js"), "react-dom");
   assert.equal(owner("/r/packages/ui/dist/chunk-X.js"), "@apx/ui");
   assert.equal(owner("/r/apps/web/src/i18n/es.ts"), "apps/web/src/i18n/es.ts");
+  // A path resolved on Windows.
+  assert.equal(owner("D:\\r\\node_modules\\.pnpm\\zod@4.0.0\\node_modules\\zod\\v4\\core.js"), "zod");
+  assert.equal(owner("D:\\r\\apps\\web\\src\\a.ts"), "apps/web/src/a.ts");
 });

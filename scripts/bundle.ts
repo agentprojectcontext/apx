@@ -73,7 +73,9 @@ export function bootFiles(dist: string): Boot | undefined {
 }
 
 /** Who a source file belongs to: its npm package, a workspace package's build, or its path in the repo. */
-export function owner(source: string): string {
+export function owner(file: string): string {
+  // A path resolved on Windows has backslashes; the patterns below read it with slashes.
+  const source = file.replaceAll("\\", "/");
   const at = source.lastIndexOf("node_modules/");
   if (at >= 0) {
     const [scope = "", name = ""] = source.slice(at + "node_modules/".length).split("/");
