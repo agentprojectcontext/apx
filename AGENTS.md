@@ -127,6 +127,13 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     its own words and one or two actions it can take ([What people are told](rules/RELEASE.md#what-people-are-told)).
     Commit subjects reach everyone as a list; news are the few things the super-agent offers to do. `[review]`
 
+27. **The first load is a budget, and only `lazy.ts` loads code late.** Panel code not on the first screen is imported
+    only through `apps/web/src/lazy.ts`, each module declared there once (the language chunks and the marks are the
+    named exceptions); the first screen (`App`, `main`, `shell/`, `inbox/`, `chat/`) never imports a lazy module
+    statically. What it downloads (entry, CSS, language chunk and their static imports) stays within
+    `scripts/perf-budget.json`, with no zod in it. When `pnpm perf` fails, split the module it names; raising a budget
+    needs a reason in the commit ([D-147](rules/DECISIONS.md#d-147)). `[gate]` biome + perf.
+
 ### Code comments
 
 1–2 lines, only the non-obvious *why*. No history, incidents, dates or rejected alternatives in code: those go to

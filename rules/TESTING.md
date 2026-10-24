@@ -183,6 +183,9 @@ heavier language chunk `main.tsx` waits for, with its own static imports — wha
 `perf.ts` also fails when zod reaches that set or a named lazy screen (`ProjectScreen`, `ConfigModal`…) loses its own
 chunk. Over budget or failing, it prints each first-load chunk's size and, with a sourcemap (CI's perf job builds
 with `APX_TEST_COVERAGE=1`), the five packages or files that weigh the most: split the module it names.
+Code loaded late is declared only in `apps/web/src/lazy.ts` (AGENTS.md rule 27); `biome.json` fails a first-screen
+file (`App`, `main`, `shell/`, `inbox/`, `chat/`) that imports one of its modules directly, and
+`e2e/specs/89-first-load.spec.ts` checks what opening the inbox fetches, its own late parts included.
 
 ## CI
 `.github/workflows/verify.yml` runs `preflight`, `e2e`, the desktop e2e (under xvfb) and `perf` on every push to

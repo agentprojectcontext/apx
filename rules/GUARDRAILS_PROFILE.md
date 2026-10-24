@@ -23,7 +23,7 @@ messages or spends money on the owner's behalf).
 | Gate | Command | Enforces |
 |---|---|---|
 | Typecheck | `pnpm typecheck` | Contract types across all clients; erasable TS only (rule 5) |
-| Lint | `pnpm lint` | Biome recommended + no `console` outside CLI/scripts, `import type`, no `!` assertions; dependency direction (rule 4: `domain` never imports `transport`/`rpc`/`channels`, `rpc` never imports `transport`, `packages/*` never import `apps/*`) |
+| Lint | `pnpm lint` | Biome recommended + no `console` outside CLI/scripts, `import type`, no `!` assertions; dependency direction (rule 4: `domain` never imports `transport`/`rpc`/`channels`, `rpc` never imports `transport`, `packages/*` never import `apps/*`); the panel's first screen never imports a late-loaded module (rule 27) |
 | Tests | `pnpm test` | Router, idempotency, safe bind, HTTP ≡ WS, origin/token gate, static path safety, agent runs (streaming, cancel, interrupted turns), delegation (sync + async wake-up), artifacts isolation, node routing, cookie mapping/decryption; prompt budget (rule 23: a default turn's system prompt and tools within [`PROMPT_SIZE.md`](PROMPT_SIZE.md)) |
 | Test quality | `pnpm check:tests` | AST checks for disabled/exclusive/empty tests, literal-only assertions and unobserved Node/Jest promise assertions; does not establish behavioral coverage (rule 24) |
 | Execution coverage | `pnpm test:coverage:all` | Unit, mounted mobile, browser and desktop suites must pass; repository build mappings must be present, including intermediate library maps. Reports include unexecuted functions; only `pnpm test:coverage:all:strict` also fails on remaining execution gaps |
