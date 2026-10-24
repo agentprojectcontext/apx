@@ -32,6 +32,8 @@ export type Setting = {
   refuse?: (p: Params, d: SettingsDeps) => string | undefined;
   /** What the agent reads back once it ran (default: the method's result). */
   shows?: (result: unknown) => string;
+  /** Its card shows every value whole: a cut could hide what it runs or where a key goes. */
+  whole?: true;
 };
 
 export const str = (v: unknown) => (typeof v === "string" ? v : "");

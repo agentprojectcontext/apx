@@ -36,6 +36,20 @@ const ownServers = (store: Parameters<typeof projectName>[0]): Record<string, Mc
     return {};
   }
 };
+/** In plain words, which saved variables a server gets and where they go: the address it calls or the command it runs. */
+function keysGo(s: McpRaw): string {
+  const runs = s.url ? `the server at ${s.url}` : `the command ${[s.command ?? "", ...(s.args ?? [])].join(" ")}`;
+  // On one line, so text in an argument cannot pose as another line of the card.
+  const to = runs.replace(/\s+/g, " ");
+  const given = [
+    ...Object.entries(s.env ?? {}).map(([k, v]) => ({ k, v, as: "env" })),
+    ...Object.entries(s.headers ?? {}).map(([k, v]) => ({ k, v, as: "header" })),
+  ].flatMap(({ k, v, as }) => [...String(v).matchAll(SECRET_REF)].map((m) => `${m[0].slice(9)} (as ${as} ${k})`));
+  return given.length
+    ? `Saved variables it gets: ${given.join(", ")}, sent to ${to}.`
+    : `It gets no saved variable: ${to}.`;
+}
+
 /** A value that reads like a key or token once its secret:// references are taken out. */
 const keyLike = (v: string) => {
   const bare = v.replace(SECRET_REF, "");
@@ -190,9 +204,12 @@ export const WORK: Readonly<Record<string, Setting>> = {
     says: (p, { store }) => {
       const exists = !p.project && ownServers(store)[str(p.name)];
       const act = p.server === null ? "Remove" : exists ? "Change" : "Add";
-      return `${act} the MCP server ${inlineName(str(p.name))}${scopeOf(p, store)}`;
+      const first = `${act} the MCP server ${inlineName(str(p.name))}${scopeOf(p, store)}`;
+      return p.server ? `${first}\n${keysGo(p.server as McpRaw)}` : first;
     },
     named: ["name", "project"],
+    // What it runs and what it is given are the owner's to read in full (DECISIONS.md#d-143).
+    whole: true,
     // A new server is shown field by field too, from nothing.
     now: (p, { store }) => ({ name: p.name, server: (p.project ? undefined : ownServers(store)[str(p.name)]) ?? {} }),
     refuse: (p) => {
