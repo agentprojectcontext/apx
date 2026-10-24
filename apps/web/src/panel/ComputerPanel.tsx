@@ -193,6 +193,7 @@ function ComputerPanelBody() {
         <ComputerConsole
           thread={thread}
           screen={shown}
+          agent={current?.agent_name ?? chat?.agent_name ?? ""}
           editable={manual && !busy}
           maximized={terminalMaximized}
           onMaximize={() => setTerminalMaximized((value) => !value)}

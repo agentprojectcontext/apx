@@ -11,7 +11,7 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.restoreTerminal": "Restaurar terminal",
   "computer.output": "Salida de terminal",
   "computer.commandPlaceholder": "Escribí o pegá un comando de shell…",
-  "computer.commandShortcut": "⌘ / Ctrl + Enter para enviar · Enter nueva línea",
+  "computer.commandShortcut": "Enter para enviar · Shift + Enter para una línea nueva",
   "computer.sendCommand": "Enviar",
   "computer.title": "Computadora compartida",
   "computer.stop": "Apagar para todos",
@@ -74,7 +74,7 @@ export const esComputer: Record<ComputerKey, string> = {
   "computer.terminal": "Terminal VM",
   "computer.command": "Comando dentro de la VM",
   "computer.consoleHint":
-    "Los comandos corren dentro de Linux. Usá la terminal del escritorio para una shell interactiva.",
+    "Los comandos que mandes acá corren con el usuario Linux de {agent}, en ~/work. Primero tomá el control de la pantalla. Para una shell interactiva, usá la terminal de su escritorio.",
   "computer.offline": "VM apagada.",
   "computer.connectionFailed": "No se pudo conectar al escritorio de la VM.",
   "agentedit.computer": "Computadora aislada",

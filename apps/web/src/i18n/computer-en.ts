@@ -11,7 +11,7 @@ export const enComputer = {
   "computer.restoreTerminal": "Restore terminal",
   "computer.output": "Terminal output",
   "computer.commandPlaceholder": "Write or paste a shell command…",
-  "computer.commandShortcut": "⌘ / Ctrl + Enter to send · Enter for new line",
+  "computer.commandShortcut": "Enter to send · Shift + Enter for a new line",
   "computer.sendCommand": "Send",
   "computer.title": "Shared computer",
   "computer.stop": "Shut down for everyone",
@@ -73,7 +73,8 @@ export const enComputer = {
   "computer.reconnect": "Reconnect",
   "computer.terminal": "VM terminal",
   "computer.command": "Command inside the VM",
-  "computer.consoleHint": "Commands run inside the Linux VM. Use its desktop terminal for an interactive shell.",
+  "computer.consoleHint":
+    "Commands you send here run as {agent}'s Linux user, in ~/work. Take control of the screen first. For an interactive shell, use the terminal on its desktop.",
   "computer.offline": "The VM is off.",
   "computer.connectionFailed": "Could not connect to the VM desktop.",
   "agentedit.computer": "Isolated computer",

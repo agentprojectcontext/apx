@@ -106,7 +106,16 @@ test("Computer installs only on enable, shows the chat agent's screen, follows A
     await expect(computer.getByRole("button", { name: "Devolver control al agente", exact: true })).toBeVisible();
     await expect(computer.locator(".computer__locked")).toHaveCount(0);
     const editor = computer.getByRole("textbox", { name: "Comando dentro de la VM" });
+    // Said plainly whose user and folder the commands run in, and that control comes first.
+    await expect(computer.getByRole("log")).toContainText(
+      "Los comandos que mandes acá corren con el usuario Linux de Roby, en ~/work. Primero tomá el control",
+    );
+    // A one-line command box, growing only for a longer command.
+    const boxHeight = () => editor.evaluate((element) => element.getBoundingClientRect().height);
+    const oneLine = await boxHeight();
+    expect(oneLine).toBeLessThan(40);
     await editor.fill("printf 'first\nsecond'\npwd");
+    expect(await boxHeight()).toBeGreaterThan(oneLine);
     await editor.press("End");
     await editor.press("Backspace");
     await expect(editor).toHaveValue("printf 'first\nsecond'\npw");
@@ -120,9 +129,21 @@ test("Computer installs only on enable, shows the chat agent's screen, follows A
     await page.mouse.move(grip.x + grip.width / 2, grip.y - 70, { steps: 5 });
     await page.mouse.up();
     expect(await consolePanel.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(before);
+    // Dragged all the way down, the pane keeps its output and the command box in view.
+    const top = await handle.boundingBox();
+    if (!top) throw new Error("Missing terminal resize grip");
+    await page.mouse.move(top.x + top.width / 2, top.y + top.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(top.x + top.width / 2, top.y + 900, { steps: 5 });
+    await page.mouse.up();
+    const least = await consolePanel.evaluate((element) => element.getBoundingClientRect().height);
+    expect(least).toBeGreaterThanOrEqual(220);
+    const log = computer.getByRole("log");
+    expect(await log.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(48);
+    await expect(editor).toBeInViewport();
     await handle.focus();
     await handle.press("ArrowUp");
-    expect(await consolePanel.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(before);
+    expect(await consolePanel.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(least);
     await computer.getByRole("button", { name: "Minimizar terminal", exact: true }).click();
     await expect(editor).toHaveCount(0);
     await computer.getByRole("button", { name: "Expandir terminal", exact: true }).click();

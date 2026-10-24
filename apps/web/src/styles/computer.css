@@ -107,7 +107,8 @@
   position: relative;
   display: flex;
   flex: 0 0 auto;
-  min-height: 180px;
+  /* CONSOLE_MIN_PX: the title, some output and the command box at its tallest stay in view. */
+  min-height: 220px;
   max-height: 70%;
   flex-direction: column;
   border-top: 1px solid var(--apx-border);
@@ -165,41 +166,48 @@
 }
 .computer__console form {
   display: flex;
-  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
   margin: 0 12px 12px;
+  padding: 4px 4px 4px 10px;
   border: 1px solid var(--apx-border);
-  border-radius: 10px;
-  overflow: hidden;
+  border-radius: 8px;
   flex-shrink: 0;
+}
+.computer__prompt {
+  align-self: center;
+  color: #10b981;
+  font-family: monospace;
+  font-size: 12px;
 }
 .computer__console form:focus-within {
   border-color: #10b981;
 }
 .computer__console textarea {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   box-sizing: border-box;
-  min-height: 68px;
-  max-height: 200px;
-  resize: vertical;
+  /* One line; the panel sets its height to its text, up to COMMAND_MAX_PX. */
+  height: 28px;
+  min-height: 28px;
+  max-height: 96px;
+  resize: none;
   border: 0;
   outline: none;
   background: transparent;
   color: inherit;
-  padding: 10px 12px;
+  padding: 5px 2px;
   font-family: monospace;
   font-size: 12px;
   line-height: 1.5;
 }
-.computer__editor-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px 8px;
-  color: var(--apx-fg-muted);
-  font-size: 10px;
+.computer__console textarea:placeholder-shown {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.computer__editor-footer button {
+.computer__console form button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -225,7 +233,8 @@
 }
 .computer__output {
   flex: 1;
-  min-height: 0;
+  /* A few lines always show: the pane's least height leaves room for them. */
+  min-height: 48px;
   overflow: auto;
   white-space: pre-wrap;
   word-break: break-word;
