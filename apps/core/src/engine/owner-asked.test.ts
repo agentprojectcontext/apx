@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { ApxClient } from "@apx/protocol/client";
+import { waitFor } from "../testkit/platform.ts";
 import { callTool, say, scriptedLlm, startCore } from "./testkit.ts";
 
 let sister = "";
@@ -22,17 +23,18 @@ before(async () => {
 });
 after(async () => {
   await env.core.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
-const pendingIn = async (thread: string) => {
-  for (let i = 0; i < 100; i++) {
-    const { inputs } = await env.client.call("runs.pending", { thread });
-    if (inputs.length) return inputs;
-    await new Promise((r) => setTimeout(r, 20));
-  }
-  return [];
-};
+const pendingIn = (thread: string) =>
+  waitFor(
+    async () => {
+      const { inputs } = await env.client.call("runs.pending", { thread });
+      return inputs.length ? inputs : undefined;
+    },
+    "a pending input",
+    { ms: 2000 },
+  ).catch(() => []);
 
 async function answerLate(thread: string): Promise<void> {
   const [question] = await pendingIn(thread);

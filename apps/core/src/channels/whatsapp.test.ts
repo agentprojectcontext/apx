@@ -253,7 +253,7 @@ test("a shared contact card and a shared place reach the agent as words, not dro
   });
   const listed = async (name: string) =>
     (await env.client.call("pairing.list", {})).requests.find((r) => r.name === name)?.text;
-  await until(
+  await waitFor(
     async () => Boolean((await listed("Northwind Card")) && (await listed("Northwind Place"))),
     "both listed",
   );

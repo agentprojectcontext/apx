@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { z } from "zod";
+import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { callTool, inputsOrEnd, say, scriptedLlm, startCore } from "./testkit.ts";
 
@@ -84,14 +85,15 @@ test("only a tool that always asks, once the owner says yes, acts as the owner",
   assert.match(JSON.stringify(last?.parts), /names: \d+/);
 });
 
-const pendingIn = async (thread: string) => {
-  for (let i = 0; i < 80; i++) {
-    const { inputs } = await env.client.call("runs.pending", { thread });
-    if (inputs.length) return inputs;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  return [];
-};
+const pendingIn = (thread: string) =>
+  waitFor(
+    async () => {
+      const { inputs } = await env.client.call("runs.pending", { thread });
+      return inputs.length ? inputs : undefined;
+    },
+    "a pending input",
+    { ms: 2000 },
+  ).catch(() => []);
 
 test("on total, a tool that keeps its card acts as the owner only after the card, then on the owner's grant", async () => {
   await env.client.call("agents.update", { agent: "roby", autonomy: "total" });

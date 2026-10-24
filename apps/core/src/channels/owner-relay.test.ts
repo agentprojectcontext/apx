@@ -7,6 +7,7 @@ import { after, before, test } from "node:test";
 import { z } from "zod";
 import { trip } from "../engine/breaker.ts";
 import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeNtfy } from "./fake-ntfy.test-support.ts";
 import { fakeTelegram } from "./fake-telegram.test-support.ts";
@@ -51,14 +52,6 @@ let env: Awaited<ReturnType<typeof startCore>>;
 let ntfy: Awaited<ReturnType<typeof fakeNtfy>>;
 let tg: Awaited<ReturnType<typeof fakeTelegram>>;
 
-const until = async (check: () => boolean | Promise<boolean>, what: string, ms = 8000) => {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check()) return;
-    await new Promise((r) => setTimeout(r, 25));
-  }
-  throw new Error(`never: ${what}`);
-};
 const pending = async () => (await env.client.call("runs.pending", {})).inputs;
 const tgTexts = () => tg.messagesTo(OWNER.id).map((m) => String(m.body.text ?? ""));
 const note = () => env.core.store.persons.get(sister)?.note;
@@ -83,7 +76,7 @@ before(async () => {
   });
   await env.client.call("channels.set", { id: "tg", channel: { type: "telegram", agent_id: "roby" }, token: TOKEN });
   tg.message(OWNER, "hola");
-  await until(() => tgTexts().length === 1, "pairing code");
+  await waitFor(() => tgTexts().length === 1, "pairing code");
   const code = /(\d{6})/.exec(tgTexts()[0] ?? "")?.[1] ?? "";
   await env.client.call("pairing.respond", { code, decision: "owner" });
 });
@@ -91,12 +84,12 @@ after(async () => {
   await env.core.close();
   await ntfy.close();
   await tg.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 test("off Telegram, words as the owner start no owner turn: the super-agent checks them and its answer goes back", async () => {
   ntfy.write("what is up");
-  await until(() => ntfy.published().some((t) => t.includes("Checked: on its way")), "the answer on ntfy");
+  await waitFor(() => ntfy.published().some((t) => t.includes("Checked: on its way")), "the answer on ntfy");
   const runs = env.core.store.runs.list("home", 50);
   assert.ok(!runs.some((r) => r.input?.origin.kind === "channel"), "no owner run from the channel");
   const check = runs.find((r) => r.input?.origin.kind === "delegation_result");
@@ -112,7 +105,7 @@ test("off Telegram, words as the owner start no owner turn: the super-agent chec
 
 test("a forged owner on ntfy cannot get a setting changed through the check, and nobody is asked", async () => {
   ntfy.write("set her note to Forged");
-  await until(
+  await waitFor(
     () => llm.calls.some((c) => /only when they ask you themselves/.test(String(c.messages.at(-1)?.content))),
     "the settings call refused",
   );
@@ -125,38 +118,38 @@ test("a forged owner on ntfy cannot get a setting changed through the check, and
 
 test("off Telegram a card comes without options, and the number that answered it approves nothing", async () => {
   ntfy.write("launch the probe");
-  await until(async () => (await pending()).some((i) => i.tool === "probe"), "card from the relayed request");
+  await waitFor(async () => (await pending()).some((i) => i.tool === "probe"), "card from the relayed request");
   const next = (await pending()).find((i) => i.tool === "probe");
-  await until(() => ntfy.published().some((t) => IN_APP.test(t)), "the card on ntfy points to the app");
+  await waitFor(() => ntfy.published().some((t) => IN_APP.test(t)), "the card on ntfy points to the app");
   assert.ok(!ntfy.published().some((t) => /\n1\. /.test(t)), "no numbered options");
   ntfy.write("1");
   await new Promise((r) => setTimeout(r, 300));
   assert.equal(env.core.store.inputs.get(next?.id ?? "")?.state, "pending");
   await env.client.call("runs.respond", { input: next?.id ?? "", decision: "approve" });
-  await until(() => ntfy.published().some((t) => t.includes("Done: probed")), "the probe ran once the app said yes");
+  await waitFor(() => ntfy.published().some((t) => t.includes("Done: probed")), "the probe ran once the app said yes");
 });
 
 test("on Telegram the owner acts directly, but a settings card is answered only in the app", async () => {
   tg.message(OWNER, "set her note to Mine");
-  await until(async () => (await pending()).some((i) => i.tool === "apx_settings"), "settings card");
+  await waitFor(async () => (await pending()).some((i) => i.tool === "apx_settings"), "settings card");
   const card = (await pending()).find((i) => i.tool === "apx_settings");
-  await until(() => tgTexts().some((t) => IN_APP.test(t)), "the card on Telegram points to the app");
+  await waitFor(() => tgTexts().some((t) => IN_APP.test(t)), "the card on Telegram points to the app");
   const shown = tg.messagesTo(OWNER.id).find((m) => IN_APP.test(String(m.body.text ?? "")));
   assert.equal(shown?.body.reply_markup, undefined, "no buttons");
   // A press built by hand is refused, and so is an answer the router hears came on a channel.
   tg.press(OWNER, buttonId.approve(card?.id ?? ""));
-  await until(() => tgTexts().filter((t) => IN_APP.test(t)).length >= 2, "the press refused");
+  await waitFor(() => tgTexts().filter((t) => IN_APP.test(t)).length >= 2, "the press refused");
   assert.throws(() => env.core.engine.respond(card?.id ?? "", { decision: "approve" }, true), /answered in the app/);
   assert.equal(env.core.store.inputs.get(card?.id ?? "")?.state, "pending");
   assert.equal(note(), undefined);
   await env.client.call("runs.respond", { input: card?.id ?? "", decision: "approve" });
-  await until(() => note() === "Mine", "changed once the app said yes");
+  await waitFor(() => note() === "Mine", "changed once the app said yes");
 });
 
 test("on Telegram an ordinary card still has buttons, and the owner's press approves it", async () => {
   const before_ = tgTexts().length;
   tg.message(OWNER, "launch the probe");
-  await until(
+  await waitFor(
     () =>
       tg
         .messagesTo(OWNER.id)
@@ -166,7 +159,7 @@ test("on Telegram an ordinary card still has buttons, and the owner's press appr
   );
   const card = (await pending()).find((i) => i.tool === "probe");
   tg.press(OWNER, buttonId.approve(card?.id ?? ""));
-  await until(() => tgTexts().some((t) => t.includes("Done: probed")), "probe ran");
+  await waitFor(() => tgTexts().some((t) => t.includes("Done: probed")), "probe ran");
 });
 
 test("each message off Telegram starts a new spend window, as the owner's own did", async () => {
@@ -176,7 +169,7 @@ test("each message off Telegram starts a new spend window, as the owner's own di
     for (const n of [1, 2, 3]) {
       const before_ = ntfy.published().length;
       ntfy.write(`ping ${n}`);
-      await until(
+      await waitFor(
         () =>
           ntfy
             .published()

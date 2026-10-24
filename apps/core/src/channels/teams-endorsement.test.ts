@@ -1,16 +1,14 @@
 // The Bot Framework's signing key names the channels it may sign for: an activity that names none is not one of them.
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { test } from "node:test";
+import { removeDir, tempDir } from "../testkit/platform.ts";
 import { fakeTeams } from "./fake-teams.test-support.ts";
 import { teamsAdapter } from "./teams.ts";
 import type { AdapterIO } from "./types.ts";
 
 test("an activity without a channel id is refused under a key endorsed for Teams, and nothing is received", async () => {
   const tm = await fakeTeams();
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-teams-endorse-"));
+  const dir = tempDir("apx-teams-endorse-").path;
   const adapter = teamsAdapter({ id: "tm", type: "teams" } as never, tm.secret, {
     dir,
     openid: `${tm.base}/openid`,
@@ -31,6 +29,6 @@ test("an activity without a channel id is refused under a key endorsed for Teams
     ac.abort();
     await adapter.stop();
     await tm.close();
-    fs.rmSync(dir, { recursive: true, force: true });
+    await removeDir(dir);
   }
 });

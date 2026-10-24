@@ -26,6 +26,8 @@ const llm = scriptedLlm((req, { said, afterTool }) => {
 let env: Awaited<ReturnType<typeof startCore>>;
 before(async () => {
   env = await startCore({ llm });
+  // The contact-request tools come only once a channel is on.
+  env.core.store.settings.write("imessage", { ...env.core.store.settings.read("imessage"), on: true });
   sister = (await env.client.call("contacts.set", { name: "Northwind Sister" })).id;
 });
 after(async () => {

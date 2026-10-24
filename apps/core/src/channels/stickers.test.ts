@@ -156,7 +156,7 @@ test("what a model wrote a sticker means stays outside text on one line, in the 
   assert.doesNotMatch(input, /<agent_message trust="team">/);
   // The next turn lists the meanings the agent may answer with, as outside text too.
   tg.message(OWNER, "hola");
-  await until(() => llm.calls.at(-1) !== turn, "the next turn");
+  await waitFor(() => llm.calls.at(-1) !== turn, "the next turn");
   await env.settle("home");
   const next = String(
     llm.calls.findLast((c) => !naming(String(c.messages[0]?.content ?? "")))?.messages.at(-1)?.content,
