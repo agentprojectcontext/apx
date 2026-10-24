@@ -120,8 +120,14 @@ export function managedVmConfig(store: Store, home: string, external?: ComputerC
       );
       signal.throwIfAborted();
       progress({ step: "desktop" });
-      if (fs.existsSync(prepared)) await verifyGuest(run, instance, signal);
-      else await secureGuest(run, instance, signal);
+      // A computer set up before a boundary was added gets it now: the security script is safe to run again.
+      const secured =
+        fs.existsSync(prepared) &&
+        (await verifyGuest(run, instance, signal).then(
+          () => true,
+          () => false,
+        ));
+      if (!secured) await secureGuest(run, instance, signal);
       await egress.connect();
       signal.throwIfAborted();
       await provisionDesktop(run, instance, signal, external?.demo);

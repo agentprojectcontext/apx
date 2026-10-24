@@ -68,17 +68,55 @@ ExecStart=/usr/local/libexec/apx-computer-firewall
 [Install]
 WantedBy=multi-user.target
 UNIT
-# Every user's session, the owner's screen and each agent's, waits for the firewall.
+# The egress proxy's guest port is PID 1's from boot, before any user's session, so no agent can take it first. Its relay
+# reaches the host's tunnel through a socket only the Lima user (uid 1000) can create (egress-tunnel.ts).
+cat > /etc/tmpfiles.d/apx-egress.conf <<'CONF'
+d /run/apx-egress 0700 1000 1000 -
+CONF
+systemd-tmpfiles --create /etc/tmpfiles.d/apx-egress.conf
+cat > /etc/systemd/system/apx-proxy.socket <<'UNIT'
+[Unit]
+Description=APX computer egress proxy port
+[Socket]
+ListenStream=127.0.0.1:3128
+FreeBind=yes
+[Install]
+WantedBy=sockets.target
+UNIT
+cat > /etc/systemd/system/apx-proxy.service <<'UNIT'
+[Unit]
+Description=APX computer egress proxy relay
+Requires=apx-proxy.socket
+After=apx-proxy.socket
+[Service]
+User=1000
+ExecStart=/usr/lib/systemd/systemd-socket-proxyd /run/apx-egress/proxy.sock
+UNIT
+# An agent runs only while it has a screen: no agent's session comes back by itself when the computer boots.
+cat > /etc/systemd/system/apx-agents-boot.service <<'UNIT'
+[Unit]
+Description=APX agents start only with a screen
+DefaultDependencies=no
+After=local-fs.target
+Before=systemd-logind.service
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'rm -f /var/lib/systemd/linger/apx-a*'
+[Install]
+WantedBy=systemd-logind.service
+UNIT
+# Every user's session, the owner's screen and each agent's, waits for the firewall and the proxy's port.
 rm -rf /etc/systemd/system/user@1001.service.d
 install -d -m 755 /etc/systemd/system/user@.service.d
 cat > /etc/systemd/system/user@.service.d/firewall.conf <<'UNIT'
 [Unit]
-Requires=apx-computer-firewall.service
-After=apx-computer-firewall.service
+Requires=apx-computer-firewall.service apx-proxy.socket
+After=apx-computer-firewall.service apx-proxy.socket
 UNIT
 systemctl daemon-reload
-systemctl enable apx-computer-firewall.service
+systemctl enable apx-computer-firewall.service apx-agents-boot.service
 systemctl restart apx-computer-firewall.service
+systemctl enable --now apx-proxy.socket
 loginctl enable-linger "$worker"
 systemctl start user@1001.service
 # Lock down optional system helpers as well as sudo, including privileged desktop actions.

@@ -3,6 +3,35 @@ import path from "node:path";
 import { createEgressProxy } from "./egress-proxy.ts";
 import type { LimaRun } from "./lima-process.ts";
 
+/**
+ * The guest end of the tunnel: a socket in a folder only the Lima user can write. The proxy's guest port belongs to
+ * PID 1 from boot and relays here (security.sh), so no agent can take the port first (DECISIONS.md#d-152).
+ */
+export const EGRESS_SOCKET = "/run/apx-egress/proxy.sock";
+
+/** The SSH command that forwards the guest's egress socket to the host's public-only proxy. */
+export const tunnelArgs = (limaHome: string, instance: string, port: number) => [
+  "-F",
+  path.join(limaHome, instance, "ssh.config"),
+  "-o",
+  "ControlMaster=no",
+  "-o",
+  "ControlPath=none",
+  "-o",
+  "ControlPersist=no",
+  "-N",
+  "-T",
+  "-o",
+  "ExitOnForwardFailure=yes",
+  "-o",
+  "ServerAliveInterval=5",
+  "-o",
+  "ServerAliveCountMax=2",
+  "-R",
+  `${EGRESS_SOCKET}:127.0.0.1:${port}`,
+  `lima-${instance}`,
+];
+
 /** Reverse forwarding exposes the public-only proxy on guest loopback, never a host/LAN port. */
 export function vmEgress(limaHome: string, instance: string, run: LimaRun) {
   let proxy: Awaited<ReturnType<typeof createEgressProxy>> | undefined;
@@ -40,31 +69,11 @@ export function vmEgress(limaHome: string, instance: string, run: LimaRun) {
         await close();
         throw new Error("Computer networking closed");
       }
-      const child = spawn(
-        "/usr/bin/ssh",
-        [
-          "-F",
-          path.join(limaHome, instance, "ssh.config"),
-          "-o",
-          "ControlMaster=no",
-          "-o",
-          "ControlPath=none",
-          "-o",
-          "ControlPersist=no",
-          "-N",
-          "-T",
-          "-o",
-          "ExitOnForwardFailure=yes",
-          "-o",
-          "ServerAliveInterval=5",
-          "-o",
-          "ServerAliveCountMax=2",
-          "-R",
-          `127.0.0.1:3128:127.0.0.1:${proxy.port}`,
-          `lima-${instance}`,
-        ],
-        { stdio: ["ignore", "ignore", "pipe"] },
-      );
+      // A tunnel that dropped leaves its socket behind, and sshd will not bind over it.
+      await run(["shell", instance, "--", "rm", "-f", EGRESS_SOCKET], { timeout: 5000 });
+      const child = spawn("/usr/bin/ssh", tunnelArgs(limaHome, instance, proxy.port), {
+        stdio: ["ignore", "ignore", "pipe"],
+      });
       tunnel = child;
       child.on("error", () => {});
       child.stderr?.resume();

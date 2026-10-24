@@ -81,7 +81,10 @@ export function screenDriver(run: LimaRun, instance: string) {
       await admin(screenArgs(screen, "/usr/local/bin/apx-appearance", mode), undefined, 30_000);
     },
     async stop(screen: number) {
-      await admin(["sudo", "-n", "systemctl", "stop", `user@${screenUser(screen).uid}.service`], undefined, 30_000);
+      const u = screenUser(screen);
+      await admin(["sudo", "-n", "systemctl", "stop", `user@${u.uid}.service`], undefined, 30_000);
+      // Its session never comes back by itself: only a new screen starts it again.
+      await admin(["sudo", "-n", "loginctl", "disable-linger", u.user], undefined, 10_000);
     },
   };
 }

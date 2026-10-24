@@ -40,6 +40,11 @@ for first,owner in ((0,1001),(2,{'range':[2001,2999]})):
   assert expressions[first+1][0]['match']['right']==owner and 'reject' in expressions[first+1][1]
 forward=[r['chain'] for r in rules['nftables'] if 'chain' in r and r['chain']['name']=='forward']
 assert len(forward)==1 and forward[0]['policy']=='drop'
+egress=Path('/run/apx-egress').stat()
+assert egress.st_uid==1000 and egress.st_mode & 0o777==0o700
+listen=subprocess.check_output(['ss','-Hltnp','src','127.0.0.1:3128'],text=True).strip().splitlines()
+assert len(listen)==1 and 'pid=1,' in listen[0]
+assert subprocess.run(['systemctl','is-enabled','--quiet','apx-agents-boot.service']).returncode==0
 r=subprocess.run(['sudo','-n','-u','apx-worker','sudo','-n','true'],capture_output=True)
 assert r.returncode!=0
 print('isolated')`,

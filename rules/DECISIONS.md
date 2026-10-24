@@ -2351,6 +2351,13 @@ private socket: Xtigervnc listens on `$XDG_RUNTIME_DIR/apx-vnc.sock` (mode 600) 
 so one agent can neither watch nor type into another's screen. The core opens a viewer by running
 `nc -U` on that socket as that user. The proxy is the same for all.
 
+**The proxy's port and agents' sessions.** The guest's proxy port, 127.0.0.1:3128, is held by PID 1 from boot
+(`apx-proxy.socket`), before any user's session, and `systemd-socket-proxyd` relays it to the host's tunnel through
+`/run/apx-egress/proxy.sock`, in a folder only the Lima user can write: an agent that binds 3128 first would otherwise
+make the tunnel's forward fail and put the computer in error for every agent. An agent's session runs only while it
+has a screen: stopping a screen turns its linger off, and a boot unit clears agents' linger before logind starts, so
+units an agent enabled do not come back with the computer.
+
 **Loopback between agents.** A service an agent runs on 127.0.0.1 or ::1 is reachable only by that agent. Every
 process of an agent runs in its own cgroup, `user.slice/user-<uid>.slice`: its desktop and terminal through its user
 manager, and its commands, browser and the core's helpers through `systemd-run --scope --uid --slice` (plain `sudo -u`
