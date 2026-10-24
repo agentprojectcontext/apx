@@ -12,7 +12,8 @@ test("scrolled up, a button goes back to the latest message and hides there", as
   const scroller = page.getByRole("main").locator(".chat__scroll");
   const toBottom = page.getByRole("button", { name: "Ir al último mensaje" });
   const atEnd = () => scroller.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight < 2);
-  await expect(page.getByText("Line 60 of the Northwind notes")).toBeInViewport();
+  // The owner's message, not the reply that may quote its last line.
+  await expect(page.getByText("Line 60 of the Northwind notes").first()).toBeInViewport();
   await expect.poll(atEnd).toBe(true);
   await expect(toBottom).toBeHidden();
 
