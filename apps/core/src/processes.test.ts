@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { test } from "node:test";
-import { commandShell, findGitBash, probeProcess, processStart, spawnCommand, stopTree } from "./processes.ts";
+import {
+  commandShell,
+  findGitBash,
+  type ProbeRun,
+  probeProcess,
+  processStart,
+  spawnCommand,
+  stopTree,
+} from "./processes.ts";
 
 const has = (...files: string[]) => {
   const set = new Set(files.map((f) => f.toLowerCase()));
@@ -99,9 +107,27 @@ test("a command's tree is stopped, and its start time names it while it runs", {
 });
 
 test("a probe that gets no answer in time says unknown, never that the process is gone", async () => {
-  assert.equal((await probeProcess(process.pid, 1)).state, "unknown");
-  // portable: 1 ms is shorter than any process start, so the probe always times out.
-  await assert.rejects(processStart(process.pid, { attempts: 1, timeoutMs: 1 }), /cannot tell whether process/);
+  // What execFile reports when it kills a probe at its timeout (a cold PowerShell): killed, no exit code.
+  const budgets: number[] = [];
+  const silent: ProbeRun = (_file, _args, timeoutMs, done) => {
+    budgets.push(timeoutMs);
+    done(Object.assign(new Error("Command failed"), { killed: true, code: null }), "");
+  };
+  assert.deepEqual(await probeProcess(process.pid, 10_000, silent), {
+    state: "unknown",
+    why: "no answer in 10000 ms",
+  });
+  budgets.length = 0;
+  await assert.rejects(processStart(process.pid, { run: silent }), /cannot tell whether process \d+ runs/);
+  assert.deepEqual(budgets, [10_000, 20_000, 30_000], "asked again, each time with more time");
+  // The system's own answers: no such process is gone; one that answers late on a retry is still found.
+  const noSuch = process.platform === "win32" ? 3 : 1;
+  const gone: ProbeRun = (_f, _a, _t, done) => done(Object.assign(new Error("exit"), { code: noSuch }), "");
+  assert.deepEqual(await probeProcess(process.pid, 10_000, gone), { state: "gone" });
+  let calls = 0;
+  const late: ProbeRun = (file, args, timeoutMs, done) =>
+    ++calls === 1 ? silent(file, args, timeoutMs, done) : done(null, "Fri Oct 23 10:00:00 2026\n");
+  assert.equal(await processStart(process.pid, { run: late }), "Fri Oct 23 10:00:00 2026");
   assert.deepEqual(await probeProcess(process.pid), { state: "running", start: await processStart(process.pid) });
 });
 

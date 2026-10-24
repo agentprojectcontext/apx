@@ -152,7 +152,18 @@ export async function stopTree(
  */
 export type ProcessProbe = { state: "running"; start: string } | { state: "gone" } | { state: "unknown"; why: string };
 
-export function probeProcess(pid: number, timeoutMs = 10_000): Promise<ProcessProbe> {
+/** Runs the probe program; the system's own by default, a stand-in in tests. Same callback as execFile's. */
+export type ProbeRun = (
+  file: string,
+  args: string[],
+  timeoutMs: number,
+  done: (err: (Error & { code?: number | string | null; killed?: boolean }) | null, out: string) => void,
+) => void;
+
+const systemProbe: ProbeRun = (file, args, timeoutMs, done) =>
+  execFile(file, args, { encoding: "utf8", timeout: timeoutMs, windowsHide: true }, (err, out) => done(err, out));
+
+export function probeProcess(pid: number, timeoutMs = 10_000, run: ProbeRun = systemProbe): Promise<ProcessProbe> {
   const [file, args] =
     process.platform === "win32"
       ? [
@@ -168,7 +179,7 @@ export function probeProcess(pid: number, timeoutMs = 10_000): Promise<ProcessPr
       : ["ps", ["-p", String(pid), "-o", "lstart="]];
   const noSuch = process.platform === "win32" ? 3 : 1;
   return new Promise((resolve) =>
-    execFile(file, args, { encoding: "utf8", timeout: timeoutMs, windowsHide: true }, (err, out) => {
+    run(file, args as string[], timeoutMs, (err, out) => {
       const start = out?.trim();
       if (!err) resolve(start ? { state: "running", start } : { state: "gone" });
       else if (err.code === noSuch && !err.killed) resolve({ state: "gone" });
@@ -183,11 +194,11 @@ export function probeProcess(pid: number, timeoutMs = 10_000): Promise<ProcessPr
  */
 export async function processStart(
   pid: number,
-  o: { attempts?: number; timeoutMs?: number } = {},
+  o: { attempts?: number; timeoutMs?: number; run?: ProbeRun } = {},
 ): Promise<string | undefined> {
   let why = "";
   for (let i = 0; i < (o.attempts ?? 3); i++) {
-    const p = await probeProcess(pid, (o.timeoutMs ?? 10_000) * (i + 1));
+    const p = await probeProcess(pid, (o.timeoutMs ?? 10_000) * (i + 1), o.run);
     if (p.state === "running") return p.start;
     if (p.state === "gone") return undefined;
     why = p.why;
