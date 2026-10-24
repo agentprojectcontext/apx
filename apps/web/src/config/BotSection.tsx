@@ -8,6 +8,7 @@ import { notify } from "../data/notices.ts";
 import { useData } from "../data/state.ts";
 import { type MessageKey, useT } from "../i18n/index.ts";
 import { Behavior, Deliveries, Notices, Pairing, People, STATUS } from "./ChannelParts.tsx";
+import { PublicAddress } from "./PublicAddress.tsx";
 import { isRoomsKind, RoomsSection } from "./RoomsSection.tsx";
 import { Stickers } from "./StickersSection.tsx";
 
@@ -23,7 +24,9 @@ export type BotKind =
   | "ntfy"
   | "nextcloud"
   | "irc"
-  | "twitch";
+  | "twitch"
+  | "teams"
+  | "line";
 
 /**
  * One field of the secret; `plain` ones (a server's address, a number) are not hidden as they are typed, `multiline`
@@ -35,6 +38,9 @@ type TokenSpec = { label: MessageKey; placeholder: string; pattern: RegExp; plai
  * What each bot channel needs: the steps to make the bot, and its token(s). Slack takes two (the bot's and the app's,
  * for Socket Mode), stored together as one secret.
  */
+/** An Azure app's or tenant's id. */
+const GUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
 const BOTS: Record<BotKind, { name: string; steps: MessageKey[]; tokens: TokenSpec[] }> = {
   telegram: {
     name: "Telegram",
@@ -147,7 +153,27 @@ const BOTS: Record<BotKind, { name: string; steps: MessageKey[]; tokens: TokenSp
       { label: "tw.channel", placeholder: "#acme", pattern: /^#?\w{3,25}$/, plain: true },
     ],
   },
+  teams: {
+    name: "Microsoft Teams",
+    steps: ["tm.step1", "tm.step2", "tm.step3", "tm.step4", "tm.step5"],
+    tokens: [
+      { label: "tm.appId", placeholder: "00000000-0000-0000-0000-000000000000", pattern: GUID, plain: true },
+      { label: "tm.secret", placeholder: "abc8Q~…", pattern: /^\S{8,}$/ },
+      { label: "tm.tenant", placeholder: "00000000-0000-0000-0000-000000000000", pattern: GUID, plain: true },
+    ],
+  },
+  line: {
+    name: "LINE",
+    steps: ["ln.step1", "ln.step2", "ln.step3", "ln.step4"],
+    tokens: [
+      { label: "ln.secret", placeholder: "0123456789abcdef…", pattern: /^[0-9a-fA-F]{32}$/ },
+      { label: "ln.token", placeholder: "eyJhbGciOi…", pattern: /^[A-Za-z0-9+/=._-]{40,}$/ },
+    ],
+  },
 };
+
+/** Kinds that deliver only to a webhook: their screen shows the public address to paste into the platform. */
+const WEBHOOK_KINDS: readonly BotKind[] = ["teams", "line"];
 
 /** Kinds whose single owner writes from a place only they know (an ntfy topic): that place is the owner. */
 const SELF_OWNER: readonly BotKind[] = ["ntfy"];
@@ -171,6 +197,7 @@ export function BotSection({ kind }: { kind: BotKind }) {
   return (
     <>
       {ready && (channel ? <Connected channel={channel} kind={kind} /> : <Setup kind={kind} />)}
+      {WEBHOOK_KINDS.includes(kind) && <PublicAddress channelId={channel?.id ?? kind} />}
       {channel && (
         <Pairing
           channelId={channel.id}

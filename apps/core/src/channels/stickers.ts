@@ -4,11 +4,13 @@
 import { createHash } from "node:crypto";
 import { UPLOAD_LIMITS } from "@apx/protocol";
 import type { AuxAbout } from "../domain/aux-calls.ts";
+import type { NewNotification } from "../domain/notifications.ts";
 import type { Sticker } from "../domain/stickers.ts";
 import type { Store } from "../domain/store.ts";
 import { errorMessage } from "../errors.ts";
 import type { Log } from "../log.ts";
 import { saveUpload } from "../services/uploads.ts";
+import { channelTexts } from "./texts.ts";
 import type { InboundFile } from "./types.ts";
 
 /** How long a message waits for its sticker to be named before the agent reads it unnamed (it is named later). */
@@ -16,7 +18,13 @@ const NAME_WAIT_MS = 20_000;
 
 const NAME_PROMPT = (language: string) =>
   `You name chat stickers. In ${language}, in a few words (at most ten), say what the sticker shows and the feeling ` +
-  `or answer it carries, like "white bear holding a heart balloon, affection". Only those words.`;
+  `or answer it carries, like "white bear holding a heart balloon, affection". Only those words. If it is sexual, ` +
+  `shows nudity or is otherwise for adults only, start with [18+].`;
+
+/** The owner lets stickers in as they come (the default), or approves each one first. */
+export const autoApproves = (store: Store) => store.settings.get("stickers_auto") !== "off";
+
+const PLATFORM: Record<string, string> = { whatsapp: "WhatsApp", telegram: "Telegram" };
 
 export type See = (
   system: string,
@@ -26,9 +34,16 @@ export type See = (
   about: AuxAbout,
 ) => Promise<string | undefined>;
 
-export function createStickers(deps: { store: Store; home: string; log: Log; see?: See | undefined }) {
+export function createStickers(deps: {
+  store: Store;
+  home: string;
+  log: Log;
+  see?: See | undefined;
+  /** Tells the owner a sticker waits for their OK. */
+  attention?: ((n: NewNotification) => void) | undefined;
+}) {
   const { store, log } = deps;
-  const pending = new Map<string, Promise<Sticker>>();
+  const inFlight = new Map<string, Promise<Sticker>>();
 
   /** A sticker that arrived: kept (or counted again) and named; resolves once named, or unnamed after a while. */
   async function keep(
@@ -64,7 +79,7 @@ export function createStickers(deps: { store: Store; home: string; log: Log; see
 
   /** Names a sticker once (a second arrival while it is being named waits for the same call). */
   function name(s: Sticker, threadId?: string): Promise<Sticker> {
-    const going = pending.get(s.id);
+    const going = inFlight.get(s.id);
     if (going) return going;
     const p = (async () => {
       const media = store.media.get(s.media_id);
@@ -84,13 +99,25 @@ export function createStickers(deps: { store: Store; home: string; log: Log; see
             return undefined;
           });
       }
+      const adult = /^\W*\[18\+\]/.test(meaning ?? "");
+      const saw = meaning?.replace(/^\W*\[18\+\]/, "").replace(/^["'«\s]+|["'».\s]+$/g, "");
       // An animated sticker (or no model that reads images): what the platform says it stands for.
-      const words = meaning?.replace(/^["'«\s]+|["'».\s]+$/g, "") || s.hint;
+      const words = saw || s.hint;
       if (words) store.stickers.describe(s.id, words);
+      // Only a sticker a model saw, and not for adults, goes out without the owner's OK, and only if they let it.
+      const waits = adult || !saw || !autoApproves(store);
+      store.stickers.review(s.id, { pending: waits, adult });
+      if (waits) told(s, words, adult);
       return store.stickers.get(s.id) ?? s;
-    })().finally(() => pending.delete(s.id));
-    pending.set(s.id, p);
+    })().finally(() => inFlight.delete(s.id));
+    inFlight.set(s.id, p);
     return p;
+  }
+
+  function told(s: Sticker, words: string | undefined, adult: boolean): void {
+    const texts = channelTexts(store);
+    const where = PLATFORM[s.platform] ?? s.platform;
+    deps.attention?.({ kind: "channel", title: texts.stickerTitle, body: texts.stickerWaits(where, words, adult) });
   }
 
   /** The sticker of this platform whose meaning best fits the agent's words; none below half of them. */

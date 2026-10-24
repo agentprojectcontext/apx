@@ -54,13 +54,17 @@ test("the agent reacts to a sticker: the emoji shows on it, and the Inbox says s
   await expect(page.locator(".turn")).toHaveCount(0);
 });
 
-test("the channel's settings list the stickers kept: the owner names one and says the agent may not use it", async ({
+test("the channel's settings list the stickers kept: one no model saw waits; the owner names and approves it", async ({
   page,
 }) => {
   await open(page);
   await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
   await page.getByRole("button", { name: "Configuración del canal" }).click();
   await expect(page.getByText("Stickers", { exact: true })).toBeVisible();
+  // New ones are the agent's by default; this one no model could see, so it waits for the owner.
+  await expect(page.getByRole("switch", { name: "Aprobar stickers nuevos automáticamente" })).toBeChecked();
+  await expect(page.getByText("Esperando tu OK")).toBeVisible();
+  await expect(page.getByRole("switch", { name: "Puede usarlo" }).first()).not.toBeChecked();
   const meaning = page.getByRole("textbox", { name: "Qué significa" }).first();
   await meaning.scrollIntoViewIfNeeded();
   await meaning.fill("mate compartido, buena onda");
@@ -68,7 +72,13 @@ test("the channel's settings list the stickers kept: the owner names one and say
   await page.getByRole("switch", { name: "Puede usarlo" }).first().click();
   await page.screenshot({ path: "test-results/86-stickers-settings.png" });
   const kept = async () =>
-    (await rpc<{ stickers: Array<{ meaning?: string; blocked: boolean }> }>("stickers.list", { platform: "whatsapp" }))
-      .stickers;
-  await until(async () => (await kept()).some((s) => s.meaning === "mate compartido, buena onda" && s.blocked));
+    (
+      await rpc<{ stickers: Array<{ meaning?: string; blocked: boolean; pending: boolean }> }>("stickers.list", {
+        platform: "whatsapp",
+      })
+    ).stickers;
+  await expect(page.getByText("Esperando tu OK")).toHaveCount(0);
+  await until(async () =>
+    (await kept()).some((s) => s.meaning === "mate compartido, buena onda" && !s.blocked && !s.pending),
+  );
 });

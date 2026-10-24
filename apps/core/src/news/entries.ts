@@ -115,7 +115,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "channel-hours",
-    since: "2.9.1",
+    since: "2.10.0",
     title: "Attention hours for contacts",
     applies: (f) => f.contacts,
     text:
@@ -134,14 +134,17 @@ export const NEWS: readonly NewsEntry[] = [
     ],
   },
   {
-    id: "super-agent-contacts",
-    since: "2.9.1",
-    title: "Contacts edited from chat",
+    id: "super-agent-settings",
+    since: "2.10.0",
+    title: "Settings changed from chat",
     applies: (f) => f.contacts,
     text:
-      "The super-agent can now change what the owner keeps about a contact, with apx_settings: who they are (the " +
-      "note), the rules to answer them, their relation and nickname, whether they are silenced or supervised, or " +
-      "forget them. Each change shows the owner the fields before and after, and waits for their yes.",
+      "The super-agent can now change, with apx_settings, almost anything the owner sets up in the panel: a " +
+      "contact (who they are, the rules to answer them, their relation), a channel (who answers it, strangers, " +
+      "rooms), the owner's own profile and time zone, when they are notified, projects, memory, skills, agent " +
+      "profiles, routines, archived agents, tasks, chats, widgets and MCP servers (their keys named by a variable the " +
+      "owner saved, never typed in chat). Each change shows the owner the fields before and after, and waits for " +
+      "their yes. Saving a key, sign-ins, models, what agents may do and this computer stay the owner's, in Settings.",
     actions: [
       {
         label: { en: "Review my contacts", es: "Revisemos mis contactos" },
@@ -149,18 +152,23 @@ export const NEWS: readonly NewsEntry[] = [
           "Go through my contacts with me: tell me who has no note saying who they are or no rules for how to " +
           "answer them, and fill them in as I tell you.",
       },
+      {
+        label: { en: "Set my quiet hours", es: "Configurá mis horas de silencio" },
+        prompt: "Ask me when I do not want to be notified and how many notices a day are fine, then set it up.",
+      },
     ],
   },
   {
     id: "stickers",
-    since: "2.9.1",
+    since: "2.10.0",
     title: "Stickers kept and sent back",
     applies: (f) => f.contacts,
     text:
       "Every sticker someone sends on WhatsApp or Telegram is now kept the moment it arrives, named once by what it " +
       "shows, so the agent understands it and can answer a chat with one of them instead of words, on the same " +
       "platform. They are listed in each channel's settings, under Stickers, where the owner can say what one " +
-      "means or that the agent may not use it. Reactions the agent puts on messages now show in the app too.",
+      "means or that the agent may not use it, and choose whether new ones are the agent's to use at once (the " +
+      "default) or wait for their OK; one for adults always waits. Reactions the agent puts now show in the app too.",
     actions: [
       {
         label: { en: "Answer me with a sticker", es: "Contestame con un sticker" },
@@ -172,7 +180,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "more-apps",
-    since: "2.9.1",
+    since: "2.10.0",
     title: "Fifty more integrations",
     applies: (f) => f.integrations > 0,
     text:
@@ -192,7 +200,7 @@ export const NEWS: readonly NewsEntry[] = [
   },
   {
     id: "more-channels",
-    since: "2.9.1",
+    since: "2.10.0",
     title: "New channels",
     applies: (f) => f.channels > 0,
     text:
@@ -204,6 +212,25 @@ export const NEWS: readonly NewsEntry[] = [
         prompt:
           "Tell me in a few lines which of the new channels (iMessage, Google Chat, SMS, ntfy, Nextcloud Talk, IRC, " +
           "Twitch) would suit how I use you, and walk me through setting up the one I pick.",
+      },
+    ],
+  },
+  {
+    id: "teams-line",
+    since: "2.10.0",
+    title: "Microsoft Teams and LINE",
+    applies: (f) => f.channels > 0,
+    text:
+      "Agents can now be reached on Microsoft Teams and LINE. Both send their messages to a web address, so their " +
+      "screen in Settings › Channels turns on a public address first: Tailscale Funnel (a fixed address), ngrok " +
+      "(started by APX, which says when its address is new) or the " +
+      "owner's own. Only a door for webhooks is published, never the panel, and every message is checked.",
+    actions: [
+      {
+        label: { en: "Set up Teams", es: "Configurar Teams" },
+        prompt:
+          "Walk me through connecting Microsoft Teams: what to create in Azure, how to turn on the public address " +
+          "(Tailscale or ngrok, whichever I have), and where to paste each value.",
       },
     ],
   },

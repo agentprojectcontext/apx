@@ -7,7 +7,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { strictApproval } from "../domain/approvals.ts";
 import type { InputRecord } from "../domain/inputs.ts";
 import type { JobRecord } from "../domain/jobs.ts";
-import type { RunRecord } from "../domain/runs.ts";
+import { ownerAsked, type RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { worksInFolder } from "../domain/threads.ts";
 import { errorMessage } from "../errors.ts";
@@ -283,6 +283,14 @@ export function createExecutor(o: {
         text: `not run: ${decision.reason}. Do not retry it; tell the owner or continue without it.`,
       };
     }
+    // What the owner set up changes at their own word: not at another agent's, a contact's or a job's (DECISIONS.md#d-140).
+    if (tool.ownerSetting?.(args) && !ownerAsked(run.input?.origin)) {
+      card("error", "only when the owner asks");
+      return {
+        ok: false,
+        text: "not run, nothing was asked of the owner: changes to what the owner set up happen only when they ask you themselves. Tell whoever asked that the owner has to ask for it.",
+      };
+    }
     // A path outside the agent's folders asks the owner to let it, instead of being refused (DECISIONS.md#d-099).
     const lent = await lend(tool, name, args, raw, callId, run);
     if ("card" in lent) {
@@ -433,6 +441,19 @@ export function createExecutor(o: {
           prompt,
           options,
           multi,
+          external: o.external(),
+          stays: !canContinue,
+          signal,
+        }),
+      // No tool on the card: the owner accepts the action itself, and the calls it takes still pass their own checks.
+      proposeAction: (action, canContinue) =>
+        o.inputs.ask({
+          run,
+          agent,
+          display,
+          callId,
+          kind: "confirm",
+          prompt: action,
           external: o.external(),
           stays: !canContinue,
           signal,

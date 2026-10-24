@@ -16,7 +16,10 @@ const BEAR = "white bear holding a heart balloon, affection";
 
 const naming = (system: string) => system.startsWith("You name chat stickers");
 const llm = scriptedLlm((_req, { system, said }) => {
-  if (naming(system)) return say(`"${BEAR}."`);
+  if (naming(system))
+    return say(
+      said.includes("🔞") ? "[18+] cartoon in underwear" : said.includes("☕") ? "cup of coffee" : `"${BEAR}."`,
+    );
   if (said.includes("send me a dinosaur")) return say("STICKER dinosaur roaring");
   if (said.includes("send me the osito")) return say("STICKER osito con globo");
   if (said.includes("[sticker:")) return say("STICKER heart balloon");
@@ -103,16 +106,49 @@ test("a sticker the agent was never sent goes nowhere, and the owner hears why",
   assert.ok(!tg.messagesTo(OWNER.id).some((m) => /STICKER/.test(String(m.body.text))));
 });
 
-test("with no model known to read images, a sticker takes its emoji: nothing names what it cannot see", async () => {
+/** A new sticker from the owner on Telegram (each `n` a different file), once it is named. */
+async function arrives(n: number, emoji: string) {
+  const bytes = Buffer.concat([WEBP, Buffer.alloc(n)]);
+  tg.attachment(OWNER, { bytes, mime: "image/webp", sticker: { emoji } });
+  await until(() => env.core.store.stickers.list("telegram").some((s) => s.hint === emoji && s.meaning), "named");
+  await env.settle("home");
+  return env.core.store.stickers.list("telegram").find((s) => s.hint === emoji);
+}
+
+test("with no model known to read images, a sticker takes its emoji and waits: nothing names what it cannot see", async () => {
   env.core.store.settings.set("model_aux", "ollama/qwen2.5:14b");
   const named = namings();
-  const other = Buffer.concat([WEBP, Buffer.from([0])]);
-  tg.attachment(OWNER, { bytes: other, mime: "image/webp", sticker: { emoji: "👍" } });
-  await until(() => env.core.store.stickers.known("telegram").some((s) => s.hint === "👍"), "kept");
-  assert.equal(env.core.store.stickers.known("telegram").find((s) => s.hint === "👍")?.meaning, "👍");
+  const s = await arrives(1, "👍");
+  assert.equal(s?.meaning, "👍");
+  assert.equal(s?.pending, true, "unseen, it may be anything: the owner decides");
   assert.equal(namings(), named, "no model was asked");
   await env.settle("home");
   env.core.store.settings.set("model_aux", "openai/gpt-4o-mini");
+});
+
+test("an adult sticker always waits for the owner, even when new stickers are the agent's to use", async () => {
+  const s = await arrives(2, "🔞");
+  assert.deepEqual([s?.meaning, s?.adult, s?.pending], ["cartoon in underwear", true, true]);
+  assert.ok(!env.core.store.stickers.known("telegram").some((k) => k.id === s?.id), "the agent cannot send it");
+  const { notifications } = await env.client.call("notifications.list", {});
+  assert.ok(
+    notifications.some((n) => /cartoon in underwear.*\(\+18\)/.test(n.body ?? "")),
+    "the owner is told",
+  );
+  const turn = llm.calls.findLast((c) => !naming(String(c.messages[0]?.content ?? "")));
+  assert.match(String(turn?.messages.at(-1)?.content), /\[sticker \(18\+\): cartoon in underwear\]/);
+});
+
+test("with approval on, each new sticker waits for the owner's OK; approved, the agent may send it", async () => {
+  assert.deepEqual(await env.client.call("stickers.auto", { on: false }), { on: false });
+  const s = await arrives(3, "☕");
+  assert.deepEqual([s?.meaning, s?.adult, s?.pending], ["cup of coffee", false, true]);
+  const listed = await env.client.call("stickers.list", { platform: "telegram" });
+  assert.equal(listed.auto, false);
+  const approved = await env.client.call("stickers.set", { id: s?.id ?? "", blocked: false });
+  assert.deepEqual([approved.pending, approved.blocked], [false, false]);
+  assert.ok(env.core.store.stickers.known("telegram").some((k) => k.id === s?.id));
+  await env.client.call("stickers.auto", { on: true });
 });
 
 test("a sticker kept unnamed is named later, by its file", async () => {
@@ -167,10 +203,8 @@ test("the owner sees a channel's stickers, says what one means, blocks one and f
   assert.deepEqual(await env.client.call("stickers.remove", { id: other?.id ?? "" }), { removed: true });
   assert.equal(fs.existsSync(file), false, "its file goes too");
   const after = await env.client.call("stickers.list", { platform: "telegram" });
-  assert.deepEqual(
-    after.stickers.map((s) => s.id),
-    [bear.id],
-  );
+  const ids = after.stickers.map((s) => s.id);
+  assert.ok(ids.includes(bear.id) && !ids.includes(other?.id ?? ""));
 });
 
 test("STICKER and the words for it, as the agent writes it", () => {

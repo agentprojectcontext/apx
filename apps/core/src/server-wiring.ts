@@ -67,6 +67,7 @@ import { terminalHandlers } from "./rpc/terminal.ts";
 import { threadAdminHandlers } from "./rpc/thread-admin.ts";
 import { threadHandlers } from "./rpc/threads.ts";
 import { transcriptionHandlers } from "./rpc/transcription.ts";
+import { webhookHandlers } from "./rpc/webhooks.ts";
 import type { Secrets } from "./secrets.ts";
 import type { RuntimeHomes } from "./skills/runtimes.ts";
 import { kitSource, withKit } from "./surface-kit.ts";
@@ -143,6 +144,8 @@ export function builtinTools(
   extra: Tool[] = [],
   /** The other agent apps whose skills agents may load too. */
   skillApps?: RuntimeHomes,
+  /** Where agent profiles and agent templates are found, for the super-agent's settings. */
+  roots?: Parameters<typeof settingsTools>[1],
 ): Tool[] {
   const tools = [
     ...agentTools(store),
@@ -168,7 +171,7 @@ export function builtinTools(
     ...webTools(),
     ...contactTools(store),
     ...requestTools(store),
-    ...settingsTools(store),
+    ...settingsTools(store, roots),
     ...extra,
   ];
   // The owner may let an agent use one of them without asking again, as with an MCP tool (DECISIONS.md#d-062).
@@ -230,6 +233,9 @@ type HandlerDeps = {
   addresses: () => string[];
   /** Who may reach this core (this computer, the network, the tailnet). */
   access: Parameters<typeof accessHandlers>[0];
+  webhooks: Parameters<typeof webhookHandlers>[0];
+  /** What asks an integration's remote server about the owner's account (tests pass a fake). */
+  integrationFetch?: typeof fetch | undefined;
   /** The owner's shells in a chat's folder. */
   terminals: Parameters<typeof terminalHandlers>[1];
   /** What the computer has and what APX takes of it. */
@@ -270,6 +276,7 @@ export function coreHandlers(d: HandlerDeps) {
     ...clientHandlers(d.store),
     ...deviceHandlers(d.store, { addresses: d.addresses }),
     ...accessHandlers(d.access),
+    ...webhookHandlers(d.webhooks),
     ...phoneHandlers(d.broker, d.store, d.app.home),
     ...computerHandlers(d.broker, d.store, d.app.home, d.engine),
     ...extensionHandlers(d.extensions, d.mcp),
@@ -277,7 +284,14 @@ export function coreHandlers(d: HandlerDeps) {
     ...mcpHandlers(d.mcp, d.store, (name) =>
       name === "asana" ? d.asana.connected() : isGoogleId(name) && d.google.connected(name),
     ),
-    ...integrationHandlers({ store: d.store, secrets: d.secrets, mcp: d.mcp, google: d.google, asana: d.asana }),
+    ...integrationHandlers({
+      store: d.store,
+      secrets: d.secrets,
+      mcp: d.mcp,
+      google: d.google,
+      asana: d.asana,
+      ...(d.integrationFetch ? { fetch: d.integrationFetch } : {}),
+    }),
     ...asanaHandlers(d.store, d.asana),
     ...resourceHandlers({
       store: d.store,

@@ -106,6 +106,21 @@ test("command risk: reading runs, changing asks, destroying always asks", () => 
   assert.equal(commandRisk("~/.local/bin/apx tasks"), "always");
   assert.equal(commandRisk("node apps/terminal/src/main.ts routines"), "always");
   assert.equal(commandRisk("cat apx-notes.md"), "never");
+  for (const c of [
+    "APX_AGENT=x apx tasks",
+    "echo x | xargs apx",
+    "bash -c 'apx tasks'",
+    "pnpm exec apx",
+    "(apx tasks)",
+  ])
+    assert.equal(commandRisk(c), "always", c);
+  // A folder named apx is only read: going into it or listing it is not running the CLI.
+  for (const c of [
+    "cd /code/agentprojectcontext/apx && rg -n teams docs | head -100",
+    "ls -la /code/agentprojectcontext/apx",
+    "git -C ~/code/apx status --short",
+  ])
+    assert.equal(commandRisk(c), "never", c);
 });
 
 const llm = scriptedLlm((req, { said, afterTool }) => {

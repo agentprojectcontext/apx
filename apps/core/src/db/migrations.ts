@@ -872,4 +872,9 @@ export const MIGRATIONS: readonly string[] = [
   `UPDATE stickers SET meaning = NULL;`,
   // A sticker the owner said the agent may not send (it still reads what it means when it comes).
   `ALTER TABLE stickers ADD COLUMN blocked INTEGER NOT NULL DEFAULT 0;`,
+  // A sticker waiting for the owner's OK before the agent may send it, and one a model saw as adult-only.
+  `
+  ALTER TABLE stickers ADD COLUMN pending INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE stickers ADD COLUMN adult INTEGER NOT NULL DEFAULT 0;
+  `,
 ];

@@ -234,6 +234,31 @@ test("a business's verification code (a template with a copy button) is read, no
   assert.equal(await listed("Acme Pay"), "Acme Pay\nYour code: 771204");
 });
 
+test("a shared contact card and a shared place reach the agent as words, not dropped", async () => {
+  const card = { phone: "5491100000013@s.whatsapp.net", name: "Northwind Card" };
+  const place = { phone: "5491100000014@s.whatsapp.net", name: "Northwind Place" };
+  wa.message(card, "", {
+    content: {
+      contactMessage: {
+        displayName: "Acme Dentist",
+        vcard:
+          "BEGIN:VCARD\nVERSION:3.0\nFN:Acme Dentist\nTEL;type=CELL;waid=5491100000099:+54 9 11 0000-0099\nEND:VCARD",
+      },
+    },
+  });
+  wa.message(place, "", {
+    content: { locationMessage: { degreesLatitude: -34.6, degreesLongitude: -58.4, name: "Acme Clinic" } },
+  });
+  const listed = async (name: string) =>
+    (await env.client.call("pairing.list", {})).requests.find((r) => r.name === name)?.text;
+  await until(
+    async () => Boolean((await listed("Northwind Card")) && (await listed("Northwind Place"))),
+    "both listed",
+  );
+  assert.equal(await listed("Northwind Card"), "[contact: Acme Dentist, +54 9 11 0000-0099]");
+  assert.equal(await listed("Northwind Place"), "[location: Acme Clinic · -34.6, -58.4]");
+});
+
 test("a business's menu, answered with one of its options, goes back as that button pressed", async () => {
   const bot = { phone: "5491100000012@s.whatsapp.net", name: "Northwind Insurance" };
   const person = await env.client.call("contacts.set", { name: "Northwind Insurance" });

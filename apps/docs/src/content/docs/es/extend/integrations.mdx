@@ -54,6 +54,10 @@ El catálogo tiene un buscador. Una app en la que iniciás sesión corre con `mc
 registra sola en la app y abre su página de inicio de sesión en tu navegador. Hasta que termines, la integración
 muestra **Iniciar sesión**; tocalo para abrir la página de nuevo.
 
+GitHub se conecta al servidor propio de GitHub (`api.githubcopilot.com/mcp`) con tu token. Ese servidor puede pedir
+acceso a Copilot: al conectar, APX le pregunta primero y, si rechaza tu token, usa el servidor abierto de GitHub de
+antes, con el mismo token.
+
 Asana usa REST directamente, sin MCP. Creá un token personal en [Asana](https://app.asana.com/0/my-apps) y pegalo solo en el formulario.
 APX lo valida antes de guardar `secret://asana-token`; un campo vacío conserva el token anterior.
 `asana_read` consulta espacios de trabajo, proyectos, tareas y sus detalles, con paginación.

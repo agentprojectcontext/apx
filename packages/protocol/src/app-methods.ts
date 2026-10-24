@@ -1113,7 +1113,8 @@ export const appMethods = {
   /** The stickers kept from a channel type, the most used first, named or not, blocked or not. */
   "stickers.list": {
     params: z.object({ platform: z.string().min(1).max(40) }).strict(),
-    result: z.object({ stickers: z.array(Sticker) }),
+    /** `auto`: new stickers are the agent's to use as they come (the default), else each waits for the owner's OK. */
+    result: z.object({ stickers: z.array(Sticker), auto: z.boolean() }),
     effect: false,
     access: "human",
   },
@@ -1123,6 +1124,16 @@ export const appMethods = {
       .object({ id: Id, meaning: z.string().trim().min(1).max(160).optional(), blocked: z.boolean().optional() })
       .strict(),
     result: Sticker,
+    effect: true,
+    access: "human",
+  },
+  /**
+   * Whether new stickers are the agent's to use as they come, or each waits for the owner's OK. One for adults, or one
+   * no model could see, always waits.
+   */
+  "stickers.auto": {
+    params: z.object({ on: z.boolean() }).strict(),
+    result: z.object({ on: z.boolean() }),
     effect: true,
     access: "human",
   },

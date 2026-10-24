@@ -85,3 +85,38 @@ test("an app that signs in through the browser connects with nothing to type", a
   );
   await env.client.call("integrations.disconnect", { id: "linear" });
 });
+
+test("GitHub asks its own server first: a token it refuses gets the earlier open server; unreachable keeps its own", async () => {
+  const asked: Array<{ url: string; auth: string | null }> = [];
+  let answer: number | "down" = 403;
+  const core = await startCore({
+    llm: scriptedLlm(() => say("ok")),
+    integrationFetch: async (url, init) => {
+      asked.push({ url: String(url), auth: new Headers(init?.headers).get("authorization") });
+      if (answer === "down") throw new TypeError("fetch failed");
+      return new Response("{}", { status: answer });
+    },
+  });
+  try {
+    const github = async () => (await core.client.call("mcp.list", {})).servers.find((s) => s.name === "github");
+    for (const status of [403, 401] as const) {
+      answer = status;
+      await core.client.call("integrations.connect", { id: "github", values: { token: "ghp_example0000" } });
+      assert.equal((await github())?.transport, "stdio", `${status}: the open server runs instead`);
+    }
+    assert.deepEqual(asked.at(-1), { url: "https://api.githubcopilot.com/mcp/", auth: "Bearer ghp_example0000" });
+    assert.ok(!JSON.stringify(await core.client.call("mcp.list", {})).includes("ghp_example0000"), "never shown");
+
+    answer = 200;
+    await core.client.call("integrations.connect", { id: "github", values: { token: "" } });
+    assert.equal((await github())?.transport, "http", "an edit asks again, with the stored token: now it is taken");
+    assert.equal(asked.at(-1)?.auth, "Bearer ghp_example0000");
+
+    answer = "down";
+    await core.client.call("integrations.connect", { id: "github", values: { token: "ghp_example1111" } });
+    assert.equal((await github())?.transport, "http", "no answer is no refusal: GitHub's own server stays");
+  } finally {
+    await core.core.close();
+    core.cleanup();
+  }
+});
