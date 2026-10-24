@@ -14,6 +14,12 @@ async function connect(page: Page, kind: "Discord" | "Slack", tokens: Array<[lab
 }
 
 async function linkAndTalk(page: Page, channel: "dc" | "sl", owner: { id: string; name: string }) {
+  // The bot shows as connected before its socket is up; a message sent sooner never reaches it, as on the real app.
+  await until(async () =>
+    (await rpc<{ channels: Array<{ id: string; status: string }> }>("channels.list")).channels.some(
+      (c) => c.id === (channel === "dc" ? "discord" : "slack") && c.status === "running",
+    ),
+  );
   await world.dm(channel, owner, "hola bot");
   const first = await until(async () =>
     (await world.dmSentTo(channel, owner.id)).find((m) => /\d{6}/.test(m.text ?? "")),
