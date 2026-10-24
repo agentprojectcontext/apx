@@ -235,6 +235,26 @@ export const NEWS: readonly NewsEntry[] = [
       },
     ],
   },
+  {
+    id: "owner-check",
+    since: "2.10.0",
+    title: "Channel messages checked first",
+    applies: (f) => f.channels > 0,
+    text:
+      "On every channel but Telegram, a message that comes as the owner no longer acts by itself: those apps cannot " +
+      "always prove who wrote. The super-agent reads it first, asks the owner in the app when it is unsure or the " +
+      "request is risky, and then the channel's agent does what was decided and answers there. Confirmations and " +
+      "questions are answered in the app (the panel, the desktop or the paired phone); on Telegram they still can " +
+      "be, except a change to the owner's settings, which is approved only in the app.",
+    actions: [
+      {
+        label: { en: "How it works for me", es: "Cómo me queda a mí" },
+        prompt:
+          "Tell me in a few lines which of my channels act on my word directly and which go through you first, and " +
+          "where I approve things now.",
+      },
+    ],
+  },
 ];
 
 /** The catalog integrations among the owner's global MCP servers. */

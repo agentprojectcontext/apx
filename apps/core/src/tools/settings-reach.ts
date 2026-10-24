@@ -17,6 +17,15 @@ export const BY_TOOL: Readonly<Record<string, string>> = {
   "asana.write": "asana",
 };
 
+/**
+ * Tools above that act as the owner yet may run without a card in Total (or under the agent's rule `auto`), by reason.
+ * Every other one marks its changes `ownerSetting` or `keepsCard` (DECISIONS.md#d-143); owner-setting.test.ts holds it.
+ */
+export const TOTAL_SKIPS: Readonly<Record<string, string>> = {
+  routine_set: "the owner's decision: routines change freely for an agent they set to Total",
+  asana: "a write to the owner's Asana acts in their name, which Total lets run like a send (DECISIONS.md#d-047)",
+};
+
 const SECRET = "carries a key, a password or a sign-in the owner types themselves";
 const POWER = "what agents may do or which model runs them stays the owner's (DECISIONS.md#d-060)";
 const MACHINE = "installs or controls this computer and its devices";

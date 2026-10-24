@@ -3,7 +3,7 @@
 // addressed; a nick in use gets an underscore; SASL carries the password; long text stays within IRC's 512 bytes.
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { type FakeIrc, fakeIrc } from "./fake-irc.test-support.ts";
 import { ircAdapter, ircLine, ircSecret, parseIrcLine, plainIrc, splitBytes } from "./irc.ts";
@@ -82,10 +82,12 @@ test("the secret is the server's address, the nick and an optional password", ()
 });
 
 describe("irc channel", () => {
-  const llm = scriptedLlm((req, { said }) => {
-    if (said.includes("long please")) return say(`${"word ".repeat(300)}end`);
-    return say(`You said: ${String(req.messages.at(-1)?.content).split("\n").at(-1)?.slice(-60)}`);
-  });
+  const llm = scriptedLlm(
+    throughOwnerCheck((req, { said }) => {
+      if (said.includes("long please")) return say(`${"word ".repeat(300)}end`);
+      return say(`You said: ${String(req.messages.at(-1)?.content).split("\n").at(-1)?.slice(-60)}`);
+    }),
+  );
   let env: Awaited<ReturnType<typeof startCore>>;
   let irc: FakeIrc;
   const texts = (to: string) => irc.sentTo(to).map((s) => s.text);

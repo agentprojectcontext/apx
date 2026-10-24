@@ -15,7 +15,7 @@ import type { AgentRecord } from "../domain/agents.ts";
 import { memorySettings } from "../domain/memory-settings.ts";
 import { ownerIdentity, ownerTimeZone } from "../domain/owner.ts";
 import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
-import type { Origin, RunRecord } from "../domain/runs.ts";
+import { answersChecked, type Origin, type RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
 import { Canceled, DeadlineExceeded, errorMessage, Shutdown, Superseded } from "../errors.ts";
@@ -580,7 +580,10 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   // A worker asks no one, and keeps to the tools its caller named for it (when it named any).
   const named = turn.worker?.tools?.length ? new Set(turn.worker.tools) : undefined;
   const o = turn.input.origin;
-  const handoff = o.kind === "channel" && o.role === "owner" && HANDOFF_ONLY.has(channelKindOf(deps.store, o) ?? "");
+  // The answer to the owner's words the super-agent checked is still their turn on that chat (DECISIONS.md#d-144).
+  const ownerOnChannel = (o.kind === "channel" && o.role === "owner") || answersChecked(o);
+  const replyChannel = turn.input.reply_to === null ? null : turn.input.reply_to?.channel;
+  const handoff = ownerOnChannel && HANDOFF_ONLY.has(channelKindOf(deps.store, o, replyChannel) ?? "");
   const only = handoff ? new Set([...HANDOFF_TOOLS].filter((n) => !named || named.has(n))) : named;
   const tools = policy.tools.filter(
     (t) =>

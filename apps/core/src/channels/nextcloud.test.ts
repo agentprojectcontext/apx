@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, describe, test } from "node:test";
-import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { removeDir, waitFor } from "../testkit/platform.ts";
 import { type FakeNextcloud, fakeNextcloud } from "./fake-nextcloud.test-support.ts";
 import { nextcloudAdapter, nextcloudSecret } from "./nextcloud.ts";
@@ -34,7 +34,9 @@ test("the secret is the server's address, the bot's user and its app password", 
 });
 
 describe("nextcloud channel", () => {
-  const llm = scriptedLlm((_req, { said }) => say(`You said: ${said.split("\n").at(-1)?.slice(-60)}`));
+  const llm = scriptedLlm(
+    throughOwnerCheck((_req, { said }) => say(`You said: ${said.split("\n").at(-1)?.slice(-60)}`)),
+  );
   let env: Awaited<ReturnType<typeof startCore>>;
   let nc: FakeNextcloud;
   let dir: string;

@@ -1,11 +1,11 @@
 // Google Chat against its fake (token endpoint, Pub/Sub, Chat API): the owner pairs with a code, their words reach the
-// agent and the answer comes back; a confirmation comes as card buttons and a click answers it; a stranger gets a
+// agent and the answer comes back; a confirmation comes without buttons and only the app answers it; a stranger gets a
 // code; a space is offered to pick and read only once listed, its answer joining the thread.
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { ChannelType } from "@apx/protocol";
 import { z } from "zod";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeGoogleChat } from "./fake-googlechat.test-support.ts";
@@ -24,11 +24,13 @@ const probe = defineTool({
   run: async () => "probed",
 });
 
-const llm = scriptedLlm((req, { said, afterTool }) => {
-  if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
-  if (said.includes("launch the probe")) return callTool("p1", "probe", {});
-  return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
-});
+const llm = scriptedLlm(
+  throughOwnerCheck((req, { said, afterTool }) => {
+    if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
+    if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+    return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
+  }),
+);
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let gc: Awaited<ReturnType<typeof fakeGoogleChat>>;
@@ -91,20 +93,25 @@ test("the app runs as its service account; the owner pairs and talks, each event
   assert.ok(gc.acked.includes(ack));
 });
 
-test("a confirmation comes with card buttons; a click approves it and the buttons go", async () => {
+test("a confirmation reaches Google Chat without card buttons; a click changes nothing and only the app approves it", async () => {
   await pairOwner();
   gc.message("owner", "launch the probe");
-  await waitFor(() => gc.sentTo("owner").some((s) => s.body.cardsV2), "buttons");
-  const ask = gc.sentTo("owner").find((s) => s.body.cardsV2);
-  const cards = ask?.body.cardsV2 as Array<{
-    card: { sections: Array<{ widgets: Array<{ buttonList: { buttons: Array<{ onClick: unknown }> } }> }> };
-  }>;
-  const first = cards[0]?.card.sections[0]?.widgets[0]?.buttonList.buttons[0]?.onClick as {
-    action: { parameters: Array<{ value: string }> };
-  };
-  gc.click("owner", first.action.parameters[0]?.value ?? "", ask?.name ?? "");
+  await waitFor(() => texts("owner").some((t) => t.includes("no por este canal")), "card with the in-app text");
+  const ask = gc.sentTo("owner").find((s) => (s.body.text ?? "").includes("no por este canal"));
+  assert.ok(!gc.sentTo("owner").some((s) => s.body.cardsV2), "no buttons off Telegram");
+  const input = (await env.client.call("runs.pending", {})).inputs[0]?.id ?? "";
+  assert.ok(input, "the confirmation waits");
+
+  const told = texts("owner").filter((t) => t.includes("no por este canal")).length;
+  gc.click("owner", `i:${input}:a`, ask?.name ?? "");
+  await waitFor(
+    () => texts("owner").filter((t) => t.includes("no por este canal")).length === told + 1,
+    "the click is told to go to the app",
+  );
+  assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a click on the channel decides nothing");
+
+  await env.client.call("runs.respond", { input, decision: "approve" });
   await waitFor(() => texts("owner").some((t) => t.includes("Done: probed")), "probe ran");
-  await waitFor(() => gc.patched.some((p) => p.name === ask?.name), "buttons taken off");
 });
 
 test("a stranger gets a code, never the agent", async () => {

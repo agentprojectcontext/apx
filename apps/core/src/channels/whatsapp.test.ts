@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { UPLOAD_LIMITS } from "@apx/protocol";
-import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { removeDir, waitFor } from "../testkit/platform.ts";
 import { fakeWhatsApp } from "./fake-whatsapp.test-support.ts";
 import type { AdapterIO } from "./types.ts";
@@ -14,14 +14,16 @@ const ANA = { phone: "5491100000002@s.whatsapp.net", name: "Ana" };
 const BOB = { phone: "5491100000003@s.whatsapp.net", name: "Bob", lid: "200000000000003@lid" };
 
 // A business's menu is answered with one of its options, a sticker with the same one; anything else is echoed.
-const llm = scriptedLlm((_req, { system, said }) =>
-  system.startsWith("You name chat stickers")
-    ? say("thumbs up, all good")
-    : said.includes("[sticker: thumbs up")
-      ? say("STICKER thumbs up")
-      : said.includes("[Options:")
-        ? say(said.includes("Claims") ? "2" : "Home")
-        : say(`Got it: ${said}`),
+const llm = scriptedLlm(
+  throughOwnerCheck((_req, { system, said }) =>
+    system.startsWith("You name chat stickers")
+      ? say("thumbs up, all good")
+      : said.includes("[sticker: thumbs up")
+        ? say("STICKER thumbs up")
+        : said.includes("[Options:")
+          ? say(said.includes("Claims") ? "2" : "Home")
+          : say(`Got it: ${said}`),
+  ),
 );
 let env: Awaited<ReturnType<typeof startCore>>;
 let wa: ReturnType<typeof fakeWhatsApp>;
@@ -109,7 +111,11 @@ test("the owner talks in 'Message yourself'; the answer comes back there once, i
   wa.fromOwner("what is on today?");
   await waitFor(() => wa.textsTo(wa.owner).some((t) => t.includes("Got it: what is on today?")), "the answer");
   await new Promise((r) => setTimeout(r, 150));
-  assert.equal(llm.calls.length - calls, 1, "one turn: the echo of the answer is not the owner writing");
+  assert.equal(
+    llm.calls.length - calls,
+    2,
+    "the check and the answer: the echo of the answer is not the owner writing",
+  );
   const home = await env.client.call("threads.get", { thread: "home" });
   assert.ok(home.messages.some((m) => m.parts.some((p) => p.type === "text" && p.text === "what is on today?")));
 });

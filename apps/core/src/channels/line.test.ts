@@ -1,6 +1,6 @@
 // LINE against its fake: the secret; the channel's story through the manager, fed signed webhook deliveries (the owner
-// pairs with a code sent with the reply token and is answered; a confirmation comes as quick replies and a postback
-// answers it; a listed group is answered when the bot is @mentioned; a redelivered event is handled once; LINE's
+// pairs with a code sent with the reply token and is answered; a confirmation comes without quick replies and only
+// the app answers it; a listed group is answered when the bot is @mentioned; a redelivered event is handled once; LINE's
 // Verify gets a 200; a bad signature reaches nobody); and the adapter alone: a stale reply token falls back to push, a
 // picture is read, and a channel without a public address says so until one exists.
 import assert from "node:assert/strict";
@@ -11,7 +11,7 @@ import { after, before, describe, test } from "node:test";
 import type { ChannelType } from "@apx/protocol";
 import { z } from "zod";
 import type { Inbound } from "../domain/channels.ts";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { removeDir, waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeLine } from "./fake-line.test-support.ts";
@@ -48,11 +48,13 @@ describe("line channel", () => {
     title: () => "Probe",
     run: async () => "probed",
   });
-  const llm = scriptedLlm((req, { said, afterTool }) => {
-    if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
-    if (said.includes("launch the probe")) return callTool("p1", "probe", {});
-    return say(`You said: ${said.split("\n").at(-1)?.slice(-60)}`);
-  });
+  const llm = scriptedLlm(
+    throughOwnerCheck((req, { said, afterTool }) => {
+      if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
+      if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+      return say(`You said: ${said.split("\n").at(-1)?.slice(-60)}`);
+    }),
+  );
   let env: Awaited<ReturnType<typeof startCore>>;
   let line: Awaited<ReturnType<typeof fakeLine>>;
   const hook = (req: ReturnType<typeof line.hook>) => env.core.channels.webhook("line", req);
@@ -114,16 +116,22 @@ describe("line channel", () => {
     assert.ok(line.loading.includes(OWNER), "the loading animation showed while the agent worked");
   });
 
-  test("a confirmation comes as quick replies, and the postback answers it", async () => {
+  test("a confirmation reaches LINE without quick replies; a postback changes nothing and only the app approves it", async () => {
     await hook(line.hook([line.text(OWNER, "launch the probe")]));
-    let items: Array<{ action: { type: string; label: string; data: string } }> = [];
-    await waitFor(() => {
-      const m = line.sent.flatMap((s) => s.messages).find((x) => x.quickReply);
-      items = (m?.quickReply as { items: typeof items } | undefined)?.items ?? [];
-      return items.length > 0;
-    }, "quick replies");
-    assert.ok(items.every((i) => i.action.type === "postback" && i.action.label.length <= 20));
-    await hook(line.hook([line.postback(OWNER, items[0]?.action.data ?? "")]));
+    await waitFor(() => line.sentTo(OWNER).some((t) => t.includes("no por este canal")), "card with the in-app text");
+    assert.ok(!line.sent.flatMap((s) => s.messages).some((m) => m.quickReply), "no quick replies off Telegram");
+    const input = (await env.client.call("runs.pending", {})).inputs[0]?.id ?? "";
+    assert.ok(input, "the confirmation waits");
+
+    const told = line.sentTo(OWNER).filter((t) => t.includes("no por este canal")).length;
+    await hook(line.hook([line.postback(OWNER, `i:${input}:a`)]));
+    await waitFor(
+      () => line.sentTo(OWNER).filter((t) => t.includes("no por este canal")).length === told + 1,
+      "the postback is told to go to the app",
+    );
+    assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a postback on the channel decides nothing");
+
+    await env.client.call("runs.respond", { input, decision: "approve" });
     await waitFor(() => line.sentTo(OWNER).some((t) => t.includes("Done: probed")), "probe ran");
   });
 
@@ -150,7 +158,7 @@ describe("line channel", () => {
     await waitFor(() => line.sentTo(OWNER).some((t) => t.includes("You said: only once")), "answered");
     assert.equal((await hook(line.hook([{ ...e, deliveryContext: { isRedelivery: true } }]))).status, 200);
     await pause(300);
-    assert.equal(llm.calls.length, calls + 1);
+    assert.equal(llm.calls.length, calls + 2, "the check, then the answer");
     assert.equal((await hook(line.hook([]))).status, 200);
   });
 

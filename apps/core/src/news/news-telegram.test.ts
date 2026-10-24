@@ -36,7 +36,10 @@ test("news reach the owner's channel with buttons; a press asks the super-agent 
   env.core.store.surfaces.upsert({ name: "weather", title: "Weather", html: "<p>sunny</p>", created_by: "roby" });
   // Calendar connected and the news every owner or a channel's owner gets already heard: this is about the widgets'.
   env.core.store.settings.set("google_account:google-calendar", "owner@example.com");
-  env.core.store.settings.set("news_seen", JSON.stringify(["more-channels", "teams-line", "super-agent-settings"]));
+  env.core.store.settings.set(
+    "news_seen",
+    JSON.stringify(["more-channels", "teams-line", "super-agent-settings", "owner-check"]),
+  );
   const { entries } = await env.client.call("system.news", {});
   const kit = entries.find((e) => e.id === "artifacts-kit");
   assert.equal(kit?.applies, true);

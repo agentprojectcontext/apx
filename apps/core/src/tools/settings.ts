@@ -72,11 +72,12 @@ const empty = (v: unknown) => v === undefined || v === null || v === "";
 const same = (a: unknown, b: unknown) => (empty(a) && empty(b)) || JSON.stringify(a) === JSON.stringify(b);
 const plain = (v: unknown): v is Params => !!v && typeof v === "object" && !Array.isArray(v);
 
-const shown = (v: unknown) => {
+/** A value on the card, cut at 300 characters unless the setting shows its values whole (Setting.whole). */
+const shown = (v: unknown, whole = false) => {
   if (empty(v)) return "(none)";
   if (typeof v === "number" || typeof v === "boolean") return String(v);
   const s = typeof v === "string" ? v : JSON.stringify(v);
-  return `"${s.length > 300 ? `${s.slice(0, 300)}…` : s}"`;
+  return `"${!whole && s.length > 300 ? `${s.slice(0, 300)}…` : s}"`;
 };
 
 type Words = Readonly<Record<string, (v: unknown) => string>>;
@@ -88,19 +89,22 @@ function changedFields(
   path = "",
   named: readonly string[] = [],
   words: Words = {},
+  whole = false,
 ): string[] {
   const lines = Object.entries(p).flatMap(([k, v]) => {
     // The record's own id names it on the card's first line; only another id is a change.
     if (!path && k === "id" && (!now || same(now.id, v))) return [];
     if (!path && named.includes(k)) return [];
     const word = words[`${path}${k}`];
-    if (!now) return [word ? word(v) : `${path}${k}: ${shown(v)}`];
+    if (!now) return [word ? word(v) : `${path}${k}: ${shown(v, whole)}`];
     const was = now[k];
     if (same(was, v)) return [];
     if (word) return [word(v)];
     const inner =
-      plain(v) && (plain(was) || empty(was)) ? changedFields(plain(was) ? was : {}, v, `${path}${k}.`, [], words) : [];
-    return inner.length ? inner : [`${path}${k}: ${shown(was)} → ${shown(v)}`];
+      plain(v) && (plain(was) || empty(was))
+        ? changedFields(plain(was) ? was : {}, v, `${path}${k}.`, [], words, whole)
+        : [];
+    return inner.length ? inner : [`${path}${k}: ${shown(was, whole)} → ${shown(v, whole)}`];
   });
   // Inside a record given back whole (a channel), a worded field left out is dropped (its hours): a change too.
   const dropped = Object.entries(words).flatMap(([w, word]) => {
@@ -136,7 +140,11 @@ export function settingsTools(
     const p = filled(a);
     const now = s?.now?.(p, deps);
     const words = Object.fromEntries(Object.entries(s?.words ?? {}).map(([k, w]) => [k, (v: unknown) => w(v, deps)]));
-    return { says: s?.says?.(p, deps) ?? a.method, lines: changedFields(now, p, "", s?.named, words), known: !!now };
+    return {
+      says: s?.says?.(p, deps) ?? a.method,
+      lines: changedFields(now, p, "", s?.named, words, s?.whole),
+      known: !!now,
+    };
   };
   /** A change to a record that already is so: answered without asking the owner. */
   const unchanged = (a: Args) => {

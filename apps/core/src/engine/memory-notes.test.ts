@@ -229,7 +229,7 @@ test("a download that worked after a failed try leaves a procedure note, and 'li
     assert.match(
       index,
       new RegExp(
-        `\\[${note.id}\\] \\(procedure, [^)]*\\) "descargá este reel <videos\\.example\\.com>": reelsaver\\.example\\.com`,
+        `\\[${note.id}\\] \\(procedure, [^)]*\\) "descargá este reel &lt;videos\\.example\\.com>": reelsaver\\.example\\.com`,
       ),
     );
   } finally {

@@ -1,13 +1,13 @@
 // Teams against a fake Bot Framework (signing keys, token endpoint, connector), each activity delivered to the
-// channel's webhook as Teams would: the owner pairs with a code and talks; a confirmation comes as an Adaptive Card and
-// a click answers it; a room @mention is answered in its thread; a request the Bot Framework did not sign for this bot
-// is refused and never reaches the agent.
+// channel's webhook as Teams would: the owner pairs with a code and talks; a confirmation comes as text without buttons
+// and only the app answers it; a room @mention is answered in its thread; a request the Bot Framework did not sign for
+// this bot is refused and never reaches the agent.
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 import { after, before, test } from "node:test";
 import type { ChannelType } from "@apx/protocol";
 import { z } from "zod";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeTeams, TEAM } from "./fake-teams.test-support.ts";
@@ -27,11 +27,13 @@ const probe = defineTool({
   run: async () => "probed",
 });
 
-const llm = scriptedLlm((req, { said, afterTool }) => {
-  if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
-  if (said.includes("launch the probe")) return callTool("p1", "probe", {});
-  return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
-});
+const llm = scriptedLlm(
+  throughOwnerCheck((req, { said, afterTool }) => {
+    if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
+    if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+    return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
+  }),
+);
 
 let env: Awaited<ReturnType<typeof startCore>>;
 let tm: Awaited<ReturnType<typeof fakeTeams>>;
@@ -108,22 +110,25 @@ test("the owner pairs and talks; the answer goes to the conversation's connector
   assert.equal(reply?.body.textFormat, "markdown");
 });
 
-test("a confirmation comes as an Adaptive Card; a click approves it and the buttons go", async () => {
+test("a confirmation reaches Teams without an Adaptive Card's buttons; a click changes nothing and only the app approves it", async () => {
   await pairOwner();
   await send(tm.message("owner", "launch the probe"));
-  await waitFor(() => tm.sentTo("owner").some((s) => s.body.attachments?.length), "card");
-  const ask = tm.sentTo("owner").find((s) => s.body.attachments?.length);
-  const attached = ask?.body.attachments?.[0] as
-    | { content: { actions: Array<{ type: string; data: { apx: string } }> } }
-    | undefined;
-  const first = attached?.content.actions[0];
-  assert.equal(first?.type, "Action.Submit");
-  await send(tm.click("owner", first?.data.apx ?? "", ask?.id ?? ""));
-  await waitFor(() => texts("owner").some((t) => t.includes("Done: probed")), "probe ran");
+  await waitFor(() => texts("owner").some((t) => t.includes("no por este canal")), "card with the in-app text");
+  const ask = tm.sentTo("owner").find((s) => (s.body.text ?? "").includes("no por este canal"));
+  assert.ok(!tm.sentTo("owner").some((s) => s.body.attachments?.length), "no buttons off Telegram");
+  const input = (await env.client.call("runs.pending", {})).inputs[0]?.id ?? "";
+  assert.ok(input, "the confirmation waits");
+
+  const told = texts("owner").filter((t) => t.includes("no por este canal")).length;
+  await send(tm.click("owner", `i:${input}:a`, ask?.id ?? ""));
   await waitFor(
-    () => tm.sentTo("owner").some((s) => s.method === "PUT" && s.id === ask?.id && !s.body.attachments?.length),
-    "buttons taken off",
+    () => texts("owner").filter((t) => t.includes("no por este canal")).length === told + 1,
+    "the click is told to go to the app",
   );
+  assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a click on the channel decides nothing");
+
+  await env.client.call("runs.respond", { input, decision: "approve" });
+  await waitFor(() => texts("owner").some((t) => t.includes("Done: probed")), "probe ran");
 });
 
 test("a stranger gets a code, never the agent", async () => {

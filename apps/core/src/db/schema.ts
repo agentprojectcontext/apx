@@ -342,6 +342,7 @@ export interface PendingInputsTable {
   change: string | null;
   multi: number | null;
   folders: string | null;
+  app_only: number | null;
 }
 
 export interface PersonsTable {

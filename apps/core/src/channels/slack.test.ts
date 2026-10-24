@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { z } from "zod";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeSlack } from "./fake-slack.test-support.ts";
@@ -11,11 +11,13 @@ const TOKENS = { bot: "xoxb-1-fake-bot", app: "xapp-1-fake-app" };
 const OWNER = { id: "U111" };
 const ANA = { id: "U222" };
 
-const llm = scriptedLlm((req, { said, afterTool }) => {
-  if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
-  if (said.includes("launch the probe")) return callTool("p1", "probe", {});
-  return say(`Hello **there**, you said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
-});
+const llm = scriptedLlm(
+  throughOwnerCheck((req, { said, afterTool }) => {
+    if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
+    if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+    return say(`Hello **there**, you said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
+  }),
+);
 
 const probe = defineTool({
   name: "probe",
@@ -99,20 +101,24 @@ test("channels, edits and the app's own messages are ignored", async () => {
   assert.equal(llm.calls.length, calls);
 });
 
-test("a confirmation comes with buttons; the owner's press approves it and the buttons go", async () => {
+test("a confirmation reaches Slack without buttons; a press changes nothing and only the app approves it", async () => {
   await pairOwner();
   sl.message(OWNER, "launch the probe");
-  await waitFor(() => sl.messagesTo(sl.dm(OWNER.id)).some((m) => m.body.blocks), "buttons");
-  const ask = sl.messagesTo(sl.dm(OWNER.id)).find((m) => m.body.blocks);
-  const blocks = ask?.body.blocks as Array<{ type: string; elements?: Array<{ value: string }> }>;
-  const allow = blocks.find((b) => b.type === "actions")?.elements?.[0]?.value ?? "";
-  assert.match(allow, /^i:.+:a$/);
-  sl.press(OWNER, allow);
-  await waitFor(() => texts(OWNER).some((t) => /Done: probed/.test(t)), "probe result");
-  assert.ok(
-    sl.sent.some((s) => s.method === "chat.update"),
-    "the pressed message loses its buttons",
+  await waitFor(() => texts(OWNER).some((t) => t.includes("no por este canal")), "card with the in-app text");
+  assert.ok(!sl.messagesTo(sl.dm(OWNER.id)).some((m) => m.body.blocks), "no buttons off Telegram");
+  const input = (await env.client.call("runs.pending", {})).inputs[0]?.id ?? "";
+  assert.ok(input, "the confirmation waits");
+
+  const told = texts(OWNER).filter((t) => t.includes("no por este canal")).length;
+  sl.press(OWNER, `i:${input}:a`);
+  await waitFor(
+    () => texts(OWNER).filter((t) => t.includes("no por este canal")).length === told + 1,
+    "the press is told to go to the app",
   );
+  assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a press on the channel decides nothing");
+
+  await env.client.call("runs.respond", { input, decision: "approve" });
+  await waitFor(() => texts(OWNER).some((t) => /Done: probed/.test(t)), "probe result");
 });
 
 test("Slack asking to reconnect opens a new socket; a rate-limited send is retried", async () => {

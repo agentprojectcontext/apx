@@ -20,6 +20,7 @@ import { createInputs, type InputWaits } from "./inputs.ts";
 import { createJobs } from "./jobs.ts";
 import { A2A_CAP_MS } from "./limits.ts";
 import type { MemoryIndex } from "./memory-index.ts";
+import { relayEnded } from "./owner-relay.ts";
 import type { Permissions } from "./permissions.ts";
 import type { MailSource } from "./pipeline.ts";
 import type { ProfileRoot } from "./profiles.ts";
@@ -426,6 +427,7 @@ export function createEngine(deps: {
     for (const w of waiters.get(run.id) ?? []) w(run);
     waiters.delete(run.id);
     delegations.childEnded(run);
+    relayEnded(store, admit, run);
   }
 
   /**

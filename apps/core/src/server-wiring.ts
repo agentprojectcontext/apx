@@ -448,6 +448,7 @@ export async function listen(
     bus: d.bus,
     gate,
     deviceOf: (token) => d.store.devices.byToken(token),
+    clientOf: (token) => d.store.clients.byToken(token),
   });
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);

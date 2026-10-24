@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, describe, test } from "node:test";
 import { z } from "zod";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { emailAdapter, isAutomatic, verifiedSender } from "./email.ts";
@@ -191,11 +191,13 @@ const probe = defineTool({
 });
 
 describe("the email channel", () => {
-  const llm = scriptedLlm((req, { said, afterTool }) => {
-    if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
-    if (said.includes("launch the probe")) return callTool("p1", "probe", {});
-    return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
-  });
+  const llm = scriptedLlm(
+    throughOwnerCheck((req, { said, afterTool }) => {
+      if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
+      if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+      return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
+    }),
+  );
   let env: Awaited<ReturnType<typeof startCore>>;
   let imap: FakeImap;
   let smtp: FakeSmtp;
@@ -239,7 +241,7 @@ describe("the email channel", () => {
     await env.cleanup();
   });
 
-  test("the owner pairs, talks by mail in one thread, and answers a confirmation by its number", async () => {
+  test("the owner pairs and talks by mail in one thread; a confirmation comes without options, a typed number does not answer it and only the app does", async () => {
     const first = mail({ from: OWNER, to: USER, subject: "Hello", text: "hola" });
     imap.deliver(first.raw);
     await waitFor(() => to("owner@example.org").length >= 1, "pairing code");
@@ -268,8 +270,17 @@ describe("the email channel", () => {
     assert.equal(answer?.h("auto-submitted"), "auto-replied");
 
     imap.deliver(mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "launch the probe" }).raw);
-    await waitFor(() => to("owner@example.org").some((m) => /\n1\. /.test(m.text)), "numbered options");
+    await waitFor(
+      () => to("owner@example.org").some((m) => m.text.includes("no por este canal")),
+      "card without options",
+    );
+    assert.ok(!to("owner@example.org").some((m) => /\n1\. /.test(m.text)), "no numbered options off Telegram");
+    const input = (await env.client.call("runs.pending", {})).inputs[0]?.id ?? "";
+    assert.ok(input, "the confirmation waits");
     imap.deliver(mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "1\n\n> 1. Approve\n> 2. Deny" }).raw);
+    await new Promise((r) => setTimeout(r, 300));
+    assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a typed number answers nothing");
+    await env.client.call("runs.respond", { input, decision: "approve" });
     await waitFor(() => to("owner@example.org").some((m) => m.text.includes("Done: probed")), "probe ran");
   });
 
@@ -290,15 +301,16 @@ describe("the email channel", () => {
       "mailbox read again",
       { ms: 15_000 },
     );
-    assert.equal(llm.calls.length, after1 + 1, "only the new marker starts a turn");
+    assert.equal(llm.calls.length, after1 + 2, "only the new marker starts a turn (the check, then the answer)");
     assert.equal(to("owner@example.org").filter((m) => m.text.includes("You said: once only")).length, 1);
     assert.equal(smtp.sent.length, sentOnce + 1, JSON.stringify(smtp.sent.slice(sentOnce).map(read)));
+    // With the card settled in the app, a bare number is words like any other: it is relayed, never an option.
     imap.deliver(mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "1" }).raw);
-    await waitFor(() => smtp.sent.length === sentOnce + 2, "a new message still chooses the closed option");
-    const closed = smtp.sent.at(-1);
-    assert.ok(closed);
-    assert.match(read(closed).text, /ya no está pendiente/);
-    assert.equal(llm.calls.length, after1 + 1, "a closed option never starts a model turn");
+    await waitFor(() => smtp.sent.length === sentOnce + 2, "a number is answered as words");
+    const number = smtp.sent.at(-1);
+    assert.ok(number);
+    assert.match(read(number).text, /You said: 1/);
+    assert.equal(llm.calls.length, after1 + 4, "relayed like any message of the owner");
   });
 
   test("auto-replies, bulk mail, bounces and forged senders never reach the agent", async () => {
@@ -322,7 +334,7 @@ describe("the email channel", () => {
     const marker = mail({ from: OWNER, to: USER, subject: "Re: Hello", text: "still here" });
     imap.deliver(marker.raw);
     await waitFor(() => to("owner@example.org").some((m) => m.text.includes("You said: still here")), "marker answer");
-    assert.equal(llm.calls.length, calls + 1);
+    assert.equal(llm.calls.length, calls + 2);
     assert.equal(smtp.sent.length, sent + 1);
   });
 
@@ -336,7 +348,7 @@ describe("the email channel", () => {
     imap.deliver(marker.raw);
     await waitFor(() => to("owner@example.org").some((m) => m.text.includes("You said: after ana")), "marker answer");
     assert.equal(to("ana@example.net").length, 1);
-    assert.equal(llm.calls.length, calls + 1);
+    assert.equal(llm.calls.length, calls + 2);
   });
 
   test("a wrong password stops the channel with a reason, without retrying", async () => {

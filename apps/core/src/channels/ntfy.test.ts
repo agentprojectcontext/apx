@@ -8,7 +8,7 @@ import path from "node:path";
 import { after, before, describe, test } from "node:test";
 import type { ChannelType } from "@apx/protocol";
 import { z } from "zod";
-import { callTool, say, scriptedLlm, startCore } from "../engine/testkit.ts";
+import { callTool, say, scriptedLlm, startCore, throughOwnerCheck } from "../engine/testkit.ts";
 import { removeDir, waitFor } from "../testkit/platform.ts";
 import { defineTool } from "../tools/types.ts";
 import { fakeNtfy } from "./fake-ntfy.test-support.ts";
@@ -49,11 +49,13 @@ test("the secret splits into the server, the topic and an optional token", () =>
 
 for (const selfOwner of [true, false])
   describe(selfOwner ? "a topic that is the owner" : "a topic paired with a code", () => {
-    const llm = scriptedLlm((req, { said, afterTool }) => {
-      if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
-      if (said.includes("launch the probe")) return callTool("p1", "probe", {});
-      return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
-    });
+    const llm = scriptedLlm(
+      throughOwnerCheck((req, { said, afterTool }) => {
+        if (afterTool) return say(`Done: ${String(req.messages.at(-1)?.content).slice(0, 40)}`);
+        if (said.includes("launch the probe")) return callTool("p1", "probe", {});
+        return say(`You said: ${said.split("\n").at(-1)?.slice(0, 60)}`);
+      }),
+    );
     let env: Awaited<ReturnType<typeof startCore>>;
     let fake: Awaited<ReturnType<typeof fakeNtfy>>;
 
@@ -80,7 +82,7 @@ for (const selfOwner of [true, false])
       await env.cleanup();
     });
 
-    test("the owner talks with the agent and answers a confirmation by its number", async () => {
+    test("the owner talks with the agent; a confirmation comes without options, a typed number does not answer it and only the app does", async () => {
       if (!selfOwner) {
         fake.write("hola");
         await waitFor(() => fake.published().length >= 1, "pairing code");
@@ -95,9 +97,16 @@ for (const selfOwner of [true, false])
       await waitFor(() => fake.published().some((t) => t.includes("You said: what is up")), "reply");
 
       fake.write("launch the probe");
-      await waitFor(() => fake.published().some((t) => /\n1\. /.test(t)), "numbered options");
+      await waitFor(() => fake.published().some((t) => t.includes("no por este canal")), "card without options");
+      assert.ok(!fake.published().some((t) => /\n1\. /.test(t)), "no numbered options off Telegram");
+      const input = (await env.client.call("runs.pending", {})).inputs[0]?.id ?? "";
+      assert.ok(input, "the confirmation waits");
       fake.write("1");
+      await new Promise((r) => setTimeout(r, 300));
+      assert.equal(env.core.store.inputs.get(input)?.state, "pending", "a typed number answers nothing");
+      await env.client.call("runs.respond", { input, decision: "approve" });
       await waitFor(() => fake.published().some((t) => t.includes("Done: probed")), "probe ran");
+      await waitFor(() => fake.published().some((t) => t.includes("You said: 1")), "the number was relayed as words");
 
       // Its own messages come back on the stream: none of them is read as the owner's.
       const calls = llm.calls.length;

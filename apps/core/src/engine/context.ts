@@ -7,7 +7,7 @@ import type { LogEntry } from "../domain/model-log.ts";
 import { createHash } from "node:crypto";
 import type { Autonomy, Organization, Thread } from "@apx/protocol";
 import type { AgentRecord } from "../domain/agents.ts";
-import type { Origin } from "../domain/runs.ts";
+import { answersChecked, type Origin } from "../domain/runs.ts";
 import type { ReleaseContext } from "../domain/threads.ts";
 import type { AssistantItem, ChatItem } from "../providers/types.ts";
 import { RELEASE_REPO } from "../release-notes.ts";
@@ -355,11 +355,14 @@ export function turnInput(opts: {
   const head = [
     `[context: ${when}${opts.timeZone ? ` (${opts.timeZone})` : ""} · channel: ${channel}]`,
     CHAT_CHANNELS.has(channel) ? `[channel style] ${CHAT_STYLE}` : "",
-    CHAT_CHANNELS.has(channel) && opts.origin.kind === "channel" && opts.origin.role === "owner"
+    CHAT_CHANNELS.has(channel) &&
+    ((opts.origin.kind === "channel" && opts.origin.role === "owner") || answersChecked(opts.origin))
       ? `[channel turn] ${ownerChannelNote(channel)}`
       : "",
     opts.voice ? `[voice] ${VOICE_STYLE}` : "",
-    opts.stickers?.length ? `[stickers] ${STICKER_NOTE} ${opts.stickers.join("; ")}` : "",
+    opts.stickers?.length
+      ? `[stickers] ${STICKER_NOTE}\n${untrusted("sticker_meanings", { named_by: "a model, from pictures people sent" }, opts.stickers.map((s) => inlineName(s, 160)).join("; "))}`
+      : "",
     opts.mode ? `[mode] ${opts.mode}` : "",
     opts.workspace ? `[workspace] ${opts.workspace}` : "",
     opts.release ? `[release notes] ${opts.release}` : "",
