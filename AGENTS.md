@@ -127,6 +127,14 @@ Each rule says how it is enforced. `[gate]` = a command fails; `[review]` = conv
     its own words and one or two actions it can take ([What people are told](rules/RELEASE.md#what-people-are-told)).
     Commit subjects reach everyone as a list; news are the few things the super-agent offers to do. `[review]`
 
+26. **Portable tests.** Never let real time decide an outcome: idle, cap, deadline and burst behaviour runs on
+    injected timers (`manualTimers`, `runTimers`). Waits use `waitFor` with a wall-clock budget, never a count of
+    iterations. Temp folders come from `tempDir()` and are removed only after every child the test started has
+    exited. Tests and product code never compare paths as strings: use `isInside`/`samePath`. Product code never
+    calls `process.exit` while handles are open (`exitWhenClosed`). A failure seen only on Windows is classified as
+    product or test before it is changed ([TESTING.md](rules/TESTING.md#portable-tests)). `[gate]` `pnpm check:tests`
+    (allowlisted debt only shrinks).
+
 ### Code comments
 
 1–2 lines, only the non-obvious *why*. No history, incidents, dates or rejected alternatives in code: those go to
