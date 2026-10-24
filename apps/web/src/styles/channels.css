@@ -608,3 +608,8 @@
   padding: 8px 0;
   color: var(--apx-fg-muted);
 }
+
+/* The "?" after "What this conversation may do". */
+.chan__help {
+  margin-left: 4px;
+}

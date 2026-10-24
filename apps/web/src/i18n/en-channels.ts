@@ -149,13 +149,20 @@ export const enChannels = {
   "ch.rulesHint": "They go last in the prompt, so they win over the agent's caution.",
   "ch.may": "What this conversation may do",
   "ch.perm.appointments": "Take appointment requests",
-  "ch.perm.appointmentsHint": "Notes them as a task for you to confirm.",
+  "ch.perm.appointmentsHint":
+    "When they ask for an appointment (a day and time), it is noted as a task for you to confirm, and you are told on your channel right away. Nothing is booked.",
   "ch.perm.requests": "Take requests",
-  "ch.perm.requestsHint": "A purchase or a favor becomes a task for you.",
+  "ch.perm.requestsHint":
+    "When they ask for something only you can do (a purchase, a favor, calling someone), it becomes a task for you and you are told right away. Your agent never does it for you.",
   "ch.perm.notes": "Answer from my notes",
-  "ch.perm.notesHint": "Only your general notes, read only.",
+  "ch.perm.notesHint":
+    "Your agent may look up your general notes to answer their questions (opening hours, prices). Read only; never your agents' notes or anything private.",
+  "ch.may.help": "About what this conversation may do",
+  "ch.may.helpTitle": "What each option lets your agent do with this person",
+  "ch.may.close":
+    "Your partner, family and friends can always leave you a message to pass on, even with everything off.",
   "ch.anyHour": "Answer at any hour",
-  "ch.anyHourHint": "Even outside the channel's attention hours.",
+  "ch.anyHourHint": "They are answered even outside the channel's attention hours.",
   "ch.mute": "Silence",
   "ch.unmute": "Unsilence",
   "ch.supervise": "Supervise",

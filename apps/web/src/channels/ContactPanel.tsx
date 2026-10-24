@@ -1,6 +1,6 @@
 import type { Person } from "@apx/protocol";
 import { PERSON_RELATIONS } from "@apx/protocol/client";
-import { Button, IconButton, Icons, Input, Select, Switch, Textarea, Tooltip } from "@apx/ui";
+import { Button, Help, IconButton, Icons, Input, Select, Switch, Textarea, Tooltip } from "@apx/ui";
 import { useState } from "react";
 import { claimAddress, saveContact } from "../data/channels.ts";
 import { notify } from "../data/notices.ts";
@@ -40,13 +40,12 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
     setBusy(false);
     if (ok) notify(t("ch.saved"), "info");
   };
-  const perm = (k: keyof Person["perms"], label: string, hint: string) => (
+  const perm = (k: keyof Person["perms"], label: string) => (
     <li>
       <Switch
         size="sm"
         checked={d.perms[k]}
         label={label}
-        description={hint}
         onCheckedChange={(on) => setD((x) => ({ ...x, perms: { ...x.perms, [k]: on } }))}
       />
     </li>
@@ -112,17 +111,32 @@ export function ContactPanel({ person, onClose }: { person: Person; onClose(): v
           />
           <span className="pform__hint">{t("ch.rulesHint")}</span>
         </div>
-        <div className="pform__label">{t("ch.may")}</div>
+        <div className="pform__label">
+          {t("ch.may")}
+          <Help
+            label={t("ch.may.help")}
+            title={t("ch.may.helpTitle")}
+            className="chan__help"
+            width={340}
+            items={[
+              { term: t("ch.perm.appointments"), text: t("ch.perm.appointmentsHint") },
+              { term: t("ch.perm.requests"), text: t("ch.perm.requestsHint") },
+              { term: t("ch.perm.notes"), text: t("ch.perm.notesHint") },
+              { term: t("ch.anyHour"), text: t("ch.anyHourHint") },
+            ]}
+          >
+            {t("ch.may.close")}
+          </Help>
+        </div>
         <ul className="chan__perms">
-          {perm("appointments", t("ch.perm.appointments"), t("ch.perm.appointmentsHint"))}
-          {perm("requests", t("ch.perm.requests"), t("ch.perm.requestsHint"))}
-          {perm("notes", t("ch.perm.notes"), t("ch.perm.notesHint"))}
+          {perm("appointments", t("ch.perm.appointments"))}
+          {perm("requests", t("ch.perm.requests"))}
+          {perm("notes", t("ch.perm.notes"))}
           <li>
             <Switch
               size="sm"
               checked={d.any_hour}
               label={t("ch.anyHour")}
-              description={t("ch.anyHourHint")}
               onCheckedChange={(on) => setD((x) => ({ ...x, any_hour: on }))}
             />
           </li>
