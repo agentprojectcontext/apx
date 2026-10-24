@@ -30,13 +30,15 @@ export type ComputerConfig = {
   lifecycle?: VmLifecycle;
   /** Starts, restyles and stops an agent's screen in the guest; without it (tests) a claim needs nothing started. */
   screens?: {
-    start(screen: number, mode: Appearance, all: number[]): Promise<void>;
+    start(screen: number, mode: Appearance, all: number[], signal?: AbortSignal): Promise<void>;
     stop(screen: number): Promise<void>;
     appearance?(screen: number, mode: Appearance): Promise<void>;
   };
   /** The memory, CPUs and disk the instance was last given (its lima.yaml); empty before it exists. */
   applied?: () => Partial<ComputerResources>;
   usage?: () => Promise<ComputerUsage>;
+  /** How long a screen may take to start; tests shorten it. */
+  claimMs?: number;
   /** Free host memory in bytes; tests pass their own. */
   freeMemory?: () => Promise<number>;
   host?: Host;
@@ -89,9 +91,15 @@ export function createComputer(store: Store, config: ComputerConfig) {
   const cap = () => maxScreens(config.applied?.().memory_gib ?? resources().memory_gib);
   const ledger = screenLedger(store, {
     cap,
+    ...(config.claimMs ? { claimMs: config.claimMs } : {}),
     screens: {
-      start: async (screen) => {
-        await config.screens?.start(screen, appearance(), Object.values(store.settings.read("computer_screens")));
+      start: async (screen, signal) => {
+        await config.screens?.start(
+          screen,
+          appearance(),
+          Object.values(store.settings.read("computer_screens")),
+          signal,
+        );
       },
       stop: async (screen) => {
         guest.closeScreen(screen);
@@ -239,14 +247,14 @@ export function createComputer(store: Store, config: ComputerConfig) {
      * The run's screen, claimed now when the computer runs (a turn in a computer chat, or the agent starting it):
      * refused while its agent's screen works elsewhere or every screen is held.
      */
-    async claim(agent: string, thread: string, run: string) {
+    async claim(agent: string, thread: string, run: string, signal?: AbortSignal) {
       if (!vm.hasThread(thread)) throw conflict("this chat does not work on the computer");
       if (!(await running())) return undefined;
       // A screen the owner has in hand is not given to its agent until they hand it back.
       control(ledger.slot(agent)).assert("agent");
       // Use from the moment a screen is asked for, so the idle watchdog never stops it while it starts.
       touch();
-      const claim = await ledger.claim(agent, thread, run);
+      const claim = await ledger.claim(agent, thread, run, signal);
       touch();
       return claim;
     },

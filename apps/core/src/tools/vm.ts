@@ -3,9 +3,12 @@
 // computer up, to one that may ask (DECISIONS.md#d-151, DECISIONS.md#d-152).
 import { z } from "zod";
 import { type Computer, computerApproval } from "../environments/computer.ts";
+import { CLAIM_MS } from "../environments/screens.ts";
+import { errorMessage } from "../errors.ts";
 import { defineTool, type Tool, type ToolContext } from "./types.ts";
 
 export const COMPUTER_TOOL = "computer";
+const START_DEADLINE_MS = 300_000;
 
 type Status = Awaited<ReturnType<Computer["status"]>>;
 
@@ -61,7 +64,7 @@ export function vmTools(vm: Computer | undefined): Tool[] {
       effect: "local",
       reads: (a) => a.action === "status",
       confirm: () => "never",
-      deadlineMs: 300_000,
+      deadlineMs: START_DEADLINE_MS,
       title: (a) =>
         a.action === "start"
           ? "Started the computer"
@@ -83,16 +86,26 @@ export function vmTools(vm: Computer | undefined): Tool[] {
           await ctx.call("environments.release", { thread });
           return "Left the computer: this chat works on this Mac again from your next turn, and your screen is free. The computer shuts down by itself once no agent uses it.";
         }
-        await ctx.call("environments.start", { thread });
-        let s = await settle(vm, ctx, ["preparing"], 240_000);
+        const later = (s: Status) =>
+          `${describe(s, ctx.run.id)} It is still starting: check again with status in a minute.`;
+        // Each start may wait for a screen (CLAIM_MS); what is left of the call's deadline goes to the VM booting.
+        const take = async () => {
+          try {
+            await ctx.call("environments.start", { thread });
+            return true;
+          } catch (error) {
+            if (/did not start in time/.test(errorMessage(error))) return false;
+            throw error;
+          }
+        };
+        if (!(await take())) return later(await vm.status(thread));
+        let s = await settle(vm, ctx, ["preparing"], START_DEADLINE_MS - 2 * CLAIM_MS - 20_000);
         // Started just now: the screen is taken once the computer runs.
         if (s.phase === "running" && !s.screens?.some((x) => x.run === ctx.run.id)) {
-          await ctx.call("environments.start", { thread });
+          if (!(await take())) return later(await vm.status(thread));
           s = await vm.status(thread);
         }
-        return s.phase === "preparing"
-          ? `${describe(s, ctx.run.id)} It is still starting: check again with status in a minute.`
-          : describe(s, ctx.run.id);
+        return s.phase === "preparing" ? later(s) : describe(s, ctx.run.id);
       },
     }),
   ];

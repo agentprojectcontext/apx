@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { say, scriptedLlm, startCore } from "../engine/testkit.ts";
 import { waitFor } from "../testkit/platform.ts";
-import { maxScreens } from "./screens.ts";
+import { maxScreens, screenLedger } from "./screens.ts";
 
 /** Each chat's turn waits until the test lets it end, so the screens it holds stay held. */
 function heldTurns() {
@@ -160,6 +160,43 @@ test("a screen still starting counts as use, so the idle watchdog never stops th
     await claiming;
   } finally {
     started();
+    await env.core.close();
+    await env.cleanup();
+  }
+});
+
+test("a screen that never starts fails its claim at the deadline, and the next claim is not held behind it", async () => {
+  const env = await startCore({ llm: scriptedLlm(() => say("ok")) });
+  try {
+    const store = env.core.store;
+    const ledger = screenLedger(store, {
+      cap: () => 4,
+      claimMs: 200,
+      screens: {
+        start: (screen, signal) =>
+          screen === 1
+            ? new Promise<void>(() => {})
+            : signal.aborted
+              ? Promise.reject(signal.reason)
+              : Promise.resolve(),
+        stop: async () => {},
+      },
+    });
+    const late = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("still waiting after 3 s")), 3000).unref();
+    });
+    await assert.rejects(Promise.race([ledger.claim("roby", "home", "run_stuck"), late]), /did not start in time/);
+    const next = await waitFor(
+      () =>
+        ledger.claim("scout", "home", "run_next").then(
+          (c) => c,
+          () => undefined,
+        ),
+      "the next claim",
+      { ms: 2000 },
+    );
+    assert.equal(next.agent, "scout");
+  } finally {
     await env.core.close();
     await env.cleanup();
   }

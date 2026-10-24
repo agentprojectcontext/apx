@@ -215,3 +215,28 @@ test("approving the computer card without a scope allows the agent for that chat
     env.cleanup();
   }
 });
+
+test("a screen that does not start in time leaves the agent a clear 'still starting', not a tool timeout", async () => {
+  const home = tempDir("apx-vm-tool-").path;
+  const llm = scriptedLlm((req) =>
+    results(req).length ? say("Waiting") : callTool("start", "computer", { action: "start" }),
+  );
+  const config = {
+    ...fakeComputer(home).config,
+    claimMs: 200,
+    screens: { start: () => new Promise<void>(() => {}), stop: async () => {} },
+  };
+  const env = await startCore({ home, llm, computer: config });
+  try {
+    await env.client.call("environments.permit", { agent: "roby", on: true });
+    // Up already, with no chat on it: the agent's own start is what asks for its screen.
+    await env.client.call("environments.enable", { appearance: "light" });
+    await waitFor(async () => (await env.client.call("environments.status", {})).phase === "running", "running");
+    await env.client.call("threads.send", { thread: "home", text: "Start your computer" });
+    await env.settle("home");
+    assert.match(results(llm.calls.at(-1) as LlmRequest)[0] ?? "", /still starting: check again with status/);
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});

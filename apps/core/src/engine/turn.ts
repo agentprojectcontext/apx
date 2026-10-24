@@ -210,7 +210,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
       return preflightFailure(`${agent.name} may not use the computer; the owner allows it in the agent's settings`);
     // Its own screen for this run while the computer runs: refused when another chat holds it or every screen is held.
     try {
-      await deps.vm.claim(agent.id, thread.id, start.id);
+      await deps.vm.claim(agent.id, thread.id, start.id, signal);
     } catch (error) {
       return preflightFailure(error instanceof Error ? error.message : String(error));
     }

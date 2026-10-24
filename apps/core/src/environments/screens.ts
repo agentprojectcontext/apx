@@ -3,7 +3,7 @@
 // display); how many run at once is capped by the VM's memory (DECISIONS.md#d-152).
 import { TERMINAL } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
-import { conflict } from "../errors.ts";
+import { conflict, unavailable } from "../errors.ts";
 import { MAX_SCREEN } from "./worker.ts";
 
 export type Claim = { screen: number; agent: string; thread: string; run: string; at: string };
@@ -13,11 +13,21 @@ export const SCREEN_GIB = 1.25;
 export const maxScreens = (memoryGib: number) => Math.max(1, Math.floor((memoryGib - 1) / SCREEN_GIB));
 
 export type ScreenStarter = {
-  start(screen: number): Promise<void>;
+  start(screen: number, signal: AbortSignal): Promise<void>;
   stop(screen: number): Promise<void>;
 };
 
-export function screenLedger(store: Store, o: { cap: () => number; screens: ScreenStarter }) {
+/** Longest a claim may take, queue included: a screen that does not start by then fails its turn, not every turn. */
+export const CLAIM_MS = 90_000;
+
+/** Settles when the signal aborts, with its reason. */
+const aborted = (signal: AbortSignal) =>
+  new Promise<never>((_, reject) => {
+    if (signal.aborted) reject(signal.reason);
+    else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+  });
+
+export function screenLedger(store: Store, o: { cap: () => number; screens: ScreenStarter; claimMs?: number }) {
   /** Desktops up in the guest; unknown after a restart until a claim starts one again (starting is idempotent). */
   const running = new Set<number>();
   /** Claims waiting for their screen to start: use, though not yet in the ledger. */
@@ -66,9 +76,15 @@ export function screenLedger(store: Store, o: { cap: () => number; screens: Scre
      * Gives the agent's run its screen, starting its desktop. Refused while the agent's screen works for another chat,
      * or when every screen the VM can hold is held; a screen left running with no holder makes room.
      */
-    claim: (agent: string, thread: string, run: string) => {
+    claim: (agent: string, thread: string, run: string, signal?: AbortSignal) => {
       pending++;
-      return serial(async (): Promise<Claim> => {
+      const late = unavailable(`${name(agent)}'s screen did not start in time; try again`);
+      const deadline = AbortSignal.timeout(o.claimMs ?? CLAIM_MS);
+      const limit = signal ? AbortSignal.any([signal, deadline]) : deadline;
+      const reason = () => (deadline.aborted ? late : limit.reason);
+      // Bookkeeping stays one at a time (the cap counts every screen), but no claim holds the queue past its deadline.
+      const work = serial(async (): Promise<Claim> => {
+        if (limit.aborted) throw reason();
         const now = claims();
         const own = now.find((c) => c.run === run);
         if (own) return own;
@@ -89,13 +105,16 @@ export function screenLedger(store: Store, o: { cap: () => number; screens: Scre
             await o.screens.stop(free);
             running.delete(free);
           }
-          await o.screens.start(screen);
+          await Promise.race([o.screens.start(screen, limit), aborted(limit)]).catch((error: unknown) => {
+            throw limit.aborted ? reason() : error;
+          });
           running.add(screen);
         }
         const claim = { screen, agent, thread, run, at: new Date().toISOString() };
         write([...claims(), claim]);
         return claim;
-      }).finally(() => {
+      });
+      return Promise.race([work, aborted(limit).catch(() => Promise.reject(reason()))]).finally(() => {
         pending--;
       });
     },
