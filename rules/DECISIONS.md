@@ -2177,3 +2177,24 @@ failed on a Windows flake, and publication slipped ten hours until a re-tag on a
 - **Windows before merge:** `windows.yml` runs the Windows parts on pushes to `feat/**` and `fix/**`.
 - **Only a verified commit is tagged** (AGENTS.md rule 28): `pnpm release:check --tag v2.x.y` reads that commit's
   newest verify run and tags only after it passed. The publish job's wait stays as the second guard.
+
+<a id="d-147"></a>
+## D-147 — 2026-10-23 — The panel's late code is declared in one registry, and the first load is measured from the build
+The first-load budget counted only the files `index.html` names, about 270 of its 275 KB. The language chunk
+`main.tsx` waits for imported its notice strings from the `@apx/protocol` barrel, and that barrel's side effects kept
+zod and every method schema on the boot path, unmeasured: what a first screen really downloaded was 379 KB gz. Opening
+the inbox then fetched the widget chat and the project settings too (the Apps dock and the new-project dialog took
+helpers from them), bringing that protocol chunk again. Lazy declarations were spread over 19 files, some targets
+declared three times, and the `$initial` chunk group merges whatever the entry reaches, so one stray static import
+moves a whole screen into the first script without any error.
+
+Now `scripts/bundle.ts` reads the built `dist/`: `boot_gzip_kb` is the entry, its CSS, the heavier language chunk and
+the static imports of each, budgeted beside `initial_bundle_gzip_kb`; `pnpm perf` also fails when zod reaches that set
+or a named lazy screen loses its own chunk, and names the heaviest chunks and, from a sourcemap, packages. Every
+`lazy()` and late `import()` of panel code lives in `apps/web/src/lazy.ts`, and a Biome `noRestrictedImports` override
+lists those files for `App`, `main`, `shell/`, `inbox/` and `chat/`. The registry was kept only after measuring that it
+adds nothing: entry −0.1 KB gz, the same chunk count, the same heap after load. `e2e/specs/89-first-load.spec.ts`
+checks what opening the inbox fetches, the late parts included.
+
+Measured on the built panel and in the e2e sandbox (JS heap after opening the inbox, median of 5): first load
+379.3 → 324.7 KB gz, entry 272.8 → 260.7 KB gz, heap 11.1 → 7.3 MB.

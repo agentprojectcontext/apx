@@ -207,6 +207,16 @@ A core on a temp home with the fake model: startup, idle memory and CPU, protoco
 once quiet again, and the panel's first load (gzip). Each number has a budget in `scripts/perf-budget.json`;
 going over fails. Raising a budget is a regression: it needs a reason in the commit body.
 
+The first load is read from the built `apps/web/dist` (`scripts/bundle.ts`), never from source:
+`initial_bundle_gzip_kb` is what `index.html` names plus the chunks it imports statically; `boot_gzip_kb` adds the
+heavier language chunk `main.tsx` waits for, with its own static imports — what a first screen really downloads.
+`perf.ts` also fails when zod reaches that set or a named lazy screen (`ProjectScreen`, `ConfigModal`…) loses its own
+chunk. Over budget or failing, it prints each first-load chunk's size and, with a sourcemap (CI's perf job builds
+with `APX_TEST_COVERAGE=1`), the five packages or files that weigh the most: split the module it names.
+Code loaded late is declared only in `apps/web/src/lazy.ts` (AGENTS.md rule 27); `biome.json` fails a first-screen
+file (`App`, `main`, `shell/`, `inbox/`, `chat/`) that imports one of its modules directly, and
+`e2e/specs/89-first-load.spec.ts` checks what opening the inbox fetches, its own late parts included.
+
 ## CI
 `.github/workflows/verify.yml` runs on every push to `release/v2` and every pull request. Every job starts from
 `.github/actions/setup` (Node, `pnpm install`, and when the job needs them Playwright's Chromium and `apps/mobile`'s

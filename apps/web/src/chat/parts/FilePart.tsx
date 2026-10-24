@@ -1,18 +1,14 @@
 import type { Part } from "@apx/protocol";
 import { Icons } from "@apx/ui";
-import { lazy, Suspense, useState } from "react";
+import { Suspense, useState } from "react";
 import { formatBytes } from "../../common/format.ts";
 import { audioEnded } from "../../data/audioEnd.ts";
 import { mediaUrl } from "../../data/media.ts";
 import { useT } from "../../i18n/index.ts";
+import { DocumentActions } from "../../lazy.ts";
 import { docRef } from "../../panel/documents.ts";
 import { go, useNav } from "../../shell/nav.ts";
 import { useMediaUrl } from "./useMediaUrl.ts";
-
-// Its buttons come after the file shows: not part of the first load.
-const DocumentActions = lazy(() =>
-  import("../../panel/DocumentActions.tsx").then((m) => ({ default: m.DocumentActions })),
-);
 
 /** An attachment from either participant, with inline audio playback and a named download (videos have their own carousel). */
 export function FilePart({ part }: { part: Extract<Part, { type: "file" }> }) {

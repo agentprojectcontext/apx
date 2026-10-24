@@ -1,7 +1,6 @@
 // The QR library loads only when a code shows (pairing a phone, linking WhatsApp), never with the first screen.
-import { lazy, Suspense } from "react";
-
-const QrSvg = lazy(() => import("./QrSvg.tsx").then((m) => ({ default: m.QrSvg })));
+import { Suspense } from "react";
+import { QrSvg } from "../lazy.ts";
 
 export type QrCodeProps = { value: string; size?: number; label: string };
 

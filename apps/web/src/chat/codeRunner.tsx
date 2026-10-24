@@ -1,9 +1,7 @@
 import type { Thread } from "@apx/protocol";
 import type { CodeRenderer } from "@apx/ui";
-import { lazy, Suspense } from "react";
-
-// The run button and its terminal load the first time a chat shows a shell block; until then the block shows as is.
-const RunnableCode = lazy(() => import("./RunnableCode.tsx").then((m) => ({ default: m.RunnableCode })));
+import { Suspense } from "react";
+import { RunnableCode } from "../lazy.ts";
 
 const SHELL_LANGS: ReadonlySet<string> = new Set(["bash", "sh", "zsh", "shell", "console", "fish"]);
 

@@ -115,6 +115,89 @@
       }
     },
     {
+      "includes": [
+        "apps/web/src/App.tsx",
+        "apps/web/src/main.tsx",
+        "apps/web/src/shell/**",
+        "apps/web/src/inbox/**",
+        "apps/web/src/chat/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "**/AboutScreen.tsx",
+                      "**/AgentPanel.tsx",
+                      "**/AppScreen.tsx",
+                      "**/AppsDock.tsx",
+                      "**/ArtifactWindow.tsx",
+                      "**/AudioPart.tsx",
+                      "**/BrowserPanel.tsx",
+                      "**/ChangesPanel.tsx",
+                      "**/ChannelScreen.tsx",
+                      "**/ChatFiles.tsx",
+                      "**/ChoicesPart.tsx",
+                      "**/CodeView.tsx",
+                      "**/CommandPalette.tsx",
+                      "**/ConfigModal.tsx",
+                      "**/ConnectPart.tsx",
+                      "**/ConnectScreen.tsx",
+                      "**/ContactChat.tsx",
+                      "**/CornerCards.tsx",
+                      "**/DelegationActions.tsx",
+                      "**/DesktopInstallNotice.tsx",
+                      "**/DocumentActions.tsx",
+                      "**/DocumentPanel.tsx",
+                      "**/EngineSessions.tsx",
+                      "**/GoOn.tsx",
+                      "**/InputPart.tsx",
+                      "**/InstallArtifact.tsx",
+                      "**/JobList.tsx",
+                      "**/LiveLayer.tsx",
+                      "**/MediaGroup.tsx",
+                      "**/ModelList.tsx",
+                      "**/NewProjectDialog.tsx",
+                      "**/OAuthReturn.tsx",
+                      "**/PairScreen.tsx",
+                      "**/PhoneDialog.tsx",
+                      "**/ProcessesPanel.tsx",
+                      "**/ProjectScreen.tsx",
+                      "**/ProjectSettings.tsx",
+                      "**/QrSvg.tsx",
+                      "**/QuickChat.tsx",
+                      "**/ResourcesScreen.tsx",
+                      "**/RunnableCode.tsx",
+                      "**/ScreenLive.tsx",
+                      "**/SearchSelect.tsx",
+                      "**/SurfacePart.tsx",
+                      "**/TaskPeek.tsx",
+                      "**/TasksScreen.tsx",
+                      "**/TerminalPanel.tsx",
+                      "**/TerminalView.tsx",
+                      "**/ThreadDialogs.tsx",
+                      "**/UnregisterProjectDialog.tsx",
+                      "**/UpdateDialog.tsx",
+                      "**/UsagePanel.tsx",
+                      "**/WidgetChat.tsx",
+                      "**/WidgetPanel.tsx",
+                      "**/Wizard.tsx",
+                      "**/osNotices.ts"
+                    ],
+                    "message": "Loaded late: import it from apps/web/src/lazy.ts, never statically from the first screen (AGENTS.md rule 27)."
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": ["**/*.astro"],
       "linter": {
         "rules": {

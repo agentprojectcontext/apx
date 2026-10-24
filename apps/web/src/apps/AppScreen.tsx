@@ -11,7 +11,7 @@ import { bringBack, popOut, useOutside } from "../surfaces/artifactWindows.ts";
 import { dropLive, useRunningApps } from "../surfaces/livePool.ts";
 import { ShareMenu } from "../surfaces/ShareMenu.tsx";
 import { SurfaceFrame } from "../surfaces/SurfaceFrame.tsx";
-import { openWidgetChat } from "../surfaces/WidgetChat.tsx";
+import { openWidgetChat } from "../surfaces/widgetChatActions.ts";
 
 /** A maximized surface; its saved app flag controls padding, independently of this view. */
 export function AppScreen() {

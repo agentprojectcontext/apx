@@ -1,5 +1,5 @@
 import { IconButton, Icons, ProjectTile } from "@apx/ui";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import {
   inInbox,
   inProject,
@@ -13,19 +13,11 @@ import {
 import { rememberSidebar, setPrefs, usePrefs, useSidebarRows } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { NewProjectDialog, ProjectSettings, UnregisterProjectDialog } from "../lazy.ts";
 import { go, useNav } from "./nav.ts";
 import { projectNavMenu } from "./ProjectNavActions.tsx";
 import { SidebarNavRow } from "./SidebarNavRow.tsx";
 import { SidebarOverflow, SidebarRowsGrip, SidebarSection } from "./SidebarSection.tsx";
-
-// Opened rarely: loaded when first shown, so the sidebar adds nothing to the first screen's script.
-const NewProjectDialog = lazy(() => import("./NewProjectDialog.tsx").then((m) => ({ default: m.NewProjectDialog })));
-const UnregisterProjectDialog = lazy(() =>
-  import("./UnregisterProjectDialog.tsx").then((m) => ({ default: m.UnregisterProjectDialog })),
-);
-const ProjectSettings = lazy(() =>
-  import("../project/ProjectSettings.tsx").then((m) => ({ default: m.ProjectSettings })),
-);
 
 /**
  * The Projects section: foldable as a whole, and past the rows the owner dragged it to the rest goes into a "N more"
