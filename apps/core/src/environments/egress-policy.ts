@@ -53,8 +53,28 @@ export type EgressPolicy = {
   lookup(host: string): Promise<{ address: string; family: number }[]>;
   allowed(address: string): boolean;
 };
+/** How long a name's addresses are reused: a burst of tunnels to one registry looks it up once. Each is still checked. */
+export const LOOKUP_CACHE_MS = 30_000;
+const LOOKUP_CACHE_SIZE = 512;
+
+/** One lookup per name at a time, kept a short while; a failed one is not kept. */
+export function cachedLookup(lookup: EgressPolicy["lookup"], now: () => number = Date.now): EgressPolicy["lookup"] {
+  const cache = new Map<string, { at: number; value: ReturnType<EgressPolicy["lookup"]> }>();
+  return (host) => {
+    const hit = cache.get(host);
+    if (hit && now() - hit.at < LOOKUP_CACHE_MS) return hit.value;
+    if (cache.size >= LOOKUP_CACHE_SIZE) cache.delete(cache.keys().next().value ?? "");
+    const value = lookup(host);
+    cache.set(host, { at: now(), value });
+    value.catch(() => {
+      if (cache.get(host)?.value === value) cache.delete(host);
+    });
+    return value;
+  };
+}
+
 export const vmEgressPolicy = (): EgressPolicy => ({
-  lookup: (host) => dns.lookup(host, { all: true }),
+  lookup: cachedLookup((host) => dns.lookup(host, { all: true })),
   allowed: vmAddressAllowed,
 });
 

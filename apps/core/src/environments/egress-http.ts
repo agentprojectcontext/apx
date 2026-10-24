@@ -11,7 +11,7 @@ export function publicHttp(
 ): http.RequestListener {
   return (req, res) => {
     if (!reserve(res)) {
-      res.writeHead(503).end();
+      res.writeHead(503, { "retry-after": "1" }).end();
       return;
     }
     void (async () => {

@@ -5,39 +5,54 @@ import { publicHttp } from "./egress-http.ts";
 import { type EgressPolicy, publicDestination, vmEgressPolicy } from "./egress-policy.ts";
 
 type Dial = (address: string, port: number) => net.Socket;
-const LIMIT = 64;
+
+/**
+ * Sized for a package manager in the guest (dozens of parallel tunnels, each kept alive for many downloads), still
+ * bounded: requests and tunnels at once (each holds one outbound socket), the guest's connections, an idle limit
+ * longer than a client's keep-alive (so the client lets a tunnel go before the proxy does), and bytes per tunnel.
+ */
+export const EGRESS_LIMITS = {
+  requests: 256,
+  clients: 512,
+  idleMs: 5 * 60_000,
+  tunnelBytes: 4 * 1024 ** 3,
+};
+const BUSY = "HTTP/1.1 503 Service Unavailable\r\nRetry-After: 1\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
 
 /** Host-owned endpoint reached only through a loopback SSH reverse forward in the guest. */
 export async function createEgressProxy(
   policy: EgressPolicy = vmEgressPolicy(),
   dial: Dial = (host, port) => net.connect({ host, port }),
+  limits = EGRESS_LIMITS,
 ) {
   let closed = false;
   let requests = 0;
   const reserve = (response: { once(event: "close", listener: () => void): unknown }) => {
-    if (closed || requests >= LIMIT) return false;
+    if (closed || requests >= limits.requests) return false;
     requests++;
     response.once("close", () => {
       requests--;
     });
     return true;
   };
-  const sockets = new Set<Duplex>();
+  const clients = new Set<Duplex>();
+  const remotes = new Set<Duplex>();
   const destinations = new Map<net.Socket, string>();
-  const track = (socket: Duplex) => {
-    sockets.add(socket);
+  const track = (socket: Duplex, into: Set<Duplex>) => {
+    into.add(socket);
     socket.on("error", () => socket.destroy());
     socket.once("close", () => {
-      sockets.delete(socket);
+      into.delete(socket);
       if (socket instanceof net.Socket) destinations.delete(socket);
     });
   };
   const connect = (address: string, port: number) => {
-    if (closed || sockets.size >= LIMIT || !policy.allowed(address)) throw new Error("destination is no longer public");
+    if (closed || remotes.size >= limits.requests || !policy.allowed(address))
+      throw new Error("destination is no longer public");
     const socket = dial(address, port);
-    track(socket);
+    track(socket, remotes);
     destinations.set(socket, address);
-    socket.setTimeout(30_000, () => socket.destroy());
+    socket.setTimeout(limits.idleMs, () => socket.destroy());
     return socket;
   };
   const server = http.createServer(
@@ -45,16 +60,17 @@ export async function createEgressProxy(
     publicHttp(policy, connect, () => closed, reserve),
   );
   server.on("connection", (socket) => {
-    if (sockets.size >= LIMIT) {
+    if (clients.size >= limits.clients) {
       socket.destroy();
       return;
     }
-    track(socket);
-    socket.setTimeout(30_000, () => socket.destroy());
+    track(socket, clients);
+    socket.setTimeout(limits.idleMs, () => socket.destroy());
   });
   server.on("connect", (req, client, head) => {
+    // Busy, a tunnel is refused in words a package manager retries on, not with a reset.
     if (!reserve(client)) {
-      client.destroy();
+      client.end(BUSY);
       return;
     }
     void (async () => {
@@ -75,7 +91,7 @@ export async function createEgressProxy(
         for (const stream of [remote, client])
           stream.on("data", (chunk: Buffer) => {
             bytes += chunk.length;
-            if (bytes > 256 * 1024 * 1024 || !policy.allowed(address)) stop();
+            if (bytes > limits.tunnelBytes || !policy.allowed(address)) stop();
           });
         remote.once("connect", () => {
           if (!policy.allowed(address)) return stop();
@@ -112,7 +128,7 @@ export async function createEgressProxy(
     async close() {
       closed = true;
       clearInterval(refresh);
-      for (const socket of sockets) socket.destroy();
+      for (const socket of [...clients, ...remotes]) socket.destroy();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };

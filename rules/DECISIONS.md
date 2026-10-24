@@ -2371,6 +2371,13 @@ make the tunnel's forward fail and put the computer in error for every agent. An
 has a screen: stopping a screen turns its linger off, and a boot unit clears agents' linger before logind starts, so
 units an agent enabled do not come back with the computer.
 
+**The proxy's limits.** A package manager opens dozens of tunnels at once and keeps each alive for many downloads, so
+the proxy holds 256 requests or tunnels (one outbound socket each) and 512 guest connections, ends a tunnel after 5
+minutes without traffic (longer than a client's keep-alive, so the client lets it go first) or past 4 GiB, and answers
+a tunnel past its budget with `503` and `Retry-After` instead of a reset. A name's addresses are kept 30 s, one lookup
+at a time; every address is still checked public when used and every second after. 64 sockets in all, two per tunnel,
+reset `pnpm install` with ECONNRESET.
+
 **No resolver on loopback.** The probe user and agents may reach loopback, but never port 53 on it: a resolver there
 (systemd-resolved's stub on 127.0.0.53) would look up names, LAN names included, past the proxy's public-only policy
 and carry data out in queries. Names are the proxy's to resolve. The egress rules are written by the core
