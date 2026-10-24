@@ -1,5 +1,6 @@
 // A procedure note's steps, reduced to what repeats the method: the site, the command and its decisive flags, the
 // file. Lookups (searches, snapshots, tab juggling) are dropped and nothing that could carry a credential is kept.
+import { relativeWritten } from "../paths.ts";
 import { memorySensitive } from "./memories.ts";
 import type { Step } from "./runs.ts";
 import type { Store } from "./store.ts";
@@ -40,8 +41,7 @@ function place(p: string, places: Places): string {
   const n = p.replace(/\\/g, "/");
   const scratch = n.replace(/^.*\/apx-scratch-[0-9a-f]{8}\/[^/]+(?=\/|$)/, "<scratch>");
   if (scratch !== n) return scratch;
-  const work = places.work?.replace(/\\/g, "/").replace(/\/+$/, "");
-  return work && n.startsWith(`${work}/`) ? n.slice(work.length + 1) : p;
+  return (places.work && relativeWritten(places.work, p)) || p;
 }
 
 /** Flags whose value is a credential or a request body: dropped with it. */

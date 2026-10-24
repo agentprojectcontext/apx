@@ -15,6 +15,7 @@ import { nativeExtras } from "../import/native-extras.ts";
 import { importedThread, importSessions, nativeProjects } from "../import/native-import.ts";
 import { type NativeHomes, nativeSession, nativeSessions, nativeTranscript } from "../import/native-sessions.ts";
 import { pageAsWidget } from "../import/page-widget.ts";
+import { isInside, samePath } from "../paths.ts";
 import { createProject } from "./app.ts";
 import type { InternalCall } from "./internal.ts";
 import type { Handlers } from "./router.ts";
@@ -39,8 +40,7 @@ function projectOf(store: Store, dir: string): string | undefined {
   for (const p of store.projects.list()) {
     if (!p.path) continue;
     const root = path.resolve(p.path);
-    if ((dir === root || dir.startsWith(`${root}${path.sep}`)) && root.length > (best?.len ?? -1))
-      best = { id: p.id, len: root.length };
+    if (isInside(root, dir) && root.length > (best?.len ?? -1)) best = { id: p.id, len: root.length };
   }
   return best?.id;
 }
@@ -134,7 +134,9 @@ export function sessionHandlers(store: Store, homes: NativeHomes, deps: SessionD
         project: { id: project.id, name: project.name },
         ...(brought ? { extras: brought } : {}),
         chats: r.chats,
-        pages: root ? r.pages.filter((p) => p.startsWith(`${root}${path.sep}`)).map((p) => path.relative(root, p)) : [],
+        pages: root
+          ? r.pages.filter((p) => isInside(root, p) && !samePath(root, p)).map((p) => path.relative(root, p))
+          : [],
       };
     },
     "sessions.digest": async ({ thread, refresh }) => {
