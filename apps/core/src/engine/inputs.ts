@@ -245,7 +245,11 @@ export function createInputs(deps: {
       if (rec.state === "pending" && rec.expires_at <= new Date().toISOString()) store.inputs.settle(id, "expired");
       const cur = store.inputs.get(id) as InputRecord;
       if (cur.state !== "pending") throw conflict(`input ${id} is already ${cur.state}`);
-      const scope = a.scope ?? "once";
+      // A card with no "only this time" (a permission such as the computer's) is approved for its narrowest scope.
+      const scope =
+        a.scope ??
+        (rec.approval_scopes && !rec.approval_scopes.includes("once") ? rec.approval_scopes[0] : "once") ??
+        "once";
       if (a.scope && (rec.kind !== "confirm" || a.decision !== "approve"))
         throw badRequest("approval scope requires approving a confirmation");
       if (scope !== "once" && !rec.approval_scopes?.includes(scope))

@@ -148,3 +148,40 @@ test("with no desktop app the core drives its own headless Chrome: open, read, c
   await browser.handle("browser.close", { tab: tab.tab });
   assert.deepEqual(browser.list(), []);
 });
+
+test("a remote browser transport failure kills its process and never launches host Chrome", async () => {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  let killed = false;
+  let hostStarts = 0;
+  const child = Object.assign(new EventEmitter(), {
+    kill: () => {
+      killed = true;
+      return true;
+    },
+  }) as unknown as ChildProcess;
+  const remote = createHeadlessBrowser({
+    dir: "",
+    chrome,
+    spawn: (() => {
+      hostStarts++;
+      throw new Error("host launch refused");
+    }) as never,
+    remote: { selectAllModifiers: 2, launch: () => ({ child, input, output }) },
+    blockedPorts: () => new Set(),
+    onChange: () => {},
+  });
+  try {
+    const work = remote.handle("browser.open", { url: "https://example.com", by: "roby" });
+    child.emit("error", new Error("SSH guest unavailable"));
+    await assert.rejects(work, /SSH guest unavailable/);
+    assert.equal(killed, true);
+    assert.equal(hostStarts, 0);
+    assert.equal(remote.running(), false);
+    assert.deepEqual(remote.list(), []);
+  } finally {
+    remote.close();
+    input.destroy();
+    output.destroy();
+  }
+});

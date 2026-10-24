@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { en } from "./en.ts";
-import { es } from "./es.ts";
+import { enComputer } from "./computer-en.ts";
+import { esComputer } from "./computer-es.ts";
+import { en as base } from "./en.ts";
+import { es as esBase } from "./es.ts";
+
+// A pack's strings belong to the language as much as the main chunk's.
+const en = { ...base, ...enComputer };
+const es = { ...esBase, ...esComputer };
 
 // Each language is loaded alone, so a key it lacks would show as the bare key.
 test("every English text has its Spanish translation", () => {

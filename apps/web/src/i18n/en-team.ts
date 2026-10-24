@@ -168,6 +168,8 @@ export const enTeam = {
     "What it does without asking you, by kind of action. What you granted in a chat goes over them.",
   "agentedit.page.granted": "Granted",
   "agentedit.page.grantedSub": "What you picked “Always” for when approving in a chat. It runs without asking.",
+  "agentedit.page.computer": "Computer",
+  "agentedit.page.computerSub": "Whether it may use an isolated Linux computer.",
   "agentedit.page.browser": "Browser",
   "agentedit.page.browserSub": "Which profile it opens web pages with.",
   "agentedit.page.profile": "Profile",

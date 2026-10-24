@@ -1,0 +1,114 @@
+import type { Result } from "@apx/protocol";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { computersOf } from "../computers/summary.ts";
+import { client } from "../data/client.ts";
+import { data } from "../data/state.ts";
+import { useNav } from "../shell/nav.ts";
+
+type Status = Result<"environments.status">;
+export type ComputerAction = "enable" | "allow" | "stop" | "leave" | "human" | "agent";
+
+/** The shared computer as the chat in view sees it, polled; `screen` is the one shown: the chat agent's, or one picked. */
+export function useComputer(thread: string | undefined) {
+  const mode = useNav((s) => s.mode);
+  const [status, setStatus] = useState<Status>();
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [picked, setPicked] = useState<number>();
+  const generation = useRef(0);
+  const operating = useRef(false);
+  const activeThread = useRef(thread);
+  const keep = useCallback((result: Status) => {
+    setStatus(result);
+    data.set({ vmThreads: result.chats ?? [], computers: computersOf(result) });
+  }, []);
+  useEffect(() => {
+    if (activeThread.current !== thread) {
+      setStatus(undefined);
+      setError("");
+      setPicked(undefined);
+    }
+    activeThread.current = thread;
+    setBusy(false);
+    generation.current++;
+    return () => {
+      generation.current++;
+    };
+  }, [thread]);
+  useEffect(() => {
+    const abort = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      const observed = generation.current;
+      try {
+        if (operating.current) return;
+        const viewed = activeThread.current;
+        const result = await client
+          .withSignal(abort.signal)
+          .call("environments.status", viewed ? { thread: viewed } : {});
+        if (!abort.signal.aborted && observed === generation.current) keep(result);
+      } catch (failure) {
+        if (!abort.signal.aborted && observed === generation.current)
+          setError(failure instanceof Error ? failure.message : String(failure));
+      } finally {
+        if (!abort.signal.aborted) timer = setTimeout(() => void poll(), 2500);
+      }
+    };
+    void poll();
+    return () => {
+      abort.abort();
+      clearTimeout(timer);
+    };
+  }, [keep]);
+  useEffect(() => {
+    if (!status?.ready || status.phase === "stopping") return;
+    const abort = new AbortController();
+    void client
+      .withSignal(abort.signal)
+      .call("environments.appearance", { appearance: mode })
+      .catch((failure: unknown) => {
+        if (!abort.signal.aborted) setError(failure instanceof Error ? failure.message : String(failure));
+      });
+    return () => abort.abort();
+  }, [mode, status?.ready, status?.phase]);
+  const screens = status?.screens ?? [];
+  const own = status?.chat?.screen;
+  const screen =
+    picked !== undefined && screens.some((s) => s.screen === picked)
+      ? picked
+      : own !== undefined && screens.some((s) => s.screen === own)
+        ? own
+        : undefined;
+  const operate = useCallback(
+    async (action: ComputerAction) => {
+      if (!thread || operating.current) return;
+      operating.current = true;
+      const observed = ++generation.current;
+      setBusy(true);
+      setError("");
+      try {
+        if (action === "allow" && status?.chat?.agent)
+          await client.call("environments.permit", { agent: status.chat.agent, on: true });
+        if (action === "allow" || action === "enable")
+          await client.call("environments.enable", { thread, appearance: mode });
+        else if (action === "stop") await client.call("environments.stop", {});
+        else if (action === "leave") await client.call("environments.release", { thread });
+        else if (screen !== undefined) await client.call("environments.control", { screen, mode: action });
+      } catch (failure) {
+        if (observed === generation.current) setError(failure instanceof Error ? failure.message : String(failure));
+      } finally {
+        try {
+          const result = await client.call("environments.status", { thread });
+          if (observed === generation.current) keep(result);
+        } catch {}
+        operating.current = false;
+        if (observed === generation.current) setBusy(false);
+      }
+    },
+    [thread, mode, status?.chat?.agent, screen, keep],
+  );
+  const refresh = useCallback(async () => {
+    keep(await client.call("environments.status", thread ? { thread } : {}));
+  }, [thread, keep]);
+  return { status, error, setError, busy, operate, refresh, screen, pick: setPicked };
+}

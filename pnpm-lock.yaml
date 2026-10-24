@@ -149,6 +149,9 @@ importers:
       '@lezer/highlight':
         specifier: ^1.2.5
         version: 1.2.5
+      '@novnc/novnc':
+        specifier: ^1.7.0
+        version: 1.7.0
       '@xterm/addon-fit':
         specifier: ^0.11.0
         version: 0.11.0
@@ -872,6 +875,9 @@ packages:
     peerDependenciesMeta:
       '@cfworker/json-schema':
         optional: true
+
+  '@novnc/novnc@1.7.0':
+    resolution: {integrity: sha512-ucEJOx4T2avIRCleodk7YobZj5O2Ga2AeLfQ69A/yjG9HHba2+PDgwSkN3FttrmG+70ZGx21sElNFouK13RzyA==}
 
   '@openai/codex-sdk@0.159.3':
     resolution: {integrity: sha512-8KQbbeajEYt1d5aFVPiTtmaqZULTiJjj6qSh1fF+ej2rQBGPP3KLY+gz0DObxfPE6G6gnlokwcwHZnuqhQPhGA==}
@@ -2611,6 +2617,8 @@ snapshots:
       zod-to-json-schema: 3.25.2(zod@4.6.5)
     transitivePeerDependencies:
       - supports-color
+
+  '@novnc/novnc@1.7.0': {}
 
   '@openai/codex-sdk@0.159.3':
     dependencies:

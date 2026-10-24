@@ -164,7 +164,7 @@ function renderCard(p: Part, agent: Agent | undefined, message: Msg): ReactNode 
     case "subthread":
       return <SubthreadPart part={p} from={agent} />;
     case "browser":
-      return <BrowserPart part={p} agent={agent} />;
+      return <BrowserPart part={p} agent={agent} threadId={message.thread_id} />;
     case "image":
       // One with a source is in its message's picture grid; one without has nothing to show.
       return null;

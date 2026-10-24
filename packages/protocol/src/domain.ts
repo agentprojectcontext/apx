@@ -450,6 +450,7 @@ const KnownPart = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("browser"),
+    environment: z.literal("vm").optional(),
     tab: z.string(),
     url: z.string(),
     title: z.string(),

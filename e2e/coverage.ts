@@ -3,11 +3,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Frame, Page } from "@playwright/test";
+import { compilerGeneratedChunks } from "../scripts/coverage-maps.ts";
 
 type BrowserScript = Awaited<ReturnType<Page["coverage"]["stopJSCoverage"]>>[number];
 
 /** Only the sandbox's own built scripts belong to this repository's function inventory. */
-export function localBrowserScripts(root: string, origin: string, entries: Pick<BrowserScript, "url" | "functions">[]) {
+export function localBrowserScripts(
+  root: string,
+  origin: string,
+  entries: Pick<BrowserScript, "url" | "functions">[],
+  generated: ReadonlySet<string> = new Set(),
+) {
   return entries.flatMap((entry) => {
     let url: URL;
     try {
@@ -16,7 +22,7 @@ export function localBrowserScripts(root: string, origin: string, entries: Pick<
       return [];
     }
     const asset = /^\/assets\/([\w.-]+\.js)$/.exec(url.pathname)?.[1];
-    if (url.origin !== origin || !asset) return [];
+    if (url.origin !== origin || !asset || generated.has(`assets/${asset}`)) return [];
     return [{ url: pathToFileURL(path.join(root, "apps/web/dist/assets", asset)).href, functions: entry.functions }];
   });
 }
@@ -39,7 +45,8 @@ export async function startPageCoverage(page: Page): Promise<() => Promise<void>
     if (page.isClosed()) return;
     const entries = await page.coverage.stopJSCoverage();
     const root = path.resolve(import.meta.dirname, "..");
-    const result = [...origins].flatMap((origin) => localBrowserScripts(root, origin, entries));
+    const generated = compilerGeneratedChunks(path.join(root, "apps/web/dist"));
+    const result = [...origins].flatMap((origin) => localBrowserScripts(root, origin, entries, generated));
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, `browser-${randomUUID()}.json`), JSON.stringify({ result }));
   };

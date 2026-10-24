@@ -41,6 +41,7 @@ import { coreLogSink } from "./core-log.ts";
 import { openDb } from "./db/db.ts";
 import { type DesktopOps, systemDesktop } from "./desktop.ts";
 import { cleanUpCapturedNotes } from "./domain/memory-capture-cleanup.ts";
+import { TERMINAL } from "./domain/runs.ts";
 import { seed } from "./domain/seed.ts";
 import { createStore } from "./domain/store.ts";
 import { announceRelease } from "./domain/whats-new.ts";
@@ -58,6 +59,9 @@ import { afterWorkTurn } from "./engine/task-work.ts";
 import { wakeAfterCommand } from "./engine/terminal-wake.ts";
 import type { ToolCall } from "./engine/turn.ts";
 import { createUpkeep } from "./engine/upkeep.ts";
+import { type ComputerConfig, createComputer } from "./environments/computer.ts";
+import { managedVmConfig } from "./environments/managed.ts";
+import { computerWatchdog } from "./environments/watchdog.ts";
 import { errorMessage } from "./errors.ts";
 import { thisRunner, writeApxCommand } from "./harness/apx-command.ts";
 import type { CliStatus } from "./harness/detect.ts";
@@ -119,6 +123,7 @@ import { imessageTools } from "./tools/imessage.ts";
 import type { Tool } from "./tools/types.ts";
 import { listenHooks } from "./transport/hooks.ts";
 import { createUpdates, type Runner } from "./updates.ts";
+import { createUsage, type UsageOptions } from "./usage.ts";
 import { createWebhooks, type NgrokStart } from "./webhooks.ts";
 
 /** `apx mcp --run` (token in APX_RUN_TOKEN): how an external harness (Codex) reaches the tools of its run. */
@@ -126,6 +131,7 @@ const TERMINAL_MAIN = path.resolve(import.meta.dirname, "../../terminal/src/main
 
 /** What tests swap: the model, harnesses, extra tools, channel adapters and the scheduler's clock. */
 export type CoreOptions = {
+  computer?: ComputerConfig;
   /** Asana transport; tests record REST requests without contacting an account. */
   asanaFetch?: typeof fetch;
   /** What asks an integration's remote server whether it takes the owner's account; tests pass a fake. */
@@ -172,6 +178,8 @@ export type CoreOptions = {
   restart?: () => void;
   /** What each release changed, instead of this APX's own (release-notes.ts); tests stand in a release. */
   releases?: ReleaseSource;
+  /** The Linux VM's memory and disk for system.usage; none until a VM is set up. */
+  vmUsage?: UsageOptions["vm"];
 };
 
 export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
@@ -283,6 +291,23 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     fetch: opts.asanaFetch,
     offIn: (project) => !integrationsOff.takesGlobals(project) || integrationsOff.offIn(project).includes("asana"),
   });
+  const vm = createComputer(
+    store,
+    opts.computer && !opts.computer.managed ? opts.computer : managedVmConfig(store, config.home, opts.computer),
+  );
+  // A screen is held for one run: once the run is over, the screen is free for another agent.
+  bus.on((e) => {
+    if (e.type === "run.updated" && TERMINAL.has(e.run.state)) vm.release(e.run.id);
+  });
+  const watchdog = computerWatchdog({
+    store,
+    vm,
+    freeMemory: vm.freeMemory,
+    cancel: (thread) => {
+      engine.cancel(thread);
+    },
+    onError: (err) => log.warn({ err }, "computer watchdog check failed"),
+  });
   // APX's own profiles, then the ones the owner installed (theirs win an id).
   const profileRoots: ProfileRoot[] = [
     { source: "apx", dir: path.resolve(import.meta.dirname, "../../../examples/profiles") },
@@ -300,6 +325,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     [...imessageTools(imessage), ...googleTools(google), ...asanaTools(asana, store), ...(opts.extraTools ?? [])],
     config.runtimeSkills.homes,
     { profiles: profileRoots, templates: templateRoots },
+    vm,
   );
   // Tools reach the core through the router like any client, as the agent (owner-only methods refuse them).
   // The router exists only after the engine, hence the late binding.
@@ -426,6 +452,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     log,
   });
   const engine = createEngine({
+    vm,
     store,
     harnesses,
     tools,
@@ -511,6 +538,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
 
   const dispatch = createRouter(
     coreHandlers({
+      vm,
       internal,
       permissions,
       addresses: () => reachableAt(config.host, listening, config.publicUrl),
@@ -568,6 +596,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
       updates,
       telemetry,
       news,
+      usage: createUsage({ home: config.home, vm: opts.vmUsage ?? (() => vm.monitored()) }),
       panel: () => panelEntry(servedPanel(config)),
       profileRoots,
       templateRoots,
@@ -579,7 +608,7 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
   if (cleanup) log.info(cleanup, "captured memory cleanup: retired noisy automatic notes");
   memoryMaintenance.start();
 
-  const transport = await listen(config, { dispatch, store, log, identity, broker, bus });
+  const transport = await listen(config, { dispatch, store, log, identity, broker, bus, vm });
   listening = transport.port;
   // Agents' shells and harnesses reach this core with `apx`, whatever the owner's PATH holds.
   try {
@@ -628,7 +657,10 @@ export async function createCore(config: CoreConfig, opts: CoreOptions = {}) {
     channels,
     scheduler,
     telemetry,
+    computer: vm,
     async close() {
+      await watchdog.stop();
+      await vm.close();
       await desktopInstaller.close();
       useApxCommand(undefined);
       idleTrim.stop();

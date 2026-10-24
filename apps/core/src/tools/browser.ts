@@ -37,7 +37,7 @@ const refArg = z
   .regex(/^e\d+$/)
   .describe("ref like e12, from the last snapshot");
 
-export function browserTools(store: Store, home: string): Tool[] {
+export function browserTools(store: Store, home: string, vm?: { hasThread(id: string): boolean }): Tool[] {
   /** The model looks at the tab itself: the tree alone misses images, charts and slides. */
   const look = async (ctx: ToolContext, tab: string) => {
     if (!ctx.see) return;
@@ -63,6 +63,7 @@ export function browserTools(store: Store, home: string): Tool[] {
     const t = tabs.find((x) => x.tab === tab);
     ctx.upsertPart((p) => p.type === "browser" && p.tab === tab, {
       type: "browser",
+      ...(vm?.hasThread(ctx.thread.id) ? { environment: "vm" as const } : {}),
       tab,
       url: t?.url ?? "",
       title: t?.title ?? "",

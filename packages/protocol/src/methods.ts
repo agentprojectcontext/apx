@@ -7,9 +7,11 @@ import { asanaMethods } from "./asana-methods.ts";
 import { browserMethods } from "./browser.ts";
 import { desktopInstallMethods } from "./desktop-install.ts";
 import { deviceMethods } from "./device-methods.ts";
+import { environmentMethods } from "./environment-methods.ts";
 import { telemetryMethods } from "./telemetry-methods.ts";
 import { terminalMethods } from "./terminal-methods.ts";
 import { threadMethods } from "./thread-methods.ts";
+import { usageMethods } from "./usage-methods.ts";
 
 export const SubsystemStatus = z.object({
   status: z.enum(["ok", "degraded", "down", "off"]),
@@ -95,10 +97,12 @@ export const methods = {
   ...artifactMethods,
   ...asanaMethods,
   ...deviceMethods,
+  ...environmentMethods,
   ...desktopInstallMethods,
   ...threadMethods,
   ...terminalMethods,
   ...telemetryMethods,
+  ...usageMethods,
 } as const satisfies Record<string, MethodDef>;
 
 export type MethodName = keyof typeof methods;

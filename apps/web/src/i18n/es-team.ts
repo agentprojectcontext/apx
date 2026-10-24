@@ -170,6 +170,8 @@ export const esTeam: Partial<Record<MessageKey, string>> = {
     "Qué hace sin preguntarte según el tipo de acción. Lo concedido en un chat pasa por encima.",
   "agentedit.page.granted": "Concedidos",
   "agentedit.page.grantedSub": "Lo que elegiste “Siempre” al aprobar en un chat. Corre sin preguntar.",
+  "agentedit.page.computer": "Computadora",
+  "agentedit.page.computerSub": "Si puede usar una computadora Linux aislada.",
   "agentedit.page.browser": "Navegador",
   "agentedit.page.browserSub": "Con qué perfil abre las webs.",
   "agentedit.page.profile": "Perfil",

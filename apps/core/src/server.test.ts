@@ -50,6 +50,20 @@ test("the socket and HTTP reach the same handler", async () => {
   socket.close();
 });
 
+test("the panel may call the actual bound ephemeral port, while foreign origins are refused", async () => {
+  const request = (origin: string) =>
+    fetch(`${core.url}/rpc/system.ping`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin },
+      body: "{}",
+    });
+  const own = await request(core.url);
+  assert.equal(own.status, 200);
+  assert.equal(((await own.json()) as { ok: boolean }).ok, true);
+  const foreign = await request("https://example.com");
+  assert.equal(foreign.status, 403);
+});
+
 test("bad params and unknown methods fail typed, not with a 500", async () => {
   const bad = await core.dispatch("system.ping", { echo: 42 }, ctx());
   assert.equal(bad.ok, false);

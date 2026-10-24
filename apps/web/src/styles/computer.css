@@ -1,0 +1,311 @@
+.computer {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--apx-bg);
+}
+.computer__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.computer__status {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+.computer__status.is-on {
+  background: #34d399;
+}
+.computer__badge {
+  color: var(--apx-fg-muted);
+  margin-right: auto;
+  font-size: 10px;
+}
+.computer__desktop {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 120px;
+  overflow: hidden;
+}
+.computer__desktop[hidden] {
+  display: none;
+}
+.computer__screen {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--apx-bg);
+}
+.computer__locked {
+  position: absolute;
+  inset: 0;
+  cursor: not-allowed;
+}
+.computer__controlbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--apx-border);
+  font-size: 11px;
+  color: var(--apx-fg-muted);
+}
+.computer__held {
+  margin-left: auto;
+}
+.computer__controlbar > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.computer__setup {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px;
+  text-align: center;
+}
+.computer__setup p {
+  max-width: 420px;
+  font-size: 13px;
+  color: var(--apx-fg-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+.computer__settings {
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+}
+.computer__settings p {
+  margin-top: 8px;
+}
+.computer__setup small {
+  max-width: 420px;
+  color: var(--apx-fg-muted);
+  font-size: 11px;
+}
+.computer__error {
+  padding: 10px 14px;
+  color: #dc2626;
+  font-size: 12px;
+}
+.computer__console {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  min-height: 180px;
+  max-height: 70%;
+  flex-direction: column;
+  border-top: 1px solid var(--apx-border);
+  background: var(--apx-bg);
+}
+.computer__console.is-collapsed {
+  min-height: 42px;
+  height: 42px;
+}
+.computer__console.is-maximized {
+  flex: 1;
+  max-height: none;
+}
+.computer__resize {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 1;
+}
+.computer__resize::after {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 3px;
+  margin: 2px auto;
+  border-radius: 4px;
+  background: var(--apx-border);
+}
+.computer__resize:hover::after,
+.computer__resize:focus-visible::after {
+  background: #10b981;
+}
+.computer__console-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+.computer__console-title > svg {
+  color: #10b981;
+}
+.computer__console-title code {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--apx-fg-muted);
+}
+.computer__console form {
+  display: flex;
+  flex-direction: column;
+  margin: 0 12px 12px;
+  border: 1px solid var(--apx-border);
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.computer__console form:focus-within {
+  border-color: #10b981;
+}
+.computer__console textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 68px;
+  max-height: 200px;
+  resize: vertical;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  padding: 10px 12px;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.computer__editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px 8px;
+  color: var(--apx-fg-muted);
+  font-size: 10px;
+}
+.computer__editor-footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.computer__button {
+  border: 1px solid var(--apx-border);
+  background: transparent;
+  color: inherit;
+  border-radius: 6px;
+  padding: 6px 9px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.computer__button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.computer__button.is-primary {
+  color: #059669;
+  border-color: #05966966;
+  background: #05966912;
+}
+.computer__output {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  padding: 6px 16px 12px;
+  margin: 0;
+  color: var(--apx-fg-muted);
+}
+.computers__wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  padding: 0 24px 24px;
+}
+.computers__wall[data-count="1"] {
+  grid-template-columns: minmax(280px, 900px);
+}
+.computers__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--apx-border);
+  border-radius: var(--apx-radius-lg);
+  background: var(--apx-surface);
+  text-align: left;
+  cursor: pointer;
+}
+.computers__tile:hover {
+  border-color: var(--apx-border-strong);
+}
+.computers__thumb {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: var(--apx-radius-md);
+  background: var(--apx-fill-strong);
+  pointer-events: none;
+}
+.computers__thumb .computer__screen {
+  position: absolute;
+  inset: 0;
+}
+.computers__holder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 12px;
+}
+.computers__holder > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.computers__holder > div span {
+  color: var(--apx-fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.computers__state {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  color: var(--apx-fg-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.computers__state.is-human {
+  color: var(--apx-fg);
+  font-weight: 600;
+}
+.computers__large {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0 24px 24px;
+}
+.computers__large .computer__desktop {
+  flex: 1;
+  min-height: 360px;
+}

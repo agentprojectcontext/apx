@@ -2,6 +2,7 @@
 import path from "node:path";
 import {
   type Autonomy,
+  BROWSER_CAP,
   COMPUTER_CAP,
   type HarnessId,
   type MethodName,
@@ -18,6 +19,7 @@ import { engineOf, harnessOf, isCliRef } from "../domain/refs.ts";
 import { answersChecked, type Origin, type RunRecord } from "../domain/runs.ts";
 import type { Store } from "../domain/store.ts";
 import { previewOf, type Worker, worksInFolder } from "../domain/threads.ts";
+import { AGENT_WORKSPACE } from "../environments/worker.ts";
 import { Canceled, DeadlineExceeded, errorMessage, Shutdown, Superseded } from "../errors.ts";
 import type { Harnesses, TurnIO, TurnOutcome } from "../harness/index.ts";
 import { systemNote } from "../harness/native.ts";
@@ -39,6 +41,7 @@ import { inherit, modeOf } from "../tools/policy.ts";
 import { waitingBlock } from "../tools/requests.ts";
 import { UNTRUSTED_MARK, untrusted } from "../tools/result.ts";
 import { type Tool, toSpec } from "../tools/types.ts";
+import { COMPUTER_TOOL } from "../tools/vm.ts";
 import { WEB_TOOLS } from "../tools/web.ts";
 import { callersOf } from "./ancestry.ts";
 import { attachmentsBlock } from "./attachments.ts";
@@ -86,6 +89,7 @@ import { closeTurnLog, RESUME_NOTE } from "./recovery.ts";
 import { askedPick, type SkillPicker } from "./skill-pick.ts";
 
 export type TurnDeps = {
+  vm?: import("../environments/computer.ts").Computer | undefined;
   store: Store;
   harnesses: Harnesses;
   tools: Tool[];
@@ -177,7 +181,40 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
   const agent = store.agents.get(start.agent_id);
   if (!thread || !agent || !start.input)
     return store.runs.setState(start, "failed", !start.input ? "run has no input" : "thread or agent is gone");
+  const preflightFailure = (error: string) => {
+    store.messages.add({
+      thread_id: thread.id,
+      author: { kind: "agent", id: agent.id },
+      run_id: start.id,
+      parts: [
+        {
+          type: "notice",
+          level: "error",
+          code: "computer.unavailable",
+          text: "Computer is unavailable. Start it and return control to the agent, then retry.",
+          detail: error,
+        },
+      ],
+    });
+    store.threads.patch(thread.id, { state: "failed" });
+    return store.runs.setState(start, "failed", error);
+  };
   const audience = audienceOf(store, thread);
+  if (store.settings.read("computer_chats").includes(thread.id) && !deps.vm)
+    return preflightFailure("the assigned VM backend is unavailable; host fallback is forbidden");
+  if (deps.vm?.hasThread(thread.id)) {
+    if (thread.engine || start.input.origin.kind !== "user")
+      return preflightFailure("a computer chat takes the owner's own turns with APX's own harness only");
+    // A stopped computer is the agent's to start; a chat whose agent may not use it never runs on the host instead.
+    if (!deps.vm.permitted(agent.id, thread.id))
+      return preflightFailure(`${agent.name} may not use the computer; the owner allows it in the agent's settings`);
+    // Its own screen for this run while the computer runs: refused when another chat holds it or every screen is held.
+    try {
+      await deps.vm.claim(agent.id, thread.id, start.id, signal);
+    } catch (error) {
+      return preflightFailure(error instanceof Error ? error.message : String(error));
+    }
+  }
   const turn: Turn = {
     agent,
     thread,
@@ -272,7 +309,7 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
           skills,
           deps.profileRoots ?? [],
           deps.build,
-          scratchDir(store, deps.home, thread),
+          deps.vm?.hasThread(thread.id) ? AGENT_WORKSPACE : scratchDir(store, deps.home, thread),
           Boolean(deps.desktopLinked?.()) && !deps.hasCap?.(COMPUTER_CAP),
         ),
     history,
@@ -299,6 +336,8 @@ export async function runTurn(deps: TurnDeps, start: RunRecord, signal: AbortSig
 
   try {
     const engine = enginePick(deps, turn, start, history);
+    if (deps.vm?.hasThread(thread.id) && engine.harness !== "native")
+      throw new Error("a computer chat runs on APX's own harness only");
     const outcome = await runEngine(deps, engine, {
       io,
       input,
@@ -490,7 +529,9 @@ async function buildContext(deps: TurnDeps, turn: Turn, run: RunRecord, mode: Au
                 voice: o.kind === "channel" && Boolean(store.threads.context(thread.id).voice_replies),
                 stickers: o.kind === "channel" ? stickersOf(store, o.channel) : undefined,
                 mode: modeBlock(mode),
-                workspace: workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
+                workspace: deps.vm?.hasThread(thread.id)
+                  ? `Shared Linux computer: ${AGENT_WORKSPACE}, as your own unprivileged user on your own screen. Shell and browser tools run there; web access uses the protected proxy. When it is off, start it with the computer tool.`
+                  : workspaceBlock(thread, readOnlyFolders(store, thread), workDir(store, deps.home, thread)),
                 release: ownerTurn ? releaseBlock(store.threads.context(thread.id).release) : undefined,
                 feedback: o.kind === "routine" ? ratingNote(store, `routine:${o.name}`) || undefined : undefined,
                 // The owner's channel lands in Home: what went out on it meanwhile is what they may be answering.
@@ -531,6 +572,8 @@ function channelKindOf(store: Store, o: Origin, replyChannel?: string | null) {
   return store.settings.read("channels").find((c) => c.id === channel)?.type ?? channel;
 }
 
+const VM_BROWSER_TOOLS = new Set(["browser_open", "browser_snapshot", "browser_text", "browser_click", "browser_type"]);
+
 /** What the stickers people sent on a channel's platform mean, the most used first: the agent may answer with one. */
 function stickersOf(store: Store, channel: string): string[] {
   const type = store.settings.read("channels").find((c) => c.id === channel)?.type;
@@ -539,12 +582,19 @@ function stickersOf(store: Store, channel: string): string[] {
 
 /** The tools this turn may use: the agent's, narrowed by whoever asked for it up the chain; a contact's, by their flags. */
 async function turnTools(deps: TurnDeps, turn: Turn) {
+  const inVm = deps.vm?.hasThread(turn.thread.id);
+  // Offered to an agent the owner allowed, or, once the owner set the computer up, to ask for it (DECISIONS.md#d-151).
+  const computerOn = Boolean(
+    deps.vm?.serves(turn.thread.id) &&
+      (deps.vm.permitted(turn.agent.id, turn.thread.id) || (!inVm && deps.vm.offered())),
+  );
   const sealed = turn.audience.kind === "contact";
   const callers = callersOf(deps.store, turn.thread.id);
   // MCP tools are reached through mcp_search and mcp_call; their servers start only when one is first used.
-  const servers = !sealed && deps.mcpTools ? (deps.mcpServers?.(turn.thread) ?? []) : [];
+  const servers = !sealed && !inVm && deps.mcpTools ? (deps.mcpServers?.(turn.thread) ?? []) : [];
   let loading: Promise<Tool[]> | undefined;
   const mcpLate = () => {
+    if (inVm) return Promise.resolve([]);
     loading ??= (deps.mcpTools?.(turn.thread) ?? Promise.resolve([]))
       .catch(() => [])
       .then((all) => all.filter((t) => policy.allows(t.name) && (!only || only.has(t.name) || only.has(MCP_CALL))));
@@ -557,9 +607,10 @@ async function turnTools(deps: TurnDeps, turn: Turn) {
   const imessageOn = deps.store.settings.read("imessage").on;
   const offered = deps.tools.filter(
     (t) =>
+      (t.name === COMPUTER_TOOL ? computerOn : !inVm || t.name === "shell" || VM_BROWSER_TOOLS.has(t.name)) &&
       (memoryOn || !MEMORY_TOOLS.has(t.name)) &&
       (imessageOn || !IMESSAGE_TOOLS.has(t.name)) &&
-      (!t.needsCap || Boolean(deps.hasCap?.(t.needsCap))) &&
+      (!t.needsCap || (inVm && t.needsCap === BROWSER_CAP) || Boolean(deps.hasCap?.(t.needsCap))) &&
       (!t.when || t.when(turn.thread)),
   );
   // A contact's turn gets only what the owner allowed for that person (nothing by default); the owner's turns never

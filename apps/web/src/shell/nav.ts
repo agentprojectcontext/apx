@@ -6,6 +6,7 @@ import { rememberSidebar } from "../data/prefs.ts";
 import type { MessageKey } from "../i18n/index.ts";
 
 export type PanelKind =
+  | "computer"
   | "browser"
   | "terminal"
   | "files"
@@ -16,7 +17,7 @@ export type PanelKind =
   | "processes"
   | "document";
 
-export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "channel" | "engine";
+export type View = "inbox" | "project" | "app" | "tasks" | "resources" | "computers" | "channel" | "engine";
 
 export const PROJECT_TABS = [
   { id: "overview", label: "project.tab.overview" },
@@ -86,6 +87,8 @@ export type NavState = {
   configChannel: ChannelKind | undefined;
   /** "Open on your phone" dialog. */
   phone: boolean;
+  /** The usage dialog (memory, CPU, disk; the computer's and APX's). */
+  usageDialog: boolean;
   /** The ⌘K palette is open. */
   palette: boolean;
   /** Phone-width windows show the chat list or the chat, not both: true while the list is in front. */
@@ -118,6 +121,7 @@ function initialMode(): ApxMode {
 }
 
 const PANELS: readonly PanelKind[] = [
+  "computer",
   "browser",
   "terminal",
   "files",
@@ -128,7 +132,7 @@ const PANELS: readonly PanelKind[] = [
   "document",
 ];
 const TAB_IDS: readonly string[] = PROJECT_TABS.map((t) => t.id);
-const VIEWS: readonly string[] = ["tasks", "resources"];
+const VIEWS: readonly string[] = ["tasks", "resources", "computers"];
 
 /** Deep links: #thread=<id>&panel=<kind>, #app=<id>, #project=<id>&tab=<tab>, #view=tasks&task=<id>. */
 function fromHash(): Partial<NavState> {
@@ -182,6 +186,7 @@ export const nav = createStore<NavState>({
   config: null,
   configChannel: undefined,
   phone: false,
+  usageDialog: false,
   palette: false,
   listInFront: false,
   resourcesTab: "skills",
@@ -301,7 +306,7 @@ nav.subscribe(() => {
     h.set("tab", s.projectTab);
     if (s.projectTab === "chats" && s.threadId) h.set("thread", s.threadId);
     if (s.projectTab === "tasks" && s.taskId) h.set("task", s.taskId);
-  } else if (s.view === "tasks" || s.view === "resources") {
+  } else if (s.view === "tasks" || s.view === "resources" || s.view === "computers") {
     h.set("view", s.view);
     if (s.view === "tasks" && s.taskId) h.set("task", s.taskId);
   } else if (s.view === "channel" && s.channelId) {
@@ -428,7 +433,7 @@ export const go = {
   app(appId: string) {
     nav.set({ view: "app", appId });
   },
-  view(view: "tasks" | "resources") {
+  view(view: "tasks" | "resources" | "computers") {
     nav.set({ view });
   },
   /** A task: beside a tasks list when one is open, else over the current screen (a chat, a notice…). */
@@ -464,6 +469,9 @@ export const go = {
   },
   phone(open: boolean) {
     nav.set({ phone: open });
+  },
+  usageDialog(open: boolean) {
+    nav.set({ usageDialog: open });
   },
   /** An agent's block beside the chat: its settings, prompt and routines, with Edit. */
   agent(agentId: string) {

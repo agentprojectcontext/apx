@@ -1,0 +1,65 @@
+@import url("resource:///org/gtk/libgtk/theme/Adwaita/gtk-contained.css");
+
+@define-color theme_bg_color #f4f7f2;
+@define-color theme_fg_color #173c29;
+@define-color theme_base_color #ffffff;
+@define-color theme_text_color #173c29;
+@define-color theme_selected_bg_color #1a9460;
+@define-color theme_selected_fg_color #ffffff;
+@define-color selected_bg_color #1a9460;
+@define-color selected_fg_color #ffffff;
+@define-color borders #c9dcd0;
+@define-color insensitive_fg_color #63806e;
+@define-color unfocused_bg_color #edf4ed;
+
+window.background,
+.background {
+  background-color: #f4f7f2;
+  color: #173c29;
+}
+headerbar,
+toolbar,
+menubar {
+  background-image: none;
+  background-color: #e7f1e8;
+  color: #173c29;
+  border-color: #c9dcd0;
+}
+entry,
+textview,
+textview text,
+treeview.view {
+  background-color: #ffffff;
+  color: #173c29;
+}
+button:hover {
+  border-color: #1a9460;
+}
+button:checked,
+button.suggested-action,
+selection,
+row:selected {
+  background-image: none;
+  background-color: #1a9460;
+  color: #ffffff;
+}
+check:checked,
+radio:checked,
+progressbar progress,
+scale highlight {
+  background-image: none;
+  background-color: #1a9460;
+  border-color: #1a9460;
+}
+.xfce4-panel {
+  background-image: none;
+  background-color: #edf4ed;
+  color: #173c29;
+}
+.xfce4-panel button:checked {
+  background-color: #1a9460;
+}
+
+.xfdesktop-icon-view {
+  color: #173c29;
+}

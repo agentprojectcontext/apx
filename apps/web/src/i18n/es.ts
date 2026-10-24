@@ -10,10 +10,20 @@ import { esFiles } from "./es-files.ts";
 import { esOffice } from "./es-office.ts";
 import { esResources } from "./es-resources.ts";
 import { esSetup } from "./es-setup.ts";
+import { esSysUsage } from "./es-sysusage.ts";
 import { esTeam } from "./es-team.ts";
 import { esTelemetry } from "./es-telemetry.ts";
 
 export const es: Partial<Record<MessageKey, string>> = {
+  "panel.computer": "Computadora",
+  "panel.computer.hint": "Ver computadora Linux del agente",
+  "notice.computer.interrupted": "Interrumpido: tomaste control de la computadora.",
+  "notice.computer.unavailable": "Computadora no disponible. Encendela y devolvé control al agente; después reintentá.",
+  "notice.computer.stopped.memory":
+    "La computadora se apagó: a esta Mac le quedaban solo {free} GiB de memoria libre. Su disco se conserva; encendela de nuevo cuando haya lugar.",
+  "notice.computer.stopped.idle":
+    "La computadora se apagó después de {minutes} minutos sin uso, para liberar memoria. Su disco se conserva.",
+  "computer.screen": "Escritorio VM en vivo",
   "desktopInstall.title": "Usá APX como aplicación de escritorio",
   "desktopInstall.idle":
     "Instalá en esta computadora donde corre APX. Tus chats, agentes y configuración quedan listos para usar.",
@@ -41,6 +51,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   ...esResources,
   ...esEngines,
   ...esTelemetry,
+  ...esSysUsage,
   // Palabras compartidas
   "common.agent": "Agente",
   "common.app": "App",
@@ -332,6 +343,7 @@ export const es: Partial<Record<MessageKey, string>> = {
   "nav.baseProject": "Proyecto base",
   "nav.externalSessions": "Sesiones externas",
   "nav.apps": "Apps",
+  "nav.computers": "Computadoras",
   "nav.resources": "Recursos",
   "account.you": "Vos",
   "account.menuOf": "Cuenta: {name}",
@@ -1420,7 +1432,6 @@ export const es: Partial<Record<MessageKey, string>> = {
   "quick.backHome": "Volver a Home",
   "quick.openApp": "Abrir en la app",
   "config.desktop": "Escritorio",
-  "desktop.memory": "Uso de RAM",
   "desktop.memoryHint":
     "APX usa {total} ahora. Si pasa de 4 GB, te avisa qué proceso consume más. Las pestañas sin uso se cierran a los 30 minutos.",
   "desktop.memory.core": "Core (agentes, canales, datos)",

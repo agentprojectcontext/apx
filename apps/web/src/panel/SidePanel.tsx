@@ -8,6 +8,7 @@ import {
   BrowserPanel,
   ChangesPanel,
   ChatFiles,
+  ComputerPanel,
   DocumentPanel,
   ProcessesPanel,
   TerminalPanel,
@@ -50,7 +51,11 @@ export function SidePanel() {
           label={t("panel.resize")}
         />
       )}
-      {panel === "browser" ? (
+      {panel === "computer" ? (
+        <Suspense fallback={null}>
+          <ComputerPanel key={threadId} />
+        </Suspense>
+      ) : panel === "browser" ? (
         <Suspense fallback={null}>
           <BrowserPanel />
         </Suspense>

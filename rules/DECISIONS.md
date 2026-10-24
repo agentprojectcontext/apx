@@ -2293,3 +2293,120 @@ their options (numbered on WhatsApp). What D-144 keeps stands: a change to the o
 the app (`app_only`), and the channels whose sender can be forged (ntfy, IRC, SMS, email, Twitch) and the rest still go
 through the super-agent first. Discord, Slack and the other account-based platforms stay as D-144 left them until the
 owner asks otherwise.
+
+<a id="d-151"></a>
+## D-151 — 2026-10-23 — The isolated computer is a per-agent permission, and its memory decides when it runs
+The Linux computer (a Lima VM with its own desktop, shell and browser, whose egress goes through a proxy that refuses
+the host and the local network) could only be turned on by the owner from the Computer panel, for one chat, with a
+fixed 4 GiB of memory. The owner wants it off by default, given to agents one by one, and started and stopped by the
+agents themselves as free memory allows.
+
+**Permission.** Using the computer is an owner's grant per agent, key `apx:computer` (`COMPUTER_GRANT`) in the grants
+store: for good (`always`, shown and revoked in the agent's settings, Computer page, or in its granted list) or for one
+chat (`session`). No agent has it until the owner gives it, whatever its autonomy: Total skips confirmation cards
+(D-047), so the request is not the executor's card but `requestGrant`, a card the tool raises itself that no mode
+skips; it offers "for this chat" and "always for this agent", never "only this time", since a permission covers the
+turns that follow. A chat bound to the computer whose agent lost the permission refuses its turns before any model
+call, as it does without a backend: never host tools instead. The owner's `environments.enable` and `bind` refuse an
+agent without it; the panel offers "Allow <agent> and turn on".
+
+**The tool.** `computer` (status, start, stop) is one conditional tool (rule 15): offered in an owner's native chat to
+an allowed agent, and, once the owner has set the computer up on this core, to any agent there so it can ask. A fresh
+install offers it to no one, so the default turn's budget (rule 23) is unchanged. It acts through `environments.start`
+and `environments.stop` (rule 1), which accept the owner or a working run of that very chat whose agent is allowed;
+an agent's stop does not cancel its own run. Starting from a chat that is not the computer's moves the computer there
+when it is off and its old chat has no working run; the old chat gets its host tools back from its next turn. In the
+computer's chat a stopped computer no longer refuses the turn: the agent gets the guest tools and `computer`, and
+starts it when it needs it. Known limit: an agent that starts the computer from another chat keeps that turn's host
+tools until the turn ends; its shell and browser move to the guest at once.
+
+**Memory.** Memory, CPUs and disk are owner settings (`environments.configure`), held to the host: memory 2 GiB up to
+the host's minus 4 GiB (at most 32), CPUs up to half the host's (at most 8), disk 16–256 GiB and never below what the
+guest disk already has, since Lima only grows a disk. The default is a quarter of the host's memory, from 4 up to
+8 GiB, and 4 CPUs on a host with 10 cores or more. They apply on the next start through `limactl edit` (a new
+instance gets them as `start` flags), and the disk and host-memory preflights use the same values. A start, the
+owner's or an agent's, is refused while free memory (as the system counts it: `vm_stat` on macOS, `MemAvailable` on
+Linux; `os.freemem()` on macOS counts only never-used pages) is below the VM's memory plus 2 GiB, with a message
+saying both numbers. A watchdog in the core checks every 30 seconds: below 1 GiB free it shuts the VM down, and after
+the owner's idle minutes (30 by default, 0 for never) without a working run in its chat, a viewer or a guest call, and
+with the agent in control, it shuts it down too. Either way the disk is kept, the reason is kept for the panel
+(`last_stop`) and the owner is told in the chat and the tray. The stop threshold is below the start reserve, so a
+computer that just started is not stopped at once.
+[D-152](#d-152) replaced the one VM per chat with one shared VM, a user and screen per agent and a ledger of who
+holds each; the permission, resources and memory checks here stay.
+
+<a id="d-152"></a>
+## D-152 — 2026-10-23 — One shared computer: a Linux user and a screen per agent, and a ledger of who holds each
+D-151 gave one VM to one chat. Five or six agents each with their own 4 GiB VM would take about 24 GiB, and a guest's
+memory mostly goes back to macOS only when the VM stops. So there is one VM, sized once by the owner (D-151's
+resources), shared by every allowed agent.
+
+**Users and screens.** Each agent gets a screen number the first time it uses the computer (`computer_screens`, kept):
+screen n is Linux user `apx-a<n>` (uid 2000+n, locked, no sudo, its own `/home/apx-a<n>` with mode 700, its own
+Chromium profile there) on display `:100+n`. There is no screen of the owner's own: the owner watches an agent's screen and takes control of it
+(signing in to a site by hand happens there, with control taken). The former worker user `apx-worker` (uid 1001) stays
+as a screenless probe user the setup checks the boundary with. The firewall rules that kept uid 1001 to loopback now
+cover uids 2001–2999 too, and every user's session waits for the firewall. A desktop is reached only through its user's
+private socket: Xtigervnc listens on `$XDG_RUNTIME_DIR/apx-vnc.sock` (mode 600) and X clients need that user's cookie,
+so one agent can neither watch nor type into another's screen. The core opens a viewer by running
+`nc -U` on that socket as that user. The proxy is the same for all.
+
+**The proxy's port and agents' sessions.** The guest's proxy port, 127.0.0.1:3128, is held by PID 1 from boot
+(`apx-proxy.socket`), before any user's session, and `systemd-socket-proxyd` relays it to the host's tunnel through
+`/run/apx-egress/proxy.sock`, in a folder only the Lima user can write: an agent that binds 3128 first would otherwise
+make the tunnel's forward fail and put the computer in error for every agent. An agent's session runs only while it
+has a screen: stopping a screen turns its linger off, and a boot unit clears agents' linger before logind starts, so
+units an agent enabled do not come back with the computer.
+
+**No resolver on loopback.** The probe user and agents may reach loopback, but never port 53 on it: a resolver there
+(systemd-resolved's stub on 127.0.0.53) would look up names, LAN names included, past the proxy's public-only policy
+and carry data out in queries. Names are the proxy's to resolve. The egress rules are written by the core
+(`egressRules`) before the security script runs.
+
+**Loopback between agents.** A service an agent runs on 127.0.0.1 or ::1 is reachable only by that agent. Every
+process of an agent runs in its own cgroup, `user.slice/user-<uid>.slice`: its desktop and terminal through its user
+manager, and its commands, browser and the core's helpers through `systemd-run --scope --uid --slice` (plain `sudo -u`
+from the admin's SSH session would leave them in that session's cgroup). A table of its own, `apx_loopback`, marks
+each loopback packet with its sender's agent uid on the way out (`meta skuid`), and on the way in looks up the listening
+socket (`socket cgroupv2 level 2`) and refuses a new connection to an agent's listener whose mark is not that agent's.
+The egress proxy, the guest's own services and the owner's paths into a screen (private Unix sockets, CDP pipes) are
+not in an agent's slice and are untouched; the egress table and its uid 2001–2999 coverage are unchanged. The core
+writes the rules for every agent screen to `/etc/apx-computer/agents.nft` when an agent gets a screen, and the firewall
+service starts those slices before loading them (a rule cannot name a cgroup that does not exist yet). Rejected:
+`meta skuid` alone, which names only the sender, never the listener; a network namespace per agent, which would put the
+proxy on 127.0.0.1:3128 out of reach and need a veth, DNAT and `route_localnet` path rebuilt for each agent, a second
+egress boundary to verify. Known limit: pathname Unix sockets an agent leaves world-writable in a shared directory
+such as `/tmp` stay reachable; file permissions decide those.
+
+**The ledger.** Which screen is held by which agent's working run, in which chat, is the core's record
+(`computer_claims` in settings), not the guest's: a turn in a chat on the computer claims its agent's screen before the
+model is called, or an agent claims it when its `computer` tool starts the VM. A run event that ends the run releases it;
+claims of runs that are over are swept whenever the ledger is read, which covers a restart. An agent's screen held by its
+run in another chat refuses a second chat ("in use in another chat"); when as many screens are up as the VM holds
+(`(memory_gib − 1) / 1.25`, at least one: 2 for 4 GiB, 4 for 6 GiB, 5 for 8 GiB), a screen with no holder is stopped to
+make room, and with none free the turn is refused naming who holds them. A released screen stays up for its agent's next
+turn until room is needed; stopping it ends that user's session (`systemctl stop user@<uid>`), so its memory goes back.
+Control (D-151's lease) is per screen: the owner takes one agent's screen, which cancels the run holding it, without
+touching the others.
+
+**Chats.** A chat works on the computer when the owner turns it on in the Computer panel or its agent starts the
+computer from it (`computer_chats`); its turns then offer only the guest tools and `computer`, as before.
+`computer stop` from an agent is now "leave": the chat goes back to the Mac and its screen is freed; it no longer shuts
+the VM down for the others. The owner's "Shut down for everyone" does, cancelling the runs that hold screens. The
+watchdog stops the VM below 1 GiB of free host memory (telling each chat it took a screen from) or once no screen is held,
+no agent screen is in the owner's hands, nobody watches and nothing used it for the idle minutes.
+
+**Seeing them.** The Computer panel shows the screen of the chat's agent (switching chats switches it), with a picker
+for another agent's. A sidebar view, Computers, shows every screen in use as a wall of view-only tiles (agent, chat,
+who drives) and opens one large with its lease and a link to its chat; with none in use it says whether the computer is
+off or idle, how much memory the VM takes and offers start or stop. The view shows on a host that can run the computer
+once the owner has allowed an agent or set the computer up: an option most owners never use does not take a place in
+everyone's sidebar. Each tile is a live viewer with its own single-use ticket, only while the view is open, asking the
+desktop for low JPEG quality and high compression; VNC sends only what changed, so idle tiles cost little. Not
+measured: no guest could be booted while this was built (the host lacked the free memory), so eight live tiles against
+still snapshots is unmeasured; still snapshots are the fallback if live tiles prove heavy.
+
+`environments.*` follows: `display`, `control` and owner `command` name an agent's screen; `release` is the agent's (or owner's)
+leave; `stop` is the owner's, for everyone; `status` lists the screens with their holder, the cap and, for a chat,
+whether it is on the computer and its agent's screen. The guest disk marker moved to `desktop-ready-v3`, so an existing
+guest is secured and provisioned again on its next start.

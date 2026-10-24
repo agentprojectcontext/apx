@@ -1,11 +1,12 @@
 import { AgentAvatar, IconButton, Icons, Kbd, Menu } from "@apx/ui";
-import { Fragment } from "react";
+import { Fragment, Suspense } from "react";
 import logoUrl from "../assets/logo.png";
 import { useChannels } from "../data/channels.ts";
 import { blobOf, findProject, projectName, secretary } from "../data/identity.ts";
 import { setPrefs, usePrefs } from "../data/prefs.ts";
 import { useData } from "../data/state.ts";
 import { useT } from "../i18n/index.ts";
+import { UsageButton } from "../lazy.ts";
 import { AttentionTray } from "./AttentionTray.tsx";
 import { useDesktopClass } from "./desktop.ts";
 import { LanguageMenu, useLanguageItems } from "./LanguageMenu.tsx";
@@ -31,6 +32,7 @@ function useCrumbs(): string[] {
   if (view === "app") return [t("nav.apps"), app?.title ?? t("common.app")];
   if (view === "tasks") return [t("nav.tasks")];
   if (view === "resources") return [t("nav.resources")];
+  if (view === "computers") return [t("nav.computers")];
   if (view === "channel") return [t("nav.channels"), channelLabel ?? t("nav.channels")];
   if (view === "engine") {
     const name = engineLabel ?? engineId ?? "";
@@ -101,6 +103,9 @@ export function Topbar() {
         <WhatsNewPill />
         <UpdatePill />
         <RunningIndicator />
+        <Suspense fallback={null}>
+          <UsageButton />
+        </Suspense>
         <AttentionTray />
         <div className="topbar__extras">
           <IconButton
@@ -119,10 +124,11 @@ export function Topbar() {
             onClick={go.toggleMode}
           />
         </div>
-        {/* Narrow windows fold phone, language and theme into one menu so the bar never scrolls sideways. */}
+        {/* Narrow windows fold usage, phone, language and theme into one menu so the bar never scrolls sideways. */}
         <Menu
           align="end"
           items={[
+            { label: t("sysUsage.title"), icon: <Icons.MemoryStick />, onSelect: () => go.usageDialog(true) },
             { label: t("phone.open"), icon: <Icons.Smartphone />, onSelect: () => go.phone(true) },
             {
               label: mode === "dark" ? t("theme.light") : t("theme.dark"),

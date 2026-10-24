@@ -110,6 +110,36 @@ export const SETTINGS = {
   base_org: entry(Organization, { areas: [], roles: [] }),
   /** The profile the super-agent runs and the owner's values for it (none until the owner picks one). */
   profile: entry(ActiveProfile, { id: null, values: {} }),
+  /**
+   * The isolated Linux computer: the owner's memory, CPUs and disk for it (unset: chosen from this host, see
+   * environments/resources.ts) and the idle minutes after which the watchdog stops it (0: never for idleness).
+   */
+  computer: entry(
+    z.object({
+      memory_gib: z.number().int().positive().optional().catch(undefined),
+      cpus: z.number().int().positive().optional().catch(undefined),
+      disk_gib: z.number().int().positive().optional().catch(undefined),
+      idle_minutes: z.number().int().min(0).max(1440).catch(30),
+    }),
+    { idle_minutes: 30 },
+  ),
+  /** The chats whose agent works on the shared computer instead of this Mac (DECISIONS.md#d-152). */
+  computer_chats: entry(z.array(z.string()).catch([]), []),
+  /** Each agent's screen number on the shared computer, given once and kept with its Linux user. */
+  computer_screens: entry(z.record(z.string(), z.number().int().min(1).max(999)).catch({}), {}),
+  /** Who holds which screen now: an agent's working run in one chat. Swept when the run is over. */
+  computer_claims: entry(
+    listOf(
+      z.object({
+        screen: z.number().int().min(1),
+        agent: z.string(),
+        thread: z.string(),
+        run: z.string(),
+        at: z.string(),
+      }),
+    ),
+    [],
+  ),
   /** iMessage on this Mac as tools: off until the owner turns it on. */
   imessage: entry(z.object({ on: z.boolean().catch(false) }), { on: false }),
   skills_off: entry(OffLists, {}),

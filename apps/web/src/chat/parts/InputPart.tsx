@@ -172,9 +172,12 @@ function PendingInput({ part }: { part: InputPartData }) {
       )}
       {part.kind === "confirm" && !part.folders && (
         <div className="inputcard__actions">
-          <Button size="sm" loading={busy} onClick={() => send({ decision: "approve" })}>
-            {t(action ? "input.accept" : part.approval_scopes ? "input.approveOnce" : "input.approve")}
-          </Button>
+          {/* A permission (the computer) has no "only this time": it is this chat or for good. */}
+          {(!part.approval_scopes || part.approval_scopes.includes("once")) && (
+            <Button size="sm" loading={busy} onClick={() => send({ decision: "approve" })}>
+              {t(action ? "input.accept" : part.approval_scopes ? "input.approveOnce" : "input.approve")}
+            </Button>
+          )}
           {part.approval_scopes?.includes("session") && (
             <Button
               size="sm"

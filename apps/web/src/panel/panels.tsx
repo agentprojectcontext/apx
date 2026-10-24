@@ -12,6 +12,7 @@ export type PanelDef = {
 
 /** Side panel types, in the chat header order (SPEC §2.4 panel switcher). */
 export const PANELS: PanelDef[] = [
+  { id: "computer", label: "panel.computer", hint: "panel.computer.hint", icon: (s) => <Icons.Monitor size={s} /> },
   { id: "browser", label: "panel.browser", hint: "panel.browser.hint", icon: (s) => <Icons.Globe size={s} /> },
   { id: "document", label: "panel.document", hint: "panel.document.hint", icon: (s) => <Icons.FileText size={s} /> },
   {

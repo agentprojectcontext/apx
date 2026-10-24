@@ -1,6 +1,9 @@
 import { BROWSER_CAP, BROWSER_HOLD, BROWSER_METHODS, type BrowserMethod } from "@apx/protocol";
 import type { Bus } from "../bus.ts";
 import { TERMINAL } from "../domain/runs.ts";
+import type { Store } from "../domain/store.ts";
+import type { Computer } from "../environments/computer.ts";
+import { conflict, unauthorized, unavailable } from "../errors.ts";
 import type { NodeBroker } from "../nodes/broker.ts";
 import { createBrowserHolds } from "../nodes/browser-holds.ts";
 import type { HeadlessBrowser } from "../nodes/headless-browser.ts";
@@ -22,7 +25,13 @@ function deadlineFor(method: BrowserMethod, params: unknown): number {
  * Every browser.* method is executed by the desktop node when one is connected; with none, by the core's own headless
  * browser (when there is one); the core only routes.
  */
-export function browserHandlers(broker: NodeBroker, headless?: HeadlessBrowser, bus?: Bus) {
+export function browserHandlers(
+  broker: NodeBroker,
+  headless?: HeadlessBrowser,
+  bus?: Bus,
+  vm?: Computer,
+  store?: Store,
+) {
   const local = () => !broker.withCap(BROWSER_CAP) && headless?.available();
   // A tab an agent's turn uses stays open (not closed for being idle) until that turn ends.
   const holds = createBrowserHolds(() => {
@@ -42,6 +51,16 @@ export function browserHandlers(broker: NodeBroker, headless?: HeadlessBrowser, 
   const forward =
     (method: BrowserMethod): Handler<BrowserMethod> =>
     async (params, ctx) => {
+      const thread = ctx.agent?.thread_id;
+      if (thread && store?.settings.read("computer_chats").includes(thread)) {
+        if (!vm?.hasThread(thread)) throw unavailable("VM browser unavailable; host browser refused");
+        const run = ctx.agent && store.runs.get(ctx.agent.run_id);
+        if (run?.state !== "working" || run.thread_id !== thread || run.agent_id !== ctx.agent?.id)
+          throw conflict("VM browser does not belong to this active run");
+        // Checked on every call: the owner may take the permission away while the turn runs.
+        if (!vm.permitted(run.agent_id, thread)) throw unauthorized("this agent may not use the computer");
+        return (await vm.browser(run.id).handle(method, params)) as never;
+      }
       const out = await (local()
         ? headless?.handle(method, params)
         : broker.invoke(BROWSER_CAP, method, params, deadlineFor(method, params)));
@@ -56,6 +75,10 @@ export function browserHandlers(broker: NodeBroker, headless?: HeadlessBrowser, 
   // With no browser at all there are no tabs: an empty list, not an error the panel would log on every load.
   const tabs = handlers["browser.tabs"];
   handlers["browser.tabs"] = (params, ctx) =>
-    broker.withCap(BROWSER_CAP) || headless?.running() ? tabs(params, ctx) : { tabs: [] };
+    (ctx.agent && store?.settings.read("computer_chats").includes(ctx.agent.thread_id)) ||
+    broker.withCap(BROWSER_CAP) ||
+    headless?.running()
+      ? tabs(params, ctx)
+      : { tabs: [] };
   return handlers;
 }

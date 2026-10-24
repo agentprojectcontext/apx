@@ -9,6 +9,7 @@ import {
   AppScreen,
   ChannelScreen,
   CommandPalette,
+  ComputersScreen,
   ConfigModal,
   CornerCards,
   EngineSessions,
@@ -20,6 +21,7 @@ import {
   TaskPeek,
   TasksScreen,
   ThreadDialogs,
+  UsageDialog,
   WidgetChatHost,
 } from "../lazy.ts";
 import { useAnyLive } from "../surfaces/liveAny.ts";
@@ -50,6 +52,7 @@ export function Shell() {
   const palette = useNav((s) => s.palette);
   const threadDialog = useThreadDialog() != null;
   const phone = useNav((s) => s.phone);
+  const usageDialog = useNav((s) => s.usageDialog);
   // A task opened from a chat floats over it; the Tasks screen shows its own beside the list.
   const peek = useNav((s) => s.peekTaskId != null && s.view !== "tasks");
   const widgetChat = useSlice(widgetChatOpen, (s) => s.threadId != null);
@@ -76,6 +79,8 @@ export function Shell() {
                 <TasksScreen />
               ) : view === "resources" ? (
                 <ResourcesScreen />
+              ) : view === "computers" ? (
+                <ComputersScreen />
               ) : view === "channel" ? (
                 <ChannelScreen />
               ) : view === "engine" ? (
@@ -108,6 +113,11 @@ export function Shell() {
       {phone && (
         <Suspense fallback={null}>
           <PhoneDialog />
+        </Suspense>
+      )}
+      {usageDialog && (
+        <Suspense fallback={null}>
+          <UsageDialog />
         </Suspense>
       )}
       {widgetChat && (

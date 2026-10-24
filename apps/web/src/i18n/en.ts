@@ -1,4 +1,5 @@
 import { noticeEn } from "@apx/protocol/notices";
+import type { ComputerKey } from "./computer-en.ts";
 import { enChannels } from "./en-channels.ts";
 import { enChat } from "./en-chat.ts";
 import { enEngines } from "./en-engines.ts";
@@ -7,11 +8,21 @@ import { enHelper } from "./en-helper.ts";
 import { enOffice } from "./en-office.ts";
 import { enResources } from "./en-resources.ts";
 import { enSetup } from "./en-setup.ts";
+import { enSysUsage } from "./en-sysusage.ts";
 import { enTeam } from "./en-team.ts";
 import { enTelemetry } from "./en-telemetry.ts";
 
 // UI strings, English: the source of truth. Every key lives here; `{name}` placeholders are filled by t().
 export const en = {
+  "panel.computer": "Computer",
+  "panel.computer.hint": "See the agent's Linux computer",
+  "notice.computer.interrupted": "Interrupted: you took control of Computer.",
+  "notice.computer.unavailable": "Computer unavailable. Start it and return control to the agent, then retry.",
+  "notice.computer.stopped.memory":
+    "Computer was shut down: this Mac had only {free} GiB of memory free. Its disk is kept; start it again when there is room.",
+  "notice.computer.stopped.idle":
+    "Computer was shut down after {minutes} minutes without use, to free its memory. Its disk is kept.",
+  "computer.screen": "Live VM desktop",
   "desktopInstall.title": "Use APX as a desktop app",
   "desktopInstall.idle": "Install on this computer running APX. Your chats, agents and settings stay ready to use.",
   "desktopInstall.install": "Install and open",
@@ -38,6 +49,7 @@ export const en = {
   ...enResources,
   ...enEngines,
   ...enTelemetry,
+  ...enSysUsage,
   // Shared words
   "common.agent": "Agent",
   "common.app": "App",
@@ -324,6 +336,7 @@ export const en = {
   "nav.baseProject": "Base project",
   "nav.externalSessions": "External sessions",
   "nav.apps": "Apps",
+  "nav.computers": "Computers",
   "nav.resources": "Resources",
   "account.you": "You",
   "account.menuOf": "Account: {name}",
@@ -1408,7 +1421,6 @@ export const en = {
   "quick.backHome": "Back to Home",
   "quick.openApp": "Open in the app",
   "config.desktop": "Desktop",
-  "desktop.memory": "RAM usage",
   "desktop.memoryHint":
     "APX is using {total}. Above 4 GB it tells you which process uses the most. Idle tabs close after 30 minutes.",
   "desktop.memory.core": "Core (agents, channels, data)",
@@ -1822,4 +1834,5 @@ export const en = {
   "rewind.confirm": "Remove and send",
 } as const;
 
-export type MessageKey = keyof typeof en;
+/** Every key the panel may show: these, and those of the packs loaded with their screens (messages.ts PACKS). */
+export type MessageKey = keyof typeof en | ComputerKey;

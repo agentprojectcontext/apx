@@ -17,6 +17,8 @@ export type NewsFacts = {
   channels: number;
   /** Catalog integrations the owner connected (GitHub, Notion…). */
   integrations: number;
+  /** This core can run the isolated Linux computer (a Mac with Apple Silicon) and the owner has a project to try there. */
+  computer: boolean;
 };
 
 export type NewsAction = {
@@ -256,6 +258,27 @@ export const NEWS: readonly NewsEntry[] = [
       },
     ],
   },
+  {
+    id: "linux-computer",
+    since: "2.11.0",
+    title: "A Linux computer your agents share",
+    applies: (f) => f.computer,
+    text:
+      "Agents can now work on a Linux computer they share, a VM apart from the owner's Mac with no way into the Mac " +
+      "or the local network. Each agent gets its own user, files and screen with a desktop and browser. It is off " +
+      "for every agent until the owner allows one, in the agent's settings or from the card the agent shows when it " +
+      "asks. An allowed agent starts it itself; it does not start without enough free memory, and APX shuts it down " +
+      "when the Mac runs short or nobody uses it, keeping its files. The new Computers view shows every agent's " +
+      "screen at once; memory, CPUs and disk are set in the Computer panel.",
+    actions: [
+      {
+        label: { en: "What could you do there?", es: "¿Qué harías ahí?" },
+        prompt:
+          "Tell me in a few lines what you could do for me on an isolated Linux computer that you cannot do here, " +
+          "and how much memory it would take from this Mac. Do not start it unless I say so.",
+      },
+    ],
+  },
 ];
 
 /** The catalog integrations among the owner's global MCP servers. */
@@ -283,6 +306,7 @@ export const newsFacts = (store: Store): NewsFacts => ({
   contacts: store.persons.list().some((p) => p.role !== "owner" && p.role !== "blocked" && p.addresses.length > 0),
   channels: store.settings.read("channels").length,
   integrations: connectedIntegrations(store),
+  computer: process.platform === "darwin" && process.arch === "arm64" && store.projects.list().length > 0,
 });
 
 /** The action a channel button stands for. */

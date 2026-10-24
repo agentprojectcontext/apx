@@ -1,14 +1,27 @@
 import fs from "node:fs";
 import react from "@vitejs/plugin-react";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
+import { COVERAGE_CHUNKS_FILE } from "../../scripts/coverage-maps.ts";
 import { buildVersion } from "../../scripts/version.ts";
 
 const core = process.env.APX_URL ?? "http://127.0.0.1:7440";
 
+const coverageProvenance: Plugin = {
+  name: "coverage-chunk-provenance",
+  apply: "build",
+  generateBundle(_options, bundle) {
+    if (process.env.APX_TEST_COVERAGE !== "1") return;
+    const chunks = Object.fromEntries(
+      Object.values(bundle).flatMap((entry) => (entry.type === "chunk" ? [[entry.fileName, entry.moduleIds]] : [])),
+    );
+    this.emitFile({ type: "asset", fileName: COVERAGE_CHUNKS_FILE, source: JSON.stringify(chunks) });
+  },
+};
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, import.meta.dirname, "VITE_");
   return {
-    plugins: [react()],
+    plugins: [react(), coverageProvenance],
     define: {
       // The build's own version when pnpm package names it (APX_VERSION), else the last tag and the commits past it.
       "import.meta.env.VITE_APX_VERSION": JSON.stringify(
@@ -32,7 +45,8 @@ export default defineConfig(({ mode }) => {
         output: {
           codeSplitting: {
             groups: [
-              { name: "app", tags: ["$initial"] },
+              // The panel updater identifies its entry through the shared index-*.js contract.
+              { name: "index", tags: ["$initial"] },
               { name: "data", test: /apps\/web\/src\/data\//, minShareCount: 2 },
             ],
           },

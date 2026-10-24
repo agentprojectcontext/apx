@@ -17,6 +17,7 @@ import { agentToolCatalog, getAgent, setGrant, updateAgent } from "../../data/te
 import { type MessageKey, useLanguage, useT } from "../../i18n/index.ts";
 import { LAYOUT } from "../../shell/layout.ts";
 import { GrantsPage, SkillsTab, ToolsTab } from "./AgentAccess.tsx";
+import { ComputerPage } from "./editor/ComputerPage.tsx";
 import { type Draft, type GrantChange, grantId, type PageId, sameValue } from "./editor/draft.ts";
 import { IdentityPage, PromptPage, TeamPage } from "./editor/IdentityPages.tsx";
 import { useModifierHeld } from "./editor/keys.ts";
@@ -50,6 +51,7 @@ const NAV: Array<{ label: MessageKey; items: Array<{ id: PageId; icon: ReactNode
       { id: "rules", icon: <Icons.ListChecks /> },
       { id: "granted", icon: <Icons.Check /> },
       { id: "browser", icon: <Icons.Globe /> },
+      { id: "computer", icon: <Icons.AppWindow /> },
     ],
   },
 ];
@@ -287,6 +289,8 @@ export function AgentEditor({
         );
       case "browser":
         return <BrowserPage {...common} projectAutonomy={projectAutonomy} onRules={() => setPage("rules")} />;
+      case "computer":
+        return <ComputerPage agent={agent} grants={grants} onChanged={loadGrants} />;
     }
   };
 

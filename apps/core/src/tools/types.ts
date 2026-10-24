@@ -73,6 +73,11 @@ export type ToolContext = {
    * continue without it, the question stays open after the turn stops waiting and its answer wakes the agent.
    */
   askOwner(prompt: string, options?: string[], canContinue?: boolean, multi?: boolean): Promise<InputRecord>;
+  /**
+   * Asks the owner for a grant on a card, whatever the agent's mode (a power, not a call: total does not skip it), and
+   * waits; undefined once the owner said yes, else the text to answer with. A grant already given answers at once.
+   */
+  requestGrant(prompt: string, approval: ApprovalTarget): Promise<string | undefined>;
   /** Puts one concrete action to the owner as a card to accept or decline, and waits as askOwner does. */
   proposeAction(action: string, canContinue?: boolean): Promise<InputRecord>;
   /** Takes back this agent's own open question: it ends `withdrawn` and the owner is not told anything new. */

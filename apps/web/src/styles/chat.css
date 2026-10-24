@@ -749,3 +749,14 @@
   color: var(--apx-fg-muted);
   text-decoration: line-through;
 }
+
+.browserpart__compact {
+  max-width: 100%;
+}
+
+.browserpart__compact .apx-btn__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

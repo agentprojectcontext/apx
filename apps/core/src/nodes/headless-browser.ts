@@ -66,9 +66,17 @@ class Pipe {
   #buf = "";
   #failure: string | undefined;
   readonly #out: Writable;
+  readonly #beforeSend?: (method: string) => void;
   readonly #onFailure: (why: string) => void;
-  constructor(out: Writable, input: Readable, onEvent: (m: Message) => void, onFailure: (why: string) => void) {
+  constructor(
+    out: Writable,
+    input: Readable,
+    onEvent: (m: Message) => void,
+    onFailure: (why: string) => void,
+    beforeSend?: (method: string) => void,
+  ) {
     this.#out = out;
+    this.#beforeSend = beforeSend;
     this.#onFailure = onFailure;
     input.on("error", (error: Error) => this.#fail("input pipe", error));
     out.on("error", (error: Error) => this.#fail("output pipe", error));
@@ -101,6 +109,7 @@ class Pipe {
     return new Promise<T>((resolve, reject) => {
       this.#pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
       try {
+        this.#beforeSend?.(method);
         this.#out.write(`${JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })}\0`, (error) => {
           if (error) this.#fail("output pipe", error);
         });
@@ -143,6 +152,13 @@ export function createHeadlessBrowser(deps: {
   /** APX's own ports: a tab never loads APX itself. */
   blockedPorts: () => ReadonlySet<string>;
   onChange: (tabs: TabInfo[]) => void;
+  /** A visible guest browser connected over private SSH pipes, without a host Chrome fallback. */
+  remote?: {
+    launch(): { child: ChildProcess; input: Readable; output: Writable };
+    selectAllModifiers: number;
+    check?: (method: string) => void;
+    keepAlive?: () => boolean;
+  };
 }) {
   // Looked for once: asked on every turn (which tools to offer), and a browser installed later needs a restart anyway.
   const found = findChrome(deps.chrome);
@@ -205,6 +221,10 @@ export function createHeadlessBrowser(deps: {
 
   async function start(): Promise<Pipe> {
     const chrome = bin();
+    if (deps.remote) {
+      const { child, input, output } = deps.remote.launch();
+      return connect(child, input, output);
+    }
     if (!chrome) throw new ApxError({ code: "unavailable", message: "no Chrome, Chromium or Edge on this machine" });
     const profile = path.join(deps.dir, "shared");
     fs.mkdirSync(profile, { recursive: true });
@@ -226,16 +246,26 @@ export function createHeadlessBrowser(deps: {
       ],
       { stdio: ["ignore", "ignore", "pipe", "pipe", "pipe"] },
     );
+    return connect(child, child.stdio[4] as Readable, child.stdio[3] as Writable);
+  }
+
+  async function connect(child: ChildProcess, input: Readable, output: Writable): Promise<Pipe> {
     proc = child;
-    const p = new Pipe(child.stdio[3] as Writable, child.stdio[4] as Readable, onEvent, () => {
-      if (proc !== child) return;
-      proc = undefined;
-      pipe = undefined;
-      tabs.clear();
-      contexts.clear();
-      child.kill();
-      changed();
-    });
+    const p = new Pipe(
+      output,
+      input,
+      onEvent,
+      () => {
+        if (proc !== child) return;
+        proc = undefined;
+        pipe = undefined;
+        tabs.clear();
+        contexts.clear();
+        child.kill();
+        changed();
+      },
+      deps.remote?.check,
+    );
     child.on("exit", () => {
       if (proc !== child) return;
       p.failAll("the headless browser stopped");
@@ -245,15 +275,26 @@ export function createHeadlessBrowser(deps: {
       contexts.clear();
       changed();
     });
-    await Promise.race([
-      p.send("Browser.getVersion"),
-      new Promise((_, reject) =>
-        setTimeout(
-          () => reject(new ApxError({ code: "unavailable", message: "Chrome did not start" })),
-          START_TIMEOUT_MS,
-        ),
-      ),
-    ]);
+    child.on("error", (error) => p.failAll(`browser transport failed: ${error.message}`));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        p.send("Browser.getVersion"),
+        new Promise((_, reject) => {
+          timer = setTimeout(
+            () => reject(new ApxError({ code: "unavailable", message: "Chrome did not start" })),
+            START_TIMEOUT_MS,
+          );
+        }),
+      ]);
+    } catch (error) {
+      p.failAll("browser transport did not start");
+      child.kill();
+      if (proc === child) proc = undefined;
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
     pipe = p;
     return p;
   }
@@ -276,6 +317,7 @@ export function createHeadlessBrowser(deps: {
   }
 
   const sweep = setInterval(() => {
+    if (deps.remote?.keepAlive?.()) return;
     const now = Date.now();
     for (const t of [...tabs.values()])
       if (now - t.used > TAB_IDLE_MS && !holds.held(t.id)) void close(t.id).catch(() => {});
@@ -349,11 +391,13 @@ export function createHeadlessBrowser(deps: {
     const { userAgent } = await p.send<{ userAgent: string }>("Browser.getVersion");
     await send("Network.setUserAgentOverride", { userAgent: userAgent.replace("HeadlessChrome", "Chrome") });
     const t: Tab = {
-      id: `h${++seq}`,
+      id: `${deps.remote ? "vm-" : "h"}${++seq}`,
       target: targetId,
       session: sessionId,
       profile,
-      page: new CdpPage(send, { selectAllModifiers: process.platform === "darwin" ? 4 : 2 }),
+      page: new CdpPage(send, {
+        selectAllModifiers: deps.remote?.selectAllModifiers ?? (process.platform === "darwin" ? 4 : 2),
+      }),
       control,
       url: "about:blank",
       title: "",
@@ -361,6 +405,7 @@ export function createHeadlessBrowser(deps: {
     };
     tabs.set(t.id, t);
     await load(t, url);
+    if (deps.remote) await p.send("Target.activateTarget", { targetId });
     return t;
   }
 
@@ -395,7 +440,7 @@ export function createHeadlessBrowser(deps: {
 
   return {
     /** Whether a browser could start here (nothing is started to find out). */
-    available: () => Boolean(bin()),
+    available: () => Boolean(deps.remote || bin()),
     running: () => Boolean(proc),
     list: (): TabInfo[] => [...tabs.values()].map(info),
     stop,

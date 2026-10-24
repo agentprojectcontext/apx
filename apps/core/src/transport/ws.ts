@@ -40,6 +40,7 @@ export function attachWs(
     bus: Bus;
     gate: Gate;
     deviceOf?: (token: string) => { id: string; name: string } | undefined;
+    streamPath?: string | undefined;
     clientOf?: ClientLookup;
   },
 ) {
@@ -48,8 +49,7 @@ export function attachWs(
   const clientFor = (key: string | null) => (key?.startsWith(CLIENT_TOKEN) ? deps.clientOf?.(key) : undefined);
   const unknownClient = (key: string | null) => Boolean(key?.startsWith(CLIENT_TOKEN)) && !clientFor(key);
   const wss = new WebSocketServer({
-    server,
-    path: "/ws",
+    noServer: true,
     maxPayload: MAX_PAYLOAD,
     verifyClient: ({ req }, done) => {
       const key = new URL(req.url ?? "/", "http://core").searchParams.get("token");
@@ -59,6 +59,14 @@ export function attachWs(
       if (why) log.warn({ origin: req.headers.origin, why }, "socket refused");
       done(!why, 403, why);
     },
+  });
+  server.on("upgrade", (req, socket, head) => {
+    const pathname = new URL(req.url ?? "/", "http://core").pathname;
+    if (pathname !== "/ws") {
+      if (pathname !== deps.streamPath) socket.destroy();
+      return;
+    }
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req));
   });
   const operators = new Map<WebSocket, (frame: string) => void>();
   let seq = 0;

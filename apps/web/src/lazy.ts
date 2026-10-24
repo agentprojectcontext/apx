@@ -50,6 +50,13 @@ export const WidgetChatHost = lazy(() =>
 );
 export const PhoneDialog = lazy(() => import("./shell/PhoneDialog.tsx").then((m) => ({ default: m.PhoneDialog })));
 export const TasksScreen = lazy(() => import("./tasks/TasksScreen.tsx").then((m) => ({ default: m.TasksScreen })));
+export const ComputersScreen = lazy(() =>
+  import("./computers/ComputersScreen.tsx").then((m) => ({ default: m.ComputersScreen })),
+);
+export const UsageDialog = lazy(() => import("./shell/UsagePanels.tsx").then((m) => ({ default: m.UsageDialog })));
+export const UsageSummary = lazy(() => import("./shell/UsagePanels.tsx").then((m) => ({ default: m.UsageSummary })));
+// The memory gauge shows a number only after its first read: loading it after the first screen moves nothing shown.
+export const UsageButton = lazy(() => import("./shell/UsageButton.tsx").then((m) => ({ default: m.UsageButton })));
 
 // The sidebar's extras: not needed for the first paint.
 export const AppsDock = lazy(() => import("./shell/AppsDock.tsx").then((m) => ({ default: m.AppsDock })));
@@ -86,6 +93,9 @@ export const WidgetPanel = lazy(() => import("./panel/WidgetPanel.tsx").then((m)
 export const AgentPanel = lazy(() => import("./panel/AgentPanel.tsx").then((m) => ({ default: m.AgentPanel })));
 export const DocumentPanel = lazy(() =>
   import("./panel/DocumentPanel.tsx").then((m) => ({ default: m.DocumentPanel })),
+);
+export const ComputerPanel = lazy(() =>
+  import("./panel/ComputerPanel.tsx").then((m) => ({ default: m.ComputerPanel })),
 );
 
 // xterm.js loads with the first terminal opened, not with the panel.

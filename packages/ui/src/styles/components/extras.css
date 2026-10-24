@@ -259,3 +259,66 @@
 .apx-engine__tile {
   fill: var(--apx-fill);
 }
+
+/* ── Meter ─────────────────────────────────────────────────────────────────── */
+.apx-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.apx-meter__track {
+  display: flex;
+  height: 8px;
+  border-radius: var(--apx-radius-pill);
+  background: var(--apx-fill);
+  overflow: hidden;
+}
+.apx-meter--sm .apx-meter__track {
+  height: 4px;
+}
+.apx-meter__fill {
+  height: 100%;
+  flex: none;
+  transition: width 0.3s ease;
+}
+.apx-meter__fill--brand {
+  background: var(--apx-brand);
+}
+.apx-meter__fill--violet {
+  background: var(--apx-violet);
+}
+.apx-meter__fill--info {
+  background: var(--apx-info);
+}
+.apx-meter__fill--warning {
+  background: var(--apx-warning);
+}
+.apx-meter__fill--danger {
+  background: var(--apx-danger);
+}
+.apx-meter__fill--muted {
+  background: var(--apx-fg-subtle);
+}
+.apx-meter__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--apx-fg-muted);
+}
+.apx-meter__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.apx-meter__swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .apx-meter__fill {
+    transition: none;
+  }
+}

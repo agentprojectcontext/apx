@@ -20,6 +20,8 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
   const t = useT();
   const view = useNav((s) => s.view);
   const threads = useData((s) => s.threads);
+  const computers = useData((s) => s.computers.shown);
+  const screensInUse = useData((s) => s.computers.inUse);
   useEffect(() => {
     void loadChannels();
   }, []);
@@ -80,6 +82,16 @@ export function Sidebar({ rail, width }: { rail: boolean; width: number }) {
           active={view === "resources"}
           onClick={() => go.view("resources")}
         />
+        {computers && (
+          <NavItem
+            collapsed={rail}
+            icon={<Icons.Monitor />}
+            label={t("nav.computers")}
+            count={screensInUse || undefined}
+            active={view === "computers"}
+            onClick={() => go.view("computers")}
+          />
+        )}
       </div>
       <div className="sidebar__scroll">
         <ChannelsNav rail={rail} />

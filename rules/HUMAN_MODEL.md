@@ -244,6 +244,34 @@ esbuild script (consumed as `dist/`). Checks: `pnpm preflight`. Details: [`TESTI
 
 ## 9. Fragile seams
 
+The optional computer (`apps/core/src/environments`) is one Linux VM shared by the agents, inert at core startup and off
+for every agent: using it is a per-agent grant (`apx:computer`) the owner gives in the agent's settings or on the card
+the agent's `computer` tool raises ([D-151](DECISIONS.md#d-151)). Each agent works as its own locked Linux user on its own
+screen (user `apx-a<n>`, display `:100+n`, a private VNC socket and X cookie, its own cgroup slice, and loopback
+listeners no other agent can connect to); the owner has no screen of their own and
+takes control of an agent's when needed ([D-152](DECISIONS.md#d-152)). The Computer panel shows the chat agent's screen;
+the Computers view (`apps/web/src/computers`) shows every screen in use as a wall. The core keeps the ledger of which working run holds which screen (`screens.ts`,
+in settings, swept of finished runs), caps the screens up at once by the VM's memory and refuses a turn when none is
+free. The owner's `environments.enable`, or an allowed agent's `environments.start` from its own run, puts a chat on the
+computer and boots the VM if needed: verified private Lima runtime if missing → pinned Debian guest → root-owned
+firewall for the screen users → desktop helpers, templated screen units and APX appearance. Memory, CPUs and disk come
+from `environments.configure`, held to the host and applied on the next start with `limactl edit`; a start is refused
+while free host memory is below the VM's memory plus 2 GiB. `environments.release` takes a chat back to the Mac;
+`environments.stop` (owner) shuts the VM down for everyone, cancelling the runs that hold screens. A core watchdog
+shuts it down below 1 GiB of free host memory, or once nothing holds or uses a screen for the owner's idle minutes,
+keeps its disk and tells the owner. The regular installer includes the controller and assets without downloading or
+booting Linux. The isolated lab (`prototypes/vm-desktop`, `pnpm vm:prototype`) uses the same lifecycle with its own Lima
+and core homes through `CoreOptions.computer`. A chat on the computer offers only its guest shell, guest browser and
+`computer` tools; external harnesses, routines and MCP tools are refused, and it never falls back to host execution. A
+private SSH/CDP pipe per screen reuses the core browser implementation for that screen's visible Chromium. Guest web
+access goes through a host proxy over a private SSH reverse forward that allows public HTTP(S) only, with the screen users'
+direct egress dropped by nftables ([`prototypes/vm-desktop/VERIFICATION.md`](../prototypes/vm-desktop/VERIFICATION.md)).
+Control is a lease per screen: the owner taking an agent's screen cancels the run holding it, and agent work there is
+refused until it is handed back. `environments.*` uses the normal registry and router; `/vm-display` carries only RFB
+bytes of one screen after a human requests a short-lived single-use ticket for it. Light/dark desktops, terminals and the
+bundled wallpaper follow APX. The backend supports macOS Apple Silicon only. Runtime state and VM disks live outside the
+checkout.
+
 - **Node type stripping** only works for erasable syntax and for files **not** under `node_modules` — workspace
   packages resolve through symlinks to their real path, which is why `@apx/protocol` can ship `.ts`.
 - **`packages/ui` ↔ Claude Design**: `dist/` is what design-sync reads; formatting or API changes need a re-sync.

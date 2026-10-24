@@ -1,6 +1,7 @@
 // Every write the panel makes. Components call these; they never call the client directly.
 import type { ApprovalScope, Message, Part, SurfaceState, Thread } from "@apx/protocol";
-import { secureRequestKey } from "@apx/protocol/client";
+import { ApxError, secureRequestKey } from "@apx/protocol/client";
+import { computersOf } from "../computers/summary.ts";
 import { t } from "../i18n/index.ts";
 import { client } from "./client.ts";
 import { type Attached, setThreadModel } from "./composer.ts";
@@ -18,12 +19,20 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Agents, projects, threads, surfaces and browser tabs in one round. Throws if the core is unreachable. */
 export async function bootstrap(): Promise<void> {
-  const [agents, projects, threads, surfaces] = await Promise.all([
+  const [agents, projects, threads, surfaces, computer] = await Promise.all([
     client.call("agents.list", {}),
     client.call("projects.list", { include_unregistered: true }),
     // Archived chats too: the Inbox keeps them apart, under Archived. And a few of each chat's delegated chats.
     client.call("threads.list", { include_archived: true, delegated: DELEGATED_SHOWN }),
     client.call("surfaces.list", {}),
+    client
+      .call("environments.status", {})
+      .then((status) => ({ chats: status.enabled ? (status.chats ?? []) : [], computers: computersOf(status) }))
+      .catch((error: unknown) => {
+        if (error instanceof ApxError && error.code === "unknown_method")
+          return { chats: [], computers: { shown: false, inUse: 0 } };
+        return { chats: data.get().vmThreads, computers: data.get().computers };
+      }),
   ]);
   const prev = data.get().threads;
   // Keep sub-threads opened in this session: threads.list leaves them out.
@@ -40,6 +49,8 @@ export async function bootstrap(): Promise<void> {
     threads: { ...keep, ...Object.fromEntries(threads.threads.map((t) => [t.id, t])) },
     delegated: threads.delegated ?? {},
     surfaces: Object.fromEntries(surfaces.surfaces.map((s) => [s.id, s])),
+    vmThreads: computer.chats,
+    computers: computer.computers,
     ready: true,
   });
   for (const id of opened) void loadProjectThreads(id);

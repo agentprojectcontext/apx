@@ -113,10 +113,18 @@ export async function until<T>(fn: () => Promise<T | undefined | false>, ms = 10
 // Noise that is not the app's: the favicon, and a fetch the browser aborts when a test navigates away.
 const IGNORED = [/favicon/i, /net::ERR_ABORTED/];
 
-export const test = base.extend<{ page: Page; cornerCards: boolean }>({
+export const test = base.extend<{ page: Page; cornerCards: boolean; desktopInstallNotice: boolean }>({
   // The corner cards cover what sits under them, so they start closed unless a spec is about them.
   cornerCards: [false, { option: true }],
-  page: async ({ page, cornerCards }, use) => {
+  desktopInstallNotice: [false, { option: true }],
+  page: async ({ page, cornerCards, desktopInstallNotice }, use) => {
+    if (!desktopInstallNotice) {
+      await page.route("**/rpc/desktop.install_status", (route) =>
+        route.fulfill({
+          json: { ok: true, result: { available: true, installed: true, phase: "idle", received: 0 } },
+        }),
+      );
+    }
     const finishCoverage = await startPageCoverage(page);
     if (!cornerCards)
       await page.addInitScript(() => {

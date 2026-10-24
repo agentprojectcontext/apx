@@ -15,6 +15,7 @@ import { createHooks } from "./engine/hooks.ts";
 import type { Permissions } from "./engine/permissions.ts";
 import { applyProfile, listProfiles, type ProfileRoot } from "./engine/profiles.ts";
 import type { Upkeep } from "./engine/upkeep.ts";
+import type { Computer } from "./environments/computer.ts";
 import { errorMessage } from "./errors.ts";
 import { createExtensions } from "./extensions/extensions.ts";
 import { createPlugins } from "./extensions/plugins.ts";
@@ -40,6 +41,7 @@ import { computerHandlers } from "./rpc/computer.ts";
 import { desktopInstallHandlers } from "./rpc/desktop-install.ts";
 import { deviceHandlers } from "./rpc/devices.ts";
 import { embeddingHandlers } from "./rpc/embeddings.ts";
+import { environmentHandlers } from "./rpc/environments.ts";
 import { extensionHandlers } from "./rpc/extensions.ts";
 import { fileHandlers } from "./rpc/files.ts";
 import { gitHandlers } from "./rpc/git.ts";
@@ -60,7 +62,7 @@ import { runHandlers } from "./rpc/runs.ts";
 import { sessionHandlers } from "./rpc/sessions.ts";
 import { setupHandlers } from "./rpc/setup.ts";
 import { artifactHandlers } from "./rpc/surfaces.ts";
-import { newsHandlers, systemHandlers, telemetryHandlers, updateHandlers } from "./rpc/system.ts";
+import { newsHandlers, systemHandlers, telemetryHandlers, updateHandlers, usageHandlers } from "./rpc/system.ts";
 import { taskHandlers } from "./rpc/tasks.ts";
 import { teamHandlers } from "./rpc/team.ts";
 import { terminalHandlers } from "./rpc/terminal.ts";
@@ -96,9 +98,11 @@ import { surfaceTools } from "./tools/surfaces.ts";
 import { taskTools } from "./tools/tasks.ts";
 import type { Tool } from "./tools/types.ts";
 import { videoTools } from "./tools/video.ts";
+import { vmTools } from "./tools/vm.ts";
 import { webTools } from "./tools/web.ts";
 import { type Gate, originsFor } from "./transport/guard.ts";
 import { httpHandler } from "./transport/http.ts";
+import { attachVmDisplay } from "./transport/vm-display.ts";
 import { attachWs } from "./transport/ws.ts";
 import type { Updates } from "./updates.ts";
 
@@ -146,16 +150,18 @@ export function builtinTools(
   skillApps?: RuntimeHomes,
   /** Where agent profiles and agent templates are found, for the super-agent's settings. */
   roots?: Parameters<typeof settingsTools>[1],
+  vm?: Computer,
 ): Tool[] {
   const tools = [
     ...agentTools(store),
     ...agentSetTools(store),
     ...chatTools(store),
-    ...browserTools(store, home),
+    ...browserTools(store, home, vm),
     ...surfaceTools(store, home),
     ...ownerTools(store),
     ...connectionTools(),
-    ...shellTools(store, home, port),
+    ...shellTools(store, home, port, vm),
+    ...vmTools(vm),
     ...fileTools(store, home),
     ...messageTools(store, home),
     ...directoryTools(store),
@@ -238,15 +244,19 @@ type HandlerDeps = {
   integrationFetch?: typeof fetch | undefined;
   /** The owner's shells in a chat's folder. */
   terminals: Parameters<typeof terminalHandlers>[1];
+  /** What the computer has and what APX takes of it. */
+  usage: Parameters<typeof usageHandlers>[0];
 };
 
 /** The handler table the router serves: one entry per protocol method. */
-export function coreHandlers(d: HandlerDeps) {
+export function coreHandlers(d: HandlerDeps & { vm?: Computer | undefined }) {
   return {
+    ...environmentHandlers(d.store, d.vm, d.engine.cancel),
     ...desktopInstallHandlers(d.desktopInstaller),
     ...updateHandlers(d.updates),
     ...telemetryHandlers(d.telemetry),
     ...newsHandlers(d.news),
+    ...usageHandlers(d.usage),
     ...systemHandlers(d.identity, d.app.home, d.panel, () => ({
       protocol: { status: "ok" },
       browser: d.broker.withCap(BROWSER_CAP)
@@ -256,9 +266,9 @@ export function coreHandlers(d: HandlerDeps) {
           : { status: "off", detail: "no desktop node connected" },
       agent: { status: "ok", detail: d.llmLabel() },
     })),
-    ...browserHandlers(d.broker, d.headless, d.bus),
+    ...browserHandlers(d.broker, d.headless, d.bus, d.vm, d.store),
     ...threadHandlers(d.store, d.engine, d.upkeep),
-    ...threadAdminHandlers(d.store, d.app.home),
+    ...threadAdminHandlers(d.store, d.app.home, d.vm?.beforeDelete),
     ...runHandlers(d.store, d.engine),
     ...jobHandlers(d.store, d.engine),
     ...memoryHandlers(d.store, d.memory, d.memoryMaintenance),
@@ -266,12 +276,12 @@ export function coreHandlers(d: HandlerDeps) {
     ...mediaHandlers(d.services),
     ...transcriptionHandlers(d.services, d.localModels),
     ...embeddingHandlers(d.localEmbeds, () => d.memory.engine()),
-    ...taskHandlers(d.store, d.engine, d.app.home),
+    ...taskHandlers(d.store, d.engine, d.app.home, d.vm?.beforeDelete),
     ...routineHandlers(d.store, d.scheduler, d.profileRoots),
     ...noticeHandlers(d.store, d.nudges),
     ...notificationHandlers(d.store),
     ...clientHandlers(d.store),
-    ...deviceHandlers(d.store, { addresses: d.addresses }),
+    ...deviceHandlers(d.store, { addresses: d.addresses, onRevoke: (id) => d.vm?.revokeDevice(id) }),
     ...accessHandlers(d.access),
     ...webhookHandlers(d.webhooks),
     ...phoneHandlers(d.broker, d.store, d.app.home),
@@ -411,7 +421,15 @@ export const KEEP_ALIVE_MS = 65_000;
 /** HTTP + WebSocket transports over one dispatcher; resolves once the port is bound. */
 export async function listen(
   config: CoreConfig,
-  d: { dispatch: Dispatch; store: Store; log: Log; identity: Identity; broker: NodeBroker; bus: Bus },
+  d: {
+    dispatch: Dispatch;
+    store: Store;
+    log: Log;
+    identity: Identity;
+    broker: NodeBroker;
+    bus: Bus;
+    vm?: Computer | undefined;
+  },
 ) {
   const allowedOrigins = originsFor(`http://${config.host}:${config.port || 7440}`, config.allowedOrigins);
   const gate: Gate = {
@@ -440,7 +458,9 @@ export async function listen(
   // connection the core is closing; Node's 5 s default reset calls after a stall. See HISTORY.md#loopback-keep-alive.
   server.keepAliveTimeout = KEEP_ALIVE_MS;
   server.headersTimeout = KEEP_ALIVE_MS + 1000;
+  const display = d.vm ? attachVmDisplay(server, d.vm, gate) : undefined;
   const wss = attachWs(server, {
+    streamPath: d.vm ? "/vm-display" : undefined,
     dispatch: d.dispatch,
     identity: d.identity,
     log: d.log,
@@ -455,12 +475,14 @@ export async function listen(
     server.listen(config.port, config.host, resolve);
   });
   const { port } = server.address() as AddressInfo;
+  for (const origin of originsFor(`http://${config.host}:${port}`, config.allowedOrigins)) allowedOrigins.add(origin);
   // Known once bound: a test or an APX_PORT=0 core only learns its port here.
   for (const o of exposedOrigins(config, port)) allowedOrigins.add(o);
   return {
     port,
     url: `http://${config.host}:${port}`,
     async close() {
+      display?.close();
       for (const client of wss.clients) client.terminate();
       await new Promise<void>((resolve) => wss.close(() => resolve()));
       server.closeAllConnections();

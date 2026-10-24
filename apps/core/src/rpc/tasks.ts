@@ -41,7 +41,12 @@ import type { CallContext } from "./context.ts";
 import type { Handlers } from "./router.ts";
 import { removeThreadFiles } from "./thread-admin.ts";
 
-export function taskHandlers(store: Store, engine: Engine, home: string) {
+export function taskHandlers(
+  store: Store,
+  engine: Engine,
+  home: string,
+  beforeDelete?: (ids: string[]) => Promise<void>,
+) {
   const agentScope = (ctx: CallContext) => boardScope(store, ctx.agent);
   const by = (ctx: CallContext) => ctx.agent?.id ?? "owner";
   /** Who is asking for work: the owner, or an agent one hop further than the turn it calls from. */
@@ -318,11 +323,12 @@ export function taskHandlers(store: Store, engine: Engine, home: string) {
       ) as Task;
       return reported(closed, ctx);
     },
-    "tasks.delete": ({ task }, ctx) => {
+    "tasks.delete": async ({ task }, ctx) => {
       const t = visible(task, ctx);
       const ids = store.threads.get(t.thread_id) ? store.threads.family(t.thread_id) : [];
       // Refused rather than canceled, as for a chat: a turn half-way through a tool may still be changing things.
       if (store.threads.busy(ids)) throw conflict("something is running in this task's conversation: stop it first");
+      await beforeDelete?.(ids);
       const files = store.tx(() => {
         store.notifications.dropThreads(ids);
         store.notifications.resolve("task", t.id);
