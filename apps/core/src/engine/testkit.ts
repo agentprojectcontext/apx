@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import type { Message } from "@apx/protocol";
+import type { Message, PendingInput } from "@apx/protocol";
 import { ApxClient } from "@apx/protocol/client";
 import type { TailscaleRun } from "../access.ts";
 import type { AdapterFactory } from "../channels/types.ts";
@@ -16,6 +16,7 @@ import type { AssistantItem, Completion } from "../providers/types.ts";
 import type { ReleaseSource } from "../release-notes.ts";
 import { createCore } from "../server.ts";
 import type { TelemetrySink } from "../telemetry-sink.ts";
+import { removeDir, waitFor } from "../testkit/platform.ts";
 import { scratchRoot } from "../tools/folders.ts";
 import type { Tool } from "../tools/types.ts";
 import type { NgrokStart } from "../webhooks.ts";
@@ -166,14 +167,36 @@ export async function startCore(opts: {
     }
     throw new Error(`thread ${thread} never settled`);
   };
-  const cleanup = () => {
-    // Retry transient filesystem locks; persistent cleanup failures still fail the test.
-    const options = { recursive: true, force: true, maxRetries: 10, retryDelay: 50 };
-    fs.rmSync(home, options);
-    fs.rmSync(scratchRoot(home), options);
+  /** Removes the core's folders; close the core (and anything it started) first. */
+  const cleanup = async () => {
+    await removeDir(home);
+    await removeDir(scratchRoot(home));
   };
   return { core, client, home, settle, cleanup };
 }
+
+/** The first input a run in `thread` waits on (a confirmation, a question); fails after `ms` (× TEST_TIME_SCALE). */
+export const pendingInput = (client: ApxClient, thread: string, ms = 10_000): Promise<PendingInput> =>
+  waitFor(async () => (await client.call("runs.pending", { thread })).inputs[0], `an input in ${thread}`, { ms });
+
+/** Like pendingInput, but undefined once the thread's runs all ended without asking anything. */
+export const inputOrEnd = (client: ApxClient, thread: string, ms = 10_000): Promise<PendingInput | undefined> =>
+  waitFor(
+    async () => {
+      const input = (await client.call("runs.pending", { thread })).inputs[0];
+      if (input) return { input };
+      const { runs } = await client.call("threads.get", { thread });
+      return runs.length && runs.every((r) => r.ended_at) ? { input: undefined } : undefined;
+    },
+    `an input or the end of ${thread}`,
+    { ms },
+  ).then((r) => r.input);
+
+/** inputOrEnd as a list: the input, or none. */
+export const inputsOrEnd = async (client: ApxClient, thread: string, ms = 10_000): Promise<PendingInput[]> => {
+  const input = await inputOrEnd(client, thread, ms);
+  return input ? [input] : [];
+};
 
 export const texts = (messages: Message[]) =>
   messages.flatMap((m) => m.parts.flatMap((p) => (p.type === "text" ? [p.text] : [])));
