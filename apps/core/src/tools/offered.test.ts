@@ -28,7 +28,7 @@ before(async () => {
 after(async () => {
   await env.core.close();
   await tg.close();
-  env.cleanup();
+  await env.cleanup();
 });
 
 async function turn() {

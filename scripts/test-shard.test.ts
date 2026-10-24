@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { removeDir, tempDir } from "../apps/core/src/testkit/platform.ts";
 import { parseTestScript, reportFlaky, rerunVerdict, runFiles, type Suite, shard } from "./test-shard.ts";
 
 test("a package's test script is read as its steps before node --test, its flags and its globs", () => {
@@ -46,8 +46,8 @@ test("the parts together run every file once, spread evenly, and whole suites on
 });
 
 test("a failed file runs once more: passing then is flaky, failing again fails, and a crash is never flaky", (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-shard-test-"));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const dir = tempDir("apx-shard-test-").path;
+  t.after(() => removeDir(dir));
   const write = (name: string, body: string) =>
     fs.writeFileSync(path.join(dir, name), `import { test } from "node:test";\nimport fs from "node:fs";\n${body}\n`);
   write("pass.test.ts", 'test("passes", () => {});');
@@ -71,8 +71,8 @@ test("a failed file runs once more: passing then is flaky, failing again fails, 
 });
 
 test("flaky files are written to the job summary, one row each, with their count", (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-shard-summary-"));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const dir = tempDir("apx-shard-summary-").path;
+  t.after(() => removeDir(dir));
   const summary = path.join(dir, "summary.md");
   const log = t.mock.method(console, "log", () => {});
   reportFlaky([], "1/4", summary);

@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
+import { removeDir, tempDir } from "../apps/core/src/testkit/platform.ts";
 import { bootFiles, bootProblems, bootReport, moduleBytes, owner } from "./bundle.ts";
 
 /** A built panel: an entry that imports a shared chunk, a lazy screen and two language chunks. */
 function dist(files: Record<string, string>): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-bundle-"));
+  const dir = tempDir("apx-bundle-").path;
   fs.mkdirSync(path.join(dir, "assets"));
   fs.writeFileSync(
     path.join(dir, "index.html"),
@@ -31,7 +31,7 @@ const panel = {
 
 test("the first load is the entry, its static imports and the heavier language with its own imports", (t) => {
   const dir = dist(panel);
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeDir(dir));
   const boot = bootFiles(dir);
   assert.ok(boot);
   assert.deepEqual(boot.initial.sort(), ["assets/index-A.js", "assets/index-B.css", "assets/shared-C.js"]);
@@ -45,7 +45,7 @@ test("zod or a lazy screen pulled onto the first load is named", (t) => {
   // The language imports the protocol's barrel, and a static import merged ProjectScreen into the entry.
   const { "assets/ProjectScreen-F.js": _merged, ...rest } = panel;
   const dir = dist({ ...rest, "assets/en-D.js": 'import"./notices-G.js";import"./src-H.js";export const en={};' });
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeDir(dir));
   const boot = bootFiles(dir);
   assert.ok(boot);
   assert.deepEqual(bootProblems(dir, boot, ["ProjectScreen"]), [
@@ -65,7 +65,7 @@ test("a sourcemap names the packages and files that weigh the most", (t) => {
       mappings: "AAAA,ICAA",
     }),
   });
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  t.after(() => removeDir(dir));
   const bytes = moduleBytes(dir, "assets/shared-C.js");
   assert.equal(bytes?.get("zod"), 4);
   assert.equal(bytes?.size, 2);

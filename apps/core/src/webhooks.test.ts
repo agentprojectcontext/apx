@@ -5,6 +5,7 @@ import { after, before, test } from "node:test";
 import type { TailscaleRun } from "./access.ts";
 import type { ChannelAdapter, HookRequest } from "./channels/types.ts";
 import { say, scriptedLlm, startCore } from "./engine/testkit.ts";
+import { waitFor } from "./testkit/platform.ts";
 import { createWebhooks, NGROK_WAIT_MS, type NgrokProcess, type NgrokStart, ngrokLine } from "./webhooks.ts";
 
 const got: HookRequest[] = [];
@@ -209,12 +210,12 @@ test("a tunnel that dies while ngrok is chosen comes back on its own, later each
     assert.equal((await hooks.set({ mode: "ngrok" })).url, "https://abc-123.ngrok-free.app");
     exit?.(1);
     assert.equal(hooks.base(), undefined);
-    for (let i = 0; i < 100 && starts < 2; i++) await new Promise((r) => setTimeout(r, 5));
-    for (let i = 0; i < 100 && !hooks.base(); i++) await new Promise((r) => setTimeout(r, 5));
+    await waitFor(() => starts >= 2, "ngrok started again", { every: 5 });
+    await waitFor(() => hooks.base(), "the address back", { every: 5 });
     assert.equal(starts, 2, "started again");
     assert.equal(hooks.base(), "https://abc-123.ngrok-free.app");
     exit?.(1);
-    for (let i = 0; i < 100 && starts < 3; i++) await new Promise((r) => setTimeout(r, 5));
+    await waitFor(() => starts >= 3, "ngrok started a third time", { every: 5 });
     assert.deepEqual(waits, [0, 0], "an address that came back starts the waits over");
     await hooks.set({ mode: "off" });
     exit?.(1);
@@ -238,6 +239,6 @@ test("a core whose ngrok is slow to answer starts its channels without waiting f
     assert.deepEqual([st.mode, st.url], ["ngrok", undefined]);
   } finally {
     await second.core.close();
-    second.cleanup();
+    await second.cleanup();
   }
 });
