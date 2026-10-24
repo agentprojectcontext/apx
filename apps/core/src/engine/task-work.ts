@@ -446,7 +446,9 @@ function answerAsker(
   const current = store.tasks.get(task.id) ?? task;
   if (current.state !== "open" || !store.agents.get(askerId)) return;
   const asked = store.threads.get(from.thread);
-  const thread = asked && !asked.archived ? asked : sessionFor(store, current, askerId);
+  // The main chat and a channel's reach the owner's phone: there the asker's reply to a teammate would land on the owner.
+  const ownerLine = asked?.kind === "home" || asked?.kind === "channel";
+  const thread = asked && !asked.archived && !ownerLine ? asked : sessionFor(store, current, askerId);
   if (trip(store, thread.id) || agentTrip(store, thread.id, askerId)) return;
   const name = store.agents.get(run.agent_id)?.name ?? run.agent_id;
   const text =

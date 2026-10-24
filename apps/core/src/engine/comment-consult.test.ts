@@ -15,6 +15,11 @@ const llm = scriptedLlm((req, { system, said, afterTool }) => {
     return say("Thanks, going on.");
   if (system.startsWith("You are Scout") && said.includes("include taxes") && !afterTool)
     return callTool("c2", "task_comment", { task: id, text: "@vera they do, see the invoice." });
+  if (system.includes("main secretary") && said.includes("Tell Scout") && !afterTool)
+    return callTool("c3", "task_comment", { task: id, text: "@scout keep the animation first" });
+  if (system.includes("main secretary") && said.includes("Scout answered your question"))
+    return say("Go on with that, Scout.");
+  if (system.startsWith("You are Scout") && said.includes("animation first")) return say("Noted: animation first.");
   if (system.startsWith("You are Scout")) return say("Yes: the totals include taxes.");
   return say(afterTool ? "Asked." : "On it.");
 });
@@ -62,4 +67,29 @@ test("an agent's @mention on its task asks that teammate, and the answer comes b
     .flatMap((m) => m.parts)
     .find((p) => p.type === "subthread");
   assert.equal(card?.type === "subthread" && card.asked_by, "vera");
+});
+
+test("the answer to a question asked from the owner's chat goes to the asker's chat for the task, not the owner's", async () => {
+  const store = env.core.store;
+  const task = await env.client.call("tasks.create", { title: "Acme reel", description: "A short reel about Acme." });
+  await env.client.call("threads.send", { thread: "home", text: `Tell Scout on ${task.id}: animation first.` });
+  await waitFor(() => store.threads.sessions(task.thread_id).some((t) => t.agent_ids[0] === "scout"), "the consult");
+  const chat = () => store.threads.byTask(task.id).find((t) => t.agent_ids[0] === "roby");
+  await waitFor(
+    () => store.runs.list(chat()?.id ?? "").some((r) => r.trigger === "a2a" && r.state === "completed"),
+    "the secretary hears the answer in its chat for the task",
+  );
+  await env.settle("home");
+  // The owner's chat (mirrored to their channels) holds only their words and the answer to them.
+  const home = store.messages.list("home", 50).map((m) => JSON.stringify(m.parts));
+  assert.ok(!home.some((t) => t.includes("Scout answered your question")), "no teammate's answer in the owner's chat");
+  assert.ok(!home.some((t) => t.includes("Go on with that, Scout")), "no words for the teammate in the owner's chat");
+  assert.ok(
+    store.runs.list("home").every((r) => r.trigger !== "a2a"),
+    "no teammate wakes the owner's chat",
+  );
+  const heard = store.messages
+    .list(chat()?.id ?? "", 50)
+    .find((m) => JSON.stringify(m.parts).includes("Scout answered your question"));
+  assert.match(JSON.stringify(heard?.parts), /animation first/);
 });
