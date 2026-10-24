@@ -82,3 +82,19 @@ test("who is online and what is set for a contact show on their row", async ({ p
   await world.whatsapp.presence(NORA, false);
   await expect(row.getByRole("img", { name: "En línea" })).toBeHidden({ timeout: 8000 });
 });
+
+test("a muted, supervised contact's card keeps Save inside it", async ({ page }) => {
+  const { persons } = await rpc<{ persons: Array<{ id: string; name: string }> }>("contacts.list");
+  const nora = persons.find((p) => p.name === "Nora");
+  await rpc("contacts.set", { id: nora?.id, name: "Nora", muted: true, supervised: true });
+
+  await open(page);
+  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
+  await page.locator(".chan__rows").getByRole("button", { name: /Nora/ }).click();
+  const card = page.getByRole("complementary", { name: "Contacto" });
+  if (!(await card.isVisible())) await page.getByRole("button", { name: "Abrir el contacto de Nora" }).click();
+  await expect(card.getByRole("button", { name: "Dejar de supervisar" })).toBeVisible();
+  const save = await card.getByRole("button", { name: "Guardar" }).boundingBox();
+  const edge = await card.boundingBox();
+  expect(save && edge && save.x + save.width <= edge.x + edge.width).toBe(true);
+});
