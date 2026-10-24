@@ -189,3 +189,29 @@ test("the owner's resources are held to the host's limits, and the disk only gro
     env.cleanup();
   }
 });
+
+test("approving the computer card without a scope allows the agent for that chat, not for one call", async () => {
+  const home = tempDir("apx-vm-tool-").path;
+  const vm = fakeComputer(home);
+  const llm = scriptedLlm((req) =>
+    results(req).length ? say("Done") : callTool("start", "computer", { action: "start" }),
+  );
+  const env = await startCore({ home, llm, computer: vm.config });
+  try {
+    env.core.store.settings.set("computer_enabled", "true");
+    const chat = await env.client.call("threads.create", { kind: "loose", agent_id: "scout" });
+    await env.client.call("threads.send", { thread: chat.id, text: "Use the computer" });
+    const input = await waitFor(
+      async () => (await env.client.call("runs.pending", { thread: chat.id })).inputs[0],
+      "the card",
+    );
+    await env.client.call("runs.respond", { input: input.id, decision: "approve" });
+    await env.settle(chat.id);
+    assert.match(results(llm.calls.at(-1) as LlmRequest)[0] ?? "", /Computer \(shared by the agents\)/);
+    const grants = (await env.client.call("tools.approvals", { thread: chat.id })).approvals;
+    assert.ok(grants.some((g) => g.key === COMPUTER_GRANT && g.scope === "session" && g.thread_id === chat.id));
+  } finally {
+    await env.core.close();
+    env.cleanup();
+  }
+});
